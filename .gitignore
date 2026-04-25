@@ -33,8 +33,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (do not ignore .env.example — it is the template for deploy)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -42,4 +43,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.env*.local
