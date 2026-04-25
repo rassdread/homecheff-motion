@@ -90,6 +90,12 @@ export const en: LocaleSchema = {
   "auth.form.email": "Email",
   "auth.form.password": "Password",
   "auth.form.genericError": "Login or signup failed. Please try again.",
+  "auth.form.errorInvalidCredentials": "Invalid email or password.",
+  "auth.form.errorEmailInUse": "This email is already registered.",
+  "auth.form.errorInvalidInput": "Check your email and password (min. 8 characters when signing up).",
+  "auth.form.errorNetwork": "Network error. Check your connection and try again.",
+  "auth.form.submittingLogin": "Signing in…",
+  "auth.form.submittingSignup": "Creating account…",
 
   "projectDetail.title": "Saved animation project",
   "projectDetail.meta.createdAt": "Created at",

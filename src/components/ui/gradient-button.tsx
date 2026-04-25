@@ -7,6 +7,8 @@ type SharedProps = {
   children: ReactNode;
   className?: string;
   loading?: boolean;
+  /** When `loading` is true, shown instead of the default generic loading label. */
+  loadingLabel?: ReactNode;
   disabled?: boolean;
 };
 
@@ -35,7 +37,9 @@ export function GradientButton(props: GradientButtonProps) {
   const t = getActiveTranslator();
   const loading = props.loading ?? false;
   const disabled = props.disabled ?? false;
-  const content = loading ? t("button.loading") : props.children;
+  const content = loading
+    ? (props.loadingLabel ?? t("button.loading"))
+    : props.children;
   const classes = getClasses(props.className ?? "", disabled, loading);
 
   if ("href" in props && props.href) {
@@ -50,10 +54,28 @@ export function GradientButton(props: GradientButtonProps) {
     );
   }
 
-  const { type = "button", ...buttonProps } = props as NativeButtonProps;
+  const {
+    type = "button",
+    loading: omitLoading,
+    loadingLabel: omitLoadingLabel,
+    children: omitChildren,
+    className: omitClassName,
+    disabled: omitDisabled,
+    ...buttonProps
+  } = props as NativeButtonProps;
+  void omitLoading;
+  void omitLoadingLabel;
+  void omitChildren;
+  void omitClassName;
+  void omitDisabled;
 
   return (
-    <button {...buttonProps} type={type} disabled={disabled || loading} className={classes}>
+    <button
+      {...buttonProps}
+      type={type}
+      disabled={disabled || loading}
+      className={classes}
+    >
       {content}
     </button>
   );

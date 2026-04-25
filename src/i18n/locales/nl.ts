@@ -89,6 +89,13 @@ export const nl = {
   "auth.form.email": "E-mailadres",
   "auth.form.password": "Wachtwoord",
   "auth.form.genericError": "Inloggen of registreren is mislukt. Probeer opnieuw.",
+  "auth.form.errorInvalidCredentials": "Ongeldig e-mailadres of wachtwoord.",
+  "auth.form.errorEmailInUse": "Dit e-mailadres is al geregistreerd.",
+  "auth.form.errorInvalidInput":
+    "Controleer e-mail en wachtwoord (min. 8 tekens bij registreren).",
+  "auth.form.errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
+  "auth.form.submittingLogin": "Bezig met inloggen…",
+  "auth.form.submittingSignup": "Account aanmaken…",
 
   "projectDetail.title": "Opgeslagen animatieproject",
   "projectDetail.meta.createdAt": "Aangemaakt op",
