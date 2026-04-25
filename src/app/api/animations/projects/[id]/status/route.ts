@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/server/auth/session";
 import type { PatchAnimationProjectStatusRequest } from "@/types/animation-api";
 
 type RouteContext = {
@@ -8,6 +9,10 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
   let payload: PatchAnimationProjectStatusRequest;
 
   try {
@@ -16,8 +21,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const project = await prisma.animationProject.findUnique({
-    where: { id },
+  const project = await prisma.animationProject.findFirst({
+    where: { id, ownerId: user.id },
     select: { id: true },
   });
 

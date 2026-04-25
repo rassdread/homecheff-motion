@@ -1,3 +1,6 @@
+export type { AnimationPresetId } from "@/lib/animation-presets";
+export type { AnimationUsageResponse } from "@/types/animation-api";
+
 export type AnimationStatus =
   | "idle"
   | "queued"
@@ -8,25 +11,38 @@ export type AnimationStatus =
 
 export type ProjectStatus = AnimationStatus;
 
-export type ExportStatus = "idle" | "rendering" | "completed" | "failed";
+export type ExportStatus =
+  | "idle"
+  | "queued"
+  | "rendering"
+  | "completed"
+  | "failed";
 
 export type AnimationImage = {
   id: string;
+  clientUploadId: string;
   originalFileName: string;
   optimizedBlob: Blob;
   thumbnailBlob: Blob;
   workingPreviewUrl: string;
   thumbnailPreviewUrl: string;
+  workingImageUrl?: string;
+  thumbnailUrl?: string;
+  workingStorageKey?: string;
+  thumbnailStorageKey?: string;
   mimeType: string;
   sizeBytes: number;
 };
 
 export type AnimationTransition = {
   id: string;
+  order?: number;
   startImageName: string;
   endImageName: string;
   startPreviewUrl: string;
   endPreviewUrl: string;
   status: AnimationStatus;
   progress: number;
+  outputVideoUrl?: string | null;
+  errorMessage?: string | null;
 };

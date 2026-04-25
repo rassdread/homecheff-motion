@@ -1,12 +1,34 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
-import { getActiveTranslator } from "@/i18n";
+import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import { ANIMATION_PRESETS, type AnimationPresetId } from "@/lib/animation-presets";
 import { brand } from "@/lib/brand";
+
+const PRESET_ORDER: AnimationPresetId[] = ["basic", "standard", "pro"];
+
+const PRESET_LABELS: Record<
+  AnimationPresetId,
+  { title: TranslationKey; description: TranslationKey }
+> = {
+  basic: {
+    title: "animate.preset.basic.title",
+    description: "animate.preset.basic.description",
+  },
+  standard: {
+    title: "animate.preset.standard.title",
+    description: "animate.preset.standard.description",
+  },
+  pro: {
+    title: "animate.preset.pro.title",
+    description: "animate.preset.pro.description",
+  },
+};
 
 export default function AnimatePage() {
   const t = getActiveTranslator();
@@ -17,16 +39,73 @@ export default function AnimatePage() {
     projectId,
     transitions,
     exportProgress,
+    overallProgress,
+    anyTransitionFailed,
     transitionPairs,
     isProcessing,
     canCreateAnimation,
     minImages,
     maxImages,
+    selectedPresetId,
+    setSelectedPresetId,
+    estimatedProjectCredits,
+    estimatedProjectUsd,
+    presetLimitMessage,
+    isAuthenticated,
+    isAuthResolved,
+    usage,
+    usageError,
+    jobsStartError,
+    pollError,
+    finalProjectVideoUrl,
+    exportPhaseError,
+    exportPollError,
     handleImageSelection,
     removeImage,
     handleCreateAnimation,
     handleStartOver,
+    retryStartJobs,
+    retryPoll,
+    retryExportPoll,
+    retryExportMerge,
   } = useAnimationWorkflow();
+
+  const canRetryExportMerge =
+    projectStatus === "failed" && Boolean(exportPhaseError) && !anyTransitionFailed;
+
+  if (!isAuthResolved) {
+    return (
+      <main className={`flex-1 ${brand.softGradientBg}`}>
+        <div className="mx-auto w-full max-w-3xl px-6 py-10">
+          <AppCard>
+            <p className="text-sm text-zinc-600">{t("animate.auth.loading")}</p>
+          </AppCard>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className={`flex-1 ${brand.softGradientBg}`}>
+        <div className="mx-auto w-full max-w-3xl px-6 py-10">
+          <AppCard>
+            <h1 className="text-2xl font-semibold">{t("animate.auth.requiredTitle")}</h1>
+            <p className="mt-2 text-zinc-600">{t("animate.auth.requiredDescription")}</p>
+            <div className="mt-6 flex gap-3">
+              <GradientButton href="/login">{t("animate.auth.loginCta")}</GradientButton>
+              <Link
+                href="/signup"
+                className="rounded-full border border-emerald-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-emerald-50"
+              >
+                {t("animate.auth.signupCta")}
+              </Link>
+            </div>
+          </AppCard>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -40,6 +119,106 @@ export default function AnimatePage() {
           {t("animate.subtitle")}
         </p>
       </div>
+
+      <AppCard className="mx-auto mt-8 max-w-3xl">
+        <h2 className="text-lg font-semibold">{t("animate.preset.title")}</h2>
+        <p className="mt-1 text-sm text-zinc-500">{t("animate.preset.hint")}</p>
+        {usage ? (
+          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-zinc-700">
+            <p>
+              {t("animate.usage.dailyRemainingVideos", {
+                remaining: usage.remaining.dailyVideosRemaining,
+                limit: usage.limits.maxVideosPerDay,
+              })}
+            </p>
+            <p className="mt-1">
+              {t("animate.usage.dailyRemainingCredits", {
+                remaining: usage.remaining.dailyCreditsRemaining,
+                limit: usage.limits.maxEstimatedCreditsPerDay,
+              })}
+            </p>
+            {usage.remaining.dailyVideosRemaining <= 1 ||
+            usage.remaining.dailyCreditsRemaining <= 100 ? (
+              <p className="mt-2 text-amber-700">{t("animate.usage.nearLimit")}</p>
+            ) : null}
+            {usage.remaining.dailyVideosRemaining <= 0 ||
+            usage.remaining.dailyCreditsRemaining <= 0 ? (
+              <p className="mt-2 text-red-700">{t("animate.usage.blocked")}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {usageError ? <p className="mt-2 text-xs text-amber-700">{usageError}</p> : null}
+        <fieldset disabled={isProcessing} className="mt-4 space-y-3">
+          <legend className="sr-only">{t("animate.preset.title")}</legend>
+          {PRESET_ORDER.map((presetId) => {
+            const def = ANIMATION_PRESETS[presetId];
+            const labels = PRESET_LABELS[presetId];
+            return (
+              <label
+                key={presetId}
+                className={`flex cursor-pointer gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                  selectedPresetId === presetId
+                    ? "border-emerald-400 bg-emerald-50/60"
+                    : "border-emerald-100 bg-white hover:border-emerald-200"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="animation-preset"
+                  value={presetId}
+                  checked={selectedPresetId === presetId}
+                  onChange={() => setSelectedPresetId(presetId)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-emerald-600"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-zinc-900">
+                    {t(labels.title)}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-zinc-600">
+                    {t(labels.description)}
+                  </span>
+                  <span className="mt-2 block space-y-1 text-xs text-zinc-500">
+                    <span className="block">
+                      {t("animate.preset.field.resolution", { value: def.resolution })}
+                    </span>
+                    <span className="block">
+                      {t("animate.preset.field.duration", { seconds: def.durationSeconds })}
+                    </span>
+                    <span className="block">
+                      {t("animate.preset.field.maxImages", { max: def.maxImages })}
+                    </span>
+                    <span className="block">
+                      {t("animate.preset.field.maxTransitions", { max: def.maxTransitions })}
+                    </span>
+                    <span className="block">
+                      {t("animate.preset.field.ceilingCredits", {
+                        credits: def.estimatedMaxCredits,
+                      })}
+                    </span>
+                    <span className="block">
+                      {t("animate.preset.field.ceilingUsd", {
+                        usd: def.estimatedMaxUsd.toFixed(2),
+                      })}
+                    </span>
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </fieldset>
+        {presetLimitMessage ? (
+          <p className="mt-3 text-sm text-amber-800">{presetLimitMessage}</p>
+        ) : null}
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-700">
+          <p>{t("animate.preset.field.estimatedCredits", { credits: estimatedProjectCredits })}</p>
+          <p className="mt-1">
+            {t("animate.preset.field.estimatedUsd", {
+              usd: estimatedProjectUsd.toFixed(2),
+            })}
+          </p>
+          <p className="mt-2 text-zinc-500">{t("animate.preset.estimateNote")}</p>
+        </div>
+      </AppCard>
 
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <label htmlFor="image-upload" className="block text-sm font-semibold">
@@ -124,9 +303,70 @@ export default function AnimatePage() {
 
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <h2 className="text-lg font-semibold">{t("animate.status.title")}</h2>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <StatusBadge status={projectStatus} />
+          {transitions.length > 0 ? (
+            <span className="text-sm text-zinc-600">
+              {t("animate.overallProgress")}: {overallProgress}%
+            </span>
+          ) : null}
         </div>
+        {jobsStartError ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-800">
+            <p>{jobsStartError}</p>
+            <button
+              type="button"
+              onClick={() => void retryStartJobs()}
+              className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
+            >
+              {t("animate.retryJobsStart")}
+            </button>
+          </div>
+        ) : null}
+        {pollError ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+            <p>{pollError}</p>
+            <button
+              type="button"
+              onClick={() => void retryPoll()}
+              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900"
+            >
+              {t("animate.retryPoll")}
+            </button>
+          </div>
+        ) : null}
+        {exportPollError ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900">
+            <p>{exportPollError}</p>
+            <button
+              type="button"
+              onClick={() => void retryExportPoll()}
+              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900"
+            >
+              {t("animate.export.retryPoll")}
+            </button>
+          </div>
+        ) : null}
+        {exportPhaseError && projectStatus !== "rendering" ? (
+          <p className="mt-3 text-sm text-red-700">{exportPhaseError}</p>
+        ) : null}
+        {canRetryExportMerge ? (
+          <button
+            type="button"
+            onClick={() => void retryExportMerge()}
+            className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
+          >
+            {t("animate.export.retryMerge")}
+          </button>
+        ) : null}
+        {anyTransitionFailed ? (
+          <p className="mt-3 text-sm font-medium text-red-700">
+            {t("status.failed")} — {t("animate.transitionError")}
+          </p>
+        ) : null}
+        {projectStatus === "failed" && !anyTransitionFailed ? (
+          <p className="mt-3 text-sm font-medium text-red-700">{t("status.failed")}</p>
+        ) : null}
       </AppCard>
 
       <AppCard className="mx-auto mt-8 max-w-3xl">
@@ -175,6 +415,21 @@ export default function AnimatePage() {
                     style={{ width: `${transition.progress}%` }}
                   />
                 </div>
+                {transition.errorMessage ? (
+                  <p className="mt-2 text-xs text-red-600">{transition.errorMessage}</p>
+                ) : null}
+                {transition.outputVideoUrl ? (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs font-medium text-zinc-600">
+                      {t("animate.transitionVideo")}
+                    </p>
+                    <video
+                      controls
+                      className="max-h-48 w-full rounded-lg border border-zinc-200 bg-black"
+                      src={transition.outputVideoUrl}
+                    />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -183,6 +438,9 @@ export default function AnimatePage() {
 
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <h2 className="text-lg font-semibold">{t("animate.export.title")}</h2>
+        {projectStatus === "rendering" ? (
+          <p className="mt-2 text-sm text-zinc-600">{t("animate.export.merging")}</p>
+        ) : null}
         <p className="mt-2 text-sm text-zinc-700">{exportProgress}%</p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
           <div
@@ -192,12 +450,31 @@ export default function AnimatePage() {
         </div>
       </AppCard>
 
+      {projectStatus === "rendering" ? (
+        <AppCard className="mx-auto mt-8 max-w-3xl">
+          <h2 className="text-lg font-semibold">{t("animate.export.merging")}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{t("animate.rendering.mergePending")}</p>
+        </AppCard>
+      ) : null}
       {projectStatus === "completed" ? (
         <AppCard className="mx-auto mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold">{t("animate.completed.title")}</h2>
-          <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 text-sm text-zinc-500">
-            {t("animate.completed.placeholder")}
-          </div>
+          {finalProjectVideoUrl ? (
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-medium text-zinc-600">
+                {t("animate.export.finalVideo")}
+              </p>
+              <video
+                controls
+                className="max-h-64 w-full rounded-xl border border-zinc-200 bg-black"
+                src={finalProjectVideoUrl}
+              />
+            </div>
+          ) : (
+            <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 text-sm text-zinc-500">
+              {t("animate.completed.placeholder")}
+            </div>
+          )}
         </AppCard>
       ) : null}
 

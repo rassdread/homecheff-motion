@@ -4,16 +4,35 @@ type LocaleSchema = Record<keyof typeof nl, string>;
 
 export const en: LocaleSchema = {
   "nav.create": "Create",
+  "nav.login": "Log in",
+  "nav.signup": "Create account",
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":
-    "Upload 2-7 images and create smooth animated transitions in the HomeCheff style.",
+    "Upload images and create smooth animated transitions in the HomeCheff style (limits per tier).",
   "landing.cta": "Create animation",
   "landing.mascotPlaceholder": "HomeCheff mascot/logo placeholder area",
 
   "animate.title": "Build your animation sequence",
   "animate.subtitle":
-    "Upload 2 to 7 photos, arrange them in order, and generate HomeCheff-style transitions.",
+    "Choose a quality tier, upload photos in order, and generate HomeCheff-style transitions.",
+  "animate.preset.title": "Quality tier",
+  "animate.preset.hint": "Settings are enforced on the server—you only pick the tier.",
+  "animate.preset.basic.title": "Basic",
+  "animate.preset.basic.description": "Low-cost test",
+  "animate.preset.standard.title": "Standard",
+  "animate.preset.standard.description": "Best balance",
+  "animate.preset.pro.title": "Pro",
+  "animate.preset.pro.description": "Higher quality",
+  "animate.preset.field.resolution": "Resolution: {value}",
+  "animate.preset.field.duration": "Duration per transition: {seconds} s",
+  "animate.preset.field.maxImages": "Max images: {max}",
+  "animate.preset.field.maxTransitions": "Max transitions: {max}",
+  "animate.preset.field.estimatedCredits": "Estimated credits (this project): {credits}",
+  "animate.preset.field.estimatedUsd": "Estimated cost in USD (indicative): {usd}",
+  "animate.preset.field.ceilingCredits": "Project ceiling (indicative): {credits} credits",
+  "animate.preset.field.ceilingUsd": "Ceiling in USD (indicative): {usd}",
+  "animate.preset.estimateNote": "Estimates are indicative only; billing is not enabled yet.",
   "animate.upload.label": "Upload images",
   "animate.upload.help": "Supported types: images only. Maximum {max}.",
   "animate.upload.minWarning": "Add at least {min} images to continue.",
@@ -29,11 +48,48 @@ export const en: LocaleSchema = {
   "animate.transitions.progressEmpty":
     "Transition progress appears after you start generation.",
   "animate.export.title": "Export progress",
+  "animate.overallProgress": "Overall progress (average across transitions)",
+  "animate.transitionVideo": "Transition video preview",
+  "animate.transitionError": "Error",
+  "animate.retryJobsStart": "Retry starting jobs",
+  "animate.retryPoll": "Reconnect and refresh status",
+  "animate.rendering.mergePending": "Merging your clips into one video…",
+  "animate.export.merging": "Merging transition clips",
+  "animate.export.finalVideo": "Final video",
+  "animate.export.retryMerge": "Retry export",
+  "animate.export.retryPoll": "Retry export status refresh",
   "animate.completed.title": "Animation completed",
   "animate.completed.placeholder": "Final MP4 preview placeholder",
   "animate.button.create": "Create animation",
   "animate.button.startOver": "Start over",
   "animate.button.openSavedProject": "Open saved project",
+  "animate.auth.loading": "Checking session...",
+  "animate.auth.requiredTitle": "Log in to create videos",
+  "animate.auth.requiredDescription":
+    "Because AI generation has real costs, this feature is only available with an account.",
+  "animate.auth.loginCta": "Log in",
+  "animate.auth.signupCta": "Create account",
+  "animate.usage.dailyRemainingVideos":
+    "Remaining today: {remaining} of {limit} videos",
+  "animate.usage.dailyRemainingCredits":
+    "Remaining today: {remaining} of {limit} estimated credits",
+  "animate.usage.nearLimit": "You are close to your daily limit.",
+  "animate.usage.blocked": "Your limit is reached; starting animation is temporarily blocked.",
+  "animate.usage.unavailable": "Usage information is temporarily unavailable.",
+
+  "auth.login.title": "Log in",
+  "auth.login.subtitle": "Log in to continue creating animations.",
+  "auth.login.cta": "Log in",
+  "auth.login.link": "Log in",
+  "auth.login.noAccount": "No account yet?",
+  "auth.signup.title": "Create account",
+  "auth.signup.subtitle": "Create an account to generate animations safely.",
+  "auth.signup.cta": "Create account",
+  "auth.signup.link": "Create account",
+  "auth.signup.hasAccount": "Already have an account?",
+  "auth.form.email": "Email",
+  "auth.form.password": "Password",
+  "auth.form.genericError": "Login or signup failed. Please try again.",
 
   "projectDetail.title": "Saved animation project",
   "projectDetail.meta.createdAt": "Created at",
@@ -58,6 +114,13 @@ export const en: LocaleSchema = {
 
   "button.loading": "Generating...",
 
+  "errors.presetInvalid": "Invalid quality tier. Choose basic, standard, or pro.",
+  "errors.presetMaxImages":
+    "This tier allows at most {max} images. Remove some or pick a higher tier.",
+  "errors.presetMaxTransitions":
+    "This tier does not allow enough transitions for your photo count (max {max} transitions).",
+  "errors.presetReduceImages":
+    "You have more images than this tier allows (max {max}). Remove some or pick a higher tier.",
   "errors.maxImages": "You can upload up to {max} images total.",
   "errors.imageRange": "Please upload between {min} and {max} images.",
   "errors.createProjectFailed": "Failed to save project. Please try again.",
@@ -67,4 +130,24 @@ export const en: LocaleSchema = {
     "One or more files were not valid images and were skipped.",
   "errors.imageProcessFailed":
     "Could not optimize one or more images. Please try different files.",
+  "errors.optimizedTooLarge":
+    "One or more optimized images exceed 2MB and were skipped.",
+  "errors.uploadFailed":
+    "Could not upload optimized images. Please try again.",
+  "errors.jobsStartFailed":
+    "Could not start animation jobs on the server. Retry or start over.",
+  "errors.pollFailed":
+    "Could not refresh status after several attempts. Check your connection and retry.",
+  "errors.exportStartFailed":
+    "Could not start export on the server. Check your connection or try again.",
+  "errors.exportPollFailed":
+    "Could not refresh export status after several attempts. Try again.",
+  "errors.authRequired": "Log in to start an animation.",
+  "errors.usage.dailyLimit": "Daily limit reached: you cannot create more videos today.",
+  "errors.usage.monthlyLimit":
+    "Monthly limit reached: you cannot create more videos this month.",
+  "errors.usage.creditLimit":
+    "Estimated credit limit reached. Try again tomorrow or choose a lighter preset.",
+  "errors.usage.presetLimit":
+    "You reached the daily limit for this preset. Pick another preset or try tomorrow.",
 };

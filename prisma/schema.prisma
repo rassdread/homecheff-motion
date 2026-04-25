@@ -9,15 +9,28 @@ datasource db {
 
 model AnimationProject {
   id          String                @id @default(cuid())
+  ownerId     String
+  owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title       String?
   status      String
   stylePreset String?
   aspectRatio String?
+  /** basic | standard | pro — enforced server-side */
+  presetId             String   @default("standard")
+  /** Vidu model id used for transitions (from preset at create time). */
+  viduModel            String?
+  viduResolution       String?
+  viduDurationSeconds  Int?
+  /** Estimated credits for this project at creation (UI / planning only). */
+  estimatedCredits     Int?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
   images      AnimationImage[]
   transitions AnimationTransition[]
   exports     AnimationExport[]
+  usageLedger AnimationUsageLedger[]
+
+  @@index([ownerId, createdAt])
 }
 
 model AnimationImage {
@@ -67,4 +80,29 @@ model AnimationExport {
   updatedAt     DateTime         @updatedAt
 
   @@index([projectId, status])
+}
+
+model User {
+  id           String                 @id @default(cuid())
+  email        String                 @unique
+  passwordHash String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  animationProjects AnimationProject[]
+  animationUsage    AnimationUsageLedger[]
+}
+
+model AnimationUsageLedger {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId        String?  @unique
+  project          AnimationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  presetId         String
+  estimatedCredits Int
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, presetId, createdAt])
 }
