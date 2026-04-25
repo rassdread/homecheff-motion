@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AnimationProject {
+  id          String                @id @default(cuid())
+  title       String?
+  status      String
+  stylePreset String?
+  aspectRatio String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  images      AnimationImage[]
+  transitions AnimationTransition[]
+  exports     AnimationExport[]
+}
+
+model AnimationImage {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  order      Int
+  fileName   String
+  mimeType   String?
+  sizeBytes  Int?
+  storageKey String?
+  previewUrl String?
+  createdAt  DateTime         @default(now())
+
+  @@index([projectId, order])
+}
+
+model AnimationTransition {
+  id            String           @id @default(cuid())
+  projectId     String
+  project       AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  startImageId  String
+  endImageId    String
+  order         Int
+  status        String
+  provider      String?
+  providerJobId String?
+  outputVideoUrl String?
+  errorMessage  String?
+  progress      Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([projectId, order])
+  @@index([projectId, status])
+}
+
+model AnimationExport {
+  id            String           @id @default(cuid())
+  projectId     String
+  project       AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status        String
+  outputVideoUrl String?
+  errorMessage  String?
+  progress      Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([projectId, status])
+}
