@@ -206,6 +206,7 @@ export function useAnimationWorkflow() {
   const [retryJobsBusy, setRetryJobsBusy] = useState(false);
   const [retryPollBusy, setRetryPollBusy] = useState(false);
   const [retryExportPollBusy, setRetryExportPollBusy] = useState(false);
+  const [cancelExportBusy, setCancelExportBusy] = useState(false);
   const [canUseAdvancedAnimationControls, setCanUseAdvancedAnimationControls] =
     useState(false);
   const [advancedLimits, setAdvancedLimits] = useState<NonNullable<
@@ -533,6 +534,11 @@ export function useAnimationWorkflow() {
   }, []);
 
   const applySnapshot = useCallback((snapshot: ProjectSnapshotResponse) => {
+    if (snapshot.status === "failed") {
+      runIdRef.current += 1;
+      exportPollFailureCountRef.current = 0;
+      setExportPollError(null);
+    }
     const locals = imagesRef.current;
     setProjectStatus(mapProjectStatus(snapshot.status));
     setTransitions(mapSnapshotToTransitions(snapshot, locals));
@@ -661,6 +667,30 @@ export function useAnimationWorkflow() {
       return false;
     }
   }, [applySnapshot]);
+
+  const postExportCancel = useCallback(
+    async (pid: string): Promise<{ ok: boolean; error?: string }> => {
+      setCancelExportBusy(true);
+      try {
+        const response = await fetch(`/api/animations/projects/${pid}/export/cancel`, {
+          method: "POST",
+        });
+        const data = (await response.json()) as ExportRouteResponse & { error?: string };
+        if (!response.ok) {
+          return { ok: false, error: data.error ?? "Cancel failed." };
+        }
+        if (data.project) {
+          applySnapshot(data.project);
+        }
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "Cancel failed." };
+      } finally {
+        setCancelExportBusy(false);
+      }
+    },
+    [applySnapshot]
+  );
 
   useEffect(() => {
     if (
@@ -1532,6 +1562,8 @@ export function useAnimationWorkflow() {
     retryPoll,
     retryExportPoll,
     retryExportMerge,
+    cancelExportBusy,
+    postExportCancel,
     canUseAdvancedAnimationControls,
     advancedLimits,
     advancedMode,

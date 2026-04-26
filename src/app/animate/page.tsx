@@ -110,6 +110,8 @@ export default function AnimatePage() {
     retryPoll,
     retryExportPoll,
     retryExportMerge,
+    cancelExportBusy,
+    postExportCancel,
     canUseAdvancedAnimationControls,
     advancedLimits,
     advancedMode,
@@ -134,6 +136,8 @@ export default function AnimatePage() {
 
   const [targetTotalFocused, setTargetTotalFocused] = useState(false);
   const [targetTotalEditDraft, setTargetTotalEditDraft] = useState("");
+  const [showStuckExportCancel, setShowStuckExportCancel] = useState(false);
+  const [exportCancelFeedback, setExportCancelFeedback] = useState<string | null>(null);
 
   const secondsPerTransitionForUi = useAdvancedOverrides
     ? advancedDuration
@@ -148,6 +152,22 @@ export default function AnimatePage() {
 
   const canRetryExportMerge =
     projectStatus === "failed" && !anyTransitionFailed;
+
+  useEffect(() => {
+    if (
+      projectStatus !== "rendering" ||
+      anyTransitionFailed ||
+      finalProjectVideoUrl ||
+      !projectId
+    ) {
+      const resetId = window.setTimeout(() => setShowStuckExportCancel(false), 0);
+      return () => window.clearTimeout(resetId);
+    }
+    const timer = window.setTimeout(() => setShowStuckExportCancel(true), 30_000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [projectStatus, anyTransitionFailed, finalProjectVideoUrl, projectId]);
 
   if (!isAuthResolved) {
     return (
@@ -711,10 +731,40 @@ export default function AnimatePage() {
             </button>
           </div>
         ) : null}
+        {projectId && showStuckExportCancel && projectStatus === "rendering" ? (
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-800">
+            <button
+              type="button"
+              disabled={cancelExportBusy}
+              onClick={() => {
+                if (!window.confirm(t("animate.export.cancelConfirm"))) {
+                  return;
+                }
+                setExportCancelFeedback(null);
+                void (async () => {
+                  const result = await postExportCancel(projectId);
+                  if (!result.ok) {
+                    setExportCancelFeedback(result.error ?? t("animate.export.cancelFailed"));
+                  }
+                })();
+              }}
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cancelExportBusy ? t("animate.retry.busy") : t("animate.export.cancel")}
+            </button>
+            {exportCancelFeedback ? (
+              <p className="mt-2 text-xs text-red-700">{exportCancelFeedback}</p>
+            ) : null}
+          </div>
+        ) : null}
         {exportPhaseError &&
         projectStatus !== "generating" &&
         projectStatus !== "rendering" ? (
-          <p className="mt-3 text-sm text-red-700">{exportPhaseError}</p>
+          <p className="mt-3 text-sm text-red-700">
+            {exportPhaseError.toLowerCase().includes("cancelled")
+              ? t("animate.export.cancelled")
+              : exportPhaseError}
+          </p>
         ) : null}
         {canRetryExportMerge ? (
           <button

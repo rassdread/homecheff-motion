@@ -169,6 +169,11 @@ export const en: LocaleSchema = {
   "animate.export.finalVideo": "Final video",
   "animate.export.retryMerge": "Retry export",
   "animate.export.retryPoll": "Retry export status refresh",
+  "animate.export.cancel": "Cancel export",
+  "animate.export.cancelled": "Export was cancelled.",
+  "animate.export.cancelFailed": "Could not cancel the export. Try again or refresh the page.",
+  "animate.export.cancelConfirm":
+    "Stop the current merge/export? You can start export again afterwards.",
   "animate.completed.title": "Animation completed",
   "animate.completed.placeholder": "Final MP4 preview placeholder",
   "animate.button.create": "Create animation",

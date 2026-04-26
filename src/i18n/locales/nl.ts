@@ -168,6 +168,11 @@ export const nl = {
   "animate.export.finalVideo": "Eindvideo",
   "animate.export.retryMerge": "Export opnieuw proberen",
   "animate.export.retryPoll": "Exportstatus opnieuw ophalen",
+  "animate.export.cancel": "Export annuleren",
+  "animate.export.cancelled": "Export is geannuleerd.",
+  "animate.export.cancelFailed": "Annuleren van de export is mislukt. Probeer opnieuw of ververs de pagina.",
+  "animate.export.cancelConfirm":
+    "Huidige merge/export stoppen? Daarna kun je de export opnieuw starten.",
   "animate.completed.title": "Animatie voltooid",
   "animate.completed.placeholder": "Placeholder voor definitieve MP4-preview",
   "animate.button.create": "Animatie maken",

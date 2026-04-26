@@ -456,6 +456,11 @@ export async function pollProjectExport(projectId: string) {
     throw new Error("Project not found.");
   }
 
+  /** User-cancelled or other terminal failure: do not auto-restart merge from poll. */
+  if (project.status === "failed") {
+    return project;
+  }
+
   const latestExport = project.exports[0];
   const allTransitionsDone =
     project.transitions.length > 0 &&

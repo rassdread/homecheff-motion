@@ -35,6 +35,14 @@ function intentLabelKey(intent: string | null | undefined): TranslationKey | nul
   return `animate.intent.${intent}` as TranslationKey;
 }
 
+function exportRecordIsCancellable(ex: { status: string } | null | undefined): boolean {
+  if (!ex) {
+    return false;
+  }
+  const s = ex.status.toLowerCase();
+  return s === "idle" || s === "queued" || s === "rendering" || s === "processing";
+}
+
 function statusLabelKey(status: string): TranslationKey {
   switch (status) {
     case "completed":
@@ -59,6 +67,9 @@ export default function VideoDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fragmentsOpen, setFragmentsOpen] = useState(false);
+  const [showVideoExportCancel, setShowVideoExportCancel] = useState(false);
+  const [exportCancelBusy, setExportCancelBusy] = useState(false);
+  const [exportCancelFeedback, setExportCancelFeedback] = useState<string | null>(null);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -115,6 +126,18 @@ export default function VideoDetailPage() {
       window.clearTimeout(timer);
     };
   }, [session.resolved, session.user, load]);
+
+  useEffect(() => {
+    const ex = detail?.exports?.[0];
+    if (!detail || detail.status !== "rendering" || !exportRecordIsCancellable(ex)) {
+      const resetId = window.setTimeout(() => setShowVideoExportCancel(false), 0);
+      return () => window.clearTimeout(resetId);
+    }
+    const timer = window.setTimeout(() => setShowVideoExportCancel(true), 30_000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [detail]);
 
   const finalVideoUrl = useMemo(() => {
     if (!detail?.exports?.length) {
@@ -186,6 +209,9 @@ export default function VideoDetailPage() {
 
   const intentKey = intentLabelKey(detail.intent);
   const thumb = detail.images[0]?.previewUrl?.trim() || null;
+  const userCancelledExport =
+    Boolean(latestExport?.errorMessage?.toLowerCase().includes("cancelled")) &&
+    latestExport?.status === "failed";
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-10 sm:py-10">
@@ -238,7 +264,48 @@ export default function VideoDetailPage() {
           <p className="text-xs leading-relaxed text-zinc-500">{t("videos.downloadHint")}</p>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-zinc-600">{t("videos.processing")}</p>
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-zinc-600">{t("videos.processing")}</p>
+          {detail.status === "rendering" && showVideoExportCancel ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <button
+                type="button"
+                disabled={exportCancelBusy}
+                onClick={() => {
+                  if (!window.confirm(t("animate.export.cancelConfirm"))) {
+                    return;
+                  }
+                  setExportCancelFeedback(null);
+                  void (async () => {
+                    setExportCancelBusy(true);
+                    try {
+                      const res = await fetch(
+                        `/api/animations/projects/${encodeURIComponent(id)}/export/cancel`,
+                        { method: "POST", credentials: "include" }
+                      );
+                      const data = (await res.json().catch(() => ({}))) as {
+                        error?: string;
+                      };
+                      if (!res.ok) {
+                        setExportCancelFeedback(data.error ?? t("animate.export.cancelFailed"));
+                        return;
+                      }
+                      await load();
+                    } finally {
+                      setExportCancelBusy(false);
+                    }
+                  })();
+                }}
+                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {exportCancelBusy ? t("animate.retry.busy") : t("animate.export.cancel")}
+              </button>
+              {exportCancelFeedback ? (
+                <p className="mt-2 text-xs text-red-700">{exportCancelFeedback}</p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       )}
 
       <section className="mt-10 space-y-3">
@@ -271,11 +338,28 @@ export default function VideoDetailPage() {
       </section>
 
       {latestExport && (latestExport.status === "failed" || latestExport.errorMessage?.trim()) ? (
-        <section className="mt-8 rounded-lg border border-red-100 bg-red-50/80 px-4 py-3 text-sm text-red-900">
+        <section
+          className={`mt-8 rounded-lg border px-4 py-3 text-sm ${
+            userCancelledExport
+              ? "border-amber-200 bg-amber-50/90 text-amber-950"
+              : "border-red-100 bg-red-50/80 text-red-900"
+          }`}
+        >
           <p className="font-medium">{t("projectDetail.export.title")}</p>
-          <p className="mt-1">{t("videos.status.failed")}</p>
-          {latestExport.errorMessage?.trim() ? (
+          <p className="mt-1">
+            {userCancelledExport ? t("animate.export.cancelled") : t("videos.status.failed")}
+          </p>
+          {!userCancelledExport && latestExport.errorMessage?.trim() ? (
             <p className="mt-2 font-mono text-xs text-red-800/90">{latestExport.errorMessage.trim()}</p>
+          ) : null}
+          {userCancelledExport ? (
+            <Link
+              href={`/animate/${detail.id}`}
+              prefetch={false}
+              className="mt-3 inline-flex rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
+            >
+              {t("animate.export.retryMerge")}
+            </Link>
           ) : null}
         </section>
       ) : null}
