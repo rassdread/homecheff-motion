@@ -2,12 +2,31 @@ export const nl = {
   "nav.create": "Maken",
   "nav.login": "Inloggen",
   "nav.signup": "Account maken",
+  "nav.logout": "Uitloggen",
+  "nav.admin": "Beheer",
+  "nav.role.admin": "Admin",
+  "nav.role.power": "Power",
+  "nav.role.user": "Gebruiker",
 
   "landing.headline": "Zet foto's om in vloeiende AI-animaties",
   "landing.subtext":
     "Upload foto's en maak vloeiende geanimeerde overgangen in HomeCheff-stijl (limieten per niveau).",
   "landing.cta": "Animatie maken",
   "landing.mascotPlaceholder": "HomeCheff mascotte/logo placeholder",
+
+  "animate.mode.admin": "Admin modus — geavanceerde instellingen actief",
+  "animate.mode.user": "Gebruikersmodus — beperkte instellingen",
+  "animate.mode.power": "Power modus — uitgebreide presets",
+
+  "animate.duration.secondsPerTransition": "{seconds} seconden per overgang",
+  "animate.duration.transitions": "{count} overgangen",
+  "animate.duration.total": "Geschatte totale video: {duration}",
+  "animate.duration.explanation":
+    "Elk paar beelden maakt één overgang. 5 beelden = 4 overgangen.",
+  "animate.duration.targetTotal": "Gewenste totale duur (seconden)",
+  "animate.duration.targetTotalHint":
+    "Alleen admin: dit wordt omgerekend naar seconden per overgang.",
+  "animate.duration.creditsWithDuration": "{duration} · geschat {credits} credits",
 
   "animate.title": "Bouw je animatiesequentie",
   "animate.subtitle":

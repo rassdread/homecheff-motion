@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { AdminNavLink } from "@/components/layout/admin-nav-link";
+import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
 import { getActiveTranslator } from "@/i18n";
 import { brand } from "@/lib/brand";
 
@@ -25,14 +25,14 @@ export function AppShell({ children }: AppShellProps) {
               {brand.productName}
             </span>
           </Link>
-          <div className="flex items-center gap-2">
-            <AdminNavLink />
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
             <Link
               href="/animate"
-              className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-emerald-50"
+              className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-emerald-50 sm:px-4 sm:py-2 sm:text-sm"
             >
               {t("nav.create")}
             </Link>
+            <AppShellUserBar />
           </div>
         </nav>
       </header>

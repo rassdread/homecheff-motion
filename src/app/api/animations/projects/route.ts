@@ -20,6 +20,7 @@ import {
   getAdvancedAnimationLimitsForUser,
   requireUser,
 } from "@/server/auth/permissions";
+import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import type {
   CreatedAnimationTransition,
   CreateAnimationProjectErrorBody,
@@ -373,6 +374,10 @@ export async function POST(request: Request) {
       projectId: project.id,
       transitionsCount: createdTransitions.length,
       transitions: createdTransitions,
+      estimatedTotalDurationSeconds: getTotalVideoDurationSeconds(
+        createdImages.length,
+        viduDurationSeconds
+      ),
     };
 
     await tx.animationUsageLedger.create({

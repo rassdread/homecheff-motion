@@ -6,12 +6,31 @@ export const en: LocaleSchema = {
   "nav.create": "Create",
   "nav.login": "Log in",
   "nav.signup": "Create account",
+  "nav.logout": "Logout",
+  "nav.admin": "Admin panel",
+  "nav.role.admin": "Admin",
+  "nav.role.power": "Power",
+  "nav.role.user": "User",
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":
     "Upload images and create smooth animated transitions in the HomeCheff style (limits per tier).",
   "landing.cta": "Create animation",
   "landing.mascotPlaceholder": "HomeCheff mascot/logo placeholder area",
+
+  "animate.mode.admin": "Admin mode — advanced settings enabled",
+  "animate.mode.user": "User mode — limited settings",
+  "animate.mode.power": "Power mode — extended presets",
+
+  "animate.duration.secondsPerTransition": "{seconds} seconds per transition",
+  "animate.duration.transitions": "{count} transitions",
+  "animate.duration.total": "Estimated total video: {duration}",
+  "animate.duration.explanation":
+    "Each pair of images creates one transition. 5 images = 4 transitions.",
+  "animate.duration.targetTotal": "Target total duration (seconds)",
+  "animate.duration.targetTotalHint":
+    "Admin only: this is converted into seconds per transition.",
+  "animate.duration.creditsWithDuration": "{duration} · estimated {credits} credits",
 
   "animate.title": "Build your animation sequence",
   "animate.subtitle":

@@ -13,7 +13,10 @@ export type CreateAnimationProjectAdvancedPayload = {
   enabled?: boolean;
   model?: string;
   resolution?: string;
+  /** Seconds per transition; server validates and persists this (not total duration). */
   durationSeconds?: number;
+  /** Ignored by the API if sent; UI-only convenience. Never used as source of truth. */
+  targetTotalDuration?: number;
 };
 
 export type CreateAnimationProjectRequest = {
@@ -112,6 +115,8 @@ export type CreateAnimationProjectResponse = {
   projectId: string;
   transitionsCount: number;
   transitions: CreatedAnimationTransition[];
+  /** transitions × seconds per transition (server-computed). */
+  estimatedTotalDurationSeconds?: number;
 };
 
 export type PatchAnimationProjectStatusRequest = {

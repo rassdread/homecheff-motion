@@ -2,11 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { AnimateDurationSummary } from "@/components/animate/animate-duration-summary";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
-import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import { getActiveLocale, getActiveTranslator, type TranslationKey } from "@/i18n";
+import {
+  formatDurationSeconds,
+  getTotalVideoDurationSeconds,
+  getTransitionCount,
+} from "@/lib/animation-duration";
 import {
   ANIMATION_PRESETS,
   MAX_ANIMATION_USER_PROMPT_LENGTH,
@@ -38,6 +46,7 @@ const PRESET_LABELS: Record<
 
 export default function AnimatePage() {
   const t = getActiveTranslator();
+  const authSession = useAuthSession();
   const {
     images,
     error,
@@ -89,7 +98,33 @@ export default function AnimatePage() {
     advancedDuration,
     setAdvancedDuration,
     useAdvancedOverrides,
+    activePreset,
   } = useAnimationWorkflow();
+
+  const targetTotalFocusedRef = useRef(false);
+  const [targetTotalDraft, setTargetTotalDraft] = useState("");
+
+  const secondsPerTransitionForUi = useAdvancedOverrides
+    ? advancedDuration
+    : activePreset.durationSeconds;
+
+  useEffect(() => {
+    if (!useAdvancedOverrides || !advancedLimits) {
+      return;
+    }
+    if (targetTotalFocusedRef.current) {
+      return;
+    }
+    const total = getTotalVideoDurationSeconds(images.length, advancedDuration);
+    setTargetTotalDraft(String(total));
+  }, [useAdvancedOverrides, advancedLimits, images.length, advancedDuration]);
+
+  const durationLocale = getActiveLocale() === "nl" ? "nl" : "en";
+  const totalVideoSecondsForEstimate = getTotalVideoDurationSeconds(
+    images.length,
+    secondsPerTransitionForUi
+  );
+  const totalDurationLabel = formatDurationSeconds(totalVideoSecondsForEstimate, durationLocale);
 
   const canRetryExportMerge =
     projectStatus === "failed" && Boolean(exportPhaseError) && !anyTransitionFailed;
@@ -132,6 +167,18 @@ export default function AnimatePage() {
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
+        {authSession.resolved && authSession.user ? (
+          <div
+            className="mx-auto mb-5 max-w-3xl rounded-lg border border-emerald-200/70 bg-white/80 px-3 py-2 text-xs text-zinc-700 shadow-sm sm:px-4 sm:text-sm"
+            role="status"
+          >
+            {authSession.user.role === "admin"
+              ? t("animate.mode.admin")
+              : authSession.user.role === "power"
+                ? t("animate.mode.power")
+                : t("animate.mode.user")}
+          </div>
+        ) : null}
       <div className="mx-auto max-w-3xl">
         <p className="text-sm font-semibold text-emerald-700">{brand.productName}</p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -176,6 +223,12 @@ export default function AnimatePage() {
           </div>
         ) : null}
         {usageError ? <p className="mt-2 text-xs text-amber-700">{usageError}</p> : null}
+        <AnimateDurationSummary
+          t={t}
+          imageCount={images.length}
+          secondsPerTransition={secondsPerTransitionForUi}
+          className="mt-4 rounded-lg border border-emerald-100/80 bg-emerald-50/30 p-3"
+        />
         <fieldset disabled={isProcessing} className="mt-4 space-y-3">
           <legend className="sr-only">{t("animate.preset.title")}</legend>
           {visiblePresetIds.map((presetId) => {
@@ -317,10 +370,75 @@ export default function AnimatePage() {
                     className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
                   />
                 </div>
+                <AnimateDurationSummary
+                  t={t}
+                  imageCount={images.length}
+                  secondsPerTransition={advancedDuration}
+                  showExplanation={false}
+                  className="mt-2 rounded-md border border-violet-100 bg-white/70 p-2"
+                />
+                {useAdvancedOverrides ? (
+                  <div className="mt-3 space-y-1">
+                    <label
+                      htmlFor="adv-target-total"
+                      className="block text-xs font-medium text-zinc-700"
+                    >
+                      {t("animate.duration.targetTotal")}
+                    </label>
+                    <input
+                      id="adv-target-total"
+                      type="number"
+                      min={1}
+                      inputMode="numeric"
+                      value={targetTotalDraft}
+                      onFocus={() => {
+                        targetTotalFocusedRef.current = true;
+                      }}
+                      onChange={(e) => setTargetTotalDraft(e.target.value)}
+                      onBlur={() => {
+                        targetTotalFocusedRef.current = false;
+                        const tc = getTransitionCount(images.length);
+                        if (tc < 1 || !advancedLimits) {
+                          const total = getTotalVideoDurationSeconds(
+                            images.length,
+                            advancedDuration
+                          );
+                          setTargetTotalDraft(String(total));
+                          return;
+                        }
+                        const raw = Number.parseInt(targetTotalDraft, 10);
+                        if (!Number.isFinite(raw) || raw < 1) {
+                          setTargetTotalDraft(
+                            String(getTotalVideoDurationSeconds(images.length, advancedDuration))
+                          );
+                          return;
+                        }
+                        const per = Math.round(raw / tc);
+                        const clamped = Math.min(
+                          Math.max(1, per),
+                          advancedLimits.maxDurationSeconds
+                        );
+                        setAdvancedDuration(clamped);
+                      }}
+                      disabled={
+                        images.length < 2 || isProcessing || accountInactive || !advancedLimits
+                      }
+                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    />
+                    <p className="text-xs text-zinc-500">{t("animate.duration.targetTotalHint")}</p>
+                  </div>
+                ) : null}
                 <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-2 text-xs text-zinc-700">
-                  <p>{t("animate.advanced.estimatedCredits", { credits: estimatedProjectCredits })}</p>
-                  <p className="mt-1">
-                    {t("animate.advanced.estimatedCost", {
+                  <p>
+                    {t("animate.duration.creditsWithDuration", {
+                      duration: formatDurationSeconds(
+                        getTotalVideoDurationSeconds(images.length, advancedDuration),
+                        durationLocale
+                      ),
+                      credits: estimatedProjectCredits,
+                    })}
+                  </p>
+                  <p className="mt-1">{t("animate.advanced.estimatedCost", {
                       usd: estimatedProjectUsd.toFixed(2),
                     })}
                   </p>
@@ -336,7 +454,12 @@ export default function AnimatePage() {
         ) : null}
 
         <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-700">
-          <p>{t("animate.preset.field.estimatedCredits", { credits: estimatedProjectCredits })}</p>
+          <p>
+            {t("animate.duration.creditsWithDuration", {
+              duration: totalDurationLabel,
+              credits: estimatedProjectCredits,
+            })}
+          </p>
           <p className="mt-1">
             {t("animate.preset.field.estimatedUsd", {
               usd: estimatedProjectUsd.toFixed(2),
@@ -623,6 +746,13 @@ export default function AnimatePage() {
         </AppCard>
       ) : null}
 
+      <AnimateDurationSummary
+        t={t}
+        imageCount={images.length}
+        secondsPerTransition={secondsPerTransitionForUi}
+        showExplanation={false}
+        className="mx-auto mt-8 max-w-3xl rounded-lg border border-zinc-200 bg-white/80 p-3 text-xs text-zinc-700 sm:text-sm"
+      />
       <div className="mx-auto mt-10 max-w-3xl flex flex-col gap-3 sm:flex-row">
         <GradientButton
           disabled={!canCreateAnimation}

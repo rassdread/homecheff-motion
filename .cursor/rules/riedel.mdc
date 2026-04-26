@@ -1,0 +1,17 @@
+---
+description: "Riedel — Prisma migraties, build, daarna git add/commit/push (juiste volgorde)"
+alwaysApply: true
+---
+
+# Riedel (release- en git-volgorde)
+
+Wanneer de gebruiker vraagt om migraties, build en push (of vergelijkbaar), volg **deze volgorde**:
+
+1. **`npx prisma migrate deploy`** (of `migrate dev` tijdens lokale schema-wijzigingen) — database eerst bijwerken.
+2. **`npx prisma generate`** — client synchroon met schema (vaak al na migrate).
+3. **`npm run build`** — controleren dat de app bouwt **vóór** je commit. Zo voorkom je commits die niet builden.
+4. **`git add`** → **`git commit`** → **`git push`**
+
+Niet doen: eerst committen en daarna pas builden — dan kan een mislukte build al op `main` staan.
+
+`migrate deploy` draait tegen de database uit `DATABASE_URL`; andere omgevingen moeten na pull zelf `migrate deploy` draaien.
