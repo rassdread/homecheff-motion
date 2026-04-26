@@ -1,26 +1,40 @@
+import type { TranslationKey } from "@/i18n";
 import type { AnimationPresetId } from "@/lib/animation-presets";
+
+type IntentDefinition = {
+  /** Vidu prompt fragment — do not change without product review. */
+  prompt: string;
+  /** User-facing explanation (i18n). */
+  descriptionKey: TranslationKey;
+  /** Short hint for tooltip / quick context (i18n). */
+  hintKey: TranslationKey;
+};
 
 export const ANIMATION_INTENTS = {
   morph: {
-    label: "Morph",
     prompt:
       "The same subject transforms smoothly into the next image, preserving structure and identity.",
+    descriptionKey: "animate.intent.morph.description",
+    hintKey: "animate.intent.morph.hint",
   },
   cinematic: {
-    label: "Cinematic",
     prompt:
       "Scene evolves with cinematic camera movement, soft zoom, and natural motion.",
+    descriptionKey: "animate.intent.cinematic.description",
+    hintKey: "animate.intent.cinematic.hint",
   },
   product: {
-    label: "Product",
     prompt:
       "Product remains central and transforms cleanly into the next scene with controlled motion.",
+    descriptionKey: "animate.intent.product.description",
+    hintKey: "animate.intent.product.hint",
   },
   dynamic: {
-    label: "Dynamic",
     prompt: "Energetic transformation with dynamic motion, faster evolution between scenes.",
+    descriptionKey: "animate.intent.dynamic.description",
+    hintKey: "animate.intent.dynamic.hint",
   },
-} as const;
+} as const satisfies Record<string, IntentDefinition>;
 
 export type AnimationIntentId = keyof typeof ANIMATION_INTENTS;
 

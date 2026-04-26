@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { AnimationIntentPreviewCard } from "@/components/animate/animation-intent-preview-card";
 import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -12,6 +13,7 @@ import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
 import { getActiveTranslator, type TranslationKey } from "@/i18n";
 import { getTotalVideoDurationSeconds, getTransitionCount } from "@/lib/animation-duration";
 import {
+  ANIMATION_INTENTS,
   ANIMATION_INTENT_IDS,
   type AnimationIntentId,
 } from "@/lib/animation-intents";
@@ -284,26 +286,43 @@ export default function AnimatePage() {
             );
           })}
         </fieldset>
-        <div className="mt-4">
-          <label htmlFor="animation-intent" className="block text-sm font-medium text-zinc-700">
-            {t("animate.intent.label")}
-          </label>
-          <select
-            id="animation-intent"
-            value={selectedIntent}
-            onChange={(e) => {
-              setIntentManuallyChanged(true);
-              setSelectedIntent(e.target.value as AnimationIntentId);
-            }}
-            disabled={isProcessing || accountInactive}
-            className="mt-1 block max-w-md rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+        <div
+          className="mt-4"
+          role="group"
+          aria-labelledby="animation-intent-preview-heading"
+        >
+          <p
+            id="animation-intent-preview-heading"
+            className="text-sm font-medium text-zinc-700"
           >
+            {t("animate.intent.previewTitle")}
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-500">{t("animate.intent.previewHint")}</p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-3">
             {ANIMATION_INTENT_IDS.map((intentId) => (
-              <option key={intentId} value={intentId}>
-                {t(INTENT_LABEL_KEYS[intentId])}
-              </option>
+              <AnimationIntentPreviewCard
+                key={intentId}
+                intentId={intentId}
+                selected={selectedIntent === intentId}
+                onSelect={() => {
+                  setIntentManuallyChanged(true);
+                  setSelectedIntent(intentId);
+                }}
+                label={t(INTENT_LABEL_KEYS[intentId])}
+                description={t(ANIMATION_INTENTS[intentId].descriptionKey)}
+                showSuggestedBadge={
+                  images.length >= minImages &&
+                  !intentManuallyChanged &&
+                  suggestedIntent === intentId
+                }
+                suggestedBadgeText={t("animate.intent.suggestedBadge")}
+                disabled={isProcessing || accountInactive}
+              />
             ))}
-          </select>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
+            {t("animate.intent.pickerTip")}
+          </p>
           {images.length >= minImages ? (
             <p className="mt-2 text-xs text-zinc-500">
               {intentManuallyChanged

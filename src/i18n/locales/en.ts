@@ -23,12 +23,35 @@ export const en: LocaleSchema = {
   "animate.mode.power": "Power mode — extended presets",
 
   "animate.intent.label": "Animation style",
-  "animate.intent.morph": "Morph",
-  "animate.intent.cinematic": "Cinematic",
-  "animate.intent.product": "Product",
-  "animate.intent.dynamic": "Dynamic",
+  "animate.intent.moreInfo": "More about the selected style",
+  "animate.intent.morph": "Morph (smooth blend)",
+  "animate.intent.cinematic": "Cinematic (camera movement)",
+  "animate.intent.product": "Product (clean focus)",
+  "animate.intent.dynamic": "Dynamic (fast & energetic)",
+  "animate.intent.morph.description":
+    "Images smoothly transform into each other as one continuous scene.",
+  "animate.intent.cinematic.description":
+    "More cinematic feel with camera movement, zoom and natural motion.",
+  "animate.intent.product.description":
+    "Focused on products, clean transitions and clear subject.",
+  "animate.intent.dynamic.description":
+    "Faster and more energetic transitions, ideal for social content.",
+  "animate.intent.morph.hint":
+    "Best when frames look similar or show the same subject evolving.",
+  "animate.intent.cinematic.hint":
+    "Best when you want a film-like flow between more distinct shots.",
+  "animate.intent.product.hint":
+    "Best for packaging, catalog-style shots, or clear foreground objects.",
+  "animate.intent.dynamic.hint":
+    "Best for punchy edits and social-style pacing.",
+  "animate.intent.pickerTip":
+    "Tip: Try Morph for similar images, Cinematic for different scenes.",
   "animate.intent.suggested":
     "Suggested style: {style} — based on your images",
+  "animate.intent.suggestedBadge": "Suggested",
+  "animate.intent.previewTitle": "Animation style",
+  "animate.intent.previewHint":
+    "Illustrative previews only — no credits or video generation here.",
   "animate.intent.auto": "Auto suggestion",
   "animate.intent.manual": "Manual selection",
 

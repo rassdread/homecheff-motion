@@ -19,12 +19,35 @@ export const nl = {
   "animate.mode.power": "Power modus — uitgebreide presets",
 
   "animate.intent.label": "Animatiestijl",
-  "animate.intent.morph": "Morph",
-  "animate.intent.cinematic": "Cinematisch",
-  "animate.intent.product": "Product",
-  "animate.intent.dynamic": "Dynamisch",
+  "animate.intent.moreInfo": "Meer uitleg bij de gekozen stijl",
+  "animate.intent.morph": "Morph (vloeiende overgang)",
+  "animate.intent.cinematic": "Cinematic (filmisch)",
+  "animate.intent.product": "Product (strak)",
+  "animate.intent.dynamic": "Dynamic (snel & energiek)",
+  "animate.intent.morph.description":
+    "Beelden vloeien vloeiend in elkaar over als één doorlopende scène.",
+  "animate.intent.cinematic.description":
+    "Meer filmisch met camerabeweging, zoom en natuurlijke beweging.",
+  "animate.intent.product.description":
+    "Gericht op producten, met strakke overgangen en duidelijke focus.",
+  "animate.intent.dynamic.description":
+    "Snellere en energieke overgangen, ideaal voor social content.",
+  "animate.intent.morph.hint":
+    "Handig als je beelden sterk op elkaar lijken of hetzelfde onderwerp tonen.",
+  "animate.intent.cinematic.hint":
+    "Handig bij verschillende shots of sferen die toch één verhaal vormen.",
+  "animate.intent.product.hint":
+    "Handig voor catalogus-, verpakking- of productfoto’s met duidelijke focus.",
+  "animate.intent.dynamic.hint":
+    "Handig voor korte, pittige clips zoals reels of social posts.",
+  "animate.intent.pickerTip":
+    "Tip: Gebruik Morph voor vergelijkbare beelden, Cinematic voor verschillende scènes.",
   "animate.intent.suggested":
     "Voorgestelde stijl: {style} — gebaseerd op je beelden",
+  "animate.intent.suggestedBadge": "Voorgesteld",
+  "animate.intent.previewTitle": "Animatiestijl",
+  "animate.intent.previewHint":
+    "Alleen illustratieve previews — hier worden geen credits of video’s gebruikt.",
   "animate.intent.auto": "Automatische suggestie",
   "animate.intent.manual": "Handmatige keuze",
 
