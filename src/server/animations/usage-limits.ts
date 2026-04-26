@@ -160,15 +160,47 @@ export async function getUsageCountsForUser(
   userId: string,
   now = new Date()
 ): Promise<{ todayProjects: number; monthProjects: number }> {
+  const map = await getUsageCountsForUsers([userId], now);
+  return map.get(userId) ?? { todayProjects: 0, monthProjects: 0 };
+}
+
+/** Batch usage for admin user table — two queries instead of N×2. */
+export async function getUsageCountsForUsers(
+  userIds: string[],
+  now = new Date()
+): Promise<Map<string, { todayProjects: number; monthProjects: number }>> {
+  const map = new Map<string, { todayProjects: number; monthProjects: number }>();
+  for (const id of userIds) {
+    map.set(id, { todayProjects: 0, monthProjects: 0 });
+  }
+  if (userIds.length === 0) {
+    return map;
+  }
   const dayStart = startOfDay(now);
   const monthStart = startOfMonth(now);
-  const [todayProjects, monthProjects] = await Promise.all([
-    prisma.animationUsageLedger.count({
-      where: { userId, createdAt: { gte: dayStart } },
+  const [todayGroups, monthGroups] = await Promise.all([
+    prisma.animationUsageLedger.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, createdAt: { gte: dayStart } },
+      _count: { _all: true },
     }),
-    prisma.animationUsageLedger.count({
-      where: { userId, createdAt: { gte: monthStart } },
+    prisma.animationUsageLedger.groupBy({
+      by: ["userId"],
+      where: { userId: { in: userIds }, createdAt: { gte: monthStart } },
+      _count: { _all: true },
     }),
   ]);
-  return { todayProjects, monthProjects };
+  for (const row of todayGroups) {
+    const cur = map.get(row.userId);
+    if (cur) {
+      cur.todayProjects = row._count._all;
+    }
+  }
+  for (const row of monthGroups) {
+    const cur = map.get(row.userId);
+    if (cur) {
+      cur.monthProjects = row._count._all;
+    }
+  }
+  return map;
 }

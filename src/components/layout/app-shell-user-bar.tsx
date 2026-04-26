@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback } from "react";
 import { getActiveTranslator } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 
 function shortenEmail(email: string, maxLen = 30): string {
   if (email.length <= maxLen) {
@@ -51,6 +52,7 @@ export function AppShellUserBar() {
     } catch {
       /* still navigate */
     }
+    invalidateAuthSessionCache();
     window.location.href = "/login";
   }, []);
 

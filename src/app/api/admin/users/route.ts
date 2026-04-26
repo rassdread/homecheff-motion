@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/server/auth/permissions";
-import { getUsageCountsForUser } from "@/server/animations/usage-limits";
+import { getUsageCountsForUsers } from "@/server/animations/usage-limits";
 
 export async function GET() {
   const gate = await requireAdmin();
@@ -21,12 +21,11 @@ export async function GET() {
     },
   });
 
-  const withUsage = await Promise.all(
-    users.map(async (u) => {
-      const counts = await getUsageCountsForUser(u.id);
-      return { ...u, usageToday: counts.todayProjects, usageMonth: counts.monthProjects };
-    })
-  );
+  const usageMap = await getUsageCountsForUsers(users.map((u) => u.id));
+  const withUsage = users.map((u) => {
+    const counts = usageMap.get(u.id) ?? { todayProjects: 0, monthProjects: 0 };
+    return { ...u, usageToday: counts.todayProjects, usageMonth: counts.monthProjects };
+  });
 
   return NextResponse.json({ users: withUsage }, { status: 200 });
 }

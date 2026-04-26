@@ -28,7 +28,7 @@ function getClasses(
   disabled: boolean,
   loading: boolean
 ): string {
-  return `inline-flex items-center justify-center rounded-full bg-gradient-to-r ${brand.accentGradient} px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+  return `inline-flex items-center justify-center rounded-full bg-gradient-to-r ${brand.accentGradient} px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-opacity active:scale-[0.98] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
     disabled || loading ? "cursor-not-allowed opacity-40" : ""
   } ${className}`;
 }

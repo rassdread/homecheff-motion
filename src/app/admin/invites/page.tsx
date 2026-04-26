@@ -16,22 +16,35 @@ type InviteRow = {
   status: "active" | "used" | "expired" | "revoked";
 };
 
+function TableSkeletonRow() {
+  return (
+    <tr className="border-b border-zinc-100">
+      <td className="py-3 pr-2" colSpan={6}>
+        <div className="h-4 w-full animate-pulse rounded bg-zinc-100" />
+      </td>
+    </tr>
+  );
+}
+
 export default function AdminInvitesPage() {
   const t = getActiveTranslator();
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [loadError, setLoadError] = useState("");
+  const [listLoading, setListLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("user");
   const [expiresDays, setExpiresDays] = useState(7);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError("");
     const res = await fetch("/api/admin/invites");
     if (!res.ok) {
       setLoadError(t("admin.invites.loadError"));
+      setInvites([]);
       return;
     }
     const data = (await res.json()) as { invites: InviteRow[] };
@@ -39,7 +52,20 @@ export default function AdminInvitesPage() {
   }, [t]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    void (async () => {
+      setListLoading(true);
+      try {
+        await load();
+      } finally {
+        if (!cancelled) {
+          setListLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   async function onCreate(e: FormEvent) {
@@ -60,19 +86,59 @@ export default function AdminInvitesPage() {
         setLoadError(t("admin.invites.createError"));
         return;
       }
-      const data = (await res.json()) as { inviteUrl: string };
+      const data = (await res.json()) as {
+        inviteUrl: string;
+        invite: {
+          id: string;
+          email: string | null;
+          role: string;
+          expiresAt: string;
+          createdAt: string;
+        };
+      };
       setCreatedUrl(data.inviteUrl);
       setEmail("");
-      await load();
+      const newRow: InviteRow = {
+        id: data.invite.id,
+        email: data.invite.email,
+        role: data.invite.role,
+        expiresAt: data.invite.expiresAt,
+        createdAt: data.invite.createdAt,
+        usedAt: null,
+        revokedAt: null,
+        status: "active",
+      };
+      setInvites((prev) => [newRow, ...prev]);
+      void load();
     } finally {
       setSubmitting(false);
     }
   }
 
   async function revoke(id: string) {
-    const res = await fetch(`/api/admin/invites/${id}/revoke`, { method: "POST" });
-    if (res.ok) {
-      await load();
+    const prev = invites;
+    setRevokingId(id);
+    setLoadError("");
+    setInvites((rows) =>
+      rows.map((inv) =>
+        inv.id === id
+          ? { ...inv, status: "revoked" as const, revokedAt: new Date().toISOString() }
+          : inv
+      )
+    );
+    try {
+      const res = await fetch(`/api/admin/invites/${id}/revoke`, { method: "POST" });
+      if (!res.ok) {
+        setInvites(prev);
+        setLoadError(t("admin.invites.revokeError"));
+        return;
+      }
+      void load();
+    } catch {
+      setInvites(prev);
+      setLoadError(t("admin.invites.revokeError"));
+    } finally {
+      setRevokingId(null);
     }
   }
 
@@ -135,7 +201,12 @@ export default function AdminInvitesPage() {
               className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
             />
           </label>
-          <GradientButton type="submit" loading={submitting} className="w-full sm:w-auto">
+          <GradientButton
+            type="submit"
+            loading={submitting}
+            loadingLabel={t("admin.invites.submitting")}
+            className="w-full sm:w-auto"
+          >
             {t("admin.invites.submit")}
           </GradientButton>
         </form>
@@ -170,35 +241,46 @@ export default function AdminInvitesPage() {
             </tr>
           </thead>
           <tbody>
-            {invites.map((inv) => (
-              <tr key={inv.id} className="border-b border-zinc-100">
-                <td className="py-2 pr-2">{inv.email ?? "—"}</td>
-                <td className="py-2 pr-2">{inv.role}</td>
-                <td className="py-2 pr-2">{statusLabel(inv.status)}</td>
-                <td className="py-2 pr-2 text-xs text-zinc-600">
-                  {new Date(inv.createdAt).toLocaleString()}
-                </td>
-                <td className="py-2 pr-2 text-xs text-zinc-600">
-                  {new Date(inv.expiresAt).toLocaleString()}
-                </td>
-                <td className="py-2">
-                  {inv.status === "active" ? (
-                    <button
-                      type="button"
-                      onClick={() => void revoke(inv.id)}
-                      className="text-sm text-red-700 underline"
-                    >
-                      {t("admin.invites.revoke")}
-                    </button>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              </tr>
-            ))}
+            {listLoading ? (
+              <>
+                <TableSkeletonRow />
+                <TableSkeletonRow />
+              </>
+            ) : (
+              invites.map((inv) => (
+                <tr key={inv.id} className="border-b border-zinc-100">
+                  <td className="py-2 pr-2">{inv.email ?? "—"}</td>
+                  <td className="py-2 pr-2">{inv.role}</td>
+                  <td className="py-2 pr-2">{statusLabel(inv.status)}</td>
+                  <td className="py-2 pr-2 text-xs text-zinc-600">
+                    {new Date(inv.createdAt).toLocaleString()}
+                  </td>
+                  <td className="py-2 pr-2 text-xs text-zinc-600">
+                    {new Date(inv.expiresAt).toLocaleString()}
+                  </td>
+                  <td className="py-2">
+                    {inv.status === "active" ? (
+                      <button
+                        type="button"
+                        disabled={revokingId === inv.id}
+                        onClick={() => void revoke(inv.id)}
+                        className="text-sm text-red-700 underline disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {revokingId === inv.id ? t("animate.retry.busy") : t("admin.invites.revoke")}
+                      </button>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+      {listLoading ? (
+        <p className="mt-3 text-xs text-zinc-500">{t("admin.loadingTable")}</p>
+      ) : null}
     </main>
   );
 }

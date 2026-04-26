@@ -1,5 +1,6 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getActiveTranslator } from "@/i18n";
+import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { preprocessImageFile } from "@/lib/image-preprocess";
 import {
   CREDIT_USD,
@@ -46,7 +47,9 @@ function isCreateProjectErrorBody(
 }
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 const MAX_OPTIMIZED_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
-const POLL_INTERVAL_MS = 4000;
+const POLL_FAST_MS = 2000;
+const POLL_SLOW_MS = 5000;
+const POLL_FAST_WINDOW_MS = 30_000;
 const POLL_FAILURE_THRESHOLD = 3;
 const EXPORT_POLL_FAILURE_THRESHOLD = 3;
 
@@ -180,6 +183,11 @@ export function useAnimationWorkflow() {
   ]);
   const [usage, setUsage] = useState<AnimationUsageResponse | null>(null);
   const [usageError, setUsageError] = useState<string>("");
+  const [isPersistingAnimation, setIsPersistingAnimation] = useState(false);
+  const [pollLastUpdatedAt, setPollLastUpdatedAt] = useState<number | null>(null);
+  const [retryJobsBusy, setRetryJobsBusy] = useState(false);
+  const [retryPollBusy, setRetryPollBusy] = useState(false);
+  const [retryExportPollBusy, setRetryExportPollBusy] = useState(false);
   const [canUseAdvancedAnimationControls, setCanUseAdvancedAnimationControls] =
     useState(false);
   const [advancedLimits, setAdvancedLimits] = useState<NonNullable<
@@ -314,13 +322,86 @@ export function useAnimationWorkflow() {
     [transitions]
   );
 
+  const displayOverallProgress = useMemo(() => {
+    if (transitions.length === 0) {
+      return 0;
+    }
+    const raw = overallProgress;
+    if (projectStatus === "completed") {
+      return Math.min(100, Math.max(raw, Math.round(exportProgress)));
+    }
+    if (projectStatus === "failed") {
+      return raw;
+    }
+    if (projectStatus === "rendering") {
+      const merged = Math.max(raw, Math.round(exportProgress));
+      return Math.min(99, Math.max(merged, 10));
+    }
+    if (projectStatus === "generating") {
+      const floor = jobsReady ? 15 : 5;
+      return Math.min(95, Math.max(raw, floor));
+    }
+    return raw;
+  }, [overallProgress, transitions.length, projectStatus, exportProgress, jobsReady]);
+
+  const displayExportProgress = useMemo(() => {
+    if (projectStatus === "rendering") {
+      const p = Math.round(exportProgress);
+      return Math.min(99, Math.max(p, p > 0 ? p : 8));
+    }
+    return Math.round(exportProgress);
+  }, [projectStatus, exportProgress]);
+
+  const generationStageKey = useMemo((): TranslationKey | null => {
+    if (isPersistingAnimation) {
+      return "animate.progress.stagePreparing";
+    }
+    if (projectStatus === "generating" && jobsStartError) {
+      return null;
+    }
+    if (projectStatus === "generating" && !jobsReady) {
+      return "animate.progress.stageStartingAi";
+    }
+    if (projectStatus === "generating" && jobsReady) {
+      const allZero =
+        transitions.length > 0 && transitions.every((t) => (t.progress ?? 0) === 0);
+      if (allZero) {
+        return "animate.progress.stageViduWait";
+      }
+      return "animate.progress.stageTransitions";
+    }
+    if (projectStatus === "rendering") {
+      return "animate.progress.stageMerging";
+    }
+    if (projectStatus === "completed") {
+      return "animate.progress.stageCompleted";
+    }
+    if (projectStatus === "failed") {
+      return "animate.progress.stageFailed";
+    }
+    return null;
+  }, [
+    isPersistingAnimation,
+    projectStatus,
+    jobsReady,
+    jobsStartError,
+    transitions,
+  ]);
+
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
 
-  const fetchUsage = useCallback(async () => {
-    const sessionRes = await fetch("/api/auth/session");
-    if (!sessionRes.ok) {
+  const fetchUsage = useCallback(async (opts?: { forceSession?: boolean }) => {
+    let session: {
+      user: { id: string; isActive: boolean } | null;
+      allowedPresets?: AnimationPresetId[];
+      canUseAdvancedAnimationControls?: boolean;
+      advancedLimits?: AnimationUsageResponse["advancedLimits"];
+    };
+    try {
+      session = await fetchAuthSessionJson({ force: opts?.forceSession });
+    } catch {
       setIsAuthenticated(false);
       setIsAuthResolved(true);
       setAccountInactive(false);
@@ -330,12 +411,6 @@ export function useAnimationWorkflow() {
       setAdvancedMode(false);
       return;
     }
-    const session = (await sessionRes.json()) as {
-      user: { id: string; isActive: boolean } | null;
-      allowedPresets: AnimationPresetId[];
-      canUseAdvancedAnimationControls?: boolean;
-      advancedLimits?: AnimationUsageResponse["advancedLimits"];
-    };
     if (!session.user) {
       setIsAuthenticated(false);
       setIsAuthResolved(true);
@@ -551,6 +626,9 @@ export function useAnimationWorkflow() {
     }
 
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+
     const runPollCycle = async () => {
       if (pollInFlightRef.current) {
         return;
@@ -584,19 +662,40 @@ export function useAnimationWorkflow() {
 
         pollFailureCountRef.current = 0;
         setPollError(null);
+        setPollLastUpdatedAt(Date.now());
       } finally {
         pollInFlightRef.current = false;
       }
     };
 
-    void runPollCycle();
-    const intervalId = setInterval(() => {
-      void runPollCycle();
-    }, POLL_INTERVAL_MS);
+    const scheduleNext = () => {
+      if (cancelled) {
+        return;
+      }
+      const elapsed = Date.now() - startedAt;
+      const delay = elapsed < POLL_FAST_WINDOW_MS ? POLL_FAST_MS : POLL_SLOW_MS;
+      timeoutId = setTimeout(() => {
+        void (async () => {
+          await runPollCycle();
+          if (!cancelled) {
+            scheduleNext();
+          }
+        })();
+      }, delay);
+    };
+
+    void (async () => {
+      await runPollCycle();
+      if (!cancelled) {
+        scheduleNext();
+      }
+    })();
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [projectId, projectStatus, jobsReady, jobsStartError, pollError, postJobsPoll, syncFromServer, t]);
 
@@ -632,6 +731,9 @@ export function useAnimationWorkflow() {
     }
 
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+
     const runExportPollCycle = async () => {
       if (exportPollInFlightRef.current) {
         return;
@@ -652,19 +754,40 @@ export function useAnimationWorkflow() {
         }
         exportPollFailureCountRef.current = 0;
         setExportPollError(null);
+        setPollLastUpdatedAt(Date.now());
       } finally {
         exportPollInFlightRef.current = false;
       }
     };
 
-    void runExportPollCycle();
-    const intervalId = setInterval(() => {
-      void runExportPollCycle();
-    }, POLL_INTERVAL_MS);
+    const scheduleNext = () => {
+      if (cancelled) {
+        return;
+      }
+      const elapsed = Date.now() - startedAt;
+      const delay = elapsed < POLL_FAST_WINDOW_MS ? POLL_FAST_MS : POLL_SLOW_MS;
+      timeoutId = setTimeout(() => {
+        void (async () => {
+          await runExportPollCycle();
+          if (!cancelled) {
+            scheduleNext();
+          }
+        })();
+      }, delay);
+    };
+
+    void (async () => {
+      await runExportPollCycle();
+      if (!cancelled) {
+        scheduleNext();
+      }
+    })();
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [projectId, projectStatus, exportPollError, postExportPoll, t]);
 
@@ -785,6 +908,7 @@ export function useAnimationWorkflow() {
     setFinalProjectVideoUrl(null);
     exportPollFailureCountRef.current = 0;
     exportInitSentForProjectIdRef.current = null;
+    setPollLastUpdatedAt(null);
   }
 
   function removeImage(imageId: string) {
@@ -1081,26 +1205,38 @@ export function useAnimationWorkflow() {
     if (!projectId) {
       return;
     }
-    jobsStartedOkForProjectIdRef.current = null;
-    setJobsStartError(null);
-    await startJobsForProject(projectId);
+    setRetryJobsBusy(true);
+    try {
+      jobsStartedOkForProjectIdRef.current = null;
+      setJobsStartError(null);
+      await startJobsForProject(projectId);
+    } finally {
+      setRetryJobsBusy(false);
+    }
   }
 
   async function retryPoll() {
     if (!projectId) {
       return;
     }
-    pollFailureCountRef.current = 0;
-    setPollError(null);
-    const pollOk = await postJobsPoll(projectId);
-    if (!pollOk) {
-      pollFailureCountRef.current = POLL_FAILURE_THRESHOLD;
-      setPollError(t("errors.pollFailed"));
-      return;
-    }
-    const syncOk = await syncFromServer(projectId);
-    if (!syncOk) {
-      setPollError(t("errors.pollFailed"));
+    setRetryPollBusy(true);
+    try {
+      pollFailureCountRef.current = 0;
+      setPollError(null);
+      const pollOk = await postJobsPoll(projectId);
+      if (!pollOk) {
+        pollFailureCountRef.current = POLL_FAILURE_THRESHOLD;
+        setPollError(t("errors.pollFailed"));
+        return;
+      }
+      const syncOk = await syncFromServer(projectId);
+      if (!syncOk) {
+        setPollError(t("errors.pollFailed"));
+      } else {
+        setPollLastUpdatedAt(Date.now());
+      }
+    } finally {
+      setRetryPollBusy(false);
     }
   }
 
@@ -1108,12 +1244,19 @@ export function useAnimationWorkflow() {
     if (!projectId) {
       return;
     }
-    exportPollFailureCountRef.current = 0;
-    setExportPollError(null);
-    const ok = await postExportPoll(projectId);
-    if (!ok) {
-      exportPollFailureCountRef.current = EXPORT_POLL_FAILURE_THRESHOLD;
-      setExportPollError(t("errors.exportPollFailed"));
+    setRetryExportPollBusy(true);
+    try {
+      exportPollFailureCountRef.current = 0;
+      setExportPollError(null);
+      const ok = await postExportPoll(projectId);
+      if (!ok) {
+        exportPollFailureCountRef.current = EXPORT_POLL_FAILURE_THRESHOLD;
+        setExportPollError(t("errors.exportPollFailed"));
+      } else {
+        setPollLastUpdatedAt(Date.now());
+      }
+    } finally {
+      setRetryExportPollBusy(false);
     }
   }
 
@@ -1134,31 +1277,33 @@ export function useAnimationWorkflow() {
       return;
     }
 
-    setError("");
-    setExportProgress(0);
-    resetOrchestrationState();
-    runIdRef.current += 1;
-    createPresetIdRef.current = selectedPresetId;
-    const trimmedPrompt = userPrompt
-      .trim()
-      .slice(0, MAX_ANIMATION_USER_PROMPT_LENGTH);
-    createUserPromptRef.current = trimmedPrompt;
-
-    createAdvancedEnabledRef.current = useAdvancedOverrides;
-    if (useAdvancedOverrides) {
-      createAdvancedModelRef.current = advancedModel;
-      createAdvancedResolutionRef.current = advancedResolution;
-      createAdvancedDurationRef.current = advancedDuration;
-    }
-
-    let persistedProjectId: string;
-
+    setIsPersistingAnimation(true);
     try {
-      const { projectId: pid, dbTransitions, uploadedImages } = await persistProject();
-      persistedProjectId = pid;
-      setTransitions(buildTransitionsFromDb(uploadedImages, dbTransitions));
-      setProjectStatus("generating");
-    } catch (caught) {
+      setError("");
+      setExportProgress(0);
+      resetOrchestrationState();
+      runIdRef.current += 1;
+      createPresetIdRef.current = selectedPresetId;
+      const trimmedPrompt = userPrompt
+        .trim()
+        .slice(0, MAX_ANIMATION_USER_PROMPT_LENGTH);
+      createUserPromptRef.current = trimmedPrompt;
+
+      createAdvancedEnabledRef.current = useAdvancedOverrides;
+      if (useAdvancedOverrides) {
+        createAdvancedModelRef.current = advancedModel;
+        createAdvancedResolutionRef.current = advancedResolution;
+        createAdvancedDurationRef.current = advancedDuration;
+      }
+
+      let persistedProjectId: string;
+
+      try {
+        const { projectId: pid, dbTransitions, uploadedImages } = await persistProject();
+        persistedProjectId = pid;
+        setTransitions(buildTransitionsFromDb(uploadedImages, dbTransitions));
+        setProjectStatus("generating");
+      } catch (caught) {
       if (caught instanceof Error) {
         try {
           const parsed = JSON.parse(caught.message) as {
@@ -1263,9 +1408,12 @@ export function useAnimationWorkflow() {
       }
       setError(t("errors.uploadFailed"));
       return;
-    }
+      }
 
-    await startJobsForProject(persistedProjectId);
+      await startJobsForProject(persistedProjectId);
+    } finally {
+      setIsPersistingAnimation(false);
+    }
   }
 
   return {
@@ -1275,7 +1423,15 @@ export function useAnimationWorkflow() {
     projectId,
     transitions,
     exportProgress,
+    displayExportProgress,
     overallProgress,
+    displayOverallProgress,
+    generationStageKey,
+    isPersistingAnimation,
+    pollLastUpdatedAt,
+    retryJobsBusy,
+    retryPollBusy,
+    retryExportPollBusy,
     anyTransitionFailed,
     finalProjectVideoUrl,
     exportPhaseError,

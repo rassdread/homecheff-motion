@@ -32,6 +32,27 @@ export const en: LocaleSchema = {
     "Admin only: this is converted into seconds per transition.",
   "animate.duration.creditsWithDuration": "{duration} · estimated {credits} credits",
 
+  "animate.estimate.needTwoForCalc":
+    "Upload at least 2 images to calculate video duration and credits.",
+  "animate.estimate.uploadMinPresetHint":
+    "Upload at least 2 images for a live estimate.",
+  "animate.estimate.sectionCurrent": "Current video",
+  "animate.estimate.sectionMax": "Maximum",
+  "animate.estimate.perTransitionSeconds": "Per transition: {seconds} sec",
+  "animate.estimate.imagesTransitions": "{images} images → {transitions} transitions",
+  "animate.estimate.totalVideo": "Total video: {duration}",
+  "animate.estimate.estimatedCredits": "Estimated credits: {credits}",
+  "animate.estimate.estimatedCost": "Estimated cost: {usd}",
+  "animate.estimate.creditsSlashUsd": "{credits} credits · {usd}",
+  "animate.estimate.maxCreditsSlashUsd": "{credits} credits · {usd}",
+  "animate.estimate.finalTitle": "Summary",
+  "animate.estimate.finalStartHint": "Upload at least 2 images to start.",
+  "animate.estimate.targetTotalOr": "Or set target total duration",
+  "animate.estimate.targetTotalHintAuto":
+    "This automatically calculates seconds per transition.",
+  "animate.estimate.targetTotalDisabled":
+    "Add at least 2 images to set total duration.",
+
   "animate.title": "Build your animation sequence",
   "animate.subtitle":
     "Choose a quality tier, upload photos in order, and generate HomeCheff-style transitions.",
@@ -80,8 +101,23 @@ export const en: LocaleSchema = {
   "animate.completed.title": "Animation completed",
   "animate.completed.placeholder": "Final MP4 preview placeholder",
   "animate.button.create": "Create animation",
+  "animate.button.persisting": "Uploading and creating project…",
+  "animate.button.processing": "Generating…",
   "animate.button.startOver": "Start over",
   "animate.button.openSavedProject": "Open saved project",
+  "animate.progress.stagePreparing": "Uploading and preparing…",
+  "animate.progress.stageStartingAi": "AI generation started — starting jobs…",
+  "animate.progress.stageViduWait":
+    "Vidu is processing your transition… This may take a moment.",
+  "animate.progress.stageTransitions": "Generating transitions…",
+  "animate.progress.stageMerging": "Merging videos…",
+  "animate.progress.stageCompleted": "Completed.",
+  "animate.progress.stageFailed": "Failed.",
+  "animate.progress.keepWindowOpen": "Still working — do not close this tab.",
+  "animate.progress.lastUpdated": "Last updated: {time}",
+  "animate.retry.busy": "Working…",
+  "admin.loadingTable": "Loading…",
+  "admin.users.rowSaving": "Saving…",
   "animate.auth.loading": "Checking session...",
   "animate.auth.requiredTitle": "Log in to create videos",
   "animate.auth.requiredDescription":
@@ -159,6 +195,8 @@ export const en: LocaleSchema = {
   "admin.invites.status.revoked": "Revoked",
   "admin.invites.revoke": "Revoke",
   "admin.invites.loadError": "Could not load invites.",
+  "admin.invites.revokeError": "Could not revoke. Please try again.",
+  "admin.invites.submitting": "Creating…",
   "admin.invites.createError": "Could not create invite.",
   "admin.users.title": "Users",
   "admin.users.intro": "Manage roles and active status.",

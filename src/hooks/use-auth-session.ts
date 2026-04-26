@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 
 export type AuthSessionUser = {
   email: string;
@@ -19,16 +20,7 @@ export function useAuthSession(): AuthSessionState {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/auth/session");
-        if (!res.ok || cancelled) {
-          if (!cancelled) {
-            setState({ resolved: true, user: null });
-          }
-          return;
-        }
-        const data = (await res.json()) as {
-          user: { email: string; role: string; isActive: boolean } | null;
-        };
+        const data = await fetchAuthSessionJson();
         if (cancelled) {
           return;
         }

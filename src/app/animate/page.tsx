@@ -2,19 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { AnimateDurationSummary } from "@/components/animate/animate-duration-summary";
+import { useState } from "react";
+import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
-import { getActiveLocale, getActiveTranslator, type TranslationKey } from "@/i18n";
-import {
-  formatDurationSeconds,
-  getTotalVideoDurationSeconds,
-  getTransitionCount,
-} from "@/lib/animation-duration";
+import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import { getTotalVideoDurationSeconds, getTransitionCount } from "@/lib/animation-duration";
 import {
   ANIMATION_PRESETS,
   MAX_ANIMATION_USER_PROMPT_LENGTH,
@@ -54,7 +50,15 @@ export default function AnimatePage() {
     projectId,
     transitions,
     exportProgress,
+    displayExportProgress,
     overallProgress,
+    displayOverallProgress,
+    generationStageKey,
+    isPersistingAnimation,
+    pollLastUpdatedAt,
+    retryJobsBusy,
+    retryPollBusy,
+    retryExportPollBusy,
     anyTransitionFailed,
     transitionPairs,
     isProcessing,
@@ -101,30 +105,19 @@ export default function AnimatePage() {
     activePreset,
   } = useAnimationWorkflow();
 
-  const targetTotalFocusedRef = useRef(false);
-  const [targetTotalDraft, setTargetTotalDraft] = useState("");
+  const [targetTotalFocused, setTargetTotalFocused] = useState(false);
+  const [targetTotalEditDraft, setTargetTotalEditDraft] = useState("");
 
   const secondsPerTransitionForUi = useAdvancedOverrides
     ? advancedDuration
     : activePreset.durationSeconds;
 
-  useEffect(() => {
-    if (!useAdvancedOverrides || !advancedLimits) {
-      return;
-    }
-    if (targetTotalFocusedRef.current) {
-      return;
-    }
-    const total = getTotalVideoDurationSeconds(images.length, advancedDuration);
-    setTargetTotalDraft(String(total));
-  }, [useAdvancedOverrides, advancedLimits, images.length, advancedDuration]);
-
-  const durationLocale = getActiveLocale() === "nl" ? "nl" : "en";
-  const totalVideoSecondsForEstimate = getTotalVideoDurationSeconds(
-    images.length,
-    secondsPerTransitionForUi
-  );
-  const totalDurationLabel = formatDurationSeconds(totalVideoSecondsForEstimate, durationLocale);
+  const targetTotalInputValue =
+    !useAdvancedOverrides || !advancedLimits || images.length < 2
+      ? ""
+      : targetTotalFocused
+        ? targetTotalEditDraft
+        : String(getTotalVideoDurationSeconds(images.length, advancedDuration));
 
   const canRetryExportMerge =
     projectStatus === "failed" && Boolean(exportPhaseError) && !anyTransitionFailed;
@@ -198,6 +191,11 @@ export default function AnimatePage() {
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <h2 className="text-lg font-semibold">{t("animate.preset.title")}</h2>
         <p className="mt-1 text-sm text-zinc-500">{t("animate.preset.hint")}</p>
+        {images.length < 2 ? (
+          <p className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 sm:text-sm">
+            {t("animate.estimate.needTwoForCalc")}
+          </p>
+        ) : null}
         {usage ? (
           <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-zinc-700">
             <p>
@@ -223,12 +221,6 @@ export default function AnimatePage() {
           </div>
         ) : null}
         {usageError ? <p className="mt-2 text-xs text-amber-700">{usageError}</p> : null}
-        <AnimateDurationSummary
-          t={t}
-          imageCount={images.length}
-          secondsPerTransition={secondsPerTransitionForUi}
-          className="mt-4 rounded-lg border border-emerald-100/80 bg-emerald-50/30 p-3"
-        />
         <fieldset disabled={isProcessing} className="mt-4 space-y-3">
           <legend className="sr-only">{t("animate.preset.title")}</legend>
           {visiblePresetIds.map((presetId) => {
@@ -258,30 +250,19 @@ export default function AnimatePage() {
                   <span className="mt-0.5 block text-xs text-zinc-600">
                     {t(labels.description)}
                   </span>
-                  <span className="mt-2 block space-y-1 text-xs text-zinc-500">
-                    <span className="block">
-                      {t("animate.preset.field.resolution", { value: def.resolution })}
-                    </span>
-                    <span className="block">
-                      {t("animate.preset.field.duration", { seconds: def.durationSeconds })}
-                    </span>
-                    <span className="block">
-                      {t("animate.preset.field.maxImages", { max: def.maxImages })}
-                    </span>
-                    <span className="block">
-                      {t("animate.preset.field.maxTransitions", { max: def.maxTransitions })}
-                    </span>
-                    <span className="block">
-                      {t("animate.preset.field.ceilingCredits", {
-                        credits: def.estimatedMaxCredits,
-                      })}
-                    </span>
-                    <span className="block">
-                      {t("animate.preset.field.ceilingUsd", {
-                        usd: def.estimatedMaxUsd.toFixed(2),
-                      })}
-                    </span>
-                  </span>
+                  <AnimateEstimateCard
+                    t={t}
+                    mode="preset"
+                    imageCount={images.length}
+                    secondsPerTransition={def.durationSeconds}
+                    creditsPerSecond={def.estimatedCreditsPerSecond}
+                    maxCredits={def.estimatedMaxCredits}
+                    maxUsd={def.estimatedMaxUsd}
+                    resolution={def.resolution}
+                    maxImages={def.maxImages}
+                    maxTransitions={def.maxTransitions}
+                    compact
+                  />
                 </span>
               </label>
             );
@@ -299,90 +280,109 @@ export default function AnimatePage() {
               <input
                 type="checkbox"
                 checked={advancedMode}
-                onChange={(e) => handleAdvancedModeChange(e.target.checked)}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  if (!next) {
+                    setTargetTotalFocused(false);
+                  }
+                  handleAdvancedModeChange(next);
+                }}
                 disabled={isProcessing || accountInactive}
                 className="h-4 w-4 rounded border-violet-300 text-violet-700 accent-violet-600"
               />
               {t("animate.advanced.toggle")}
             </label>
             {advancedMode ? (
-              <div className="mt-4 space-y-3 text-sm">
-                <div>
-                  <label htmlFor="adv-model" className="block text-xs font-medium text-zinc-700">
-                    {t("animate.advanced.model")}
-                  </label>
-                  <select
-                    id="adv-model"
-                    value={advancedModel}
-                    onChange={(e) => setAdvancedModel(e.target.value)}
-                    disabled={isProcessing || accountInactive}
-                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-                  >
-                    {advancedLimits.allowedModels.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="adv-resolution" className="block text-xs font-medium text-zinc-700">
-                    {t("animate.advanced.resolution")}
-                  </label>
-                  <select
-                    id="adv-resolution"
-                    value={advancedResolution}
-                    onChange={(e) =>
-                      setAdvancedResolution(e.target.value as "540p" | "720p" | "1080p")
-                    }
-                    disabled={isProcessing || accountInactive}
-                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-                  >
-                    {advancedLimits.allowedResolutions.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="adv-duration" className="block text-xs font-medium text-zinc-700">
-                    {t("animate.advanced.duration")}
-                  </label>
-                  <input
-                    id="adv-duration"
-                    type="number"
-                    min={1}
-                    max={advancedLimits.maxDurationSeconds}
-                    value={advancedDuration}
-                    onChange={(e) => {
-                      const n = Number.parseInt(e.target.value, 10);
-                      if (Number.isFinite(n)) {
-                        setAdvancedDuration(
-                          Math.min(
-                            Math.max(1, n),
-                            advancedLimits.maxDurationSeconds
-                          )
-                        );
+              <div className="mt-4 space-y-4 text-sm">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <label htmlFor="adv-model" className="block text-xs font-medium text-zinc-700">
+                      {t("animate.advanced.model")}
+                    </label>
+                    <select
+                      id="adv-model"
+                      value={advancedModel}
+                      onChange={(e) => setAdvancedModel(e.target.value)}
+                      disabled={isProcessing || accountInactive}
+                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    >
+                      {advancedLimits.allowedModels.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="adv-resolution"
+                      className="block text-xs font-medium text-zinc-700"
+                    >
+                      {t("animate.advanced.resolution")}
+                    </label>
+                    <select
+                      id="adv-resolution"
+                      value={advancedResolution}
+                      onChange={(e) =>
+                        setAdvancedResolution(e.target.value as "540p" | "720p" | "1080p")
                       }
-                    }}
-                    disabled={isProcessing || accountInactive}
-                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-                  />
+                      disabled={isProcessing || accountInactive}
+                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    >
+                      {advancedLimits.allowedResolutions.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="adv-duration" className="block text-xs font-medium text-zinc-700">
+                      {t("animate.advanced.duration")}
+                    </label>
+                    <input
+                      id="adv-duration"
+                      type="number"
+                      min={1}
+                      max={advancedLimits.maxDurationSeconds}
+                      value={advancedDuration}
+                      onChange={(e) => {
+                        const n = Number.parseInt(e.target.value, 10);
+                        if (Number.isFinite(n)) {
+                          setAdvancedDuration(
+                            Math.min(
+                              Math.max(1, n),
+                              advancedLimits.maxDurationSeconds
+                            )
+                          );
+                        }
+                      }}
+                      disabled={isProcessing || accountInactive}
+                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
-                <AnimateDurationSummary
+                <AnimateEstimateCard
+                  mode="advanced"
                   t={t}
                   imageCount={images.length}
                   secondsPerTransition={advancedDuration}
-                  showExplanation={false}
-                  className="mt-2 rounded-md border border-violet-100 bg-white/70 p-2"
+                  creditsPerSecond={1}
+                  maxCredits={0}
+                  maxUsd={0}
+                  resolution={advancedResolution}
+                  maxImages={advancedLimits.maxImages}
+                  maxTransitions={advancedLimits.maxTransitions}
+                  currentCreditsOverride={estimatedProjectCredits}
+                  currentUsdOverride={estimatedProjectUsd}
+                  showExplanation
                 />
                 {useAdvancedOverrides ? (
-                  <div className="mt-3 space-y-1">
-                    <label
-                      htmlFor="adv-target-total"
-                      className="block text-xs font-medium text-zinc-700"
-                    >
+                  <div className="space-y-1 border-t border-violet-100 pt-3">
+                    <p className="text-xs font-semibold text-violet-900">
+                      {t("animate.estimate.targetTotalOr")}
+                    </p>
+                    <label htmlFor="adv-target-total" className="sr-only">
                       {t("animate.duration.targetTotal")}
                     </label>
                     <input
@@ -390,27 +390,41 @@ export default function AnimatePage() {
                       type="number"
                       min={1}
                       inputMode="numeric"
-                      value={targetTotalDraft}
+                      value={targetTotalInputValue}
+                      placeholder={
+                        images.length < 2 ? t("animate.estimate.targetTotalDisabled") : ""
+                      }
                       onFocus={() => {
-                        targetTotalFocusedRef.current = true;
-                      }}
-                      onChange={(e) => setTargetTotalDraft(e.target.value)}
-                      onBlur={() => {
-                        targetTotalFocusedRef.current = false;
-                        const tc = getTransitionCount(images.length);
-                        if (tc < 1 || !advancedLimits) {
-                          const total = getTotalVideoDurationSeconds(
-                            images.length,
-                            advancedDuration
-                          );
-                          setTargetTotalDraft(String(total));
+                        if (images.length < 2 || !advancedLimits) {
                           return;
                         }
-                        const raw = Number.parseInt(targetTotalDraft, 10);
+                        setTargetTotalFocused(true);
+                        setTargetTotalEditDraft(
+                          String(getTotalVideoDurationSeconds(images.length, advancedDuration))
+                        );
+                      }}
+                      onChange={(e) => setTargetTotalEditDraft(e.target.value)}
+                      onBlur={() => {
+                        const tc = getTransitionCount(images.length);
+                        if (tc < 1 || !advancedLimits) {
+                          if (images.length >= 2) {
+                            setTargetTotalEditDraft(
+                              String(
+                                getTotalVideoDurationSeconds(images.length, advancedDuration)
+                              )
+                            );
+                          } else {
+                            setTargetTotalEditDraft("");
+                          }
+                          setTargetTotalFocused(false);
+                          return;
+                        }
+                        const raw = Number.parseInt(targetTotalEditDraft, 10);
                         if (!Number.isFinite(raw) || raw < 1) {
-                          setTargetTotalDraft(
+                          setTargetTotalEditDraft(
                             String(getTotalVideoDurationSeconds(images.length, advancedDuration))
                           );
+                          setTargetTotalFocused(false);
                           return;
                         }
                         const per = Math.round(raw / tc);
@@ -419,30 +433,16 @@ export default function AnimatePage() {
                           advancedLimits.maxDurationSeconds
                         );
                         setAdvancedDuration(clamped);
+                        setTargetTotalFocused(false);
                       }}
                       disabled={
                         images.length < 2 || isProcessing || accountInactive || !advancedLimits
                       }
-                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                      className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-zinc-50"
                     />
-                    <p className="text-xs text-zinc-500">{t("animate.duration.targetTotalHint")}</p>
+                    <p className="text-xs text-zinc-500">{t("animate.estimate.targetTotalHintAuto")}</p>
                   </div>
                 ) : null}
-                <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-2 text-xs text-zinc-700">
-                  <p>
-                    {t("animate.duration.creditsWithDuration", {
-                      duration: formatDurationSeconds(
-                        getTotalVideoDurationSeconds(images.length, advancedDuration),
-                        durationLocale
-                      ),
-                      credits: estimatedProjectCredits,
-                    })}
-                  </p>
-                  <p className="mt-1">{t("animate.advanced.estimatedCost", {
-                      usd: estimatedProjectUsd.toFixed(2),
-                    })}
-                  </p>
-                </div>
                 {useAdvancedOverrides && estimatedProjectCredits > 500 ? (
                   <p className="text-xs font-medium text-amber-800">
                     {t("animate.advanced.highCreditsWarning")}
@@ -453,20 +453,7 @@ export default function AnimatePage() {
           </div>
         ) : null}
 
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-700">
-          <p>
-            {t("animate.duration.creditsWithDuration", {
-              duration: totalDurationLabel,
-              credits: estimatedProjectCredits,
-            })}
-          </p>
-          <p className="mt-1">
-            {t("animate.preset.field.estimatedUsd", {
-              usd: estimatedProjectUsd.toFixed(2),
-            })}
-          </p>
-          <p className="mt-2 text-zinc-500">{t("animate.preset.estimateNote")}</p>
-        </div>
+        <p className="mt-4 text-xs text-zinc-500">{t("animate.preset.estimateNote")}</p>
 
         <div className="mt-6">
           <label htmlFor="animation-user-prompt" className="block text-sm font-medium text-zinc-700">
@@ -575,19 +562,47 @@ export default function AnimatePage() {
           <StatusBadge status={projectStatus} />
           {transitions.length > 0 ? (
             <span className="text-sm text-zinc-600">
-              {t("animate.overallProgress")}: {overallProgress}%
+              {t("animate.overallProgress")}: {displayOverallProgress}%
             </span>
           ) : null}
         </div>
+        {transitions.length > 0 && (projectStatus === "generating" || projectStatus === "rendering") ? (
+          <div className="mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500 ${
+                  overallProgress === 0 && (projectStatus === "generating" || projectStatus === "rendering")
+                    ? "animate-pulse"
+                    : ""
+                }`}
+                style={{ width: `${displayOverallProgress}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
+        {generationStageKey ? (
+          <p className="mt-3 text-sm font-medium text-zinc-800">{t(generationStageKey)}</p>
+        ) : null}
+        {isProcessing && pollLastUpdatedAt ? (
+          <p className="mt-1 text-xs text-zinc-500">
+            {t("animate.progress.lastUpdated", {
+              time: new Date(pollLastUpdatedAt).toLocaleTimeString(),
+            })}
+          </p>
+        ) : null}
+        {isProcessing ? (
+          <p className="mt-2 text-xs text-amber-900/80">{t("animate.progress.keepWindowOpen")}</p>
+        ) : null}
         {jobsStartError ? (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-800">
             <p>{jobsStartError}</p>
             <button
               type="button"
               onClick={() => void retryStartJobs()}
-              className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
+              disabled={retryJobsBusy}
+              className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t("animate.retryJobsStart")}
+              {retryJobsBusy ? t("animate.retry.busy") : t("animate.retryJobsStart")}
             </button>
           </div>
         ) : null}
@@ -597,9 +612,10 @@ export default function AnimatePage() {
             <button
               type="button"
               onClick={() => void retryPoll()}
-              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900"
+              disabled={retryPollBusy}
+              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t("animate.retryPoll")}
+              {retryPollBusy ? t("animate.retry.busy") : t("animate.retryPoll")}
             </button>
           </div>
         ) : null}
@@ -609,9 +625,10 @@ export default function AnimatePage() {
             <button
               type="button"
               onClick={() => void retryExportPoll()}
-              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900"
+              disabled={retryExportPollBusy}
+              className="mt-3 rounded-lg bg-amber-800 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {t("animate.export.retryPoll")}
+              {retryExportPollBusy ? t("animate.retry.busy") : t("animate.export.retryPoll")}
             </button>
           </div>
         ) : null}
@@ -671,16 +688,26 @@ export default function AnimatePage() {
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <StatusBadge status={transition.status} />
-                      <span className="text-xs text-zinc-500">
-                        {transition.progress}%
-                      </span>
+                      <span className="text-xs text-zinc-500">{transition.progress}%</span>
                     </div>
                   </div>
                 </div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all"
-                    style={{ width: `${transition.progress}%` }}
+                    className={`h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500 ${
+                      (transition.status === "queued" || transition.status === "generating") &&
+                      transition.progress === 0
+                        ? "animate-pulse"
+                        : ""
+                    }`}
+                    style={{
+                      width: `${Math.max(
+                        transition.progress,
+                        transition.status === "queued" || transition.status === "generating"
+                          ? 8
+                          : 0
+                      )}%`,
+                    }}
                   />
                 </div>
                 {transition.errorMessage ? (
@@ -709,11 +736,13 @@ export default function AnimatePage() {
         {projectStatus === "rendering" ? (
           <p className="mt-2 text-sm text-zinc-600">{t("animate.export.merging")}</p>
         ) : null}
-        <p className="mt-2 text-sm text-zinc-700">{exportProgress}%</p>
+        <p className="mt-2 text-sm text-zinc-700">{displayExportProgress}%</p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all"
-            style={{ width: `${exportProgress}%` }}
+            className={`h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500 ${
+              projectStatus === "rendering" && exportProgress === 0 ? "animate-pulse" : ""
+            }`}
+            style={{ width: `${displayExportProgress}%` }}
           />
         </div>
       </AppCard>
@@ -746,18 +775,33 @@ export default function AnimatePage() {
         </AppCard>
       ) : null}
 
-      <AnimateDurationSummary
+      <AnimateEstimateCard
+        mode="final"
         t={t}
         imageCount={images.length}
         secondsPerTransition={secondsPerTransitionForUi}
-        showExplanation={false}
-        className="mx-auto mt-8 max-w-3xl rounded-lg border border-zinc-200 bg-white/80 p-3 text-xs text-zinc-700 sm:text-sm"
+        creditsPerSecond={activePreset.estimatedCreditsPerSecond}
+        maxCredits={activePreset.estimatedMaxCredits}
+        maxUsd={activePreset.estimatedMaxUsd}
+        resolution={activePreset.resolution}
+        maxImages={activePreset.maxImages}
+        maxTransitions={activePreset.maxTransitions}
+        currentCreditsOverride={useAdvancedOverrides ? estimatedProjectCredits : undefined}
+        currentUsdOverride={useAdvancedOverrides ? estimatedProjectUsd : undefined}
+        className="mx-auto mt-8 max-w-3xl"
       />
       <div className="mx-auto mt-10 max-w-3xl flex flex-col gap-3 sm:flex-row">
         <GradientButton
           disabled={!canCreateAnimation}
-          loading={isProcessing}
-          onClick={handleCreateAnimation}
+          loading={isProcessing || isPersistingAnimation}
+          loadingLabel={
+            isPersistingAnimation
+              ? t("animate.button.persisting")
+              : isProcessing
+                ? t("animate.button.processing")
+                : undefined
+          }
+          onClick={() => void handleCreateAnimation()}
           className="w-full"
         >
           {t("animate.button.create")}

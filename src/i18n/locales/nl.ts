@@ -28,6 +28,27 @@ export const nl = {
     "Alleen admin: dit wordt omgerekend naar seconden per overgang.",
   "animate.duration.creditsWithDuration": "{duration} · geschat {credits} credits",
 
+  "animate.estimate.needTwoForCalc":
+    "Upload minimaal 2 beelden om videoduur en credits te berekenen.",
+  "animate.estimate.uploadMinPresetHint":
+    "Upload minimaal 2 beelden voor een actuele schatting.",
+  "animate.estimate.sectionCurrent": "Huidige video",
+  "animate.estimate.sectionMax": "Maximum",
+  "animate.estimate.perTransitionSeconds": "Per overgang: {seconds} sec",
+  "animate.estimate.imagesTransitions": "{images} beelden → {transitions} overgangen",
+  "animate.estimate.totalVideo": "Totale video: {duration}",
+  "animate.estimate.estimatedCredits": "Geschatte credits: {credits}",
+  "animate.estimate.estimatedCost": "Geschatte kosten: {usd}",
+  "animate.estimate.creditsSlashUsd": "{credits} credits · {usd}",
+  "animate.estimate.maxCreditsSlashUsd": "{credits} credits · {usd}",
+  "animate.estimate.finalTitle": "Samenvatting",
+  "animate.estimate.finalStartHint": "Upload minimaal 2 beelden om te starten.",
+  "animate.estimate.targetTotalOr": "Of stel gewenste totale duur in",
+  "animate.estimate.targetTotalHintAuto":
+    "Dit rekent automatisch seconden per overgang uit.",
+  "animate.estimate.targetTotalDisabled":
+    "Voeg minimaal 2 beelden toe om totale duur te kunnen instellen.",
+
   "animate.title": "Bouw je animatiesequentie",
   "animate.subtitle":
     "Kies een kwaliteitsniveau, upload foto's in volgorde en genereer HomeCheff-stijl overgangen.",
@@ -79,8 +100,23 @@ export const nl = {
   "animate.completed.title": "Animatie voltooid",
   "animate.completed.placeholder": "Placeholder voor definitieve MP4-preview",
   "animate.button.create": "Animatie maken",
+  "animate.button.persisting": "Uploaden en project aanmaken…",
+  "animate.button.processing": "Bezig met genereren…",
   "animate.button.startOver": "Opnieuw beginnen",
   "animate.button.openSavedProject": "Opgeslagen project openen",
+  "animate.progress.stagePreparing": "Bezig met uploaden en voorbereiden…",
+  "animate.progress.stageStartingAi": "AI-generatie gestart — jobs worden gestart…",
+  "animate.progress.stageViduWait":
+    "Vidu verwerkt je overgang… Dit kan even duren.",
+  "animate.progress.stageTransitions": "Overgangen worden gegenereerd…",
+  "animate.progress.stageMerging": "Video's samenvoegen…",
+  "animate.progress.stageCompleted": "Voltooid.",
+  "animate.progress.stageFailed": "Mislukt.",
+  "animate.progress.keepWindowOpen": "Nog bezig — sluit dit venster niet.",
+  "animate.progress.lastUpdated": "Laatst bijgewerkt: {time}",
+  "animate.retry.busy": "Bezig…",
+  "admin.loadingTable": "Laden…",
+  "admin.users.rowSaving": "Opslaan…",
   "animate.auth.loading": "Sessie controleren...",
   "animate.auth.requiredTitle": "Log in om video's te maken",
   "animate.auth.requiredDescription":
@@ -159,6 +195,8 @@ export const nl = {
   "admin.invites.status.revoked": "Ingetrokken",
   "admin.invites.revoke": "Intrekken",
   "admin.invites.loadError": "Uitnodigingen laden mislukt.",
+  "admin.invites.revokeError": "Intrekken mislukt. Probeer opnieuw.",
+  "admin.invites.submitting": "Bezig met aanmaken…",
   "admin.invites.createError": "Aanmaken mislukt.",
   "admin.users.title": "Gebruikers",
   "admin.users.intro": "Rollen en actieve status beheren.",

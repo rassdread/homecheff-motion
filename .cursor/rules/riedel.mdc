@@ -1,17 +1,25 @@
 ---
-description: "Riedel — Prisma migraties, build, daarna git add/commit/push (juiste volgorde)"
+description: "Riedel — Prisma, lint/build, daarna git add → commit → push (juiste volgorde, alle sessies)"
 alwaysApply: true
 ---
 
-# Riedel (release- en git-volgorde)
+# Riedel (standaard volgorde vóór commit / push)
 
-Wanneer de gebruiker vraagt om migraties, build en push (of vergelijkbaar), volg **deze volgorde**:
+Gebruik dit in **elk** project wanneer je wijzigingen afrondt of de gebruiker om migratie/build/push vraagt.
 
-1. **`npx prisma migrate deploy`** (of `migrate dev` tijdens lokale schema-wijzigingen) — database eerst bijwerken.
-2. **`npx prisma generate`** — client synchroon met schema (vaak al na migrate).
-3. **`npm run build`** — controleren dat de app bouwt **vóór** je commit. Zo voorkom je commits die niet builden.
-4. **`git add`** → **`git commit`** → **`git push`**
+## Volgorde (logisch)
 
-Niet doen: eerst committen en daarna pas builden — dan kan een mislukte build al op `main` staan.
+1. **`git pull`** — alleen als je op een gedeelde branch werkt en dat past bij de taak (voorkomt conflicten).
+2. **Prisma / database** (alleen als `schema.prisma` of migraties wijzigen):
+   - **Lokaal nieuwe migratie:** `prisma migrate dev` (of het npm-script van het project).
+   - **Alleen controleren:** `npx prisma validate` en `npx prisma migrate status`.
+   - **Productie / CI na merge:** `npx prisma migrate deploy` — niet hetzelfde als je dagelijkse lokale commit; deploy hoort bij de omgeving die de DB bijwerkt.
+3. **`npx prisma generate`** — als het project Prisma gebruikt en generate nog niet in postinstall zit of na schema-wijziging nodig is.
+4. **Kwaliteit:** `npm run lint` en **`npm run build`** (of de projectequivalenten) **slagen laten vóór commit**.
+5. **Git — altijd in deze volgorde:** **`git add`** → **`git commit`** → **`git push`**  
+   Niet: eerst `commit` en dan pas `add`.
 
-`migrate deploy` draait tegen de database uit `DATABASE_URL`; andere omgevingen moeten na pull zelf `migrate deploy` draaien.
+## Fouten vermijden
+
+- Geen push van een commit die bewust niet buildt, tenzij de gebruiker dat expliciet wil.
+- Voer checks zelf uit in de shell waar de gebruiker dat toestaat; geef geen alleen-instructies als om uitvoering wordt gevraagd.
