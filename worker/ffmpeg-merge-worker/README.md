@@ -15,6 +15,8 @@ npm run dev
 
 Defaults: `PORT=8787`, `WORKER_PUBLIC_URL=http://localhost:8787`.
 
+**Railway:** set `PORT` is injected automatically; the server listens on **`0.0.0.0:${PORT}`** so the proxy can reach it. Set **`WORKER_PUBLIC_URL`** to your public HTTPS URL (e.g. `https://your-service.up.railway.app`) so merge output links are correct. `GET /` returns `{ "status": "ok", "service": "ffmpeg-merge-worker" }` for health checks.
+
 Point the Next.js app at it (server-side only):
 
 ```bash

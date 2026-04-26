@@ -11,8 +11,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workerRoot = path.resolve(__dirname, "..");
 const outputsDir = path.join(workerRoot, "outputs");
 
-const PORT = Number(process.env.PORT?.trim() || "8787");
-const WORKER_PUBLIC_URL = (process.env.WORKER_PUBLIC_URL || `http://localhost:${PORT}`).replace(
+const port = process.env.PORT ? Number(process.env.PORT) : 8787;
+const WORKER_PUBLIC_URL = (process.env.WORKER_PUBLIC_URL || `http://localhost:${port}`).replace(
   /\/+$/,
   ""
 );
@@ -204,6 +204,10 @@ async function processJob(jobId: string): Promise<void> {
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", service: "ffmpeg-merge-worker" });
+});
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
@@ -267,6 +271,7 @@ app.get("/merge/:jobId", requireAuth, (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`ffmpeg-merge-worker listening on ${PORT} (public URL base: ${WORKER_PUBLIC_URL})`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 FFmpeg merge worker running on port ${port}`);
+  console.log(`Public URL base (for output links): ${WORKER_PUBLIC_URL}`);
 });
