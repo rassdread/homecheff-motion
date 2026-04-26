@@ -81,6 +81,9 @@ model AnimationExport {
   projectId     String
   project       AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   status        String
+  /** e.g. external-ffmpeg when merge runs on an external worker */
+  provider      String?
+  providerJobId String?
   outputVideoUrl String?
   errorMessage  String?
   progress      Int              @default(0)

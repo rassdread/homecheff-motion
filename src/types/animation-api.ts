@@ -166,6 +166,8 @@ export type ProjectSnapshotTransition = {
 export type ProjectSnapshotExport = {
   status: string;
   progress: number;
+  provider?: string | null;
+  providerJobId?: string | null;
   outputVideoUrl?: string | null;
   errorMessage?: string | null;
 };

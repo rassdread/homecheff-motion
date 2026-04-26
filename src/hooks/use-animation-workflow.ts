@@ -178,6 +178,7 @@ export function useAnimationWorkflow() {
   const [jobsReady, setJobsReady] = useState(false);
   const [exportPollError, setExportPollError] = useState<string | null>(null);
   const [exportPhaseError, setExportPhaseError] = useState<string | null>(null);
+  const [exportProvider, setExportProvider] = useState<string | null>(null);
   const [finalProjectVideoUrl, setFinalProjectVideoUrl] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<AnimationPresetId>("standard");
   const [selectedIntent, setSelectedIntent] = useState<AnimationIntentId>(() =>
@@ -362,10 +363,12 @@ export function useAnimationWorkflow() {
   const displayExportProgress = useMemo(() => {
     if (projectStatus === "rendering") {
       const p = Math.round(exportProgress);
-      return Math.min(99, Math.max(p, p > 0 ? p : 8));
+      const isExternalMerge = exportProvider === "external-ffmpeg";
+      const floor = isExternalMerge ? 12 : 8;
+      return Math.min(99, Math.max(p, p > 0 ? p : floor));
     }
     return Math.round(exportProgress);
-  }, [projectStatus, exportProgress]);
+  }, [projectStatus, exportProgress, exportProvider]);
 
   const generationStageKey = useMemo((): TranslationKey | null => {
     if (isPersistingAnimation) {
@@ -386,6 +389,9 @@ export function useAnimationWorkflow() {
       return "animate.progress.stageTransitions";
     }
     if (projectStatus === "rendering") {
+      if (exportProvider === "external-ffmpeg") {
+        return "animate.progress.stageMergingExternal";
+      }
       return "animate.progress.stageMerging";
     }
     if (projectStatus === "completed") {
@@ -401,6 +407,7 @@ export function useAnimationWorkflow() {
     jobsReady,
     jobsStartError,
     transitions,
+    exportProvider,
   ]);
 
   useEffect(() => {
@@ -527,13 +534,14 @@ export function useAnimationWorkflow() {
     setTransitions(mapSnapshotToTransitions(snapshot, locals));
 
     const latestExport = snapshot.exports[0];
+    setExportProvider(latestExport?.provider ?? null);
     const avg = averageTransitionProgress(snapshot);
     if (snapshot.status === "generating") {
       setExportProgress(avg);
       setExportPhaseError(null);
       setFinalProjectVideoUrl(null);
     } else if (snapshot.status === "rendering") {
-      setExportProgress(latestExport?.progress ?? 20);
+      setExportProgress(latestExport?.progress ?? 0);
       if (!latestExport || latestExport.status !== "failed") {
         setExportPhaseError(null);
       }
@@ -938,6 +946,7 @@ export function useAnimationWorkflow() {
     jobsStartedOkForProjectIdRef.current = null;
     setExportPollError(null);
     setExportPhaseError(null);
+    setExportProvider(null);
     setFinalProjectVideoUrl(null);
     exportPollFailureCountRef.current = 0;
     exportInitSentForProjectIdRef.current = null;
@@ -1462,6 +1471,7 @@ export function useAnimationWorkflow() {
     projectId,
     transitions,
     exportProgress,
+    exportProvider,
     displayExportProgress,
     overallProgress,
     displayOverallProgress,

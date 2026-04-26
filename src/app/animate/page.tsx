@@ -63,6 +63,7 @@ export default function AnimatePage() {
     projectId,
     transitions,
     exportProgress,
+    exportProvider,
     displayExportProgress,
     overallProgress,
     displayOverallProgress,
@@ -146,7 +147,7 @@ export default function AnimatePage() {
         : String(getTotalVideoDurationSeconds(images.length, advancedDuration));
 
   const canRetryExportMerge =
-    projectStatus === "failed" && Boolean(exportPhaseError) && !anyTransitionFailed;
+    projectStatus === "failed" && !anyTransitionFailed;
 
   if (!isAuthResolved) {
     return (
@@ -710,7 +711,9 @@ export default function AnimatePage() {
             </button>
           </div>
         ) : null}
-        {exportPhaseError && projectStatus !== "rendering" ? (
+        {exportPhaseError &&
+        projectStatus !== "generating" &&
+        projectStatus !== "rendering" ? (
           <p className="mt-3 text-sm text-red-700">{exportPhaseError}</p>
         ) : null}
         {canRetryExportMerge ? (
@@ -812,7 +815,11 @@ export default function AnimatePage() {
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <h2 className="text-lg font-semibold">{t("animate.export.title")}</h2>
         {projectStatus === "rendering" ? (
-          <p className="mt-2 text-sm text-zinc-600">{t("animate.export.merging")}</p>
+          <p className="mt-2 text-sm text-zinc-600">
+            {exportProvider === "external-ffmpeg"
+              ? t("animate.export.externalMerging")
+              : t("animate.export.merging")}
+          </p>
         ) : null}
         <p className="mt-2 text-sm text-zinc-700">{displayExportProgress}%</p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
@@ -827,8 +834,16 @@ export default function AnimatePage() {
 
       {projectStatus === "rendering" ? (
         <AppCard className="mx-auto mt-8 max-w-3xl">
-          <h2 className="text-lg font-semibold">{t("animate.export.merging")}</h2>
-          <p className="mt-2 text-sm text-zinc-600">{t("animate.rendering.mergePending")}</p>
+          <h2 className="text-lg font-semibold">
+            {exportProvider === "external-ffmpeg"
+              ? t("animate.export.externalMerging")
+              : t("animate.export.merging")}
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            {exportProvider === "external-ffmpeg"
+              ? t("animate.progress.stageMergingExternal")
+              : t("animate.rendering.mergePending")}
+          </p>
         </AppCard>
       ) : null}
       {projectStatus === "completed" ? (

@@ -135,6 +135,7 @@ export const nl = {
   "animate.rendering.mergePending":
     "Je clips worden samengevoegd tot één video…",
   "animate.export.merging": "Bezig met samenvoegen van videofragmenten",
+  "animate.export.externalMerging": "Video's worden samengevoegd op de exportserver",
   "animate.export.finalVideo": "Eindvideo",
   "animate.export.retryMerge": "Export opnieuw proberen",
   "animate.export.retryPoll": "Exportstatus opnieuw ophalen",
@@ -151,6 +152,7 @@ export const nl = {
     "Vidu verwerkt je transformatie… Dit kan even duren.",
   "animate.progress.stageTransitions": "Transformatiestappen worden gegenereerd…",
   "animate.progress.stageMerging": "Video's samenvoegen…",
+  "animate.progress.stageMergingExternal": "Exportserver voegt je clips samen…",
   "animate.progress.stageCompleted": "Voltooid.",
   "animate.progress.stageFailed": "Mislukt.",
   "animate.progress.keepWindowOpen": "Nog bezig — sluit dit venster niet.",

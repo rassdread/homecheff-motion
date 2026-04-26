@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/worker/ffmpeg-merge-worker/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,6 +20,9 @@
 
 # locally merged animation exports (generated at runtime)
 /public/generated/
+
+# reference merge worker local outputs
+/worker/ffmpeg-merge-worker/outputs/
 
 # production
 /build
