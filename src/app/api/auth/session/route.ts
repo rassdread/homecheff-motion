@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/server/auth/session";
+import { apiServiceUnavailable } from "@/server/api-error-response";
 import {
   canUseAdvancedAnimationControls,
   getAdvancedAnimationLimitsForUser,
   getAllowedPresetIdsForUser,
 } from "@/server/auth/permissions";
+import { getAuthenticatedUser } from "@/server/auth/session";
 
 export async function GET() {
-  const user = await getAuthenticatedUser();
+  let user;
+  try {
+    user = await getAuthenticatedUser();
+  } catch (error) {
+    return apiServiceUnavailable("auth/session", error);
+  }
+
   if (!user) {
     return NextResponse.json(
       {

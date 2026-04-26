@@ -6,9 +6,12 @@ const SESSION_COOKIE = "hc_session";
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "dev-auth-secret-change-me";
 
 /**
- * `Secure` cookies are not stored on http:// (e.g. local `next start` with NODE_ENV=production).
- * Vercel sets VERCEL=1. For other HTTPS hosts, set COOKIE_SECURE=true. To force insecure cookies
- * in production (discouraged), set COOKIE_SECURE=false.
+ * `Secure` cookies are not sent on http:// — local `next start` with NODE_ENV=production
+ * on http://localhost needs COOKIE_SECURE=false.
+ *
+ * Production HTTPS on a custom domain (e.g. motion.*) should use Secure cookies: set
+ * `COOKIE_SECURE=true`, or set any of `NEXT_PUBLIC_APP_URL` / `PUBLIC_BASE_URL` to an
+ * `https://` URL so we infer Secure=true when COOKIE_SECURE is unset.
  */
 function sessionCookieSecure(): boolean {
   if (process.env.NODE_ENV !== "production") {
@@ -20,7 +23,18 @@ function sessionCookieSecure(): boolean {
   if (process.env.COOKIE_SECURE === "true" || process.env.COOKIE_SECURE === "1") {
     return true;
   }
-  return process.env.VERCEL === "1";
+  if (process.env.VERCEL === "1") {
+    return true;
+  }
+  const publicUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_VERCEL_URL?.trim() ||
+    process.env.PUBLIC_BASE_URL?.trim() ||
+    "";
+  if (publicUrl.startsWith("https://")) {
+    return true;
+  }
+  return false;
 }
 
 type SessionPayload = { userId: string; nonce: string };

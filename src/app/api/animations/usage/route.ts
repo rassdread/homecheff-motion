@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser } from "@/server/auth/session";
 import { getAnimationUsageStatus } from "@/server/animations/usage-limits";
 import {
   canUseAdvancedAnimationControls,
   getAdvancedAnimationLimitsForUser,
   getAllowedPresetIdsForUser,
 } from "@/server/auth/permissions";
+import { getAuthenticatedUser } from "@/server/auth/session";
+import { apiServiceUnavailable } from "@/server/api-error-response";
 
 export async function GET() {
-  const user = await getAuthenticatedUser();
+  let user;
+  try {
+    user = await getAuthenticatedUser();
+  } catch (error) {
+    return apiServiceUnavailable("animations/usage:session", error);
+  }
+
   if (!user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -18,7 +25,14 @@ export async function GET() {
       { status: 403 }
     );
   }
-  const usage = await getAnimationUsageStatus(user.id, user.role);
+
+  let usage;
+  try {
+    usage = await getAnimationUsageStatus(user.id, user.role);
+  } catch (error) {
+    return apiServiceUnavailable("animations/usage", error);
+  }
+
   const allowedPresets = getAllowedPresetIdsForUser(user);
   const advancedLimits = getAdvancedAnimationLimitsForUser(user);
   return NextResponse.json(

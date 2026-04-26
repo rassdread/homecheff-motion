@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiServiceUnavailable } from "@/server/api-error-response";
 import { createSession, verifyPassword } from "@/server/auth/session";
 
 type LoginPayload = {
@@ -21,10 +22,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, email: true, passwordHash: true, isActive: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, passwordHash: true, isActive: true },
+    });
+  } catch (error) {
+    return apiServiceUnavailable("auth/login", error);
+  }
+
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
@@ -37,7 +44,12 @@ export async function POST(request: Request) {
     );
   }
 
-  await createSession(user.id);
+  try {
+    await createSession(user.id);
+  } catch (error) {
+    return apiServiceUnavailable("auth/login:createSession", error);
+  }
+
   return NextResponse.json({ user: { id: user.id, email: user.email } }, { status: 200 });
 }
 

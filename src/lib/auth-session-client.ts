@@ -24,6 +24,21 @@ export type AuthSessionApiPayload = {
   };
 };
 
+/** Same defaults as `/api/auth/session` when unauthenticated — safe fallback on 5xx. */
+export const ANONYMOUS_AUTH_SESSION_PAYLOAD: AuthSessionApiPayload = {
+  user: null,
+  allowedPresets: [],
+  canUseAdvancedAnimationControls: false,
+  advancedLimits: {
+    advancedControls: false,
+    maxDurationSeconds: 8,
+    maxImages: 7,
+    maxTransitions: 6,
+    allowedResolutions: ["540p", "720p"],
+    allowedModels: ["viduq3-turbo"],
+  },
+};
+
 const CACHE_MS = 5000;
 
 let inflight: Promise<AuthSessionApiPayload> | null = null;
@@ -47,7 +62,15 @@ export async function fetchAuthSessionJson(options?: {
   }
   inflight = (async () => {
     const res = await fetch("/api/auth/session", { credentials: "same-origin" });
-    const data = (await res.json()) as AuthSessionApiPayload;
+    let data: AuthSessionApiPayload;
+    try {
+      data = (await res.json()) as AuthSessionApiPayload;
+    } catch {
+      return { ...ANONYMOUS_AUTH_SESSION_PAYLOAD };
+    }
+    if (!res.ok) {
+      return { ...ANONYMOUS_AUTH_SESSION_PAYLOAD };
+    }
     cache = { at: Date.now(), data };
     return data;
   })();
