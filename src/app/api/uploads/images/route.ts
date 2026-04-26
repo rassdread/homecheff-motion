@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import type { UploadImageResponse } from "@/types/animation-api";
+import { requireActiveUser } from "@/server/auth/permissions";
 
 const MAX_OPTIMIZED_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -12,6 +13,11 @@ function extensionFromMimeType(mimeType: string): string {
 }
 
 export async function POST(request: Request) {
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
+  }
+
   const formData = await request.formData();
   const workingImage = formData.get("workingImage");
   const thumbnailImage = formData.get("thumbnailImage");

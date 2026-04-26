@@ -1,5 +1,8 @@
 export type { AnimationPresetId } from "@/lib/animation-presets";
-export type { AnimationUsageResponse } from "@/types/animation-api";
+export type {
+  AnimationUsageResponse,
+  CreateAnimationProjectRequest,
+} from "@/types/animation-api";
 
 export type AnimationStatus =
   | "idle"

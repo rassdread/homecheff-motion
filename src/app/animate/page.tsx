@@ -7,10 +7,12 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
 import { getActiveTranslator, type TranslationKey } from "@/i18n";
-import { ANIMATION_PRESETS, type AnimationPresetId } from "@/lib/animation-presets";
+import {
+  ANIMATION_PRESETS,
+  MAX_ANIMATION_USER_PROMPT_LENGTH,
+  type AnimationPresetId,
+} from "@/lib/animation-presets";
 import { brand } from "@/lib/brand";
-
-const PRESET_ORDER: AnimationPresetId[] = ["basic", "standard", "pro"];
 
 const PRESET_LABELS: Record<
   AnimationPresetId,
@@ -23,6 +25,10 @@ const PRESET_LABELS: Record<
   standard: {
     title: "animate.preset.standard.title",
     description: "animate.preset.standard.description",
+  },
+  smooth: {
+    title: "animate.preset.smooth.title",
+    description: "animate.preset.smooth.description",
   },
   pro: {
     title: "animate.preset.pro.title",
@@ -48,6 +54,8 @@ export default function AnimatePage() {
     maxImages,
     selectedPresetId,
     setSelectedPresetId,
+    userPrompt,
+    setUserPrompt,
     estimatedProjectCredits,
     estimatedProjectUsd,
     presetLimitMessage,
@@ -55,6 +63,8 @@ export default function AnimatePage() {
     isAuthResolved,
     usage,
     usageError,
+    accountInactive,
+    visiblePresetIds,
     jobsStartError,
     pollError,
     finalProjectVideoUrl,
@@ -68,6 +78,17 @@ export default function AnimatePage() {
     retryPoll,
     retryExportPoll,
     retryExportMerge,
+    canUseAdvancedAnimationControls,
+    advancedLimits,
+    advancedMode,
+    handleAdvancedModeChange,
+    advancedModel,
+    setAdvancedModel,
+    advancedResolution,
+    setAdvancedResolution,
+    advancedDuration,
+    setAdvancedDuration,
+    useAdvancedOverrides,
   } = useAnimationWorkflow();
 
   const canRetryExportMerge =
@@ -101,6 +122,7 @@ export default function AnimatePage() {
                 {t("animate.auth.signupCta")}
               </Link>
             </div>
+            <p className="mt-4 text-xs text-zinc-500">{t("animate.auth.inviteSignupHint")}</p>
           </AppCard>
         </div>
       </main>
@@ -119,6 +141,12 @@ export default function AnimatePage() {
           {t("animate.subtitle")}
         </p>
       </div>
+
+      {accountInactive ? (
+        <AppCard className="mx-auto mt-8 max-w-3xl border-red-200 bg-red-50/50">
+          <p className="text-sm font-medium text-red-800">{t("animate.auth.inactiveAccount")}</p>
+        </AppCard>
+      ) : null}
 
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <h2 className="text-lg font-semibold">{t("animate.preset.title")}</h2>
@@ -150,7 +178,7 @@ export default function AnimatePage() {
         {usageError ? <p className="mt-2 text-xs text-amber-700">{usageError}</p> : null}
         <fieldset disabled={isProcessing} className="mt-4 space-y-3">
           <legend className="sr-only">{t("animate.preset.title")}</legend>
-          {PRESET_ORDER.map((presetId) => {
+          {visiblePresetIds.map((presetId) => {
             const def = ANIMATION_PRESETS[presetId];
             const labels = PRESET_LABELS[presetId];
             return (
@@ -209,6 +237,104 @@ export default function AnimatePage() {
         {presetLimitMessage ? (
           <p className="mt-3 text-sm text-amber-800">{presetLimitMessage}</p>
         ) : null}
+
+        {canUseAdvancedAnimationControls && advancedLimits ? (
+          <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+            <h3 className="text-sm font-semibold text-violet-900">{t("animate.advanced.title")}</h3>
+            <p className="mt-1 text-xs text-violet-800/90">{t("animate.advanced.description")}</p>
+            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+              <input
+                type="checkbox"
+                checked={advancedMode}
+                onChange={(e) => handleAdvancedModeChange(e.target.checked)}
+                disabled={isProcessing || accountInactive}
+                className="h-4 w-4 rounded border-violet-300 text-violet-700 accent-violet-600"
+              />
+              {t("animate.advanced.toggle")}
+            </label>
+            {advancedMode ? (
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <label htmlFor="adv-model" className="block text-xs font-medium text-zinc-700">
+                    {t("animate.advanced.model")}
+                  </label>
+                  <select
+                    id="adv-model"
+                    value={advancedModel}
+                    onChange={(e) => setAdvancedModel(e.target.value)}
+                    disabled={isProcessing || accountInactive}
+                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  >
+                    {advancedLimits.allowedModels.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="adv-resolution" className="block text-xs font-medium text-zinc-700">
+                    {t("animate.advanced.resolution")}
+                  </label>
+                  <select
+                    id="adv-resolution"
+                    value={advancedResolution}
+                    onChange={(e) =>
+                      setAdvancedResolution(e.target.value as "540p" | "720p" | "1080p")
+                    }
+                    disabled={isProcessing || accountInactive}
+                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  >
+                    {advancedLimits.allowedResolutions.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="adv-duration" className="block text-xs font-medium text-zinc-700">
+                    {t("animate.advanced.duration")}
+                  </label>
+                  <input
+                    id="adv-duration"
+                    type="number"
+                    min={1}
+                    max={advancedLimits.maxDurationSeconds}
+                    value={advancedDuration}
+                    onChange={(e) => {
+                      const n = Number.parseInt(e.target.value, 10);
+                      if (Number.isFinite(n)) {
+                        setAdvancedDuration(
+                          Math.min(
+                            Math.max(1, n),
+                            advancedLimits.maxDurationSeconds
+                          )
+                        );
+                      }
+                    }}
+                    disabled={isProcessing || accountInactive}
+                    className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-2 text-xs text-zinc-700">
+                  <p>{t("animate.advanced.estimatedCredits", { credits: estimatedProjectCredits })}</p>
+                  <p className="mt-1">
+                    {t("animate.advanced.estimatedCost", {
+                      usd: estimatedProjectUsd.toFixed(2),
+                    })}
+                  </p>
+                </div>
+                {useAdvancedOverrides && estimatedProjectCredits > 500 ? (
+                  <p className="text-xs font-medium text-amber-800">
+                    {t("animate.advanced.highCreditsWarning")}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-700">
           <p>{t("animate.preset.field.estimatedCredits", { credits: estimatedProjectCredits })}</p>
           <p className="mt-1">
@@ -217,6 +343,25 @@ export default function AnimatePage() {
             })}
           </p>
           <p className="mt-2 text-zinc-500">{t("animate.preset.estimateNote")}</p>
+        </div>
+
+        <div className="mt-6">
+          <label htmlFor="animation-user-prompt" className="block text-sm font-medium text-zinc-700">
+            {t("animate.prompt.label")}
+          </label>
+          <textarea
+            id="animation-user-prompt"
+            value={userPrompt}
+            onChange={(e) =>
+              setUserPrompt(e.target.value.slice(0, MAX_ANIMATION_USER_PROMPT_LENGTH))
+            }
+            maxLength={MAX_ANIMATION_USER_PROMPT_LENGTH}
+            rows={3}
+            disabled={isProcessing || accountInactive}
+            placeholder={t("animate.prompt.placeholder")}
+            className="mt-2 block w-full resize-y rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <p className="mt-1 text-xs text-zinc-500">{t("animate.prompt.hint")}</p>
         </div>
       </AppCard>
 

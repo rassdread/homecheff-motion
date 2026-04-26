@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { AdminNavLink } from "@/components/layout/admin-nav-link";
 import { getActiveTranslator } from "@/i18n";
 import { brand } from "@/lib/brand";
 
@@ -24,12 +25,15 @@ export function AppShell({ children }: AppShellProps) {
               {brand.productName}
             </span>
           </Link>
-          <Link
-            href="/animate"
-            className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-emerald-50"
-          >
-            {t("nav.create")}
-          </Link>
+          <div className="flex items-center gap-2">
+            <AdminNavLink />
+            <Link
+              href="/animate"
+              className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-emerald-50"
+            >
+              {t("nav.create")}
+            </Link>
+          </div>
         </nav>
       </header>
       {children}

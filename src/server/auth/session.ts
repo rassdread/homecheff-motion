@@ -72,7 +72,17 @@ export async function clearSession(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
-export async function getAuthenticatedUser() {
+export type SessionUser = {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  invitedById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export async function getAuthenticatedUser(): Promise<SessionUser | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) {
@@ -84,7 +94,15 @@ export async function getAuthenticatedUser() {
   }
   return prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, email: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isActive: true,
+      invitedById: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 }
 

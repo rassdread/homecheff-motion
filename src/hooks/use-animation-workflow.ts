@@ -2,13 +2,20 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "
 import { getActiveTranslator } from "@/i18n";
 import { preprocessImageFile } from "@/lib/image-preprocess";
 import {
+  CREDIT_USD,
   estimateProjectCredits,
   estimateProjectUsd,
   getAnimationPreset,
+  MAX_ANIMATION_USER_PROMPT_LENGTH,
   MIN_ANIMATION_IMAGES,
+  PRESET_IDS_ALL,
   type AnimationPreset,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import {
+  estimateAdvancedCredits,
+  type AnimationAdvancedResolution,
+} from "@/lib/animation-advanced-settings";
 import type {
   AnimationImage,
   AnimationTransition,
@@ -163,13 +170,38 @@ export function useAnimationWorkflow() {
   const [exportPhaseError, setExportPhaseError] = useState<string | null>(null);
   const [finalProjectVideoUrl, setFinalProjectVideoUrl] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<AnimationPresetId>("standard");
+  const [userPrompt, setUserPrompt] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthResolved, setIsAuthResolved] = useState<boolean>(false);
+  const [accountInactive, setAccountInactive] = useState(false);
+  const [allowedPresetIds, setAllowedPresetIds] = useState<AnimationPresetId[]>([
+    "basic",
+    "standard",
+  ]);
   const [usage, setUsage] = useState<AnimationUsageResponse | null>(null);
   const [usageError, setUsageError] = useState<string>("");
+  const [canUseAdvancedAnimationControls, setCanUseAdvancedAnimationControls] =
+    useState(false);
+  const [advancedLimits, setAdvancedLimits] = useState<NonNullable<
+    AnimationUsageResponse["advancedLimits"]
+  > | null>(null);
+  const [advancedMode, setAdvancedMode] = useState(false);
+  const [advancedModel, setAdvancedModel] = useState("viduq3-turbo");
+  const [advancedResolution, setAdvancedResolution] =
+    useState<AnimationAdvancedResolution>("720p");
+  const [advancedDuration, setAdvancedDuration] = useState(5);
+
+  const visiblePresetIds = useMemo(() => {
+    return PRESET_IDS_ALL.filter((id) => allowedPresetIds.includes(id));
+  }, [allowedPresetIds]);
 
   const runIdRef = useRef(0);
   const createPresetIdRef = useRef<AnimationPresetId>("standard");
+  const createUserPromptRef = useRef("");
+  const createAdvancedEnabledRef = useRef(false);
+  const createAdvancedModelRef = useRef("viduq3-turbo");
+  const createAdvancedResolutionRef = useRef<AnimationAdvancedResolution>("720p");
+  const createAdvancedDurationRef = useRef(5);
   const imagesRef = useRef<AnimationImage[]>([]);
   const pollInFlightRef = useRef(false);
   const pollFailureCountRef = useRef(0);
@@ -184,30 +216,81 @@ export function useAnimationWorkflow() {
     [selectedPresetId]
   );
   const minImages = MIN_ANIMATION_IMAGES;
-  const maxImages = activePreset.maxImages;
 
-  const estimatedProjectCredits = useMemo(
-    () => estimateProjectCredits(images.length, activePreset),
-    [images.length, activePreset]
-  );
-  const estimatedProjectUsd = useMemo(
-    () => estimateProjectUsd(images.length, activePreset),
-    [images.length, activePreset]
-  );
+  const useAdvancedOverrides =
+    canUseAdvancedAnimationControls && advancedMode && advancedLimits !== null;
+
+  const effectiveMaxImages = useMemo(() => {
+    if (useAdvancedOverrides) {
+      return advancedLimits!.maxImages;
+    }
+    return activePreset.maxImages;
+  }, [useAdvancedOverrides, advancedLimits, activePreset.maxImages]);
+
+  const effectiveMaxTransitions = useMemo(() => {
+    if (useAdvancedOverrides) {
+      return advancedLimits!.maxTransitions;
+    }
+    return activePreset.maxTransitions;
+  }, [useAdvancedOverrides, advancedLimits, activePreset.maxTransitions]);
+
+  const maxImages = effectiveMaxImages;
+
+  const transitionCount = Math.max(0, images.length - 1);
+
+  const estimatedProjectCredits = useMemo(() => {
+    if (useAdvancedOverrides) {
+      return estimateAdvancedCredits(
+        advancedModel,
+        advancedResolution,
+        advancedDuration,
+        transitionCount
+      );
+    }
+    return estimateProjectCredits(images.length, activePreset);
+  }, [
+    useAdvancedOverrides,
+    advancedModel,
+    advancedResolution,
+    advancedDuration,
+    transitionCount,
+    images.length,
+    activePreset,
+  ]);
+
+  const estimatedProjectUsd = useMemo(() => {
+    if (useAdvancedOverrides) {
+      return estimatedProjectCredits * CREDIT_USD;
+    }
+    return estimateProjectUsd(images.length, activePreset);
+  }, [useAdvancedOverrides, estimatedProjectCredits, images.length, activePreset]);
 
   const isProcessing =
     projectStatus === "generating" || projectStatus === "rendering";
-  const presetOverImageLimit = images.length > activePreset.maxImages;
+  const presetOverImageLimit = images.length > effectiveMaxImages;
+  const presetOverTransitionLimit = transitionCount > effectiveMaxTransitions;
   const presetLimitMessage = presetOverImageLimit
-    ? t("errors.presetReduceImages", { max: activePreset.maxImages })
-    : "";
+    ? t("errors.presetReduceImages", { max: effectiveMaxImages })
+    : presetOverTransitionLimit
+      ? t("errors.presetMaxTransitions", { max: effectiveMaxTransitions })
+      : "";
+
+  const advancedDurationValid =
+    !useAdvancedOverrides ||
+    (advancedDuration >= 1 &&
+      advancedDuration <= (advancedLimits?.maxDurationSeconds ?? 16) &&
+      Number.isFinite(advancedDuration));
 
   const canCreateAnimation =
     images.length >= minImages &&
     images.length <= maxImages &&
     !isProcessing &&
     !presetOverImageLimit &&
+    !presetOverTransitionLimit &&
+    advancedDurationValid &&
     isAuthenticated &&
+    !accountInactive &&
+    allowedPresetIds.includes(selectedPresetId) &&
     (usage?.remaining.dailyVideosRemaining ?? 1) > 0 &&
     (usage?.remaining.dailyCreditsRemaining ?? 1) > 0;
 
@@ -240,16 +323,49 @@ export function useAnimationWorkflow() {
     if (!sessionRes.ok) {
       setIsAuthenticated(false);
       setIsAuthResolved(true);
+      setAccountInactive(false);
+      setAllowedPresetIds(["basic", "standard"]);
+      setCanUseAdvancedAnimationControls(false);
+      setAdvancedLimits(null);
+      setAdvancedMode(false);
       return;
     }
-    const session = (await sessionRes.json()) as { user: { id: string } | null };
+    const session = (await sessionRes.json()) as {
+      user: { id: string; isActive: boolean } | null;
+      allowedPresets: AnimationPresetId[];
+      canUseAdvancedAnimationControls?: boolean;
+      advancedLimits?: AnimationUsageResponse["advancedLimits"];
+    };
     if (!session.user) {
       setIsAuthenticated(false);
       setIsAuthResolved(true);
+      setAccountInactive(false);
+      setAllowedPresetIds(["basic", "standard"]);
+      setCanUseAdvancedAnimationControls(false);
+      setAdvancedLimits(null);
+      setAdvancedMode(false);
       return;
     }
     setIsAuthenticated(true);
     setIsAuthResolved(true);
+
+    if (session.user.isActive === false) {
+      setAccountInactive(true);
+      setUsage(null);
+      setUsageError(t("animate.auth.inactiveAccount"));
+      setAllowedPresetIds([]);
+      setCanUseAdvancedAnimationControls(false);
+      setAdvancedLimits(null);
+      setAdvancedMode(false);
+      return;
+    }
+
+    setAccountInactive(false);
+    setAllowedPresetIds(
+      session.allowedPresets?.length ? session.allowedPresets : ["basic", "standard"]
+    );
+    setCanUseAdvancedAnimationControls(session.canUseAdvancedAnimationControls ?? false);
+    setAdvancedLimits(session.advancedLimits ?? null);
 
     const usageRes = await fetch("/api/animations/usage");
     if (!usageRes.ok) {
@@ -258,9 +374,27 @@ export function useAnimationWorkflow() {
       return;
     }
     const usageBody = (await usageRes.json()) as AnimationUsageResponse;
+    if (usageBody.allowedPresets?.length) {
+      setAllowedPresetIds(usageBody.allowedPresets);
+    }
+    if (usageBody.canUseAdvancedAnimationControls !== undefined) {
+      setCanUseAdvancedAnimationControls(usageBody.canUseAdvancedAnimationControls);
+    }
+    if (usageBody.advancedLimits) {
+      setAdvancedLimits(usageBody.advancedLimits);
+    }
     setUsage(usageBody);
     setUsageError("");
   }, [t]);
+
+  useEffect(() => {
+    if (allowedPresetIds.length === 0) {
+      return;
+    }
+    if (!allowedPresetIds.includes(selectedPresetId)) {
+      setSelectedPresetId(allowedPresetIds[0] ?? "standard");
+    }
+  }, [allowedPresetIds, selectedPresetId]);
 
   useEffect(() => {
     void fetchUsage();
@@ -542,11 +676,10 @@ export function useAnimationWorkflow() {
     }
 
     const selectedFiles = Array.from(fileList);
-    const maxImg = getAnimationPreset(selectedPresetId).maxImages;
-    const remainingSlots = maxImg - images.length;
+    const remainingSlots = maxImages - images.length;
 
     if (selectedFiles.length > remainingSlots) {
-      setError(t("errors.maxImages", { max: maxImg }));
+      setError(t("errors.maxImages", { max: maxImages }));
     } else {
       setError("");
     }
@@ -659,7 +792,6 @@ export function useAnimationWorkflow() {
       return;
     }
 
-    const maxImg = getAnimationPreset(selectedPresetId).maxImages;
     const nextLength = images.filter((image) => image.id !== imageId).length;
 
     setImages((currentImages) => {
@@ -673,7 +805,7 @@ export function useAnimationWorkflow() {
       return currentImages.filter((image) => image.id !== imageId);
     });
 
-    if (nextLength <= maxImg) {
+    if (nextLength <= maxImages) {
       setError("");
     }
 
@@ -701,7 +833,36 @@ export function useAnimationWorkflow() {
     setError("");
     setSelectedPresetId("standard");
     createPresetIdRef.current = "standard";
+    setUserPrompt("");
+    createUserPromptRef.current = "";
+    setAdvancedMode(false);
+    setAdvancedModel("viduq3-turbo");
+    setAdvancedResolution("720p");
+    setAdvancedDuration(5);
   }
+
+  const handleAdvancedModeChange = useCallback(
+    (next: boolean) => {
+      if (next) {
+        if (!canUseAdvancedAnimationControls || !advancedLimits) {
+          return;
+        }
+        setAdvancedMode(true);
+        setAdvancedModel(advancedLimits.allowedModels[0] ?? "viduq3-turbo");
+        const res = advancedLimits.allowedResolutions.includes("720p")
+          ? "720p"
+          : (advancedLimits.allowedResolutions[0] as AnimationAdvancedResolution);
+        setAdvancedResolution(res);
+        const p = getAnimationPreset(selectedPresetId);
+        setAdvancedDuration(
+          Math.min(Math.max(1, p.durationSeconds), advancedLimits.maxDurationSeconds)
+        );
+        return;
+      }
+      setAdvancedMode(false);
+    },
+    [advancedLimits, canUseAdvancedAnimationControls, selectedPresetId]
+  );
 
   async function uploadImageToBlob(image: AnimationImage): Promise<UploadImageResponse> {
     const formData = new FormData();
@@ -759,8 +920,20 @@ export function useAnimationWorkflow() {
   }> {
     const uploadedImages = await uploadImagesForProject();
 
+    const trimmedUser = createUserPromptRef.current;
     const payload: CreateAnimationProjectRequest = {
       presetId: createPresetIdRef.current,
+      ...(trimmedUser.length > 0 ? { userPrompt: trimmedUser } : {}),
+      ...(createAdvancedEnabledRef.current
+        ? {
+            advancedSettings: {
+              enabled: true,
+              model: createAdvancedModelRef.current,
+              resolution: createAdvancedResolutionRef.current,
+              durationSeconds: createAdvancedDurationRef.current,
+            },
+          }
+        : {}),
       images: uploadedImages.map((image) => ({
         fileName: image.originalFileName,
         previewUrl: image.thumbnailUrl ?? image.thumbnailPreviewUrl,
@@ -800,17 +973,73 @@ export function useAnimationWorkflow() {
         if (rawBody.code === "PRESET_INVALID") {
           throw new Error(JSON.stringify({ code: "PRESET_INVALID", msg: rawBody.error }));
         }
+        if (rawBody.code === "PRESET_NOT_ALLOWED") {
+          throw new Error(JSON.stringify({ code: "PRESET_NOT_ALLOWED", msg: rawBody.error }));
+        }
+        if (rawBody.code === "USER_INACTIVE") {
+          throw new Error(JSON.stringify({ code: "USER_INACTIVE", msg: rawBody.error }));
+        }
+        if (rawBody.code === "USER_PROMPT_TOO_LONG" && typeof rawBody.maxLength === "number") {
+          throw new Error(
+            JSON.stringify({
+              code: "USER_PROMPT_TOO_LONG",
+              max: rawBody.maxLength,
+              msg: rawBody.error,
+            })
+          );
+        }
+        if (rawBody.code === "USER_PROMPT_INVALID") {
+          throw new Error(JSON.stringify({ code: "USER_PROMPT_INVALID", msg: rawBody.error }));
+        }
         if (
           rawBody.code === "ANIMATION_DAILY_LIMIT" ||
           rawBody.code === "ANIMATION_MONTHLY_LIMIT" ||
           rawBody.code === "ANIMATION_CREDIT_LIMIT" ||
-          rawBody.code === "ANIMATION_PRESET_DAILY_LIMIT"
+          rawBody.code === "ANIMATION_PRESET_DAILY_LIMIT" ||
+          rawBody.code === "ADVANCED_CREDIT_LIMIT"
         ) {
           throw new Error(
             JSON.stringify({
               code: rawBody.code,
               msg: rawBody.error,
               usage: rawBody.usage,
+            })
+          );
+        }
+        if (rawBody.code === "ADVANCED_SETTINGS_NOT_ALLOWED") {
+          throw new Error(JSON.stringify({ code: "ADVANCED_SETTINGS_NOT_ALLOWED", msg: rawBody.error }));
+        }
+        if (rawBody.code === "ADVANCED_MODEL_NOT_ALLOWED") {
+          throw new Error(JSON.stringify({ code: "ADVANCED_MODEL_NOT_ALLOWED", msg: rawBody.error }));
+        }
+        if (rawBody.code === "ADVANCED_RESOLUTION_NOT_ALLOWED") {
+          throw new Error(
+            JSON.stringify({ code: "ADVANCED_RESOLUTION_NOT_ALLOWED", msg: rawBody.error })
+          );
+        }
+        if (rawBody.code === "ADVANCED_DURATION_NOT_ALLOWED") {
+          throw new Error(
+            JSON.stringify({ code: "ADVANCED_DURATION_NOT_ALLOWED", msg: rawBody.error })
+          );
+        }
+        if (rawBody.code === "ADVANCED_IMAGE_LIMIT" && typeof rawBody.maxImages === "number") {
+          throw new Error(
+            JSON.stringify({
+              code: "ADVANCED_IMAGE_LIMIT",
+              max: rawBody.maxImages,
+              msg: rawBody.error,
+            })
+          );
+        }
+        if (
+          rawBody.code === "ADVANCED_TRANSITION_LIMIT" &&
+          typeof rawBody.maxTransitions === "number"
+        ) {
+          throw new Error(
+            JSON.stringify({
+              code: "ADVANCED_TRANSITION_LIMIT",
+              max: rawBody.maxTransitions,
+              msg: rawBody.error,
             })
           );
         }
@@ -910,6 +1139,17 @@ export function useAnimationWorkflow() {
     resetOrchestrationState();
     runIdRef.current += 1;
     createPresetIdRef.current = selectedPresetId;
+    const trimmedPrompt = userPrompt
+      .trim()
+      .slice(0, MAX_ANIMATION_USER_PROMPT_LENGTH);
+    createUserPromptRef.current = trimmedPrompt;
+
+    createAdvancedEnabledRef.current = useAdvancedOverrides;
+    if (useAdvancedOverrides) {
+      createAdvancedModelRef.current = advancedModel;
+      createAdvancedResolutionRef.current = advancedResolution;
+      createAdvancedDurationRef.current = advancedDuration;
+    }
 
     let persistedProjectId: string;
 
@@ -927,6 +1167,14 @@ export function useAnimationWorkflow() {
             msg?: string;
             usage?: AnimationUsageResponse;
           };
+          if (parsed.code === "USER_PROMPT_TOO_LONG" && typeof parsed.max === "number") {
+            setError(t("errors.userPromptTooLong", { max: parsed.max }));
+            return;
+          }
+          if (parsed.code === "USER_PROMPT_INVALID") {
+            setError(t("errors.userPromptInvalid"));
+            return;
+          }
           if (parsed.code === "PRESET_MAX_IMAGES" && typeof parsed.max === "number") {
             setError(t("errors.presetMaxImages", { max: parsed.max }));
             return;
@@ -937,6 +1185,15 @@ export function useAnimationWorkflow() {
           }
           if (parsed.code === "PRESET_INVALID") {
             setError(t("errors.presetInvalid"));
+            return;
+          }
+          if (parsed.code === "PRESET_NOT_ALLOWED") {
+            setError(t("errors.presetNotAllowed"));
+            return;
+          }
+          if (parsed.code === "USER_INACTIVE") {
+            setAccountInactive(true);
+            setError(t("animate.auth.inactiveAccount"));
             return;
           }
           if (parsed.code === "AUTH_REQUIRED") {
@@ -958,8 +1215,12 @@ export function useAnimationWorkflow() {
             }
             return;
           }
-          if (parsed.code === "ANIMATION_CREDIT_LIMIT") {
-            setError(t("errors.usage.creditLimit"));
+          if (parsed.code === "ANIMATION_CREDIT_LIMIT" || parsed.code === "ADVANCED_CREDIT_LIMIT") {
+            setError(
+              parsed.code === "ADVANCED_CREDIT_LIMIT"
+                ? t("errors.advancedCreditLimit")
+                : t("errors.usage.creditLimit")
+            );
             if (parsed.usage) {
               setUsage(parsed.usage as AnimationUsageResponse);
             }
@@ -970,6 +1231,30 @@ export function useAnimationWorkflow() {
             if (parsed.usage) {
               setUsage(parsed.usage as AnimationUsageResponse);
             }
+            return;
+          }
+          if (parsed.code === "ADVANCED_SETTINGS_NOT_ALLOWED") {
+            setError(t("errors.advancedSettingsNotAllowed"));
+            return;
+          }
+          if (parsed.code === "ADVANCED_MODEL_NOT_ALLOWED") {
+            setError(t("errors.advancedModelNotAllowed"));
+            return;
+          }
+          if (parsed.code === "ADVANCED_RESOLUTION_NOT_ALLOWED") {
+            setError(t("errors.advancedResolutionNotAllowed"));
+            return;
+          }
+          if (parsed.code === "ADVANCED_DURATION_NOT_ALLOWED") {
+            setError(t("errors.advancedDurationNotAllowed"));
+            return;
+          }
+          if (parsed.code === "ADVANCED_IMAGE_LIMIT" && typeof parsed.max === "number") {
+            setError(t("errors.advancedImageLimit", { max: parsed.max }));
+            return;
+          }
+          if (parsed.code === "ADVANCED_TRANSITION_LIMIT" && typeof parsed.max === "number") {
+            setError(t("errors.advancedTransitionLimit", { max: parsed.max }));
             return;
           }
         } catch {
@@ -1002,11 +1287,15 @@ export function useAnimationWorkflow() {
     maxImages,
     isAuthenticated,
     isAuthResolved,
+    accountInactive,
+    visiblePresetIds,
     usage,
     usageError,
     fetchUsage,
     selectedPresetId,
     setSelectedPresetId,
+    userPrompt,
+    setUserPrompt,
     activePreset,
     estimatedProjectCredits,
     estimatedProjectUsd,
@@ -1021,5 +1310,16 @@ export function useAnimationWorkflow() {
     retryPoll,
     retryExportPoll,
     retryExportMerge,
+    canUseAdvancedAnimationControls,
+    advancedLimits,
+    advancedMode,
+    handleAdvancedModeChange,
+    advancedModel,
+    setAdvancedModel,
+    advancedResolution,
+    setAdvancedResolution,
+    advancedDuration,
+    setAdvancedDuration,
+    useAdvancedOverrides,
   };
 }

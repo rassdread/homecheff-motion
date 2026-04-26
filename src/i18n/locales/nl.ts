@@ -68,6 +68,10 @@ export const nl = {
     "Omdat AI-generatie kosten maakt, is deze functie alleen beschikbaar met een account.",
   "animate.auth.loginCta": "Inloggen",
   "animate.auth.signupCta": "Account maken",
+  "animate.auth.inactiveAccount":
+    "Je account is uitgeschakeld. Neem contact op met een beheerder.",
+  "animate.auth.inviteSignupHint":
+    "Nieuwe accounts zijn alleen mogelijk met een uitnodigingslink van een beheerder.",
   "animate.usage.dailyRemainingVideos":
     "Vandaag resterend: {remaining} van {limit} video’s",
   "animate.usage.dailyRemainingCredits":
@@ -86,8 +90,17 @@ export const nl = {
   "auth.signup.cta": "Account maken",
   "auth.signup.link": "Account maken",
   "auth.signup.hasAccount": "Heb je al een account?",
+  "auth.signup.inviteRequiredTitle": "Uitnodiging vereist",
+  "auth.signup.inviteRequiredBody":
+    "Je hebt een uitnodigingslink nodig om een account aan te maken.",
+  "auth.signup.inviteInvalid": "Uitnodiging verlopen of ongeldig.",
+  "auth.signup.inviteEmailMismatch": "Dit e-mailadres hoort niet bij deze uitnodiging.",
+  "auth.signup.bootstrapHint":
+    "Er bestaat nog geen account: je eerste registratie wordt automatisch beheerder.",
   "auth.form.email": "E-mailadres",
   "auth.form.password": "Wachtwoord",
+  "auth.form.showPassword": "Wachtwoord tonen",
+  "auth.form.hidePassword": "Wachtwoord verbergen",
   "auth.form.genericError": "Inloggen of registreren is mislukt. Probeer opnieuw.",
   "auth.form.errorInvalidCredentials": "Ongeldig e-mailadres of wachtwoord.",
   "auth.form.errorEmailInUse": "Dit e-mailadres is al geregistreerd.",
@@ -96,6 +109,92 @@ export const nl = {
   "auth.form.errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
   "auth.form.submittingLogin": "Bezig met inloggen…",
   "auth.form.submittingSignup": "Account aanmaken…",
+
+  "admin.nav.dashboard": "Beheer",
+  "admin.nav.invites": "Uitnodigingen",
+  "admin.nav.users": "Gebruikers",
+  "admin.forbiddenTitle": "Geen toegang",
+  "admin.forbiddenDescription": "Alleen beheerders kunnen dit gedeelte openen.",
+  "admin.backHome": "Terug naar home",
+  "admin.dashboard.title": "Beheerdersdashboard",
+  "admin.dashboard.intro": "Beheer uitnodigingen en gebruikers.",
+  "admin.invites.title": "Uitnodigingen",
+  "admin.invites.intro": "Maak een eenmalige link om iemand te laten registreren.",
+  "admin.invites.createTitle": "Gebruiker uitnodigen",
+  "admin.invites.emailOptional": "E-mail (optioneel, moet overeenkomen bij registratie)",
+  "admin.invites.role": "Rol",
+  "admin.invites.expiresDays": "Geldig (dagen)",
+  "admin.invites.submit": "Uitnodiging aanmaken",
+  "admin.invites.createdTitle": "Uitnodigingslink aangemaakt",
+  "admin.invites.copyLink": "Kopieer link",
+  "admin.invites.copied": "Gekopieerd",
+  "admin.invites.table.email": "E-mail",
+  "admin.invites.table.role": "Rol",
+  "admin.invites.table.status": "Status",
+  "admin.invites.table.created": "Aangemaakt",
+  "admin.invites.table.expires": "Verloopt",
+  "admin.invites.table.actions": "Acties",
+  "admin.invites.status.active": "Actief",
+  "admin.invites.status.used": "Gebruikt",
+  "admin.invites.status.expired": "Verlopen",
+  "admin.invites.status.revoked": "Ingetrokken",
+  "admin.invites.revoke": "Intrekken",
+  "admin.invites.loadError": "Uitnodigingen laden mislukt.",
+  "admin.invites.createError": "Aanmaken mislukt.",
+  "admin.users.title": "Gebruikers",
+  "admin.users.intro": "Rollen en actieve status beheren.",
+  "admin.users.table.email": "E-mail",
+  "admin.users.table.role": "Rol",
+  "admin.users.table.active": "Actief",
+  "admin.users.table.created": "Aangemaakt",
+  "admin.users.table.usageToday": "Vandaag",
+  "admin.users.table.usageMonth": "Deze maand",
+  "admin.users.activate": "Activeren",
+  "admin.users.deactivate": "Deactiveren",
+  "admin.users.table.actions": "Acties",
+  "admin.users.stateActive": "Actief",
+  "admin.users.stateInactive": "Inactief",
+  "admin.users.loadError": "Gebruikers laden mislukt.",
+  "admin.users.updateError": "Bijwerken mislukt.",
+  "admin.users.roleUser": "Gebruiker",
+  "admin.users.rolePower": "Power",
+  "admin.users.roleAdmin": "Beheerder",
+  "admin.role.user": "Gebruiker",
+  "admin.role.power": "Power",
+  "admin.role.admin": "Beheerder",
+  "admin.nav.link": "Beheer",
+
+  "animate.preset.smooth.title": "Smooth",
+  "animate.preset.smooth.description": "Langere animatie, lage kosten",
+
+  "animate.prompt.label": "Wat moet er gebeuren tussen de beelden?",
+  "animate.prompt.placeholder":
+    "bijv. het product draait en vloeit over in de volgende scène",
+  "animate.prompt.hint": "Optioneel: beschrijf hoe de overgang eruit moet zien",
+
+  "animate.advanced.title": "Geavanceerde instellingen",
+  "animate.advanced.toggle": "Geavanceerde modus",
+  "animate.advanced.description":
+    "Alleen voor admins. Hogere instellingen gebruiken meer credits.",
+  "animate.advanced.model": "Model",
+  "animate.advanced.resolution": "Resolutie",
+  "animate.advanced.duration": "Seconden per overgang",
+  "animate.advanced.estimatedCredits": "Geschatte credits",
+  "animate.advanced.estimatedCost": "Geschatte kosten",
+  "animate.advanced.notAllowed": "Geavanceerde instellingen zijn niet beschikbaar voor jouw account.",
+  "animate.advanced.highCreditsWarning":
+    "Geschatte credits zijn hoog (>500); dit project kan duur zijn in credits.",
+
+  "errors.advancedSettingsNotAllowed":
+    "Geavanceerde instellingen zijn niet beschikbaar voor jouw account.",
+  "errors.advancedModelNotAllowed": "Dit model is niet toegestaan.",
+  "errors.advancedResolutionNotAllowed": "Deze resolutie is niet toegestaan.",
+  "errors.advancedDurationNotAllowed": "De gekozen duur is niet toegestaan.",
+  "errors.advancedImageLimit": "Te veel afbeeldingen voor geavanceerde limieten (max. {max}).",
+  "errors.advancedTransitionLimit":
+    "Te veel overgangen voor geavanceerde limieten (max. {max}).",
+  "errors.advancedCreditLimit":
+    "Geschatte credits overschrijden je limiet. Kies lichtere instellingen of probeer later opnieuw.",
 
   "projectDetail.title": "Opgeslagen animatieproject",
   "projectDetail.meta.createdAt": "Aangemaakt op",
@@ -120,7 +219,10 @@ export const nl = {
 
   "button.loading": "Genereren...",
 
-  "errors.presetInvalid": "Ongeldig kwaliteitsniveau. Kies basic, standard of pro.",
+  "errors.presetInvalid": "Ongeldig kwaliteitsniveau.",
+  "errors.presetNotAllowed": "Dit kwaliteitsniveau is niet beschikbaar voor jouw account.",
+  "errors.userPromptTooLong": "Je beschrijving is te lang (maximaal {max} tekens).",
+  "errors.userPromptInvalid": "Deze beschrijving kan niet worden geaccepteerd. Gebruik alleen platte tekst.",
   "errors.presetMaxImages":
     "Dit niveau staat maximaal {max} afbeeldingen toe. Verwijder er een paar of kies een hoger niveau.",
   "errors.presetMaxTransitions":

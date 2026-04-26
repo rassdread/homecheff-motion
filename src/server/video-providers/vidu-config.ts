@@ -41,8 +41,8 @@ export function resolveViduDurationSeconds(): number {
   return parsed;
 }
 
-/** Preset jobs are restricted to turbo until product expands models. */
-const JOB_OVERRIDE_MODELS = new Set(["viduq3-turbo"]);
+/** Models allowed when project stores an override (validated at project create for role). */
+const JOB_OVERRIDE_MODELS = new Set(["viduq3-turbo", "viduq3-pro"]);
 
 export function resolveViduModelForJob(override?: string | null): string {
   if (override?.trim()) {

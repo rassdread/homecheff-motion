@@ -9,10 +9,17 @@ import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video
 const ACTIVE_TRANSITION_STATUSES = ["queued", "generating"] as const;
 const TERMINAL_TRANSITION_STATUSES = ["completed", "failed"] as const;
 
-function getTransitionPrompt(stylePreset: string | null): string {
-  return stylePreset
-    ? `Create a smooth transition in ${stylePreset} style.`
-    : "Create a smooth cinematic transition.";
+/** Preset prompt is always the base; optional user text is appended, never replacing. */
+export function combineAnimationPrompt(params: {
+  presetPrompt: string;
+  userPrompt: string | null | undefined;
+}): string {
+  const base = params.presetPrompt.trim();
+  const extra = params.userPrompt?.trim() ?? "";
+  if (!extra) {
+    return base;
+  }
+  return `${base}\nUser direction: ${extra}`;
 }
 
 function isTerminalStatus(status: string): boolean {
@@ -67,6 +74,15 @@ export async function startTransitionJob(transitionId: string) {
     throw new Error("Transition images are missing preview URLs.");
   }
 
+  const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
+    ? transition.project.presetId
+    : "standard";
+  const preset = getAnimationPreset(presetId);
+  const finalPrompt = combineAnimationPrompt({
+    presetPrompt: preset.prompt,
+    userPrompt: transition.project.userPrompt,
+  });
+
   const provider = getVideoProvider();
   const jobSettings = resolveProviderJobSettings(transition.project);
   let providerResult;
@@ -76,7 +92,7 @@ export async function startTransitionJob(transitionId: string) {
       projectId: transition.projectId,
       startImageUrl: startImage.previewUrl,
       endImageUrl: endImage.previewUrl,
-      prompt: getTransitionPrompt(transition.project.stylePreset),
+      prompt: finalPrompt,
       durationSeconds: jobSettings.providerDurationSeconds,
       aspectRatio: transition.project.aspectRatio ?? "16:9",
       stylePreset: transition.project.stylePreset ?? "homecheff-motion",

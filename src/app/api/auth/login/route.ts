@@ -21,9 +21,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, email: true, passwordHash: true, isActive: true },
+  });
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+  }
+
+  // Only block when explicitly false — avoid treating null/undefined as disabled (legacy rows / odd DB states).
+  if (user.isActive === false) {
+    return NextResponse.json(
+      { error: "Account is disabled.", code: "USER_INACTIVE" },
+      { status: 403 }
+    );
   }
 
   await createSession(user.id);

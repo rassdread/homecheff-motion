@@ -15,7 +15,7 @@ model AnimationProject {
   status      String
   stylePreset String?
   aspectRatio String?
-  /** basic | standard | pro — enforced server-side */
+  /** basic | standard | pro | smooth — enforced server-side */
   presetId             String   @default("standard")
   /** Vidu model id used for transitions (from preset at create time). */
   viduModel            String?
@@ -23,6 +23,10 @@ model AnimationProject {
   viduDurationSeconds  Int?
   /** Estimated credits for this project at creation (UI / planning only). */
   estimatedCredits     Int?
+  /** True when admin (or future power) used advanced overrides vs preset-only Vidu fields. */
+  advancedSettingsEnabled Boolean @default(false)
+  /** Optional user hint; combined server-side with preset prompt for Vidu. */
+  userPrompt           String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
   images      AnimationImage[]
@@ -83,14 +87,43 @@ model AnimationExport {
 }
 
 model User {
-  id           String                 @id @default(cuid())
-  email        String                 @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   passwordHash String
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  /** admin | power | user */
+  role         String   @default("user")
+  isActive     Boolean  @default(true)
+  invitedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  inviter       User?  @relation("UserInvites", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedUsers  User[] @relation("UserInvites")
 
   animationProjects AnimationProject[]
   animationUsage    AnimationUsageLedger[]
+  invitesCreated    AnimationInvite[] @relation("InviteCreator")
+  invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
+}
+
+model AnimationInvite {
+  id              String    @id @default(cuid())
+  email           String?
+  tokenHash       String    @unique
+  /** Role assigned to the user who redeems this invite. */
+  role            String    @default("user")
+  expiresAt       DateTime
+  usedAt          DateTime?
+  usedByUserId    String?
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  revokedAt       DateTime?
+
+  creator User  @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  usedBy  User? @relation("InviteConsumer", fields: [usedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdByUserId])
+  @@index([email])
 }
 
 model AnimationUsageLedger {

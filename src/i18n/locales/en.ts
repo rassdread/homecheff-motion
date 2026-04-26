@@ -69,6 +69,10 @@ export const en: LocaleSchema = {
     "Because AI generation has real costs, this feature is only available with an account.",
   "animate.auth.loginCta": "Log in",
   "animate.auth.signupCta": "Create account",
+  "animate.auth.inactiveAccount":
+    "Your account is disabled. Contact an administrator.",
+  "animate.auth.inviteSignupHint":
+    "New accounts are only possible with an invite link from an administrator.",
   "animate.usage.dailyRemainingVideos":
     "Remaining today: {remaining} of {limit} videos",
   "animate.usage.dailyRemainingCredits":
@@ -87,8 +91,17 @@ export const en: LocaleSchema = {
   "auth.signup.cta": "Create account",
   "auth.signup.link": "Create account",
   "auth.signup.hasAccount": "Already have an account?",
+  "auth.signup.inviteRequiredTitle": "Invite required",
+  "auth.signup.inviteRequiredBody":
+    "You need an invite link to create an account.",
+  "auth.signup.inviteInvalid": "Invite expired or invalid.",
+  "auth.signup.inviteEmailMismatch": "This email does not match the invite.",
+  "auth.signup.bootstrapHint":
+    "No account exists yet: your first signup becomes the administrator.",
   "auth.form.email": "Email",
   "auth.form.password": "Password",
+  "auth.form.showPassword": "Show password",
+  "auth.form.hidePassword": "Hide password",
   "auth.form.genericError": "Login or signup failed. Please try again.",
   "auth.form.errorInvalidCredentials": "Invalid email or password.",
   "auth.form.errorEmailInUse": "This email is already registered.",
@@ -96,6 +109,92 @@ export const en: LocaleSchema = {
   "auth.form.errorNetwork": "Network error. Check your connection and try again.",
   "auth.form.submittingLogin": "Signing in…",
   "auth.form.submittingSignup": "Creating account…",
+
+  "admin.nav.dashboard": "Admin",
+  "admin.nav.invites": "Invites",
+  "admin.nav.users": "Users",
+  "admin.forbiddenTitle": "Access denied",
+  "admin.forbiddenDescription": "Only administrators can open this section.",
+  "admin.backHome": "Back to home",
+  "admin.dashboard.title": "Admin dashboard",
+  "admin.dashboard.intro": "Manage invites and users.",
+  "admin.invites.title": "Invites",
+  "admin.invites.intro": "Create a one-time link to let someone register.",
+  "admin.invites.createTitle": "Invite user",
+  "admin.invites.emailOptional": "Email (optional, must match at signup)",
+  "admin.invites.role": "Role",
+  "admin.invites.expiresDays": "Valid for (days)",
+  "admin.invites.submit": "Create invite",
+  "admin.invites.createdTitle": "Invite link created",
+  "admin.invites.copyLink": "Copy link",
+  "admin.invites.copied": "Copied",
+  "admin.invites.table.email": "Email",
+  "admin.invites.table.role": "Role",
+  "admin.invites.table.status": "Status",
+  "admin.invites.table.created": "Created",
+  "admin.invites.table.expires": "Expires",
+  "admin.invites.table.actions": "Actions",
+  "admin.invites.status.active": "Active",
+  "admin.invites.status.used": "Used",
+  "admin.invites.status.expired": "Expired",
+  "admin.invites.status.revoked": "Revoked",
+  "admin.invites.revoke": "Revoke",
+  "admin.invites.loadError": "Could not load invites.",
+  "admin.invites.createError": "Could not create invite.",
+  "admin.users.title": "Users",
+  "admin.users.intro": "Manage roles and active status.",
+  "admin.users.table.email": "Email",
+  "admin.users.table.role": "Role",
+  "admin.users.table.active": "Active",
+  "admin.users.table.created": "Created",
+  "admin.users.table.usageToday": "Today",
+  "admin.users.table.usageMonth": "This month",
+  "admin.users.activate": "Activate",
+  "admin.users.deactivate": "Deactivate",
+  "admin.users.table.actions": "Actions",
+  "admin.users.stateActive": "Active",
+  "admin.users.stateInactive": "Inactive",
+  "admin.users.loadError": "Could not load users.",
+  "admin.users.updateError": "Could not update user.",
+  "admin.users.roleUser": "User",
+  "admin.users.rolePower": "Power",
+  "admin.users.roleAdmin": "Admin",
+  "admin.role.user": "User",
+  "admin.role.power": "Power",
+  "admin.role.admin": "Admin",
+  "admin.nav.link": "Admin",
+
+  "animate.preset.smooth.title": "Smooth",
+  "animate.preset.smooth.description": "Longer animation, low cost",
+
+  "animate.prompt.label": "What should happen between the images?",
+  "animate.prompt.placeholder":
+    "e.g. the product rotates and blends into the next scene",
+  "animate.prompt.hint": "Optional: describe how the transition should look",
+
+  "animate.advanced.title": "Advanced settings",
+  "animate.advanced.toggle": "Advanced mode",
+  "animate.advanced.description":
+    "For admins only. Higher settings use more credits.",
+  "animate.advanced.model": "Model",
+  "animate.advanced.resolution": "Resolution",
+  "animate.advanced.duration": "Seconds per transition",
+  "animate.advanced.estimatedCredits": "Estimated credits",
+  "animate.advanced.estimatedCost": "Estimated cost",
+  "animate.advanced.notAllowed": "Advanced settings are not available for your account.",
+  "animate.advanced.highCreditsWarning":
+    "Estimated credits are high (>500); this project may be expensive in credits.",
+
+  "errors.advancedSettingsNotAllowed":
+    "Advanced settings are not available for your account.",
+  "errors.advancedModelNotAllowed": "That model is not allowed.",
+  "errors.advancedResolutionNotAllowed": "That resolution is not allowed.",
+  "errors.advancedDurationNotAllowed": "That duration is not allowed.",
+  "errors.advancedImageLimit": "Too many images for advanced limits (max {max}).",
+  "errors.advancedTransitionLimit":
+    "Too many transitions for advanced limits (max {max}).",
+  "errors.advancedCreditLimit":
+    "Estimated credits exceed your limit. Choose lighter settings or try again later.",
 
   "projectDetail.title": "Saved animation project",
   "projectDetail.meta.createdAt": "Created at",
@@ -120,7 +219,10 @@ export const en: LocaleSchema = {
 
   "button.loading": "Generating...",
 
-  "errors.presetInvalid": "Invalid quality tier. Choose basic, standard, or pro.",
+  "errors.presetInvalid": "Invalid quality tier.",
+  "errors.presetNotAllowed": "This quality tier is not available for your account.",
+  "errors.userPromptTooLong": "Your description is too long (maximum {max} characters).",
+  "errors.userPromptInvalid": "That description could not be accepted. Try plain text only.",
   "errors.presetMaxImages":
     "This tier allows at most {max} images. Remove some or pick a higher tier.",
   "errors.presetMaxTransitions":

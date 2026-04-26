@@ -184,9 +184,10 @@ export class ViduVideoProvider implements VideoProvider {
       input.providerDurationSeconds ?? null
     );
 
+    /** Caller (job service) always sends combined preset + optional user prompt. */
     const prompt =
       input.prompt?.trim() ||
-      "Smooth cinematic transition between the two frames, natural motion, product-friendly lighting, no harsh cuts.";
+      "Smooth cinematic transition between the two frames, natural motion, no harsh cuts.";
 
     const payload = {
       model,

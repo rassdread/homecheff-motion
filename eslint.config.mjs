@@ -14,6 +14,13 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: ["src/app/admin/invites/page.tsx", "src/app/admin/users/page.tsx"],
+    rules: {
+      // These pages intentionally hydrate from admin APIs on mount.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

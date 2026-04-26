@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
-import { getAuthenticatedUser } from "@/server/auth/session";
+import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForOwner } from "@/server/animation-projects/queries";
 
 type RouteContext = {
@@ -9,9 +9,9 @@ type RouteContext = {
 
 export async function POST(_: Request, context: RouteContext) {
   const { id } = await context.params;
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
   }
   const project = await getAnimationProjectByIdForOwner(id, user.id);
   if (!project) {

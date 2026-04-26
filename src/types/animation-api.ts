@@ -9,12 +9,23 @@ export type CreateAnimationProjectImageInput = {
   sizeBytes?: number;
 };
 
+export type CreateAnimationProjectAdvancedPayload = {
+  enabled?: boolean;
+  model?: string;
+  resolution?: string;
+  durationSeconds?: number;
+};
+
 export type CreateAnimationProjectRequest = {
   images: CreateAnimationProjectImageInput[];
   /** When omitted, server uses `standard`. */
   presetId?: AnimationPresetId;
+  /** Optional; max length enforced server-side. */
+  userPrompt?: string;
   stylePreset?: string;
   aspectRatio?: string;
+  /** Admin-only overrides; server validates and ignores for other roles. */
+  advancedSettings?: CreateAnimationProjectAdvancedPayload;
 };
 
 export type CreateProjectErrorCode =
@@ -24,13 +35,25 @@ export type CreateProjectErrorCode =
   | "ANIMATION_DAILY_LIMIT"
   | "ANIMATION_MONTHLY_LIMIT"
   | "ANIMATION_CREDIT_LIMIT"
-  | "ANIMATION_PRESET_DAILY_LIMIT";
+  | "ANIMATION_PRESET_DAILY_LIMIT"
+  | "USER_INACTIVE"
+  | "PRESET_NOT_ALLOWED"
+  | "USER_PROMPT_TOO_LONG"
+  | "USER_PROMPT_INVALID"
+  | "ADVANCED_SETTINGS_NOT_ALLOWED"
+  | "ADVANCED_MODEL_NOT_ALLOWED"
+  | "ADVANCED_RESOLUTION_NOT_ALLOWED"
+  | "ADVANCED_DURATION_NOT_ALLOWED"
+  | "ADVANCED_IMAGE_LIMIT"
+  | "ADVANCED_TRANSITION_LIMIT"
+  | "ADVANCED_CREDIT_LIMIT";
 
 export type CreateAnimationProjectErrorBody = {
   error: string;
   code?: CreateProjectErrorCode;
   maxImages?: number;
   maxTransitions?: number;
+  maxLength?: number;
   usage?: AnimationUsageResponse;
 };
 
@@ -46,6 +69,7 @@ export type AnimationUsageResponse = {
       basic: number;
       standard: number;
       pro: number;
+      smooth: number;
     };
   };
   usage: {
@@ -57,6 +81,7 @@ export type AnimationUsageResponse = {
       basic: number;
       standard: number;
       pro: number;
+      smooth: number;
     };
   };
   remaining: {
@@ -64,6 +89,17 @@ export type AnimationUsageResponse = {
     monthlyVideosRemaining: number;
     dailyCreditsRemaining: number;
     monthlyCreditsRemaining: number;
+  };
+  /** Present on GET /api/animations/usage when authenticated. */
+  allowedPresets?: AnimationPresetId[];
+  canUseAdvancedAnimationControls?: boolean;
+  advancedLimits?: {
+    advancedControls: boolean;
+    maxDurationSeconds: number;
+    maxImages: number;
+    maxTransitions: number;
+    allowedResolutions: string[];
+    allowedModels: string[];
   };
 };
 
@@ -144,6 +180,7 @@ export type ProjectSnapshotResponse = {
   viduResolution?: string | null;
   viduDurationSeconds?: number | null;
   estimatedCredits?: number | null;
+  userPrompt?: string | null;
 };
 
 export type JobsStartResponse = {

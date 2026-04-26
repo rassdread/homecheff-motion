@@ -1,11 +1,14 @@
 /** Shared animation quality presets (server + client safe; no secrets). */
 
-export type AnimationPresetId = "basic" | "standard" | "pro";
+export type AnimationPresetId = "basic" | "standard" | "pro" | "smooth";
 
 /** 1 Vidu credit pricing assumption for UI estimates only (not billing). */
 export const CREDIT_USD = 0.005;
 
 export const MIN_ANIMATION_IMAGES = 2;
+
+/** Max length for optional user direction text (enforced server-side too). */
+export const MAX_ANIMATION_USER_PROMPT_LENGTH = 500;
 
 export type AnimationPreset = {
   id: AnimationPresetId;
@@ -14,6 +17,8 @@ export type AnimationPreset = {
   durationSeconds: number;
   maxImages: number;
   maxTransitions: number;
+  /** Internal Vidu direction — combined server-side with optional user hint. */
+  prompt: string;
   /** viduq3-turbo credits per second of output (estimate). */
   estimatedCreditsPerSecond: number;
   /** durationSeconds × estimatedCreditsPerSecond */
@@ -32,6 +37,8 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     durationSeconds: 3,
     maxImages: 3,
     maxTransitions: 2,
+    prompt:
+      "Simple smooth transition between two images, minimal motion, no artifacts, no hard cuts.",
     estimatedCreditsPerSecond: 8,
     estimatedCreditsPerTransition: 3 * 8,
     estimatedMaxCredits: 2 * 3 * 8,
@@ -44,10 +51,26 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     durationSeconds: 5,
     maxImages: 5,
     maxTransitions: 4,
+    prompt:
+      "Smooth cinematic transition between images, natural blending, soft motion blur, no slideshow effect, no hard cuts.",
     estimatedCreditsPerSecond: 12,
     estimatedCreditsPerTransition: 5 * 12,
     estimatedMaxCredits: 4 * 5 * 12,
     estimatedMaxUsd: 4 * 5 * 12 * CREDIT_USD,
+  },
+  smooth: {
+    id: "smooth",
+    model: "viduq3-turbo",
+    resolution: "540p",
+    durationSeconds: 5,
+    maxImages: 5,
+    maxTransitions: 4,
+    prompt:
+      "Seamless morph between images, preserve main subject, fluid transformation, realistic motion, no slideshow effect, no abrupt transitions.",
+    estimatedCreditsPerSecond: 8,
+    estimatedCreditsPerTransition: 5 * 8,
+    estimatedMaxCredits: 4 * 5 * 8,
+    estimatedMaxUsd: 4 * 5 * 8 * CREDIT_USD,
   },
   pro: {
     id: "pro",
@@ -56,6 +79,8 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     durationSeconds: 5,
     maxImages: 7,
     maxTransitions: 6,
+    prompt:
+      "High-quality cinematic transformation, professional product animation, dynamic camera movement, ultra smooth blending, no artifacts, no hard cuts.",
     estimatedCreditsPerSecond: 14,
     estimatedCreditsPerTransition: 5 * 14,
     estimatedMaxCredits: 6 * 5 * 14,
@@ -63,12 +88,19 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
   },
 };
 
+export const PRESET_IDS_ALL: AnimationPresetId[] = ["basic", "standard", "smooth", "pro"];
+
 export function getDefaultAnimationPreset(): AnimationPreset {
   return ANIMATION_PRESETS.standard;
 }
 
 export function validateAnimationPresetId(value: unknown): value is AnimationPresetId {
-  return value === "basic" || value === "standard" || value === "pro";
+  return (
+    value === "basic" ||
+    value === "standard" ||
+    value === "pro" ||
+    value === "smooth"
+  );
 }
 
 export function getAnimationPreset(presetId: AnimationPresetId): AnimationPreset {
