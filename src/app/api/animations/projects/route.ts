@@ -5,6 +5,7 @@ import {
   estimateAdvancedCredits,
   validateAdvancedSettingsForUser,
 } from "@/lib/animation-advanced-settings";
+import { normalizeAnimationIntent } from "@/lib/animation-intents";
 import {
   type AnimationPresetId,
   estimateProjectCredits,
@@ -21,6 +22,7 @@ import {
   requireUser,
 } from "@/server/auth/permissions";
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
+import { DEFAULT_GLOBAL_ANIMATION_CONTEXT } from "@/lib/animation-global-prompt-context";
 import type {
   CreatedAnimationTransition,
   CreateAnimationProjectErrorBody,
@@ -266,6 +268,8 @@ export async function POST(request: Request) {
     advancedSettingsEnabled = false;
   }
 
+  const storedIntent = normalizeAnimationIntent(payload.intent);
+
   let storedUserPrompt: string | null = null;
   if (payload.userPrompt !== undefined && payload.userPrompt !== null) {
     if (typeof payload.userPrompt !== "string") {
@@ -328,6 +332,8 @@ export async function POST(request: Request) {
         estimatedCredits,
         advancedSettingsEnabled,
         userPrompt: storedUserPrompt,
+        intent: storedIntent,
+        globalPromptContext: DEFAULT_GLOBAL_ANIMATION_CONTEXT,
       },
     });
 

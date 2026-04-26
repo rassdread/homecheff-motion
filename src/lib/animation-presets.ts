@@ -38,7 +38,7 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     maxImages: 3,
     maxTransitions: 2,
     prompt:
-      "Simple smooth transition between two images, minimal motion, no artifacts, no hard cuts.",
+      "Continuous transformation between images, simple smooth evolution, no hard cuts, no slideshow effect.",
     estimatedCreditsPerSecond: 8,
     estimatedCreditsPerTransition: 3 * 8,
     estimatedMaxCredits: 2 * 3 * 8,
@@ -52,7 +52,7 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     maxImages: 5,
     maxTransitions: 4,
     prompt:
-      "Smooth cinematic transition between images, natural blending, soft motion blur, no slideshow effect, no hard cuts.",
+      "Continuous cinematic transformation where each image evolves naturally into the next, preserving the main subject, soft motion blur, no cuts or slideshow effect.",
     estimatedCreditsPerSecond: 12,
     estimatedCreditsPerTransition: 5 * 12,
     estimatedMaxCredits: 4 * 5 * 12,
@@ -66,7 +66,7 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     maxImages: 5,
     maxTransitions: 4,
     prompt:
-      "Seamless morph between images, preserve main subject, fluid transformation, realistic motion, no slideshow effect, no abrupt transitions.",
+      "Seamless morphing transformation between images, subject remains consistent while the scene evolves fluidly, no hard transitions, no slideshow effect, realistic motion.",
     estimatedCreditsPerSecond: 8,
     estimatedCreditsPerTransition: 5 * 8,
     estimatedMaxCredits: 4 * 5 * 8,
@@ -80,7 +80,7 @@ export const ANIMATION_PRESETS: Record<AnimationPresetId, AnimationPreset> = {
     maxImages: 7,
     maxTransitions: 6,
     prompt:
-      "High-quality cinematic transformation, professional product animation, dynamic camera movement, ultra smooth blending, no artifacts, no hard cuts.",
+      "High-quality cinematic transformation sequence, images evolve into each other as one continuous scene, dynamic camera motion, ultra smooth morphing, no cuts, no slideshow, no artifacts.",
     estimatedCreditsPerSecond: 14,
     estimatedCreditsPerTransition: 5 * 14,
     estimatedMaxCredits: 6 * 5 * 14,

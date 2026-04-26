@@ -12,11 +12,22 @@ import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
 import { getActiveTranslator, type TranslationKey } from "@/i18n";
 import { getTotalVideoDurationSeconds, getTransitionCount } from "@/lib/animation-duration";
 import {
+  ANIMATION_INTENT_IDS,
+  type AnimationIntentId,
+} from "@/lib/animation-intents";
+import {
   ANIMATION_PRESETS,
   MAX_ANIMATION_USER_PROMPT_LENGTH,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { brand } from "@/lib/brand";
+
+const INTENT_LABEL_KEYS: Record<AnimationIntentId, TranslationKey> = {
+  morph: "animate.intent.morph",
+  cinematic: "animate.intent.cinematic",
+  product: "animate.intent.product",
+  dynamic: "animate.intent.dynamic",
+};
 
 const PRESET_LABELS: Record<
   AnimationPresetId,
@@ -67,6 +78,11 @@ export default function AnimatePage() {
     maxImages,
     selectedPresetId,
     setSelectedPresetId,
+    selectedIntent,
+    setSelectedIntent,
+    suggestedIntent,
+    intentManuallyChanged,
+    setIntentManuallyChanged,
     userPrompt,
     setUserPrompt,
     estimatedProjectCredits,
@@ -268,6 +284,38 @@ export default function AnimatePage() {
             );
           })}
         </fieldset>
+        <div className="mt-4">
+          <label htmlFor="animation-intent" className="block text-sm font-medium text-zinc-700">
+            {t("animate.intent.label")}
+          </label>
+          <select
+            id="animation-intent"
+            value={selectedIntent}
+            onChange={(e) => {
+              setIntentManuallyChanged(true);
+              setSelectedIntent(e.target.value as AnimationIntentId);
+            }}
+            disabled={isProcessing || accountInactive}
+            className="mt-1 block max-w-md rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+          >
+            {ANIMATION_INTENT_IDS.map((intentId) => (
+              <option key={intentId} value={intentId}>
+                {t(INTENT_LABEL_KEYS[intentId])}
+              </option>
+            ))}
+          </select>
+          {images.length >= minImages ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              {intentManuallyChanged
+                ? t("animate.intent.manual")
+                : suggestedIntent
+                  ? t("animate.intent.suggested", {
+                      style: t(INTENT_LABEL_KEYS[suggestedIntent]),
+                    })
+                  : t("animate.intent.auto")}
+            </p>
+          ) : null}
+        </div>
         {presetLimitMessage ? (
           <p className="mt-3 text-sm text-amber-800">{presetLimitMessage}</p>
         ) : null}
@@ -338,7 +386,7 @@ export default function AnimatePage() {
                   </div>
                   <div>
                     <label htmlFor="adv-duration" className="block text-xs font-medium text-zinc-700">
-                      {t("animate.advanced.duration")}
+                      {t("animate.transformation.fieldSeconds")}
                     </label>
                     <input
                       id="adv-duration"

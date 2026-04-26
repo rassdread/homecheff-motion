@@ -14,13 +14,31 @@ export const en: LocaleSchema = {
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":
-    "Upload images and create smooth animated transitions in the HomeCheff style (limits per tier).",
+    "Upload images and create one continuous AI transformation in the HomeCheff style (limits per tier).",
   "landing.cta": "Create animation",
   "landing.mascotPlaceholder": "HomeCheff mascot/logo placeholder area",
 
   "animate.mode.admin": "Admin mode — advanced settings enabled",
   "animate.mode.user": "User mode — limited settings",
   "animate.mode.power": "Power mode — extended presets",
+
+  "animate.intent.label": "Animation style",
+  "animate.intent.morph": "Morph",
+  "animate.intent.cinematic": "Cinematic",
+  "animate.intent.product": "Product",
+  "animate.intent.dynamic": "Dynamic",
+  "animate.intent.suggested":
+    "Suggested style: {style} — based on your images",
+  "animate.intent.auto": "Auto suggestion",
+  "animate.intent.manual": "Manual selection",
+
+  "animate.transformation.seconds": "{seconds} seconds per transformation step",
+  "animate.transformation.steps": "{count} transformation steps",
+  "animate.transformation.chain": "{images} images → {steps} transformation steps",
+  "animate.transformation.maxSteps": "Max transformation steps: {max}",
+  "animate.transformation.fieldSeconds": "Seconds per transformation step",
+  "animate.transformation.explanation":
+    "Each image evolves into the next as part of one continuous animation.",
 
   "animate.duration.secondsPerTransition": "{seconds} seconds per transition",
   "animate.duration.transitions": "{count} transitions",
@@ -29,7 +47,7 @@ export const en: LocaleSchema = {
     "Each pair of images creates one transition. 5 images = 4 transitions.",
   "animate.duration.targetTotal": "Target total duration (seconds)",
   "animate.duration.targetTotalHint":
-    "Admin only: this is converted into seconds per transition.",
+    "Admin only: this is converted into seconds per transformation step.",
   "animate.duration.creditsWithDuration": "{duration} · estimated {credits} credits",
 
   "animate.estimate.needTwoForCalc":
@@ -49,13 +67,13 @@ export const en: LocaleSchema = {
   "animate.estimate.finalStartHint": "Upload at least 2 images to start.",
   "animate.estimate.targetTotalOr": "Or set target total duration",
   "animate.estimate.targetTotalHintAuto":
-    "This automatically calculates seconds per transition.",
+    "This automatically calculates seconds per transformation step.",
   "animate.estimate.targetTotalDisabled":
     "Add at least 2 images to set total duration.",
 
   "animate.title": "Build your animation sequence",
   "animate.subtitle":
-    "Choose a quality tier, upload photos in order, and generate HomeCheff-style transitions.",
+    "Choose a quality tier, upload images in order, and generate one continuous HomeCheff transformation.",
   "animate.preset.title": "Quality tier",
   "animate.preset.hint": "Settings are enforced on the server—you only pick the tier.",
   "animate.preset.basic.title": "Basic",
@@ -65,9 +83,9 @@ export const en: LocaleSchema = {
   "animate.preset.pro.title": "Pro",
   "animate.preset.pro.description": "Higher quality",
   "animate.preset.field.resolution": "Resolution: {value}",
-  "animate.preset.field.duration": "Duration per transition: {seconds} s",
+  "animate.preset.field.duration": "Seconds per transformation step: {seconds} s",
   "animate.preset.field.maxImages": "Max images: {max}",
-  "animate.preset.field.maxTransitions": "Max transitions: {max}",
+  "animate.preset.field.maxTransitions": "Max transformation steps: {max}",
   "animate.preset.field.estimatedCredits": "Estimated credits (this project): {credits}",
   "animate.preset.field.estimatedUsd": "Estimated cost in USD (indicative): {usd}",
   "animate.preset.field.ceilingCredits": "Project ceiling (indicative): {credits} credits",
@@ -80,21 +98,21 @@ export const en: LocaleSchema = {
   "animate.selected.empty": "No images selected yet.",
   "animate.selected.alt": "Selected image {index}",
   "animate.selected.remove": "Remove",
-  "animate.transitions.orderedTitle": "Ordered transition pairs",
+  "animate.transitions.orderedTitle": "Transformation step order",
   "animate.transitions.orderedEmpty":
-    "Transition pairs appear after selecting at least two images.",
+    "Transformation steps appear after selecting at least two images.",
   "animate.status.title": "Project status",
-  "animate.transitions.progressTitle": "Transition progress list",
+  "animate.transitions.progressTitle": "Progress per transformation step",
   "animate.transitions.progressEmpty":
-    "Transition progress appears after you start generation.",
+    "Progress appears after you start generation.",
   "animate.export.title": "Export progress",
-  "animate.overallProgress": "Overall progress (average across transitions)",
-  "animate.transitionVideo": "Transition video preview",
+  "animate.overallProgress": "Overall progress (average across transformation steps)",
+  "animate.transitionVideo": "Transformation step video preview",
   "animate.transitionError": "Error",
   "animate.retryJobsStart": "Retry starting jobs",
   "animate.retryPoll": "Reconnect and refresh status",
   "animate.rendering.mergePending": "Merging your clips into one video…",
-  "animate.export.merging": "Merging transition clips",
+  "animate.export.merging": "Merging video segments",
   "animate.export.finalVideo": "Final video",
   "animate.export.retryMerge": "Retry export",
   "animate.export.retryPoll": "Retry export status refresh",
@@ -227,7 +245,8 @@ export const en: LocaleSchema = {
   "animate.prompt.label": "What should happen between the images?",
   "animate.prompt.placeholder":
     "e.g. the product rotates and blends into the next scene",
-  "animate.prompt.hint": "Optional: describe how the transition should look",
+  "animate.prompt.hint":
+    "Optional: describe how the scene should evolve (continuous transformation).",
 
   "animate.advanced.title": "Advanced settings",
   "animate.advanced.toggle": "Advanced mode",
@@ -235,7 +254,7 @@ export const en: LocaleSchema = {
     "For admins only. Higher settings use more credits.",
   "animate.advanced.model": "Model",
   "animate.advanced.resolution": "Resolution",
-  "animate.advanced.duration": "Seconds per transition",
+  "animate.advanced.duration": "Seconds per transformation step",
   "animate.advanced.estimatedCredits": "Estimated credits",
   "animate.advanced.estimatedCost": "Estimated cost",
   "animate.advanced.notAllowed": "Advanced settings are not available for your account.",

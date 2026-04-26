@@ -1,3 +1,5 @@
+import { resolveGlobalPromptContext } from "@/lib/animation-global-prompt-context";
+import { ANIMATION_INTENTS, normalizeAnimationIntent } from "@/lib/animation-intents";
 import {
   getAnimationPreset,
   validateAnimationPresetId,
@@ -9,17 +11,66 @@ import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video
 const ACTIVE_TRANSITION_STATUSES = ["queued", "generating"] as const;
 const TERMINAL_TRANSITION_STATUSES = ["completed", "failed"] as const;
 
-/** Preset prompt is always the base; optional user text is appended, never replacing. */
-export function combineAnimationPrompt(params: {
-  presetPrompt: string;
-  userPrompt: string | null | undefined;
-}): string {
-  const base = params.presetPrompt.trim();
-  const extra = params.userPrompt?.trim() ?? "";
-  if (!extra) {
-    return base;
+const SEQUENCE_SEAM_HINT = `This is part of a continuous sequence. The transformation must match the previous and next steps seamlessly.`;
+
+const SAME_SUBJECT_HINT =
+  "The transformation must feel like the same subject continuing through time, not separate scenes.";
+
+function transitionPositionHint(order: number, total: number): string {
+  if (total <= 1) {
+    return "This is the beginning of the sequence.";
   }
-  return `${base}\nUser direction: ${extra}`;
+  if (order === 0) {
+    return "This is the beginning of the sequence.";
+  }
+  if (order === total - 1) {
+    return "This completes the transformation.";
+  }
+  return "This continues the evolving sequence.";
+}
+
+/** Global continuity framing first, then preset, intent, user; seam + identity + optional step hints last. */
+export function combineAnimationPrompt(params: {
+  globalPrompt: string;
+  presetPrompt: string;
+  intentPrompt?: string | null;
+  userPrompt?: string | null | undefined;
+  /** 0-based transition order; pass with transitionTotal for step hints. */
+  transitionOrder?: number;
+  /** Total transitions in the project. */
+  transitionTotal?: number;
+}): string {
+  let result = params.globalPrompt.trim();
+
+  result += `\n${params.presetPrompt.trim()}`;
+
+  const intent = params.intentPrompt?.trim() ?? "";
+  if (intent) {
+    result += `\n${intent}`;
+  }
+
+  const extra = params.userPrompt?.trim() ?? "";
+  if (extra) {
+    result += `\nUser direction: ${extra}`;
+  }
+
+  result += `\n${SEQUENCE_SEAM_HINT}`;
+
+  result += `\n${SAME_SUBJECT_HINT}`;
+
+  const { transitionOrder, transitionTotal } = params;
+  if (
+    typeof transitionOrder === "number" &&
+    Number.isFinite(transitionOrder) &&
+    typeof transitionTotal === "number" &&
+    transitionTotal >= 1 &&
+    transitionOrder >= 0 &&
+    transitionOrder < transitionTotal
+  ) {
+    result += `\n${transitionPositionHint(transitionOrder, transitionTotal)}`;
+  }
+
+  return result;
 }
 
 function isTerminalStatus(status: string): boolean {
@@ -53,7 +104,13 @@ export async function startTransitionJob(transitionId: string) {
   const transition = await prisma.animationTransition.findUnique({
     where: { id: transitionId },
     include: {
-      project: true,
+      project: {
+        include: {
+          _count: {
+            select: { transitions: true },
+          },
+        },
+      },
     },
   });
 
@@ -78,9 +135,17 @@ export async function startTransitionJob(transitionId: string) {
     ? transition.project.presetId
     : "standard";
   const preset = getAnimationPreset(presetId);
+  const intentId = normalizeAnimationIntent(transition.project.intent);
+  const intentPrompt = ANIMATION_INTENTS[intentId].prompt;
+  const globalPrompt = resolveGlobalPromptContext(transition.project.globalPromptContext);
+  const transitionTotal = transition.project._count.transitions;
   const finalPrompt = combineAnimationPrompt({
+    globalPrompt,
     presetPrompt: preset.prompt,
+    intentPrompt,
     userPrompt: transition.project.userPrompt,
+    transitionOrder: transition.order,
+    transitionTotal,
   });
 
   const provider = getVideoProvider();

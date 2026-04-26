@@ -23,6 +23,8 @@ export type CreateAnimationProjectRequest = {
   images: CreateAnimationProjectImageInput[];
   /** When omitted, server uses `standard`. */
   presetId?: AnimationPresetId;
+  /** morph | cinematic | product | dynamic — combined with preset prompt server-side. */
+  intent?: string;
   /** Optional; max length enforced server-side. */
   userPrompt?: string;
   stylePreset?: string;
@@ -180,6 +182,7 @@ export type ProjectSnapshotResponse = {
   images: ProjectSnapshotImage[];
   transitions: ProjectSnapshotTransition[];
   exports: ProjectSnapshotExport[];
+  intent?: string | null;
   presetId?: string | null;
   viduModel?: string | null;
   viduResolution?: string | null;

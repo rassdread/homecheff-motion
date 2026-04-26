@@ -6,6 +6,9 @@ type PreprocessedImage = {
   optimizedBlob: Blob;
   thumbnailBlob: Blob;
   mimeType: string;
+  /** Original pixel dimensions before downscaling (for lightweight client heuristics). */
+  naturalWidth: number;
+  naturalHeight: number;
 };
 
 function getOutputMimeType(inputMimeType: string): "image/webp" | "image/jpeg" {
@@ -98,5 +101,7 @@ export async function preprocessImageFile(file: File): Promise<PreprocessedImage
     optimizedBlob,
     thumbnailBlob,
     mimeType: outputMimeType,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
   };
 }

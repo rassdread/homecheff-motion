@@ -10,13 +10,31 @@ export const nl = {
 
   "landing.headline": "Zet foto's om in vloeiende AI-animaties",
   "landing.subtext":
-    "Upload foto's en maak vloeiende geanimeerde overgangen in HomeCheff-stijl (limieten per niveau).",
+    "Upload beelden en maak één doorlopende AI-transformatie in HomeCheff-stijl (limieten per niveau).",
   "landing.cta": "Animatie maken",
   "landing.mascotPlaceholder": "HomeCheff mascotte/logo placeholder",
 
   "animate.mode.admin": "Admin modus — geavanceerde instellingen actief",
   "animate.mode.user": "Gebruikersmodus — beperkte instellingen",
   "animate.mode.power": "Power modus — uitgebreide presets",
+
+  "animate.intent.label": "Animatiestijl",
+  "animate.intent.morph": "Morph",
+  "animate.intent.cinematic": "Cinematisch",
+  "animate.intent.product": "Product",
+  "animate.intent.dynamic": "Dynamisch",
+  "animate.intent.suggested":
+    "Voorgestelde stijl: {style} — gebaseerd op je beelden",
+  "animate.intent.auto": "Automatische suggestie",
+  "animate.intent.manual": "Handmatige keuze",
+
+  "animate.transformation.seconds": "{seconds} seconden per transformatie",
+  "animate.transformation.steps": "{count} transformatiestappen",
+  "animate.transformation.chain": "{images} beelden → {steps} transformatiestappen",
+  "animate.transformation.maxSteps": "Max. transformatiestappen: {max}",
+  "animate.transformation.fieldSeconds": "Seconden per transformatie",
+  "animate.transformation.explanation":
+    "Elke afbeelding vloeit over in de volgende als onderdeel van één doorlopende animatie.",
 
   "animate.duration.secondsPerTransition": "{seconds} seconden per overgang",
   "animate.duration.transitions": "{count} overgangen",
@@ -25,7 +43,7 @@ export const nl = {
     "Elk paar beelden maakt één overgang. 5 beelden = 4 overgangen.",
   "animate.duration.targetTotal": "Gewenste totale duur (seconden)",
   "animate.duration.targetTotalHint":
-    "Alleen admin: dit wordt omgerekend naar seconden per overgang.",
+    "Alleen admin: dit wordt omgerekend naar seconden per transformatie.",
   "animate.duration.creditsWithDuration": "{duration} · geschat {credits} credits",
 
   "animate.estimate.needTwoForCalc":
@@ -45,13 +63,13 @@ export const nl = {
   "animate.estimate.finalStartHint": "Upload minimaal 2 beelden om te starten.",
   "animate.estimate.targetTotalOr": "Of stel gewenste totale duur in",
   "animate.estimate.targetTotalHintAuto":
-    "Dit rekent automatisch seconden per overgang uit.",
+    "Dit rekent automatisch seconden per transformatie uit.",
   "animate.estimate.targetTotalDisabled":
     "Voeg minimaal 2 beelden toe om totale duur te kunnen instellen.",
 
   "animate.title": "Bouw je animatiesequentie",
   "animate.subtitle":
-    "Kies een kwaliteitsniveau, upload foto's in volgorde en genereer HomeCheff-stijl overgangen.",
+    "Kies een kwaliteitsniveau, upload beelden in volgorde en genereer één doorlopende HomeCheff-transformatie.",
   "animate.preset.title": "Kwaliteitsniveau",
   "animate.preset.hint": "Instellingen worden op de server afgedwongen; je kiest alleen het niveau.",
   "animate.preset.basic.title": "Basic",
@@ -61,9 +79,9 @@ export const nl = {
   "animate.preset.pro.title": "Pro",
   "animate.preset.pro.description": "Hogere kwaliteit",
   "animate.preset.field.resolution": "Resolutie: {value}",
-  "animate.preset.field.duration": "Duur per overgang: {seconds} s",
+  "animate.preset.field.duration": "Seconden per transformatie: {seconds} s",
   "animate.preset.field.maxImages": "Max. afbeeldingen: {max}",
-  "animate.preset.field.maxTransitions": "Max. overgangen: {max}",
+  "animate.preset.field.maxTransitions": "Max. transformatiestappen: {max}",
   "animate.preset.field.estimatedCredits": "Geschatte credits (dit project): {credits}",
   "animate.preset.field.estimatedUsd": "Geschatte kosten in USD (indicatief): {usd}",
   "animate.preset.field.ceilingCredits": "Plafond per project (indicatief): {credits} credits",
@@ -78,22 +96,22 @@ export const nl = {
   "animate.selected.empty": "Nog geen afbeeldingen geselecteerd.",
   "animate.selected.alt": "Geselecteerde afbeelding {index}",
   "animate.selected.remove": "Verwijderen",
-  "animate.transitions.orderedTitle": "Geordende overgangsparren",
+  "animate.transitions.orderedTitle": "Volgorde van transformatiestappen",
   "animate.transitions.orderedEmpty":
-    "Overgangsparren verschijnen zodra je minimaal twee afbeeldingen selecteert.",
+    "Transformatiestappen verschijnen zodra je minimaal twee beelden selecteert.",
   "animate.status.title": "Projectstatus",
-  "animate.transitions.progressTitle": "Lijst overgangsvoortgang",
+  "animate.transitions.progressTitle": "Voortgang per transformatiestap",
   "animate.transitions.progressEmpty":
-    "Overgangsvoortgang verschijnt nadat je het genereren start.",
+    "Voortgang verschijnt nadat je het genereren start.",
   "animate.export.title": "Exportvoortgang",
-  "animate.overallProgress": "Totale voortgang (gemiddelde overgangen)",
-  "animate.transitionVideo": "Videovoorbeeld van overgang",
+  "animate.overallProgress": "Totale voortgang (gemiddelde transformatiestappen)",
+  "animate.transitionVideo": "Videovoorbeeld van transformatiestap",
   "animate.transitionError": "Fout",
   "animate.retryJobsStart": "Opnieuw proberen om taken te starten",
   "animate.retryPoll": "Opnieuw verbinden en status verversen",
   "animate.rendering.mergePending":
     "Je clips worden samengevoegd tot één video…",
-  "animate.export.merging": "Bezig met samenvoegen van overgangsvideo’s",
+  "animate.export.merging": "Bezig met samenvoegen van videofragmenten",
   "animate.export.finalVideo": "Eindvideo",
   "animate.export.retryMerge": "Export opnieuw proberen",
   "animate.export.retryPoll": "Exportstatus opnieuw ophalen",
@@ -107,8 +125,8 @@ export const nl = {
   "animate.progress.stagePreparing": "Bezig met uploaden en voorbereiden…",
   "animate.progress.stageStartingAi": "AI-generatie gestart — jobs worden gestart…",
   "animate.progress.stageViduWait":
-    "Vidu verwerkt je overgang… Dit kan even duren.",
-  "animate.progress.stageTransitions": "Overgangen worden gegenereerd…",
+    "Vidu verwerkt je transformatie… Dit kan even duren.",
+  "animate.progress.stageTransitions": "Transformatiestappen worden gegenereerd…",
   "animate.progress.stageMerging": "Video's samenvoegen…",
   "animate.progress.stageCompleted": "Voltooid.",
   "animate.progress.stageFailed": "Mislukt.",
@@ -227,7 +245,8 @@ export const nl = {
   "animate.prompt.label": "Wat moet er gebeuren tussen de beelden?",
   "animate.prompt.placeholder":
     "bijv. het product draait en vloeit over in de volgende scène",
-  "animate.prompt.hint": "Optioneel: beschrijf hoe de overgang eruit moet zien",
+  "animate.prompt.hint":
+    "Optioneel: beschrijf hoe de scene moet evolueren (doorlopende transformatie).",
 
   "animate.advanced.title": "Geavanceerde instellingen",
   "animate.advanced.toggle": "Geavanceerde modus",
@@ -235,7 +254,7 @@ export const nl = {
     "Alleen voor admins. Hogere instellingen gebruiken meer credits.",
   "animate.advanced.model": "Model",
   "animate.advanced.resolution": "Resolutie",
-  "animate.advanced.duration": "Seconden per overgang",
+  "animate.advanced.duration": "Seconden per transformatie",
   "animate.advanced.estimatedCredits": "Geschatte credits",
   "animate.advanced.estimatedCost": "Geschatte kosten",
   "animate.advanced.notAllowed": "Geavanceerde instellingen zijn niet beschikbaar voor jouw account.",

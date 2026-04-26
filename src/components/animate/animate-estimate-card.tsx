@@ -91,9 +91,9 @@ export function AnimateEstimateCard({
       >
         <p className="font-semibold text-emerald-900">{t("animate.estimate.finalTitle")}</p>
         <p className="mt-2">
-          {t("animate.estimate.imagesTransitions", {
+          {t("animate.transformation.chain", {
             images: imageCount,
-            transitions: tc,
+            steps: tc,
           })}
         </p>
         <p className="mt-1">{t("animate.estimate.totalVideo", { duration: durationLabel })}</p>
@@ -124,9 +124,9 @@ export function AnimateEstimateCard({
       >
         <p className="font-semibold text-violet-900">{t("animate.estimate.sectionCurrent")}</p>
         <p className="mt-2">
-          {t("animate.estimate.imagesTransitions", {
+          {t("animate.transformation.chain", {
             images: imageCount,
-            transitions: tc,
+            steps: tc,
           })}
         </p>
         <p className="mt-1">{t("animate.estimate.totalVideo", { duration: durationLabel })}</p>
@@ -137,7 +137,7 @@ export function AnimateEstimateCard({
           {t("animate.estimate.estimatedCost", { usd: `$${currentUsdNumber.toFixed(2)}` })}
         </p>
         {showExplanation ? (
-          <p className="mt-2 text-zinc-500">{t("animate.duration.explanation")}</p>
+          <p className="mt-2 text-zinc-500">{t("animate.transformation.explanation")}</p>
         ) : null}
       </div>
     );
@@ -149,17 +149,17 @@ export function AnimateEstimateCard({
       className={`mt-2 border-t border-emerald-100/80 pt-2 ${gap} ${textSize} text-zinc-700 ${rootExtra}`.trim()}
     >
       <p>{t("animate.preset.field.resolution", { value: resolution })}</p>
-      <p>{t("animate.estimate.perTransitionSeconds", { seconds: per })}</p>
+      <p>{t("animate.transformation.seconds", { seconds: per })}</p>
       <p>{t("animate.preset.field.maxImages", { max: maxImages })}</p>
-      <p>{t("animate.preset.field.maxTransitions", { max: maxTransitions })}</p>
+      <p>{t("animate.transformation.maxSteps", { max: maxTransitions })}</p>
 
       {imageCount >= MIN_ANIMATION_IMAGES ? (
         <>
           <p className="pt-1 font-semibold text-zinc-900">{t("animate.estimate.sectionCurrent")}</p>
           <p>
-            {t("animate.estimate.imagesTransitions", {
+            {t("animate.transformation.chain", {
               images: imageCount,
-              transitions: tc,
+              steps: tc,
             })}
           </p>
           <p>{t("animate.estimate.totalVideo", { duration: durationLabel })}</p>

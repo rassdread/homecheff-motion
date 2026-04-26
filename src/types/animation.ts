@@ -36,6 +36,9 @@ export type AnimationImage = {
   thumbnailStorageKey?: string;
   mimeType: string;
   sizeBytes: number;
+  /** Set after local preprocess; used for lightweight intent hints only. */
+  naturalWidth?: number;
+  naturalHeight?: number;
 };
 
 export type AnimationTransition = {

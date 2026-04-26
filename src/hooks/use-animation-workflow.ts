@@ -17,6 +17,8 @@ import {
   estimateAdvancedCredits,
   type AnimationAdvancedResolution,
 } from "@/lib/animation-advanced-settings";
+import { detectAnimationIntent } from "@/lib/animation-intent-detection";
+import { defaultIntentForPreset, type AnimationIntentId } from "@/lib/animation-intents";
 import type {
   AnimationImage,
   AnimationTransition,
@@ -173,6 +175,11 @@ export function useAnimationWorkflow() {
   const [exportPhaseError, setExportPhaseError] = useState<string | null>(null);
   const [finalProjectVideoUrl, setFinalProjectVideoUrl] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<AnimationPresetId>("standard");
+  const [selectedIntent, setSelectedIntent] = useState<AnimationIntentId>(() =>
+    defaultIntentForPreset("standard")
+  );
+  const [suggestedIntent, setSuggestedIntent] = useState<AnimationIntentId | null>(null);
+  const [intentManuallyChanged, setIntentManuallyChanged] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthResolved, setIsAuthResolved] = useState<boolean>(false);
@@ -205,6 +212,7 @@ export function useAnimationWorkflow() {
 
   const runIdRef = useRef(0);
   const createPresetIdRef = useRef<AnimationPresetId>("standard");
+  const createIntentRef = useRef<AnimationIntentId>(defaultIntentForPreset("standard"));
   const createUserPromptRef = useRef("");
   const createAdvancedEnabledRef = useRef(false);
   const createAdvancedModelRef = useRef("viduq3-turbo");
@@ -470,6 +478,31 @@ export function useAnimationWorkflow() {
       setSelectedPresetId(allowedPresetIds[0] ?? "standard");
     }
   }, [allowedPresetIds, selectedPresetId]);
+
+  useEffect(() => {
+    if (images.length >= minImages) {
+      return;
+    }
+    setIntentManuallyChanged(false);
+    setSuggestedIntent(null);
+    setSelectedIntent(defaultIntentForPreset(selectedPresetId));
+  }, [selectedPresetId, images.length, minImages]);
+
+  useEffect(() => {
+    if (intentManuallyChanged || images.length < minImages) {
+      return;
+    }
+    const meta = images.map((img, order) => ({
+      originalFileName: img.originalFileName,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      mimeType: img.mimeType,
+      order,
+    }));
+    const detected = detectAnimationIntent({ images: meta, userPrompt });
+    setSuggestedIntent(detected);
+    setSelectedIntent(detected);
+  }, [images, userPrompt, intentManuallyChanged, minImages]);
 
   useEffect(() => {
     void fetchUsage();
@@ -874,6 +907,8 @@ export function useAnimationWorkflow() {
               thumbnailPreviewUrl: URL.createObjectURL(processed.thumbnailBlob),
               mimeType: processed.mimeType,
               sizeBytes: processed.optimizedBlob.size,
+              naturalWidth: processed.naturalWidth,
+              naturalHeight: processed.naturalHeight,
             });
           });
 
@@ -957,6 +992,10 @@ export function useAnimationWorkflow() {
     setError("");
     setSelectedPresetId("standard");
     createPresetIdRef.current = "standard";
+    setIntentManuallyChanged(false);
+    setSuggestedIntent(null);
+    setSelectedIntent(defaultIntentForPreset("standard"));
+    createIntentRef.current = defaultIntentForPreset("standard");
     setUserPrompt("");
     createUserPromptRef.current = "";
     setAdvancedMode(false);
@@ -1047,6 +1086,7 @@ export function useAnimationWorkflow() {
     const trimmedUser = createUserPromptRef.current;
     const payload: CreateAnimationProjectRequest = {
       presetId: createPresetIdRef.current,
+      intent: createIntentRef.current,
       ...(trimmedUser.length > 0 ? { userPrompt: trimmedUser } : {}),
       ...(createAdvancedEnabledRef.current
         ? {
@@ -1283,8 +1323,9 @@ export function useAnimationWorkflow() {
       setExportProgress(0);
       resetOrchestrationState();
       runIdRef.current += 1;
-      createPresetIdRef.current = selectedPresetId;
-      const trimmedPrompt = userPrompt
+    createPresetIdRef.current = selectedPresetId;
+    createIntentRef.current = selectedIntent;
+    const trimmedPrompt = userPrompt
         .trim()
         .slice(0, MAX_ANIMATION_USER_PROMPT_LENGTH);
       createUserPromptRef.current = trimmedPrompt;
@@ -1450,6 +1491,11 @@ export function useAnimationWorkflow() {
     fetchUsage,
     selectedPresetId,
     setSelectedPresetId,
+    selectedIntent,
+    setSelectedIntent,
+    suggestedIntent,
+    intentManuallyChanged,
+    setIntentManuallyChanged,
     userPrompt,
     setUserPrompt,
     activePreset,
