@@ -94,7 +94,7 @@ export function AnimationIntentPreviewCard({
       onClick={onSelect}
       className={`relative flex w-full flex-col rounded-xl border p-3 text-left transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
         selected
-          ? "border-emerald-500 bg-emerald-50/50 shadow-md ring-2 ring-emerald-400/60"
+          ? "border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-400"
           : "border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm"
       }`}
     >

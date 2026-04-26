@@ -13,7 +13,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-emerald-100/80 bg-white">
+      <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white backface-hidden [transform:translateZ(0)]">
         <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 sm:px-10">
           <Link href="/" className="flex items-center gap-3">
             <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-emerald-100 bg-white">

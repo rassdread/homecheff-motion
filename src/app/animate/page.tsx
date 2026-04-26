@@ -188,7 +188,7 @@ export default function AnimatePage() {
       <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
         {authSession.resolved && authSession.user ? (
           <div
-            className="mx-auto mb-5 max-w-3xl rounded-lg border border-emerald-200/70 bg-white/80 px-3 py-2 text-xs text-zinc-700 shadow-sm sm:px-4 sm:text-sm"
+            className="mx-auto mb-5 max-w-3xl rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm sm:px-4 sm:text-sm"
             role="status"
           >
             {authSession.user.role === "admin"
@@ -209,7 +209,7 @@ export default function AnimatePage() {
       </div>
 
       {accountInactive ? (
-        <AppCard className="mx-auto mt-8 max-w-3xl border-red-200 bg-red-50/50">
+        <AppCard className="mx-auto mt-8 max-w-3xl border-red-200 bg-red-50">
           <p className="text-sm font-medium text-red-800">{t("animate.auth.inactiveAccount")}</p>
         </AppCard>
       ) : null}
@@ -223,7 +223,7 @@ export default function AnimatePage() {
           </p>
         ) : null}
         {usage ? (
-          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 text-xs text-zinc-700">
+          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-zinc-700">
             <p>
               {t("animate.usage.dailyRemainingVideos", {
                 remaining: usage.remaining.dailyVideosRemaining,
@@ -257,7 +257,7 @@ export default function AnimatePage() {
                 key={presetId}
                 className={`flex cursor-pointer gap-3 rounded-2xl border p-4 text-left transition-colors ${
                   selectedPresetId === presetId
-                    ? "border-emerald-400 bg-emerald-50/60"
+                    ? "border-emerald-400 bg-emerald-50"
                     : "border-emerald-100 bg-white hover:border-emerald-200"
                 }`}
               >
@@ -348,7 +348,7 @@ export default function AnimatePage() {
         ) : null}
 
         {canUseAdvancedAnimationControls && advancedLimits ? (
-          <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+          <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50 p-4">
             <h3 className="text-sm font-semibold text-violet-900">{t("animate.advanced.title")}</h3>
             <p className="mt-1 text-xs text-violet-800/90">{t("animate.advanced.description")}</p>
             <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
@@ -565,7 +565,7 @@ export default function AnimatePage() {
           multiple
           disabled={isProcessing || images.length >= maxImages}
           onChange={handleImageSelection}
-          className="mt-4 block w-full cursor-pointer rounded-xl border border-emerald-100 bg-emerald-50/40 p-2 text-sm file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-emerald-500"
+          className="mt-4 block w-full cursor-pointer rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-sm file:mr-4 file:cursor-pointer file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-emerald-500"
         />
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
@@ -672,7 +672,7 @@ export default function AnimatePage() {
           <p className="mt-2 text-xs text-amber-900/80">{t("animate.progress.keepWindowOpen")}</p>
         ) : null}
         {jobsStartError ? (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-800">
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
             <p>{jobsStartError}</p>
             <button
               type="button"
@@ -846,7 +846,7 @@ export default function AnimatePage() {
               />
             </div>
           ) : (
-            <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 text-sm text-zinc-500">
+            <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 text-sm text-zinc-500">
               {t("animate.completed.placeholder")}
             </div>
           )}

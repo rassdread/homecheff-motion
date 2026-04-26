@@ -78,7 +78,7 @@ export function AnimateEstimateCard({
     if (imageCount < MIN_ANIMATION_IMAGES) {
       return (
         <div
-          className={`rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 text-zinc-700 ${textSize} ${rootExtra}`.trim()}
+          className={`rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-zinc-700 ${textSize} ${rootExtra}`.trim()}
         >
           <p className="font-semibold text-zinc-900">{t("animate.estimate.finalTitle")}</p>
           <p className="mt-2">{t("animate.estimate.finalStartHint")}</p>
@@ -87,7 +87,7 @@ export function AnimateEstimateCard({
     }
     return (
       <div
-        className={`rounded-lg border border-emerald-200/80 bg-emerald-50/40 p-3 text-zinc-800 ${textSize} ${rootExtra}`.trim()}
+        className={`rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-zinc-800 ${textSize} ${rootExtra}`.trim()}
       >
         <p className="font-semibold text-emerald-900">{t("animate.estimate.finalTitle")}</p>
         <p className="mt-2">
@@ -111,7 +111,7 @@ export function AnimateEstimateCard({
     if (imageCount < MIN_ANIMATION_IMAGES) {
       return (
         <div
-          className={`rounded-lg border border-violet-200 bg-white/80 p-3 text-zinc-700 ${textSize} ${rootExtra}`.trim()}
+          className={`rounded-lg border border-violet-200 bg-white p-3 text-zinc-700 ${textSize} ${rootExtra}`.trim()}
         >
           <p className="font-semibold text-violet-900">{t("animate.estimate.sectionCurrent")}</p>
           <p className="mt-2">{t("animate.estimate.needTwoForCalc")}</p>
@@ -120,7 +120,7 @@ export function AnimateEstimateCard({
     }
     return (
       <div
-        className={`rounded-lg border border-violet-200 bg-white/90 p-3 text-zinc-800 ${textSize} ${rootExtra}`.trim()}
+        className={`rounded-lg border border-violet-200 bg-white p-3 text-zinc-800 ${textSize} ${rootExtra}`.trim()}
       >
         <p className="font-semibold text-violet-900">{t("animate.estimate.sectionCurrent")}</p>
         <p className="mt-2">
@@ -146,7 +146,7 @@ export function AnimateEstimateCard({
   /* preset inline */
   return (
     <div
-      className={`mt-2 border-t border-emerald-100/80 pt-2 ${gap} ${textSize} text-zinc-700 ${rootExtra}`.trim()}
+      className={`mt-2 border-t border-emerald-100 pt-2 ${gap} ${textSize} text-zinc-700 ${rootExtra}`.trim()}
     >
       <p>{t("animate.preset.field.resolution", { value: resolution })}</p>
       <p>{t("animate.transformation.seconds", { seconds: per })}</p>
