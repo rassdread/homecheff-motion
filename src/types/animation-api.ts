@@ -204,3 +204,48 @@ export type JobsPollResponse = {
   anyFailed: boolean;
   allCompleted: boolean;
 };
+
+export type AnimationProjectListItemLatestExport = {
+  status: string;
+  progress: number;
+  outputVideoUrl: string | null;
+  errorMessage: string | null;
+};
+
+export type AnimationProjectListItem = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  status: string;
+  presetId: string;
+  intent: string | null;
+  advancedSettingsEnabled: boolean;
+  viduResolution: string | null;
+  viduDurationSeconds: number | null;
+  estimatedCredits: number | null;
+  estimatedTotalDurationSeconds: number | null;
+  imageCount: number;
+  transitionCount: number;
+  latestExport: AnimationProjectListItemLatestExport | null;
+  thumbnailUrl: string | null;
+  thumbnailFallbackUrl: string | null;
+  /** Present when listing with admin `all=true`. */
+  ownerEmail?: string;
+};
+
+export type AnimationProjectListResponse = {
+  projects: AnimationProjectListItem[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+};
+
+/** GET /api/animations/projects/[id] — full snapshot for gallery detail. */
+export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
+  createdAt: string;
+  updatedAt: string;
+  advancedSettingsEnabled: boolean;
+  /** Only when viewer is admin (e.g. inspecting another user’s project). */
+  ownerEmail?: string;
+};

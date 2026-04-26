@@ -25,3 +25,23 @@ export async function getAnimationProjectByIdForOwner(id: string, ownerId: strin
     include: projectInclude,
   });
 }
+
+/** Owner always; admin may load any project by id (for gallery detail). */
+export async function getAnimationProjectByIdForViewer(
+  id: string,
+  viewer: { id: string; role: string }
+) {
+  if (viewer.role === "admin") {
+    return prisma.animationProject.findUnique({
+      where: { id },
+      include: {
+        images: projectInclude.images,
+        transitions: projectInclude.transitions,
+        exports: projectInclude.exports,
+        owner: { select: { email: true } },
+      },
+    });
+  }
+  return getAnimationProjectByIdForOwner(id, viewer.id);
+}
+

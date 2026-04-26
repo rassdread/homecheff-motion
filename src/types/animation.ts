@@ -1,5 +1,8 @@
 export type { AnimationPresetId } from "@/lib/animation-presets";
 export type {
+  AnimationProjectDetailResponse,
+  AnimationProjectListItem,
+  AnimationProjectListResponse,
   AnimationUsageResponse,
   CreateAnimationProjectRequest,
   CreateAnimationProjectResponse,

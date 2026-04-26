@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
-import { getActiveTranslator } from "@/i18n";
 import { brand } from "@/lib/brand";
 
 type AppShellProps = {
@@ -9,8 +9,6 @@ type AppShellProps = {
 };
 
 export function AppShell({ children }: AppShellProps) {
-  const t = getActiveTranslator();
-
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white backface-hidden [transform:translateZ(0)]">
@@ -26,12 +24,7 @@ export function AppShell({ children }: AppShellProps) {
             </span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
-            <Link
-              href="/animate"
-              className="shrink-0 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-emerald-50 sm:px-4 sm:py-2 sm:text-sm"
-            >
-              {t("nav.create")}
-            </Link>
+            <AppShellPrimaryNav />
             <AppShellUserBar />
           </div>
         </nav>

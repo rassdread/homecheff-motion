@@ -1,10 +1,62 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { getAnimationProjectByIdForOwner } from "@/server/animation-projects/queries";
+import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
+import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+function mapToDetailResponse(
+  project: NonNullable<Awaited<ReturnType<typeof getAnimationProjectByIdForViewer>>>,
+  viewerRole: string
+): AnimationProjectDetailResponse {
+  const ownerRecord =
+    "owner" in project && project.owner && typeof project.owner === "object" && "email" in project.owner
+      ? (project.owner as { email: string })
+      : null;
+  const ownerEmail = viewerRole === "admin" && ownerRecord ? ownerRecord.email : undefined;
+
+  return {
+    id: project.id,
+    status: project.status,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+    advancedSettingsEnabled: project.advancedSettingsEnabled,
+    images: project.images.map((img) => ({
+      id: img.id,
+      order: img.order,
+      fileName: img.fileName,
+      previewUrl: img.previewUrl,
+    })),
+    transitions: project.transitions.map((t) => ({
+      id: t.id,
+      order: t.order,
+      startImageId: t.startImageId,
+      endImageId: t.endImageId,
+      status: t.status,
+      progress: t.progress,
+      outputVideoUrl: t.outputVideoUrl,
+      errorMessage: t.errorMessage,
+    })),
+    exports: project.exports.map((e) => ({
+      status: e.status,
+      progress: e.progress,
+      provider: e.provider,
+      providerJobId: e.providerJobId,
+      outputVideoUrl: e.outputVideoUrl,
+      errorMessage: e.errorMessage,
+    })),
+    intent: project.intent,
+    presetId: project.presetId,
+    viduModel: project.viduModel,
+    viduResolution: project.viduResolution,
+    viduDurationSeconds: project.viduDurationSeconds,
+    estimatedCredits: project.estimatedCredits,
+    userPrompt: project.userPrompt,
+    ownerEmail,
+  };
+}
 
 export async function GET(_: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -13,11 +65,11 @@ export async function GET(_: Request, context: RouteContext) {
     return user;
   }
 
-  const project = await getAnimationProjectByIdForOwner(id, user.id);
-
+  const project = await getAnimationProjectByIdForViewer(id, user);
   if (!project) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  return NextResponse.json(project);
+  const body = mapToDetailResponse(project, user.role);
+  return NextResponse.json(body, { status: 200 });
 }
