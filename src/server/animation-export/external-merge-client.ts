@@ -10,6 +10,8 @@ export type StartExternalMergeJobInput = {
   projectId: string;
   transitionVideos: ExternalMergeTransitionInput[];
   outputFilename?: string;
+  /** Max output width (px); worker scales down only. From project `viduResolution`. */
+  exportMaxWidth?: number;
 };
 
 export type ExternalMergeRemoteStatus =
@@ -120,7 +122,7 @@ export async function startExternalMergeJob(
 ): Promise<ExternalMergeJobSnapshot> {
   const base = externalMergeBaseUrl();
   const url = `${base}/merge`;
-  const body = {
+  const body: Record<string, unknown> = {
     projectId: input.projectId,
     videos: input.transitionVideos.map((v) => ({
       id: v.transitionId,
@@ -129,6 +131,9 @@ export async function startExternalMergeJob(
     })),
     outputFilename: input.outputFilename ?? "final.mp4",
   };
+  if (input.exportMaxWidth !== undefined && Number.isFinite(input.exportMaxWidth)) {
+    body.exportMaxWidth = Math.round(input.exportMaxWidth);
+  }
 
   let response: Response;
   try {

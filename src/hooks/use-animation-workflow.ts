@@ -1,7 +1,12 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t, type TranslationKey } from "@/i18n";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
-import { preprocessImageFile } from "@/lib/image-preprocess";
+import {
+  getClientImagePreprocessOptionsForRole,
+  preprocessImageFile,
+} from "@/lib/image-preprocess";
+import type { AuthSessionApiPayload } from "@/lib/auth-session-client";
+import { getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
 import {
   CREDIT_USD,
   estimateProjectCredits,
@@ -234,6 +239,7 @@ export function useAnimationWorkflow() {
   const exportInitSentForProjectIdRef = useRef<string | null>(null);
   const exportPollInFlightRef = useRef(false);
   const exportPollFailureCountRef = useRef(0);
+  const imageCompressionRoleRef = useRef<string>("user");
 
   const activePreset: AnimationPreset = useMemo(
     () => getAnimationPreset(selectedPresetId),
@@ -415,15 +421,11 @@ export function useAnimationWorkflow() {
   }, [images]);
 
   const fetchUsage = useCallback(async (opts?: { forceSession?: boolean }) => {
-    let session: {
-      user: { id: string; isActive: boolean } | null;
-      allowedPresets?: AnimationPresetId[];
-      canUseAdvancedAnimationControls?: boolean;
-      advancedLimits?: AnimationUsageResponse["advancedLimits"];
-    };
+    let session: AuthSessionApiPayload;
     try {
       session = await fetchAuthSessionJson({ force: opts?.forceSession });
     } catch {
+      imageCompressionRoleRef.current = "user";
       setIsAuthenticated(false);
       setIsAuthResolved(true);
       setAccountInactive(false);
@@ -434,6 +436,7 @@ export function useAnimationWorkflow() {
       return;
     }
     if (!session.user) {
+      imageCompressionRoleRef.current = "user";
       setIsAuthenticated(false);
       setIsAuthResolved(true);
       setAccountInactive(false);
@@ -445,6 +448,7 @@ export function useAnimationWorkflow() {
     }
     setIsAuthenticated(true);
     setIsAuthResolved(true);
+    imageCompressionRoleRef.current = session.user.role?.trim() || "user";
 
     if (session.user.isActive === false) {
       setAccountInactive(true);
@@ -884,7 +888,10 @@ export function useAnimationWorkflow() {
       try {
         const processedImages = await Promise.all(
           safeFiles.map(async (file) => {
-            const processed = await preprocessImageFile(file);
+            const processed = await preprocessImageFile(
+              file,
+              getClientImagePreprocessOptionsForRole(imageCompressionRoleRef.current)
+            );
             return {
               file,
               ...processed,
@@ -917,9 +924,14 @@ export function useAnimationWorkflow() {
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
+        const maxMb =
+          Math.round(
+            (getMaxWorkingImageBytesForUploadRole(imageCompressionRoleRef.current) / (1024 * 1024)) *
+              10
+          ) / 10;
         setError(
           msg.includes("remains too large")
-            ? t("errors.optimizedTooLarge")
+            ? t("errors.optimizedTooLarge", { max: maxMb })
             : t("errors.imageProcessFailed")
         );
         event.target.value = "";

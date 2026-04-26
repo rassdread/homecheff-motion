@@ -11,7 +11,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const workerRoot = path.resolve(__dirname, "..");
 const outputsDir = path.join(workerRoot, "outputs");
 
-const port = process.env.PORT ? Number(process.env.PORT) : 8787;
+function resolveListenPort(): number {
+  const raw = process.env.PORT?.trim();
+  if (!raw) {
+    return 8787;
+  }
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 8787;
+}
+
+const port = resolveListenPort();
 const WORKER_PUBLIC_URL = (process.env.WORKER_PUBLIC_URL || `http://localhost:${port}`).replace(
   /\/+$/,
   ""
@@ -19,6 +28,11 @@ const WORKER_PUBLIC_URL = (process.env.WORKER_PUBLIC_URL || `http://localhost:${
 const MERGE_WORKER_API_KEY = process.env.MERGE_WORKER_API_KEY?.trim();
 const FFMPEG_PATH = process.env.FFMPEG_PATH?.trim() || "ffmpeg";
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+
+/** Tune with `src/lib/media-export-constants.ts` (final merge only, not Vidu segments). */
+const FINAL_MERGE_CRF = "25";
+const FINAL_MERGE_PRESET = "veryfast";
+const DEFAULT_EXPORT_MAX_WIDTH = 1280;
 
 type JobStatus = "queued" | "processing" | "completed" | "failed";
 
@@ -30,6 +44,7 @@ type JobRecord = {
   errorMessage: string | null;
   videos: { id: string; order: number; url: string }[];
   outputFilename: string;
+  exportMaxWidth: number;
 };
 
 const jobs = new Map<string, JobRecord>();
@@ -74,10 +89,11 @@ function runFfmpeg(args: string[], cwd: string): Promise<{ code: number; stderr:
   });
 }
 
-async function concatWithFfmpeg(
+async function concatAndEncodeFinalMergedVideo(
   workDir: string,
   segmentPaths: string[],
-  outputFile: string
+  outputFile: string,
+  maxWidth: number
 ): Promise<void> {
   const concatLines = segmentPaths
     .map((p) => `file '${escapeConcatPath(path.resolve(p))}'`)
@@ -85,51 +101,28 @@ async function concatWithFfmpeg(
   const concatFile = path.join(workDir, "concat.txt");
   await fs.writeFile(concatFile, `${concatLines}\n`, "utf8");
   const baseArgs = ["-y", "-f", "concat", "-safe", "0", "-i", concatFile];
-
-  const tryCopy = await runFfmpeg([...baseArgs, "-c", "copy", outputFile], workDir);
-  if (tryCopy.code === 0) {
-    return;
+  const vf = `scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p`;
+  const args = [
+    ...baseArgs,
+    "-vf",
+    vf,
+    "-c:v",
+    "libx264",
+    "-preset",
+    FINAL_MERGE_PRESET,
+    "-crf",
+    FINAL_MERGE_CRF,
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "-an",
+    outputFile,
+  ];
+  const r = await runFfmpeg(args, workDir);
+  if (r.code !== 0) {
+    throw new Error(`FFmpeg final merge failed: ${r.stderr.trim().slice(-2000)}`);
   }
-  const tryReencode = await runFfmpeg(
-    [
-      ...baseArgs,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-c:a",
-      "aac",
-      "-movflags",
-      "+faststart",
-      outputFile,
-    ],
-    workDir
-  );
-  if (tryReencode.code === 0) {
-    return;
-  }
-  const tryVideoOnly = await runFfmpeg(
-    [
-      ...baseArgs,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-an",
-      "-movflags",
-      "+faststart",
-      outputFile,
-    ],
-    workDir
-  );
-  if (tryVideoOnly.code === 0) {
-    return;
-  }
-  throw new Error("FFmpeg concat failed (see worker logs for stderr).");
 }
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
@@ -167,7 +160,7 @@ async function processJob(jobId: string): Promise<void> {
     }
 
     job.progress = 88;
-    await concatWithFfmpeg(workDir, segmentPaths, localOut);
+    await concatAndEncodeFinalMergedVideo(workDir, segmentPaths, localOut, job.exportMaxWidth);
 
     let publicUrl: string;
     if (BLOB_TOKEN) {
@@ -219,6 +212,7 @@ app.post("/merge", requireAuth, (req, res) => {
     projectId?: string;
     videos?: { id?: string; order?: number; url?: string }[];
     outputFilename?: string;
+    exportMaxWidth?: number;
   };
   if (!body?.videos || !Array.isArray(body.videos) || body.videos.length === 0) {
     res.status(400).json({ error: "videos array required" });
@@ -234,6 +228,14 @@ app.post("/merge", requireAuth, (req, res) => {
     return;
   }
 
+  let exportMaxWidth = DEFAULT_EXPORT_MAX_WIDTH;
+  if (typeof body.exportMaxWidth === "number" && Number.isFinite(body.exportMaxWidth)) {
+    const w = Math.round(body.exportMaxWidth);
+    if (w >= 320 && w <= 3840) {
+      exportMaxWidth = w;
+    }
+  }
+
   const jobId = randomUUID();
   const job: JobRecord = {
     id: jobId,
@@ -243,6 +245,7 @@ app.post("/merge", requireAuth, (req, res) => {
     errorMessage: null,
     videos,
     outputFilename: typeof body.outputFilename === "string" ? body.outputFilename : "final.mp4",
+    exportMaxWidth,
   };
   jobs.set(jobId, job);
   void processJob(jobId);

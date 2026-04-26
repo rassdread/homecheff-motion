@@ -15,7 +15,21 @@ npm run dev
 
 Defaults: `PORT=8787`, `WORKER_PUBLIC_URL=http://localhost:8787`.
 
-**Railway:** set `PORT` is injected automatically; the server listens on **`0.0.0.0:${PORT}`** so the proxy can reach it. Set **`WORKER_PUBLIC_URL`** to your public HTTPS URL (e.g. `https://your-service.up.railway.app`) so merge output links are correct. `GET /` returns `{ "status": "ok", "service": "ffmpeg-merge-worker" }` for health checks.
+### Railway (monorepo)
+
+1. **Root directory** — In the Railway service → *Settings* → **Root Directory**, set:  
+   `worker/ffmpeg-merge-worker`  
+   If this stays at the repo root, Railway runs the **Next.js** `package.json` instead: the wrong process never binds to `PORT` → **502 / Application failed to respond**.
+
+2. **Build & start** — `npm run build` runs `tsc` and emits `dist/server.js`. `npm start` runs **`node dist/server.js`** (no `tsx` in production). Nixpacks runs `build` automatically when that script exists.
+
+3. **Port** — `PORT` is set by Railway; the app listens on **`0.0.0.0`** with a safe integer parse (invalid → `8787` locally only).
+
+4. **`WORKER_PUBLIC_URL`** — Set to your public HTTPS origin (e.g. `https://your-service.up.railway.app`) so returned video URLs are correct.
+
+5. **FFmpeg** — Install on the image (custom Dockerfile, Nixpacks `nixPkgs`/`apt`, or a Railway template with ffmpeg) or merges will fail at runtime (the HTTP server will still boot).
+
+`GET /` returns `{ "status": "ok", "service": "ffmpeg-merge-worker" }` for health checks.
 
 Point the Next.js app at it (server-side only):
 
@@ -39,6 +53,12 @@ For production on Railway / Render / Fly.io / a VPS, prefer durable object stora
 ## FFmpeg
 
 Install `ffmpeg` on the host or set `FFMPEG_PATH` to the binary path.
+
+Final merge output uses **libx264** with **CRF ~25**, **preset veryfast**, **yuv420p**, **+faststart**, **no audio** (`server.ts` constants — keep roughly aligned with `src/lib/media-export-constants.ts` in the Next.js app). `POST /merge` accepts optional **`exportMaxWidth`** (from project resolution) to cap output width without upscaling.
+
+## Blob cleanup (Next.js app)
+
+Optional env on the **main** app: `ANIMATION_DELETE_TRANSITION_BLOBS_AFTER_FINAL=true` removes transition segment blobs that point at Vercel Blob after the final merge is stored. Admin-wide retention cleanup is still **TODO** (`TODO_ADMIN_CLEANUP_OLD_GENERATED_ASSETS` in `src/lib/media-export-constants.ts`).
 
 ## Security
 

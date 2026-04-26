@@ -340,7 +340,7 @@ export const en: LocaleSchema = {
   "errors.imageProcessFailed":
     "Could not prepare one or more images. Please try different files.",
   "errors.optimizedTooLarge":
-    "This image could not be compressed under the 2MB upload limit. Try a lower-resolution export or a different photo.",
+    "This image could not be compressed under your account’s upload limit ({max}MB for the working image). Try a lower-resolution source or a different photo.",
   "errors.uploadFailed":
     "Could not upload optimized images. Please try again.",
   "errors.jobsStartFailed":

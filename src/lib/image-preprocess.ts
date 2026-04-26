@@ -1,7 +1,10 @@
-import { MAX_OPTIMIZED_IMAGE_BYTES } from "@/lib/animation-upload-limits";
+import {
+  BLOB_IMAGE_THUMB_MAX_BYTES,
+  BLOB_IMAGE_THUMB_MAX_LONGEST_SIDE,
+  BLOB_IMAGE_WORKING_MAX_LONGEST_SIDE_START,
+  getMaxWorkingImageBytesForUploadRole,
+} from "@/lib/media-export-constants";
 
-const MAX_LONGEST_SIDE_START = 1536;
-const THUMBNAIL_LONGEST_SIDE = 400;
 const TARGET_QUALITY_START = 0.82;
 const QUALITY_FLOOR = 0.56;
 const QUALITY_STEP = 0.06;
@@ -9,6 +12,27 @@ const SIDE_SCALE = 0.88;
 const ABS_MIN_LONGEST_SIDE = 960;
 const EMERGENCY_MIN_LONGEST_SIDE = 720;
 const MAX_ENCODE_ATTEMPTS = 28;
+
+export type ClientImagePreprocessOptions = {
+  maxWorkingBytes: number;
+  maxThumbnailBytes: number;
+  maxThumbnailLongestSide: number;
+  maxWorkingLongestSideStart: number;
+};
+
+export function getClientImagePreprocessOptionsForRole(role: string): ClientImagePreprocessOptions {
+  return {
+    maxWorkingBytes: getMaxWorkingImageBytesForUploadRole(role),
+    maxThumbnailBytes: BLOB_IMAGE_THUMB_MAX_BYTES,
+    maxThumbnailLongestSide: BLOB_IMAGE_THUMB_MAX_LONGEST_SIDE,
+    maxWorkingLongestSideStart: BLOB_IMAGE_WORKING_MAX_LONGEST_SIDE_START,
+  };
+}
+
+/** Default when role is unknown (strictest). */
+export function defaultClientImagePreprocessOptions(): ClientImagePreprocessOptions {
+  return getClientImagePreprocessOptionsForRole("user");
+}
 
 type PreprocessedImage = {
   optimizedBlob: Blob;
@@ -102,7 +126,6 @@ async function renderBlobOnce(
 /**
  * Encode canvas output under a byte budget by lowering quality, then longest side,
  * in steps — same idea as HomeCheff `compressDataUrl` retries, without data-url churn.
- * Output is always a full valid image blob (no partial/corrupt uploads).
  */
 async function encodeUnderByteBudget(
   image: HTMLImageElement,
@@ -152,18 +175,21 @@ async function encodeUnderByteBudget(
   throw new Error("Image remains too large after compression");
 }
 
-export async function preprocessImageFile(file: File): Promise<PreprocessedImage> {
+export async function preprocessImageFile(
+  file: File,
+  options: ClientImagePreprocessOptions = defaultClientImagePreprocessOptions()
+): Promise<PreprocessedImage> {
   const image = await loadImageElement(file);
   const outputMimeType = getOutputMimeType(file.type);
 
   const optimizedBlob = await encodeUnderByteBudget(image, outputMimeType, {
-    maxLongestSideStart: MAX_LONGEST_SIDE_START,
-    maxBytes: MAX_OPTIMIZED_IMAGE_BYTES,
+    maxLongestSideStart: options.maxWorkingLongestSideStart,
+    maxBytes: options.maxWorkingBytes,
   });
 
   const thumbnailBlob = await encodeUnderByteBudget(image, outputMimeType, {
-    maxLongestSideStart: THUMBNAIL_LONGEST_SIDE,
-    maxBytes: MAX_OPTIMIZED_IMAGE_BYTES,
+    maxLongestSideStart: options.maxThumbnailLongestSide,
+    maxBytes: options.maxThumbnailBytes,
   });
 
   return {

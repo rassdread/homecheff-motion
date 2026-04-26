@@ -1,6 +1,6 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
-import { MAX_OPTIMIZED_IMAGE_BYTES } from "@/lib/animation-upload-limits";
+import { BLOB_IMAGE_THUMB_MAX_BYTES, getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
 import type { UploadImageResponse } from "@/types/animation-api";
 import { requireActiveUser } from "@/server/auth/permissions";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -54,12 +54,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (
-    workingImage.size > MAX_OPTIMIZED_IMAGE_BYTES ||
-    thumbnailImage.size > MAX_OPTIMIZED_IMAGE_BYTES
-  ) {
+  const maxWorking = getMaxWorkingImageBytesForUploadRole(user.role);
+  if (workingImage.size > maxWorking || thumbnailImage.size > BLOB_IMAGE_THUMB_MAX_BYTES) {
     return NextResponse.json(
-      { error: "Optimized image exceeds 2MB limit." },
+      {
+        error: `Optimized image exceeds limit (working max ${Math.round(maxWorking / (1024 * 1024))}MB, thumbnail max ${Math.round(BLOB_IMAGE_THUMB_MAX_BYTES / 1024)}KB).`,
+      },
       { status: 400 }
     );
   }

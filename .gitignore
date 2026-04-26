@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /worker/ffmpeg-merge-worker/node_modules
+/worker/ffmpeg-merge-worker/dist
 /.pnp
 .pnp.*
 .yarn/*

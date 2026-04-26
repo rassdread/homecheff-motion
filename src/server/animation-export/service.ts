@@ -12,6 +12,13 @@ import {
   pollExternalMergeJob,
   startExternalMergeJob,
 } from "@/server/animation-export/external-merge-client";
+import { maybeDeleteTransitionBlobVideosAfterFinalExport } from "@/server/animation-export/cleanup-generated-assets";
+import {
+  FINAL_MERGE_DISABLE_AUDIO,
+  FINAL_MERGE_VIDEO_CRF,
+  FINAL_MERGE_VIDEO_PRESET,
+  getFinalMergeMaxWidthFromViduResolution,
+} from "@/lib/media-export-constants";
 
 const EXPORT_CHAIN = new Map<string, Promise<unknown>>();
 const EXTERNAL_EXPORT_PROVIDER = "external-ffmpeg";
@@ -137,10 +144,15 @@ async function assertFfmpegAvailable(): Promise<void> {
   }
 }
 
-async function concatWithFfmpeg(
+/**
+ * Final merged deliverable: single H.264 pass, capped width, CRF ~23–28 range, faststart.
+ * Not used for per-transition Vidu source clips.
+ */
+async function concatAndEncodeFinalMergedVideo(
   workDir: string,
   segmentPaths: string[],
-  outputFile: string
+  outputFile: string,
+  maxWidth: number
 ): Promise<void> {
   const binary = ffmpegBinary();
   const concatLines = segmentPaths
@@ -150,63 +162,36 @@ async function concatWithFfmpeg(
   await fs.writeFile(concatFile, `${concatLines}\n`, "utf8");
 
   const baseArgs = ["-y", "-f", "concat", "-safe", "0", "-i", concatFile];
+  const vf = `scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p`;
+  const videoArgs = [
+    ...baseArgs,
+    "-vf",
+    vf,
+    "-c:v",
+    "libx264",
+    "-preset",
+    FINAL_MERGE_VIDEO_PRESET,
+    "-crf",
+    String(FINAL_MERGE_VIDEO_CRF),
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+  ];
+  if (FINAL_MERGE_DISABLE_AUDIO) {
+    videoArgs.push("-an");
+  } else {
+    videoArgs.push("-c:a", "aac", "-b:a", "128k");
+  }
+  videoArgs.push(outputFile);
 
-  const tryCopy = await runFfmpeg(binary, [...baseArgs, "-c", "copy", outputFile], {
-    cwd: workDir,
-  });
-  if (tryCopy.code === 0) {
+  const encoded = await runFfmpeg(binary, videoArgs, { cwd: workDir });
+  if (encoded.code === 0) {
     return;
   }
 
-  const tryReencode = await runFfmpeg(
-    binary,
-    [
-      ...baseArgs,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-c:a",
-      "aac",
-      "-movflags",
-      "+faststart",
-      outputFile,
-    ],
-    { cwd: workDir }
-  );
-  if (tryReencode.code === 0) {
-    return;
-  }
-
-  const tryVideoOnly = await runFfmpeg(
-    binary,
-    [
-      ...baseArgs,
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-an",
-      "-movflags",
-      "+faststart",
-      outputFile,
-    ],
-    { cwd: workDir }
-  );
-  if (tryVideoOnly.code === 0) {
-    return;
-  }
-
-  const tail = [tryCopy.stderr, tryReencode.stderr, tryVideoOnly.stderr]
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join("\n---\n");
   throw new Error(
-    `FFmpeg concat failed after copy, re-encode, and video-only attempts. Last stderr:\n${tail.slice(-4000)}`
+    `FFmpeg final merge encode failed (code ${encoded.code}). stderr:\n${encoded.stderr.trim().slice(-4000)}`
   );
 }
 
@@ -344,6 +329,7 @@ async function runExternalExportStart(projectId: string) {
         outputVideoUrl: t.outputVideoUrl!,
       })),
       outputFilename: "final.mp4",
+      exportMaxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
     });
 
     if (!remote.jobId.trim()) {
@@ -368,6 +354,7 @@ async function runExternalExportStart(projectId: string) {
         where: { id: projectId },
         data: { status: "completed" },
       });
+      await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
     } else if (remote.status.toLowerCase() === "failed") {
       await prisma.animationProject.update({
         where: { id: projectId },
@@ -435,6 +422,7 @@ async function syncExternalMergePoll(projectId: string) {
       where: { id: projectId },
       data: { status: "completed" },
     });
+    await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
   } else if (remote.status.toLowerCase() === "failed") {
     await prisma.animationProject.update({
       where: { id: projectId },
@@ -617,7 +605,12 @@ async function runLocalProjectExportMerge(projectId: string) {
       data: { progress: 45 },
     });
 
-    await concatWithFfmpeg(workDir, segmentPaths, finalAbs);
+    await concatAndEncodeFinalMergedVideo(
+      workDir,
+      segmentPaths,
+      finalAbs,
+      getFinalMergeMaxWidthFromViduResolution(project.viduResolution)
+    );
 
     await prisma.animationExport.update({
       where: { id: exportRecordId },
@@ -633,6 +626,8 @@ async function runLocalProjectExportMerge(projectId: string) {
       where: { id: projectId },
       data: { status: "completed" },
     });
+
+    await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export merge failed.";
     await prisma.animationExport.update({

@@ -342,7 +342,7 @@ export const nl = {
   "errors.imageProcessFailed":
     "Een of meer afbeeldingen konden niet worden voorbereid. Probeer andere bestanden.",
   "errors.optimizedTooLarge":
-    "Deze afbeelding kon niet kleiner worden dan de uploadlimiet van 2MB. Probeer een export met lagere resolutie of een andere foto.",
+    "Deze afbeelding kon niet kleiner worden dan je uploadlimiet ({max}MB voor de werkafbeelding). Probeer een bron met lagere resolutie of een andere foto.",
   "errors.uploadFailed":
     "Geoptimaliseerde afbeeldingen uploaden is mislukt. Probeer opnieuw.",
   "errors.jobsStartFailed":
