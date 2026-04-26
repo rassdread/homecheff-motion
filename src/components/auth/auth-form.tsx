@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getActiveTranslator } from "@/i18n";
 import { GradientButton } from "@/components/ui/gradient-button";
 
@@ -25,7 +24,6 @@ async function parseErrorJson(
 
 export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
   const t = getActiveTranslator();
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -106,8 +104,8 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
         return;
       }
 
-      router.push("/animate");
-      router.refresh();
+      // Full navigation so the browser reliably applies Set-Cookie before the next request.
+      window.location.assign("/animate");
     } catch {
       setError(t("auth.form.errorNetwork"));
     } finally {

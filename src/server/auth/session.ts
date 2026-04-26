@@ -5,6 +5,24 @@ import { prisma } from "@/lib/prisma";
 const SESSION_COOKIE = "hc_session";
 const AUTH_SECRET = process.env.AUTH_SECRET ?? "dev-auth-secret-change-me";
 
+/**
+ * `Secure` cookies are not stored on http:// (e.g. local `next start` with NODE_ENV=production).
+ * Vercel sets VERCEL=1. For other HTTPS hosts, set COOKIE_SECURE=true. To force insecure cookies
+ * in production (discouraged), set COOKIE_SECURE=false.
+ */
+function sessionCookieSecure(): boolean {
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+  if (process.env.COOKIE_SECURE === "false" || process.env.COOKIE_SECURE === "0") {
+    return false;
+  }
+  if (process.env.COOKIE_SECURE === "true" || process.env.COOKIE_SECURE === "1") {
+    return true;
+  }
+  return process.env.VERCEL === "1";
+}
+
 type SessionPayload = { userId: string; nonce: string };
 
 function sign(value: string): string {
@@ -61,7 +79,7 @@ export async function createSession(userId: string): Promise<void> {
   jar.set(SESSION_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
