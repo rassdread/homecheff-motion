@@ -1,5 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import { t, type TranslationKey } from "@/i18n";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { preprocessImageFile } from "@/lib/image-preprocess";
 import {
@@ -167,7 +167,6 @@ function averageTransitionProgress(snapshot: ProjectSnapshotResponse): number {
 }
 
 export function useAnimationWorkflow() {
-  const t = getActiveTranslator();
   const [images, setImages] = useState<AnimationImage[]>([]);
   const [error, setError] = useState<string>("");
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>("idle");
@@ -476,7 +475,7 @@ export function useAnimationWorkflow() {
     }
     setUsage(usageBody);
     setUsageError("");
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     if (allowedPresetIds.length === 0) {
@@ -592,7 +591,7 @@ export function useAnimationWorkflow() {
       setJobsStartError(t("errors.jobsStartFailed"));
       return false;
     }
-  }, [t]);
+  }, []);
 
   const postJobsPoll = useCallback(async (pid: string): Promise<boolean> => {
     try {
@@ -630,7 +629,7 @@ export function useAnimationWorkflow() {
         return false;
       }
     },
-    [applySnapshot, t]
+    [applySnapshot]
   );
 
   const postExportPoll = useCallback(async (pid: string): Promise<boolean> => {
@@ -734,7 +733,7 @@ export function useAnimationWorkflow() {
         clearTimeout(timeoutId);
       }
     };
-  }, [projectId, projectStatus, jobsReady, jobsStartError, pollError, postJobsPoll, syncFromServer, t]);
+  }, [projectId, projectStatus, jobsReady, jobsStartError, pollError, postJobsPoll, syncFromServer]);
 
   useEffect(() => {
     if (!projectId || projectStatus !== "rendering") {
@@ -826,7 +825,7 @@ export function useAnimationWorkflow() {
         clearTimeout(timeoutId);
       }
     };
-  }, [projectId, projectStatus, exportPollError, postExportPoll, t]);
+  }, [projectId, projectStatus, exportPollError, postExportPoll]);
 
   function handleImageSelection(event: ChangeEvent<HTMLInputElement>) {
     const fileList = event.target.files;
