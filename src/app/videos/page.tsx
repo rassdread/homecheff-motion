@@ -171,6 +171,7 @@ export default function VideosPage() {
         <p className="mt-3 text-sm text-zinc-600">{t("errors.authRequired")}</p>
         <Link
           href="/login"
+          prefetch={false}
           className="mt-6 inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
         >
           {t("nav.login")}
@@ -225,6 +226,7 @@ export default function VideosPage() {
           <p className="mt-2 text-sm text-zinc-600">{t("videos.emptyDescription")}</p>
           <Link
             href="/animate"
+            prefetch={false}
             className="mt-6 inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
           >
             {t("videos.createNew")}
@@ -260,7 +262,7 @@ export default function VideosPage() {
               key={item.id}
               className="flex flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
             >
-              <Link href={`/videos/${item.id}`} className="block shrink-0">
+              <Link href={`/videos/${item.id}`} prefetch={false} className="block shrink-0">
                 <div className="relative aspect-video bg-zinc-100">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -284,7 +286,7 @@ export default function VideosPage() {
 
               <div className="flex flex-1 flex-col gap-2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link href={`/videos/${item.id}`} className="min-w-0 flex-1">
+                  <Link href={`/videos/${item.id}`} prefetch={false} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-zinc-900">
                       {dateFmt.format(new Date(item.createdAt))}
                     </p>
@@ -321,7 +323,7 @@ export default function VideosPage() {
                         className="w-full rounded-lg bg-black"
                         controls
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         poster={thumb ?? undefined}
                         src={finalUrl}
                       />
@@ -363,7 +365,7 @@ export default function VideosPage() {
                   <div className="mt-1 text-xs text-red-700">
                     <p className="font-medium">{t("videos.status.failed")}</p>
                     {errSnippet ? <p className="mt-1 line-clamp-3 text-red-600/90">{errSnippet}</p> : null}
-                    <Link href="/animate" className="mt-2 inline-block font-medium text-emerald-800 underline">
+                    <Link href="/animate" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
                       {t("videos.createNew")}
                     </Link>
                   </div>

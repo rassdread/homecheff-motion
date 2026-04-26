@@ -801,6 +801,8 @@ export default function AnimatePage() {
                     </p>
                     <video
                       controls
+                      playsInline
+                      preload="none"
                       className="max-h-48 w-full rounded-lg border border-zinc-200 bg-black"
                       src={transition.outputVideoUrl}
                     />
@@ -856,6 +858,8 @@ export default function AnimatePage() {
               </p>
               <video
                 controls
+                playsInline
+                preload="none"
                 className="max-h-64 w-full rounded-xl border border-zinc-200 bg-black"
                 src={finalProjectVideoUrl}
               />

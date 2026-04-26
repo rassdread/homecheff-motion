@@ -58,6 +58,7 @@ export default function VideoDetailPage() {
   const [detail, setDetail] = useState<AnimationProjectDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fragmentsOpen, setFragmentsOpen] = useState(false);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -155,7 +156,7 @@ export default function VideoDetailPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-10">
         <p className="text-sm text-zinc-600">{t("errors.authRequired")}</p>
-        <Link href="/login" className="mt-4 inline-block text-sm font-medium text-emerald-800 underline">
+        <Link href="/login" prefetch={false} className="mt-4 inline-block text-sm font-medium text-emerald-800 underline">
           {t("nav.login")}
         </Link>
       </main>
@@ -176,7 +177,7 @@ export default function VideoDetailPage() {
         <p className="text-sm text-red-700">
           {t("videos.error")}: {error ?? "—"}
         </p>
-        <Link href="/videos" className="mt-6 inline-block text-sm font-medium text-zinc-800 underline">
+        <Link href="/videos" prefetch={false} className="mt-6 inline-block text-sm font-medium text-zinc-800 underline">
           {t("videos.title")}
         </Link>
       </main>
@@ -189,7 +190,7 @@ export default function VideoDetailPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-10 sm:py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/videos" className="text-sm font-medium text-emerald-800 hover:underline">
+        <Link href="/videos" prefetch={false} className="text-sm font-medium text-emerald-800 hover:underline">
           {t("videos.title")}
         </Link>
         <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700">
@@ -211,7 +212,7 @@ export default function VideoDetailPage() {
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
-            preload="metadata"
+            preload="none"
             poster={thumb ?? undefined}
             src={finalVideoUrl}
           />
@@ -306,7 +307,10 @@ export default function VideoDetailPage() {
         )}
       </section>
 
-      <details className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
+      <details
+        className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4"
+        onToggle={(e) => setFragmentsOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
         <summary className="cursor-pointer text-sm font-semibold text-zinc-900">{t("videos.fragments")}</summary>
         <ul className="mt-4 space-y-4">
           {detail.transitions.length === 0 ? (
@@ -320,7 +324,7 @@ export default function VideoDetailPage() {
                   </span>
                   <span className="tabular-nums text-zinc-500">{tr.progress}%</span>
                 </div>
-                {tr.outputVideoUrl?.trim() ? (
+                {fragmentsOpen && tr.outputVideoUrl?.trim() ? (
                   <video
                     className="mt-3 w-full max-w-md rounded-md bg-black"
                     controls
@@ -341,6 +345,7 @@ export default function VideoDetailPage() {
       <div className="mt-10">
         <Link
           href="/animate"
+          prefetch={false}
           className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
         >
           {t("videos.createNew")}

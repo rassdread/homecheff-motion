@@ -11,6 +11,8 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  /** Mono is only used in a few spots; preloading it competes with video on /videos (Safari warns). */
+  preload: false,
 });
 
 export const metadata: Metadata = {

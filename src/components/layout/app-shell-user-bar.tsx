@@ -67,12 +67,14 @@ export function AppShellUserBar() {
       <div className="flex flex-shrink-0 items-center gap-2">
         <Link
           href="/login"
+          prefetch={false}
           className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-emerald-50 sm:px-4 sm:py-2 sm:text-sm"
         >
           {t("nav.login")}
         </Link>
         <Link
           href="/signup"
+          prefetch={false}
           className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:px-4 sm:py-2 sm:text-sm"
         >
           {t("nav.signup")}
@@ -101,6 +103,7 @@ export function AppShellUserBar() {
         {normalizedRole === "admin" ? (
           <Link
             href="/admin"
+            prefetch={false}
             className="shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-800 transition-colors hover:bg-violet-50 sm:px-3 sm:py-1.5 sm:text-sm"
           >
             {t("nav.admin")}
