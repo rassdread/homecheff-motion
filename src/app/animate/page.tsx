@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimationIntentPreviewCard } from "@/components/animate/animation-intent-preview-card";
 import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card";
 import { AppCard } from "@/components/ui/app-card";
@@ -122,6 +122,14 @@ export default function AnimatePage() {
     useAdvancedOverrides,
     activePreset,
   } = useAnimationWorkflow();
+
+  const imageUploadInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (images.length === 0 && imageUploadInputRef.current) {
+      imageUploadInputRef.current.value = "";
+    }
+  }, [images.length]);
 
   const [targetTotalFocused, setTargetTotalFocused] = useState(false);
   const [targetTotalEditDraft, setTargetTotalEditDraft] = useState("");
@@ -550,6 +558,7 @@ export default function AnimatePage() {
           {t("animate.upload.help", { max: maxImages })}
         </p>
         <input
+          ref={imageUploadInputRef}
           id="image-upload"
           type="file"
           accept="image/*"
@@ -581,12 +590,14 @@ export default function AnimatePage() {
                 key={image.id}
                 className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_12px_30px_-20px_rgba(16,185,129,0.45)]"
               >
-                <Image
+                {/* Blob previews + revokeObjectURL; native img avoids next/image caching issues */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={image.thumbnailPreviewUrl}
                   alt={t("animate.selected.alt", { index: index + 1 })}
                   width={480}
                   height={320}
-                  unoptimized
+                  decoding="async"
                   className="h-32 w-full object-cover sm:h-36"
                 />
                 <div className="flex items-center justify-between gap-2 p-3">
@@ -596,7 +607,7 @@ export default function AnimatePage() {
                   <button
                     type="button"
                     onClick={() => removeImage(image.id)}
-                    disabled={isProcessing}
+                    disabled={isProcessing || isPersistingAnimation}
                     className="rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     {t("animate.selected.remove")}

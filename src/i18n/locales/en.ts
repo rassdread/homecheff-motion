@@ -336,9 +336,9 @@ export const en: LocaleSchema = {
   "errors.invalidImageType":
     "One or more files were not valid images and were skipped.",
   "errors.imageProcessFailed":
-    "Could not optimize one or more images. Please try different files.",
+    "Could not prepare one or more images. Please try different files.",
   "errors.optimizedTooLarge":
-    "One or more optimized images exceed 2MB and were skipped.",
+    "This image could not be compressed under the 2MB upload limit. Try a lower-resolution export or a different photo.",
   "errors.uploadFailed":
     "Could not upload optimized images. Please try again.",
   "errors.jobsStartFailed":

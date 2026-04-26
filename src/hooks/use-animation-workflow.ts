@@ -18,6 +18,7 @@ import {
   type AnimationAdvancedResolution,
 } from "@/lib/animation-advanced-settings";
 import { detectAnimationIntent } from "@/lib/animation-intent-detection";
+import { MAX_RAW_ANIMATION_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import { defaultIntentForPreset, type AnimationIntentId } from "@/lib/animation-intents";
 import type {
   AnimationImage,
@@ -47,16 +48,21 @@ function isCreateProjectErrorBody(
     !("projectId" in value)
   );
 }
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
-const MAX_OPTIMIZED_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const POLL_FAST_MS = 2000;
 const POLL_SLOW_MS = 5000;
 const POLL_FAST_WINDOW_MS = 30_000;
 const POLL_FAILURE_THRESHOLD = 3;
 const EXPORT_POLL_FAILURE_THRESHOLD = 3;
 
-function buildImageId(file: File, index: number): string {
-  return `${file.name}-${file.lastModified}-${index}`;
+function revokePreviewObjectUrl(url: string | undefined | null): void {
+  if (!url || !url.startsWith("blob:")) {
+    return;
+  }
+  try {
+    URL.revokeObjectURL(url);
+  } catch {
+    /* ignore double-revoke / invalid */
+  }
 }
 
 function mapTransitionStatus(server: string): AnimationStatus {
@@ -219,6 +225,8 @@ export function useAnimationWorkflow() {
   const createAdvancedResolutionRef = useRef<AnimationAdvancedResolution>("720p");
   const createAdvancedDurationRef = useRef(5);
   const imagesRef = useRef<AnimationImage[]>([]);
+  /** Monotonic suffix so client image ids stay unique across add/remove cycles. */
+  const imageIdentitySeqRef = useRef(0);
   const pollInFlightRef = useRef(false);
   const pollFailureCountRef = useRef(0);
   /** Successful jobs/start for this project id in the current session (avoids duplicate starts on re-render). */
@@ -511,10 +519,6 @@ export function useAnimationWorkflow() {
   useEffect(() => {
     return () => {
       runIdRef.current += 1;
-      imagesRef.current.forEach((image) => {
-        URL.revokeObjectURL(image.workingPreviewUrl);
-        URL.revokeObjectURL(image.thumbnailPreviewUrl);
-      });
     };
   }, []);
 
@@ -848,14 +852,15 @@ export function useAnimationWorkflow() {
     }
 
     const oversizedCount = acceptedFiles.filter(
-      (file) => file.size > MAX_FILE_SIZE_BYTES
+      (file) => file.size > MAX_RAW_ANIMATION_IMAGE_BYTES
     ).length;
     const invalidTypeCount = acceptedFiles.filter(
       (file) => !file.type.startsWith("image/")
     ).length;
 
     const safeFiles = acceptedFiles.filter(
-      (file) => file.size <= MAX_FILE_SIZE_BYTES && file.type.startsWith("image/")
+      (file) =>
+        file.size <= MAX_RAW_ANIMATION_IMAGE_BYTES && file.type.startsWith("image/")
     );
 
     if (safeFiles.length === 0) {
@@ -880,23 +885,12 @@ export function useAnimationWorkflow() {
           })
         );
 
-        const oversizedOptimized = processedImages.some(
-          (processed) =>
-            processed.optimizedBlob.size > MAX_OPTIMIZED_UPLOAD_SIZE_BYTES ||
-            processed.thumbnailBlob.size > MAX_OPTIMIZED_UPLOAD_SIZE_BYTES
-        );
-
-        if (oversizedOptimized) {
-          setError(t("errors.optimizedTooLarge"));
-          event.target.value = "";
-          return;
-        }
-
         setImages((currentImages) => {
           const nextImages = [...currentImages];
 
-          processedImages.forEach((processed, index) => {
-            const clientUploadId = buildImageId(processed.file, currentImages.length + index);
+          processedImages.forEach((processed) => {
+            imageIdentitySeqRef.current += 1;
+            const clientUploadId = `${processed.file.name}-${processed.file.lastModified}-u${imageIdentitySeqRef.current}`;
             nextImages.push({
               id: clientUploadId,
               clientUploadId,
@@ -914,8 +908,13 @@ export function useAnimationWorkflow() {
 
           return nextImages;
         });
-      } catch {
-        setError(t("errors.imageProcessFailed"));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        setError(
+          msg.includes("remains too large")
+            ? t("errors.optimizedTooLarge")
+            : t("errors.imageProcessFailed")
+        );
         event.target.value = "";
         return;
       }
@@ -947,7 +946,7 @@ export function useAnimationWorkflow() {
   }
 
   function removeImage(imageId: string) {
-    if (isProcessing) {
+    if (isProcessing || isPersistingAnimation) {
       return;
     }
 
@@ -957,8 +956,8 @@ export function useAnimationWorkflow() {
       const imageToRemove = currentImages.find((image) => image.id === imageId);
 
       if (imageToRemove) {
-        URL.revokeObjectURL(imageToRemove.workingPreviewUrl);
-        URL.revokeObjectURL(imageToRemove.thumbnailPreviewUrl);
+        revokePreviewObjectUrl(imageToRemove.workingPreviewUrl);
+        revokePreviewObjectUrl(imageToRemove.thumbnailPreviewUrl);
       }
 
       return currentImages.filter((image) => image.id !== imageId);
@@ -979,8 +978,8 @@ export function useAnimationWorkflow() {
     runIdRef.current += 1;
     setImages((currentImages) => {
       currentImages.forEach((image) => {
-        URL.revokeObjectURL(image.workingPreviewUrl);
-        URL.revokeObjectURL(image.thumbnailPreviewUrl);
+        revokePreviewObjectUrl(image.workingPreviewUrl);
+        revokePreviewObjectUrl(image.thumbnailPreviewUrl);
       });
       return [];
     });

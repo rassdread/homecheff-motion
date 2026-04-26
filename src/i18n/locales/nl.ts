@@ -338,9 +338,9 @@ export const nl = {
   "errors.invalidImageType":
     "Een of meer bestanden waren geen geldige afbeeldingen en zijn overgeslagen.",
   "errors.imageProcessFailed":
-    "Een of meer afbeeldingen konden niet worden geoptimaliseerd. Probeer andere bestanden.",
+    "Een of meer afbeeldingen konden niet worden voorbereid. Probeer andere bestanden.",
   "errors.optimizedTooLarge":
-    "Een of meer geoptimaliseerde afbeeldingen zijn groter dan 2MB en zijn overgeslagen.",
+    "Deze afbeelding kon niet kleiner worden dan de uploadlimiet van 2MB. Probeer een export met lagere resolutie of een andere foto.",
   "errors.uploadFailed":
     "Geoptimaliseerde afbeeldingen uploaden is mislukt. Probeer opnieuw.",
   "errors.jobsStartFailed":

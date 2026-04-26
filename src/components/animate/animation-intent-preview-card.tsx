@@ -18,9 +18,9 @@ function IntentMiniPreview({ intentId }: { intentId: AnimationIntentId }) {
   if (intentId === "morph") {
     return (
       <div className={wrap} aria-hidden>
-        <div className="absolute left-2 top-3 h-10 w-10 rounded-xl bg-emerald-400/75 shadow-sm ring-1 ring-emerald-600/20" />
-        <div className="absolute right-2 top-3 h-10 w-10 rounded-xl bg-teal-300/80 shadow-sm ring-1 ring-teal-600/15 mix-blend-multiply" />
-        <div className="absolute inset-x-5 top-5 h-6 rounded-lg bg-gradient-to-r from-emerald-200/90 via-white/60 to-teal-200/90 blur-[2px]" />
+        <div className="absolute left-2 top-3 h-10 w-10 rounded-xl bg-emerald-400/70 shadow-sm ring-1 ring-emerald-600/20" />
+        <div className="absolute right-2 top-3 h-10 w-10 rounded-xl bg-teal-400/55 shadow-sm ring-1 ring-teal-600/15" />
+        <div className="absolute inset-x-6 top-6 h-5 rounded-md bg-gradient-to-r from-emerald-100/95 via-white/85 to-teal-100/95" />
       </div>
     );
   }

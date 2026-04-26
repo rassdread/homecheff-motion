@@ -1,9 +1,8 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { MAX_OPTIMIZED_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import type { UploadImageResponse } from "@/types/animation-api";
 import { requireActiveUser } from "@/server/auth/permissions";
-
-const MAX_OPTIMIZED_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function extensionFromMimeType(mimeType: string): string {
@@ -56,8 +55,8 @@ export async function POST(request: Request) {
   }
 
   if (
-    workingImage.size > MAX_OPTIMIZED_FILE_SIZE ||
-    thumbnailImage.size > MAX_OPTIMIZED_FILE_SIZE
+    workingImage.size > MAX_OPTIMIZED_IMAGE_BYTES ||
+    thumbnailImage.size > MAX_OPTIMIZED_IMAGE_BYTES
   ) {
     return NextResponse.json(
       { error: "Optimized image exceeds 2MB limit." },
