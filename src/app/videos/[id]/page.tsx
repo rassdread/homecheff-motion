@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import {
   getAnimationPreset,
@@ -13,6 +13,7 @@ import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 
 function presetTitleKey(presetId: string): TranslationKey {
@@ -59,13 +60,14 @@ export default function VideoDetailPage() {
   const [detail, setDetail] = useState<AnimationProjectDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fragmentsOpen, setFragmentsOpen] = useState(false);
   const [showVideoExportCancel, setShowVideoExportCancel] = useState(false);
   const [exportCancelBusy, setExportCancelBusy] = useState(false);
   const [exportCancelFeedback, setExportCancelFeedback] = useState<string | null>(null);
   const [deleteProjectBusy, setDeleteProjectBusy] = useState(false);
   const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
   const [finalVideoPlaybackError, setFinalVideoPlaybackError] = useState(false);
+  const [retryExportBusy, setRetryExportBusy] = useState(false);
+  const [retryExportError, setRetryExportError] = useState<string | null>(null);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -157,6 +159,65 @@ export default function VideoDetailPage() {
 
   const latestExport = detail?.exports?.[0] ?? null;
 
+  const allFragmentsDone = useMemo(() => {
+    if (!detail?.transitions.length) {
+      return false;
+    }
+    return detail.transitions.every(
+      (tr) => tr.status === "completed" && Boolean(tr.outputVideoUrl?.trim())
+    );
+  }, [detail]);
+
+  const canRetryMergeExport = Boolean(
+    detail &&
+      allFragmentsDone &&
+      detail.status === "failed" &&
+      latestExport?.status === "failed"
+  );
+
+  const retryExportMerge = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+    setRetryExportBusy(true);
+    setRetryExportError(null);
+    try {
+      const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}/export/start`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        project?: unknown;
+      };
+      if (!res.ok && !data.project) {
+        setRetryExportError(data.error ?? t("errors.exportStartFailed"));
+        return;
+      }
+      await load();
+    } catch {
+      setRetryExportError(t("errors.exportStartFailed"));
+    } finally {
+      setRetryExportBusy(false);
+    }
+  }, [id, load]);
+
+  const [fragmentsSectionOpen, setFragmentsSectionOpen] = useState(false);
+  const fragmentsAutoOpenedKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!detail) {
+      return;
+    }
+    const hasClip = detail.transitions.some((tr) => Boolean(tr.outputVideoUrl?.trim()));
+    const key = `${detail.id}:${hasClip}`;
+    if (!hasClip || fragmentsAutoOpenedKeyRef.current === key) {
+      return;
+    }
+    fragmentsAutoOpenedKeyRef.current = key;
+    setFragmentsSectionOpen(true);
+  }, [detail]);
+
   const durationLabel = useMemo(() => {
     if (!detail) {
       return "—";
@@ -218,8 +279,8 @@ export default function VideoDetailPage() {
   const intentKey = intentLabelKey(detail.intent);
   const thumb = detail.images[0]?.previewUrl?.trim() || null;
   const userCancelledExport =
-    Boolean(latestExport?.errorMessage?.toLowerCase().includes("cancelled")) &&
-    latestExport?.status === "failed";
+    latestExport?.status === "failed" &&
+    latestExport?.errorMessage?.trim() === EXPORT_CANCELLED_BY_USER_MESSAGE;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-10 sm:py-10">
@@ -247,7 +308,7 @@ export default function VideoDetailPage() {
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
-            preload="metadata"
+            preload="none"
             poster={thumb ?? undefined}
             onError={() => setFinalVideoPlaybackError(true)}
             onLoadedData={() => setFinalVideoPlaybackError(false)}
@@ -367,14 +428,19 @@ export default function VideoDetailPage() {
           {!userCancelledExport && latestExport.errorMessage?.trim() ? (
             <p className="mt-2 font-mono text-xs text-red-800/90">{latestExport.errorMessage.trim()}</p>
           ) : null}
-          {userCancelledExport ? (
-            <Link
-              href={`/animate/${detail.id}`}
-              prefetch={false}
-              className="mt-3 inline-flex rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
-            >
-              {t("animate.export.retryMerge")}
-            </Link>
+          {canRetryMergeExport ? (
+            <>
+              <p className="mt-2 text-xs leading-relaxed opacity-90">{t("videos.mergeRetryHint")}</p>
+              <button
+                type="button"
+                disabled={retryExportBusy}
+                onClick={() => void retryExportMerge()}
+                className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {retryExportBusy ? t("animate.retry.busy") : t("animate.export.retryMerge")}
+              </button>
+              {retryExportError ? <p className="mt-2 text-xs text-red-800">{retryExportError}</p> : null}
+            </>
           ) : null}
         </section>
       ) : null}
@@ -408,35 +474,63 @@ export default function VideoDetailPage() {
 
       <details
         className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4"
-        onToggle={(e) => setFragmentsOpen((e.currentTarget as HTMLDetailsElement).open)}
+        open={fragmentsSectionOpen}
+        onToggle={(e) => setFragmentsSectionOpen((e.currentTarget as HTMLDetailsElement).open)}
       >
         <summary className="cursor-pointer text-sm font-semibold text-zinc-900">{t("videos.fragments")}</summary>
+        <p className="mt-2 text-xs text-zinc-600">{t("videos.fragmentsSafariHint")}</p>
         <ul className="mt-4 space-y-4">
           {detail.transitions.length === 0 ? (
             <li className="text-sm text-zinc-600">{t("projectDetail.transitions.empty")}</li>
           ) : (
-            detail.transitions.map((tr) => (
-              <li key={tr.id} className="rounded-lg border border-zinc-100 bg-white p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium text-zinc-800">
-                    #{tr.order + 1} · {t(statusLabelKey(tr.status))}
-                  </span>
-                  <span className="tabular-nums text-zinc-500">{tr.progress}%</span>
-                </div>
-                {fragmentsOpen && tr.outputVideoUrl?.trim() ? (
-                  <video
-                    className="mt-3 w-full max-w-md rounded-md bg-black"
-                    controls
-                    playsInline
-                    preload="none"
-                    src={tr.outputVideoUrl.trim()}
-                  />
-                ) : null}
-                {tr.errorMessage?.trim() ? (
-                  <p className="mt-2 text-xs text-red-700">{tr.errorMessage.trim()}</p>
-                ) : null}
-              </li>
-            ))
+            detail.transitions.map((tr) => {
+              const clipUrl = tr.outputVideoUrl?.trim() ?? "";
+              return (
+                <li key={tr.id} className="rounded-lg border border-zinc-100 bg-white p-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium text-zinc-800">
+                      #{tr.order + 1} · {t(statusLabelKey(tr.status))}
+                    </span>
+                    <span className="tabular-nums text-zinc-500">{tr.progress}%</span>
+                  </div>
+                  {clipUrl ? (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={clipUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
+                        >
+                          {t("videos.open")}
+                        </a>
+                        <a
+                          href={clipUrl}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+                        >
+                          {t("videos.download")}
+                        </a>
+                      </div>
+                      <video
+                        className="w-full max-w-md rounded-md bg-black"
+                        controls
+                        playsInline
+                        preload="none"
+                        poster={thumb ?? undefined}
+                      >
+                        <source src={clipUrl} type="video/mp4" />
+                      </video>
+                    </div>
+                  ) : null}
+                  {tr.errorMessage?.trim() ? (
+                    <p className="mt-2 text-xs text-red-700">{tr.errorMessage.trim()}</p>
+                  ) : null}
+                </li>
+              );
+            })
           )}
         </ul>
       </details>

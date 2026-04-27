@@ -54,6 +54,13 @@ export const en: LocaleSchema = {
   "videos.mergeStuckHint":
     "If progress stays low for a long time, try “Cancel export” or open the detail page for more options.",
   "videos.deleteProjectShort": "Delete",
+  "videos.fragmentCount": "{n} clips in this project",
+  "videos.mergeRetryHint":
+    "All source clips are ready. Start the merge again below to produce one final video.",
+  "videos.fragmentsSafariHint":
+    "Inline playback can fail in Safari; use Open or Download for each clip.",
+  "videos.openDetailToRetryMerge":
+    "Open the video page to start the merge again (Retry export button).",
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":

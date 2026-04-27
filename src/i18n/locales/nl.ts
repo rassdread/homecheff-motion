@@ -50,6 +50,13 @@ export const nl = {
   "videos.mergeStuckHint":
     "Blijft het percentage lang laag? Probeer ‘Export annuleren’ of open de detailpagina voor meer opties.",
   "videos.deleteProjectShort": "Verwijderen",
+  "videos.fragmentCount": "{n} fragmenten in dit project",
+  "videos.mergeRetryHint":
+    "Alle losse clips zijn klaar. Start hieronder opnieuw de samenvoeging naar één video.",
+  "videos.fragmentsSafariHint":
+    "Inline-afspelen faalt soms in Safari; gebruik Openen of Downloaden per fragment.",
+  "videos.openDetailToRetryMerge":
+    "Open de videopagina om de samenvoeging opnieuw te starten (knop ‘Export opnieuw proberen’).",
 
   "landing.headline": "Zet foto's om in vloeiende AI-animaties",
   "landing.subtext":

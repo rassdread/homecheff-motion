@@ -1,9 +1,9 @@
+import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { prisma } from "@/lib/prisma";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { toProjectSnapshotResponse } from "@/server/animation-projects/project-snapshot";
 
-/** Persisted on export row when the user cancels from the UI (English for logs/DB). */
-export const EXPORT_CANCELLED_BY_USER_MESSAGE = "Export cancelled by user";
+export { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 
 function isCancellableProjectStatus(status: string): boolean {
   return status === "rendering" || status === "generating";

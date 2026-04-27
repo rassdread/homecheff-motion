@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { getActiveTranslator } from "@/i18n";
+import { t } from "@/i18n";
 import type { AnimationStatus } from "@/types/animation";
 
 type ProjectImage = {
@@ -83,7 +84,6 @@ export function ProjectLiveStatus({
   projectId,
   initialProject,
 }: ProjectLiveStatusProps) {
-  const t = getActiveTranslator();
   const [project, setProject] = useState<ProjectPayload>(initialProject);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const requestSequenceRef = useRef(0);
@@ -130,7 +130,7 @@ export function ProjectLiveStatus({
     return () => {
       clearInterval(intervalId);
     };
-  }, [pollingActive, projectId, t]);
+  }, [pollingActive, projectId]);
 
   const imageNameById = useMemo(
     () => new Map(project.images.map((image) => [image.id, image.fileName])),
@@ -217,6 +217,15 @@ export function ProjectLiveStatus({
         ) : (
           <p className="mt-3 text-sm text-zinc-500">{t("projectDetail.export.empty")}</p>
         )}
+        {toAnimationStatus(project.status) === "failed" && latestExport?.status === "failed" ? (
+          <p className="mt-3 text-sm text-zinc-600">
+            <Link href={`/videos/${projectId}`} prefetch={false} className="font-medium text-emerald-800 underline">
+              {t("videos.open")}
+            </Link>
+            {" — "}
+            {t("videos.openDetailToRetryMerge")}
+          </p>
+        ) : null}
       </AppCard>
     </>
   );

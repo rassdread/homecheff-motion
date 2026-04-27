@@ -13,6 +13,14 @@ import type {
 } from "@/types/animation-api";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 
+function canRetryMergeFromList(item: AnimationProjectListItem): boolean {
+  return (
+    item.status === "failed" &&
+    item.latestExport?.status === "failed" &&
+    item.allTransitionsCompleted
+  );
+}
+
 function statusLabelKey(status: string): TranslationKey {
   switch (status) {
     case "completed":
@@ -104,6 +112,7 @@ export default function VideosPage() {
   const [cancelExportBusyId, setCancelExportBusyId] = useState<string | null>(null);
   const [cancelExportFeedback, setCancelExportFeedback] = useState<string | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+  const [retryMergeBusyId, setRetryMergeBusyId] = useState<string | null>(null);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
@@ -234,6 +243,30 @@ export default function VideosPage() {
         setCancelExportFeedback(t("animate.export.cancelFailed"));
       } finally {
         setCancelExportBusyId(null);
+      }
+    },
+    [fetchList]
+  );
+
+  const retryMergeForProject = useCallback(
+    async (projectId: string) => {
+      setRetryMergeBusyId(projectId);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/animations/projects/${encodeURIComponent(projectId)}/export/start`,
+          { method: "POST", credentials: "include" }
+        );
+        const data = (await res.json().catch(() => ({}))) as { error?: string; project?: unknown };
+        if (!res.ok && !data.project) {
+          setError(data.error ?? t("errors.exportStartFailed"));
+          return;
+        }
+        await fetchList(1, "replace");
+      } catch {
+        setError(t("errors.exportStartFailed"));
+      } finally {
+        setRetryMergeBusyId(null);
       }
     },
     [fetchList]
@@ -442,6 +475,10 @@ export default function VideosPage() {
                   </dd>
                 </dl>
 
+                {item.transitionCount > 0 ? (
+                  <p className="text-[11px] text-zinc-500">{t("videos.fragmentCount", { n: item.transitionCount })}</p>
+                ) : null}
+
                 {hasPlayableFragmentPreview(item) && fragmentUrl ? (
                   <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -454,7 +491,7 @@ export default function VideosPage() {
                           className="w-full rounded-lg bg-black"
                           controls
                           playsInline
-                          preload="metadata"
+                          preload="none"
                           poster={thumb ?? undefined}
                           onError={() => setPlaybackFragmentErrorProjectId(item.id)}
                           onLoadedData={() => {
@@ -469,6 +506,14 @@ export default function VideosPage() {
                       </div>
                     ) : null}
                     <div className="flex flex-wrap gap-2">
+                      <a
+                        href={fragmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                      >
+                        {t("videos.open")}
+                      </a>
                       <button
                         type="button"
                         onClick={() => {
@@ -496,6 +541,7 @@ export default function VideosPage() {
                       </a>
                     </div>
                     <p className="text-[11px] leading-snug text-zinc-500">{t("videos.fragmentPreviewHint")}</p>
+                    <p className="text-[11px] leading-snug text-zinc-500">{t("videos.fragmentsSafariHint")}</p>
                   </div>
                 ) : null}
 
@@ -508,7 +554,7 @@ export default function VideosPage() {
                           className="w-full rounded-lg bg-black"
                           controls
                           playsInline
-                          preload="metadata"
+                          preload="none"
                           poster={thumb ?? undefined}
                           onError={() => setPlaybackErrorProjectId(item.id)}
                           onLoadedData={() => {
@@ -581,6 +627,19 @@ export default function VideosPage() {
                   <div className="mt-1 text-xs text-red-700">
                     <p className="font-medium">{t("videos.status.failed")}</p>
                     {errSnippet ? <p className="mt-1 line-clamp-3 text-red-600/90">{errSnippet}</p> : null}
+                    {canRetryMergeFromList(item) ? (
+                      <div className="mt-2 space-y-1 rounded-lg border border-amber-100 bg-amber-50/80 p-2 text-amber-950">
+                        <p className="text-[11px] leading-snug">{t("videos.mergeRetryHint")}</p>
+                        <button
+                          type="button"
+                          disabled={retryMergeBusyId === item.id}
+                          onClick={() => void retryMergeForProject(item.id)}
+                          className="rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          {retryMergeBusyId === item.id ? t("animate.retry.busy") : t("animate.export.retryMerge")}
+                        </button>
+                      </div>
+                    ) : null}
                     <Link href="/animate" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
                       {t("videos.createNew")}
                     </Link>
