@@ -852,10 +852,11 @@ export default function AnimatePage() {
                     <video
                       controls
                       playsInline
-                      preload="none"
+                      preload="metadata"
                       className="max-h-48 w-full rounded-lg border border-zinc-200 bg-black"
-                      src={transition.outputVideoUrl}
-                    />
+                    >
+                      <source src={transition.outputVideoUrl} type="video/mp4" />
+                    </video>
                   </div>
                 ) : null}
               </li>
@@ -909,10 +910,11 @@ export default function AnimatePage() {
               <video
                 controls
                 playsInline
-                preload="none"
+                preload="metadata"
                 className="max-h-64 w-full rounded-xl border border-zinc-200 bg-black"
-                src={finalProjectVideoUrl}
-              />
+              >
+                <source src={finalProjectVideoUrl} type="video/mp4" />
+              </video>
             </div>
           ) : (
             <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 text-sm text-zinc-500">

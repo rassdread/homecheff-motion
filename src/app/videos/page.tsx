@@ -59,7 +59,12 @@ function listItemDurationLabel(item: AnimationProjectListItem): string {
 
 function hasPlayableFinal(item: AnimationProjectListItem): boolean {
   const url = item.latestExport?.outputVideoUrl?.trim();
-  return Boolean(url);
+  if (!url) {
+    return false;
+  }
+  const ex = item.latestExport;
+  /** Do not offer inline playback while merge/export is still running — URL may be partial or unplayable (Safari errors). */
+  return item.status === "completed" || ex?.status === "completed";
 }
 
 function isFailedState(item: AnimationProjectListItem): boolean {
@@ -86,6 +91,7 @@ export default function VideosPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+  const [playbackErrorProjectId, setPlaybackErrorProjectId] = useState<string | null>(null);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
@@ -316,27 +322,44 @@ export default function VideosPage() {
                   </dd>
                 </dl>
 
-                {finalUrl && !failed ? (
+                {hasPlayableFinal(item) && finalUrl && !failed ? (
                   <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
                     {expandedVideoId === item.id ? (
-                      <video
-                        className="w-full rounded-lg bg-black"
-                        controls
-                        playsInline
-                        preload="none"
-                        poster={thumb ?? undefined}
-                        src={finalUrl}
-                      />
+                      <div>
+                        <video
+                          key={finalUrl}
+                          className="w-full rounded-lg bg-black"
+                          controls
+                          playsInline
+                          preload="metadata"
+                          poster={thumb ?? undefined}
+                          onError={() => setPlaybackErrorProjectId(item.id)}
+                          onLoadedData={() => {
+                            setPlaybackErrorProjectId((eid) => (eid === item.id ? null : eid));
+                          }}
+                        >
+                          <source src={finalUrl} type="video/mp4" />
+                        </video>
+                        {playbackErrorProjectId === item.id ? (
+                          <p className="mt-2 text-xs text-red-700">{t("videos.playbackError")}</p>
+                        ) : null}
+                      </div>
                     ) : null}
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          setExpandedVideoId((id) => (id === item.id ? null : item.id))
-                        }
+                        onClick={() => {
+                          setExpandedVideoId((current) => {
+                            if (current === item.id) {
+                              setPlaybackErrorProjectId((eid) => (eid === item.id ? null : eid));
+                              return null;
+                            }
+                            return item.id;
+                          });
+                        }}
                         className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
                       >
-                        {expandedVideoId === item.id ? t("videos.open") : t("videos.play")}
+                        {expandedVideoId === item.id ? t("videos.closePlayer") : t("videos.play")}
                       </button>
                       <a
                         href={finalUrl}

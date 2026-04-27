@@ -40,6 +40,13 @@ export const en: LocaleSchema = {
   "videos.intent": "Style",
   "videos.error": "Error",
   "videos.loadMore": "Load more",
+  "videos.deleteProject": "Delete project",
+  "videos.deleteProjectConfirm":
+    "Permanently delete this animation project and all its data? This cannot be undone.",
+  "videos.deleteProjectFailed": "Could not delete the project. Try again or contact support.",
+  "videos.closePlayer": "Close player",
+  "videos.playbackError":
+    "This video could not be played in the browser. Try “Open” in a new tab or download; on iPhone/Safari, “Save video” often works better.",
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":

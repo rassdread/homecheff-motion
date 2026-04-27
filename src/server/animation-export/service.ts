@@ -202,6 +202,11 @@ async function runExclusiveExport<T>(projectId: string, fn: () => Promise<T>): P
   return run;
 }
 
+/** Clears the in-memory export queue for this project (e.g. before deleting the project). */
+export function discardExportChainForProject(projectId: string): void {
+  EXPORT_CHAIN.delete(projectId);
+}
+
 type LoadedAnimationProject = NonNullable<Awaited<ReturnType<typeof getAnimationProjectById>>>;
 
 async function loadProjectOrThrow(projectId: string): Promise<LoadedAnimationProject> {

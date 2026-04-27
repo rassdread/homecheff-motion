@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import {
@@ -60,6 +60,7 @@ function statusLabelKey(status: string): TranslationKey {
 
 export default function VideoDetailPage() {
   const t = getActiveTranslator();
+  const router = useRouter();
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const session = useAuthSession();
@@ -70,6 +71,9 @@ export default function VideoDetailPage() {
   const [showVideoExportCancel, setShowVideoExportCancel] = useState(false);
   const [exportCancelBusy, setExportCancelBusy] = useState(false);
   const [exportCancelFeedback, setExportCancelFeedback] = useState<string | null>(null);
+  const [deleteProjectBusy, setDeleteProjectBusy] = useState(false);
+  const [deleteProjectError, setDeleteProjectError] = useState<string | null>(null);
+  const [finalVideoPlaybackError, setFinalVideoPlaybackError] = useState(false);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -144,8 +148,20 @@ export default function VideoDetailPage() {
       return null;
     }
     const withUrl = detail.exports.find((e) => e.outputVideoUrl?.trim());
-    return withUrl?.outputVideoUrl?.trim() ?? null;
+    const url = withUrl?.outputVideoUrl?.trim() ?? null;
+    if (!url) {
+      return null;
+    }
+    if (detail.status === "completed" || withUrl?.status === "completed") {
+      return url;
+    }
+    return null;
   }, [detail]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setFinalVideoPlaybackError(false), 0);
+    return () => window.clearTimeout(timer);
+  }, [finalVideoUrl]);
 
   const latestExport = detail?.exports?.[0] ?? null;
 
@@ -235,13 +251,20 @@ export default function VideoDetailPage() {
       {finalVideoUrl ? (
         <div className="mt-4 space-y-3">
           <video
+            key={finalVideoUrl}
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
-            preload="none"
+            preload="metadata"
             poster={thumb ?? undefined}
-            src={finalVideoUrl}
-          />
+            onError={() => setFinalVideoPlaybackError(true)}
+            onLoadedData={() => setFinalVideoPlaybackError(false)}
+          >
+            <source src={finalVideoUrl} type="video/mp4" />
+          </video>
+          {finalVideoPlaybackError ? (
+            <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <a
               href={finalVideoUrl}
@@ -426,7 +449,7 @@ export default function VideoDetailPage() {
         </ul>
       </details>
 
-      <div className="mt-10">
+      <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
         <Link
           href="/animate"
           prefetch={false}
@@ -434,7 +457,41 @@ export default function VideoDetailPage() {
         >
           {t("videos.createNew")}
         </Link>
+        <button
+          type="button"
+          disabled={deleteProjectBusy}
+          onClick={() => {
+            if (!window.confirm(t("videos.deleteProjectConfirm"))) {
+              return;
+            }
+            setDeleteProjectError(null);
+            void (async () => {
+              setDeleteProjectBusy(true);
+              try {
+                const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
+                  method: "DELETE",
+                  credentials: "include",
+                });
+                const data = (await res.json().catch(() => ({}))) as { error?: string };
+                if (!res.ok) {
+                  setDeleteProjectError(data.error ?? t("videos.deleteProjectFailed"));
+                  return;
+                }
+                router.push("/videos");
+                router.refresh();
+              } finally {
+                setDeleteProjectBusy(false);
+              }
+            })();
+          }}
+          className="inline-flex rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-900 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {deleteProjectBusy ? t("animate.retry.busy") : t("videos.deleteProject")}
+        </button>
       </div>
+      {deleteProjectError ? (
+        <p className="mt-3 text-sm text-red-700">{deleteProjectError}</p>
+      ) : null}
     </main>
   );
 }

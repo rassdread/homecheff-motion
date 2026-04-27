@@ -36,6 +36,13 @@ export const nl = {
   "videos.intent": "Stijl",
   "videos.error": "Fout",
   "videos.loadMore": "Meer laden",
+  "videos.deleteProject": "Project verwijderen",
+  "videos.deleteProjectConfirm":
+    "Dit animatieproject en alle bijbehorende gegevens permanent verwijderen? Dit kan niet ongedaan worden gemaakt.",
+  "videos.deleteProjectFailed": "Het project kon niet worden verwijderd. Probeer opnieuw of neem contact op.",
+  "videos.closePlayer": "Speler sluiten",
+  "videos.playbackError":
+    "Deze video kan niet in de browser worden afgespeeld. Probeer ‘Openen’ in een nieuw tabblad of downloaden; op iPhone/Safari werkt ‘Video opslaan’ vaak beter.",
 
   "landing.headline": "Zet foto's om in vloeiende AI-animaties",
   "landing.subtext":

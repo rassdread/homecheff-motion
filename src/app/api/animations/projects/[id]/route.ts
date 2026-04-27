@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { discardExportChainForProject } from "@/server/animation-export/service";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
@@ -72,4 +74,26 @@ export async function GET(_: Request, context: RouteContext) {
 
   const body = mapToDetailResponse(project, user.role);
   return NextResponse.json(body, { status: 200 });
+}
+
+export async function DELETE(_: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
+  }
+
+  const existing = await getAnimationProjectByIdForViewer(id, user);
+  if (!existing) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  try {
+    discardExportChainForProject(id);
+    await prisma.animationProject.delete({ where: { id } });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Delete failed.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
