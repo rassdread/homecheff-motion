@@ -47,6 +47,13 @@ export const en: LocaleSchema = {
   "videos.closePlayer": "Close player",
   "videos.playbackError":
     "This video could not be played in the browser. Try “Open” in a new tab or download; on iPhone/Safari, “Save video” often works better.",
+  "videos.showingCount": "{shown} of {total} projects visible",
+  "videos.fragmentPreview": "First clip (preview)",
+  "videos.fragmentPreviewHint":
+    "The full merged video appears when rendering finishes. View all clips on the project detail page.",
+  "videos.mergeStuckHint":
+    "If progress stays low for a long time, try “Cancel export” or open the detail page for more options.",
+  "videos.deleteProjectShort": "Delete",
 
   "landing.headline": "Turn photos into flowing AI animations",
   "landing.subtext":

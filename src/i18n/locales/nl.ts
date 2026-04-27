@@ -43,6 +43,13 @@ export const nl = {
   "videos.closePlayer": "Speler sluiten",
   "videos.playbackError":
     "Deze video kan niet in de browser worden afgespeeld. Probeer ‘Openen’ in een nieuw tabblad of downloaden; op iPhone/Safari werkt ‘Video opslaan’ vaak beter.",
+  "videos.showingCount": "{shown} van {total} projecten zichtbaar",
+  "videos.fragmentPreview": "Eerste fragment (preview)",
+  "videos.fragmentPreviewHint":
+    "De complete samengevoegde video verschijnt zodra renderen klaar is. Je kunt losse fragmenten op de detailpagina bekijken.",
+  "videos.mergeStuckHint":
+    "Blijft het percentage lang laag? Probeer ‘Export annuleren’ of open de detailpagina voor meer opties.",
+  "videos.deleteProjectShort": "Verwijderen",
 
   "landing.headline": "Zet foto's om in vloeiende AI-animaties",
   "landing.subtext":

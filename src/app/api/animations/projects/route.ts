@@ -51,10 +51,10 @@ export async function GET(request: Request) {
   const wantsAll = searchParams.get("all") === "true";
   const listAll = wantsAll && canAccessAdmin(user);
 
-  const limitParsed = Number.parseInt(searchParams.get("limit") ?? "20", 10);
+  const limitParsed = Number.parseInt(searchParams.get("limit") ?? "50", 10);
   const limit = Number.isFinite(limitParsed)
     ? Math.min(MAX_GALLERY_LIST_LIMIT, Math.max(1, limitParsed))
-    : 20;
+    : 50;
   const pageParsed = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(pageParsed) && pageParsed > 0 ? pageParsed : 1;
   const offset = (page - 1) * limit;
@@ -85,6 +85,13 @@ export async function GET(request: Request) {
       select: { previewUrl: true },
     },
     _count: { select: { images: true, transitions: true } },
+    transitions: {
+      orderBy: { order: "asc" as const },
+      select: {
+        status: true,
+        outputVideoUrl: true,
+      },
+    },
     exports: {
       orderBy: { createdAt: "desc" as const },
       take: 1,

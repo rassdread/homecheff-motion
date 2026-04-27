@@ -22,6 +22,7 @@ export type GalleryListPrismaRow = {
     outputVideoUrl: string | null;
     errorMessage: string | null;
   }[];
+  transitions: { status: string; outputVideoUrl: string | null }[];
   owner?: { email: string } | null;
 };
 
@@ -43,6 +44,18 @@ export function mapPrismaRowToAnimationProjectListItem(
   const thumb = row.images[0]?.previewUrl?.trim() || null;
 
   const latest = row.exports[0] ?? null;
+  const transitions = row.transitions ?? [];
+  const firstDone = transitions.find(
+    (tr) => String(tr.status).toLowerCase() === "completed" && tr.outputVideoUrl?.trim()
+  );
+  const firstTransitionVideoUrl = firstDone?.outputVideoUrl?.trim() ?? null;
+  const allTransitionsCompleted =
+    transitionCount > 0 &&
+    transitions.length === transitionCount &&
+    transitions.every(
+      (tr) =>
+        String(tr.status).toLowerCase() === "completed" && Boolean(tr.outputVideoUrl?.trim())
+    );
 
   return {
     id: row.id,
@@ -68,6 +81,8 @@ export function mapPrismaRowToAnimationProjectListItem(
       : null,
     thumbnailUrl: thumb,
     thumbnailFallbackUrl: thumb,
+    firstTransitionVideoUrl,
+    allTransitionsCompleted,
     ownerEmail:
       options.includeOwnerEmail && row.owner?.email ? row.owner.email : undefined,
   };

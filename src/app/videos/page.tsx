@@ -11,6 +11,7 @@ import type {
   AnimationProjectListItem,
   AnimationProjectListResponse,
 } from "@/types/animation-api";
+import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 
 function statusLabelKey(status: string): TranslationKey {
   switch (status) {
@@ -67,6 +68,10 @@ function hasPlayableFinal(item: AnimationProjectListItem): boolean {
   return item.status === "completed" || ex?.status === "completed";
 }
 
+function hasPlayableFragmentPreview(item: AnimationProjectListItem): boolean {
+  return Boolean(item.firstTransitionVideoUrl?.trim()) && !hasPlayableFinal(item);
+}
+
 function isFailedState(item: AnimationProjectListItem): boolean {
   if (item.status === "failed") {
     return true;
@@ -87,11 +92,19 @@ export default function VideosPage() {
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
   const [projects, setProjects] = useState<AnimationProjectListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedVideoId, setExpandedVideoId] = useState<string | null>(null);
+  const [expandedFragmentProjectId, setExpandedFragmentProjectId] = useState<string | null>(null);
   const [playbackErrorProjectId, setPlaybackErrorProjectId] = useState<string | null>(null);
+  const [playbackFragmentErrorProjectId, setPlaybackFragmentErrorProjectId] = useState<string | null>(
+    null
+  );
+  const [cancelExportBusyId, setCancelExportBusyId] = useState<string | null>(null);
+  const [cancelExportFeedback, setCancelExportFeedback] = useState<string | null>(null);
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
@@ -107,7 +120,7 @@ export default function VideosPage() {
       try {
         const params = new URLSearchParams();
         params.set("page", String(nextPage));
-        params.set("limit", "20");
+        params.set("limit", "50");
         if (isAdmin && listAll) {
           params.set("all", "true");
         }
@@ -124,6 +137,7 @@ export default function VideosPage() {
         }
         const body = json as AnimationProjectListResponse;
         setHasMore(body.hasMore);
+        setTotalCount(body.total);
         setProjects((prev) => (mode === "append" ? [...prev, ...body.projects] : body.projects));
         setPage(nextPage);
       } catch (e) {
@@ -161,6 +175,64 @@ export default function VideosPage() {
     }
     void fetchList(page + 1, "append");
   };
+
+  const cancelExportForProject = useCallback(
+    async (projectId: string) => {
+      setCancelExportFeedback(null);
+      setCancelExportBusyId(projectId);
+      try {
+        const res = await fetch(
+          `/api/animations/projects/${encodeURIComponent(projectId)}/export/cancel`,
+          { method: "POST", credentials: "include" }
+        );
+        const json: unknown = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg =
+            json && typeof json === "object" && "error" in json && typeof (json as { error: unknown }).error === "string"
+              ? (json as { error: string }).error
+              : `HTTP ${res.status}`;
+          setCancelExportFeedback(msg);
+          return;
+        }
+        await fetchList(1, "replace");
+      } catch {
+        setCancelExportFeedback(t("animate.export.cancelFailed"));
+      } finally {
+        setCancelExportBusyId(null);
+      }
+    },
+    [fetchList, t]
+  );
+
+  const deleteProject = useCallback(
+    async (projectId: string) => {
+      setDeleteBusyId(projectId);
+      setError(null);
+      try {
+        const res = await fetch(`/api/animations/projects/${encodeURIComponent(projectId)}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          const json: unknown = await res.json().catch(() => null);
+          const msg =
+            json && typeof json === "object" && "error" in json && typeof (json as { error: unknown }).error === "string"
+              ? (json as { error: string }).error
+              : `HTTP ${res.status}`;
+          setError(msg);
+          return;
+        }
+        setExpandedVideoId((id) => (id === projectId ? null : id));
+        setExpandedFragmentProjectId((id) => (id === projectId ? null : id));
+        await fetchList(1, "replace");
+      } catch {
+        setError(t("videos.deleteProjectFailed"));
+      } finally {
+        setDeleteBusyId(null);
+      }
+    },
+    [fetchList, t]
+  );
 
   if (!session.resolved) {
     return (
@@ -220,9 +292,21 @@ export default function VideosPage() {
         ) : null}
       </div>
 
+      {totalCount > 0 ? (
+        <p className="mt-1 text-sm text-zinc-500">
+          {t("videos.showingCount", { shown: projects.length, total: totalCount })}
+        </p>
+      ) : null}
+
       {error ? (
         <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">
           {t("videos.error")}: {error}
+        </p>
+      ) : null}
+
+      {cancelExportFeedback ? (
+        <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {cancelExportFeedback}
         </p>
       ) : null}
 
@@ -258,6 +342,7 @@ export default function VideosPage() {
               : formatDurationSeconds(durationFromParts, getActiveLocale() === "nl" ? "nl" : "en");
           const intentKey = intentLabelKey(item.intent);
           const finalUrl = item.latestExport?.outputVideoUrl?.trim() || null;
+          const fragmentUrl = item.firstTransitionVideoUrl?.trim() || null;
           const failed = isFailedState(item);
           const processing = isProcessingState(item);
           const exportProgress = item.latestExport?.progress ?? 0;
@@ -266,7 +351,7 @@ export default function VideosPage() {
           return (
             <li
               key={item.id}
-              className="flex flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
             >
               <Link href={`/videos/${item.id}`} prefetch={false} className="block shrink-0">
                 <div className="relative aspect-video bg-zinc-100">
@@ -322,6 +407,63 @@ export default function VideosPage() {
                   </dd>
                 </dl>
 
+                {hasPlayableFragmentPreview(item) && fragmentUrl ? (
+                  <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("videos.fragmentPreview")}
+                    </p>
+                    {expandedFragmentProjectId === item.id ? (
+                      <div>
+                        <video
+                          key={fragmentUrl}
+                          className="w-full rounded-lg bg-black"
+                          controls
+                          playsInline
+                          preload="metadata"
+                          poster={thumb ?? undefined}
+                          onError={() => setPlaybackFragmentErrorProjectId(item.id)}
+                          onLoadedData={() => {
+                            setPlaybackFragmentErrorProjectId((eid) => (eid === item.id ? null : eid));
+                          }}
+                        >
+                          <source src={fragmentUrl} type="video/mp4" />
+                        </video>
+                        {playbackFragmentErrorProjectId === item.id ? (
+                          <p className="mt-2 text-xs text-red-700">{t("videos.playbackError")}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpandedVideoId((vid) => (vid === item.id ? null : vid));
+                          setExpandedFragmentProjectId((current) => {
+                            if (current === item.id) {
+                              setPlaybackFragmentErrorProjectId((eid) => (eid === item.id ? null : eid));
+                              return null;
+                            }
+                            return item.id;
+                          });
+                        }}
+                        className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-100"
+                      >
+                        {expandedFragmentProjectId === item.id ? t("videos.closePlayer") : t("videos.play")}
+                      </button>
+                      <a
+                        href={fragmentUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
+                      >
+                        {t("videos.download")}
+                      </a>
+                    </div>
+                    <p className="text-[11px] leading-snug text-zinc-500">{t("videos.fragmentPreviewHint")}</p>
+                  </div>
+                ) : null}
+
                 {hasPlayableFinal(item) && finalUrl && !failed ? (
                   <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
                     {expandedVideoId === item.id ? (
@@ -349,6 +491,7 @@ export default function VideosPage() {
                       <button
                         type="button"
                         onClick={() => {
+                          setExpandedFragmentProjectId((fid) => (fid === item.id ? null : fid));
                           setExpandedVideoId((current) => {
                             if (current === item.id) {
                               setPlaybackErrorProjectId((eid) => (eid === item.id ? null : eid));
@@ -376,12 +519,27 @@ export default function VideosPage() {
                 ) : null}
 
                 {processing ? (
-                  <p className="mt-1 text-xs text-zinc-600">
-                    {t("videos.processing")}
-                    {item.latestExport != null ? (
-                      <span className="ml-1 tabular-nums text-zinc-500">({exportProgress}%)</span>
+                  <div className="mt-1 space-y-1 text-xs text-zinc-600">
+                    <p>
+                      {t("videos.processing")}
+                      {item.latestExport != null ? (
+                        <span className="ml-1 tabular-nums text-zinc-500">({exportProgress}%)</span>
+                      ) : null}
+                    </p>
+                    {item.status === "rendering" && item.latestExport ? (
+                      <p className="text-[11px] leading-snug text-zinc-500">{t("videos.mergeStuckHint")}</p>
                     ) : null}
-                  </p>
+                    {item.status === "rendering" && exportRecordIsCancellable(item.latestExport) ? (
+                      <button
+                        type="button"
+                        disabled={cancelExportBusyId === item.id}
+                        onClick={() => void cancelExportForProject(item.id)}
+                        className="text-left font-medium text-amber-900 underline decoration-amber-700/50 hover:text-amber-950 disabled:opacity-50"
+                      >
+                        {cancelExportBusyId === item.id ? t("animate.retry.busy") : t("animate.export.cancel")}
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
 
                 {failed ? (
@@ -393,6 +551,29 @@ export default function VideosPage() {
                     </Link>
                   </div>
                 ) : null}
+
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-xs">
+                  <Link
+                    href={`/videos/${item.id}`}
+                    prefetch={false}
+                    className="font-medium text-emerald-800 underline decoration-emerald-700/40 hover:text-emerald-950"
+                  >
+                    {t("videos.open")}
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={deleteBusyId === item.id}
+                    onClick={() => {
+                      if (!window.confirm(t("videos.deleteProjectConfirm"))) {
+                        return;
+                      }
+                      void deleteProject(item.id);
+                    }}
+                    className="font-medium text-zinc-500 underline decoration-zinc-400 hover:text-red-700 disabled:opacity-50"
+                  >
+                    {deleteBusyId === item.id ? t("videos.processing") : t("videos.deleteProjectShort")}
+                  </button>
+                </div>
               </div>
             </li>
           );

@@ -229,6 +229,10 @@ export type AnimationProjectListItem = {
   latestExport: AnimationProjectListItemLatestExport | null;
   thumbnailUrl: string | null;
   thumbnailFallbackUrl: string | null;
+  /** First transition clip URL when fragments exist (final merge may still be pending). */
+  firstTransitionVideoUrl: string | null;
+  /** True when every transition has status completed and a non-empty output URL. */
+  allTransitionsCompleted: boolean;
   /** Present when listing with admin `all=true`. */
   ownerEmail?: string;
 };

@@ -13,6 +13,7 @@ import { getActiveLocale, getActiveTranslator } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -33,14 +34,6 @@ function intentLabelKey(intent: string | null | undefined): TranslationKey | nul
     return null;
   }
   return `animate.intent.${intent}` as TranslationKey;
-}
-
-function exportRecordIsCancellable(ex: { status: string } | null | undefined): boolean {
-  if (!ex) {
-    return false;
-  }
-  const s = ex.status.toLowerCase();
-  return s === "idle" || s === "queued" || s === "rendering" || s === "processing";
 }
 
 function statusLabelKey(status: string): TranslationKey {
