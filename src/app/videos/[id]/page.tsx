@@ -15,6 +15,8 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
+import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
+import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -168,34 +170,50 @@ export default function VideoDetailPage() {
     );
   }, [detail]);
 
+  const mergeExportStuckWithoutFinal = Boolean(
+    latestExport &&
+      !latestExport.outputVideoUrl?.trim() &&
+      latestExport.status.toLowerCase() !== "completed"
+  );
+
   const canRetryMergeExport = Boolean(
     detail &&
       allFragmentsDone &&
-      detail.status === "failed" &&
-      latestExport?.status === "failed"
+      ((detail.status === "failed" && latestExport?.status === "failed") ||
+        (detail.status === "rendering" &&
+          (!latestExport || mergeExportStuckWithoutFinal)))
+  );
+
+  const mergeStuckRetryOnly = Boolean(
+    canRetryMergeExport && detail?.status === "rendering" && latestExport?.status !== "failed"
   );
 
   const retryExportMerge = useCallback(async () => {
     if (!id) {
       return;
     }
+    hcExportRetryLog("client", "export_retry.button_clicked", { projectId: id });
     setRetryExportBusy(true);
     setRetryExportError(null);
     try {
-      const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}/export/start`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        project?: unknown;
-      };
-      if (!res.ok && !data.project) {
-        setRetryExportError(data.error ?? t("errors.exportStartFailed"));
+      const { response, body } = await postProjectExportRetry(id);
+      if (!response.ok && !body.project) {
+        setRetryExportError(body.error ?? t("errors.exportStartFailed"));
         return;
       }
+      if (body.error && !body.project) {
+        setRetryExportError(body.error);
+        return;
+      }
+      if (body.error) {
+        setRetryExportError(body.error);
+      }
       await load();
-    } catch {
+    } catch (e) {
+      hcExportRetryLog("client", "export_retry.throw", {
+        projectId: id,
+        message: e instanceof Error ? e.message : String(e),
+      });
       setRetryExportError(t("errors.exportStartFailed"));
     } finally {
       setRetryExportBusy(false);
@@ -413,19 +431,24 @@ export default function VideoDetailPage() {
         ) : null}
       </section>
 
-      {latestExport && (latestExport.status === "failed" || latestExport.errorMessage?.trim()) ? (
+      {(canRetryMergeExport ||
+        Boolean(latestExport && (latestExport.status === "failed" || latestExport.errorMessage?.trim()))) ? (
         <section
           className={`mt-8 rounded-lg border px-4 py-3 text-sm ${
-            userCancelledExport
+            mergeStuckRetryOnly || userCancelledExport
               ? "border-amber-200 bg-amber-50/90 text-amber-950"
               : "border-red-100 bg-red-50/80 text-red-900"
           }`}
         >
           <p className="font-medium">{t("projectDetail.export.title")}</p>
-          <p className="mt-1">
-            {userCancelledExport ? t("animate.export.cancelled") : t("videos.status.failed")}
-          </p>
-          {!userCancelledExport && latestExport.errorMessage?.trim() ? (
+          {mergeStuckRetryOnly ? (
+            <p className="mt-1">{t("videos.exportMergeStuckTitle")}</p>
+          ) : (
+            <p className="mt-1">
+              {userCancelledExport ? t("animate.export.cancelled") : t("videos.status.failed")}
+            </p>
+          )}
+          {!mergeStuckRetryOnly && !userCancelledExport && latestExport?.errorMessage?.trim() ? (
             <p className="mt-2 font-mono text-xs text-red-800/90">{latestExport.errorMessage.trim()}</p>
           ) : null}
           {canRetryMergeExport ? (

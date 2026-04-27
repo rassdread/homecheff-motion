@@ -73,6 +73,7 @@ export default function AnimatePage() {
     retryJobsBusy,
     retryPollBusy,
     retryExportPollBusy,
+    retryExportMergeBusy,
     anyTransitionFailed,
     transitionPairs,
     isProcessing,
@@ -150,8 +151,15 @@ export default function AnimatePage() {
         ? targetTotalEditDraft
         : String(getTotalVideoDurationSeconds(images.length, advancedDuration));
 
+  const allTransitionsCompletedUi =
+    transitions.length > 0 && transitions.every((tr) => tr.status === "completed");
+
   const canRetryExportMerge =
-    projectStatus === "failed" && !anyTransitionFailed;
+    Boolean(projectId) &&
+    allTransitionsCompletedUi &&
+    !anyTransitionFailed &&
+    (projectStatus === "failed" ||
+      (projectStatus === "rendering" && !finalProjectVideoUrl));
 
   useEffect(() => {
     if (
@@ -769,10 +777,11 @@ export default function AnimatePage() {
         {canRetryExportMerge ? (
           <button
             type="button"
+            disabled={retryExportMergeBusy}
             onClick={() => void retryExportMerge()}
-            className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
+            className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {t("animate.export.retryMerge")}
+            {retryExportMergeBusy ? t("animate.retry.busy") : t("animate.export.retryMerge")}
           </button>
         ) : null}
         {anyTransitionFailed ? (

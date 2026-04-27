@@ -12,13 +12,28 @@ import type {
   AnimationProjectListResponse,
 } from "@/types/animation-api";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
+import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
+import { postProjectExportRetry } from "@/lib/post-project-export-retry";
+
+function listExportStuckWithoutFinal(item: AnimationProjectListItem): boolean {
+  const ex = item.latestExport;
+  if (!ex || !item.allTransitionsCompleted) {
+    return false;
+  }
+  if (ex.outputVideoUrl?.trim()) {
+    return false;
+  }
+  return ex.status.toLowerCase() !== "completed";
+}
 
 function canRetryMergeFromList(item: AnimationProjectListItem): boolean {
-  return (
-    item.status === "failed" &&
-    item.latestExport?.status === "failed" &&
-    item.allTransitionsCompleted
-  );
+  if (!item.allTransitionsCompleted) {
+    return false;
+  }
+  const failedPair = item.status === "failed" && item.latestExport?.status === "failed";
+  const stuckRendering =
+    item.status === "rendering" && (!item.latestExport || listExportStuckWithoutFinal(item));
+  return Boolean(failedPair || stuckRendering);
 }
 
 function statusLabelKey(status: string): TranslationKey {
@@ -250,20 +265,28 @@ export default function VideosPage() {
 
   const retryMergeForProject = useCallback(
     async (projectId: string) => {
+      hcExportRetryLog("client", "export_retry.button_clicked", { projectId });
       setRetryMergeBusyId(projectId);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/animations/projects/${encodeURIComponent(projectId)}/export/start`,
-          { method: "POST", credentials: "include" }
-        );
-        const data = (await res.json().catch(() => ({}))) as { error?: string; project?: unknown };
-        if (!res.ok && !data.project) {
-          setError(data.error ?? t("errors.exportStartFailed"));
+        const { response, body } = await postProjectExportRetry(projectId);
+        if (!response.ok && !body.project) {
+          setError(body.error ?? t("errors.exportStartFailed"));
           return;
         }
+        if (body.error && !body.project) {
+          setError(body.error);
+          return;
+        }
+        if (body.error) {
+          setError(body.error);
+        }
         await fetchList(1, "replace");
-      } catch {
+      } catch (e) {
+        hcExportRetryLog("client", "export_retry.throw", {
+          projectId,
+          message: e instanceof Error ? e.message : String(e),
+        });
         setError(t("errors.exportStartFailed"));
       } finally {
         setRetryMergeBusyId(null);
@@ -623,10 +646,16 @@ export default function VideosPage() {
                   </div>
                 ) : null}
 
-                {failed ? (
-                  <div className="mt-1 text-xs text-red-700">
-                    <p className="font-medium">{t("videos.status.failed")}</p>
-                    {errSnippet ? <p className="mt-1 line-clamp-3 text-red-600/90">{errSnippet}</p> : null}
+                {failed || canRetryMergeFromList(item) ? (
+                  <div className={`mt-1 text-xs ${failed ? "text-red-700" : "text-amber-950"}`}>
+                    {failed ? (
+                      <>
+                        <p className="font-medium">{t("videos.status.failed")}</p>
+                        {errSnippet ? <p className="mt-1 line-clamp-3 text-red-600/90">{errSnippet}</p> : null}
+                      </>
+                    ) : (
+                      <p className="font-medium text-amber-900">{t("videos.exportMergeStuckTitle")}</p>
+                    )}
                     {canRetryMergeFromList(item) ? (
                       <div className="mt-2 space-y-1 rounded-lg border border-amber-100 bg-amber-50/80 p-2 text-amber-950">
                         <p className="text-[11px] leading-snug">{t("videos.mergeRetryHint")}</p>
@@ -640,9 +669,11 @@ export default function VideosPage() {
                         </button>
                       </div>
                     ) : null}
-                    <Link href="/animate" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
-                      {t("videos.createNew")}
-                    </Link>
+                    {failed ? (
+                      <Link href="/animate" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
+                        {t("videos.createNew")}
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 

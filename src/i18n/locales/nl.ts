@@ -51,6 +51,8 @@ export const nl = {
     "Blijft het percentage lang laag? Probeer ‘Export annuleren’ of open de detailpagina voor meer opties.",
   "videos.deleteProjectShort": "Verwijderen",
   "videos.fragmentCount": "{n} fragmenten in dit project",
+  "videos.exportMergeStuckTitle":
+    "Samenvoeging lijkt vast te lopen (bijv. lang op hetzelfde percentage).",
   "videos.mergeRetryHint":
     "Alle losse clips zijn klaar. Start hieronder opnieuw de samenvoeging naar één video.",
   "videos.fragmentsSafariHint":

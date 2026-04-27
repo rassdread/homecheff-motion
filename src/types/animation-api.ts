@@ -172,7 +172,7 @@ export type ProjectSnapshotExport = {
   errorMessage?: string | null;
 };
 
-/** Response from POST .../export/start or .../export/poll */
+/** Response from POST .../export/start, .../export/poll, or .../export/retry */
 export type ExportRouteResponse = {
   project?: ProjectSnapshotResponse;
   error?: string;

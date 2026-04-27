@@ -55,6 +55,8 @@ export const en: LocaleSchema = {
     "If progress stays low for a long time, try “Cancel export” or open the detail page for more options.",
   "videos.deleteProjectShort": "Delete",
   "videos.fragmentCount": "{n} clips in this project",
+  "videos.exportMergeStuckTitle":
+    "The merge seems stuck (for example the same progress for a long time).",
   "videos.mergeRetryHint":
     "All source clips are ready. Start the merge again below to produce one final video.",
   "videos.fragmentsSafariHint":

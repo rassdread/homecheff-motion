@@ -23,6 +23,8 @@ import {
   type AnimationAdvancedResolution,
 } from "@/lib/animation-advanced-settings";
 import { detectAnimationIntent } from "@/lib/animation-intent-detection";
+import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
+import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 import { MAX_RAW_ANIMATION_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import { defaultIntentForPreset, type AnimationIntentId } from "@/lib/animation-intents";
 import type {
@@ -206,6 +208,7 @@ export function useAnimationWorkflow() {
   const [retryJobsBusy, setRetryJobsBusy] = useState(false);
   const [retryPollBusy, setRetryPollBusy] = useState(false);
   const [retryExportPollBusy, setRetryExportPollBusy] = useState(false);
+  const [retryExportMergeBusy, setRetryExportMergeBusy] = useState(false);
   const [cancelExportBusy, setCancelExportBusy] = useState(false);
   const [canUseAdvancedAnimationControls, setCanUseAdvancedAnimationControls] =
     useState(false);
@@ -579,7 +582,9 @@ export function useAnimationWorkflow() {
   const syncFromServer = useCallback(
     async (pid: string): Promise<boolean> => {
       try {
-        const response = await fetch(`/api/animations/projects/${pid}`);
+        const response = await fetch(`/api/animations/projects/${pid}`, {
+          credentials: "include",
+        });
         if (!response.ok) {
           return false;
         }
@@ -597,6 +602,7 @@ export function useAnimationWorkflow() {
     try {
       const response = await fetch(`/api/animations/projects/${pid}/jobs/start`, {
         method: "POST",
+        credentials: "include",
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { error?: string };
@@ -615,6 +621,7 @@ export function useAnimationWorkflow() {
     try {
       const response = await fetch(`/api/animations/projects/${pid}/jobs/poll`, {
         method: "POST",
+        credentials: "include",
       });
       return response.ok;
     } catch {
@@ -627,6 +634,7 @@ export function useAnimationWorkflow() {
       try {
         const response = await fetch(`/api/animations/projects/${pid}/export/start`, {
           method: "POST",
+          credentials: "include",
         });
         const data = (await response.json()) as ExportRouteResponse;
         if (!response.ok && !data.project) {
@@ -650,10 +658,42 @@ export function useAnimationWorkflow() {
     [applySnapshot]
   );
 
+  const postExportRetry = useCallback(
+    async (pid: string): Promise<boolean> => {
+      try {
+        hcExportRetryLog("client", "workflow.export_retry.request_start", { projectId: pid });
+        const { response, body } = await postProjectExportRetry(pid);
+        if (!response.ok && !body.project) {
+          setExportPhaseError(body.error ?? t("errors.exportStartFailed"));
+          return false;
+        }
+        if (body.project) {
+          applySnapshot(body.project);
+        }
+        if (body.error) {
+          setExportPhaseError(body.error);
+        } else if (body.project?.status === "completed") {
+          setExportPhaseError(null);
+        }
+        setPollLastUpdatedAt(Date.now());
+        return Boolean(body.project);
+      } catch (e) {
+        hcExportRetryLog("client", "workflow.export_retry.throw", {
+          projectId: pid,
+          message: e instanceof Error ? e.message : String(e),
+        });
+        setExportPhaseError(t("errors.exportStartFailed"));
+        return false;
+      }
+    },
+    [applySnapshot]
+  );
+
   const postExportPoll = useCallback(async (pid: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/animations/projects/${pid}/export/poll`, {
         method: "POST",
+        credentials: "include",
       });
       if (!response.ok) {
         return false;
@@ -674,6 +714,7 @@ export function useAnimationWorkflow() {
       try {
         const response = await fetch(`/api/animations/projects/${pid}/export/cancel`, {
           method: "POST",
+          credentials: "include",
         });
         const data = (await response.json()) as ExportRouteResponse & { error?: string };
         if (!response.ok) {
@@ -1353,11 +1394,17 @@ export function useAnimationWorkflow() {
     if (!projectId) {
       return;
     }
+    hcExportRetryLog("client", "workflow.retry_export_merge.clicked", { projectId });
+    setRetryExportMergeBusy(true);
     exportInitSentForProjectIdRef.current = null;
     setExportPhaseError(null);
     setExportPollError(null);
     exportPollFailureCountRef.current = 0;
-    await postExportStart(projectId);
+    try {
+      await postExportRetry(projectId);
+    } finally {
+      setRetryExportMergeBusy(false);
+    }
   }
 
   async function handleCreateAnimation() {
@@ -1523,6 +1570,7 @@ export function useAnimationWorkflow() {
     retryJobsBusy,
     retryPollBusy,
     retryExportPollBusy,
+    retryExportMergeBusy,
     anyTransitionFailed,
     finalProjectVideoUrl,
     exportPhaseError,

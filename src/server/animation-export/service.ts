@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { prisma } from "@/lib/prisma";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import {
@@ -452,6 +453,100 @@ export async function startProjectExport(projectId: string) {
       return runExternalExportStart(projectId);
     }
     return runLocalProjectExportMerge(projectId);
+  });
+}
+
+/**
+ * Force-restart final merge: clears stuck export row (provider job / progress),
+ * sets project to `rendering`, then runs the same merge as export/start.
+ * Idempotent under `runExclusiveExport` (serialized per projectId).
+ */
+export async function retryProjectExport(projectId: string) {
+  const mode = resolveAnimationExportMode();
+  if (mode === "external") {
+    assertExternalMergeConfigured();
+  }
+  return runExclusiveExport(projectId, async () => {
+    hcExportRetryLog("server", "retry.begin", { projectId, mode });
+
+    const project = await getAnimationProjectById(projectId);
+    if (!project) {
+      throw new Error("Project not found.");
+    }
+
+    const liveLatest = project.exports[0];
+    if (liveLatest?.status === "completed" && liveLatest.outputVideoUrl?.trim()) {
+      hcExportRetryLog("server", "retry.skip_export_done", {
+        projectId,
+        projectStatus: project.status,
+      });
+      if (project.status !== "completed") {
+        await prisma.animationProject.update({
+          where: { id: projectId },
+          data: { status: "completed" },
+        });
+      }
+      return loadProjectOrThrow(projectId);
+    }
+
+    const transitions = [...project.transitions].sort((a, b) => a.order - b.order);
+    const transitionsReady =
+      transitions.length > 0 &&
+      transitions.every((t) => t.status === "completed" && Boolean(t.outputVideoUrl?.trim()));
+    if (!transitionsReady) {
+      throw new Error("Not all transitions are completed with a video URL.");
+    }
+
+    const latestBefore = project.exports[0];
+    await prisma.$transaction(async (tx) => {
+      if (latestBefore) {
+        await tx.animationExport.update({
+          where: { id: latestBefore.id },
+          data: {
+            status: "rendering",
+            progress: 0,
+            provider: null,
+            providerJobId: null,
+            outputVideoUrl: null,
+            errorMessage: null,
+          },
+        });
+      } else {
+        await tx.animationExport.create({
+          data: {
+            projectId,
+            status: "rendering",
+            progress: 0,
+          },
+        });
+      }
+      await tx.animationProject.update({
+        where: { id: projectId },
+        data: { status: "rendering" },
+      });
+    });
+
+    hcExportRetryLog("server", "retry.reset_done", {
+      projectId,
+      exportId: latestBefore?.id ?? "created",
+    });
+
+    if (mode === "external") {
+      const out = await runExternalExportStart(projectId);
+      hcExportRetryLog("server", "retry.external_finished", {
+        projectId,
+        status: out.status,
+        exportStatus: out.exports[0]?.status,
+      });
+      return out;
+    }
+    const out = await runLocalProjectExportMerge(projectId);
+    hcExportRetryLog("server", "retry.local_finished", {
+      projectId,
+      status: out.status,
+      exportStatus: out.exports[0]?.status,
+    });
+    return out;
   });
 }
 
