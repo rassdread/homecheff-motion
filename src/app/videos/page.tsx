@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { getActiveLocale, t } from "@/i18n";
@@ -113,9 +113,12 @@ export default function VideosPage() {
   }, []);
 
   const fetchList = useCallback(
-    async (nextPage: number, mode: "replace" | "append") => {
-      setLoading(true);
-      setError(null);
+    async (nextPage: number, mode: "replace" | "append", opts?: { background?: boolean }) => {
+      const background = Boolean(opts?.background);
+      if (!background) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const params = new URLSearchParams();
         params.set("page", String(nextPage));
@@ -140,13 +143,17 @@ export default function VideosPage() {
         setProjects((prev) => (mode === "append" ? [...prev, ...body.projects] : body.projects));
         setPage(nextPage);
       } catch (e) {
-        setError(e instanceof Error ? e.message : t("videos.error"));
-        if (mode === "replace") {
-          setProjects([]);
-          setHasMore(false);
+        if (!background) {
+          setError(e instanceof Error ? e.message : t("videos.error"));
+          if (mode === "replace") {
+            setProjects([]);
+            setHasMore(false);
+          }
         }
       } finally {
-        setLoading(false);
+        if (!background) {
+          setLoading(false);
+        }
       }
     },
     [isAdmin, listAll]
@@ -167,6 +174,35 @@ export default function VideosPage() {
       window.clearTimeout(timer);
     };
   }, [session.resolved, session.user, listAll, fetchList]);
+
+  const projectsRef = useRef<AnimationProjectListItem[]>([]);
+  const pageRef = useRef(1);
+  useEffect(() => {
+    projectsRef.current = projects;
+    pageRef.current = page;
+  }, [projects, page]);
+
+  /** While jobs run, Vidu URLs land in our DB via /jobs/poll — refresh the first page quietly so the gallery stays current. */
+  useEffect(() => {
+    if (!session.resolved || !session.user) {
+      return;
+    }
+    const POLL_MS = 18_000;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (pageRef.current !== 1) {
+        return;
+      }
+      const list = projectsRef.current;
+      if (!list.some((p) => isProcessingState(p))) {
+        return;
+      }
+      void fetchList(1, "replace", { background: true });
+    }, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [session.resolved, session.user, fetchList]);
 
   const handleLoadMore = () => {
     if (!hasMore || loading) {
