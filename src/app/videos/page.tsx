@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
-import { getActiveLocale, getActiveTranslator } from "@/i18n";
+import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type {
@@ -87,7 +87,6 @@ function isProcessingState(item: AnimationProjectListItem): boolean {
 }
 
 export default function VideosPage() {
-  const t = getActiveTranslator();
   const session = useAuthSession();
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
@@ -150,7 +149,7 @@ export default function VideosPage() {
         setLoading(false);
       }
     },
-    [isAdmin, listAll, t]
+    [isAdmin, listAll]
   );
 
   useEffect(() => {
@@ -201,7 +200,7 @@ export default function VideosPage() {
         setCancelExportBusyId(null);
       }
     },
-    [fetchList, t]
+    [fetchList]
   );
 
   const deleteProject = useCallback(
@@ -231,7 +230,7 @@ export default function VideosPage() {
         setDeleteBusyId(null);
       }
     },
-    [fetchList, t]
+    [fetchList]
   );
 
   if (!session.resolved) {

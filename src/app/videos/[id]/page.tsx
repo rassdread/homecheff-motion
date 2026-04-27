@@ -9,7 +9,7 @@ import {
   validateAnimationPresetId,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
-import { getActiveLocale, getActiveTranslator } from "@/i18n";
+import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
@@ -52,7 +52,6 @@ function statusLabelKey(status: string): TranslationKey {
 }
 
 export default function VideoDetailPage() {
-  const t = getActiveTranslator();
   const router = useRouter();
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -106,7 +105,7 @@ export default function VideoDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, t]);
+  }, [id]);
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
