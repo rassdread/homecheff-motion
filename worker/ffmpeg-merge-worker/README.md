@@ -2,7 +2,8 @@
 
 Minimal Express service that matches the app’s **external merge** API:
 
-- `POST /merge` — queue a concat job (body: `projectId`, `videos[]` with `id`, `order`, `url`, optional `outputFilename`)
+- `POST /merge` — queue a concat job (body: `projectId`, `exportId`, `jobId`, `callbackUrl` when `MOTION_WORKER_SECRET` is set, `videos[]` with `id`, `order`, `url`, optional `outputFilename`)
+- `GET /health` — liveness JSON for Railway / probes
 - `GET /merge/:jobId` — job status, `progress`, `outputVideoUrl`, `errorMessage`
 
 ## Run locally
@@ -13,7 +14,11 @@ npm install
 npm run dev
 ```
 
-Defaults: `PORT=8787`, `WORKER_PUBLIC_URL=http://localhost:8787`.
+Defaults: `PORT` falls back to **8080** if unset; `WORKER_PUBLIC_URL=http://localhost:<PORT>`.
+
+Set **`MOTION_WORKER_SECRET`** to the same value as on Vercel so the worker can call  
+`POST /api/animations/projects/:id/export/callback` with header `x-motion-worker-secret`.  
+If the secret is set on the worker, **`callbackUrl`** is required on each `POST /merge` body (the app sends it).
 
 ### Railway (monorepo)
 
@@ -23,11 +28,13 @@ Defaults: `PORT=8787`, `WORKER_PUBLIC_URL=http://localhost:8787`.
 
 2. **Build & start** — `npm run build` runs `tsc` and emits `dist/server.js`. `npm start` runs **`node dist/server.js`** (no `tsx` in production). Nixpacks runs `build` automatically when that script exists.
 
-3. **Port** — `PORT` is set by Railway; the app listens on **`0.0.0.0`** with a safe integer parse (invalid → `8787` locally only).
+3. **Port** — `PORT` is set by Railway; the app listens on **`0.0.0.0`**. Invalid `PORT` falls back to **8080**.
 
-4. **`WORKER_PUBLIC_URL`** — Set to your public HTTPS origin (e.g. `https://your-service.up.railway.app`) so returned video URLs are correct.
+4. **Keep the service awake during long merges** — If the platform stops the container right after `202`, FFmpeg never finishes. Prefer **min instances ≥ 1** (or equivalent) for this service.
 
-5. **FFmpeg** — Install on the image (custom Dockerfile, Nixpacks `nixPkgs`/`apt`, or a Railway template with ffmpeg) or merges will fail at runtime (the HTTP server will still boot).
+5. **`WORKER_PUBLIC_URL`** — Set to your public HTTPS origin (e.g. `https://your-service.up.railway.app`) so returned video URLs are correct.
+
+6. **FFmpeg** — Install on the image (custom Dockerfile, Nixpacks `nixPkgs`/`apt`, or a Railway template with ffmpeg) or merges will fail at runtime (the HTTP server will still boot).
 
 `GET /` returns `{ "status": "ok", "service": "ffmpeg-merge-worker" }` for health checks.
 
@@ -35,7 +42,7 @@ Point the Next.js app at it (server-side only):
 
 ```bash
 ANIMATION_EXPORT_MODE=external
-EXTERNAL_MERGE_API_URL=http://localhost:8787
+EXTERNAL_MERGE_API_URL=http://localhost:8080
 EXTERNAL_MERGE_API_KEY=choose-a-shared-secret
 ```
 

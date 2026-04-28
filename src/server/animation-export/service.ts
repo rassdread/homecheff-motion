@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { prisma } from "@/lib/prisma";
+import { getPublicOrigin } from "@/lib/public-origin";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import {
   assertExternalMergeConfigured,
@@ -244,7 +246,7 @@ function mapRemoteMergeStatusToExportStatus(remote: string): string {
   return "rendering";
 }
 
-async function runExternalExportStart(projectId: string) {
+async function runExternalExportStart(projectId: string, options?: { fromRetry?: boolean }) {
   assertExternalMergeConfigured();
   const project = await getAnimationProjectById(projectId);
   if (!project) {
@@ -326,29 +328,58 @@ async function runExternalExportStart(projectId: string) {
     throw new Error(`Cannot start export: existing export is ${latestExport.status}.`);
   }
 
+  const mergeJobId = randomUUID();
+  const motionSecret = process.env.MOTION_WORKER_SECRET?.trim();
+  const callbackUrl = motionSecret
+    ? `${getPublicOrigin()}/api/animations/projects/${encodeURIComponent(projectId)}/export/callback`
+    : undefined;
+
+  await prisma.animationExport.update({
+    where: { id: exportRecordId },
+    data: {
+      provider: EXTERNAL_EXPORT_PROVIDER,
+      providerJobId: mergeJobId,
+      progress: 5,
+      status: "rendering",
+      errorMessage: null,
+      outputVideoUrl: null,
+    },
+  });
+
   try {
-    const remote = await startExternalMergeJob({
-      projectId,
-      transitionVideos: transitions.map((t) => ({
-        transitionId: t.id,
-        order: t.order,
-        outputVideoUrl: t.outputVideoUrl!,
-      })),
-      outputFilename: "final.mp4",
-      exportMaxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
-    });
+    const remote = await startExternalMergeJob(
+      {
+        projectId,
+        exportId: exportRecordId,
+        jobId: mergeJobId,
+        ...(callbackUrl ? { callbackUrl } : {}),
+        transitionVideos: transitions.map((t) => ({
+          transitionId: t.id,
+          order: t.order,
+          outputVideoUrl: t.outputVideoUrl!,
+        })),
+        outputFilename: "final.mp4",
+        exportMaxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
+      },
+      { logRetryPhases: options?.fromRetry === true }
+    );
 
     if (!remote.jobId.trim()) {
       throw new Error("External merge API returned an empty jobId.");
+    }
+
+    if (remote.jobId.trim() !== mergeJobId) {
+      await prisma.animationExport.update({
+        where: { id: exportRecordId },
+        data: { providerJobId: remote.jobId.trim() },
+      });
     }
 
     const exportStatus = mapRemoteMergeStatusToExportStatus(remote.status);
     await prisma.animationExport.update({
       where: { id: exportRecordId },
       data: {
-        provider: EXTERNAL_EXPORT_PROVIDER,
-        providerJobId: remote.jobId.trim(),
-        progress: remote.progress,
+        progress: Math.max(remote.progress, 5),
         status: exportStatus,
         errorMessage: remote.errorMessage,
         outputVideoUrl: remote.outputVideoUrl?.trim() || null,
@@ -532,7 +563,8 @@ export async function retryProjectExport(projectId: string) {
     });
 
     if (mode === "external") {
-      const out = await runExternalExportStart(projectId);
+      hcExportRetryLog("server", "export_retry.marked_processing", { projectId });
+      const out = await runExternalExportStart(projectId, { fromRetry: true });
       hcExportRetryLog("server", "retry.external_finished", {
         projectId,
         status: out.status,

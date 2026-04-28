@@ -21,7 +21,7 @@ export async function POST(_: Request, context: RouteContext) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  hcExportRetryLog("server", "api.retry.request", { projectId: id, userId: user.id });
+  hcExportRetryLog("server", "export_retry.received", { projectId: id, userId: user.id });
 
   try {
     const project = await retryProjectExport(id);
@@ -34,11 +34,15 @@ export async function POST(_: Request, context: RouteContext) {
     return NextResponse.json({ project }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export retry failed.";
-    hcExportRetryLog("server", "api.retry.error", { projectId: id, message });
+    hcExportRetryLog("server", "export_retry.failed", { projectId: id, message });
+    const upstream =
+      /external merge|merge start failed|http \d+/i.test(message) ||
+      message.includes("Network error");
+    const status = upstream ? 502 : 400;
     const project = await getAnimationProjectByIdForOwner(id, user.id);
     if (project) {
-      return NextResponse.json({ error: message, project }, { status: 200 });
+      return NextResponse.json({ error: message, project }, { status });
     }
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -33,6 +33,11 @@ export function assertExternalMergeConfigured(): void {
       "ANIMATION_EXPORT_MODE is external but EXTERNAL_MERGE_API_URL is not set. Configure the merge worker base URL or set ANIMATION_EXPORT_MODE=local."
     );
   }
+  if (nodeEnvBucket() === "production" && !process.env.MOTION_WORKER_SECRET?.trim()) {
+    throw new Error(
+      "External export in production requires MOTION_WORKER_SECRET so the merge worker can call back securely. Set the same value on Vercel and Railway."
+    );
+  }
 }
 
 export function getExternalMergeApiKey(): string | undefined {
