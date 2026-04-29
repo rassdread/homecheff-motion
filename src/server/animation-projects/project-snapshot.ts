@@ -11,6 +11,10 @@ type ProjectSnapshotSource = {
   viduDurationSeconds: number | null;
   estimatedCredits: number | null;
   userPrompt: string | null;
+  projectType?: string;
+  instantOutputDurationSeconds?: number | null;
+  instantSelectedChips?: unknown;
+  instantUserIntent?: string | null;
   images: Array<{
     id: string;
     order: number;
@@ -72,5 +76,9 @@ export function toProjectSnapshotResponse(project: ProjectSnapshotSource): Proje
     viduDurationSeconds: project.viduDurationSeconds,
     estimatedCredits: project.estimatedCredits,
     userPrompt: project.userPrompt,
+    projectType: project.projectType ?? "classic",
+    instantOutputDurationSeconds: project.instantOutputDurationSeconds ?? null,
+    instantSelectedChips: project.instantSelectedChips ?? null,
+    instantUserIntent: project.instantUserIntent ?? null,
   };
 }

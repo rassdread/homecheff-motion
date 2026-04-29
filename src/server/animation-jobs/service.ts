@@ -5,6 +5,14 @@ import {
   validateAnimationPresetId,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import {
+  buildInstantVideoPrompt,
+  instantPremiumTransitionSegmentHint,
+  isInstantPremiumStylePreset,
+  type InstantPremiumAspectRatio,
+  type InstantPremiumDurationSeconds,
+  type InstantPremiumStylePreset,
+} from "@/lib/instant-premium-prompt";
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 
@@ -79,6 +87,40 @@ function isTerminalStatus(status: string): boolean {
   );
 }
 
+function parseInstantPremiumChipsJson(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((x): x is string => typeof x === "string");
+}
+
+function resolveInstantPremiumStyle(stylePreset: string | null | undefined): InstantPremiumStylePreset {
+  const s = stylePreset?.trim() ?? "";
+  if (isInstantPremiumStylePreset(s)) {
+    return s;
+  }
+  return "food_promo";
+}
+
+function resolveInstantPremiumAspect(
+  aspectRatio: string | null | undefined
+): InstantPremiumAspectRatio {
+  const a = aspectRatio?.trim();
+  if (a === "16:9" || a === "9:16") {
+    return a;
+  }
+  return "9:16";
+}
+
+function resolveInstantPremiumDuration(
+  seconds: number | null | undefined
+): InstantPremiumDurationSeconds {
+  if (seconds === 15) {
+    return 15;
+  }
+  return 8;
+}
+
 function resolveProviderJobSettings(project: {
   presetId: string;
   viduModel: string | null;
@@ -131,22 +173,39 @@ export async function startTransitionJob(transitionId: string) {
     throw new Error("Transition images are missing preview URLs.");
   }
 
-  const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
-    ? transition.project.presetId
-    : "standard";
-  const preset = getAnimationPreset(presetId);
-  const intentId = normalizeAnimationIntent(transition.project.intent);
-  const intentPrompt = ANIMATION_INTENTS[intentId].prompt;
-  const globalPrompt = resolveGlobalPromptContext(transition.project.globalPromptContext);
   const transitionTotal = transition.project._count.transitions;
-  const finalPrompt = combineAnimationPrompt({
-    globalPrompt,
-    presetPrompt: preset.prompt,
-    intentPrompt,
-    userPrompt: transition.project.userPrompt,
-    transitionOrder: transition.order,
-    transitionTotal,
-  });
+  const imageCount = transitionTotal + 1;
+  const isInstantPremium = transition.project.projectType === "instant_premium";
+
+  const finalPrompt = isInstantPremium
+    ? `${buildInstantVideoPrompt({
+        stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
+        duration: resolveInstantPremiumDuration(transition.project.instantOutputDurationSeconds),
+        aspectRatio: resolveInstantPremiumAspect(transition.project.aspectRatio),
+        userIntent: transition.project.instantUserIntent ?? null,
+        selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
+      })}\n\n${instantPremiumTransitionSegmentHint({
+        transitionOrder: transition.order,
+        transitionTotal,
+        imageCount,
+      })}`
+    : (() => {
+        const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
+          ? transition.project.presetId
+          : "standard";
+        const preset = getAnimationPreset(presetId);
+        const intentId = normalizeAnimationIntent(transition.project.intent);
+        const intentPrompt = ANIMATION_INTENTS[intentId].prompt;
+        const globalPrompt = resolveGlobalPromptContext(transition.project.globalPromptContext);
+        return combineAnimationPrompt({
+          globalPrompt,
+          presetPrompt: preset.prompt,
+          intentPrompt,
+          userPrompt: transition.project.userPrompt,
+          transitionOrder: transition.order,
+          transitionTotal,
+        });
+      })();
 
   const provider = getVideoProvider();
   const jobSettings = resolveProviderJobSettings(transition.project);
@@ -159,8 +218,12 @@ export async function startTransitionJob(transitionId: string) {
       endImageUrl: endImage.previewUrl,
       prompt: finalPrompt,
       durationSeconds: jobSettings.providerDurationSeconds,
-      aspectRatio: transition.project.aspectRatio ?? "16:9",
-      stylePreset: transition.project.stylePreset ?? "homecheff-motion",
+      aspectRatio: isInstantPremium
+        ? resolveInstantPremiumAspect(transition.project.aspectRatio)
+        : (transition.project.aspectRatio ?? "16:9"),
+      stylePreset: isInstantPremium
+        ? resolveInstantPremiumStyle(transition.project.stylePreset)
+        : (transition.project.stylePreset ?? "homecheff-motion"),
       providerModel: jobSettings.providerModel,
       providerResolution: jobSettings.providerResolution,
       providerDurationSeconds: jobSettings.providerDurationSeconds,

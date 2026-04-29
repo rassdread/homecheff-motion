@@ -17,6 +17,13 @@ export function AppShellPrimaryNav() {
       >
         {t("nav.create")}
       </Link>
+      <Link
+        href="/animate/instant"
+        prefetch={false}
+        className="shrink-0 rounded-full border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100 sm:px-4 sm:py-2 sm:text-sm"
+      >
+        Premium
+      </Link>
       {session.resolved && session.user ? (
         <Link
           href="/videos"

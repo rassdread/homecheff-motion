@@ -191,6 +191,11 @@ export type ProjectSnapshotResponse = {
   viduDurationSeconds?: number | null;
   estimatedCredits?: number | null;
   userPrompt?: string | null;
+  /** classic | instant_premium */
+  projectType?: string | null;
+  instantOutputDurationSeconds?: number | null;
+  instantSelectedChips?: unknown;
+  instantUserIntent?: string | null;
 };
 
 export type JobsStartResponse = {

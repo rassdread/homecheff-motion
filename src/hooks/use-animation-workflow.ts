@@ -244,6 +244,9 @@ export function useAnimationWorkflow() {
   const exportPollInFlightRef = useRef(false);
   const exportPollFailureCountRef = useRef(0);
   const imageCompressionRoleRef = useRef<string>("user");
+  const syncFromServerRef = useRef<(pid: string) => Promise<boolean>>(async () => false);
+  const startJobsForProjectRef = useRef<(pid: string) => Promise<void>>(async () => {});
+  const resumeBootstrapDoneForIdRef = useRef<string | null>(null);
 
   const activePreset: AnimationPreset = useMemo(
     () => getAnimationPreset(selectedPresetId),
@@ -1313,23 +1316,26 @@ export function useAnimationWorkflow() {
     };
   }
 
-  async function startJobsForProject(pid: string): Promise<void> {
-    if (jobsStartedOkForProjectIdRef.current === pid) {
+  const startJobsForProject = useCallback(
+    async (pid: string): Promise<void> => {
+      if (jobsStartedOkForProjectIdRef.current === pid) {
+        setJobsReady(true);
+        await syncFromServer(pid);
+        return;
+      }
+
+      const ok = await postJobsStart(pid);
+      if (!ok) {
+        setJobsReady(false);
+        return;
+      }
+
+      jobsStartedOkForProjectIdRef.current = pid;
       setJobsReady(true);
       await syncFromServer(pid);
-      return;
-    }
-
-    const ok = await postJobsStart(pid);
-    if (!ok) {
-      setJobsReady(false);
-      return;
-    }
-
-    jobsStartedOkForProjectIdRef.current = pid;
-    setJobsReady(true);
-    await syncFromServer(pid);
-  }
+    },
+    [postJobsStart, syncFromServer]
+  );
 
   async function retryStartJobs() {
     if (!projectId) {
@@ -1552,6 +1558,41 @@ export function useAnimationWorkflow() {
       setIsPersistingAnimation(false);
     }
   }
+
+  useEffect(() => {
+    syncFromServerRef.current = syncFromServer;
+    startJobsForProjectRef.current = startJobsForProject;
+  }, [syncFromServer, startJobsForProject]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const rid = new URLSearchParams(window.location.search).get("resume")?.trim();
+    if (!rid) {
+      return;
+    }
+    if (resumeBootstrapDoneForIdRef.current === rid) {
+      return;
+    }
+    resumeBootstrapDoneForIdRef.current = rid;
+
+    void (async () => {
+      setError("");
+      resetOrchestrationState();
+      runIdRef.current += 1;
+      setProjectId(rid);
+      setProjectStatus("generating");
+      const synced = await syncFromServerRef.current(rid);
+      if (!synced) {
+        setError(t("errors.pollFailed"));
+        resumeBootstrapDoneForIdRef.current = null;
+        return;
+      }
+      await startJobsForProjectRef.current(rid);
+      window.history.replaceState({}, "", "/animate");
+    })();
+  }, []);
 
   return {
     images,

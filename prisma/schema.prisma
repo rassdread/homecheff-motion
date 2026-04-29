@@ -13,6 +13,13 @@ model AnimationProject {
   owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title       String?
   status      String
+  /** classic (default) | instant_premium */
+  projectType String                @default("classic")
+  /** Target merged length for instant_premium (8 or 15 seconds); per-transition duration is derived. */
+  instantOutputDurationSeconds Int?
+  /** string[] chip ids for instant_premium */
+  instantSelectedChips Json?
+  instantUserIntent   String?
   stylePreset String?
   aspectRatio String?
   /** basic | standard | pro | smooth — enforced server-side */
@@ -111,6 +118,22 @@ model User {
   animationUsage    AnimationUsageLedger[]
   invitesCreated    AnimationInvite[] @relation("InviteCreator")
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
+  instantPremiumPendingOrders InstantPremiumPendingOrder[]
+}
+
+/** Stripe checkout payload before project creation (paid instant premium). */
+model InstantPremiumPendingOrder {
+  id                      String   @id @default(cuid())
+  ownerId                 String
+  owner                   User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  payload                 Json
+  stripeCheckoutSessionId String?  @unique
+  projectId               String?
+  status                  String   @default("pending_payment")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([ownerId, createdAt])
 }
 
 model AnimationInvite {

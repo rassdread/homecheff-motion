@@ -56,6 +56,10 @@ function mapToDetailResponse(
     viduDurationSeconds: project.viduDurationSeconds,
     estimatedCredits: project.estimatedCredits,
     userPrompt: project.userPrompt,
+    projectType: project.projectType,
+    instantOutputDurationSeconds: project.instantOutputDurationSeconds,
+    instantSelectedChips: project.instantSelectedChips,
+    instantUserIntent: project.instantUserIntent,
     ownerEmail,
   };
 }
