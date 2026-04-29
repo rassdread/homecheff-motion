@@ -18,7 +18,15 @@ export async function GET(_: Request, context: RouteContext) {
   if (!ownedProject) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
-  if ((ownedProject.projectType ?? "classic") !== "instant_premium") {
+  const instantLike =
+    ownedProject.projectType === "instant_premium" ||
+    ownedProject.stylePreset === "food_promo" ||
+    ownedProject.stylePreset === "clean_business" ||
+    ownedProject.stylePreset === "social_boost" ||
+    ownedProject.instantOutputDurationSeconds != null ||
+    ownedProject.instantSelectedChips != null ||
+    (ownedProject.instantUserIntent?.trim().length ?? 0) > 0;
+  if (!instantLike) {
     return NextResponse.json({ error: "Wrong project type." }, { status: 409 });
   }
 

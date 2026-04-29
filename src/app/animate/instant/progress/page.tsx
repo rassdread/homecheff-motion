@@ -44,6 +44,7 @@ export default function InstantPremiumProgressPage() {
   const [snapshot, setSnapshot] = useState<InstantPremiumStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
+  const missingProjectIdError = !projectId ? t("instant.errors.missingProjectId") : null;
 
   const progress = useMemo(() => {
     if (!snapshot) return 8;
@@ -98,7 +99,8 @@ export default function InstantPremiumProgressPage() {
             />
           </div>
 
-          {error ? <p className="mt-4 text-sm text-red-700">{error}</p> : null}
+          {missingProjectIdError ? <p className="mt-4 text-sm text-red-700">{missingProjectIdError}</p> : null}
+          {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
           {snapshot?.status === "failed" ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
               {snapshot.errorMessage || t("instant.progress.failedHelp")}

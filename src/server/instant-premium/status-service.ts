@@ -586,7 +586,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     throw new Error("Instant Premium project not found.");
   }
 
-  if (project.status === "generating") {
+  if (project.status === "queued" || project.status === "generating") {
     await pollProjectJobs(project.id).catch(() => undefined);
   }
 
