@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { getPublicOrigin } from "@/lib/public-origin";
 import { assertStripeSecretKeyConfigured, getStripeClient } from "@/lib/stripe-server";
+import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
 import { prisma } from "@/lib/prisma";
 import {
-  createInstantPremiumAnimationProject,
   validateInstantPremiumCreatePayload,
 } from "@/server/instant-premium/create-instant-premium-project";
-import { startProjectJobs } from "@/server/animation-jobs/service";
 import { requireActiveUser } from "@/server/auth/permissions";
 
 export async function POST(request: Request) {
@@ -27,39 +26,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validated.error }, { status: validated.status });
   }
 
-  const skipPayment = process.env.SKIP_PAYMENT === "true";
-  if (skipPayment) {
-    const created = await createInstantPremiumAnimationProject(user.id, validated.data);
-    if (!created.ok) {
-      return NextResponse.json({ error: created.error }, { status: created.status });
-    }
-
-    try {
-      await startProjectJobs(created.projectId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to start jobs.";
-      return NextResponse.json(
-        { error: message, projectId: created.projectId, skipPayment: true, jobsStarted: false },
-        { status: 200 }
-      );
-    }
-
-    console.info("[hc-instant-video]", {
-      phase: "skip_payment_enabled",
-      projectId: created.projectId,
-    });
-
+  const mode = getInstantPremiumMode();
+  if (mode === "test") {
     return NextResponse.json(
-      { projectId: created.projectId, skipPayment: true, jobsStarted: true },
-      { status: 200 }
+      {
+        error:
+          "Checkout is disabled in test mode. Use /api/instant-premium/create-and-generate.",
+      },
+      { status: 409 }
     );
   }
 
   try {
     assertStripeSecretKeyConfigured();
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Stripe is not configured.";
-    return NextResponse.json({ error: message }, { status: 503 });
+  } catch {
+    return NextResponse.json({ error: "Payment is temporarily unavailable." }, { status: 503 });
   }
 
 
@@ -113,6 +94,13 @@ export async function POST(request: Request) {
   await prisma.instantPremiumPendingOrder.update({
     where: { id: pending.id },
     data: { stripeCheckoutSessionId: session.id },
+  });
+
+  console.info("[hc-instant-premium]", {
+    mode,
+    action: "stripe_checkout",
+    projectId: null,
+    jobTriggered: false,
   });
 
   return NextResponse.json(

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 
 export function AppShellPrimaryNav() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const session = useAuthSession();
 
   return (
@@ -22,7 +22,7 @@ export function AppShellPrimaryNav() {
         prefetch={false}
         className="shrink-0 rounded-full border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-xs font-medium text-amber-950 transition-colors hover:bg-amber-100 sm:px-4 sm:py-2 sm:text-sm"
       >
-        Premium
+        {t("nav.premium")}
       </Link>
       {session.resolved && session.user ? (
         <Link

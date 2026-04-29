@@ -21,6 +21,7 @@ export type InstantPremiumCreatePayload = {
   stylePreset: string;
   duration: number;
   aspectRatio: string;
+  uiLanguage?: "nl" | "en";
   userIntent?: string | null;
   selectedChips?: string[];
 };
@@ -80,6 +81,13 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
   }
 
   const chips = parseChips(o.selectedChips);
+  let uiLanguage: "nl" | "en" | undefined;
+  if (o.uiLanguage !== undefined && o.uiLanguage !== null) {
+    if (o.uiLanguage !== "nl" && o.uiLanguage !== "en") {
+      return { ok: false, error: "uiLanguage must be nl or en.", status: 400 };
+    }
+    uiLanguage = o.uiLanguage;
+  }
 
   let userIntent: string | null | undefined;
   if (o.userIntent !== undefined && o.userIntent !== null) {
@@ -102,6 +110,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     stylePreset,
     duration,
     aspectRatio,
+    ...(uiLanguage ? { uiLanguage } : {}),
     selectedChips: chips,
     ...(userIntent !== undefined ? { userIntent } : {}),
   };
@@ -154,12 +163,25 @@ export async function createInstantPremiumAnimationProject(
     return { ok: false, error: validated.error, status: validated.status };
   }
 
-  const { images, stylePreset, duration, aspectRatio, userIntent, selectedChips } = validated.data;
+  const {
+    images,
+    stylePreset,
+    duration,
+    aspectRatio,
+    userIntent,
+    selectedChips,
+    uiLanguage,
+  } = validated.data;
   const chips = parseChips(selectedChips);
-  const intent =
+  const typedIntent =
     userIntent !== undefined && userIntent !== null && String(userIntent).trim()
       ? String(userIntent).trim()
       : null;
+  const languageHint =
+    uiLanguage === "en"
+      ? "Preferred output language for any on-screen text: English."
+      : "Preferred output language for any on-screen text: Dutch.";
+  const intent = typedIntent ? `${languageHint}\n${typedIntent}` : languageHint;
 
   const durationResolved: InstantPremiumDurationSeconds = duration === 15 ? 15 : 8;
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 
@@ -43,7 +43,7 @@ function roleLabelKey(role: string): "nav.role.admin" | "nav.role.power" | "nav.
 }
 
 export function AppShellUserBar() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const session = useAuthSession();
 
   const handleLogout = useCallback(async () => {

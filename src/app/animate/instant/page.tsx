@@ -24,8 +24,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
-  INSTANT_PREMIUM_STYLE_LABELS,
   type InstantPremiumChipId,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
@@ -40,28 +40,28 @@ import type { CreateAnimationProjectImageInput, UploadImageResponse } from "@/ty
 
 const MIN_IMAGES = 3;
 const MAX_IMAGES = 5;
-const ORDER_ROLE_LABELS = ["Start (hook)", "Detail", "Context", "Extra", "End (CTA)"] as const;
+const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
 
-const STYLE_OPTIONS: { id: InstantPremiumStylePreset; blurb: string }[] = [
-  { id: "food_promo", blurb: "Warm light, appetizing tones" },
-  { id: "clean_business", blurb: "Minimal, smooth, professional" },
-  { id: "social_boost", blurb: "Energetic yet controlled" },
+const STYLE_OPTIONS: { id: InstantPremiumStylePreset; blurbKey: string }[] = [
+  { id: "food_promo", blurbKey: "instant.style.food_promo.blurb" },
+  { id: "clean_business", blurbKey: "instant.style.clean_business.blurb" },
+  { id: "social_boost", blurbKey: "instant.style.social_boost.blurb" },
 ];
 
-const CHIP_UI: { id: InstantPremiumChipId; label: string; append: string }[] = [
-  { id: "slow_zoom_in", label: "Slow zoom in", append: "Slow zoom in. " },
-  { id: "cinematic_soft", label: "Cinematic soft motion", append: "Cinematic soft motion. " },
-  { id: "subtle_pan", label: "Subtle pan movement", append: "Subtle pan movement. " },
-  { id: "close_up_focus", label: "Close-up focus", append: "Close-up focus. " },
-  { id: "focus_details", label: "Focus on details", append: "Focus on details. " },
-  { id: "subject_centered", label: "Keep subject centered", append: "Keep the subject centered. " },
+const CHIP_UI: { id: InstantPremiumChipId; labelKey: string; appendKey: string }[] = [
+  { id: "slow_zoom_in", labelKey: "instant.chip.slow_zoom_in", appendKey: "instant.chipAppend.slow_zoom_in" },
+  { id: "cinematic_soft", labelKey: "instant.chip.cinematic_soft", appendKey: "instant.chipAppend.cinematic_soft" },
+  { id: "subtle_pan", labelKey: "instant.chip.subtle_pan", appendKey: "instant.chipAppend.subtle_pan" },
+  { id: "close_up_focus", labelKey: "instant.chip.close_up_focus", appendKey: "instant.chipAppend.close_up_focus" },
+  { id: "focus_details", labelKey: "instant.chip.focus_details", appendKey: "instant.chipAppend.focus_details" },
+  { id: "subject_centered", labelKey: "instant.chip.subject_centered", appendKey: "instant.chipAppend.subject_centered" },
   {
     id: "food_appetizing",
-    label: "Make food look more appetizing",
-    append: "Make the food look more appetizing. ",
+    labelKey: "instant.chip.food_appetizing",
+    appendKey: "instant.chipAppend.food_appetizing",
   },
-  { id: "more_dynamic", label: "Slightly more dynamic", append: "Slightly more dynamic motion. " },
-  { id: "ai_decide", label: "Let AI decide", append: "" },
+  { id: "more_dynamic", labelKey: "instant.chip.more_dynamic", appendKey: "instant.chipAppend.more_dynamic" },
+  { id: "ai_decide", labelKey: "instant.chip.ai_decide", appendKey: "instant.chipAppend.ai_decide" },
 ];
 
 type LocalImage = {
@@ -78,9 +78,13 @@ type LocalImage = {
 function SortableThumb({
   item,
   index,
+  roleLabel,
+  dragLabel,
 }: {
   item: LocalImage;
   index: number;
+  roleLabel: string;
+  dragLabel: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -89,8 +93,6 @@ function SortableThumb({
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  const role = ORDER_ROLE_LABELS[Math.min(index, ORDER_ROLE_LABELS.length - 1)];
-
   return (
     <div
       ref={setNodeRef}
@@ -116,11 +118,11 @@ function SortableThumb({
           {...attributes}
           {...listeners}
         >
-          Drag
+          {dragLabel}
         </button>
       </div>
       <p className="mt-1.5 text-center text-[10px] font-semibold text-zinc-500">
-        {index + 1} · {role}
+        {index + 1} · {roleLabel}
       </p>
     </div>
   );
@@ -128,6 +130,8 @@ function SortableThumb({
 
 export default function InstantPremiumPage() {
   const router = useRouter();
+  const t = useActiveTranslator();
+  const [locale] = useLocale();
   const session = useAuthSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
@@ -139,6 +143,17 @@ export default function InstantPremiumPage() {
   const [chips, setChips] = useState<InstantPremiumChipId[]>([]);
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [premiumMode] = useState<"test" | "paid">(() => {
+    if (typeof document === "undefined") {
+      return "test";
+    }
+    const mode = document.body.dataset.instantPremiumMode;
+    return mode === "paid" ? "paid" : "test";
+  });
+  const styleLabel = useCallback(
+    (style: InstantPremiumStylePreset) => t(`instant.style.${style}.title` as never),
+    [t]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -176,17 +191,18 @@ export default function InstantPremiumPage() {
       return next.slice(-3);
     });
     const def = CHIP_UI.find((c) => c.id === id);
-    if (def?.append) {
-      setMotionText((t) => (t.includes(def.append.trim()) ? t : `${t}${def.append}`));
+    const append = def ? t(def.appendKey as never) : "";
+    if (append.trim()) {
+      setMotionText((text) => (text.includes(append.trim()) ? text : `${text}${append}`));
     }
-  }, []);
+  }, [t]);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
       const room = MAX_IMAGES - images.length;
       if (room <= 0) {
-        setError(`You can add at most ${MAX_IMAGES} images.`);
+        setError(t("instant.errors.maxImages", { max: MAX_IMAGES }));
         return;
       }
       const take = list.slice(0, room);
@@ -196,7 +212,11 @@ export default function InstantPremiumPage() {
         (f) => f.size <= MAX_RAW_ANIMATION_IMAGE_BYTES && f.type.startsWith("image/")
       );
       if (safe.length === 0) {
-        setError(oversized > 0 ? "One or more images are too large." : "Only image files are allowed.");
+        setError(
+          oversized > 0
+            ? t("instant.errors.fileTooLarge")
+            : t("instant.errors.invalidImageType")
+        );
         return;
       }
       setError("");
@@ -224,12 +244,12 @@ export default function InstantPremiumPage() {
           Math.round((getMaxWorkingImageBytesForUploadRole(role) / (1024 * 1024)) * 10) / 10;
         setError(
           msg.includes("too large")
-            ? "Image was too large. We automatically optimized it for you."
-            : `Could not process images (target max ~${maxMb}MB).`
+            ? t("instant.errors.autoOptimized")
+            : t("instant.errors.processFailed", { max: maxMb })
         );
       }
     },
-    [images.length, session.user?.role]
+    [images.length, session.user?.role, t]
   );
 
   const uploadToBlob = useCallback(async (img: LocalImage): Promise<UploadImageResponse> => {
@@ -248,14 +268,14 @@ export default function InstantPremiumPage() {
     formData.append("clientUploadId", img.id);
     const res = await fetch("/api/uploads/images", { method: "POST", body: formData });
     if (!res.ok) {
-      throw new Error("Upload failed");
+      throw new Error(t("instant.errors.uploadFailed"));
     }
     return (await res.json()) as UploadImageResponse;
-  }, []);
+  }, [t]);
 
   const startCheckout = useCallback(async () => {
     if (images.length < MIN_IMAGES) {
-      setError(`Select at least ${MIN_IMAGES} images.`);
+      setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
     }
     setCheckoutBusy(true);
@@ -278,9 +298,28 @@ export default function InstantPremiumPage() {
         stylePreset,
         duration: durationSec,
         aspectRatio,
+        uiLanguage: locale,
         userIntent: motionText.trim() || null,
         selectedChips: chips,
       };
+      if (premiumMode === "test") {
+        const testResponse = await fetch("/api/instant-premium/create-and-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        const testData = (await testResponse.json().catch(() => ({}))) as {
+          projectId?: string;
+          error?: string;
+        };
+        if (!testResponse.ok || !testData.projectId) {
+          throw new Error(testData.error ?? t("instant.errors.checkoutFailed"));
+        }
+        router.push(`/animate?resume=${encodeURIComponent(testData.projectId)}`);
+        return;
+      }
+
       const res = await fetch("/api/instant-premium/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -289,34 +328,26 @@ export default function InstantPremiumPage() {
       });
       const data = (await res.json().catch(() => ({}))) as {
         projectId?: string;
-        skipPayment?: boolean;
         url?: string;
         error?: string;
       };
-      if (data.skipPayment) {
-        if (!data.projectId) {
-          throw new Error("Test mode response did not include projectId.");
-        }
-        router.push(`/animate?resume=${encodeURIComponent(data.projectId)}`);
-        return;
-      }
       if (!res.ok || !data.url) {
-        throw new Error(data.error ?? "Checkout could not start.");
+        throw new Error(data.error ?? t("instant.errors.checkoutStartFailed"));
       }
       window.location.href = data.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Checkout failed.");
+      setError(e instanceof Error ? e.message : t("instant.errors.checkoutFailed"));
     } finally {
       setCheckoutBusy(false);
     }
-  }, [aspectRatio, chips, durationSec, images, motionText, router, stylePreset, uploadToBlob]);
+  }, [aspectRatio, chips, durationSec, images, locale, motionText, premiumMode, router, stylePreset, t, uploadToBlob]);
 
   if (!session.resolved) {
     return (
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <div className="mx-auto w-full max-w-lg px-4 py-10">
           <AppCard>
-            <p className="text-sm text-zinc-600">Loading…</p>
+            <p className="text-sm text-zinc-600">{t("instant.loading")}</p>
           </AppCard>
         </div>
       </main>
@@ -328,12 +359,12 @@ export default function InstantPremiumPage() {
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <div className="mx-auto w-full max-w-lg px-4 py-10">
           <AppCard>
-            <h1 className="text-xl font-semibold">Sign in required</h1>
-            <p className="mt-2 text-sm text-zinc-600">Instant Premium needs an account.</p>
+            <h1 className="text-xl font-semibold">{t("instant.auth.requiredTitle")}</h1>
+            <p className="mt-2 text-sm text-zinc-600">{t("instant.auth.requiredDescription")}</p>
             <div className="mt-6 flex gap-3">
-              <GradientButton href="/login">Log in</GradientButton>
+              <GradientButton href="/login">{t("instant.auth.login")}</GradientButton>
               <Link href="/signup" className="text-sm font-medium text-emerald-800 underline">
-                Sign up
+                {t("instant.auth.signup")}
               </Link>
             </div>
           </AppCard>
@@ -350,10 +381,10 @@ export default function InstantPremiumPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
               {brand.productName}
             </p>
-            <h1 className="text-2xl font-bold tracking-tight">Instant Premium Video</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
           </div>
           <Link href="/animate" className="text-xs font-medium text-zinc-600 underline">
-            Classic flow
+            {t("instant.classicFlow")}
           </Link>
         </div>
 
@@ -374,9 +405,9 @@ export default function InstantPremiumPage() {
 
         {step === 1 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">1 · Upload images</h2>
+            <h2 className="text-lg font-semibold">{t("instant.step1.title")}</h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Add {MIN_IMAGES}–{MAX_IMAGES} photos. Order can be changed in the next step.
+              {t("instant.step1.description", { min: MIN_IMAGES, max: MAX_IMAGES })}
             </p>
             <input
               ref={fileInputRef}
@@ -397,7 +428,7 @@ export default function InstantPremiumPage() {
               onClick={() => fileInputRef.current?.click()}
               className="mt-4 w-full rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 py-8 text-sm font-medium text-emerald-900"
             >
-              Tap to choose images
+              {t("instant.step1.pick")}
             </button>
             <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
               {images.map((im) => (
@@ -418,7 +449,7 @@ export default function InstantPremiumPage() {
               ))}
             </div>
             <p className="mt-3 text-center text-xs text-zinc-500">
-              {images.length} / {MAX_IMAGES} images
+              {t("instant.step1.counter", { count: images.length, max: MAX_IMAGES })}
             </p>
             <GradientButton
               type="button"
@@ -426,30 +457,38 @@ export default function InstantPremiumPage() {
               disabled={images.length < MIN_IMAGES}
               onClick={() => setStep(2)}
             >
-              Continue
+              {t("instant.common.continue")}
             </GradientButton>
           </AppCard>
         ) : null}
 
         {step === 2 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">2 · Reorder</h2>
-            <p className="mt-1 text-sm text-zinc-600">Drag horizontally. This order is sent to the AI.</p>
+            <h2 className="text-lg font-semibold">{t("instant.step2.title")}</h2>
+            <p className="mt-1 text-sm text-zinc-600">{t("instant.step2.description")}</p>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={images.map((i) => i.id)} strategy={horizontalListSortingStrategy}>
                 <div className="mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
                   {images.map((im, idx) => (
-                    <SortableThumb key={im.id} item={im} index={idx} />
+                    <SortableThumb
+                      key={im.id}
+                      item={im}
+                      index={idx}
+                      roleLabel={t(
+                        `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
+                      )}
+                      dragLabel={t("instant.step2.drag")}
+                    />
                   ))}
                 </div>
               </SortableContext>
             </DndContext>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(1)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="flex-1" onClick={() => setStep(3)}>
-                Continue
+                {t("instant.common.continue")}
               </GradientButton>
             </div>
           </AppCard>
@@ -457,7 +496,7 @@ export default function InstantPremiumPage() {
 
         {step === 3 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">3 · Style</h2>
+            <h2 className="text-lg font-semibold">{t("instant.step3.title")}</h2>
             <div className="mt-4 grid gap-3">
               {STYLE_OPTIONS.map((s) => (
                 <button
@@ -468,17 +507,17 @@ export default function InstantPremiumPage() {
                     stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
                   }`}
                 >
-                  <p className="font-semibold">{INSTANT_PREMIUM_STYLE_LABELS[s.id]}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{s.blurb}</p>
+                  <p className="font-semibold">{styleLabel(s.id)}</p>
+                  <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
                 </button>
               ))}
             </div>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(2)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="flex-1" onClick={() => setStep(4)}>
-                Continue
+                {t("instant.common.continue")}
               </GradientButton>
             </div>
           </AppCard>
@@ -486,7 +525,7 @@ export default function InstantPremiumPage() {
 
         {step === 4 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">4 · Duration</h2>
+            <h2 className="text-lg font-semibold">{t("instant.step4.title")}</h2>
             <div className="mt-4 grid gap-3">
               <button
                 type="button"
@@ -495,8 +534,8 @@ export default function InstantPremiumPage() {
                   durationSec === 8 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
                 }`}
               >
-                <p className="font-semibold">8 seconds</p>
-                <p className="text-sm text-zinc-600">Fast & engaging</p>
+                <p className="font-semibold">{t("instant.step4.option8.title")}</p>
+                <p className="text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
                 <p className="mt-2 text-lg font-bold text-emerald-800">€1.99</p>
               </button>
               <button
@@ -506,17 +545,17 @@ export default function InstantPremiumPage() {
                   durationSec === 15 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
                 }`}
               >
-                <p className="font-semibold">15 seconds</p>
-                <p className="text-sm text-zinc-600">More detail & storytelling</p>
+                <p className="font-semibold">{t("instant.step4.option15.title")}</p>
+                <p className="text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
                 <p className="mt-2 text-lg font-bold text-emerald-800">€2.99</p>
               </button>
             </div>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(3)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="flex-1" onClick={() => setStep(5)}>
-                Continue
+                {t("instant.common.continue")}
               </GradientButton>
             </div>
           </AppCard>
@@ -524,19 +563,19 @@ export default function InstantPremiumPage() {
 
         {step === 5 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">5 · Motion & feeling</h2>
-            <label className="mt-3 block text-sm font-medium text-zinc-800">What kind of motion or feeling do you want?</label>
+            <h2 className="text-lg font-semibold">{t("instant.step5.title")}</h2>
+            <label className="mt-3 block text-sm font-medium text-zinc-800">{t("instant.step5.label")}</label>
             <textarea
               value={motionText}
               onChange={(e) => setMotionText(e.target.value)}
               rows={4}
               maxLength={500}
-              placeholder="Optional — e.g. calm, premium, cozy kitchen light…"
+              placeholder={t("instant.step5.placeholder")}
               className="mt-2 w-full resize-none rounded-xl border border-zinc-200 px-3 py-2 text-sm"
             />
             <p className="mt-1 text-right text-xs text-zinc-400">{motionText.length}/500</p>
-            <p className="mt-4 text-sm font-medium text-zinc-800">Or choose a motion</p>
-            <p className="text-xs text-zinc-500">Pick 1–3 motions (optional); max 3 selected</p>
+            <p className="mt-4 text-sm font-medium text-zinc-800">{t("instant.step5.chipsTitle")}</p>
+            <p className="text-xs text-zinc-500">{t("instant.step5.chipsHelp")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {CHIP_UI.map((c) => (
                 <button
@@ -547,22 +586,22 @@ export default function InstantPremiumPage() {
                     selectedChipSet.has(c.id) ? "border-emerald-600 bg-emerald-100 text-emerald-950" : "border-zinc-200 bg-white text-zinc-700"
                   }`}
                 >
-                  {c.label}
+                  {t(c.labelKey as never)}
                 </button>
               ))}
             </div>
             <p className="group relative mt-4 inline-flex cursor-help text-xs text-zinc-500">
-              <span className="border-b border-dotted border-zinc-400">Why motion isn’t magic</span>
+              <span className="border-b border-dotted border-zinc-400">{t("instant.step5.tooltipTitle")}</span>
               <span className="pointer-events-none absolute bottom-full left-0 z-30 mb-2 hidden w-64 rounded-lg border border-zinc-200 bg-white p-2 text-[11px] text-zinc-700 shadow-lg group-hover:block group-focus-within:block">
-                Motion and feeling can be influenced, but real actions (walking, cooking, etc.) are not guaranteed. The AI keeps movement cinematic and controlled.
+                {t("instant.step5.tooltipBody")}
               </span>
             </p>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(4)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="flex-1" onClick={() => setStep(6)}>
-                Continue
+                {t("instant.common.continue")}
               </GradientButton>
             </div>
           </AppCard>
@@ -570,8 +609,8 @@ export default function InstantPremiumPage() {
 
         {step === 6 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">6 · Aspect ratio</h2>
-            <p className="mt-1 text-sm text-zinc-600">Default is vertical — best for Reels & TikTok.</p>
+            <h2 className="text-lg font-semibold">{t("instant.step6.title")}</h2>
+            <p className="mt-1 text-sm text-zinc-600">{t("instant.step6.description")}</p>
             <div className="mt-4 flex gap-3">
               <button
                 type="button"
@@ -580,7 +619,7 @@ export default function InstantPremiumPage() {
                   aspectRatio === "9:16" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
                 }`}
               >
-                Vertical 9:16
+                {t("instant.step6.vertical")}
               </button>
               <button
                 type="button"
@@ -589,15 +628,15 @@ export default function InstantPremiumPage() {
                   aspectRatio === "16:9" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
                 }`}
               >
-                Horizontal 16:9
+                {t("instant.step6.horizontal")}
               </button>
             </div>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(5)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="flex-1" onClick={() => setStep(7)}>
-                Continue
+                {t("instant.common.continue")}
               </GradientButton>
             </div>
           </AppCard>
@@ -605,36 +644,37 @@ export default function InstantPremiumPage() {
 
         {step === 7 ? (
           <AppCard>
-            <h2 className="text-lg font-semibold">7 · Pay & generate</h2>
+            <h2 className="text-lg font-semibold">{t("instant.step7.title")}</h2>
             <ul className="mt-3 space-y-2 text-sm text-zinc-700">
               <li>
-                <span className="text-zinc-500">Style:</span> {INSTANT_PREMIUM_STYLE_LABELS[stylePreset]}
+                <span className="text-zinc-500">{t("instant.step7.style")}:</span> {styleLabel(stylePreset)}
               </li>
               <li>
-                <span className="text-zinc-500">Duration:</span> {durationSec}s —{" "}
+                <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s —{" "}
                 {durationSec === 8 ? "€1.99" : "€2.99"}
               </li>
               <li>
-                <span className="text-zinc-500">Format:</span> {aspectRatio}
+                <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}
               </li>
               <li>
-                <span className="text-zinc-500">Images:</span> {images.length}
+                <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
               </li>
             </ul>
             <p className="mt-4 text-xs text-zinc-500">
-              Secure checkout with Stripe. After payment you&apos;ll return here, then we open the progress screen.
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              If test mode is enabled on the server, payment is skipped automatically.
+              {premiumMode === "paid"
+                ? t("instant.step7.checkoutHelp")
+                : t("instant.step7.testModeHelp")}
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <button type="button" className="w-full rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(6)}>
-                Back
+                {t("instant.common.back")}
               </button>
               <GradientButton type="button" className="w-full" disabled={checkoutBusy} onClick={() => void startCheckout()}>
                 {checkoutBusy
-                  ? "Preparing…"
-                  : `Pay ${durationSec === 8 ? "€1.99" : "€2.99"} with Stripe / Generate video (test mode)`}
+                  ? t("instant.step7.preparing")
+                  : premiumMode === "paid"
+                    ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
+                    : t("instant.step7.ctaTest")}
               </GradientButton>
             </div>
           </AppCard>

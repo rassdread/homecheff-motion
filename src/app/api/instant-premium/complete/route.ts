@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
 import { getStripeClient } from "@/lib/stripe-server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,6 +15,13 @@ const EXPECTED_CENTS: Record<8 | 15, number> = {
 };
 
 export async function POST(request: Request) {
+  if (getInstantPremiumMode() !== "paid") {
+    return NextResponse.json(
+      { error: "Payment completion is disabled in test mode." },
+      { status: 409 }
+    );
+  }
+
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
+import { LanguageSwitch } from "@/components/layout/language-switch";
 import { brand } from "@/lib/brand";
 
 type AppShellProps = {
@@ -24,6 +25,7 @@ export function AppShell({ children }: AppShellProps) {
             </span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
+            <LanguageSwitch />
             <AppShellPrimaryNav />
             <AppShellUserBar />
           </div>

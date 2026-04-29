@@ -5,19 +5,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 
 export default function InstantPremiumSuccessPage() {
   const router = useRouter();
+  const t = useActiveTranslator();
   const [status, setStatus] = useState<"working" | "done" | "error">("working");
-  const [message, setMessage] = useState("Confirming payment…");
+  const [message, setMessage] = useState(t("instant.success.confirming"));
 
   useEffect(() => {
     const sessionId = new URLSearchParams(window.location.search).get("session_id")?.trim();
     if (!sessionId) {
       queueMicrotask(() => {
         setStatus("error");
-        setMessage("Missing session. Return from Stripe checkout or contact support.");
+        setMessage(t("instant.success.missingSession"));
       });
       return;
     }
@@ -43,20 +45,20 @@ export default function InstantPremiumSuccessPage() {
         }
         if (!res.ok || !data.projectId) {
           setStatus("error");
-          setMessage(data.error ?? "Could not complete your order.");
+          setMessage(data.error ?? t("instant.success.completeFailed"));
           return;
         }
         setStatus("done");
         setMessage(
           data.warning
-            ? `Project ready. ${data.warning} You can start generation from My Videos if needed.`
-            : "Payment confirmed. Opening progress…"
+            ? `${t("instant.success.projectReady")} ${data.warning} ${t("instant.success.myVideosHint")}`
+            : t("instant.success.paymentConfirmed")
         );
         router.replace(`/animate?resume=${encodeURIComponent(data.projectId)}`);
       } catch {
         if (!cancelled) {
           setStatus("error");
-          setMessage("Network error while confirming payment.");
+          setMessage(t("instant.success.networkError"));
         }
       }
     })();
@@ -64,14 +66,14 @@ export default function InstantPremiumSuccessPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, t]);
 
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-lg px-4 py-16">
         <AppCard>
           <h1 className="text-xl font-semibold">
-            {status === "error" ? "Something went wrong" : "Instant Premium"}
+            {status === "error" ? t("instant.success.errorTitle") : t("instant.title")}
           </h1>
           <p className="mt-3 text-sm text-zinc-600">{message}</p>
           {status === "working" ? (
@@ -79,9 +81,9 @@ export default function InstantPremiumSuccessPage() {
           ) : null}
           {status === "error" ? (
             <div className="mt-6 flex flex-col gap-3">
-              <GradientButton href="/animate/instant">Back to wizard</GradientButton>
+              <GradientButton href="/animate/instant">{t("instant.success.backToWizard")}</GradientButton>
               <Link href="/videos" className="text-center text-sm text-emerald-800 underline">
-                My videos
+                {t("nav.myVideos")}
               </Link>
             </div>
           ) : null}
