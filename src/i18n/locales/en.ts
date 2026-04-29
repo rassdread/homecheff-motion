@@ -544,4 +544,6 @@ export const en: LocaleSchema = {
   "instant.recover.failed": "Could not recover final video.",
   "instant.recover.missingSegments":
     "Recovery is not possible yet. Missing clips: {segments}.",
+  "instant.recover.duplicateSegments":
+    "Recovery blocked: duplicate clip URLs detected on segments: {segments}.",
 };

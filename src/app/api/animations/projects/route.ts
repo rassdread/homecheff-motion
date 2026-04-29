@@ -74,6 +74,7 @@ export async function GET(request: Request) {
     updatedAt: true,
     status: true,
     projectType: true,
+    stylePreset: true,
     instantOutputDurationSeconds: true,
     instantSelectedChips: true,
     instantUserIntent: true,

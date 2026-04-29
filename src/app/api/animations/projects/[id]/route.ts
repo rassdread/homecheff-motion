@@ -57,6 +57,7 @@ function mapToDetailResponse(
     estimatedCredits: project.estimatedCredits,
     userPrompt: project.userPrompt,
     projectType: project.projectType,
+    stylePreset: project.stylePreset,
     instantOutputDurationSeconds: project.instantOutputDurationSeconds,
     instantSelectedChips: project.instantSelectedChips,
     instantUserIntent: project.instantUserIntent,

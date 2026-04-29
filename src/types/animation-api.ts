@@ -193,6 +193,7 @@ export type ProjectSnapshotResponse = {
   userPrompt?: string | null;
   /** classic | instant_premium */
   projectType?: string | null;
+  stylePreset?: string | null;
   instantOutputDurationSeconds?: number | null;
   instantSelectedChips?: unknown;
   instantUserIntent?: string | null;

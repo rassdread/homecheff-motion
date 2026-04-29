@@ -23,6 +23,7 @@ export async function POST(_: Request, context: RouteContext) {
       id: true,
       ownerId: true,
       projectType: true,
+      stylePreset: true,
       instantOutputDurationSeconds: true,
       instantSelectedChips: true,
       instantUserIntent: true,
@@ -33,6 +34,9 @@ export async function POST(_: Request, context: RouteContext) {
   }
   const instantLike =
     project.projectType === "instant_premium" ||
+    project.stylePreset === "food_promo" ||
+    project.stylePreset === "clean_business" ||
+    project.stylePreset === "social_boost" ||
     project.instantOutputDurationSeconds != null ||
     project.instantSelectedChips != null ||
     (project.instantUserIntent?.trim().length ?? 0) > 0;
@@ -44,7 +48,7 @@ export async function POST(_: Request, context: RouteContext) {
   }
 
   try {
-    const recovery = await recoverExistingInstantProject(id);
+    const recovery = await recoverExistingInstantProject(id, { force: true });
     const status = await getInstantPremiumStatus(id);
     return NextResponse.json({ recovery, status }, { status: 200 });
   } catch (error) {

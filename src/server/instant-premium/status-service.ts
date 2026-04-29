@@ -2,8 +2,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
+import { getVideoProvider } from "@/server/video-providers";
 import {
   FINAL_MERGE_DISABLE_AUDIO,
   FINAL_MERGE_VIDEO_CRF,
@@ -40,12 +42,16 @@ const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 
 function isInstantLikeProject(project: {
   projectType?: string | null;
+  stylePreset?: string | null;
   instantOutputDurationSeconds?: number | null;
   instantSelectedChips?: unknown;
   instantUserIntent?: string | null;
 }): boolean {
   return (
     project.projectType === "instant_premium" ||
+    project.stylePreset === "food_promo" ||
+    project.stylePreset === "clean_business" ||
+    project.stylePreset === "social_boost" ||
     project.instantOutputDurationSeconds != null ||
     project.instantSelectedChips != null ||
     (project.instantUserIntent?.trim().length ?? 0) > 0
@@ -61,10 +67,6 @@ function mapTransitionStatus(status: string): InstantSegmentStatus {
   if (status === "failed") return "failed";
   if (status === "generating" || status === "rendering" || status === "processing") return "generating";
   return "queued";
-}
-
-function publicUrlForFinalVideo(projectId: string): string {
-  return `/generated/animations/projects/${projectId}/final.mp4`;
 }
 
 function absolutePublicPath(...segments: string[]): string {
@@ -191,7 +193,20 @@ async function withMergeLock(projectId: string, fn: () => Promise<void>) {
   return run;
 }
 
-async function mergeInstantProject(projectId: string): Promise<void> {
+async function uploadMergedVideoToBlob(projectId: string, mergedPath: string): Promise<string> {
+  const body = await fs.readFile(mergedPath);
+  if (!body || body.length <= 0) {
+    throw new Error("Merged video is empty before blob upload.");
+  }
+  const blob = await put(`motion/final/${projectId}/final.mp4`, body, {
+    access: "public",
+    contentType: "video/mp4",
+    addRandomSuffix: false,
+  });
+  return blob.url;
+}
+
+async function mergeInstantProject(projectId: string, options?: { force?: boolean }): Promise<void> {
   await withMergeLock(projectId, async () => {
     const project = await prisma.animationProject.findUnique({
       where: { id: projectId },
@@ -205,7 +220,7 @@ async function mergeInstantProject(projectId: string): Promise<void> {
     }
 
     const latestExport = project.exports[0];
-    if (latestExport?.status === "completed" && latestExport.outputVideoUrl) {
+    if (!options?.force && latestExport?.status === "completed" && latestExport.outputVideoUrl) {
       return;
     }
     if (latestExport?.status === "rendering") {
@@ -245,7 +260,6 @@ async function mergeInstantProject(projectId: string): Promise<void> {
     const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
     await ensureDir(outDir);
     const finalAbs = path.join(outDir, "final.mp4");
-    const finalUrl = publicUrlForFinalVideo(projectId);
     try {
       const segmentPaths: string[] = [];
       for (let i = 0; i < completed.length; i += 1) {
@@ -265,6 +279,7 @@ async function mergeInstantProject(projectId: string): Promise<void> {
       if (!stat || stat.size <= 0) {
         throw new Error("Final merged video is empty.");
       }
+      const finalUrl = await uploadMergedVideoToBlob(projectId, finalAbs);
       await prisma.animationExport.update({
         where: { id: exportRow.id },
         data: { status: "completed", progress: 100, outputVideoUrl: finalUrl, errorMessage: null },
@@ -302,9 +317,63 @@ type RecoverResult = {
   mergeStarted: boolean;
   mergeCompleted: boolean;
   finalVideoUrlPresent: boolean;
+  duplicateSegments?: number[];
 };
 
-export async function recoverExistingInstantProject(projectId: string): Promise<RecoverResult> {
+export async function refreshTransitionOutputsFromProvider(projectId: string): Promise<void> {
+  const transitions = await prisma.animationTransition.findMany({
+    where: { projectId },
+    orderBy: { order: "asc" },
+  });
+  const provider = getVideoProvider();
+  await Promise.all(
+    transitions.map(async (tr) => {
+      if (!tr.providerJobId?.trim()) {
+        return;
+      }
+      try {
+        const polled = await provider.getVideoJobStatus(tr.providerJobId);
+        if (polled.status === "completed" && polled.outputVideoUrl?.trim()) {
+          await prisma.animationTransition.update({
+            where: { id: tr.id },
+            data: {
+              status: "completed",
+              progress: 100,
+              outputVideoUrl: polled.outputVideoUrl.trim(),
+              errorMessage: null,
+            },
+          });
+        }
+      } catch {
+        // best effort only
+      }
+    })
+  );
+}
+
+function duplicateCompletedSegmentOrders(
+  transitions: Array<{ order: number; status: string; outputVideoUrl: string | null }>
+): number[] {
+  const seen = new Map<string, number>();
+  const dupes: number[] = [];
+  for (const t of transitions) {
+    const url = t.outputVideoUrl?.trim();
+    if (t.status !== "completed" || !url) continue;
+    if (seen.has(url)) {
+      dupes.push(t.order);
+    } else {
+      seen.set(url, t.order);
+    }
+  }
+  return dupes.sort((a, b) => a - b);
+}
+
+export async function recoverExistingInstantProject(
+  projectId: string,
+  options?: { force?: boolean }
+): Promise<RecoverResult> {
+  await refreshTransitionOutputsFromProvider(projectId);
+
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
     include: {
@@ -320,6 +389,7 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
   const missingSegments = project.transitions
     .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
     .map((t) => t.order);
+  const duplicateSegments = duplicateCompletedSegmentOrders(project.transitions);
   const alreadyFinal = Boolean(project.exports[0]?.status === "completed" && project.exports[0]?.outputVideoUrl);
 
   console.info("[hc-instant-premium]", {
@@ -328,13 +398,26 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
     segmentCount: total,
     completedSegments: completed.length,
     missingSegments,
-    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    duplicateSegments,
+    mergeStarted: (options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0,
     mergeCompleted: false,
     finalVideoUrlPresent: alreadyFinal,
   });
 
-  if (!alreadyFinal && missingSegments.length === 0 && completed.length > 0) {
-    await mergeInstantProject(projectId);
+  if (duplicateSegments.length > 0) {
+    return {
+      segmentCount: total,
+      completedSegments: completed.length,
+      missingSegments,
+      duplicateSegments,
+      mergeStarted: false,
+      mergeCompleted: false,
+      finalVideoUrlPresent: false,
+    };
+  }
+
+  if ((options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0) {
+    await mergeInstantProject(projectId, { force: Boolean(options?.force) });
   }
 
   const refreshed = await prisma.animationProject.findUnique({
@@ -352,7 +435,8 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
     segmentCount: total,
     completedSegments: completed.length,
     missingSegments,
-    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    duplicateSegments,
+    mergeStarted: (options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0,
     mergeCompleted: finalVideoUrlPresent,
     finalVideoUrlPresent,
   });
@@ -360,7 +444,8 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
     segmentCount: total,
     completedSegments: completed.length,
     missingSegments,
-    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    duplicateSegments,
+    mergeStarted: (options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0,
     mergeCompleted: finalVideoUrlPresent,
     finalVideoUrlPresent,
   };
@@ -372,6 +457,7 @@ export async function retryInstantPremiumMerge(projectId: string): Promise<void>
     select: {
       id: true,
       projectType: true,
+      stylePreset: true,
       instantOutputDurationSeconds: true,
       instantSelectedChips: true,
       instantUserIntent: true,
@@ -380,7 +466,7 @@ export async function retryInstantPremiumMerge(projectId: string): Promise<void>
   if (!p || !isInstantLikeProject(p)) {
     throw new Error("Instant Premium project not found.");
   }
-  await mergeInstantProject(projectId);
+  await mergeInstantProject(projectId, { force: true });
 }
 
 export async function getInstantPremiumStatus(projectId: string): Promise<InstantPremiumStatusResponse> {

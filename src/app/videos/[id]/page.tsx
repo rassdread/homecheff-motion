@@ -70,6 +70,8 @@ export default function VideoDetailPage() {
   const [finalVideoPlaybackError, setFinalVideoPlaybackError] = useState(false);
   const [retryExportBusy, setRetryExportBusy] = useState(false);
   const [retryExportError, setRetryExportError] = useState<string | null>(null);
+  const [recoverBusy, setRecoverBusy] = useState(false);
+  const [recoverError, setRecoverError] = useState<string | null>(null);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -160,6 +162,16 @@ export default function VideoDetailPage() {
   }, [finalVideoUrl]);
 
   const latestExport = detail?.exports?.[0] ?? null;
+  const instantLikeProject = Boolean(
+    detail &&
+      (detail.projectType === "instant_premium" ||
+        detail.stylePreset === "food_promo" ||
+        detail.stylePreset === "clean_business" ||
+        detail.stylePreset === "social_boost" ||
+        detail.instantOutputDurationSeconds != null ||
+        detail.instantSelectedChips != null ||
+        (detail.instantUserIntent?.trim().length ?? 0) > 0)
+  );
 
   const allFragmentsDone = useMemo(() => {
     if (!detail?.transitions.length) {
@@ -178,10 +190,14 @@ export default function VideoDetailPage() {
 
   const canRetryMergeExport = Boolean(
     detail &&
+      !instantLikeProject &&
       allFragmentsDone &&
       ((detail.status === "failed" && latestExport?.status === "failed") ||
         (detail.status === "rendering" &&
           (!latestExport || mergeExportStuckWithoutFinal)))
+  );
+  const canRecoverInstant = Boolean(
+    detail && instantLikeProject && allFragmentsDone
   );
 
   const mergeStuckRetryOnly = Boolean(
@@ -217,6 +233,45 @@ export default function VideoDetailPage() {
       setRetryExportError(t("errors.exportStartFailed"));
     } finally {
       setRetryExportBusy(false);
+    }
+  }, [id, load]);
+
+  const recoverFinalVideo = useCallback(async () => {
+    if (!id) return;
+    setRecoverBusy(true);
+    setRecoverError(null);
+    try {
+      const res = await fetch(`/api/instant-premium/projects/${encodeURIComponent(id)}/recover`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        recovery?: { missingSegments?: number[]; duplicateSegments?: number[] };
+      };
+      if (!res.ok) {
+        setRecoverError(body.error ?? t("instant.recover.failed"));
+        return;
+      }
+      const missing = body.recovery?.missingSegments ?? [];
+      if (missing.length > 0) {
+        setRecoverError(
+          t("instant.recover.missingSegments", {
+            segments: missing.map((n) => n + 1).join(", "),
+          })
+        );
+      }
+      const duplicates = body.recovery?.duplicateSegments ?? [];
+      if (duplicates.length > 0) {
+        setRecoverError(
+          t("instant.recover.duplicateSegments", {
+            segments: duplicates.map((n) => n + 1).join(", "),
+          })
+        );
+      }
+      await load();
+    } finally {
+      setRecoverBusy(false);
     }
   }, [id, load]);
 
@@ -397,6 +452,20 @@ export default function VideoDetailPage() {
               {exportCancelFeedback ? (
                 <p className="mt-2 text-xs text-red-700">{exportCancelFeedback}</p>
               ) : null}
+            </div>
+          ) : null}
+          {canRecoverInstant ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-medium text-amber-950">{t("instant.recover.notCompleted")}</p>
+              <button
+                type="button"
+                disabled={recoverBusy}
+                onClick={() => void recoverFinalVideo()}
+                className="mt-3 rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-60"
+              >
+                {recoverBusy ? t("animate.retry.busy") : t("instant.recover.cta")}
+              </button>
+              {recoverError ? <p className="mt-2 text-xs text-red-700">{recoverError}</p> : null}
             </div>
           ) : null}
         </div>

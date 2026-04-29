@@ -310,7 +310,7 @@ export default function VideosPage() {
         );
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
-          recovery?: { missingSegments?: number[] };
+          recovery?: { missingSegments?: number[]; duplicateSegments?: number[] };
         };
         if (!res.ok) {
           setError(body.error ?? t("instant.recover.failed"));
@@ -321,6 +321,14 @@ export default function VideosPage() {
           setError(
             t("instant.recover.missingSegments", {
               segments: missing.map((n) => n + 1).join(", "),
+            })
+          );
+        }
+        const duplicates = body.recovery?.duplicateSegments ?? [];
+        if (duplicates.length > 0) {
+          setError(
+            t("instant.recover.duplicateSegments", {
+              segments: duplicates.map((n) => n + 1).join(", "),
             })
           );
         }
@@ -477,8 +485,7 @@ export default function VideosPage() {
           const isClassic = (item.projectType ?? "classic") === "classic";
           const instantNeedsRecovery =
             isInstant &&
-            item.allTransitionsCompleted &&
-            !item.latestExport?.outputVideoUrl?.trim();
+            item.allTransitionsCompleted;
           const exportProgress = item.latestExport?.progress ?? 0;
           const errSnippet = item.latestExport?.errorMessage?.trim() || null;
 

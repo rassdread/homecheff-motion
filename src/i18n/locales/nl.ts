@@ -546,4 +546,6 @@ export const nl = {
   "instant.recover.failed": "Eindvideo herstellen mislukt.",
   "instant.recover.missingSegments":
     "Herstel is nog niet mogelijk. Ontbrekende clips: {segments}.",
+  "instant.recover.duplicateSegments":
+    "Herstel geblokkeerd: dubbele clip-URLs op segmenten: {segments}.",
 } as const;

@@ -12,6 +12,7 @@ export type GalleryListPrismaRow = {
   instantOutputDurationSeconds?: number | null;
   instantSelectedChips?: unknown;
   instantUserIntent?: string | null;
+  stylePreset?: string | null;
   presetId: string;
   intent: string | null;
   advancedSettingsEnabled: boolean;
@@ -36,6 +37,9 @@ export function mapPrismaRowToAnimationProjectListItem(
 ): AnimationProjectListItem {
   const isInstantLike =
     row.projectType === "instant_premium" ||
+    row.stylePreset === "food_promo" ||
+    row.stylePreset === "clean_business" ||
+    row.stylePreset === "social_boost" ||
     row.instantOutputDurationSeconds != null ||
     row.instantSelectedChips != null ||
     (row.instantUserIntent?.trim().length ?? 0) > 0;
