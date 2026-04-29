@@ -539,4 +539,9 @@ export const en: LocaleSchema = {
   "instant.progress.finalDuration": "Final duration: ~{seconds}s",
   "instant.progress.retryMerge": "Retry merge",
   "instant.progress.retryFailed": "Could not retry merge.",
+  "instant.recover.notCompleted": "Final video not completed yet.",
+  "instant.recover.cta": "Recover final video",
+  "instant.recover.failed": "Could not recover final video.",
+  "instant.recover.missingSegments":
+    "Recovery is not possible yet. Missing clips: {segments}.",
 };

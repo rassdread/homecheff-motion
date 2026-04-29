@@ -249,6 +249,8 @@ export type AnimationProjectListItem = {
   allTransitionsCompleted: boolean;
   /** Present when listing with admin `all=true`. */
   ownerEmail?: string;
+  /** classic | instant_premium */
+  projectType?: string | null;
 };
 
 export type AnimationProjectListResponse = {
@@ -290,4 +292,5 @@ export type InstantPremiumStatusResponse = {
   finalDurationSeconds: number | null;
   downloadable: boolean;
   errorMessage: string | null;
+  missingSegments?: number[];
 };

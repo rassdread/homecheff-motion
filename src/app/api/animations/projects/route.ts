@@ -73,6 +73,7 @@ export async function GET(request: Request) {
     createdAt: true,
     updatedAt: true,
     status: true,
+    projectType: true,
     presetId: true,
     intent: true,
     advancedSettingsEnabled: true,

@@ -541,4 +541,9 @@ export const nl = {
   "instant.progress.finalDuration": "Eindduur: ~{seconds}s",
   "instant.progress.retryMerge": "Merge opnieuw proberen",
   "instant.progress.retryFailed": "Merge opnieuw starten mislukt.",
+  "instant.recover.notCompleted": "Eindvideo is nog niet voltooid.",
+  "instant.recover.cta": "Eindvideo herstellen",
+  "instant.recover.failed": "Eindvideo herstellen mislukt.",
+  "instant.recover.missingSegments":
+    "Herstel is nog niet mogelijk. Ontbrekende clips: {segments}.",
 } as const;

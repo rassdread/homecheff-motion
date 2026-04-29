@@ -128,6 +128,7 @@ export default function VideosPage() {
   const [cancelExportFeedback, setCancelExportFeedback] = useState<string | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const [retryMergeBusyId, setRetryMergeBusyId] = useState<string | null>(null);
+  const [recoverBusyId, setRecoverBusyId] = useState<string | null>(null);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
@@ -295,6 +296,39 @@ export default function VideosPage() {
     [fetchList]
   );
 
+  const recoverInstantProject = useCallback(
+    async (projectId: string) => {
+      setRecoverBusyId(projectId);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/instant-premium/projects/${encodeURIComponent(projectId)}/recover`,
+          { method: "POST", credentials: "include" }
+        );
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          recovery?: { missingSegments?: number[] };
+        };
+        if (!res.ok) {
+          setError(body.error ?? t("instant.recover.failed"));
+          return;
+        }
+        const missing = body.recovery?.missingSegments ?? [];
+        if (missing.length > 0) {
+          setError(
+            t("instant.recover.missingSegments", {
+              segments: missing.map((n) => n + 1).join(", "),
+            })
+          );
+        }
+        await fetchList(1, "replace");
+      } finally {
+        setRecoverBusyId(null);
+      }
+    },
+    [fetchList]
+  );
+
   const deleteProject = useCallback(
     async (projectId: string) => {
       setDeleteBusyId(projectId);
@@ -436,6 +470,11 @@ export default function VideosPage() {
           const fragmentUrl = item.firstTransitionVideoUrl?.trim() || null;
           const failed = isFailedState(item);
           const processing = isProcessingState(item);
+          const isInstant = (item.projectType ?? "classic") === "instant_premium";
+          const instantNeedsRecovery =
+            isInstant &&
+            item.allTransitionsCompleted &&
+            !item.latestExport?.outputVideoUrl?.trim();
           const exportProgress = item.latestExport?.progress ?? 0;
           const errSnippet = item.latestExport?.errorMessage?.trim() || null;
 
@@ -674,6 +713,20 @@ export default function VideosPage() {
                         {t("videos.createNew")}
                       </Link>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {instantNeedsRecovery ? (
+                  <div className="mt-1 rounded-lg border border-amber-100 bg-amber-50/80 p-2 text-xs text-amber-950">
+                    <p className="font-medium">{t("instant.recover.notCompleted")}</p>
+                    <button
+                      type="button"
+                      disabled={recoverBusyId === item.id}
+                      onClick={() => void recoverInstantProject(item.id)}
+                      className="mt-2 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-50"
+                    >
+                      {recoverBusyId === item.id ? t("animate.retry.busy") : t("instant.recover.cta")}
+                    </button>
                   </div>
                 ) : null}
 

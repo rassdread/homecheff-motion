@@ -33,6 +33,7 @@ export type InstantPremiumStatusResponse = {
   finalDurationSeconds: number | null;
   downloadable: boolean;
   errorMessage: string | null;
+  missingSegments?: number[];
 };
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
@@ -277,6 +278,77 @@ async function mergeInstantProject(projectId: string): Promise<void> {
   });
 }
 
+type RecoverResult = {
+  segmentCount: number;
+  completedSegments: number;
+  missingSegments: number[];
+  mergeStarted: boolean;
+  mergeCompleted: boolean;
+  finalVideoUrlPresent: boolean;
+};
+
+export async function recoverExistingInstantProject(projectId: string): Promise<RecoverResult> {
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      transitions: { orderBy: { order: "asc" } },
+      exports: { orderBy: { createdAt: "desc" } },
+    },
+  });
+  if (!project || project.projectType !== "instant_premium") {
+    throw new Error("Instant Premium project not found.");
+  }
+  const total = project.transitions.length;
+  const completed = project.transitions.filter((t) => t.status === "completed" && t.outputVideoUrl?.trim());
+  const missingSegments = project.transitions
+    .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
+    .map((t) => t.order);
+  const alreadyFinal = Boolean(project.exports[0]?.status === "completed" && project.exports[0]?.outputVideoUrl);
+
+  console.info("[hc-instant-premium]", {
+    action: "recover_existing_project",
+    projectId,
+    segmentCount: total,
+    completedSegments: completed.length,
+    missingSegments,
+    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    mergeCompleted: false,
+    finalVideoUrlPresent: alreadyFinal,
+  });
+
+  if (!alreadyFinal && missingSegments.length === 0 && completed.length > 0) {
+    await mergeInstantProject(projectId);
+  }
+
+  const refreshed = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      exports: { orderBy: { createdAt: "desc" } },
+    },
+  });
+  const finalVideoUrlPresent = Boolean(
+    refreshed?.exports[0]?.status === "completed" && refreshed.exports[0]?.outputVideoUrl
+  );
+  console.info("[hc-instant-premium]", {
+    action: "recover_existing_project",
+    projectId,
+    segmentCount: total,
+    completedSegments: completed.length,
+    missingSegments,
+    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    mergeCompleted: finalVideoUrlPresent,
+    finalVideoUrlPresent,
+  });
+  return {
+    segmentCount: total,
+    completedSegments: completed.length,
+    missingSegments,
+    mergeStarted: !alreadyFinal && missingSegments.length === 0 && completed.length > 0,
+    mergeCompleted: finalVideoUrlPresent,
+    finalVideoUrlPresent,
+  };
+}
+
 export async function retryInstantPremiumMerge(projectId: string): Promise<void> {
   const p = await prisma.animationProject.findUnique({
     where: { id: projectId },
@@ -418,5 +490,8 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       latestExport?.errorMessage ??
       finalState.transitions.find((t) => t.status === "failed")?.errorMessage ??
       null,
+    missingSegments: finalState.transitions
+      .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
+      .map((t) => t.order),
   };
 }

@@ -8,6 +8,7 @@ export type GalleryListPrismaRow = {
   createdAt: Date;
   updatedAt: Date;
   status: string;
+  projectType?: string | null;
   presetId: string;
   intent: string | null;
   advancedSettingsEnabled: boolean;
@@ -62,6 +63,7 @@ export function mapPrismaRowToAnimationProjectListItem(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     status: row.status,
+    projectType: row.projectType ?? "classic",
     presetId: row.presetId,
     intent: row.intent,
     advancedSettingsEnabled: row.advancedSettingsEnabled,
