@@ -462,6 +462,10 @@ export const en: LocaleSchema = {
   "instant.step5.placeholder": "Optional — e.g. calm, premium, cozy kitchen light…",
   "instant.step5.chipsTitle": "Or choose a motion",
   "instant.step5.chipsHelp": "Pick 1–3 motions (optional); max 3 selected",
+  "instant.step5.continuityTitle": "Continuity",
+  "instant.step5.continuityHelp": "Control how strongly the video stays one continuous whole.",
+  "instant.step5.continuityBalanced": "Balanced continuity",
+  "instant.step5.continuityStrict": "Strict continuity",
   "instant.step5.tooltipTitle": "Why motion isn’t magic",
   "instant.step5.tooltipBody":
     "Motion and feeling can be influenced, but real actions (walking, cooking, etc.) are not guaranteed. The AI keeps movement cinematic and controlled.",
@@ -492,6 +496,7 @@ export const en: LocaleSchema = {
   "instant.step7.duration": "Duration",
   "instant.step7.format": "Format",
   "instant.step7.images": "Images",
+  "instant.step7.continuity": "Continuity",
   "instant.step7.checkoutHelp":
     "Secure checkout with Stripe. After payment you’ll return here, then we open the progress screen.",
   "instant.step7.testModeHelp":

@@ -26,6 +26,7 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
+  type InstantPremiumContinuityStrength,
   type InstantPremiumChipId,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
@@ -140,6 +141,8 @@ export default function InstantPremiumPage() {
   const [stylePreset, setStylePreset] = useState<InstantPremiumStylePreset>("food_promo");
   const [durationSec, setDurationSec] = useState<8 | 15>(8);
   const [motionText, setMotionText] = useState("");
+  const [continuityStrength, setContinuityStrength] =
+    useState<InstantPremiumContinuityStrength>("balanced");
   const [chips, setChips] = useState<InstantPremiumChipId[]>([]);
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
@@ -301,6 +304,7 @@ export default function InstantPremiumPage() {
         uiLanguage: locale,
         userIntent: motionText.trim() || null,
         selectedChips: chips,
+        continuityStrength,
       };
       if (premiumMode === "test") {
         const testResponse = await fetch("/api/instant-premium/create-and-generate", {
@@ -350,7 +354,7 @@ export default function InstantPremiumPage() {
     } finally {
       setCheckoutBusy(false);
     }
-  }, [aspectRatio, chips, durationSec, images, locale, motionText, premiumMode, router, stylePreset, t, uploadToBlob]);
+  }, [aspectRatio, chips, continuityStrength, durationSec, images, locale, motionText, premiumMode, router, stylePreset, t, uploadToBlob]);
 
   if (!session.resolved) {
     return (
@@ -600,6 +604,32 @@ export default function InstantPremiumPage() {
                 </button>
               ))}
             </div>
+            <p className="mt-4 text-sm font-medium text-zinc-800">{t("instant.step5.continuityTitle")}</p>
+            <p className="text-xs text-zinc-500">{t("instant.step5.continuityHelp")}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setContinuityStrength("balanced")}
+                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                  continuityStrength === "balanced"
+                    ? "border-emerald-600 bg-emerald-100 text-emerald-950"
+                    : "border-zinc-200 bg-white text-zinc-700"
+                }`}
+              >
+                {t("instant.step5.continuityBalanced")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setContinuityStrength("strict")}
+                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                  continuityStrength === "strict"
+                    ? "border-emerald-600 bg-emerald-100 text-emerald-950"
+                    : "border-zinc-200 bg-white text-zinc-700"
+                }`}
+              >
+                {t("instant.step5.continuityStrict")}
+              </button>
+            </div>
             <p className="group relative mt-4 inline-flex cursor-help text-xs text-zinc-500">
               <span className="border-b border-dotted border-zinc-400">{t("instant.step5.tooltipTitle")}</span>
               <span className="pointer-events-none absolute bottom-full left-0 z-30 mb-2 hidden w-64 rounded-lg border border-zinc-200 bg-white p-2 text-[11px] text-zinc-700 shadow-lg group-hover:block group-focus-within:block">
@@ -668,6 +698,12 @@ export default function InstantPremiumPage() {
               </li>
               <li>
                 <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
+              </li>
+              <li>
+                <span className="text-zinc-500">{t("instant.step7.continuity")}:</span>{" "}
+                {continuityStrength === "strict"
+                  ? t("instant.step5.continuityStrict")
+                  : t("instant.step5.continuityBalanced")}
               </li>
             </ul>
             <p className="mt-4 text-xs text-zinc-500">

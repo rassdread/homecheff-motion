@@ -22,6 +22,7 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
   getFinalMergeMaxWidthFromViduResolution,
 } from "@/lib/media-export-constants";
+import { getVideoProvider } from "@/server/video-providers";
 
 const EXPORT_CHAIN = new Map<string, Promise<unknown>>();
 const EXTERNAL_EXPORT_PROVIDER = "external-ffmpeg";
@@ -256,6 +257,40 @@ async function runExclusiveExportCatch(
   return loadProjectOrThrow(projectId);
 }
 
+async function refreshTransitionOutputUrlsFromProvider(projectId: string): Promise<void> {
+  const transitions = await prisma.animationTransition.findMany({
+    where: { projectId },
+    orderBy: { order: "asc" },
+  });
+  const provider = getVideoProvider();
+  await Promise.all(
+    transitions.map(async (tr) => {
+      if (!tr.providerJobId?.trim()) {
+        return;
+      }
+      try {
+        const polled = await provider.getVideoJobStatus(tr.providerJobId);
+        if (polled.status === "completed" && polled.outputVideoUrl?.trim()) {
+          const nextUrl = polled.outputVideoUrl.trim();
+          if (nextUrl !== (tr.outputVideoUrl?.trim() ?? "")) {
+            await prisma.animationTransition.update({
+              where: { id: tr.id },
+              data: {
+                status: "completed",
+                progress: 100,
+                outputVideoUrl: nextUrl,
+                errorMessage: null,
+              },
+            });
+          }
+        }
+      } catch {
+        // best effort refresh for expired provider URLs
+      }
+    })
+  );
+}
+
 function mapRemoteMergeStatusToExportStatus(remote: string): string {
   const s = remote.toLowerCase();
   if (s === "completed") {
@@ -268,6 +303,7 @@ function mapRemoteMergeStatusToExportStatus(remote: string): string {
 }
 
 async function runExternalExportStart(projectId: string, options?: { fromRetry?: boolean }) {
+  await refreshTransitionOutputUrlsFromProvider(projectId);
   assertExternalMergeConfigured();
   const project = await getAnimationProjectById(projectId);
   if (!project) {
@@ -673,6 +709,7 @@ export async function pollProjectExport(projectId: string) {
 }
 
 async function runLocalProjectExportMerge(projectId: string) {
+  await refreshTransitionOutputUrlsFromProvider(projectId);
   const project = await getAnimationProjectById(projectId);
   if (!project) {
     throw new Error("Project not found.");

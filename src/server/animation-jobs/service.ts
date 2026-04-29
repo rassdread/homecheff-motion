@@ -9,6 +9,7 @@ import {
   buildInstantVideoPrompt,
   instantPremiumTransitionSegmentHint,
   isInstantPremiumStylePreset,
+  parseStoredInstantUserIntent,
   type InstantPremiumAspectRatio,
   type InstantPremiumDurationSeconds,
   type InstantPremiumStylePreset,
@@ -176,14 +177,16 @@ export async function startTransitionJob(transitionId: string) {
   const transitionTotal = transition.project._count.transitions;
   const imageCount = transitionTotal + 1;
   const isInstantPremium = transition.project.projectType === "instant_premium";
+  const instantStoredIntent = parseStoredInstantUserIntent(transition.project.instantUserIntent);
 
   const finalPrompt = isInstantPremium
     ? `${buildInstantVideoPrompt({
         stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
         duration: resolveInstantPremiumDuration(transition.project.instantOutputDurationSeconds),
         aspectRatio: resolveInstantPremiumAspect(transition.project.aspectRatio),
-        userIntent: transition.project.instantUserIntent ?? null,
+        userIntent: instantStoredIntent.text || null,
         selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
+        continuityStrength: instantStoredIntent.continuityStrength,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,

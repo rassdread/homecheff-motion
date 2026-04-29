@@ -33,10 +33,15 @@ function canRetryMergeFromList(item: AnimationProjectListItem): boolean {
   if (!item.allTransitionsCompleted) {
     return false;
   }
+  const hasFinal = Boolean(item.latestExport?.outputVideoUrl?.trim());
+  if (hasFinal) {
+    return false;
+  }
   const failedPair = item.status === "failed" && item.latestExport?.status === "failed";
   const stuckRendering =
     item.status === "rendering" && (!item.latestExport || listExportStuckWithoutFinal(item));
-  return Boolean(failedPair || stuckRendering);
+  const completedWithoutFinal = item.status === "completed";
+  return Boolean(failedPair || stuckRendering || completedWithoutFinal);
 }
 
 function statusLabelKey(status: string): TranslationKey {
@@ -484,8 +489,7 @@ export default function VideosPage() {
           const isInstant = (item.projectType ?? "classic") === "instant_premium";
           const isClassic = (item.projectType ?? "classic") === "classic";
           const instantNeedsRecovery =
-            isInstant &&
-            item.allTransitionsCompleted;
+            isInstant && item.allTransitionsCompleted && !hasPlayableFinal(item);
           const exportProgress = item.latestExport?.progress ?? 0;
           const errSnippet = item.latestExport?.errorMessage?.trim() || null;
 

@@ -72,6 +72,7 @@ export default function VideoDetailPage() {
   const [retryExportError, setRetryExportError] = useState<string | null>(null);
   const [recoverBusy, setRecoverBusy] = useState(false);
   const [recoverError, setRecoverError] = useState<string | null>(null);
+  const [recoverInfo, setRecoverInfo] = useState<string | null>(null);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -193,11 +194,12 @@ export default function VideoDetailPage() {
       !instantLikeProject &&
       allFragmentsDone &&
       ((detail.status === "failed" && latestExport?.status === "failed") ||
+        (detail.status === "completed" && !finalVideoUrl) ||
         (detail.status === "rendering" &&
           (!latestExport || mergeExportStuckWithoutFinal)))
   );
   const canRecoverInstant = Boolean(
-    detail && instantLikeProject && allFragmentsDone
+    detail && instantLikeProject && allFragmentsDone && !finalVideoUrl
   );
 
   const mergeStuckRetryOnly = Boolean(
@@ -240,6 +242,7 @@ export default function VideoDetailPage() {
     if (!id) return;
     setRecoverBusy(true);
     setRecoverError(null);
+    setRecoverInfo(null);
     try {
       const res = await fetch(`/api/instant-premium/projects/${encodeURIComponent(id)}/recover`, {
         method: "POST",
@@ -247,7 +250,12 @@ export default function VideoDetailPage() {
       });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
-        recovery?: { missingSegments?: number[]; duplicateSegments?: number[] };
+        recovery?: {
+          missingSegments?: number[];
+          duplicateSegments?: number[];
+          mergeStarted?: boolean;
+          mergeCompleted?: boolean;
+        };
       };
       if (!res.ok) {
         setRecoverError(body.error ?? t("instant.recover.failed"));
@@ -269,11 +277,28 @@ export default function VideoDetailPage() {
           })
         );
       }
+      if (missing.length === 0 && duplicates.length === 0) {
+        if (body.recovery?.mergeCompleted) {
+          setRecoverInfo(t("videos.status.completed"));
+        } else if (body.recovery?.mergeStarted) {
+          setRecoverInfo(t("videos.processing"));
+        }
+      }
       await load();
     } finally {
       setRecoverBusy(false);
     }
   }, [id, load]);
+
+  useEffect(() => {
+    if (!id || !detail || !instantLikeProject || finalVideoUrl || !allFragmentsDone) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void load();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [id, detail, instantLikeProject, finalVideoUrl, allFragmentsDone, load]);
 
   const [fragmentsSectionOpen, setFragmentsSectionOpen] = useState(false);
   const fragmentsAutoOpenedKeyRef = useRef<string | null>(null);
@@ -465,6 +490,7 @@ export default function VideoDetailPage() {
               >
                 {recoverBusy ? t("animate.retry.busy") : t("instant.recover.cta")}
               </button>
+              {recoverInfo ? <p className="mt-2 text-xs text-zinc-700">{recoverInfo}</p> : null}
               {recoverError ? <p className="mt-2 text-xs text-red-700">{recoverError}</p> : null}
             </div>
           ) : null}
@@ -610,8 +636,7 @@ export default function VideoDetailPage() {
                         className="w-full max-w-md rounded-md bg-black"
                         controls
                         playsInline
-                        preload="none"
-                        poster={thumb ?? undefined}
+                        preload="metadata"
                       >
                         <source src={clipUrl} type="video/mp4" />
                       </video>

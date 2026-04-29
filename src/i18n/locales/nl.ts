@@ -464,6 +464,10 @@ export const nl = {
   "instant.step5.placeholder": "Optioneel — bijv. rustig, premium, warm keukenlicht…",
   "instant.step5.chipsTitle": "Of kies een beweging",
   "instant.step5.chipsHelp": "Kies 1–3 bewegingen (optioneel); max 3",
+  "instant.step5.continuityTitle": "Continuiteit",
+  "instant.step5.continuityHelp": "Bepaal hoe sterk de video als één doorlopend geheel blijft.",
+  "instant.step5.continuityBalanced": "Gebalanceerde continuiteit",
+  "instant.step5.continuityStrict": "Strikte continuiteit",
   "instant.step5.tooltipTitle": "Waarom motion niet magisch is",
   "instant.step5.tooltipBody":
     "Beweging en gevoel zijn te sturen, maar echte acties (lopen, koken, enz.) zijn niet gegarandeerd. De AI houdt het filmisch en gecontroleerd.",
@@ -494,6 +498,7 @@ export const nl = {
   "instant.step7.duration": "Duur",
   "instant.step7.format": "Formaat",
   "instant.step7.images": "Afbeeldingen",
+  "instant.step7.continuity": "Continuiteit",
   "instant.step7.checkoutHelp":
     "Veilige Stripe-checkout. Na betaling kom je hier terug en openen we de voortgang.",
   "instant.step7.testModeHelp":

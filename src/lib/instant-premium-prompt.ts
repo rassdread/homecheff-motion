@@ -3,6 +3,7 @@ export type InstantPremiumStylePreset = "food_promo" | "clean_business" | "socia
 export type InstantPremiumAspectRatio = "9:16" | "16:9";
 
 export type InstantPremiumDurationSeconds = 8 | 15;
+export type InstantPremiumContinuityStrength = "balanced" | "strict";
 
 /** Stable ids sent from client / stored in DB */
 export type InstantPremiumChipId =
@@ -86,7 +87,42 @@ export type BuildInstantVideoPromptInput = {
   aspectRatio: InstantPremiumAspectRatio;
   userIntent: string | null;
   selectedChips: string[];
+  continuityStrength?: InstantPremiumContinuityStrength;
 };
+
+const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
+
+export function normalizeInstantPremiumContinuityStrength(
+  value: unknown
+): InstantPremiumContinuityStrength {
+  return value === "strict" ? "strict" : "balanced";
+}
+
+export function composeStoredInstantUserIntent(params: {
+  continuityStrength: InstantPremiumContinuityStrength;
+  text: string;
+}): string {
+  const marker = `[hc_continuity:${params.continuityStrength}]`;
+  const clean = params.text.trim();
+  return clean ? `${marker}\n${clean}` : marker;
+}
+
+export function parseStoredInstantUserIntent(raw: string | null | undefined): {
+  continuityStrength: InstantPremiumContinuityStrength;
+  text: string;
+} {
+  const input = raw?.trim() ?? "";
+  if (!input) {
+    return { continuityStrength: "balanced", text: "" };
+  }
+  const match = input.match(CONTINUITY_MARKER_RE);
+  if (!match) {
+    return { continuityStrength: "balanced", text: input };
+  }
+  const continuityStrength = normalizeInstantPremiumContinuityStrength(match[1]?.toLowerCase());
+  const text = input.replace(CONTINUITY_MARKER_RE, "").trim();
+  return { continuityStrength, text };
+}
 
 /**
  * Single structured prompt for instant premium multi-image video (used as base for each transition segment).
@@ -102,17 +138,19 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
     intentTrimmed.length > 0
       ? intentTrimmed
       : "(none — follow defaults and chip directions only.)";
+  const continuityStrength = normalizeInstantPremiumContinuityStrength(input.continuityStrength);
+  const continuityLine =
+    continuityStrength === "strict"
+      ? "Continuity priority: strict. Keep one unbroken evolving shot language across all keyframes."
+      : "Continuity priority: balanced. Keep a coherent flow while allowing subtle style variation.";
 
-  return `Create a premium short-form video using the provided images in their exact uploaded order. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
+  return `Create one continuous premium short-form video using the provided images in their exact uploaded order as keyframes. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
 
-Use each image as a distinct scene with a clear structure:
-- First image: strong visual hook
-- Middle images: detail and context
-- Final image: ending or call-to-action
+Treat this as a single evolving visual story, not separate scenes. No hard cuts between images.
 
-Preserve all original subjects, faces, food, products, and composition. Do not distort or morph anything. Avoid unrealistic transformations.
+Preserve the same subject identity, environment feeling, lighting direction, and camera language across the full sequence. Avoid unrealistic warping or sudden style jumps.
 
-Apply smooth cinematic motion and clean transitions. Keep motion natural and controlled.
+Apply smooth cinematic motion with natural temporal continuity from one keyframe to the next.
 
 Style direction:
 ${styleLine}
@@ -120,12 +158,15 @@ ${styleLine}
 Additional motion direction:
 ${chipBlock}
 
+Continuity control:
+${continuityLine}
+
 User intent:
 ${intentBlock}
 
 If user intent is present, subtly incorporate it without breaking realism or consistency.
 
-Maintain balanced pacing. Avoid static or chaotic scenes.
+Maintain balanced pacing and a coherent flow. Avoid static sections, chaotic motion, and abrupt resets.
 
 The final result should feel like a polished, premium, ready-to-use social media video.`;
 }
@@ -138,5 +179,5 @@ export function instantPremiumTransitionSegmentHint(params: {
   const { transitionOrder, transitionTotal, imageCount } = params;
   const from = transitionOrder + 1;
   const to = transitionOrder + 2;
-  return `This segment connects scene ${from} to scene ${to} of ${imageCount} ordered images (${transitionOrder + 1} of ${transitionTotal} motion segments). Keep continuity with the overall arc and the instructions above.`;
+  return `This segment is keyframe transition ${transitionOrder + 1} of ${transitionTotal}, connecting image ${from} to image ${to} out of ${imageCount}. Continue directly from the previous motion state and prepare seamlessly for the next one, without looking like a standalone clip.`;
 }

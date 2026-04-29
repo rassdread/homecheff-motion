@@ -4,7 +4,10 @@ import { getAnimationPreset, type AnimationPresetId } from "@/lib/animation-pres
 import { normalizeAnimationIntent } from "@/lib/animation-intents";
 import { DEFAULT_GLOBAL_ANIMATION_CONTEXT } from "@/lib/animation-global-prompt-context";
 import {
+  composeStoredInstantUserIntent,
   isInstantPremiumChipId,
+  normalizeInstantPremiumContinuityStrength,
+  type InstantPremiumContinuityStrength,
   isInstantPremiumStylePreset,
   type InstantPremiumDurationSeconds,
 } from "@/lib/instant-premium-prompt";
@@ -24,6 +27,7 @@ export type InstantPremiumCreatePayload = {
   uiLanguage?: "nl" | "en";
   userIntent?: string | null;
   selectedChips?: string[];
+  continuityStrength?: InstantPremiumContinuityStrength;
 };
 
 export type InstantPremiumCreateResult =
@@ -105,6 +109,8 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     userIntent = t.length > 0 ? t : null;
   }
 
+  const continuityStrength = normalizeInstantPremiumContinuityStrength(o.continuityStrength);
+
   const data: InstantPremiumCreatePayload = {
     images,
     stylePreset,
@@ -112,6 +118,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     aspectRatio,
     ...(uiLanguage ? { uiLanguage } : {}),
     selectedChips: chips,
+    continuityStrength,
     ...(userIntent !== undefined ? { userIntent } : {}),
   };
 
@@ -171,6 +178,7 @@ export async function createInstantPremiumAnimationProject(
     userIntent,
     selectedChips,
     uiLanguage,
+    continuityStrength,
   } = validated.data;
   const chips = parseChips(selectedChips);
   const typedIntent =
@@ -181,7 +189,11 @@ export async function createInstantPremiumAnimationProject(
     uiLanguage === "en"
       ? "Preferred output language for any on-screen text: English."
       : "Preferred output language for any on-screen text: Dutch.";
-  const intent = typedIntent ? `${languageHint}\n${typedIntent}` : languageHint;
+  const intentBase = typedIntent ? `${languageHint}\n${typedIntent}` : languageHint;
+  const intent = composeStoredInstantUserIntent({
+    continuityStrength: normalizeInstantPremiumContinuityStrength(continuityStrength),
+    text: intentBase,
+  });
 
   const durationResolved: InstantPremiumDurationSeconds = duration === 15 ? 15 : 8;
 

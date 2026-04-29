@@ -147,33 +147,88 @@ function runFfmpeg(
   });
 }
 
-async function concatAndEncode(workDir: string, segmentPaths: string[], outputFile: string, maxWidth: number) {
-  const concatFile = path.join(workDir, "concat.txt");
-  const concatLines = segmentPaths.map((p) => `file '${path.resolve(p).replace(/'/g, `'\\''`)}'`).join("\n");
-  await fs.writeFile(concatFile, `${concatLines}\n`, "utf8");
+async function concatAndEncode(
+  workDir: string,
+  segmentPaths: string[],
+  outputFile: string,
+  maxWidth: number,
+  segmentDurationSeconds?: number | null
+) {
+  const args = ["-y"];
+  const canCrossfade =
+    segmentPaths.length > 1 &&
+    typeof segmentDurationSeconds === "number" &&
+    Number.isFinite(segmentDurationSeconds) &&
+    segmentDurationSeconds > 1;
 
-  const vf = `scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p`;
-  const args = [
-    "-y",
-    "-f",
-    "concat",
-    "-safe",
-    "0",
-    "-i",
-    concatFile,
-    "-vf",
-    vf,
-    "-c:v",
-    "libx264",
-    "-preset",
-    FINAL_MERGE_VIDEO_PRESET,
-    "-crf",
-    String(FINAL_MERGE_VIDEO_CRF),
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart",
-  ];
+  if (canCrossfade) {
+    const perSegment = Number(segmentDurationSeconds);
+    const crossfadeSeconds = Math.max(0.2, Math.min(0.5, perSegment / 4, 0.35));
+    for (const seg of segmentPaths) {
+      args.push("-i", seg);
+    }
+
+    const filterParts: string[] = [];
+    for (let i = 0; i < segmentPaths.length; i += 1) {
+      filterParts.push(
+        `[${i}:v]settb=AVTB,scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p[v${i}]`
+      );
+    }
+    let timelineSeconds = perSegment;
+    let lastLabel = "v0";
+    for (let i = 1; i < segmentPaths.length; i += 1) {
+      const outLabel = `x${i}`;
+      const offset = Math.max(0, timelineSeconds - crossfadeSeconds);
+      filterParts.push(
+        `[${lastLabel}][v${i}]xfade=transition=fade:duration=${crossfadeSeconds.toFixed(3)}:offset=${offset.toFixed(3)}[${outLabel}]`
+      );
+      lastLabel = outLabel;
+      timelineSeconds += perSegment - crossfadeSeconds;
+    }
+
+    args.push(
+      "-filter_complex",
+      filterParts.join(";"),
+      "-map",
+      `[${lastLabel}]`,
+      "-c:v",
+      "libx264",
+      "-preset",
+      FINAL_MERGE_VIDEO_PRESET,
+      "-crf",
+      String(FINAL_MERGE_VIDEO_CRF),
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart"
+    );
+  } else {
+    const concatFile = path.join(workDir, "concat.txt");
+    const concatLines = segmentPaths.map((p) => `file '${path.resolve(p).replace(/'/g, `'\\''`)}'`).join("\n");
+    await fs.writeFile(concatFile, `${concatLines}\n`, "utf8");
+    const vf = `scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p`;
+    args.push(
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      concatFile,
+      "-vf",
+      vf,
+      "-c:v",
+      "libx264",
+      "-preset",
+      FINAL_MERGE_VIDEO_PRESET,
+      "-crf",
+      String(FINAL_MERGE_VIDEO_CRF),
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart"
+    );
+  }
+
   if (FINAL_MERGE_DISABLE_AUDIO) {
     args.push("-an");
   } else {
@@ -206,6 +261,34 @@ async function uploadMergedVideoToBlob(projectId: string, mergedPath: string): P
   return blob.url;
 }
 
+async function persistSegmentVideoToBlob(
+  projectId: string,
+  segmentOrder: number,
+  sourceUrl: string
+): Promise<string> {
+  const trimmed = sourceUrl.trim();
+  if (!trimmed) {
+    throw new Error("Missing segment URL.");
+  }
+  if (trimmed.includes(".public.blob.vercel-storage.com/")) {
+    return trimmed;
+  }
+  const response = await fetch(trimmed, { signal: AbortSignal.timeout(60_000) });
+  if (!response.ok) {
+    throw new Error(`Could not download segment URL ${trimmed} (HTTP ${response.status})`);
+  }
+  const body = Buffer.from(await response.arrayBuffer());
+  if (!body || body.length <= 0) {
+    throw new Error(`Downloaded empty segment for ${trimmed}`);
+  }
+  const blob = await put(`motion/segments/${projectId}/segment-${segmentOrder + 1}.mp4`, body, {
+    access: "public",
+    contentType: "video/mp4",
+    addRandomSuffix: false,
+  });
+  return blob.url;
+}
+
 async function mergeInstantProject(projectId: string, options?: { force?: boolean }): Promise<void> {
   await withMergeLock(projectId, async () => {
     const project = await prisma.animationProject.findUnique({
@@ -223,7 +306,7 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
     if (!options?.force && latestExport?.status === "completed" && latestExport.outputVideoUrl) {
       return;
     }
-    if (latestExport?.status === "rendering") {
+    if (!options?.force && latestExport?.status === "rendering") {
       return;
     }
 
@@ -273,7 +356,8 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
         workDir,
         segmentPaths,
         finalAbs,
-        getFinalMergeMaxWidthFromViduResolution(project.viduResolution)
+        getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
+        project.viduDurationSeconds ?? null
       );
       const stat = await fs.stat(finalAbs).catch(() => null);
       if (!stat || stat.size <= 0) {
@@ -334,15 +418,35 @@ export async function refreshTransitionOutputsFromProvider(projectId: string): P
       try {
         const polled = await provider.getVideoJobStatus(tr.providerJobId);
         if (polled.status === "completed" && polled.outputVideoUrl?.trim()) {
+          let stableUrl = polled.outputVideoUrl.trim();
+          try {
+            stableUrl = await persistSegmentVideoToBlob(projectId, tr.order, stableUrl);
+          } catch {
+            // keep provider URL as fallback if blob sync fails
+          }
           await prisma.animationTransition.update({
             where: { id: tr.id },
             data: {
               status: "completed",
               progress: 100,
-              outputVideoUrl: polled.outputVideoUrl.trim(),
+              outputVideoUrl: stableUrl,
               errorMessage: null,
             },
           });
+        } else if (tr.status === "completed" && tr.outputVideoUrl?.trim()) {
+          // Backfill old completed rows with stable blob URLs.
+          let stableUrl = tr.outputVideoUrl.trim();
+          try {
+            stableUrl = await persistSegmentVideoToBlob(projectId, tr.order, stableUrl);
+          } catch {
+            return;
+          }
+          if (stableUrl !== tr.outputVideoUrl.trim()) {
+            await prisma.animationTransition.update({
+              where: { id: tr.id },
+              data: { outputVideoUrl: stableUrl, updatedAt: new Date() },
+            });
+          }
         }
       } catch {
         // best effort only
