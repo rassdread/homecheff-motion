@@ -17,7 +17,11 @@ export async function POST(request: Request) {
   const mode = getInstantPremiumMode();
   if (mode !== "test") {
     return NextResponse.json(
-      { error: "Direct generation is disabled in paid mode." },
+      {
+        ok: false as const,
+        error: "Direct generation is disabled in paid mode.",
+        code: "PAID_MODE",
+      },
       { status: 409 }
     );
   }
@@ -26,12 +30,18 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false as const, error: "Invalid JSON body.", code: "INVALID_JSON" },
+      { status: 400 }
+    );
   }
 
   const validated = validateInstantPremiumCreatePayload(body);
   if (!validated.ok) {
-    return NextResponse.json({ error: validated.error }, { status: validated.status });
+    return NextResponse.json(
+      { ok: false as const, error: validated.error, code: "VALIDATION_ERROR" },
+      { status: validated.status }
+    );
   }
 
   const created = await createInstantPremiumAnimationProject(user.id, validated.data);
@@ -42,7 +52,10 @@ export async function POST(request: Request) {
       projectId: null,
       jobTriggered: false,
     });
-    return NextResponse.json({ error: created.error }, { status: created.status });
+    return NextResponse.json(
+      { ok: false as const, error: created.error, code: "CREATE_FAILED" },
+      { status: created.status }
+    );
   }
 
   let jobTriggered = true;
@@ -60,21 +73,41 @@ export async function POST(request: Request) {
     jobTriggered = false;
   }
 
+  const projectId = String(created.projectId).trim();
+  if (!projectId) {
+    console.error("[hc-instant-premium]", {
+      mode,
+      action: "create_and_generate_empty_project_id",
+      jobTriggered,
+    });
+    return NextResponse.json(
+      {
+        ok: false as const,
+        error: "Project was created but returned an empty id.",
+        code: "EMPTY_PROJECT_ID",
+      },
+      { status: 500 }
+    );
+  }
+
+  const progressRoute = `/animate/instant/progress?projectId=${encodeURIComponent(projectId)}`;
+
   console.info("[hc-instant-premium]", {
     mode,
-    action: "create_and_generate",
-    projectId: created.projectId,
+    action: "create_and_generate_response",
+    projectId,
+    progressRoute,
+    jobTriggered,
     transitionCount,
-    orchestratorCalled: true,
-    jobTriggered: jobTriggered,
   });
 
   return NextResponse.json(
     {
-      projectId: created.projectId,
-      status: "started",
+      ok: true as const,
+      projectId,
+      status: "started" as const,
       jobTriggered,
-      progressRoute: `/animate/instant/progress?projectId=${encodeURIComponent(created.projectId)}`,
+      progressRoute,
     },
     { status: 200 }
   );

@@ -47,12 +47,13 @@ export default function InstantPremiumProgressPage() {
   const [startBusy, setStartBusy] = useState(false);
   const [queuedSinceMs, setQueuedSinceMs] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(0);
-  const missingProjectIdError = !projectId ? t("instant.errors.missingProjectId") : null;
+  const missingProjectIdError = !projectId ? t("instant.progress.missingProjectParam") : null;
 
   const progress = useMemo(() => {
+    if (!projectId) return 0;
     if (!snapshot) return 8;
     return Math.max(8, snapshot.progressPercent);
-  }, [snapshot]);
+  }, [projectId, snapshot]);
   const queuedWithoutJob = snapshot?.queuedWithoutJobCount ?? 0;
   const waitingForStartTooLong =
     queuedSinceMs != null && queuedWithoutJob > 0 && nowMs - queuedSinceMs > 60_000;
@@ -106,8 +107,10 @@ export default function InstantPremiumProgressPage() {
       <div className="mx-auto w-full max-w-xl px-4 py-10">
         <AppCard>
           <h1 className="text-2xl font-bold">{t("instant.progress.title")}</h1>
-          <p className="mt-2 text-sm text-zinc-600">{t(stageKey(snapshot) as never)}</p>
-          <p className="mt-2 text-xs text-zinc-500">{projectId}</p>
+          <p className="mt-2 text-sm text-zinc-600">
+            {projectId ? t(stageKey(snapshot) as never) : t("instant.progress.missingProjectParam")}
+          </p>
+          {projectId ? <p className="mt-2 text-xs text-zinc-500">{projectId}</p> : null}
 
           <p className="mt-4 text-sm font-medium text-zinc-800">{progress}%</p>
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
@@ -119,7 +122,7 @@ export default function InstantPremiumProgressPage() {
 
           {missingProjectIdError ? <p className="mt-4 text-sm text-red-700">{missingProjectIdError}</p> : null}
           {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-          {waitingForStartTooLong ? (
+          {projectId && waitingForStartTooLong ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
               <p>{t("instant.progress.waitingToStart")}</p>
               <p className="mt-1 font-mono text-[11px]">
@@ -227,7 +230,7 @@ export default function InstantPremiumProgressPage() {
               </div>
             </div>
           ) : null}
-          {snapshot?.status === "failed" ? (
+          {projectId && snapshot?.status === "failed" ? (
             <button
               type="button"
               disabled={retryBusy}
@@ -258,11 +261,13 @@ export default function InstantPremiumProgressPage() {
             </button>
           ) : null}
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/animate/instant" className="rounded-xl border border-zinc-200 px-4 py-2 text-sm">
               {t("instant.success.backToWizard")}
             </Link>
-            <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
+            {projectId ? (
+              <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
+            ) : null}
           </div>
         </AppCard>
       </div>

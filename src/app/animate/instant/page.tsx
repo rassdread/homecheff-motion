@@ -37,9 +37,42 @@ import {
 } from "@/lib/image-preprocess";
 import { MAX_RAW_ANIMATION_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import { getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
-import type { CreateAnimationProjectImageInput, UploadImageResponse } from "@/types/animation-api";
+import type {
+  CreateAnimationProjectImageInput,
+  InstantPremiumCreateAndGenerateErrorBody,
+  InstantPremiumCreateAndGenerateOkBody,
+  UploadImageResponse,
+} from "@/types/animation-api";
 
 const MIN_IMAGES = 3;
+
+function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string): string | null {
+  if (!body || typeof body !== "object") {
+    return null;
+  }
+  const o = body as Record<string, unknown>;
+  const rawId = o.projectId;
+  if (typeof rawId === "string" && rawId.trim()) {
+    return rawId.trim();
+  }
+  const route = o.progressRoute;
+  if (typeof route !== "string" || !route.trim()) {
+    return null;
+  }
+  const trimmed = route.trim();
+  try {
+    const url = trimmed.startsWith("http") ? new URL(trimmed) : new URL(trimmed, pageOrigin);
+    const id = url.searchParams.get("projectId")?.trim();
+    return id && id.length > 0 ? id : null;
+  } catch {
+    const q = trimmed.indexOf("?");
+    if (q < 0) {
+      return null;
+    }
+    const id = new URLSearchParams(trimmed.slice(q + 1)).get("projectId")?.trim();
+    return id && id.length > 0 ? id : null;
+  }
+}
 const MAX_IMAGES = 5;
 const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
 
@@ -313,20 +346,49 @@ export default function InstantPremiumPage() {
           credentials: "include",
           body: JSON.stringify(body),
         });
-        const testData = (await testResponse.json().catch(() => ({}))) as {
-          projectId?: string;
-          progressRoute?: string;
-          error?: string;
-        };
-        if (!testResponse.ok || !testData.projectId) {
-          throw new Error(testData.error ?? t("instant.errors.checkoutFailed"));
+        const responseText = await testResponse.text();
+        let parsedBody: unknown = null;
+        try {
+          parsedBody = responseText ? JSON.parse(responseText) : null;
+        } catch {
+          parsedBody = null;
         }
+        console.info(
+          "[hc-instant-premium-client]",
+          JSON.stringify({
+            action: "test_mode_generate_response",
+            httpStatus: testResponse.status,
+            responseJson: responseText,
+          })
+        );
+        const pageOrigin =
+          typeof window !== "undefined" ? window.location.origin : "http://localhost";
+        const resolvedProjectId = extractInstantPremiumCreateProjectId(parsedBody, pageOrigin);
+        const isAdmin = session.user?.role?.trim() === "admin";
+        const adminSuffix =
+          isAdmin && responseText.length > 0
+            ? ` ${responseText.length > 4000 ? `${responseText.slice(0, 4000)}…` : responseText}`
+            : "";
+
+        if (!testResponse.ok) {
+          const errBody = parsedBody as Partial<InstantPremiumCreateAndGenerateErrorBody> | null;
+          const msg = errBody?.error ?? t("instant.errors.checkoutFailed");
+          throw new Error(`${msg}${adminSuffix}`);
+        }
+
+        const okBody = parsedBody as Partial<InstantPremiumCreateAndGenerateOkBody> | null;
+        if (!resolvedProjectId) {
+          throw new Error(`${t("instant.errors.testModeBadResponse")}${adminSuffix}`);
+        }
+
         const progressRoute =
-          testData.progressRoute?.trim() ||
-          `/animate/instant/progress?projectId=${encodeURIComponent(testData.projectId)}`;
+          typeof okBody?.progressRoute === "string" && okBody.progressRoute.trim()
+            ? okBody.progressRoute.trim()
+            : `/animate/instant/progress?projectId=${encodeURIComponent(resolvedProjectId)}`;
+
         console.info("[hc-instant-premium]", {
           action: "redirect_to_progress",
-          projectId: testData.projectId,
+          projectId: resolvedProjectId,
           projectType: "instant_premium",
           progressRoute,
         });
@@ -354,7 +416,21 @@ export default function InstantPremiumPage() {
     } finally {
       setCheckoutBusy(false);
     }
-  }, [aspectRatio, chips, continuityStrength, durationSec, images, locale, motionText, premiumMode, router, stylePreset, t, uploadToBlob]);
+  }, [
+    aspectRatio,
+    chips,
+    continuityStrength,
+    durationSec,
+    images,
+    locale,
+    motionText,
+    premiumMode,
+    router,
+    session.user,
+    stylePreset,
+    t,
+    uploadToBlob,
+  ]);
 
   if (!session.resolved) {
     return (

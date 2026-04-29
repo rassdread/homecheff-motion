@@ -273,6 +273,21 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";
 
+/** POST /api/instant-premium/create-and-generate — test mode (INSTANT_PREMIUM_MODE=test). */
+export type InstantPremiumCreateAndGenerateOkBody = {
+  ok: true;
+  projectId: string;
+  status: "started";
+  progressRoute: string;
+  jobTriggered: boolean;
+};
+
+export type InstantPremiumCreateAndGenerateErrorBody = {
+  ok: false;
+  error: string;
+  code?: string;
+};
+
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";

@@ -514,6 +514,8 @@ export const nl = {
   "instant.errors.uploadFailed": "Uploaden mislukt.",
   "instant.errors.minImages": "Selecteer minimaal {min} afbeeldingen.",
   "instant.errors.missingProjectId": "Testmodus-antwoorden bevatten geen projectId.",
+  "instant.errors.testModeBadResponse":
+    "De server gaf geen geldig projectId. Vernieuw de pagina en probeer opnieuw, of neem contact op.",
   "instant.errors.checkoutStartFailed": "Betalen is tijdelijk niet beschikbaar.",
   "instant.errors.checkoutFailed": "Checkout mislukt.",
   "instant.success.confirming": "Betaling bevestigen…",
@@ -526,6 +528,7 @@ export const nl = {
   "instant.success.errorTitle": "Er ging iets mis",
   "instant.success.backToWizard": "Terug naar wizard",
   "instant.progress.title": "Instant Premium voortgang",
+  "instant.progress.missingProjectParam": "Project ontbreekt. Start opnieuw.",
   "instant.progress.preparingProject": "Project aanmaken…",
   "instant.progress.preparingImages": "Afbeeldingen voorbereiden…",
   "instant.progress.generatingVideo": "Video genereren…",

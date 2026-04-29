@@ -512,6 +512,8 @@ export const en: LocaleSchema = {
   "instant.errors.uploadFailed": "Upload failed.",
   "instant.errors.minImages": "Select at least {min} images.",
   "instant.errors.missingProjectId": "Test mode response did not include projectId.",
+  "instant.errors.testModeBadResponse":
+    "The server did not return a valid projectId. Refresh and try again, or contact support.",
   "instant.errors.checkoutStartFailed": "Payment is temporarily unavailable.",
   "instant.errors.checkoutFailed": "Checkout failed.",
   "instant.success.confirming": "Confirming payment…",
@@ -524,6 +526,7 @@ export const en: LocaleSchema = {
   "instant.success.errorTitle": "Something went wrong",
   "instant.success.backToWizard": "Back to wizard",
   "instant.progress.title": "Instant Premium progress",
+  "instant.progress.missingProjectParam": "Project is missing. Start again from the wizard.",
   "instant.progress.preparingProject": "Creating project…",
   "instant.progress.preparingImages": "Preparing images…",
   "instant.progress.generatingVideo": "Generating video…",
