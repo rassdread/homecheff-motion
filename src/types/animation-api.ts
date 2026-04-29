@@ -196,6 +196,15 @@ export type ProjectSnapshotResponse = {
   instantOutputDurationSeconds?: number | null;
   instantSelectedChips?: unknown;
   instantUserIntent?: string | null;
+  /** Unified export lifecycle for progress UIs */
+  exportLifecycleStatus?: "queued" | "running" | "finalizing" | "completed" | "failed";
+  exportPhase?:
+    | "generating_clips"
+    | "merging_clips"
+    | "uploading_final"
+    | "completed"
+    | "failed";
+  exportProgressPercent?: number;
 };
 
 export type JobsStartResponse = {
@@ -257,4 +266,28 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   advancedSettingsEnabled: boolean;
   /** Only when viewer is admin (e.g. inspecting another user’s project). */
   ownerEmail?: string;
+};
+
+export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";
+
+export type InstantPremiumStatusResponse = {
+  projectId: string;
+  projectType: "instant_premium";
+  status: "queued" | "running" | "finalizing" | "completed" | "failed";
+  phase: "generating_clips" | "merging_clips" | "uploading_final" | "completed" | "failed";
+  progressPercent: number;
+  segments: Array<{
+    index: number;
+    status: InstantPremiumSegmentStatus;
+    sourceImageId: string;
+    sourceImageUrl: string | null;
+    videoUrl: string | null;
+    durationSeconds: number | null;
+    providerTaskId: string | null;
+    error: string | null;
+  }>;
+  finalVideoUrl: string | null;
+  finalDurationSeconds: number | null;
+  downloadable: boolean;
+  errorMessage: string | null;
 };

@@ -63,7 +63,6 @@ export default function AnimatePage() {
     projectId,
     transitions,
     exportProgress,
-    exportProvider,
     displayExportProgress,
     overallProgress,
     displayOverallProgress,
@@ -101,6 +100,8 @@ export default function AnimatePage() {
     jobsStartError,
     pollError,
     finalProjectVideoUrl,
+    exportLifecycleStatus,
+    exportPhase,
     exportPhaseError,
     exportPollError,
     handleImageSelection,
@@ -151,15 +152,38 @@ export default function AnimatePage() {
         ? targetTotalEditDraft
         : String(getTotalVideoDurationSeconds(images.length, advancedDuration));
 
-  const allTransitionsCompletedUi =
-    transitions.length > 0 && transitions.every((tr) => tr.status === "completed");
-
   const canRetryExportMerge =
     Boolean(projectId) &&
-    allTransitionsCompletedUi &&
-    !anyTransitionFailed &&
-    (projectStatus === "failed" ||
-      (projectStatus === "rendering" && !finalProjectVideoUrl));
+    exportLifecycleStatus === "failed";
+
+  const exportPhaseLabelKey: TranslationKey = (() => {
+    if (exportLifecycleStatus === "finalizing") {
+      return "animate.export.phase.finalizing";
+    }
+    switch (exportPhase) {
+      case "generating_clips":
+        return "animate.export.phase.generating_clips";
+      case "merging_clips":
+        return "animate.export.phase.merging_clips";
+      case "uploading_final":
+        return "animate.export.phase.uploading_final";
+      case "completed":
+        return "animate.export.phase.completed";
+      case "failed":
+        return "animate.export.phase.failed";
+      default:
+        if (projectStatus === "rendering") {
+          return "animate.export.phase.merging_clips";
+        }
+        if (projectStatus === "completed") {
+          return "animate.export.phase.completed";
+        }
+        if (projectStatus === "failed") {
+          return "animate.export.phase.failed";
+        }
+        return "animate.progress.stagePreparing";
+    }
+  })();
 
   useEffect(() => {
     if (
@@ -599,7 +623,7 @@ export default function AnimatePage() {
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
-        {!canCreateAnimation ? (
+        {!canCreateAnimation && !projectId && projectStatus === "idle" ? (
           <p className="mt-3 text-sm text-amber-700">
             {t("animate.upload.minWarning", { min: minImages })}
           </p>
@@ -688,7 +712,11 @@ export default function AnimatePage() {
           </div>
         ) : null}
         {generationStageKey ? (
-          <p className="mt-3 text-sm font-medium text-zinc-800">{t(generationStageKey)}</p>
+          <p className="mt-3 text-sm font-medium text-zinc-800">
+            {projectStatus === "generating" || projectStatus === "rendering"
+              ? t(exportPhaseLabelKey)
+              : t(generationStageKey)}
+          </p>
         ) : null}
         {isProcessing && pollLastUpdatedAt ? (
           <p className="mt-1 text-xs text-zinc-500">
@@ -878,9 +906,7 @@ export default function AnimatePage() {
         <h2 className="text-lg font-semibold">{t("animate.export.title")}</h2>
         {projectStatus === "rendering" ? (
           <p className="mt-2 text-sm text-zinc-600">
-            {exportProvider === "external-ffmpeg"
-              ? t("animate.export.externalMerging")
-              : t("animate.export.merging")}
+            {t(exportPhaseLabelKey)}
           </p>
         ) : null}
         <p className="mt-2 text-sm text-zinc-700">{displayExportProgress}%</p>
@@ -896,16 +922,8 @@ export default function AnimatePage() {
 
       {projectStatus === "rendering" ? (
         <AppCard className="mx-auto mt-8 max-w-3xl">
-          <h2 className="text-lg font-semibold">
-            {exportProvider === "external-ffmpeg"
-              ? t("animate.export.externalMerging")
-              : t("animate.export.merging")}
-          </h2>
-          <p className="mt-2 text-sm text-zinc-600">
-            {exportProvider === "external-ffmpeg"
-              ? t("animate.progress.stageMergingExternal")
-              : t("animate.rendering.mergePending")}
-          </p>
+          <h2 className="text-lg font-semibold">{t("animate.export.title")}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{t(exportPhaseLabelKey)}</p>
         </AppCard>
       ) : null}
       {projectStatus === "completed" ? (

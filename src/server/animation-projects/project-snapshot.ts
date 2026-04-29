@@ -41,7 +41,51 @@ type ProjectSnapshotSource = {
   }>;
 };
 
+function deriveExportLifecycle(project: ProjectSnapshotSource): {
+  exportLifecycleStatus: "queued" | "running" | "finalizing" | "completed" | "failed";
+  exportPhase:
+    | "generating_clips"
+    | "merging_clips"
+    | "uploading_final"
+    | "completed"
+    | "failed";
+  exportProgressPercent: number;
+} {
+  if (project.status === "failed") {
+    return { exportLifecycleStatus: "failed", exportPhase: "failed", exportProgressPercent: 0 };
+  }
+  if (project.status === "completed") {
+    return {
+      exportLifecycleStatus: "completed",
+      exportPhase: "completed",
+      exportProgressPercent: 100,
+    };
+  }
+  if (project.status === "generating") {
+    const count = project.transitions.length;
+    const avg =
+      count > 0
+        ? Math.round(project.transitions.reduce((a, t) => a + (t.progress ?? 0), 0) / count)
+        : 5;
+    return {
+      exportLifecycleStatus: "running",
+      exportPhase: "generating_clips",
+      exportProgressPercent: Math.max(5, Math.min(95, avg)),
+    };
+  }
+  const latestExport = project.exports[0];
+  const p = Math.max(8, Math.min(99, latestExport?.progress ?? 8));
+  const phase =
+    p >= 85 ? "uploading_final" : "merging_clips";
+  return {
+    exportLifecycleStatus: p >= 85 ? "finalizing" : "running",
+    exportPhase: phase,
+    exportProgressPercent: p,
+  };
+}
+
 export function toProjectSnapshotResponse(project: ProjectSnapshotSource): ProjectSnapshotResponse {
+  const lifecycle = deriveExportLifecycle(project);
   return {
     id: project.id,
     status: project.status,
@@ -80,5 +124,8 @@ export function toProjectSnapshotResponse(project: ProjectSnapshotSource): Proje
     instantOutputDurationSeconds: project.instantOutputDurationSeconds ?? null,
     instantSelectedChips: project.instantSelectedChips ?? null,
     instantUserIntent: project.instantUserIntent ?? null,
+    exportLifecycleStatus: lifecycle.exportLifecycleStatus,
+    exportPhase: lifecycle.exportPhase,
+    exportProgressPercent: lifecycle.exportProgressPercent,
   };
 }

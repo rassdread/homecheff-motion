@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       projectId: created.projectId,
       status: "started",
       jobTriggered,
+      progressRoute: `/animate/instant/progress?projectId=${encodeURIComponent(created.projectId)}`,
     },
     { status: 200 }
   );

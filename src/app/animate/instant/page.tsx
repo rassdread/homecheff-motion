@@ -311,12 +311,22 @@ export default function InstantPremiumPage() {
         });
         const testData = (await testResponse.json().catch(() => ({}))) as {
           projectId?: string;
+          progressRoute?: string;
           error?: string;
         };
         if (!testResponse.ok || !testData.projectId) {
           throw new Error(testData.error ?? t("instant.errors.checkoutFailed"));
         }
-        router.push(`/animate?resume=${encodeURIComponent(testData.projectId)}`);
+        const progressRoute =
+          testData.progressRoute?.trim() ||
+          `/animate/instant/progress?projectId=${encodeURIComponent(testData.projectId)}`;
+        console.info("[hc-instant-premium]", {
+          action: "redirect_to_progress",
+          projectId: testData.projectId,
+          projectType: "instant_premium",
+          progressRoute,
+        });
+        router.push(progressRoute);
         return;
       }
 

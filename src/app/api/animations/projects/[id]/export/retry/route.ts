@@ -21,6 +21,15 @@ export async function POST(_: Request, context: RouteContext) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
+  if ((ownedProject.projectType ?? "classic") !== "classic") {
+    console.info("[hc-animation-export]", {
+      action: "blocked_wrong_project_type",
+      projectId: id,
+      projectType: ownedProject.projectType ?? "classic",
+    });
+    return NextResponse.json({ error: "Classic export retry is not available for this project type." }, { status: 409 });
+  }
+
   hcExportRetryLog("server", "export_retry.received", { projectId: id, userId: user.id });
 
   try {

@@ -30,6 +30,18 @@ function ffmpegBinary(): string {
   return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
 }
 
+function assertClassicProjectType(project: { id: string; projectType?: string | null }): void {
+  const type = project.projectType ?? "classic";
+  if (type !== "classic") {
+    console.info("[hc-animation-export]", {
+      action: "blocked_wrong_project_type",
+      projectId: project.id,
+      projectType: type,
+    });
+    throw new Error(`Classic export blocked for project type: ${type}`);
+  }
+}
+
 function escapeConcatPath(filePath: string): string {
   return filePath.replace(/'/g, `'\\''`);
 }
@@ -105,7 +117,7 @@ async function resolveTransitionVideoToSegment(
 function runFfmpeg(
   binary: string,
   args: string[],
-  options: { cwd?: string }
+  options: { cwd?: string; timeoutMs?: number }
 ): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, {
@@ -113,6 +125,12 @@ function runFfmpeg(
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
     });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    if (options.timeoutMs && options.timeoutMs > 0) {
+      timeout = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, options.timeoutMs);
+    }
 
     let stderr = "";
     child.stderr?.on("data", (chunk: Buffer) => {
@@ -132,6 +150,9 @@ function runFfmpeg(
     });
 
     child.on("close", (code) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
       resolve({ code: code ?? 1, stderr });
     });
   });
@@ -188,7 +209,7 @@ async function concatAndEncodeFinalMergedVideo(
   }
   videoArgs.push(outputFile);
 
-  const encoded = await runFfmpeg(binary, videoArgs, { cwd: workDir });
+  const encoded = await runFfmpeg(binary, videoArgs, { cwd: workDir, timeoutMs: 10 * 60 * 1000 });
   if (encoded.code === 0) {
     return;
   }
@@ -252,6 +273,7 @@ async function runExternalExportStart(projectId: string, options?: { fromRetry?:
   if (!project) {
     throw new Error("Project not found.");
   }
+  assertClassicProjectType(project);
 
   const latestExport = project.exports[0];
   if (latestExport?.status === "completed" && latestExport.outputVideoUrl?.trim()) {
@@ -480,6 +502,11 @@ export async function startProjectExport(projectId: string) {
     assertExternalMergeConfigured();
   }
   return runExclusiveExport(projectId, async () => {
+    const p = await getAnimationProjectById(projectId);
+    if (!p) {
+      throw new Error("Project not found.");
+    }
+    assertClassicProjectType(p);
     if (mode === "external") {
       return runExternalExportStart(projectId);
     }
@@ -504,6 +531,7 @@ export async function retryProjectExport(projectId: string) {
     if (!project) {
       throw new Error("Project not found.");
     }
+    assertClassicProjectType(project);
 
     const liveLatest = project.exports[0];
     if (liveLatest?.status === "completed" && liveLatest.outputVideoUrl?.trim()) {
@@ -587,6 +615,7 @@ export async function pollProjectExport(projectId: string) {
   if (!project) {
     throw new Error("Project not found.");
   }
+  assertClassicProjectType(project);
 
   /** User-cancelled or other terminal failure: do not auto-restart merge from poll. */
   if (project.status === "failed") {
@@ -648,6 +677,7 @@ async function runLocalProjectExportMerge(projectId: string) {
   if (!project) {
     throw new Error("Project not found.");
   }
+  assertClassicProjectType(project);
 
   const latestExport = project.exports[0];
   if (latestExport?.status === "completed" && latestExport.outputVideoUrl) {
@@ -723,6 +753,14 @@ async function runLocalProjectExportMerge(projectId: string) {
   const publicUrl = publicUrlForFinalVideo(projectId);
 
   try {
+    console.info("[hc-animation-export]", {
+      projectId,
+      exportId: exportRecordId,
+      phase: "merging_clips",
+      progress: 15,
+      clipCount: transitions.length,
+      inputUrls: transitions.length,
+    });
     await assertFfmpegAvailable();
 
     await prisma.animationExport.update({
@@ -739,7 +777,13 @@ async function runLocalProjectExportMerge(projectId: string) {
 
     await prisma.animationExport.update({
       where: { id: exportRecordId },
-      data: { progress: 45 },
+      data: { progress: 65 },
+    });
+    console.info("[hc-animation-export]", {
+      projectId,
+      exportId: exportRecordId,
+      phase: "finalizing",
+      progress: 65,
     });
 
     await concatAndEncodeFinalMergedVideo(
@@ -748,6 +792,18 @@ async function runLocalProjectExportMerge(projectId: string) {
       finalAbs,
       getFinalMergeMaxWidthFromViduResolution(project.viduResolution)
     );
+
+    const stat = await fs.stat(finalAbs).catch(() => null);
+    if (!stat || stat.size <= 0) {
+      throw new Error("Final export file missing or empty after merge.");
+    }
+    console.info("[hc-animation-export]", {
+      projectId,
+      exportId: exportRecordId,
+      phase: "uploading_final",
+      progress: 90,
+      outputBytes: stat.size,
+    });
 
     await prisma.animationExport.update({
       where: { id: exportRecordId },
@@ -763,10 +819,23 @@ async function runLocalProjectExportMerge(projectId: string) {
       where: { id: projectId },
       data: { status: "completed" },
     });
+    console.info("[hc-animation-export]", {
+      projectId,
+      exportId: exportRecordId,
+      phase: "completed",
+      progress: 100,
+    });
 
     await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export merge failed.";
+    console.info("[hc-animation-export]", {
+      projectId,
+      exportId: exportRecordId,
+      phase: "failed",
+      progress: 0,
+      error: message,
+    });
     await prisma.animationExport.update({
       where: { id: exportRecordId },
       data: {

@@ -186,6 +186,12 @@ export function useAnimationWorkflow() {
   const [exportPhaseError, setExportPhaseError] = useState<string | null>(null);
   const [exportProvider, setExportProvider] = useState<string | null>(null);
   const [finalProjectVideoUrl, setFinalProjectVideoUrl] = useState<string | null>(null);
+  const [exportLifecycleStatus, setExportLifecycleStatus] = useState<
+    "queued" | "running" | "finalizing" | "completed" | "failed" | null
+  >(null);
+  const [exportPhase, setExportPhase] = useState<
+    "generating_clips" | "merging_clips" | "uploading_final" | "completed" | "failed" | null
+  >(null);
   const [selectedPresetId, setSelectedPresetId] = useState<AnimationPresetId>("standard");
   const [selectedIntent, setSelectedIntent] = useState<AnimationIntentId>(() =>
     defaultIntentForPreset("standard")
@@ -547,6 +553,8 @@ export function useAnimationWorkflow() {
     const locals = imagesRef.current;
     setProjectStatus(mapProjectStatus(snapshot.status));
     setTransitions(mapSnapshotToTransitions(snapshot, locals));
+    setExportLifecycleStatus(snapshot.exportLifecycleStatus ?? null);
+    setExportPhase(snapshot.exportPhase ?? null);
 
     const latestExport = snapshot.exports[0];
     setExportProvider(latestExport?.provider ?? null);
@@ -1028,6 +1036,8 @@ export function useAnimationWorkflow() {
     setExportPhaseError(null);
     setExportProvider(null);
     setFinalProjectVideoUrl(null);
+    setExportLifecycleStatus(null);
+    setExportPhase(null);
     exportPollFailureCountRef.current = 0;
     exportInitSentForProjectIdRef.current = null;
     setPollLastUpdatedAt(null);
@@ -1576,8 +1586,21 @@ export function useAnimationWorkflow() {
       resetOrchestrationState();
       runIdRef.current += 1;
       setProjectId(rid);
+      const response = await fetch(`/api/animations/projects/${rid}`, {
+        credentials: "include",
+      }).catch(() => null);
+      const snapshot = response && response.ok ? ((await response.json()) as ProjectSnapshotResponse) : null;
+      if (snapshot?.projectType === "instant_premium") {
+        console.info("[hc-instant-premium]", {
+          action: "redirect_from_classic_resume",
+          projectId: rid,
+          projectType: snapshot.projectType,
+        });
+        window.location.replace(`/animate/instant/progress?projectId=${encodeURIComponent(rid)}`);
+        return;
+      }
       setProjectStatus("generating");
-      const synced = await syncFromServerRef.current(rid);
+      const synced = snapshot ? (applySnapshot(snapshot), true) : await syncFromServerRef.current(rid);
       if (!synced) {
         setError(t("errors.pollFailed"));
         resumeBootstrapDoneForIdRef.current = null;
@@ -1586,7 +1609,7 @@ export function useAnimationWorkflow() {
       await startJobsForProjectRef.current(rid);
       window.history.replaceState({}, "", "/animate");
     })();
-  }, []);
+  }, [applySnapshot]);
 
   return {
     images,
@@ -1608,6 +1631,8 @@ export function useAnimationWorkflow() {
     retryExportMergeBusy,
     anyTransitionFailed,
     finalProjectVideoUrl,
+    exportLifecycleStatus,
+    exportPhase,
     exportPhaseError,
     exportPollError,
     transitionPairs,
