@@ -19,12 +19,24 @@ export async function POST(_: Request, context: RouteContext) {
 
   const project = await prisma.animationProject.findUnique({
     where: { id },
-    select: { id: true, ownerId: true, projectType: true },
+    select: {
+      id: true,
+      ownerId: true,
+      projectType: true,
+      instantOutputDurationSeconds: true,
+      instantSelectedChips: true,
+      instantUserIntent: true,
+    },
   });
   if (!project) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
-  if (project.projectType !== "instant_premium") {
+  const instantLike =
+    project.projectType === "instant_premium" ||
+    project.instantOutputDurationSeconds != null ||
+    project.instantSelectedChips != null ||
+    (project.instantUserIntent?.trim().length ?? 0) > 0;
+  if (!instantLike) {
     return NextResponse.json({ error: "Wrong project type." }, { status: 409 });
   }
   if (project.ownerId !== user.id && user.role !== "admin") {

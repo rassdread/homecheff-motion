@@ -38,6 +38,20 @@ export type InstantPremiumStatusResponse = {
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 
+function isInstantLikeProject(project: {
+  projectType?: string | null;
+  instantOutputDurationSeconds?: number | null;
+  instantSelectedChips?: unknown;
+  instantUserIntent?: string | null;
+}): boolean {
+  return (
+    project.projectType === "instant_premium" ||
+    project.instantOutputDurationSeconds != null ||
+    project.instantSelectedChips != null ||
+    (project.instantUserIntent?.trim().length ?? 0) > 0
+  );
+}
+
 function ffmpegBinary(): string {
   return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
 }
@@ -181,9 +195,12 @@ async function mergeInstantProject(projectId: string): Promise<void> {
   await withMergeLock(projectId, async () => {
     const project = await prisma.animationProject.findUnique({
       where: { id: projectId },
-      include: { transitions: { orderBy: { order: "asc" } }, exports: { orderBy: { createdAt: "desc" } } },
+      include: {
+        transitions: { orderBy: { order: "asc" } },
+        exports: { orderBy: { createdAt: "desc" } },
+      },
     });
-    if (!project || project.projectType !== "instant_premium") {
+    if (!project || !isInstantLikeProject(project)) {
       return;
     }
 
@@ -295,7 +312,7 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
       exports: { orderBy: { createdAt: "desc" } },
     },
   });
-  if (!project || project.projectType !== "instant_premium") {
+  if (!project || !isInstantLikeProject(project)) {
     throw new Error("Instant Premium project not found.");
   }
   const total = project.transitions.length;
@@ -352,9 +369,15 @@ export async function recoverExistingInstantProject(projectId: string): Promise<
 export async function retryInstantPremiumMerge(projectId: string): Promise<void> {
   const p = await prisma.animationProject.findUnique({
     where: { id: projectId },
-    select: { id: true, projectType: true },
+    select: {
+      id: true,
+      projectType: true,
+      instantOutputDurationSeconds: true,
+      instantSelectedChips: true,
+      instantUserIntent: true,
+    },
   });
-  if (!p || p.projectType !== "instant_premium") {
+  if (!p || !isInstantLikeProject(p)) {
     throw new Error("Instant Premium project not found.");
   }
   await mergeInstantProject(projectId);
@@ -369,7 +392,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       exports: { orderBy: { createdAt: "desc" } },
     },
   });
-  if (!project || project.projectType !== "instant_premium") {
+  if (!project || !isInstantLikeProject(project)) {
     throw new Error("Instant Premium project not found.");
   }
 
@@ -385,7 +408,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       exports: { orderBy: { createdAt: "desc" } },
     },
   });
-  if (!refreshed || refreshed.projectType !== "instant_premium") {
+  if (!refreshed || !isInstantLikeProject(refreshed)) {
     throw new Error("Instant Premium project not found.");
   }
 
@@ -409,7 +432,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       exports: { orderBy: { createdAt: "desc" } },
     },
   });
-  if (!finalState || finalState.projectType !== "instant_premium") {
+  if (!finalState || !isInstantLikeProject(finalState)) {
     throw new Error("Instant Premium project not found.");
   }
   const latestExport = finalState.exports[0];

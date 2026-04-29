@@ -9,6 +9,9 @@ export type GalleryListPrismaRow = {
   updatedAt: Date;
   status: string;
   projectType?: string | null;
+  instantOutputDurationSeconds?: number | null;
+  instantSelectedChips?: unknown;
+  instantUserIntent?: string | null;
   presetId: string;
   intent: string | null;
   advancedSettingsEnabled: boolean;
@@ -31,6 +34,11 @@ export function mapPrismaRowToAnimationProjectListItem(
   row: GalleryListPrismaRow,
   options: { includeOwnerEmail: boolean }
 ): AnimationProjectListItem {
+  const isInstantLike =
+    row.projectType === "instant_premium" ||
+    row.instantOutputDurationSeconds != null ||
+    row.instantSelectedChips != null ||
+    (row.instantUserIntent?.trim().length ?? 0) > 0;
   const presetId = validateAnimationPresetId(row.presetId)
     ? row.presetId
     : ("standard" as AnimationPresetId);
@@ -63,7 +71,7 @@ export function mapPrismaRowToAnimationProjectListItem(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     status: row.status,
-    projectType: row.projectType ?? "classic",
+    projectType: isInstantLike ? "instant_premium" : "classic",
     presetId: row.presetId,
     intent: row.intent,
     advancedSettingsEnabled: row.advancedSettingsEnabled,
