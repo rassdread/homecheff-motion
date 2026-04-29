@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -36,7 +35,6 @@ function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
 
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
-  const router = useRouter();
   const [projectId] = useState(() => {
     if (typeof window === "undefined") {
       return "";
@@ -82,7 +80,7 @@ export default function InstantPremiumProgressPage() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [projectId, router, t]);
+  }, [projectId, t]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -106,7 +104,11 @@ export default function InstantPremiumProgressPage() {
               {snapshot.errorMessage || t("instant.progress.failedHelp")}
             </div>
           ) : null}
-          <div className="mt-5 space-y-3">
+          <div className="mt-6">
+            <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.segmentsTitle")}</h2>
+            <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentsHelp")}</p>
+          </div>
+          <div className="mt-3 space-y-3">
             {snapshot?.segments.map((segment) => (
               <div key={segment.index} className="rounded-xl border border-zinc-200 p-3">
                 <p className="text-xs font-semibold text-zinc-700">
@@ -125,16 +127,28 @@ export default function InstantPremiumProgressPage() {
                   <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentPending")}</p>
                 )}
                 {segment.error ? <p className="mt-1 text-xs text-red-700">{segment.error}</p> : null}
+                {segment.videoUrl ? (
+                  <div className="mt-2">
+                    <a
+                      href={segment.videoUrl}
+                      download={`homecheff-motion-${projectId}-segment-${segment.index + 1}.mp4`}
+                      className="rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800"
+                    >
+                      {t("instant.progress.downloadSegment")}
+                    </a>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
           {snapshot?.finalVideoUrl ? (
             <div className="mt-5">
+              <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>
               <video
                 controls
                 playsInline
                 preload="metadata"
-                className="max-h-80 w-full rounded-xl border border-zinc-200 bg-black"
+                className="mt-2 max-h-80 w-full rounded-xl border border-zinc-200 bg-black"
               >
                 <source src={snapshot.finalVideoUrl} type="video/mp4" />
               </video>
