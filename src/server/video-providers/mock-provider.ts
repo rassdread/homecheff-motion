@@ -13,6 +13,19 @@ type MockVideoJob = {
 
 const jobStore = new Map<string, MockVideoJob>();
 
+/** `createStartEndVideoJob` encodes `Date.now()` at end of id — survives serverless cold/warm mismatch. */
+function parseMockCreatedAtMs(providerJobId: string): number | null {
+  if (!providerJobId.startsWith("mock-job-")) {
+    return null;
+  }
+  const match = providerJobId.match(/-(\d{10,20})$/);
+  if (!match) {
+    return null;
+  }
+  const ts = Number(match[1]);
+  return Number.isFinite(ts) ? ts : null;
+}
+
 function getElapsedMs(job: MockVideoJob): number {
   return Date.now() - job.createdAtMs;
 }
@@ -59,6 +72,15 @@ export class MockVideoProvider implements VideoProvider {
     const job = jobStore.get(providerJobId);
 
     if (!job) {
+      const createdAtMs = parseMockCreatedAtMs(providerJobId);
+      if (createdAtMs != null) {
+        const synthetic: MockVideoJob = {
+          providerJobId,
+          createdAtMs,
+          transitionId: "",
+        };
+        return deriveStatus(synthetic);
+      }
       return {
         status: "failed",
         progress: 0,

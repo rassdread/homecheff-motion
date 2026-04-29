@@ -590,15 +590,23 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     throw new Error("Instant Premium project not found.");
   }
 
-  let queuedWithoutJobCount = project.transitions.filter(
+  const queuedWithoutJobCount = project.transitions.filter(
     (t) => t.status === "queued" && !t.providerJobId?.trim()
   ).length;
   if (queuedWithoutJobCount > 0) {
-    const started = await startQueuedSegmentsWithoutJob(project.id);
-    queuedWithoutJobCount = Math.max(0, queuedWithoutJobCount - started.startedCount);
+    await startQueuedSegmentsWithoutJob(project.id);
   }
 
-  if (project.status === "queued" || project.status === "generating" || queuedWithoutJobCount > 0) {
+  const anyNonTerminalTransition = project.transitions.some(
+    (t) => t.status !== "completed" && t.status !== "failed"
+  );
+  const needsPoll =
+    anyNonTerminalTransition ||
+    project.status === "queued" ||
+    project.status === "generating" ||
+    project.status === "rendering";
+
+  if (needsPoll) {
     await pollProjectJobs(project.id).catch(() => undefined);
   }
 

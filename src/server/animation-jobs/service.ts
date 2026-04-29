@@ -18,7 +18,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 
-const ACTIVE_TRANSITION_STATUSES = ["queued", "generating"] as const;
+const ACTIVE_TRANSITION_STATUSES = ["queued", "generating", "processing", "rendering"] as const;
 const TERMINAL_TRANSITION_STATUSES = ["completed", "failed"] as const;
 
 const SEQUENCE_SEAM_HINT = `This is part of a continuous sequence. The transformation must match the previous and next steps seamlessly.`;
@@ -170,7 +170,17 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     if (transition.providerJobId?.trim()) {
       return pollTransitionJob(transition.id);
     }
-    if (isTerminalStatus(transition.status) || transition.status === "generating") {
+    if (isTerminalStatus(transition.status)) {
+      return transition;
+    }
+    if (transition.status === "generating" && !transition.providerJobId?.trim()) {
+      await prisma.animationTransition.update({
+        where: { id: transitionId },
+        data: { status: "queued", progress: 0, errorMessage: null },
+      });
+      return startTransitionJob(transitionId);
+    }
+    if (transition.status === "generating") {
       return transition;
     }
   }
