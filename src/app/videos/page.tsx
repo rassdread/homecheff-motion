@@ -27,6 +27,9 @@ function listExportStuckWithoutFinal(item: AnimationProjectListItem): boolean {
 }
 
 function canRetryMergeFromList(item: AnimationProjectListItem): boolean {
+  if ((item.projectType ?? "classic") !== "classic") {
+    return false;
+  }
   if (!item.allTransitionsCompleted) {
     return false;
   }
@@ -471,6 +474,7 @@ export default function VideosPage() {
           const failed = isFailedState(item);
           const processing = isProcessingState(item);
           const isInstant = (item.projectType ?? "classic") === "instant_premium";
+          const isClassic = (item.projectType ?? "classic") === "classic";
           const instantNeedsRecovery =
             isInstant &&
             item.allTransitionsCompleted &&
@@ -669,10 +673,12 @@ export default function VideosPage() {
                         <span className="ml-1 tabular-nums text-zinc-500">({exportProgress}%)</span>
                       ) : null}
                     </p>
-                    {item.status === "rendering" && item.latestExport ? (
+                    {isClassic && item.status === "rendering" && item.latestExport ? (
                       <p className="text-[11px] leading-snug text-zinc-500">{t("videos.mergeStuckHint")}</p>
                     ) : null}
-                    {item.status === "rendering" && exportRecordIsCancellable(item.latestExport) ? (
+                    {isClassic &&
+                    item.status === "rendering" &&
+                    exportRecordIsCancellable(item.latestExport) ? (
                       <button
                         type="button"
                         disabled={cancelExportBusyId === item.id}
@@ -685,7 +691,7 @@ export default function VideosPage() {
                   </div>
                 ) : null}
 
-                {failed || canRetryMergeFromList(item) ? (
+                {isClassic && (failed || canRetryMergeFromList(item)) ? (
                   <div className={`mt-1 text-xs ${failed ? "text-red-700" : "text-amber-950"}`}>
                     {failed ? (
                       <>
