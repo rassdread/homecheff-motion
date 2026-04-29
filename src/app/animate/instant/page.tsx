@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -126,6 +127,7 @@ function SortableThumb({
 }
 
 export default function InstantPremiumPage() {
+  const router = useRouter();
   const session = useAuthSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
@@ -221,7 +223,9 @@ export default function InstantPremiumPage() {
         const maxMb =
           Math.round((getMaxWorkingImageBytesForUploadRole(role) / (1024 * 1024)) * 10) / 10;
         setError(
-          msg.includes("remains too large") ? `Image still too large after processing (max ~${maxMb}MB).` : "Could not process images."
+          msg.includes("too large")
+            ? "Image was too large. We automatically optimized it for you."
+            : `Could not process images (target max ~${maxMb}MB).`
         );
       }
     },
@@ -283,7 +287,19 @@ export default function InstantPremiumPage() {
         credentials: "include",
         body: JSON.stringify(body),
       });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        projectId?: string;
+        skipPayment?: boolean;
+        url?: string;
+        error?: string;
+      };
+      if (data.skipPayment) {
+        if (!data.projectId) {
+          throw new Error("Test mode response did not include projectId.");
+        }
+        router.push(`/animate?resume=${encodeURIComponent(data.projectId)}`);
+        return;
+      }
       if (!res.ok || !data.url) {
         throw new Error(data.error ?? "Checkout could not start.");
       }
@@ -293,7 +309,7 @@ export default function InstantPremiumPage() {
     } finally {
       setCheckoutBusy(false);
     }
-  }, [aspectRatio, chips, durationSec, images, motionText, stylePreset, uploadToBlob]);
+  }, [aspectRatio, chips, durationSec, images, motionText, router, stylePreset, uploadToBlob]);
 
   if (!session.resolved) {
     return (
@@ -608,12 +624,17 @@ export default function InstantPremiumPage() {
             <p className="mt-4 text-xs text-zinc-500">
               Secure checkout with Stripe. After payment you&apos;ll return here, then we open the progress screen.
             </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              If test mode is enabled on the server, payment is skipped automatically.
+            </p>
             <div className="mt-6 flex flex-col gap-3">
               <button type="button" className="w-full rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(6)}>
                 Back
               </button>
               <GradientButton type="button" className="w-full" disabled={checkoutBusy} onClick={() => void startCheckout()}>
-                {checkoutBusy ? "Preparing…" : `Pay ${durationSec === 8 ? "€1.99" : "€2.99"} with Stripe`}
+                {checkoutBusy
+                  ? "Preparing…"
+                  : `Pay ${durationSec === 8 ? "€1.99" : "€2.99"} with Stripe / Generate video (test mode)`}
               </GradientButton>
             </div>
           </AppCard>

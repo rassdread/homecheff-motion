@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getPublicOrigin } from "@/lib/public-origin";
 import { assertStripeSecretKeyConfigured, getStripeClient } from "@/lib/stripe-server";
 import { prisma } from "@/lib/prisma";
-import { validateInstantPremiumCreatePayload } from "@/server/instant-premium/create-instant-premium-project";
+import {
+  createInstantPremiumAnimationProject,
+  validateInstantPremiumCreatePayload,
+} from "@/server/instant-premium/create-instant-premium-project";
+import { startProjectJobs } from "@/server/animation-jobs/service";
 import { requireActiveUser } from "@/server/auth/permissions";
 
 export async function POST(request: Request) {
@@ -21,6 +25,34 @@ export async function POST(request: Request) {
   const validated = validateInstantPremiumCreatePayload(body);
   if (!validated.ok) {
     return NextResponse.json({ error: validated.error }, { status: validated.status });
+  }
+
+  const skipPayment = process.env.SKIP_PAYMENT === "true";
+  if (skipPayment) {
+    const created = await createInstantPremiumAnimationProject(user.id, validated.data);
+    if (!created.ok) {
+      return NextResponse.json({ error: created.error }, { status: created.status });
+    }
+
+    try {
+      await startProjectJobs(created.projectId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start jobs.";
+      return NextResponse.json(
+        { error: message, projectId: created.projectId, skipPayment: true, jobsStarted: false },
+        { status: 200 }
+      );
+    }
+
+    console.info("[hc-instant-video]", {
+      phase: "skip_payment_enabled",
+      projectId: created.projectId,
+    });
+
+    return NextResponse.json(
+      { projectId: created.projectId, skipPayment: true, jobsStarted: true },
+      { status: 200 }
+    );
   }
 
   try {

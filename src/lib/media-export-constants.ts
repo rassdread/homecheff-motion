@@ -5,14 +5,14 @@
 
 // --- Client image preprocess + upload API (working vs thumbnail) ---
 
-/** Default working image cap for normal users (after client-side compress). */
-export const BLOB_IMAGE_WORKING_MAX_BYTES_USER = 2 * 1024 * 1024;
+/** Default working image cap for normal users (after client-side/server-side compress). */
+export const BLOB_IMAGE_WORKING_MAX_BYTES_USER = 4 * 1024 * 1024;
 
 /** Higher cap for admin / power (optional). */
 export const BLOB_IMAGE_WORKING_MAX_BYTES_POWER = 4 * 1024 * 1024;
 
 /** Longest side (px) for the working image before byte-budget pass. */
-export const BLOB_IMAGE_WORKING_MAX_LONGEST_SIDE_START = 1536;
+export const BLOB_IMAGE_WORKING_MAX_LONGEST_SIDE_START = 1280;
 
 /** Thumbnail byte budget (100–200KB range; upper bound). */
 export const BLOB_IMAGE_THUMB_MAX_BYTES = 200 * 1024;

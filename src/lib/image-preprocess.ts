@@ -5,11 +5,11 @@ import {
   getMaxWorkingImageBytesForUploadRole,
 } from "@/lib/media-export-constants";
 
-const TARGET_QUALITY_START = 0.82;
-const QUALITY_FLOOR = 0.56;
+const TARGET_QUALITY_START = 0.8;
+const QUALITY_FLOOR = 0.4;
 const QUALITY_STEP = 0.06;
 const SIDE_SCALE = 0.88;
-const ABS_MIN_LONGEST_SIDE = 960;
+const ABS_MIN_LONGEST_SIDE = 1024;
 const EMERGENCY_MIN_LONGEST_SIDE = 720;
 const MAX_ENCODE_ATTEMPTS = 28;
 
@@ -43,10 +43,7 @@ type PreprocessedImage = {
   naturalHeight: number;
 };
 
-function getOutputMimeType(inputMimeType: string): "image/webp" | "image/jpeg" {
-  if (inputMimeType === "image/png" || inputMimeType === "image/webp") {
-    return "image/webp";
-  }
+function getOutputMimeType(): "image/jpeg" {
   return "image/jpeg";
 }
 
@@ -129,7 +126,7 @@ async function renderBlobOnce(
  */
 async function encodeUnderByteBudget(
   image: HTMLImageElement,
-  outputMimeType: "image/webp" | "image/jpeg",
+  outputMimeType: "image/jpeg",
   options: {
     maxLongestSideStart: number;
     maxBytes: number;
@@ -172,7 +169,7 @@ async function encodeUnderByteBudget(
     }
   }
 
-  throw new Error("Image remains too large after compression");
+  throw new Error("Image was too large. We automatically optimized it for you.");
 }
 
 export async function preprocessImageFile(
@@ -180,7 +177,7 @@ export async function preprocessImageFile(
   options: ClientImagePreprocessOptions = defaultClientImagePreprocessOptions()
 ): Promise<PreprocessedImage> {
   const image = await loadImageElement(file);
-  const outputMimeType = getOutputMimeType(file.type);
+  const outputMimeType = getOutputMimeType();
 
   const optimizedBlob = await encodeUnderByteBudget(image, outputMimeType, {
     maxLongestSideStart: options.maxWorkingLongestSideStart,

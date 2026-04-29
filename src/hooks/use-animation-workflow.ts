@@ -6,7 +6,6 @@ import {
   preprocessImageFile,
 } from "@/lib/image-preprocess";
 import type { AuthSessionApiPayload } from "@/lib/auth-session-client";
-import { getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
 import {
   CREDIT_USD,
   estimateProjectCredits,
@@ -998,14 +997,9 @@ export function useAnimationWorkflow() {
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        const maxMb =
-          Math.round(
-            (getMaxWorkingImageBytesForUploadRole(imageCompressionRoleRef.current) / (1024 * 1024)) *
-              10
-          ) / 10;
         setError(
-          msg.includes("remains too large")
-            ? t("errors.optimizedTooLarge", { max: maxMb })
+          msg.includes("too large")
+            ? "Image was too large. We automatically optimized it for you."
             : t("errors.imageProcessFailed")
         );
         event.target.value = "";
