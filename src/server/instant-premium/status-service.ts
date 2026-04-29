@@ -4,7 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
-import { pollProjectJobs } from "@/server/animation-jobs/service";
+import {
+  pollProjectJobs,
+  startQueuedSegmentsWithoutJob,
+} from "@/server/animation-jobs/service";
 import { getVideoProvider } from "@/server/video-providers";
 import {
   FINAL_MERGE_DISABLE_AUDIO,
@@ -36,6 +39,7 @@ export type InstantPremiumStatusResponse = {
   downloadable: boolean;
   errorMessage: string | null;
   missingSegments?: number[];
+  queuedWithoutJobCount?: number;
 };
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
@@ -586,7 +590,15 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     throw new Error("Instant Premium project not found.");
   }
 
-  if (project.status === "queued" || project.status === "generating") {
+  let queuedWithoutJobCount = project.transitions.filter(
+    (t) => t.status === "queued" && !t.providerJobId?.trim()
+  ).length;
+  if (queuedWithoutJobCount > 0) {
+    const started = await startQueuedSegmentsWithoutJob(project.id);
+    queuedWithoutJobCount = Math.max(0, queuedWithoutJobCount - started.startedCount);
+  }
+
+  if (project.status === "queued" || project.status === "generating" || queuedWithoutJobCount > 0) {
     await pollProjectJobs(project.id).catch(() => undefined);
   }
 
@@ -606,9 +618,14 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     refreshed.transitions.length > 0 &&
     refreshed.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
   console.info("[hc-instant-premium]", {
+    action: "status_orchestrate",
     projectId,
-    phase: "poll_status",
-    allSegmentsCompleted: transitionsCompleted ? refreshed.transitions.length : 0,
+    queuedWithoutJobCount: refreshed.transitions.filter(
+      (t) => t.status === "queued" && !t.providerJobId?.trim()
+    ).length,
+    generatingCount: refreshed.transitions.filter((t) => t.status === "generating").length,
+    completedCount: refreshed.transitions.filter((t) => t.status === "completed").length,
+    mergeEligible: transitionsCompleted,
   });
   if (transitionsCompleted) {
     await mergeInstantProject(projectId);
@@ -706,5 +723,8 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     missingSegments: finalState.transitions
       .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
       .map((t) => t.order),
+    queuedWithoutJobCount: finalState.transitions.filter(
+      (t) => t.status === "queued" && !t.providerJobId?.trim()
+    ).length,
   };
 }

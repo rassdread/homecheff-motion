@@ -1,3 +1,4 @@
+import type { AnimationTransition } from "@prisma/client";
 import { resolveGlobalPromptContext } from "@/lib/animation-global-prompt-context";
 import { ANIMATION_INTENTS, normalizeAnimationIntent } from "@/lib/animation-intents";
 import {
@@ -143,7 +144,12 @@ function resolveProviderJobSettings(project: {
   };
 }
 
-export async function startTransitionJob(transitionId: string) {
+export async function startTransitionJob(transitionId: string): Promise<AnimationTransition> {
+  const claimed = await prisma.animationTransition.updateMany({
+    where: { id: transitionId, status: "queued", providerJobId: null },
+    data: { status: "generating", progress: 1, errorMessage: null },
+  });
+
   const transition = await prisma.animationTransition.findUnique({
     where: { id: transitionId },
     include: {
@@ -159,6 +165,14 @@ export async function startTransitionJob(transitionId: string) {
 
   if (!transition) {
     throw new Error("Transition not found.");
+  }
+  if (claimed.count === 0) {
+    if (transition.providerJobId?.trim()) {
+      return pollTransitionJob(transition.id);
+    }
+    if (isTerminalStatus(transition.status) || transition.status === "generating") {
+      return transition;
+    }
   }
 
   const [startImage, endImage] = await Promise.all([
@@ -231,6 +245,15 @@ export async function startTransitionJob(transitionId: string) {
       providerResolution: jobSettings.providerResolution,
       providerDurationSeconds: jobSettings.providerDurationSeconds,
     });
+    console.info("[hc-instant-premium]", {
+      action: "start_queued_segment",
+      projectId: transition.projectId,
+      transitionId: transition.id,
+      segmentIndex: transition.order,
+      providerJobId: providerResult.providerJobId,
+      statusBefore: "queued",
+      statusAfter: providerResult.status,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Video provider create failed.";
     await prisma.animationTransition.update({
@@ -240,6 +263,13 @@ export async function startTransitionJob(transitionId: string) {
         errorMessage: message,
         provider: getSelectedAnimationProviderId(),
       },
+    });
+    console.info("[hc-instant-premium]", {
+      action: "provider_start_failed",
+      projectId: transition.projectId,
+      transitionId: transition.id,
+      segmentIndex: transition.order,
+      error: message,
     });
     throw new Error(message);
   }
@@ -260,7 +290,7 @@ export async function startTransitionJob(transitionId: string) {
   return updatedTransition;
 }
 
-export async function pollTransitionJob(transitionId: string) {
+export async function pollTransitionJob(transitionId: string): Promise<AnimationTransition> {
   const transition = await prisma.animationTransition.findUnique({
     where: { id: transitionId },
   });
@@ -326,6 +356,30 @@ export async function startProjectJobs(projectId: string) {
     projectId: project.id,
     startedCount: startedTransitions.length,
   };
+}
+
+export async function startQueuedSegmentsWithoutJob(projectId: string): Promise<{
+  projectId: string;
+  queuedWithoutJobCount: number;
+  startedCount: number;
+}> {
+  const queued = await prisma.animationTransition.findMany({
+    where: { projectId, status: "queued", providerJobId: null },
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+  let startedCount = 0;
+  for (const tr of queued) {
+    try {
+      const updated = await startTransitionJob(tr.id);
+      if (updated.providerJobId?.trim()) {
+        startedCount += 1;
+      }
+    } catch {
+      // errors are persisted in transition row by startTransitionJob
+    }
+  }
+  return { projectId, queuedWithoutJobCount: queued.length, startedCount };
 }
 
 export async function pollProjectJobs(projectId: string) {

@@ -294,4 +294,5 @@ export type InstantPremiumStatusResponse = {
   downloadable: boolean;
   errorMessage: string | null;
   missingSegments?: number[];
+  queuedWithoutJobCount?: number;
 };

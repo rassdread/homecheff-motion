@@ -540,6 +540,8 @@ export const nl = {
   "instant.progress.segmentPending": "Nog bezig met genereren…",
   "instant.progress.segmentsTitle": "Gegenereerde clips",
   "instant.progress.segmentsHelp": "Deze clip-previews blijven zichtbaar na merge en na verversen.",
+  "instant.progress.waitingToStart": "Generatie start nog niet. Je kunt de wachtrij-segmenten handmatig starten.",
+  "instant.progress.startQueuedSegments": "Wachtrij-segmenten starten",
   "instant.progress.downloadSegment": "Clip downloaden",
   "instant.progress.finalVideoTitle": "Eindvideo",
   "instant.progress.download": "Video downloaden",

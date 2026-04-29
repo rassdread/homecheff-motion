@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
+import { prisma } from "@/lib/prisma";
 import {
   createInstantPremiumAnimationProject,
   validateInstantPremiumCreatePayload,
@@ -45,6 +46,14 @@ export async function POST(request: Request) {
   }
 
   let jobTriggered = true;
+  let transitionCount = 0;
+  try {
+    transitionCount = await prisma.animationTransition.count({
+      where: { projectId: created.projectId },
+    });
+  } catch {
+    transitionCount = 0;
+  }
   try {
     await startProjectJobs(created.projectId);
   } catch {
@@ -53,9 +62,11 @@ export async function POST(request: Request) {
 
   console.info("[hc-instant-premium]", {
     mode,
-    action: "generate_without_payment",
+    action: "create_and_generate",
     projectId: created.projectId,
-    jobTriggered,
+    transitionCount,
+    orchestratorCalled: true,
+    jobTriggered: jobTriggered,
   });
 
   return NextResponse.json(

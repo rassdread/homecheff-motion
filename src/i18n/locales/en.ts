@@ -538,6 +538,8 @@ export const en: LocaleSchema = {
   "instant.progress.segmentPending": "Still generating…",
   "instant.progress.segmentsTitle": "Generated clips",
   "instant.progress.segmentsHelp": "These clip previews stay visible after merge and after refresh.",
+  "instant.progress.waitingToStart": "Still waiting to start generation. You can try starting queued segments.",
+  "instant.progress.startQueuedSegments": "Start queued segments",
   "instant.progress.downloadSegment": "Download clip",
   "instant.progress.finalVideoTitle": "Final video",
   "instant.progress.download": "Download video",

@@ -44,12 +44,25 @@ export default function InstantPremiumProgressPage() {
   const [snapshot, setSnapshot] = useState<InstantPremiumStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [startBusy, setStartBusy] = useState(false);
+  const [queuedSinceMs, setQueuedSinceMs] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState(0);
   const missingProjectIdError = !projectId ? t("instant.errors.missingProjectId") : null;
 
   const progress = useMemo(() => {
     if (!snapshot) return 8;
     return Math.max(8, snapshot.progressPercent);
   }, [snapshot]);
+  const queuedWithoutJob = snapshot?.queuedWithoutJobCount ?? 0;
+  const waitingForStartTooLong =
+    queuedSinceMs != null && queuedWithoutJob > 0 && nowMs - queuedSinceMs > 60_000;
+
+  useEffect(() => {
+    const tick = () => setNowMs(new Date().getTime());
+    tick();
+    const timer = window.setInterval(tick, 2000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!projectId) return;
@@ -71,6 +84,11 @@ export default function InstantPremiumProgressPage() {
       if (cancelled) return;
       setSnapshot(data);
       setError(null);
+      if ((data.queuedWithoutJobCount ?? 0) > 0) {
+        setQueuedSinceMs((prev) => prev ?? Date.now());
+      } else {
+        setQueuedSinceMs(null);
+      }
       if (data.status !== "completed" && data.status !== "failed") {
         timer = setTimeout(() => void tick(), 2500);
       }
@@ -101,6 +119,45 @@ export default function InstantPremiumProgressPage() {
 
           {missingProjectIdError ? <p className="mt-4 text-sm text-red-700">{missingProjectIdError}</p> : null}
           {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+          {waitingForStartTooLong ? (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <p>{t("instant.progress.waitingToStart")}</p>
+              <p className="mt-1 font-mono text-[11px]">
+                queuedWithoutJobCount={queuedWithoutJob}
+              </p>
+              <button
+                type="button"
+                disabled={startBusy}
+                className="mt-2 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-900 disabled:opacity-60"
+                onClick={() => {
+                  setStartBusy(true);
+                  void (async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/instant-premium/projects/${projectId}/segments/start`,
+                        { method: "POST", credentials: "include" }
+                      );
+                      const body = (await res.json().catch(() => ({}))) as {
+                        error?: string;
+                        status?: InstantPremiumStatusResponse;
+                      };
+                      if (!res.ok) {
+                        setError(body.error ?? t("instant.progress.retryFailed"));
+                        return;
+                      }
+                      if (body.status) {
+                        setSnapshot(body.status);
+                      }
+                    } finally {
+                      setStartBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {startBusy ? t("instant.step7.preparing") : t("instant.progress.startQueuedSegments")}
+              </button>
+            </div>
+          ) : null}
           {snapshot?.status === "failed" ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
               {snapshot.errorMessage || t("instant.progress.failedHelp")}
