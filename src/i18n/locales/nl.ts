@@ -557,6 +557,9 @@ export const nl = {
   "instant.bakedText.adminPreviewLabel": "Admin mask-preview",
   "instant.bakedText.openMaskedPreview": "Open gemaskeerde preview",
   "instant.bakedText.previewFailed": "Mask-preview genereren mislukt.",
+  "instant.preflight.failed": "Tekstcontrole voor render is mislukt. Probeer opnieuw.",
+  "instant.preflight.blockMessage":
+    "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.",
   "instant.chip.slow_zoom_in": "Langzame zoom-in",
   "instant.chip.cinematic_soft": "Cinematic zachte beweging",
   "instant.chip.subtle_pan": "Subtiele pan-beweging",

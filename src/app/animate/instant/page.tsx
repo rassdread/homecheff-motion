@@ -202,6 +202,7 @@ export default function InstantPremiumPage() {
   const [step, setStep] = useState(1);
   const [images, setImages] = useState<LocalImage[]>([]);
   const [error, setError] = useState("");
+  const [preflightNotice, setPreflightNotice] = useState("");
   const [stylePreset, setStylePreset] = useState<InstantPremiumStylePreset>("food_promo");
   const [durationSec, setDurationSec] = useState<8 | 15>(8);
   const [motionText, setMotionText] = useState("");
@@ -475,6 +476,7 @@ export default function InstantPremiumPage() {
     }
     setCheckoutBusy(true);
     setError("");
+    setPreflightNotice("");
     try {
       const uploaded: CreateAnimationProjectImageInput[] = [];
       for (const img of images) {
@@ -545,6 +547,30 @@ export default function InstantPremiumPage() {
         lockedTextLayers: explicitLayers,
         chipTextBySlot,
       };
+
+      const preflightRes = await fetch("/api/instant-premium/preflight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const preflightData = (await preflightRes.json().catch(() => ({}))) as {
+        ok?: boolean;
+        blockMessage?: string;
+        error?: string;
+        warnings?: string[];
+      };
+      if (!preflightRes.ok) {
+        throw new Error(
+          preflightData.blockMessage ??
+            preflightData.error ??
+            t("instant.preflight.failed")
+        );
+      }
+      if (preflightData.warnings && preflightData.warnings.length > 0) {
+        setPreflightNotice(preflightData.warnings.join(" "));
+      }
+
       if (premiumMode === "test") {
         const testResponse = await fetch("/api/instant-premium/create-and-generate", {
           method: "POST",
@@ -700,6 +726,12 @@ export default function InstantPremiumPage() {
         {error ? (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {error}
+          </p>
+        ) : null}
+
+        {preflightNotice ? (
+          <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {preflightNotice}
           </p>
         ) : null}
 

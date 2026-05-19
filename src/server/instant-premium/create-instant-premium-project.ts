@@ -23,6 +23,7 @@ import {
 } from "@/lib/instant-premium-prompt";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
+import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
@@ -245,6 +246,15 @@ export async function createInstantPremiumAnimationProject(
   const renderingGuard = await guardInstantPremiumVideoRendering(validated.data);
   if (!renderingGuard.ok) {
     return { ok: false, error: renderingGuard.error, status: renderingGuard.status };
+  }
+
+  const preflight = await runInstantPremiumTextPreflight(validated.data);
+  if (!preflight.ok) {
+    return {
+      ok: false,
+      error: preflight.blockMessage,
+      status: preflight.code === "PREFLIGHT_UNAVAILABLE" ? 503 : 422,
+    };
   }
 
   const {

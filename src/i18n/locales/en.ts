@@ -552,6 +552,9 @@ export const en: LocaleSchema = {
   "instant.bakedText.adminPreviewLabel": "Admin mask preview",
   "instant.bakedText.openMaskedPreview": "Open masked preview",
   "instant.bakedText.previewFailed": "Could not generate mask preview.",
+  "instant.preflight.failed": "Pre-render text check failed. Please try again.",
+  "instant.preflight.blockMessage":
+    "This image contains text that may distort. Scan and confirm text first.",
   "instant.chip.slow_zoom_in": "Slow zoom in",
   "instant.chip.cinematic_soft": "Cinematic soft motion",
   "instant.chip.subtle_pan": "Subtle pan movement",

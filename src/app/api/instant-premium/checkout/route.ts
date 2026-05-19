@@ -6,6 +6,10 @@ import { prisma } from "@/lib/prisma";
 import {
   validateInstantPremiumCreatePayload,
 } from "@/server/instant-premium/create-instant-premium-project";
+import {
+  instantPreflightHttpStatus,
+  runInstantPremiumTextPreflight,
+} from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
 import { requireActiveUser } from "@/server/auth/permissions";
 
@@ -43,6 +47,19 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: renderingGuard.error, code: renderingGuard.code },
       { status: renderingGuard.status }
+    );
+  }
+
+  const preflight = await runInstantPremiumTextPreflight(validated.data);
+  if (!preflight.ok) {
+    return NextResponse.json(
+      {
+        error: preflight.blockMessage,
+        code: preflight.code,
+        blockMessage: preflight.blockMessage,
+        warnings: preflight.warnings,
+      },
+      { status: instantPreflightHttpStatus(preflight) }
     );
   }
 
