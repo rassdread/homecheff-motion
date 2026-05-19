@@ -11,6 +11,7 @@ import type {
   AnimationProjectListItem,
   AnimationProjectListResponse,
 } from "@/types/animation-api";
+import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
@@ -608,10 +609,8 @@ export default function VideosPage() {
                         {expandedFragmentProjectId === item.id ? t("videos.closePlayer") : t("videos.play")}
                       </button>
                       <a
-                        href={fragmentUrl}
+                        href={animationProjectDownloadUrl(item.id, { segmentOrder: 0 })}
                         download
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
                       >
                         {t("videos.download")}
@@ -663,16 +662,13 @@ export default function VideosPage() {
                         {expandedVideoId === item.id ? t("videos.closePlayer") : t("videos.play")}
                       </button>
                       <a
-                        href={finalUrl}
+                        href={animationProjectDownloadUrl(item.id)}
                         download
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
                       >
                         {t("videos.download")}
                       </a>
                     </div>
-                    <p className="text-[11px] leading-snug text-zinc-500">{t("videos.downloadHint")}</p>
                   </div>
                 ) : null}
 

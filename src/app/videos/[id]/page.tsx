@@ -15,6 +15,7 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
+import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 
@@ -418,10 +419,8 @@ export default function VideoDetailPage() {
           ) : null}
           <div className="flex flex-wrap gap-2">
             <a
-              href={finalVideoUrl}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
+              href={animationProjectDownloadUrl(id)}
+              download={`homecheff-motion-${id}.mp4`}
               className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
             >
               {t("videos.download")}
@@ -435,7 +434,6 @@ export default function VideoDetailPage() {
               {t("videos.open")}
             </a>
           </div>
-          <p className="text-xs leading-relaxed text-zinc-500">{t("videos.downloadHint")}</p>
         </div>
       ) : (
         <div className="mt-4 space-y-3">
@@ -623,10 +621,8 @@ export default function VideoDetailPage() {
                           {t("videos.open")}
                         </a>
                         <a
-                          href={clipUrl}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={animationProjectDownloadUrl(id, { segmentOrder: tr.order })}
+                          download={`homecheff-motion-${id}-segment-${tr.order + 1}.mp4`}
                           className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
                         >
                           {t("videos.download")}

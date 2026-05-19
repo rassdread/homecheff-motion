@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
+import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
@@ -192,7 +193,7 @@ export default function InstantPremiumProgressPage() {
                 {segment.videoUrl ? (
                   <div className="mt-2">
                     <a
-                      href={segment.videoUrl}
+                      href={animationProjectDownloadUrl(projectId, { segmentOrder: segment.index })}
                       download={`homecheff-motion-${projectId}-segment-${segment.index + 1}.mp4`}
                       className="rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800"
                     >
@@ -216,7 +217,7 @@ export default function InstantPremiumProgressPage() {
               </video>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <a
-                  href={snapshot.finalVideoUrl}
+                  href={animationProjectDownloadUrl(projectId)}
                   download={`homecheff-motion-${projectId}.mp4`}
                   className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900"
                 >
