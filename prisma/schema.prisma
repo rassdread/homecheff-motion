@@ -70,6 +70,16 @@ model AnimationImage {
   sizeBytes  Int?
   storageKey String?
   previewUrl String?
+  /** True when user marked uploaded photo as containing fixed baked-in text. */
+  hasBakedText Boolean @default(false)
+  /** none | detected | confirmed | masked | skipped */
+  bakedTextProtectionStatus String @default("none")
+  /** User-entered exact copy from the source image (when protected). */
+  bakedTextExactCopy String?
+  /** Normalized mask rectangle JSON for text band. */
+  bakedTextMaskRegion Json?
+  /** Text-safe frame URL sent to Vidu instead of previewUrl when protection is active. */
+  viduInputUrl String?
   createdAt  DateTime         @default(now())
 
   @@index([projectId, order])

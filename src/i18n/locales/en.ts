@@ -492,7 +492,7 @@ export const en: LocaleSchema = {
   "instant.textChip.menuLabel": "Menu label",
   "instant.lockedText.title": "Locked animated text",
   "instant.lockedText.warning":
-    "For clean results, HomeCheff locks text as an animation layer so AI cannot rewrite or translate it.",
+    "For clean results, HomeCheff locks text as an overlay after generation. Text baked into uploaded photos needs Baked-in text protection (step 2)—prompt-only cannot preserve it.",
   "instant.lockedText.enabled": "On",
   "instant.lockedText.layer": "Layer",
   "instant.lockedText.remove": "Remove",
@@ -513,6 +513,24 @@ export const en: LocaleSchema = {
   "instant.lockedText.anim.letterPop": "Letter pop",
   "instant.lockedText.anim.wordByWord": "Word by word",
   "instant.lockedText.anim.scaleIn": "Scale in",
+  "instant.bakedText.title": "Baked-in text in photos",
+  "instant.bakedText.intro":
+    "Text already printed on your uploaded image must not be sent to the video AI. Enable protection to mask it before generation and render the exact wording as a locked overlay afterward.",
+  "instant.bakedText.promptOnlyWarning":
+    "Prompt-only instructions cannot preserve baked-in text. Without protection, the model may distort, translate, or invent new letters.",
+  "instant.bakedText.image": "Image",
+  "instant.bakedText.enable":
+    "This image contains fixed text that must stay exactly the same.",
+  "instant.bakedText.exactTextLabel": "Exact text shown in the photo",
+  "instant.bakedText.exactTextPlaceholder": "Type the exact characters, spelling, and emoji…",
+  "instant.bakedText.position": "Approximate text position",
+  "instant.bakedText.posTop": "Top",
+  "instant.bakedText.posCenter": "Center",
+  "instant.bakedText.posBottom": "Bottom",
+  "instant.bakedText.maskHint":
+    "We blur/cover that band on a text-safe copy for the video AI. Your original upload stays visible here in the wizard.",
+  "instant.bakedText.skipHint": "Leave unchecked if the image has no readable text to protect.",
+  "instant.bakedText.errorExactText": "Image {index}: enter the exact text when baked text protection is enabled.",
   "instant.chip.slow_zoom_in": "Slow zoom in",
   "instant.chip.cinematic_soft": "Cinematic soft motion",
   "instant.chip.subtle_pan": "Subtle pan movement",

@@ -494,7 +494,7 @@ export const nl = {
   "instant.textChip.menuLabel": "Menulabel",
   "instant.lockedText.title": "Vergrendelde geanimeerde tekst",
   "instant.lockedText.warning":
-    "Voor schone resultaten vergrendelt HomeCheff tekst als animatielaag, zodat AI de tekst niet kan herschrijven of vertalen.",
+    "Voor schone resultaten vergrendelt HomeCheff tekst als overlay na generatie. Vaste tekst op geüploade foto's vereist bescherming in stap 2—alleen een prompt is niet genoeg.",
   "instant.lockedText.enabled": "Aan",
   "instant.lockedText.layer": "Laag",
   "instant.lockedText.remove": "Verwijderen",
@@ -515,6 +515,25 @@ export const nl = {
   "instant.lockedText.anim.letterPop": "Letter-pop",
   "instant.lockedText.anim.wordByWord": "Woord voor woord",
   "instant.lockedText.anim.scaleIn": "Scale-in",
+  "instant.bakedText.title": "Vaste tekst op foto's",
+  "instant.bakedText.intro":
+    "Tekst die al op je geüploade afbeelding staat mag niet rechtstreeks naar de video-AI. Zet bescherming aan om die zone te maskeren vóór generatie en de exacte tekst daarna als vergrendelde overlay te tonen.",
+  "instant.bakedText.promptOnlyWarning":
+    "Alleen een prompt kan vaste tekst op foto's niet betrouwbaar behouden. Zonder bescherming kan het model tekst vervormen, vertalen of nieuwe letters verzinnen.",
+  "instant.bakedText.image": "Afbeelding",
+  "instant.bakedText.enable":
+    "Deze afbeelding bevat vaste tekst die exact hetzelfde moet blijven.",
+  "instant.bakedText.exactTextLabel": "Exacte tekst op de foto",
+  "instant.bakedText.exactTextPlaceholder": "Typ exact dezelfde tekens, spelling en emoji…",
+  "instant.bakedText.position": "Geschatte tekstpositie",
+  "instant.bakedText.posTop": "Boven",
+  "instant.bakedText.posCenter": "Midden",
+  "instant.bakedText.posBottom": "Onder",
+  "instant.bakedText.maskHint":
+    "We vervagen/afdekken dat vlak op een tekst-veilige kopie voor de video-AI. Je originele upload blijft hier in de wizard zichtbaar.",
+  "instant.bakedText.skipHint": "Laat uit als de afbeelding geen leesbare tekst heeft om te beschermen.",
+  "instant.bakedText.errorExactText":
+    "Afbeelding {index}: vul de exacte tekst in wanneer vaste-tekstbescherming aan staat.",
   "instant.chip.slow_zoom_in": "Langzame zoom-in",
   "instant.chip.cinematic_soft": "Cinematic zachte beweging",
   "instant.chip.subtle_pan": "Subtiele pan-beweging",

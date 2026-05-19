@@ -22,6 +22,7 @@ import {
   type InstantPremiumDurationSeconds,
 } from "@/lib/instant-premium-prompt";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
+import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
@@ -280,12 +281,31 @@ export async function createInstantPremiumAnimationProject(
     transitionCount * perTransition * preset.estimatedCreditsPerSecond;
 
   const chipsJson = chips.length > 0 ? (chips as unknown as Prisma.InputJsonValue) : undefined;
-  const lockedLayers = validated.data.lockedTextLayers ?? [];
+  const totalDurationMs = durationResolved * 1000;
+
+  const imagePrep = await prepareInstantImagesWithBakedTextProtection(images, {
+    uploadPathPrefix: `motion/instant-baked/${ownerId}`,
+    totalDurationMs,
+  });
+  if (!imagePrep.ok) {
+    return { ok: false, error: imagePrep.error, status: 400 };
+  }
+
+  const lockedLayers = mergeLockedTextLayers(
+    validated.data.lockedTextLayers ?? [],
+    imagePrep.extraLockedLayers
+  );
+  const layerCheck = validateLockedTextLayersForCreate(lockedLayers, totalDurationMs);
+  if (!layerCheck.ok) {
+    return { ok: false, error: layerCheck.error, status: 400 };
+  }
+  const preparedImages = imagePrep.images;
+  const hasBakedMasked = preparedImages.some((img) => img.bakedTextProtectionStatus === "masked");
+  const lockedTextMode = validated.data.lockedTextMode !== false || hasBakedMasked;
   const lockedLayersJson =
-    lockedLayers.length > 0
-      ? (lockedTextLayersForStorage(lockedLayers) as unknown as Prisma.InputJsonValue)
+    layerCheck.layers.length > 0
+      ? (lockedTextLayersForStorage(layerCheck.layers) as unknown as Prisma.InputJsonValue)
       : undefined;
-  const lockedTextMode = validated.data.lockedTextMode !== false;
 
   const viduModel = preset.model;
   const viduResolution = preset.resolution;
@@ -317,7 +337,7 @@ export async function createInstantPremiumAnimationProject(
       });
 
       const createdImages = await Promise.all(
-        images.map((image, index) =>
+        preparedImages.map((image, index) =>
           tx.animationImage.create({
             data: {
               projectId: project.id,
@@ -327,6 +347,11 @@ export async function createInstantPremiumAnimationProject(
               sizeBytes: image.sizeBytes,
               previewUrl: image.previewUrl,
               storageKey: image.storageKey ?? image.workingImageUrl,
+              hasBakedText: image.hasBakedText,
+              bakedTextProtectionStatus: image.bakedTextProtectionStatus,
+              bakedTextExactCopy: image.bakedTextExactCopy,
+              bakedTextMaskRegion: image.bakedTextMaskRegion ?? undefined,
+              viduInputUrl: image.viduInputUrl,
             },
           })
         )

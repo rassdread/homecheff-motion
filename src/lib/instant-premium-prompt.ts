@@ -6,6 +6,7 @@ export type InstantPremiumDurationSeconds = 8 | 15;
 export type InstantPremiumContinuityStrength = "balanced" | "strict";
 
 /** Stable ids sent from client / stored in DB */
+import { BAKED_TEXT_CLEANED_PROMPT_BLOCK } from "@/lib/baked-text-protection";
 import {
   filterVisualOnlyChips,
   LOCKED_TEXT_SAFETY_BLOCK,
@@ -98,6 +99,8 @@ export type BuildInstantVideoPromptInput = {
   continuityStrength?: InstantPremiumContinuityStrength;
   /** When true (default for instant premium), append Vidu text-safety rules. */
   lockedTextMode?: boolean;
+  /** When true, source images had baked-in text masked before Vidu. */
+  bakedTextProtectionActive?: boolean;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -184,6 +187,12 @@ The final result should feel like a polished, premium, ready-to-use social media
       ? `
 
 ${LOCKED_TEXT_SAFETY_BLOCK}`
+      : ""
+  }${
+    input.bakedTextProtectionActive
+      ? `
+
+${BAKED_TEXT_CLEANED_PROMPT_BLOCK}`
       : ""
   }`;
 }

@@ -61,8 +61,8 @@ export default function InstantPremiumProgressPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
-  const [queuedSinceMs, setQueuedSinceMs] = useState<number | null>(null);
-  const [nowMs, setNowMs] = useState(0);
+  const queuedSinceMsRef = useRef<number | null>(null);
+  const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
 
   const isCompleted = snapshot?.status === "completed" || Boolean(snapshot?.finalVideoUrl);
   const isReconnecting =
@@ -101,23 +101,24 @@ export default function InstantPremiumProgressPage() {
     return "instant.progress.restoringState";
   }, [showFatalMissing, isCompleted, isReconnecting, effectiveProjectId, snapshot]);
   const queuedWithoutJob = snapshot?.queuedWithoutJobCount ?? 0;
-  const waitingForStartTooLong =
-    queuedSinceMs != null && queuedWithoutJob > 0 && nowMs - queuedSinceMs > 60_000;
 
   useEffect(() => {
-    if ((snapshot?.queuedWithoutJobCount ?? 0) > 0) {
-      setQueuedSinceMs((prev) => prev ?? Date.now());
-    } else {
-      setQueuedSinceMs(null);
-    }
-  }, [snapshot?.queuedWithoutJobCount]);
-
-  useEffect(() => {
-    const tick = () => setNowMs(new Date().getTime());
+    const tick = () => {
+      const now = Date.now();
+      const queued = snapshot?.queuedWithoutJobCount ?? 0;
+      if (queued > 0) {
+        queuedSinceMsRef.current ??= now;
+      } else {
+        queuedSinceMsRef.current = null;
+      }
+      const tooLong =
+        queuedSinceMsRef.current != null && queued > 0 && now - queuedSinceMsRef.current > 60_000;
+      setWaitingForStartTooLong(tooLong);
+    };
     tick();
     const timer = window.setInterval(tick, 2000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [snapshot?.queuedWithoutJobCount]);
 
   useEffect(() => {
     if (!effectiveProjectId || snapshot?.status !== "completed" || !snapshot.finalVideoUrl) {

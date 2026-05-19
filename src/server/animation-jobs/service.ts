@@ -198,6 +198,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     throw new Error("Transition images are missing preview URLs.");
   }
 
+  const startViduUrl = startImage.viduInputUrl?.trim() || startImage.previewUrl;
+  const endViduUrl = endImage.viduInputUrl?.trim() || endImage.previewUrl;
+  const bakedTextProtectionActive =
+    startImage.bakedTextProtectionStatus === "masked" ||
+    endImage.bakedTextProtectionStatus === "masked";
+
   const transitionTotal = transition.project._count.transitions;
   const imageCount = transitionTotal + 1;
   const isInstantPremium = transition.project.projectType === "instant_premium";
@@ -212,6 +218,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
         continuityStrength: instantStoredIntent.continuityStrength,
         lockedTextMode: transition.project.instantLockedTextMode !== false,
+        bakedTextProtectionActive,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,
@@ -242,8 +249,8 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     providerResult = await provider.createStartEndVideoJob({
       transitionId: transition.id,
       projectId: transition.projectId,
-      startImageUrl: startImage.previewUrl,
-      endImageUrl: endImage.previewUrl,
+      startImageUrl: startViduUrl,
+      endImageUrl: endViduUrl,
       prompt: finalPrompt,
       durationSeconds: jobSettings.providerDurationSeconds,
       aspectRatio: isInstantPremium

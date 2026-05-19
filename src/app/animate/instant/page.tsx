@@ -25,7 +25,12 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
+import {
+  BakedTextProtectionPanel,
+  type BakedTextProtectionDraft,
+} from "@/components/instant/baked-text-protection-panel";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
+import { defaultMaskRegionForTextPosition } from "@/lib/baked-text-protection";
 import {
   createLockedTextLayer,
   type TextImplyingChipId,
@@ -123,6 +128,13 @@ type LocalImage = {
   sizeBytes: number;
   optimizedBlob: Blob;
   thumbnailBlob: Blob;
+  bakedText: BakedTextProtectionDraft;
+};
+
+const DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
+  enabled: false,
+  exactText: "",
+  positionY: 0.12,
 };
 
 function SortableThumb({
@@ -289,6 +301,7 @@ export default function InstantPremiumPage() {
               thumbnailPreviewUrl: URL.createObjectURL(p.thumbnailBlob),
               mimeType: p.mimeType,
               sizeBytes: p.optimizedBlob.size,
+              bakedText: { ...DEFAULT_BAKED_TEXT },
             } satisfies LocalImage;
           })
         );
@@ -306,6 +319,14 @@ export default function InstantPremiumPage() {
     },
     [images.length, session.user?.role, t]
   );
+
+  const updateBakedText = useCallback((imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
+    setImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, bakedText: { ...img.bakedText, ...patch } } : img
+      )
+    );
+  }, []);
 
   const uploadToBlob = useCallback(async (img: LocalImage): Promise<UploadImageResponse> => {
     const formData = new FormData();
@@ -333,6 +354,12 @@ export default function InstantPremiumPage() {
       setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
     }
+    for (let i = 0; i < images.length; i += 1) {
+      if (images[i].bakedText.enabled && !images[i].bakedText.exactText.trim()) {
+        setError(t("instant.bakedText.errorExactText", { index: i + 1 }));
+        return;
+      }
+    }
     setCheckoutBusy(true);
     setError("");
     try {
@@ -346,6 +373,17 @@ export default function InstantPremiumPage() {
           workingImageUrl: up.workingImageUrl,
           mimeType: img.mimeType,
           sizeBytes: img.sizeBytes,
+          ...(img.bakedText.enabled
+            ? {
+                bakedTextProtection: {
+                  enabled: true,
+                  exactText: img.bakedText.exactText.trim(),
+                  positionY: img.bakedText.positionY,
+                  maskRegion: defaultMaskRegionForTextPosition(img.bakedText.positionY),
+                  status: "confirmed" as const,
+                },
+              }
+            : {}),
         });
       }
       const explicitLayers = lockedTextLayers
@@ -620,6 +658,14 @@ export default function InstantPremiumPage() {
                 </div>
               </SortableContext>
             </DndContext>
+            <BakedTextProtectionPanel
+              images={images.map((im) => ({
+                id: im.id,
+                originalFileName: im.originalFileName,
+                bakedText: im.bakedText,
+              }))}
+              onChange={updateBakedText}
+            />
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(1)}>
                 {t("instant.common.back")}
