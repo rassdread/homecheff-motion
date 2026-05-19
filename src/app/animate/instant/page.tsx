@@ -133,8 +133,11 @@ type LocalImage = {
 
 const DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
   enabled: false,
+  status: "none",
+  blocks: [],
   exactText: "",
   positionY: 0.12,
+  manualMode: false,
 };
 
 function SortableThumb({
@@ -349,16 +352,126 @@ export default function InstantPremiumPage() {
     return (await res.json()) as UploadImageResponse;
   }, [t]);
 
+  const scanBakedText = useCallback(
+    async (imageId: string) => {
+      const img = images.find((i) => i.id === imageId);
+      if (!img) {
+        return;
+      }
+      updateBakedText(imageId, { scanBusy: true, enabled: true });
+      setError("");
+      try {
+        let imageUrl = img.bakedText.remoteWorkingUrl;
+        if (!imageUrl) {
+          const up = await uploadToBlob(img);
+          imageUrl = up.workingImageUrl;
+          updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
+        }
+        const res = await fetch(
+          `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ imageUrl }),
+          }
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          blocks?: BakedTextProtectionDraft["blocks"];
+        };
+        if (!res.ok) {
+          throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
+        }
+        updateBakedText(imageId, {
+          blocks: data.blocks ?? [],
+          status: "detected",
+          enabled: true,
+          scanBusy: false,
+        });
+      } catch (e) {
+        updateBakedText(imageId, { scanBusy: false });
+        setError(e instanceof Error ? e.message : t("instant.bakedText.scanFailed"));
+      }
+    },
+    [images, t, updateBakedText, uploadToBlob]
+  );
+
+  const confirmBakedText = useCallback(
+    (imageId: string) => {
+      const img = images.find((i) => i.id === imageId);
+      if (!img) {
+        return;
+      }
+      const blocks = img.bakedText.blocks
+        .filter((b) => b.kept && b.editedText.trim())
+        .map((b) => ({ ...b, confirmed: true }));
+      if (blocks.length === 0) {
+        setError(t("instant.bakedText.errorNoKeptBlocks"));
+        return;
+      }
+      updateBakedText(imageId, { blocks, status: "confirmed", enabled: true });
+      setError("");
+    },
+    [images, t, updateBakedText]
+  );
+
+  const previewBakedTextMask = useCallback(
+    async (imageId: string) => {
+      const img = images.find((i) => i.id === imageId);
+      if (!img) {
+        return;
+      }
+      const regions = img.bakedText.blocks.filter((b) => b.kept).map((b) => b.bbox);
+      let imageUrl = img.bakedText.remoteWorkingUrl;
+      if (!imageUrl) {
+        const up = await uploadToBlob(img);
+        imageUrl = up.workingImageUrl;
+        updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
+      }
+      const res = await fetch("/api/instant-premium/preview-text-mask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ imageUrl, regions }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        previewUrl?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.error ?? t("instant.bakedText.previewFailed"));
+      }
+      if (data.previewUrl) {
+        updateBakedText(imageId, { maskedPreviewUrl: data.previewUrl });
+      }
+    },
+    [images, t, updateBakedText, uploadToBlob]
+  );
+
   const startCheckout = useCallback(async () => {
     if (images.length < MIN_IMAGES) {
       setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
     }
     for (let i = 0; i < images.length; i += 1) {
-      if (images[i].bakedText.enabled && !images[i].bakedText.exactText.trim()) {
-        setError(t("instant.bakedText.errorExactText", { index: i + 1 }));
+      const bt = images[i].bakedText;
+      if (!bt.enabled) {
+        continue;
+      }
+      const confirmedBlocks = bt.blocks.filter((b) => b.kept && b.confirmed && b.editedText.trim());
+      if (confirmedBlocks.length > 0) {
+        continue;
+      }
+      if (bt.manualMode && bt.exactText.trim()) {
+        continue;
+      }
+      if (bt.blocks.length > 0) {
+        setError(t("instant.bakedText.errorConfirm", { index: i + 1 }));
         return;
       }
+      setError(t("instant.bakedText.errorExactText", { index: i + 1 }));
+      return;
     }
     setCheckoutBusy(true);
     setError("");
@@ -375,13 +488,25 @@ export default function InstantPremiumPage() {
           sizeBytes: img.sizeBytes,
           ...(img.bakedText.enabled
             ? {
-                bakedTextProtection: {
-                  enabled: true,
-                  exactText: img.bakedText.exactText.trim(),
-                  positionY: img.bakedText.positionY,
-                  maskRegion: defaultMaskRegionForTextPosition(img.bakedText.positionY),
-                  status: "confirmed" as const,
-                },
+                bakedTextProtection: (() => {
+                  const confirmed = img.bakedText.blocks.filter(
+                    (b) => b.kept && b.confirmed && b.editedText.trim()
+                  );
+                  if (confirmed.length > 0) {
+                    return {
+                      enabled: true,
+                      status: "confirmed" as const,
+                      blocks: confirmed,
+                    };
+                  }
+                  return {
+                    enabled: true,
+                    status: "confirmed" as const,
+                    exactText: img.bakedText.exactText.trim(),
+                    positionY: img.bakedText.positionY,
+                    maskRegion: defaultMaskRegionForTextPosition(img.bakedText.positionY),
+                  };
+                })(),
               }
             : {}),
         });
@@ -662,9 +787,14 @@ export default function InstantPremiumPage() {
               images={images.map((im) => ({
                 id: im.id,
                 originalFileName: im.originalFileName,
+                workingPreviewUrl: im.workingPreviewUrl,
                 bakedText: im.bakedText,
               }))}
               onChange={updateBakedText}
+              onScan={scanBakedText}
+              onConfirm={confirmBakedText}
+              isAdmin={session.user?.role?.trim() === "admin"}
+              onPreviewMask={previewBakedTextMask}
             />
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(1)}>

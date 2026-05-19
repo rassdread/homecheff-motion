@@ -1,20 +1,35 @@
 "use client";
 
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { LOCKED_TEXT_ANIMATIONS, type LockedTextAnimation } from "@/lib/locked-text-layer";
 
 export type BakedTextProtectionDraft = {
   enabled: boolean;
+  status: "none" | "detected" | "confirmed";
+  blocks: BakedTextBlockRecord[];
   exactText: string;
   positionY: number;
+  manualMode: boolean;
+  remoteWorkingUrl?: string;
+  scanBusy?: boolean;
+  maskedPreviewUrl?: string;
 };
 
 type Props = {
   images: Array<{
     id: string;
     originalFileName: string;
+    workingPreviewUrl: string;
     bakedText: BakedTextProtectionDraft;
   }>;
   onChange: (imageId: string, patch: Partial<BakedTextProtectionDraft>) => void;
+  onScan: (imageId: string) => Promise<void>;
+  onConfirm: (imageId: string) => void;
+  isAdmin?: boolean;
+  onPreviewMask?: (imageId: string) => Promise<void>;
 };
 
 const POSITION_OPTIONS = [
@@ -23,8 +38,66 @@ const POSITION_OPTIONS = [
   { value: 0.82, labelKey: "instant.bakedText.posBottom" as const },
 ];
 
-export function BakedTextProtectionPanel({ images, onChange }: Props) {
+const ANIMATION_LABEL_KEYS: Record<LockedTextAnimation, string> = {
+  none: "instant.lockedText.anim.none",
+  "fade-in": "instant.lockedText.anim.fadeIn",
+  "slide-up": "instant.lockedText.anim.slideUp",
+  "slide-left": "instant.lockedText.anim.slideLeft",
+  "slide-right": "instant.lockedText.anim.slideRight",
+  typewriter: "instant.lockedText.anim.typewriter",
+  "letter-pop": "instant.lockedText.anim.letterPop",
+  "word-by-word": "instant.lockedText.anim.wordByWord",
+  "scale-in": "instant.lockedText.anim.scaleIn",
+};
+
+function updateBlock(
+  blocks: BakedTextBlockRecord[],
+  blockId: string,
+  patch: Partial<BakedTextBlockRecord>
+): BakedTextBlockRecord[] {
+  return blocks.map((b) => (b.id === blockId ? { ...b, ...patch, confirmed: false } : b));
+}
+
+function ImageWithOverlays({
+  src,
+  blocks,
+}: {
+  src: string;
+  blocks: BakedTextBlockRecord[];
+}) {
+  const visible = blocks.filter((b) => b.kept);
+  return (
+    <div className="relative mx-auto aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+      <Image src={src} alt="" fill className="object-cover" unoptimized sizes="220px" />
+      {visible.map((block) => (
+        <div
+          key={block.id}
+          className="pointer-events-none absolute border-2 border-sky-500/90 bg-sky-400/20"
+          style={{
+            left: `${block.bbox.x * 100}%`,
+            top: `${block.bbox.y * 100}%`,
+            width: `${block.bbox.width * 100}%`,
+            height: `${block.bbox.height * 100}%`,
+          }}
+          title={block.editedText}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function BakedTextProtectionPanel({
+  images,
+  onChange,
+  onScan,
+  onConfirm,
+  isAdmin,
+  onPreviewMask,
+}: Props) {
   const t = useActiveTranslator();
+  const [expandedManual, setExpandedManual] = useState<Record<string, boolean>>({});
+
+  const anyEnabled = useMemo(() => images.some((i) => i.bakedText.enabled), [images]);
 
   if (images.length === 0) {
     return null;
@@ -34,60 +107,222 @@ export function BakedTextProtectionPanel({ images, onChange }: Props) {
     <div className="mt-6 space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
       <div>
         <p className="text-sm font-semibold text-sky-950">{t("instant.bakedText.title")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-sky-900/90">{t("instant.bakedText.intro")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-sky-900/90">{t("instant.bakedText.safetyCopy")}</p>
         <p className="mt-2 text-xs text-sky-800/80">{t("instant.bakedText.promptOnlyWarning")}</p>
       </div>
 
-      {images.map((image, index) => (
-        <div key={image.id} className="rounded-xl border border-sky-200/80 bg-white p-3">
-          <p className="text-xs font-semibold text-zinc-700">
-            {t("instant.bakedText.image")} #{index + 1} · {image.originalFileName}
-          </p>
-          <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={image.bakedText.enabled}
-              onChange={(e) => onChange(image.id, { enabled: e.target.checked })}
-            />
-            <span>{t("instant.bakedText.enable")}</span>
-          </label>
+      {images.map((image, index) => {
+        const bt = image.bakedText;
+        const showManual = expandedManual[image.id] ?? bt.manualMode;
+        return (
+          <div key={image.id} className="rounded-xl border border-sky-200/80 bg-white p-3">
+            <p className="text-xs font-semibold text-zinc-700">
+              {t("instant.bakedText.image")} #{index + 1} · {image.originalFileName}
+            </p>
 
-          {image.bakedText.enabled ? (
-            <div className="mt-3 space-y-3 border-t border-zinc-100 pt-3">
-              <label className="block text-xs font-medium text-zinc-700">
-                {t("instant.bakedText.exactTextLabel")}
-                <textarea
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  rows={2}
-                  value={image.bakedText.exactText}
-                  placeholder={t("instant.bakedText.exactTextPlaceholder")}
-                  onChange={(e) => onChange(image.id, { exactText: e.target.value })}
-                />
-              </label>
-              <label className="block text-xs font-medium text-zinc-700">
-                {t("instant.bakedText.position")}
-                <select
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
-                  value={String(image.bakedText.positionY)}
-                  onChange={(e) =>
-                    onChange(image.id, { positionY: Number.parseFloat(e.target.value) })
+            <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={bt.enabled}
+                onChange={(e) =>
+                  onChange(image.id, {
+                    enabled: e.target.checked,
+                    status: e.target.checked ? bt.status : "none",
+                  })
+                }
+              />
+              <span>{t("instant.bakedText.enable")}</span>
+            </label>
+
+            {bt.enabled ? (
+              <div className="mt-3 space-y-3 border-t border-zinc-100 pt-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={bt.scanBusy}
+                    className="rounded-lg bg-sky-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                    onClick={() => void onScan(image.id)}
+                  >
+                    {bt.scanBusy ? t("instant.bakedText.scanning") : t("instant.bakedText.scanAuto")}
+                  </button>
+                  {bt.blocks.length > 0 ? (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900"
+                      onClick={() => onConfirm(image.id)}
+                    >
+                      {t("instant.bakedText.confirmProtect")}
+                    </button>
+                  ) : null}
+                  {isAdmin && onPreviewMask && bt.blocks.some((b) => b.kept) ? (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700"
+                      onClick={() => void onPreviewMask(image.id)}
+                    >
+                      {t("instant.bakedText.adminPreviewMask")}
+                    </button>
+                  ) : null}
+                </div>
+
+                {bt.status === "confirmed" ? (
+                  <p className="text-xs font-medium text-emerald-800">{t("instant.bakedText.confirmed")}</p>
+                ) : bt.blocks.length > 0 ? (
+                  <p className="text-xs text-amber-800">{t("instant.bakedText.reviewBlocks")}</p>
+                ) : null}
+
+                {bt.blocks.length > 0 ? (
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
+                    <ImageWithOverlays src={image.workingPreviewUrl} blocks={bt.blocks} />
+                    <div className="space-y-2">
+                      {bt.blocks.map((block) => (
+                        <div
+                          key={block.id}
+                          className="rounded-lg border border-zinc-200 p-2"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <label className="flex items-center gap-2 text-xs font-medium text-zinc-700">
+                              <input
+                                type="checkbox"
+                                checked={block.kept}
+                                onChange={(e) =>
+                                  onChange(image.id, {
+                                    blocks: updateBlock(bt.blocks, block.id, {
+                                      kept: e.target.checked,
+                                    }),
+                                  })
+                                }
+                              />
+                              {t("instant.bakedText.keepBlock")}
+                            </label>
+                            <span className="text-[10px] text-zinc-500">
+                              {Math.round(block.confidence * 100)}%
+                            </span>
+                          </div>
+                          <textarea
+                            className="mt-2 w-full rounded-md border border-zinc-200 px-2 py-1 text-xs"
+                            rows={2}
+                            value={block.editedText}
+                            onChange={(e) =>
+                              onChange(image.id, {
+                                blocks: updateBlock(bt.blocks, block.id, {
+                                  editedText: e.target.value,
+                                }),
+                              })
+                            }
+                          />
+                          <label className="mt-2 block text-[11px] font-medium text-zinc-600">
+                            {t("instant.lockedText.animation")}
+                            <select
+                              className="mt-1 w-full rounded-md border border-zinc-200 px-2 py-1 text-xs"
+                              value={block.animation}
+                              onChange={(e) =>
+                                onChange(image.id, {
+                                  blocks: updateBlock(bt.blocks, block.id, {
+                                    animation: e.target.value as LockedTextAnimation,
+                                  }),
+                                })
+                              }
+                            >
+                              {LOCKED_TEXT_ANIMATIONS.map((anim) => (
+                                <option key={anim} value={anim}>
+                                  {t(ANIMATION_LABEL_KEYS[anim] as never)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            className="mt-1 text-[10px] text-red-700 underline"
+                            onClick={() =>
+                              onChange(image.id, {
+                                blocks: bt.blocks.filter((b) => b.id !== block.id),
+                              })
+                            }
+                          >
+                            {t("instant.bakedText.removeBlock")}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-zinc-500">{t("instant.bakedText.scanHint")}</p>
+                )}
+
+                {bt.maskedPreviewUrl ? (
+                  <div>
+                    <p className="text-[11px] font-medium text-zinc-600">
+                      {t("instant.bakedText.adminPreviewLabel")}
+                    </p>
+                    <a
+                      href={bt.maskedPreviewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-sky-800 underline"
+                    >
+                      {t("instant.bakedText.openMaskedPreview")}
+                    </a>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="text-xs text-zinc-600 underline"
+                  onClick={() =>
+                    setExpandedManual((prev) => ({
+                      ...prev,
+                      [image.id]: !showManual,
+                    }))
                   }
                 >
-                  {POSITION_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={String(opt.value)}>
-                      {t(opt.labelKey)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="text-[11px] text-zinc-500">{t("instant.bakedText.maskHint")}</p>
-            </div>
-          ) : (
-            <p className="mt-2 text-[11px] text-zinc-500">{t("instant.bakedText.skipHint")}</p>
-          )}
-        </div>
-      ))}
+                  {showManual
+                    ? t("instant.bakedText.hideManual")
+                    : t("instant.bakedText.showManual")}
+                </button>
+
+                {showManual ? (
+                  <div className="space-y-2 rounded-lg border border-dashed border-zinc-200 p-2">
+                    <p className="text-[11px] text-zinc-500">{t("instant.bakedText.manualHint")}</p>
+                    <textarea
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      rows={2}
+                      value={bt.exactText}
+                      placeholder={t("instant.bakedText.exactTextPlaceholder")}
+                      onChange={(e) =>
+                        onChange(image.id, { exactText: e.target.value, manualMode: true })
+                      }
+                    />
+                    <select
+                      className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                      value={String(bt.positionY)}
+                      onChange={(e) =>
+                        onChange(image.id, {
+                          positionY: Number.parseFloat(e.target.value),
+                          manualMode: true,
+                        })
+                      }
+                    >
+                      {POSITION_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={String(opt.value)}>
+                          {t(opt.labelKey)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-2 text-[11px] text-zinc-500">{t("instant.bakedText.skipHint")}</p>
+            )}
+          </div>
+        );
+      })}
+
+      {anyEnabled ? (
+        <p className="text-[11px] text-zinc-600">{t("instant.bakedText.checkoutHint")}</p>
+      ) : null}
     </div>
   );
 }

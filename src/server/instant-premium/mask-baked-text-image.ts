@@ -62,15 +62,30 @@ export async function maskBakedTextInImageBuffer(
     .toBuffer();
 }
 
+export async function maskBakedTextRegionsInImageBuffer(
+  input: Buffer,
+  regions: BakedTextMaskRegion[]
+): Promise<Buffer> {
+  let current = input;
+  for (const region of regions) {
+    current = await maskBakedTextInImageBuffer(current, region);
+  }
+  return current;
+}
+
 export async function maskAndUploadBakedTextSafeImage(
-  input: MaskBakedTextImageInput
+  input: MaskBakedTextImageInput & { maskRegions?: BakedTextMaskRegion[] }
 ): Promise<MaskBakedTextImageResult> {
   const res = await fetch(input.sourceUrl, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`Could not download source image for text masking (${res.status}).`);
   }
   const sourceBuffer = Buffer.from(await res.arrayBuffer());
-  const masked = await maskBakedTextInImageBuffer(sourceBuffer, input.maskRegion);
+  const regions =
+    input.maskRegions && input.maskRegions.length > 0
+      ? input.maskRegions
+      : [input.maskRegion];
+  const masked = await maskBakedTextRegionsInImageBuffer(sourceBuffer, regions);
   const path = `${input.uploadPathPrefix}/vidu-safe-${Date.now()}.jpg`;
   const blob = await put(path, masked, {
     access: "public",

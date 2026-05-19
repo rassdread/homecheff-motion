@@ -1,5 +1,5 @@
 import type { AnimationPresetId } from "@/lib/animation-presets";
-import type { BakedTextProtectionInput } from "@/lib/baked-text-protection";
+import type { BakedTextProtectionPayload } from "@/lib/baked-text-detection";
 
 export type CreateAnimationProjectImageInput = {
   fileName: string;
@@ -9,7 +9,7 @@ export type CreateAnimationProjectImageInput = {
   mimeType?: string;
   sizeBytes?: number;
   /** When enabled, server masks baked-in text before Vidu and adds locked overlay layers. */
-  bakedTextProtection?: BakedTextProtectionInput;
+  bakedTextProtection?: BakedTextProtectionPayload;
 };
 
 export type CreateAnimationProjectAdvancedPayload = {
