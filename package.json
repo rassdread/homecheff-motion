@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npx tsx --test src/lib/video-ffmpeg-capability.test.ts",
+    "worker": "npx tsx worker/video-worker.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
@@ -19,6 +20,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "6.18.0",
     "@vercel/blob": "^2.3.3",
+    "express": "^5.1.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/express": "^5.0.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

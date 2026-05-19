@@ -1,0 +1,24 @@
+# Instant Premium video worker (FFmpeg merge + locked text overlay)
+FROM node:20-bookworm
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
+COPY . .
+
+ENV FFMPEG_PATH=/usr/bin/ffmpeg
+ENV FFMPEG_FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+ENV NODE_ENV=production
+
+EXPOSE 8090
+
+CMD ["npm", "run", "worker"]

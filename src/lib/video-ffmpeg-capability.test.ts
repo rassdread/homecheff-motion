@@ -82,6 +82,31 @@ describe("locked text metadata", () => {
   });
 });
 
+describe("worker render mode guard", () => {
+  it("requires worker config when VIDEO_RENDER_MODE=worker", async () => {
+    const prevMode = process.env.VIDEO_RENDER_MODE;
+    const prevUrl = process.env.VIDEO_WORKER_BASE_URL;
+    const prevSecret = process.env.VIDEO_WORKER_SECRET;
+    process.env.VIDEO_RENDER_MODE = "worker";
+    delete process.env.VIDEO_WORKER_BASE_URL;
+    delete process.env.VIDEO_WORKER_SECRET;
+    try {
+      const { assertVideoRenderingReadyForLockedText } = await import(
+        "@/lib/video-ffmpeg-capability"
+      );
+      const result = await assertVideoRenderingReadyForLockedText();
+      assert.equal(result.ok, false);
+    } finally {
+      if (prevMode === undefined) delete process.env.VIDEO_RENDER_MODE;
+      else process.env.VIDEO_RENDER_MODE = prevMode;
+      if (prevUrl === undefined) delete process.env.VIDEO_WORKER_BASE_URL;
+      else process.env.VIDEO_WORKER_BASE_URL = prevUrl;
+      if (prevSecret === undefined) delete process.env.VIDEO_WORKER_SECRET;
+      else process.env.VIDEO_WORKER_SECRET = prevSecret;
+    }
+  });
+});
+
 describe("instant premium export status", () => {
   it("overlay failure does not count as completed", () => {
     assert.equal(isOverlayFailureStatus("failed_overlay", "failed_overlay"), true);

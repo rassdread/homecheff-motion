@@ -315,4 +315,5 @@ export type InstantPremiumStatusResponse = {
   overlayFailed?: boolean;
   canRetryOverlay?: boolean;
   failureReason?: "overlay_failed" | "merge_failed" | null;
+  workerJobStatus?: string | null;
 };

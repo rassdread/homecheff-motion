@@ -28,6 +28,10 @@ model AnimationProject {
   lastOverlayError String?
   /** overlay_failed | merge_failed when status is failed_overlay or failed */
   failureReason String?
+  /** Worker job tracking when VIDEO_RENDER_MODE=worker */
+  instantWorkerJobStartedAt DateTime?
+  /** queued | running | completed | failed */
+  instantWorkerJobStatus String?
   stylePreset String?
   aspectRatio String?
   /** basic | standard | pro | smooth — enforced server-side */

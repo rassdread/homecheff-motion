@@ -1,6 +1,11 @@
 import { access, constants } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
+import {
+  isVideoRenderWorkerMode,
+  isVideoWorkerConfigured,
+} from "@/lib/video-render-mode";
+import { fetchWorkerVideoHealth } from "@/lib/video-worker-client";
 
 export const VIDEO_TEXT_RENDERING_UNAVAILABLE =
   "Video text rendering is not available on this server. Please contact support.";
@@ -30,6 +35,8 @@ export type VideoHealthResponse = {
   fontPath: string | null;
   fontReadable: boolean;
   errors: string[];
+  mode?: string;
+  worker?: VideoHealthResponse | null;
 };
 
 /** UI-safe + DB-safe overlay error (no secrets, no home paths). */
@@ -242,6 +249,24 @@ export type AssertVideoRenderingResult =
 export async function assertVideoRenderingReadyForLockedText(): Promise<AssertVideoRenderingResult> {
   if (!shouldEnforceLockedTextRenderingCheck()) {
     return { ok: true };
+  }
+  if (isVideoRenderWorkerMode()) {
+    if (!isVideoWorkerConfigured()) {
+      return {
+        ok: false,
+        error: VIDEO_TEXT_RENDERING_UNAVAILABLE,
+        code: FFMPEG_DRAWTEXT_REQUIRED_CODE,
+      };
+    }
+    const worker = await fetchWorkerVideoHealth();
+    if (worker?.ok) {
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      error: VIDEO_TEXT_RENDERING_UNAVAILABLE,
+      code: FFMPEG_DRAWTEXT_REQUIRED_CODE,
+    };
   }
   const report = await checkVideoFfmpegCapability();
   if (report.ok) {

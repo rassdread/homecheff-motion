@@ -1,0 +1,111 @@
+import {
+  getVideoWorkerBaseUrl,
+  getVideoWorkerSecret,
+  isVideoRenderWorkerMode,
+} from "@/lib/video-render-mode";
+import type { VideoHealthResponse } from "@/lib/video-ffmpeg-capability";
+
+export type WorkerHealthResponse = VideoHealthResponse & {
+  service?: string;
+};
+
+export type WorkerJobResponse = {
+  ok: boolean;
+  projectId: string;
+  status: string;
+  message?: string;
+};
+
+function workerHeaders(): HeadersInit {
+  const secret = getVideoWorkerSecret();
+  if (!secret) {
+    throw new Error("VIDEO_WORKER_SECRET is not configured.");
+  }
+  return {
+    Authorization: `Bearer ${secret}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function workerBaseUrl(): string {
+  const base = getVideoWorkerBaseUrl();
+  if (!base) {
+    throw new Error("VIDEO_WORKER_BASE_URL is not configured.");
+  }
+  return base;
+}
+
+export async function fetchWorkerVideoHealth(): Promise<WorkerHealthResponse | null> {
+  if (!isVideoRenderWorkerMode()) {
+    return null;
+  }
+  const base = getVideoWorkerBaseUrl();
+  if (!base) {
+    return null;
+  }
+  try {
+    const res = await fetch(`${base}/health/video`, {
+      method: "GET",
+      signal: AbortSignal.timeout(12_000),
+      cache: "no-store",
+    });
+    const body = (await res.json()) as WorkerHealthResponse;
+    return { ...body, ok: res.ok && body.ok === true };
+  } catch {
+    return {
+      ok: false,
+      ffmpegPath: null,
+      hasDrawtext: false,
+      fontPath: null,
+      fontReadable: false,
+      errors: ["worker health request failed"],
+    };
+  }
+}
+
+async function postWorkerJob(
+  path: string,
+  options?: { force?: boolean }
+): Promise<WorkerJobResponse> {
+  const res = await fetch(`${workerBaseUrl()}${path}`, {
+    method: "POST",
+    headers: workerHeaders(),
+    body: JSON.stringify(options ?? {}),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = (await res.json().catch(() => ({}))) as WorkerJobResponse & { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error ?? body.message ?? `Worker request failed (${res.status})`);
+  }
+  return body;
+}
+
+/** Fire-and-forget worker process (idempotent on worker). */
+export function triggerWorkerInstantPremiumProcess(
+  projectId: string,
+  options?: { force?: boolean }
+): void {
+  void postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, options).catch(
+    (error) => {
+      console.info("[hc-instant-premium]", {
+        projectId,
+        phase: "worker_trigger_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  );
+}
+
+export async function requestWorkerInstantPremiumProcess(
+  projectId: string,
+  options?: { force?: boolean }
+): Promise<WorkerJobResponse> {
+  return postWorkerJob(`/jobs/instant-premium/${encodeURIComponent(projectId)}/process`, options);
+}
+
+export async function requestWorkerRetryOverlay(projectId: string): Promise<WorkerJobResponse> {
+  return postWorkerJob(
+    `/jobs/instant-premium/${encodeURIComponent(projectId)}/retry-overlay`,
+    { force: true }
+  );
+}
