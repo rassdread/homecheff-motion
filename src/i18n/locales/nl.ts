@@ -600,6 +600,11 @@ export const nl = {
   "instant.progress.overlayFailedHelp":
     "De videoclips zijn gegenereerd, maar het renderen van vergrendelde tekst is mislukt. Probeer opnieuw nadat de video-instellingen op de server zijn hersteld.",
   "instant.progress.retryFailed": "Merge opnieuw starten mislukt.",
+  "instant.progress.reconnecting": "Verbinding verbroken, opnieuw proberen…",
+  "instant.progress.workerConnecting":
+    "Video wordt nog verwerkt… worker wordt verbonden.",
+  "instant.progress.restoringState": "Voortgang herstellen…",
+  "instant.progress.completedSuccess": "Video succesvol afgerond.",
   "instant.recover.notCompleted": "Eindvideo is nog niet voltooid.",
   "instant.recover.cta": "Eindvideo herstellen",
   "instant.recover.failed": "Eindvideo herstellen mislukt.",

@@ -37,6 +37,7 @@ import {
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
 import { brand } from "@/lib/brand";
+import { writeActiveInstantProjectId } from "@/lib/instant-premium-progress-cache";
 import {
   getClientImagePreprocessOptionsForRole,
   preprocessImageFile,
@@ -434,6 +435,7 @@ export default function InstantPremiumPage() {
           projectType: "instant_premium",
           progressRoute,
         });
+        writeActiveInstantProjectId(resolvedProjectId);
         router.push(progressRoute);
         return;
       }

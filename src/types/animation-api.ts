@@ -288,6 +288,22 @@ export type InstantPremiumCreateAndGenerateErrorBody = {
   code?: string;
 };
 
+export type InstantPremiumStatusAvailability =
+  | "ok"
+  | "not_found"
+  | "temporary_unavailable"
+  | "worker_unreachable"
+  | "still_processing";
+
+export type InstantPremiumStatusApiResponse =
+  | (InstantPremiumStatusResponse & { availability: "ok" })
+  | {
+      availability: "not_found" | "temporary_unavailable" | "worker_unreachable";
+      projectId: string;
+      error?: string;
+      workerJobStatus?: string | null;
+    };
+
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";

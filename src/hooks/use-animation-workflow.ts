@@ -23,6 +23,7 @@ import {
 } from "@/lib/animation-advanced-settings";
 import { detectAnimationIntent } from "@/lib/animation-intent-detection";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
+import { writeActiveInstantProjectId } from "@/lib/instant-premium-progress-cache";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 import { MAX_RAW_ANIMATION_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import { defaultIntentForPreset, type AnimationIntentId } from "@/lib/animation-intents";
@@ -1596,6 +1597,7 @@ export function useAnimationWorkflow() {
           projectId: rid,
           projectType: snapshot.projectType,
         });
+        writeActiveInstantProjectId(rid);
         window.location.replace(`/animate/instant/progress?projectId=${encodeURIComponent(rid)}`);
         return;
       }

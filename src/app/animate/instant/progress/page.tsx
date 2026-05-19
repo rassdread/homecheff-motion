@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { useInstantPremiumProgressPolling } from "@/hooks/use-instant-premium-progress-polling";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
@@ -17,7 +18,7 @@ function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (snapshot.phase === "failed") {
     return "instant.progress.failed";
   }
-  if (snapshot.phase === "completed") {
+  if (snapshot.phase === "completed" || snapshot.status === "completed") {
     return "instant.progress.completed";
   }
   if (snapshot.phase === "uploading_final") {
@@ -35,31 +36,81 @@ function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   return "instant.progress.preparingProject";
 }
 
+function transientBannerKey(message: string | null): string | null {
+  if (message === "worker_connecting") {
+    return "instant.progress.workerConnecting";
+  }
+  if (message === "connection_lost") {
+    return "instant.progress.reconnecting";
+  }
+  return null;
+}
+
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
   const completionSyncedRef = useRef(false);
-  const [projectId] = useState(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    return new URLSearchParams(window.location.search).get("projectId")?.trim() ?? "";
-  });
-  const [snapshot, setSnapshot] = useState<InstantPremiumStatusResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    projectId,
+    snapshot,
+    setSnapshot,
+    connectionState,
+    transientMessage,
+    showFatalMissing,
+  } = useInstantPremiumProgressPolling();
+
+  const [actionError, setActionError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const [queuedSinceMs, setQueuedSinceMs] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(0);
-  const missingProjectIdError = !projectId ? t("instant.progress.missingProjectParam") : null;
+
+  const isCompleted = snapshot?.status === "completed" || Boolean(snapshot?.finalVideoUrl);
+  const isReconnecting =
+    connectionState === "reconnecting" ||
+    connectionState === "worker_connecting" ||
+    (connectionState === "polling" && !snapshot);
+  const effectiveProjectId = projectId || snapshot?.projectId || "";
+  const transientBanner = transientBannerKey(transientMessage);
 
   const progress = useMemo(() => {
-    if (!projectId) return 0;
-    if (!snapshot) return 8;
+    if (isCompleted) {
+      return 100;
+    }
+    if (!effectiveProjectId) {
+      return snapshot ? Math.max(8, snapshot.progressPercent) : 4;
+    }
+    if (!snapshot) {
+      return 8;
+    }
     return Math.max(8, snapshot.progressPercent);
-  }, [projectId, snapshot]);
+  }, [effectiveProjectId, snapshot, isCompleted]);
+
+  const headlineKey = useMemo(() => {
+    if (showFatalMissing) {
+      return "instant.progress.missingProjectParam";
+    }
+    if (isCompleted) {
+      return "instant.progress.completedSuccess";
+    }
+    if (isReconnecting && !snapshot) {
+      return "instant.progress.restoringState";
+    }
+    if (effectiveProjectId || snapshot) {
+      return stageKey(snapshot);
+    }
+    return "instant.progress.restoringState";
+  }, [showFatalMissing, isCompleted, isReconnecting, effectiveProjectId, snapshot]);
   const queuedWithoutJob = snapshot?.queuedWithoutJobCount ?? 0;
   const waitingForStartTooLong =
     queuedSinceMs != null && queuedWithoutJob > 0 && nowMs - queuedSinceMs > 60_000;
+
+  useEffect(() => {
+    if ((snapshot?.queuedWithoutJobCount ?? 0) > 0) {
+      setQueuedSinceMs((prev) => prev ?? Date.now());
+    } else {
+      setQueuedSinceMs(null);
+    }
+  }, [snapshot?.queuedWithoutJobCount]);
 
   useEffect(() => {
     const tick = () => setNowMs(new Date().getTime());
@@ -69,44 +120,7 @@ export default function InstantPremiumProgressPage() {
   }, []);
 
   useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const tick = async () => {
-      const res = await fetch(`/api/instant-premium/projects/${projectId}/status`, {
-        credentials: "include",
-      }).catch(() => null);
-      if (!res || !res.ok) {
-        if (!cancelled) {
-          setError(t("instant.progress.fetchFailed"));
-          timer = setTimeout(() => void tick(), 3000);
-        }
-        return;
-      }
-      const data = (await res.json()) as InstantPremiumStatusResponse;
-      if (cancelled) return;
-      setSnapshot(data);
-      setError(null);
-      if ((data.queuedWithoutJobCount ?? 0) > 0) {
-        setQueuedSinceMs((prev) => prev ?? Date.now());
-      } else {
-        setQueuedSinceMs(null);
-      }
-      if (data.status !== "completed" && data.status !== "failed") {
-        timer = setTimeout(() => void tick(), 2500);
-      }
-    };
-
-    void tick();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [projectId, t]);
-
-  useEffect(() => {
-    if (!projectId || snapshot?.status !== "completed" || !snapshot.finalVideoUrl) {
+    if (!effectiveProjectId || snapshot?.status !== "completed" || !snapshot.finalVideoUrl) {
       return;
     }
     if (completionSyncedRef.current) {
@@ -114,29 +128,38 @@ export default function InstantPremiumProgressPage() {
     }
     completionSyncedRef.current = true;
     void syncActiveAnimationProjects();
-  }, [projectId, snapshot?.finalVideoUrl, snapshot?.status]);
+  }, [effectiveProjectId, snapshot?.finalVideoUrl, snapshot?.status]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-xl px-4 py-10">
         <AppCard>
           <h1 className="text-2xl font-bold">{t("instant.progress.title")}</h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            {projectId ? t(stageKey(snapshot) as never) : t("instant.progress.missingProjectParam")}
-          </p>
-          {projectId ? <p className="mt-2 text-xs text-zinc-500">{projectId}</p> : null}
+          <p className="mt-2 text-sm text-zinc-600">{t(headlineKey as never)}</p>
+          {effectiveProjectId ? (
+            <p className="mt-2 text-xs text-zinc-500">{effectiveProjectId}</p>
+          ) : null}
 
-          <p className="mt-4 text-sm font-medium text-zinc-800">{progress}%</p>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          {!showFatalMissing ? (
+            <>
+              <p className="mt-4 text-sm font-medium text-zinc-800">{progress}%</p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          ) : null}
 
-          {missingProjectIdError ? <p className="mt-4 text-sm text-red-700">{missingProjectIdError}</p> : null}
-          {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-          {projectId && waitingForStartTooLong ? (
+          {showFatalMissing ? (
+            <p className="mt-4 text-sm text-red-700">{t("instant.progress.missingProjectParam")}</p>
+          ) : null}
+          {transientBanner && !showFatalMissing ? (
+            <p className="mt-3 text-sm text-amber-800">{t(transientBanner as never)}</p>
+          ) : null}
+          {actionError ? <p className="mt-2 text-sm text-red-700">{actionError}</p> : null}
+          {effectiveProjectId && waitingForStartTooLong ? (
             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
               <p>{t("instant.progress.waitingToStart")}</p>
               <p className="mt-1 font-mono text-[11px]">
@@ -151,7 +174,7 @@ export default function InstantPremiumProgressPage() {
                   void (async () => {
                     try {
                       const res = await fetch(
-                        `/api/instant-premium/projects/${projectId}/segments/start`,
+                        `/api/instant-premium/projects/${effectiveProjectId}/segments/start`,
                         { method: "POST", credentials: "include" }
                       );
                       const body = (await res.json().catch(() => ({}))) as {
@@ -159,7 +182,7 @@ export default function InstantPremiumProgressPage() {
                         status?: InstantPremiumStatusResponse;
                       };
                       if (!res.ok) {
-                        setError(body.error ?? t("instant.progress.retryFailed"));
+                        setActionError(body.error ?? t("instant.progress.retryFailed"));
                         return;
                       }
                       if (body.status) {
@@ -185,12 +208,14 @@ export default function InstantPremiumProgressPage() {
               </p>
             </div>
           ) : null}
-          <div className="mt-6">
-            <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.segmentsTitle")}</h2>
-            <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentsHelp")}</p>
-          </div>
-          <div className="mt-3 space-y-3">
-            {snapshot?.segments.map((segment) => (
+          {snapshot?.segments?.length ? (
+            <>
+              <div className="mt-6">
+                <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.segmentsTitle")}</h2>
+                <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentsHelp")}</p>
+              </div>
+              <div className="mt-3 space-y-3">
+                {snapshot.segments.map((segment) => (
               <div key={segment.index} className="rounded-xl border border-zinc-200 p-3">
                 <p className="text-xs font-semibold text-zinc-700">
                   {t("instant.progress.segment")} #{segment.index + 1} - {segment.status}
@@ -211,8 +236,8 @@ export default function InstantPremiumProgressPage() {
                 {segment.videoUrl ? (
                   <div className="mt-2">
                     <a
-                      href={animationProjectDownloadUrl(projectId, { segmentOrder: segment.index })}
-                      download={`homecheff-motion-${projectId}-segment-${segment.index + 1}.mp4`}
+                      href={animationProjectDownloadUrl(effectiveProjectId, { segmentOrder: segment.index })}
+                      download={`homecheff-motion-${effectiveProjectId}-segment-${segment.index + 1}.mp4`}
                       className="rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800"
                     >
                       {t("instant.progress.downloadSegment")}
@@ -220,9 +245,11 @@ export default function InstantPremiumProgressPage() {
                   </div>
                 ) : null}
               </div>
-            ))}
-          </div>
-          {snapshot?.status === "completed" && snapshot.finalVideoUrl ? (
+                ))}
+              </div>
+            </>
+          ) : null}
+          {isCompleted && snapshot?.finalVideoUrl ? (
             <div className="mt-4">
               <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
               <p className="mt-2 text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
@@ -241,8 +268,8 @@ export default function InstantPremiumProgressPage() {
               </video>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <a
-                  href={animationProjectDownloadUrl(projectId)}
-                  download={`homecheff-motion-${projectId}.mp4`}
+                  href={animationProjectDownloadUrl(effectiveProjectId)}
+                  download={`homecheff-motion-${effectiveProjectId}.mp4`}
                   className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900"
                 >
                   {t("instant.progress.download")}
@@ -255,7 +282,7 @@ export default function InstantPremiumProgressPage() {
               </div>
             </div>
           ) : null}
-          {projectId && snapshot?.canRetryOverlay ? (
+          {effectiveProjectId && snapshot?.canRetryOverlay ? (
             <button
               type="button"
               disabled={retryBusy}
@@ -265,17 +292,17 @@ export default function InstantPremiumProgressPage() {
                 void (async () => {
                   try {
                     const res = await fetch(
-                      `/api/instant-premium/projects/${projectId}/retry-overlay`,
+                      `/api/instant-premium/projects/${effectiveProjectId}/retry-overlay`,
                       { method: "POST", credentials: "include" }
                     );
                     if (!res.ok) {
                       const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setError(body.error ?? t("instant.progress.retryFailed"));
+                      setActionError(body.error ?? t("instant.progress.retryFailed"));
                       return;
                     }
                     const body = (await res.json()) as InstantPremiumStatusResponse;
                     setSnapshot(body);
-                    setError(null);
+                      setActionError(null);
                   } finally {
                     setRetryBusy(false);
                   }
@@ -285,7 +312,7 @@ export default function InstantPremiumProgressPage() {
               {retryBusy ? t("instant.step7.preparing") : t("instant.progress.retryOverlay")}
             </button>
           ) : null}
-          {projectId && snapshot?.status === "failed" && !snapshot?.canRetryOverlay ? (
+          {effectiveProjectId && snapshot?.status === "failed" && !snapshot?.canRetryOverlay ? (
             <button
               type="button"
               disabled={retryBusy}
@@ -295,17 +322,17 @@ export default function InstantPremiumProgressPage() {
                 void (async () => {
                   try {
                     const res = await fetch(
-                      `/api/instant-premium/projects/${projectId}/merge/retry`,
+                      `/api/instant-premium/projects/${effectiveProjectId}/merge/retry`,
                       { method: "POST", credentials: "include" }
                     );
                     if (!res.ok) {
                       const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setError(body.error ?? t("instant.progress.retryFailed"));
+                      setActionError(body.error ?? t("instant.progress.retryFailed"));
                       return;
                     }
                     const body = (await res.json()) as InstantPremiumStatusResponse;
                     setSnapshot(body);
-                    setError(null);
+                      setActionError(null);
                   } finally {
                     setRetryBusy(false);
                   }
@@ -320,7 +347,7 @@ export default function InstantPremiumProgressPage() {
             <Link href="/animate/instant" className="rounded-xl border border-zinc-200 px-4 py-2 text-sm">
               {t("instant.success.backToWizard")}
             </Link>
-            {projectId ? (
+            {effectiveProjectId ? (
               <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
             ) : null}
           </div>

@@ -598,6 +598,10 @@ export const en: LocaleSchema = {
   "instant.progress.overlayFailedHelp":
     "Video clips were generated, but locked text rendering failed. Retry after server video setup is fixed.",
   "instant.progress.retryFailed": "Could not retry merge.",
+  "instant.progress.reconnecting": "Connection lost, retrying…",
+  "instant.progress.workerConnecting": "Video is still processing… connecting worker.",
+  "instant.progress.restoringState": "Restoring progress…",
+  "instant.progress.completedSuccess": "Video completed successfully.",
   "instant.recover.notCompleted": "Final video not completed yet.",
   "instant.recover.cta": "Recover final video",
   "instant.recover.failed": "Could not recover final video.",
