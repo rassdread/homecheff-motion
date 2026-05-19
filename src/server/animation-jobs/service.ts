@@ -211,6 +211,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         userIntent: instantStoredIntent.text || null,
         selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
         continuityStrength: instantStoredIntent.continuityStrength,
+        lockedTextMode: transition.project.instantLockedTextMode !== false,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,

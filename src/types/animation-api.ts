@@ -310,4 +310,6 @@ export type InstantPremiumStatusResponse = {
   errorMessage: string | null;
   missingSegments?: number[];
   queuedWithoutJobCount?: number;
+  lockedTextLayerCount?: number;
+  lockedTextMode?: boolean;
 };

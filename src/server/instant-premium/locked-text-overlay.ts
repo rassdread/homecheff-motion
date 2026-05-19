@@ -1,0 +1,316 @@
+import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { LockedTextLayer } from "@/lib/locked-text-layer";
+import { normalizeLockedTextContent, resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
+
+const FFMPEG_FULL_CANDIDATES = [
+  "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
+  "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
+] as const;
+
+function ffmpegBinary(): string {
+  const fromEnv = process.env.FFMPEG_PATH?.trim();
+  if (fromEnv) {
+    return fromEnv;
+  }
+  return process.env.FFMPEG_TEXT_OVERLAY_PATH?.trim() || "ffmpeg";
+}
+
+function defaultFontFile(): string {
+  const fromEnv = process.env.FFMPEG_FONT_PATH?.trim();
+  if (fromEnv) {
+    return fromEnv;
+  }
+  if (process.platform === "darwin") {
+    return "/System/Library/Fonts/Supplemental/Arial Bold.ttf";
+  }
+  return "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+}
+
+function escapeDrawtext(text: string): string {
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/:/g, "\\:")
+    .replace(/'/g, "'\\''")
+    .replace(/,/g, "\\,")
+    .replace(/%/g, "\\%");
+}
+
+function escapeFilterPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/:/g, "\\:");
+}
+
+function hexFontColor(color: string | undefined): string {
+  const raw = (color ?? "#FFFFFF").replace("#", "").trim();
+  if (/^[0-9a-fA-F]{6}$/.test(raw)) {
+    return `0x${raw}`;
+  }
+  return "white";
+}
+
+function runFfmpeg(
+  binary: string,
+  args: string[],
+  options: { timeoutMs?: number }
+): Promise<{ code: number; output: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(binary, args, {
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    if (options.timeoutMs && options.timeoutMs > 0) {
+      timeout = setTimeout(() => child.kill("SIGKILL"), options.timeoutMs);
+    }
+    let output = "";
+    const append = (chunk: Buffer) => {
+      output += chunk.toString();
+    };
+    child.stdout?.on("data", append);
+    child.stderr?.on("data", append);
+    child.on("error", (err: NodeJS.ErrnoException) => {
+      if (timeout) clearTimeout(timeout);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      if (timeout) clearTimeout(timeout);
+      resolve({ code: code ?? 1, output });
+    });
+  });
+}
+
+async function ffmpegSupportsDrawtext(binary: string): Promise<boolean> {
+  const result = await runFfmpeg(binary, ["-filters"], { timeoutMs: 15_000 });
+  return result.code === 0 && /\bdrawtext\b/.test(result.output);
+}
+
+/** Prefer ffmpeg-full (libfreetype) when the default brew ffmpeg lacks drawtext. */
+export async function resolveFfmpegForTextOverlay(): Promise<string> {
+  const primary = ffmpegBinary();
+  if (await ffmpegSupportsDrawtext(primary)) {
+    return primary;
+  }
+  for (const candidate of FFMPEG_FULL_CANDIDATES) {
+    try {
+      await fs.access(candidate);
+    } catch {
+      continue;
+    }
+    if (await ffmpegSupportsDrawtext(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error(
+    "FFmpeg with drawtext is required for locked text overlays. Install ffmpeg-full (brew install ffmpeg-full) and set FFMPEG_PATH or FFMPEG_TEXT_OVERLAY_PATH to its binary."
+  );
+}
+
+function visibleTextAt(layer: LockedTextLayer, elapsedSec: number): string {
+  const full = normalizeLockedTextContent(layer.text);
+  const local = elapsedSec - layer.startMs / 1000;
+  if (local < 0) {
+    return "";
+  }
+  const endSec = (layer.endMs ?? layer.startMs + layer.durationMs) / 1000;
+  if (elapsedSec > endSec) {
+    return "";
+  }
+  const durSec = layer.durationMs / 1000;
+  if (layer.animation === "typewriter") {
+    const ratio = durSec <= 0 ? 1 : Math.min(1, local / durSec);
+    const n = Math.max(0, Math.min(full.length, Math.ceil(full.length * ratio)));
+    return full.slice(0, n);
+  }
+  if (layer.animation === "word-by-word") {
+    const words = full.split(/(\s+)/);
+    const wordCount = words.filter((w) => w.trim().length > 0).length;
+    const ratio = durSec <= 0 ? 1 : Math.min(1, local / durSec);
+    const visibleWords = Math.max(0, Math.ceil(wordCount * ratio));
+    let seen = 0;
+    let out = "";
+    for (const part of words) {
+      if (part.trim().length > 0) {
+        if (seen >= visibleWords) {
+          break;
+        }
+        seen += 1;
+      }
+      out += part;
+    }
+    return out;
+  }
+  return full;
+}
+
+type DrawStep = { startSec: number; endSec: number; text: string };
+
+function buildDrawSteps(layer: LockedTextLayer): DrawStep[] {
+  const startSec = layer.startMs / 1000;
+  const endSec = (layer.endMs ?? layer.startMs + layer.durationMs) / 1000;
+  const durSec = Math.max(0.05, endSec - startSec);
+
+  if (layer.animation === "typewriter" || layer.animation === "word-by-word") {
+    const steps = 24;
+    const out: DrawStep[] = [];
+    for (let i = 1; i <= steps; i += 1) {
+      const t = startSec + (durSec * i) / steps;
+      const prevT = startSec + (durSec * (i - 1)) / steps;
+      out.push({
+        startSec: prevT,
+        endSec: i === steps ? endSec : t,
+        text: visibleTextAt(layer, t),
+      });
+    }
+    return out.filter((s) => s.text.length > 0);
+  }
+
+  return [{ startSec, endSec, text: normalizeLockedTextContent(layer.text) }];
+}
+
+function pushDrawtext(
+  parts: string[],
+  opts: {
+    fontfile: string;
+    text: string;
+    fontSize: number | string;
+    fontColor: string;
+    x: string;
+    y: string;
+    alpha: string;
+    startSec: number;
+    endSec: number;
+  }
+): void {
+  const escapedText = escapeDrawtext(opts.text);
+  const fontPath = escapeFilterPath(opts.fontfile);
+  parts.push(
+    [
+      `drawtext=fontfile=${fontPath}`,
+      `text='${escapedText}'`,
+      `fontsize=${opts.fontSize}`,
+      `fontcolor=${opts.fontColor}`,
+      `alpha='${opts.alpha}'`,
+      `x=${opts.x}`,
+      `y=${opts.y}`,
+      `enable='between(t\\,${opts.startSec}\\,${opts.endSec})'`,
+    ].join(":")
+  );
+}
+
+function buildDrawtextFilters(layers: LockedTextLayer[], width: number, height: number): string {
+  const fontfile = defaultFontFile();
+  const parts: string[] = [];
+
+  for (const layer of layers) {
+    const fontSize = layer.fontSize ?? 42;
+    const fontColor = hexFontColor(layer.color);
+    const xExpr =
+      layer.textAlign === "left"
+        ? `${Math.round(layer.x * width)}`
+        : layer.textAlign === "right"
+          ? `w-tw-${Math.round((1 - layer.x) * width)}`
+          : `(w-tw)/2+${Math.round(layer.x * width - width / 2)}`;
+    const baseY = Math.round(layer.y * height);
+    const fadeSec = Math.min(0.45, layer.durationMs / 1000 / 3);
+
+    for (const step of buildDrawSteps(layer)) {
+      let yExpr = String(baseY);
+      let xExprOut = xExpr;
+      let alphaExpr = "1";
+      let fontsizeExpr: number | string = fontSize;
+
+      if (layer.animation === "fade-in") {
+        alphaExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(t-${step.startSec})/${fadeSec}\\,1)`;
+      } else if (layer.animation === "slide-up") {
+        const slidePx = Math.round(fontSize * 1.1);
+        yExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,${baseY + slidePx}-(${slidePx}*(t-${step.startSec})/${fadeSec})\\,${baseY})`;
+        alphaExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(t-${step.startSec})/${fadeSec}\\,1)`;
+      } else if (layer.animation === "slide-left") {
+        const slidePx = Math.round(width * 0.06);
+        xExprOut = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(${xExpr})+${slidePx}-(${slidePx}*(t-${step.startSec})/${fadeSec})\\,${xExpr})`;
+        alphaExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(t-${step.startSec})/${fadeSec}\\,1)`;
+      } else if (layer.animation === "slide-right") {
+        const slidePx = Math.round(width * 0.06);
+        xExprOut = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(${xExpr})-${slidePx}+(${slidePx}*(t-${step.startSec})/${fadeSec})\\,${xExpr})`;
+        alphaExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(t-${step.startSec})/${fadeSec}\\,1)`;
+      } else if (layer.animation === "scale-in") {
+        fontsizeExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,${Math.round(fontSize * 0.2)}+(${fontSize}-${Math.round(fontSize * 0.2)})*((t-${step.startSec})/${fadeSec})\\,${fontSize})`;
+        alphaExpr = `if(lt(t-${step.startSec}\\,${fadeSec})\\,(t-${step.startSec})/${fadeSec}\\,1)`;
+      }
+
+      pushDrawtext(parts, {
+        fontfile,
+        text: step.text,
+        fontSize: fontsizeExpr,
+        fontColor,
+        x: xExprOut,
+        y: yExpr,
+        alpha: alphaExpr,
+        startSec: step.startSec,
+        endSec: step.endSec,
+      });
+    }
+  }
+
+  return parts.join(",");
+}
+
+export type ApplyLockedTextOverlayInput = {
+  inputVideoPath: string;
+  outputVideoPath: string;
+  layers: LockedTextLayer[];
+  aspectRatio: string | null | undefined;
+  viduResolution: string | null | undefined;
+  totalDurationMs: number;
+};
+
+/** Burn locked text layers onto a merged MP4 using ffmpeg drawtext. */
+export async function applyLockedTextOverlay(input: ApplyLockedTextOverlayInput): Promise<void> {
+  const active = input.layers.filter((l) => l.locked && l.text.trim());
+  if (active.length === 0) {
+    await fs.copyFile(input.inputVideoPath, input.outputVideoPath);
+    return;
+  }
+
+  const { width, height } = resolveInstantVideoDimensions(input.aspectRatio, input.viduResolution);
+  const filter = buildDrawtextFilters(active, width, height);
+  if (!filter) {
+    await fs.copyFile(input.inputVideoPath, input.outputVideoPath);
+    return;
+  }
+
+  const fontfile = defaultFontFile();
+  try {
+    await fs.access(fontfile);
+  } catch {
+    throw new Error(
+      `Font file not found for drawtext (${fontfile}). Set FFMPEG_FONT_PATH to a .ttf file.`
+    );
+  }
+
+  const binary = await resolveFfmpegForTextOverlay();
+  const args = [
+    "-y",
+    "-i",
+    path.resolve(input.inputVideoPath),
+    "-vf",
+    filter,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "23",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "-an",
+    path.resolve(input.outputVideoPath),
+  ];
+  const result = await runFfmpeg(binary, args, { timeoutMs: 10 * 60 * 1000 });
+  if (result.code !== 0) {
+    throw new Error(`Locked text overlay failed: ${result.output.trim().slice(-2500)}`);
+  }
+}

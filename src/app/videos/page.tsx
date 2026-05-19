@@ -12,6 +12,7 @@ import type {
   AnimationProjectListResponse,
 } from "@/types/animation-api";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
+import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
@@ -216,27 +217,33 @@ export default function VideosPage() {
     pageRef.current = page;
   }, [projects, page]);
 
-  /** While jobs run, Vidu URLs land in our DB via /jobs/poll — refresh the first page quietly so the gallery stays current. */
+  const hasProcessingOnFirstPage = page === 1 && projects.some((p) => isProcessingState(p));
+
+  /** Poll provider + merge on the server, then refresh the gallery so finished videos appear with a download. */
   useEffect(() => {
-    if (!session.resolved || !session.user) {
+    if (!session.resolved || !session.user || !hasProcessingOnFirstPage) {
       return;
     }
-    const POLL_MS = 18_000;
+    const POLL_MS = 12_000;
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled || document.visibilityState !== "visible") {
+        return;
+      }
+      await syncActiveAnimationProjects();
+      if (!cancelled) {
+        await fetchList(1, "replace", { background: true });
+      }
+    };
+    void tick();
     const id = window.setInterval(() => {
-      if (document.visibilityState !== "visible") {
-        return;
-      }
-      if (pageRef.current !== 1) {
-        return;
-      }
-      const list = projectsRef.current;
-      if (!list.some((p) => isProcessingState(p))) {
-        return;
-      }
-      void fetchList(1, "replace", { background: true });
+      void tick();
     }, POLL_MS);
-    return () => window.clearInterval(id);
-  }, [session.resolved, session.user, fetchList]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [session.resolved, session.user, hasProcessingOnFirstPage, fetchList]);
 
   const handleLoadMore = () => {
     if (!hasMore || loading) {

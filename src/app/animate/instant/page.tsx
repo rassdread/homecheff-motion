@@ -25,6 +25,12 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
+import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
+import {
+  createLockedTextLayer,
+  type TextImplyingChipId,
+  TEXT_IMPLYING_CHIP_IDS,
+} from "@/lib/locked-text-layer";
 import {
   type InstantPremiumContinuityStrength,
   type InstantPremiumChipId,
@@ -96,6 +102,15 @@ const CHIP_UI: { id: InstantPremiumChipId; labelKey: string; appendKey: string }
   },
   { id: "more_dynamic", labelKey: "instant.chip.more_dynamic", appendKey: "instant.chipAppend.more_dynamic" },
   { id: "ai_decide", labelKey: "instant.chip.ai_decide", appendKey: "instant.chipAppend.ai_decide" },
+];
+
+const TEXT_CHIP_UI: { id: TextImplyingChipId; labelKey: string }[] = [
+  { id: "text_caption", labelKey: "instant.textChip.caption" },
+  { id: "text_cta", labelKey: "instant.textChip.cta" },
+  { id: "text_price", labelKey: "instant.textChip.price" },
+  { id: "text_slogan", labelKey: "instant.textChip.slogan" },
+  { id: "text_product_title", labelKey: "instant.textChip.productTitle" },
+  { id: "text_menu_label", labelKey: "instant.textChip.menuLabel" },
 ];
 
 type LocalImage = {
@@ -176,7 +191,10 @@ export default function InstantPremiumPage() {
   const [motionText, setMotionText] = useState("");
   const [continuityStrength, setContinuityStrength] =
     useState<InstantPremiumContinuityStrength>("balanced");
-  const [chips, setChips] = useState<InstantPremiumChipId[]>([]);
+  const [chips, setChips] = useState<(InstantPremiumChipId | TextImplyingChipId)[]>([]);
+  const [lockedTextMode, setLockedTextMode] = useState(true);
+  const [lockedTextLayers, setLockedTextLayers] = useState<LockedTextLayerDraft[]>([]);
+  const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [premiumMode] = useState<"test" | "paid">(() => {
@@ -213,7 +231,7 @@ export default function InstantPremiumPage() {
     });
   }, []);
 
-  const toggleChip = useCallback((id: InstantPremiumChipId) => {
+  const toggleChip = useCallback((id: InstantPremiumChipId | TextImplyingChipId) => {
     if (id === "ai_decide") {
       setChips(["ai_decide"]);
       return;
@@ -329,6 +347,27 @@ export default function InstantPremiumPage() {
           sizeBytes: img.sizeBytes,
         });
       }
+      const explicitLayers = lockedTextLayers
+        .filter((l) => l.text.trim())
+        .map((l) =>
+          createLockedTextLayer({
+            id: l.id,
+            text: l.text,
+            language: l.language,
+            x: l.x,
+            y: l.y,
+            animation: l.animation,
+            startMs: l.startMs,
+            durationMs: l.durationMs,
+            endMs: l.endMs,
+            fontFamily: l.fontFamily,
+            fontSize: l.fontSize,
+            fontWeight: l.fontWeight,
+            color: l.color,
+            backgroundColor: l.backgroundColor,
+            textAlign: l.textAlign,
+          })
+        );
       const body = {
         images: uploaded,
         stylePreset,
@@ -338,6 +377,9 @@ export default function InstantPremiumPage() {
         userIntent: motionText.trim() || null,
         selectedChips: chips,
         continuityStrength,
+        lockedTextMode,
+        lockedTextLayers: explicitLayers,
+        chipTextBySlot,
       };
       if (premiumMode === "test") {
         const testResponse = await fetch("/api/instant-premium/create-and-generate", {
@@ -418,11 +460,14 @@ export default function InstantPremiumPage() {
     }
   }, [
     aspectRatio,
+    chipTextBySlot,
     chips,
     continuityStrength,
     durationSec,
     images,
     locale,
+    lockedTextLayers,
+    lockedTextMode,
     motionText,
     premiumMode,
     router,
@@ -712,6 +757,48 @@ export default function InstantPremiumPage() {
                 {t("instant.step5.tooltipBody")}
               </span>
             </p>
+            <p className="mt-5 text-sm font-medium text-zinc-800">{t("instant.step5.textChipsTitle")}</p>
+            <p className="text-xs text-zinc-500">{t("instant.step5.textChipsHelp")}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {TEXT_CHIP_UI.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleChip(c.id)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    selectedChipSet.has(c.id)
+                      ? "border-amber-600 bg-amber-100 text-amber-950"
+                      : "border-zinc-200 bg-white text-zinc-700"
+                  }`}
+                >
+                  {t(c.labelKey as never)}
+                </button>
+              ))}
+            </div>
+            {TEXT_IMPLYING_CHIP_IDS.some((id) => selectedChipSet.has(id)) ? (
+              <div className="mt-3 space-y-2">
+                {TEXT_CHIP_UI.filter((c) => selectedChipSet.has(c.id)).map((c) => (
+                  <label key={c.id} className="block text-xs text-zinc-700">
+                    {t(c.labelKey as never)}
+                    <input
+                      type="text"
+                      maxLength={280}
+                      value={chipTextBySlot[c.id] ?? ""}
+                      onChange={(e) =>
+                        setChipTextBySlot((prev) => ({ ...prev, [c.id]: e.target.value }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <LockedTextLayersEditor
+              enabled={lockedTextMode}
+              onEnabledChange={setLockedTextMode}
+              layers={lockedTextLayers}
+              onLayersChange={setLockedTextLayers}
+            />
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(4)}>
                 {t("instant.common.back")}

@@ -6,6 +6,12 @@ export type InstantPremiumDurationSeconds = 8 | 15;
 export type InstantPremiumContinuityStrength = "balanced" | "strict";
 
 /** Stable ids sent from client / stored in DB */
+import {
+  filterVisualOnlyChips,
+  LOCKED_TEXT_SAFETY_BLOCK,
+  isTextImplyingChipId,
+} from "@/lib/locked-text-layer";
+
 export type InstantPremiumChipId =
   | "slow_zoom_in"
   | "cinematic_soft"
@@ -28,6 +34,8 @@ export const INSTANT_PREMIUM_CHIP_IDS: readonly InstantPremiumChipId[] = [
   "more_dynamic",
   "ai_decide",
 ] as const;
+
+export { isTextImplyingChipId, LOCKED_TEXT_SAFETY_BLOCK, filterVisualOnlyChips };
 
 export const INSTANT_PREMIUM_STYLE_LABELS: Record<InstantPremiumStylePreset, string> = {
   food_promo: "Food Promo",
@@ -60,7 +68,7 @@ const CHIP_INSTRUCTIONS: Record<InstantPremiumChipId, string> = {
 };
 
 export function isInstantPremiumChipId(value: string): value is InstantPremiumChipId {
-  return (INSTANT_PREMIUM_CHIP_IDS as readonly string[]).includes(value);
+  return (INSTANT_PREMIUM_CHIP_IDS as readonly string[]).includes(value) && !isTextImplyingChipId(value);
 }
 
 export function isInstantPremiumStylePreset(value: string): value is InstantPremiumStylePreset {
@@ -88,6 +96,8 @@ export type BuildInstantVideoPromptInput = {
   userIntent: string | null;
   selectedChips: string[];
   continuityStrength?: InstantPremiumContinuityStrength;
+  /** When true (default for instant premium), append Vidu text-safety rules. */
+  lockedTextMode?: boolean;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -129,7 +139,8 @@ export function parseStoredInstantUserIntent(raw: string | null | undefined): {
  */
 export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): string {
   const styleLine = STYLE_PROMPTS[input.stylePreset];
-  const chipLines = chipInstructionLines(input.selectedChips);
+  const visualChips = filterVisualOnlyChips(input.selectedChips);
+  const chipLines = chipInstructionLines(visualChips);
   const chipBlock =
     chipLines.length > 0 ? chipLines.map((l) => `- ${l}`).join("\n") : "(none — rely on defaults above.)";
 
@@ -168,7 +179,13 @@ If user intent is present, subtly incorporate it without breaking realism or con
 
 Maintain balanced pacing and a coherent flow. Avoid static sections, chaotic motion, and abrupt resets.
 
-The final result should feel like a polished, premium, ready-to-use social media video.`;
+The final result should feel like a polished, premium, ready-to-use social media video.${
+    input.lockedTextMode !== false
+      ? `
+
+${LOCKED_TEXT_SAFETY_BLOCK}`
+      : ""
+  }`;
 }
 
 export function instantPremiumTransitionSegmentHint(params: {

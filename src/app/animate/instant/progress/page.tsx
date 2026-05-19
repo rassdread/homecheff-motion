@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
+import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
@@ -36,6 +37,7 @@ function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
 
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
+  const completionSyncedRef = useRef(false);
   const [projectId] = useState(() => {
     if (typeof window === "undefined") {
       return "";
@@ -102,6 +104,17 @@ export default function InstantPremiumProgressPage() {
       if (timer) clearTimeout(timer);
     };
   }, [projectId, t]);
+
+  useEffect(() => {
+    if (!projectId || snapshot?.status !== "completed" || !snapshot.finalVideoUrl) {
+      return;
+    }
+    if (completionSyncedRef.current) {
+      return;
+    }
+    completionSyncedRef.current = true;
+    void syncActiveAnimationProjects();
+  }, [projectId, snapshot?.finalVideoUrl, snapshot?.status]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -204,6 +217,12 @@ export default function InstantPremiumProgressPage() {
               </div>
             ))}
           </div>
+          {snapshot?.status === "completed" && snapshot.finalVideoUrl ? (
+            <div className="mt-4">
+              <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
+              <p className="mt-2 text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
+            </div>
+          ) : null}
           {snapshot?.finalVideoUrl ? (
             <div className="mt-5">
               <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>

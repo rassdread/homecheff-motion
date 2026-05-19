@@ -4,6 +4,16 @@ import { getAnimationPreset, type AnimationPresetId } from "@/lib/animation-pres
 import { normalizeAnimationIntent } from "@/lib/animation-intents";
 import { DEFAULT_GLOBAL_ANIMATION_CONTEXT } from "@/lib/animation-global-prompt-context";
 import {
+  buildLockedTextLayersFromChips,
+  lockedTextLayersForStorage,
+  mergeLockedTextLayers,
+  parseLockedTextLayersJson,
+  validateLockedTextLayersForCreate,
+  type LockedTextLayer,
+  isTextImplyingChipId,
+  type TextImplyingChipId,
+} from "@/lib/locked-text-layer";
+import {
   composeStoredInstantUserIntent,
   isInstantPremiumChipId,
   normalizeInstantPremiumContinuityStrength,
@@ -28,6 +38,9 @@ export type InstantPremiumCreatePayload = {
   userIntent?: string | null;
   selectedChips?: string[];
   continuityStrength?: InstantPremiumContinuityStrength;
+  lockedTextMode?: boolean;
+  lockedTextLayers?: LockedTextLayer[];
+  chipTextBySlot?: Partial<Record<TextImplyingChipId, string>>;
 };
 
 export type InstantPremiumCreateResult =
@@ -111,6 +124,26 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
 
   const continuityStrength = normalizeInstantPremiumContinuityStrength(o.continuityStrength);
 
+  let lockedTextMode = true;
+  if (o.lockedTextMode === false) {
+    lockedTextMode = false;
+  }
+
+  const explicitLayers = parseLockedTextLayersJson(o.lockedTextLayers);
+  const durationMs = (duration === 15 ? 15 : 8) * 1000;
+  const chipTextBySlot = parseChipTextBySlot(o.chipTextBySlot);
+  const fromChips = buildLockedTextLayersFromChips({
+    selectedChips: chips,
+    chipTextBySlot,
+    totalDurationMs: durationMs,
+    uiLanguage,
+  });
+  const mergedLayers = mergeLockedTextLayers(explicitLayers, fromChips);
+  const layerCheck = validateLockedTextLayersForCreate(mergedLayers, durationMs);
+  if (!layerCheck.ok) {
+    return { ok: false, error: layerCheck.error, status: 400 };
+  }
+
   const data: InstantPremiumCreatePayload = {
     images,
     stylePreset,
@@ -119,10 +152,31 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     ...(uiLanguage ? { uiLanguage } : {}),
     selectedChips: chips,
     continuityStrength,
+    lockedTextMode,
+    lockedTextLayers: layerCheck.layers,
+    ...(Object.keys(chipTextBySlot).length > 0 ? { chipTextBySlot } : {}),
     ...(userIntent !== undefined ? { userIntent } : {}),
   };
 
   return { ok: true, data };
+}
+
+function parseChipTextBySlot(raw: unknown): Partial<Record<TextImplyingChipId, string>> {
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+  const o = raw as Record<string, unknown>;
+  const out: Partial<Record<TextImplyingChipId, string>> = {};
+  for (const key of Object.keys(o)) {
+    if (!isTextImplyingChipId(key)) {
+      continue;
+    }
+    const val = o[key];
+    if (typeof val === "string" && val.trim()) {
+      out[key] = val;
+    }
+  }
+  return out;
 }
 
 function parseChips(raw: unknown): string[] {
@@ -130,19 +184,35 @@ function parseChips(raw: unknown): string[] {
     return [];
   }
   const out: string[] = [];
+  let motionCount = 0;
+  let textCount = 0;
   for (const item of raw) {
     if (typeof item !== "string") {
       continue;
     }
     const id = item.trim();
-    if (!id || !isInstantPremiumChipId(id)) {
+    if (!id) {
+      continue;
+    }
+    const isMotion = isInstantPremiumChipId(id);
+    const isText = isTextImplyingChipId(id);
+    if (!isMotion && !isText) {
+      continue;
+    }
+    if (isMotion && motionCount >= MAX_CHIPS) {
+      continue;
+    }
+    if (isText && textCount >= 5) {
       continue;
     }
     if (!out.includes(id)) {
       out.push(id);
-    }
-    if (out.length >= MAX_CHIPS) {
-      break;
+      if (isMotion) {
+        motionCount += 1;
+      }
+      if (isText) {
+        textCount += 1;
+      }
     }
   }
   return out;
@@ -204,6 +274,12 @@ export async function createInstantPremiumAnimationProject(
     transitionCount * perTransition * preset.estimatedCreditsPerSecond;
 
   const chipsJson = chips.length > 0 ? (chips as unknown as Prisma.InputJsonValue) : undefined;
+  const lockedLayers = validated.data.lockedTextLayers ?? [];
+  const lockedLayersJson =
+    lockedLayers.length > 0
+      ? (lockedTextLayersForStorage(lockedLayers) as unknown as Prisma.InputJsonValue)
+      : undefined;
+  const lockedTextMode = validated.data.lockedTextMode !== false;
 
   const viduModel = preset.model;
   const viduResolution = preset.resolution;
@@ -220,6 +296,8 @@ export async function createInstantPremiumAnimationProject(
           instantOutputDurationSeconds: durationResolved,
           instantSelectedChips: chipsJson ?? undefined,
           instantUserIntent: intent,
+          instantLockedTextLayers: lockedLayersJson,
+          instantLockedTextMode: lockedTextMode,
           presetId: preset.id,
           viduModel,
           viduResolution,

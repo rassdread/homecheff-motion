@@ -15,6 +15,11 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
   getFinalMergeMaxWidthFromViduResolution,
 } from "@/lib/media-export-constants";
+import {
+  parseLockedTextLayersJson,
+  validateLockedTextLayerMetadata,
+} from "@/lib/locked-text-layer";
+import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
 
 type InstantSegmentStatus = "queued" | "generating" | "completed" | "failed";
 
@@ -40,6 +45,8 @@ export type InstantPremiumStatusResponse = {
   errorMessage: string | null;
   missingSegments?: number[];
   queuedWithoutJobCount?: number;
+  lockedTextMode?: boolean;
+  lockedTextLayerCount?: number;
 };
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
@@ -363,14 +370,44 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
         getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
         project.viduDurationSeconds ?? null
       );
-      const stat = await fs.stat(finalAbs).catch(() => null);
+      let mergedPath = finalAbs;
+      const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
+      if (project.instantLockedTextMode && lockedLayers.length > 0) {
+        const withTextPath = path.join(workDir, "final-with-locked-text.mp4");
+        const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;
+        await applyLockedTextOverlay({
+          inputVideoPath: finalAbs,
+          outputVideoPath: withTextPath,
+          layers: lockedLayers,
+          aspectRatio: project.aspectRatio,
+          viduResolution: project.viduResolution,
+          totalDurationMs,
+        });
+        mergedPath = withTextPath;
+        console.info("[hc-instant-premium]", {
+          projectId,
+          phase: "lockedTextOverlay",
+          layerCount: lockedLayers.length,
+        });
+      }
+      const stat = await fs.stat(mergedPath).catch(() => null);
       if (!stat || stat.size <= 0) {
         throw new Error("Final merged video is empty.");
       }
-      const finalUrl = await uploadMergedVideoToBlob(projectId, finalAbs);
+      const textValidation = validateLockedTextLayerMetadata(lockedLayers);
+      const finalUrl = await uploadMergedVideoToBlob(projectId, mergedPath);
       await prisma.animationExport.update({
         where: { id: exportRow.id },
-        data: { status: "completed", progress: 100, outputVideoUrl: finalUrl, errorMessage: null },
+        data: {
+          status: "completed",
+          progress: 100,
+          outputVideoUrl: finalUrl,
+          errorMessage: null,
+          expectedTextLayers:
+            lockedLayers.length > 0
+              ? (textValidation.records as object)
+              : undefined,
+        },
       });
       await prisma.animationProject.update({ where: { id: projectId }, data: { status: "completed" } });
       console.info("[hc-instant-premium]", {
@@ -607,6 +644,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     project.status === "rendering";
 
   if (needsPoll) {
+    await refreshTransitionOutputsFromProvider(project.id).catch(() => undefined);
     await pollProjectJobs(project.id).catch(() => undefined);
   }
 
@@ -711,6 +749,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
           : "running";
 
   const finalVideoUrl = latestExport?.status === "completed" ? latestExport.outputVideoUrl ?? null : null;
+  const lockedLayers = parseLockedTextLayersJson(finalState.instantLockedTextLayers);
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
@@ -719,6 +758,8 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     progressPercent,
     segments,
     finalVideoUrl,
+    lockedTextMode: finalState.instantLockedTextMode,
+    lockedTextLayerCount: lockedLayers.length,
     finalDurationSeconds:
       finalState.transitions.length > 0 && segmentDuration
         ? finalState.transitions.length * segmentDuration
