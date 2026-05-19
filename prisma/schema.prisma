@@ -24,6 +24,10 @@ model AnimationProject {
   instantLockedTextLayers Json?
   /** When true, Vidu prompts include text-safety rules and finals get deterministic text overlays. */
   instantLockedTextMode Boolean @default(true)
+  /** Last sanitized overlay error (e.g. missing drawtext); safe for UI. */
+  lastOverlayError String?
+  /** overlay_failed | merge_failed when status is failed_overlay or failed */
+  failureReason String?
   stylePreset String?
   aspectRatio String?
   /** basic | standard | pro | smooth — enforced server-side */

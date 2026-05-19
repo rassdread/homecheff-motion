@@ -22,6 +22,7 @@ import {
   type InstantPremiumDurationSeconds,
 } from "@/lib/instant-premium-prompt";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
+import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
 const MIN_IMAGES = 3;
@@ -238,6 +239,11 @@ export async function createInstantPremiumAnimationProject(
   const validated = validateInstantPremiumCreatePayload(payload);
   if (!validated.ok) {
     return { ok: false, error: validated.error, status: validated.status };
+  }
+
+  const renderingGuard = await guardInstantPremiumVideoRendering(validated.data);
+  if (!renderingGuard.ok) {
+    return { ok: false, error: renderingGuard.error, status: renderingGuard.status };
   }
 
   const {

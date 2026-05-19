@@ -312,4 +312,7 @@ export type InstantPremiumStatusResponse = {
   queuedWithoutJobCount?: number;
   lockedTextLayerCount?: number;
   lockedTextMode?: boolean;
+  overlayFailed?: boolean;
+  canRetryOverlay?: boolean;
+  failureReason?: "overlay_failed" | "merge_failed" | null;
 };

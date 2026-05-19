@@ -584,6 +584,9 @@ export const nl = {
     "De video staat in Mijn video’s en is daar downloadbaar zodra de status op voltooid staat.",
   "instant.progress.finalDuration": "Eindduur: ~{seconds}s",
   "instant.progress.retryMerge": "Merge opnieuw proberen",
+  "instant.progress.retryOverlay": "Vergrendelde tekst opnieuw proberen",
+  "instant.progress.overlayFailedHelp":
+    "De videoclips zijn gegenereerd, maar het renderen van vergrendelde tekst is mislukt. Probeer opnieuw nadat de video-instellingen op de server zijn hersteld.",
   "instant.progress.retryFailed": "Merge opnieuw starten mislukt.",
   "instant.recover.notCompleted": "Eindvideo is nog niet voltooid.",
   "instant.recover.cta": "Eindvideo herstellen",

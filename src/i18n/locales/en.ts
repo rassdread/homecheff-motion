@@ -582,6 +582,9 @@ export const en: LocaleSchema = {
     "Your video is saved under My videos and can be downloaded there once processing is complete.",
   "instant.progress.finalDuration": "Final duration: ~{seconds}s",
   "instant.progress.retryMerge": "Retry merge",
+  "instant.progress.retryOverlay": "Retry locked text overlay",
+  "instant.progress.overlayFailedHelp":
+    "Video clips were generated, but locked text rendering failed. Retry after server video setup is fixed.",
   "instant.progress.retryFailed": "Could not retry merge.",
   "instant.recover.notCompleted": "Final video not completed yet.",
   "instant.recover.cta": "Recover final video",

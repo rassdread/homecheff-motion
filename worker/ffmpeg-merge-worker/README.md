@@ -34,7 +34,8 @@ If the secret is set on the worker, **`callbackUrl`** is required on each `POST 
 
 5. **`WORKER_PUBLIC_URL`** — Set to your public HTTPS origin (e.g. `https://your-service.up.railway.app`) so returned video URLs are correct.
 
-6. **FFmpeg** — Install on the image (custom Dockerfile, Nixpacks `nixPkgs`/`apt`, or a Railway template with ffmpeg) or merges will fail at runtime (the HTTP server will still boot).
+6. **FFmpeg** — Install on the image (custom Dockerfile, Nixpacks `nixPkgs`/`apt`, or a Railway template with ffmpeg) or merges will fail at runtime (the HTTP server will still boot).  
+   For **Instant Premium locked text overlays** on the Next.js app (not this worker), the app needs FFmpeg with **drawtext** (libfreetype) plus a readable font (`FFMPEG_FONT_PATH`). Verify: `ffmpeg -filters 2>&1 | grep drawtext`. See root `.env.example` and `GET /api/health/video`.
 
 `GET /` returns `{ "status": "ok", "service": "ffmpeg-merge-worker" }` for health checks.
 

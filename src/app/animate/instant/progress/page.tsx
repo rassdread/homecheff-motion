@@ -177,7 +177,12 @@ export default function InstantPremiumProgressPage() {
           ) : null}
           {snapshot?.status === "failed" ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              {snapshot.errorMessage || t("instant.progress.failedHelp")}
+              {snapshot.overlayFailed ? (
+                <p>{t("instant.progress.overlayFailedHelp")}</p>
+              ) : null}
+              <p className={snapshot.overlayFailed ? "mt-2" : undefined}>
+                {snapshot.errorMessage || t("instant.progress.failedHelp")}
+              </p>
             </div>
           ) : null}
           <div className="mt-6">
@@ -250,7 +255,37 @@ export default function InstantPremiumProgressPage() {
               </div>
             </div>
           ) : null}
-          {projectId && snapshot?.status === "failed" ? (
+          {projectId && snapshot?.canRetryOverlay ? (
+            <button
+              type="button"
+              disabled={retryBusy}
+              className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              onClick={() => {
+                setRetryBusy(true);
+                void (async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/instant-premium/projects/${projectId}/retry-overlay`,
+                      { method: "POST", credentials: "include" }
+                    );
+                    if (!res.ok) {
+                      const body = (await res.json().catch(() => ({}))) as { error?: string };
+                      setError(body.error ?? t("instant.progress.retryFailed"));
+                      return;
+                    }
+                    const body = (await res.json()) as InstantPremiumStatusResponse;
+                    setSnapshot(body);
+                    setError(null);
+                  } finally {
+                    setRetryBusy(false);
+                  }
+                })();
+              }}
+            >
+              {retryBusy ? t("instant.step7.preparing") : t("instant.progress.retryOverlay")}
+            </button>
+          ) : null}
+          {projectId && snapshot?.status === "failed" && !snapshot?.canRetryOverlay ? (
             <button
               type="button"
               disabled={retryBusy}

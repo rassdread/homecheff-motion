@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import {
   validateInstantPremiumCreatePayload,
 } from "@/server/instant-premium/create-instant-premium-project";
+import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
 import { requireActiveUser } from "@/server/auth/permissions";
 
 export async function POST(request: Request) {
@@ -34,6 +35,14 @@ export async function POST(request: Request) {
           "Checkout is disabled in test mode. Use /api/instant-premium/create-and-generate.",
       },
       { status: 409 }
+    );
+  }
+
+  const renderingGuard = await guardInstantPremiumVideoRendering(validated.data);
+  if (!renderingGuard.ok) {
+    return NextResponse.json(
+      { error: renderingGuard.error, code: renderingGuard.code },
+      { status: renderingGuard.status }
     );
   }
 

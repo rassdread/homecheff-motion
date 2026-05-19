@@ -20,6 +20,7 @@ import {
   validateLockedTextLayerMetadata,
 } from "@/lib/locked-text-layer";
 import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
+import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 
 type InstantSegmentStatus = "queued" | "generating" | "completed" | "failed";
 
@@ -47,6 +48,9 @@ export type InstantPremiumStatusResponse = {
   queuedWithoutJobCount?: number;
   lockedTextMode?: boolean;
   lockedTextLayerCount?: number;
+  overlayFailed?: boolean;
+  canRetryOverlay?: boolean;
+  failureReason?: "overlay_failed" | "merge_failed" | null;
 };
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
@@ -314,10 +318,17 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
     }
 
     const latestExport = project.exports[0];
-    if (!options?.force && latestExport?.status === "completed" && latestExport.outputVideoUrl) {
+    if (
+      !options?.force &&
+      latestExport?.status === "completed" &&
+      latestExport.outputVideoUrl
+    ) {
       return;
     }
-    if (!options?.force && latestExport?.status === "rendering") {
+    if (
+      !options?.force &&
+      latestExport?.status === "rendering"
+    ) {
       return;
     }
 
@@ -327,7 +338,7 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
     }
 
     const exportRow =
-      latestExport?.status === "failed"
+      latestExport?.status === "failed" || latestExport?.status === "failed_overlay"
         ? await prisma.animationExport.update({
             where: { id: latestExport.id },
             data: { status: "rendering", progress: 10, errorMessage: null, outputVideoUrl: null },
@@ -341,7 +352,10 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
               data: { projectId, status: "rendering", progress: 10, provider: "instant-local-ffmpeg" },
             });
 
-    await prisma.animationProject.update({ where: { id: projectId }, data: { status: "rendering" } });
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: { status: "rendering", lastOverlayError: null, failureReason: null },
+    });
     console.info("[hc-instant-premium]", {
       projectId,
       phase: "mergeStart",
@@ -372,23 +386,53 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
       );
       let mergedPath = finalAbs;
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
-      if (project.instantLockedTextMode && lockedLayers.length > 0) {
+      const needsOverlay = project.instantLockedTextMode && lockedLayers.length > 0;
+      if (needsOverlay) {
         const withTextPath = path.join(workDir, "final-with-locked-text.mp4");
         const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;
-        await applyLockedTextOverlay({
-          inputVideoPath: finalAbs,
-          outputVideoPath: withTextPath,
-          layers: lockedLayers,
-          aspectRatio: project.aspectRatio,
-          viduResolution: project.viduResolution,
-          totalDurationMs,
-        });
-        mergedPath = withTextPath;
-        console.info("[hc-instant-premium]", {
-          projectId,
-          phase: "lockedTextOverlay",
-          layerCount: lockedLayers.length,
-        });
+        try {
+          await applyLockedTextOverlay({
+            inputVideoPath: finalAbs,
+            outputVideoPath: withTextPath,
+            layers: lockedLayers,
+            aspectRatio: project.aspectRatio,
+            viduResolution: project.viduResolution,
+            totalDurationMs,
+          });
+          mergedPath = withTextPath;
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "lockedTextOverlay",
+            layerCount: lockedLayers.length,
+          });
+        } catch (overlayError) {
+          const safeMessage = sanitizeOverlayError(
+            overlayError instanceof Error ? overlayError.message : "Locked text overlay failed."
+          );
+          await prisma.animationExport.update({
+            where: { id: exportRow.id },
+            data: {
+              status: "failed_overlay",
+              progress: 0,
+              errorMessage: safeMessage,
+              outputVideoUrl: null,
+            },
+          });
+          await prisma.animationProject.update({
+            where: { id: projectId },
+            data: {
+              status: "failed_overlay",
+              lastOverlayError: safeMessage,
+              failureReason: "overlay_failed",
+            },
+          });
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "failed_overlay",
+            error: safeMessage,
+          });
+          return;
+        }
       }
       const stat = await fs.stat(mergedPath).catch(() => null);
       if (!stat || stat.size <= 0) {
@@ -409,7 +453,10 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
               : undefined,
         },
       });
-      await prisma.animationProject.update({ where: { id: projectId }, data: { status: "completed" } });
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: { status: "completed", lastOverlayError: null, failureReason: null },
+      });
       console.info("[hc-instant-premium]", {
         projectId,
         phase: "mergeComplete",
@@ -418,12 +465,17 @@ async function mergeInstantProject(projectId: string, options?: { force?: boolea
         completed: true,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Instant merge failed.";
+      const message = sanitizeOverlayError(
+        error instanceof Error ? error.message : "Instant merge failed."
+      );
       await prisma.animationExport.update({
         where: { id: exportRow.id },
         data: { status: "failed", progress: 0, errorMessage: message, outputVideoUrl: null },
       });
-      await prisma.animationProject.update({ where: { id: projectId }, data: { status: "failed" } });
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: { status: "failed", failureReason: "merge_failed", lastOverlayError: null },
+      });
       console.info("[hc-instant-premium]", {
         projectId,
         phase: "failed",
@@ -614,6 +666,23 @@ export async function retryInstantPremiumMerge(projectId: string): Promise<void>
   await mergeInstantProject(projectId, { force: true });
 }
 
+export async function retryInstantPremiumOverlay(projectId: string): Promise<void> {
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: { transitions: { orderBy: { order: "asc" } } },
+  });
+  if (!project || !isInstantLikeProject(project)) {
+    throw new Error("Instant Premium project not found.");
+  }
+  const completed = project.transitions.filter(
+    (t) => t.status === "completed" && t.outputVideoUrl?.trim()
+  );
+  if (completed.length !== project.transitions.length || completed.length === 0) {
+    throw new Error("Provider clips are not ready yet.");
+  }
+  await mergeInstantProject(projectId, { force: true });
+}
+
 export async function getInstantPremiumStatus(projectId: string): Promise<InstantPremiumStatusResponse> {
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
@@ -673,7 +742,11 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     completedCount: refreshed.transitions.filter((t) => t.status === "completed").length,
     mergeEligible: transitionsCompleted,
   });
-  if (transitionsCompleted) {
+  if (
+    transitionsCompleted &&
+    refreshed.status !== "completed" &&
+    refreshed.status !== "failed_overlay"
+  ) {
     await mergeInstantProject(projectId);
   }
 
@@ -729,8 +802,10 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
         : finalState.status === "rendering"
           ? Math.max(55, latestExport?.progress ?? 55)
           : Math.max(5, averageTransitions);
+  const overlayFailed =
+    finalState.status === "failed_overlay" || latestExport?.status === "failed_overlay";
   const phase: InstantPremiumStatusResponse["phase"] =
-    finalState.status === "failed"
+    overlayFailed || finalState.status === "failed"
       ? "failed"
       : finalState.status === "completed"
         ? "completed"
@@ -740,7 +815,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
             : "merging_clips"
           : "generating_clips";
   const status: InstantPremiumStatusResponse["status"] =
-    finalState.status === "failed"
+    overlayFailed || finalState.status === "failed"
       ? "failed"
       : finalState.status === "completed"
         ? "completed"
@@ -750,6 +825,17 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
 
   const finalVideoUrl = latestExport?.status === "completed" ? latestExport.outputVideoUrl ?? null : null;
   const lockedLayers = parseLockedTextLayersJson(finalState.instantLockedTextLayers);
+  const segmentsAllCompleted =
+    finalState.transitions.length > 0 &&
+    finalState.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
+  const failureReason =
+    finalState.failureReason === "overlay_failed" || finalState.failureReason === "merge_failed"
+      ? finalState.failureReason
+      : overlayFailed
+        ? "overlay_failed"
+        : finalState.status === "failed"
+          ? "merge_failed"
+          : null;
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
@@ -766,9 +852,13 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
         : null,
     downloadable: Boolean(finalVideoUrl),
     errorMessage:
+      (overlayFailed ? finalState.lastOverlayError : null) ??
       latestExport?.errorMessage ??
       finalState.transitions.find((t) => t.status === "failed")?.errorMessage ??
       null,
+    overlayFailed,
+    canRetryOverlay: overlayFailed && segmentsAllCompleted,
+    failureReason,
     missingSegments: finalState.transitions
       .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
       .map((t) => t.order),

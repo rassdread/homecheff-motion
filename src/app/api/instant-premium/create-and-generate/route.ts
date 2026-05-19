@@ -52,8 +52,10 @@ export async function POST(request: Request) {
       projectId: null,
       jobTriggered: false,
     });
+    const code =
+      created.status === 503 ? "VIDEO_RENDERING_UNAVAILABLE" : "CREATE_FAILED";
     return NextResponse.json(
-      { ok: false as const, error: created.error, code: "CREATE_FAILED" },
+      { ok: false as const, error: created.error, code },
       { status: created.status }
     );
   }

@@ -1,32 +1,12 @@
-import { spawn } from "node:child_process";
-import fs from "node:fs/promises";
 import path from "node:path";
+import fs from "node:fs/promises";
 import type { LockedTextLayer } from "@/lib/locked-text-layer";
 import { normalizeLockedTextContent, resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
-
-const FFMPEG_FULL_CANDIDATES = [
-  "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
-  "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
-] as const;
-
-function ffmpegBinary(): string {
-  const fromEnv = process.env.FFMPEG_PATH?.trim();
-  if (fromEnv) {
-    return fromEnv;
-  }
-  return process.env.FFMPEG_TEXT_OVERLAY_PATH?.trim() || "ffmpeg";
-}
-
-function defaultFontFile(): string {
-  const fromEnv = process.env.FFMPEG_FONT_PATH?.trim();
-  if (fromEnv) {
-    return fromEnv;
-  }
-  if (process.platform === "darwin") {
-    return "/System/Library/Fonts/Supplemental/Arial Bold.ttf";
-  }
-  return "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
-}
+import {
+  resolveConfiguredFontPath,
+  resolveFfmpegForTextOverlay,
+  runFfmpegCapture,
+} from "@/lib/video-ffmpeg-capability";
 
 function escapeDrawtext(text: string): string {
   return text
@@ -47,63 +27,6 @@ function hexFontColor(color: string | undefined): string {
     return `0x${raw}`;
   }
   return "white";
-}
-
-function runFfmpeg(
-  binary: string,
-  args: string[],
-  options: { timeoutMs?: number }
-): Promise<{ code: number; output: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(binary, args, {
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    if (options.timeoutMs && options.timeoutMs > 0) {
-      timeout = setTimeout(() => child.kill("SIGKILL"), options.timeoutMs);
-    }
-    let output = "";
-    const append = (chunk: Buffer) => {
-      output += chunk.toString();
-    };
-    child.stdout?.on("data", append);
-    child.stderr?.on("data", append);
-    child.on("error", (err: NodeJS.ErrnoException) => {
-      if (timeout) clearTimeout(timeout);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      if (timeout) clearTimeout(timeout);
-      resolve({ code: code ?? 1, output });
-    });
-  });
-}
-
-async function ffmpegSupportsDrawtext(binary: string): Promise<boolean> {
-  const result = await runFfmpeg(binary, ["-filters"], { timeoutMs: 15_000 });
-  return result.code === 0 && /\bdrawtext\b/.test(result.output);
-}
-
-/** Prefer ffmpeg-full (libfreetype) when the default brew ffmpeg lacks drawtext. */
-export async function resolveFfmpegForTextOverlay(): Promise<string> {
-  const primary = ffmpegBinary();
-  if (await ffmpegSupportsDrawtext(primary)) {
-    return primary;
-  }
-  for (const candidate of FFMPEG_FULL_CANDIDATES) {
-    try {
-      await fs.access(candidate);
-    } catch {
-      continue;
-    }
-    if (await ffmpegSupportsDrawtext(candidate)) {
-      return candidate;
-    }
-  }
-  throw new Error(
-    "FFmpeg with drawtext is required for locked text overlays. Install ffmpeg-full (brew install ffmpeg-full) and set FFMPEG_PATH or FFMPEG_TEXT_OVERLAY_PATH to its binary."
-  );
 }
 
 function visibleTextAt(layer: LockedTextLayer, elapsedSec: number): string {
@@ -199,7 +122,7 @@ function pushDrawtext(
 }
 
 function buildDrawtextFilters(layers: LockedTextLayer[], width: number, height: number): string {
-  const fontfile = defaultFontFile();
+  const fontfile = resolveConfiguredFontPath();
   const parts: string[] = [];
 
   for (const layer of layers) {
@@ -280,12 +203,12 @@ export async function applyLockedTextOverlay(input: ApplyLockedTextOverlayInput)
     return;
   }
 
-  const fontfile = defaultFontFile();
+  const fontfile = resolveConfiguredFontPath();
   try {
     await fs.access(fontfile);
   } catch {
     throw new Error(
-      `Font file not found for drawtext (${fontfile}). Set FFMPEG_FONT_PATH to a .ttf file.`
+      `Font file not found for drawtext. Set FFMPEG_FONT_PATH to a readable .ttf file.`
     );
   }
 
@@ -309,7 +232,7 @@ export async function applyLockedTextOverlay(input: ApplyLockedTextOverlayInput)
     "-an",
     path.resolve(input.outputVideoPath),
   ];
-  const result = await runFfmpeg(binary, args, { timeoutMs: 10 * 60 * 1000 });
+  const result = await runFfmpegCapture(binary, args, { timeoutMs: 10 * 60 * 1000 });
   if (result.code !== 0) {
     throw new Error(`Locked text overlay failed: ${result.output.trim().slice(-2500)}`);
   }
