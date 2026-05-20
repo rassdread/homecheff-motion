@@ -3,8 +3,11 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { InstantOcrStatusLine } from "@/components/instant/instant-ocr-status-line";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { LOCKED_TEXT_ANIMATIONS, type LockedTextAnimation } from "@/lib/locked-text-layer";
+import type { OcrScanPhase } from "@/lib/instant-ocr-scan";
 
 export type BakedTextProtectionDraft = {
   enabled: boolean;
@@ -22,6 +25,17 @@ export type BakedTextProtectionDraft = {
   needsReview?: boolean;
   reviewOpen?: boolean;
   autoProtected?: boolean;
+  userSkipped?: boolean;
+  interrupted?: boolean;
+  scanPhase?: OcrScanPhase;
+  scanRequestId?: string;
+  scanStartedAt?: string;
+  scanFinishedAt?: string;
+  scanDurationMs?: number;
+  scanProvider?: string;
+  scanBlockCount?: number;
+  scanAverageConfidence?: number;
+  scanErrorCode?: string;
 };
 
 type Props = {
@@ -34,6 +48,7 @@ type Props = {
   onChange: (imageId: string, patch: Partial<BakedTextProtectionDraft>) => void;
   onScan: (imageId: string, options?: { force?: boolean }) => Promise<void>;
   onConfirm: (imageId: string) => void;
+  onSkipProtection?: (imageId: string) => void;
   isAdmin?: boolean;
   onPreviewMask?: (imageId: string) => Promise<void>;
 };
@@ -97,6 +112,7 @@ export function BakedTextProtectionPanel({
   onChange,
   onScan,
   onConfirm,
+  onSkipProtection,
   isAdmin,
   onPreviewMask,
 }: Props) {
@@ -108,11 +124,15 @@ export function BakedTextProtectionPanel({
       images.filter((i) => {
         const bt = i.bakedText;
         return (
+          isActiveOcrScanPhase(bt.scanPhase) ||
           bt.scanBusy ||
           bt.autoScanState === "scanning" ||
           bt.enabled ||
           bt.needsReview ||
-          bt.status === "confirmed"
+          bt.status === "confirmed" ||
+          bt.scanPhase === "timeout" ||
+          bt.scanPhase === "failed" ||
+          bt.scanPhase === "interrupted"
         );
       }),
     [images]
@@ -144,7 +164,12 @@ export function BakedTextProtectionPanel({
       {visibleImages.map((image, index) => {
         const bt = image.bakedText;
         const showManual = expandedManual[image.id] ?? bt.manualMode;
-        const isScanning = bt.scanBusy || bt.autoScanState === "scanning";
+        const isScanning =
+          isActiveOcrScanPhase(bt.scanPhase) || bt.scanBusy || bt.autoScanState === "scanning";
+        const showTimeoutActions =
+          bt.scanPhase === "timeout" ||
+          bt.scanPhase === "failed" ||
+          bt.scanPhase === "interrupted";
         const showReview =
           bt.blocks.length > 0 &&
           (bt.status !== "confirmed" || bt.reviewOpen === true || !bt.autoProtected);
@@ -154,8 +179,35 @@ export function BakedTextProtectionPanel({
               {t("instant.bakedText.image")} #{index + 1} · {image.originalFileName}
             </p>
 
-            {isScanning ? (
-              <p className="mt-2 text-xs text-zinc-500">{t("instant.bakedText.autoScanChecking")}</p>
+            <InstantOcrStatusLine bakedText={bt} isAdmin={isAdmin} />
+
+            {showTimeoutActions && onSkipProtection ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg bg-sky-800 px-3 py-1.5 text-xs font-semibold text-white"
+                  onClick={() => void onScan(image.id, { force: true })}
+                >
+                  {t("instant.bakedText.scanRescan")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-950"
+                  onClick={() => onSkipProtection(image.id)}
+                >
+                  {t("instant.bakedText.continueWithoutProtection")}
+                </button>
+              </div>
+            ) : null}
+
+            {onSkipProtection && bt.enabled && !isScanning && !showTimeoutActions ? (
+              <button
+                type="button"
+                className="mt-2 text-[11px] text-amber-800 underline"
+                onClick={() => onSkipProtection(image.id)}
+              >
+                {t("instant.bakedText.skipImageWarning")}
+              </button>
             ) : null}
 
             {!isScanning ? (

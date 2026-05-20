@@ -21,12 +21,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
-import { hashImageBlob, shouldPromptBakedTextReview } from "@/lib/baked-text-auto-scan";
-import {
-  getCachedBakedTextOcr,
-  setCachedBakedTextOcr,
-} from "@/lib/baked-text-ocr-client-cache";
+import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
+import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
+import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
+import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
+import { saveWizardImageBlobs } from "@/lib/instant-premium-wizard-storage";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -135,6 +134,9 @@ type LocalImage = {
   optimizedBlob: Blob;
   thumbnailBlob: Blob;
   bakedText: BakedTextProtectionDraft;
+  remoteWorkingUrl?: string;
+  remoteThumbnailUrl?: string;
+  remoteStorageKey?: string;
 };
 
 const DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
@@ -226,6 +228,13 @@ export default function InstantPremiumPage() {
   const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [fastRenderMode, setFastRenderMode] = useState(false);
+  const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
+  const [wizardReady, setWizardReady] = useState(false);
+  const imagesRef = useRef<LocalImage[]>([]);
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
   const [premiumMode] = useState<"test" | "paid">(() => {
     if (typeof document === "undefined") {
       return "test";
@@ -322,6 +331,9 @@ export default function InstantPremiumPage() {
           })
         );
         setImages((prev) => [...prev, ...processed]);
+        for (const img of processed) {
+          void saveWizardImageBlobs(img.id, img.optimizedBlob, img.thumbnailBlob);
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "";
         const maxMb =
@@ -362,195 +374,74 @@ export default function InstantPremiumPage() {
     if (!res.ok) {
       throw new Error(t("instant.errors.uploadFailed"));
     }
-    return (await res.json()) as UploadImageResponse;
+    const payload = (await res.json()) as UploadImageResponse;
+    setImages((prev) =>
+      prev.map((row) =>
+        row.id === img.id
+          ? {
+              ...row,
+              remoteWorkingUrl: payload.workingImageUrl,
+              remoteThumbnailUrl: payload.thumbnailUrl,
+              remoteStorageKey: payload.workingStorageKey,
+              bakedText: { ...row.bakedText, remoteWorkingUrl: payload.workingImageUrl },
+            }
+          : row
+      )
+    );
+    return payload;
   }, [t]);
 
-  const inFlightOcrByHashRef = useRef<
-    Map<string, Promise<{ blocks: BakedTextBlockRecord[]; autoConfirmed: boolean }>>
-  >(new Map());
+  const { scanBakedText, skipTextProtection, waitForPendingScans } = useInstantOcrAutoScan({
+    fastRenderMode,
+    t: (key, values) => t(key as never, values as never),
+    uploadToBlob,
+    setImages,
+    updateBakedText,
+  });
+
+  useInstantWizardPersist({
+    ready: wizardReady,
+    step,
+    images,
+    stylePreset,
+    durationSec,
+    motionText,
+    continuityStrength,
+    chips,
+    lockedTextMode,
+    lockedTextLayers,
+    chipTextBySlot,
+    aspectRatio,
+    fastRenderMode,
+    onHydrated: () => setWizardReady(true),
+    onRestore: (saved) => {
+      setImages(saved.images);
+      setStep(saved.step);
+      setStylePreset(saved.stylePreset);
+      setDurationSec(saved.durationSec);
+      setMotionText(saved.motionText);
+      setContinuityStrength(saved.continuityStrength);
+      setChips(saved.chips);
+      setLockedTextMode(saved.lockedTextMode);
+      setLockedTextLayers(saved.lockedTextLayers);
+      setChipTextBySlot(saved.chipTextBySlot);
+      setAspectRatio(saved.aspectRatio);
+      setFastRenderMode(saved.fastRenderMode);
+      setWizardReady(true);
+    },
+  });
+
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const applyOcrBlocksToImage = useCallback(
-    (imageId: string, blocks: BakedTextBlockRecord[], autoConfirmed: boolean) => {
-      const meaningful = shouldPromptBakedTextReview(blocks);
-      setImages((prev) =>
-        prev.map((img) => {
-          if (img.id !== imageId) {
-            return img;
-          }
-          if (!meaningful) {
-            return {
-              ...img,
-              bakedText: {
-                ...img.bakedText,
-                enabled: false,
-                status: "skipped",
-                blocks: [],
-                scanBusy: false,
-                autoScanState: "done",
-                autoScanComplete: true,
-                needsReview: false,
-                reviewOpen: false,
-                autoProtected: false,
-              },
-            };
-          }
-          if (autoConfirmed) {
-            return {
-              ...img,
-              bakedText: {
-                ...img.bakedText,
-                enabled: true,
-                status: "confirmed",
-                blocks,
-                scanBusy: false,
-                autoScanState: "done",
-                autoScanComplete: true,
-                needsReview: false,
-                reviewOpen: false,
-                autoProtected: true,
-              },
-            };
-          }
-          return {
-            ...img,
-            bakedText: {
-              ...img.bakedText,
-              enabled: true,
-              status: "detected",
-              blocks,
-              scanBusy: false,
-              autoScanState: "done",
-              autoScanComplete: true,
-              needsReview: true,
-              reviewOpen: true,
-              autoProtected: false,
-            },
-          };
-        })
-      );
-    },
-    []
-  );
-
-  const scanBakedText = useCallback(
-    async (imageId: string, options?: { force?: boolean; silent?: boolean }) => {
-      const force = options?.force ?? false;
-      const silent = options?.silent ?? false;
-
-      let snapshot: LocalImage | undefined;
-      setImages((prev) => {
-        snapshot = prev.find((i) => i.id === imageId);
-        if (!snapshot) {
-          return prev;
-        }
-        return prev.map((img) =>
-          img.id === imageId
-            ? {
-                ...img,
-                bakedText: {
-                  ...img.bakedText,
-                  scanBusy: true,
-                  autoScanState: "scanning",
-                },
-              }
-            : img
-        );
-      });
-      if (!snapshot) {
-        return;
-      }
-
-      if (!silent) {
-        setError("");
-      }
-
-      let contentHash = snapshot.bakedText.contentHash;
-      try {
-        if (!contentHash) {
-          contentHash = await hashImageBlob(snapshot.optimizedBlob);
-          updateBakedText(imageId, { contentHash });
-        }
-
-        if (!force) {
-          const cached = getCachedBakedTextOcr(contentHash);
-          if (cached) {
-            applyOcrBlocksToImage(imageId, cached.blocks, cached.autoConfirmed);
-            return;
-          }
-          const inFlight = inFlightOcrByHashRef.current.get(contentHash);
-          if (inFlight) {
-            const result = await inFlight;
-            applyOcrBlocksToImage(imageId, result.blocks, result.autoConfirmed);
-            return;
-          }
-        }
-
-        const imgForUpload = snapshot;
-        const fetchBlocks = async (): Promise<{
-          blocks: BakedTextBlockRecord[];
-          autoConfirmed: boolean;
-        }> => {
-          let imageUrl = imgForUpload.bakedText.remoteWorkingUrl;
-          if (!imageUrl) {
-            const up = await uploadToBlob(imgForUpload);
-            imageUrl = up.workingImageUrl;
-            updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
-          }
-
-          const res = await fetch(
-            `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ imageUrl }),
-            }
-          );
-          const data = (await res.json().catch(() => ({}))) as {
-            error?: string;
-            blocks?: BakedTextBlockRecord[];
-            autoConfirmed?: boolean;
-          };
-          if (!res.ok) {
-            throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
-          }
-          return {
-            blocks: data.blocks ?? [],
-            autoConfirmed: data.autoConfirmed === true,
-          };
-        };
-
-        const ocrPromise = fetchBlocks();
-        inFlightOcrByHashRef.current.set(contentHash, ocrPromise);
-        const ocrResult = await ocrPromise;
-        setCachedBakedTextOcr(contentHash, ocrResult.blocks, ocrResult.autoConfirmed);
-        applyOcrBlocksToImage(imageId, ocrResult.blocks, ocrResult.autoConfirmed);
-      } catch (e) {
-        updateBakedText(imageId, {
-          scanBusy: false,
-          autoScanState: "done",
-          autoScanComplete: true,
-          enabled: false,
-          status: "skipped",
-          needsReview: false,
-          reviewOpen: false,
-        });
-        if (!silent) {
-          setError(e instanceof Error ? e.message : t("instant.bakedText.scanFailed"));
-        }
-      } finally {
-        if (contentHash) {
-          inFlightOcrByHashRef.current.delete(contentHash);
-        }
-      }
-    },
-    [applyOcrBlocksToImage, t, updateBakedText, uploadToBlob]
-  );
-
   useEffect(() => {
+    if (fastRenderMode || !wizardReady) {
+      return;
+    }
     const needsScan = images.filter(
-      (img) => !img.bakedText.autoScanComplete && img.bakedText.autoScanState !== "scanning"
+      (img) =>
+        !img.bakedText.autoScanComplete &&
+        !isActiveOcrScanPhase(img.bakedText.scanPhase) &&
+        img.bakedText.scanPhase !== "interrupted"
     );
     if (needsScan.length === 0) {
       return;
@@ -571,7 +462,7 @@ export default function InstantPremiumPage() {
         clearTimeout(autoScanDebounceRef.current);
       }
     };
-  }, [images, scanBakedText]);
+  }, [fastRenderMode, images, scanBakedText, wizardReady]);
 
   const confirmBakedText = useCallback(
     (imageId: string) => {
@@ -632,18 +523,29 @@ export default function InstantPremiumPage() {
     [images, t, updateBakedText, uploadToBlob]
   );
 
-  const startCheckout = useCallback(async () => {
+  const runCheckout = useCallback(
+    async (skipPendingScans: boolean) => {
     if (images.length < MIN_IMAGES) {
       setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
     }
-    for (let i = 0; i < images.length; i += 1) {
-      const bt = images[i].bakedText;
-      if (bt.scanBusy || bt.autoScanState === "scanning") {
-        setError(t("instant.bakedText.waitForScan"));
+    if (!fastRenderMode && !skipPendingScans) {
+      const scansDone = await waitForPendingScans(() => imagesRef.current);
+      if (!scansDone) {
+        setCheckoutGateOpen(true);
         return;
       }
-      if (!bt.enabled || bt.status === "skipped") {
+    }
+    for (let i = 0; i < images.length; i += 1) {
+      const bt = images[i].bakedText;
+      if (fastRenderMode || bt.userSkipped || !bt.enabled || bt.status === "skipped") {
+        continue;
+      }
+      if (bt.scanPhase === "timeout" || bt.scanPhase === "failed" || bt.scanPhase === "interrupted") {
+        if (bt.needsReview && bt.blocks.length > 0) {
+          setError(t("instant.bakedText.errorConfirm", { index: i + 1 }));
+          return;
+        }
         continue;
       }
       const confirmedBlocks = bt.blocks.filter((b) => b.kept && b.confirmed && b.editedText.trim());
@@ -734,27 +636,29 @@ export default function InstantPremiumPage() {
         chipTextBySlot,
       };
 
-      const preflightRes = await fetch("/api/instant-premium/preflight", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-      const preflightData = (await preflightRes.json().catch(() => ({}))) as {
-        ok?: boolean;
-        blockMessage?: string;
-        error?: string;
-        warnings?: string[];
-      };
-      if (!preflightRes.ok) {
-        throw new Error(
-          preflightData.blockMessage ??
-            preflightData.error ??
-            t("instant.preflight.failed")
-        );
-      }
-      if (preflightData.warnings && preflightData.warnings.length > 0) {
-        setPreflightNotice(preflightData.warnings.join(" "));
+      if (!fastRenderMode) {
+        const preflightRes = await fetch("/api/instant-premium/preflight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        const preflightData = (await preflightRes.json().catch(() => ({}))) as {
+          ok?: boolean;
+          blockMessage?: string;
+          error?: string;
+          warnings?: string[];
+        };
+        if (!preflightRes.ok) {
+          throw new Error(
+            preflightData.blockMessage ??
+              preflightData.error ??
+              t("instant.preflight.failed")
+          );
+        }
+        if (preflightData.warnings && preflightData.warnings.length > 0) {
+          setPreflightNotice(preflightData.warnings.join(" "));
+        }
       }
 
       if (premiumMode === "test") {
@@ -835,24 +739,54 @@ export default function InstantPremiumPage() {
     } finally {
       setCheckoutBusy(false);
     }
-  }, [
-    aspectRatio,
-    chipTextBySlot,
-    chips,
-    continuityStrength,
-    durationSec,
-    images,
-    locale,
-    lockedTextLayers,
-    lockedTextMode,
-    motionText,
-    premiumMode,
-    router,
-    session.user,
-    stylePreset,
-    t,
-    uploadToBlob,
-  ]);
+    },
+    [
+      aspectRatio,
+      chipTextBySlot,
+      chips,
+      continuityStrength,
+      durationSec,
+      fastRenderMode,
+      images,
+      locale,
+      lockedTextLayers,
+      lockedTextMode,
+      motionText,
+      premiumMode,
+      router,
+      session.user,
+      stylePreset,
+      t,
+      uploadToBlob,
+      waitForPendingScans,
+    ]
+  );
+
+  const startCheckout = useCallback(() => {
+    void runCheckout(false);
+  }, [runCheckout]);
+
+  const handleCheckoutProceedWithoutScans = useCallback(() => {
+    setCheckoutGateOpen(false);
+    for (const img of imagesRef.current) {
+      if (isActiveOcrScanPhase(img.bakedText.scanPhase)) {
+        skipTextProtection(img.id);
+      }
+    }
+    void runCheckout(true);
+  }, [runCheckout, skipTextProtection]);
+
+  const handleCheckoutWaitForScans = useCallback(() => {
+    setCheckoutGateOpen(false);
+    void (async () => {
+      const done = await waitForPendingScans(() => imagesRef.current);
+      if (done) {
+        void runCheckout(true);
+      } else {
+        setCheckoutGateOpen(true);
+      }
+    })();
+  }, [runCheckout, waitForPendingScans]);
 
   if (!session.resolved) {
     return (
@@ -910,12 +844,25 @@ export default function InstantPremiumPage() {
         </div>
 
         {images.some(
-          (im) => im.bakedText.scanBusy || im.bakedText.autoScanState === "scanning"
+          (im) =>
+            isActiveOcrScanPhase(im.bakedText.scanPhase) ||
+            im.bakedText.scanBusy ||
+            im.bakedText.autoScanState === "scanning"
         ) ? (
           <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
             {t("instant.bakedText.autoScanChecking")}
           </p>
         ) : null}
+
+        <label className="mb-4 flex cursor-pointer items-start gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={fastRenderMode}
+            onChange={(e) => setFastRenderMode(e.target.checked)}
+          />
+          <span>{t("instant.fastRender.label")}</span>
+        </label>
 
         {error ? (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -1019,6 +966,7 @@ export default function InstantPremiumPage() {
               onChange={updateBakedText}
               onScan={scanBakedText}
               onConfirm={confirmBakedText}
+              onSkipProtection={skipTextProtection}
               isAdmin={session.user?.role?.trim() === "admin"}
               onPreviewMask={previewBakedTextMask}
             />
@@ -1293,6 +1241,16 @@ export default function InstantPremiumPage() {
           </AppCard>
         ) : null}
       </div>
+
+      <CheckoutScanGateDialog
+        open={checkoutGateOpen}
+        onWait={handleCheckoutWaitForScans}
+        onProceedWithout={handleCheckoutProceedWithoutScans}
+        onBackToReview={() => {
+          setCheckoutGateOpen(false);
+          setStep(2);
+        }}
+      />
     </main>
   );
 }
