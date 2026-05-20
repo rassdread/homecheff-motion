@@ -1,4 +1,5 @@
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { normalizeHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 
 /** All kept blocks must meet this confidence for auto-confirm. */
 export const BAKED_TEXT_AUTO_CONFIRM_MIN_CONFIDENCE = 0.8;
@@ -56,7 +57,7 @@ export function resolveAutoConfirmBakedTextBlocks(
     return { blocks, autoConfirmed: false };
   }
   return {
-    blocks: applyAutoConfirmToBlocks(blocks),
+    blocks: normalizeHeroReprojectBlocks(applyAutoConfirmToBlocks(blocks)),
     autoConfirmed: true,
   };
 }

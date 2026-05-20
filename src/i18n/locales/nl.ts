@@ -550,7 +550,7 @@ export const nl = {
   "instant.textIntegration.mode.exactFreeze": "Exact vastgezet",
   "instant.textIntegration.mode.none": "Geen bescherming (snel)",
   "instant.textIntegration.modeDesc.hybrid_overlay":
-    "Originele tekstpixels worden als patch bewaard, de scène wordt geanimeerd, en tekst wordt teruggewarpt op het beeld (DeeVid-stijl).",
+    "OCR maskeert tekst voor de AI; alleen door jou gekozen hoofdteksten (max. 3) komen terug in de video.",
   "instant.textIntegration.modeDesc.ai_protection":
     "Klassieke blur-mask + vaste overlay (vorige systeem).",
   "instant.textIntegration.modeDesc.exact_freeze":
@@ -629,12 +629,17 @@ export const nl = {
   "instant.bakedText.confirmed": "Tekst bevestigd voor bescherming.",
   "instant.bakedText.reviewBlocks": "Controleer gedetecteerde tekst, corrigeer fouten en bevestig.",
   "instant.bakedText.keepBlock": "Behouden",
+  "instant.bakedText.reprojectInVideo": "Terugplaatsen in video",
+  "instant.bakedText.textDenseHint":
+    "Deze afbeelding bevat veel tekst. Kies maximaal 3 hoofdteksten om terug te plaatsen.",
+  "instant.bakedText.heroCount": "{count} van max. {max} hoofdteksten geselecteerd voor video",
+  "instant.bakedText.heroMaxReached": "Maximaal {max} hoofdteksten per afbeelding.",
   "instant.bakedText.removeBlock": "Blok verwijderen",
   "instant.bakedText.showManual": "Enkel tekstvlak (handmatig)",
   "instant.bakedText.hideManual": "Handmatige modus verbergen",
   "instant.bakedText.manualHint": "Legacy-modus: één tekstband als OCR niet beschikbaar is.",
   "instant.bakedText.checkoutHint":
-    "Alleen bevestigde tekstblokken worden gemaskeerd en exact teruggezet in de eindvideo.",
+    "Bevestigde blokken worden gemaskeerd voor AI-veiligheid; alleen blokken met “Terugplaatsen in video” verschijnen in de export.",
   "instant.bakedText.errorConfirm": "Afbeelding {index}: bevestig gedetecteerde tekstblokken om verder te gaan.",
   "instant.bakedText.errorNoKeptBlocks": "Behoud minstens één gedetecteerd tekstblok om te bevestigen.",
   "instant.bakedText.adminPreviewMask": "Gemaskeerde preview (admin)",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { normalizeHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 import { hashImageBlob, shouldPromptBakedTextReview } from "@/lib/baked-text-auto-scan";
 import {
   getCachedBakedTextOcr,
@@ -111,7 +112,7 @@ export function useInstantOcrAutoScan(params: {
   const applyOcrResult = useCallback(
     (
       imageId: string,
-      blocks: BakedTextBlockRecord[],
+      rawBlocks: BakedTextBlockRecord[],
       autoConfirmed: boolean,
       meta: {
         provider?: string;
@@ -121,6 +122,7 @@ export function useInstantOcrAutoScan(params: {
       }
     ) => {
       clearWatchdog(imageId);
+      const blocks = normalizeHeroReprojectBlocks(rawBlocks);
       const meaningful = shouldPromptBakedTextReview(blocks);
 
       setImages((prev) =>

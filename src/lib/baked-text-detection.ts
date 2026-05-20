@@ -32,6 +32,8 @@ export type BakedTextBlockRecord = {
   kept: boolean;
   confirmed: boolean;
   animation: LockedTextAnimation;
+  /** When true, block may be reprojected in the final video (hero text). Default false. */
+  reprojectInVideo?: boolean;
 };
 
 export type BakedTextProtectionPayload = {
@@ -151,6 +153,7 @@ export function detectedBlockToRecord(block: DetectedTextBlock): BakedTextBlockR
     kept: true,
     confirmed: false,
     animation: defaultAnimationForTextBlock(block),
+    reprojectInVideo: false,
   };
 }
 
@@ -205,6 +208,7 @@ export function parseBakedTextBlockRecord(value: unknown): BakedTextBlockRecord 
     kept: o.kept !== false,
     confirmed: o.confirmed === true,
     animation,
+    reprojectInVideo: o.reprojectInVideo === true,
   };
 }
 

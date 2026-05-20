@@ -475,7 +475,10 @@ export async function executeInstantPremiumMerge(
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
       const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
       const needsOverlay =
-        textRenderMode !== "none" && project.instantLockedTextMode && lockedLayers.length > 0;
+        textRenderMode !== "none" &&
+        project.instantLockedTextMode &&
+        lockedLayers.length > 0 &&
+        lockedLayers.some((layer) => layer.text.trim().length > 0);
       if (needsOverlay) {
         const withTextPath = path.join(workDir, "final-with-locked-text.mp4");
         const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;

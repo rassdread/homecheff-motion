@@ -5,6 +5,12 @@ import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { InstantOcrStatusLine } from "@/components/instant/instant-ocr-status-line";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import {
+  canEnableHeroReproject,
+  classifyOcrTextDensity,
+  countHeroReprojectBlocks,
+  MAX_HERO_OVERLAYS_PER_IMAGE,
+} from "@/lib/instant-text-hero-overlay";
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { LOCKED_TEXT_ANIMATIONS, type LockedTextAnimation } from "@/lib/locked-text-layer";
 import type { OcrScanPhase } from "@/lib/instant-ocr-scan";
@@ -77,7 +83,15 @@ function updateBlock(
   blockId: string,
   patch: Partial<BakedTextBlockRecord>
 ): BakedTextBlockRecord[] {
-  return blocks.map((b) => (b.id === blockId ? { ...b, ...patch, confirmed: false } : b));
+  return blocks.map((b) =>
+    b.id === blockId
+      ? {
+          ...b,
+          ...patch,
+          ...(patch.editedText !== undefined ? { confirmed: false } : {}),
+        }
+      : b
+  );
 }
 
 function ImageWithOverlays({
@@ -174,6 +188,9 @@ export function BakedTextProtectionPanel({
         const showReview =
           bt.blocks.length > 0 &&
           (bt.status !== "confirmed" || bt.reviewOpen === true || !bt.autoProtected);
+        const keptCount = bt.blocks.filter((b) => b.kept !== false).length;
+        const isTextDense = classifyOcrTextDensity(keptCount) === "text_dense";
+        const heroCount = countHeroReprojectBlocks(bt.blocks);
         return (
           <div key={image.id} className="rounded-xl border border-sky-200/80 bg-white p-3">
             <p className="text-xs font-semibold text-zinc-700">
@@ -282,6 +299,21 @@ export function BakedTextProtectionPanel({
                   <p className="text-xs text-amber-800">{t("instant.bakedText.reviewBlocks")}</p>
                 ) : null}
 
+                {showReview && isTextDense ? (
+                  <p className="text-xs font-medium text-amber-900">
+                    {t("instant.bakedText.textDenseHint")}
+                  </p>
+                ) : null}
+
+                {showReview && heroCount > 0 ? (
+                  <p className="text-[11px] text-zinc-600">
+                    {t("instant.bakedText.heroCount", {
+                      count: String(heroCount),
+                      max: String(MAX_HERO_OVERLAYS_PER_IMAGE),
+                    })}
+                  </p>
+                ) : null}
+
                 {showReview ? (
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
                     <ImageWithOverlays src={image.workingPreviewUrl} blocks={bt.blocks} />
@@ -322,6 +354,36 @@ export function BakedTextProtectionPanel({
                               })
                             }
                           />
+                          <label className="mt-2 flex items-start gap-2 text-[11px] font-medium text-zinc-700">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={block.reprojectInVideo === true}
+                              disabled={
+                                !block.kept ||
+                                (!block.reprojectInVideo &&
+                                  !canEnableHeroReproject(bt.blocks, block.id))
+                              }
+                              onChange={(e) =>
+                                onChange(image.id, {
+                                  blocks: updateBlock(bt.blocks, block.id, {
+                                    reprojectInVideo: e.target.checked,
+                                  }),
+                                })
+                              }
+                            />
+                            <span>
+                              {t("instant.bakedText.reprojectInVideo")}
+                              {!block.reprojectInVideo &&
+                              !canEnableHeroReproject(bt.blocks, block.id) ? (
+                                <span className="mt-0.5 block font-normal text-amber-800">
+                                  {t("instant.bakedText.heroMaxReached", {
+                                    max: String(MAX_HERO_OVERLAYS_PER_IMAGE),
+                                  })}
+                                </span>
+                              ) : null}
+                            </span>
+                          </label>
                           <label className="mt-2 block text-[11px] font-medium text-zinc-600">
                             {t("instant.lockedText.animation")}
                             <select

@@ -1,11 +1,12 @@
 import { createLockedTextLayer, type LockedTextLayer } from "@/lib/locked-text-layer";
-import { confirmedBlocks, layerAnchorFromBbox, type BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { layerAnchorFromBbox, type BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { heroBlocksForReprojection } from "@/lib/instant-text-hero-overlay";
 
 export function lockedLayersFromBakedTextBlocks(
   blocks: BakedTextBlockRecord[],
   totalDurationMs: number
 ): LockedTextLayer[] {
-  const active = confirmedBlocks(blocks);
+  const active = heroBlocksForReprojection(blocks);
   return active.map((block) => {
     const anchor = layerAnchorFromBbox(block.bbox);
     const text = block.editedText;

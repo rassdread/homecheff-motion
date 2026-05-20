@@ -50,6 +50,7 @@ import {
 import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
+import { capHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 import {
   createLockedTextLayer,
   type TextImplyingChipId,
@@ -574,9 +575,11 @@ export default function InstantPremiumPage() {
       if (!img) {
         return;
       }
-      const blocks = img.bakedText.blocks
-        .filter((b) => b.kept && b.editedText.trim())
-        .map((b) => ({ ...b, confirmed: true }));
+      const blocks = capHeroReprojectBlocks(
+        img.bakedText.blocks
+          .filter((b) => b.kept && b.editedText.trim())
+          .map((b) => ({ ...b, confirmed: true }))
+      );
       if (blocks.length === 0) {
         setError(t("instant.bakedText.errorNoKeptBlocks"));
         return;

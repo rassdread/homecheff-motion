@@ -19,6 +19,10 @@ import {
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
 import { extractTextPatchesFromImage } from "@/server/instant-premium/hybrid-overlay/extract-text-patches";
+import {
+  heroBlocksForReprojection,
+  normalizeHeroReprojectBlocks,
+} from "@/lib/instant-text-hero-overlay";
 import { lockedLayersFromBakedTextBlocks } from "@/server/instant-premium/baked-text-blocks-to-layers";
 import {
   maskAndUploadBakedTextSafeImage,
@@ -154,12 +158,13 @@ export async function prepareInstantImagesWithBakedTextProtection(
     const dims = await imageDimensionsFromUrl(sourceUrl);
 
     if (confirmed.length > 0) {
-      const { blocks: maskableBlocks, skipped } = sanitizeConfirmedBlocks(confirmed, {
+      const { blocks: sanitizedBlocks, skipped } = sanitizeConfirmedBlocks(confirmed, {
         imageIndex: index,
         imageWidth: dims.width,
         imageHeight: dims.height,
       });
       maskBlocksSkipped += skipped;
+      const maskableBlocks = normalizeHeroReprojectBlocks(sanitizedBlocks);
 
       let viduInputUrl: string | null = null;
       let textPatchesSnapshot: ImageTextPatchesSnapshot | null = null;
@@ -175,10 +180,11 @@ export async function prepareInstantImagesWithBakedTextProtection(
               imageHeight: dims.height,
             });
             metadataBlocks.push(...enriched);
-            if (usesPixelPreservedPatches(textRenderMode)) {
+            const heroBlocks = heroBlocksForReprojection(maskableBlocks);
+            if (usesPixelPreservedPatches(textRenderMode) && heroBlocks.length > 0) {
               textPatchesSnapshot = await extractTextPatchesFromImage({
                 sourceBuffer,
-                blocks: maskableBlocks,
+                blocks: heroBlocks,
                 uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
                 imageOrder: index,
               });
@@ -200,8 +206,9 @@ export async function prepareInstantImagesWithBakedTextProtection(
         }
       }
 
-      if (maskableBlocks.length > 0) {
-        extraLockedLayers.push(...lockedLayersFromBakedTextBlocks(maskableBlocks, options.totalDurationMs));
+      const heroBlocks = heroBlocksForReprojection(maskableBlocks);
+      if (heroBlocks.length > 0) {
+        extraLockedLayers.push(...lockedLayersFromBakedTextBlocks(heroBlocks, options.totalDurationMs));
       }
 
       prepared.push({

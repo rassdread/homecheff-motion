@@ -4,6 +4,7 @@ import {
   isAutoConfirmBakedTextEnabledFromEnv,
   resolveAutoConfirmBakedTextBlocks,
 } from "@/lib/baked-text-auto-confirm";
+import { normalizeHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 import { averageBlockConfidence, createScanRequestId } from "@/lib/instant-ocr-scan";
 import {
   buildOcrErrorPayload,
@@ -86,10 +87,11 @@ export async function POST(request: Request, context: RouteContext) {
     const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId, { mode });
     const detected = result.blocks.map(detectedBlockToRecord);
     const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
-    const { blocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
+    const { blocks: resolvedBlocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
       detected,
       autoConfirmEnabled
     );
+    const blocks = normalizeHeroReprojectBlocks(resolvedBlocks);
     const durationMs = Date.now() - startedAt;
     const blockCount = blocks.filter((b) => b.kept !== false).length;
     const averageConfidence = averageBlockConfidence(blocks);

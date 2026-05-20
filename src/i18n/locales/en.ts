@@ -548,7 +548,7 @@ export const en: LocaleSchema = {
   "instant.textIntegration.mode.exactFreeze": "Exact freeze",
   "instant.textIntegration.mode.none": "No protection (fast)",
   "instant.textIntegration.modeDesc.hybrid_overlay":
-    "Original text pixels are saved as patches, the scene is animated, and text is warped back onto the video (DeeVid-style).",
+    "OCR masks text for the AI; only hero texts you select (max. 3) are placed back in the video.",
   "instant.textIntegration.modeDesc.ai_protection":
     "Classic blur mask + fixed overlay (previous system).",
   "instant.textIntegration.modeDesc.exact_freeze":
@@ -623,11 +623,17 @@ export const en: LocaleSchema = {
   "instant.bakedText.confirmed": "Text confirmed for protection.",
   "instant.bakedText.reviewBlocks": "Review detected text, fix mistakes, then confirm.",
   "instant.bakedText.keepBlock": "Keep",
+  "instant.bakedText.reprojectInVideo": "Place back in video",
+  "instant.bakedText.textDenseHint":
+    "This image contains a lot of text. Choose up to 3 hero texts to place back.",
+  "instant.bakedText.heroCount": "{count} of max. {max} hero texts selected for video",
+  "instant.bakedText.heroMaxReached": "At most {max} hero texts per image.",
   "instant.bakedText.removeBlock": "Remove block",
   "instant.bakedText.showManual": "Single text band (manual)",
   "instant.bakedText.hideManual": "Hide manual mode",
   "instant.bakedText.manualHint": "Legacy mode: one text band when OCR is unavailable.",
-  "instant.bakedText.checkoutHint": "Only confirmed text blocks are masked and restored in the final video.",
+  "instant.bakedText.checkoutHint":
+    "Confirmed blocks are masked for AI safety; only blocks marked “Place back in video” appear in the final export.",
   "instant.bakedText.errorConfirm": "Image {index}: confirm detected text blocks before continuing.",
   "instant.bakedText.errorNoKeptBlocks": "Keep at least one detected text block to confirm.",
   "instant.bakedText.adminPreviewMask": "Preview masked image (admin)",
