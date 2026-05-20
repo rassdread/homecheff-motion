@@ -534,6 +534,9 @@ export const en: LocaleSchema = {
   "instant.bakedText.safetyCopy":
     "AI video can distort existing text. HomeCheff scans text, masks it before AI rendering, then restores your confirmed text exactly afterward.",
   "instant.bakedText.scanAuto": "Scan text automatically",
+  "instant.bakedText.scanRescan": "Scan again",
+  "instant.bakedText.autoScanChecking": "Checking for text…",
+  "instant.bakedText.waitForScan": "Wait for the text check to finish before continuing.",
   "instant.bakedText.scanning": "Scanning…",
   "instant.bakedText.scanFailed": "Could not scan text in this image.",
   "instant.bakedText.scanHint": "Scan to detect phone screens, labels, captions, and signs as separate blocks.",

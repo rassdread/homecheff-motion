@@ -537,6 +537,9 @@ export const nl = {
   "instant.bakedText.safetyCopy":
     "AI-video kan bestaande tekst vervormen. HomeCheff scant tekst, maskeert deze vóór AI-rendering en zet jouw bevestigde tekst daarna exact terug.",
   "instant.bakedText.scanAuto": "Scan tekst automatisch",
+  "instant.bakedText.scanRescan": "Scan opnieuw",
+  "instant.bakedText.autoScanChecking": "Tekst wordt gecontroleerd…",
+  "instant.bakedText.waitForScan": "Wacht tot de tekstcontrole klaar is voordat je verdergaat.",
   "instant.bakedText.scanning": "Scannen…",
   "instant.bakedText.scanFailed": "Tekst scannen in deze afbeelding is mislukt.",
   "instant.bakedText.scanHint":

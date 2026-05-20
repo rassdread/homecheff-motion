@@ -20,7 +20,13 @@ import { CSS } from "@dnd-kit/utilities";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { hashImageBlob, shouldPromptBakedTextReview } from "@/lib/baked-text-auto-scan";
+import {
+  getCachedBakedTextOcr,
+  setCachedBakedTextOcr,
+} from "@/lib/baked-text-ocr-client-cache";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -138,7 +144,13 @@ const DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
   exactText: "",
   positionY: 0.12,
   manualMode: false,
+  autoScanState: "idle",
+  autoScanComplete: false,
+  needsReview: false,
+  reviewOpen: false,
 };
+
+const AUTO_SCAN_DEBOUNCE_MS = 450;
 
 function SortableThumb({
   item,
@@ -353,50 +365,185 @@ export default function InstantPremiumPage() {
     return (await res.json()) as UploadImageResponse;
   }, [t]);
 
+  const inFlightOcrByHashRef = useRef<Map<string, Promise<BakedTextBlockRecord[]>>>(new Map());
+  const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyOcrBlocksToImage = useCallback(
+    (imageId: string, blocks: BakedTextBlockRecord[]) => {
+      const meaningful = shouldPromptBakedTextReview(blocks);
+      setImages((prev) =>
+        prev.map((img) => {
+          if (img.id !== imageId) {
+            return img;
+          }
+          if (!meaningful) {
+            return {
+              ...img,
+              bakedText: {
+                ...img.bakedText,
+                enabled: false,
+                status: "skipped",
+                blocks: [],
+                scanBusy: false,
+                autoScanState: "done",
+                autoScanComplete: true,
+                needsReview: false,
+                reviewOpen: false,
+              },
+            };
+          }
+          return {
+            ...img,
+            bakedText: {
+              ...img.bakedText,
+              enabled: true,
+              status: "detected",
+              blocks,
+              scanBusy: false,
+              autoScanState: "done",
+              autoScanComplete: true,
+              needsReview: true,
+              reviewOpen: true,
+            },
+          };
+        })
+      );
+    },
+    []
+  );
+
   const scanBakedText = useCallback(
-    async (imageId: string) => {
-      const img = images.find((i) => i.id === imageId);
-      if (!img) {
+    async (imageId: string, options?: { force?: boolean; silent?: boolean }) => {
+      const force = options?.force ?? false;
+      const silent = options?.silent ?? false;
+
+      let snapshot: LocalImage | undefined;
+      setImages((prev) => {
+        snapshot = prev.find((i) => i.id === imageId);
+        if (!snapshot) {
+          return prev;
+        }
+        return prev.map((img) =>
+          img.id === imageId
+            ? {
+                ...img,
+                bakedText: {
+                  ...img.bakedText,
+                  scanBusy: true,
+                  autoScanState: "scanning",
+                },
+              }
+            : img
+        );
+      });
+      if (!snapshot) {
         return;
       }
-      updateBakedText(imageId, { scanBusy: true, enabled: true });
-      setError("");
+
+      if (!silent) {
+        setError("");
+      }
+
+      let contentHash = snapshot.bakedText.contentHash;
       try {
-        let imageUrl = img.bakedText.remoteWorkingUrl;
-        if (!imageUrl) {
-          const up = await uploadToBlob(img);
-          imageUrl = up.workingImageUrl;
-          updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
+        if (!contentHash) {
+          contentHash = await hashImageBlob(snapshot.optimizedBlob);
+          updateBakedText(imageId, { contentHash });
         }
-        const res = await fetch(
-          `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ imageUrl }),
+
+        if (!force) {
+          const cached = getCachedBakedTextOcr(contentHash);
+          if (cached) {
+            applyOcrBlocksToImage(imageId, cached);
+            return;
           }
-        );
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          blocks?: BakedTextProtectionDraft["blocks"];
-        };
-        if (!res.ok) {
-          throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
+          const inFlight = inFlightOcrByHashRef.current.get(contentHash);
+          if (inFlight) {
+            const blocks = await inFlight;
+            applyOcrBlocksToImage(imageId, blocks);
+            return;
+          }
         }
-        updateBakedText(imageId, {
-          blocks: data.blocks ?? [],
-          status: "detected",
-          enabled: true,
-          scanBusy: false,
-        });
+
+        const imgForUpload = snapshot;
+        const fetchBlocks = async (): Promise<BakedTextBlockRecord[]> => {
+          let imageUrl = imgForUpload.bakedText.remoteWorkingUrl;
+          if (!imageUrl) {
+            const up = await uploadToBlob(imgForUpload);
+            imageUrl = up.workingImageUrl;
+            updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
+          }
+
+          const res = await fetch(
+            `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ imageUrl }),
+            }
+          );
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            blocks?: BakedTextBlockRecord[];
+          };
+          if (!res.ok) {
+            throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
+          }
+          return data.blocks ?? [];
+        };
+
+        const ocrPromise = fetchBlocks();
+        inFlightOcrByHashRef.current.set(contentHash, ocrPromise);
+        const blocks = await ocrPromise;
+        setCachedBakedTextOcr(contentHash, blocks);
+        applyOcrBlocksToImage(imageId, blocks);
       } catch (e) {
-        updateBakedText(imageId, { scanBusy: false });
-        setError(e instanceof Error ? e.message : t("instant.bakedText.scanFailed"));
+        updateBakedText(imageId, {
+          scanBusy: false,
+          autoScanState: "done",
+          autoScanComplete: true,
+          enabled: false,
+          status: "skipped",
+          needsReview: false,
+          reviewOpen: false,
+        });
+        if (!silent) {
+          setError(e instanceof Error ? e.message : t("instant.bakedText.scanFailed"));
+        }
+      } finally {
+        if (contentHash) {
+          inFlightOcrByHashRef.current.delete(contentHash);
+        }
       }
     },
-    [images, t, updateBakedText, uploadToBlob]
+    [applyOcrBlocksToImage, t, updateBakedText, uploadToBlob]
   );
+
+  useEffect(() => {
+    const needsScan = images.filter(
+      (img) => !img.bakedText.autoScanComplete && img.bakedText.autoScanState !== "scanning"
+    );
+    if (needsScan.length === 0) {
+      return;
+    }
+
+    if (autoScanDebounceRef.current) {
+      clearTimeout(autoScanDebounceRef.current);
+    }
+
+    autoScanDebounceRef.current = setTimeout(() => {
+      for (const img of needsScan) {
+        void scanBakedText(img.id, { silent: true });
+      }
+    }, AUTO_SCAN_DEBOUNCE_MS);
+
+    return () => {
+      if (autoScanDebounceRef.current) {
+        clearTimeout(autoScanDebounceRef.current);
+      }
+    };
+  }, [images, scanBakedText]);
 
   const confirmBakedText = useCallback(
     (imageId: string) => {
@@ -411,7 +558,13 @@ export default function InstantPremiumPage() {
         setError(t("instant.bakedText.errorNoKeptBlocks"));
         return;
       }
-      updateBakedText(imageId, { blocks, status: "confirmed", enabled: true });
+      updateBakedText(imageId, {
+        blocks,
+        status: "confirmed",
+        enabled: true,
+        needsReview: false,
+        reviewOpen: false,
+      });
       setError("");
     },
     [images, t, updateBakedText]
@@ -457,7 +610,11 @@ export default function InstantPremiumPage() {
     }
     for (let i = 0; i < images.length; i += 1) {
       const bt = images[i].bakedText;
-      if (!bt.enabled) {
+      if (bt.scanBusy || bt.autoScanState === "scanning") {
+        setError(t("instant.bakedText.waitForScan"));
+        return;
+      }
+      if (!bt.enabled || bt.status === "skipped") {
         continue;
       }
       const confirmedBlocks = bt.blocks.filter((b) => b.kept && b.confirmed && b.editedText.trim());
@@ -722,6 +879,14 @@ export default function InstantPremiumPage() {
             />
           ))}
         </div>
+
+        {images.some(
+          (im) => im.bakedText.scanBusy || im.bakedText.autoScanState === "scanning"
+        ) ? (
+          <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+            {t("instant.bakedText.autoScanChecking")}
+          </p>
+        ) : null}
 
         {error ? (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">

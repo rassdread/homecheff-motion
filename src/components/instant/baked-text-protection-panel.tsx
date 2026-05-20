@@ -8,7 +8,7 @@ import { LOCKED_TEXT_ANIMATIONS, type LockedTextAnimation } from "@/lib/locked-t
 
 export type BakedTextProtectionDraft = {
   enabled: boolean;
-  status: "none" | "detected" | "confirmed";
+  status: "none" | "detected" | "confirmed" | "skipped";
   blocks: BakedTextBlockRecord[];
   exactText: string;
   positionY: number;
@@ -16,6 +16,11 @@ export type BakedTextProtectionDraft = {
   remoteWorkingUrl?: string;
   scanBusy?: boolean;
   maskedPreviewUrl?: string;
+  contentHash?: string;
+  autoScanComplete?: boolean;
+  autoScanState?: "idle" | "scanning" | "done";
+  needsReview?: boolean;
+  reviewOpen?: boolean;
 };
 
 type Props = {
@@ -26,7 +31,7 @@ type Props = {
     bakedText: BakedTextProtectionDraft;
   }>;
   onChange: (imageId: string, patch: Partial<BakedTextProtectionDraft>) => void;
-  onScan: (imageId: string) => Promise<void>;
+  onScan: (imageId: string, options?: { force?: boolean }) => Promise<void>;
   onConfirm: (imageId: string) => void;
   isAdmin?: boolean;
   onPreviewMask?: (imageId: string) => Promise<void>;
@@ -97,9 +102,24 @@ export function BakedTextProtectionPanel({
   const t = useActiveTranslator();
   const [expandedManual, setExpandedManual] = useState<Record<string, boolean>>({});
 
-  const anyEnabled = useMemo(() => images.some((i) => i.bakedText.enabled), [images]);
+  const visibleImages = useMemo(
+    () =>
+      images.filter((i) => {
+        const bt = i.bakedText;
+        return (
+          bt.scanBusy ||
+          bt.autoScanState === "scanning" ||
+          bt.enabled ||
+          bt.needsReview ||
+          bt.status === "confirmed"
+        );
+      }),
+    [images]
+  );
 
-  if (images.length === 0) {
+  const anyEnabled = useMemo(() => visibleImages.some((i) => i.bakedText.enabled), [visibleImages]);
+
+  if (images.length === 0 || visibleImages.length === 0) {
     return null;
   }
 
@@ -111,15 +131,22 @@ export function BakedTextProtectionPanel({
         <p className="mt-2 text-xs text-sky-800/80">{t("instant.bakedText.promptOnlyWarning")}</p>
       </div>
 
-      {images.map((image, index) => {
+      {visibleImages.map((image, index) => {
         const bt = image.bakedText;
         const showManual = expandedManual[image.id] ?? bt.manualMode;
+        const isScanning = bt.scanBusy || bt.autoScanState === "scanning";
+        const showReview = bt.reviewOpen !== false && bt.blocks.length > 0;
         return (
           <div key={image.id} className="rounded-xl border border-sky-200/80 bg-white p-3">
             <p className="text-xs font-semibold text-zinc-700">
               {t("instant.bakedText.image")} #{index + 1} · {image.originalFileName}
             </p>
 
+            {isScanning ? (
+              <p className="mt-2 text-xs text-zinc-500">{t("instant.bakedText.autoScanChecking")}</p>
+            ) : null}
+
+            {!isScanning ? (
             <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
               <input
                 type="checkbox"
@@ -134,17 +161,22 @@ export function BakedTextProtectionPanel({
               />
               <span>{t("instant.bakedText.enable")}</span>
             </label>
+            ) : null}
 
-            {bt.enabled ? (
+            {bt.enabled && !isScanning ? (
               <div className="mt-3 space-y-3 border-t border-zinc-100 pt-3">
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={bt.scanBusy}
                     className="rounded-lg bg-sky-800 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-                    onClick={() => void onScan(image.id)}
+                    onClick={() => void onScan(image.id, { force: true })}
                   >
-                    {bt.scanBusy ? t("instant.bakedText.scanning") : t("instant.bakedText.scanAuto")}
+                    {bt.scanBusy
+                      ? t("instant.bakedText.scanning")
+                      : bt.autoScanComplete
+                        ? t("instant.bakedText.scanRescan")
+                        : t("instant.bakedText.scanAuto")}
                   </button>
                   {bt.blocks.length > 0 ? (
                     <button
@@ -168,11 +200,11 @@ export function BakedTextProtectionPanel({
 
                 {bt.status === "confirmed" ? (
                   <p className="text-xs font-medium text-emerald-800">{t("instant.bakedText.confirmed")}</p>
-                ) : bt.blocks.length > 0 ? (
+                ) : showReview ? (
                   <p className="text-xs text-amber-800">{t("instant.bakedText.reviewBlocks")}</p>
                 ) : null}
 
-                {bt.blocks.length > 0 ? (
+                {showReview ? (
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
                     <ImageWithOverlays src={image.workingPreviewUrl} blocks={bt.blocks} />
                     <div className="space-y-2">
@@ -247,9 +279,9 @@ export function BakedTextProtectionPanel({
                       ))}
                     </div>
                   </div>
-                ) : (
+                ) : !isScanning ? (
                   <p className="text-[11px] text-zinc-500">{t("instant.bakedText.scanHint")}</p>
-                )}
+                ) : null}
 
                 {bt.maskedPreviewUrl ? (
                   <div>
@@ -313,9 +345,9 @@ export function BakedTextProtectionPanel({
                   </div>
                 ) : null}
               </div>
-            ) : (
+            ) : !isScanning ? (
               <p className="mt-2 text-[11px] text-zinc-500">{t("instant.bakedText.skipHint")}</p>
-            )}
+            ) : null}
           </div>
         );
       })}
