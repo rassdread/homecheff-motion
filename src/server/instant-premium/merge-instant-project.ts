@@ -485,7 +485,7 @@ export async function executeInstantPremiumMerge(
         if (baseUrl) {
           const posterOut = path.join(workDir, "final-poster-composite.mp4");
           const durationSec = project.instantOutputDurationSeconds ?? 8;
-          await compositePosterMotionPreserve({
+          const posterComposite = await compositePosterMotionPreserve({
             projectId,
             workDir,
             mergedViduPath: finalAbs,
@@ -495,10 +495,12 @@ export async function executeInstantPremiumMerge(
             maxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
             posterMotionSettings: project.instantPosterMotionSettings,
           });
-          mergedPath = posterOut;
+          mergedPath = posterComposite.outputPath;
           console.info("[hc-instant-premium]", {
             projectId,
             phase: "posterMotionCompositeApplied",
+            motionBlendApplied: posterComposite.motionBlendApplied,
+            usedStaticFallback: posterComposite.usedStaticFallback,
           });
         }
       }
