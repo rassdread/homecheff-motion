@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { parseLockedTextLayersJson } from "@/lib/locked-text-layer";
-import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
-import {
-  requestWorkerRetryOverlay,
-  triggerWorkerInstantPremiumProcess,
-} from "@/lib/video-worker-client";
+import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import {
   pollProjectJobs,
   startQueuedSegmentsWithoutJob,
 } from "@/server/animation-jobs/service";
-import { executeInstantPremiumMerge } from "@/server/instant-premium/merge-instant-project";
+import {
+  detectFinalizationStuck,
+  orchestrateFinalMerge,
+  repairInstantPremiumFinalVideo,
+} from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 
@@ -45,6 +45,9 @@ export type InstantPremiumStatusResponse = {
   canRetryOverlay?: boolean;
   failureReason?: "overlay_failed" | "merge_failed" | null;
   workerJobStatus?: string | null;
+  finalizationStuck?: boolean;
+  canRepairFinalVideo?: boolean;
+  isRestoringFinalVideo?: boolean;
 };
 
 function mapTransitionStatus(status: string): InstantSegmentStatus {
@@ -54,27 +57,6 @@ function mapTransitionStatus(status: string): InstantSegmentStatus {
     return "generating";
   }
   return "queued";
-}
-
-async function orchestrateInstantPremiumMerge(
-  projectId: string,
-  options?: { force?: boolean }
-): Promise<void> {
-  if (isVideoRenderWorkerMode()) {
-    await prisma.animationProject
-      .update({
-        where: { id: projectId },
-        data: {
-          instantWorkerJobStatus: "queued",
-          instantWorkerJobStartedAt: new Date(),
-          status: "rendering",
-        },
-      })
-      .catch(() => undefined);
-    triggerWorkerInstantPremiumProcess(projectId, options);
-    return;
-  }
-  await executeInstantPremiumMerge(projectId, options);
 }
 
 type RecoverResult = {
@@ -140,24 +122,27 @@ export async function recoverExistingInstantProject(
     };
   }
 
-  if ((options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0) {
-    await orchestrateInstantPremiumMerge(projectId, { force: Boolean(options?.force) });
+  let mergeStarted = false;
+  let mergeCompleted = alreadyFinal;
+  let finalVideoUrlPresent = alreadyFinal;
+
+  if (missingSegments.length === 0 && completed.length > 0 && (options?.force || !alreadyFinal)) {
+    const repair = await repairInstantPremiumFinalVideo(projectId, {
+      force: Boolean(options?.force),
+      source: "recover",
+    });
+    mergeStarted = repair.workerTriggered;
+    mergeCompleted = repair.mergeCompleted && repair.finalVideoUrlPresent;
+    finalVideoUrlPresent = repair.finalVideoUrlPresent;
   }
 
-  const refreshed = await prisma.animationProject.findUnique({
-    where: { id: projectId },
-    include: { exports: { orderBy: { createdAt: "desc" } } },
-  });
-  const finalVideoUrlPresent = Boolean(
-    refreshed?.exports[0]?.status === "completed" && refreshed.exports[0]?.outputVideoUrl
-  );
   return {
     segmentCount: total,
     completedSegments: completed.length,
     missingSegments,
     duplicateSegments,
-    mergeStarted: (options?.force || !alreadyFinal) && missingSegments.length === 0 && completed.length > 0,
-    mergeCompleted: finalVideoUrlPresent,
+    mergeStarted,
+    mergeCompleted,
     finalVideoUrlPresent,
   };
 }
@@ -177,28 +162,26 @@ export async function retryInstantPremiumMerge(projectId: string): Promise<void>
   if (!p || !isInstantLikeProject(p)) {
     throw new Error("Instant Premium project not found.");
   }
-  await orchestrateInstantPremiumMerge(projectId, { force: true });
+  const repair = await repairInstantPremiumFinalVideo(projectId, {
+    force: true,
+    source: "merge-retry",
+  });
+  if (!repair.ok && repair.message) {
+    throw new Error(repair.message);
+  }
 }
 
 export async function retryInstantPremiumOverlay(projectId: string): Promise<void> {
-  const project = await prisma.animationProject.findUnique({
-    where: { id: projectId },
-    include: { transitions: { orderBy: { order: "asc" } } },
+  const repair = await repairInstantPremiumFinalVideo(projectId, {
+    force: true,
+    source: "retry-overlay",
   });
-  if (!project || !isInstantLikeProject(project)) {
-    throw new Error("Instant Premium project not found.");
+  if (!repair.clipsReady) {
+    throw new Error(repair.message ?? "Provider clips are not ready yet.");
   }
-  const completed = project.transitions.filter(
-    (t) => t.status === "completed" && t.outputVideoUrl?.trim()
-  );
-  if (completed.length !== project.transitions.length || completed.length === 0) {
-    throw new Error("Provider clips are not ready yet.");
+  if (!repair.ok && repair.message) {
+    throw new Error(repair.message);
   }
-  if (isVideoRenderWorkerMode()) {
-    await requestWorkerRetryOverlay(projectId);
-    return;
-  }
-  await executeInstantPremiumMerge(projectId, { force: true });
 }
 
 export async function getInstantPremiumStatus(projectId: string): Promise<InstantPremiumStatusResponse> {
@@ -251,12 +234,21 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     refreshed.transitions.length > 0 &&
     refreshed.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
 
-  if (
-    transitionsCompleted &&
-    refreshed.status !== "completed" &&
-    refreshed.status !== "failed_overlay"
-  ) {
-    await orchestrateInstantPremiumMerge(projectId);
+  if (transitionsCompleted && refreshed.status !== "completed") {
+    const stuckInfo = detectFinalizationStuck(refreshed);
+    if (stuckInfo.shouldAutoRepair || refreshed.status === "failed_overlay") {
+      void repairInstantPremiumFinalVideo(projectId, {
+        force: true,
+        source: "status-auto",
+      }).catch((error) => {
+        console.warn("[finalize-repair] status-auto failed", {
+          projectId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    } else if (!stuckInfo.mergeInProgress) {
+      await orchestrateFinalMerge(projectId);
+    }
   }
 
   const finalState = await prisma.animationProject.findUnique({
@@ -336,6 +328,18 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
         : finalState.status === "failed"
           ? "merge_failed"
           : null;
+  const stuckInfo = detectFinalizationStuck(finalState);
+  const exportCompleted = isInstantPremiumExportCompleted(
+    finalState.status,
+    latestExport?.status
+  );
+  const canRepairFinalVideo =
+    segmentsAllCompleted && !exportCompleted && !Boolean(latestExport?.outputVideoUrl?.trim());
+  const isRestoringFinalVideo =
+    canRepairFinalVideo &&
+    (stuckInfo.mergeInProgress ||
+      finalState.instantWorkerJobStatus === "queued" ||
+      finalState.instantWorkerJobStatus === "running");
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
@@ -366,5 +370,8 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     queuedWithoutJobCount: finalState.transitions.filter(
       (t) => t.status === "queued" && !t.providerJobId?.trim()
     ).length,
+    finalizationStuck: stuckInfo.isStuck,
+    canRepairFinalVideo,
+    isRestoringFinalVideo,
   };
 }

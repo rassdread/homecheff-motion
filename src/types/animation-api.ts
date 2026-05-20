@@ -349,4 +349,7 @@ export type InstantPremiumStatusResponse = {
   canRetryOverlay?: boolean;
   failureReason?: "overlay_failed" | "merge_failed" | null;
   workerJobStatus?: string | null;
+  finalizationStuck?: boolean;
+  canRepairFinalVideo?: boolean;
+  isRestoringFinalVideo?: boolean;
 };

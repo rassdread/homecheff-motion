@@ -245,45 +245,31 @@ export default function VideoDetailPage() {
     setRecoverError(null);
     setRecoverInfo(null);
     try {
-      const res = await fetch(`/api/instant-premium/projects/${encodeURIComponent(id)}/recover`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/instant-premium/projects/${encodeURIComponent(id)}/repair-final-video`,
+        { method: "POST", credentials: "include" }
+      );
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
-        recovery?: {
-          missingSegments?: number[];
-          duplicateSegments?: number[];
-          mergeStarted?: boolean;
+        repair?: {
+          clipsReady?: boolean;
           mergeCompleted?: boolean;
+          finalVideoUrlPresent?: boolean;
+          message?: string;
         };
       };
       if (!res.ok) {
-        setRecoverError(body.error ?? t("instant.recover.failed"));
+        setRecoverError(body.error ?? body.repair?.message ?? t("instant.recover.failed"));
         return;
       }
-      const missing = body.recovery?.missingSegments ?? [];
-      if (missing.length > 0) {
-        setRecoverError(
-          t("instant.recover.missingSegments", {
-            segments: missing.map((n) => n + 1).join(", "),
-          })
-        );
+      if (body.repair?.clipsReady === false) {
+        setRecoverError(body.repair?.message ?? t("instant.recover.failed"));
+        return;
       }
-      const duplicates = body.recovery?.duplicateSegments ?? [];
-      if (duplicates.length > 0) {
-        setRecoverError(
-          t("instant.recover.duplicateSegments", {
-            segments: duplicates.map((n) => n + 1).join(", "),
-          })
-        );
-      }
-      if (missing.length === 0 && duplicates.length === 0) {
-        if (body.recovery?.mergeCompleted) {
-          setRecoverInfo(t("videos.status.completed"));
-        } else if (body.recovery?.mergeStarted) {
-          setRecoverInfo(t("videos.processing"));
-        }
+      if (body.repair?.mergeCompleted && body.repair?.finalVideoUrlPresent) {
+        setRecoverInfo(t("videos.status.completed"));
+      } else {
+        setRecoverInfo(t("instant.recover.restoring"));
       }
       await load();
     } finally {
@@ -486,7 +472,7 @@ export default function VideoDetailPage() {
                 onClick={() => void recoverFinalVideo()}
                 className="mt-3 rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-60"
               >
-                {recoverBusy ? t("animate.retry.busy") : t("instant.recover.cta")}
+                {recoverBusy ? t("instant.recover.restoring") : t("instant.recover.cta")}
               </button>
               {recoverInfo ? <p className="mt-2 text-xs text-zinc-700">{recoverInfo}</p> : null}
               {recoverError ? <p className="mt-2 text-xs text-red-700">{recoverError}</p> : null}

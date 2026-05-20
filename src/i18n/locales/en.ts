@@ -704,8 +704,10 @@ export const en: LocaleSchema = {
   "instant.progress.reconnecting": "Connection lost, retrying…",
   "instant.progress.workerConnecting": "Video is still processing… connecting worker.",
   "instant.progress.restoringState": "Restoring progress…",
+  "instant.progress.repairFinalVideo": "Recover final video",
   "instant.progress.completedSuccess": "Video completed successfully.",
   "instant.recover.notCompleted": "Final video not completed yet.",
+  "instant.recover.restoring": "Restoring final video…",
   "instant.recover.cta": "Recover final video",
   "instant.recover.failed": "Could not recover final video.",
   "instant.recover.missingSegments":

@@ -17,6 +17,7 @@ import {
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
+import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
@@ -248,7 +249,11 @@ export async function executeInstantPremiumMerge(
       });
       return;
     }
-    if (!options?.force && latestExport?.status === "rendering") {
+    if (
+      !options?.force &&
+      latestExport?.status === "rendering" &&
+      !isExportMergeStuck(latestExport)
+    ) {
       return;
     }
 

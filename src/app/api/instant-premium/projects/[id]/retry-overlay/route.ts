@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { getAnimationProjectByIdForOwner } from "@/server/animation-projects/queries";
 import {
   getInstantPremiumStatus,
   retryInstantPremiumOverlay,
@@ -16,11 +16,17 @@ export async function POST(_: Request, context: RouteContext) {
   if (user instanceof NextResponse) {
     return user;
   }
-  const ownedProject = await getAnimationProjectByIdForOwner(id, user.id);
-  if (!ownedProject) {
+  const project = await prisma.animationProject.findUnique({
+    where: { id },
+    select: { id: true, ownerId: true, projectType: true },
+  });
+  if (!project) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
-  if ((ownedProject.projectType ?? "classic") !== "instant_premium") {
+  if (project.ownerId !== user.id && user.role !== "admin") {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+  if ((project.projectType ?? "classic") !== "instant_premium") {
     return NextResponse.json({ error: "Wrong project type." }, { status: 409 });
   }
   try {

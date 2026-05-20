@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
 import { executeInstantPremiumMerge } from "@/server/instant-premium/merge-instant-project";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import { isWorkerJobStuck } from "@/server/instant-premium/finalize-repair";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 
 export type WorkerJobResult = {
@@ -53,7 +54,8 @@ export async function runInstantPremiumWorkerProcess(
   if (
     !options?.force &&
     project.instantWorkerJobStatus === "running" &&
-    project.status === "rendering"
+    project.status === "rendering" &&
+    !isWorkerJobStuck(project)
   ) {
     return { ok: true, projectId, status: "running" };
   }

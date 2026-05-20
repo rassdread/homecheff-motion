@@ -318,32 +318,20 @@ export default function VideosPage() {
       setError(null);
       try {
         const res = await fetch(
-          `/api/instant-premium/projects/${encodeURIComponent(projectId)}/recover`,
+          `/api/instant-premium/projects/${encodeURIComponent(projectId)}/repair-final-video`,
           { method: "POST", credentials: "include" }
         );
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
-          recovery?: { missingSegments?: number[]; duplicateSegments?: number[] };
+          repair?: { clipsReady?: boolean; message?: string };
         };
         if (!res.ok) {
-          setError(body.error ?? t("instant.recover.failed"));
+          setError(body.error ?? body.repair?.message ?? t("instant.recover.failed"));
           return;
         }
-        const missing = body.recovery?.missingSegments ?? [];
-        if (missing.length > 0) {
-          setError(
-            t("instant.recover.missingSegments", {
-              segments: missing.map((n) => n + 1).join(", "),
-            })
-          );
-        }
-        const duplicates = body.recovery?.duplicateSegments ?? [];
-        if (duplicates.length > 0) {
-          setError(
-            t("instant.recover.duplicateSegments", {
-              segments: duplicates.map((n) => n + 1).join(", "),
-            })
-          );
+        if (body.repair?.clipsReady === false) {
+          setError(body.repair?.message ?? t("instant.recover.failed"));
+          return;
         }
         await fetchList(1, "replace");
       } finally {
@@ -745,7 +733,9 @@ export default function VideosPage() {
                       onClick={() => void recoverInstantProject(item.id)}
                       className="mt-2 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-50"
                     >
-                      {recoverBusyId === item.id ? t("animate.retry.busy") : t("instant.recover.cta")}
+                      {recoverBusyId === item.id
+                        ? t("instant.recover.restoring")
+                        : t("instant.recover.cta")}
                     </button>
                   </div>
                 ) : null}

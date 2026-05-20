@@ -92,6 +92,9 @@ export default function InstantPremiumProgressPage() {
     if (isCompleted) {
       return "instant.progress.completedSuccess";
     }
+    if (snapshot?.isRestoringFinalVideo || snapshot?.finalizationStuck) {
+      return "instant.recover.restoring";
+    }
     if (isReconnecting && !snapshot) {
       return "instant.progress.restoringState";
     }
@@ -283,6 +286,40 @@ export default function InstantPremiumProgressPage() {
               </div>
             </div>
           ) : null}
+          {effectiveProjectId && snapshot?.canRepairFinalVideo && !snapshot?.canRetryOverlay ? (
+            <button
+              type="button"
+              disabled={retryBusy}
+              className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              onClick={() => {
+                setRetryBusy(true);
+                void (async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
+                      { method: "POST", credentials: "include" }
+                    );
+                    if (!res.ok) {
+                      const body = (await res.json().catch(() => ({}))) as { error?: string };
+                      setActionError(body.error ?? t("instant.recover.failed"));
+                      return;
+                    }
+                    const body = (await res.json()) as {
+                      status?: InstantPremiumStatusResponse;
+                    };
+                    if (body.status) {
+                      setSnapshot(body.status);
+                    }
+                    setActionError(null);
+                  } finally {
+                    setRetryBusy(false);
+                  }
+                })();
+              }}
+            >
+              {retryBusy ? t("instant.recover.restoring") : t("instant.progress.repairFinalVideo")}
+            </button>
+          ) : null}
           {effectiveProjectId && snapshot?.canRetryOverlay ? (
             <button
               type="button"
@@ -293,7 +330,7 @@ export default function InstantPremiumProgressPage() {
                 void (async () => {
                   try {
                     const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/retry-overlay`,
+                      `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
                       { method: "POST", credentials: "include" }
                     );
                     if (!res.ok) {
@@ -301,16 +338,20 @@ export default function InstantPremiumProgressPage() {
                       setActionError(body.error ?? t("instant.progress.retryFailed"));
                       return;
                     }
-                    const body = (await res.json()) as InstantPremiumStatusResponse;
-                    setSnapshot(body);
-                      setActionError(null);
+                    const body = (await res.json()) as {
+                      status?: InstantPremiumStatusResponse;
+                    };
+                    if (body.status) {
+                      setSnapshot(body.status);
+                    }
+                    setActionError(null);
                   } finally {
                     setRetryBusy(false);
                   }
                 })();
               }}
             >
-              {retryBusy ? t("instant.step7.preparing") : t("instant.progress.retryOverlay")}
+              {retryBusy ? t("instant.recover.restoring") : t("instant.progress.retryOverlay")}
             </button>
           ) : null}
           {effectiveProjectId && snapshot?.status === "failed" && !snapshot?.canRetryOverlay ? (

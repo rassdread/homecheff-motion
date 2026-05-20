@@ -712,8 +712,10 @@ export const nl = {
   "instant.progress.workerConnecting":
     "Video wordt nog verwerkt… worker wordt verbonden.",
   "instant.progress.restoringState": "Voortgang herstellen…",
+  "instant.progress.repairFinalVideo": "Eindvideo herstellen",
   "instant.progress.completedSuccess": "Video succesvol afgerond.",
   "instant.recover.notCompleted": "Eindvideo is nog niet voltooid.",
+  "instant.recover.restoring": "Eindvideo wordt hersteld…",
   "instant.recover.cta": "Eindvideo herstellen",
   "instant.recover.failed": "Eindvideo herstellen mislukt.",
   "instant.recover.missingSegments":
