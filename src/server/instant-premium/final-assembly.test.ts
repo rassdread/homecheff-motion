@@ -4,10 +4,10 @@ import {
   POSTER_MOTION_PRESERVE_ASSEMBLY_RULES,
   buildFinalAssemblyLogBase,
   resolveFinalAssemblyMode,
-  resolveFinalAssemblyTransitionType,
   shouldRunSegmentCompositor,
   usesRawAnimatedSegments,
 } from "@/server/instant-premium/final-assembly";
+import { DEFAULT_SEGMENT_TRANSITION_TYPE } from "@/server/instant-premium/segment-transition";
 
 describe("final assembly mode", () => {
   it("maps poster_motion_preserve to raw_motion_concat by default", () => {
@@ -45,21 +45,15 @@ describe("final assembly mode", () => {
     assert.equal(POSTER_MOTION_PRESERVE_ASSEMBLY_RULES.allowFullFrameBlend, false);
   });
 
-  it("resolves transition type for multi-segment merge", () => {
-    assert.equal(resolveFinalAssemblyTransitionType(3, 5), "crossfade");
-    assert.equal(resolveFinalAssemblyTransitionType(3, null), "concat");
-    assert.equal(resolveFinalAssemblyTransitionType(1, 5), "none");
-  });
-
-  it("builds assembly log base with raw segments for poster preserve default", () => {
+  it("builds assembly log base with capcut_smooth transition default", () => {
     const base = buildFinalAssemblyLogBase({
       projectId: "p1",
       assemblyMode: "raw_motion_concat",
       segmentCount: 3,
-      perSegmentDurationSeconds: 5,
+      transitionType: DEFAULT_SEGMENT_TRANSITION_TYPE,
     });
     assert.equal(base.usedRawSegments, true);
     assert.equal(base.usedComposite, false);
-    assert.equal(base.transitionType, "crossfade");
+    assert.equal(base.transitionType, "capcut_smooth");
   });
 });

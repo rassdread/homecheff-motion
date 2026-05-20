@@ -17,6 +17,7 @@ import {
 } from "@/server/instant-premium/final-video-export-commit";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { resolveFinalAssemblyMode } from "@/server/instant-premium/final-assembly";
+import { resolveSegmentTransitionType } from "@/server/instant-premium/segment-transition";
 
 export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
 export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
@@ -90,6 +91,7 @@ export async function rebuildInstantPremiumFinalVideo(
     textRenderMode,
     project.instantPosterMotionSettings
   );
+  const segmentTransitionType = resolveSegmentTransitionType(project.instantPosterMotionSettings);
   const blendStrength = resolvePosterMotionBlendStrength(
     parsePosterMotionSettings(project.instantPosterMotionSettings)
   );
@@ -101,6 +103,7 @@ export async function rebuildInstantPremiumFinalVideo(
       segmentCount,
       mode: textRenderMode,
       finalAssemblyMode,
+      segmentTransitionType,
       blendStrength,
       clipsReady: false,
     });
@@ -165,6 +168,7 @@ export async function rebuildInstantPremiumFinalVideo(
     segmentCount,
     mode: textRenderMode,
     finalAssemblyMode,
+    segmentTransitionType,
     blendStrength,
     clipsReady: true,
     workerMode: isVideoRenderWorkerMode(),

@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -10,12 +9,7 @@ import {
   logExportBlobUploadFailure,
   uploadPublicBlob,
 } from "@/lib/vercel-blob-config";
-import {
-  FINAL_MERGE_DISABLE_AUDIO,
-  FINAL_MERGE_VIDEO_CRF,
-  FINAL_MERGE_VIDEO_PRESET,
-  getFinalMergeMaxWidthFromViduResolution,
-} from "@/lib/media-export-constants";
+import { getFinalMergeMaxWidthFromViduResolution } from "@/lib/media-export-constants";
 import {
   parseLockedTextLayersJson,
   validateLockedTextLayerMetadata,
@@ -41,6 +35,10 @@ import {
   MergeSegmentsValidationError,
   validateMergeSegmentsBeforeExport,
 } from "@/server/instant-premium/merge-segments";
+import {
+  concatMotionSegmentsWithTransitions,
+  resolveSegmentTransitionType,
+} from "@/server/instant-premium/segment-transition";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { finalBlobPathname } from "@/lib/final-video-storage";
@@ -56,10 +54,6 @@ const FINAL_BLOB_PROVIDER = "instant-final-merge";
 
 export function localMergedFinalVideoPath(projectId: string): string {
   return absolutePublicPath("generated", "animations", "projects", projectId, "final.mp4");
-}
-
-function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
 }
 
 function absolutePublicPath(...segments: string[]): string {
@@ -107,129 +101,6 @@ async function resolveTransitionVideoToSegment(
     return dest;
   }
   throw new Error(`Unsupported segment URL: ${trimmed}`);
-}
-
-function runFfmpeg(
-  binary: string,
-  args: string[],
-  options: { cwd?: string; timeoutMs?: number }
-): Promise<{ code: number; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(binary, args, {
-      cwd: options.cwd,
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    if (options.timeoutMs && options.timeoutMs > 0) {
-      timeout = setTimeout(() => child.kill("SIGKILL"), options.timeoutMs);
-    }
-    let stderr = "";
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", (err: NodeJS.ErrnoException) => {
-      if (timeout) clearTimeout(timeout);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      if (timeout) clearTimeout(timeout);
-      resolve({ code: code ?? 1, stderr });
-    });
-  });
-}
-
-async function concatAndEncode(
-  workDir: string,
-  segmentPaths: string[],
-  outputFile: string,
-  maxWidth: number,
-  segmentDurationSeconds?: number | null
-) {
-  const args = ["-y"];
-  const canCrossfade =
-    segmentPaths.length > 1 &&
-    typeof segmentDurationSeconds === "number" &&
-    Number.isFinite(segmentDurationSeconds) &&
-    segmentDurationSeconds > 1;
-
-  if (canCrossfade) {
-    const perSegment = Number(segmentDurationSeconds);
-    const crossfadeSeconds = Math.max(0.2, Math.min(0.5, perSegment / 4, 0.35));
-    for (const seg of segmentPaths) {
-      args.push("-i", seg);
-    }
-    const filterParts: string[] = [];
-    for (let i = 0; i < segmentPaths.length; i += 1) {
-      filterParts.push(
-        `[${i}:v]settb=AVTB,scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p[v${i}]`
-      );
-    }
-    let timelineSeconds = perSegment;
-    let lastLabel = "v0";
-    for (let i = 1; i < segmentPaths.length; i += 1) {
-      const outLabel = `x${i}`;
-      const offset = Math.max(0, timelineSeconds - crossfadeSeconds);
-      filterParts.push(
-        `[${lastLabel}][v${i}]xfade=transition=fade:duration=${crossfadeSeconds.toFixed(3)}:offset=${offset.toFixed(3)}[${outLabel}]`
-      );
-      lastLabel = outLabel;
-      timelineSeconds += perSegment - crossfadeSeconds;
-    }
-    args.push(
-      "-filter_complex",
-      filterParts.join(";"),
-      "-map",
-      `[${lastLabel}]`,
-      "-c:v",
-      "libx264",
-      "-preset",
-      FINAL_MERGE_VIDEO_PRESET,
-      "-crf",
-      String(FINAL_MERGE_VIDEO_CRF),
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart"
-    );
-  } else {
-    const concatFile = path.join(workDir, "concat.txt");
-    const concatLines = segmentPaths
-      .map((p) => `file '${path.resolve(p).replace(/'/g, `'\\''`)}'`)
-      .join("\n");
-    await fs.writeFile(concatFile, `${concatLines}\n`, "utf8");
-    const vf = `scale=w='if(gt(iw,${maxWidth}),${maxWidth},iw)':h=-2,format=yuv420p`;
-    args.push(
-      "-f",
-      "concat",
-      "-safe",
-      "0",
-      "-i",
-      concatFile,
-      "-vf",
-      vf,
-      "-c:v",
-      "libx264",
-      "-preset",
-      FINAL_MERGE_VIDEO_PRESET,
-      "-crf",
-      String(FINAL_MERGE_VIDEO_CRF),
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart"
-    );
-  }
-  if (FINAL_MERGE_DISABLE_AUDIO) {
-    args.push("-an");
-  } else {
-    args.push("-c:a", "aac", "-b:a", "128k");
-  }
-  args.push(outputFile);
-  const encoded = await runFfmpeg(ffmpegBinary(), args, { cwd: workDir, timeoutMs: 10 * 60 * 1000 });
-  if (encoded.code !== 0) {
-    throw new Error(`Instant merge ffmpeg failed: ${encoded.stderr.trim().slice(-3000)}`);
-  }
 }
 
 async function withMergeLock(projectId: string, fn: () => Promise<void>) {
@@ -530,11 +401,14 @@ export async function executeInstantPremiumMerge(
       );
       const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
       const perSegmentDurationSec = project.viduDurationSeconds ?? null;
+      const segmentTransitionType = resolveSegmentTransitionType(
+        project.instantPosterMotionSettings
+      );
       const assemblyLogBase = buildFinalAssemblyLogBase({
         projectId,
         assemblyMode: finalAssemblyMode,
         segmentCount: completed.length,
-        perSegmentDurationSeconds: perSegmentDurationSec,
+        transitionType: segmentTransitionType,
         blendStrength,
       });
       const imageById = new Map(project.images.map((img) => [img.id, img]));
@@ -658,13 +532,18 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
       });
-      await concatAndEncode(
+      const concatResult = await concatMotionSegmentsWithTransitions({
         workDir,
-        pathsToConcat,
-        finalAbs,
-        mergeMaxWidth,
-        perSegmentDurationSec
-      );
+        segmentPaths: pathsToConcat,
+        outputFile: finalAbs,
+        maxWidth: mergeMaxWidth,
+        transitionType: segmentTransitionType,
+      });
+      console.info("[hc-instant-premium]", {
+        projectId,
+        phase: "segmentTransitionConcatComplete",
+        ...concatResult,
+      });
       let mergedPath = finalAbs;
 
       const needsOverlay =

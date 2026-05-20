@@ -602,7 +602,7 @@ export async function compositePosterMotionPreserveSegments(
       usedRawSegments: false,
       usedComposite: true,
       usedFallback: result.usedStaticFallback || result.usedPassthroughFallback,
-      transitionType: "none",
+      transitionType: "straight_cut",
       processedSegmentCount: segmentPaths.length,
       blendStrength: input.blendStrength,
       segmentIndex: segment.segmentIndex,

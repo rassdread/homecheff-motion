@@ -52,6 +52,8 @@ export type PosterMotionSettings = {
   advancedSegmentComposite?: boolean;
   /** Alias for advancedSegmentComposite (manual advanced preservation). */
   useSegmentCompositor?: boolean;
+  /** capcut_smooth | cinematic_blend | soft_crossfade | motion_blend | straight_cut */
+  segmentTransitionType?: string;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -117,6 +119,8 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
         : undefined,
     advancedSegmentComposite: o.advancedSegmentComposite === true,
     useSegmentCompositor: o.useSegmentCompositor === true,
+    segmentTransitionType:
+      typeof o.segmentTransitionType === "string" ? o.segmentTransitionType.trim() : undefined,
   };
 }
 

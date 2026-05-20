@@ -1,5 +1,9 @@
 import { normalizeTextRenderMode, usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
 import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
+import {
+  DEFAULT_SEGMENT_TRANSITION_TYPE,
+  type SegmentTransitionType,
+} from "@/server/instant-premium/segment-transition";
 
 /** How Instant Premium assembles the final video from segment clips. */
 export type FinalAssemblyMode =
@@ -15,7 +19,8 @@ export const FINAL_ASSEMBLY_MODES: readonly FinalAssemblyMode[] = [
   "static_poster_motion",
 ] as const;
 
-export type FinalAssemblyTransitionType = "crossfade" | "concat" | "none";
+export type { SegmentTransitionType };
+export { DEFAULT_SEGMENT_TRANSITION_TYPE };
 
 /** Assembly policy for poster_motion_preserve (Vidu motion stays dominant). */
 export const POSTER_MOTION_PRESERVE_ASSEMBLY_RULES = {
@@ -35,7 +40,7 @@ export type FinalAssemblyLogEntry = {
   usedRawSegments: boolean;
   usedComposite: boolean;
   usedFallback: boolean;
-  transitionType: FinalAssemblyTransitionType;
+  transitionType: SegmentTransitionType;
   phase?: "assembly_start" | "segment" | "assembly_complete";
   processedSegmentCount?: number;
   segmentIndex?: number;
@@ -107,25 +112,11 @@ export function isPosterCompositeAssemblyMode(
   return assemblyMode === "poster_composite_segments";
 }
 
-export function resolveFinalAssemblyTransitionType(
-  segmentCount: number,
-  perSegmentDurationSeconds: number | null
-): FinalAssemblyTransitionType {
-  if (segmentCount <= 1) {
-    return "none";
-  }
-  const canCrossfade =
-    typeof perSegmentDurationSeconds === "number" &&
-    Number.isFinite(perSegmentDurationSeconds) &&
-    perSegmentDurationSeconds > 1;
-  return canCrossfade ? "crossfade" : "concat";
-}
-
 export function buildFinalAssemblyLogBase(params: {
   projectId: string;
   assemblyMode: FinalAssemblyMode;
   segmentCount: number;
-  perSegmentDurationSeconds: number | null;
+  transitionType?: SegmentTransitionType;
   blendStrength?: number;
 }): Pick<
   FinalAssemblyLogEntry,
@@ -139,9 +130,6 @@ export function buildFinalAssemblyLogBase(params: {
     usedRawSegments: usedRaw,
     usedComposite: shouldRunSegmentCompositor(params.assemblyMode),
     usedFallback: params.assemblyMode === "static_poster_motion",
-    transitionType: resolveFinalAssemblyTransitionType(
-      params.segmentCount,
-      params.perSegmentDurationSeconds
-    ),
+    transitionType: params.transitionType ?? DEFAULT_SEGMENT_TRANSITION_TYPE,
   };
 }
