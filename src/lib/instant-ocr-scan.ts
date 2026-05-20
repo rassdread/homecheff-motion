@@ -13,7 +13,18 @@ export const OCR_DETECT_SERVER_TIMEOUT_MS = OCR_OPENAI_TIMEOUT_MS;
 /** @deprecated Use OCR_WATCHDOG_TIMEOUT_MS */
 export const OCR_SCAN_TIMEOUT_MS = OCR_WATCHDOG_TIMEOUT_MS;
 
-export const OCR_MAX_CONCURRENT_SCANS = 2;
+export function getOcrMaxConcurrentScans(): number {
+  const override = process.env.NEXT_PUBLIC_OCR_MAX_CONCURRENT?.trim();
+  if (override === "2") {
+    return 2;
+  }
+  if (override === "1") {
+    return 1;
+  }
+  return process.env.NODE_ENV === "production" ? 1 : 2;
+}
+
+export const OCR_MAX_CONCURRENT_SCANS = getOcrMaxConcurrentScans();
 export const OCR_IMMEDIATE_AUTO_SCAN_COUNT = 2;
 export const CHECKOUT_PENDING_SCAN_WAIT_MS = 24_000;
 

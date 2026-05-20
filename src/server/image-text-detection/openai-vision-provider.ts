@@ -8,6 +8,10 @@ import {
 } from "@/lib/baked-text-detection";
 import { OCR_OPENAI_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import { classifyOpenAiApiFailure, OcrProviderError } from "@/lib/ocr-provider-errors";
+import {
+  noteOpenAiRateLimitFailure,
+  runOpenAiGated,
+} from "@/server/openai/openai-request-gate";
 import { logOcrPerf } from "@/lib/ocr-performance-log";
 import type {
   ImageTextDetectionOptions,
@@ -47,6 +51,7 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
           ? AbortSignal.timeout(OCR_OPENAI_TIMEOUT_MS)
           : undefined;
 
+      return runOpenAiGated(async () => {
       let res: Response;
       try {
         res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -100,7 +105,9 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
       };
       if (!res.ok) {
         const msg = body.error?.message ?? `OpenAI vision OCR failed (${res.status}).`;
-        throw new OcrProviderError(classifyOpenAiApiFailure(res.status, msg), msg, "openai_vision");
+        const err = new OcrProviderError(classifyOpenAiApiFailure(res.status, msg), msg, "openai_vision");
+        noteOpenAiRateLimitFailure(err);
+        throw err;
       }
 
       const content = body.choices?.[0]?.message?.content ?? "{}";
@@ -153,6 +160,7 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
       logOcrPerf("openai-parsed", { mode, blockCount: blocks.length, openAiMs });
 
       return { provider: "openai_vision", blocks, imageWidth, imageHeight };
+      });
     },
   };
 }

@@ -1,3 +1,9 @@
+import { classifyOpenAiApiFailure, OcrProviderError } from "@/lib/ocr-provider-errors";
+import {
+  noteOpenAiRateLimitFailure,
+  runOpenAiGated,
+} from "@/server/openai/openai-request-gate";
+
 export type ImageTextRiskLevel = "none" | "low" | "medium" | "high";
 
 export type ImagePreflightVisionAssessment = {
@@ -28,6 +34,13 @@ function normalizeRisk(value: string | undefined): ImageTextRiskLevel {
 
 /** OpenAI Vision risk scan for baked-in / UI / logo text before paid Vidu render. */
 export async function assessImageTextRiskWithOpenAi(
+  imageUrl: string,
+  apiKey: string
+): Promise<ImagePreflightVisionAssessment> {
+  return runOpenAiGated(() => assessImageTextRiskWithOpenAiInner(imageUrl, apiKey));
+}
+
+async function assessImageTextRiskWithOpenAiInner(
   imageUrl: string,
   apiKey: string
 ): Promise<ImagePreflightVisionAssessment> {
@@ -77,7 +90,11 @@ High risk when readable marketing copy, menus, phone UI, logos, or captions are 
     choices?: Array<{ message?: { content?: string } }>;
   };
   if (!res.ok) {
-    throw new Error(body.error?.message ?? `OpenAI preflight vision failed (${res.status}).`);
+    const msg = body.error?.message ?? `OpenAI preflight vision failed (${res.status}).`;
+    const code = classifyOpenAiApiFailure(res.status, msg);
+    const err = new OcrProviderError(code, msg, "openai_preflight");
+    noteOpenAiRateLimitFailure(err);
+    throw err;
   }
 
   let parsed: OpenAiPreflightJson = {};

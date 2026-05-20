@@ -40,7 +40,7 @@ import {
   type BakedTextProtectionDraft,
 } from "@/components/instant/baked-text-protection-panel";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
-import { defaultMaskRegionForTextPosition } from "@/lib/baked-text-protection";
+import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
 import {
   createLockedTextLayer,
   type TextImplyingChipId,
@@ -655,29 +655,10 @@ export default function InstantPremiumPage() {
           workingImageUrl: up.workingImageUrl,
           mimeType: img.mimeType,
           sizeBytes: img.sizeBytes,
-          ...(img.bakedText.enabled
-            ? {
-                bakedTextProtection: (() => {
-                  const confirmed = img.bakedText.blocks.filter(
-                    (b) => b.kept && b.confirmed && b.editedText.trim()
-                  );
-                  if (confirmed.length > 0) {
-                    return {
-                      enabled: true,
-                      status: "confirmed" as const,
-                      blocks: confirmed,
-                    };
-                  }
-                  return {
-                    enabled: true,
-                    status: "confirmed" as const,
-                    exactText: img.bakedText.exactText.trim(),
-                    positionY: img.bakedText.positionY,
-                    maskRegion: defaultMaskRegionForTextPosition(img.bakedText.positionY),
-                  };
-                })(),
-              }
-            : {}),
+          ...(() => {
+            const snapshot = buildInstantPremiumBakedTextSnapshot(img.bakedText);
+            return snapshot ? { bakedTextProtection: snapshot } : {};
+          })(),
         });
       }
       const explicitLayers = lockedTextLayers
@@ -729,6 +710,14 @@ export default function InstantPremiumPage() {
           warnings?: string[];
         };
         if (!preflightRes.ok) {
+          const code = (preflightData as { code?: string }).code;
+          if (code === "OPENAI_RATE_LIMITED") {
+            throw new Error(
+              preflightData.error ??
+                preflightData.blockMessage ??
+                t("instant.preflight.rateLimited")
+            );
+          }
           throw new Error(
             preflightData.blockMessage ??
               preflightData.error ??

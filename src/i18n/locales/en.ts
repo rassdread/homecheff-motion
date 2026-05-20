@@ -609,6 +609,8 @@ export const en: LocaleSchema = {
   "instant.bakedText.openMaskedPreview": "Open masked preview",
   "instant.bakedText.previewFailed": "Could not generate mask preview.",
   "instant.preflight.failed": "Pre-render text check failed. Please try again.",
+  "instant.preflight.rateLimited":
+    "Text scan is temporarily busy, but your protected text layers will be used.",
   "instant.preflight.blockMessage":
     "This image contains text that may distort. Scan and confirm text first.",
   "instant.chip.slow_zoom_in": "Slow zoom in",

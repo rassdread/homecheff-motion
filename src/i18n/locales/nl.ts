@@ -616,6 +616,8 @@ export const nl = {
   "instant.bakedText.openMaskedPreview": "Open gemaskeerde preview",
   "instant.bakedText.previewFailed": "Mask-preview genereren mislukt.",
   "instant.preflight.failed": "Tekstcontrole voor render is mislukt. Probeer opnieuw.",
+  "instant.preflight.rateLimited":
+    "Tekstscan is tijdelijk te druk, maar je beschermde tekstlagen worden gebruikt.",
   "instant.preflight.blockMessage":
     "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.",
   "instant.chip.slow_zoom_in": "Langzame zoom-in",

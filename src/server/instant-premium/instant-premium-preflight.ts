@@ -2,6 +2,7 @@ import {
   confirmedBlocks,
   parseBakedTextProtectionPayload,
   type BakedTextBlockRecord,
+  type BakedTextProtectionPayload,
 } from "@/lib/baked-text-detection";
 import { isTextImplyingChipId } from "@/lib/locked-text-layer";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
@@ -10,16 +11,47 @@ import {
   assessImageTextRiskWithOpenAi,
   type ImagePreflightVisionAssessment,
 } from "@/server/instant-premium/openai-preflight-vision";
+import {
+  derivePreflightVisionFromOcrBlocks,
+  emptyPreflightVisionFromOcr,
+} from "@/server/instant-premium/preflight-vision-from-ocr";
+import {
+  isOpenAiCooldownActive,
+  isOpenAiRateLimitFailure,
+  noteOpenAiRateLimitFailure,
+} from "@/server/openai/openai-request-gate";
 
 export const INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL =
   "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.";
 
+export const OPENAI_RATE_LIMIT_PREFLIGHT_MESSAGE_NL =
+  "Tekstscan is tijdelijk te druk, maar je beschermde tekstlagen worden gebruikt.";
+
 export type ImageProtectionState =
   | "none"
+  | "ocr_skipped"
+  | "ocr_no_text"
   | "legacy_confirmed"
   | "blocks_confirmed"
   | "unconfirmed_blocks"
   | "enabled_incomplete";
+
+export type PreflightWarningCode =
+  | "HIGH_DISTORTION_RISK"
+  | "MEDIUM_DISTORTION_RISK"
+  | "UI_TEXT_UNCONFIRMED"
+  | "LOGO_TEXT_UNPROTECTED"
+  | "UNCONFIRMED_BLOCKS"
+  | "INCOMPLETE_PROTECTION"
+  | "TEXT_CHIPS_NO_LAYERS"
+  | "OPENAI_RATE_LIMITED"
+  | "VISION_SUMMARY";
+
+export type PreflightWarning = {
+  code: PreflightWarningCode;
+  imageIndex: number;
+  message: string;
+};
 
 export type PreflightImageReport = {
   index: number;
@@ -30,6 +62,7 @@ export type PreflightImageReport = {
   blocked: boolean;
   blockMessage: string | null;
   warnings: string[];
+  structuredWarnings: PreflightWarning[];
 };
 
 export type InstantPremiumPreflightResult =
@@ -42,7 +75,7 @@ export type InstantPremiumPreflightResult =
   | {
       ok: false;
       error: string;
-      code: "TEXT_PROTECTION_REQUIRED" | "PREFLIGHT_UNAVAILABLE";
+      code: "TEXT_PROTECTION_REQUIRED" | "PREFLIGHT_UNAVAILABLE" | "OPENAI_RATE_LIMITED";
       blockMessage: string;
       warnings: string[];
       images: PreflightImageReport[];
@@ -53,11 +86,35 @@ function imageSourceUrl(image: CreateAnimationProjectImageInput): string {
   return image.workingImageUrl?.trim() || image.previewUrl?.trim() || "";
 }
 
+const OCR_TERMINAL_PHASES = new Set([
+  "no_text_found",
+  "skipped",
+  "auto_protected",
+  "needs_review",
+  "received_result",
+]);
+
 export function resolveImageProtectionState(
   image: CreateAnimationProjectImageInput
 ): { state: ImageProtectionState; confirmed: BakedTextBlockRecord[] } {
   const protection = parseBakedTextProtectionPayload(image.bakedTextProtection);
-  if (!protection?.enabled) {
+  if (!protection) {
+    return { state: "none", confirmed: [] };
+  }
+
+  if (
+    protection.userSkipped ||
+    protection.status === "skipped" ||
+    protection.ocrScanPhase === "skipped"
+  ) {
+    return { state: "ocr_skipped", confirmed: [] };
+  }
+
+  if (protection.ocrScanPhase === "no_text_found") {
+    return { state: "ocr_no_text", confirmed: [] };
+  }
+
+  if (!protection.enabled) {
     return { state: "none", confirmed: [] };
   }
 
@@ -75,8 +132,68 @@ export function resolveImageProtectionState(
   return { state: "enabled_incomplete", confirmed: [] };
 }
 
-function isProtectionConfirmed(state: ImageProtectionState): boolean {
+export function isProtectionConfirmed(state: ImageProtectionState): boolean {
   return state === "blocks_confirmed" || state === "legacy_confirmed";
+}
+
+export function isRenderSafeProtectionState(state: ImageProtectionState): boolean {
+  return (
+    isProtectionConfirmed(state) || state === "ocr_skipped" || state === "ocr_no_text"
+  );
+}
+
+function hasOcrScanResult(protection: BakedTextProtectionPayload | null): boolean {
+  if (!protection) {
+    return false;
+  }
+  if (protection.userSkipped || protection.ocrScanPhase === "skipped") {
+    return true;
+  }
+  if (protection.ocrScanPhase === "no_text_found") {
+    return true;
+  }
+  if (protection.ocrScanPhase && OCR_TERMINAL_PHASES.has(protection.ocrScanPhase)) {
+    return true;
+  }
+  return (protection.blocks?.length ?? 0) > 0;
+}
+
+function visionFromOcrPayload(
+  protection: BakedTextProtectionPayload | null
+): ImagePreflightVisionAssessment | null {
+  if (!protection) {
+    return null;
+  }
+  if (protection.ocrScanPhase === "no_text_found") {
+    return emptyPreflightVisionFromOcr();
+  }
+  const blocks = protection.blocks ?? [];
+  if (blocks.length > 0) {
+    return derivePreflightVisionFromOcrBlocks(blocks);
+  }
+  return null;
+}
+
+function shouldCallOpenAiPreflight(params: {
+  image: CreateAnimationProjectImageInput;
+  protectionState: ImageProtectionState;
+  protection: BakedTextProtectionPayload | null;
+  url: string;
+}): boolean {
+  const { protectionState, protection, url } = params;
+  if (!url) {
+    return false;
+  }
+  if (isRenderSafeProtectionState(protectionState)) {
+    return false;
+  }
+  if (hasOcrScanResult(protection)) {
+    return false;
+  }
+  if (isOpenAiCooldownActive()) {
+    return false;
+  }
+  return protectionState === "none";
 }
 
 function blockMessageForIndex(): string {
@@ -88,6 +205,29 @@ function needsLockedLayersForPayload(payload: InstantPremiumCreatePayload): bool
   return chips.some((id) => isTextImplyingChipId(id));
 }
 
+function pushWarning(
+  warnings: PreflightWarning[],
+  code: PreflightWarningCode,
+  imageIndex: number,
+  message: string
+): void {
+  warnings.push({ code, imageIndex, message });
+}
+
+export function dedupePreflightWarnings(warnings: PreflightWarning[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const w of warnings) {
+    const key = `${w.code}:${w.imageIndex}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(w.message);
+  }
+  return out;
+}
+
 export function evaluateImageReport(params: {
   index: number;
   image: CreateAnimationProjectImageInput;
@@ -96,11 +236,41 @@ export function evaluateImageReport(params: {
   vision: ImagePreflightVisionAssessment | null;
   payload: InstantPremiumCreatePayload;
 }): PreflightImageReport {
-  const warnings: string[] = [];
+  const structured: PreflightWarning[] = [];
   const { index, image, protectionState, confirmed, vision, payload } = params;
+
+  if (isRenderSafeProtectionState(protectionState) && protectionState !== "none") {
+    if (vision?.distortionRisk === "high" && isProtectionConfirmed(protectionState)) {
+      pushWarning(
+        structured,
+        "HIGH_DISTORTION_RISK",
+        index,
+        "High distortion risk — confirmed masks and locked overlays will be applied."
+      );
+    }
+    const deduped = dedupePreflightWarnings(structured);
+    return {
+      index,
+      fileName: image.fileName,
+      protectionState,
+      confirmedBlockCount: confirmed.length,
+      vision,
+      blocked: false,
+      blockMessage: null,
+      warnings: deduped,
+      structuredWarnings: structured,
+    };
+  }
+
   const protectedOk = isProtectionConfirmed(protectionState);
 
   if (protectionState === "unconfirmed_blocks") {
+    pushWarning(
+      structured,
+      "UNCONFIRMED_BLOCKS",
+      index,
+      "Detected text blocks are not confirmed yet."
+    );
     return {
       index,
       fileName: image.fileName,
@@ -109,11 +279,18 @@ export function evaluateImageReport(params: {
       vision,
       blocked: true,
       blockMessage: blockMessageForIndex(),
-      warnings: ["Detected text blocks are not confirmed yet."],
+      warnings: dedupePreflightWarnings(structured),
+      structuredWarnings: structured,
     };
   }
 
   if (protectionState === "enabled_incomplete") {
+    pushWarning(
+      structured,
+      "INCOMPLETE_PROTECTION",
+      index,
+      "Text protection is enabled but not completed."
+    );
     return {
       index,
       fileName: image.fileName,
@@ -122,7 +299,8 @@ export function evaluateImageReport(params: {
       vision,
       blocked: true,
       blockMessage: blockMessageForIndex(),
-      warnings: ["Text protection is enabled but not completed."],
+      warnings: dedupePreflightWarnings(structured),
+      structuredWarnings: structured,
     };
   }
 
@@ -135,6 +313,9 @@ export function evaluateImageReport(params: {
         vision.hasLogoOrBrandText);
 
     if (riskyText && !protectedOk) {
+      if (vision.summary) {
+        pushWarning(structured, "VISION_SUMMARY", index, vision.summary);
+      }
       return {
         index,
         fileName: image.fileName,
@@ -143,15 +324,27 @@ export function evaluateImageReport(params: {
         vision,
         blocked: true,
         blockMessage: blockMessageForIndex(),
-        warnings: vision.summary ? [vision.summary] : [],
+        warnings: dedupePreflightWarnings(structured),
+        structuredWarnings: structured,
       };
     }
 
     if (vision.hasPhoneOrUiText && protectedOk && confirmed.every((b) => b.blockType !== "ui")) {
-      warnings.push("Phone/UI text detected — ensure UI blocks are confirmed and masked.");
+      pushWarning(
+        structured,
+        "UI_TEXT_UNCONFIRMED",
+        index,
+        "Phone/UI text detected — ensure UI blocks are confirmed and masked."
+      );
     }
 
     if (vision.hasLogoOrBrandText && !protectedOk) {
+      pushWarning(
+        structured,
+        "LOGO_TEXT_UNPROTECTED",
+        index,
+        "Logo or brand text may distort without protection."
+      );
       return {
         index,
         fileName: image.fileName,
@@ -160,21 +353,37 @@ export function evaluateImageReport(params: {
         vision,
         blocked: true,
         blockMessage: blockMessageForIndex(),
-        warnings: ["Logo or brand text may distort without protection."],
+        warnings: dedupePreflightWarnings(structured),
+        structuredWarnings: structured,
       };
     }
 
     if (vision.distortionRisk === "high" && protectedOk) {
-      warnings.push("High distortion risk — confirmed masks and locked overlays will be applied.");
+      pushWarning(
+        structured,
+        "HIGH_DISTORTION_RISK",
+        index,
+        "High distortion risk — confirmed masks and locked overlays will be applied."
+      );
     } else if (vision.distortionRisk === "medium" && !protectedOk) {
-      warnings.push("Medium text distortion risk detected.");
+      pushWarning(
+        structured,
+        "MEDIUM_DISTORTION_RISK",
+        index,
+        "Medium text distortion risk detected."
+      );
     }
   }
 
   if (protectedOk && confirmed.length > 0) {
     const uiBlocks = confirmed.filter((b) => b.blockType === "ui");
     if (vision?.hasPhoneOrUiText && uiBlocks.length === 0) {
-      warnings.push("Phone/UI text detected; consider adding or confirming a UI text block.");
+      pushWarning(
+        structured,
+        "UI_TEXT_UNCONFIRMED",
+        index,
+        "Phone/UI text detected; consider adding or confirming a UI text block."
+      );
     }
   }
 
@@ -184,7 +393,12 @@ export function evaluateImageReport(params: {
     (payload.lockedTextLayers?.length ?? 0) === 0 &&
     !protectedOk
   ) {
-    warnings.push("Text chips selected but no locked text layers are configured.");
+    pushWarning(
+      structured,
+      "TEXT_CHIPS_NO_LAYERS",
+      index,
+      "Text chips selected but no locked text layers are configured."
+    );
   }
 
   return {
@@ -195,8 +409,25 @@ export function evaluateImageReport(params: {
     vision,
     blocked: false,
     blockMessage: null,
-    warnings,
+    warnings: dedupePreflightWarnings(structured),
+    structuredWarnings: structured,
   };
+}
+
+function imageUnverifiedAfterRateLimit(image: CreateAnimationProjectImageInput): boolean {
+  const { state } = resolveImageProtectionState(image);
+  if (isRenderSafeProtectionState(state)) {
+    return false;
+  }
+  if (state === "unconfirmed_blocks" || state === "enabled_incomplete") {
+    return true;
+  }
+  const protection = parseBakedTextProtectionPayload(image.bakedTextProtection);
+  return !hasOcrScanResult(protection);
+}
+
+function flattenStructuredWarnings(reports: PreflightImageReport[]): PreflightWarning[] {
+  return reports.flatMap((r) => r.structuredWarnings);
 }
 
 export async function runInstantPremiumTextPreflight(
@@ -204,60 +435,58 @@ export async function runInstantPremiumTextPreflight(
 ): Promise<InstantPremiumPreflightResult> {
   const openAiKey = process.env.OPENAI_API_KEY?.trim();
   const reports: PreflightImageReport[] = [];
+  let visionUsed = false;
+  let openAiRateLimited = false;
 
-  if (!openAiKey) {
-    for (let index = 0; index < payload.images.length; index += 1) {
-      const image = payload.images[index];
-      const { state, confirmed } = resolveImageProtectionState(image);
-      const report = evaluateImageReport({
-        index,
-        image,
-        protectionState: state,
-        confirmed,
-        vision: null,
-        payload,
-      });
-      reports.push(report);
-      if (report.blocked) {
-        return {
-          ok: false,
-          error: report.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
-          code: "TEXT_PROTECTION_REQUIRED",
-          blockMessage: report.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
-          warnings: reports.flatMap((r) => r.warnings),
-          images: reports,
-          visionUsed: false,
-        };
-      }
-    }
-    return {
-      ok: true,
-      warnings: reports.flatMap((r) => r.warnings),
-      images: reports,
-      visionUsed: false,
-    };
-  }
+  const finishBlocked = (): InstantPremiumPreflightResult => ({
+    ok: false,
+    error:
+      reports.find((r) => r.blocked)?.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
+    code: "TEXT_PROTECTION_REQUIRED",
+    blockMessage:
+      reports.find((r) => r.blocked)?.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
+    warnings: dedupePreflightWarnings(flattenStructuredWarnings(reports)),
+    images: reports,
+    visionUsed,
+  });
 
   for (let index = 0; index < payload.images.length; index += 1) {
     const image = payload.images[index];
+    const protection = parseBakedTextProtectionPayload(image.bakedTextProtection);
     const { state, confirmed } = resolveImageProtectionState(image);
     const url = imageSourceUrl(image);
 
-    let vision: ImagePreflightVisionAssessment | null = null;
-    if (url) {
+    let vision = visionFromOcrPayload(protection);
+    if (vision) {
+      visionUsed = true;
+    }
+
+    const needsOpenAi =
+      Boolean(openAiKey) && shouldCallOpenAiPreflight({ image, protectionState: state, protection, url });
+
+    if (needsOpenAi) {
       try {
-        vision = await assessImageTextRiskWithOpenAi(url, openAiKey);
+        vision = await assessImageTextRiskWithOpenAi(url, openAiKey!);
+        visionUsed = true;
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Vision preflight failed.";
-        return {
-          ok: false,
-          error: message,
-          code: "PREFLIGHT_UNAVAILABLE",
-          blockMessage: message,
-          warnings: [],
-          images: reports,
-          visionUsed: true,
-        };
+        if (isOpenAiRateLimitFailure(error)) {
+          noteOpenAiRateLimitFailure(error);
+          openAiRateLimited = true;
+          if (!vision) {
+            vision = visionFromOcrPayload(protection);
+          }
+        } else {
+          const message = error instanceof Error ? error.message : "Vision preflight failed.";
+          return {
+            ok: false,
+            error: message,
+            code: "PREFLIGHT_UNAVAILABLE",
+            blockMessage: message,
+            warnings: dedupePreflightWarnings(flattenStructuredWarnings(reports)),
+            images: reports,
+            visionUsed: true,
+          };
+        }
       }
     }
 
@@ -272,28 +501,65 @@ export async function runInstantPremiumTextPreflight(
     reports.push(report);
 
     if (report.blocked) {
+      return finishBlocked();
+    }
+  }
+
+  if (openAiRateLimited) {
+    const rateLimitWarnings: PreflightWarning[] = [
+      ...flattenStructuredWarnings(reports),
+      {
+        code: "OPENAI_RATE_LIMITED",
+        imageIndex: -1,
+        message: OPENAI_RATE_LIMIT_PREFLIGHT_MESSAGE_NL,
+      },
+    ];
+    const noBlockedReports = reports.every((r) => !r.blocked);
+    const noUnverified = !payload.images.some(imageUnverifiedAfterRateLimit);
+    if (noBlockedReports && noUnverified) {
       return {
-        ok: false,
-        error: report.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
-        code: "TEXT_PROTECTION_REQUIRED",
-        blockMessage: report.blockMessage ?? INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
-        warnings: reports.flatMap((r) => r.warnings),
+        ok: true,
+        warnings: dedupePreflightWarnings(rateLimitWarnings),
         images: reports,
-        visionUsed: true,
+        visionUsed,
       };
     }
+    return {
+      ok: false,
+      error: OPENAI_RATE_LIMIT_PREFLIGHT_MESSAGE_NL,
+      code: "OPENAI_RATE_LIMITED",
+      blockMessage: INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL,
+      warnings: dedupePreflightWarnings(rateLimitWarnings),
+      images: reports,
+      visionUsed,
+    };
+  }
+
+  if (!openAiKey) {
+    return {
+      ok: true,
+      warnings: dedupePreflightWarnings(flattenStructuredWarnings(reports)),
+      images: reports,
+      visionUsed: false,
+    };
   }
 
   return {
     ok: true,
-    warnings: reports.flatMap((r) => r.warnings),
+    warnings: dedupePreflightWarnings(flattenStructuredWarnings(reports)),
     images: reports,
-    visionUsed: true,
+    visionUsed,
   };
 }
 
 export function instantPreflightHttpStatus(
   result: Extract<InstantPremiumPreflightResult, { ok: false }>
 ): number {
-  return result.code === "PREFLIGHT_UNAVAILABLE" ? 503 : 422;
+  if (result.code === "PREFLIGHT_UNAVAILABLE") {
+    return 503;
+  }
+  if (result.code === "OPENAI_RATE_LIMITED") {
+    return 429;
+  }
+  return 422;
 }

@@ -253,7 +253,12 @@ export async function createInstantPremiumAnimationProject(
     return {
       ok: false,
       error: preflight.blockMessage,
-      status: preflight.code === "PREFLIGHT_UNAVAILABLE" ? 503 : 422,
+      status:
+        preflight.code === "PREFLIGHT_UNAVAILABLE"
+          ? 503
+          : preflight.code === "OPENAI_RATE_LIMITED"
+            ? 429
+            : 422,
     };
   }
 

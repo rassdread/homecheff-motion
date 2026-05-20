@@ -38,6 +38,10 @@ export type BakedTextProtectionPayload = {
   positionY?: number;
   maskRegion?: BakedTextMaskRegion;
   blocks?: BakedTextBlockRecord[];
+  /** Instant OCR scan phase sent with checkout for preflight reuse */
+  ocrScanPhase?: string;
+  userSkipped?: boolean;
+  autoProtected?: boolean;
 };
 
 export function defaultAnimationForTextBlock(block: Pick<DetectedTextBlock, "text" | "bbox" | "blockType">): LockedTextAnimation {
@@ -225,15 +229,35 @@ export function layerAnchorFromBbox(bbox: BakedTextMaskRegion): { x: number; y: 
   };
 }
 
+function parseOcrScanPhase(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 export function parseBakedTextProtectionPayload(value: unknown): BakedTextProtectionPayload | null {
   if (!value || typeof value !== "object") {
     return null;
   }
   const o = value as Record<string, unknown>;
-  if (o.enabled !== true) {
-    return { enabled: false, status: "none" };
-  }
   const blocks = parseBakedTextBlockRecords(o.blocks);
+  const ocrScanPhase = parseOcrScanPhase(o.ocrScanPhase);
+  const userSkipped = o.userSkipped === true;
+  const autoProtected = o.autoProtected === true;
+
+  if (o.enabled !== true) {
+    const status =
+      o.status === "skipped" || userSkipped || ocrScanPhase === "skipped"
+        ? "skipped"
+        : "none";
+    return {
+      enabled: false,
+      status,
+      blocks,
+      ocrScanPhase,
+      userSkipped,
+      autoProtected,
+    };
+  }
+
   return {
     enabled: true,
     status:
@@ -250,5 +274,8 @@ export function parseBakedTextProtectionPayload(value: unknown): BakedTextProtec
     exactText: typeof o.exactText === "string" ? o.exactText : undefined,
     positionY: typeof o.positionY === "number" ? o.positionY : undefined,
     blocks,
+    ocrScanPhase,
+    userSkipped,
+    autoProtected,
   };
 }
