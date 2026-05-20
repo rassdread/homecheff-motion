@@ -9,6 +9,9 @@ export type InstantWizardFooterProps = {
   showBack?: boolean;
   /** Reserve back column on desktop when back is hidden (step 1). */
   backPlaceholder?: boolean;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  secondaryDisabled?: boolean;
   primaryLabel: ReactNode;
   onPrimary: () => void;
   primaryDisabled?: boolean;
@@ -21,6 +24,9 @@ export function InstantWizardFooter({
   onBack,
   showBack = false,
   backPlaceholder = false,
+  secondaryLabel,
+  onSecondary,
+  secondaryDisabled = false,
   primaryLabel,
   onPrimary,
   primaryDisabled = false,
@@ -42,6 +48,16 @@ export function InstantWizardFooter({
           </InstantWizardNavButton>
         ) : backPlaceholder ? (
           <InstantWizardNavButton variant="back" placeholder />
+        ) : null}
+        {onSecondary && secondaryLabel ? (
+          <InstantWizardNavButton
+            variant="back"
+            onClick={onSecondary}
+            disabled={secondaryDisabled}
+            className="!border-red-200 !text-red-800 hover:!bg-red-50"
+          >
+            {secondaryLabel}
+          </InstantWizardNavButton>
         ) : null}
         <InstantWizardNavButton
           variant="primary"

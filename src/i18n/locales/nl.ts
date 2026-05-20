@@ -465,6 +465,16 @@ export const nl = {
   "instant.classicFlow": "Klassieke flow",
   "instant.common.back": "Terug",
   "instant.common.continue": "Doorgaan",
+  "instant.reset.button": "Opnieuw beginnen",
+  "instant.reset.title": "Wizard resetten?",
+  "instant.reset.body":
+    "Alle uploads, tekstscan en instellingen in deze sessie worden gewist. Bestaande video's in je galerij blijven bewaard.",
+  "instant.reset.processingWarning":
+    "Deze video wordt nog verwerkt. Weet je zeker dat je opnieuw wilt beginnen?",
+  "instant.reset.cancel": "Annuleren",
+  "instant.reset.confirm": "Opnieuw beginnen",
+  "instant.reset.confirmBusy": "Bezig met resetten…",
+  "instant.reset.toast": "Nieuwe sessie gestart",
   "instant.auth.requiredTitle": "Inloggen vereist",
   "instant.auth.requiredDescription": "Instant Premium vereist een account.",
   "instant.auth.login": "Inloggen",

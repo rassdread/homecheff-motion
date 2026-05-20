@@ -463,6 +463,16 @@ export const en: LocaleSchema = {
   "instant.classicFlow": "Classic flow",
   "instant.common.back": "Back",
   "instant.common.continue": "Continue",
+  "instant.reset.button": "Start over",
+  "instant.reset.title": "Reset wizard?",
+  "instant.reset.body":
+    "All uploads, text scans, and settings in this session will be cleared. Videos already in your gallery are not deleted.",
+  "instant.reset.processingWarning":
+    "This video is still processing. Are you sure you want to start over?",
+  "instant.reset.cancel": "Cancel",
+  "instant.reset.confirm": "Start over",
+  "instant.reset.confirmBusy": "Resetting…",
+  "instant.reset.toast": "New session started",
   "instant.auth.requiredTitle": "Sign in required",
   "instant.auth.requiredDescription": "Instant Premium needs an account.",
   "instant.auth.login": "Log in",

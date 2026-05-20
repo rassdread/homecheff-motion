@@ -24,7 +24,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
 import { InstantWizardContent } from "@/components/instant/instant-wizard-content";
 import { InstantWizardFooter } from "@/components/instant/instant-wizard-footer";
+import { InstantWizardResetDialog } from "@/components/instant/instant-wizard-reset-dialog";
 import { InstantWizardShell } from "@/components/instant/instant-wizard-shell";
+import { InstantWizardToast } from "@/components/instant/instant-wizard-toast";
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
 import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
@@ -51,6 +53,13 @@ import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
 import { capHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
+import {
+  getInstantWizardFormDefaults,
+  INSTANT_WIZARD_DEFAULT_BAKED_TEXT,
+  isInstantWizardVideoProcessingActive,
+  readActiveWizardProjectSnapshot,
+  resetInstantPremiumWizard,
+} from "@/lib/reset-instant-premium-wizard";
 import {
   createLockedTextLayer,
   type TextImplyingChipId,
@@ -158,19 +167,6 @@ type LocalImage = {
   remoteStorageKey?: string;
 };
 
-const DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
-  enabled: false,
-  status: "none",
-  blocks: [],
-  exactText: "",
-  positionY: 0.12,
-  manualMode: false,
-  autoScanState: "idle",
-  autoScanComplete: false,
-  needsReview: false,
-  reviewOpen: false,
-};
-
 const AUTO_SCAN_DEBOUNCE_MS = 450;
 
 function SortableThumb({
@@ -252,8 +248,12 @@ export default function InstantPremiumPage() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [fastRenderMode, setFastRenderMode] = useState(false);
   const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [wizardReady, setWizardReady] = useState(false);
   const imagesRef = useRef<LocalImage[]>([]);
+  const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
@@ -352,7 +352,7 @@ export default function InstantPremiumPage() {
               thumbnailPreviewUrl: URL.createObjectURL(p.thumbnailBlob),
               mimeType: p.mimeType,
               sizeBytes: p.optimizedBlob.size,
-              bakedText: { ...DEFAULT_BAKED_TEXT },
+              bakedText: { ...INSTANT_WIZARD_DEFAULT_BAKED_TEXT },
             } satisfies LocalImage;
           })
         );
@@ -460,8 +460,14 @@ export default function InstantPremiumPage() {
     return payload;
   }, []);
 
-  const { scanBakedText, scheduleAutoScans, skipTextProtection, waitForPendingScans, cancelOcrScanForImage } =
-    useInstantOcrAutoScan({
+  const {
+    scanBakedText,
+    scheduleAutoScans,
+    skipTextProtection,
+    waitForPendingScans,
+    cancelOcrScanForImage,
+    cancelAllOcrScans,
+  } = useInstantOcrAutoScan({
     fastRenderMode,
     t: (key, values) => t(key as never, values as never),
     uploadOcrBlob,
@@ -521,7 +527,76 @@ export default function InstantPremiumPage() {
     await persistNow();
   }, [cancelOcrScanForImage, persistNow]);
 
-  const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyWizardFormDefaults = useCallback(() => {
+    const defaults = getInstantWizardFormDefaults();
+    setStep(defaults.step);
+    setStylePreset(defaults.stylePreset);
+    setDurationSec(defaults.durationSec);
+    setMotionText(defaults.motionText);
+    setContinuityStrength(defaults.continuityStrength);
+    setChips(defaults.chips);
+    setLockedTextMode(defaults.lockedTextMode);
+    setLockedTextLayers(defaults.lockedTextLayers);
+    setChipTextBySlot(defaults.chipTextBySlot);
+    setAspectRatio(defaults.aspectRatio);
+    setFastRenderMode(defaults.fastRenderMode);
+    setTextRenderMode(defaults.textRenderMode);
+    setHybridOverlayStyle(defaults.hybridOverlayStyle);
+    setError("");
+    setPreflightNotice("");
+    setCheckoutGateOpen(false);
+  }, []);
+
+  const hasWizardSessionContent = useMemo(
+    () =>
+      images.length > 0 ||
+      step > 1 ||
+      motionText.trim().length > 0 ||
+      chips.length > 0 ||
+      lockedTextLayers.length > 0,
+    [images.length, step, motionText, chips.length, lockedTextLayers.length]
+  );
+
+  const resetProcessingWarning = useMemo(
+    () =>
+      isInstantWizardVideoProcessingActive({
+        checkoutBusy,
+        projectSnapshot: readActiveWizardProjectSnapshot(),
+      }),
+    [checkoutBusy]
+  );
+
+  const performWizardReset = useCallback(async () => {
+    setResetBusy(true);
+    try {
+      if (autoScanDebounceRef.current) {
+        clearTimeout(autoScanDebounceRef.current);
+        autoScanDebounceRef.current = null;
+      }
+      await resetInstantPremiumWizard({
+        images: imagesRef.current,
+        cancelOcrScanForImage,
+        cancelAllOcrScans,
+      });
+      setImages([]);
+      applyWizardFormDefaults();
+      await persistNow();
+      setResetDialogOpen(false);
+      setToastMessage(t("instant.reset.toast"));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } finally {
+      setResetBusy(false);
+    }
+  }, [applyWizardFormDefaults, cancelAllOcrScans, cancelOcrScanForImage, persistNow, t]);
+
+  useEffect(() => {
+    if (!toastMessage) {
+      return;
+    }
+    const timer = setTimeout(() => setToastMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   useEffect(() => {
     if (fastRenderMode || !wizardReady) {
@@ -1011,16 +1086,28 @@ export default function InstantPremiumPage() {
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-6 flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
               {brand.productName}
             </p>
             <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
           </div>
-          <Link href="/animate" className="text-xs font-medium text-zinc-600 underline">
-            {t("instant.classicFlow")}
-          </Link>
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            {wizardReady && hasWizardSessionContent ? (
+              <button
+                type="button"
+                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50"
+                onClick={() => setResetDialogOpen(true)}
+                disabled={resetBusy || checkoutBusy}
+              >
+                {t("instant.reset.button")}
+              </button>
+            ) : null}
+            <Link href="/animate" className="text-xs font-medium text-zinc-600 underline">
+              {t("instant.classicFlow")}
+            </Link>
+          </div>
         </div>
 
         <div className="mb-4 flex gap-1">
@@ -1389,6 +1476,13 @@ export default function InstantPremiumPage() {
             showBack={wizardNav.showBack}
             backPlaceholder={wizardNav.backPlaceholder}
             onBack={wizardNav.onBack}
+            secondaryLabel={
+              wizardReady && hasWizardSessionContent ? t("instant.reset.button") : undefined
+            }
+            onSecondary={
+              wizardReady && hasWizardSessionContent ? () => setResetDialogOpen(true) : undefined
+            }
+            secondaryDisabled={resetBusy || checkoutBusy}
             primaryLabel={wizardNav.primaryLabel}
             onPrimary={wizardNav.onPrimary}
             primaryDisabled={wizardNav.primaryDisabled}
@@ -1406,6 +1500,16 @@ export default function InstantPremiumPage() {
           setStep(2);
         }}
       />
+
+      <InstantWizardResetDialog
+        open={resetDialogOpen}
+        processingWarning={resetProcessingWarning}
+        busy={resetBusy}
+        onCancel={() => setResetDialogOpen(false)}
+        onConfirm={() => void performWizardReset()}
+      />
+
+      <InstantWizardToast message={toastMessage} />
     </main>
   );
 }

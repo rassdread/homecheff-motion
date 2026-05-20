@@ -30,6 +30,18 @@ export function writeActiveInstantProjectId(projectId: string): void {
   window.localStorage.setItem(ACTIVE_PROJECT_KEY, projectId.trim());
 }
 
+/** Clears wizard progress pointer and cached snapshot for the active project (gallery DB rows unchanged). */
+export function clearActiveInstantWizardSession(): void {
+  if (!storageAvailable()) {
+    return;
+  }
+  const projectId = readActiveInstantProjectId();
+  if (projectId) {
+    window.localStorage.removeItem(`${SNAPSHOT_PREFIX}${projectId}`);
+  }
+  window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+}
+
 export function readCachedInstantProgressSnapshot(
   projectId: string
 ): CachedInstantProgressSnapshot | null {

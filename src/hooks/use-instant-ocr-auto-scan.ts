@@ -90,6 +90,22 @@ export function useInstantOcrAutoScan(params: {
     }
   }, []);
 
+  const cancelAllOcrScans = useCallback(() => {
+    for (const imageId of runningScanIdsRef.current) {
+      abortByImageRef.current.set(imageId, true);
+      clearWatchdog(imageId);
+    }
+    for (const imageId of watchdogByImageRef.current.keys()) {
+      abortByImageRef.current.set(imageId, true);
+      clearWatchdog(imageId);
+    }
+    lazyScanQueueRef.current = [];
+    runningScanIdsRef.current.clear();
+    terminalFailureIdsRef.current.clear();
+    inFlightOcrByHashRef.current.clear();
+    logOcrAutoScan("cancelled-all", {});
+  }, [clearWatchdog]);
+
   const cancelOcrScanForImage = useCallback(
     (imageId: string) => {
       abortByImageRef.current.set(imageId, true);
@@ -660,5 +676,6 @@ export function useInstantOcrAutoScan(params: {
     skipTextProtection,
     waitForPendingScans,
     cancelOcrScanForImage,
+    cancelAllOcrScans,
   };
 }
