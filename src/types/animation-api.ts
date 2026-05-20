@@ -147,6 +147,19 @@ export type UploadImageResponse = {
   thumbnailStorageKey: string;
 };
 
+export type ImageUploadErrorCode =
+  | "IMAGE_UPLOAD_FAILED"
+  | "BLOB_UPLOAD_FAILED"
+  | "IMAGE_PROCESSING_FAILED"
+  | "DB_WRITE_FAILED";
+
+export type ImageUploadErrorBody = {
+  ok: false;
+  code: ImageUploadErrorCode;
+  message: string;
+  requestId: string;
+};
+
 /** Minimal shape from GET /api/animations/projects/[id] for client sync */
 export type ProjectSnapshotImage = {
   id: string;

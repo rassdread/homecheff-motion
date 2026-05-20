@@ -656,6 +656,7 @@ export const en: LocaleSchema = {
   "instant.errors.autoOptimized": "Image was too large. We automatically optimized it for you.",
   "instant.errors.processFailed": "Could not process images (target max ~{max}MB).",
   "instant.errors.uploadFailed": "Upload failed.",
+  "instant.errors.uploadFailedRetry": "Image upload failed. Please try again.",
   "instant.errors.minImages": "Select at least {min} images.",
   "instant.errors.missingProjectId": "Test mode response did not include projectId.",
   "instant.errors.testModeBadResponse":

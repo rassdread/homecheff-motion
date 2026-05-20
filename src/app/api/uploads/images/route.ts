@@ -1,9 +1,18 @@
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
+import {
+  buildImageUploadErrorBody,
+  classifyImageUploadFailure,
+  createImageUploadRequestId,
+  isBlobTokenConfigured,
+  logInstantImages,
+  logInstantImagesError,
+} from "@/lib/instant-image-upload-errors";
 import { BLOB_IMAGE_THUMB_MAX_BYTES, getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
 import type { UploadImageResponse } from "@/types/animation-api";
 import { requireActiveUser } from "@/server/auth/permissions";
+
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function extensionFromMimeType(mimeType: string): string {
@@ -12,51 +21,86 @@ function extensionFromMimeType(mimeType: string): string {
   return "webp";
 }
 
+function uploadErrorResponse(
+  requestId: string,
+  code: ReturnType<typeof classifyImageUploadFailure>["code"],
+  httpStatus: number,
+  logMessage: string,
+  extra?: Record<string, unknown>
+) {
+  logInstantImagesError(requestId, code, logMessage, extra);
+  return NextResponse.json(buildImageUploadErrorBody({ code, requestId }), { status: httpStatus });
+}
+
 export async function POST(request: Request) {
-  const user = await requireActiveUser();
-  if (user instanceof NextResponse) {
-    return user;
-  }
-
-  const formData = await request.formData();
-  const workingImage = formData.get("workingImage");
-  const thumbnailImage = formData.get("thumbnailImage");
-  const originalFileName = formData.get("originalFileName");
-  const mimeType = formData.get("mimeType");
-  const sizeBytes = formData.get("sizeBytes");
-  const clientUploadId = formData.get("clientUploadId");
-
-  if (
-    !(workingImage instanceof File) ||
-    !(thumbnailImage instanceof File) ||
-    typeof originalFileName !== "string" ||
-    typeof mimeType !== "string" ||
-    typeof sizeBytes !== "string" ||
-    typeof clientUploadId !== "string"
-  ) {
-    return NextResponse.json(
-      { error: "Missing required upload fields." },
-      { status: 400 }
-    );
-  }
-
-  const parsedSizeBytes = Number(sizeBytes);
-  if (!Number.isFinite(parsedSizeBytes) || parsedSizeBytes <= 0) {
-    return NextResponse.json(
-      { error: "Invalid sizeBytes value." },
-      { status: 400 }
-    );
-  }
-
-  if (!ALLOWED_TYPES.has(mimeType)) {
-    return NextResponse.json(
-      { error: "Unsupported image type." },
-      { status: 400 }
-    );
-  }
+  const requestId = createImageUploadRequestId();
+  logInstantImages("start", requestId);
 
   try {
+    const user = await requireActiveUser();
+    if (user instanceof NextResponse) {
+      return user;
+    }
+
+    if (!isBlobTokenConfigured()) {
+      return uploadErrorResponse(
+        requestId,
+        "BLOB_UPLOAD_FAILED",
+        503,
+        "BLOB_READ_WRITE_TOKEN is not configured."
+      );
+    }
+
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (error) {
+      const classified = classifyImageUploadFailure(error);
+      return uploadErrorResponse(requestId, classified.code, classified.httpStatus, classified.logMessage, {
+        phase: "formData",
+      });
+    }
+
+    const workingImage = formData.get("workingImage");
+    const thumbnailImage = formData.get("thumbnailImage");
+    const originalFileName = formData.get("originalFileName");
+    const mimeType = formData.get("mimeType");
+    const sizeBytes = formData.get("sizeBytes");
+    const clientUploadId = formData.get("clientUploadId");
+
+    if (
+      !(workingImage instanceof File) ||
+      !(thumbnailImage instanceof File) ||
+      typeof originalFileName !== "string" ||
+      typeof mimeType !== "string" ||
+      typeof sizeBytes !== "string" ||
+      typeof clientUploadId !== "string"
+    ) {
+      return uploadErrorResponse(
+        requestId,
+        "IMAGE_UPLOAD_FAILED",
+        400,
+        "Missing required upload fields."
+      );
+    }
+
+    const parsedSizeBytes = Number(sizeBytes);
+    if (!Number.isFinite(parsedSizeBytes) || parsedSizeBytes <= 0) {
+      return uploadErrorResponse(requestId, "IMAGE_UPLOAD_FAILED", 400, "Invalid sizeBytes value.");
+    }
+
+    if (!ALLOWED_TYPES.has(mimeType)) {
+      return uploadErrorResponse(requestId, "IMAGE_UPLOAD_FAILED", 400, `Unsupported mime type: ${mimeType}`);
+    }
+
     const maxWorking = getMaxWorkingImageBytesForUploadRole(user.role);
+
+    logInstantImages("processing-start", requestId, {
+      clientUploadId,
+      mimeType,
+      sizeBytes: parsedSizeBytes,
+    });
+
     const [workingInputBuffer, thumbInputBuffer] = await Promise.all([
       Buffer.from(await workingImage.arrayBuffer()),
       Buffer.from(await thumbnailImage.arrayBuffer()),
@@ -73,14 +117,10 @@ export async function POST(request: Request) {
       fallbackWidth: 320,
     });
 
-    console.info("[hc-instant-video]", {
-      phase: "upload_image_optimized",
+    logInstantImages("processing-complete", requestId, {
       originalWorkingBytes: workingInputBuffer.length,
       processedWorkingBytes: workingProcessed.buffer.length,
-      finalWorkingQuality: workingProcessed.qualityUsed,
-      originalThumbBytes: thumbInputBuffer.length,
       processedThumbBytes: thumbProcessed.buffer.length,
-      finalThumbQuality: thumbProcessed.qualityUsed,
     });
 
     const extension = extensionFromMimeType("image/jpeg");
@@ -90,6 +130,8 @@ export async function POST(request: Request) {
       .slice(0, 40);
     const workingPath = `motion/${clientUploadId}/working-${sanitizedFileBase}.${extension}`;
     const thumbPath = `motion/${clientUploadId}/thumb-${sanitizedFileBase}.${extension}`;
+
+    logInstantImages("blob-upload-start", requestId, { workingPath, thumbPath });
 
     const [workingBlob, thumbBlob] = await Promise.all([
       put(workingPath, workingProcessed.buffer, {
@@ -104,6 +146,11 @@ export async function POST(request: Request) {
       }),
     ]);
 
+    logInstantImages("blob-upload-complete", requestId, {
+      workingUrl: workingBlob.url,
+      thumbUrl: thumbBlob.url,
+    });
+
     const response: UploadImageResponse = {
       workingImageUrl: workingBlob.url,
       thumbnailUrl: thumbBlob.url,
@@ -111,11 +158,11 @@ export async function POST(request: Request) {
       thumbnailStorageKey: thumbBlob.pathname,
     };
 
+    logInstantImages("complete", requestId);
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Image upload processing failed.";
-    const status = message.includes("too large") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const classified = classifyImageUploadFailure(error);
+    return uploadErrorResponse(requestId, classified.code, classified.httpStatus, classified.logMessage);
   }
 }
 

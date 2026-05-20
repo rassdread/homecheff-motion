@@ -32,6 +32,7 @@ import {
   OCR_WATCHDOG_TIMEOUT_MS,
   withTimeout,
 } from "@/lib/instant-ocr-scan";
+import { IMAGE_UPLOAD_USER_MESSAGE_NL } from "@/lib/instant-image-upload-errors";
 import type { UploadImageResponse } from "@/types/animation-api";
 
 export type LocalImageWithBakedText = {
@@ -544,8 +545,20 @@ export function useInstantOcrAutoScan(params: {
         const ocrDetail = (error as Error & {
           ocrDetail?: { errorCode?: string; userMessage?: string };
         }).ocrDetail;
+        const uploadDetail = (error as Error & {
+          uploadDetail?: { code?: string; requestId?: string };
+        }).uploadDetail;
         const label = error instanceof Error ? error.message : "";
-        if (isTimeoutError(error) || label === "ocr_fetch_timeout") {
+        if (uploadDetail || label.includes("ocr_upload")) {
+          patchScan(imageId, { remoteWorkingUrl: undefined });
+          applyScanFailure(imageId, "failed", scanRequestId, startedAt, {
+            errorCode: uploadDetail?.code ?? "IMAGE_UPLOAD_FAILED",
+            userMessage:
+              error instanceof Error && error.message
+                ? error.message
+                : IMAGE_UPLOAD_USER_MESSAGE_NL,
+          });
+        } else if (isTimeoutError(error) || label === "ocr_fetch_timeout") {
           applyScanFailure(imageId, "timeout", scanRequestId, startedAt, {
             errorCode: ocrDetail?.errorCode ?? "OPENAI_TIMEOUT",
             userMessage: ocrDetail?.userMessage,

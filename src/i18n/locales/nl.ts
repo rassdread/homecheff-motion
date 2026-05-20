@@ -663,6 +663,7 @@ export const nl = {
   "instant.errors.autoOptimized": "Afbeelding was te groot. We hebben die automatisch voor je geoptimaliseerd.",
   "instant.errors.processFailed": "Afbeeldingen verwerken mislukt (doel max ~{max}MB).",
   "instant.errors.uploadFailed": "Uploaden mislukt.",
+  "instant.errors.uploadFailedRetry": "Afbeelding uploaden mislukt. Probeer opnieuw.",
   "instant.errors.minImages": "Selecteer minimaal {min} afbeeldingen.",
   "instant.errors.missingProjectId": "Testmodus-antwoorden bevatten geen projectId.",
   "instant.errors.testModeBadResponse":

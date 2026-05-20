@@ -59,6 +59,10 @@ import {
 } from "@/lib/image-preprocess";
 import { MAX_RAW_ANIMATION_IMAGE_BYTES } from "@/lib/animation-upload-limits";
 import { getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
+import {
+  ImageUploadError,
+  postWizardImageUpload,
+} from "@/lib/instant-image-upload-client";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -376,11 +380,20 @@ export default function InstantPremiumPage() {
       formData.append("mimeType", "image/jpeg");
       formData.append("sizeBytes", String(ocrBlob.size));
       formData.append("clientUploadId", `${img.id}-ocr`);
-      const res = await fetch("/api/uploads/images", { method: "POST", body: formData });
-      if (!res.ok) {
-        throw new Error(t("instant.errors.uploadFailed"));
+      let payload: UploadImageResponse;
+      try {
+        payload = await postWizardImageUpload(formData);
+      } catch (error) {
+        if (error instanceof ImageUploadError) {
+          const err = new Error(error.message);
+          (err as Error & { uploadDetail?: { code: string; requestId?: string } }).uploadDetail = {
+            code: error.code,
+            requestId: error.requestId,
+          };
+          throw err;
+        }
+        throw error;
       }
-      const payload = (await res.json()) as UploadImageResponse;
       setImages((prev) =>
         prev.map((row) =>
           row.id === img.id
@@ -396,7 +409,7 @@ export default function InstantPremiumPage() {
       );
       return payload;
     },
-    [t]
+    []
   );
 
   const uploadToBlob = useCallback(async (img: LocalImage): Promise<UploadImageResponse> => {
@@ -413,11 +426,7 @@ export default function InstantPremiumPage() {
     formData.append("mimeType", img.mimeType);
     formData.append("sizeBytes", String(img.sizeBytes));
     formData.append("clientUploadId", img.id);
-    const res = await fetch("/api/uploads/images", { method: "POST", body: formData });
-    if (!res.ok) {
-      throw new Error(t("instant.errors.uploadFailed"));
-    }
-    const payload = (await res.json()) as UploadImageResponse;
+    const payload = await postWizardImageUpload(formData);
     setImages((prev) =>
       prev.map((row) =>
         row.id === img.id
@@ -432,7 +441,7 @@ export default function InstantPremiumPage() {
       )
     );
     return payload;
-  }, [t]);
+  }, []);
 
   const { scanBakedText, scheduleAutoScans, skipTextProtection, waitForPendingScans, cancelOcrScanForImage } =
     useInstantOcrAutoScan({
@@ -806,7 +815,11 @@ export default function InstantPremiumPage() {
       }
       window.location.href = data.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("instant.errors.checkoutFailed"));
+      if (e instanceof ImageUploadError) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : t("instant.errors.checkoutFailed"));
+      }
     } finally {
       setCheckoutBusy(false);
     }
