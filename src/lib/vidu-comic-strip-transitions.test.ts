@@ -4,6 +4,7 @@ import {
   buildComicStripSegmentBridgeHint,
   buildComicStripWorldTransitionBlock,
   COMIC_STRIP_POWER_LINE,
+  pickComicStripActingBeat,
   pickComicStripTransitionBridge,
   shouldUseFullComicStripMode,
 } from "@/lib/vidu-comic-strip-transitions";
@@ -18,11 +19,11 @@ describe("vidu comic strip world transitions", () => {
       transitionOrder: 0,
       transitionTotal: 3,
     });
-    assert.match(block, /COMIC-STRIP WORLD/i);
-    assert.match(block, /camera push\/pan/i);
-    assert.match(block, /living comic-strip movie/i);
+    assert.match(block, /PREMIUM COMIC-STRIP ENGINE/i);
+    assert.match(block, /character bridge/i);
+    assert.match(block, /One world, one story, one flow/i);
+    assert.match(block, /Acting this segment: happy or excited/i);
     assert.match(block, /hard cuts/i);
-    assert.ok(!block.includes("One world, one story"));
   });
 
   it("product showcase gets lighter multi-image flow", () => {
@@ -32,8 +33,8 @@ describe("vidu comic strip world transitions", () => {
       transitionTotal: 2,
     });
     assert.match(block, /MULTI-IMAGE FLOW \(lighter merge\)/i);
-    assert.match(block, /camera moves or object passes/i);
-    assert.ok(!block.includes("COMIC-STRIP WORLD"));
+    assert.match(block, /light sweeps, or object passes/i);
+    assert.ok(!block.includes("PREMIUM COMIC-STRIP ENGINE"));
   });
 
   it("single keyframe has no world block", () => {
@@ -45,16 +46,29 @@ describe("vidu comic strip world transitions", () => {
     assert.equal(block, "");
   });
 
+  it("infographic bridge order starts with character bridge", () => {
+    assert.match(pickComicStripTransitionBridge(0), /^character bridge/);
+    assert.match(pickComicStripTransitionBridge(1), /^camera push\/pan/);
+    assert.match(pickComicStripTransitionBridge(2), /^light sweep/);
+    assert.match(pickComicStripTransitionBridge(3), /^particle bridge/);
+  });
+
+  it("acting beats rotate per segment", () => {
+    assert.match(pickComicStripActingBeat(0), /happy or excited/);
+    assert.notEqual(pickComicStripActingBeat(0), pickComicStripActingBeat(1));
+  });
+
   it("bridge hints cycle across segments", () => {
     const a = pickComicStripTransitionBridge(0);
     const b = pickComicStripTransitionBridge(1);
     assert.notEqual(a, b);
     const hint = buildComicStripSegmentBridgeHint({
       animationStyleId: "character_animation",
-      transitionOrder: 1,
+      transitionOrder: 0,
       transitionTotal: 4,
     });
     assert.match(hint, /Bridge: character bridge/i);
+    assert.match(hint, /Acting: happy or excited/i);
   });
 
   it("cartoon multi-segment compact motion still under budget", () => {
@@ -66,7 +80,7 @@ describe("vidu comic strip world transitions", () => {
       transitionOrder: 2,
       transitionTotal: 4,
     });
-    assert.match(motion, /COMIC-STRIP WORLD/i);
+    assert.match(motion, /PREMIUM COMIC-STRIP ENGINE/i);
     assert.ok(motion.length < VIDU_PROMPT_MAX_CHARS, `len ${motion.length}`);
   });
 

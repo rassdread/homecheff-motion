@@ -1,6 +1,6 @@
 /**
- * Vidu prompt — smooth strip / comic-strip world transitions (multi-image → one flow).
- * Aligned with Premium Comic-Strip Engine infographic (compact for Vidu limits).
+ * Vidu prompt — Premium Comic-Strip Engine (smooth strip world transitions).
+ * Multi-image → one continuous animated world. Compact for Vidu limits.
  */
 
 import type { AnimationStyleId } from "@/lib/animation-style-types";
@@ -20,17 +20,32 @@ const FULL_COMIC_STRIP_STYLES: ReadonlySet<AnimationStyleId> = new Set(FULL_COMI
 export const COMIC_STRIP_POWER_LINE =
   "Make this a smooth, cinematic comic-strip animation where all images merge into one continuous world. Keep all text, UI and logos exactly as in the images. Animate characters with natural acting. Transitions must be fluid, creative and invisible. One world, one story, one flow.";
 
-const COMIC_STRIP_AVOID_LINE =
-  "Avoid: hard cuts, static or robotic motion, text popping in/out, no transitions, slideshow feeling.";
+const COMIC_STRIP_CORE_LINE =
+  "One world, one story, one flow — natural acting; cinematic depth, light, motion, and atmosphere; emotion in every moment.";
 
-/** Six transition techniques — rotate per segment (infographic order). */
+const COMIC_STRIP_AVOID_LINE =
+  "Avoid: hard cuts, static motion, text popping in/out, no transitions, slideshow feeling.";
+
+/**
+ * Six bridges — order matches infographic example (character → camera → light → particle …).
+ */
 const TRANSITION_BRIDGES = [
-  "camera push/pan — move forward, pan, or turn to reveal the next scene",
-  "character bridge — characters walk, move, or look toward the next scene and lead the viewer",
+  "character bridge — characters move or look toward the next scene and lead the viewer",
+  "camera push/pan — camera moves forward, pans, or turns to reveal the next scene",
   "light sweep — glow, sweep, or flash carries into the next scene",
+  "particle bridge — particles, sparkles, or energy carry flow into the next scene",
   "foreground pass — object or foreground element passes close to the camera",
   "parallax depth — layers move at different speeds for natural depth",
-  "particle bridge — particles, sparkles, or energy carry flow into the next scene",
+] as const;
+
+/** Rotating acting beats — “what to show” panel (no “expressive” — dedupe sig). */
+const ACTING_BEATS = [
+  "happy or excited — bright smile, alive eyes",
+  "curious or interested — raised eyebrows, attentive look",
+  "surprised or amazed — wide eyes, open mouth",
+  "thinking or focused — subtle look, eye tracking",
+  "laughing or joyful — natural laugh, relaxed face",
+  "encouraging or engaging — speaking energy, welcoming gesture",
 ] as const;
 
 export function shouldUseComicStripWorldTransitions(
@@ -48,6 +63,10 @@ export function pickComicStripTransitionBridge(transitionOrder: number): string 
   return TRANSITION_BRIDGES[transitionOrder % TRANSITION_BRIDGES.length]!;
 }
 
+export function pickComicStripActingBeat(transitionOrder: number): string {
+  return ACTING_BEATS[transitionOrder % ACTING_BEATS.length]!;
+}
+
 /** Compact world-merge block for multi-keyframe Vidu segments. */
 export function buildComicStripWorldTransitionBlock(params: {
   animationStyleId: AnimationStyleId;
@@ -62,13 +81,15 @@ export function buildComicStripWorldTransitionBlock(params: {
   const bridge = pickComicStripTransitionBridge(transitionOrder);
 
   if (shouldUseFullComicStripMode(animationStyleId)) {
+    const acting = pickComicStripActingBeat(transitionOrder);
     return deduplicatePromptText(
       [
-        "COMIC-STRIP WORLD (merge images into one continuous animated world):",
-        "Transitions: smooth merges only — same comic style, line work, lighting; motion like a living comic-strip movie.",
-        "Characters: natural acting, eye tracking, anticipation; smooth body motion, never frozen slides.",
-        "World: environments evolve, not cut; natural perspective and parallax between layers.",
-        `This segment bridge: ${bridge}.`,
+        "PREMIUM COMIC-STRIP ENGINE (smooth strip world transitions):",
+        COMIC_STRIP_CORE_LINE,
+        "Merge: smooth transitions only — same comic style, line work, lighting, spatial logic; cinematic flow frame to frame.",
+        "Performance: eye tracking, anticipation, micro-expressions; smooth body motion.",
+        `Acting this segment: ${acting}.`,
+        `Bridge: ${bridge}.`,
         COMIC_STRIP_AVOID_LINE,
       ].join("\n")
     );
@@ -77,8 +98,8 @@ export function buildComicStripWorldTransitionBlock(params: {
   return deduplicatePromptText(
     [
       "MULTI-IMAGE FLOW (lighter merge):",
-      `Prefer camera moves or object passes when fitting; bridge with ${bridge}.`,
-      "One continuous world, consistent identity — no hard cuts.",
+      "Use camera moves, light sweeps, or object passes when fitting.",
+      `Bridge: ${bridge}; one continuous world — no hard cuts.`,
       COMIC_STRIP_AVOID_LINE,
     ].join("\n")
   );
@@ -93,10 +114,14 @@ export function buildComicStripSegmentBridgeHint(params: {
   if (!shouldUseComicStripWorldTransitions(params.animationStyleId, params.transitionTotal)) {
     return "";
   }
-  const bridge = pickComicStripTransitionBridge(params.transitionOrder);
+  const bridgeLabel = pickComicStripTransitionBridge(params.transitionOrder).split(" — ")[0]!;
   const goal =
     shouldUseFullComicStripMode(params.animationStyleId) ?
-      "Segment flows into the next like a comic-strip movie; world stays alive."
+      "Cinematic flow — segment leads into the next; world stays alive."
     : "Natural merge into next keyframe.";
-  return `${goal} Bridge: ${bridge.split(" — ")[0]}.`;
+  const acting =
+    shouldUseFullComicStripMode(params.animationStyleId) ?
+      ` Acting: ${pickComicStripActingBeat(params.transitionOrder).split(" — ")[0]}.`
+    : "";
+  return `${goal} Bridge: ${bridgeLabel}.${acting}`;
 }
