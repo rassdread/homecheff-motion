@@ -1,15 +1,17 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 
 export async function POST() {
   try {
     const content = `HomeCheff Motion Blob test - ${new Date().toISOString()}\n`;
     const filename = `test/homecheff-motion-${Date.now()}.txt`;
 
-    const blob = await put(filename, content, {
-      access: "public",
+    const blob = await uploadPublicBlob({
+      pathname: filename,
+      body: content,
       contentType: "text/plain; charset=utf-8",
       addRandomSuffix: true,
+      context: { uploadTarget: filename, provider: "test-blob" },
     });
 
     return NextResponse.json(

@@ -43,7 +43,7 @@ export type InstantPremiumStatusResponse = {
   lockedTextLayerCount?: number;
   overlayFailed?: boolean;
   canRetryOverlay?: boolean;
-  failureReason?: "overlay_failed" | "merge_failed" | null;
+  failureReason?: "overlay_failed" | "merge_failed" | "export_upload_auth_failed" | null;
   workerJobStatus?: string | null;
   finalizationStuck?: boolean;
   canRepairFinalVideo?: boolean;
@@ -321,8 +321,10 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     finalState.transitions.length > 0 &&
     finalState.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
   const failureReason =
-    finalState.failureReason === "overlay_failed" || finalState.failureReason === "merge_failed"
-      ? finalState.failureReason
+    finalState.failureReason === "overlay_failed" ||
+    finalState.failureReason === "merge_failed" ||
+    finalState.failureReason === "export_upload_auth_failed"
+      ? (finalState.failureReason as InstantPremiumStatusResponse["failureReason"])
       : overlayFailed
         ? "overlay_failed"
         : finalState.status === "failed"

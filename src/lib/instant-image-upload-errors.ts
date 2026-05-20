@@ -47,6 +47,8 @@ export function classifyImageUploadFailure(error: unknown): {
   if (
     lower.includes("blob_read_write_token") ||
     lower.includes("no token found") ||
+    lower.includes("access denied") ||
+    lower.includes("valid token") ||
     lower.includes("vercel blob") ||
     lower.includes("failed to upload") ||
     lower.includes("blob store")
@@ -93,9 +95,7 @@ export function classifyImageUploadFailure(error: unknown): {
   };
 }
 
-export function isBlobTokenConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
-}
+export { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 
 export function logInstantImages(
   phase: string,

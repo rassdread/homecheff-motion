@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import { getVideoProvider } from "@/server/video-providers";
 
 export async function persistSegmentVideoToBlob(
@@ -22,12 +22,19 @@ export async function persistSegmentVideoToBlob(
   if (!body || body.length <= 0) {
     throw new Error(`Downloaded empty segment for ${trimmed}`);
   }
-  const blob = await put(`motion/segments/${projectId}/segment-${segmentOrder + 1}.mp4`, body, {
-    access: "public",
+  const uploadTarget = `motion/segments/${projectId}/segment-${segmentOrder + 1}.mp4`;
+  const { url } = await uploadPublicBlob({
+    pathname: uploadTarget,
+    body,
     contentType: "video/mp4",
     addRandomSuffix: false,
+    context: {
+      projectId,
+      uploadTarget,
+      provider: "instant-segment-sync",
+    },
   });
-  return blob.url;
+  return url;
 }
 
 export async function refreshTransitionOutputsFromProvider(projectId: string): Promise<void> {

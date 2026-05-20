@@ -6,7 +6,11 @@ import {
   triggerWorkerInstantPremiumProcess,
 } from "@/lib/video-worker-client";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
-import { executeInstantPremiumMerge } from "@/server/instant-premium/merge-instant-project";
+import {
+  executeInstantPremiumMerge,
+  retryUploadLocalMergedFinalVideo,
+} from "@/server/instant-premium/merge-instant-project";
+import { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 
@@ -209,6 +213,33 @@ export async function repairInstantPremiumFinalVideo(
     source,
     segmentCount: project.transitions.length,
   });
+
+  if (isBlobTokenConfigured()) {
+    const uploadOnly = await retryUploadLocalMergedFinalVideo(projectId);
+    if (uploadOnly.ok && uploadOnly.finalUrl) {
+      logFinalizeRepair("completed", {
+        projectId,
+        source,
+        uploadOnly: true,
+        finalVideoUrl: uploadOnly.finalUrl,
+      });
+      return {
+        ok: true,
+        projectId,
+        clipsReady: true,
+        workerTriggered: false,
+        mergeCompleted: true,
+        finalVideoUrlPresent: true,
+      };
+    }
+    if (uploadOnly.message && !uploadOnly.ok) {
+      logFinalizeRepair("worker-triggered", {
+        projectId,
+        source,
+        uploadOnlyRetrySkipped: uploadOnly.message,
+      });
+    }
+  }
 
   const latestExport = project.exports[0];
   const force = Boolean(options?.force) || detectFinalizationStuck(project).isStuck;

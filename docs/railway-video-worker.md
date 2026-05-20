@@ -18,7 +18,7 @@ docker run -p 8090:8090 --env-file .env homecheff-video-worker
 | Variable | Example |
 |----------|---------|
 | `DATABASE_URL` | Neon connection string |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token |
+| `BLOB_READ_WRITE_TOKEN` | **Same** Vercel Blob read/write token as the Next.js app (Vercel project → Storage → Blob → token). Wrong or missing token causes final merge upload `EXPORT_UPLOAD_AUTH_FAILED` at ~85–100%. |
 | `VIDU_API_KEY` | Vidu API key |
 | `ANIMATION_PROVIDER` | `vidu` |
 | `VIDU_ENABLE_REAL_CALLS` | `true` |

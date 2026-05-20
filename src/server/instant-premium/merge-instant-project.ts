@@ -2,8 +2,14 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
+import {
+  ExportBlobUploadError,
+  classifyExportBlobFailure,
+  exportBlobErrorMessage,
+  logExportBlobUploadFailure,
+  uploadPublicBlob,
+} from "@/lib/vercel-blob-config";
 import {
   FINAL_MERGE_DISABLE_AUDIO,
   FINAL_MERGE_VIDEO_CRF,
@@ -21,6 +27,15 @@ import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
+const FINAL_BLOB_PROVIDER = "instant-final-merge";
+
+function finalBlobPathname(projectId: string): string {
+  return `motion/final/${projectId}/final.mp4`;
+}
+
+export function localMergedFinalVideoPath(projectId: string): string {
+  return absolutePublicPath("generated", "animations", "projects", projectId, "final.mp4");
+}
 
 function ffmpegBinary(): string {
   return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
@@ -208,12 +223,137 @@ async function uploadMergedVideoToBlob(projectId: string, mergedPath: string): P
   if (!body || body.length <= 0) {
     throw new Error("Merged video is empty before blob upload.");
   }
-  const blob = await put(`motion/final/${projectId}/final.mp4`, body, {
-    access: "public",
+  const uploadTarget = finalBlobPathname(projectId);
+  console.info("[hc-instant-premium]", {
+    projectId,
+    phase: "finalBlobUploadStart",
+    uploadTarget,
+    provider: FINAL_BLOB_PROVIDER,
+    bytes: body.length,
+  });
+  const { url } = await uploadPublicBlob({
+    pathname: uploadTarget,
+    body,
     contentType: "video/mp4",
     addRandomSuffix: false,
+    context: {
+      projectId,
+      uploadTarget,
+      provider: FINAL_BLOB_PROVIDER,
+    },
   });
-  return blob.url;
+  console.info("[hc-instant-premium]", {
+    projectId,
+    phase: "finalBlobUploadComplete",
+    uploadTarget,
+    provider: FINAL_BLOB_PROVIDER,
+  });
+  return url;
+}
+
+/** Upload cached local merge when FFmpeg already finished (blob auth retry). */
+export async function retryUploadLocalMergedFinalVideo(projectId: string): Promise<{
+  ok: boolean;
+  finalUrl?: string;
+  message?: string;
+}> {
+  const localPath = localMergedFinalVideoPath(projectId);
+  if (!(await pathExists(localPath))) {
+    return { ok: false, message: "No local merged video cached for upload retry." };
+  }
+
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: { exports: { orderBy: { createdAt: "desc" } } },
+  });
+  if (!project || !isInstantLikeProject(project)) {
+    return { ok: false, message: "Instant Premium project not found." };
+  }
+
+  const exportRow = project.exports[0];
+  if (exportRow?.status === "completed" && exportRow.outputVideoUrl?.trim()) {
+    return { ok: true, finalUrl: exportRow.outputVideoUrl.trim() };
+  }
+
+  const exportId =
+    exportRow?.id ??
+    (
+      await prisma.animationExport.create({
+        data: {
+          projectId,
+          status: "rendering",
+          progress: 85,
+          provider: isVideoRenderWorkerMode() ? "instant-video-worker" : "instant-local-ffmpeg",
+        },
+      })
+    ).id;
+
+  await prisma.animationProject.update({
+    where: { id: projectId },
+    data: {
+      status: "rendering",
+      instantWorkerJobStatus: "running",
+      instantWorkerJobStartedAt: new Date(),
+    },
+  });
+  await prisma.animationExport.update({
+    where: { id: exportId },
+    data: { status: "rendering", progress: 85, errorMessage: null },
+  });
+
+  try {
+    const finalUrl = await uploadMergedVideoToBlob(projectId, localPath);
+    const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
+    const textValidation = validateLockedTextLayerMetadata(lockedLayers);
+    await prisma.animationExport.update({
+      where: { id: exportId },
+      data: {
+        status: "completed",
+        progress: 100,
+        outputVideoUrl: finalUrl,
+        errorMessage: null,
+        expectedTextLayers:
+          lockedLayers.length > 0 ? (textValidation.records as object) : undefined,
+      },
+    });
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: {
+        status: "completed",
+        failureReason: null,
+        lastOverlayError: null,
+        instantWorkerJobStatus: "completed",
+      },
+    });
+    return { ok: true, finalUrl };
+  } catch (error) {
+    const code = classifyExportBlobFailure(error);
+    const message = exportBlobErrorMessage(code);
+    logExportBlobUploadFailure(error, {
+      phase: "retry-upload-local",
+      projectId,
+      uploadTarget: finalBlobPathname(projectId),
+      provider: FINAL_BLOB_PROVIDER,
+    });
+    await prisma.animationExport.update({
+      where: { id: exportId },
+      data: {
+        status: "failed",
+        progress: 85,
+        errorMessage: message,
+        outputVideoUrl: null,
+      },
+    });
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: {
+        status: "failed",
+        failureReason: code === "EXPORT_UPLOAD_AUTH_FAILED" ? "export_upload_auth_failed" : "merge_failed",
+        instantWorkerJobStatus: "failed",
+      },
+    });
+    return { ok: false, message };
+  }
 }
 
 export type ExecuteInstantPremiumMergeOptions = {
@@ -370,6 +510,13 @@ export async function executeInstantPremiumMerge(
       if (!stat || stat.size <= 0) {
         throw new Error("Final merged video is empty.");
       }
+      if (mergedPath !== finalAbs) {
+        await fs.copyFile(mergedPath, finalAbs);
+      }
+      await prisma.animationExport.update({
+        where: { id: exportRow.id },
+        data: { progress: 85, status: "rendering" },
+      });
       const textValidation = validateLockedTextLayerMetadata(lockedLayers);
       const finalUrl = await uploadMergedVideoToBlob(projectId, mergedPath);
       await prisma.animationExport.update({
@@ -400,18 +547,38 @@ export async function executeInstantPremiumMerge(
         completed: true,
       });
     } catch (error) {
-      const message = sanitizeOverlayError(
-        error instanceof Error ? error.message : "Instant merge failed."
-      );
+      const uploadCode = classifyExportBlobFailure(error);
+      const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
+      const message =
+        error instanceof ExportBlobUploadError
+          ? exportBlobErrorMessage(error.code)
+          : blobAuthFailed
+            ? exportBlobErrorMessage("EXPORT_UPLOAD_AUTH_FAILED")
+            : sanitizeOverlayError(
+                error instanceof Error ? error.message : "Instant merge failed."
+              );
+      if (blobAuthFailed) {
+        logExportBlobUploadFailure(error, {
+          phase: "merge-final-upload",
+          projectId,
+          uploadTarget: finalBlobPathname(projectId),
+          provider: FINAL_BLOB_PROVIDER,
+        });
+      }
       await prisma.animationExport.update({
         where: { id: exportRow.id },
-        data: { status: "failed", progress: 0, errorMessage: message, outputVideoUrl: null },
+        data: {
+          status: "failed",
+          progress: blobAuthFailed ? 85 : 0,
+          errorMessage: message,
+          outputVideoUrl: null,
+        },
       });
       await prisma.animationProject.update({
         where: { id: projectId },
         data: {
           status: "failed",
-          failureReason: "merge_failed",
+          failureReason: blobAuthFailed ? "export_upload_auth_failed" : "merge_failed",
           lastOverlayError: null,
           instantWorkerJobStatus: "failed",
         },
@@ -420,6 +587,7 @@ export async function executeInstantPremiumMerge(
         projectId,
         phase: "failed",
         error: message,
+        uploadCode: blobAuthFailed ? "EXPORT_UPLOAD_AUTH_FAILED" : undefined,
       });
     } finally {
       await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);

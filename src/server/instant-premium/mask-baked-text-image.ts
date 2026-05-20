@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import sharp from "sharp";
 import {
   defaultMaskRegionForTextPosition,
@@ -126,12 +126,17 @@ export async function maskAndUploadBakedTextSafeImage(
     { imageIndex: input.imageIndex }
   );
   const path = `${input.uploadPathPrefix}/vidu-safe-${Date.now()}.jpg`;
-  const blob = await put(path, masked, {
-    access: "public",
+  const { url } = await uploadPublicBlob({
+    pathname: path,
+    body: masked,
     contentType: "image/jpeg",
     addRandomSuffix: true,
+    context: {
+      uploadTarget: path,
+      provider: "instant-baked-text-mask",
+    },
   });
-  return { url: blob.url, storageKey: path, skippedRegionCount };
+  return { url, storageKey: path, skippedRegionCount };
 }
 
 export function resolveMaskRegionForProtection(params: {

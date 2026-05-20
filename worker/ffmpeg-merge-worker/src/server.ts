@@ -571,6 +571,10 @@ app.get("/merge/:jobId", requireAuth, (req, res) => {
 });
 
 app.listen(port, "0.0.0.0", () => {
+  console.info("[blob-config]", {
+    service: "ffmpeg-merge-worker",
+    "token-present": Boolean(BLOB_TOKEN),
+  });
   console.log("[merge-worker] listening", { port });
   console.log(`[merge-worker] Public URL base (for output links): ${WORKER_PUBLIC_URL}`);
 });

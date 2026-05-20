@@ -4,10 +4,13 @@ import {
   toVideoHealthResponse,
 } from "../src/lib/video-ffmpeg-capability";
 import { getVideoWorkerSecret } from "../src/lib/video-render-mode";
+import { logBlobConfigStatus } from "../src/lib/vercel-blob-config";
 import {
   runInstantPremiumWorkerProcess,
   runInstantPremiumWorkerRetryOverlay,
 } from "../src/server/instant-premium/worker-job";
+
+logBlobConfigStatus("instant-premium-video-worker");
 
 const port = Number.parseInt(String(process.env.PORT || "8090"), 10) || 8090;
 const RUNNING = new Set<string>();

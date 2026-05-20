@@ -347,7 +347,7 @@ export type InstantPremiumStatusResponse = {
   lockedTextMode?: boolean;
   overlayFailed?: boolean;
   canRetryOverlay?: boolean;
-  failureReason?: "overlay_failed" | "merge_failed" | null;
+  failureReason?: "overlay_failed" | "merge_failed" | "export_upload_auth_failed" | null;
   workerJobStatus?: string | null;
   finalizationStuck?: boolean;
   canRepairFinalVideo?: boolean;

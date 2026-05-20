@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { parseBakedTextMaskRegion } from "@/lib/baked-text-protection";
+import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import { requireAdmin } from "@/server/auth/permissions";
 import { maskBakedTextRegionsInImageBuffer } from "@/server/instant-premium/mask-baked-text-image";
 
@@ -37,13 +37,16 @@ export async function POST(request: Request) {
       sourceBuffer,
       regions
     );
-    const blob = await put(`motion/debug/mask-preview-${Date.now()}.jpg`, masked, {
-      access: "public",
+    const uploadTarget = `motion/debug/mask-preview-${Date.now()}.jpg`;
+    const { url } = await uploadPublicBlob({
+      pathname: uploadTarget,
+      body: masked,
       contentType: "image/jpeg",
       addRandomSuffix: true,
+      context: { uploadTarget, provider: "instant-mask-preview" },
     });
     return NextResponse.json({
-      previewUrl: blob.url,
+      previewUrl: url,
       regionCount: regions.length,
       skippedRegionCount,
     });

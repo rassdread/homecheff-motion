@@ -1,3 +1,4 @@
+import { getBlobReadWriteToken } from "@/lib/vercel-blob-config";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
@@ -133,16 +134,19 @@ export async function POST(request: Request) {
 
     logInstantImages("blob-upload-start", requestId, { workingPath, thumbPath });
 
+    const blobToken = getBlobReadWriteToken()!;
     const [workingBlob, thumbBlob] = await Promise.all([
       put(workingPath, workingProcessed.buffer, {
         access: "public",
         contentType: "image/jpeg",
         addRandomSuffix: false,
+        token: blobToken,
       }),
       put(thumbPath, thumbProcessed.buffer, {
         access: "public",
         contentType: "image/jpeg",
         addRandomSuffix: false,
+        token: blobToken,
       }),
     ]);
 
