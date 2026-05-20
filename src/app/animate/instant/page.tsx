@@ -25,6 +25,11 @@ import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
 import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
+import {
+  purgeAllInstantWizardUploadPersistence,
+  purgeInstantWizardImagePersistence,
+  revokeWizardImagePreviewUrls,
+} from "@/lib/instant-wizard-image-cleanup";
 import { saveWizardImageBlobs } from "@/lib/instant-premium-wizard-storage";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -429,7 +434,7 @@ export default function InstantPremiumPage() {
     return payload;
   }, [t]);
 
-  const { scanBakedText, scheduleAutoScans, skipTextProtection, waitForPendingScans } =
+  const { scanBakedText, scheduleAutoScans, skipTextProtection, waitForPendingScans, cancelOcrScanForImage } =
     useInstantOcrAutoScan({
     fastRenderMode,
     t: (key, values) => t(key as never, values as never),
@@ -438,7 +443,7 @@ export default function InstantPremiumPage() {
     updateBakedText,
   });
 
-  useInstantWizardPersist({
+  const { persistNow } = useInstantWizardPersist({
     ready: wizardReady,
     step,
     images,
@@ -469,6 +474,26 @@ export default function InstantPremiumPage() {
       setWizardReady(true);
     },
   });
+
+  const removeUploadedImage = useCallback(
+    async (im: LocalImage) => {
+      cancelOcrScanForImage(im.id);
+      await purgeInstantWizardImagePersistence(im);
+      setImages((prev) => prev.filter((x) => x.id !== im.id));
+      await persistNow();
+    },
+    [cancelOcrScanForImage, persistNow]
+  );
+
+  const clearAllUploads = useCallback(async () => {
+    for (const im of imagesRef.current) {
+      cancelOcrScanForImage(im.id);
+      revokeWizardImagePreviewUrls(im);
+    }
+    setImages([]);
+    await purgeAllInstantWizardUploadPersistence();
+    await persistNow();
+  }, [cancelOcrScanForImage, persistNow]);
 
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -964,11 +989,7 @@ export default function InstantPremiumPage() {
                   <button
                     type="button"
                     className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white"
-                    onClick={() => {
-                      URL.revokeObjectURL(im.workingPreviewUrl);
-                      URL.revokeObjectURL(im.thumbnailPreviewUrl);
-                      setImages((prev) => prev.filter((x) => x.id !== im.id));
-                    }}
+                    onClick={() => void removeUploadedImage(im)}
                   >
                     ✕
                   </button>
@@ -978,6 +999,15 @@ export default function InstantPremiumPage() {
             <p className="mt-3 text-center text-xs text-zinc-500">
               {t("instant.step1.counter", { count: images.length, max: MAX_IMAGES })}
             </p>
+            {images.length > 0 ? (
+              <button
+                type="button"
+                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800"
+                onClick={() => void clearAllUploads()}
+              >
+                {t("instant.step1.clearAll")}
+              </button>
+            ) : null}
             <GradientButton
               type="button"
               className="mt-6 w-full"

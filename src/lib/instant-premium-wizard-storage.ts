@@ -129,6 +129,35 @@ export async function loadWizardImageBlobs(
   }
 }
 
+export async function listWizardImageBlobIds(): Promise<string[]> {
+  if (typeof indexedDB === "undefined") {
+    return [];
+  }
+  try {
+    const db = await openBlobDb();
+    return await new Promise<string[]>((resolve, reject) => {
+      const tx = db.transaction(BLOB_STORE, "readonly");
+      const req = tx.objectStore(BLOB_STORE).getAllKeys();
+      req.onsuccess = () => resolve((req.result as string[]) ?? []);
+      req.onerror = () => reject(req.error ?? new Error("IndexedDB keys failed."));
+      tx.oncomplete = () => db.close();
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Delete blob rows not referenced by the current wizard image list. */
+export async function pruneOrphanedWizardBlobs(keepImageIds: Iterable<string>): Promise<void> {
+  const keep = new Set(keepImageIds);
+  const stored = await listWizardImageBlobIds();
+  await Promise.all(stored.filter((id) => !keep.has(id)).map((id) => deleteWizardImageBlobs(id)));
+}
+
+export async function clearAllWizardImageBlobs(): Promise<void> {
+  await pruneOrphanedWizardBlobs([]);
+}
+
 export async function deleteWizardImageBlobs(imageId: string): Promise<void> {
   if (typeof indexedDB === "undefined") {
     return;

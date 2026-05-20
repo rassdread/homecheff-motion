@@ -146,3 +146,55 @@ export function setCachedBakedTextOcrNoText(contentHash: string): void {
 export function clearBakedTextOcrCache(): void {
   ocrByContentHash.clear();
 }
+
+async function deleteOcrCacheIdbKey(contentHash: string): Promise<void> {
+  if (typeof indexedDB === "undefined") {
+    return;
+  }
+  try {
+    const db = await openOcrCacheDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(OCR_CACHE_STORE, "readwrite");
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+      tx.objectStore(OCR_CACHE_STORE).delete(contentHash);
+    });
+  } catch {
+    // ignore
+  }
+}
+
+/** Drop OCR results for a removed image (memory + IndexedDB). */
+export function removeCachedBakedTextOcr(contentHash: string | undefined): void {
+  if (!contentHash?.trim()) {
+    return;
+  }
+  const hash = contentHash.trim();
+  ocrByContentHash.delete(hash);
+  void deleteOcrCacheIdbKey(hash);
+}
+
+/** Clear all OCR cache entries (memory + IndexedDB). */
+export async function clearBakedTextOcrCacheCompletely(): Promise<void> {
+  ocrByContentHash.clear();
+  if (typeof indexedDB === "undefined") {
+    return;
+  }
+  try {
+    const db = await openOcrCacheDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(OCR_CACHE_STORE, "readwrite");
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+      tx.objectStore(OCR_CACHE_STORE).clear();
+    });
+  } catch {
+    // ignore
+  }
+}

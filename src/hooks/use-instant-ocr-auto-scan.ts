@@ -88,6 +88,18 @@ export function useInstantOcrAutoScan(params: {
     }
   }, []);
 
+  const cancelOcrScanForImage = useCallback(
+    (imageId: string) => {
+      abortByImageRef.current.set(imageId, true);
+      clearWatchdog(imageId);
+      runningScanIdsRef.current.delete(imageId);
+      terminalFailureIdsRef.current.delete(imageId);
+      lazyScanQueueRef.current = lazyScanQueueRef.current.filter((id) => id !== imageId);
+      logOcrAutoScan("cancelled", { imageId });
+    },
+    [clearWatchdog]
+  );
+
   const patchScan = useCallback(
     (imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
       updateBakedText(imageId, patch);
@@ -632,5 +644,6 @@ export function useInstantOcrAutoScan(params: {
     scheduleAutoScans,
     skipTextProtection,
     waitForPendingScans,
+    cancelOcrScanForImage,
   };
 }

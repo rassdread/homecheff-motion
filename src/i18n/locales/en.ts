@@ -471,6 +471,7 @@ export const en: LocaleSchema = {
   "instant.step1.description": "Add {min}–{max} photos. You can reorder them in the next step.",
   "instant.step1.pick": "Tap to choose images",
   "instant.step1.counter": "{count} / {max} images",
+  "instant.step1.clearAll": "Clear all uploads",
   "instant.step2.title": "2 · Reorder",
   "instant.step2.description": "Drag horizontally. This order is sent to the AI.",
   "instant.step2.drag": "Drag",

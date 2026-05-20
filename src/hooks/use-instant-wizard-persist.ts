@@ -6,12 +6,13 @@ import type { LockedTextLayerDraft } from "@/components/instant/locked-text-laye
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
+import { syncInstantWizardPersistedImages } from "@/lib/instant-wizard-image-cleanup";
 import {
   loadWizardImageBlobs,
   normalizeBakedTextAfterRestore,
+  pruneOrphanedWizardBlobs,
   readPersistedWizardState,
   saveWizardImageBlobs,
-  writePersistedWizardState,
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
@@ -88,9 +89,13 @@ export function useInstantWizardPersist(params: {
     void (async () => {
       const saved = readPersistedWizardState();
       if (!saved || saved.images.length === 0) {
+        await pruneOrphanedWizardBlobs([]);
         params.onHydrated?.();
         return;
       }
+      const allowedIds = new Set(saved.images.map((pi) => pi.id));
+      await pruneOrphanedWizardBlobs(allowedIds);
+
       const restored: PersistableLocalImage[] = [];
       for (const pi of saved.images) {
         const baked = normalizeBakedTextAfterRestore(serializeBakedText(pi.bakedText as BakedTextProtectionDraft));
@@ -119,6 +124,9 @@ export function useInstantWizardPersist(params: {
           bakedText: baked as BakedTextProtectionDraft,
         });
       }
+
+      await pruneOrphanedWizardBlobs(new Set(restored.map((img) => img.id)));
+
       if (restored.length === 0) {
         params.onHydrated?.();
         return;
@@ -142,10 +150,36 @@ export function useInstantWizardPersist(params: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once
   }, []);
 
+  const buildPersistedState = useCallback((): Omit<PersistedWizardState, "version" | "savedAt"> => {
+    return {
+      step: params.step,
+      stylePreset: params.stylePreset,
+      durationSec: params.durationSec,
+      motionText: params.motionText,
+      continuityStrength: params.continuityStrength,
+      chips: params.chips,
+      lockedTextMode: params.lockedTextMode,
+      lockedTextLayers: params.lockedTextLayers,
+      chipTextBySlot: params.chipTextBySlot,
+      aspectRatio: params.aspectRatio,
+      fastRenderMode: params.fastRenderMode,
+      images: [],
+    };
+  }, [params]);
+
   const persistNow = useCallback(async () => {
-    if (!params.ready || params.images.length === 0) {
+    if (!params.ready) {
       return;
     }
+
+    if (params.images.length === 0) {
+      await syncInstantWizardPersistedImages({
+        ...buildPersistedState(),
+        images: [],
+      });
+      return;
+    }
+
     const persistedImages: PersistedWizardImage[] = [];
     for (const img of params.images) {
       await saveWizardImageBlobs(img.id, img.optimizedBlob, img.thumbnailBlob);
@@ -160,24 +194,12 @@ export function useInstantWizardPersist(params: {
         bakedText: serializeBakedText(img.bakedText),
       });
     }
-    const state: PersistedWizardState = {
-      version: 1,
-      savedAt: new Date().toISOString(),
-      step: params.step,
-      stylePreset: params.stylePreset,
-      durationSec: params.durationSec,
-      motionText: params.motionText,
-      continuityStrength: params.continuityStrength,
-      chips: params.chips,
-      lockedTextMode: params.lockedTextMode,
-      lockedTextLayers: params.lockedTextLayers,
-      chipTextBySlot: params.chipTextBySlot,
-      aspectRatio: params.aspectRatio,
-      fastRenderMode: params.fastRenderMode,
+
+    await syncInstantWizardPersistedImages({
+      ...buildPersistedState(),
       images: persistedImages,
-    };
-    writePersistedWizardState(state);
-  }, [params]);
+    });
+  }, [buildPersistedState, params]);
 
   useEffect(() => {
     if (!params.ready) {
