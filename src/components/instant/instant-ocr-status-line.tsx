@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMounted } from "@/hooks/use-mounted";
 import { useActiveTranslator } from "@/i18n/client";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import { isActiveOcrScanPhase, type OcrScanPhase } from "@/lib/instant-ocr-scan";
@@ -45,7 +46,8 @@ type Props = {
 
 export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
   const t = useActiveTranslator();
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const mounted = useMounted();
+  const [, setTick] = useState(0);
   const active =
     isActiveOcrScanPhase(bakedText.scanPhase) ||
     bakedText.scanBusy ||
@@ -55,7 +57,7 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     if (!active || !bakedText.scanStartedAt) {
       return;
     }
-    const timer = setInterval(() => setNowMs(Date.now()), 400);
+    const timer = setInterval(() => setTick((n) => n + 1), 400);
     return () => clearInterval(timer);
   }, [active, bakedText.scanStartedAt]);
 
@@ -66,8 +68,8 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     (phase === "failed" || phase === "timeout" || phase === "interrupted");
   const blockCount = bakedText.scanBlockCount ?? bakedText.blocks.length;
   const liveElapsedMs =
-    active && bakedText.scanStartedAt
-      ? nowMs - new Date(bakedText.scanStartedAt).getTime()
+    mounted && active && bakedText.scanStartedAt
+      ? Date.now() - new Date(bakedText.scanStartedAt).getTime()
       : bakedText.scanDurationMs;
 
   const progressPercent = (() => {
@@ -123,7 +125,7 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
       {showDetailMessage ? (
         <p className="text-xs text-red-800/90">{bakedText.scanStatusMessage}</p>
       ) : null}
-      {isAdmin && bakedText.scanRequestId ? (
+      {mounted && isAdmin && bakedText.scanRequestId ? (
         <p className="font-mono text-[10px] text-zinc-400">
           {bakedText.scanRequestId.slice(0, 8)}…
           {liveElapsedMs != null ? ` · ${liveElapsedMs}ms` : ""}

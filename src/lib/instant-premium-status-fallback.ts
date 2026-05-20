@@ -7,10 +7,7 @@ export function instantStatusFromProjectDetail(
   detail: AnimationProjectDetailResponse
 ): InstantPremiumStatusResponse | null {
   const latestExport = detail.exports[0];
-  const finalVideoUrl =
-    latestExport?.status === "completed" && latestExport.outputVideoUrl?.trim()
-      ? latestExport.outputVideoUrl.trim()
-      : null;
+  const finalVideoUrl = latestExport?.outputVideoUrl?.trim() ?? null;
 
   if (!finalVideoUrl && detail.status !== "completed") {
     return null;

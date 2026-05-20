@@ -264,6 +264,7 @@ export default function InstantPremiumProgressPage() {
             <div className="mt-5">
               <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>
               <video
+                key={snapshot.finalVideoUrl}
                 controls
                 playsInline
                 preload="metadata"
@@ -296,9 +297,11 @@ export default function InstantPremiumProgressPage() {
                           const body = (await res.json().catch(() => ({}))) as {
                             error?: string;
                             rebuild?: {
+                              ok?: boolean;
                               clipsReady?: boolean;
                               message?: string;
                               suggestRepair?: boolean;
+                              finalVideoUrlPresent?: boolean;
                             };
                             status?: InstantPremiumStatusResponse;
                           };
@@ -315,6 +318,16 @@ export default function InstantPremiumProgressPage() {
                               body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
                             );
                             return;
+                          }
+                          if (body.rebuild?.ok) {
+                            setActionError(null);
+                          } else {
+                            setActionError(
+                              body.rebuild?.message ??
+                                (body.rebuild?.finalVideoUrlPresent
+                                  ? t("instant.progress.rebuildFinalFailedKeepsPrevious")
+                                  : t("instant.progress.rebuildFinalFailed"))
+                            );
                           }
                           if (body.status) {
                             setSnapshot(body.status);

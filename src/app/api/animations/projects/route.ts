@@ -84,6 +84,9 @@ export async function GET(request: Request) {
     viduResolution: true,
     viduDurationSeconds: true,
     estimatedCredits: true,
+    instantFinalRebuildCount: true,
+    instantFinalRebuiltAt: true,
+    instantFinalRebuildStatus: true,
     images: {
       orderBy: { order: "asc" as const },
       take: 1,

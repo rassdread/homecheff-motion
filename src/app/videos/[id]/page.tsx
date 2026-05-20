@@ -9,6 +9,7 @@ import {
   validateAnimationPresetId,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -76,11 +77,7 @@ export default function VideoDetailPage() {
   const [recoverInfo, setRecoverInfo] = useState<string | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
-
-  const dateFmt = useMemo(() => {
-    const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
-    return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" });
-  }, []);
+  const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -286,6 +283,7 @@ export default function VideoDetailPage() {
     }
     setRebuildBusy(true);
     setRebuildError(null);
+    setRebuildInfo(null);
     try {
       const res = await fetch(
         `/api/instant-premium/projects/${encodeURIComponent(id)}/rebuild-final-video`,
@@ -293,17 +291,20 @@ export default function VideoDetailPage() {
       );
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
+        code?: string;
         rebuild?: {
+          ok?: boolean;
           clipsReady?: boolean;
           message?: string;
           suggestRepair?: boolean;
+          finalVideoUrlPresent?: boolean;
         };
       };
       if (!res.ok) {
         setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
         return;
       }
-      if (body.rebuild?.clipsReady === false) {
+      if (body.rebuild?.clipsReady === false || body.code === "REBUILD_SEGMENTS_MISSING") {
         setRebuildError(
           body.rebuild?.message ??
             (body.rebuild?.suggestRepair
@@ -311,6 +312,15 @@ export default function VideoDetailPage() {
               : t("instant.progress.rebuildFinalFailed"))
         );
         return;
+      }
+      if (body.rebuild?.ok) {
+        setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
+      } else if (body.rebuild?.finalVideoUrlPresent) {
+        setRebuildError(
+          body.rebuild?.message ?? t("instant.progress.rebuildFinalFailedKeepsPrevious")
+        );
+      } else {
+        setRebuildError(body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
       }
       await load();
     } finally {
@@ -471,6 +481,7 @@ export default function VideoDetailPage() {
               </button>
             ) : null}
           </div>
+          {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
         </div>
       ) : (
@@ -535,7 +546,9 @@ export default function VideoDetailPage() {
 
       <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{t("projectDetail.meta.createdAt")}</h2>
-        <p className="text-sm text-zinc-800">{dateFmt.format(new Date(detail.createdAt))}</p>
+        <p className="text-sm text-zinc-800">
+          <ClientFormattedDateTime iso={detail.createdAt} />
+        </p>
         <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
           <dt className="text-zinc-500">{t("videos.preset")}</dt>
           <dd className="text-right font-medium text-zinc-900">{t(presetTitleKey(detail.presetId ?? "standard"))}</dd>

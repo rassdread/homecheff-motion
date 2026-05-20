@@ -10,6 +10,7 @@ import {
   orchestrateFinalMerge,
   repairInstantPremiumFinalVideo,
 } from "@/server/instant-premium/finalize-repair";
+import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 
@@ -317,7 +318,14 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
           ? "finalizing"
           : "running";
 
-  const finalVideoUrl = latestExport?.status === "completed" ? latestExport.outputVideoUrl ?? null : null;
+  const finalVideoUrl = resolvePublicFinalVideoUrl({
+    outputVideoUrl: latestExport?.outputVideoUrl,
+    exportStatus: latestExport?.status,
+    projectStatus: finalState.status,
+    rebuildStatus: finalState.instantFinalRebuildStatus,
+    rebuildCount: finalState.instantFinalRebuildCount,
+    rebuiltAt: finalState.instantFinalRebuiltAt,
+  });
   const lockedLayers = parseLockedTextLayersJson(finalState.instantLockedTextLayers);
   const segmentsAllCompleted =
     finalState.transitions.length > 0 &&
@@ -346,12 +354,13 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       finalState.instantWorkerJobStatus === "running");
   const canRebuildFinalVideo = segmentsAllCompleted;
   const isRebuildingFinalVideo =
-    canRebuildFinalVideo &&
-    latestExport?.status === "rendering" &&
-    (latestExport?.progress ?? 0) >= 55 &&
-    (finalState.instantWorkerJobStatus === "queued" ||
-      finalState.instantWorkerJobStatus === "running" ||
-      finalState.status === "rendering");
+    finalState.instantFinalRebuildStatus === "running" ||
+    (canRebuildFinalVideo &&
+      latestExport?.status === "rendering" &&
+      (latestExport?.progress ?? 0) >= 55 &&
+      (finalState.instantWorkerJobStatus === "queued" ||
+        finalState.instantWorkerJobStatus === "running" ||
+        finalState.status === "rendering"));
   return {
     projectId: finalState.id,
     projectType: "instant_premium",

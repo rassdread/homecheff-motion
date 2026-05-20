@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { t } from "@/i18n";
+import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
+import { useActiveTranslator } from "@/i18n/client";
 import type { AnimationStatus } from "@/types/animation";
 
 type ProjectImage = {
@@ -84,6 +85,7 @@ export function ProjectLiveStatus({
   projectId,
   initialProject,
 }: ProjectLiveStatusProps) {
+  const t = useActiveTranslator();
   const [project, setProject] = useState<ProjectPayload>(initialProject);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const requestSequenceRef = useRef(0);
@@ -130,25 +132,22 @@ export function ProjectLiveStatus({
     return () => {
       clearInterval(intervalId);
     };
-  }, [pollingActive, projectId]);
+  }, [pollingActive, projectId, t]);
 
   const imageNameById = useMemo(
     () => new Map(project.images.map((image) => [image.id, image.fileName])),
     [project.images]
   );
   const latestExport = project.exports[0] ?? null;
-  const createdAtLabel = new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(project.createdAt));
-
   return (
     <>
       <AppCard className="mx-auto mt-8 max-w-3xl">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-zinc-500">{t("projectDetail.meta.createdAt")}</p>
-            <p className="text-sm font-medium text-zinc-800">{createdAtLabel}</p>
+            <p className="text-sm font-medium text-zinc-800">
+              <ClientFormattedDateTime iso={project.createdAt} />
+            </p>
             {pollingActive ? (
               <p className="mt-1 text-xs font-medium text-emerald-700">
                 {t("projectDetail.liveUpdating")}

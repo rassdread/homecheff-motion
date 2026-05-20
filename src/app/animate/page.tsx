@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimationIntentPreviewCard } from "@/components/animate/animation-intent-preview-card";
 import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card";
 import { AppCard } from "@/components/ui/app-card";
+import { ClientFormattedTime } from "@/components/ui/client-formatted-datetime";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -719,10 +720,10 @@ export default function AnimatePage() {
           </p>
         ) : null}
         {isProcessing && pollLastUpdatedAt ? (
-          <p className="mt-1 text-xs text-zinc-500">
-            {t("animate.progress.lastUpdated", {
-              time: new Date(pollLastUpdatedAt).toLocaleTimeString(),
-            })}
+          <p className="mt-1 text-xs text-zinc-500" suppressHydrationWarning>
+            {t("animate.progress.lastUpdated", { time: "" }).replace(/\{time\}\s*$/, "").trim()}
+            {": "}
+            <ClientFormattedTime ms={pollLastUpdatedAt} />
           </p>
         ) : null}
         {isProcessing ? (

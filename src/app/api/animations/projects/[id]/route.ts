@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { discardExportChainForProject } from "@/server/animation-export/service";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
+import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
 type RouteContext = {
@@ -46,7 +47,14 @@ function mapToDetailResponse(
       progress: e.progress,
       provider: e.provider,
       providerJobId: e.providerJobId,
-      outputVideoUrl: e.outputVideoUrl,
+      outputVideoUrl: resolvePublicFinalVideoUrl({
+        outputVideoUrl: e.outputVideoUrl,
+        exportStatus: e.status,
+        projectStatus: project.status,
+        rebuildStatus: project.instantFinalRebuildStatus,
+        rebuildCount: project.instantFinalRebuildCount,
+        rebuiltAt: project.instantFinalRebuiltAt,
+      }),
       errorMessage: e.errorMessage,
     })),
     intent: project.intent,

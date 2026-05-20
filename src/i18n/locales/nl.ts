@@ -798,6 +798,9 @@ export const nl = {
   "instant.progress.rebuildFinalVideo": "Final video opnieuw samenstellen",
   "instant.progress.rebuildingFinal": "Eindvideo wordt opnieuw samengesteld...",
   "instant.progress.rebuildFinalFailed": "Eindvideo opnieuw samenstellen mislukt.",
+  "instant.progress.rebuildFinalFailedKeepsPrevious":
+    "Opnieuw samenstellen mislukt. Je vorige eindvideo blijft beschikbaar.",
+  "instant.progress.rebuildFinalSuccess": "Nieuwe eindvideo klaar.",
   "instant.progress.rebuildSegmentsMissing":
     "Segmentvideo's ontbreken. Gebruik eindvideo herstellen of start een volledige rerender.",
   "instant.progress.completedSuccess": "Video succesvol afgerond.",

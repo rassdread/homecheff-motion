@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
-import { getActiveTranslator } from "@/i18n";
+import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
+import { useActiveTranslator } from "@/i18n/client";
 
 type OcrHealthResponse = {
   ok: boolean;
@@ -15,20 +16,6 @@ type OcrHealthResponse = {
   checkErrorCode?: string;
 };
 
-function formatCheckedAt(iso: string | undefined, locale: string): string {
-  if (!iso) {
-    return "—";
-  }
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  return date.toLocaleString(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
 function StatusSpinner() {
   return (
     <span
@@ -39,8 +26,7 @@ function StatusSpinner() {
 }
 
 export function OcrHealthCard() {
-  const t = getActiveTranslator();
-  const locale = typeof navigator !== "undefined" ? navigator.language : "nl-NL";
+  const t = useActiveTranslator();
   const [data, setData] = useState<OcrHealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,9 +104,6 @@ export function OcrHealthCard() {
       ? t("admin.ocrHealth.yes")
       : t("admin.ocrHealth.no");
 
-  const checkedDisplay =
-    data?.checkedAt && !loading ? formatCheckedAt(data.checkedAt, locale) : "—";
-
   return (
     <AppCard>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -183,7 +166,13 @@ export function OcrHealthCard() {
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-zinc-500">{t("admin.ocrHealth.lastChecked")}</dt>
-          <dd className="font-medium text-zinc-900">{checkedDisplay}</dd>
+          <dd className="font-medium text-zinc-900">
+            {data?.checkedAt && !loading ? (
+              <ClientFormattedDateTime iso={data.checkedAt} />
+            ) : (
+              "—"
+            )}
+          </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-zinc-500">{t("admin.ocrHealth.status")}</dt>

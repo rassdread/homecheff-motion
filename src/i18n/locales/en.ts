@@ -791,6 +791,9 @@ export const en: LocaleSchema = {
   "instant.progress.rebuildFinalVideo": "Rebuild final video",
   "instant.progress.rebuildingFinal": "Rebuilding final video…",
   "instant.progress.rebuildFinalFailed": "Could not rebuild final video.",
+  "instant.progress.rebuildFinalFailedKeepsPrevious":
+    "Rebuild failed. Your previous final video is still available.",
+  "instant.progress.rebuildFinalSuccess": "New final video is ready.",
   "instant.progress.rebuildSegmentsMissing":
     "Segment videos are missing. Use recover final video or start a full rerender.",
   "instant.progress.completedSuccess": "Video completed successfully.",

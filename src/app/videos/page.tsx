@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
+import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -141,11 +142,6 @@ export default function VideosPage() {
   const [recoverBusyId, setRecoverBusyId] = useState<string | null>(null);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
-
-  const dateFmt = useMemo(() => {
-    const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
-    return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" });
-  }, []);
 
   const fetchList = useCallback(
     async (nextPage: number, mode: "replace" | "append", opts?: { background?: boolean }) => {
@@ -520,7 +516,7 @@ export default function VideosPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link href={`/videos/${item.id}`} prefetch={false} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-zinc-900">
-                      {dateFmt.format(new Date(item.createdAt))}
+                      <ClientFormattedDateTime iso={item.createdAt} />
                     </p>
                   </Link>
                 </div>

@@ -40,6 +40,15 @@ model AnimationProject {
   instantWorkerJobStartedAt DateTime?
   /** queued | running | completed | failed */
   instantWorkerJobStatus String?
+  /** Incremented after each successful final-video rebuild (merge-only). */
+  instantFinalRebuildCount Int @default(0)
+  instantFinalRebuiltAt DateTime?
+  /** Last successful final URL before the most recent rebuild. */
+  instantPreviousFinalVideoUrl String?
+  /** running | failed — null when idle */
+  instantFinalRebuildStatus String?
+  /** Non-billable rebuild audit events (JSON). */
+  instantFinalRebuildAuditJson Json?
   stylePreset String?
   aspectRatio String?
   /** basic | standard | pro | smooth — enforced server-side */

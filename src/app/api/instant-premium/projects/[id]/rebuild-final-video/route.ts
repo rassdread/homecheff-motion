@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { rebuildInstantPremiumFinalVideo } from "@/server/instant-premium/rebuild-final-video";
+import {
+  REBUILD_SEGMENTS_MISSING,
+  rebuildInstantPremiumFinalVideo,
+} from "@/server/instant-premium/rebuild-final-video";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { prisma } from "@/lib/prisma";
@@ -41,8 +44,21 @@ export async function POST(_: Request, context: RouteContext) {
   try {
     const rebuild = await rebuildInstantPremiumFinalVideo(id);
     const status = await getInstantPremiumStatus(id);
-    const httpStatus = rebuild.ok ? 200 : rebuild.clipsReady ? 202 : 400;
-    return NextResponse.json({ rebuild, status }, { status: httpStatus });
+    const httpStatus = rebuild.ok
+      ? 200
+      : rebuild.code === REBUILD_SEGMENTS_MISSING
+        ? 400
+        : rebuild.clipsReady
+          ? 202
+          : 400;
+    return NextResponse.json(
+      {
+        rebuild,
+        status,
+        ...(rebuild.code === REBUILD_SEGMENTS_MISSING ? { code: REBUILD_SEGMENTS_MISSING } : {}),
+      },
+      { status: httpStatus }
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Rebuild failed." },

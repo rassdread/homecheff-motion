@@ -2,17 +2,28 @@ import { prisma } from "@/lib/prisma";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import { normalizeTextRenderMode } from "@/lib/hybrid-motion-overlay";
 import {
+  appendFinalVideoRebuildAudit,
+  type FinalVideoRebuildAuditEvent,
+} from "@/lib/final-video-storage";
+import {
   parsePosterMotionSettings,
   resolvePosterMotionBlendStrength,
 } from "@/lib/poster-motion-preserve";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import { orchestrateFinalMerge } from "@/server/instant-premium/finalize-repair";
+import {
+  logFinalVideoRebuildAudit,
+  markInstantPremiumFinalRebuildFailed,
+} from "@/server/instant-premium/final-video-export-commit";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 
 export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
+export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
+export const REBUILD_ALREADY_RUNNING = "REBUILD_ALREADY_RUNNING";
 
 export type RebuildFinalVideoResult = {
   ok: boolean;
+  code?: string;
   projectId: string;
   clipsReady: boolean;
   mergeTriggered: boolean;
@@ -21,6 +32,7 @@ export type RebuildFinalVideoResult = {
   segmentCount: number;
   textRenderMode: string;
   blendStrength: number;
+  rebuildCount?: number;
   message?: string;
   suggestRepair?: boolean;
   suggestFullRerender?: boolean;
@@ -87,6 +99,7 @@ export async function rebuildInstantPremiumFinalVideo(
     });
     return {
       ok: false,
+      code: REBUILD_SEGMENTS_MISSING,
       projectId,
       clipsReady: false,
       mergeTriggered: false,
@@ -101,6 +114,45 @@ export async function rebuildInstantPremiumFinalVideo(
     };
   }
 
+  if (project.instantFinalRebuildStatus === "running") {
+    return {
+      ok: false,
+      code: REBUILD_ALREADY_RUNNING,
+      projectId,
+      clipsReady: true,
+      mergeTriggered: false,
+      mergeCompleted: false,
+      finalVideoUrlPresent: Boolean(project.exports[0]?.outputVideoUrl?.trim()),
+      segmentCount,
+      textRenderMode,
+      blendStrength,
+      message: "Final video rebuild is already in progress.",
+    };
+  }
+
+  const latestExport = project.exports[0];
+  const previousFinalUrl = latestExport?.outputVideoUrl?.trim() ?? null;
+  const nextRebuildCount = project.instantFinalRebuildCount + 1;
+  const startedAt = new Date();
+  const startedAudit: FinalVideoRebuildAuditEvent = {
+    type: "final_video_rebuild",
+    billingImpact: "none",
+    aiCreditsUsed: 0,
+    provider: "internal_merge",
+    source: "existing_segments",
+    rebuildType: "merge_only",
+    usedExistingSegments: true,
+    newProviderJobsCreated: false,
+    estimatedAdditionalAiCost: 0,
+    projectId,
+    segmentCount,
+    rebuildCount: nextRebuildCount,
+    previousFinalVideoUrl: previousFinalUrl,
+    newFinalVideoUrl: null,
+    recordedAt: startedAt.toISOString(),
+    status: "started",
+  };
+
   logRebuildFinalVideo({
     projectId,
     segmentCount,
@@ -108,9 +160,10 @@ export async function rebuildInstantPremiumFinalVideo(
     blendStrength,
     clipsReady: true,
     workerMode: isVideoRenderWorkerMode(),
+    rebuildCount: nextRebuildCount,
   });
+  logFinalVideoRebuildAudit(startedAudit);
 
-  const latestExport = project.exports[0];
   if (latestExport) {
     await prisma.animationExport.update({
       where: { id: latestExport.id },
@@ -138,7 +191,13 @@ export async function rebuildInstantPremiumFinalVideo(
       failureReason: null,
       lastOverlayError: null,
       instantWorkerJobStatus: "queued",
-      instantWorkerJobStartedAt: new Date(),
+      instantWorkerJobStartedAt: startedAt,
+      instantFinalRebuildStatus: "running",
+      instantPreviousFinalVideoUrl: previousFinalUrl,
+      instantFinalRebuildAuditJson: appendFinalVideoRebuildAudit(
+        project.instantFinalRebuildAuditJson,
+        startedAudit
+      ) as object,
     },
   });
 
@@ -147,16 +206,36 @@ export async function rebuildInstantPremiumFinalVideo(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Rebuild final video failed.";
     logRebuildFinalVideo({ projectId, segmentCount, mode: textRenderMode, blendStrength, error: message });
+    const exportAfter = await prisma.animationExport.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (exportAfter && previousFinalUrl) {
+      await markInstantPremiumFinalRebuildFailed({
+        projectId,
+        exportId: exportAfter.id,
+        previousFinalUrl,
+        segmentCount,
+        rebuildCount: nextRebuildCount,
+        message,
+      });
+    } else {
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: { instantFinalRebuildStatus: "failed" },
+      });
+    }
     return {
       ok: false,
       projectId,
       clipsReady: true,
       mergeTriggered: true,
       mergeCompleted: false,
-      finalVideoUrlPresent: Boolean(latestExport?.outputVideoUrl?.trim()),
+      finalVideoUrlPresent: Boolean(previousFinalUrl),
       segmentCount,
       textRenderMode,
       blendStrength,
+      rebuildCount: project.instantFinalRebuildCount,
       message,
     };
   }
@@ -171,6 +250,7 @@ export async function rebuildInstantPremiumFinalVideo(
     finalExport?.status
   );
   const finalVideoUrlPresent = Boolean(finalExport?.outputVideoUrl?.trim());
+  const rebuildFailed = refreshed?.instantFinalRebuildStatus === "failed";
 
   logRebuildFinalVideo({
     projectId,
@@ -180,10 +260,11 @@ export async function rebuildInstantPremiumFinalVideo(
     mergeCompleted,
     finalVideoUrlPresent,
     finalVideoUrl: finalExport?.outputVideoUrl ?? null,
+    rebuildCount: refreshed?.instantFinalRebuildCount,
   });
 
   return {
-    ok: mergeCompleted && finalVideoUrlPresent,
+    ok: mergeCompleted && finalVideoUrlPresent && !rebuildFailed,
     projectId,
     clipsReady: true,
     mergeTriggered: true,
@@ -192,9 +273,12 @@ export async function rebuildInstantPremiumFinalVideo(
     segmentCount,
     textRenderMode,
     blendStrength,
+    rebuildCount: refreshed?.instantFinalRebuildCount,
     message:
-      mergeCompleted && finalVideoUrlPresent
-        ? undefined
-        : "Rebuild started but final video is not ready yet. Refresh status shortly.",
+      rebuildFailed
+        ? "Final video rebuild failed. Your previous final video is still available."
+        : mergeCompleted && finalVideoUrlPresent
+          ? undefined
+          : "Rebuild started but final video is not ready yet. Refresh status shortly.",
   };
 }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
-import { getActiveTranslator } from "@/i18n";
+import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 
 type CreditBalance = {
   ok: boolean;
@@ -11,20 +12,10 @@ type CreditBalance = {
   checkedAt: string;
 };
 
-function formatCheckedAt(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  return date.toLocaleString(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
-
 export function VideoCreditsCard() {
-  const t = getActiveTranslator();
-  const locale = typeof navigator !== "undefined" ? navigator.language : "en";
+  const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const numberLocale = locale === "nl" ? "nl-NL" : "en-US";
   const [data, setData] = useState<CreditBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,11 +66,8 @@ export function VideoCreditsCard() {
     loading && !data
       ? "…"
       : data?.ok && data.credits !== undefined
-        ? data.credits.toLocaleString(locale)
+        ? data.credits.toLocaleString(numberLocale)
         : t("admin.videoCredits.creditsUnavailable");
-
-  const checkedDisplay =
-    data?.checkedAt && !loading ? formatCheckedAt(data.checkedAt, locale) : "—";
 
   return (
     <AppCard>
@@ -105,7 +93,13 @@ export function VideoCreditsCard() {
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-zinc-500">{t("admin.videoCredits.lastChecked")}</dt>
-          <dd className="font-medium text-zinc-900">{checkedDisplay}</dd>
+          <dd className="font-medium text-zinc-900">
+            {data?.checkedAt && !loading ? (
+              <ClientFormattedDateTime iso={data.checkedAt} />
+            ) : (
+              "—"
+            )}
+          </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-zinc-500">{t("admin.videoCredits.status")}</dt>

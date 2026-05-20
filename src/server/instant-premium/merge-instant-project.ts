@@ -31,14 +31,16 @@ import {
 import { compositePosterMotionPreserve } from "@/server/instant-premium/poster-motion/poster-motion-compositor";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
+import { finalBlobPathname } from "@/lib/final-video-storage";
+import {
+  commitInstantPremiumFinalVideoExport,
+  markInstantPremiumFinalRebuildFailed,
+} from "@/server/instant-premium/final-video-export-commit";
+import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
-
-function finalBlobPathname(projectId: string): string {
-  return `motion/final/${projectId}/final.mp4`;
-}
 
 export function localMergedFinalVideoPath(projectId: string): string {
   return absolutePublicPath("generated", "animations", "projects", projectId, "final.mp4");
@@ -225,12 +227,25 @@ async function withMergeLock(projectId: string, fn: () => Promise<void>) {
   return run;
 }
 
-async function uploadMergedVideoToBlob(projectId: string, mergedPath: string): Promise<string> {
+async function uploadMergedVideoToBlob(
+  projectId: string,
+  mergedPath: string,
+  options?: { rebuildVersion?: number; previousFinalUrl?: string | null }
+): Promise<string> {
   const body = await fs.readFile(mergedPath);
+  const rebuildVersion = options?.rebuildVersion ?? 0;
+  if (rebuildVersion > 0) {
+    return replaceFinalVideoBlobSafely({
+      projectId,
+      oldFinalUrl: options?.previousFinalUrl,
+      body,
+      rebuildCount: rebuildVersion,
+    });
+  }
   if (!body || body.length <= 0) {
     throw new Error("Merged video is empty before blob upload.");
   }
-  const uploadTarget = finalBlobPathname(projectId);
+  const uploadTarget = finalBlobPathname(projectId, 0);
   console.info("[hc-instant-premium]", {
     projectId,
     phase: "finalBlobUploadStart",
@@ -412,22 +427,39 @@ export async function executeInstantPremiumMerge(
       return;
     }
 
+    const isFinalRebuild = project.instantFinalRebuildStatus === "running";
+    const rebuildPreviousFinalUrl =
+      project.instantPreviousFinalVideoUrl?.trim() ??
+      latestExport?.outputVideoUrl?.trim() ??
+      null;
+    const mergeStartProgress = isFinalRebuild ? 70 : 10;
+    const clearOutputOnRestart = !isFinalRebuild;
     const exportRow =
       latestExport?.status === "failed" || latestExport?.status === "failed_overlay"
         ? await prisma.animationExport.update({
             where: { id: latestExport.id },
-            data: { status: "rendering", progress: 10, errorMessage: null, outputVideoUrl: null },
+            data: {
+              status: "rendering",
+              progress: mergeStartProgress,
+              errorMessage: null,
+              ...(clearOutputOnRestart ? { outputVideoUrl: null } : {}),
+            },
           })
         : latestExport
           ? await prisma.animationExport.update({
               where: { id: latestExport.id },
-              data: { status: "rendering", progress: 10, errorMessage: null, outputVideoUrl: null },
+              data: {
+                status: "rendering",
+                progress: mergeStartProgress,
+                errorMessage: null,
+                ...(clearOutputOnRestart ? { outputVideoUrl: null } : {}),
+              },
             })
           : await prisma.animationExport.create({
               data: {
                 projectId,
                 status: "rendering",
-                progress: 10,
+                progress: mergeStartProgress,
                 provider: exportProvider,
               },
             });
@@ -576,27 +608,25 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 85, status: "rendering" },
       });
-      const textValidation = validateLockedTextLayerMetadata(lockedLayers);
-      const finalUrl = await uploadMergedVideoToBlob(projectId, mergedPath);
-      await prisma.animationExport.update({
-        where: { id: exportRow.id },
-        data: {
-          status: "completed",
-          progress: 100,
-          outputVideoUrl: finalUrl,
-          errorMessage: null,
-          expectedTextLayers:
-            lockedLayers.length > 0 ? (textValidation.records as object) : undefined,
-        },
+      const isRebuild = project.instantFinalRebuildStatus === "running";
+      const nextRebuildCount = isRebuild ? project.instantFinalRebuildCount + 1 : 0;
+      const previousFinalUrl =
+        project.instantPreviousFinalVideoUrl?.trim() ??
+        latestExport?.outputVideoUrl?.trim() ??
+        null;
+      const finalUrl = await uploadMergedVideoToBlob(projectId, mergedPath, {
+        rebuildVersion: nextRebuildCount,
+        previousFinalUrl,
       });
-      await prisma.animationProject.update({
-        where: { id: projectId },
-        data: {
-          status: "completed",
-          lastOverlayError: null,
-          failureReason: null,
-          instantWorkerJobStatus: "completed",
-        },
+      await commitInstantPremiumFinalVideoExport({
+        projectId,
+        exportId: exportRow.id,
+        finalUrl,
+        lockedLayers,
+        isRebuild,
+        previousFinalUrl,
+        nextRebuildCount,
+        segmentCount: completed.length,
       });
       console.info("[hc-instant-premium]", {
         projectId,
@@ -604,6 +634,7 @@ export async function executeInstantPremiumMerge(
         mergeOutputBytes: stat.size,
         finalVideoUrl: finalUrl,
         completed: true,
+        rebuildCount: isRebuild ? nextRebuildCount : undefined,
       });
     } catch (error) {
       const uploadCode = classifyExportBlobFailure(error);
@@ -624,24 +655,35 @@ export async function executeInstantPremiumMerge(
           provider: FINAL_BLOB_PROVIDER,
         });
       }
-      await prisma.animationExport.update({
-        where: { id: exportRow.id },
-        data: {
-          status: "failed",
-          progress: blobAuthFailed ? 85 : 0,
-          errorMessage: message,
-          outputVideoUrl: null,
-        },
-      });
-      await prisma.animationProject.update({
-        where: { id: projectId },
-        data: {
-          status: "failed",
-          failureReason: blobAuthFailed ? "export_upload_auth_failed" : "merge_failed",
-          lastOverlayError: null,
-          instantWorkerJobStatus: "failed",
-        },
-      });
+      if (isFinalRebuild && rebuildPreviousFinalUrl) {
+        await markInstantPremiumFinalRebuildFailed({
+          projectId,
+          exportId: exportRow.id,
+          previousFinalUrl: rebuildPreviousFinalUrl,
+          segmentCount: completed.length,
+          rebuildCount: project.instantFinalRebuildCount + 1,
+          message,
+        });
+      } else {
+        await prisma.animationExport.update({
+          where: { id: exportRow.id },
+          data: {
+            status: "failed",
+            progress: blobAuthFailed ? 85 : 0,
+            errorMessage: message,
+            outputVideoUrl: null,
+          },
+        });
+        await prisma.animationProject.update({
+          where: { id: projectId },
+          data: {
+            status: "failed",
+            failureReason: blobAuthFailed ? "export_upload_auth_failed" : "merge_failed",
+            lastOverlayError: null,
+            instantWorkerJobStatus: "failed",
+          },
+        });
+      }
       console.info("[hc-instant-premium]", {
         projectId,
         phase: "failed",

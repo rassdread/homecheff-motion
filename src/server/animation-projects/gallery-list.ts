@@ -1,6 +1,7 @@
 import type { AnimationPresetId } from "@/lib/animation-presets";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
+import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import type { AnimationProjectListItem } from "@/types/animation-api";
 
 export type GalleryListPrismaRow = {
@@ -29,6 +30,9 @@ export type GalleryListPrismaRow = {
   }[];
   transitions: { status: string; outputVideoUrl: string | null }[];
   owner?: { email: string } | null;
+  instantFinalRebuildCount?: number;
+  instantFinalRebuiltAt?: Date | null;
+  instantFinalRebuildStatus?: string | null;
 };
 
 export function mapPrismaRowToAnimationProjectListItem(
@@ -89,7 +93,14 @@ export function mapPrismaRowToAnimationProjectListItem(
       ? {
           status: latest.status,
           progress: latest.progress,
-          outputVideoUrl: latest.outputVideoUrl,
+          outputVideoUrl: resolvePublicFinalVideoUrl({
+            outputVideoUrl: latest.outputVideoUrl,
+            exportStatus: latest.status,
+            projectStatus: row.status,
+            rebuildStatus: row.instantFinalRebuildStatus ?? null,
+            rebuildCount: row.instantFinalRebuildCount ?? 0,
+            rebuiltAt: row.instantFinalRebuiltAt,
+          }),
           errorMessage: latest.errorMessage,
         }
       : null,
