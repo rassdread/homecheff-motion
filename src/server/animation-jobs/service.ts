@@ -240,6 +240,8 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         textRenderMode,
         motionProfile,
         polishSettingsRaw: polishSettings,
+        transitionOrder: transition.order,
+        transitionTotal,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,

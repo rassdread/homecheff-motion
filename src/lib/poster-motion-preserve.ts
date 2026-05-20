@@ -7,6 +7,12 @@ import {
   type MotionEnergy,
 } from "@/lib/premium-motion-engine";
 import {
+  normalizeAnimationStyleId,
+  resolveAnimationStyleIdFromSettings,
+  type AnimationStyleId,
+} from "@/lib/animation-style-presets";
+import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
+import {
   DEFAULT_PREMIUM_POLISH_PRESET_ID,
   normalizePremiumPolishPresetId,
   type PremiumPolishPresetId,
@@ -85,6 +91,10 @@ export type PosterMotionSettings = {
   characterMotion?: CharacterMotionProfile;
   /** Alias for characterMotion */
   characterMotionDirection?: CharacterMotionProfile;
+  /** Creator-facing animation style (primary UX control). */
+  animationStyleId?: AnimationStyleId;
+  /** Cached scene analysis snapshot (auto). */
+  sceneIntelligence?: SceneIntelligenceSnapshot;
   premiumPresetId?: PremiumPolishPresetId;
   cameraPreset?: CameraPresetId;
   fxPreset?: FxPresetId;
@@ -112,6 +122,7 @@ export const DEFAULT_POSTER_MOTION_SETTINGS: PosterMotionSettings = {
   cinematicCameraMotion: true,
   particlesGlow: true,
   floatingGeneratedObject: false,
+  animationStyleId: "cartoon_animation",
   premiumPresetId: DEFAULT_PREMIUM_POLISH_PRESET_ID,
   motionEnergy: DEFAULT_POLISH_PRESET.motionEnergy,
   segmentTransitionType: DEFAULT_POLISH_PRESET.transitionType,
@@ -178,6 +189,13 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     characterMotion:
       parseCharacterMotionProfile(o.characterMotion) ??
       parseCharacterMotionProfile(o.characterMotionDirection),
+    animationStyleId: normalizeAnimationStyleId(
+      o.animationStyleId ?? resolveAnimationStyleIdFromSettings(o)
+    ),
+    sceneIntelligence:
+      o.sceneIntelligence && typeof o.sceneIntelligence === "object"
+        ? (o.sceneIntelligence as SceneIntelligenceSnapshot)
+        : undefined,
     premiumPresetId:
       typeof o.premiumPresetId === "string"
         ? normalizePremiumPolishPresetId(o.premiumPresetId)

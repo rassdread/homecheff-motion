@@ -36,6 +36,8 @@ import {
   parseCharacterMotionProfile,
   type MotionEnergy,
 } from "@/lib/premium-motion-engine";
+import { analyzeSceneIntelligence } from "@/lib/scene-intelligence";
+import { resolveAnimationStyleIdFromSettings } from "@/lib/animation-style-presets";
 import { posterMotionSettingsFromClient } from "@/lib/poster-motion-preserve";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
@@ -185,6 +187,21 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
       characterMotion: characterFromPayload,
     };
   }
+
+  const animationStyleId = resolveAnimationStyleIdFromSettings(posterMotionSettings);
+  const sceneIntelligence = analyzeSceneIntelligence({
+    animationStyleId,
+    userIntent: userIntent ?? null,
+    imageCount: images.length,
+    imageHints: images.map((img) => img.fileName?.trim() ?? "").filter(Boolean),
+  });
+  posterMotionSettings = {
+    ...posterMotionSettings,
+    animationStyleId,
+    sceneIntelligence,
+    emotionalActingPreset:
+      posterMotionSettings.emotionalActingPreset ?? sceneIntelligence.resolvedEmotionalPreset,
+  };
 
   const data: InstantPremiumCreatePayload = {
     images,

@@ -597,6 +597,40 @@ export const en: LocaleSchema = {
   "instant.posterMotion.blendStrengthHint":
     "Highlight-only mix (no full-frame tint). Current:",
   "instant.posterMotion.blendStrengthMaxHint": " · max 0.30 · text-heavy posters use ~0.10",
+  "instant.animationStyle.title": "Animation style",
+  "instant.animationStyle.intro":
+    "Choose what type of animation you want. HomeCheff handles motion, acting, transitions, and text protection automatically.",
+  "instant.animationStyle.recommended": "Recommended",
+  "instant.animationStyle.textSafeHint":
+    "Typography, logos, and speech bubbles stay pixel-perfect. Vidu motion animates characters and products only.",
+  "instant.animationStyle.sceneDetected": "Scene detected: {roles}",
+  "instant.animationStyle.cartoon.title": "Cartoon Animation",
+  "instant.animationStyle.cartoon.desc":
+    "Image-to-video cartoon scenes with preserved text — mascots, comics, and promo posters.",
+  "instant.animationStyle.cartoon.bestFor":
+    "Mascots · explainers · affiliate promos · marketplace posters",
+  "instant.animationStyle.product.title": "Product Showcase",
+  "instant.animationStyle.product.desc": "Luxury product and social ad motion with stable typography.",
+  "instant.animationStyle.product.bestFor": "Products · affiliate items · app showcases",
+  "instant.animationStyle.character.title": "Character Animation",
+  "instant.animationStyle.character.desc": "Expressive mascots and characters — less typography focus.",
+  "instant.animationStyle.character.bestFor": "Mascot acting · emotional scenes · social clips",
+  "instant.animationStyle.marketplace.title": "Marketplace Story",
+  "instant.animationStyle.marketplace.desc": "Community and platform storytelling with warm cinematic depth.",
+  "instant.animationStyle.marketplace.bestFor": "Marketplaces · creator worlds · crowd scenes",
+  "instant.animationStyle.clean.title": "Clean Motion",
+  "instant.animationStyle.clean.desc": "Minimal movement — calm loops with design preserved.",
+  "instant.animationStyle.clean.bestFor": "Posters · typography-safe · subtle social loops",
+  "instant.animationStyle.fastSocial.title": "Fast Social Animation",
+  "instant.animationStyle.fastSocial.desc": "TikTok/Reels energy — punchy, scroll-stopping motion.",
+  "instant.animationStyle.fastSocial.bestFor": "Viral promos · hooks · affiliate snippets",
+  "instant.advancedMotion.title": "Advanced developer mode",
+  "instant.advancedMotion.hint":
+    "Pipeline internals: transitions, segmentation, compositor, and legacy text modes.",
+  "instant.textIntegration.legacyModeHint":
+    "Legacy text pipeline active. Switch to poster animation (default) for the simplified creator flow.",
+  "instant.step3.animationStyleAuto":
+    "Visual style is configured automatically from your animation style.",
   "instant.premiumPolish.title": "Premium motion polish",
   "instant.premiumPolish.intro":
     "DeeVid-style mascot and poster animation. Vidu motion stays dominant; text and logos never change.",

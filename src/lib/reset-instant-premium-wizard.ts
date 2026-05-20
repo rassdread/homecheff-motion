@@ -6,10 +6,8 @@ import {
   type OverlayStyle,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
-import {
-  DEFAULT_POSTER_MOTION_SETTINGS,
-  type PosterMotionSettings,
-} from "@/lib/poster-motion-preserve";
+import { applyAnimationStyleToPosterSettings } from "@/lib/animation-style-presets";
+import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
 import {
   purgeAllInstantWizardUploadPersistence,
   revokeWizardImagePreviewUrls,
@@ -73,7 +71,7 @@ export function getInstantWizardFormDefaults(): InstantWizardFormDefaults {
     fastRenderMode: false,
     textRenderMode: DEFAULT_TEXT_RENDER_MODE,
     hybridOverlayStyle: DEFAULT_OVERLAY_STYLE,
-    posterMotionSettings: { ...DEFAULT_POSTER_MOTION_SETTINGS },
+    posterMotionSettings: applyAnimationStyleToPosterSettings("cartoon_animation"),
   };
 }
 

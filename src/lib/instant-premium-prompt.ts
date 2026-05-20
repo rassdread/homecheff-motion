@@ -17,7 +17,10 @@ import {
 import { POSTER_MOTION_PRESERVE_PROMPT_BLOCK } from "@/lib/poster-motion-preserve";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import { buildPremiumPolishViduPromptBlocks } from "@/lib/premium-polish-prompts";
-import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
+import {
+  parsePremiumPolishSettings,
+  resolvePremiumPolishProfile,
+} from "@/lib/premium-polish-settings";
 import type { PremiumMotionProfile } from "@/lib/premium-motion-engine";
 import {
   filterVisualOnlyChips,
@@ -123,6 +126,9 @@ export type BuildInstantVideoPromptInput = {
   motionProfile?: PremiumMotionProfile;
   /** Full premium polish profile (preset, camera, FX, comic). */
   polishSettingsRaw?: unknown;
+  /** Per-segment directing (multi-character focus cycle). */
+  transitionOrder?: number;
+  transitionTotal?: number;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -186,11 +192,19 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
   const motionProfile =
     input.motionProfile ??
     premiumMotionProfileFromPosterSettings(input.polishSettingsRaw);
-  const premiumMotionBlock = buildPremiumPolishViduPromptBlocks({
-    ...polishProfile,
-    motionEnergy: motionProfile.motionEnergy,
-    characterMotion: motionProfile.characterMotion ?? polishProfile.characterMotion,
-  });
+  const parsedPolish = parsePremiumPolishSettings(input.polishSettingsRaw);
+  const premiumMotionBlock = buildPremiumPolishViduPromptBlocks(
+    {
+      ...polishProfile,
+      motionEnergy: motionProfile.motionEnergy,
+      characterMotion: motionProfile.characterMotion ?? polishProfile.characterMotion,
+    },
+    {
+      sceneIntelligence: parsedPolish.sceneIntelligence,
+      transitionOrder: input.transitionOrder,
+      transitionTotal: input.transitionTotal,
+    }
+  );
 
   return `Create one continuous premium short-form video using the provided images in their exact uploaded order as keyframes. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
 

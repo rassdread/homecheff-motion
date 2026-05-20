@@ -4,11 +4,13 @@ import {
   resolvePremiumPolishProfile,
   parsePremiumPolishSettings,
 } from "@/lib/premium-polish-settings";
+import { DEFAULT_ANIMATION_STYLE_ID } from "@/lib/animation-style-presets";
 import { DEFAULT_PREMIUM_POLISH_PRESET_ID } from "@/lib/premium-polish-presets";
 
 describe("premium polish settings", () => {
-  it("defaults to HomeCheff Mascot Promo profile", () => {
+  it("defaults to cartoon animation profile", () => {
     const profile = resolvePremiumPolishProfile(null);
+    assert.equal(profile.animationStyleId, DEFAULT_ANIMATION_STYLE_ID);
     assert.equal(profile.premiumPresetId, DEFAULT_PREMIUM_POLISH_PRESET_ID);
     assert.equal(profile.motionEnergy, "expressive");
     assert.equal(profile.segmentTransitionType, "capcut_smooth");
@@ -17,16 +19,16 @@ describe("premium polish settings", () => {
     assert.equal(profile.minimalCompositorPolish, false);
   });
 
-  it("merges overrides with preset fallbacks", () => {
+  it("merges overrides with animation style from legacy preset", () => {
     const profile = resolvePremiumPolishProfile({
       version: 1,
       premiumPresetId: "luxury_glow",
       motionEnergy: "cinematic",
     });
-    assert.equal(profile.premiumPresetId, "luxury_glow");
+    assert.equal(profile.animationStyleId, "product_showcase");
     assert.equal(profile.motionEnergy, "cinematic");
     assert.equal(profile.minimalCompositorPolish, true);
-    assert.equal(profile.segmentTransitionType, "cinematic_blend");
+    assert.equal(profile.segmentTransitionType, "capcut_smooth");
   });
 
   it("parses manual foreground regions", () => {

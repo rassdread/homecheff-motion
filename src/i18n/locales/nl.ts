@@ -597,6 +597,40 @@ export const nl = {
   "instant.posterMotion.blendStrengthHint":
     "Alleen highlights (geen volledige kleurwash). Huidig:",
   "instant.posterMotion.blendStrengthMaxHint": " · max 0,30 · tekstposters ~0,10",
+  "instant.animationStyle.title": "Animatiestijl",
+  "instant.animationStyle.intro":
+    "Kies welk type animatie je wilt. HomeCheff regelt beweging, acting, overgangen en tekstbescherming automatisch.",
+  "instant.animationStyle.recommended": "Aanbevolen",
+  "instant.animationStyle.textSafeHint":
+    "Typografie, logo's en speech bubbles blijven pixel-perfect. Vidu animeert alleen personages en producten.",
+  "instant.animationStyle.sceneDetected": "Scene gedetecteerd: {roles}",
+  "instant.animationStyle.cartoon.title": "Cartoon Animation",
+  "instant.animationStyle.cartoon.desc":
+    "Image-to-video cartoon met behouden tekst — mascottes, comics en promo-posters.",
+  "instant.animationStyle.cartoon.bestFor":
+    "Mascottes · explainers · affiliate promos · marketplace posters",
+  "instant.animationStyle.product.title": "Product Showcase",
+  "instant.animationStyle.product.desc": "Luxe product- en social-ad beweging met stabiele typografie.",
+  "instant.animationStyle.product.bestFor": "Producten · affiliate items · app showcases",
+  "instant.animationStyle.character.title": "Character Animation",
+  "instant.animationStyle.character.desc": "Expressieve mascottes — minder focus op typografie.",
+  "instant.animationStyle.character.bestFor": "Mascot acting · emotionele scenes · social clips",
+  "instant.animationStyle.marketplace.title": "Marketplace Story",
+  "instant.animationStyle.marketplace.desc": "Community- en platformverhaal met warme cinematische diepte.",
+  "instant.animationStyle.marketplace.bestFor": "Marketplaces · creator worlds · crowd scenes",
+  "instant.animationStyle.clean.title": "Clean Motion",
+  "instant.animationStyle.clean.desc": "Minimale beweging — rustige loops met behouden design.",
+  "instant.animationStyle.clean.bestFor": "Posters · typography-safe · subtiele social loops",
+  "instant.animationStyle.fastSocial.title": "Fast Social Animation",
+  "instant.animationStyle.fastSocial.desc": "TikTok/Reels-energie — punchy, scroll-stopping motion.",
+  "instant.animationStyle.fastSocial.bestFor": "Viral promos · hooks · affiliate snippets",
+  "instant.advancedMotion.title": "Advanced developer mode",
+  "instant.advancedMotion.hint":
+    "Pipeline-internals: overgangen, segmentatie, compositor en legacy tekstmodi.",
+  "instant.textIntegration.legacyModeHint":
+    "Legacy tekstpipeline actief. Schakel naar poster-animatie (standaard) voor de vereenvoudigde creator flow.",
+  "instant.step3.animationStyleAuto":
+    "Visuele stijl wordt automatisch ingesteld vanuit je animatiestijl.",
   "instant.premiumPolish.title": "Premium motion polish",
   "instant.premiumPolish.intro":
     "DeeVid-stijl mascotte- en posteranimatie. Vidu-beweging blijft dominant; tekst en logo's blijven intact.",

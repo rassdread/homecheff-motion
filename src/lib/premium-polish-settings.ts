@@ -1,4 +1,11 @@
 import {
+  getAnimationStyle,
+  normalizeAnimationStyleId,
+  resolveAnimationStyleIdFromSettings,
+  type AnimationStyleId,
+} from "@/lib/animation-style-presets";
+import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
+import {
   getPremiumPolishPreset,
   normalizePremiumPolishPresetId,
   type PremiumPolishPresetId,
@@ -27,6 +34,8 @@ import { FINAL_ASSEMBLY_MODES } from "@/server/instant-premium/final-assembly";
 /** Stored in instantPosterMotionSettings JSON alongside poster toggles. */
 export type PremiumPolishSettings = {
   version: 1;
+  animationStyleId?: AnimationStyleId;
+  sceneIntelligence?: SceneIntelligenceSnapshot;
   premiumPresetId?: PremiumPolishPresetId;
   motionEnergy?: MotionEnergy;
   segmentTransitionType?: SegmentTransitionType;
@@ -48,6 +57,7 @@ export type PremiumPolishSettings = {
 };
 
 export type ResolvedPremiumPolishProfile = {
+  animationStyleId: AnimationStyleId;
   premiumPresetId: PremiumPolishPresetId;
   motionEnergy: MotionEnergy;
   segmentTransitionType: SegmentTransitionType;
@@ -70,6 +80,14 @@ export function parsePremiumPolishSettings(raw: unknown): PremiumPolishSettings 
   const o = raw as Record<string, unknown>;
   return {
     version: 1,
+    animationStyleId:
+      typeof o.animationStyleId === "string"
+        ? normalizeAnimationStyleId(o.animationStyleId)
+        : undefined,
+    sceneIntelligence:
+      o.sceneIntelligence && typeof o.sceneIntelligence === "object"
+        ? (o.sceneIntelligence as SceneIntelligenceSnapshot)
+        : undefined,
     premiumPresetId:
       typeof o.premiumPresetId === "string"
         ? normalizePremiumPolishPresetId(o.premiumPresetId)
@@ -108,24 +126,45 @@ export function parsePremiumPolishSettings(raw: unknown): PremiumPolishSettings 
 
 export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolishProfile {
   const parsed = parsePremiumPolishSettings(raw);
+  const animationStyleId =
+    parsed.animationStyleId ??
+    resolveAnimationStyleIdFromSettings(parsed);
+  const style = getAnimationStyle(animationStyleId);
   const preset = getPremiumPolishPreset(
-    parsed.premiumPresetId ?? normalizePremiumPolishPresetId(undefined)
+    parsed.premiumPresetId ?? style.legacyPremiumPresetId
   );
+  const scene = parsed.sceneIntelligence;
+  const emotionalFromScene =
+    scene?.resolvedEmotionalPreset &&
+    style.emotionalActingPreset === "auto_detect"
+      ? scene.resolvedEmotionalPreset
+      : undefined;
+  const emotionalFromStyle =
+    style.emotionalActingPreset !== "auto_detect"
+      ? style.emotionalActingPreset
+      : undefined;
+
   return {
+    animationStyleId: style.id,
     premiumPresetId: preset.id,
-    motionEnergy: parsed.motionEnergy ?? preset.motionEnergy,
-    segmentTransitionType: parsed.segmentTransitionType ?? preset.transitionType,
-    assemblyMode: parsed.assemblyMode ?? preset.assemblyMode,
-    cameraPreset: parsed.cameraPreset ?? preset.cameraPreset,
-    fxPreset: parsed.fxPreset ?? preset.fxPreset,
-    comicPreset: parsed.comicPreset ?? preset.comicPreset ?? "none",
+    motionEnergy: parsed.motionEnergy ?? style.motionEnergy ?? preset.motionEnergy,
+    segmentTransitionType:
+      parsed.segmentTransitionType ?? style.segmentTransitionType ?? preset.transitionType,
+    assemblyMode: parsed.assemblyMode ?? style.assemblyMode ?? preset.assemblyMode,
+    cameraPreset: parsed.cameraPreset ?? style.cameraPreset ?? preset.cameraPreset,
+    fxPreset: parsed.fxPreset ?? style.fxPreset ?? preset.fxPreset,
+    comicPreset: parsed.comicPreset ?? style.comicPreset ?? preset.comicPreset ?? "none",
     segmentationProvider: resolveSegmentationProvider(
-      parsed.segmentationProvider ?? preset.segmentationProvider
+      parsed.segmentationProvider ?? style.segmentationProvider ?? preset.segmentationProvider
     ),
-    textPreservation: parsed.textPreservation ?? preset.textPreservation,
-    minimalCompositorPolish: parsed.minimalCompositorPolish ?? preset.minimalCompositorPolish,
+    textPreservation: parsed.textPreservation ?? style.textPreservation ?? preset.textPreservation,
+    minimalCompositorPolish:
+      parsed.minimalCompositorPolish ??
+      style.minimalCompositorPolish ??
+      preset.minimalCompositorPolish,
     manualForegroundRegions: parsed.manualForegroundRegions ?? [],
-    emotionalActingPreset: parsed.emotionalActingPreset,
+    emotionalActingPreset:
+      parsed.emotionalActingPreset ?? emotionalFromScene ?? emotionalFromStyle,
     characterMotion: parsed.characterMotion ?? preset.characterMotion,
   };
 }

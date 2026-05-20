@@ -46,10 +46,11 @@ import {
 } from "@/components/instant/baked-text-protection-panel";
 import {
   DEFAULT_OVERLAY_STYLE,
-  DEFAULT_POSTER_MOTION_SETTINGS,
   DEFAULT_TEXT_RENDER_MODE,
   TextIntegrationPanel,
+  applyAnimationStyleToPosterSettings,
 } from "@/components/instant/text-integration-panel";
+import { getAnimationStyle, normalizeAnimationStyleId } from "@/lib/animation-style-presets";
 import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
 import { usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
 import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
@@ -246,8 +247,8 @@ export default function InstantPremiumPage() {
   const [lockedTextMode, setLockedTextMode] = useState(true);
   const [textRenderMode, setTextRenderMode] = useState<TextRenderMode>(DEFAULT_TEXT_RENDER_MODE);
   const [hybridOverlayStyle, setHybridOverlayStyle] = useState<OverlayStyle>(DEFAULT_OVERLAY_STYLE);
-  const [posterMotionSettings, setPosterMotionSettings] = useState<PosterMotionSettings>(
-    DEFAULT_POSTER_MOTION_SETTINGS
+  const [posterMotionSettings, setPosterMotionSettings] = useState<PosterMotionSettings>(() =>
+    applyAnimationStyleToPosterSettings("cartoon_animation")
   );
   const [lockedTextLayers, setLockedTextLayers] = useState<LockedTextLayerDraft[]>([]);
   const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
@@ -1265,6 +1266,10 @@ export default function InstantPremiumPage() {
                   textRenderMode={textRenderMode}
                   overlayStyle={hybridOverlayStyle}
                   posterMotionSettings={posterMotionSettings}
+                  imageCount={images.length}
+                  userIntent={motionText}
+                  imageHints={images.map((im) => im.originalFileName)}
+                  isAdmin={session.user?.role?.trim() === "admin"}
                   onTextRenderModeChange={setTextRenderMode}
                   onOverlayStyleChange={setHybridOverlayStyle}
                   onPosterMotionSettingsChange={(patch) =>
@@ -1298,21 +1303,39 @@ export default function InstantPremiumPage() {
             {step === 3 ? (
               <>
                 <h2 className="text-lg font-semibold">{t("instant.step3.title")}</h2>
-                <div className="mt-4 grid gap-3">
-                  {STYLE_OPTIONS.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => setStylePreset(s.id)}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
-                      }`}
-                    >
-                      <p className="font-semibold">{styleLabel(s.id)}</p>
-                      <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
-                    </button>
-                  ))}
-                </div>
+                {usesPosterMotionPreserve(textRenderMode) ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                    <p className="text-sm text-zinc-600">{t("instant.step3.animationStyleAuto")}</p>
+                    <p className="mt-2 text-base font-semibold text-emerald-950">
+                      {t(
+                        getAnimationStyle(normalizeAnimationStyleId(posterMotionSettings.animationStyleId))
+                          .labelKey as never
+                      )}
+                    </p>
+                    <p className="mt-1 text-sm text-zinc-600">
+                      {t(
+                        getAnimationStyle(normalizeAnimationStyleId(posterMotionSettings.animationStyleId))
+                          .descriptionKey as never
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-3">
+                    {STYLE_OPTIONS.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setStylePreset(s.id)}
+                        className={`rounded-2xl border p-4 text-left transition ${
+                          stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
+                        }`}
+                      >
+                        <p className="font-semibold">{styleLabel(s.id)}</p>
+                        <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             ) : null}
 
