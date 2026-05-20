@@ -659,6 +659,20 @@ export const en: LocaleSchema = {
     "Pipeline internals: transitions, segmentation, compositor, and legacy text modes.",
   "instant.advancedMotion.viduPromptBudget":
     "Vidu prompt (budgeted est.): {chars} / {max} chars",
+  "instant.noCreditCheck.title": "Validate render (no Vidu credits)",
+  "instant.noCreditCheck.hint":
+    "Checks prompt length, text lock regions, roles, and segment bridge — does not start Vidu.",
+  "instant.noCreditCheck.button": "Check render without credits",
+  "instant.noCreditCheck.running": "Checking…",
+  "instant.noCreditCheck.failed": "Validation request failed.",
+  "instant.noCreditCheck.missingPayload": "Upload at least 3 images first.",
+  "instant.noCreditCheck.viduPrompt": "Vidu prompt",
+  "instant.noCreditCheck.wouldCallVidu": "would call Vidu",
+  "instant.noCreditCheck.style": "Style",
+  "instant.noCreditCheck.textLock": "Text lock",
+  "instant.noCreditCheck.bridge": "Segment bridge",
+  "instant.noCreditCheck.roles": "Roles",
+  "instant.noCreditCheck.joins": "Frame continuity (predicted joins)",
   "instant.textIntegration.legacyModeHint":
     "Legacy text pipeline active. Switch to poster animation (default) for the simplified creator flow.",
   "instant.step3.animationStyleAuto":

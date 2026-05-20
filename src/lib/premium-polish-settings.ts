@@ -33,6 +33,7 @@ import {
   FINAL_ASSEMBLY_MODES,
   type FinalAssemblyMode,
 } from "@/lib/final-assembly-types";
+import { normalizeTextLockMode, resolveTextLockMode, type TextLockMode } from "@/lib/hard-text-lock";
 
 /** Stored in instantPosterMotionSettings JSON alongside poster toggles. */
 export type PremiumPolishSettings = {
@@ -51,6 +52,7 @@ export type PremiumPolishSettings = {
   minimalCompositorPolish?: boolean;
   manualForegroundRegions?: ManualForegroundRegion[];
   emotionalActingPreset?: EmotionalActingPresetId;
+  textLockMode?: TextLockMode;
   characterMotion?: {
     emotion?: string;
     energy?: string;
@@ -73,6 +75,7 @@ export type ResolvedPremiumPolishProfile = {
   minimalCompositorPolish: boolean;
   manualForegroundRegions: ManualForegroundRegion[];
   emotionalActingPreset?: EmotionalActingPresetId;
+  textLockMode: TextLockMode;
   characterMotion?: PremiumPolishSettings["characterMotion"];
 };
 
@@ -120,6 +123,7 @@ export function parsePremiumPolishSettings(raw: unknown): PremiumPolishSettings 
       typeof o.minimalCompositorPolish === "boolean" ? o.minimalCompositorPolish : undefined,
     manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
     emotionalActingPreset: normalizeEmotionalActingPresetId(o.emotionalActingPreset),
+    textLockMode: normalizeTextLockMode(o.textLockMode),
     characterMotion:
       o.characterMotion && typeof o.characterMotion === "object"
         ? (o.characterMotion as PremiumPolishSettings["characterMotion"])
@@ -146,7 +150,6 @@ export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolish
     style.emotionalActingPreset !== "auto_detect"
       ? style.emotionalActingPreset
       : undefined;
-
   return {
     animationStyleId: style.id,
     premiumPresetId: preset.id,
@@ -168,6 +171,7 @@ export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolish
     manualForegroundRegions: parsed.manualForegroundRegions ?? [],
     emotionalActingPreset:
       parsed.emotionalActingPreset ?? emotionalFromScene ?? emotionalFromStyle,
+    textLockMode: resolveTextLockMode(style.id, parsed.textLockMode),
     characterMotion:
       parsed.characterMotion ??
       identityCharacterMotion(style.id) ??

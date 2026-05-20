@@ -42,6 +42,9 @@ import { posterMotionSettingsFromClient } from "@/lib/poster-motion-preserve";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
+import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
+import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
 const MIN_IMAGES = 3;
@@ -105,6 +108,17 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
 
   if (images.some((image) => !image.fileName?.trim() || !image.previewUrl?.trim())) {
     return { ok: false, error: "Each image must include fileName and previewUrl.", status: 400 };
+  }
+
+  for (const image of images) {
+    const url = image.workingImageUrl?.trim() || image.previewUrl?.trim() || "";
+    if (!isValidHttpUrl(url)) {
+      return {
+        ok: false,
+        error: `Invalid image URL for ${image.fileName}. Re-upload the image.`,
+        status: 400,
+      };
+    }
   }
 
   const stylePreset = typeof o.stylePreset === "string" ? o.stylePreset.trim() : "";
@@ -305,6 +319,21 @@ export async function createInstantPremiumAnimationProject(
   const renderingGuard = await guardInstantPremiumVideoRendering(validated.data);
   if (!renderingGuard.ok) {
     return { ok: false, error: renderingGuard.error, status: renderingGuard.status };
+  }
+
+  const viduLengthCheck = runViduPromptLengthPreflight(validated.data);
+  const renderValidation = buildPremiumRenderValidationReport({
+    payload: validated.data,
+    viduPromptChars:
+      viduLengthCheck.ok ? viduLengthCheck.chars : viduLengthCheck.debug.charsAfter,
+    viduPromptOk: viduLengthCheck.ok,
+  });
+  if (!renderValidation.ok) {
+    return {
+      ok: false,
+      error: renderValidation.blockMessage ?? "Render validation failed.",
+      status: 400,
+    };
   }
 
   const preflight = await runInstantPremiumTextPreflight(validated.data);

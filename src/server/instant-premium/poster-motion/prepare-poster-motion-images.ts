@@ -1,5 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import type { ProjectDetectedTextSnapshot } from "@/lib/hybrid-motion-overlay";
+import {
+  confirmedBlocks,
+  parseBakedTextProtectionPayload,
+} from "@/lib/baked-text-detection";
+import { normalizeBlocksWithTextLock, resolveTextLockMode } from "@/lib/hard-text-lock";
 import { parsePosterMotionSettings, type PosterMotionSettings } from "@/lib/poster-motion-preserve";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
 import type { PreparedInstantImage, PrepareBakedTextImagesResult } from "@/server/instant-premium/prepare-baked-text-images";
@@ -47,18 +52,29 @@ export async function preparePosterMotionPreserveImages(
       }
     }
 
+    const protection = parseBakedTextProtectionPayload(image.bakedTextProtection);
+    const confirmed = confirmedBlocks(protection?.blocks ?? []);
+    const textLockMode = resolveTextLockMode(
+      settings.animationStyleId ?? "cartoon_animation",
+      settings.textLockMode
+    );
+    const maskableBlocks =
+      confirmed.length > 0 ? normalizeBlocksWithTextLock(confirmed, textLockMode) : [];
     prepared.push({
       ...image,
-      hasBakedText: false,
-      bakedTextProtectionStatus: "none",
-      bakedTextExactCopy: null,
+      hasBakedText: maskableBlocks.length > 0,
+      bakedTextProtectionStatus: maskableBlocks.length > 0 ? "confirmed" : "none",
+      bakedTextExactCopy:
+        maskableBlocks.length > 0 ? maskableBlocks.map((b) => b.editedText).join("\n") : null,
       bakedTextMaskRegion: null,
-      bakedTextBlocksJson: null,
+      bakedTextBlocksJson:
+        maskableBlocks.length > 0 ? (maskableBlocks as unknown as Prisma.InputJsonValue) : null,
       instantTextPatches: null,
       /** Original poster pixels sent to Vidu — typography stays in-frame. */
       viduInputUrl: sourceUrl,
       posterMotionLayersJson,
     });
+
   }
 
   return {

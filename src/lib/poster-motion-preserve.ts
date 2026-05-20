@@ -34,6 +34,7 @@ import {
   type EmotionalActingPresetId,
 } from "@/lib/premium-emotional-presets";
 import { getPremiumPolishPreset } from "@/lib/premium-polish-presets";
+import { normalizeTextLockMode, type TextLockMode } from "@/lib/hard-text-lock";
 
 /** Layer roles for DeeVid-style poster animation (static base + moving foreground). */
 export type PosterMotionLayerRole =
@@ -110,6 +111,7 @@ export type PosterMotionSettings = {
   /** excited_seller | playful_mascot | confident_presenter | … */
   emotionalActingPreset?: EmotionalActingPresetId;
   animationMood?: AnimationMoodId;
+  textLockMode?: TextLockMode;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -221,6 +223,7 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
     emotionalActingPreset: normalizeEmotionalActingPresetId(o.emotionalActingPreset),
     animationMood: normalizeAnimationMoodId(o.animationMood),
+    textLockMode: normalizeTextLockMode(o.textLockMode),
   };
 }
 

@@ -4,17 +4,13 @@
  */
 
 import type { AnimationStyleId } from "@/lib/animation-style-types";
+import { AUTO_HARD_LOCK_STYLE_IDS } from "@/lib/hard-text-lock";
 import { deduplicatePromptText } from "@/lib/vidu-prompt-budget";
 
 /** Full comic-strip world merge — cartoon, character, marketplace, fast social. */
-export const FULL_COMIC_STRIP_STYLE_IDS: readonly AnimationStyleId[] = [
-  "cartoon_animation",
-  "character_animation",
-  "marketplace_story",
-  "fast_social_animation",
-];
+export const FULL_COMIC_STRIP_STYLE_IDS = AUTO_HARD_LOCK_STYLE_IDS;
 
-const FULL_COMIC_STRIP_STYLES: ReadonlySet<AnimationStyleId> = new Set(FULL_COMIC_STRIP_STYLE_IDS);
+const FULL_COMIC_STRIP_STYLES: ReadonlySet<AnimationStyleId> = new Set(AUTO_HARD_LOCK_STYLE_IDS);
 
 /** Infographic “prompt power line” — appended last; avoid “expressive” (dedupe sig). */
 export const COMIC_STRIP_POWER_LINE =

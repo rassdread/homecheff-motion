@@ -659,6 +659,20 @@ export const nl = {
     "Pipeline-internals: overgangen, segmentatie, compositor en legacy tekstmodi.",
   "instant.advancedMotion.viduPromptBudget":
     "Vidu-prompt (begroot geschat): {chars} / {max} tekens",
+  "instant.noCreditCheck.title": "Render controleren (geen Vidu-credits)",
+  "instant.noCreditCheck.hint":
+    "Controleert promptlengte, tekstlock, rollen en segment-bridge — start geen Vidu.",
+  "instant.noCreditCheck.button": "Controleer render zonder credits",
+  "instant.noCreditCheck.running": "Bezig…",
+  "instant.noCreditCheck.failed": "Validatie mislukt.",
+  "instant.noCreditCheck.missingPayload": "Upload eerst minimaal 3 afbeeldingen.",
+  "instant.noCreditCheck.viduPrompt": "Vidu-prompt",
+  "instant.noCreditCheck.wouldCallVidu": "zou Vidu aanroepen",
+  "instant.noCreditCheck.style": "Stijl",
+  "instant.noCreditCheck.textLock": "Tekstlock",
+  "instant.noCreditCheck.bridge": "Segment-bridge",
+  "instant.noCreditCheck.roles": "Rollen",
+  "instant.noCreditCheck.joins": "Frame-continuïteit (voorspelde joins)",
   "instant.textIntegration.legacyModeHint":
     "Legacy tekstpipeline actief. Schakel naar poster-animatie (standaard) voor de vereenvoudigde creator flow.",
   "instant.step3.animationStyleAuto":

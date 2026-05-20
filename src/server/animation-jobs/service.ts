@@ -18,6 +18,7 @@ import {
 } from "@/lib/instant-premium-prompt";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
+import { scoreKeyframePairQuick } from "@/lib/exact-frame-continuity";
 import {
   buildBudgetedViduPrompt,
   validateViduPromptLength,
@@ -228,6 +229,26 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const polishSettings = transition.project.instantPosterMotionSettings;
   const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
   const polishProfile = resolvePremiumPolishProfile(polishSettings);
+  let exactFrameContinuation = false;
+  if (isInstantPremium && transition.order > 0) {
+    const prevTransition = await prisma.animationTransition.findFirst({
+      where: { projectId: transition.projectId, order: transition.order - 1 },
+      select: { endImageId: true },
+    });
+    if (prevTransition) {
+      const prevEndImage = await prisma.animationImage.findUnique({
+        where: { id: prevTransition.endImageId },
+        select: { previewUrl: true },
+      });
+      const pairScore = scoreKeyframePairQuick({
+        endImageId: prevTransition.endImageId,
+        startImageId: transition.startImageId,
+        endPreviewUrl: prevEndImage?.previewUrl ?? null,
+        startPreviewUrl: startImage.previewUrl,
+      });
+      exactFrameContinuation = pairScore.mode === "continuation";
+    }
+  }
   let finalPrompt: string;
   if (isInstantPremium) {
     const mainPrompt = buildInstantVideoPrompt({
@@ -246,12 +267,14 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       polishSettingsRaw: polishSettings,
       transitionOrder: transition.order,
       transitionTotal,
+      exactFrameContinuation,
     });
     const segmentHint = instantPremiumTransitionSegmentHint({
       transitionOrder: transition.order,
       transitionTotal,
       imageCount,
       animationStyleId: polishProfile.animationStyleId,
+      exactFrameContinuation,
     });
     const budgeted = buildBudgetedViduPrompt({
       projectId: transition.projectId,

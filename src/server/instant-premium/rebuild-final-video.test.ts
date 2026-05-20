@@ -30,4 +30,15 @@ describe("rebuild final video", () => {
   it("targets versioned blob path on rebuild", () => {
     assert.equal(finalBlobPathname("proj", 2), "motion/final/proj/final-v2.mp4");
   });
+
+  it("rebuild module does not import Vidu provider", async () => {
+    const source = await import("node:fs/promises").then((fs) =>
+      fs.readFile(
+        new URL("./rebuild-final-video.ts", import.meta.url),
+        "utf8"
+      )
+    );
+    assert.ok(!source.includes("getVideoProvider"));
+    assert.ok(!source.includes("startVidu"));
+  });
 });

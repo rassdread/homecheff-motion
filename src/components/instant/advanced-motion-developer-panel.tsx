@@ -23,6 +23,7 @@ import {
   VIDU_PROMPT_MAX_CHARS,
 } from "@/lib/vidu-prompt-budget";
 import { isIndexedDbAvailable } from "@/lib/instant-premium-wizard-storage";
+import { NoCreditRenderCheckPanel } from "@/components/instant/no-credit-render-check-panel";
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
   poster_motion_preserve: "instant.textIntegration.mode.posterMotion",
@@ -43,6 +44,7 @@ type Props = {
   onOverlayStyleChange: (style: OverlayStyle) => void;
   onPosterMotionSettingsChange: (patch: Partial<PosterMotionSettings>) => void;
   onStylePresetChange?: (preset: InstantPremiumStylePreset) => void;
+  buildValidationPayload?: () => Record<string, unknown> | null;
 };
 
 export function AdvancedMotionDeveloperPanel({
@@ -55,6 +57,7 @@ export function AdvancedMotionDeveloperPanel({
   onOverlayStyleChange,
   onPosterMotionSettingsChange,
   onStylePresetChange,
+  buildValidationPayload,
 }: Props) {
   const t = useActiveTranslator();
   const mounted = useMounted();
@@ -110,6 +113,10 @@ export function AdvancedMotionDeveloperPanel({
               <br />
               {mounted ? ` · indexedDb: ${isIndexedDbAvailable() ? "yes" : "no"}` : null}
             </p>
+          ) : null}
+
+          {buildValidationPayload ? (
+            <NoCreditRenderCheckPanel isAdmin={isAdmin} buildPayload={buildValidationPayload} />
           ) : null}
 
           <fieldset className="mt-3">

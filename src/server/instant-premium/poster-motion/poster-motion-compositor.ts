@@ -28,6 +28,12 @@ import {
   probeVideoDurationSeconds,
   probeVideoFileDimensions,
 } from "@/server/instant-premium/poster-motion/probe-media-dimensions";
+import {
+  resolveTextLockMode,
+  shouldApplySegmentTextRestore,
+  type LockedTextRegion,
+} from "@/lib/hard-text-lock";
+import { applyLockedTextRegionsToVideo } from "@/server/instant-premium/segment-text-restore";
 
 export type CompositePosterMotionInput = {
   projectId: string;
@@ -44,6 +50,7 @@ export type CompositePosterMotionInput = {
   sourceSegmentUrl?: string;
   posterImageId?: string | null;
   blendStrength?: number;
+  lockedTextRegions?: LockedTextRegion[];
 };
 
 export type CompositePosterMotionResult = {
@@ -59,6 +66,7 @@ export type PosterMotionSegmentCompositeInput = {
   segmentIndex: number;
   sourceSegmentUrl: string;
   posterImageId: string | null;
+  lockedTextRegions?: LockedTextRegion[];
 };
 
 export type CompositePosterMotionSegmentsInput = {
@@ -500,6 +508,30 @@ export async function compositePosterMotionPreserve(
   }
 
   if (blendResult.ok) {
+    const textLockMode = resolveTextLockMode(
+      settings.animationStyleId ?? "cartoon_animation",
+      settings.textLockMode
+    );
+    const regions = input.lockedTextRegions ?? [];
+    let outputPath = input.outputVideoPath;
+    if (shouldApplySegmentTextRestore(textLockMode) && regions.length > 0) {
+      const restoredPath = path.join(
+        input.workDir,
+        `text-lock-segment-${input.segmentIndex ?? 0}.mp4`
+      );
+      const restore = await applyLockedTextRegionsToVideo({
+        ffmpeg,
+        videoPath: input.outputVideoPath,
+        outputPath: restoredPath,
+        sourceImagePath: basePath,
+        regions,
+        workDir: input.workDir,
+        segmentIndex: input.segmentIndex,
+      });
+      if (restore.applied > 0) {
+        outputPath = restoredPath;
+      }
+    }
     console.info("[hc-instant-premium]", {
       projectId: input.projectId,
       segmentIndex: input.segmentIndex,
@@ -509,9 +541,10 @@ export async function compositePosterMotionPreserve(
       blendStrength,
       blendMode: appliedBlendMode,
       canvas: `${normalized.posterWidth}x${normalized.posterHeight}`,
+      textLockRestore: regions.length,
     });
     return {
-      outputPath: input.outputVideoPath,
+      outputPath,
       motionBlendApplied: true,
       usedStaticFallback: false,
       usedPassthroughFallback: false,
@@ -572,6 +605,7 @@ export async function compositePosterMotionPreserveSegments(
       sourceSegmentUrl: segment.sourceSegmentUrl,
       posterImageId: segment.posterImageId,
       blendStrength: input.blendStrength,
+      lockedTextRegions: segment.lockedTextRegions,
     });
     segmentPaths.push(result.outputPath);
 

@@ -21,6 +21,7 @@ import {
   COMIC_STRIP_POWER_LINE,
   shouldUseComicStripWorldTransitions,
 } from "@/lib/vidu-comic-strip-transitions";
+import { buildExactFrameContinuationPromptLine } from "@/lib/exact-frame-continuity";
 import type { AnimationStyleId } from "@/lib/animation-style-types";
 import {
   parsePremiumPolishSettings,
@@ -134,6 +135,8 @@ export type BuildInstantVideoPromptInput = {
   /** Per-segment directing (multi-character focus cycle). */
   transitionOrder?: number;
   transitionTotal?: number;
+  /** Segment B starts on same keyframe as segment A ended — continuation mode. */
+  exactFrameContinuation?: boolean;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -209,6 +212,7 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
       transitionOrder: input.transitionOrder,
       transitionTotal: input.transitionTotal,
       userIntent: input.userIntent,
+      exactFrameContinuation: input.exactFrameContinuation,
     }
   );
 
@@ -254,6 +258,7 @@ export function instantPremiumTransitionSegmentHint(params: {
   transitionTotal: number;
   imageCount: number;
   animationStyleId?: AnimationStyleId;
+  exactFrameContinuation?: boolean;
 }): string {
   const { transitionOrder, transitionTotal, imageCount } = params;
   const from = transitionOrder + 1;
@@ -267,5 +272,9 @@ export function instantPremiumTransitionSegmentHint(params: {
         transitionTotal,
       })
     : "";
-  return [base, comicBridge].filter(Boolean).join(" ");
+  const continuation =
+    params.exactFrameContinuation ?
+      buildExactFrameContinuationPromptLine("continuation")
+    : "";
+  return [base, comicBridge, continuation].filter(Boolean).join(" ");
 }

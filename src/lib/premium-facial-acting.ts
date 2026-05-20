@@ -13,6 +13,16 @@ const FACIAL_CORE_BLOCK = `FACIAL PERFORMANCE SYSTEM:
 - Expression variation: micro-smile changes, eyebrow lifts, gentle head tilt — evolve within one emotional arc.
 - Prevent: frozen faces, dead-eye look, static expressions, emotion snapping between frames, uncanny smile lock.`;
 
+/** Compact line for budgeted Vidu motion stack (priority 1). */
+export const COMPACT_FACIAL_PRIORITY_LINE =
+  "Prioritize living faces: blinking eyes, smile changes, eyebrow motion, subtle mouth movement and emotional reactions; avoid frozen mascot faces and hand-only loops.";
+
+const ROLE_FACIAL_HINTS: Partial<Record<CharacterRoleId, string>> = {
+  CHEF_HOST: "Chef mascot: big friendly smile, presenter reactions, welcoming eyes.",
+  GARDEN_GUIDE: "Garden guide: warm curious expression, soft attentive eyes.",
+  DESIGN_CREATOR: "Design creator: creative proud expression, focused inspired eyes.",
+};
+
 const EMOTIONAL_FACIAL_HINTS: Partial<Record<EmotionalActingPresetId, string>> = {
   playful_mascot: "Playful facial beats: brighter eyes, quick eyebrow pops, charming smile variation.",
   excited_seller: "Sales energy: confident smile, alert eyes, enthusiastic eyebrow emphasis on product beats.",
@@ -27,6 +37,27 @@ export function buildFacialActingForRole(roleId: CharacterRoleId): string {
   return `${roleId.replace(/_/g, " ")}: ${p.facialEnergy}; blinks: ${p.blinkIntensity}; emotional: ${p.emotionalActing}.`;
 }
 
+export function buildRoleFacialActingHint(roles: CharacterSceneRole[]): string {
+  if (!roles.length) {
+    return "";
+  }
+  const lead = roles[0]?.roleId;
+  if (!lead) {
+    return "";
+  }
+  return ROLE_FACIAL_HINTS[lead] ?? "";
+}
+
+/** Single combined facial line for compact motion stack. */
+export function buildCompactFacialActingLine(roles: CharacterSceneRole[]): string {
+  const roleHint = buildRoleFacialActingHint(roles);
+  if (!roleHint) {
+    return COMPACT_FACIAL_PRIORITY_LINE;
+  }
+  return `${COMPACT_FACIAL_PRIORITY_LINE} ${roleHint}`;
+}
+
+/** Verbose block — deprecated for Vidu; kept for automation tests / legacy paths. */
 export function buildFacialActingPromptBlock(params: {
   roles: CharacterSceneRole[];
   emotionalActingPreset?: EmotionalActingPresetId;

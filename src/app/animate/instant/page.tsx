@@ -262,6 +262,54 @@ export default function InstantPremiumPage() {
     return document.body.dataset.instantPremiumMode === "paid" ? "paid" : "test";
   }, [mounted]);
   const isAdmin = session.user?.role?.trim() === "admin";
+
+  const buildValidationPayload = useCallback((): Record<string, unknown> | null => {
+    if (images.length < 3) {
+      return null;
+    }
+    return {
+      images: images.map((img) => {
+        const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
+        return {
+          fileName: img.originalFileName,
+          previewUrl: url,
+          workingImageUrl: img.remoteWorkingUrl ?? url,
+          mimeType: img.mimeType,
+          sizeBytes: img.sizeBytes,
+          ...(() => {
+            const snapshot = buildInstantPremiumBakedTextSnapshot(img.bakedText);
+            return snapshot ? { bakedTextProtection: snapshot } : {};
+          })(),
+        };
+      }),
+      stylePreset,
+      duration: durationSec,
+      aspectRatio,
+      uiLanguage: locale,
+      userIntent: motionText.trim() || null,
+      selectedChips: isAdmin ? chips : [],
+      continuityStrength,
+      lockedTextMode,
+      textRenderMode,
+      hybridOverlayStyle,
+      posterMotionSettings,
+    };
+  }, [
+    images,
+    stylePreset,
+    durationSec,
+    aspectRatio,
+    locale,
+    motionText,
+    isAdmin,
+    chips,
+    continuityStrength,
+    lockedTextMode,
+    textRenderMode,
+    hybridOverlayStyle,
+    posterMotionSettings,
+  ]);
+
   const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
   const activeStyleVisual = useMemo(
     () =>
@@ -1086,6 +1134,7 @@ export default function InstantPremiumPage() {
           onLockedTextModeChange={setLockedTextMode}
           onLockedTextLayersChange={setLockedTextLayers}
           onFastRenderModeChange={setFastRenderMode}
+          buildValidationPayload={buildValidationPayload}
         />
 
         <InstantWizardShell shellRef={wizardShellRef}>

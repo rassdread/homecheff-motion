@@ -7,6 +7,7 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
 } from "@/lib/media-export-constants";
 import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
+import type { SegmentJoinPlan } from "@/lib/exact-frame-continuity";
 import {
   DEFAULT_SEGMENT_TRANSITION_TYPE,
   SEGMENT_TRANSITION_TYPES,
@@ -382,9 +383,10 @@ async function concatStraight(prepared: PreparedSegment[], outputFile: string, w
 async function concatWithXfade(
   prepared: PreparedSegment[],
   outputFile: string,
-  transitionType: SegmentTransitionType
+  transitionType: SegmentTransitionType,
+  perJoinTransitionSec?: number[]
 ): Promise<void> {
-  const transitionSec = transitionDurationSeconds(transitionType);
+  const defaultSec = transitionDurationSeconds(transitionType);
   const xfadeName = xfadeTransitionName(transitionType);
   const args = ["-y"];
   for (const seg of prepared) {
@@ -397,6 +399,8 @@ async function concatWithXfade(
   let timelineSec = prepared[0]!.durationSec;
   let lastLabel = "v0";
   for (let i = 1; i < prepared.length; i += 1) {
+    const joinIndex = i - 1;
+    const transitionSec = perJoinTransitionSec?.[joinIndex] ?? defaultSec;
     const outLabel = `x${i}`;
     const offset = Math.max(0, timelineSec - transitionSec);
     filterParts.push(
@@ -437,6 +441,8 @@ export type ConcatMotionSegmentsInput = {
   outputFile: string;
   maxWidth: number;
   transitionType: SegmentTransitionType;
+  /** Per join (segmentA→segmentB) from exact-frame continuity analysis. */
+  joinPlans?: SegmentJoinPlan[];
 };
 
 export type TransitionPreviewMetadata = {
@@ -447,6 +453,11 @@ export type TransitionPreviewMetadata = {
     durationFrames: number;
     trimmedOutgoing: number;
     trimmedIncoming: number;
+    similarity?: number;
+    continuityMode?: string;
+    mergeDissolveRatio?: number;
+    mergeType?: string;
+    exposureDelta?: number;
   }>;
   antiFlashGuard: boolean;
   normalizedFps: number;
@@ -467,7 +478,7 @@ export type ConcatMotionSegmentsResult = {
 export async function concatMotionSegmentsWithTransitions(
   input: ConcatMotionSegmentsInput
 ): Promise<ConcatMotionSegmentsResult> {
-  const { workDir, segmentPaths, outputFile, maxWidth, transitionType } = input;
+  const { workDir, segmentPaths, outputFile, maxWidth, transitionType, joinPlans } = input;
 
   if (segmentPaths.length === 0) {
     throw new Error("No segments to concatenate.");
@@ -503,21 +514,33 @@ export async function concatMotionSegmentsWithTransitions(
   const optical = usesOpticalBlend(transitionType);
   const joins: TransitionPreviewMetadata["joins"] = [];
 
+  const perJoinTransitionSec: number[] = [];
+
   for (let i = 0; i < prepared.length - 1; i += 1) {
     const trimA = getEdgeTrimFrames(i, prepared.length, transitionType);
     const trimB = getEdgeTrimFrames(i + 1, prepared.length, transitionType);
+    const plan = joinPlans?.find((p) => p.segmentA === i && p.segmentB === i + 1);
+    const joinTransitionSec = plan?.transitionSec ?? transitionDurationSeconds(transitionType);
+    const joinFrames = Math.max(0, Math.round(joinTransitionSec * MERGE_OUTPUT_FPS));
+    perJoinTransitionSec.push(joinTransitionSec);
+
     joins.push({
       segmentA: i,
       segmentB: i + 1,
-      durationFrames: frames,
+      durationFrames: joinFrames,
       trimmedOutgoing: trimA.outgoing,
       trimmedIncoming: trimB.incoming,
+      similarity: plan?.similarity,
+      continuityMode: plan?.mode,
+      mergeDissolveRatio: plan?.mergeDissolveRatio,
+      mergeType: plan?.mergeType,
+      exposureDelta: plan?.exposureDelta,
     });
     logSegmentTransition({
       transitionType,
       segmentA: i,
       segmentB: i + 1,
-      transitionDurationFrames: frames,
+      transitionDurationFrames: joinFrames,
       usedOpticalBlend: optical,
       trimmedFrames: {
         outgoing: trimA.outgoing,
@@ -526,12 +549,22 @@ export async function concatMotionSegmentsWithTransitions(
       normalizedFps: MERGE_OUTPUT_FPS,
       normalizedResolution: `${prepared[i]!.width}x${prepared[i]!.height}`,
     });
+    console.info("[exact-frame-continuity]", {
+      segmentA: i,
+      segmentB: i + 1,
+      similarity: plan?.similarity,
+      mode: plan?.mode,
+      mergeType: plan?.mergeType,
+      mergeDissolveRatio: plan?.mergeDissolveRatio,
+      transitionSec: joinTransitionSec,
+      exposureDelta: plan?.exposureDelta,
+    });
   }
 
   if (transitionType === "straight_cut") {
     await concatStraight(prepared, outputFile, workDir);
   } else {
-    await concatWithXfade(prepared, outputFile, transitionType);
+    await concatWithXfade(prepared, outputFile, transitionType, perJoinTransitionSec);
   }
 
   const first = prepared[0]!;

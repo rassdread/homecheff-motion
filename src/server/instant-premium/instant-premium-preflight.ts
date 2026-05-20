@@ -23,6 +23,9 @@ import {
 } from "@/server/openai/openai-request-gate";
 import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
 import type { ViduPromptTooLongDebug } from "@/lib/vidu-prompt-budget";
+import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
+import type { PremiumRenderValidationReport } from "@/lib/premium-render-validation";
+import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 
 export const INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL =
   "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.";
@@ -76,6 +79,7 @@ export type InstantPremiumPreflightResult =
       visionUsed: boolean;
       /** Budgeted Vidu prompt length (admin debug). */
       viduPromptChars?: number;
+      renderValidation?: PremiumRenderValidationReport;
     }
   | {
       ok: false;
@@ -84,7 +88,9 @@ export type InstantPremiumPreflightResult =
         | "TEXT_PROTECTION_REQUIRED"
         | "PREFLIGHT_UNAVAILABLE"
         | "OPENAI_RATE_LIMITED"
-        | "VIDU_PROMPT_TOO_LONG";
+        | "VIDU_PROMPT_TOO_LONG"
+        | "TEXT_LOCK_REQUIRED"
+        | "INVALID_IMAGE_URL";
       blockMessage: string;
       warnings: string[];
       images: PreflightImageReport[];
@@ -445,45 +451,77 @@ export async function runInstantPremiumTextPreflight(
 ): Promise<InstantPremiumPreflightResult> {
   if (usesPosterMotionPreserve(normalizeTextRenderMode(payload.textRenderMode))) {
     const viduPromptCheck = runViduPromptLengthPreflight(payload);
-    if (!viduPromptCheck.ok) {
+    const validation = buildPremiumRenderValidationReport({
+      payload,
+      viduPromptChars:
+        viduPromptCheck.ok ? viduPromptCheck.chars : viduPromptCheck.debug.charsAfter,
+      viduPromptOk: viduPromptCheck.ok,
+      extraWarnings: [
+        "Poster motion preserve: typography frozen in source + hard text lock when enabled.",
+      ],
+    });
+    if (!validation.ok) {
+      const code =
+        validation.blockCode === "VIDU_PROMPT_TOO_LONG" ? "VIDU_PROMPT_TOO_LONG"
+        : validation.blockCode === "INVALID_IMAGE_URL" ? "INVALID_IMAGE_URL"
+        : validation.blockCode === "TEXT_LOCK_REQUIRED" ? "TEXT_LOCK_REQUIRED"
+        : "TEXT_PROTECTION_REQUIRED";
       return {
         ok: false,
-        error: `Vidu prompt exceeds limit (${viduPromptCheck.debug.charsAfter} chars, max ${viduPromptCheck.debug.hardMaxChars}).`,
-        code: "VIDU_PROMPT_TOO_LONG",
-        blockMessage: `Vidu prompt too long for animation style ${viduPromptCheck.animationStyleId ?? "unknown"}.`,
-        warnings: [],
-        images: payload.images.map((image, index) => ({
-          index,
-          fileName: image.fileName,
-          protectionState: "none" as const,
-          confirmedBlockCount: 0,
-          vision: null,
-          blocked: true,
-          blockMessage: "Vidu prompt too long.",
-          warnings: [],
-          structuredWarnings: [],
-        })),
+        error: validation.blockMessage ?? "Render validation failed.",
+        code,
+        blockMessage: validation.blockMessage ?? "Render validation failed.",
+        warnings: validation.warnings,
+        images: payload.images.map((image, index) => {
+          const imgReport = validation.images[index];
+          const { state, confirmed } = resolveImageProtectionState(image);
+          return {
+            index,
+            fileName: image.fileName,
+            protectionState: state,
+            confirmedBlockCount: confirmed.length,
+            vision: null,
+            blocked: true,
+            blockMessage: validation.blockMessage ?? null,
+            warnings: imgReport?.textLockWarning ?
+              ["Large text not hard-locked."]
+            : [],
+            structuredWarnings: [],
+          };
+        }),
         visionUsed: false,
-        viduPromptDebug: viduPromptCheck.debug,
+        viduPromptDebug: !viduPromptCheck.ok ? viduPromptCheck.debug : undefined,
       };
     }
+
     return {
       ok: true,
-      warnings: [
-        "Poster motion preserve: typography stays in the original image (no OCR text rebuild).",
-      ],
-      viduPromptChars: viduPromptCheck.chars,
-      images: payload.images.map((image, index) => ({
-        index,
-        fileName: image.fileName,
-        protectionState: "none" as const,
-        confirmedBlockCount: 0,
-        vision: null,
-        blocked: false,
-        blockMessage: null,
-        warnings: [],
-        structuredWarnings: [],
-      })),
+      warnings: validation.warnings,
+      viduPromptChars: validation.viduPromptChars,
+      renderValidation: validation,
+      images: payload.images.map((image, index) => {
+        const imgReport = validation.images[index];
+        const { state, confirmed } = resolveImageProtectionState(image);
+        const url = imageSourceUrl(image);
+        const warnings: string[] = [];
+        if (!isValidHttpUrl(url)) {
+          warnings.push("Invalid image URL.");
+        }
+        if (imgReport?.textLockWarning) {
+          warnings.push("Large visible text — confirm OCR lock before paid render.");
+        }
+        return {
+          index,
+          fileName: image.fileName,
+          protectionState: state,
+          confirmedBlockCount: confirmed.length,
+          vision: null,
+          blocked: false,
+          blockMessage: null,
+          warnings,
+          structuredWarnings: [],
+        };
+      }),
       visionUsed: false,
     };
   }

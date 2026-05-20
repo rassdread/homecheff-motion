@@ -16,6 +16,9 @@ import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
 import { deriveMotionMemoryState } from "@/lib/premium-motion-memory";
 import { resolveMotionVariationPhase } from "@/lib/premium-motion-variation";
 import { buildComicStripWorldTransitionBlock } from "@/lib/vidu-comic-strip-transitions";
+import { buildHardTextLockPromptLine } from "@/lib/hard-text-lock";
+import { buildCompactFacialActingLine } from "@/lib/premium-facial-acting";
+import { buildExactFrameContinuationPromptLine } from "@/lib/exact-frame-continuity";
 
 /** Target max chars sent to Vidu (premium instant). */
 export const VIDU_PROMPT_MAX_CHARS = 3500;
@@ -151,6 +154,8 @@ export function buildCompactViduMotionPrompt(
     transitionOrder?: number;
     transitionTotal?: number;
     userIntent?: string | null;
+    lockedTextRegionCount?: number;
+    exactFrameContinuation?: boolean;
   }
 ): string {
   const scene = options?.sceneIntelligence;
@@ -206,6 +211,7 @@ export function buildCompactViduMotionPrompt(
     `Motion energy: ${profile.motionEnergy}.`,
     emotional ? `Acting: ${emotional.actingPromptBlock.split("\n")[0]?.replace(/^- /, "") ?? profile.emotionalActingPreset}` : "",
     characterCompact ? `Character: ${characterCompact}` : "",
+    buildCompactFacialActingLine(roles),
     `Segment ${transitionOrder + 1}/${transitionTotal} (${segmentPhase}): gesture ${memory.activeGestureBeat.replace(/_/g, " ")}; avoid repeat loops.`,
     focusLine,
     "Variation: alternate gestures and timing; no robotic sway/hand loops.",
@@ -220,7 +226,15 @@ export function buildCompactViduMotionPrompt(
     }),
   ].filter(Boolean);
 
-  return deduplicatePromptText(lines.join("\n"));
+  const body = deduplicatePromptText(lines.join("\n"));
+  const lockLine = buildHardTextLockPromptLine(
+    profile.textLockMode,
+    options?.lockedTextRegionCount ?? 0
+  );
+  const continuationLine = options?.exactFrameContinuation
+    ? buildExactFrameContinuationPromptLine("continuation")
+    : "";
+  return [body, lockLine, continuationLine].filter(Boolean).join("\n");
 }
 
 /** Shorter instant premium story template (P1 core). */

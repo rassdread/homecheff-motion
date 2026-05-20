@@ -48,6 +48,7 @@ type Props = {
   onLockedTextModeChange: (v: boolean) => void;
   onLockedTextLayersChange: (layers: LockedTextLayerDraft[]) => void;
   onFastRenderModeChange: (v: boolean) => void;
+  buildValidationPayload?: () => Record<string, unknown> | null;
 };
 
 export function AdvancedCreatorSettingsPanel(props: Props) {
@@ -166,6 +167,7 @@ export function AdvancedCreatorSettingsPanel(props: Props) {
             onOverlayStyleChange={props.onOverlayStyleChange}
             onPosterMotionSettingsChange={props.onPosterMotionSettingsChange}
             onStylePresetChange={props.onStylePresetChange}
+            buildValidationPayload={props.buildValidationPayload}
           />
         </div>
       ) : null}

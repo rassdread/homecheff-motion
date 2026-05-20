@@ -36,6 +36,12 @@ import {
   validateMergeSegmentsBeforeExport,
 } from "@/server/instant-premium/merge-segments";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
+import { parseBakedTextBlockRecords } from "@/lib/baked-text-detection";
+import {
+  buildLockedTextRegionsFromBlocks,
+  resolveTextLockMode,
+} from "@/lib/hard-text-lock";
+import { buildSegmentJoinPlansForProject } from "@/server/instant-premium/build-segment-join-plans";
 import {
   concatMotionSegmentsWithTransitions,
 } from "@/server/instant-premium/segment-transition";
@@ -457,6 +463,11 @@ export async function executeInstantPremiumMerge(
       });
 
       if (runSegmentCompositor) {
+        const polishProfile = resolvePremiumPolishProfile(project.instantPosterMotionSettings);
+        const textLockMode = resolveTextLockMode(
+          polishProfile.animationStyleId,
+          polishProfile.textLockMode
+        );
         const posterSegments = completed
           .map((transition, segmentIndex) => {
             const startImage = imageById.get(transition.startImageId);
@@ -464,12 +475,15 @@ export async function executeInstantPremiumMerge(
             if (!baseUrl) {
               return null;
             }
+            const blocks = parseBakedTextBlockRecords(startImage?.bakedTextBlocksJson);
+            const lockedTextRegions = buildLockedTextRegionsFromBlocks(blocks, textLockMode);
             return {
               segmentPath: segmentPaths[segmentIndex]!,
               baseImageUrl: baseUrl,
               segmentIndex,
               sourceSegmentUrl: segmentUrls[segmentIndex]!,
               posterImageId: startImage?.id ?? transition.startImageId,
+              lockedTextRegions,
             };
           })
           .filter((row): row is NonNullable<typeof row> => row !== null);
@@ -532,12 +546,28 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
       });
+      const sortedCompleted = [...completed].sort((a, b) => a.order - b.order);
+      const joinPlans = await buildSegmentJoinPlansForProject({
+        transitions: sortedCompleted.map((t) => {
+          const startImg = imageById.get(t.startImageId);
+          const endImg = imageById.get(t.endImageId);
+          return {
+            order: t.order,
+            startImageId: t.startImageId,
+            endImageId: t.endImageId,
+            startPreviewUrl: startImg?.previewUrl ?? null,
+            endPreviewUrl: endImg?.previewUrl ?? null,
+          };
+        }),
+        transitionType: segmentTransitionType,
+      });
       const concatResult = await concatMotionSegmentsWithTransitions({
         workDir,
         segmentPaths: pathsToConcat,
         outputFile: finalAbs,
         maxWidth: mergeMaxWidth,
         transitionType: segmentTransitionType,
+        joinPlans,
       });
       console.info("[hc-instant-premium]", {
         projectId,
