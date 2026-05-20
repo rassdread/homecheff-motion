@@ -47,7 +47,7 @@ export type InstantPremiumCreatePayload = {
 };
 
 export type InstantPremiumCreateResult =
-  | { ok: true; projectId: string }
+  | { ok: true; projectId: string; warnings?: string[] }
   | { ok: false; error: string; status: number };
 
 export type ValidateInstantPayloadResult =
@@ -392,7 +392,11 @@ export async function createInstantPremiumAnimationProject(
       return project.id;
     });
 
-    return { ok: true, projectId };
+    return {
+      ok: true,
+      projectId,
+      warnings: imagePrep.warnings.length > 0 ? imagePrep.warnings : undefined,
+    };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to create project.";
     return { ok: false, error: message, status: 500 };

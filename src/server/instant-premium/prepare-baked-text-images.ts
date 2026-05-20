@@ -1,6 +1,12 @@
 import type { Prisma } from "@prisma/client";
-import { confirmedBlocks, parseBakedTextProtectionPayload } from "@/lib/baked-text-detection";
-import type { BakedTextProtectionStatus } from "@/lib/baked-text-protection";
+import sharp from "sharp";
+import { confirmedBlocks, parseBakedTextProtectionPayload, type BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import {
+  BAKED_TEXT_MASK_BLOCKS_SKIPPED_WARNING_NL,
+  logInvalidMaskRegion,
+  normalizeMaskRegionNormalized,
+  type BakedTextProtectionStatus,
+} from "@/lib/baked-text-protection";
 import { parseBakedTextProtectionInput } from "@/lib/baked-text-protection";
 import { lockedLayersFromBakedTextBlocks } from "@/server/instant-premium/baked-text-blocks-to-layers";
 import {
@@ -20,7 +26,13 @@ export type PreparedInstantImage = CreateAnimationProjectImageInput & {
 };
 
 export type PrepareBakedTextImagesResult =
-  | { ok: true; images: PreparedInstantImage[]; extraLockedLayers: LockedTextLayer[] }
+  | {
+      ok: true;
+      images: PreparedInstantImage[];
+      extraLockedLayers: LockedTextLayer[];
+      maskBlocksSkipped: number;
+      warnings: string[];
+    }
   | { ok: false; error: string };
 
 function parseProtection(image: CreateAnimationProjectImageInput) {
@@ -41,12 +53,54 @@ function parseProtection(image: CreateAnimationProjectImageInput) {
   return { enabled: false as const, status: "none" as const };
 }
 
+function sanitizeConfirmedBlocks(
+  blocks: BakedTextBlockRecord[],
+  context: { imageIndex: number; imageWidth: number; imageHeight: number }
+): { blocks: BakedTextBlockRecord[]; skipped: number } {
+  const valid: BakedTextBlockRecord[] = [];
+  let skipped = 0;
+
+  for (const block of blocks) {
+    const normalized = normalizeMaskRegionNormalized(block.bbox);
+    if (!normalized) {
+      skipped += 1;
+      logInvalidMaskRegion({
+        imageIndex: context.imageIndex,
+        ocrText: block.editedText || block.text,
+        rawBbox: block.bbox,
+        normalizedBbox: null,
+        imageWidth: context.imageWidth,
+        imageHeight: context.imageHeight,
+      });
+      continue;
+    }
+    valid.push({ ...block, bbox: normalized });
+  }
+
+  return { blocks: valid, skipped };
+}
+
+async function imageDimensionsFromUrl(sourceUrl: string): Promise<{ width: number; height: number }> {
+  const res = await fetch(sourceUrl, { cache: "no-store" });
+  if (!res.ok) {
+    return { width: 720, height: 1280 };
+  }
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const meta = await sharp(buffer).metadata();
+  return {
+    width: Math.max(1, meta.width ?? 720),
+    height: Math.max(1, meta.height ?? 1280),
+  };
+}
+
 export async function prepareInstantImagesWithBakedTextProtection(
   images: CreateAnimationProjectImageInput[],
   options: { uploadPathPrefix: string; totalDurationMs: number }
 ): Promise<PrepareBakedTextImagesResult> {
   const prepared: PreparedInstantImage[] = [];
   const extraLockedLayers: LockedTextLayer[] = [];
+  let maskBlocksSkipped = 0;
+  const warnings: string[] = [];
 
   for (let index = 0; index < images.length; index += 1) {
     const image = images[index];
@@ -75,24 +129,39 @@ export async function prepareInstantImagesWithBakedTextProtection(
 
     const blockRecords = "blocks" in protection && Array.isArray(protection.blocks) ? protection.blocks : [];
     const confirmed = confirmedBlocks(blockRecords);
+    const dims = await imageDimensionsFromUrl(sourceUrl);
 
     if (confirmed.length > 0) {
-      const maskRegions = confirmed.map((b) => b.bbox);
-      let viduInputUrl: string;
-      try {
-        const masked = await maskAndUploadBakedTextSafeImage({
-          sourceUrl,
-          maskRegion: maskRegions[0],
-          maskRegions,
-          uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
-        });
-        viduInputUrl = masked.url;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Baked text masking failed.";
-        return { ok: false, error: `Image ${index + 1}: ${message}` };
+      const { blocks: maskableBlocks, skipped } = sanitizeConfirmedBlocks(confirmed, {
+        imageIndex: index,
+        imageWidth: dims.width,
+        imageHeight: dims.height,
+      });
+      maskBlocksSkipped += skipped;
+
+      let viduInputUrl: string | null = null;
+
+      if (maskableBlocks.length > 0) {
+        const maskRegions = maskableBlocks.map((b) => b.bbox);
+        try {
+          const masked = await maskAndUploadBakedTextSafeImage({
+            sourceUrl,
+            maskRegion: maskRegions[0],
+            maskRegions,
+            uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
+            imageIndex: index,
+          });
+          viduInputUrl = masked.url;
+          maskBlocksSkipped += masked.skippedRegionCount;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Baked text masking failed.";
+          return { ok: false, error: `Image ${index + 1}: ${message}` };
+        }
       }
 
-      extraLockedLayers.push(...lockedLayersFromBakedTextBlocks(confirmed, options.totalDurationMs));
+      if (maskableBlocks.length > 0) {
+        extraLockedLayers.push(...lockedLayersFromBakedTextBlocks(maskableBlocks, options.totalDurationMs));
+      }
 
       prepared.push({
         ...image,
@@ -100,7 +169,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
         bakedTextProtectionStatus: "masked",
         bakedTextExactCopy: confirmed.map((b) => b.editedText).join("\n"),
         bakedTextMaskRegion: null,
-        bakedTextBlocksJson: confirmed as unknown as Prisma.InputJsonValue,
+        bakedTextBlocksJson: maskableBlocks as unknown as Prisma.InputJsonValue,
         viduInputUrl,
       });
       continue;
@@ -119,14 +188,16 @@ export async function prepareInstantImagesWithBakedTextProtection(
       positionY: protection.positionY,
     });
 
-    let viduInputUrl: string;
+    let viduInputUrl: string | null = null;
     try {
       const masked = await maskAndUploadBakedTextSafeImage({
         sourceUrl,
         maskRegion,
         uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
+        imageIndex: index,
       });
       viduInputUrl = masked.url;
+      maskBlocksSkipped += masked.skippedRegionCount;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Baked text masking failed.";
       return { ok: false, error: `Image ${index + 1}: ${message}` };
@@ -156,5 +227,9 @@ export async function prepareInstantImagesWithBakedTextProtection(
     });
   }
 
-  return { ok: true, images: prepared, extraLockedLayers };
+  if (maskBlocksSkipped > 0 && !warnings.includes(BAKED_TEXT_MASK_BLOCKS_SKIPPED_WARNING_NL)) {
+    warnings.push(BAKED_TEXT_MASK_BLOCKS_SKIPPED_WARNING_NL);
+  }
+
+  return { ok: true, images: prepared, extraLockedLayers, maskBlocksSkipped, warnings };
 }

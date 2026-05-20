@@ -783,6 +783,9 @@ export default function InstantPremiumPage() {
           progressRoute,
         });
         writeActiveInstantProjectId(resolvedProjectId);
+        if (okBody?.warnings && okBody.warnings.length > 0) {
+          setPreflightNotice(okBody.warnings.join(" "));
+        }
         router.push(progressRoute);
         return;
       }

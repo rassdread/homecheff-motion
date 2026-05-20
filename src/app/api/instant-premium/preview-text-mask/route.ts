@@ -33,13 +33,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Could not fetch image (${res.status}).` }, { status: 400 });
     }
     const sourceBuffer = Buffer.from(await res.arrayBuffer());
-    const masked = await maskBakedTextRegionsInImageBuffer(sourceBuffer, regions);
+    const { buffer: masked, skippedRegionCount } = await maskBakedTextRegionsInImageBuffer(
+      sourceBuffer,
+      regions
+    );
     const blob = await put(`motion/debug/mask-preview-${Date.now()}.jpg`, masked, {
       access: "public",
       contentType: "image/jpeg",
       addRandomSuffix: true,
     });
-    return NextResponse.json({ previewUrl: blob.url, regionCount: regions.length });
+    return NextResponse.json({
+      previewUrl: blob.url,
+      regionCount: regions.length,
+      skippedRegionCount,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Mask preview failed.";
     return NextResponse.json({ error: message }, { status: 500 });

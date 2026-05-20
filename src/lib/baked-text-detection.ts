@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { LockedTextAnimation, LockedTextAlign, LockedTextLanguage } from "@/lib/locked-text-layer";
 import { isLockedTextAnimation } from "@/lib/locked-text-layer";
-import { clamp01, type BakedTextMaskRegion } from "@/lib/baked-text-protection";
+import {
+  clamp01,
+  normalizeMaskRegionNormalized,
+  type BakedTextMaskRegion,
+} from "@/lib/baked-text-protection";
 
 export type DetectedTextBlock = {
   id: string;
@@ -99,14 +103,14 @@ export function normalizeBbox(raw: {
   width: number;
   height: number;
 }): BakedTextMaskRegion {
-  const width = Math.min(1, Math.max(0.02, raw.width));
-  const height = Math.min(1, Math.max(0.02, raw.height));
-  return {
-    x: clamp01(raw.x),
-    y: clamp01(raw.y),
-    width,
-    height,
-  };
+  return (
+    normalizeMaskRegionNormalized(raw) ?? {
+      x: clamp01(raw.x),
+      y: clamp01(raw.y),
+      width: Math.min(1, Math.max(0.02, Math.abs(raw.width) || 0.02)),
+      height: Math.min(1, Math.max(0.02, Math.abs(raw.height) || 0.02)),
+    }
+  );
 }
 
 export function bboxFromVertices(

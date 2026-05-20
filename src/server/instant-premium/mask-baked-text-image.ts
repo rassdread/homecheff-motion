@@ -1,9 +1,12 @@
 import { put } from "@vercel/blob";
 import sharp from "sharp";
 import {
-  clamp01,
   defaultMaskRegionForTextPosition,
+  logInvalidMaskRegion,
+  normalizeMaskRegion,
+  normalizeMaskRegionNormalized,
   type BakedTextMaskRegion,
+  type MaskRegionPixels,
 } from "@/lib/baked-text-protection";
 
 export type MaskBakedTextImageInput = {
@@ -15,36 +18,27 @@ export type MaskBakedTextImageInput = {
 export type MaskBakedTextImageResult = {
   url: string;
   storageKey: string;
+  skippedRegionCount: number;
 };
 
-function regionPixels(
-  width: number,
-  height: number,
-  region: BakedTextMaskRegion
-): { left: number; top: number; width: number; height: number } {
-  const left = Math.round(clamp01(region.x) * width);
-  const top = Math.round(clamp01(region.y) * height);
-  const w = Math.max(8, Math.round(region.width * width));
-  const h = Math.max(8, Math.round(region.height * height));
+export type MaskBakedTextRegionsResult = {
+  buffer: Buffer;
+  skippedRegionCount: number;
+};
+
+async function readImageDimensions(input: Buffer): Promise<{ width: number; height: number }> {
+  const meta = await sharp(input).metadata();
   return {
-    left: Math.min(left, Math.max(0, width - 8)),
-    top: Math.min(top, Math.max(0, height - 8)),
-    width: Math.min(w, width - left),
-    height: Math.min(h, height - top),
+    width: Math.max(1, meta.width ?? 720),
+    height: Math.max(1, meta.height ?? 1280),
   };
 }
 
 /** Blur + neutralize a text band so Vidu does not animate readable baked-in copy. */
-export async function maskBakedTextInImageBuffer(
+export async function maskBakedTextInImageBufferWithBox(
   input: Buffer,
-  region: BakedTextMaskRegion
+  box: MaskRegionPixels
 ): Promise<Buffer> {
-  const base = sharp(input);
-  const meta = await base.metadata();
-  const width = meta.width ?? 720;
-  const height = meta.height ?? 1280;
-  const box = regionPixels(width, height, region);
-
   const patch = await sharp(input)
     .extract(box)
     .blur(28)
@@ -62,19 +56,60 @@ export async function maskBakedTextInImageBuffer(
     .toBuffer();
 }
 
+/** Blur + neutralize a normalized text band (validates pixels before extract). */
+export async function maskBakedTextInImageBuffer(
+  input: Buffer,
+  region: BakedTextMaskRegion,
+  context?: { imageIndex?: number; ocrText?: string }
+): Promise<Buffer> {
+  const { width, height } = await readImageDimensions(input);
+  const box = normalizeMaskRegion(region, width, height);
+  if (!box) {
+    logInvalidMaskRegion({
+      imageIndex: context?.imageIndex ?? -1,
+      ocrText: context?.ocrText,
+      rawBbox: region,
+      normalizedBbox: normalizeMaskRegionNormalized(region),
+      imageWidth: width,
+      imageHeight: height,
+    });
+    throw new Error("Invalid mask region for baked text extract.");
+  }
+  return maskBakedTextInImageBufferWithBox(input, box);
+}
+
 export async function maskBakedTextRegionsInImageBuffer(
   input: Buffer,
-  regions: BakedTextMaskRegion[]
-): Promise<Buffer> {
+  regions: BakedTextMaskRegion[],
+  context?: { imageIndex?: number; ocrTexts?: string[] }
+): Promise<MaskBakedTextRegionsResult> {
+  const { width, height } = await readImageDimensions(input);
   let current = input;
-  for (const region of regions) {
-    current = await maskBakedTextInImageBuffer(current, region);
+  let skippedRegionCount = 0;
+
+  for (let i = 0; i < regions.length; i += 1) {
+    const region = regions[i];
+    const box = normalizeMaskRegion(region, width, height);
+    if (!box) {
+      skippedRegionCount += 1;
+      logInvalidMaskRegion({
+        imageIndex: context?.imageIndex ?? -1,
+        ocrText: context?.ocrTexts?.[i],
+        rawBbox: region,
+        normalizedBbox: normalizeMaskRegionNormalized(region),
+        imageWidth: width,
+        imageHeight: height,
+      });
+      continue;
+    }
+    current = await maskBakedTextInImageBufferWithBox(current, box);
   }
-  return current;
+
+  return { buffer: current, skippedRegionCount };
 }
 
 export async function maskAndUploadBakedTextSafeImage(
-  input: MaskBakedTextImageInput & { maskRegions?: BakedTextMaskRegion[] }
+  input: MaskBakedTextImageInput & { maskRegions?: BakedTextMaskRegion[]; imageIndex?: number }
 ): Promise<MaskBakedTextImageResult> {
   const res = await fetch(input.sourceUrl, { cache: "no-store" });
   if (!res.ok) {
@@ -85,14 +120,18 @@ export async function maskAndUploadBakedTextSafeImage(
     input.maskRegions && input.maskRegions.length > 0
       ? input.maskRegions
       : [input.maskRegion];
-  const masked = await maskBakedTextRegionsInImageBuffer(sourceBuffer, regions);
+  const { buffer: masked, skippedRegionCount } = await maskBakedTextRegionsInImageBuffer(
+    sourceBuffer,
+    regions,
+    { imageIndex: input.imageIndex }
+  );
   const path = `${input.uploadPathPrefix}/vidu-safe-${Date.now()}.jpg`;
   const blob = await put(path, masked, {
     access: "public",
     contentType: "image/jpeg",
     addRandomSuffix: true,
   });
-  return { url: blob.url, storageKey: path };
+  return { url: blob.url, storageKey: path, skippedRegionCount };
 }
 
 export function resolveMaskRegionForProtection(params: {
@@ -100,7 +139,42 @@ export function resolveMaskRegionForProtection(params: {
   positionY?: number;
 }): BakedTextMaskRegion {
   if (params.maskRegion) {
-    return params.maskRegion;
+    return normalizeMaskRegionNormalized(params.maskRegion) ?? defaultMaskRegionForTextPosition(params.positionY ?? 0.12);
   }
   return defaultMaskRegionForTextPosition(params.positionY ?? 0.12);
+}
+
+export function sanitizeMaskRegionsForImage(
+  regions: BakedTextMaskRegion[],
+  context: {
+    imageIndex: number;
+    imageWidth: number;
+    imageHeight: number;
+    ocrTexts?: string[];
+  }
+): { regions: BakedTextMaskRegion[]; skippedCount: number } {
+  const valid: BakedTextMaskRegion[] = [];
+  let skippedCount = 0;
+
+  for (let i = 0; i < regions.length; i += 1) {
+    const raw = regions[i];
+    const normalized = normalizeMaskRegionNormalized(raw);
+    const pixels =
+      normalized && normalizeMaskRegion(normalized, context.imageWidth, context.imageHeight);
+    if (!normalized || !pixels) {
+      skippedCount += 1;
+      logInvalidMaskRegion({
+        imageIndex: context.imageIndex,
+        ocrText: context.ocrTexts?.[i],
+        rawBbox: raw,
+        normalizedBbox: normalized,
+        imageWidth: context.imageWidth,
+        imageHeight: context.imageHeight,
+      });
+      continue;
+    }
+    valid.push(normalized);
+  }
+
+  return { regions: valid, skippedCount };
 }

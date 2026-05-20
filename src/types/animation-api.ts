@@ -283,6 +283,7 @@ export type InstantPremiumCreateAndGenerateOkBody = {
   status: "started";
   progressRoute: string;
   jobTriggered: boolean;
+  warnings?: string[];
 };
 
 export type InstantPremiumCreateAndGenerateErrorBody = {

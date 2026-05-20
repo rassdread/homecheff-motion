@@ -52,6 +52,153 @@ export function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+export const MIN_MASK_PIXELS = 4;
+export const MIN_MASK_NORMALIZED = 0.01;
+
+export const BAKED_TEXT_MASK_BLOCKS_SKIPPED_WARNING_NL =
+  "Sommige tekstblokken konden niet automatisch beschermd worden.";
+
+export type MaskRegionPixels = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export function isValidMaskScalar(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/** Normalized 0–1 mask region; null when width/height are zero, NaN, or out of bounds. */
+export function normalizeMaskRegionNormalized(
+  raw: Partial<BakedTextMaskRegion> | null | undefined
+): BakedTextMaskRegion | null {
+  if (!raw) {
+    return null;
+  }
+  const x = raw.x;
+  const y = raw.y;
+  const width = raw.width;
+  const height = raw.height;
+  if (!isValidMaskScalar(x) || !isValidMaskScalar(y) || !isValidMaskScalar(width) || !isValidMaskScalar(height)) {
+    return null;
+  }
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+
+  let nx = Math.max(0, x);
+  let ny = Math.max(0, y);
+  let nw = width;
+  let nh = height;
+
+  if (nx >= 1 || ny >= 1) {
+    return null;
+  }
+
+  nw = Math.min(nw, 1 - nx);
+  nh = Math.min(nh, 1 - ny);
+  if (nw <= 0 || nh <= 0) {
+    return null;
+  }
+
+  const minNorm = MIN_MASK_NORMALIZED;
+  if (nw < minNorm) {
+    nx = Math.min(nx, 1 - minNorm);
+    nw = Math.max(nw, minNorm);
+  }
+  if (nh < minNorm) {
+    ny = Math.min(ny, 1 - minNorm);
+    nh = Math.max(nh, minNorm);
+  }
+  if (nx + nw > 1) {
+    nw = 1 - nx;
+  }
+  if (ny + nh > 1) {
+    nh = 1 - ny;
+  }
+  if (nw < minNorm || nh < minNorm) {
+    return null;
+  }
+
+  return { x: nx, y: ny, width: nw, height: nh };
+}
+
+/**
+ * Pixel extract/crop box for sharp/FFmpeg — clamped inside the image with a minimum size.
+ */
+export function normalizeMaskRegion(
+  region: BakedTextMaskRegion,
+  imageWidth: number,
+  imageHeight: number,
+  options?: { minPx?: number }
+): MaskRegionPixels | null {
+  const minPx = options?.minPx ?? MIN_MASK_PIXELS;
+  if (!Number.isFinite(imageWidth) || !Number.isFinite(imageHeight)) {
+    return null;
+  }
+  const iw = Math.max(1, Math.round(imageWidth));
+  const ih = Math.max(1, Math.round(imageHeight));
+
+  const norm = normalizeMaskRegionNormalized(region);
+  if (!norm) {
+    return null;
+  }
+
+  let left = Math.round(norm.x * iw);
+  let top = Math.round(norm.y * ih);
+  let width = Math.round(norm.width * iw);
+  let height = Math.round(norm.height * ih);
+
+  left = Math.max(0, Math.min(left, iw - 1));
+  top = Math.max(0, Math.min(top, ih - 1));
+
+  width = Math.max(minPx, width);
+  height = Math.max(minPx, height);
+
+  width = Math.min(width, iw - left);
+  height = Math.min(height, ih - top);
+
+  if (width < minPx || height < minPx) {
+    return null;
+  }
+
+  left = Math.floor(left);
+  top = Math.floor(top);
+  width = Math.floor(width);
+  height = Math.floor(height);
+
+  if (width < minPx || height < minPx) {
+    return null;
+  }
+  if (![left, top, width, height].every((n) => Number.isFinite(n) && n >= 0)) {
+    return null;
+  }
+
+  return { left, top, width, height };
+}
+
+export function logInvalidMaskRegion(params: {
+  imageIndex: number;
+  ocrText?: string;
+  rawBbox: unknown;
+  normalizedBbox: BakedTextMaskRegion | null;
+  imageWidth: number;
+  imageHeight: number;
+}): void {
+  console.warn(
+    "[mask-region-invalid]",
+    JSON.stringify({
+      imageIndex: params.imageIndex,
+      ocrText: params.ocrText?.slice(0, 120),
+      rawBbox: params.rawBbox,
+      normalizedBbox: params.normalizedBbox,
+      imageWidth: params.imageWidth,
+      imageHeight: params.imageHeight,
+    })
+  );
+}
+
 /** Default band covering typical title/caption placement. */
 export function defaultMaskRegionForTextPosition(positionY: number): BakedTextMaskRegion {
   const height = 0.22;
@@ -70,22 +217,12 @@ export function parseBakedTextMaskRegion(value: unknown): BakedTextMaskRegion | 
     return null;
   }
   const o = value as Record<string, unknown>;
-  if (
-    typeof o.x !== "number" ||
-    typeof o.y !== "number" ||
-    typeof o.width !== "number" ||
-    typeof o.height !== "number"
-  ) {
-    return null;
-  }
-  const width = Math.min(1, Math.max(0.1, o.width));
-  const height = Math.min(1, Math.max(0.08, o.height));
-  return {
-    x: clamp01(o.x),
-    y: clamp01(o.y),
-    width,
-    height,
-  };
+  return normalizeMaskRegionNormalized({
+    x: o.x as number,
+    y: o.y as number,
+    width: o.width as number,
+    height: o.height as number,
+  });
 }
 
 export function parseBakedTextProtectionInput(value: unknown): BakedTextProtectionInput | null {

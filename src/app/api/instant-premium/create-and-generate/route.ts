@@ -110,6 +110,9 @@ export async function POST(request: Request) {
       status: "started" as const,
       jobTriggered,
       progressRoute,
+      ...(created.warnings && created.warnings.length > 0
+        ? { warnings: created.warnings }
+        : {}),
     },
     { status: 200 }
   );
