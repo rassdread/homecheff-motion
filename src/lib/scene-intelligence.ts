@@ -4,11 +4,7 @@
 
 import type { AnimationStyleId } from "@/lib/animation-style-presets";
 import type { EmotionalActingPresetId } from "@/lib/premium-emotional-presets";
-import {
-  type CharacterRoleId,
-  type CharacterSceneRole,
-  detectCharacterRoles,
-} from "@/lib/character-role-engine";
+import { type CharacterSceneRole, detectCharacterRoles } from "@/lib/character-role-engine";
 
 export type SceneFocusHint =
   | "mascot_trio"
