@@ -16,6 +16,11 @@ import {
 } from "@/lib/hybrid-motion-overlay";
 import { POSTER_MOTION_PRESERVE_PROMPT_BLOCK } from "@/lib/poster-motion-preserve";
 import {
+  buildPremiumMotionPromptBlocks,
+  type PremiumMotionProfile,
+  premiumMotionProfileFromPosterSettings,
+} from "@/lib/premium-motion-engine";
+import {
   filterVisualOnlyChips,
   LOCKED_TEXT_SAFETY_BLOCK,
   isTextImplyingChipId,
@@ -115,6 +120,8 @@ export type BuildInstantVideoPromptInput = {
   textRenderMode?: TextRenderMode;
   /** Poster base preserved; Vidu animates foreground only. */
   posterMotionActive?: boolean;
+  /** Phase 1 premium motion direction (defaults to expressive). */
+  motionProfile?: PremiumMotionProfile;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -172,6 +179,10 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
       ? "Continuity priority: strict. Keep one unbroken evolving shot language across all keyframes."
       : "Continuity priority: balanced. Keep a coherent flow while allowing subtle style variation.";
 
+  const motionProfile =
+    input.motionProfile ?? premiumMotionProfileFromPosterSettings(undefined);
+  const premiumMotionBlock = buildPremiumMotionPromptBlocks(motionProfile);
+
   return `Create one continuous premium short-form video using the provided images in their exact uploaded order as keyframes. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
 
 Treat this as a single evolving visual story, not separate scenes. No hard cuts between images.
@@ -196,7 +207,9 @@ If user intent is present, subtly incorporate it without breaking realism or con
 
 Maintain balanced pacing and a coherent flow. Avoid static sections, chaotic motion, and abrupt resets.
 
-The final result should feel like a polished, premium, ready-to-use social media video.${
+The final result should feel like a polished, premium, ready-to-use social media video.
+
+${premiumMotionBlock}${
     input.posterMotionActive || (input.textRenderMode && usesPosterMotionPreserve(input.textRenderMode))
       ? `
 

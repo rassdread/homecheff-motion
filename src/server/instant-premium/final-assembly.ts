@@ -22,16 +22,10 @@ export const FINAL_ASSEMBLY_MODES: readonly FinalAssemblyMode[] = [
 export type { SegmentTransitionType };
 export { DEFAULT_SEGMENT_TRANSITION_TYPE };
 
+import { PREMIUM_MOTION_PIPELINE } from "@/lib/premium-motion-engine";
+
 /** Assembly policy for poster_motion_preserve (Vidu motion stays dominant). */
-export const POSTER_MOTION_PRESERVE_ASSEMBLY_RULES = {
-  useRawAnimatedSegments: true,
-  compositorMode: "minimal" as const,
-  preserveViduMotion: true,
-  allowPosterOverlay: false,
-  allowStaticFallbackTimeline: false,
-  allowFullFrameBlend: false,
-  allowHeavyZoompan: false,
-};
+export const POSTER_MOTION_PRESERVE_ASSEMBLY_RULES = PREMIUM_MOTION_PIPELINE;
 
 export type FinalAssemblyLogEntry = {
   projectId: string;

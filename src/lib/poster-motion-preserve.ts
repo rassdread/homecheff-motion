@@ -1,4 +1,11 @@
 import type { BakedTextMaskRegion } from "@/lib/baked-text-protection";
+import {
+  DEFAULT_MOTION_ENERGY,
+  normalizeMotionEnergy,
+  parseCharacterMotionProfile,
+  type CharacterMotionProfile,
+  type MotionEnergy,
+} from "@/lib/premium-motion-engine";
 
 /** Layer roles for DeeVid-style poster animation (static base + moving foreground). */
 export type PosterMotionLayerRole =
@@ -54,6 +61,12 @@ export type PosterMotionSettings = {
   useSegmentCompositor?: boolean;
   /** capcut_smooth | cinematic_blend | soft_crossfade | motion_blend | straight_cut */
   segmentTransitionType?: string;
+  /** calm | cinematic | expressive | energetic | viral */
+  motionEnergy?: MotionEnergy;
+  /** Mascot/character acting direction for Vidu prompts. */
+  characterMotion?: CharacterMotionProfile;
+  /** Alias for characterMotion */
+  characterMotionDirection?: CharacterMotionProfile;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -121,7 +134,15 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     useSegmentCompositor: o.useSegmentCompositor === true,
     segmentTransitionType:
       typeof o.segmentTransitionType === "string" ? o.segmentTransitionType.trim() : undefined,
+    motionEnergy: normalizeMotionEnergy(o.motionEnergy),
+    characterMotion:
+      parseCharacterMotionProfile(o.characterMotion) ??
+      parseCharacterMotionProfile(o.characterMotionDirection),
   };
+}
+
+export function resolvePosterMotionMotionEnergy(settings: PosterMotionSettings): MotionEnergy {
+  return settings.motionEnergy ?? DEFAULT_MOTION_ENERGY;
 }
 
 export function parsePosterMotionLayersSnapshot(raw: unknown): PosterMotionLayersSnapshot | null {

@@ -31,6 +31,11 @@ import {
   type OverlayStyle,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
+import {
+  normalizeMotionEnergy,
+  parseCharacterMotionProfile,
+  type MotionEnergy,
+} from "@/lib/premium-motion-engine";
 import { posterMotionSettingsFromClient } from "@/lib/poster-motion-preserve";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
@@ -57,6 +62,8 @@ export type InstantPremiumCreatePayload = {
   textRenderMode?: TextRenderMode;
   hybridOverlayStyle?: OverlayStyle;
   posterMotionSettings?: import("@/lib/poster-motion-preserve").PosterMotionSettings;
+  motionEnergy?: MotionEnergy;
+  characterMotion?: import("@/lib/premium-motion-engine").CharacterMotionProfile;
 };
 
 export type InstantPremiumCreateResult =
@@ -162,7 +169,22 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
 
   const textRenderMode = normalizeTextRenderMode(o.textRenderMode ?? DEFAULT_TEXT_RENDER_MODE);
   const hybridOverlayStyle = normalizeOverlayStyle(o.hybridOverlayStyle ?? DEFAULT_OVERLAY_STYLE);
-  const posterMotionSettings = posterMotionSettingsFromClient(o.posterMotionSettings);
+  let posterMotionSettings = posterMotionSettingsFromClient(o.posterMotionSettings);
+  if (o.motionEnergy !== undefined) {
+    posterMotionSettings = {
+      ...posterMotionSettings,
+      motionEnergy: normalizeMotionEnergy(o.motionEnergy),
+    };
+  }
+  const characterFromPayload =
+    parseCharacterMotionProfile(o.characterMotion) ??
+    parseCharacterMotionProfile(o.characterMotionDirection);
+  if (characterFromPayload) {
+    posterMotionSettings = {
+      ...posterMotionSettings,
+      characterMotion: characterFromPayload,
+    };
+  }
 
   const data: InstantPremiumCreatePayload = {
     images,

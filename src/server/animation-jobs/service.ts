@@ -16,6 +16,10 @@ import {
   type InstantPremiumDurationSeconds,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
+import {
+  premiumMotionProfileFromPosterSettings,
+  premiumMotionSegmentVariationHint,
+} from "@/lib/premium-motion-engine";
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 
@@ -218,6 +222,10 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const isInstantPremium = transition.project.projectType === "instant_premium";
   const instantStoredIntent = parseStoredInstantUserIntent(transition.project.instantUserIntent);
 
+  const motionProfile = premiumMotionProfileFromPosterSettings(
+    transition.project.instantPosterMotionSettings
+  );
+
   const finalPrompt = isInstantPremium
     ? `${buildInstantVideoPrompt({
         stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
@@ -231,10 +239,14 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         hybridOverlayActive,
         posterMotionActive,
         textRenderMode,
+        motionProfile,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,
         imageCount,
+      })}\n\n${premiumMotionSegmentVariationHint({
+        transitionOrder: transition.order,
+        transitionTotal,
       })}`
     : (() => {
         const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
