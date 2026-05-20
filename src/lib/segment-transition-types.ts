@@ -27,3 +27,21 @@ export function normalizeSegmentTransitionType(value: unknown): SegmentTransitio
   }
   return DEFAULT_SEGMENT_TRANSITION_TYPE;
 }
+
+/** Vidu hint for invisible segment joins (overlap anchor A→B→C preserved in FFmpeg). */
+export function buildSegmentTransitionContinuityBlock(
+  transitionType: SegmentTransitionType
+): string {
+  if (transitionType === "straight_cut") {
+    return "";
+  }
+  const style =
+    transitionType === "capcut_smooth"
+      ? "invisible CapCut-style join: preserve outgoing momentum into incoming frame, optical continuity, no hard reset."
+      : transitionType === "cinematic_blend"
+        ? "cinematic cross-dissolve energy with matched lighting direction between segments."
+        : "soft crossfade with frame and motion continuity — no slideshow jump.";
+  return `SEGMENT TRANSITION CONTINUITY (${transitionType}):
+- ${style}
+- Continue subject velocity and expression from prior segment; prepare next keyframe without a standalone-clip feel.`;
+}

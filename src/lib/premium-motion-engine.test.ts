@@ -39,6 +39,8 @@ describe("premium motion engine", () => {
     assert.match(block, /CHARACTER MOTION DIRECTION/);
     assert.match(block, /mascot host/);
     assert.match(block, /Do NOT loop the same hand wave/);
+    assert.match(block, /TEMPORAL STABILITY/);
+    assert.match(block, /GESTURE VARIATION/);
   });
 
   it("exposes pipeline rules that preserve Vidu dominance", () => {

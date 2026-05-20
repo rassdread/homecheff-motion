@@ -19,6 +19,16 @@ export interface FaceExpressionController {
   readonly kind: "expression_stub";
   preset: "neutral" | "happy" | "excited" | "surprised" | "focused";
   intensity: number;
+  /** Future: eye gaze target in normalized coords */
+  eyeTrack?: { x: number; y: number };
+}
+
+export interface EmotionSystemController {
+  readonly kind: "emotion_system_stub";
+  baseEmotion: string;
+  intensity: number;
+  /** Future: layered emotion blend weights */
+  blend?: Record<string, number>;
 }
 
 export interface DepthMapPass {
@@ -43,18 +53,22 @@ export type FutureMotionPipelineCapabilities = {
   alphaLayers: boolean;
   live2dRig: boolean;
   faceExpression: boolean;
+  emotionSystem: boolean;
   depthMaps: boolean;
   speechSync: boolean;
   transparentFx: boolean;
+  poseVariation: boolean;
 };
 
 export const FUTURE_MOTION_CAPABILITIES: FutureMotionPipelineCapabilities = {
   alphaLayers: false,
   live2dRig: false,
   faceExpression: false,
+  emotionSystem: false,
   depthMaps: false,
   speechSync: false,
   transparentFx: false,
+  poseVariation: false,
 };
 
 export function createLive2DRigStub(rigId: string): Live2DMotionRig {
@@ -65,6 +79,10 @@ export function createFaceExpressionStub(
   preset: FaceExpressionController["preset"] = "happy"
 ): FaceExpressionController {
   return { kind: "expression_stub", preset, intensity: 0.5 };
+}
+
+export function createEmotionSystemStub(baseEmotion = "expressive"): EmotionSystemController {
+  return { kind: "emotion_system_stub", baseEmotion, intensity: 0.6 };
 }
 
 export function logFutureCapabilityAttempt(feature: keyof FutureMotionPipelineCapabilities): void {

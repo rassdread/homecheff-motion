@@ -14,6 +14,11 @@ import {
   SEGMENT_TRANSITION_TYPES,
   type SegmentTransitionType,
 } from "@/lib/segment-transition-types";
+import {
+  EMOTIONAL_ACTING_PRESET_IDS,
+  getEmotionalActingPreset,
+  type EmotionalActingPresetId,
+} from "@/lib/premium-emotional-presets";
 import { MOTION_ENERGY_LEVELS, type MotionEnergy } from "@/lib/premium-motion-engine";
 
 type Props = {
@@ -73,6 +78,34 @@ export function PremiumPolishPanel({ settings, onPresetChange, onSettingsChange 
             );
           })}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-xs font-medium text-zinc-800">{t("instant.premiumPolish.emotionalActing")}</p>
+        <select
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-xs"
+          value={settings.emotionalActingPreset ?? ""}
+          onChange={(e) => {
+            const id = e.target.value as EmotionalActingPresetId | "";
+            if (!id) {
+              onSettingsChange({ emotionalActingPreset: undefined });
+              return;
+            }
+            const emotional = getEmotionalActingPreset(id);
+            onSettingsChange({
+              emotionalActingPreset: id,
+              motionEnergy: emotional.motionEnergy,
+              characterMotion: emotional.characterMotion,
+            });
+          }}
+        >
+          <option value="">{t("instant.premiumPolish.emotionalActingDefault")}</option>
+          {EMOTIONAL_ACTING_PRESET_IDS.map((id) => (
+            <option key={id} value={id}>
+              {t(getEmotionalActingPreset(id).labelKey as never)}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

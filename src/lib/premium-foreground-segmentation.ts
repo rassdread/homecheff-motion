@@ -194,3 +194,36 @@ export function resolveSegmentationProvider(requested: SegmentationProvider): Se
   }
   return "heuristic";
 }
+
+/** Subject priority for animation emphasis (higher = animate first). */
+export const SUBJECT_PRIORITY_RANK: Record<ForegroundSegmentRole, number> = {
+  foreground_mascot: 100,
+  foreground_character: 95,
+  foreground_hand: 90,
+  headline_object: 85,
+  foreground_prop: 80,
+  phone: 40,
+  ui_card: 30,
+  logo: 20,
+  text: 10,
+  floating_ui: 15,
+  background_static: 0,
+  particle_fx: 50,
+  generated_fx: 55,
+};
+
+export function sortLayersBySubjectPriority(
+  layers: ForegroundSegmentLayer[]
+): ForegroundSegmentLayer[] {
+  return [...layers].sort(
+    (a, b) => (SUBJECT_PRIORITY_RANK[b.role] ?? 0) - (SUBJECT_PRIORITY_RANK[a.role] ?? 0)
+  );
+}
+
+/** Feather radius for mask edges (pixels at full resolution). */
+export function resolveLayerFeatherPx(layer: ForegroundSegmentLayer): number {
+  if (layer.role === "text" || layer.role === "logo") {
+    return 0;
+  }
+  return defaultFeatherPx(layer.role);
+}

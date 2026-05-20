@@ -12,6 +12,10 @@ import {
   type ManualForegroundRegion,
   type SegmentationProvider,
 } from "@/lib/premium-foreground-segmentation";
+import {
+  normalizeEmotionalActingPresetId,
+  type EmotionalActingPresetId,
+} from "@/lib/premium-emotional-presets";
 import { normalizeMotionEnergy, type MotionEnergy } from "@/lib/premium-motion-engine";
 import {
   normalizeSegmentTransitionType,
@@ -34,6 +38,7 @@ export type PremiumPolishSettings = {
   textPreservation?: boolean;
   minimalCompositorPolish?: boolean;
   manualForegroundRegions?: ManualForegroundRegion[];
+  emotionalActingPreset?: EmotionalActingPresetId;
   characterMotion?: {
     emotion?: string;
     energy?: string;
@@ -54,6 +59,7 @@ export type ResolvedPremiumPolishProfile = {
   textPreservation: boolean;
   minimalCompositorPolish: boolean;
   manualForegroundRegions: ManualForegroundRegion[];
+  emotionalActingPreset?: EmotionalActingPresetId;
   characterMotion?: PremiumPolishSettings["characterMotion"];
 };
 
@@ -92,6 +98,7 @@ export function parsePremiumPolishSettings(raw: unknown): PremiumPolishSettings 
     minimalCompositorPolish:
       typeof o.minimalCompositorPolish === "boolean" ? o.minimalCompositorPolish : undefined,
     manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
+    emotionalActingPreset: normalizeEmotionalActingPresetId(o.emotionalActingPreset),
     characterMotion:
       o.characterMotion && typeof o.characterMotion === "object"
         ? (o.characterMotion as PremiumPolishSettings["characterMotion"])
@@ -118,6 +125,7 @@ export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolish
     textPreservation: parsed.textPreservation ?? preset.textPreservation,
     minimalCompositorPolish: parsed.minimalCompositorPolish ?? preset.minimalCompositorPolish,
     manualForegroundRegions: parsed.manualForegroundRegions ?? [],
+    emotionalActingPreset: parsed.emotionalActingPreset,
     characterMotion: parsed.characterMotion ?? preset.characterMotion,
   };
 }

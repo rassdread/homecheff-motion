@@ -73,6 +73,25 @@ const EMOTIONAL_ACTING_BLOCK = `EMOTIONAL ACTING:
 - Show readable emotion through posture, gaze, and gesture — cinematic acting cues.
 - Avoid stiff, repetitive, or mechanical motion; favor organic variation and personality.`;
 
+const TEMPORAL_STABILITY_BLOCK = `TEMPORAL STABILITY:
+- Maintain coherent motion, expression, and camera direction across the full clip.
+- No motion flicker, expression snapping, random pose drift, or inconsistent facing.
+- Preserve emotional continuity — one performance arc, not disconnected poses.
+- Directional consistency: if subject moves left, continue that momentum smoothly.`;
+
+const GESTURE_VARIATION_BLOCK = `GESTURE VARIATION:
+- Use asymmetric motion and varied timing — avoid mirrored looping arm cycles.
+- Sequence gestures: anticipate → action → follow-through; never repeat identical sway loops.
+- Change facial emphasis between beats; avoid frozen smile or static eyes.`;
+
+export function buildTemporalStabilityPromptBlock(): string {
+  return TEMPORAL_STABILITY_BLOCK;
+}
+
+export function buildGestureVariationPromptBlock(): string {
+  return GESTURE_VARIATION_BLOCK;
+}
+
 export function normalizeMotionEnergy(value: unknown): MotionEnergy {
   if (typeof value === "string") {
     const v = value.trim().toLowerCase();
@@ -156,6 +175,8 @@ export function buildPremiumMotionPromptBlocks(profile: PremiumMotionProfile): s
     SECONDARY_MOTION_BLOCK,
     FOREGROUND_PRIORITY_BLOCK,
     EMOTIONAL_ACTING_BLOCK,
+    TEMPORAL_STABILITY_BLOCK,
+    GESTURE_VARIATION_BLOCK,
   ];
   const characterBlock = buildCharacterMotionDirectionBlock(profile.characterMotion);
   if (characterBlock) {

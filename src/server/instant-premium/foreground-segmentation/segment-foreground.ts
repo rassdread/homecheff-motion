@@ -3,7 +3,9 @@ import type { BakedTextMaskRegion } from "@/lib/baked-text-protection";
 import {
   buildHeuristicSegmentationLayers,
   mergeManualRegions,
+  resolveLayerFeatherPx,
   resolveSegmentationProvider,
+  sortLayersBySubjectPriority,
   type ForegroundSegmentLayer,
   type SegmentationProvider,
 } from "@/lib/premium-foreground-segmentation";
@@ -83,10 +85,27 @@ export async function segmentForegroundForPosterMotion(
 
   let maskUrl: string | undefined;
   if (rembg) {
+    const featherPx = resolveLayerFeatherPx({
+      id: "subject",
+      role: "foreground_mascot",
+      regionKind: "animated",
+      bbox,
+      confidence: 0.88,
+      zIndex: 5,
+      provider: "rembg",
+    });
+    const maskForUpload =
+      featherPx > 0
+        ? await sharp(rembg.maskBuffer)
+            .ensureAlpha()
+            .blur(Math.min(8, Math.max(1, Math.round(featherPx / 2))))
+            .png()
+            .toBuffer()
+        : rembg.maskBuffer;
     const maskPath = `${input.uploadPathPrefix}/fg-mask-${input.imageIndex}.png`;
     const { url } = await uploadPublicBlob({
       pathname: maskPath,
-      body: rembg.maskBuffer,
+      body: maskForUpload,
       contentType: "image/png",
       addRandomSuffix: true,
       context: { uploadTarget: maskPath, provider: "poster-motion-mask" },
@@ -124,6 +143,7 @@ export async function segmentForegroundForPosterMotion(
     subject.provider = provider === "rembg" ? "rembg" : "heuristic";
   }
   fgLayers = mergeManualRegions(fgLayers, input.manualRegions ?? []);
+  fgLayers = sortLayersBySubjectPriority(fgLayers);
 
   const layers: PosterMotionLayer[] = fgLayers.map((layer) => ({
     id: `${layer.id}-${input.imageIndex}`,
