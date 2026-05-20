@@ -597,10 +597,13 @@ export async function compositePosterMotionPreserveSegments(
 
     logFinalAssembly({
       projectId: input.projectId,
-      mode: input.finalAssemblyMode,
+      assemblyMode: input.finalAssemblyMode,
       segmentCount: input.segmentCount,
+      usedRawSegments: false,
+      usedComposite: true,
+      usedFallback: result.usedStaticFallback || result.usedPassthroughFallback,
+      transitionType: "none",
       processedSegmentCount: segmentPaths.length,
-      compositorApplied,
       blendStrength: input.blendStrength,
       segmentIndex: segment.segmentIndex,
       posterImageId: segment.posterImageId,

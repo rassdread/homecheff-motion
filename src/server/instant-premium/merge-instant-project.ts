@@ -30,6 +30,7 @@ import {
 } from "@/lib/hybrid-motion-overlay";
 import { resolvePosterMotionBlendStrength, parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
 import {
+  buildFinalAssemblyLogBase,
   logFinalAssembly,
   resolveFinalAssemblyMode,
   shouldRunSegmentCompositor,
@@ -497,12 +498,18 @@ export async function executeInstantPremiumMerge(
       },
     });
 
+    const mergeTextRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
+    const mergeAssemblyMode = resolveFinalAssemblyMode(
+      mergeTextRenderMode,
+      project.instantPosterMotionSettings
+    );
     console.info("[hc-instant-premium]", {
       projectId,
       phase: "mergeStart",
       mergeStart: true,
       segmentCount: completed.length,
       exportProvider,
+      finalAssemblyMode: mergeAssemblyMode,
     });
 
     const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-instant-merge-${projectId}-`));
@@ -513,13 +520,23 @@ export async function executeInstantPremiumMerge(
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
       const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
-      const finalAssemblyMode = resolveFinalAssemblyMode(textRenderMode);
+      const finalAssemblyMode = resolveFinalAssemblyMode(
+        textRenderMode,
+        project.instantPosterMotionSettings
+      );
       const runSegmentCompositor = shouldRunSegmentCompositor(finalAssemblyMode);
       const blendStrength = resolvePosterMotionBlendStrength(
         parsePosterMotionSettings(project.instantPosterMotionSettings)
       );
       const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
       const perSegmentDurationSec = project.viduDurationSeconds ?? null;
+      const assemblyLogBase = buildFinalAssemblyLogBase({
+        projectId,
+        assemblyMode: finalAssemblyMode,
+        segmentCount: completed.length,
+        perSegmentDurationSeconds: perSegmentDurationSec,
+        blendStrength,
+      });
       const imageById = new Map(project.images.map((img) => [img.id, img]));
 
       const segmentPaths: string[] = [];
@@ -561,12 +578,7 @@ export async function executeInstantPremiumMerge(
       const mergeMaxWidth = getFinalMergeMaxWidthFromViduResolution(project.viduResolution);
 
       logFinalAssembly({
-        projectId,
-        mode: finalAssemblyMode,
-        segmentCount: completed.length,
-        processedSegmentCount: 0,
-        compositorApplied: runSegmentCompositor,
-        blendStrength,
+        ...assemblyLogBase,
         phase: "assembly_start",
       });
 
@@ -636,12 +648,8 @@ export async function executeInstantPremiumMerge(
       }
 
       logFinalAssembly({
-        projectId,
-        mode: finalAssemblyMode,
-        segmentCount: completed.length,
+        ...assemblyLogBase,
         processedSegmentCount: pathsToConcat.length,
-        compositorApplied: runSegmentCompositor,
-        blendStrength,
         phase: "assembly_complete",
         compositorDetail: runSegmentCompositor ? "blend" : "concat",
       });

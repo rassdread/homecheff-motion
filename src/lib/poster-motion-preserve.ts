@@ -48,6 +48,10 @@ export type PosterMotionSettings = {
   floatingGeneratedObject: boolean;
   /** 0.05–0.30 — how much Vidu motion is mixed in (highlights only). */
   posterMotionBlendStrength?: number;
+  /** When true, final merge uses poster_composite_segments instead of raw_motion_concat. */
+  advancedSegmentComposite?: boolean;
+  /** Alias for advancedSegmentComposite (manual advanced preservation). */
+  useSegmentCompositor?: boolean;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -111,6 +115,8 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
       Number.isFinite(o.posterMotionBlendStrength)
         ? Math.min(POSTER_MOTION_BLEND_MAX, Math.max(0.05, o.posterMotionBlendStrength))
         : undefined,
+    advancedSegmentComposite: o.advancedSegmentComposite === true,
+    useSegmentCompositor: o.useSegmentCompositor === true,
   };
 }
 

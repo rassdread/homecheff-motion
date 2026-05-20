@@ -1,43 +1,96 @@
 import { normalizeTextRenderMode, usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
+import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
 
 /** How Instant Premium assembles the final video from segment clips. */
 export type FinalAssemblyMode =
+  | "raw_motion_concat"
   | "poster_composite_segments"
   | "concat_segments_only"
   | "static_poster_motion";
 
 export const FINAL_ASSEMBLY_MODES: readonly FinalAssemblyMode[] = [
+  "raw_motion_concat",
   "poster_composite_segments",
   "concat_segments_only",
   "static_poster_motion",
 ] as const;
 
+export type FinalAssemblyTransitionType = "crossfade" | "concat" | "none";
+
+/** Assembly policy for poster_motion_preserve (Vidu motion stays dominant). */
+export const POSTER_MOTION_PRESERVE_ASSEMBLY_RULES = {
+  useRawAnimatedSegments: true,
+  compositorMode: "minimal" as const,
+  preserveViduMotion: true,
+  allowPosterOverlay: false,
+  allowStaticFallbackTimeline: false,
+  allowFullFrameBlend: false,
+  allowHeavyZoompan: false,
+};
+
 export type FinalAssemblyLogEntry = {
   projectId: string;
-  mode: FinalAssemblyMode;
+  assemblyMode: FinalAssemblyMode;
   segmentCount: number;
-  processedSegmentCount: number;
-  compositorApplied: boolean;
-  blendStrength: number;
+  usedRawSegments: boolean;
+  usedComposite: boolean;
+  usedFallback: boolean;
+  transitionType: FinalAssemblyTransitionType;
+  phase?: "assembly_start" | "segment" | "assembly_complete";
+  processedSegmentCount?: number;
   segmentIndex?: number;
+  blendStrength?: number;
   posterImageId?: string | null;
   sourceSegmentUrl?: string;
   processedSegmentPath?: string;
   compositorDetail?: "blend" | "static_poster" | "passthrough" | "skipped" | "concat";
-  phase?: "assembly_start" | "segment" | "assembly_complete";
 };
 
 export function logFinalAssembly(entry: FinalAssemblyLogEntry): void {
   console.info("[final-assembly]", entry);
 }
 
-/** poster_motion_preserve → per-segment compositor; other modes → plain concat. */
-export function resolveFinalAssemblyMode(textRenderMode: string | null | undefined): FinalAssemblyMode {
+function readEnvAssemblyModeOverride(): FinalAssemblyMode | null {
+  const raw = process.env.INSTANT_FINAL_ASSEMBLY_MODE?.trim();
+  if (!raw) {
+    return null;
+  }
+  return FINAL_ASSEMBLY_MODES.includes(raw as FinalAssemblyMode)
+    ? (raw as FinalAssemblyMode)
+    : null;
+}
+
+/**
+ * poster_motion_preserve → raw_motion_concat (Vidu segments concat as-is).
+ * poster_composite_segments only when settings.advancedSegmentComposite or env override.
+ */
+export function resolveFinalAssemblyMode(
+  textRenderMode: string | null | undefined,
+  posterMotionSettings?: unknown
+): FinalAssemblyMode {
   const mode = normalizeTextRenderMode(textRenderMode);
-  if (usesPosterMotionPreserve(mode)) {
+  if (!usesPosterMotionPreserve(mode)) {
+    return "concat_segments_only";
+  }
+
+  const envOverride = readEnvAssemblyModeOverride();
+  if (envOverride) {
+    return envOverride;
+  }
+
+  const settings = parsePosterMotionSettings(posterMotionSettings);
+  if (
+    settings.advancedSegmentComposite === true ||
+    settings.useSegmentCompositor === true
+  ) {
     return "poster_composite_segments";
   }
-  return "concat_segments_only";
+
+  return "raw_motion_concat";
+}
+
+export function usesRawAnimatedSegments(assemblyMode: FinalAssemblyMode): boolean {
+  return assemblyMode === "raw_motion_concat" || assemblyMode === "concat_segments_only";
 }
 
 export function shouldRunSegmentCompositor(assemblyMode: FinalAssemblyMode): boolean {
@@ -45,11 +98,50 @@ export function shouldRunSegmentCompositor(assemblyMode: FinalAssemblyMode): boo
 }
 
 export function allowsPlainSegmentPassthrough(assemblyMode: FinalAssemblyMode): boolean {
-  return assemblyMode === "concat_segments_only";
+  return usesRawAnimatedSegments(assemblyMode);
 }
 
 export function isPosterCompositeAssemblyMode(
   assemblyMode: FinalAssemblyMode
 ): assemblyMode is "poster_composite_segments" {
   return assemblyMode === "poster_composite_segments";
+}
+
+export function resolveFinalAssemblyTransitionType(
+  segmentCount: number,
+  perSegmentDurationSeconds: number | null
+): FinalAssemblyTransitionType {
+  if (segmentCount <= 1) {
+    return "none";
+  }
+  const canCrossfade =
+    typeof perSegmentDurationSeconds === "number" &&
+    Number.isFinite(perSegmentDurationSeconds) &&
+    perSegmentDurationSeconds > 1;
+  return canCrossfade ? "crossfade" : "concat";
+}
+
+export function buildFinalAssemblyLogBase(params: {
+  projectId: string;
+  assemblyMode: FinalAssemblyMode;
+  segmentCount: number;
+  perSegmentDurationSeconds: number | null;
+  blendStrength?: number;
+}): Pick<
+  FinalAssemblyLogEntry,
+  "projectId" | "assemblyMode" | "segmentCount" | "usedRawSegments" | "usedComposite" | "usedFallback" | "transitionType"
+> {
+  const usedRaw = usesRawAnimatedSegments(params.assemblyMode);
+  return {
+    projectId: params.projectId,
+    assemblyMode: params.assemblyMode,
+    segmentCount: params.segmentCount,
+    usedRawSegments: usedRaw,
+    usedComposite: shouldRunSegmentCompositor(params.assemblyMode),
+    usedFallback: params.assemblyMode === "static_poster_motion",
+    transitionType: resolveFinalAssemblyTransitionType(
+      params.segmentCount,
+      params.perSegmentDurationSeconds
+    ),
+  };
 }

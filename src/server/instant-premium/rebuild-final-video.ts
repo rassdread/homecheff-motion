@@ -86,7 +86,10 @@ export async function rebuildInstantPremiumFinalVideo(
 
   const segmentCount = project.transitions.length;
   const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
-  const finalAssemblyMode = resolveFinalAssemblyMode(textRenderMode);
+  const finalAssemblyMode = resolveFinalAssemblyMode(
+    textRenderMode,
+    project.instantPosterMotionSettings
+  );
   const blendStrength = resolvePosterMotionBlendStrength(
     parsePosterMotionSettings(project.instantPosterMotionSettings)
   );
