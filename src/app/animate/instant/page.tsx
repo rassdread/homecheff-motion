@@ -22,6 +22,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
+import { InstantWizardContent } from "@/components/instant/instant-wizard-content";
+import { InstantWizardFooter } from "@/components/instant/instant-wizard-footer";
+import { InstantWizardShell } from "@/components/instant/instant-wizard-shell";
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
 import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
@@ -222,6 +225,7 @@ export default function InstantPremiumPage() {
   const [locale] = useLocale();
   const session = useAuthSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wizardShellRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [images, setImages] = useState<LocalImage[]>([]);
   const [error, setError] = useState("");
@@ -244,6 +248,10 @@ export default function InstantPremiumPage() {
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
+
+  useEffect(() => {
+    wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [step]);
   const [premiumMode] = useState<"test" | "paid">(() => {
     if (typeof document === "undefined") {
       return "test";
@@ -872,6 +880,88 @@ export default function InstantPremiumPage() {
     })();
   }, [runCheckout, waitForPendingScans]);
 
+  const wizardNav = useMemo(() => {
+    const continueLabel = t("instant.common.continue");
+    switch (step) {
+      case 1:
+        return {
+          showBack: false,
+          backPlaceholder: true,
+          onPrimary: () => setStep(2),
+          primaryLabel: continueLabel,
+          primaryDisabled: images.length < MIN_IMAGES,
+          stackButtons: false,
+        };
+      case 2:
+        return {
+          showBack: true,
+          onBack: () => setStep(1),
+          onPrimary: () => setStep(3),
+          primaryLabel: continueLabel,
+          primaryDisabled: false,
+          stackButtons: false,
+        };
+      case 3:
+        return {
+          showBack: true,
+          onBack: () => setStep(2),
+          onPrimary: () => setStep(4),
+          primaryLabel: continueLabel,
+          primaryDisabled: false,
+          stackButtons: false,
+        };
+      case 4:
+        return {
+          showBack: true,
+          onBack: () => setStep(3),
+          onPrimary: () => setStep(5),
+          primaryLabel: continueLabel,
+          primaryDisabled: false,
+          stackButtons: false,
+        };
+      case 5:
+        return {
+          showBack: true,
+          onBack: () => setStep(4),
+          onPrimary: () => setStep(6),
+          primaryLabel: continueLabel,
+          primaryDisabled: false,
+          stackButtons: false,
+        };
+      case 6:
+        return {
+          showBack: true,
+          onBack: () => setStep(5),
+          onPrimary: () => setStep(7),
+          primaryLabel: continueLabel,
+          primaryDisabled: false,
+          stackButtons: false,
+        };
+      case 7:
+        return {
+          showBack: true,
+          onBack: () => setStep(6),
+          onPrimary: () => void startCheckout(),
+          primaryLabel: checkoutBusy
+            ? t("instant.step7.preparing")
+            : premiumMode === "paid"
+              ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
+              : t("instant.step7.ctaTest"),
+          primaryDisabled: checkoutBusy,
+          stackButtons: true,
+        };
+      default:
+        return {
+          showBack: false,
+          backPlaceholder: true,
+          onPrimary: () => setStep(2),
+          primaryLabel: continueLabel,
+          primaryDisabled: true,
+          stackButtons: false,
+        };
+    }
+  }, [checkoutBusy, durationSec, images.length, premiumMode, startCheckout, step, t]);
+
   if (!session.resolved) {
     return (
       <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -905,7 +995,7 @@ export default function InstantPremiumPage() {
 
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
-      <div className="mx-auto w-full max-w-lg px-4 py-8 pb-24 sm:px-6">
+      <div className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
@@ -960,186 +1050,156 @@ export default function InstantPremiumPage() {
           </p>
         ) : null}
 
-        {step === 1 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step1.title")}</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              {t("instant.step1.description", { min: MIN_IMAGES, max: MAX_IMAGES })}
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const fl = e.target.files;
-                if (fl) {
-                  void addFiles(fl);
-                }
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-4 w-full rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 py-8 text-sm font-medium text-emerald-900"
-            >
-              {t("instant.step1.pick")}
-            </button>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {images.map((im) => (
-                <div key={im.id} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100">
-                  <Image src={im.workingPreviewUrl} alt="" fill className="object-cover" sizes="120px" unoptimized />
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white"
-                    onClick={() => void removeUploadedImage(im)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-center text-xs text-zinc-500">
-              {t("instant.step1.counter", { count: images.length, max: MAX_IMAGES })}
-            </p>
-            {images.length > 0 ? (
-              <button
-                type="button"
-                className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800"
-                onClick={() => void clearAllUploads()}
-              >
-                {t("instant.step1.clearAll")}
-              </button>
-            ) : null}
-            <GradientButton
-              type="button"
-              className="mt-6 w-full"
-              disabled={images.length < MIN_IMAGES}
-              onClick={() => setStep(2)}
-            >
-              {t("instant.common.continue")}
-            </GradientButton>
-          </AppCard>
-        ) : null}
-
-        {step === 2 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step2.title")}</h2>
-            <p className="mt-1 text-sm text-zinc-600">{t("instant.step2.description")}</p>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-              <SortableContext items={images.map((i) => i.id)} strategy={horizontalListSortingStrategy}>
-                <div className="mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
-                  {images.map((im, idx) => (
-                    <SortableThumb
-                      key={im.id}
-                      item={im}
-                      index={idx}
-                      roleLabel={t(
-                        `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
-                      )}
-                      dragLabel={t("instant.step2.drag")}
-                    />
+        <InstantWizardShell shellRef={wizardShellRef}>
+          <InstantWizardContent>
+            {step === 1 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step1.title")}</h2>
+                <p className="mt-1 text-sm text-zinc-600">
+                  {t("instant.step1.description", { min: MIN_IMAGES, max: MAX_IMAGES })}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const fl = e.target.files;
+                    if (fl) {
+                      void addFiles(fl);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-4 w-full rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 py-8 text-sm font-medium text-emerald-900"
+                >
+                  {t("instant.step1.pick")}
+                </button>
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {images.map((im) => (
+                    <div key={im.id} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100">
+                      <Image src={im.workingPreviewUrl} alt="" fill className="object-cover" sizes="120px" unoptimized />
+                      <button
+                        type="button"
+                        className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white"
+                        onClick={() => void removeUploadedImage(im)}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   ))}
                 </div>
-              </SortableContext>
-            </DndContext>
-            <BakedTextProtectionPanel
-              images={images.map((im) => ({
-                id: im.id,
-                originalFileName: im.originalFileName,
-                workingPreviewUrl: im.workingPreviewUrl,
-                bakedText: im.bakedText,
-              }))}
-              onChange={updateBakedText}
-              onScan={scanBakedText}
-              onConfirm={confirmBakedText}
-              onSkipProtection={skipTextProtection}
-              isAdmin={session.user?.role?.trim() === "admin"}
-              onPreviewMask={previewBakedTextMask}
-            />
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(1)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="flex-1" onClick={() => setStep(3)}>
-                {t("instant.common.continue")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+                <p className="mt-3 text-center text-xs text-zinc-500">
+                  {t("instant.step1.counter", { count: images.length, max: MAX_IMAGES })}
+                </p>
+                {images.length > 0 ? (
+                  <button
+                    type="button"
+                    className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800"
+                    onClick={() => void clearAllUploads()}
+                  >
+                    {t("instant.step1.clearAll")}
+                  </button>
+                ) : null}
+              </>
+            ) : null}
 
-        {step === 3 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step3.title")}</h2>
-            <div className="mt-4 grid gap-3">
-              {STYLE_OPTIONS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setStylePreset(s.id)}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
-                  }`}
-                >
-                  <p className="font-semibold">{styleLabel(s.id)}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
-                </button>
-              ))}
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(2)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="flex-1" onClick={() => setStep(4)}>
-                {t("instant.common.continue")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+            {step === 2 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step2.title")}</h2>
+                <p className="mt-1 text-sm text-zinc-600">{t("instant.step2.description")}</p>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                  <SortableContext items={images.map((i) => i.id)} strategy={horizontalListSortingStrategy}>
+                    <div className="mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                      {images.map((im, idx) => (
+                        <SortableThumb
+                          key={im.id}
+                          item={im}
+                          index={idx}
+                          roleLabel={t(
+                            `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
+                          )}
+                          dragLabel={t("instant.step2.drag")}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+                <BakedTextProtectionPanel
+                  images={images.map((im) => ({
+                    id: im.id,
+                    originalFileName: im.originalFileName,
+                    workingPreviewUrl: im.workingPreviewUrl,
+                    bakedText: im.bakedText,
+                  }))}
+                  onChange={updateBakedText}
+                  onScan={scanBakedText}
+                  onConfirm={confirmBakedText}
+                  onSkipProtection={skipTextProtection}
+                  isAdmin={session.user?.role?.trim() === "admin"}
+                  onPreviewMask={previewBakedTextMask}
+                />
+              </>
+            ) : null}
 
-        {step === 4 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step4.title")}</h2>
-            <div className="mt-4 grid gap-3">
-              <button
-                type="button"
-                onClick={() => setDurationSec(8)}
-                className={`rounded-2xl border p-4 text-left ${
-                  durationSec === 8 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                }`}
-              >
-                <p className="font-semibold">{t("instant.step4.option8.title")}</p>
-                <p className="text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
-                <p className="mt-2 text-lg font-bold text-emerald-800">€1.99</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDurationSec(15)}
-                className={`rounded-2xl border p-4 text-left ${
-                  durationSec === 15 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                }`}
-              >
-                <p className="font-semibold">{t("instant.step4.option15.title")}</p>
-                <p className="text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
-                <p className="mt-2 text-lg font-bold text-emerald-800">€2.99</p>
-              </button>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(3)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="flex-1" onClick={() => setStep(5)}>
-                {t("instant.common.continue")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+            {step === 3 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step3.title")}</h2>
+                <div className="mt-4 grid gap-3">
+                  {STYLE_OPTIONS.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setStylePreset(s.id)}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
+                      }`}
+                    >
+                      <p className="font-semibold">{styleLabel(s.id)}</p>
+                      <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
 
-        {step === 5 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step5.title")}</h2>
+            {step === 4 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step4.title")}</h2>
+                <div className="mt-4 grid gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDurationSec(8)}
+                    className={`rounded-2xl border p-4 text-left ${
+                      durationSec === 8 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    }`}
+                  >
+                    <p className="font-semibold">{t("instant.step4.option8.title")}</p>
+                    <p className="text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
+                    <p className="mt-2 text-lg font-bold text-emerald-800">€1.99</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDurationSec(15)}
+                    className={`rounded-2xl border p-4 text-left ${
+                      durationSec === 15 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    }`}
+                  >
+                    <p className="font-semibold">{t("instant.step4.option15.title")}</p>
+                    <p className="text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
+                    <p className="mt-2 text-lg font-bold text-emerald-800">€2.99</p>
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {step === 5 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step5.title")}</h2>
             <label className="mt-3 block text-sm font-medium text-zinc-800">{t("instant.step5.label")}</label>
             <textarea
               value={motionText}
@@ -1234,101 +1294,86 @@ export default function InstantPremiumPage() {
                 ))}
               </div>
             ) : null}
-            <LockedTextLayersEditor
-              enabled={lockedTextMode}
-              onEnabledChange={setLockedTextMode}
-              layers={lockedTextLayers}
-              onLayersChange={setLockedTextLayers}
-            />
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(4)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="flex-1" onClick={() => setStep(6)}>
-                {t("instant.common.continue")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+                <LockedTextLayersEditor
+                  enabled={lockedTextMode}
+                  onEnabledChange={setLockedTextMode}
+                  layers={lockedTextLayers}
+                  onLayersChange={setLockedTextLayers}
+                />
+              </>
+            ) : null}
 
-        {step === 6 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step6.title")}</h2>
-            <p className="mt-1 text-sm text-zinc-600">{t("instant.step6.description")}</p>
-            <div className="mt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setAspectRatio("9:16")}
-                className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
-                  aspectRatio === "9:16" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                }`}
-              >
-                {t("instant.step6.vertical")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAspectRatio("16:9")}
-                className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
-                  aspectRatio === "16:9" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                }`}
-              >
-                {t("instant.step6.horizontal")}
-              </button>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(5)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="flex-1" onClick={() => setStep(7)}>
-                {t("instant.common.continue")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+            {step === 6 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step6.title")}</h2>
+                <p className="mt-1 text-sm text-zinc-600">{t("instant.step6.description")}</p>
+                <div className="mt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAspectRatio("9:16")}
+                    className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
+                      aspectRatio === "9:16" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    }`}
+                  >
+                    {t("instant.step6.vertical")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAspectRatio("16:9")}
+                    className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
+                      aspectRatio === "16:9" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    }`}
+                  >
+                    {t("instant.step6.horizontal")}
+                  </button>
+                </div>
+              </>
+            ) : null}
 
-        {step === 7 ? (
-          <AppCard>
-            <h2 className="text-lg font-semibold">{t("instant.step7.title")}</h2>
-            <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-              <li>
-                <span className="text-zinc-500">{t("instant.step7.style")}:</span> {styleLabel(stylePreset)}
-              </li>
-              <li>
-                <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s —{" "}
-                {durationSec === 8 ? "€1.99" : "€2.99"}
-              </li>
-              <li>
-                <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}
-              </li>
-              <li>
-                <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
-              </li>
-              <li>
-                <span className="text-zinc-500">{t("instant.step7.continuity")}:</span>{" "}
-                {continuityStrength === "strict"
-                  ? t("instant.step5.continuityStrict")
-                  : t("instant.step5.continuityBalanced")}
-              </li>
-            </ul>
-            <p className="mt-4 text-xs text-zinc-500">
-              {premiumMode === "paid"
-                ? t("instant.step7.checkoutHelp")
-                : t("instant.step7.testModeHelp")}
-            </p>
-            <div className="mt-6 flex flex-col gap-3">
-              <button type="button" className="w-full rounded-xl border border-zinc-200 py-3 text-sm" onClick={() => setStep(6)}>
-                {t("instant.common.back")}
-              </button>
-              <GradientButton type="button" className="w-full" disabled={checkoutBusy} onClick={() => void startCheckout()}>
-                {checkoutBusy
-                  ? t("instant.step7.preparing")
-                  : premiumMode === "paid"
-                    ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
-                    : t("instant.step7.ctaTest")}
-              </GradientButton>
-            </div>
-          </AppCard>
-        ) : null}
+            {step === 7 ? (
+              <>
+                <h2 className="text-lg font-semibold">{t("instant.step7.title")}</h2>
+                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+                  <li>
+                    <span className="text-zinc-500">{t("instant.step7.style")}:</span> {styleLabel(stylePreset)}
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s —{" "}
+                    {durationSec === 8 ? "€1.99" : "€2.99"}
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.step7.continuity")}:</span>{" "}
+                    {continuityStrength === "strict"
+                      ? t("instant.step5.continuityStrict")
+                      : t("instant.step5.continuityBalanced")}
+                  </li>
+                </ul>
+                <p className="mt-4 text-xs text-zinc-500">
+                  {premiumMode === "paid"
+                    ? t("instant.step7.checkoutHelp")
+                    : t("instant.step7.testModeHelp")}
+                </p>
+              </>
+            ) : null}
+          </InstantWizardContent>
+
+          <InstantWizardFooter
+            backLabel={t("instant.common.back")}
+            showBack={wizardNav.showBack}
+            backPlaceholder={wizardNav.backPlaceholder}
+            onBack={wizardNav.onBack}
+            primaryLabel={wizardNav.primaryLabel}
+            onPrimary={wizardNav.onPrimary}
+            primaryDisabled={wizardNav.primaryDisabled}
+            stackButtons={wizardNav.stackButtons}
+          />
+        </InstantWizardShell>
       </div>
 
       <CheckoutScanGateDialog
