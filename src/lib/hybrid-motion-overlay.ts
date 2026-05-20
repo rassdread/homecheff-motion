@@ -21,6 +21,7 @@ export const OVERLAY_STYLES: readonly OverlayStyle[] = [
 
 /** How Instant Premium preserves typography through the pipeline. */
 export type TextRenderMode =
+  | "poster_motion_preserve"
   | "deevid_text_safe"
   | "ai_protection"
   | "hybrid_overlay"
@@ -28,6 +29,7 @@ export type TextRenderMode =
   | "none";
 
 export const TEXT_RENDER_MODES: readonly TextRenderMode[] = [
+  "poster_motion_preserve",
   "deevid_text_safe",
   "ai_protection",
   "hybrid_overlay",
@@ -35,7 +37,8 @@ export const TEXT_RENDER_MODES: readonly TextRenderMode[] = [
   "none",
 ] as const;
 
-export const DEFAULT_TEXT_RENDER_MODE: TextRenderMode = "deevid_text_safe";
+/** DeeVid-style poster: original image stays base; foreground layers animate only. */
+export const DEFAULT_TEXT_RENDER_MODE: TextRenderMode = "poster_motion_preserve";
 export const DEFAULT_OVERLAY_STYLE: OverlayStyle = "cinematic";
 
 export type Point2D = { x: number; y: number };
@@ -138,7 +141,14 @@ export function normalizeOverlayStyle(value: unknown): OverlayStyle {
   return DEFAULT_OVERLAY_STYLE;
 }
 
+export function usesPosterMotionPreserve(mode: TextRenderMode): boolean {
+  return mode === "poster_motion_preserve";
+}
+
 export function usesHybridPreAiNeutralize(mode: TextRenderMode): boolean {
+  if (usesPosterMotionPreserve(mode)) {
+    return false;
+  }
   return (
     mode === "deevid_text_safe" ||
     mode === "hybrid_overlay" ||
@@ -209,7 +219,18 @@ export function collectProjectTextPatches(
 }
 
 export function shouldMaskForVidu(mode: TextRenderMode): boolean {
+  if (usesPosterMotionPreserve(mode)) {
+    return false;
+  }
   return mode !== "none";
+}
+
+export function usesPosterBaseComposite(mode: TextRenderMode): boolean {
+  return usesPosterMotionPreserve(mode);
+}
+
+export function shouldApplyOcrTextOverlay(mode: TextRenderMode): boolean {
+  return !usesPosterMotionPreserve(mode);
 }
 
 export function parseProjectDetectedTextMetadata(raw: unknown): ProjectDetectedTextSnapshot | null {

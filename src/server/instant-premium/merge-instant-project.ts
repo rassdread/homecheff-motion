@@ -25,7 +25,10 @@ import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import {
   normalizeOverlayStyle,
   normalizeTextRenderMode,
+  shouldApplyOcrTextOverlay,
+  usesPosterBaseComposite,
 } from "@/lib/hybrid-motion-overlay";
+import { compositePosterMotionPreserve } from "@/server/instant-premium/poster-motion/poster-motion-compositor";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
@@ -474,7 +477,34 @@ export async function executeInstantPremiumMerge(
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
       const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
+      const posterMotionActive = usesPosterBaseComposite(textRenderMode);
+
+      if (posterMotionActive) {
+        const baseImage = project.images[0];
+        const baseUrl = baseImage?.previewUrl?.trim();
+        if (baseUrl) {
+          const posterOut = path.join(workDir, "final-poster-composite.mp4");
+          const durationSec = project.instantOutputDurationSeconds ?? 8;
+          await compositePosterMotionPreserve({
+            projectId,
+            workDir,
+            mergedViduPath: finalAbs,
+            outputVideoPath: posterOut,
+            baseImageUrl: baseUrl,
+            durationSec,
+            maxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
+            posterMotionSettings: project.instantPosterMotionSettings,
+          });
+          mergedPath = posterOut;
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "posterMotionCompositeApplied",
+          });
+        }
+      }
+
       const needsOverlay =
+        shouldApplyOcrTextOverlay(textRenderMode) &&
         textRenderMode !== "none" &&
         project.instantLockedTextMode &&
         lockedLayers.length > 0 &&

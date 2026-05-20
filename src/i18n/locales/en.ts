@@ -553,11 +553,14 @@ export const en: LocaleSchema = {
   "instant.textIntegration.blocksIntro":
     "Scan and confirm text on your photos. The AI animates only the scene; text is reprojected afterward.",
   "instant.textIntegration.modeLabel": "Render mode",
+  "instant.textIntegration.mode.posterMotion": "DeeVid poster animation",
   "instant.textIntegration.mode.deevid": "DeeVid-style text-safe",
   "instant.textIntegration.mode.hybrid": "Hybrid overlay",
   "instant.textIntegration.mode.aiProtection": "AI text protection",
   "instant.textIntegration.mode.exactFreeze": "Exact freeze",
   "instant.textIntegration.mode.none": "No protection (fast)",
+  "instant.textIntegration.modeDesc.poster_motion_preserve":
+    "The original design stays intact while selected foreground elements animate cinematically.",
   "instant.textIntegration.modeDesc.deevid_text_safe":
     "Removes text before AI and only places back hero text you select.",
   "instant.textIntegration.modeDesc.hybrid_overlay":
@@ -574,7 +577,22 @@ export const en: LocaleSchema = {
   "instant.textIntegration.style.floating": "Floating",
   "instant.textIntegration.style.softGlow": "Soft glow",
   "instant.textIntegration.style.kinetic": "Kinetic",
-  "instant.textIntegration.recommended": "Hybrid overlay is the recommended default for exact typography.",
+  "instant.textIntegration.recommended":
+    "DeeVid poster animation keeps your original layout and typography pixel-perfect.",
+  "instant.posterMotion.title": "Poster animation layers",
+  "instant.posterMotion.intro":
+    "The uploaded image stays the base canvas. Only foreground subjects and FX move on top.",
+  "instant.posterMotion.baseCanvasHint":
+    "Typography and layout remain in the original image — no OCR rebuild or fake text.",
+  "instant.posterMotion.animateMascot": "Animate mascot",
+  "instant.posterMotion.animateProduct": "Animate product",
+  "instant.posterMotion.animateForegroundOnly": "Animate foreground only",
+  "instant.posterMotion.animateForegroundOnlyHint": "Background text and UI stay baked in the poster.",
+  "instant.posterMotion.preserveAllText": "Preserve all text",
+  "instant.posterMotion.preserveAllTextHint": "Never redraw or regenerate typography.",
+  "instant.posterMotion.cinematicCamera": "Cinematic camera motion",
+  "instant.posterMotion.particlesGlow": "Particles & glow",
+  "instant.posterMotion.floatingObject": "Floating generated object",
   "instant.bakedText.title": "Baked-in text in photos",
   "instant.bakedText.intro":
     "Text already printed on your uploaded image must not be sent to the video AI. Enable protection to mask it before generation and render the exact wording as a locked overlay afterward.",
@@ -657,6 +675,16 @@ export const en: LocaleSchema = {
   "instant.bakedText.adminDebugOriginal": "Original",
   "instant.bakedText.adminDebugMasks": "OCR blocks",
   "instant.bakedText.adminDebugViduInput": "Vidu input (clean)",
+  "instant.bakedText.adminDebugExpandedMasks": "Expanded OCR/UI masks",
+  "instant.bakedText.adminPreviewSectionTitle": "Vidu input preview (text-safe)",
+  "instant.bakedText.adminPreviewSectionHint":
+    "Verify before generation that Vidu sees no readable typography. The clean image matches the actual Vidu upload.",
+  "instant.bakedText.adminPreviewLoading": "Building Vidu input…",
+  "instant.bakedText.adminPreviewRefresh": "Refresh preview",
+  "instant.bakedText.adminPreviewWaitScan": "Waiting for text scan to finish…",
+  "instant.bakedText.adminPreviewPending": "Preview appears after scan…",
+  "instant.bakedText.adminPreviewViduHint":
+    "Expect no readable letters, blur smears, or half-glyphs inside the green frame.",
   "instant.bakedText.openMaskedPreview": "Open masked preview",
   "instant.bakedText.previewFailed": "Could not generate mask preview.",
   "instant.preflight.failed": "Pre-render text check failed. Please try again.",

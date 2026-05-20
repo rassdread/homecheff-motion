@@ -23,6 +23,8 @@ const basePayload = {
   stylePreset: "food_promo",
   duration: 8,
   aspectRatio: "9:16",
+  /** OCR preflight tests target legacy text-reconstruction modes. */
+  textRenderMode: "deevid_text_safe" as const,
 };
 
 describe("instant premium text preflight", () => {

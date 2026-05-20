@@ -9,14 +9,20 @@ import {
 } from "@/lib/hybrid-motion-overlay";
 import { parseBakedTextMaskRegion } from "@/lib/baked-text-protection";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
-import { requireAdmin } from "@/server/auth/permissions";
+import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
+import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
 import { maskBakedTextRegionsInImageBuffer } from "@/server/instant-premium/mask-baked-text-image";
 
 /** Admin-only debug: preview aggressive text/UI removal before Vidu. */
 export async function POST(request: Request) {
-  const user = await requireAdmin();
+  const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;
+  }
+  const devPreview =
+    getInstantPremiumMode() === "test" || process.env.NODE_ENV === "development";
+  if (!canAccessAdmin(user) && !devPreview) {
+    return NextResponse.json({ error: "Forbidden.", code: "FORBIDDEN" }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => ({}))) as {

@@ -6,18 +6,27 @@ import {
   DEFAULT_TEXT_RENDER_MODE,
   OVERLAY_STYLES,
   TEXT_RENDER_MODES,
+  usesPosterMotionPreserve,
   type OverlayStyle,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
+import { PosterMotionPanel } from "@/components/instant/poster-motion-panel";
+import {
+  DEFAULT_POSTER_MOTION_SETTINGS,
+  type PosterMotionSettings,
+} from "@/lib/poster-motion-preserve";
 
 type Props = {
   textRenderMode: TextRenderMode;
   overlayStyle: OverlayStyle;
+  posterMotionSettings: PosterMotionSettings;
   onTextRenderModeChange: (mode: TextRenderMode) => void;
   onOverlayStyleChange: (style: OverlayStyle) => void;
+  onPosterMotionSettingsChange: (patch: Partial<PosterMotionSettings>) => void;
 };
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
+  poster_motion_preserve: "instant.textIntegration.mode.posterMotion",
   deevid_text_safe: "instant.textIntegration.mode.deevid",
   hybrid_overlay: "instant.textIntegration.mode.hybrid",
   ai_protection: "instant.textIntegration.mode.aiProtection",
@@ -37,8 +46,10 @@ const STYLE_LABEL_KEYS: Record<OverlayStyle, string> = {
 export function TextIntegrationPanel({
   textRenderMode,
   overlayStyle,
+  posterMotionSettings,
   onTextRenderModeChange,
   onOverlayStyleChange,
+  onPosterMotionSettingsChange,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -77,6 +88,13 @@ export function TextIntegrationPanel({
         </div>
       </fieldset>
 
+      {usesPosterMotionPreserve(textRenderMode) ? (
+        <PosterMotionPanel
+          settings={posterMotionSettings}
+          onChange={onPosterMotionSettingsChange}
+        />
+      ) : null}
+
       {(textRenderMode === "deevid_text_safe" ||
         textRenderMode === "hybrid_overlay" ||
         textRenderMode === "exact_freeze") && (
@@ -106,4 +124,4 @@ export function TextIntegrationPanel({
   );
 }
 
-export { DEFAULT_TEXT_RENDER_MODE, DEFAULT_OVERLAY_STYLE };
+export { DEFAULT_TEXT_RENDER_MODE, DEFAULT_OVERLAY_STYLE, DEFAULT_POSTER_MOTION_SETTINGS };

@@ -555,11 +555,14 @@ export const nl = {
   "instant.textIntegration.blocksIntro":
     "Scan en bevestig tekst op je foto's. De AI animeert alleen de scène; tekst wordt daarna opnieuw in het beeld geplaatst.",
   "instant.textIntegration.modeLabel": "Rendermodus",
+  "instant.textIntegration.mode.posterMotion": "DeeVid poster-animatie",
   "instant.textIntegration.mode.deevid": "DeeVid-stijl tekstveilig",
   "instant.textIntegration.mode.hybrid": "Hybride overlay",
   "instant.textIntegration.mode.aiProtection": "AI-tekstbescherming",
   "instant.textIntegration.mode.exactFreeze": "Exact vastgezet",
   "instant.textIntegration.mode.none": "Geen bescherming (snel)",
+  "instant.textIntegration.modeDesc.poster_motion_preserve":
+    "Het originele ontwerp blijft intact terwijl geselecteerde voorgrondelementen cinematisch bewegen.",
   "instant.textIntegration.modeDesc.deevid_text_safe":
     "Verwijdert tekst vóór AI en zet alleen gekozen hoofdtekst netjes terug.",
   "instant.textIntegration.modeDesc.hybrid_overlay":
@@ -576,7 +579,22 @@ export const nl = {
   "instant.textIntegration.style.floating": "Zwevend",
   "instant.textIntegration.style.softGlow": "Zachte gloed",
   "instant.textIntegration.style.kinetic": "Kinetisch",
-  "instant.textIntegration.recommended": "Hybride overlay is de aanbevolen standaard voor exacte typografie.",
+  "instant.posterMotion.title": "Poster-animatielagen",
+  "instant.posterMotion.intro":
+    "De geüploade afbeelding blijft het basiscanvas. Alleen voorgrond en FX bewegen erbovenop.",
+  "instant.posterMotion.baseCanvasHint":
+    "Typografie en layout blijven in de originele afbeelding — geen OCR-herbouw of nep-tekst.",
+  "instant.posterMotion.animateMascot": "Mascotte animeren",
+  "instant.posterMotion.animateProduct": "Product animeren",
+  "instant.posterMotion.animateForegroundOnly": "Alleen voorgrond animeren",
+  "instant.posterMotion.animateForegroundOnlyHint": "Achtergrondtekst en UI blijven in de poster.",
+  "instant.posterMotion.preserveAllText": "Alle tekst behouden",
+  "instant.posterMotion.preserveAllTextHint": "Typografie nooit opnieuw tekenen of regenereren.",
+  "instant.posterMotion.cinematicCamera": "Cinematische camerabeweging",
+  "instant.posterMotion.particlesGlow": "Deeltjes & gloed",
+  "instant.posterMotion.floatingObject": "Zwevend gegenereerd object",
+  "instant.textIntegration.recommended":
+    "DeeVid poster-animatie houdt je originele layout en typografie pixel-perfect.",
   "instant.bakedText.title": "Vaste tekst op foto's",
   "instant.bakedText.intro":
     "Tekst die al op je geüploade afbeelding staat mag niet rechtstreeks naar de video-AI. Zet bescherming aan om die zone te maskeren vóór generatie en de exacte tekst daarna als vergrendelde overlay te tonen.",
@@ -663,6 +681,16 @@ export const nl = {
   "instant.bakedText.adminDebugOriginal": "Origineel",
   "instant.bakedText.adminDebugMasks": "OCR-blokken",
   "instant.bakedText.adminDebugViduInput": "Vidu-input (schoon)",
+  "instant.bakedText.adminDebugExpandedMasks": "Uitgebreide OCR/UI-maskers",
+  "instant.bakedText.adminPreviewSectionTitle": "Vidu-input preview (tekstveilig)",
+  "instant.bakedText.adminPreviewSectionHint":
+    "Controleer vóór generatie dat Vidu geen leesbare typografie ziet. De schone afbeelding is dezelfde als bij upload naar Vidu.",
+  "instant.bakedText.adminPreviewLoading": "Vidu-input wordt opgebouwd…",
+  "instant.bakedText.adminPreviewRefresh": "Preview vernieuwen",
+  "instant.bakedText.adminPreviewWaitScan": "Wacht tot de tekstscan klaar is…",
+  "instant.bakedText.adminPreviewPending": "Preview verschijnt na scan…",
+  "instant.bakedText.adminPreviewViduHint":
+    "Geen leesbare letters, blur-vlekken of halve tekens verwacht in het groene kader.",
   "instant.bakedText.openMaskedPreview": "Open gemaskeerde preview",
   "instant.bakedText.previewFailed": "Mask-preview genereren mislukt.",
   "instant.preflight.failed": "Tekstcontrole voor render is mislukt. Probeer opnieuw.",

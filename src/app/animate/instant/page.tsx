@@ -46,11 +46,15 @@ import {
 } from "@/components/instant/baked-text-protection-panel";
 import {
   DEFAULT_OVERLAY_STYLE,
+  DEFAULT_POSTER_MOTION_SETTINGS,
   DEFAULT_TEXT_RENDER_MODE,
   TextIntegrationPanel,
 } from "@/components/instant/text-integration-panel";
 import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
+import { usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
+import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
+import { confirmedBlocks } from "@/lib/baked-text-detection";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
 import { capHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 import {
@@ -242,6 +246,9 @@ export default function InstantPremiumPage() {
   const [lockedTextMode, setLockedTextMode] = useState(true);
   const [textRenderMode, setTextRenderMode] = useState<TextRenderMode>(DEFAULT_TEXT_RENDER_MODE);
   const [hybridOverlayStyle, setHybridOverlayStyle] = useState<OverlayStyle>(DEFAULT_OVERLAY_STYLE);
+  const [posterMotionSettings, setPosterMotionSettings] = useState<PosterMotionSettings>(
+    DEFAULT_POSTER_MOTION_SETTINGS
+  );
   const [lockedTextLayers, setLockedTextLayers] = useState<LockedTextLayerDraft[]>([]);
   const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
@@ -542,6 +549,7 @@ export default function InstantPremiumPage() {
     setFastRenderMode(defaults.fastRenderMode);
     setTextRenderMode(defaults.textRenderMode);
     setHybridOverlayStyle(defaults.hybridOverlayStyle);
+    setPosterMotionSettings(defaults.posterMotionSettings);
     setError("");
     setPreflightNotice("");
     setCheckoutGateOpen(false);
@@ -678,7 +686,13 @@ export default function InstantPremiumPage() {
       if (!img) {
         return;
       }
-      const blocks = img.bakedText.blocks.filter((b) => b.kept && b.confirmed);
+      const confirmed = confirmedBlocks(img.bakedText.blocks);
+      const blocks =
+        confirmed.length > 0
+          ? confirmed
+          : img.bakedText.blocks.filter(
+              (b) => b.kept !== false && b.editedText.trim().length > 0
+            );
       let imageUrl = img.bakedText.remoteWorkingUrl;
       if (!imageUrl) {
         const up = await uploadToBlob(img);
@@ -813,6 +827,7 @@ export default function InstantPremiumPage() {
         chipTextBySlot,
         textRenderMode,
         hybridOverlayStyle,
+        posterMotionSettings,
       };
 
       if (!fastRenderMode) {
@@ -952,6 +967,7 @@ export default function InstantPremiumPage() {
       session.user,
       stylePreset,
       textRenderMode,
+      posterMotionSettings,
       t,
       uploadToBlob,
       waitForPendingScans,
@@ -1248,9 +1264,14 @@ export default function InstantPremiumPage() {
                 <TextIntegrationPanel
                   textRenderMode={textRenderMode}
                   overlayStyle={hybridOverlayStyle}
+                  posterMotionSettings={posterMotionSettings}
                   onTextRenderModeChange={setTextRenderMode}
                   onOverlayStyleChange={setHybridOverlayStyle}
+                  onPosterMotionSettingsChange={(patch) =>
+                    setPosterMotionSettings((prev) => ({ ...prev, ...patch }))
+                  }
                 />
+                {!usesPosterMotionPreserve(textRenderMode) ? (
                 <BakedTextProtectionPanel
                   images={images.map((im) => ({
                     id: im.id,
@@ -1263,8 +1284,13 @@ export default function InstantPremiumPage() {
                   onConfirm={confirmBakedText}
                   onSkipProtection={skipTextProtection}
                   isAdmin={session.user?.role?.trim() === "admin"}
+                  showViduPreprocessPreview={
+                    session.user?.role?.trim() === "admin" || premiumMode === "test"
+                  }
+                  textRenderMode={textRenderMode}
                   onPreviewMask={previewBakedTextMask}
                 />
+                ) : null}
               </>
             ) : null}
 

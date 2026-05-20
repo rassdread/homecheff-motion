@@ -16,10 +16,12 @@ import {
   usesAggressivePreAiNeutralize,
   usesHybridPreAiNeutralize,
   usesPixelPreservedPatches,
+  usesPosterMotionPreserve,
   type ImageTextPatchesSnapshot,
   type ProjectDetectedTextSnapshot,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
+import { preparePosterMotionPreserveImages } from "@/server/instant-premium/poster-motion/prepare-poster-motion-images";
 import { extractTextPatchesFromImage } from "@/server/instant-premium/hybrid-overlay/extract-text-patches";
 import {
   heroBlocksForReprojection,
@@ -40,6 +42,7 @@ export type PreparedInstantImage = CreateAnimationProjectImageInput & {
   bakedTextMaskRegion: Prisma.InputJsonValue | null;
   bakedTextBlocksJson: Prisma.InputJsonValue | null;
   instantTextPatches: Prisma.InputJsonValue | null;
+  posterMotionLayersJson?: Prisma.InputJsonValue | null;
   viduInputUrl: string | null;
 };
 
@@ -118,9 +121,16 @@ export async function prepareInstantImagesWithBakedTextProtection(
     uploadPathPrefix: string;
     totalDurationMs: number;
     textRenderMode?: TextRenderMode;
+    posterMotionSettings?: import("@/lib/poster-motion-preserve").PosterMotionSettings;
   }
 ): Promise<PrepareBakedTextImagesResult> {
   const textRenderMode = normalizeTextRenderMode(options.textRenderMode);
+  if (usesPosterMotionPreserve(textRenderMode)) {
+    return preparePosterMotionPreserveImages(images, {
+      uploadPathPrefix: options.uploadPathPrefix,
+      posterMotionSettings: options.posterMotionSettings,
+    });
+  }
   const useHybridNeutralize = usesHybridPreAiNeutralize(textRenderMode);
   const useAggressiveNeutralize = usesAggressivePreAiNeutralize(textRenderMode);
   const maskEnabled = shouldMaskForVidu(textRenderMode);

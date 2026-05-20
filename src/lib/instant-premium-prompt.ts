@@ -12,7 +12,9 @@ import {
   HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK,
   type TextRenderMode,
   usesCriticalTypographyPrompt,
+  usesPosterMotionPreserve,
 } from "@/lib/hybrid-motion-overlay";
+import { POSTER_MOTION_PRESERVE_PROMPT_BLOCK } from "@/lib/poster-motion-preserve";
 import {
   filterVisualOnlyChips,
   LOCKED_TEXT_SAFETY_BLOCK,
@@ -111,6 +113,8 @@ export type BuildInstantVideoPromptInput = {
   hybridOverlayActive?: boolean;
   /** DeeVid-style / text-safe: critical Vidu typography rules. */
   textRenderMode?: TextRenderMode;
+  /** Poster base preserved; Vidu animates foreground only. */
+  posterMotionActive?: boolean;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -193,7 +197,13 @@ If user intent is present, subtly incorporate it without breaking realism or con
 Maintain balanced pacing and a coherent flow. Avoid static sections, chaotic motion, and abrupt resets.
 
 The final result should feel like a polished, premium, ready-to-use social media video.${
-    input.lockedTextMode !== false
+    input.posterMotionActive || (input.textRenderMode && usesPosterMotionPreserve(input.textRenderMode))
+      ? `
+
+${POSTER_MOTION_PRESERVE_PROMPT_BLOCK}`
+      : ""
+  }${
+    input.lockedTextMode !== false && !input.posterMotionActive
       ? `
 
 ${LOCKED_TEXT_SAFETY_BLOCK}`

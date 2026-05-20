@@ -15,9 +15,14 @@ import {
 } from "./hybrid-motion-overlay";
 
 describe("hybrid-motion-overlay modes", () => {
-  it("defaults to deevid_text_safe", () => {
-    assert.equal(DEFAULT_TEXT_RENDER_MODE, "deevid_text_safe");
-    assert.equal(normalizeTextRenderMode(undefined), "deevid_text_safe");
+  it("defaults to poster_motion_preserve", () => {
+    assert.equal(DEFAULT_TEXT_RENDER_MODE, "poster_motion_preserve");
+    assert.equal(normalizeTextRenderMode(undefined), "poster_motion_preserve");
+  });
+
+  it("poster_motion_preserve skips OCR mask pipeline", () => {
+    assert.equal(usesHybridPreAiNeutralize("poster_motion_preserve"), false);
+    assert.equal(shouldMaskForVidu("poster_motion_preserve"), false);
   });
 
   it("hybrid modes use pre-AI neutralize and post reprojection", () => {

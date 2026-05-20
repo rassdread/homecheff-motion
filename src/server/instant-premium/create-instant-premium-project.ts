@@ -27,9 +27,11 @@ import {
   DEFAULT_TEXT_RENDER_MODE,
   normalizeOverlayStyle,
   normalizeTextRenderMode,
+  usesPosterMotionPreserve,
   type OverlayStyle,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
+import { posterMotionSettingsFromClient } from "@/lib/poster-motion-preserve";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
@@ -54,6 +56,7 @@ export type InstantPremiumCreatePayload = {
   chipTextBySlot?: Partial<Record<TextImplyingChipId, string>>;
   textRenderMode?: TextRenderMode;
   hybridOverlayStyle?: OverlayStyle;
+  posterMotionSettings?: import("@/lib/poster-motion-preserve").PosterMotionSettings;
 };
 
 export type InstantPremiumCreateResult =
@@ -159,6 +162,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
 
   const textRenderMode = normalizeTextRenderMode(o.textRenderMode ?? DEFAULT_TEXT_RENDER_MODE);
   const hybridOverlayStyle = normalizeOverlayStyle(o.hybridOverlayStyle ?? DEFAULT_OVERLAY_STYLE);
+  const posterMotionSettings = posterMotionSettingsFromClient(o.posterMotionSettings);
 
   const data: InstantPremiumCreatePayload = {
     images,
@@ -172,6 +176,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     lockedTextLayers: layerCheck.layers,
     textRenderMode,
     hybridOverlayStyle,
+    posterMotionSettings,
     ...(Object.keys(chipTextBySlot).length > 0 ? { chipTextBySlot } : {}),
     ...(userIntent !== undefined ? { userIntent } : {}),
   };
@@ -324,6 +329,7 @@ export async function createInstantPremiumAnimationProject(
     uploadPathPrefix: `motion/instant-baked/${ownerId}`,
     totalDurationMs,
     textRenderMode,
+    posterMotionSettings: validated.data.posterMotionSettings,
   });
   if (!imagePrep.ok) {
     return { ok: false, error: imagePrep.error, status: 400 };
@@ -339,7 +345,9 @@ export async function createInstantPremiumAnimationProject(
   }
   const preparedImages = imagePrep.images;
   const hasBakedMasked = preparedImages.some((img) => img.bakedTextProtectionStatus === "masked");
-  const lockedTextMode = validated.data.lockedTextMode !== false || hasBakedMasked;
+  const lockedTextMode =
+    !usesPosterMotionPreserve(textRenderMode) &&
+    (validated.data.lockedTextMode !== false || hasBakedMasked);
   const lockedLayersJson =
     layerCheck.layers.length > 0
       ? (lockedTextLayersForStorage(layerCheck.layers) as unknown as Prisma.InputJsonValue)
@@ -364,6 +372,9 @@ export async function createInstantPremiumAnimationProject(
           instantLockedTextMode: lockedTextMode,
           instantTextRenderMode: textRenderMode,
           instantHybridOverlayStyle: hybridOverlayStyle,
+          instantPosterMotionSettings: usesPosterMotionPreserve(textRenderMode)
+            ? (validated.data.posterMotionSettings as unknown as Prisma.InputJsonValue)
+            : undefined,
           instantDetectedTextMetadata:
             imagePrep.detectedTextMetadata.blocks.length > 0
               ? (imagePrep.detectedTextMetadata as unknown as Prisma.InputJsonValue)
@@ -397,6 +408,7 @@ export async function createInstantPremiumAnimationProject(
               bakedTextMaskRegion: image.bakedTextMaskRegion ?? undefined,
               bakedTextBlocksJson: image.bakedTextBlocksJson ?? undefined,
               instantTextPatches: image.instantTextPatches ?? undefined,
+              posterMotionLayersJson: image.posterMotionLayersJson ?? undefined,
               viduInputUrl: image.viduInputUrl,
             },
           })

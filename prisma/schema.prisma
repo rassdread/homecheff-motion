@@ -24,8 +24,10 @@ model AnimationProject {
   instantLockedTextLayers Json?
   /** When true, Vidu prompts include text-safety rules and finals get deterministic text overlays. */
   instantLockedTextMode Boolean @default(true)
-  /** ai_protection | hybrid_overlay | exact_freeze | none */
-  instantTextRenderMode String @default("deevid_text_safe")
+  /** poster_motion_preserve | deevid_text_safe | hybrid_overlay | exact_freeze | none */
+  instantTextRenderMode String @default("poster_motion_preserve")
+  /** DeeVid poster animation toggles (JSON PosterMotionSettings). */
+  instantPosterMotionSettings Json?
   /** exact | cinematic | social-ui | floating | soft-glow | kinetic */
   instantHybridOverlayStyle String @default("cinematic")
   /** OCR-enriched text blocks for hybrid reprojection (JSON ProjectDetectedTextSnapshot). */
@@ -90,6 +92,8 @@ model AnimationImage {
   viduInputUrl String?
   /** High-res PNG text patches for pixel-preserved hybrid overlay (JSON ImageTextPatchesSnapshot). */
   instantTextPatches Json?
+  /** Foreground segmentation layers for poster_motion_preserve (JSON PosterMotionLayersSnapshot). */
+  posterMotionLayersJson Json?
   createdAt  DateTime         @default(now())
 
   @@index([projectId, order])

@@ -7,6 +7,10 @@ import {
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
 import {
+  DEFAULT_POSTER_MOTION_SETTINGS,
+  type PosterMotionSettings,
+} from "@/lib/poster-motion-preserve";
+import {
   purgeAllInstantWizardUploadPersistence,
   revokeWizardImagePreviewUrls,
   type WizardImageCleanupTarget,
@@ -51,6 +55,7 @@ export type InstantWizardFormDefaults = {
   fastRenderMode: boolean;
   textRenderMode: TextRenderMode;
   hybridOverlayStyle: OverlayStyle;
+  posterMotionSettings: PosterMotionSettings;
 };
 
 export function getInstantWizardFormDefaults(): InstantWizardFormDefaults {
@@ -68,6 +73,7 @@ export function getInstantWizardFormDefaults(): InstantWizardFormDefaults {
     fastRenderMode: false,
     textRenderMode: DEFAULT_TEXT_RENDER_MODE,
     hybridOverlayStyle: DEFAULT_OVERLAY_STYLE,
+    posterMotionSettings: { ...DEFAULT_POSTER_MOTION_SETTINGS },
   };
 }
 

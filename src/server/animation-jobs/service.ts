@@ -201,10 +201,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 
   const startViduUrl = startImage.viduInputUrl?.trim() || startImage.previewUrl;
   const endViduUrl = endImage.viduInputUrl?.trim() || endImage.previewUrl;
-  const bakedTextProtectionActive =
-    startImage.bakedTextProtectionStatus === "masked" ||
-    endImage.bakedTextProtectionStatus === "masked";
   const textRenderMode = normalizeTextRenderMode(transition.project.instantTextRenderMode);
+  const posterMotionActive = textRenderMode === "poster_motion_preserve";
+  const bakedTextProtectionActive =
+    !posterMotionActive &&
+    (startImage.bakedTextProtectionStatus === "masked" ||
+      endImage.bakedTextProtectionStatus === "masked");
   const hybridOverlayActive =
     bakedTextProtectionActive &&
     (textRenderMode === "deevid_text_safe" ||
@@ -227,6 +229,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         lockedTextMode: transition.project.instantLockedTextMode !== false,
         bakedTextProtectionActive,
         hybridOverlayActive,
+        posterMotionActive,
         textRenderMode,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,

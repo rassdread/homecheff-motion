@@ -6,6 +6,7 @@ import {
 } from "@/lib/baked-text-detection";
 import { isTextImplyingChipId } from "@/lib/locked-text-layer";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
+import { normalizeTextRenderMode, usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
 import type { InstantPremiumCreatePayload } from "@/server/instant-premium/create-instant-premium-project";
 import {
   assessImageTextRiskWithOpenAi,
@@ -433,6 +434,27 @@ function flattenStructuredWarnings(reports: PreflightImageReport[]): PreflightWa
 export async function runInstantPremiumTextPreflight(
   payload: InstantPremiumCreatePayload
 ): Promise<InstantPremiumPreflightResult> {
+  if (usesPosterMotionPreserve(normalizeTextRenderMode(payload.textRenderMode))) {
+    return {
+      ok: true,
+      warnings: [
+        "Poster motion preserve: typography stays in the original image (no OCR text rebuild).",
+      ],
+      images: payload.images.map((image, index) => ({
+        index,
+        fileName: image.fileName,
+        protectionState: "none" as const,
+        confirmedBlockCount: 0,
+        vision: null,
+        blocked: false,
+        blockMessage: null,
+        warnings: [],
+        structuredWarnings: [],
+      })),
+      visionUsed: false,
+    };
+  }
+
   const openAiKey = process.env.OPENAI_API_KEY?.trim();
   const reports: PreflightImageReport[] = [];
   let visionUsed = false;

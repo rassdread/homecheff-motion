@@ -14,6 +14,8 @@ import {
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { LOCKED_TEXT_ANIMATIONS, type LockedTextAnimation } from "@/lib/locked-text-layer";
 import type { OcrScanPhase } from "@/lib/instant-ocr-scan";
+import { InstantAdminViduPreprocessPreview } from "@/components/instant/instant-admin-vidu-preprocess-preview";
+import type { TextRenderMode } from "@/lib/hybrid-motion-overlay";
 
 export type BakedTextProtectionDraft = {
   enabled: boolean;
@@ -60,6 +62,8 @@ type Props = {
   onConfirm: (imageId: string) => void;
   onSkipProtection?: (imageId: string) => void;
   isAdmin?: boolean;
+  showViduPreprocessPreview?: boolean;
+  textRenderMode?: TextRenderMode;
   onPreviewMask?: (imageId: string) => Promise<void>;
 };
 
@@ -132,6 +136,8 @@ export function BakedTextProtectionPanel({
   onConfirm,
   onSkipProtection,
   isAdmin,
+  showViduPreprocessPreview = false,
+  textRenderMode = "deevid_text_safe",
   onPreviewMask,
 }: Props) {
   const t = useActiveTranslator();
@@ -178,6 +184,14 @@ export function BakedTextProtectionPanel({
           </p>
         ) : null}
       </div>
+
+      {showViduPreprocessPreview && onPreviewMask ? (
+        <InstantAdminViduPreprocessPreview
+          images={visibleImages}
+          textRenderMode={textRenderMode}
+          onPreviewMask={onPreviewMask}
+        />
+      ) : null}
 
       {visibleImages.map((image, index) => {
         const bt = image.bakedText;
@@ -279,15 +293,6 @@ export function BakedTextProtectionPanel({
                       onClick={() => onChange(image.id, { reviewOpen: true })}
                     >
                       {t("instant.bakedText.reviewOptional")}
-                    </button>
-                  ) : null}
-                  {isAdmin && onPreviewMask && bt.blocks.some((b) => b.kept) ? (
-                    <button
-                      type="button"
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700"
-                      onClick={() => void onPreviewMask(image.id)}
-                    >
-                      {t("instant.bakedText.adminPreviewMask")}
                     </button>
                   ) : null}
                 </div>
@@ -424,105 +429,6 @@ export function BakedTextProtectionPanel({
                   </div>
                 ) : !isScanning ? (
                   <p className="text-[11px] text-zinc-500">{t("instant.bakedText.scanHint")}</p>
-                ) : null}
-
-                {isAdmin && (bt.maskedPreviewUrl || bt.debugOriginalUrl) ? (
-                  <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-2">
-                    <p className="text-[11px] font-semibold text-violet-950">
-                      {t("instant.bakedText.adminDebugTitle")}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-violet-900/80">
-                      {t("instant.bakedText.adminDebugHint")}
-                      {bt.debugMaskRegionCount != null
-                        ? ` (${bt.debugMaskRegionCount} ${t("instant.bakedText.adminDebugRegions")})`
-                        : ""}
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {bt.debugOriginalUrl || image.workingPreviewUrl ? (
-                        <div>
-                          <p className="text-[9px] font-medium text-zinc-600">
-                            {t("instant.bakedText.adminDebugOriginal")}
-                          </p>
-                          <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
-                            <Image
-                              src={bt.debugOriginalUrl ?? image.workingPreviewUrl}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              unoptimized
-                              sizes="100px"
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-                      <div>
-                        <p className="text-[9px] font-medium text-zinc-600">
-                          {t("instant.bakedText.adminDebugMasks")}
-                        </p>
-                        <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
-                          <Image
-                            src={image.workingPreviewUrl}
-                            alt=""
-                            fill
-                            className="object-cover"
-                            unoptimized
-                            sizes="100px"
-                          />
-                          {bt.debugMaskRegions?.map((region, idx) => (
-                            <div
-                              key={`mask-${idx}`}
-                              className="pointer-events-none absolute border-2 border-amber-500/90 bg-amber-300/20"
-                              style={{
-                                left: `${region.x * 100}%`,
-                                top: `${region.y * 100}%`,
-                                width: `${region.width * 100}%`,
-                                height: `${region.height * 100}%`,
-                              }}
-                            />
-                          ))}
-                          {bt.blocks
-                            .filter((b) => b.kept)
-                            .map((block) => (
-                              <div
-                                key={block.id}
-                                className="pointer-events-none absolute border border-rose-500/90 bg-rose-400/25"
-                                style={{
-                                  left: `${block.bbox.x * 100}%`,
-                                  top: `${block.bbox.y * 100}%`,
-                                  width: `${block.bbox.width * 100}%`,
-                                  height: `${block.bbox.height * 100}%`,
-                                }}
-                              />
-                            ))}
-                        </div>
-                      </div>
-                      {bt.maskedPreviewUrl ? (
-                        <div className="col-span-2 sm:col-span-1">
-                          <p className="text-[9px] font-medium text-zinc-600">
-                            {t("instant.bakedText.adminDebugViduInput")}
-                          </p>
-                          <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-emerald-300 bg-zinc-100">
-                            <Image
-                              src={bt.maskedPreviewUrl}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              unoptimized
-                              sizes="100px"
-                            />
-                          </div>
-                          <a
-                            href={bt.maskedPreviewUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 inline-block text-[10px] text-sky-800 underline"
-                          >
-                            {t("instant.bakedText.openMaskedPreview")}
-                          </a>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
                 ) : null}
 
                 <button
