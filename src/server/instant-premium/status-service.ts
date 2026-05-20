@@ -11,47 +11,16 @@ import {
   repairInstantPremiumFinalVideo,
 } from "@/server/instant-premium/finalize-repair";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
+import { resolveInstantPremiumProgress } from "@/lib/instant-premium-progress-stage";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 
 export { refreshTransitionOutputsFromProvider };
 
 type InstantSegmentStatus = "queued" | "generating" | "completed" | "failed";
 
-export type InstantPremiumStatusResponse = {
-  projectId: string;
-  projectType: "instant_premium";
-  status: "queued" | "running" | "finalizing" | "completed" | "failed";
-  phase: "generating_clips" | "merging_clips" | "uploading_final" | "completed" | "failed";
-  progressPercent: number;
-  segments: Array<{
-    index: number;
-    status: InstantSegmentStatus;
-    sourceImageId: string;
-    sourceImageUrl: string | null;
-    videoUrl: string | null;
-    durationSeconds: number | null;
-    providerTaskId: string | null;
-    error: string | null;
-  }>;
-  finalVideoUrl: string | null;
-  finalDurationSeconds: number | null;
-  downloadable: boolean;
-  errorMessage: string | null;
-  missingSegments?: number[];
-  queuedWithoutJobCount?: number;
-  lockedTextMode?: boolean;
-  lockedTextLayerCount?: number;
-  overlayFailed?: boolean;
-  canRetryOverlay?: boolean;
-  failureReason?: "overlay_failed" | "merge_failed" | "export_upload_auth_failed" | null;
-  workerJobStatus?: string | null;
-  finalizationStuck?: boolean;
-  canRepairFinalVideo?: boolean;
-  isRestoringFinalVideo?: boolean;
-  canRebuildFinalVideo?: boolean;
-  isRebuildingFinalVideo?: boolean;
-};
+export type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 function mapTransitionStatus(status: string): InstantSegmentStatus {
   if (status === "completed") return "completed";
@@ -361,12 +330,28 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       (finalState.instantWorkerJobStatus === "queued" ||
         finalState.instantWorkerJobStatus === "running" ||
         finalState.status === "rendering"));
+  const progressView = resolveInstantPremiumProgress({
+    status,
+    phase,
+    progressPercent,
+    isRebuildingFinalVideo,
+    isRestoringFinalVideo,
+    instantTextRenderMode: finalState.instantTextRenderMode,
+    overlayFailed,
+  });
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
     status,
     phase,
-    progressPercent,
+    progressPercent: progressView.displayPercent,
+    currentStage: progressView.stage,
+    activeOperation: progressView.activeOperation,
+    exportProvider: latestExport?.provider ?? null,
+    rebuildCount: finalState.instantFinalRebuildCount,
+    segmentCount: finalState.transitions.length,
+    progressUpdatedAt: new Date().toISOString(),
+    instantTextRenderMode: finalState.instantTextRenderMode,
     segments,
     finalVideoUrl,
     lockedTextMode: finalState.instantLockedTextMode,

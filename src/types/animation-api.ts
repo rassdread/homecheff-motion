@@ -321,12 +321,37 @@ export type InstantPremiumStatusApiResponse =
       workerJobStatus?: string | null;
     };
 
+export type InstantPremiumProgressStage =
+  | "segment_rendering"
+  | "merge_clips"
+  | "poster_compositing"
+  | "export_video"
+  | "upload_storage"
+  | "finalize"
+  | "completed"
+  | "failed";
+
+export type InstantPremiumActiveOperation =
+  | "segment_rendering"
+  | "repair"
+  | "rebuild"
+  | "merge_export"
+  | "upload"
+  | "idle";
+
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";
   status: "queued" | "running" | "finalizing" | "completed" | "failed";
   phase: "generating_clips" | "merging_clips" | "uploading_final" | "completed" | "failed";
   progressPercent: number;
+  currentStage?: InstantPremiumProgressStage;
+  activeOperation?: InstantPremiumActiveOperation;
+  exportProvider?: string | null;
+  rebuildCount?: number;
+  segmentCount?: number;
+  progressUpdatedAt?: string;
+  instantTextRenderMode?: string | null;
   segments: Array<{
     index: number;
     status: InstantPremiumSegmentStatus;

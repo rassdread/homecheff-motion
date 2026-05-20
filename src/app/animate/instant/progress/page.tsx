@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { useInstantPremiumProgressPolling } from "@/hooks/use-instant-premium-progress-polling";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
@@ -48,6 +50,8 @@ function transientBannerKey(message: string | null): string | null {
 
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
+  const session = useAuthSession();
+  const isAdmin = session.resolved && session.user?.role === "admin";
   const completionSyncedRef = useRef(false);
   const {
     projectId,
@@ -56,6 +60,8 @@ export default function InstantPremiumProgressPage() {
     connectionState,
     transientMessage,
     showFatalMissing,
+    lastPolledAtMs,
+    lastProgressChangeAtMs,
   } = useInstantPremiumProgressPolling();
 
   const [actionError, setActionError] = useState<string | null>(null);
@@ -72,19 +78,6 @@ export default function InstantPremiumProgressPage() {
     (connectionState === "polling" && !snapshot);
   const effectiveProjectId = projectId || snapshot?.projectId || "";
   const transientBanner = transientBannerKey(transientMessage);
-
-  const progress = useMemo(() => {
-    if (isCompleted) {
-      return 100;
-    }
-    if (!effectiveProjectId) {
-      return snapshot ? Math.max(8, snapshot.progressPercent) : 4;
-    }
-    if (!snapshot) {
-      return 8;
-    }
-    return Math.max(8, snapshot.progressPercent);
-  }, [effectiveProjectId, snapshot, isCompleted]);
 
   const headlineKey = useMemo(() => {
     if (showFatalMissing) {
@@ -146,15 +139,96 @@ export default function InstantPremiumProgressPage() {
           ) : null}
 
           {!showFatalMissing ? (
-            <>
-              <p className="mt-4 text-sm font-medium text-zinc-800">{progress}%</p>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </>
+            <InstantFinalProgressPanel
+              className="mt-4"
+              snapshot={snapshot}
+              lastPolledAtMs={lastPolledAtMs}
+              lastProgressChangeAtMs={lastProgressChangeAtMs}
+              connectionState={
+                connectionState === "completed"
+                  ? "completed"
+                  : connectionState === "reconnecting" || connectionState === "worker_connecting"
+                    ? connectionState
+                    : "polling"
+              }
+              repairBusy={retryBusy}
+              rebuildBusy={rebuildBusy}
+              isAdmin={isAdmin}
+              onRepair={
+                effectiveProjectId && snapshot?.canRepairFinalVideo
+                  ? () => {
+                      setRetryBusy(true);
+                      void (async () => {
+                        try {
+                          const res = await fetch(
+                            `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
+                            { method: "POST", credentials: "include" }
+                          );
+                          if (!res.ok) {
+                            const body = (await res.json().catch(() => ({}))) as { error?: string };
+                            setActionError(body.error ?? t("instant.recover.failed"));
+                            return;
+                          }
+                          const body = (await res.json()) as {
+                            status?: InstantPremiumStatusResponse;
+                          };
+                          if (body.status) {
+                            setSnapshot(body.status);
+                          }
+                          setActionError(null);
+                        } finally {
+                          setRetryBusy(false);
+                        }
+                      })();
+                    }
+                  : undefined
+              }
+              onRebuild={
+                effectiveProjectId && snapshot?.canRebuildFinalVideo
+                  ? () => {
+                      setRebuildBusy(true);
+                      setActionError(null);
+                      void (async () => {
+                        try {
+                          const res = await fetch(
+                            `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
+                            { method: "POST", credentials: "include" }
+                          );
+                          const body = (await res.json().catch(() => ({}))) as {
+                            error?: string;
+                            rebuild?: {
+                              ok?: boolean;
+                              clipsReady?: boolean;
+                              message?: string;
+                              finalVideoUrlPresent?: boolean;
+                            };
+                            status?: InstantPremiumStatusResponse;
+                          };
+                          if (!res.ok) {
+                            setActionError(
+                              body.error ??
+                                body.rebuild?.message ??
+                                t("instant.progress.rebuildFinalFailed")
+                            );
+                            return;
+                          }
+                          if (body.rebuild?.clipsReady === false) {
+                            setActionError(
+                              body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
+                            );
+                            return;
+                          }
+                          if (body.status) {
+                            setSnapshot(body.status);
+                          }
+                        } finally {
+                          setRebuildBusy(false);
+                        }
+                      })();
+                    }
+                  : undefined
+              }
+            />
           ) : null}
 
           {showFatalMissing ? (

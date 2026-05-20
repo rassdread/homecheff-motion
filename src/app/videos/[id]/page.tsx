@@ -9,11 +9,16 @@ import {
   validateAnimationPresetId,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+import { useInstantPremiumStatusPolling } from "@/hooks/use-instant-premium-status-polling";
+import type {
+  AnimationProjectDetailResponse,
+  InstantPremiumStatusResponse,
+} from "@/types/animation-api";
 import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
@@ -203,6 +208,31 @@ export default function VideoDetailPage() {
   );
   const canRebuildInstant = Boolean(detail && instantLikeProject && allFragmentsDone);
 
+  const showInstantProgress = Boolean(
+    id &&
+      detail &&
+      instantLikeProject &&
+      (detail.status === "rendering" ||
+        detail.status === "generating" ||
+        rebuildBusy ||
+        recoverBusy ||
+        (allFragmentsDone &&
+          (!finalVideoUrl || latestExport?.status === "rendering")))
+  );
+
+  const {
+    snapshot: instantSnapshot,
+    setSnapshot: setInstantSnapshot,
+    lastPolledAtMs: instantLastPolledAtMs,
+    lastProgressChangeAtMs: instantLastProgressChangeAtMs,
+    touchProgressClock,
+  } = useInstantPremiumStatusPolling(id, showInstantProgress);
+
+  const isAdmin = session.resolved && session.user?.role === "admin";
+
+  const displayFinalVideoUrl =
+    instantSnapshot?.finalVideoUrl?.trim() || finalVideoUrl;
+
   const mergeStuckRetryOnly = Boolean(
     canRetryMergeExport && detail?.status === "rendering" && latestExport?.status !== "failed"
   );
@@ -241,6 +271,7 @@ export default function VideoDetailPage() {
 
   const recoverFinalVideo = useCallback(async () => {
     if (!id) return;
+    touchProgressClock();
     setRecoverBusy(true);
     setRecoverError(null);
     setRecoverInfo(null);
@@ -275,12 +306,13 @@ export default function VideoDetailPage() {
     } finally {
       setRecoverBusy(false);
     }
-  }, [id, load]);
+  }, [id, load, touchProgressClock]);
 
   const rebuildFinalVideo = useCallback(async () => {
     if (!id) {
       return;
     }
+    touchProgressClock();
     setRebuildBusy(true);
     setRebuildError(null);
     setRebuildInfo(null);
@@ -299,6 +331,7 @@ export default function VideoDetailPage() {
           suggestRepair?: boolean;
           finalVideoUrlPresent?: boolean;
         };
+        status?: InstantPremiumStatusResponse;
       };
       if (!res.ok) {
         setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
@@ -322,21 +355,24 @@ export default function VideoDetailPage() {
       } else {
         setRebuildError(body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
       }
+      if (body.status) {
+        setInstantSnapshot(body.status);
+      }
       await load();
     } finally {
       setRebuildBusy(false);
     }
-  }, [id, load]);
+  }, [id, load, setInstantSnapshot, touchProgressClock]);
 
   useEffect(() => {
-    if (!id || !detail || !instantLikeProject || finalVideoUrl || !allFragmentsDone) {
+    if (!instantSnapshot?.finalVideoUrl) {
       return;
     }
-    const timer = window.setInterval(() => {
+    const timer = window.setTimeout(() => {
       void load();
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [id, detail, instantLikeProject, finalVideoUrl, allFragmentsDone, load]);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [instantSnapshot?.finalVideoUrl, load]);
 
   const [fragmentsSectionOpen, setFragmentsSectionOpen] = useState(false);
   const fragmentsAutoOpenedKeyRef = useRef<string | null>(null);
@@ -431,16 +467,31 @@ export default function VideoDetailPage() {
 
       <h1 className="text-xl font-semibold text-zinc-900">{t("videos.finalVideo")}</h1>
 
+      {showInstantProgress ? (
+        <InstantFinalProgressPanel
+          className="mt-4"
+          snapshot={instantSnapshot}
+          lastPolledAtMs={instantLastPolledAtMs}
+          lastProgressChangeAtMs={instantLastProgressChangeAtMs}
+          connectionState="polling"
+          repairBusy={recoverBusy}
+          rebuildBusy={rebuildBusy}
+          isAdmin={isAdmin}
+          onRepair={canRecoverInstant ? () => void recoverFinalVideo() : undefined}
+          onRebuild={canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
+        />
+      ) : null}
+
       {detail.ownerEmail ? (
         <p className="mt-2 text-sm text-zinc-600">
           {t("videos.owner")}: <span className="font-medium text-zinc-800">{detail.ownerEmail}</span>
         </p>
       ) : null}
 
-      {finalVideoUrl ? (
+      {displayFinalVideoUrl ? (
         <div className="mt-4 space-y-3">
           <video
-            key={finalVideoUrl}
+            key={displayFinalVideoUrl}
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
@@ -449,7 +500,7 @@ export default function VideoDetailPage() {
             onError={() => setFinalVideoPlaybackError(true)}
             onLoadedData={() => setFinalVideoPlaybackError(false)}
           >
-            <source src={finalVideoUrl} type="video/mp4" />
+            <source src={displayFinalVideoUrl} type="video/mp4" />
           </video>
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
@@ -463,7 +514,7 @@ export default function VideoDetailPage() {
               {t("videos.download")}
             </a>
             <a
-              href={finalVideoUrl}
+              href={displayFinalVideoUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
@@ -486,7 +537,9 @@ export default function VideoDetailPage() {
         </div>
       ) : (
         <div className="mt-4 space-y-3">
-          <p className="text-sm text-zinc-600">{t("videos.processing")}</p>
+          {!showInstantProgress ? (
+            <p className="text-sm text-zinc-600">{t("videos.processing")}</p>
+          ) : null}
           {detail.status === "rendering" && showVideoExportCancel ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <button

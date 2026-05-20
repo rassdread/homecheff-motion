@@ -47,7 +47,7 @@ type Props = {
 export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
   const t = useActiveTranslator();
   const mounted = useMounted();
-  const [, setTick] = useState(0);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   const active =
     isActiveOcrScanPhase(bakedText.scanPhase) ||
     bakedText.scanBusy ||
@@ -57,7 +57,7 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     if (!active || !bakedText.scanStartedAt) {
       return;
     }
-    const timer = setInterval(() => setTick((n) => n + 1), 400);
+    const timer = setInterval(() => setNowMs(Date.now()), 400);
     return () => clearInterval(timer);
   }, [active, bakedText.scanStartedAt]);
 
@@ -68,8 +68,8 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     (phase === "failed" || phase === "timeout" || phase === "interrupted");
   const blockCount = bakedText.scanBlockCount ?? bakedText.blocks.length;
   const liveElapsedMs =
-    mounted && active && bakedText.scanStartedAt
-      ? Date.now() - new Date(bakedText.scanStartedAt).getTime()
+    mounted && active && bakedText.scanStartedAt && nowMs != null
+      ? nowMs - new Date(bakedText.scanStartedAt).getTime()
       : bakedText.scanDurationMs;
 
   const progressPercent = (() => {

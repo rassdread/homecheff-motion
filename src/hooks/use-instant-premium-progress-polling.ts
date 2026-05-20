@@ -25,16 +25,19 @@ export type InstantProgressConnectionState =
 
 const GRACE_MS = 60_000;
 const MAX_TRANSIENT_RETRIES = 24;
-const BASE_POLL_MS = 2500;
+/** Poll while project is still processing. */
+export const INSTANT_ACTIVE_POLL_MS = 3000;
+/** Poll after completion to pick up rebuild URL changes. */
+export const INSTANT_COMPLETED_POLL_MS = 15000;
 
 function pollDelayMs(transientFailures: number, isTerminal: boolean): number {
   if (isTerminal) {
-    return 0;
+    return INSTANT_COMPLETED_POLL_MS;
   }
   if (transientFailures <= 0) {
-    return BASE_POLL_MS;
+    return INSTANT_ACTIVE_POLL_MS;
   }
-  return Math.min(30_000, Math.round(BASE_POLL_MS * 1.4 ** Math.min(transientFailures, 10)));
+  return Math.min(30_000, Math.round(INSTANT_ACTIVE_POLL_MS * 1.4 ** Math.min(transientFailures, 10)));
 }
 
 function isTerminalSnapshot(snapshot: InstantPremiumStatusResponse | null): boolean {
@@ -109,6 +112,7 @@ export function useInstantPremiumProgressPolling() {
   const transientFailuresRef = useRef(0);
   const snapshotRef = useRef<InstantPremiumStatusResponse | null>(null);
   const workerJobStatusRef = useRef<string | null>(null);
+  const lastProgressRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedAtRef.current = Date.now();
@@ -144,6 +148,8 @@ export function useInstantPremiumProgressPolling() {
   });
 
   const [transientMessage, setTransientMessage] = useState<string | null>(null);
+  const [lastPolledAtMs, setLastPolledAtMs] = useState<number | null>(null);
+  const [lastProgressChangeAtMs, setLastProgressChangeAtMs] = useState<number | null>(null);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -151,9 +157,16 @@ export function useInstantPremiumProgressPolling() {
   }, [snapshot]);
 
   const applySnapshot = useCallback((next: InstantPremiumStatusResponse) => {
+    const now = Date.now();
     setSnapshot(next);
     snapshotRef.current = next;
     workerJobStatusRef.current = next.workerJobStatus ?? null;
+    setLastPolledAtMs(now);
+    const progressKey = `${next.status}:${next.currentStage ?? ""}:${next.progressPercent}:${next.activeOperation ?? ""}`;
+    if (lastProgressRef.current !== progressKey) {
+      lastProgressRef.current = progressKey;
+      setLastProgressChangeAtMs(now);
+    }
     writeCachedInstantProgressSnapshot(next.projectId, next);
     writeActiveInstantProjectId(next.projectId);
     if (next.status === "completed" || next.finalVideoUrl) {
@@ -286,9 +299,7 @@ export function useInstantPremiumProgressPolling() {
 
       if (result.kind === "ok") {
         applySnapshot(result.data);
-        if (!isTerminalSnapshot(result.data)) {
-          scheduleRetry(0, false);
-        }
+        scheduleRetry(0, isTerminalSnapshot(result.data));
         return;
       }
 
@@ -307,9 +318,7 @@ export function useInstantPremiumProgressPolling() {
 
       if ("availability" in body && body.availability === "ok") {
         applySnapshot(body);
-        if (!isTerminalSnapshot(body)) {
-          scheduleRetry(0, false);
-        }
+        scheduleRetry(0, isTerminalSnapshot(body));
         return;
       }
 
@@ -376,6 +385,8 @@ export function useInstantPremiumProgressPolling() {
     connectionState,
     transientMessage,
     showFatalMissing,
+    lastPolledAtMs,
+    lastProgressChangeAtMs,
     refreshSnapshot: async () => {
       if (!projectId) {
         return;
