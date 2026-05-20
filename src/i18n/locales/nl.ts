@@ -547,7 +547,8 @@ export const nl = {
   "instant.bakedText.continueWithoutProtection": "Doorgaan zonder tekstbescherming",
   "instant.bakedText.skipImageWarning":
     "Tekst in deze afbeelding kan vervormen in de video. Sla tekstbescherming over voor deze foto.",
-  "instant.ocrStatus.queued": "Scan gestart…",
+  "instant.ocrStatus.queued": "Scan in wachtrij…",
+  "instant.ocrStatus.receivedResult": "Resultaat ontvangen…",
   "instant.ocrStatus.uploading": "Afbeelding voorbereiden…",
   "instant.ocrStatus.callingOcr": "OpenAI Vision controleert tekst…",
   "instant.ocrStatus.autoProtected": "Tekst automatisch beschermd",

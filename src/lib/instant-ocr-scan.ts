@@ -1,6 +1,9 @@
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
 
 export const OCR_SCAN_TIMEOUT_MS = 12_000;
+export const OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS = 12_000;
+export const OCR_DETECT_SERVER_TIMEOUT_MS = 10_000;
+export const OCR_MAX_CONCURRENT_SCANS = 2;
 export const CHECKOUT_PENDING_SCAN_WAIT_MS = 8_000;
 
 export type OcrScanPhase =
@@ -70,6 +73,19 @@ export function averageBlockConfidence(blocks: BakedTextBlockRecord[]): number {
   return sum / kept.length;
 }
 
+export function isTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("timeout") ||
+    msg.includes("aborted") ||
+    error.name === "AbortError" ||
+    error.name === "TimeoutError"
+  );
+}
+
 export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -85,6 +101,25 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
         reject(error);
       });
   });
+}
+
+export async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      throw new Error("ocr_fetch_timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function logOcrAutoScan(event: string, payload?: Record<string, unknown>): void {

@@ -391,7 +391,8 @@ export default function InstantPremiumPage() {
     return payload;
   }, [t]);
 
-  const { scanBakedText, skipTextProtection, waitForPendingScans } = useInstantOcrAutoScan({
+  const { scanBakedText, scheduleAutoScans, skipTextProtection, waitForPendingScans } =
+    useInstantOcrAutoScan({
     fastRenderMode,
     t: (key, values) => t(key as never, values as never),
     uploadToBlob,
@@ -437,12 +438,19 @@ export default function InstantPremiumPage() {
     if (fastRenderMode || !wizardReady) {
       return;
     }
-    const needsScan = images.filter(
-      (img) =>
-        !img.bakedText.autoScanComplete &&
-        !isActiveOcrScanPhase(img.bakedText.scanPhase) &&
-        img.bakedText.scanPhase !== "interrupted"
-    );
+    const needsScan = images.filter((img) => {
+      const bt = img.bakedText;
+      if (isActiveOcrScanPhase(bt.scanPhase) || bt.scanBusy) {
+        return false;
+      }
+      if (bt.userSkipped || bt.scanPhase === "skipped") {
+        return false;
+      }
+      if (bt.autoScanComplete && bt.scanPhase !== "interrupted") {
+        return false;
+      }
+      return true;
+    });
     if (needsScan.length === 0) {
       return;
     }
@@ -451,10 +459,9 @@ export default function InstantPremiumPage() {
       clearTimeout(autoScanDebounceRef.current);
     }
 
+    const ids = needsScan.map((img) => img.id);
     autoScanDebounceRef.current = setTimeout(() => {
-      for (const img of needsScan) {
-        void scanBakedText(img.id, { silent: true });
-      }
+      scheduleAutoScans(ids);
     }, AUTO_SCAN_DEBOUNCE_MS);
 
     return () => {
@@ -462,7 +469,7 @@ export default function InstantPremiumPage() {
         clearTimeout(autoScanDebounceRef.current);
       }
     };
-  }, [fastRenderMode, images, scanBakedText, wizardReady]);
+  }, [fastRenderMode, images, scheduleAutoScans, wizardReady]);
 
   const confirmBakedText = useCallback(
     (imageId: string) => {

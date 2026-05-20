@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import { isActiveOcrScanPhase, type OcrScanPhase } from "@/lib/instant-ocr-scan";
@@ -12,6 +13,8 @@ function statusKeyForPhase(phase: OcrScanPhase | undefined): string {
       return "instant.ocrStatus.uploading";
     case "calling_ocr":
       return "instant.ocrStatus.callingOcr";
+    case "received_result":
+      return "instant.ocrStatus.receivedResult";
     case "auto_protected":
       return "instant.ocrStatus.autoProtected";
     case "needs_review":
@@ -38,13 +41,26 @@ type Props = {
 
 export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
   const t = useActiveTranslator();
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const active =
     isActiveOcrScanPhase(bakedText.scanPhase) ||
     bakedText.scanBusy ||
     bakedText.autoScanState === "scanning";
 
+  useEffect(() => {
+    if (!active || !bakedText.scanStartedAt) {
+      return;
+    }
+    const timer = setInterval(() => setNowMs(Date.now()), 500);
+    return () => clearInterval(timer);
+  }, [active, bakedText.scanStartedAt]);
+
   const labelKey = statusKeyForPhase(bakedText.scanPhase ?? (active ? "calling_ocr" : "idle"));
   const blockCount = bakedText.scanBlockCount ?? bakedText.blocks.length;
+  const liveElapsedMs =
+    active && bakedText.scanStartedAt
+      ? nowMs - new Date(bakedText.scanStartedAt).getTime()
+      : bakedText.scanDurationMs;
 
   return (
     <div className="mt-2 space-y-1">
@@ -68,7 +84,7 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
       {isAdmin && bakedText.scanRequestId ? (
         <p className="font-mono text-[10px] text-zinc-400">
           {bakedText.scanRequestId.slice(0, 8)}…
-          {bakedText.scanDurationMs != null ? ` · ${bakedText.scanDurationMs}ms` : ""}
+          {liveElapsedMs != null ? ` · ${liveElapsedMs}ms` : ""}
           {bakedText.scanProvider ? ` · ${bakedText.scanProvider}` : ""}
           {bakedText.scanAverageConfidence != null
             ? ` · ${Math.round(bakedText.scanAverageConfidence * 100)}%`

@@ -544,7 +544,8 @@ export const en: LocaleSchema = {
   "instant.bakedText.continueWithoutProtection": "Continue without text protection",
   "instant.bakedText.skipImageWarning":
     "Text in this image may distort in the video. Skip text protection for this photo.",
-  "instant.ocrStatus.queued": "Scan started…",
+  "instant.ocrStatus.queued": "Scan queued…",
+  "instant.ocrStatus.receivedResult": "Result received…",
   "instant.ocrStatus.uploading": "Preparing image…",
   "instant.ocrStatus.callingOcr": "Checking text with vision OCR…",
   "instant.ocrStatus.autoProtected": "Text protected automatically",

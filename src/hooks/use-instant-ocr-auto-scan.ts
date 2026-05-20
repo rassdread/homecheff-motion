@@ -8,12 +8,17 @@ import {
   setCachedBakedTextOcr,
 } from "@/lib/baked-text-ocr-client-cache";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
+import { OcrConcurrencyQueue } from "@/lib/ocr-concurrency-queue";
 import {
   CHECKOUT_PENDING_SCAN_WAIT_MS,
   createScanRequestId,
   type DetectTextApiResponse,
+  fetchJsonWithTimeout,
   isActiveOcrScanPhase,
+  isTimeoutError,
   logOcrAutoScan,
+  OCR_MAX_CONCURRENT_SCANS,
+  OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS,
   OCR_SCAN_TIMEOUT_MS,
   withTimeout,
 } from "@/lib/instant-ocr-scan";
@@ -54,8 +59,19 @@ export function useInstantOcrAutoScan(params: {
   updateBakedText: (imageId: string, patch: Partial<BakedTextProtectionDraft>) => void;
 }) {
   const { fastRenderMode, t, uploadToBlob, setImages, updateBakedText } = params;
+  const scanQueueRef = useRef(new OcrConcurrencyQueue(OCR_MAX_CONCURRENT_SCANS));
   const inFlightOcrByHashRef = useRef<Map<string, Promise<ScanResultPayload>>>(new Map());
   const abortByImageRef = useRef<Map<string, boolean>>(new Map());
+  const watchdogByImageRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const runningScanIdsRef = useRef<Set<string>>(new Set());
+
+  const clearWatchdog = useCallback((imageId: string) => {
+    const timer = watchdogByImageRef.current.get(imageId);
+    if (timer) {
+      clearTimeout(timer);
+      watchdogByImageRef.current.delete(imageId);
+    }
+  }, []);
 
   const patchScan = useCallback(
     (imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
@@ -76,6 +92,7 @@ export function useInstantOcrAutoScan(params: {
         finishedAt: string;
       }
     ) => {
+      clearWatchdog(imageId);
       const meaningful = shouldPromptBakedTextReview(blocks);
       const avgConf =
         blocks.length > 0
@@ -154,7 +171,7 @@ export function useInstantOcrAutoScan(params: {
         })
       );
 
-      logOcrAutoScan("response", {
+      logOcrAutoScan("state-update", {
         imageId,
         scanRequestId: meta.scanRequestId,
         blockCount: blocks.length,
@@ -162,7 +179,7 @@ export function useInstantOcrAutoScan(params: {
         phase: autoConfirmed ? "auto_protected" : meaningful ? "needs_review" : "no_text_found",
       });
     },
-    [setImages]
+    [clearWatchdog, setImages]
   );
 
   const applyScanFailure = useCallback(
@@ -172,40 +189,55 @@ export function useInstantOcrAutoScan(params: {
       scanRequestId: string,
       startedAt: string
     ) => {
+      clearWatchdog(imageId);
       const finishedAt = new Date().toISOString();
       const durationMs = Date.now() - new Date(startedAt).getTime();
       setImages((prev) =>
-        prev.map((img) =>
-          img.id === imageId
-            ? {
-                ...img,
-                bakedText: {
-                  ...img.bakedText,
-                  enabled: code === "timeout" ? img.bakedText.enabled : false,
-                  status: code === "timeout" ? "detected" : "skipped",
-                  scanPhase: code,
-                  scanBusy: false,
-                  autoScanState: "done",
-                  autoScanComplete: true,
-                  needsReview: code === "timeout",
-                  reviewOpen: code === "timeout",
-                  scanFinishedAt: finishedAt,
-                  scanDurationMs: durationMs,
-                  scanErrorCode: code,
-                  scanRequestId,
-                },
-              }
-            : img
-        )
+        prev.map((img) => {
+          if (img.id !== imageId) {
+            return img;
+          }
+          if (
+            !isActiveOcrScanPhase(img.bakedText.scanPhase) &&
+            img.bakedText.scanPhase !== "received_result"
+          ) {
+            return img;
+          }
+          return {
+            ...img,
+            bakedText: {
+              ...img.bakedText,
+              enabled: false,
+              status: "skipped",
+              scanPhase: code,
+              scanBusy: false,
+              autoScanState: "done",
+              autoScanComplete: true,
+              needsReview: code === "timeout",
+              reviewOpen: code === "timeout",
+              scanFinishedAt: finishedAt,
+              scanDurationMs: durationMs,
+              scanErrorCode: code,
+              scanRequestId,
+              blocks: code === "timeout" ? img.bakedText.blocks : [],
+            },
+          };
+        })
       );
-      logOcrAutoScan(code, { imageId, scanRequestId, durationMs });
+      logOcrAutoScan(code === "timeout" ? "fetch-timeout" : "fetch-failed", {
+        imageId,
+        scanRequestId,
+        durationMs,
+      });
+      logOcrAutoScan("state-update", { imageId, scanRequestId, phase: code });
     },
-    [setImages]
+    [clearWatchdog, setImages]
   );
 
   const skipTextProtection = useCallback(
     (imageId: string) => {
       abortByImageRef.current.set(imageId, true);
+      clearWatchdog(imageId);
       patchScan(imageId, {
         enabled: false,
         status: "skipped",
@@ -219,142 +251,169 @@ export function useInstantOcrAutoScan(params: {
         blocks: [],
       });
     },
-    [patchScan]
+    [clearWatchdog, patchScan]
   );
 
-  const scanBakedText = useCallback(
+  const runScan = useCallback(
     async (imageId: string, options?: { force?: boolean; silent?: boolean }) => {
-      if (fastRenderMode) {
-        return;
-      }
-
       const force = options?.force ?? false;
       abortByImageRef.current.set(imageId, false);
       const scanRequestId = createScanRequestId();
       const startedAt = new Date().toISOString();
 
-      let snapshot: LocalImageWithBakedText | undefined;
-      setImages((prev) => {
-        snapshot = prev.find((i) => i.id === imageId);
-        if (!snapshot) {
-          return prev;
-        }
-        return prev.map((img) =>
-          img.id === imageId
-            ? {
-                ...img,
-                bakedText: {
-                  ...img.bakedText,
-                  scanBusy: true,
-                  autoScanState: "scanning",
-                  scanPhase: "queued",
-                  scanRequestId,
-                  scanStartedAt: startedAt,
-                  scanErrorCode: undefined,
-                },
-              }
-            : img
-        );
+      patchScan(imageId, {
+        scanBusy: true,
+        autoScanState: "scanning",
+        scanPhase: "queued",
+        scanRequestId,
+        scanStartedAt: startedAt,
+        scanErrorCode: undefined,
+        autoScanComplete: false,
       });
-
-      if (!snapshot) {
-        return;
-      }
 
       logOcrAutoScan("queued", { imageId, scanRequestId });
 
-      let contentHash = snapshot.bakedText.contentHash;
+      const watchdog = setTimeout(() => {
+        applyScanFailure(imageId, "timeout", scanRequestId, startedAt);
+      }, OCR_SCAN_TIMEOUT_MS + 250);
+      watchdogByImageRef.current.set(imageId, watchdog);
+
+      let contentHash: string | undefined;
       try {
-        if (!contentHash) {
+        const snapshot = await new Promise<LocalImageWithBakedText | undefined>((resolve) => {
+          setImages((prev) => {
+            resolve(prev.find((i) => i.id === imageId));
+            return prev;
+          });
+        });
+
+        if (!snapshot) {
+          applyScanFailure(imageId, "failed", scanRequestId, startedAt);
+          return;
+        }
+
+        const executeScan = async (): Promise<ScanResultPayload> => {
           patchScan(imageId, { scanPhase: "uploading" });
           logOcrAutoScan("upload-ready", { imageId, scanRequestId });
-          contentHash = await hashImageBlob(snapshot.optimizedBlob);
-          patchScan(imageId, { contentHash });
-        }
 
-        if (!force) {
-          const cached = getCachedBakedTextOcr(contentHash);
-          if (cached) {
-            applyOcrResult(imageId, cached.blocks, cached.autoConfirmed, {
-              provider: cached.provider,
-              durationMs: 0,
-              scanRequestId,
-              finishedAt: new Date().toISOString(),
-            });
-            return;
+          let hash = snapshot.bakedText.contentHash;
+          if (!hash) {
+            hash = await hashImageBlob(snapshot.optimizedBlob);
+            patchScan(imageId, { contentHash: hash });
           }
-          const inFlight = inFlightOcrByHashRef.current.get(contentHash);
-          if (inFlight) {
-            const result = await inFlight;
-            if (abortByImageRef.current.get(imageId)) {
-              return;
+          contentHash = hash;
+
+          if (!force) {
+            const cached = getCachedBakedTextOcr(hash);
+            if (cached) {
+              logOcrAutoScan("fetch-response", { imageId, scanRequestId, cached: true });
+              return {
+                blocks: cached.blocks,
+                autoConfirmed: cached.autoConfirmed,
+                provider: cached.provider,
+                scanRequestId,
+              };
             }
-            applyOcrResult(imageId, result.blocks, result.autoConfirmed, {
-              provider: result.provider,
-              durationMs: result.durationMs,
-              scanRequestId: result.scanRequestId,
-              finishedAt: new Date().toISOString(),
-            });
-            return;
-          }
-        }
-
-        patchScan(imageId, { scanPhase: "calling_ocr" });
-        logOcrAutoScan("request-start", { imageId, scanRequestId });
-
-        const imgForUpload = snapshot;
-        const fetchBlocks = async (): Promise<ScanResultPayload> => {
-          let imageUrl = imgForUpload.bakedText.remoteWorkingUrl;
-          if (!imageUrl) {
-            patchScan(imageId, { scanPhase: "uploading" });
-            const up = await uploadToBlob(imgForUpload);
-            imageUrl = up.workingImageUrl;
-            patchScan(imageId, { remoteWorkingUrl: imageUrl });
-            logOcrAutoScan("upload-ready", { imageId, scanRequestId, imageUrl: true });
           }
 
-          const res = await fetch(
-            `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ imageUrl, scanRequestId }),
+          const shared = !force ? inFlightOcrByHashRef.current.get(hash) : undefined;
+          if (shared) {
+            patchScan(imageId, { scanPhase: "calling_ocr" });
+            logOcrAutoScan("fetch-start", { imageId, scanRequestId, shared: true });
+            return withTimeout(shared, OCR_SCAN_TIMEOUT_MS, "ocr_shared_wait");
+          }
+
+          patchScan(imageId, { scanPhase: "calling_ocr" });
+          logOcrAutoScan("fetch-start", { imageId, scanRequestId });
+
+          const fetchBlocks = async (): Promise<ScanResultPayload> => {
+            let imageUrl =
+              snapshot.bakedText.remoteWorkingUrl ?? snapshot.remoteWorkingUrl ?? undefined;
+            if (!imageUrl) {
+              patchScan(imageId, { scanPhase: "uploading" });
+              const up = await withTimeout(
+                uploadToBlob(snapshot),
+                OCR_SCAN_TIMEOUT_MS,
+                "ocr_upload"
+              );
+              imageUrl = up.workingImageUrl;
+              patchScan(imageId, { remoteWorkingUrl: imageUrl });
             }
-          );
-          const data = (await res.json().catch(() => ({}))) as DetectTextApiResponse;
-          if (!res.ok) {
-            throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
-          }
-          return {
-            blocks: data.blocks ?? [],
-            autoConfirmed: data.autoConfirmed === true,
-            provider: data.provider,
-            blockCount: data.blockCount,
-            averageConfidence: data.averageConfidence,
-            durationMs: data.durationMs,
-            scanRequestId: data.scanRequestId ?? scanRequestId,
+
+            const res = await fetchJsonWithTimeout(
+              `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ imageUrl, scanRequestId }),
+              },
+              OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS
+            );
+            const data = (await res.json().catch(() => ({}))) as DetectTextApiResponse;
+
+            if (res.status === 504 || data.errorCode === "OCR_TIMEOUT" || data.status === "timeout") {
+              throw new Error("ocr_fetch_timeout");
+            }
+            if (!res.ok) {
+              throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
+            }
+
+            logOcrAutoScan("fetch-response", {
+              imageId,
+              scanRequestId: data.scanRequestId ?? scanRequestId,
+              blockCount: data.blockCount,
+              provider: data.provider,
+            });
+
+            return {
+              blocks: data.blocks ?? [],
+              autoConfirmed: data.autoConfirmed === true,
+              provider: data.provider,
+              blockCount: data.blockCount,
+              averageConfidence: data.averageConfidence,
+              durationMs: data.durationMs,
+              scanRequestId: data.scanRequestId ?? scanRequestId,
+            };
           };
+
+          const promise = withTimeout(fetchBlocks(), OCR_SCAN_TIMEOUT_MS, "ocr");
+          inFlightOcrByHashRef.current.set(hash, promise);
+          try {
+            return await promise;
+          } finally {
+            inFlightOcrByHashRef.current.delete(hash);
+          }
         };
 
-        const ocrPromise = withTimeout(fetchBlocks(), OCR_SCAN_TIMEOUT_MS, "ocr");
-        inFlightOcrByHashRef.current.set(contentHash, ocrPromise);
-        const ocrResult = await ocrPromise;
+        const ocrResult = await withTimeout(executeScan(), OCR_SCAN_TIMEOUT_MS, "ocr_total");
 
         if (abortByImageRef.current.get(imageId)) {
           return;
         }
 
-        setCachedBakedTextOcr(contentHash, ocrResult.blocks, ocrResult.autoConfirmed, ocrResult.provider);
+        if (contentHash) {
+          setCachedBakedTextOcr(
+            contentHash,
+            ocrResult.blocks,
+            ocrResult.autoConfirmed,
+            ocrResult.provider
+          );
+        }
+
+        patchScan(imageId, { scanPhase: "received_result" });
+
         applyOcrResult(imageId, ocrResult.blocks, ocrResult.autoConfirmed, {
           provider: ocrResult.provider,
           durationMs: ocrResult.durationMs,
           scanRequestId: ocrResult.scanRequestId,
           finishedAt: new Date().toISOString(),
         });
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "scan_failed";
-        if (message.includes("timeout")) {
+      } catch (error) {
+        if (abortByImageRef.current.get(imageId)) {
+          return;
+        }
+        if (isTimeoutError(error)) {
           applyScanFailure(imageId, "timeout", scanRequestId, startedAt);
         } else {
           applyScanFailure(imageId, "failed", scanRequestId, startedAt);
@@ -365,7 +424,39 @@ export function useInstantOcrAutoScan(params: {
         }
       }
     },
-    [applyOcrResult, applyScanFailure, fastRenderMode, patchScan, t, uploadToBlob, setImages]
+    [applyOcrResult, applyScanFailure, patchScan, setImages, t, uploadToBlob]
+  );
+
+  const scanBakedText = useCallback(
+    async (imageId: string, options?: { force?: boolean; silent?: boolean }) => {
+      if (fastRenderMode) {
+        return;
+      }
+      if (options?.force) {
+        runningScanIdsRef.current.delete(imageId);
+      } else if (runningScanIdsRef.current.has(imageId)) {
+        return;
+      }
+      runningScanIdsRef.current.add(imageId);
+      try {
+        await scanQueueRef.current.run(() => runScan(imageId, options));
+      } finally {
+        runningScanIdsRef.current.delete(imageId);
+      }
+    },
+    [fastRenderMode, runScan]
+  );
+
+  const scheduleAutoScans = useCallback(
+    (imageIds: string[]) => {
+      if (fastRenderMode) {
+        return;
+      }
+      for (const imageId of imageIds) {
+        void scanBakedText(imageId, { silent: true });
+      }
+    },
+    [fastRenderMode, scanBakedText]
   );
 
   const waitForPendingScans = useCallback(
@@ -387,6 +478,7 @@ export function useInstantOcrAutoScan(params: {
 
   return {
     scanBakedText,
+    scheduleAutoScans,
     skipTextProtection,
     waitForPendingScans,
   };

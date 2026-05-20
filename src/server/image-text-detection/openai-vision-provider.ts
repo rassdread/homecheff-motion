@@ -6,6 +6,7 @@ import {
   suggestFontSizeForBbox,
   type DetectedTextBlock,
 } from "@/lib/baked-text-detection";
+import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import type { ImageTextDetectionProvider, ImageTextDetectionResult } from "@/server/image-text-detection/types";
 
 type OpenAiBlock = {
@@ -24,12 +25,18 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
   return {
     id: "openai_vision",
     async detectTextBlocks(inputImageUrl: string): Promise<ImageTextDetectionResult> {
+      const signal =
+        typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+          ? AbortSignal.timeout(OCR_DETECT_SERVER_TIMEOUT_MS)
+          : undefined;
+
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+        signal,
         body: JSON.stringify({
           model,
           temperature: 0,

@@ -7,7 +7,10 @@ import {
 import { averageBlockConfidence, createScanRequestId } from "@/lib/instant-ocr-scan";
 import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
-import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
+import {
+  detectTextBlocksFromImageUrlWithTimeout,
+  OcrDetectTimeoutError,
+} from "@/server/image-text-detection/detect-with-timeout";
 
 type RouteContext = {
   params: Promise<{ imageId: string }>;
@@ -57,7 +60,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const result = await detectTextBlocksFromImageUrl(imageUrl);
+    const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId);
     const detected = result.blocks.map(detectedBlockToRecord);
     const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
     const { blocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
@@ -84,14 +87,29 @@ export async function POST(request: Request, context: RouteContext) {
       blocks,
     });
   } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    if (error instanceof OcrDetectTimeoutError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          scanRequestId,
+          status: "timeout",
+          error: error.message,
+          errorCode: "OCR_TIMEOUT",
+          durationMs,
+        },
+        { status: 504 }
+      );
+    }
     const message = error instanceof Error ? error.message : "Text detection failed.";
     return NextResponse.json(
       {
         ok: false,
         scanRequestId,
+        status: "failed",
         error: message,
         errorCode: "OCR_FAILED",
-        durationMs: Date.now() - startedAt,
+        durationMs,
       },
       { status: 503 }
     );
