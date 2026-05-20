@@ -657,6 +657,8 @@ export const nl = {
   "instant.advancedMotion.title": "Geavanceerde ontwikkelaarsmodus",
   "instant.advancedMotion.hint":
     "Pipeline-internals: overgangen, segmentatie, compositor en legacy tekstmodi.",
+  "instant.advancedMotion.viduPromptBudget":
+    "Vidu-prompt (begroot geschat): {chars} / {max} tekens",
   "instant.textIntegration.legacyModeHint":
     "Legacy tekstpipeline actief. Schakel naar poster-animatie (standaard) voor de vereenvoudigde creator flow.",
   "instant.step3.animationStyleAuto":

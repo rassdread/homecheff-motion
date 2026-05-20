@@ -18,13 +18,10 @@ import {
 } from "@/lib/instant-premium-prompt";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import {
-  buildMotionIntelligenceSegmentHints,
-  resolveMotionIntelligenceContext,
-} from "@/lib/premium-motion-automation";
-import {
-  parsePremiumPolishSettings,
-  resolvePremiumPolishProfile,
-} from "@/lib/premium-polish-settings";
+  buildBudgetedViduPrompt,
+  validateViduPromptLength,
+  VIDU_PROMPT_HARD_MAX_CHARS,
+} from "@/lib/vidu-prompt-budget";
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 
@@ -229,39 +226,52 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 
   const polishSettings = transition.project.instantPosterMotionSettings;
   const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
-  const polishProfile = resolvePremiumPolishProfile(polishSettings);
-  const parsedPolish = parsePremiumPolishSettings(polishSettings);
+  let finalPrompt: string;
+  if (isInstantPremium) {
+    const mainPrompt = buildInstantVideoPrompt({
+      stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
+      duration: resolveInstantPremiumDuration(transition.project.instantOutputDurationSeconds),
+      aspectRatio: resolveInstantPremiumAspect(transition.project.aspectRatio),
+      userIntent: instantStoredIntent.text || null,
+      selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
+      continuityStrength: instantStoredIntent.continuityStrength,
+      lockedTextMode: transition.project.instantLockedTextMode !== false,
+      bakedTextProtectionActive,
+      hybridOverlayActive,
+      posterMotionActive,
+      textRenderMode,
+      motionProfile,
+      polishSettingsRaw: polishSettings,
+      transitionOrder: transition.order,
+      transitionTotal,
+    });
+    const segmentHint = instantPremiumTransitionSegmentHint({
+      transitionOrder: transition.order,
+      transitionTotal,
+      imageCount,
+    });
+    const budgeted = buildBudgetedViduPrompt({
+      projectId: transition.projectId,
+      segmentIndex: transition.order,
+      storyBlock: mainPrompt,
+      motionBlock: "",
+      segmentHint,
+    });
+    finalPrompt = budgeted.prompt;
+    const lengthCheck = validateViduPromptLength(finalPrompt, VIDU_PROMPT_HARD_MAX_CHARS);
+    if (!lengthCheck.ok) {
+      throw new Error(
+        `VIDU_PROMPT_TOO_LONG: ${lengthCheck.debug.charsAfter} chars (max ${VIDU_PROMPT_HARD_MAX_CHARS}). ` +
+          `truncated=${lengthCheck.debug.truncatedBlocks.join(",")}`
+      );
+    }
+  } else {
+    finalPrompt = "";
+  }
 
-  const finalPrompt = isInstantPremium
-    ? `${buildInstantVideoPrompt({
-        stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
-        duration: resolveInstantPremiumDuration(transition.project.instantOutputDurationSeconds),
-        aspectRatio: resolveInstantPremiumAspect(transition.project.aspectRatio),
-        userIntent: instantStoredIntent.text || null,
-        selectedChips: parseInstantPremiumChipsJson(transition.project.instantSelectedChips),
-        continuityStrength: instantStoredIntent.continuityStrength,
-        lockedTextMode: transition.project.instantLockedTextMode !== false,
-        bakedTextProtectionActive,
-        hybridOverlayActive,
-        posterMotionActive,
-        textRenderMode,
-        motionProfile,
-        polishSettingsRaw: polishSettings,
-        transitionOrder: transition.order,
-        transitionTotal,
-      })}\n\n${instantPremiumTransitionSegmentHint({
-        transitionOrder: transition.order,
-        transitionTotal,
-        imageCount,
-      })}\n\n${buildMotionIntelligenceSegmentHints(
-        resolveMotionIntelligenceContext({
-          profile: polishProfile,
-          scene: parsedPolish.sceneIntelligence,
-          transitionOrder: transition.order,
-          transitionTotal,
-        })
-      )}`
-    : (() => {
+  if (!isInstantPremium) {
+    finalPrompt =
+      (() => {
         const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
           ? transition.project.presetId
           : "standard";
@@ -278,6 +288,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
           transitionTotal,
         });
       })();
+  }
 
   const provider = getVideoProvider();
   const jobSettings = resolveProviderJobSettings(transition.project);

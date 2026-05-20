@@ -21,6 +21,8 @@ import {
   isOpenAiRateLimitFailure,
   noteOpenAiRateLimitFailure,
 } from "@/server/openai/openai-request-gate";
+import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
+import type { ViduPromptTooLongDebug } from "@/lib/vidu-prompt-budget";
 
 export const INSTANT_PREFLIGHT_BLOCK_MESSAGE_NL =
   "Deze afbeelding bevat tekst die kan vervormen. Scan en bevestig tekst eerst.";
@@ -72,15 +74,22 @@ export type InstantPremiumPreflightResult =
       warnings: string[];
       images: PreflightImageReport[];
       visionUsed: boolean;
+      /** Budgeted Vidu prompt length (admin debug). */
+      viduPromptChars?: number;
     }
   | {
       ok: false;
       error: string;
-      code: "TEXT_PROTECTION_REQUIRED" | "PREFLIGHT_UNAVAILABLE" | "OPENAI_RATE_LIMITED";
+      code:
+        | "TEXT_PROTECTION_REQUIRED"
+        | "PREFLIGHT_UNAVAILABLE"
+        | "OPENAI_RATE_LIMITED"
+        | "VIDU_PROMPT_TOO_LONG";
       blockMessage: string;
       warnings: string[];
       images: PreflightImageReport[];
       visionUsed: boolean;
+      viduPromptDebug?: ViduPromptTooLongDebug;
     };
 
 function imageSourceUrl(image: CreateAnimationProjectImageInput): string {
@@ -435,11 +444,35 @@ export async function runInstantPremiumTextPreflight(
   payload: InstantPremiumCreatePayload
 ): Promise<InstantPremiumPreflightResult> {
   if (usesPosterMotionPreserve(normalizeTextRenderMode(payload.textRenderMode))) {
+    const viduPromptCheck = runViduPromptLengthPreflight(payload);
+    if (!viduPromptCheck.ok) {
+      return {
+        ok: false,
+        error: `Vidu prompt exceeds limit (${viduPromptCheck.debug.charsAfter} chars, max ${viduPromptCheck.debug.hardMaxChars}).`,
+        code: "VIDU_PROMPT_TOO_LONG",
+        blockMessage: `Vidu prompt too long for animation style ${viduPromptCheck.animationStyleId ?? "unknown"}.`,
+        warnings: [],
+        images: payload.images.map((image, index) => ({
+          index,
+          fileName: image.fileName,
+          protectionState: "none" as const,
+          confirmedBlockCount: 0,
+          vision: null,
+          blocked: true,
+          blockMessage: "Vidu prompt too long.",
+          warnings: [],
+          structuredWarnings: [],
+        })),
+        visionUsed: false,
+        viduPromptDebug: viduPromptCheck.debug,
+      };
+    }
     return {
       ok: true,
       warnings: [
         "Poster motion preserve: typography stays in the original image (no OCR text rebuild).",
       ],
+      viduPromptChars: viduPromptCheck.chars,
       images: payload.images.map((image, index) => ({
         index,
         fileName: image.fileName,

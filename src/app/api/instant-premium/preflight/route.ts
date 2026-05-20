@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       warnings: preflight.warnings,
       images: preflight.images,
       visionUsed: preflight.visionUsed,
+      viduPromptChars: preflight.viduPromptChars,
     },
     { status: 200 }
   );

@@ -14,9 +14,8 @@ import {
   usesCriticalTypographyPrompt,
   usesPosterMotionPreserve,
 } from "@/lib/hybrid-motion-overlay";
-import { POSTER_MOTION_PRESERVE_PROMPT_BLOCK } from "@/lib/poster-motion-preserve";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
-import { buildPremiumPolishViduPromptBlocks } from "@/lib/premium-polish-prompts";
+import { buildCompactViduMotionPrompt, buildCompactInstantStoryBlock } from "@/lib/vidu-prompt-budget";
 import {
   parsePremiumPolishSettings,
   resolvePremiumPolishProfile,
@@ -173,7 +172,7 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
   const visualChips = filterVisualOnlyChips(input.selectedChips);
   const chipLines = chipInstructionLines(visualChips);
   const chipBlock =
-    chipLines.length > 0 ? chipLines.map((l) => `- ${l}`).join("\n") : "(none — rely on defaults above.)";
+    chipLines.length > 0 ? chipLines.map((l) => `- ${l}`).join(" ") : "(none — rely on defaults above.)";
 
   const intentTrimmed = input.userIntent?.trim() ?? "";
   const intentBlock =
@@ -183,8 +182,8 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
   const continuityStrength = normalizeInstantPremiumContinuityStrength(input.continuityStrength);
   const continuityLine =
     continuityStrength === "strict"
-      ? "Continuity priority: strict. Keep one unbroken evolving shot language across all keyframes."
-      : "Continuity priority: balanced. Keep a coherent flow while allowing subtle style variation.";
+      ? "Strict continuity across keyframes."
+      : "Balanced continuity with subtle variation.";
 
   const polishProfile = resolvePremiumPolishProfile(
     input.polishSettingsRaw ?? input.motionProfile
@@ -193,7 +192,7 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
     input.motionProfile ??
     premiumMotionProfileFromPosterSettings(input.polishSettingsRaw);
   const parsedPolish = parsePremiumPolishSettings(input.polishSettingsRaw);
-  const premiumMotionBlock = buildPremiumPolishViduPromptBlocks(
+  const premiumMotionBlock = buildCompactViduMotionPrompt(
     {
       ...polishProfile,
       motionEnergy: motionProfile.motionEnergy,
@@ -203,64 +202,39 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
       sceneIntelligence: parsedPolish.sceneIntelligence,
       transitionOrder: input.transitionOrder,
       transitionTotal: input.transitionTotal,
+      userIntent: input.userIntent,
     }
   );
 
-  return `Create one continuous premium short-form video using the provided images in their exact uploaded order as keyframes. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
+  const storyBlock = buildCompactInstantStoryBlock({
+    aspectRatio: input.aspectRatio,
+    duration: input.duration,
+    styleLine,
+    chipSummary: chipBlock,
+    continuityLine,
+    userIntent: intentBlock,
+  });
 
-Treat this as a single evolving visual story, not separate scenes. No hard cuts between images.
+  const usePosterPreserve =
+    input.posterMotionActive || (input.textRenderMode && usesPosterMotionPreserve(input.textRenderMode));
 
-Preserve the same subject identity, environment feeling, lighting direction, and camera language across the full sequence. Avoid unrealistic warping or sudden style jumps.
-
-Apply smooth cinematic motion with natural temporal continuity from one keyframe to the next.
-
-Style direction:
-${styleLine}
-
-Additional motion direction:
-${chipBlock}
-
-Continuity control:
-${continuityLine}
-
-User intent:
-${intentBlock}
-
-If user intent is present, subtly incorporate it without breaking realism or consistency.
-
-Maintain balanced pacing and a coherent flow. Avoid static sections, chaotic motion, and abrupt resets.
-
-The final result should feel like a polished, premium, ready-to-use social media video.
-
-${premiumMotionBlock}${
-    input.posterMotionActive || (input.textRenderMode && usesPosterMotionPreserve(input.textRenderMode))
-      ? `
-
-${POSTER_MOTION_PRESERVE_PROMPT_BLOCK}`
-      : ""
-  }${
-    input.lockedTextMode !== false && !input.posterMotionActive
-      ? `
-
-${LOCKED_TEXT_SAFETY_BLOCK}`
-      : ""
-  }${
+  const tailBlocks: string[] = [];
+  if (!usePosterPreserve && input.lockedTextMode !== false) {
+    tailBlocks.push(LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 3).join("\n"));
+  }
+  if (
     input.bakedTextProtectionActive &&
     input.textRenderMode &&
     usesCriticalTypographyPrompt(input.textRenderMode)
-      ? `
+  ) {
+    tailBlocks.push(DEEVID_CRITICAL_TYPOGRAPHY_PROMPT_BLOCK.split("\n").slice(0, 4).join("\n"));
+  } else if (input.hybridOverlayActive) {
+    tailBlocks.push(HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK.split("\n").slice(0, 3).join("\n"));
+  } else if (input.bakedTextProtectionActive) {
+    tailBlocks.push(BAKED_TEXT_CLEANED_PROMPT_BLOCK.split("\n").slice(0, 3).join("\n"));
+  }
 
-${DEEVID_CRITICAL_TYPOGRAPHY_PROMPT_BLOCK}`
-      : input.hybridOverlayActive
-        ? `
-
-${HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK}`
-        : input.bakedTextProtectionActive
-          ? `
-
-${BAKED_TEXT_CLEANED_PROMPT_BLOCK}`
-          : ""
-  }`;
+  return [storyBlock, premiumMotionBlock, ...tailBlocks].filter(Boolean).join("\n\n");
 }
 
 export function instantPremiumTransitionSegmentHint(params: {

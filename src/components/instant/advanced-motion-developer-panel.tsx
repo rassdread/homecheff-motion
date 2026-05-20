@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { ManualForegroundRegionsPanel } from "@/components/instant/manual-foreground-regions-panel";
 import { PosterMotionPanel } from "@/components/instant/poster-motion-panel";
@@ -14,6 +14,13 @@ import {
 import { getPremiumPolishPreset, type PremiumPolishPresetId } from "@/lib/premium-polish-presets";
 import type { InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
 import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
+import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
+import {
+  buildCompactInstantStoryBlock,
+  buildCompactViduMotionPrompt,
+  estimateBudgetedViduPromptLength,
+  VIDU_PROMPT_MAX_CHARS,
+} from "@/lib/vidu-prompt-budget";
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
   poster_motion_preserve: "instant.textIntegration.mode.posterMotion",
@@ -47,6 +54,22 @@ export function AdvancedMotionDeveloperPanel({
 }: Props) {
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
+  const viduPromptEstimate = useMemo(() => {
+    const profile = resolvePremiumPolishProfile(posterMotionSettings);
+    const motion = buildCompactViduMotionPrompt(profile, {
+      transitionOrder: 1,
+      transitionTotal: 3,
+    });
+    const story = buildCompactInstantStoryBlock({
+      aspectRatio: "9:16",
+      duration: 8,
+      styleLine: "Warm cinematic food promo style.",
+      chipSummary: "(none — rely on defaults above.)",
+      continuityLine: "Balanced continuity with subtle variation.",
+      userIntent: "(none — follow defaults and chip directions only.)",
+    });
+    return estimateBudgetedViduPromptLength({ storyBlock: story, motionBlock: motion });
+  }, [posterMotionSettings]);
 
   if (!isAdmin) {
     return null;
@@ -65,6 +88,12 @@ export function AdvancedMotionDeveloperPanel({
       {open ? (
         <div className="border-t border-zinc-200 px-3 pb-3">
           <p className="mt-2 text-[11px] text-zinc-600">{t("instant.advancedMotion.hint")}</p>
+          <p className="mt-2 rounded-lg border border-violet-200/80 bg-violet-50/60 px-2 py-1.5 font-mono text-[10px] text-violet-950">
+            {t("instant.advancedMotion.viduPromptBudget", {
+              chars: viduPromptEstimate.chars,
+              max: VIDU_PROMPT_MAX_CHARS,
+            })}
+          </p>
 
           <fieldset className="mt-3">
             <legend className="text-xs font-medium text-zinc-700">

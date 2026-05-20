@@ -657,6 +657,8 @@ export const en: LocaleSchema = {
   "instant.advancedMotion.title": "Advanced developer mode",
   "instant.advancedMotion.hint":
     "Pipeline internals: transitions, segmentation, compositor, and legacy text modes.",
+  "instant.advancedMotion.viduPromptBudget":
+    "Vidu prompt (budgeted est.): {chars} / {max} chars",
   "instant.textIntegration.legacyModeHint":
     "Legacy text pipeline active. Switch to poster animation (default) for the simplified creator flow.",
   "instant.step3.animationStyleAuto":
