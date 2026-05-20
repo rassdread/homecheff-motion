@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
+import { I18nHydrationSync } from "@/components/layout/i18n-hydration-sync";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { brand } from "@/lib/brand";
 
@@ -12,6 +13,7 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   return (
     <>
+      <I18nHydrationSync />
       <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white backface-hidden [transform:translateZ(0)]">
         <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 sm:px-10">
           <Link href="/" prefetch={false} className="flex items-center gap-3">

@@ -16,6 +16,24 @@ const LOCALE_STORAGE_KEY = "hc-locale";
 const localeListeners = new Set<() => void>();
 let activeLocale: Locale = DEFAULT_LOCALE;
 let localeInitialized = false;
+let i18nHydrated = false;
+
+/** Call once after client mount so SSR and first paint both use DEFAULT_LOCALE. */
+export function markI18nHydrated(): void {
+  if (typeof window === "undefined" || i18nHydrated) {
+    return;
+  }
+  i18nHydrated = true;
+  const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  if (saved === "nl" || saved === "en") {
+    activeLocale = saved;
+  } else {
+    const navigatorLocale = window.navigator.language.toLowerCase();
+    activeLocale = navigatorLocale.startsWith("nl") ? "nl" : DEFAULT_LOCALE;
+  }
+  localeInitialized = true;
+  localeListeners.forEach((listener) => listener());
+}
 
 function interpolate(
   template: string,
@@ -41,18 +59,11 @@ export function getTranslator(locale: Locale = DEFAULT_LOCALE) {
 }
 
 export function getActiveLocale(): Locale {
-  if (typeof window === "undefined") {
-    return activeLocale;
+  if (typeof window === "undefined" || !i18nHydrated) {
+    return DEFAULT_LOCALE;
   }
   if (!localeInitialized) {
-    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    if (saved === "nl" || saved === "en") {
-      activeLocale = saved;
-    } else {
-      const navigatorLocale = window.navigator.language.toLowerCase();
-      activeLocale = navigatorLocale.startsWith("nl") ? "nl" : DEFAULT_LOCALE;
-    }
-    localeInitialized = true;
+    markI18nHydrated();
   }
   return activeLocale;
 }

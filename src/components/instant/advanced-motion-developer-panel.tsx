@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useMounted } from "@/hooks/use-mounted";
 import { useActiveTranslator } from "@/i18n/client";
 import { ManualForegroundRegionsPanel } from "@/components/instant/manual-foreground-regions-panel";
 import { PosterMotionPanel } from "@/components/instant/poster-motion-panel";
@@ -21,6 +22,7 @@ import {
   estimateBudgetedViduPromptLength,
   VIDU_PROMPT_MAX_CHARS,
 } from "@/lib/vidu-prompt-budget";
+import { isIndexedDbAvailable } from "@/lib/instant-premium-wizard-storage";
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
   poster_motion_preserve: "instant.textIntegration.mode.posterMotion",
@@ -36,6 +38,7 @@ type Props = {
   overlayStyle: OverlayStyle;
   posterMotionSettings: PosterMotionSettings;
   isAdmin?: boolean;
+  showAdminDiagnostics?: boolean;
   onTextRenderModeChange: (mode: TextRenderMode) => void;
   onOverlayStyleChange: (style: OverlayStyle) => void;
   onPosterMotionSettingsChange: (patch: Partial<PosterMotionSettings>) => void;
@@ -47,14 +50,19 @@ export function AdvancedMotionDeveloperPanel({
   overlayStyle,
   posterMotionSettings,
   isAdmin = false,
+  showAdminDiagnostics = false,
   onTextRenderModeChange,
   onOverlayStyleChange,
   onPosterMotionSettingsChange,
   onStylePresetChange,
 }: Props) {
   const t = useActiveTranslator();
+  const mounted = useMounted();
   const [open, setOpen] = useState(false);
   const viduPromptEstimate = useMemo(() => {
+    if (!mounted) {
+      return { chars: 0, log: { charsAfter: 0, maxChars: VIDU_PROMPT_MAX_CHARS } };
+    }
     const profile = resolvePremiumPolishProfile(posterMotionSettings);
     const motion = buildCompactViduMotionPrompt(profile, {
       transitionOrder: 1,
@@ -69,7 +77,7 @@ export function AdvancedMotionDeveloperPanel({
       userIntent: "(none — follow defaults and chip directions only.)",
     });
     return estimateBudgetedViduPromptLength({ storyBlock: story, motionBlock: motion });
-  }, [posterMotionSettings]);
+  }, [mounted, posterMotionSettings]);
 
   if (!isAdmin) {
     return null;
@@ -88,12 +96,21 @@ export function AdvancedMotionDeveloperPanel({
       {open ? (
         <div className="border-t border-zinc-200 px-3 pb-3">
           <p className="mt-2 text-[11px] text-zinc-600">{t("instant.advancedMotion.hint")}</p>
-          <p className="mt-2 rounded-lg border border-violet-200/80 bg-violet-50/60 px-2 py-1.5 font-mono text-[10px] text-violet-950">
-            {t("instant.advancedMotion.viduPromptBudget", {
-              chars: viduPromptEstimate.chars,
-              max: VIDU_PROMPT_MAX_CHARS,
-            })}
-          </p>
+          {showAdminDiagnostics ? (
+            <p
+              className="mt-2 rounded-lg border border-violet-200/80 bg-violet-50/60 px-2 py-1.5 font-mono text-[10px] text-violet-950"
+              suppressHydrationWarning
+            >
+              {mounted
+                ? t("instant.advancedMotion.viduPromptBudget", {
+                    chars: viduPromptEstimate.chars,
+                    max: VIDU_PROMPT_MAX_CHARS,
+                  })
+                : `Vidu prompt: — / ${VIDU_PROMPT_MAX_CHARS}`}
+              <br />
+              {mounted ? ` · indexedDb: ${isIndexedDbAvailable() ? "yes" : "no"}` : null}
+            </p>
+          ) : null}
 
           <fieldset className="mt-3">
             <legend className="text-xs font-medium text-zinc-700">

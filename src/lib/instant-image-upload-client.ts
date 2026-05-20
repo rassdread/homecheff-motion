@@ -3,6 +3,7 @@ import {
   type ImageUploadErrorBody,
   type ImageUploadErrorCode,
 } from "@/lib/instant-image-upload-errors";
+import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
 import type { UploadImageResponse } from "@/types/animation-api";
 
 export class ImageUploadError extends Error {
@@ -15,6 +16,22 @@ export class ImageUploadError extends Error {
     this.code = code;
     this.requestId = requestId;
   }
+}
+
+function assertValidUploadResponse(data: UploadImageResponse): UploadImageResponse {
+  if (!isValidHttpUrl(data.workingImageUrl)) {
+    logInvalidImageUrl("postWizardImageUpload.response", {
+      workingImageUrl: String(data.workingImageUrl ?? "").slice(0, 80),
+    });
+    throw new ImageUploadError(IMAGE_UPLOAD_USER_MESSAGE_NL, "IMAGE_UPLOAD_FAILED");
+  }
+  if (data.thumbnailUrl && !isValidHttpUrl(data.thumbnailUrl)) {
+    logInvalidImageUrl("postWizardImageUpload.response", {
+      thumbnailUrl: String(data.thumbnailUrl).slice(0, 80),
+    });
+    throw new ImageUploadError(IMAGE_UPLOAD_USER_MESSAGE_NL, "IMAGE_UPLOAD_FAILED");
+  }
+  return data;
 }
 
 export async function postWizardImageUpload(
@@ -42,5 +59,5 @@ export async function postWizardImageUpload(
     );
   }
 
-  return data as UploadImageResponse;
+  return assertValidUploadResponse(data as UploadImageResponse);
 }

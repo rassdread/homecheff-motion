@@ -35,7 +35,9 @@ import {
   purgeInstantWizardImagePersistence,
   revokeWizardImagePreviewUrls,
 } from "@/lib/instant-wizard-image-cleanup";
-import { saveWizardImageBlobs } from "@/lib/instant-premium-wizard-storage";
+import { safeIndexedDbSet } from "@/lib/instant-premium-wizard-storage";
+import { isRenderableImageUrl } from "@/lib/is-valid-http-url";
+import { useMounted } from "@/hooks/use-mounted";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -179,14 +181,20 @@ function SortableThumb({
     >
       <div className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-100">
-          <Image
-            src={item.workingPreviewUrl}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="120px"
-            unoptimized
-          />
+          {isRenderableImageUrl(item.workingPreviewUrl) ? (
+            <Image
+              src={item.workingPreviewUrl}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="120px"
+              unoptimized
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-zinc-500">
+              —
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -246,13 +254,13 @@ export default function InstantPremiumPage() {
   useEffect(() => {
     wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
-  const [premiumMode] = useState<"test" | "paid">(() => {
-    if (typeof document === "undefined") {
+  const mounted = useMounted();
+  const premiumMode = useMemo<"test" | "paid">(() => {
+    if (!mounted || typeof document === "undefined") {
       return "test";
     }
-    const mode = document.body.dataset.instantPremiumMode;
-    return mode === "paid" ? "paid" : "test";
-  });
+    return document.body.dataset.instantPremiumMode === "paid" ? "paid" : "test";
+  }, [mounted]);
   const isAdmin = session.user?.role?.trim() === "admin";
   const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
   const activeStyleVisual = useMemo(
@@ -326,7 +334,7 @@ export default function InstantPremiumPage() {
         );
         setImages((prev) => [...prev, ...processed]);
         for (const img of processed) {
-          void saveWizardImageBlobs(img.id, img.optimizedBlob, img.thumbnailBlob);
+          void safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "";
@@ -411,21 +419,37 @@ export default function InstantPremiumPage() {
     formData.append("mimeType", img.mimeType);
     formData.append("sizeBytes", String(img.sizeBytes));
     formData.append("clientUploadId", img.id);
-    const payload = await postWizardImageUpload(formData);
-    setImages((prev) =>
-      prev.map((row) =>
-        row.id === img.id
-          ? {
-              ...row,
-              remoteWorkingUrl: payload.workingImageUrl,
-              remoteThumbnailUrl: payload.thumbnailUrl,
-              remoteStorageKey: payload.workingStorageKey,
-              bakedText: { ...row.bakedText, remoteWorkingUrl: payload.workingImageUrl },
-            }
-          : row
-      )
-    );
-    return payload;
+    try {
+      const payload = await postWizardImageUpload(formData);
+      setImages((prev) =>
+        prev.map((row) =>
+          row.id === img.id
+            ? {
+                ...row,
+                remoteWorkingUrl: payload.workingImageUrl,
+                remoteThumbnailUrl: payload.thumbnailUrl,
+                remoteStorageKey: payload.workingStorageKey,
+                bakedText: { ...row.bakedText, remoteWorkingUrl: payload.workingImageUrl },
+              }
+            : row
+        )
+      );
+      return payload;
+    } catch (error) {
+      setImages((prev) =>
+        prev.map((row) =>
+          row.id === img.id
+            ? {
+                ...row,
+                remoteWorkingUrl: undefined,
+                remoteThumbnailUrl: undefined,
+                bakedText: { ...row.bakedText, remoteWorkingUrl: undefined },
+              }
+            : row
+        )
+      );
+      throw error;
+    }
   }, []);
 
   const {
@@ -987,7 +1011,7 @@ export default function InstantPremiumPage() {
             <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {wizardReady && hasWizardSessionContent ? (
+            {mounted && wizardReady && hasWizardSessionContent ? (
               <button
                 type="button"
                 className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50"
@@ -1008,7 +1032,7 @@ export default function InstantPremiumPage() {
             <div
               key={i}
               className={`h-1 flex-1 rounded-full ${
-                i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
+                mounted && i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
               }`}
               title={t(creatorWizardStepTitleKey(i + 1) as never)}
             />
@@ -1039,7 +1063,8 @@ export default function InstantPremiumPage() {
         ) : null}
 
         <AdvancedCreatorSettingsPanel
-          isAdmin={isAdmin}
+          isAdmin={mounted && isAdmin}
+          showAdminDiagnostics={mounted && isAdmin}
           textRenderMode={textRenderMode}
           overlayStyle={hybridOverlayStyle}
           posterMotionSettings={posterMotionSettings}
@@ -1266,10 +1291,12 @@ export default function InstantPremiumPage() {
             backPlaceholder={wizardNav.backPlaceholder}
             onBack={wizardNav.onBack}
             secondaryLabel={
-              wizardReady && hasWizardSessionContent ? t("instant.reset.button") : undefined
+              mounted && wizardReady && hasWizardSessionContent ? t("instant.reset.button") : undefined
             }
             onSecondary={
-              wizardReady && hasWizardSessionContent ? () => setResetDialogOpen(true) : undefined
+              mounted && wizardReady && hasWizardSessionContent
+                ? () => setResetDialogOpen(true)
+                : undefined
             }
             secondaryDisabled={resetBusy || checkoutBusy}
             primaryLabel={wizardNav.primaryLabel}

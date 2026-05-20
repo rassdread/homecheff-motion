@@ -34,6 +34,7 @@ import {
   withTimeout,
 } from "@/lib/instant-ocr-scan";
 import { IMAGE_UPLOAD_USER_MESSAGE_NL } from "@/lib/instant-image-upload-errors";
+import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
 import type { UploadImageResponse } from "@/types/animation-api";
 
 export type LocalImageWithBakedText = {
@@ -404,8 +405,13 @@ export function useInstantOcrAutoScan(params: {
           }
 
           const fetchBlocks = async (): Promise<ScanResultPayload> => {
-            let imageUrl =
+            let imageUrl: string | undefined =
               snapshot.bakedText.remoteWorkingUrl ?? snapshot.remoteWorkingUrl ?? undefined;
+            if (imageUrl && !isValidHttpUrl(imageUrl)) {
+              const invalid = imageUrl;
+              logInvalidImageUrl("ocr.autoScan", { imageId, imageUrl: invalid.slice(0, 80) });
+              imageUrl = undefined;
+            }
 
             if (!imageUrl) {
               patchScan(imageId, { scanPhase: "uploading" });
@@ -417,6 +423,13 @@ export function useInstantOcrAutoScan(params: {
               );
               const uploadMs = Math.round(performance.now() - uploadStart);
               logOcrPerf("upload", { imageId, uploadMs, bytes: prep.outputBytes });
+              if (!isValidHttpUrl(up.workingImageUrl)) {
+                logInvalidImageUrl("ocr.uploadResponse", {
+                  imageId,
+                  workingImageUrl: String(up.workingImageUrl ?? "").slice(0, 80),
+                });
+                throw new Error("ocr_upload_invalid_url");
+              }
               imageUrl = up.workingImageUrl;
               patchScan(imageId, { remoteWorkingUrl: imageUrl });
             }
@@ -567,7 +580,7 @@ export function useInstantOcrAutoScan(params: {
           uploadDetail?: { code?: string; requestId?: string };
         }).uploadDetail;
         const label = error instanceof Error ? error.message : "";
-        if (uploadDetail || label.includes("ocr_upload")) {
+        if (uploadDetail || label.includes("ocr_upload") || label.includes("ocr_upload_invalid_url")) {
           patchScan(imageId, { remoteWorkingUrl: undefined });
           applyScanFailure(imageId, "failed", scanRequestId, startedAt, {
             errorCode: uploadDetail?.code ?? "IMAGE_UPLOAD_FAILED",

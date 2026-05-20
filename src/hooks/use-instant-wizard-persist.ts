@@ -6,6 +6,7 @@ import type { LockedTextLayerDraft } from "@/components/instant/locked-text-laye
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
+import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
 import { syncInstantWizardPersistedImages } from "@/lib/instant-wizard-image-cleanup";
 import {
   CREATOR_WIZARD_FLOW_VERSION,
@@ -16,7 +17,7 @@ import {
   normalizeBakedTextAfterRestore,
   pruneOrphanedWizardBlobs,
   readPersistedWizardState,
-  saveWizardImageBlobs,
+  safeIndexedDbSet,
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
@@ -41,6 +42,10 @@ function serializeBakedText(bt: BakedTextProtectionDraft): PersistedWizardImage[
 }
 
 async function blobFromUrl(url: string): Promise<Blob | null> {
+  if (!isValidHttpUrl(url)) {
+    logInvalidImageUrl("wizardPersist.blobFromUrl", { url: url.slice(0, 80) });
+    return null;
+  }
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -91,65 +96,77 @@ export function useInstantWizardPersist(params: {
     }
     hydratedRef.current = true;
     void (async () => {
-      const saved = readPersistedWizardState();
-      if (!saved || saved.images.length === 0) {
-        await pruneOrphanedWizardBlobs([]);
-        params.onHydrated?.();
-        return;
-      }
-      const allowedIds = new Set(saved.images.map((pi) => pi.id));
-      await pruneOrphanedWizardBlobs(allowedIds);
+      try {
+        const saved = readPersistedWizardState();
+        if (!saved || saved.images.length === 0) {
+          await pruneOrphanedWizardBlobs([]);
+          params.onHydrated?.();
+          return;
+        }
+        const allowedIds = new Set(saved.images.map((pi) => pi.id));
+        await pruneOrphanedWizardBlobs(allowedIds);
 
-      const restored: PersistableLocalImage[] = [];
-      for (const pi of saved.images) {
-        const baked = normalizeBakedTextAfterRestore(serializeBakedText(pi.bakedText as BakedTextProtectionDraft));
-        let blobs = await loadWizardImageBlobs(pi.id);
-        if (!blobs && pi.remoteWorkingUrl) {
-          const fetched = await blobFromUrl(pi.remoteWorkingUrl);
-          if (fetched) {
-            blobs = { optimized: fetched, thumbnail: fetched };
+        const restored: PersistableLocalImage[] = [];
+        for (const pi of saved.images) {
+          const baked = normalizeBakedTextAfterRestore(
+            serializeBakedText(pi.bakedText as BakedTextProtectionDraft)
+          );
+          let blobs = await loadWizardImageBlobs(pi.id);
+          const remoteUrl = pi.remoteWorkingUrl ?? pi.bakedText.remoteWorkingUrl;
+          if (!blobs && remoteUrl) {
+            const fetched = await blobFromUrl(remoteUrl);
+            if (fetched) {
+              blobs = { optimized: fetched, thumbnail: fetched };
+              void safeIndexedDbSet(pi.id, fetched, fetched);
+            }
           }
+          if (!blobs) {
+            continue;
+          }
+          restored.push({
+            id: pi.id,
+            originalFileName: pi.originalFileName,
+            mimeType: pi.mimeType,
+            sizeBytes: pi.sizeBytes,
+            optimizedBlob: blobs.optimized,
+            thumbnailBlob: blobs.thumbnail,
+            workingPreviewUrl: URL.createObjectURL(blobs.optimized),
+            thumbnailPreviewUrl: URL.createObjectURL(blobs.thumbnail),
+            remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
+            remoteThumbnailUrl: pi.remoteThumbnailUrl,
+            remoteStorageKey: pi.remoteStorageKey,
+            bakedText: baked as BakedTextProtectionDraft,
+          });
         }
-        if (!blobs) {
-          continue;
+
+        await pruneOrphanedWizardBlobs(new Set(restored.map((img) => img.id)));
+
+        if (restored.length === 0) {
+          params.onHydrated?.();
+          return;
         }
-        restored.push({
-          id: pi.id,
-          originalFileName: pi.originalFileName,
-          mimeType: pi.mimeType,
-          sizeBytes: pi.sizeBytes,
-          optimizedBlob: blobs.optimized,
-          thumbnailBlob: blobs.thumbnail,
-          workingPreviewUrl: URL.createObjectURL(blobs.optimized),
-          thumbnailPreviewUrl: URL.createObjectURL(blobs.thumbnail),
-          remoteWorkingUrl: pi.remoteWorkingUrl ?? pi.bakedText.remoteWorkingUrl,
-          remoteThumbnailUrl: pi.remoteThumbnailUrl,
-          remoteStorageKey: pi.remoteStorageKey,
-          bakedText: baked as BakedTextProtectionDraft,
+        params.onRestore({
+          step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
+          images: restored,
+          stylePreset: saved.stylePreset,
+          durationSec: saved.durationSec,
+          motionText: saved.motionText,
+          continuityStrength: saved.continuityStrength,
+          chips: saved.chips,
+          lockedTextMode: saved.lockedTextMode,
+          lockedTextLayers: saved.lockedTextLayers,
+          chipTextBySlot: saved.chipTextBySlot,
+          aspectRatio: saved.aspectRatio,
+          fastRenderMode: saved.fastRenderMode,
         });
-      }
-
-      await pruneOrphanedWizardBlobs(new Set(restored.map((img) => img.id)));
-
-      if (restored.length === 0) {
+      } catch (error) {
+        console.warn("[indexeddb-cache-failed]", {
+          op: "hydrate",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
         params.onHydrated?.();
-        return;
       }
-      params.onRestore({
-        step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
-        images: restored,
-        stylePreset: saved.stylePreset,
-        durationSec: saved.durationSec,
-        motionText: saved.motionText,
-        continuityStrength: saved.continuityStrength,
-        chips: saved.chips,
-        lockedTextMode: saved.lockedTextMode,
-        lockedTextLayers: saved.lockedTextLayers,
-        chipTextBySlot: saved.chipTextBySlot,
-        aspectRatio: saved.aspectRatio,
-        fastRenderMode: saved.fastRenderMode,
-      });
-      params.onHydrated?.();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate once
   }, []);
@@ -177,33 +194,43 @@ export function useInstantWizardPersist(params: {
       return;
     }
 
-    if (params.images.length === 0) {
+    try {
+      if (params.images.length === 0) {
+        await syncInstantWizardPersistedImages({
+          ...buildPersistedState(),
+          images: [],
+        });
+        return;
+      }
+
+      const persistedImages: PersistedWizardImage[] = [];
+      for (const img of params.images) {
+        await safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
+        const remoteWorking = img.remoteWorkingUrl ?? img.bakedText.remoteWorkingUrl;
+        persistedImages.push({
+          id: img.id,
+          originalFileName: img.originalFileName,
+          mimeType: img.mimeType,
+          sizeBytes: img.sizeBytes,
+          remoteWorkingUrl: isValidHttpUrl(remoteWorking) ? remoteWorking : undefined,
+          remoteThumbnailUrl: isValidHttpUrl(img.remoteThumbnailUrl)
+            ? img.remoteThumbnailUrl
+            : undefined,
+          remoteStorageKey: img.remoteStorageKey,
+          bakedText: serializeBakedText(img.bakedText),
+        });
+      }
+
       await syncInstantWizardPersistedImages({
         ...buildPersistedState(),
-        images: [],
+        images: persistedImages,
       });
-      return;
-    }
-
-    const persistedImages: PersistedWizardImage[] = [];
-    for (const img of params.images) {
-      await saveWizardImageBlobs(img.id, img.optimizedBlob, img.thumbnailBlob);
-      persistedImages.push({
-        id: img.id,
-        originalFileName: img.originalFileName,
-        mimeType: img.mimeType,
-        sizeBytes: img.sizeBytes,
-        remoteWorkingUrl: img.remoteWorkingUrl ?? img.bakedText.remoteWorkingUrl,
-        remoteThumbnailUrl: img.remoteThumbnailUrl,
-        remoteStorageKey: img.remoteStorageKey,
-        bakedText: serializeBakedText(img.bakedText),
+    } catch (error) {
+      console.warn("[indexeddb-cache-failed]", {
+        op: "persist",
+        message: error instanceof Error ? error.message : String(error),
       });
     }
-
-    await syncInstantWizardPersistedImages({
-      ...buildPersistedState(),
-      images: persistedImages,
-    });
   }, [buildPersistedState, params]);
 
   useEffect(() => {

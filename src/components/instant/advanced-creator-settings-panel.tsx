@@ -28,6 +28,7 @@ const CHIP_LABEL_KEYS: Record<InstantPremiumChipId, string> = {
 
 type Props = {
   isAdmin: boolean;
+  showAdminDiagnostics?: boolean;
   textRenderMode: TextRenderMode;
   overlayStyle: OverlayStyle;
   posterMotionSettings: PosterMotionSettings;
@@ -160,6 +161,7 @@ export function AdvancedCreatorSettingsPanel(props: Props) {
             overlayStyle={props.overlayStyle}
             posterMotionSettings={props.posterMotionSettings}
             isAdmin={props.isAdmin}
+            showAdminDiagnostics={props.showAdminDiagnostics}
             onTextRenderModeChange={props.onTextRenderModeChange}
             onOverlayStyleChange={props.onOverlayStyleChange}
             onPosterMotionSettingsChange={props.onPosterMotionSettingsChange}
