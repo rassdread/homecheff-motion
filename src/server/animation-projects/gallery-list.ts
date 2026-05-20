@@ -2,6 +2,7 @@ import type { AnimationPresetId } from "@/lib/animation-presets";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
+import { normalizeGalleryRebuildMeta } from "@/server/animation-projects/gallery-list-rebuild-meta";
 import type { AnimationProjectListItem } from "@/types/animation-api";
 
 export type GalleryListPrismaRow = {
@@ -39,6 +40,23 @@ export function mapPrismaRowToAnimationProjectListItem(
   row: GalleryListPrismaRow,
   options: { includeOwnerEmail: boolean }
 ): AnimationProjectListItem {
+  try {
+    return mapPrismaRowToAnimationProjectListItemInner(row, options);
+  } catch (error) {
+    console.error("[gallery-list]", {
+      phase: "mapRowFailed",
+      projectId: row?.id ?? "unknown",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+function mapPrismaRowToAnimationProjectListItemInner(
+  row: GalleryListPrismaRow,
+  options: { includeOwnerEmail: boolean }
+): AnimationProjectListItem {
+  const rebuildMeta = normalizeGalleryRebuildMeta(row);
   const isInstantLike =
     row.projectType === "instant_premium" ||
     row.stylePreset === "food_promo" ||
@@ -97,9 +115,9 @@ export function mapPrismaRowToAnimationProjectListItem(
             outputVideoUrl: latest.outputVideoUrl,
             exportStatus: latest.status,
             projectStatus: row.status,
-            rebuildStatus: row.instantFinalRebuildStatus ?? null,
-            rebuildCount: row.instantFinalRebuildCount ?? 0,
-            rebuiltAt: row.instantFinalRebuiltAt,
+            rebuildStatus: rebuildMeta.rebuildStatus,
+            rebuildCount: rebuildMeta.rebuildCount,
+            rebuiltAt: rebuildMeta.rebuiltAt,
           }),
           errorMessage: latest.errorMessage,
         }

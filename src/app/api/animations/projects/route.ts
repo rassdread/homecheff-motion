@@ -1,4 +1,3 @@
-import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -24,14 +23,10 @@ import {
   requireActiveUser,
   requireUser,
 } from "@/server/auth/permissions";
-import {
-  mapPrismaRowToAnimationProjectListItem,
-  type GalleryListPrismaRow,
-} from "@/server/animation-projects/gallery-list";
+import { listAnimationProjectsForUser } from "@/server/animation-projects/list-projects-handler";
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { DEFAULT_GLOBAL_ANIMATION_CONTEXT } from "@/lib/animation-global-prompt-context";
 import type {
-  AnimationProjectListResponse,
   CreatedAnimationTransition,
   CreateAnimationProjectErrorBody,
   CreateAnimationProjectRequest,
@@ -39,7 +34,6 @@ import type {
 } from "@/types/animation-api";
 
 const MIN_IMAGES = 2;
-const MAX_GALLERY_LIST_LIMIT = 50;
 
 export async function GET(request: Request) {
   const user = await requireActiveUser();
@@ -52,97 +46,24 @@ export async function GET(request: Request) {
   const listAll = wantsAll && canAccessAdmin(user);
 
   const limitParsed = Number.parseInt(searchParams.get("limit") ?? "50", 10);
-  const limit = Number.isFinite(limitParsed)
-    ? Math.min(MAX_GALLERY_LIST_LIMIT, Math.max(1, limitParsed))
-    : 50;
+  const limit = Number.isFinite(limitParsed) ? limitParsed : 50;
   const pageParsed = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(pageParsed) && pageParsed > 0 ? pageParsed : 1;
-  const offset = (page - 1) * limit;
+  const statusFilter = searchParams.get("status")?.trim() || undefined;
 
-  const statusFilter = searchParams.get("status")?.trim();
-  const where: Prisma.AnimationProjectWhereInput = {};
-  if (!listAll) {
-    where.ownerId = user.id;
-  }
-  if (statusFilter) {
-    where.status = statusFilter;
-  }
-
-  const selectBase = {
-    id: true,
-    createdAt: true,
-    updatedAt: true,
-    status: true,
-    projectType: true,
-    stylePreset: true,
-    instantOutputDurationSeconds: true,
-    instantSelectedChips: true,
-    instantUserIntent: true,
-    presetId: true,
-    intent: true,
-    advancedSettingsEnabled: true,
-    viduResolution: true,
-    viduDurationSeconds: true,
-    estimatedCredits: true,
-    instantFinalRebuildCount: true,
-    instantFinalRebuiltAt: true,
-    instantFinalRebuildStatus: true,
-    images: {
-      orderBy: { order: "asc" as const },
-      take: 1,
-      select: { previewUrl: true },
-    },
-    _count: { select: { images: true, transitions: true } },
-    transitions: {
-      orderBy: { order: "asc" as const },
-      select: {
-        status: true,
-        outputVideoUrl: true,
-      },
-    },
-    exports: {
-      orderBy: { createdAt: "desc" as const },
-      take: 1,
-      select: {
-        status: true,
-        progress: true,
-        outputVideoUrl: true,
-        errorMessage: true,
-      },
-    },
-  } as const;
-
-  const select = listAll
-    ? ({ ...selectBase, owner: { select: { email: true } } } as const)
-    : selectBase;
-
-  const [rows, total] = await Promise.all([
-    prisma.animationProject.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-      select: select as Prisma.AnimationProjectSelect,
-    }),
-    prisma.animationProject.count({ where }),
-  ]);
-
-  const projects = rows.map((row) =>
-    mapPrismaRowToAnimationProjectListItem(row as unknown as GalleryListPrismaRow, {
-      includeOwnerEmail: listAll,
-    })
-  );
-
-  const hasMore = offset + rows.length < total;
-  const body: AnimationProjectListResponse = {
-    projects,
+  const result = await listAnimationProjectsForUser({
+    ownerId: listAll ? undefined : user.id,
+    listAll,
     page,
     limit,
-    total,
-    hasMore,
-  };
+    statusFilter,
+  });
 
-  return NextResponse.json(body, { status: 200 });
+  if (!result.ok) {
+    return NextResponse.json(result.body, { status: result.status });
+  }
+
+  return NextResponse.json(result.body, { status: 200 });
 }
 
 function isAdvancedEnabledPayload(value: unknown): boolean {
