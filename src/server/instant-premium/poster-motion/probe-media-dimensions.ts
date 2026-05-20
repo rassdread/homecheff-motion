@@ -52,6 +52,30 @@ export async function probeImageFileDimensions(filePath: string): Promise<MediaD
   }
 }
 
+export async function probeVideoDurationSeconds(filePath: string): Promise<number | null> {
+  const binary = ffprobeBinary();
+  const result = await runCapture(binary, [
+    "-v",
+    "error",
+    "-select_streams",
+    "v:0",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "default=noprint_wrappers=1:nokey=1",
+    filePath,
+  ]);
+  if (result.code !== 0) {
+    return null;
+  }
+  const trimmed = result.output.trim();
+  const seconds = Number.parseFloat(trimmed);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return null;
+  }
+  return seconds;
+}
+
 export async function probeVideoFileDimensions(filePath: string): Promise<MediaDimensions | null> {
   const binary = ffprobeBinary();
   const result = await runCapture(binary, [

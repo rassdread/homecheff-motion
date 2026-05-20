@@ -27,8 +27,13 @@ import {
   normalizeOverlayStyle,
   normalizeTextRenderMode,
   shouldApplyOcrTextOverlay,
-  usesPosterBaseComposite,
 } from "@/lib/hybrid-motion-overlay";
+import { resolvePosterMotionBlendStrength, parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
+import {
+  logFinalAssembly,
+  resolveFinalAssemblyMode,
+  shouldRunSegmentCompositor,
+} from "@/server/instant-premium/final-assembly";
 import { compositePosterMotionPreserveSegments } from "@/server/instant-premium/poster-motion/poster-motion-compositor";
 import {
   logMergeSegment,
@@ -508,7 +513,11 @@ export async function executeInstantPremiumMerge(
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
       const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
-      const posterMotionActive = usesPosterBaseComposite(textRenderMode);
+      const finalAssemblyMode = resolveFinalAssemblyMode(textRenderMode);
+      const runSegmentCompositor = shouldRunSegmentCompositor(finalAssemblyMode);
+      const blendStrength = resolvePosterMotionBlendStrength(
+        parsePosterMotionSettings(project.instantPosterMotionSettings)
+      );
       const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
       const perSegmentDurationSec = project.viduDurationSeconds ?? null;
       const imageById = new Map(project.images.map((img) => [img.id, img]));
@@ -551,10 +560,21 @@ export async function executeInstantPremiumMerge(
       let pathsToConcat = segmentPaths;
       const mergeMaxWidth = getFinalMergeMaxWidthFromViduResolution(project.viduResolution);
 
-      if (posterMotionActive) {
+      logFinalAssembly({
+        projectId,
+        mode: finalAssemblyMode,
+        segmentCount: completed.length,
+        processedSegmentCount: 0,
+        compositorApplied: runSegmentCompositor,
+        blendStrength,
+        phase: "assembly_start",
+      });
+
+      if (runSegmentCompositor) {
         const posterSegments = completed
           .map((transition, segmentIndex) => {
-            const baseUrl = imageById.get(transition.startImageId)?.previewUrl?.trim();
+            const startImage = imageById.get(transition.startImageId);
+            const baseUrl = startImage?.previewUrl?.trim();
             if (!baseUrl) {
               return null;
             }
@@ -562,6 +582,8 @@ export async function executeInstantPremiumMerge(
               segmentPath: segmentPaths[segmentIndex]!,
               baseImageUrl: baseUrl,
               segmentIndex,
+              sourceSegmentUrl: segmentUrls[segmentIndex]!,
+              posterImageId: startImage?.id ?? transition.startImageId,
             };
           })
           .filter((row): row is NonNullable<typeof row> => row !== null);
@@ -572,32 +594,57 @@ export async function executeInstantPremiumMerge(
           );
         }
 
-        if (posterSegments.length > 0) {
-          const segmentDurationSec = perSegmentDurationSec ?? expectedDurationSec;
-          const posterComposite = await compositePosterMotionPreserveSegments({
-            projectId,
-            workDir,
-            segments: posterSegments,
-            segmentDurationSec,
-            maxWidth: mergeMaxWidth,
-            posterMotionSettings: project.instantPosterMotionSettings,
-          });
-          if (posterComposite.segmentPaths.length !== segmentPaths.length) {
-            throw new MergeSegmentsValidationError(
-              `[${projectId}] Poster compositor returned ${posterComposite.segmentPaths.length} segments; expected ${segmentPaths.length}.`
-            );
-          }
-          pathsToConcat = posterComposite.segmentPaths;
-          console.info("[hc-instant-premium]", {
-            projectId,
-            phase: "posterMotionSegmentsCompositeApplied",
-            segmentCount: completed.length,
-            motionBlendAppliedCount: posterComposite.motionBlendAppliedCount,
-            passthroughFallbackCount: posterComposite.passthroughFallbackCount,
-            staticFallbackCount: posterComposite.staticFallbackCount,
-          });
+        const segmentDurationSec = perSegmentDurationSec ?? expectedDurationSec;
+        const posterComposite = await compositePosterMotionPreserveSegments({
+          projectId,
+          workDir,
+          segments: posterSegments,
+          segmentDurationSec,
+          maxWidth: mergeMaxWidth,
+          posterMotionSettings: project.instantPosterMotionSettings,
+          finalAssemblyMode,
+          segmentCount: completed.length,
+          blendStrength,
+        });
+        if (posterComposite.segmentPaths.length !== segmentPaths.length) {
+          throw new MergeSegmentsValidationError(
+            `[${projectId}] Poster compositor returned ${posterComposite.segmentPaths.length} segments; expected ${segmentPaths.length}.`
+          );
         }
+        if (posterComposite.compositorAppliedCount < completed.length) {
+          throw new MergeSegmentsValidationError(
+            `[${projectId}] Poster compositor did not apply to all segments (${posterComposite.compositorAppliedCount}/${completed.length}).`
+          );
+        }
+        if (posterComposite.passthroughFallbackCount > 0) {
+          throw new MergeSegmentsValidationError(
+            `[${projectId}] Plain segment passthrough is not allowed for ${finalAssemblyMode} (${posterComposite.passthroughFallbackCount} segments).`
+          );
+        }
+        pathsToConcat = posterComposite.segmentPaths;
+        console.info("[hc-instant-premium]", {
+          projectId,
+          phase: "posterMotionSegmentsCompositeApplied",
+          finalAssemblyMode,
+          segmentCount: completed.length,
+          motionBlendAppliedCount: posterComposite.motionBlendAppliedCount,
+          compositorAppliedCount: posterComposite.compositorAppliedCount,
+          passthroughFallbackCount: posterComposite.passthroughFallbackCount,
+          staticFallbackCount: posterComposite.staticFallbackCount,
+          blendStrength,
+        });
       }
+
+      logFinalAssembly({
+        projectId,
+        mode: finalAssemblyMode,
+        segmentCount: completed.length,
+        processedSegmentCount: pathsToConcat.length,
+        compositorApplied: runSegmentCompositor,
+        blendStrength,
+        phase: "assembly_complete",
+        compositorDetail: runSegmentCompositor ? "blend" : "concat",
+      });
 
       await prisma.animationExport.update({
         where: { id: exportRow.id },

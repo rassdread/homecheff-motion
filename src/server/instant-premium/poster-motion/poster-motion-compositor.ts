@@ -17,8 +17,15 @@ import {
   type PosterMotionSettings,
 } from "@/lib/poster-motion-preserve";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
+import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
+import {
+  allowsPlainSegmentPassthrough,
+  isPosterCompositeAssemblyMode,
+  logFinalAssembly,
+} from "@/server/instant-premium/final-assembly";
 import {
   probeImageFileDimensions,
+  probeVideoDurationSeconds,
   probeVideoFileDimensions,
 } from "@/server/instant-premium/poster-motion/probe-media-dimensions";
 
@@ -33,11 +40,10 @@ export type CompositePosterMotionInput = {
   posterMotionSettings?: unknown;
   /** 0-based segment index for merge logs */
   segmentIndex?: number;
-  /**
-   * When true (default), probe/blend failures fall back to re-encoding the overlay clip.
-   * When false, legacy static-poster-only output may be used (not for multi-segment finals).
-   */
-  preferOverlayPassthrough?: boolean;
+  finalAssemblyMode?: FinalAssemblyMode;
+  sourceSegmentUrl?: string;
+  posterImageId?: string | null;
+  blendStrength?: number;
 };
 
 export type CompositePosterMotionResult = {
@@ -51,6 +57,8 @@ export type PosterMotionSegmentCompositeInput = {
   segmentPath: string;
   baseImageUrl: string;
   segmentIndex: number;
+  sourceSegmentUrl: string;
+  posterImageId: string | null;
 };
 
 export type CompositePosterMotionSegmentsInput = {
@@ -60,6 +68,9 @@ export type CompositePosterMotionSegmentsInput = {
   segmentDurationSec: number;
   maxWidth: number;
   posterMotionSettings?: unknown;
+  finalAssemblyMode: FinalAssemblyMode;
+  segmentCount: number;
+  blendStrength: number;
 };
 
 export type CompositePosterMotionSegmentsResult = {
@@ -67,6 +78,7 @@ export type CompositePosterMotionSegmentsResult = {
   motionBlendAppliedCount: number;
   passthroughFallbackCount: number;
   staticFallbackCount: number;
+  compositorAppliedCount: number;
 };
 
 function ffmpegBinary(): string {
@@ -96,14 +108,21 @@ function buildBaseStreamFilter(
     overlayHeight: posterHeight,
   });
 
+  let chain: string;
   if (settings.cinematicCameraMotion) {
-    return [
+    chain = [
       normalized.baseFilter,
       `zoompan=z='min(zoom+0.00035,1.06)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${normalized.posterWidth}x${normalized.posterHeight}:fps=${fps}`,
     ].join(",");
+  } else {
+    chain = `${normalized.baseFilter},fps=${fps}`;
   }
 
-  return `${normalized.baseFilter},fps=${fps}`;
+  if (settings.particlesGlow) {
+    chain = `${chain},eq=brightness=0.03:saturation=1.08:gamma=1.02`;
+  }
+
+  return chain;
 }
 
 async function runFfmpegToOutput(
@@ -207,6 +226,61 @@ async function renderStaticPosterOnly(params: {
   return result.ok;
 }
 
+async function applyStaticPosterMotionFallback(params: {
+  ffmpeg: string;
+  input: CompositePosterMotionInput;
+  settings: PosterMotionSettings;
+  duration: number;
+  fps: number;
+  basePath: string;
+  posterWidth: number;
+  posterHeight: number;
+  reason: string;
+}): Promise<CompositePosterMotionResult> {
+  const staticOk = await renderStaticPosterOnly({
+    ffmpeg: params.ffmpeg,
+    basePath: params.basePath,
+    outputVideoPath: params.input.outputVideoPath,
+    posterWidth: params.posterWidth,
+    posterHeight: params.posterHeight,
+    settings: params.settings,
+    durationSec: params.duration,
+    fps: params.fps,
+  });
+  console.warn("[hc-instant-premium]", {
+    projectId: params.input.projectId,
+    segmentIndex: params.input.segmentIndex,
+    phase: "posterMotionStaticSegmentFallback",
+    reason: params.reason,
+    staticOk,
+  });
+  if (!staticOk && isPosterCompositeAssemblyMode(params.input.finalAssemblyMode ?? "poster_composite_segments")) {
+    const passthroughOk = await passthroughOverlayVideo({
+      ffmpeg: params.ffmpeg,
+      overlayPath: params.input.mergedViduPath,
+      outputVideoPath: params.input.outputVideoPath,
+      durationSec: params.duration,
+      maxWidth: params.input.maxWidth,
+      fps: params.fps,
+    });
+    if (passthroughOk) {
+      return {
+        outputPath: params.input.outputVideoPath,
+        motionBlendApplied: false,
+        usedStaticFallback: false,
+        usedPassthroughFallback: true,
+      };
+    }
+  }
+
+  return {
+    outputPath: params.input.outputVideoPath,
+    motionBlendApplied: false,
+    usedStaticFallback: staticOk,
+    usedPassthroughFallback: false,
+  };
+}
+
 async function applyPosterMotionFallback(params: {
   ffmpeg: string;
   input: CompositePosterMotionInput;
@@ -218,9 +292,16 @@ async function applyPosterMotionFallback(params: {
   posterHeight: number;
   reason: string;
 }): Promise<CompositePosterMotionResult> {
-  const preferPassthrough = params.input.preferOverlayPassthrough !== false;
+  const assemblyMode = params.input.finalAssemblyMode ?? "poster_composite_segments";
 
-  if (preferPassthrough) {
+  if (
+    assemblyMode === "static_poster_motion" ||
+    isPosterCompositeAssemblyMode(assemblyMode)
+  ) {
+    return applyStaticPosterMotionFallback(params);
+  }
+
+  if (allowsPlainSegmentPassthrough(assemblyMode)) {
     const passthroughOk = await passthroughOverlayVideo({
       ffmpeg: params.ffmpeg,
       overlayPath: params.input.mergedViduPath,
@@ -245,22 +326,7 @@ async function applyPosterMotionFallback(params: {
     }
   }
 
-  await renderStaticPosterOnly({
-    ffmpeg: params.ffmpeg,
-    basePath: params.basePath,
-    outputVideoPath: params.input.outputVideoPath,
-    posterWidth: params.posterWidth,
-    posterHeight: params.posterHeight,
-    settings: params.settings,
-    durationSec: params.duration,
-    fps: params.fps,
-  });
-  return {
-    outputPath: params.input.outputVideoPath,
-    motionBlendApplied: false,
-    usedStaticFallback: true,
-    usedPassthroughFallback: false,
-  };
+  return applyStaticPosterMotionFallback(params);
 }
 
 /**
@@ -270,6 +336,7 @@ export async function compositePosterMotionPreserve(
   input: CompositePosterMotionInput
 ): Promise<CompositePosterMotionResult> {
   const settings: PosterMotionSettings = parsePosterMotionSettings(input.posterMotionSettings);
+  const assemblyMode = input.finalAssemblyMode ?? "poster_composite_segments";
   const ffmpeg = (await resolveFfmpegForTextOverlay().catch(() => null)) ?? ffmpegBinary();
   const basePath = path.join(
     input.workDir,
@@ -277,8 +344,30 @@ export async function compositePosterMotionPreserve(
   );
   await downloadToFile(input.baseImageUrl, basePath);
 
-  const duration = Math.max(1, Math.round(input.durationSec));
+  const probedDuration = await probeVideoDurationSeconds(input.mergedViduPath);
+  const duration = Math.max(
+    1,
+    Math.round(probedDuration ?? input.durationSec)
+  );
   const fps = 30;
+
+  if (assemblyMode === "static_poster_motion") {
+    const posterDims = await probeImageFileDimensions(basePath);
+    const posterWidth = posterDims?.width ?? Math.max(360, input.maxWidth);
+    const posterHeight =
+      posterDims?.height ?? Math.round((Math.max(360, input.maxWidth) * 16) / 9);
+    return applyStaticPosterMotionFallback({
+      ffmpeg,
+      input,
+      settings,
+      duration,
+      fps,
+      basePath,
+      posterWidth,
+      posterHeight,
+      reason: "static_poster_motion_mode",
+    });
+  }
 
   const posterDims = await probeImageFileDimensions(basePath);
   const overlayDims = await probeVideoFileDimensions(input.mergedViduPath);
@@ -434,7 +523,10 @@ export async function compositePosterMotionPreserve(
     segmentIndex: input.segmentIndex,
     phase: "posterMotionBlendFailed",
     tail: blendResult.output.slice(-500),
-    action: input.preferOverlayPassthrough !== false ? "overlay_passthrough_fallback" : "static_poster_fallback",
+    action:
+      assemblyMode === "concat_segments_only"
+        ? "overlay_passthrough_fallback"
+        : "static_poster_segment_fallback",
   });
 
   return applyPosterMotionFallback({
@@ -459,6 +551,7 @@ export async function compositePosterMotionPreserveSegments(
   let motionBlendAppliedCount = 0;
   let passthroughFallbackCount = 0;
   let staticFallbackCount = 0;
+  let compositorAppliedCount = 0;
 
   for (const segment of input.segments) {
     const outputVideoPath = path.join(
@@ -475,9 +568,17 @@ export async function compositePosterMotionPreserveSegments(
       maxWidth: input.maxWidth,
       posterMotionSettings: input.posterMotionSettings,
       segmentIndex: segment.segmentIndex,
-      preferOverlayPassthrough: true,
+      finalAssemblyMode: input.finalAssemblyMode,
+      sourceSegmentUrl: segment.sourceSegmentUrl,
+      posterImageId: segment.posterImageId,
+      blendStrength: input.blendStrength,
     });
     segmentPaths.push(result.outputPath);
+
+    const compositorApplied = result.motionBlendApplied || result.usedStaticFallback;
+    if (compositorApplied) {
+      compositorAppliedCount += 1;
+    }
     if (result.motionBlendApplied) {
       motionBlendAppliedCount += 1;
     } else if (result.usedPassthroughFallback) {
@@ -485,6 +586,29 @@ export async function compositePosterMotionPreserveSegments(
     } else if (result.usedStaticFallback) {
       staticFallbackCount += 1;
     }
+
+    const compositorDetail = result.motionBlendApplied
+      ? "blend"
+      : result.usedStaticFallback
+        ? "static_poster"
+        : result.usedPassthroughFallback
+          ? "passthrough"
+          : "skipped";
+
+    logFinalAssembly({
+      projectId: input.projectId,
+      mode: input.finalAssemblyMode,
+      segmentCount: input.segmentCount,
+      processedSegmentCount: segmentPaths.length,
+      compositorApplied,
+      blendStrength: input.blendStrength,
+      segmentIndex: segment.segmentIndex,
+      posterImageId: segment.posterImageId,
+      sourceSegmentUrl: segment.sourceSegmentUrl,
+      processedSegmentPath: result.outputPath,
+      compositorDetail,
+      phase: "segment",
+    });
   }
 
   return {
@@ -492,5 +616,6 @@ export async function compositePosterMotionPreserveSegments(
     motionBlendAppliedCount,
     passthroughFallbackCount,
     staticFallbackCount,
+    compositorAppliedCount,
   };
 }
