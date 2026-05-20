@@ -30,10 +30,6 @@ function logTextFailed(data: Record<string, unknown>): void {
   console.error("[text-failed]", data);
 }
 
-function escapeFilterPath(filePath: string): string {
-  return filePath.replace(/\\/g, "/").replace(/:/g, "\\:");
-}
-
 function overlayExprForPatch(
   patch: TextPatch,
   videoWidth: number,
