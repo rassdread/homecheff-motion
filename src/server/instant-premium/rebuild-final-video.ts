@@ -19,6 +19,7 @@ import { isInstantLikeProject } from "@/server/instant-premium/instant-project-u
 
 export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
 export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
+export { MERGE_SEGMENTS_MISSING } from "@/server/instant-premium/merge-segments";
 export const REBUILD_ALREADY_RUNNING = "REBUILD_ALREADY_RUNNING";
 
 export type RebuildFinalVideoResult = {

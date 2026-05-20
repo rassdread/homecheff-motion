@@ -29,7 +29,12 @@ import {
   shouldApplyOcrTextOverlay,
   usesPosterBaseComposite,
 } from "@/lib/hybrid-motion-overlay";
-import { compositePosterMotionPreserve } from "@/server/instant-premium/poster-motion/poster-motion-compositor";
+import { compositePosterMotionPreserveSegments } from "@/server/instant-premium/poster-motion/poster-motion-compositor";
+import {
+  logMergeSegment,
+  MergeSegmentsValidationError,
+  validateMergeSegmentsBeforeExport,
+} from "@/server/instant-premium/merge-segments";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { finalBlobPathname } from "@/lib/final-video-storage";
@@ -500,54 +505,112 @@ export async function executeInstantPremiumMerge(
     await ensureDir(outDir);
     const finalAbs = path.join(outDir, "final.mp4");
     try {
+      const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
+      const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
+      const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
+      const posterMotionActive = usesPosterBaseComposite(textRenderMode);
+      const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
+      const perSegmentDurationSec = project.viduDurationSeconds ?? null;
+      const imageById = new Map(project.images.map((img) => [img.id, img]));
+
       const segmentPaths: string[] = [];
+      const segmentUrls: string[] = [];
       for (let i = 0; i < completed.length; i += 1) {
-        segmentPaths.push(
-          await resolveTransitionVideoToSegment(completed[i].outputVideoUrl!, workDir, i)
-        );
+        const segmentUrl = completed[i].outputVideoUrl!.trim();
+        segmentUrls.push(segmentUrl);
+        logMergeSegment({
+          projectId,
+          segmentCount: completed.length,
+          segmentIndex: i,
+          segmentUrl,
+          duration: perSegmentDurationSec,
+          mode: textRenderMode,
+        });
+        segmentPaths.push(await resolveTransitionVideoToSegment(segmentUrl, workDir, i));
       }
+
+      validateMergeSegmentsBeforeExport({
+        projectId,
+        segmentCount: completed.length,
+        concatInputCount: segmentPaths.length,
+        expectedDurationSec,
+        perSegmentDurationSec,
+        segmentUrls,
+      });
+
+      console.info("[merge-segments]", {
+        projectId,
+        segmentCount: completed.length,
+        phase: "concatReady",
+        segmentUrls,
+        duration: perSegmentDurationSec,
+        mode: textRenderMode,
+        expectedDurationSec,
+      });
+
+      let pathsToConcat = segmentPaths;
+      const mergeMaxWidth = getFinalMergeMaxWidthFromViduResolution(project.viduResolution);
+
+      if (posterMotionActive) {
+        const posterSegments = completed
+          .map((transition, segmentIndex) => {
+            const baseUrl = imageById.get(transition.startImageId)?.previewUrl?.trim();
+            if (!baseUrl) {
+              return null;
+            }
+            return {
+              segmentPath: segmentPaths[segmentIndex]!,
+              baseImageUrl: baseUrl,
+              segmentIndex,
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null);
+
+        if (posterSegments.length !== completed.length) {
+          throw new MergeSegmentsValidationError(
+            `[${projectId}] Missing poster base image for one or more segments (${posterSegments.length}/${completed.length}).`
+          );
+        }
+
+        if (posterSegments.length > 0) {
+          const segmentDurationSec = perSegmentDurationSec ?? expectedDurationSec;
+          const posterComposite = await compositePosterMotionPreserveSegments({
+            projectId,
+            workDir,
+            segments: posterSegments,
+            segmentDurationSec,
+            maxWidth: mergeMaxWidth,
+            posterMotionSettings: project.instantPosterMotionSettings,
+          });
+          if (posterComposite.segmentPaths.length !== segmentPaths.length) {
+            throw new MergeSegmentsValidationError(
+              `[${projectId}] Poster compositor returned ${posterComposite.segmentPaths.length} segments; expected ${segmentPaths.length}.`
+            );
+          }
+          pathsToConcat = posterComposite.segmentPaths;
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "posterMotionSegmentsCompositeApplied",
+            segmentCount: completed.length,
+            motionBlendAppliedCount: posterComposite.motionBlendAppliedCount,
+            passthroughFallbackCount: posterComposite.passthroughFallbackCount,
+            staticFallbackCount: posterComposite.staticFallbackCount,
+          });
+        }
+      }
+
       await prisma.animationExport.update({
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
       });
       await concatAndEncode(
         workDir,
-        segmentPaths,
+        pathsToConcat,
         finalAbs,
-        getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
-        project.viduDurationSeconds ?? null
+        mergeMaxWidth,
+        perSegmentDurationSec
       );
       let mergedPath = finalAbs;
-      const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
-      const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
-      const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
-      const posterMotionActive = usesPosterBaseComposite(textRenderMode);
-
-      if (posterMotionActive) {
-        const baseImage = project.images[0];
-        const baseUrl = baseImage?.previewUrl?.trim();
-        if (baseUrl) {
-          const posterOut = path.join(workDir, "final-poster-composite.mp4");
-          const durationSec = project.instantOutputDurationSeconds ?? 8;
-          const posterComposite = await compositePosterMotionPreserve({
-            projectId,
-            workDir,
-            mergedViduPath: finalAbs,
-            outputVideoPath: posterOut,
-            baseImageUrl: baseUrl,
-            durationSec,
-            maxWidth: getFinalMergeMaxWidthFromViduResolution(project.viduResolution),
-            posterMotionSettings: project.instantPosterMotionSettings,
-          });
-          mergedPath = posterComposite.outputPath;
-          console.info("[hc-instant-premium]", {
-            projectId,
-            phase: "posterMotionCompositeApplied",
-            motionBlendApplied: posterComposite.motionBlendApplied,
-            usedStaticFallback: posterComposite.usedStaticFallback,
-          });
-        }
-      }
 
       const needsOverlay =
         shouldApplyOcrTextOverlay(textRenderMode) &&
@@ -562,7 +625,7 @@ export async function executeInstantPremiumMerge(
         try {
           const overlayResult = await applyBestTextOverlayForProject({
             projectId,
-            inputVideoPath: finalAbs,
+            inputVideoPath: mergedPath,
             outputVideoPath: withTextPath,
             images: project.images.map((img) => ({
               order: img.order,
