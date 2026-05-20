@@ -13,6 +13,7 @@ export type OcrHealthSnapshot = {
   hasOpenAiKey: boolean;
   model: string | null;
   errors: string[];
+  checkedAt: string;
 };
 
 export function getOcrHealthSnapshot(): OcrHealthSnapshot {
@@ -42,6 +43,7 @@ export function getOcrHealthSnapshot(): OcrHealthSnapshot {
     hasOpenAiKey: Boolean(openAiKey),
     model,
     errors,
+    checkedAt: new Date().toISOString(),
   };
 }
 
