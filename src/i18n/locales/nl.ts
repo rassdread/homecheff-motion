@@ -540,6 +540,10 @@ export const nl = {
   "instant.bakedText.scanRescan": "Scan opnieuw",
   "instant.bakedText.autoScanChecking": "Tekst wordt gecontroleerd…",
   "instant.bakedText.waitForScan": "Wacht tot de tekstcontrole klaar is voordat je verdergaat.",
+  "instant.bakedText.autoProtectedNotice":
+    "Tekst automatisch beschermd. Controleer optioneel voordat je rendert.",
+  "instant.bakedText.autoProtectedImage": "Tekst automatisch bevestigd en beschermd.",
+  "instant.bakedText.reviewOptional": "Tekst bekijken",
   "instant.bakedText.scanning": "Scannen…",
   "instant.bakedText.scanFailed": "Tekst scannen in deze afbeelding is mislukt.",
   "instant.bakedText.scanHint":

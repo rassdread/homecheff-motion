@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { detectedBlockToRecord } from "@/lib/baked-text-detection";
+import {
+  isAutoConfirmBakedTextEnabledFromEnv,
+  resolveAutoConfirmBakedTextBlocks,
+} from "@/lib/baked-text-auto-confirm";
 import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
@@ -39,13 +43,20 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const result = await detectTextBlocksFromImageUrl(imageUrl);
-    const blocks = result.blocks.map(detectedBlockToRecord);
+    const detected = result.blocks.map(detectedBlockToRecord);
+    const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
+    const { blocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
+      detected,
+      autoConfirmEnabled
+    );
     return NextResponse.json({
       imageId,
       provider: result.provider,
       imageWidth: result.imageWidth,
       imageHeight: result.imageHeight,
       blocks,
+      autoConfirmEnabled,
+      autoConfirmed,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Text detection failed.";

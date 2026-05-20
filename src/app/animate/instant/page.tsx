@@ -365,11 +365,13 @@ export default function InstantPremiumPage() {
     return (await res.json()) as UploadImageResponse;
   }, [t]);
 
-  const inFlightOcrByHashRef = useRef<Map<string, Promise<BakedTextBlockRecord[]>>>(new Map());
+  const inFlightOcrByHashRef = useRef<
+    Map<string, Promise<{ blocks: BakedTextBlockRecord[]; autoConfirmed: boolean }>>
+  >(new Map());
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const applyOcrBlocksToImage = useCallback(
-    (imageId: string, blocks: BakedTextBlockRecord[]) => {
+    (imageId: string, blocks: BakedTextBlockRecord[], autoConfirmed: boolean) => {
       const meaningful = shouldPromptBakedTextReview(blocks);
       setImages((prev) =>
         prev.map((img) => {
@@ -389,6 +391,24 @@ export default function InstantPremiumPage() {
                 autoScanComplete: true,
                 needsReview: false,
                 reviewOpen: false,
+                autoProtected: false,
+              },
+            };
+          }
+          if (autoConfirmed) {
+            return {
+              ...img,
+              bakedText: {
+                ...img.bakedText,
+                enabled: true,
+                status: "confirmed",
+                blocks,
+                scanBusy: false,
+                autoScanState: "done",
+                autoScanComplete: true,
+                needsReview: false,
+                reviewOpen: false,
+                autoProtected: true,
               },
             };
           }
@@ -404,6 +424,7 @@ export default function InstantPremiumPage() {
               autoScanComplete: true,
               needsReview: true,
               reviewOpen: true,
+              autoProtected: false,
             },
           };
         })
@@ -454,19 +475,22 @@ export default function InstantPremiumPage() {
         if (!force) {
           const cached = getCachedBakedTextOcr(contentHash);
           if (cached) {
-            applyOcrBlocksToImage(imageId, cached);
+            applyOcrBlocksToImage(imageId, cached.blocks, cached.autoConfirmed);
             return;
           }
           const inFlight = inFlightOcrByHashRef.current.get(contentHash);
           if (inFlight) {
-            const blocks = await inFlight;
-            applyOcrBlocksToImage(imageId, blocks);
+            const result = await inFlight;
+            applyOcrBlocksToImage(imageId, result.blocks, result.autoConfirmed);
             return;
           }
         }
 
         const imgForUpload = snapshot;
-        const fetchBlocks = async (): Promise<BakedTextBlockRecord[]> => {
+        const fetchBlocks = async (): Promise<{
+          blocks: BakedTextBlockRecord[];
+          autoConfirmed: boolean;
+        }> => {
           let imageUrl = imgForUpload.bakedText.remoteWorkingUrl;
           if (!imageUrl) {
             const up = await uploadToBlob(imgForUpload);
@@ -486,18 +510,22 @@ export default function InstantPremiumPage() {
           const data = (await res.json().catch(() => ({}))) as {
             error?: string;
             blocks?: BakedTextBlockRecord[];
+            autoConfirmed?: boolean;
           };
           if (!res.ok) {
             throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
           }
-          return data.blocks ?? [];
+          return {
+            blocks: data.blocks ?? [],
+            autoConfirmed: data.autoConfirmed === true,
+          };
         };
 
         const ocrPromise = fetchBlocks();
         inFlightOcrByHashRef.current.set(contentHash, ocrPromise);
-        const blocks = await ocrPromise;
-        setCachedBakedTextOcr(contentHash, blocks);
-        applyOcrBlocksToImage(imageId, blocks);
+        const ocrResult = await ocrPromise;
+        setCachedBakedTextOcr(contentHash, ocrResult.blocks, ocrResult.autoConfirmed);
+        applyOcrBlocksToImage(imageId, ocrResult.blocks, ocrResult.autoConfirmed);
       } catch (e) {
         updateBakedText(imageId, {
           scanBusy: false,
@@ -564,6 +592,7 @@ export default function InstantPremiumPage() {
         enabled: true,
         needsReview: false,
         reviewOpen: false,
+        autoProtected: false,
       });
       setError("");
     },

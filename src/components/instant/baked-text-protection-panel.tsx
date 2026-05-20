@@ -21,6 +21,7 @@ export type BakedTextProtectionDraft = {
   autoScanState?: "idle" | "scanning" | "done";
   needsReview?: boolean;
   reviewOpen?: boolean;
+  autoProtected?: boolean;
 };
 
 type Props = {
@@ -118,6 +119,10 @@ export function BakedTextProtectionPanel({
   );
 
   const anyEnabled = useMemo(() => visibleImages.some((i) => i.bakedText.enabled), [visibleImages]);
+  const anyAutoProtected = useMemo(
+    () => visibleImages.some((i) => i.bakedText.autoProtected),
+    [visibleImages]
+  );
 
   if (images.length === 0 || visibleImages.length === 0) {
     return null;
@@ -129,13 +134,20 @@ export function BakedTextProtectionPanel({
         <p className="text-sm font-semibold text-sky-950">{t("instant.bakedText.title")}</p>
         <p className="mt-1 text-xs leading-relaxed text-sky-900/90">{t("instant.bakedText.safetyCopy")}</p>
         <p className="mt-2 text-xs text-sky-800/80">{t("instant.bakedText.promptOnlyWarning")}</p>
+        {anyAutoProtected ? (
+          <p className="mt-2 text-xs font-medium text-emerald-800">
+            {t("instant.bakedText.autoProtectedNotice")}
+          </p>
+        ) : null}
       </div>
 
       {visibleImages.map((image, index) => {
         const bt = image.bakedText;
         const showManual = expandedManual[image.id] ?? bt.manualMode;
         const isScanning = bt.scanBusy || bt.autoScanState === "scanning";
-        const showReview = bt.reviewOpen !== false && bt.blocks.length > 0;
+        const showReview =
+          bt.blocks.length > 0 &&
+          (bt.status !== "confirmed" || bt.reviewOpen === true || !bt.autoProtected);
         return (
           <div key={image.id} className="rounded-xl border border-sky-200/80 bg-white p-3">
             <p className="text-xs font-semibold text-zinc-700">
@@ -178,13 +190,22 @@ export function BakedTextProtectionPanel({
                         ? t("instant.bakedText.scanRescan")
                         : t("instant.bakedText.scanAuto")}
                   </button>
-                  {bt.blocks.length > 0 ? (
+                  {bt.blocks.length > 0 && bt.status !== "confirmed" ? (
                     <button
                       type="button"
                       className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900"
                       onClick={() => onConfirm(image.id)}
                     >
                       {t("instant.bakedText.confirmProtect")}
+                    </button>
+                  ) : null}
+                  {bt.autoProtected && bt.status === "confirmed" && !showReview ? (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700"
+                      onClick={() => onChange(image.id, { reviewOpen: true })}
+                    >
+                      {t("instant.bakedText.reviewOptional")}
                     </button>
                   ) : null}
                   {isAdmin && onPreviewMask && bt.blocks.some((b) => b.kept) ? (
@@ -198,7 +219,11 @@ export function BakedTextProtectionPanel({
                   ) : null}
                 </div>
 
-                {bt.status === "confirmed" ? (
+                {bt.autoProtected && bt.status === "confirmed" ? (
+                  <p className="text-xs font-medium text-emerald-800">
+                    {t("instant.bakedText.autoProtectedImage")}
+                  </p>
+                ) : bt.status === "confirmed" ? (
                   <p className="text-xs font-medium text-emerald-800">{t("instant.bakedText.confirmed")}</p>
                 ) : showReview ? (
                   <p className="text-xs text-amber-800">{t("instant.bakedText.reviewBlocks")}</p>

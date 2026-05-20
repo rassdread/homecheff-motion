@@ -537,6 +537,10 @@ export const en: LocaleSchema = {
   "instant.bakedText.scanRescan": "Scan again",
   "instant.bakedText.autoScanChecking": "Checking for text…",
   "instant.bakedText.waitForScan": "Wait for the text check to finish before continuing.",
+  "instant.bakedText.autoProtectedNotice":
+    "Text was protected automatically. Review optionally before you render.",
+  "instant.bakedText.autoProtectedImage": "Text was auto-confirmed and protected.",
+  "instant.bakedText.reviewOptional": "Review text",
   "instant.bakedText.scanning": "Scanning…",
   "instant.bakedText.scanFailed": "Could not scan text in this image.",
   "instant.bakedText.scanHint": "Scan to detect phone screens, labels, captions, and signs as separate blocks.",
