@@ -352,4 +352,6 @@ export type InstantPremiumStatusResponse = {
   finalizationStuck?: boolean;
   canRepairFinalVideo?: boolean;
   isRestoringFinalVideo?: boolean;
+  canRebuildFinalVideo?: boolean;
+  isRebuildingFinalVideo?: boolean;
 };

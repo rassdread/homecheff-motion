@@ -60,6 +60,7 @@ export default function InstantPremiumProgressPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [rebuildBusy, setRebuildBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
@@ -278,6 +279,57 @@ export default function InstantPremiumProgressPage() {
                 >
                   {t("instant.progress.download")}
                 </a>
+                {snapshot.canRebuildFinalVideo ? (
+                  <button
+                    type="button"
+                    disabled={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                    className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 disabled:opacity-60"
+                    onClick={() => {
+                      setRebuildBusy(true);
+                      setActionError(null);
+                      void (async () => {
+                        try {
+                          const res = await fetch(
+                            `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
+                            { method: "POST", credentials: "include" }
+                          );
+                          const body = (await res.json().catch(() => ({}))) as {
+                            error?: string;
+                            rebuild?: {
+                              clipsReady?: boolean;
+                              message?: string;
+                              suggestRepair?: boolean;
+                            };
+                            status?: InstantPremiumStatusResponse;
+                          };
+                          if (!res.ok) {
+                            setActionError(
+                              body.error ??
+                                body.rebuild?.message ??
+                                t("instant.progress.rebuildFinalFailed")
+                            );
+                            return;
+                          }
+                          if (body.rebuild?.clipsReady === false) {
+                            setActionError(
+                              body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
+                            );
+                            return;
+                          }
+                          if (body.status) {
+                            setSnapshot(body.status);
+                          }
+                        } finally {
+                          setRebuildBusy(false);
+                        }
+                      })();
+                    }}
+                  >
+                    {rebuildBusy || snapshot.isRebuildingFinalVideo
+                      ? t("instant.progress.rebuildingFinal")
+                      : t("instant.progress.rebuildFinalVideo")}
+                  </button>
+                ) : null}
                 {snapshot.finalDurationSeconds ? (
                   <p className="text-xs text-zinc-500">
                     {t("instant.progress.finalDuration", { seconds: snapshot.finalDurationSeconds })}
@@ -285,6 +337,54 @@ export default function InstantPremiumProgressPage() {
                 ) : null}
               </div>
             </div>
+          ) : null}
+          {effectiveProjectId &&
+          snapshot?.canRebuildFinalVideo &&
+          !snapshot?.finalVideoUrl &&
+          !snapshot?.canRetryOverlay ? (
+            <button
+              type="button"
+              disabled={rebuildBusy || snapshot.isRebuildingFinalVideo}
+              className="mt-4 rounded-lg bg-sky-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              onClick={() => {
+                setRebuildBusy(true);
+                setActionError(null);
+                void (async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
+                      { method: "POST", credentials: "include" }
+                    );
+                    const body = (await res.json().catch(() => ({}))) as {
+                      error?: string;
+                      rebuild?: { clipsReady?: boolean; message?: string };
+                      status?: InstantPremiumStatusResponse;
+                    };
+                    if (!res.ok) {
+                      setActionError(
+                        body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed")
+                      );
+                      return;
+                    }
+                    if (body.rebuild?.clipsReady === false) {
+                      setActionError(
+                        body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
+                      );
+                      return;
+                    }
+                    if (body.status) {
+                      setSnapshot(body.status);
+                    }
+                  } finally {
+                    setRebuildBusy(false);
+                  }
+                })();
+              }}
+            >
+              {rebuildBusy || snapshot.isRebuildingFinalVideo
+                ? t("instant.progress.rebuildingFinal")
+                : t("instant.progress.rebuildFinalVideo")}
+            </button>
           ) : null}
           {effectiveProjectId && snapshot?.canRepairFinalVideo && !snapshot?.canRetryOverlay ? (
             <button

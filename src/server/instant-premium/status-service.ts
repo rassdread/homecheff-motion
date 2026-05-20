@@ -48,6 +48,8 @@ export type InstantPremiumStatusResponse = {
   finalizationStuck?: boolean;
   canRepairFinalVideo?: boolean;
   isRestoringFinalVideo?: boolean;
+  canRebuildFinalVideo?: boolean;
+  isRebuildingFinalVideo?: boolean;
 };
 
 function mapTransitionStatus(status: string): InstantSegmentStatus {
@@ -342,6 +344,14 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     (stuckInfo.mergeInProgress ||
       finalState.instantWorkerJobStatus === "queued" ||
       finalState.instantWorkerJobStatus === "running");
+  const canRebuildFinalVideo = segmentsAllCompleted;
+  const isRebuildingFinalVideo =
+    canRebuildFinalVideo &&
+    latestExport?.status === "rendering" &&
+    (latestExport?.progress ?? 0) >= 55 &&
+    (finalState.instantWorkerJobStatus === "queued" ||
+      finalState.instantWorkerJobStatus === "running" ||
+      finalState.status === "rendering");
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
@@ -375,5 +385,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     finalizationStuck: stuckInfo.isStuck,
     canRepairFinalVideo,
     isRestoringFinalVideo,
+    canRebuildFinalVideo,
+    isRebuildingFinalVideo,
   };
 }

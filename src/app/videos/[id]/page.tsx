@@ -74,6 +74,8 @@ export default function VideoDetailPage() {
   const [recoverBusy, setRecoverBusy] = useState(false);
   const [recoverError, setRecoverError] = useState<string | null>(null);
   const [recoverInfo, setRecoverInfo] = useState<string | null>(null);
+  const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [rebuildError, setRebuildError] = useState<string | null>(null);
 
   const dateFmt = useMemo(() => {
     const loc = getActiveLocale() === "nl" ? "nl-NL" : "en-US";
@@ -202,6 +204,7 @@ export default function VideoDetailPage() {
   const canRecoverInstant = Boolean(
     detail && instantLikeProject && allFragmentsDone && !finalVideoUrl
   );
+  const canRebuildInstant = Boolean(detail && instantLikeProject && allFragmentsDone);
 
   const mergeStuckRetryOnly = Boolean(
     canRetryMergeExport && detail?.status === "rendering" && latestExport?.status !== "failed"
@@ -274,6 +277,44 @@ export default function VideoDetailPage() {
       await load();
     } finally {
       setRecoverBusy(false);
+    }
+  }, [id, load]);
+
+  const rebuildFinalVideo = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+    setRebuildBusy(true);
+    setRebuildError(null);
+    try {
+      const res = await fetch(
+        `/api/instant-premium/projects/${encodeURIComponent(id)}/rebuild-final-video`,
+        { method: "POST", credentials: "include" }
+      );
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        rebuild?: {
+          clipsReady?: boolean;
+          message?: string;
+          suggestRepair?: boolean;
+        };
+      };
+      if (!res.ok) {
+        setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
+        return;
+      }
+      if (body.rebuild?.clipsReady === false) {
+        setRebuildError(
+          body.rebuild?.message ??
+            (body.rebuild?.suggestRepair
+              ? t("instant.progress.rebuildSegmentsMissing")
+              : t("instant.progress.rebuildFinalFailed"))
+        );
+        return;
+      }
+      await load();
+    } finally {
+      setRebuildBusy(false);
     }
   }, [id, load]);
 
@@ -419,7 +460,18 @@ export default function VideoDetailPage() {
             >
               {t("videos.open")}
             </a>
+            {canRebuildInstant ? (
+              <button
+                type="button"
+                disabled={rebuildBusy}
+                onClick={() => void rebuildFinalVideo()}
+                className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-60"
+              >
+                {rebuildBusy ? t("instant.progress.rebuildingFinal") : t("instant.progress.rebuildFinalVideo")}
+              </button>
+            ) : null}
           </div>
+          {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
         </div>
       ) : (
         <div className="mt-4 space-y-3">
