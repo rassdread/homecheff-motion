@@ -1,5 +1,12 @@
 import sharp from "sharp";
 import type { BakedTextMaskRegion } from "@/lib/baked-text-protection";
+import {
+  buildHeuristicSegmentationLayers,
+  mergeManualRegions,
+  resolveSegmentationProvider,
+  type ForegroundSegmentLayer,
+  type SegmentationProvider,
+} from "@/lib/premium-foreground-segmentation";
 import type { PosterMotionLayer, PosterMotionLayersSnapshot } from "@/lib/poster-motion-preserve";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 
@@ -7,6 +14,8 @@ export type SegmentForegroundInput = {
   sourceUrl: string;
   uploadPathPrefix: string;
   imageIndex: number;
+  segmentationProvider?: SegmentationProvider;
+  manualRegions?: import("@/lib/premium-foreground-segmentation").ManualForegroundRegion[];
 };
 
 /** Heuristic center-weighted subject bbox when no matting API is configured. */
@@ -102,32 +111,43 @@ export async function segmentForegroundForPosterMotion(
     context: { uploadTarget: cropPath, provider: "poster-motion-crop" },
   });
 
-  const layers: PosterMotionLayer[] = [
-    {
-      id: `fg-${input.imageIndex}`,
-      role: "foreground_character",
-      regionKind: "animated",
-      bbox,
-      maskUrl,
-      cropUrl,
-      confidence: rembg ? 0.85 : 0.55,
-      zIndex: 2,
-    },
-    {
-      id: `bg-${input.imageIndex}`,
-      role: "background_static",
-      regionKind: "static_preserved",
-      bbox: { x: 0, y: 0, width: 1, height: 1 },
-      confidence: 1,
-      zIndex: 0,
-    },
-  ];
+  const provider = resolveSegmentationProvider(
+    input.segmentationProvider ?? (rembg ? "rembg" : "heuristic")
+  );
+  let fgLayers: ForegroundSegmentLayer[] = buildHeuristicSegmentationLayers(width, height);
+  const subject = fgLayers.find((l) => l.role === "foreground_mascot");
+  if (subject) {
+    subject.bbox = bbox;
+    subject.maskUrl = maskUrl;
+    subject.cropUrl = cropUrl;
+    subject.confidence = rembg ? 0.88 : 0.72;
+    subject.provider = provider === "rembg" ? "rembg" : "heuristic";
+  }
+  fgLayers = mergeManualRegions(fgLayers, input.manualRegions ?? []);
+
+  const layers: PosterMotionLayer[] = fgLayers.map((layer) => ({
+    id: `${layer.id}-${input.imageIndex}`,
+    role: layer.role as PosterMotionLayer["role"],
+    regionKind: layer.regionKind,
+    bbox: layer.bbox,
+    maskUrl: layer.maskUrl,
+    cropUrl: layer.cropUrl,
+    confidence: layer.confidence,
+    zIndex: layer.zIndex,
+  }));
+
+  console.info("[foreground-segmentation]", {
+    imageIndex: input.imageIndex,
+    provider,
+    layerCount: layers.length,
+    roles: layers.map((l) => l.role),
+  });
 
   return {
     version: 1,
     sourceWidth: width,
     sourceHeight: height,
-    provider: rembg?.provider ?? "heuristic",
+    provider: provider === "rembg" ? "rembg_api" : "heuristic",
     layers,
   };
 }

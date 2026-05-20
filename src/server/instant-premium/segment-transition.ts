@@ -7,24 +7,19 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
 } from "@/lib/media-export-constants";
 import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
+import {
+  DEFAULT_SEGMENT_TRANSITION_TYPE,
+  SEGMENT_TRANSITION_TYPES,
+  normalizeSegmentTransitionType,
+  type SegmentTransitionType,
+} from "@/lib/segment-transition-types";
 
-/** Seamless join style between consecutive Vidu segments (raw motion preserved). */
-export type SegmentTransitionType =
-  | "capcut_smooth"
-  | "cinematic_blend"
-  | "soft_crossfade"
-  | "motion_blend"
-  | "straight_cut";
-
-export const SEGMENT_TRANSITION_TYPES: readonly SegmentTransitionType[] = [
-  "capcut_smooth",
-  "cinematic_blend",
-  "soft_crossfade",
-  "motion_blend",
-  "straight_cut",
-] as const;
-
-export const DEFAULT_SEGMENT_TRANSITION_TYPE: SegmentTransitionType = "capcut_smooth";
+export type { SegmentTransitionType };
+export {
+  SEGMENT_TRANSITION_TYPES,
+  DEFAULT_SEGMENT_TRANSITION_TYPE,
+  normalizeSegmentTransitionType,
+};
 
 export const MERGE_OUTPUT_FPS = 30;
 export const CAPCUT_SMOOTH_FRAMES_DEFAULT = 8;
@@ -161,14 +156,7 @@ export function resolveSegmentTransitionType(posterMotionSettings?: unknown): Se
     return env;
   }
   const settings = parsePosterMotionSettings(posterMotionSettings);
-  const fromSettings = settings.segmentTransitionType?.trim();
-  if (
-    fromSettings &&
-    SEGMENT_TRANSITION_TYPES.includes(fromSettings as SegmentTransitionType)
-  ) {
-    return fromSettings as SegmentTransitionType;
-  }
-  return DEFAULT_SEGMENT_TRANSITION_TYPE;
+  return normalizeSegmentTransitionType(settings.segmentTransitionType);
 }
 
 export function transitionDurationFrames(transitionType: SegmentTransitionType): number {
@@ -451,6 +439,20 @@ export type ConcatMotionSegmentsInput = {
   transitionType: SegmentTransitionType;
 };
 
+export type TransitionPreviewMetadata = {
+  transitionType: SegmentTransitionType;
+  joins: Array<{
+    segmentA: number;
+    segmentB: number;
+    durationFrames: number;
+    trimmedOutgoing: number;
+    trimmedIncoming: number;
+  }>;
+  antiFlashGuard: boolean;
+  normalizedFps: number;
+  normalizedResolution: string;
+};
+
 export type ConcatMotionSegmentsResult = {
   transitionType: SegmentTransitionType;
   preparedCount: number;
@@ -458,6 +460,7 @@ export type ConcatMotionSegmentsResult = {
   usedOpticalBlend: boolean;
   normalizedFps: number;
   normalizedResolution: string;
+  transitionPreview: TransitionPreviewMetadata;
 };
 
 /** Normalize, trim edge frames, and join Vidu segments with seamless transitions. */
@@ -479,6 +482,13 @@ export async function concatMotionSegmentsWithTransitions(
       usedOpticalBlend: false,
       normalizedFps: MERGE_OUTPUT_FPS,
       normalizedResolution: `${probed.width}x${probed.height}`,
+      transitionPreview: {
+        transitionType,
+        joins: [],
+        antiFlashGuard: true,
+        normalizedFps: MERGE_OUTPUT_FPS,
+        normalizedResolution: `${probed.width}x${probed.height}`,
+      },
     };
   }
 
@@ -491,10 +501,18 @@ export async function concatMotionSegmentsWithTransitions(
 
   const frames = transitionDurationFrames(transitionType);
   const optical = usesOpticalBlend(transitionType);
+  const joins: TransitionPreviewMetadata["joins"] = [];
 
   for (let i = 0; i < prepared.length - 1; i += 1) {
     const trimA = getEdgeTrimFrames(i, prepared.length, transitionType);
     const trimB = getEdgeTrimFrames(i + 1, prepared.length, transitionType);
+    joins.push({
+      segmentA: i,
+      segmentB: i + 1,
+      durationFrames: frames,
+      trimmedOutgoing: trimA.outgoing,
+      trimmedIncoming: trimB.incoming,
+    });
     logSegmentTransition({
       transitionType,
       segmentA: i,
@@ -517,6 +535,15 @@ export async function concatMotionSegmentsWithTransitions(
   }
 
   const first = prepared[0]!;
+  const transitionPreview: TransitionPreviewMetadata = {
+    transitionType,
+    joins,
+    antiFlashGuard: transitionType !== "straight_cut",
+    normalizedFps: MERGE_OUTPUT_FPS,
+    normalizedResolution: `${first.width}x${first.height}`,
+  };
+  console.info("[segment-transition]", { phase: "preview_metadata", ...transitionPreview });
+
   return {
     transitionType,
     preparedCount: prepared.length,
@@ -524,5 +551,6 @@ export async function concatMotionSegmentsWithTransitions(
     usedOpticalBlend: optical,
     normalizedFps: MERGE_OUTPUT_FPS,
     normalizedResolution: `${first.width}x${first.height}`,
+    transitionPreview,
   };
 }

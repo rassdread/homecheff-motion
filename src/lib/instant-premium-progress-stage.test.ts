@@ -17,6 +17,16 @@ describe("instant premium progress stage", () => {
     assert.ok(view.displayPercent <= 70);
   });
 
+  it("maps early poster progress to foreground segmentation", () => {
+    const view = resolveInstantPremiumProgress({
+      status: "running",
+      phase: "generating_clips",
+      progressPercent: 8,
+      instantTextRenderMode: "poster_motion_preserve",
+    });
+    assert.equal(view.stage, "foreground_segmentation");
+  });
+
   it("maps rebuild merge at 75% to poster or merge stage", () => {
     const view = resolveInstantPremiumProgress({
       status: "finalizing",

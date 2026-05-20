@@ -1,0 +1,130 @@
+import {
+  getPremiumPolishPreset,
+  normalizePremiumPolishPresetId,
+  type PremiumPolishPresetId,
+} from "@/lib/premium-polish-presets";
+import { normalizeCameraPresetId, type CameraPresetId } from "@/lib/premium-camera-presets";
+import { normalizeFxPresetId, type FxPresetId } from "@/lib/premium-fx-presets";
+import { normalizeComicStoryPresetId, type ComicStoryPresetId } from "@/lib/premium-comic-presets";
+import {
+  parseManualForegroundRegions,
+  resolveSegmentationProvider,
+  type ManualForegroundRegion,
+  type SegmentationProvider,
+} from "@/lib/premium-foreground-segmentation";
+import { normalizeMotionEnergy, type MotionEnergy } from "@/lib/premium-motion-engine";
+import {
+  normalizeSegmentTransitionType,
+  type SegmentTransitionType,
+} from "@/lib/segment-transition-types";
+import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
+import { FINAL_ASSEMBLY_MODES } from "@/server/instant-premium/final-assembly";
+
+/** Stored in instantPosterMotionSettings JSON alongside poster toggles. */
+export type PremiumPolishSettings = {
+  version: 1;
+  premiumPresetId?: PremiumPolishPresetId;
+  motionEnergy?: MotionEnergy;
+  segmentTransitionType?: SegmentTransitionType;
+  assemblyMode?: FinalAssemblyMode;
+  cameraPreset?: CameraPresetId;
+  fxPreset?: FxPresetId;
+  comicPreset?: ComicStoryPresetId;
+  segmentationProvider?: SegmentationProvider;
+  textPreservation?: boolean;
+  minimalCompositorPolish?: boolean;
+  manualForegroundRegions?: ManualForegroundRegion[];
+  characterMotion?: {
+    emotion?: string;
+    energy?: string;
+    personality?: string;
+    motionStyle?: string;
+  };
+};
+
+export type ResolvedPremiumPolishProfile = {
+  premiumPresetId: PremiumPolishPresetId;
+  motionEnergy: MotionEnergy;
+  segmentTransitionType: SegmentTransitionType;
+  assemblyMode: FinalAssemblyMode;
+  cameraPreset: CameraPresetId;
+  fxPreset: FxPresetId;
+  comicPreset: ComicStoryPresetId;
+  segmentationProvider: SegmentationProvider;
+  textPreservation: boolean;
+  minimalCompositorPolish: boolean;
+  manualForegroundRegions: ManualForegroundRegion[];
+  characterMotion?: PremiumPolishSettings["characterMotion"];
+};
+
+export function parsePremiumPolishSettings(raw: unknown): PremiumPolishSettings {
+  if (!raw || typeof raw !== "object") {
+    return { version: 1 };
+  }
+  const o = raw as Record<string, unknown>;
+  return {
+    version: 1,
+    premiumPresetId:
+      typeof o.premiumPresetId === "string"
+        ? normalizePremiumPolishPresetId(o.premiumPresetId)
+        : undefined,
+    motionEnergy:
+      typeof o.motionEnergy === "string" ? normalizeMotionEnergy(o.motionEnergy) : undefined,
+    segmentTransitionType:
+      typeof o.segmentTransitionType === "string"
+        ? normalizeSegmentTransitionType(o.segmentTransitionType)
+        : undefined,
+    assemblyMode:
+      typeof o.assemblyMode === "string" &&
+      FINAL_ASSEMBLY_MODES.includes(o.assemblyMode as FinalAssemblyMode)
+        ? (o.assemblyMode as FinalAssemblyMode)
+        : undefined,
+    cameraPreset:
+      typeof o.cameraPreset === "string" ? normalizeCameraPresetId(o.cameraPreset) : undefined,
+    fxPreset: typeof o.fxPreset === "string" ? normalizeFxPresetId(o.fxPreset) : undefined,
+    comicPreset:
+      typeof o.comicPreset === "string" ? normalizeComicStoryPresetId(o.comicPreset) : undefined,
+    segmentationProvider:
+      typeof o.segmentationProvider === "string"
+        ? resolveSegmentationProvider(o.segmentationProvider as SegmentationProvider)
+        : undefined,
+    textPreservation: typeof o.textPreservation === "boolean" ? o.textPreservation : undefined,
+    minimalCompositorPolish:
+      typeof o.minimalCompositorPolish === "boolean" ? o.minimalCompositorPolish : undefined,
+    manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
+    characterMotion:
+      o.characterMotion && typeof o.characterMotion === "object"
+        ? (o.characterMotion as PremiumPolishSettings["characterMotion"])
+        : undefined,
+  };
+}
+
+export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolishProfile {
+  const parsed = parsePremiumPolishSettings(raw);
+  const preset = getPremiumPolishPreset(
+    parsed.premiumPresetId ?? normalizePremiumPolishPresetId(undefined)
+  );
+  return {
+    premiumPresetId: preset.id,
+    motionEnergy: parsed.motionEnergy ?? preset.motionEnergy,
+    segmentTransitionType: parsed.segmentTransitionType ?? preset.transitionType,
+    assemblyMode: parsed.assemblyMode ?? preset.assemblyMode,
+    cameraPreset: parsed.cameraPreset ?? preset.cameraPreset,
+    fxPreset: parsed.fxPreset ?? preset.fxPreset,
+    comicPreset: parsed.comicPreset ?? preset.comicPreset ?? "none",
+    segmentationProvider: resolveSegmentationProvider(
+      parsed.segmentationProvider ?? preset.segmentationProvider
+    ),
+    textPreservation: parsed.textPreservation ?? preset.textPreservation,
+    minimalCompositorPolish: parsed.minimalCompositorPolish ?? preset.minimalCompositorPolish,
+    manualForegroundRegions: parsed.manualForegroundRegions ?? [],
+    characterMotion: parsed.characterMotion ?? preset.characterMotion,
+  };
+}
+
+export function mergePremiumPolishIntoPosterSettings(
+  posterSettings: Record<string, unknown>,
+  polish: Partial<PremiumPolishSettings>
+): Record<string, unknown> {
+  return { ...posterSettings, ...polish, version: 1 };
+}

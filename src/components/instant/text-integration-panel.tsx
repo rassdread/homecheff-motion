@@ -12,6 +12,13 @@ import {
 } from "@/lib/hybrid-motion-overlay";
 import { PosterMotionPanel } from "@/components/instant/poster-motion-panel";
 import {
+  PremiumPolishPanel,
+  PremiumPresetSummary,
+} from "@/components/instant/premium-polish-panel";
+import { ManualForegroundRegionsPanel } from "@/components/instant/manual-foreground-regions-panel";
+import { getPremiumPolishPreset, type PremiumPolishPresetId } from "@/lib/premium-polish-presets";
+import type { InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
+import {
   DEFAULT_POSTER_MOTION_SETTINGS,
   type PosterMotionSettings,
 } from "@/lib/poster-motion-preserve";
@@ -23,6 +30,7 @@ type Props = {
   onTextRenderModeChange: (mode: TextRenderMode) => void;
   onOverlayStyleChange: (style: OverlayStyle) => void;
   onPosterMotionSettingsChange: (patch: Partial<PosterMotionSettings>) => void;
+  onStylePresetChange?: (preset: InstantPremiumStylePreset) => void;
 };
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
@@ -50,6 +58,7 @@ export function TextIntegrationPanel({
   onTextRenderModeChange,
   onOverlayStyleChange,
   onPosterMotionSettingsChange,
+  onStylePresetChange,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -89,10 +98,27 @@ export function TextIntegrationPanel({
       </fieldset>
 
       {usesPosterMotionPreserve(textRenderMode) ? (
-        <PosterMotionPanel
-          settings={posterMotionSettings}
-          onChange={onPosterMotionSettingsChange}
-        />
+        <>
+          <PremiumPolishPanel
+            settings={posterMotionSettings}
+            onPresetChange={(presetId: PremiumPolishPresetId) => {
+              const preset = getPremiumPolishPreset(presetId);
+              onStylePresetChange?.(preset.stylePreset);
+            }}
+            onSettingsChange={onPosterMotionSettingsChange}
+          />
+          <ManualForegroundRegionsPanel
+            regions={posterMotionSettings.manualForegroundRegions ?? []}
+            onChange={(manualForegroundRegions) =>
+              onPosterMotionSettingsChange({ manualForegroundRegions })
+            }
+          />
+          <PosterMotionPanel
+            settings={posterMotionSettings}
+            onChange={onPosterMotionSettingsChange}
+          />
+          <PremiumPresetSummary settings={posterMotionSettings} />
+        </>
       ) : null}
 
       {(textRenderMode === "deevid_text_safe" ||

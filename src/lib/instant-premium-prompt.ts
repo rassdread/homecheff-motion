@@ -15,11 +15,10 @@ import {
   usesPosterMotionPreserve,
 } from "@/lib/hybrid-motion-overlay";
 import { POSTER_MOTION_PRESERVE_PROMPT_BLOCK } from "@/lib/poster-motion-preserve";
-import {
-  buildPremiumMotionPromptBlocks,
-  type PremiumMotionProfile,
-  premiumMotionProfileFromPosterSettings,
-} from "@/lib/premium-motion-engine";
+import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
+import { buildPremiumPolishViduPromptBlocks } from "@/lib/premium-polish-prompts";
+import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
+import type { PremiumMotionProfile } from "@/lib/premium-motion-engine";
 import {
   filterVisualOnlyChips,
   LOCKED_TEXT_SAFETY_BLOCK,
@@ -122,6 +121,8 @@ export type BuildInstantVideoPromptInput = {
   posterMotionActive?: boolean;
   /** Phase 1 premium motion direction (defaults to expressive). */
   motionProfile?: PremiumMotionProfile;
+  /** Full premium polish profile (preset, camera, FX, comic). */
+  polishSettingsRaw?: unknown;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -179,9 +180,17 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
       ? "Continuity priority: strict. Keep one unbroken evolving shot language across all keyframes."
       : "Continuity priority: balanced. Keep a coherent flow while allowing subtle style variation.";
 
+  const polishProfile = resolvePremiumPolishProfile(
+    input.polishSettingsRaw ?? input.motionProfile
+  );
   const motionProfile =
-    input.motionProfile ?? premiumMotionProfileFromPosterSettings(undefined);
-  const premiumMotionBlock = buildPremiumMotionPromptBlocks(motionProfile);
+    input.motionProfile ??
+    premiumMotionProfileFromPosterSettings(input.polishSettingsRaw);
+  const premiumMotionBlock = buildPremiumPolishViduPromptBlocks({
+    ...polishProfile,
+    motionEnergy: motionProfile.motionEnergy,
+    characterMotion: motionProfile.characterMotion ?? polishProfile.characterMotion,
+  });
 
   return `Create one continuous premium short-form video using the provided images in their exact uploaded order as keyframes. Output format: ${input.aspectRatio}. Total duration: ${input.duration} seconds.
 

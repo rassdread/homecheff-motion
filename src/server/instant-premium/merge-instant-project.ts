@@ -35,10 +35,11 @@ import {
   MergeSegmentsValidationError,
   validateMergeSegmentsBeforeExport,
 } from "@/server/instant-premium/merge-segments";
+import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import {
   concatMotionSegmentsWithTransitions,
-  resolveSegmentTransitionType,
 } from "@/server/instant-premium/segment-transition";
+import { applyMinimalPolishToVideo } from "@/server/instant-premium/apply-minimal-polish";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { finalBlobPathname } from "@/lib/final-video-storage";
@@ -401,9 +402,8 @@ export async function executeInstantPremiumMerge(
       );
       const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
       const perSegmentDurationSec = project.viduDurationSeconds ?? null;
-      const segmentTransitionType = resolveSegmentTransitionType(
-        project.instantPosterMotionSettings
-      );
+      const polishProfile = resolvePremiumPolishProfile(project.instantPosterMotionSettings);
+      const segmentTransitionType = polishProfile.segmentTransitionType;
       const assemblyLogBase = buildFinalAssemblyLogBase({
         projectId,
         assemblyMode: finalAssemblyMode,
@@ -543,8 +543,26 @@ export async function executeInstantPremiumMerge(
         projectId,
         phase: "segmentTransitionConcatComplete",
         ...concatResult,
+        transitionPreview: concatResult.transitionPreview,
       });
       let mergedPath = finalAbs;
+
+      if (polishProfile.minimalCompositorPolish) {
+        const polishedPath = path.join(workDir, "final-minimal-polish.mp4");
+        const applied = await applyMinimalPolishToVideo({
+          inputPath: mergedPath,
+          outputPath: polishedPath,
+          fxPreset: polishProfile.fxPreset,
+        });
+        if (applied) {
+          mergedPath = polishedPath;
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "minimalCompositorPolishApplied",
+            fxPreset: polishProfile.fxPreset,
+          });
+        }
+      }
 
       const needsOverlay =
         shouldApplyOcrTextOverlay(textRenderMode) &&

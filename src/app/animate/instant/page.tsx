@@ -1270,6 +1270,7 @@ export default function InstantPremiumPage() {
                   onPosterMotionSettingsChange={(patch) =>
                     setPosterMotionSettings((prev) => ({ ...prev, ...patch }))
                   }
+                  onStylePresetChange={setStylePreset}
                 />
                 {!usesPosterMotionPreserve(textRenderMode) ? (
                 <BakedTextProtectionPanel

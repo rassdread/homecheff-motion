@@ -11,6 +11,7 @@ export const REBUILD_PROGRESS_FLOOR = 70;
 
 export type InstantPremiumProgressStage =
   | "segment_rendering"
+  | "foreground_segmentation"
   | "merge_clips"
   | "poster_compositing"
   | "export_video"
@@ -115,6 +116,13 @@ export function resolveInstantPremiumProgress(
 
   if (input.phase === "generating_clips" || input.status === "running" || input.status === "queued") {
     const segmentPct = Math.max(5, Math.min(70, progress > 0 ? progress : 8));
+    if (posterMode && progress > 0 && progress < 12) {
+      return {
+        stage: "foreground_segmentation",
+        activeOperation: "segment_rendering",
+        displayPercent: Math.max(4, segmentPct),
+      };
+    }
     return {
       stage: "segment_rendering",
       activeOperation: "segment_rendering",

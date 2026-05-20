@@ -13,6 +13,7 @@ import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 const STAGE_LABEL_KEYS: Record<InstantPremiumProgressStage, string> = {
   segment_rendering: "instant.progress.stage.segmentRendering",
+  foreground_segmentation: "instant.progress.stage.foregroundSegmentation",
   merge_clips: "instant.progress.stage.mergeClips",
   poster_compositing: "instant.progress.stage.posterCompositing",
   export_video: "instant.progress.stage.exportVideo",

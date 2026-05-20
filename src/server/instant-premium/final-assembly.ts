@@ -1,5 +1,6 @@
 import { normalizeTextRenderMode, usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
 import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
+import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import {
   DEFAULT_SEGMENT_TRANSITION_TYPE,
   type SegmentTransitionType,
@@ -78,14 +79,20 @@ export function resolveFinalAssemblyMode(
   }
 
   const settings = parsePosterMotionSettings(posterMotionSettings);
+  const polish = resolvePremiumPolishProfile(posterMotionSettings);
   if (
     settings.advancedSegmentComposite === true ||
     settings.useSegmentCompositor === true
   ) {
     return "poster_composite_segments";
   }
+  if (polish.assemblyMode === "poster_composite_segments") {
+    return "poster_composite_segments";
+  }
 
-  return "raw_motion_concat";
+  return polish.assemblyMode === "concat_segments_only"
+    ? "concat_segments_only"
+    : "raw_motion_concat";
 }
 
 export function usesRawAnimatedSegments(assemblyMode: FinalAssemblyMode): boolean {

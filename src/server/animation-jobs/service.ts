@@ -222,9 +222,8 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const isInstantPremium = transition.project.projectType === "instant_premium";
   const instantStoredIntent = parseStoredInstantUserIntent(transition.project.instantUserIntent);
 
-  const motionProfile = premiumMotionProfileFromPosterSettings(
-    transition.project.instantPosterMotionSettings
-  );
+  const polishSettings = transition.project.instantPosterMotionSettings;
+  const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
 
   const finalPrompt = isInstantPremium
     ? `${buildInstantVideoPrompt({
@@ -240,6 +239,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         posterMotionActive,
         textRenderMode,
         motionProfile,
+        polishSettingsRaw: polishSettings,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,

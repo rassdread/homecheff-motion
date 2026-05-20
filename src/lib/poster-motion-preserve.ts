@@ -6,6 +6,20 @@ import {
   type CharacterMotionProfile,
   type MotionEnergy,
 } from "@/lib/premium-motion-engine";
+import {
+  DEFAULT_PREMIUM_POLISH_PRESET_ID,
+  normalizePremiumPolishPresetId,
+  type PremiumPolishPresetId,
+} from "@/lib/premium-polish-presets";
+import type { CameraPresetId } from "@/lib/premium-camera-presets";
+import type { FxPresetId } from "@/lib/premium-fx-presets";
+import type { ComicStoryPresetId } from "@/lib/premium-comic-presets";
+import {
+  parseManualForegroundRegions,
+  type ManualForegroundRegion,
+  type SegmentationProvider,
+} from "@/lib/premium-foreground-segmentation";
+import { getPremiumPolishPreset } from "@/lib/premium-polish-presets";
 
 /** Layer roles for DeeVid-style poster animation (static base + moving foreground). */
 export type PosterMotionLayerRole =
@@ -67,11 +81,21 @@ export type PosterMotionSettings = {
   characterMotion?: CharacterMotionProfile;
   /** Alias for characterMotion */
   characterMotionDirection?: CharacterMotionProfile;
+  premiumPresetId?: PremiumPolishPresetId;
+  cameraPreset?: CameraPresetId;
+  fxPreset?: FxPresetId;
+  comicPreset?: ComicStoryPresetId;
+  segmentationProvider?: SegmentationProvider;
+  textPreservation?: boolean;
+  minimalCompositorPolish?: boolean;
+  manualForegroundRegions?: ManualForegroundRegion[];
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
 export const POSTER_MOTION_BLEND_CINEMATIC_DEFAULT = 0.18;
 export const POSTER_MOTION_BLEND_TEXT_HEAVY_DEFAULT = 0.1;
+
+const DEFAULT_POLISH_PRESET = getPremiumPolishPreset(DEFAULT_PREMIUM_POLISH_PRESET_ID);
 
 export const DEFAULT_POSTER_MOTION_SETTINGS: PosterMotionSettings = {
   version: 1,
@@ -82,6 +106,16 @@ export const DEFAULT_POSTER_MOTION_SETTINGS: PosterMotionSettings = {
   cinematicCameraMotion: true,
   particlesGlow: true,
   floatingGeneratedObject: false,
+  premiumPresetId: DEFAULT_PREMIUM_POLISH_PRESET_ID,
+  motionEnergy: DEFAULT_POLISH_PRESET.motionEnergy,
+  segmentTransitionType: DEFAULT_POLISH_PRESET.transitionType,
+  cameraPreset: DEFAULT_POLISH_PRESET.cameraPreset,
+  fxPreset: DEFAULT_POLISH_PRESET.fxPreset,
+  comicPreset: DEFAULT_POLISH_PRESET.comicPreset,
+  segmentationProvider: DEFAULT_POLISH_PRESET.segmentationProvider,
+  textPreservation: DEFAULT_POLISH_PRESET.textPreservation,
+  minimalCompositorPolish: DEFAULT_POLISH_PRESET.minimalCompositorPolish,
+  characterMotion: DEFAULT_POLISH_PRESET.characterMotion,
 };
 
 export function resolvePosterMotionBlendStrength(settings: PosterMotionSettings): number {
@@ -138,6 +172,24 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     characterMotion:
       parseCharacterMotionProfile(o.characterMotion) ??
       parseCharacterMotionProfile(o.characterMotionDirection),
+    premiumPresetId:
+      typeof o.premiumPresetId === "string"
+        ? normalizePremiumPolishPresetId(o.premiumPresetId)
+        : DEFAULT_PREMIUM_POLISH_PRESET_ID,
+    cameraPreset:
+      typeof o.cameraPreset === "string" ? (o.cameraPreset as CameraPresetId) : undefined,
+    fxPreset: typeof o.fxPreset === "string" ? (o.fxPreset as FxPresetId) : undefined,
+    comicPreset:
+      typeof o.comicPreset === "string" ? (o.comicPreset as ComicStoryPresetId) : undefined,
+    segmentationProvider:
+      typeof o.segmentationProvider === "string"
+        ? (o.segmentationProvider as SegmentationProvider)
+        : undefined,
+    textPreservation:
+      typeof o.textPreservation === "boolean" ? o.textPreservation : undefined,
+    minimalCompositorPolish:
+      typeof o.minimalCompositorPolish === "boolean" ? o.minimalCompositorPolish : undefined,
+    manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
   };
 }
 

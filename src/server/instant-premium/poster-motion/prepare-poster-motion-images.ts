@@ -37,6 +37,8 @@ export async function preparePosterMotionPreserveImages(
           sourceUrl,
           uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
           imageIndex: index,
+          segmentationProvider: settings.segmentationProvider,
+          manualRegions: settings.manualForegroundRegions,
         });
         posterMotionLayersJson = snapshot as unknown as Prisma.InputJsonValue;
       } catch (error) {

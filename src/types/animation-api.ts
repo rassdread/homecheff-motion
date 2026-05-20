@@ -323,6 +323,7 @@ export type InstantPremiumStatusApiResponse =
 
 export type InstantPremiumProgressStage =
   | "segment_rendering"
+  | "foreground_segmentation"
   | "merge_clips"
   | "poster_compositing"
   | "export_video"
