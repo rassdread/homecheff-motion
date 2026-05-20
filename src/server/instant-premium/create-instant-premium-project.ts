@@ -396,6 +396,7 @@ export async function createInstantPremiumAnimationProject(
               bakedTextExactCopy: image.bakedTextExactCopy,
               bakedTextMaskRegion: image.bakedTextMaskRegion ?? undefined,
               bakedTextBlocksJson: image.bakedTextBlocksJson ?? undefined,
+              instantTextPatches: image.instantTextPatches ?? undefined,
               viduInputUrl: image.viduInputUrl,
             },
           })

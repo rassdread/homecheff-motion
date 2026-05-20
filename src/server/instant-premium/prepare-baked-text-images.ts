@@ -13,9 +13,12 @@ import {
   normalizeTextRenderMode,
   shouldMaskForVidu,
   usesHybridPreAiNeutralize,
+  usesPixelPreservedPatches,
+  type ImageTextPatchesSnapshot,
   type ProjectDetectedTextSnapshot,
   type TextRenderMode,
 } from "@/lib/hybrid-motion-overlay";
+import { extractTextPatchesFromImage } from "@/server/instant-premium/hybrid-overlay/extract-text-patches";
 import { lockedLayersFromBakedTextBlocks } from "@/server/instant-premium/baked-text-blocks-to-layers";
 import {
   maskAndUploadBakedTextSafeImage,
@@ -30,6 +33,7 @@ export type PreparedInstantImage = CreateAnimationProjectImageInput & {
   bakedTextExactCopy: string | null;
   bakedTextMaskRegion: Prisma.InputJsonValue | null;
   bakedTextBlocksJson: Prisma.InputJsonValue | null;
+  instantTextPatches: Prisma.InputJsonValue | null;
   viduInputUrl: string | null;
 };
 
@@ -131,6 +135,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
         bakedTextExactCopy: null,
         bakedTextMaskRegion: null,
         bakedTextBlocksJson: null,
+        instantTextPatches: null,
         viduInputUrl: null,
       });
       continue;
@@ -157,6 +162,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
       maskBlocksSkipped += skipped;
 
       let viduInputUrl: string | null = null;
+      let textPatchesSnapshot: ImageTextPatchesSnapshot | null = null;
 
       if (maskableBlocks.length > 0 && maskEnabled) {
         const maskRegions = maskableBlocks.map((b) => b.bbox);
@@ -169,6 +175,14 @@ export async function prepareInstantImagesWithBakedTextProtection(
               imageHeight: dims.height,
             });
             metadataBlocks.push(...enriched);
+            if (usesPixelPreservedPatches(textRenderMode)) {
+              textPatchesSnapshot = await extractTextPatchesFromImage({
+                sourceBuffer,
+                blocks: maskableBlocks,
+                uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
+                imageOrder: index,
+              });
+            }
           }
           const masked = await maskAndUploadBakedTextSafeImage({
             sourceUrl,
@@ -197,6 +211,9 @@ export async function prepareInstantImagesWithBakedTextProtection(
         bakedTextExactCopy: confirmed.map((b) => b.editedText).join("\n"),
         bakedTextMaskRegion: null,
         bakedTextBlocksJson: maskableBlocks as unknown as Prisma.InputJsonValue,
+        instantTextPatches: textPatchesSnapshot
+          ? (textPatchesSnapshot as unknown as Prisma.InputJsonValue)
+          : null,
         viduInputUrl,
       });
       continue;
@@ -253,6 +270,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
       bakedTextExactCopy: exactText,
       bakedTextMaskRegion: maskRegion as unknown as Prisma.InputJsonValue,
       bakedTextBlocksJson: null,
+      instantTextPatches: null,
       viduInputUrl,
     });
   }

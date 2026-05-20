@@ -548,7 +548,7 @@ export const en: LocaleSchema = {
   "instant.textIntegration.mode.exactFreeze": "Exact freeze",
   "instant.textIntegration.mode.none": "No protection (fast)",
   "instant.textIntegration.modeDesc.hybrid_overlay":
-    "Text is neutralized before AI and exactly reprojected after animation.",
+    "Original text pixels are saved as patches, the scene is animated, and text is warped back onto the video (DeeVid-style).",
   "instant.textIntegration.modeDesc.ai_protection":
     "Classic blur mask + fixed overlay (previous system).",
   "instant.textIntegration.modeDesc.exact_freeze":

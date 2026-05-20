@@ -550,7 +550,7 @@ export const nl = {
   "instant.textIntegration.mode.exactFreeze": "Exact vastgezet",
   "instant.textIntegration.mode.none": "Geen bescherming (snel)",
   "instant.textIntegration.modeDesc.hybrid_overlay":
-    "Tekst wordt geneutraliseerd vóór AI en exact teruggeprojecteerd na animatie.",
+    "Originele tekstpixels worden als patch bewaard, de scène wordt geanimeerd, en tekst wordt teruggewarpt op het beeld (DeeVid-stijl).",
   "instant.textIntegration.modeDesc.ai_protection":
     "Klassieke blur-mask + vaste overlay (vorige systeem).",
   "instant.textIntegration.modeDesc.exact_freeze":

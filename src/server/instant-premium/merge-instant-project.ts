@@ -25,10 +25,8 @@ import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import {
   normalizeOverlayStyle,
   normalizeTextRenderMode,
-  usesHybridPostReprojection,
 } from "@/lib/hybrid-motion-overlay";
-import { applyHybridMotionOverlay } from "@/server/instant-premium/hybrid-overlay";
-import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
+import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 
@@ -381,6 +379,7 @@ export async function executeInstantPremiumMerge(
       include: {
         transitions: { orderBy: { order: "asc" } },
         exports: { orderBy: { createdAt: "desc" } },
+        images: { orderBy: { order: "asc" } },
       },
     });
     if (!project || !isInstantLikeProject(project)) {
@@ -482,30 +481,29 @@ export async function executeInstantPremiumMerge(
         const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;
         const segmentDurationSec = project.viduDurationSeconds ?? 4;
         try {
-          if (usesHybridPostReprojection(textRenderMode)) {
-            await applyHybridMotionOverlay({
-              projectId,
-              inputVideoPath: finalAbs,
-              outputVideoPath: withTextPath,
-              layers: lockedLayers,
-              aspectRatio: project.aspectRatio,
-              viduResolution: project.viduResolution,
-              totalDurationMs,
-              segmentCount: completed.length,
-              segmentDurationSec,
-              overlayStyle,
-              textRenderMode,
-            });
-          } else {
-            await applyLockedTextOverlay({
-              inputVideoPath: finalAbs,
-              outputVideoPath: withTextPath,
-              layers: lockedLayers,
-              aspectRatio: project.aspectRatio,
-              viduResolution: project.viduResolution,
-              totalDurationMs,
-            });
-          }
+          const overlayResult = await applyBestTextOverlayForProject({
+            projectId,
+            inputVideoPath: finalAbs,
+            outputVideoPath: withTextPath,
+            images: project.images.map((img) => ({
+              order: img.order,
+              instantTextPatches: img.instantTextPatches,
+            })),
+            aspectRatio: project.aspectRatio,
+            viduResolution: project.viduResolution,
+            totalDurationMs,
+            segmentCount: completed.length,
+            segmentDurationSec,
+            overlayStyle,
+            textRenderMode,
+            lockedLayers,
+          });
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "textOverlayComplete",
+            overlayMethod: overlayResult.method,
+            trackingMode: overlayResult.trackingMode,
+          });
           mergedPath = withTextPath;
         } catch (overlayError) {
           const safeMessage = sanitizeOverlayError(

@@ -36,6 +36,30 @@ export const TEXT_RENDER_MODES: readonly TextRenderMode[] = [
 export const DEFAULT_TEXT_RENDER_MODE: TextRenderMode = "hybrid_overlay";
 export const DEFAULT_OVERLAY_STYLE: OverlayStyle = "cinematic";
 
+export type Point2D = { x: number; y: number };
+
+/** High-res texture patch for pixel-preserved reprojection (DeeVid-style). */
+export type TextPatch = {
+  id: string;
+  text: string;
+  polygon: Point2D[];
+  bbox: BakedTextMaskRegion;
+  patchUrl: string;
+  patchWidth: number;
+  patchHeight: number;
+  padding: number;
+  zIndex: number;
+  confidence: number;
+  fontInfo?: { family?: string; weight?: number };
+  colorInfo?: { text?: string; background?: string };
+  sourceImageOrder?: number;
+};
+
+export type ImageTextPatchesSnapshot = {
+  version: 1;
+  patches: TextPatch[];
+};
+
 export type DetectedTextBlock = {
   id: string;
   text: string;
@@ -65,10 +89,15 @@ export type ProjectDetectedTextSnapshot = {
 };
 
 export type TrackingMode =
+  | "homography"
+  | "affine"
+  | "optical_flow"
   | "perspective_reprojection"
   | "affine_transform"
   | "static_overlay"
   | "freeze_region";
+
+export type TextTrackingMode = "homography" | "affine" | "optical_flow" | "static" | "freeze";
 
 export const HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK = `SCENE MOTION ONLY:
 - Do not generate readable typography, UI text, captions, subtitles, logos, watermarks, or letters.
@@ -104,6 +133,45 @@ export function usesHybridPreAiNeutralize(mode: TextRenderMode): boolean {
 
 export function usesHybridPostReprojection(mode: TextRenderMode): boolean {
   return mode === "hybrid_overlay" || mode === "exact_freeze";
+}
+
+export function usesPixelPreservedPatches(mode: TextRenderMode): boolean {
+  return mode === "hybrid_overlay";
+}
+
+export function bboxToPolygon(bbox: BakedTextMaskRegion): Point2D[] {
+  const { x, y, width, height } = bbox;
+  return [
+    { x, y },
+    { x: x + width, y },
+    { x: x + width, y: y + height },
+    { x, y: y + height },
+  ];
+}
+
+export function parseImageTextPatches(raw: unknown): ImageTextPatchesSnapshot | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const o = raw as Record<string, unknown>;
+  if (o.version !== 1 || !Array.isArray(o.patches)) {
+    return null;
+  }
+  return { version: 1, patches: o.patches as TextPatch[] };
+}
+
+export function collectProjectTextPatches(
+  images: Array<{ order: number; instantTextPatches?: unknown }>
+): TextPatch[] {
+  const all: TextPatch[] = [];
+  for (const image of images) {
+    const snap = parseImageTextPatches(image.instantTextPatches);
+    if (!snap) continue;
+    for (const patch of snap.patches) {
+      all.push({ ...patch, sourceImageOrder: image.order, zIndex: patch.zIndex ?? image.order + 1 });
+    }
+  }
+  return all.sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
 }
 
 export function shouldMaskForVidu(mode: TextRenderMode): boolean {
