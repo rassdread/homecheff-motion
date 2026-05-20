@@ -17,6 +17,12 @@ import {
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import { buildCompactViduMotionPrompt, buildCompactInstantStoryBlock } from "@/lib/vidu-prompt-budget";
 import {
+  buildComicStripSegmentBridgeHint,
+  COMIC_STRIP_POWER_LINE,
+  shouldUseComicStripWorldTransitions,
+} from "@/lib/vidu-comic-strip-transitions";
+import type { AnimationStyleId } from "@/lib/animation-style-types";
+import {
   parsePremiumPolishSettings,
   resolvePremiumPolishProfile,
 } from "@/lib/premium-polish-settings";
@@ -234,16 +240,32 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
     tailBlocks.push(BAKED_TEXT_CLEANED_PROMPT_BLOCK.split("\n").slice(0, 3).join("\n"));
   }
 
-  return [storyBlock, premiumMotionBlock, ...tailBlocks].filter(Boolean).join("\n\n");
+  const transitionTotal = Math.max(1, input.transitionTotal ?? 1);
+  const powerLine =
+    shouldUseComicStripWorldTransitions(polishProfile.animationStyleId, transitionTotal) ?
+      COMIC_STRIP_POWER_LINE
+    : "";
+
+  return [storyBlock, premiumMotionBlock, ...tailBlocks, powerLine].filter(Boolean).join("\n\n");
 }
 
 export function instantPremiumTransitionSegmentHint(params: {
   transitionOrder: number;
   transitionTotal: number;
   imageCount: number;
+  animationStyleId?: AnimationStyleId;
 }): string {
   const { transitionOrder, transitionTotal, imageCount } = params;
   const from = transitionOrder + 1;
   const to = transitionOrder + 2;
-  return `This segment is keyframe transition ${transitionOrder + 1} of ${transitionTotal}, connecting image ${from} to image ${to} out of ${imageCount}. Continue directly from the previous motion state and prepare seamlessly for the next one, without looking like a standalone clip.`;
+  const base = `Segment ${transitionOrder + 1}/${transitionTotal}: image ${from}→${to} of ${imageCount}. Continue prior motion; seamless next frame.`;
+  const comicBridge =
+    params.animationStyleId ?
+      buildComicStripSegmentBridgeHint({
+        animationStyleId: params.animationStyleId,
+        transitionOrder,
+        transitionTotal,
+      })
+    : "";
+  return [base, comicBridge].filter(Boolean).join(" ");
 }

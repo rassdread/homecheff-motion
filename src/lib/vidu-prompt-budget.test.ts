@@ -28,6 +28,7 @@ describe("vidu prompt budget", () => {
     assert.ok(motion.length < VIDU_PROMPT_MAX_CHARS, `motion len ${motion.length}`);
     assert.match(motion, /Freeze all text/);
     assert.match(motion, /cartoon animation/i);
+    assert.match(motion, /COMIC-STRIP WORLD/i);
   });
 
   it("all animation presets stay under budget when fully composed", () => {

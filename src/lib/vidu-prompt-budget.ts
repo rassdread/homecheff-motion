@@ -15,6 +15,7 @@ import type { ResolvedPremiumPolishProfile } from "@/lib/premium-polish-settings
 import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
 import { deriveMotionMemoryState } from "@/lib/premium-motion-memory";
 import { resolveMotionVariationPhase } from "@/lib/premium-motion-variation";
+import { buildComicStripWorldTransitionBlock } from "@/lib/vidu-comic-strip-transitions";
 
 /** Target max chars sent to Vidu (premium instant). */
 export const VIDU_PROMPT_MAX_CHARS = 3500;
@@ -212,6 +213,11 @@ export function buildCompactViduMotionPrompt(
     buildSegmentTransitionContinuityBlock(profile.segmentTransitionType).split("\n")[0] ?? "",
     profile.cameraPreset !== "none" ? `Camera: ${profile.cameraPreset.replace(/_/g, " ")} — subtle, no shake.` : "",
     profile.fxPreset !== "none" ? `FX: ${profile.fxPreset.replace(/_/g, " ")} on subject only.` : "",
+    buildComicStripWorldTransitionBlock({
+      animationStyleId: profile.animationStyleId,
+      transitionOrder,
+      transitionTotal,
+    }),
   ].filter(Boolean);
 
   return deduplicatePromptText(lines.join("\n"));

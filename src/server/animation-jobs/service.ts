@@ -17,6 +17,7 @@ import {
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
+import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import {
   buildBudgetedViduPrompt,
   validateViduPromptLength,
@@ -226,6 +227,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 
   const polishSettings = transition.project.instantPosterMotionSettings;
   const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
+  const polishProfile = resolvePremiumPolishProfile(polishSettings);
   let finalPrompt: string;
   if (isInstantPremium) {
     const mainPrompt = buildInstantVideoPrompt({
@@ -249,6 +251,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       transitionOrder: transition.order,
       transitionTotal,
       imageCount,
+      animationStyleId: polishProfile.animationStyleId,
     });
     const budgeted = buildBudgetedViduPrompt({
       projectId: transition.projectId,
