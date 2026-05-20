@@ -536,6 +536,32 @@ export const en: LocaleSchema = {
   "instant.lockedText.anim.letterPop": "Letter pop",
   "instant.lockedText.anim.wordByWord": "Word by word",
   "instant.lockedText.anim.scaleIn": "Scale in",
+  "instant.textIntegration.title": "Text integration",
+  "instant.textIntegration.intro":
+    "Original text stays exactly preserved while the scene is animated cinematically.",
+  "instant.textIntegration.blocksTitle": "Detected text blocks",
+  "instant.textIntegration.blocksIntro":
+    "Scan and confirm text on your photos. The AI animates only the scene; text is reprojected afterward.",
+  "instant.textIntegration.modeLabel": "Render mode",
+  "instant.textIntegration.mode.hybrid": "Hybrid overlay (recommended)",
+  "instant.textIntegration.mode.aiProtection": "AI text protection",
+  "instant.textIntegration.mode.exactFreeze": "Exact freeze",
+  "instant.textIntegration.mode.none": "No protection (fast)",
+  "instant.textIntegration.modeDesc.hybrid_overlay":
+    "Text is neutralized before AI and exactly reprojected after animation.",
+  "instant.textIntegration.modeDesc.ai_protection":
+    "Classic blur mask + fixed overlay (previous system).",
+  "instant.textIntegration.modeDesc.exact_freeze":
+    "Text stays static in place without motion drift.",
+  "instant.textIntegration.modeDesc.none": "No text masking; faster but higher AI hallucination risk.",
+  "instant.textIntegration.styleLabel": "Overlay style",
+  "instant.textIntegration.style.exact": "Exact",
+  "instant.textIntegration.style.cinematic": "Cinematic",
+  "instant.textIntegration.style.socialUi": "Social UI",
+  "instant.textIntegration.style.floating": "Floating",
+  "instant.textIntegration.style.softGlow": "Soft glow",
+  "instant.textIntegration.style.kinetic": "Kinetic",
+  "instant.textIntegration.recommended": "Hybrid overlay is the recommended default for exact typography.",
   "instant.bakedText.title": "Baked-in text in photos",
   "instant.bakedText.intro":
     "Text already printed on your uploaded image must not be sent to the video AI. Enable protection to mask it before generation and render the exact wording as a locked overlay afterward.",

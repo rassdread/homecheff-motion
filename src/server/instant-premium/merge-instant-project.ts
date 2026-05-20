@@ -22,6 +22,12 @@ import {
 } from "@/lib/locked-text-layer";
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
+import {
+  normalizeOverlayStyle,
+  normalizeTextRenderMode,
+  usesHybridPostReprojection,
+} from "@/lib/hybrid-motion-overlay";
+import { applyHybridMotionOverlay } from "@/server/instant-premium/hybrid-overlay";
 import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
@@ -467,19 +473,39 @@ export async function executeInstantPremiumMerge(
       );
       let mergedPath = finalAbs;
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
-      const needsOverlay = project.instantLockedTextMode && lockedLayers.length > 0;
+      const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
+      const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
+      const needsOverlay =
+        textRenderMode !== "none" && project.instantLockedTextMode && lockedLayers.length > 0;
       if (needsOverlay) {
         const withTextPath = path.join(workDir, "final-with-locked-text.mp4");
         const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;
+        const segmentDurationSec = project.viduDurationSeconds ?? 4;
         try {
-          await applyLockedTextOverlay({
-            inputVideoPath: finalAbs,
-            outputVideoPath: withTextPath,
-            layers: lockedLayers,
-            aspectRatio: project.aspectRatio,
-            viduResolution: project.viduResolution,
-            totalDurationMs,
-          });
+          if (usesHybridPostReprojection(textRenderMode)) {
+            await applyHybridMotionOverlay({
+              projectId,
+              inputVideoPath: finalAbs,
+              outputVideoPath: withTextPath,
+              layers: lockedLayers,
+              aspectRatio: project.aspectRatio,
+              viduResolution: project.viduResolution,
+              totalDurationMs,
+              segmentCount: completed.length,
+              segmentDurationSec,
+              overlayStyle,
+              textRenderMode,
+            });
+          } else {
+            await applyLockedTextOverlay({
+              inputVideoPath: finalAbs,
+              outputVideoPath: withTextPath,
+              layers: lockedLayers,
+              aspectRatio: project.aspectRatio,
+              viduResolution: project.viduResolution,
+              totalDurationMs,
+            });
+          }
           mergedPath = withTextPath;
         } catch (overlayError) {
           const safeMessage = sanitizeOverlayError(

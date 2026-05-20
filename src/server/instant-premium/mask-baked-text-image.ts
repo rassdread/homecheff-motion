@@ -1,5 +1,6 @@
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import sharp from "sharp";
+import { neutralizeTextRegionsHybrid } from "@/server/instant-premium/hybrid-overlay/pre-ai-neutralize";
 import {
   defaultMaskRegionForTextPosition,
   logInvalidMaskRegion,
@@ -81,8 +82,22 @@ export async function maskBakedTextInImageBuffer(
 export async function maskBakedTextRegionsInImageBuffer(
   input: Buffer,
   regions: BakedTextMaskRegion[],
-  context?: { imageIndex?: number; ocrTexts?: string[] }
+  context?: {
+    imageIndex?: number;
+    ocrTexts?: string[];
+    projectId?: string;
+    useHybridNeutralize?: boolean;
+  }
 ): Promise<MaskBakedTextRegionsResult> {
+  if (context?.useHybridNeutralize) {
+    const hybrid = await neutralizeTextRegionsHybrid(input, regions, {
+      projectId: context.projectId,
+      imageIndex: context.imageIndex,
+      ocrTexts: context.ocrTexts,
+    });
+    return { buffer: hybrid.buffer, skippedRegionCount: hybrid.skippedRegionCount };
+  }
+
   const { width, height } = await readImageDimensions(input);
   let current = input;
   let skippedRegionCount = 0;
@@ -109,7 +124,12 @@ export async function maskBakedTextRegionsInImageBuffer(
 }
 
 export async function maskAndUploadBakedTextSafeImage(
-  input: MaskBakedTextImageInput & { maskRegions?: BakedTextMaskRegion[]; imageIndex?: number }
+  input: MaskBakedTextImageInput & {
+    maskRegions?: BakedTextMaskRegion[];
+    imageIndex?: number;
+    projectId?: string;
+    useHybridNeutralize?: boolean;
+  }
 ): Promise<MaskBakedTextImageResult> {
   const res = await fetch(input.sourceUrl, { cache: "no-store" });
   if (!res.ok) {
@@ -123,7 +143,11 @@ export async function maskAndUploadBakedTextSafeImage(
   const { buffer: masked, skippedRegionCount } = await maskBakedTextRegionsInImageBuffer(
     sourceBuffer,
     regions,
-    { imageIndex: input.imageIndex }
+    {
+      imageIndex: input.imageIndex,
+      projectId: input.projectId,
+      useHybridNeutralize: input.useHybridNeutralize,
+    }
   );
   const path = `${input.uploadPathPrefix}/vidu-safe-${Date.now()}.jpg`;
   const { url } = await uploadPublicBlob({

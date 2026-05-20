@@ -42,6 +42,12 @@ import {
   BakedTextProtectionPanel,
   type BakedTextProtectionDraft,
 } from "@/components/instant/baked-text-protection-panel";
+import {
+  DEFAULT_OVERLAY_STYLE,
+  DEFAULT_TEXT_RENDER_MODE,
+  TextIntegrationPanel,
+} from "@/components/instant/text-integration-panel";
+import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
 import {
@@ -237,6 +243,8 @@ export default function InstantPremiumPage() {
     useState<InstantPremiumContinuityStrength>("balanced");
   const [chips, setChips] = useState<(InstantPremiumChipId | TextImplyingChipId)[]>([]);
   const [lockedTextMode, setLockedTextMode] = useState(true);
+  const [textRenderMode, setTextRenderMode] = useState<TextRenderMode>(DEFAULT_TEXT_RENDER_MODE);
+  const [hybridOverlayStyle, setHybridOverlayStyle] = useState<OverlayStyle>(DEFAULT_OVERLAY_STYLE);
   const [lockedTextLayers, setLockedTextLayers] = useState<LockedTextLayerDraft[]>([]);
   const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
@@ -711,6 +719,8 @@ export default function InstantPremiumPage() {
         lockedTextMode,
         lockedTextLayers: explicitLayers,
         chipTextBySlot,
+        textRenderMode,
+        hybridOverlayStyle,
       };
 
       if (!fastRenderMode) {
@@ -839,6 +849,7 @@ export default function InstantPremiumPage() {
       continuityStrength,
       durationSec,
       fastRenderMode,
+      hybridOverlayStyle,
       images,
       locale,
       lockedTextLayers,
@@ -848,6 +859,7 @@ export default function InstantPremiumPage() {
       router,
       session.user,
       stylePreset,
+      textRenderMode,
       t,
       uploadToBlob,
       waitForPendingScans,
@@ -1129,6 +1141,12 @@ export default function InstantPremiumPage() {
                     </div>
                   </SortableContext>
                 </DndContext>
+                <TextIntegrationPanel
+                  textRenderMode={textRenderMode}
+                  overlayStyle={hybridOverlayStyle}
+                  onTextRenderModeChange={setTextRenderMode}
+                  onOverlayStyleChange={setHybridOverlayStyle}
+                />
                 <BakedTextProtectionPanel
                   images={images.map((im) => ({
                     id: im.id,

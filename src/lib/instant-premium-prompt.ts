@@ -7,6 +7,7 @@ export type InstantPremiumContinuityStrength = "balanced" | "strict";
 
 /** Stable ids sent from client / stored in DB */
 import { BAKED_TEXT_CLEANED_PROMPT_BLOCK } from "@/lib/baked-text-protection";
+import { HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK } from "@/lib/hybrid-motion-overlay";
 import {
   filterVisualOnlyChips,
   LOCKED_TEXT_SAFETY_BLOCK,
@@ -101,6 +102,8 @@ export type BuildInstantVideoPromptInput = {
   lockedTextMode?: boolean;
   /** When true, source images had baked-in text masked before Vidu. */
   bakedTextProtectionActive?: boolean;
+  /** Hybrid overlay pipeline: scene-only AI + post reprojection. */
+  hybridOverlayActive?: boolean;
 };
 
 const CONTINUITY_MARKER_RE = /^\[hc_continuity:(balanced|strict)\]\s*\n?/i;
@@ -189,11 +192,15 @@ The final result should feel like a polished, premium, ready-to-use social media
 ${LOCKED_TEXT_SAFETY_BLOCK}`
       : ""
   }${
-    input.bakedTextProtectionActive
+    input.hybridOverlayActive
       ? `
 
+${HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK}`
+      : input.bakedTextProtectionActive
+        ? `
+
 ${BAKED_TEXT_CLEANED_PROMPT_BLOCK}`
-      : ""
+        : ""
   }`;
 }
 

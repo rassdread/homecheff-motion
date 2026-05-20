@@ -538,6 +538,32 @@ export const nl = {
   "instant.lockedText.anim.letterPop": "Letter-pop",
   "instant.lockedText.anim.wordByWord": "Woord voor woord",
   "instant.lockedText.anim.scaleIn": "Scale-in",
+  "instant.textIntegration.title": "Tekstintegratie",
+  "instant.textIntegration.intro":
+    "Originele teksten blijven exact behouden terwijl de scène cinematografisch geanimeerd wordt.",
+  "instant.textIntegration.blocksTitle": "Gedetecteerde tekstblokken",
+  "instant.textIntegration.blocksIntro":
+    "Scan en bevestig tekst op je foto's. De AI animeert alleen de scène; tekst wordt daarna opnieuw in het beeld geplaatst.",
+  "instant.textIntegration.modeLabel": "Rendermodus",
+  "instant.textIntegration.mode.hybrid": "Hybride overlay (aanbevolen)",
+  "instant.textIntegration.mode.aiProtection": "AI-tekstbescherming",
+  "instant.textIntegration.mode.exactFreeze": "Exact vastgezet",
+  "instant.textIntegration.mode.none": "Geen bescherming (snel)",
+  "instant.textIntegration.modeDesc.hybrid_overlay":
+    "Tekst wordt geneutraliseerd vóór AI en exact teruggeprojecteerd na animatie.",
+  "instant.textIntegration.modeDesc.ai_protection":
+    "Klassieke blur-mask + vaste overlay (vorige systeem).",
+  "instant.textIntegration.modeDesc.exact_freeze":
+    "Tekst blijft statisch op positie zonder beweging.",
+  "instant.textIntegration.modeDesc.none": "Geen tekstmaskering; sneller maar risico op AI-hallucinaties.",
+  "instant.textIntegration.styleLabel": "Overlaystijl",
+  "instant.textIntegration.style.exact": "Exact",
+  "instant.textIntegration.style.cinematic": "Cinematisch",
+  "instant.textIntegration.style.socialUi": "Social UI",
+  "instant.textIntegration.style.floating": "Zwevend",
+  "instant.textIntegration.style.softGlow": "Zachte gloed",
+  "instant.textIntegration.style.kinetic": "Kinetisch",
+  "instant.textIntegration.recommended": "Hybride overlay is de aanbevolen standaard voor exacte typografie.",
   "instant.bakedText.title": "Vaste tekst op foto's",
   "instant.bakedText.intro":
     "Tekst die al op je geüploade afbeelding staat mag niet rechtstreeks naar de video-AI. Zet bescherming aan om die zone te maskeren vóór generatie en de exacte tekst daarna als vergrendelde overlay te tonen.",

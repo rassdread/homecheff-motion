@@ -8,6 +8,14 @@ import {
   type BakedTextProtectionStatus,
 } from "@/lib/baked-text-protection";
 import { parseBakedTextProtectionInput } from "@/lib/baked-text-protection";
+import { enrichBakedTextBlocksFromImage } from "@/lib/hybrid-motion-overlay-enrich";
+import {
+  normalizeTextRenderMode,
+  shouldMaskForVidu,
+  usesHybridPreAiNeutralize,
+  type ProjectDetectedTextSnapshot,
+  type TextRenderMode,
+} from "@/lib/hybrid-motion-overlay";
 import { lockedLayersFromBakedTextBlocks } from "@/server/instant-premium/baked-text-blocks-to-layers";
 import {
   maskAndUploadBakedTextSafeImage,
@@ -32,6 +40,7 @@ export type PrepareBakedTextImagesResult =
       extraLockedLayers: LockedTextLayer[];
       maskBlocksSkipped: number;
       warnings: string[];
+      detectedTextMetadata: ProjectDetectedTextSnapshot;
     }
   | { ok: false; error: string };
 
@@ -95,10 +104,18 @@ async function imageDimensionsFromUrl(sourceUrl: string): Promise<{ width: numbe
 
 export async function prepareInstantImagesWithBakedTextProtection(
   images: CreateAnimationProjectImageInput[],
-  options: { uploadPathPrefix: string; totalDurationMs: number }
+  options: {
+    uploadPathPrefix: string;
+    totalDurationMs: number;
+    textRenderMode?: TextRenderMode;
+  }
 ): Promise<PrepareBakedTextImagesResult> {
+  const textRenderMode = normalizeTextRenderMode(options.textRenderMode);
+  const useHybridNeutralize = usesHybridPreAiNeutralize(textRenderMode);
+  const maskEnabled = shouldMaskForVidu(textRenderMode);
   const prepared: PreparedInstantImage[] = [];
   const extraLockedLayers: LockedTextLayer[] = [];
+  const metadataBlocks: ProjectDetectedTextSnapshot["blocks"] = [];
   let maskBlocksSkipped = 0;
   const warnings: string[] = [];
 
@@ -141,15 +158,25 @@ export async function prepareInstantImagesWithBakedTextProtection(
 
       let viduInputUrl: string | null = null;
 
-      if (maskableBlocks.length > 0) {
+      if (maskableBlocks.length > 0 && maskEnabled) {
         const maskRegions = maskableBlocks.map((b) => b.bbox);
         try {
+          const res = await fetch(sourceUrl, { cache: "no-store" });
+          const sourceBuffer = res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+          if (sourceBuffer) {
+            const enriched = await enrichBakedTextBlocksFromImage(sourceBuffer, maskableBlocks, {
+              imageWidth: dims.width,
+              imageHeight: dims.height,
+            });
+            metadataBlocks.push(...enriched);
+          }
           const masked = await maskAndUploadBakedTextSafeImage({
             sourceUrl,
             maskRegion: maskRegions[0],
             maskRegions,
             uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
             imageIndex: index,
+            useHybridNeutralize,
           });
           viduInputUrl = masked.url;
           maskBlocksSkipped += masked.skippedRegionCount;
@@ -189,18 +216,21 @@ export async function prepareInstantImagesWithBakedTextProtection(
     });
 
     let viduInputUrl: string | null = null;
-    try {
-      const masked = await maskAndUploadBakedTextSafeImage({
-        sourceUrl,
-        maskRegion,
-        uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
-        imageIndex: index,
-      });
-      viduInputUrl = masked.url;
-      maskBlocksSkipped += masked.skippedRegionCount;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Baked text masking failed.";
-      return { ok: false, error: `Image ${index + 1}: ${message}` };
+    if (maskEnabled) {
+      try {
+        const masked = await maskAndUploadBakedTextSafeImage({
+          sourceUrl,
+          maskRegion,
+          uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
+          imageIndex: index,
+          useHybridNeutralize,
+        });
+        viduInputUrl = masked.url;
+        maskBlocksSkipped += masked.skippedRegionCount;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Baked text masking failed.";
+        return { ok: false, error: `Image ${index + 1}: ${message}` };
+      }
     }
 
     const positionY = protection.positionY ?? 0.12;
@@ -231,5 +261,16 @@ export async function prepareInstantImagesWithBakedTextProtection(
     warnings.push(BAKED_TEXT_MASK_BLOCKS_SKIPPED_WARNING_NL);
   }
 
-  return { ok: true, images: prepared, extraLockedLayers, maskBlocksSkipped, warnings };
+  return {
+    ok: true,
+    images: prepared,
+    extraLockedLayers,
+    maskBlocksSkipped,
+    warnings,
+    detectedTextMetadata: {
+      version: 1,
+      capturedAt: new Date().toISOString(),
+      blocks: metadataBlocks,
+    },
+  };
 }

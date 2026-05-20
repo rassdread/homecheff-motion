@@ -22,6 +22,14 @@ import {
   type InstantPremiumDurationSeconds,
 } from "@/lib/instant-premium-prompt";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
+import {
+  DEFAULT_OVERLAY_STYLE,
+  DEFAULT_TEXT_RENDER_MODE,
+  normalizeOverlayStyle,
+  normalizeTextRenderMode,
+  type OverlayStyle,
+  type TextRenderMode,
+} from "@/lib/hybrid-motion-overlay";
 import { prepareInstantImagesWithBakedTextProtection } from "@/server/instant-premium/prepare-baked-text-images";
 import { runInstantPremiumTextPreflight } from "@/server/instant-premium/instant-premium-preflight";
 import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/video-rendering-guard";
@@ -44,6 +52,8 @@ export type InstantPremiumCreatePayload = {
   lockedTextMode?: boolean;
   lockedTextLayers?: LockedTextLayer[];
   chipTextBySlot?: Partial<Record<TextImplyingChipId, string>>;
+  textRenderMode?: TextRenderMode;
+  hybridOverlayStyle?: OverlayStyle;
 };
 
 export type InstantPremiumCreateResult =
@@ -147,6 +157,9 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     return { ok: false, error: layerCheck.error, status: 400 };
   }
 
+  const textRenderMode = normalizeTextRenderMode(o.textRenderMode ?? DEFAULT_TEXT_RENDER_MODE);
+  const hybridOverlayStyle = normalizeOverlayStyle(o.hybridOverlayStyle ?? DEFAULT_OVERLAY_STYLE);
+
   const data: InstantPremiumCreatePayload = {
     images,
     stylePreset,
@@ -157,6 +170,8 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     continuityStrength,
     lockedTextMode,
     lockedTextLayers: layerCheck.layers,
+    textRenderMode,
+    hybridOverlayStyle,
     ...(Object.keys(chipTextBySlot).length > 0 ? { chipTextBySlot } : {}),
     ...(userIntent !== undefined ? { userIntent } : {}),
   };
@@ -298,9 +313,17 @@ export async function createInstantPremiumAnimationProject(
   const chipsJson = chips.length > 0 ? (chips as unknown as Prisma.InputJsonValue) : undefined;
   const totalDurationMs = durationResolved * 1000;
 
+  const textRenderMode = normalizeTextRenderMode(
+    validated.data.textRenderMode ?? DEFAULT_TEXT_RENDER_MODE
+  );
+  const hybridOverlayStyle = normalizeOverlayStyle(
+    validated.data.hybridOverlayStyle ?? DEFAULT_OVERLAY_STYLE
+  );
+
   const imagePrep = await prepareInstantImagesWithBakedTextProtection(images, {
     uploadPathPrefix: `motion/instant-baked/${ownerId}`,
     totalDurationMs,
+    textRenderMode,
   });
   if (!imagePrep.ok) {
     return { ok: false, error: imagePrep.error, status: 400 };
@@ -339,6 +362,12 @@ export async function createInstantPremiumAnimationProject(
           instantUserIntent: intent,
           instantLockedTextLayers: lockedLayersJson,
           instantLockedTextMode: lockedTextMode,
+          instantTextRenderMode: textRenderMode,
+          instantHybridOverlayStyle: hybridOverlayStyle,
+          instantDetectedTextMetadata:
+            imagePrep.detectedTextMetadata.blocks.length > 0
+              ? (imagePrep.detectedTextMetadata as unknown as Prisma.InputJsonValue)
+              : undefined,
           presetId: preset.id,
           viduModel,
           viduResolution,

@@ -152,8 +152,8 @@ export function BakedTextProtectionPanel({
   return (
     <div className="mt-6 space-y-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
       <div>
-        <p className="text-sm font-semibold text-sky-950">{t("instant.bakedText.title")}</p>
-        <p className="mt-1 text-xs leading-relaxed text-sky-900/90">{t("instant.bakedText.safetyCopy")}</p>
+        <p className="text-sm font-semibold text-sky-950">{t("instant.textIntegration.blocksTitle")}</p>
+        <p className="mt-1 text-xs leading-relaxed text-sky-900/90">{t("instant.textIntegration.blocksIntro")}</p>
         <p className="mt-2 text-xs text-sky-800/80">{t("instant.bakedText.promptOnlyWarning")}</p>
         {anyAutoProtected ? (
           <p className="mt-2 text-xs font-medium text-emerald-800">

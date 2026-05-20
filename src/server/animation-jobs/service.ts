@@ -203,6 +203,10 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const bakedTextProtectionActive =
     startImage.bakedTextProtectionStatus === "masked" ||
     endImage.bakedTextProtectionStatus === "masked";
+  const textRenderMode = transition.project.instantTextRenderMode ?? "hybrid_overlay";
+  const hybridOverlayActive =
+    bakedTextProtectionActive &&
+    (textRenderMode === "hybrid_overlay" || textRenderMode === "exact_freeze");
 
   const transitionTotal = transition.project._count.transitions;
   const imageCount = transitionTotal + 1;
@@ -219,6 +223,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         continuityStrength: instantStoredIntent.continuityStrength,
         lockedTextMode: transition.project.instantLockedTextMode !== false,
         bakedTextProtectionActive,
+        hybridOverlayActive,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,
