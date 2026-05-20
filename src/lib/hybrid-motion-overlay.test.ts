@@ -8,22 +8,29 @@ import {
   parseImageTextPatches,
   shouldMaskForVidu,
   usesHybridPostReprojection,
+  usesAggressivePreAiNeutralize,
+  usesCriticalTypographyPrompt,
   usesHybridPreAiNeutralize,
   usesPixelPreservedPatches,
 } from "./hybrid-motion-overlay";
 
 describe("hybrid-motion-overlay modes", () => {
-  it("defaults to hybrid_overlay", () => {
-    assert.equal(DEFAULT_TEXT_RENDER_MODE, "hybrid_overlay");
-    assert.equal(normalizeTextRenderMode(undefined), "hybrid_overlay");
+  it("defaults to deevid_text_safe", () => {
+    assert.equal(DEFAULT_TEXT_RENDER_MODE, "deevid_text_safe");
+    assert.equal(normalizeTextRenderMode(undefined), "deevid_text_safe");
   });
 
   it("hybrid modes use pre-AI neutralize and post reprojection", () => {
+    assert.equal(usesHybridPreAiNeutralize("deevid_text_safe"), true);
+    assert.equal(usesAggressivePreAiNeutralize("deevid_text_safe"), true);
+    assert.equal(usesHybridPostReprojection("deevid_text_safe"), true);
+    assert.equal(usesCriticalTypographyPrompt("deevid_text_safe"), true);
     assert.equal(usesHybridPreAiNeutralize("hybrid_overlay"), true);
     assert.equal(usesHybridPostReprojection("hybrid_overlay"), true);
     assert.equal(usesHybridPreAiNeutralize("ai_protection"), true);
     assert.equal(usesHybridPostReprojection("ai_protection"), false);
     assert.equal(shouldMaskForVidu("none"), false);
+    assert.equal(usesPixelPreservedPatches("deevid_text_safe"), true);
     assert.equal(usesPixelPreservedPatches("hybrid_overlay"), true);
   });
 

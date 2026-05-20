@@ -87,6 +87,7 @@ export async function maskBakedTextRegionsInImageBuffer(
     ocrTexts?: string[];
     projectId?: string;
     useHybridNeutralize?: boolean;
+    useAggressiveNeutralize?: boolean;
   }
 ): Promise<MaskBakedTextRegionsResult> {
   if (context?.useHybridNeutralize) {
@@ -94,6 +95,7 @@ export async function maskBakedTextRegionsInImageBuffer(
       projectId: context.projectId,
       imageIndex: context.imageIndex,
       ocrTexts: context.ocrTexts,
+      aggressive: context.useAggressiveNeutralize === true,
     });
     return { buffer: hybrid.buffer, skippedRegionCount: hybrid.skippedRegionCount };
   }
@@ -129,6 +131,7 @@ export async function maskAndUploadBakedTextSafeImage(
     imageIndex?: number;
     projectId?: string;
     useHybridNeutralize?: boolean;
+    useAggressiveNeutralize?: boolean;
   }
 ): Promise<MaskBakedTextImageResult> {
   const res = await fetch(input.sourceUrl, { cache: "no-store" });
@@ -147,6 +150,7 @@ export async function maskAndUploadBakedTextSafeImage(
       imageIndex: input.imageIndex,
       projectId: input.projectId,
       useHybridNeutralize: input.useHybridNeutralize,
+      useAggressiveNeutralize: input.useAggressiveNeutralize,
     }
   );
   const path = `${input.uploadPathPrefix}/vidu-safe-${Date.now()}.jpg`;

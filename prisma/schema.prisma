@@ -25,7 +25,7 @@ model AnimationProject {
   /** When true, Vidu prompts include text-safety rules and finals get deterministic text overlays. */
   instantLockedTextMode Boolean @default(true)
   /** ai_protection | hybrid_overlay | exact_freeze | none */
-  instantTextRenderMode String @default("hybrid_overlay")
+  instantTextRenderMode String @default("deevid_text_safe")
   /** exact | cinematic | social-ui | floating | soft-glow | kinetic */
   instantHybridOverlayStyle String @default("cinematic")
   /** OCR-enriched text blocks for hybrid reprojection (JSON ProjectDetectedTextSnapshot). */

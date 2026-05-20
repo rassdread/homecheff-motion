@@ -1,4 +1,5 @@
 export { neutralizeTextRegionsHybrid, neutralizeTextRegionHybrid } from "./pre-ai-neutralize";
+export { neutralizeTextRegionAggressive } from "./aggressive-pre-ai-neutralize";
 export {
   estimateVideoMotionProfile,
   motionExprForAxis,

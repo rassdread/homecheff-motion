@@ -678,7 +678,7 @@ export default function InstantPremiumPage() {
       if (!img) {
         return;
       }
-      const regions = img.bakedText.blocks.filter((b) => b.kept).map((b) => b.bbox);
+      const blocks = img.bakedText.blocks.filter((b) => b.kept && b.confirmed);
       let imageUrl = img.bakedText.remoteWorkingUrl;
       if (!imageUrl) {
         const up = await uploadToBlob(img);
@@ -689,20 +689,34 @@ export default function InstantPremiumPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ imageUrl, regions }),
+        body: JSON.stringify({
+          imageUrl,
+          blocks,
+          textRenderMode,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         previewUrl?: string;
+        cleanedUrl?: string;
+        originalUrl?: string;
+        regionCount?: number;
+        maskRegions?: Array<{ x: number; y: number; width: number; height: number }>;
       };
       if (!res.ok) {
         throw new Error(data.error ?? t("instant.bakedText.previewFailed"));
       }
-      if (data.previewUrl) {
-        updateBakedText(imageId, { maskedPreviewUrl: data.previewUrl });
+      const cleaned = data.cleanedUrl ?? data.previewUrl;
+      if (cleaned) {
+        updateBakedText(imageId, {
+          maskedPreviewUrl: cleaned,
+          debugOriginalUrl: data.originalUrl ?? imageUrl,
+          debugMaskRegionCount: data.regionCount,
+          debugMaskRegions: data.maskRegions,
+        });
       }
     },
-    [images, t, updateBakedText, uploadToBlob]
+    [images, t, textRenderMode, updateBakedText, uploadToBlob]
   );
 
   const runCheckout = useCallback(

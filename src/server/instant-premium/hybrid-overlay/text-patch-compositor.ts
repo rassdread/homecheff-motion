@@ -322,7 +322,10 @@ export async function applyBestTextOverlayForProject(params: {
 }): Promise<{ method: string; trackingMode?: string }> {
   const patches = collectProjectTextPatches(params.images);
 
-  if (params.textRenderMode === "hybrid_overlay" && patches.length > 0) {
+  if (
+    (params.textRenderMode === "hybrid_overlay" || params.textRenderMode === "deevid_text_safe") &&
+    patches.length > 0
+  ) {
     try {
       const result = await applyPixelPreservedTextMotion({
         projectId: params.projectId,
@@ -348,7 +351,11 @@ export async function applyBestTextOverlayForProject(params: {
     }
   }
 
-  if (params.textRenderMode === "hybrid_overlay" || params.textRenderMode === "exact_freeze") {
+  if (
+    params.textRenderMode === "deevid_text_safe" ||
+    params.textRenderMode === "hybrid_overlay" ||
+    params.textRenderMode === "exact_freeze"
+  ) {
     await applyHybridMotionOverlay({
       projectId: params.projectId,
       inputVideoPath: params.inputVideoPath,

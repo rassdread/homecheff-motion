@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
+import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import { parseBakedTextBlockRecords } from "@/lib/baked-text-detection";
+import { buildViduMaskRegionsFromBlocks } from "@/lib/instant-text-mask-regions";
+import {
+  normalizeTextRenderMode,
+  usesAggressivePreAiNeutralize,
+  usesHybridPreAiNeutralize,
+} from "@/lib/hybrid-motion-overlay";
 import { parseBakedTextMaskRegion } from "@/lib/baked-text-protection";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import { requireAdmin } from "@/server/auth/permissions";
 import { maskBakedTextRegionsInImageBuffer } from "@/server/instant-premium/mask-baked-text-image";
 
-/** Admin-only debug: preview multi-region text mask before Vidu. */
+/** Admin-only debug: preview aggressive text/UI removal before Vidu. */
 export async function POST(request: Request) {
   const user = await requireAdmin();
   if (user instanceof NextResponse) {
@@ -14,17 +22,35 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     imageUrl?: string;
     regions?: unknown[];
+    blocks?: unknown[];
+    textRenderMode?: string;
   };
   const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl.trim() : "";
   if (!imageUrl) {
     return NextResponse.json({ error: "imageUrl is required." }, { status: 400 });
   }
 
-  const regions = Array.isArray(body.regions)
+  const textRenderMode = normalizeTextRenderMode(body.textRenderMode);
+  const aggressive = usesAggressivePreAiNeutralize(textRenderMode);
+  const useHybridNeutralize = usesHybridPreAiNeutralize(textRenderMode);
+
+  const blockRecords = parseBakedTextBlockRecords(body.blocks).filter(
+    (b) => b.kept !== false && b.editedText.trim().length > 0
+  );
+
+  let maskRegions = Array.isArray(body.regions)
     ? body.regions.map(parseBakedTextMaskRegion).filter((r): r is NonNullable<typeof r> => Boolean(r))
     : [];
-  if (regions.length === 0) {
-    return NextResponse.json({ error: "At least one mask region is required." }, { status: 400 });
+
+  const rawBlockRegions: BakedTextBlockRecord["bbox"][] =
+    blockRecords.length > 0 ? blockRecords.map((b) => b.bbox) : [];
+
+  if (blockRecords.length > 0) {
+    maskRegions = buildViduMaskRegionsFromBlocks(blockRecords, aggressive);
+  }
+
+  if (maskRegions.length === 0) {
+    return NextResponse.json({ error: "At least one mask region or block is required." }, { status: 400 });
   }
 
   try {
@@ -35,7 +61,11 @@ export async function POST(request: Request) {
     const sourceBuffer = Buffer.from(await res.arrayBuffer());
     const { buffer: masked, skippedRegionCount } = await maskBakedTextRegionsInImageBuffer(
       sourceBuffer,
-      regions
+      maskRegions,
+      {
+        useHybridNeutralize,
+        useAggressiveNeutralize: aggressive,
+      }
     );
     const uploadTarget = `motion/debug/mask-preview-${Date.now()}.jpg`;
     const { url } = await uploadPublicBlob({
@@ -46,9 +76,15 @@ export async function POST(request: Request) {
       context: { uploadTarget, provider: "instant-mask-preview" },
     });
     return NextResponse.json({
+      originalUrl: imageUrl,
+      cleanedUrl: url,
       previewUrl: url,
-      regionCount: regions.length,
+      maskRegions,
+      rawBlockRegions,
+      regionCount: maskRegions.length,
       skippedRegionCount,
+      textRenderMode,
+      aggressive,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Mask preview failed.";

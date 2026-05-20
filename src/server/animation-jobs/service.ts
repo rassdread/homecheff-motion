@@ -6,6 +6,7 @@ import {
   validateAnimationPresetId,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import { normalizeTextRenderMode } from "@/lib/hybrid-motion-overlay";
 import {
   buildInstantVideoPrompt,
   instantPremiumTransitionSegmentHint,
@@ -203,10 +204,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const bakedTextProtectionActive =
     startImage.bakedTextProtectionStatus === "masked" ||
     endImage.bakedTextProtectionStatus === "masked";
-  const textRenderMode = transition.project.instantTextRenderMode ?? "hybrid_overlay";
+  const textRenderMode = normalizeTextRenderMode(transition.project.instantTextRenderMode);
   const hybridOverlayActive =
     bakedTextProtectionActive &&
-    (textRenderMode === "hybrid_overlay" || textRenderMode === "exact_freeze");
+    (textRenderMode === "deevid_text_safe" ||
+      textRenderMode === "hybrid_overlay" ||
+      textRenderMode === "exact_freeze");
 
   const transitionTotal = transition.project._count.transitions;
   const imageCount = transitionTotal + 1;
@@ -224,6 +227,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         lockedTextMode: transition.project.instantLockedTextMode !== false,
         bakedTextProtectionActive,
         hybridOverlayActive,
+        textRenderMode,
       })}\n\n${instantPremiumTransitionSegmentHint({
         transitionOrder: transition.order,
         transitionTotal,

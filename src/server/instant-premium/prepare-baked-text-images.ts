@@ -9,9 +9,11 @@ import {
 } from "@/lib/baked-text-protection";
 import { parseBakedTextProtectionInput } from "@/lib/baked-text-protection";
 import { enrichBakedTextBlocksFromImage } from "@/lib/hybrid-motion-overlay-enrich";
+import { buildViduMaskRegionsFromBlocks } from "@/lib/instant-text-mask-regions";
 import {
   normalizeTextRenderMode,
   shouldMaskForVidu,
+  usesAggressivePreAiNeutralize,
   usesHybridPreAiNeutralize,
   usesPixelPreservedPatches,
   type ImageTextPatchesSnapshot,
@@ -120,6 +122,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
 ): Promise<PrepareBakedTextImagesResult> {
   const textRenderMode = normalizeTextRenderMode(options.textRenderMode);
   const useHybridNeutralize = usesHybridPreAiNeutralize(textRenderMode);
+  const useAggressiveNeutralize = usesAggressivePreAiNeutralize(textRenderMode);
   const maskEnabled = shouldMaskForVidu(textRenderMode);
   const prepared: PreparedInstantImage[] = [];
   const extraLockedLayers: LockedTextLayer[] = [];
@@ -170,7 +173,10 @@ export async function prepareInstantImagesWithBakedTextProtection(
       let textPatchesSnapshot: ImageTextPatchesSnapshot | null = null;
 
       if (maskableBlocks.length > 0 && maskEnabled) {
-        const maskRegions = maskableBlocks.map((b) => b.bbox);
+        const maskRegions = buildViduMaskRegionsFromBlocks(
+          maskableBlocks,
+          useAggressiveNeutralize
+        );
         try {
           const res = await fetch(sourceUrl, { cache: "no-store" });
           const sourceBuffer = res.ok ? Buffer.from(await res.arrayBuffer()) : null;
@@ -197,6 +203,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
             uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
             imageIndex: index,
             useHybridNeutralize,
+            useAggressiveNeutralize,
           });
           viduInputUrl = masked.url;
           maskBlocksSkipped += masked.skippedRegionCount;
@@ -248,6 +255,7 @@ export async function prepareInstantImagesWithBakedTextProtection(
           uploadPathPrefix: `${options.uploadPathPrefix}/image-${index}`,
           imageIndex: index,
           useHybridNeutralize,
+          useAggressiveNeutralize,
         });
         viduInputUrl = masked.url;
         maskBlocksSkipped += masked.skippedRegionCount;

@@ -18,6 +18,7 @@ type Props = {
 };
 
 const MODE_LABEL_KEYS: Record<TextRenderMode, string> = {
+  deevid_text_safe: "instant.textIntegration.mode.deevid",
   hybrid_overlay: "instant.textIntegration.mode.hybrid",
   ai_protection: "instant.textIntegration.mode.aiProtection",
   exact_freeze: "instant.textIntegration.mode.exactFreeze",
@@ -76,7 +77,9 @@ export function TextIntegrationPanel({
         </div>
       </fieldset>
 
-      {(textRenderMode === "hybrid_overlay" || textRenderMode === "exact_freeze") && (
+      {(textRenderMode === "deevid_text_safe" ||
+        textRenderMode === "hybrid_overlay" ||
+        textRenderMode === "exact_freeze") && (
         <div className="mt-3">
           <label htmlFor="overlay-style" className="text-xs font-medium text-zinc-700">
             {t("instant.textIntegration.styleLabel")}

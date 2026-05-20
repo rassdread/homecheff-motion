@@ -21,19 +21,21 @@ export const OVERLAY_STYLES: readonly OverlayStyle[] = [
 
 /** How Instant Premium preserves typography through the pipeline. */
 export type TextRenderMode =
+  | "deevid_text_safe"
   | "ai_protection"
   | "hybrid_overlay"
   | "exact_freeze"
   | "none";
 
 export const TEXT_RENDER_MODES: readonly TextRenderMode[] = [
+  "deevid_text_safe",
   "ai_protection",
   "hybrid_overlay",
   "exact_freeze",
   "none",
 ] as const;
 
-export const DEFAULT_TEXT_RENDER_MODE: TextRenderMode = "hybrid_overlay";
+export const DEFAULT_TEXT_RENDER_MODE: TextRenderMode = "deevid_text_safe";
 export const DEFAULT_OVERLAY_STYLE: OverlayStyle = "cinematic";
 
 export type Point2D = { x: number; y: number };
@@ -105,6 +107,15 @@ export const HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK = `SCENE MOTION ONLY:
 - Animate only environment, subjects, lighting, camera movement, depth, and particles.
 - Keep cleaned text regions as neutral texture without readable characters.`;
 
+export const DEEVID_CRITICAL_TYPOGRAPHY_PROMPT_BLOCK = `CRITICAL TYPOGRAPHY RULES:
+Do NOT generate readable text, fake letters, symbols, UI typography, signs, captions, logos, words, subtitles, interface text, or any letter-like marks.
+All text regions were intentionally removed before generation.
+Those areas must remain clean, abstract, texture-only, or naturally blended.
+Never reconstruct missing text.
+Never hallucinate typography.
+If a sign, UI, banner, label, poster, phone screen, storefront, app card, or overlay exists, render it without readable characters.
+Final typography will be composited later by HomeCheff.`;
+
 export function isTextRenderMode(value: string): value is TextRenderMode {
   return (TEXT_RENDER_MODES as readonly string[]).includes(value);
 }
@@ -128,15 +139,38 @@ export function normalizeOverlayStyle(value: unknown): OverlayStyle {
 }
 
 export function usesHybridPreAiNeutralize(mode: TextRenderMode): boolean {
-  return mode === "hybrid_overlay" || mode === "exact_freeze" || mode === "ai_protection";
+  return (
+    mode === "deevid_text_safe" ||
+    mode === "hybrid_overlay" ||
+    mode === "exact_freeze" ||
+    mode === "ai_protection"
+  );
+}
+
+export function usesAggressivePreAiNeutralize(mode: TextRenderMode): boolean {
+  return mode === "deevid_text_safe" || mode === "hybrid_overlay" || mode === "exact_freeze";
 }
 
 export function usesHybridPostReprojection(mode: TextRenderMode): boolean {
-  return mode === "hybrid_overlay" || mode === "exact_freeze";
+  return mode === "deevid_text_safe" || mode === "hybrid_overlay" || mode === "exact_freeze";
 }
 
 export function usesPixelPreservedPatches(mode: TextRenderMode): boolean {
-  return mode === "hybrid_overlay";
+  return mode === "deevid_text_safe" || mode === "hybrid_overlay";
+}
+
+export function usesCriticalTypographyPrompt(mode: TextRenderMode): boolean {
+  return mode === "deevid_text_safe" || mode === "hybrid_overlay" || mode === "exact_freeze";
+}
+
+export function typographySafetyPromptBlock(mode: TextRenderMode): string {
+  if (usesCriticalTypographyPrompt(mode)) {
+    return DEEVID_CRITICAL_TYPOGRAPHY_PROMPT_BLOCK;
+  }
+  if (mode === "ai_protection") {
+    return "";
+  }
+  return HYBRID_NO_TYPOGRAPHY_PROMPT_BLOCK;
 }
 
 export function bboxToPolygon(bbox: BakedTextMaskRegion): Point2D[] {

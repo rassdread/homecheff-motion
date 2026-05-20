@@ -25,6 +25,9 @@ export type BakedTextProtectionDraft = {
   remoteWorkingUrl?: string;
   scanBusy?: boolean;
   maskedPreviewUrl?: string;
+  debugOriginalUrl?: string;
+  debugMaskRegionCount?: number;
+  debugMaskRegions?: Array<{ x: number; y: number; width: number; height: number }>;
   contentHash?: string;
   autoScanComplete?: boolean;
   autoScanState?: "idle" | "scanning" | "done";
@@ -423,19 +426,102 @@ export function BakedTextProtectionPanel({
                   <p className="text-[11px] text-zinc-500">{t("instant.bakedText.scanHint")}</p>
                 ) : null}
 
-                {bt.maskedPreviewUrl ? (
-                  <div>
-                    <p className="text-[11px] font-medium text-zinc-600">
-                      {t("instant.bakedText.adminPreviewLabel")}
+                {isAdmin && (bt.maskedPreviewUrl || bt.debugOriginalUrl) ? (
+                  <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-2">
+                    <p className="text-[11px] font-semibold text-violet-950">
+                      {t("instant.bakedText.adminDebugTitle")}
                     </p>
-                    <a
-                      href={bt.maskedPreviewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-sky-800 underline"
-                    >
-                      {t("instant.bakedText.openMaskedPreview")}
-                    </a>
+                    <p className="mt-0.5 text-[10px] text-violet-900/80">
+                      {t("instant.bakedText.adminDebugHint")}
+                      {bt.debugMaskRegionCount != null
+                        ? ` (${bt.debugMaskRegionCount} ${t("instant.bakedText.adminDebugRegions")})`
+                        : ""}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {bt.debugOriginalUrl || image.workingPreviewUrl ? (
+                        <div>
+                          <p className="text-[9px] font-medium text-zinc-600">
+                            {t("instant.bakedText.adminDebugOriginal")}
+                          </p>
+                          <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
+                            <Image
+                              src={bt.debugOriginalUrl ?? image.workingPreviewUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              unoptimized
+                              sizes="100px"
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      <div>
+                        <p className="text-[9px] font-medium text-zinc-600">
+                          {t("instant.bakedText.adminDebugMasks")}
+                        </p>
+                        <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
+                          <Image
+                            src={image.workingPreviewUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            unoptimized
+                            sizes="100px"
+                          />
+                          {bt.debugMaskRegions?.map((region, idx) => (
+                            <div
+                              key={`mask-${idx}`}
+                              className="pointer-events-none absolute border-2 border-amber-500/90 bg-amber-300/20"
+                              style={{
+                                left: `${region.x * 100}%`,
+                                top: `${region.y * 100}%`,
+                                width: `${region.width * 100}%`,
+                                height: `${region.height * 100}%`,
+                              }}
+                            />
+                          ))}
+                          {bt.blocks
+                            .filter((b) => b.kept)
+                            .map((block) => (
+                              <div
+                                key={block.id}
+                                className="pointer-events-none absolute border border-rose-500/90 bg-rose-400/25"
+                                style={{
+                                  left: `${block.bbox.x * 100}%`,
+                                  top: `${block.bbox.y * 100}%`,
+                                  width: `${block.bbox.width * 100}%`,
+                                  height: `${block.bbox.height * 100}%`,
+                                }}
+                              />
+                            ))}
+                        </div>
+                      </div>
+                      {bt.maskedPreviewUrl ? (
+                        <div className="col-span-2 sm:col-span-1">
+                          <p className="text-[9px] font-medium text-zinc-600">
+                            {t("instant.bakedText.adminDebugViduInput")}
+                          </p>
+                          <div className="relative mt-1 aspect-[3/4] overflow-hidden rounded-md border border-emerald-300 bg-zinc-100">
+                            <Image
+                              src={bt.maskedPreviewUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              unoptimized
+                              sizes="100px"
+                            />
+                          </div>
+                          <a
+                            href={bt.maskedPreviewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-[10px] text-sky-800 underline"
+                          >
+                            {t("instant.bakedText.openMaskedPreview")}
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
 

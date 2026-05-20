@@ -6,6 +6,7 @@ import {
   type BakedTextMaskRegion,
   type MaskRegionPixels,
 } from "@/lib/baked-text-protection";
+import { neutralizeTextRegionAggressive } from "@/server/instant-premium/hybrid-overlay/aggressive-pre-ai-neutralize";
 
 function logOverlayReproject(phase: string, data: Record<string, unknown>): void {
   console.info("[overlay-reproject]", { phase, ...data });
@@ -61,16 +62,23 @@ export async function neutralizeTextRegionHybrid(
 export async function neutralizeTextRegionsHybrid(
   input: Buffer,
   regions: BakedTextMaskRegion[],
-  context?: { projectId?: string; imageIndex?: number; ocrTexts?: string[] }
+  context?: {
+    projectId?: string;
+    imageIndex?: number;
+    ocrTexts?: string[];
+    aggressive?: boolean;
+  }
 ): Promise<{ buffer: Buffer; skippedRegionCount: number }> {
   const { width, height } = await readImageDimensions(input);
   let current = input;
   let skippedRegionCount = 0;
+  const aggressive = context?.aggressive === true;
 
   logOverlayReproject("pre-ai-start", {
     projectId: context?.projectId,
     imageIndex: context?.imageIndex,
     regionCount: regions.length,
+    aggressive,
   });
 
   for (let i = 0; i < regions.length; i += 1) {
@@ -88,7 +96,9 @@ export async function neutralizeTextRegionsHybrid(
       });
       continue;
     }
-    current = await neutralizeTextRegionHybrid(current, box);
+    current = aggressive
+      ? await neutralizeTextRegionAggressive(current, box, width, height)
+      : await neutralizeTextRegionHybrid(current, box);
   }
 
   logOverlayReproject("pre-ai-complete", {
