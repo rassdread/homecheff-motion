@@ -8,6 +8,10 @@ import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import { syncInstantWizardPersistedImages } from "@/lib/instant-wizard-image-cleanup";
 import {
+  CREATOR_WIZARD_FLOW_VERSION,
+  normalizeCreatorWizardStep,
+} from "@/lib/creator-wizard-steps";
+import {
   loadWizardImageBlobs,
   normalizeBakedTextAfterRestore,
   pruneOrphanedWizardBlobs,
@@ -132,7 +136,7 @@ export function useInstantWizardPersist(params: {
         return;
       }
       params.onRestore({
-        step: saved.step,
+        step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
         images: restored,
         stylePreset: saved.stylePreset,
         durationSec: saved.durationSec,
@@ -152,6 +156,7 @@ export function useInstantWizardPersist(params: {
 
   const buildPersistedState = useCallback((): Omit<PersistedWizardState, "version" | "savedAt"> => {
     return {
+      wizardFlowVersion: CREATOR_WIZARD_FLOW_VERSION,
       step: params.step,
       stylePreset: params.stylePreset,
       durationSec: params.durationSec,

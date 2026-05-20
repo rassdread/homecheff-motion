@@ -10,7 +10,7 @@ import type { MotionEnergy } from "@/lib/premium-motion-engine";
 import type { PremiumPolishPresetId } from "@/lib/premium-polish-presets";
 import type { SegmentationProvider } from "@/lib/premium-foreground-segmentation";
 import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
-import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
+import type { FinalAssemblyMode } from "@/lib/final-assembly-types";
 import type { SegmentTransitionType } from "@/lib/segment-transition-types";
 import type { InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
 

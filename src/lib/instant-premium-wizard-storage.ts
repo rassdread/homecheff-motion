@@ -51,6 +51,8 @@ export type SerializedBakedText = {
 export type PersistedWizardState = {
   version: 1;
   savedAt: string;
+  /** 2 = creator-first 5-step flow */
+  wizardFlowVersion?: number;
   step: number;
   stylePreset: InstantPremiumStylePreset;
   durationSec: 8 | 15;

@@ -26,6 +26,8 @@ type Props = {
   imageCount: number;
   userIntent?: string;
   imageHints?: string[];
+  /** Hide auto-detected scene hints from creators (admin can enable). */
+  showSceneHints?: boolean;
   onStyleChange: (styleId: AnimationStyleId, settings: PosterMotionSettings) => void;
   onStylePresetChange?: (preset: InstantPremiumStylePreset) => void;
 };
@@ -35,6 +37,7 @@ export function AnimationStylePanel({
   imageCount,
   userIntent,
   imageHints,
+  showSceneHints = false,
   onStyleChange,
   onStylePresetChange,
 }: Props) {
@@ -62,11 +65,17 @@ export function AnimationStylePanel({
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-b from-violet-50/90 to-white p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-violet-950">{t("instant.animationStyle.title")}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-violet-900/85">{t("instant.animationStyle.intro")}</p>
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
+          {t("instant.creatorStep.animationType")}
+        </h2>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-600">
+          {t("instant.animationStyle.creatorIntro")}
+        </p>
+      </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-3">
         {ANIMATION_STYLE_IDS.map((id) => {
           const style = getAnimationStyle(id);
           const selected = activeId === id;
@@ -76,17 +85,16 @@ export function AnimationStylePanel({
               key={id}
               type="button"
               onClick={() => selectStyle(id)}
-              className={`rounded-xl border px-3 py-3 text-left text-xs transition ${
+              className={`rounded-2xl border-2 px-5 py-4 text-left transition ${
                 selected
-                  ? `bg-violet-100/80 ring-1 ${ring}`
-                  : "border-zinc-200 bg-white hover:border-violet-300"
+                  ? `bg-violet-50/90 ring-2 ${ring} border-transparent`
+                  : "border-zinc-200/90 bg-white hover:border-violet-200 hover:shadow-sm"
               }`}
             >
-              <span className="font-semibold text-zinc-900">{t(style.labelKey as never)}</span>
-              <span className="mt-1 block text-zinc-600">{t(style.descriptionKey as never)}</span>
-              <span className="mt-1 block text-[10px] text-violet-800/90">{t(style.bestForKey as never)}</span>
+              <span className="text-base font-semibold text-zinc-900">{t(style.labelKey as never)}</span>
+              <span className="mt-1.5 block text-sm text-zinc-600">{t(style.descriptionKey as never)}</span>
               {id === "cartoon_animation" ? (
-                <span className="mt-1.5 inline-block rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                <span className="mt-2 inline-block rounded-full bg-violet-600 px-2.5 py-0.5 text-[11px] font-medium text-white">
                   {t("instant.animationStyle.recommended")}
                 </span>
               ) : null}
@@ -95,8 +103,8 @@ export function AnimationStylePanel({
         })}
       </div>
 
-      {settings.sceneIntelligence?.detectedRoles?.length ? (
-        <p className="mt-3 rounded-lg border border-violet-200/60 bg-violet-50/50 px-2 py-1.5 text-[11px] text-violet-950">
+      {showSceneHints && settings.sceneIntelligence?.detectedRoles?.length ? (
+        <p className="rounded-lg border border-violet-200/60 bg-violet-50/50 px-2 py-1.5 text-[11px] text-violet-950">
           {t("instant.animationStyle.sceneDetected", {
             roles: settings.sceneIntelligence.detectedRoles
               .map((r) => r.roleId.replace(/_/g, " "))
@@ -107,3 +115,4 @@ export function AnimationStylePanel({
     </div>
   );
 }
+

@@ -6,19 +6,13 @@ import {
   type SegmentTransitionType,
 } from "@/server/instant-premium/segment-transition";
 
-/** How Instant Premium assembles the final video from segment clips. */
-export type FinalAssemblyMode =
-  | "raw_motion_concat"
-  | "poster_composite_segments"
-  | "concat_segments_only"
-  | "static_poster_motion";
+import {
+  FINAL_ASSEMBLY_MODES,
+  type FinalAssemblyMode,
+} from "@/lib/final-assembly-types";
 
-export const FINAL_ASSEMBLY_MODES: readonly FinalAssemblyMode[] = [
-  "raw_motion_concat",
-  "poster_composite_segments",
-  "concat_segments_only",
-  "static_poster_motion",
-] as const;
+export type { FinalAssemblyMode };
+export { FINAL_ASSEMBLY_MODES };
 
 export type { SegmentTransitionType };
 export { DEFAULT_SEGMENT_TRANSITION_TYPE };

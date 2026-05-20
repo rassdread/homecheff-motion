@@ -40,24 +40,32 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
+import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
+import { AnimationStylePanel } from "@/components/instant/animation-style-panel";
+import { AnimationMoodPanel } from "@/components/instant/animation-mood-panel";
+import { AdvancedCreatorSettingsPanel } from "@/components/instant/advanced-creator-settings-panel";
 import {
-  BakedTextProtectionPanel,
-  type BakedTextProtectionDraft,
-} from "@/components/instant/baked-text-protection-panel";
+  applyAnimationStyleToPosterSettings,
+  getAnimationStyle,
+  normalizeAnimationStyleId,
+} from "@/lib/animation-style-presets";
+import {
+  ANIMATION_MOOD_PRESETS,
+  applyMoodToPosterSettings,
+  normalizeAnimationMoodId,
+} from "@/lib/animation-mood-presets";
+import {
+  CREATOR_WIZARD_STEP_COUNT,
+  creatorWizardStepTitleKey,
+} from "@/lib/creator-wizard-steps";
 import {
   DEFAULT_OVERLAY_STYLE,
   DEFAULT_TEXT_RENDER_MODE,
-  TextIntegrationPanel,
-  applyAnimationStyleToPosterSettings,
 } from "@/components/instant/text-integration-panel";
-import { getAnimationStyle, normalizeAnimationStyleId } from "@/lib/animation-style-presets";
 import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
-import { usesPosterMotionPreserve } from "@/lib/hybrid-motion-overlay";
 import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
-import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
-import { confirmedBlocks } from "@/lib/baked-text-detection";
+import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
-import { capHeroReprojectBlocks } from "@/lib/instant-text-hero-overlay";
 import {
   getInstantWizardFormDefaults,
   INSTANT_WIZARD_DEFAULT_BAKED_TEXT,
@@ -68,7 +76,6 @@ import {
 import {
   createLockedTextLayer,
   type TextImplyingChipId,
-  TEXT_IMPLYING_CHIP_IDS,
 } from "@/lib/locked-text-layer";
 import {
   type InstantPremiumContinuityStrength,
@@ -125,37 +132,6 @@ function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string)
 }
 const MAX_IMAGES = 5;
 const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
-
-const STYLE_OPTIONS: { id: InstantPremiumStylePreset; blurbKey: string }[] = [
-  { id: "food_promo", blurbKey: "instant.style.food_promo.blurb" },
-  { id: "clean_business", blurbKey: "instant.style.clean_business.blurb" },
-  { id: "social_boost", blurbKey: "instant.style.social_boost.blurb" },
-];
-
-const CHIP_UI: { id: InstantPremiumChipId; labelKey: string; appendKey: string }[] = [
-  { id: "slow_zoom_in", labelKey: "instant.chip.slow_zoom_in", appendKey: "instant.chipAppend.slow_zoom_in" },
-  { id: "cinematic_soft", labelKey: "instant.chip.cinematic_soft", appendKey: "instant.chipAppend.cinematic_soft" },
-  { id: "subtle_pan", labelKey: "instant.chip.subtle_pan", appendKey: "instant.chipAppend.subtle_pan" },
-  { id: "close_up_focus", labelKey: "instant.chip.close_up_focus", appendKey: "instant.chipAppend.close_up_focus" },
-  { id: "focus_details", labelKey: "instant.chip.focus_details", appendKey: "instant.chipAppend.focus_details" },
-  { id: "subject_centered", labelKey: "instant.chip.subject_centered", appendKey: "instant.chipAppend.subject_centered" },
-  {
-    id: "food_appetizing",
-    labelKey: "instant.chip.food_appetizing",
-    appendKey: "instant.chipAppend.food_appetizing",
-  },
-  { id: "more_dynamic", labelKey: "instant.chip.more_dynamic", appendKey: "instant.chipAppend.more_dynamic" },
-  { id: "ai_decide", labelKey: "instant.chip.ai_decide", appendKey: "instant.chipAppend.ai_decide" },
-];
-
-const TEXT_CHIP_UI: { id: TextImplyingChipId; labelKey: string }[] = [
-  { id: "text_caption", labelKey: "instant.textChip.caption" },
-  { id: "text_cta", labelKey: "instant.textChip.cta" },
-  { id: "text_price", labelKey: "instant.textChip.price" },
-  { id: "text_slogan", labelKey: "instant.textChip.slogan" },
-  { id: "text_product_title", labelKey: "instant.textChip.productTitle" },
-  { id: "text_menu_label", labelKey: "instant.textChip.menuLabel" },
-];
 
 type LocalImage = {
   id: string;
@@ -276,17 +252,13 @@ export default function InstantPremiumPage() {
     const mode = document.body.dataset.instantPremiumMode;
     return mode === "paid" ? "paid" : "test";
   });
-  const styleLabel = useCallback(
-    (style: InstantPremiumStylePreset) => t(`instant.style.${style}.title` as never),
-    [t]
-  );
+  const isAdmin = session.user?.role?.trim() === "admin";
+  const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-
-  const selectedChipSet = useMemo(() => new Set(chips), [chips]);
 
   const onDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -302,26 +274,6 @@ export default function InstantPremiumPage() {
       return arrayMove(items, oldIndex, newIndex);
     });
   }, []);
-
-  const toggleChip = useCallback((id: InstantPremiumChipId | TextImplyingChipId) => {
-    if (id === "ai_decide") {
-      setChips(["ai_decide"]);
-      return;
-    }
-    setChips((prev) => {
-      const withoutAi = prev.filter((c) => c !== "ai_decide");
-      if (withoutAi.includes(id)) {
-        return withoutAi.filter((c) => c !== id);
-      }
-      const next = [...withoutAi, id];
-      return next.slice(-3);
-    });
-    const def = CHIP_UI.find((c) => c.id === id);
-    const append = def ? t(def.appendKey as never) : "";
-    if (append.trim()) {
-      setMotionText((text) => (text.includes(append.trim()) ? text : `${text}${append}`));
-    }
-  }, [t]);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -469,7 +421,6 @@ export default function InstantPremiumPage() {
   }, []);
 
   const {
-    scanBakedText,
     scheduleAutoScans,
     skipTextProtection,
     waitForPendingScans,
@@ -653,87 +604,6 @@ export default function InstantPremiumPage() {
     };
   }, [fastRenderMode, images, scheduleAutoScans, wizardReady]);
 
-  const confirmBakedText = useCallback(
-    (imageId: string) => {
-      const img = images.find((i) => i.id === imageId);
-      if (!img) {
-        return;
-      }
-      const blocks = capHeroReprojectBlocks(
-        img.bakedText.blocks
-          .filter((b) => b.kept && b.editedText.trim())
-          .map((b) => ({ ...b, confirmed: true }))
-      );
-      if (blocks.length === 0) {
-        setError(t("instant.bakedText.errorNoKeptBlocks"));
-        return;
-      }
-      updateBakedText(imageId, {
-        blocks,
-        status: "confirmed",
-        enabled: true,
-        needsReview: false,
-        reviewOpen: false,
-        autoProtected: false,
-      });
-      setError("");
-    },
-    [images, t, updateBakedText]
-  );
-
-  const previewBakedTextMask = useCallback(
-    async (imageId: string) => {
-      const img = images.find((i) => i.id === imageId);
-      if (!img) {
-        return;
-      }
-      const confirmed = confirmedBlocks(img.bakedText.blocks);
-      const blocks =
-        confirmed.length > 0
-          ? confirmed
-          : img.bakedText.blocks.filter(
-              (b) => b.kept !== false && b.editedText.trim().length > 0
-            );
-      let imageUrl = img.bakedText.remoteWorkingUrl;
-      if (!imageUrl) {
-        const up = await uploadToBlob(img);
-        imageUrl = up.workingImageUrl;
-        updateBakedText(imageId, { remoteWorkingUrl: imageUrl });
-      }
-      const res = await fetch("/api/instant-premium/preview-text-mask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          imageUrl,
-          blocks,
-          textRenderMode,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        previewUrl?: string;
-        cleanedUrl?: string;
-        originalUrl?: string;
-        regionCount?: number;
-        maskRegions?: Array<{ x: number; y: number; width: number; height: number }>;
-      };
-      if (!res.ok) {
-        throw new Error(data.error ?? t("instant.bakedText.previewFailed"));
-      }
-      const cleaned = data.cleanedUrl ?? data.previewUrl;
-      if (cleaned) {
-        updateBakedText(imageId, {
-          maskedPreviewUrl: cleaned,
-          debugOriginalUrl: data.originalUrl ?? imageUrl,
-          debugMaskRegionCount: data.regionCount,
-          debugMaskRegions: data.maskRegions,
-        });
-      }
-    },
-    [images, t, textRenderMode, updateBakedText, uploadToBlob]
-  );
-
   const runCheckout = useCallback(
     async (skipPendingScans: boolean) => {
     if (images.length < MIN_IMAGES) {
@@ -759,8 +629,8 @@ export default function InstantPremiumPage() {
         }
         continue;
       }
-      const confirmedBlocks = bt.blocks.filter((b) => b.kept && b.confirmed && b.editedText.trim());
-      if (confirmedBlocks.length > 0) {
+      const confirmedTextBlocks = bt.blocks.filter((b) => b.kept && b.confirmed && b.editedText.trim());
+      if (confirmedTextBlocks.length > 0) {
         continue;
       }
       if (bt.manualMode && bt.exactText.trim()) {
@@ -821,7 +691,7 @@ export default function InstantPremiumPage() {
         aspectRatio,
         uiLanguage: locale,
         userIntent: motionText.trim() || null,
-        selectedChips: chips,
+        selectedChips: isAdmin ? chips : [],
         continuityStrength,
         lockedTextMode,
         lockedTextLayers: explicitLayers,
@@ -969,6 +839,7 @@ export default function InstantPremiumPage() {
       stylePreset,
       textRenderMode,
       posterMotionSettings,
+      isAdmin,
       t,
       uploadToBlob,
       waitForPendingScans,
@@ -1003,6 +874,11 @@ export default function InstantPremiumPage() {
 
   const wizardNav = useMemo(() => {
     const continueLabel = t("instant.common.continue");
+    const generateLabel = checkoutBusy
+      ? t("instant.step7.preparing")
+      : premiumMode === "paid"
+        ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
+        : t("instant.step7.ctaTest");
     switch (step) {
       case 1:
         return {
@@ -1044,30 +920,8 @@ export default function InstantPremiumPage() {
         return {
           showBack: true,
           onBack: () => setStep(4),
-          onPrimary: () => setStep(6),
-          primaryLabel: continueLabel,
-          primaryDisabled: false,
-          stackButtons: false,
-        };
-      case 6:
-        return {
-          showBack: true,
-          onBack: () => setStep(5),
-          onPrimary: () => setStep(7),
-          primaryLabel: continueLabel,
-          primaryDisabled: false,
-          stackButtons: false,
-        };
-      case 7:
-        return {
-          showBack: true,
-          onBack: () => setStep(6),
           onPrimary: () => void startCheckout(),
-          primaryLabel: checkoutBusy
-            ? t("instant.step7.preparing")
-            : premiumMode === "paid"
-              ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
-              : t("instant.step7.ctaTest"),
+          primaryLabel: generateLabel,
           primaryDisabled: checkoutBusy,
           stackButtons: true,
         };
@@ -1142,10 +996,11 @@ export default function InstantPremiumPage() {
         </div>
 
         <div className="mb-4 flex gap-1">
-          {Array.from({ length: 7 }, (_, i) => (
+          {Array.from({ length: CREATOR_WIZARD_STEP_COUNT }, (_, i) => (
             <div
               key={i}
               className={`h-1 flex-1 rounded-full ${i + 1 <= step ? "bg-emerald-600" : "bg-zinc-200"}`}
+              title={t(creatorWizardStepTitleKey(i + 1) as never)}
             />
           ))}
         </div>
@@ -1161,16 +1016,6 @@ export default function InstantPremiumPage() {
           </p>
         ) : null}
 
-        <label className="mb-4 flex cursor-pointer items-start gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={fastRenderMode}
-            onChange={(e) => setFastRenderMode(e.target.checked)}
-          />
-          <span>{t("instant.fastRender.label")}</span>
-        </label>
-
         {error ? (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {error}
@@ -1183,12 +1028,37 @@ export default function InstantPremiumPage() {
           </p>
         ) : null}
 
+        <AdvancedCreatorSettingsPanel
+          isAdmin={isAdmin}
+          textRenderMode={textRenderMode}
+          overlayStyle={hybridOverlayStyle}
+          posterMotionSettings={posterMotionSettings}
+          aspectRatio={aspectRatio}
+          continuityStrength={continuityStrength}
+          chips={chips}
+          lockedTextMode={lockedTextMode}
+          lockedTextLayers={lockedTextLayers}
+          fastRenderMode={fastRenderMode}
+          onTextRenderModeChange={setTextRenderMode}
+          onOverlayStyleChange={setHybridOverlayStyle}
+          onPosterMotionSettingsChange={(patch) =>
+            setPosterMotionSettings((prev) => ({ ...prev, ...patch }))
+          }
+          onStylePresetChange={setStylePreset}
+          onAspectRatioChange={setAspectRatio}
+          onContinuityStrengthChange={setContinuityStrength}
+          onChipsChange={setChips}
+          onLockedTextModeChange={setLockedTextMode}
+          onLockedTextLayersChange={setLockedTextLayers}
+          onFastRenderModeChange={setFastRenderMode}
+        />
+
         <InstantWizardShell shellRef={wizardShellRef}>
           <InstantWizardContent>
             {step === 1 ? (
               <>
-                <h2 className="text-lg font-semibold">{t("instant.step1.title")}</h2>
-                <p className="mt-1 text-sm text-zinc-600">
+                <h2 className="text-xl font-semibold tracking-tight">{t("instant.creatorStep.upload")}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
                   {t("instant.step1.description", { min: MIN_IMAGES, max: MAX_IMAGES })}
                 </p>
                 <input
@@ -1238,280 +1108,131 @@ export default function InstantPremiumPage() {
                     {t("instant.step1.clearAll")}
                   </button>
                 ) : null}
-              </>
-            ) : null}
-
-            {step === 2 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step2.title")}</h2>
-                <p className="mt-1 text-sm text-zinc-600">{t("instant.step2.description")}</p>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                  <SortableContext items={images.map((i) => i.id)} strategy={horizontalListSortingStrategy}>
-                    <div className="mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
-                      {images.map((im, idx) => (
-                        <SortableThumb
-                          key={im.id}
-                          item={im}
-                          index={idx}
-                          roleLabel={t(
-                            `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
-                          )}
-                          dragLabel={t("instant.step2.drag")}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-                <TextIntegrationPanel
-                  textRenderMode={textRenderMode}
-                  overlayStyle={hybridOverlayStyle}
-                  posterMotionSettings={posterMotionSettings}
-                  imageCount={images.length}
-                  userIntent={motionText}
-                  imageHints={images.map((im) => im.originalFileName)}
-                  isAdmin={session.user?.role?.trim() === "admin"}
-                  onTextRenderModeChange={setTextRenderMode}
-                  onOverlayStyleChange={setHybridOverlayStyle}
-                  onPosterMotionSettingsChange={(patch) =>
-                    setPosterMotionSettings((prev) => ({ ...prev, ...patch }))
-                  }
-                  onStylePresetChange={setStylePreset}
-                />
-                {!usesPosterMotionPreserve(textRenderMode) ? (
-                <BakedTextProtectionPanel
-                  images={images.map((im) => ({
-                    id: im.id,
-                    originalFileName: im.originalFileName,
-                    workingPreviewUrl: im.workingPreviewUrl,
-                    bakedText: im.bakedText,
-                  }))}
-                  onChange={updateBakedText}
-                  onScan={scanBakedText}
-                  onConfirm={confirmBakedText}
-                  onSkipProtection={skipTextProtection}
-                  isAdmin={session.user?.role?.trim() === "admin"}
-                  showViduPreprocessPreview={
-                    session.user?.role?.trim() === "admin" || premiumMode === "test"
-                  }
-                  textRenderMode={textRenderMode}
-                  onPreviewMask={previewBakedTextMask}
-                />
+                {images.length >= MIN_IMAGES ? (
+                  <div className="mt-8 border-t border-zinc-100 pt-6">
+                    <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{t("instant.step2.description")}</p>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                      <SortableContext
+                        items={images.map((i) => i.id)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                          {images.map((im, idx) => (
+                            <SortableThumb
+                              key={im.id}
+                              item={im}
+                              index={idx}
+                              roleLabel={t(
+                                `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
+                              )}
+                              dragLabel={t("instant.step2.drag")}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </div>
                 ) : null}
               </>
             ) : null}
 
+            {step === 2 ? (
+              <AnimationStylePanel
+                settings={posterMotionSettings}
+                imageCount={images.length}
+                userIntent={motionText}
+                imageHints={images.map((im) => im.originalFileName)}
+                showSceneHints={isAdmin}
+                onStyleChange={(_id, next) => setPosterMotionSettings(next)}
+                onStylePresetChange={setStylePreset}
+              />
+            ) : null}
+
             {step === 3 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step3.title")}</h2>
-                {usesPosterMotionPreserve(textRenderMode) ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                    <p className="text-sm text-zinc-600">{t("instant.step3.animationStyleAuto")}</p>
-                    <p className="mt-2 text-base font-semibold text-emerald-950">
-                      {t(
-                        getAnimationStyle(normalizeAnimationStyleId(posterMotionSettings.animationStyleId))
-                          .labelKey as never
-                      )}
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-600">
-                      {t(
-                        getAnimationStyle(normalizeAnimationStyleId(posterMotionSettings.animationStyleId))
-                          .descriptionKey as never
-                      )}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mt-4 grid gap-3">
-                    {STYLE_OPTIONS.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setStylePreset(s.id)}
-                        className={`rounded-2xl border p-4 text-left transition ${
-                          stylePreset === s.id ? "border-emerald-500 bg-emerald-50" : "border-zinc-200 bg-white"
-                        }`}
-                      >
-                        <p className="font-semibold">{styleLabel(s.id)}</p>
-                        <p className="mt-1 text-sm text-zinc-600">{t(s.blurbKey as never)}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              <AnimationMoodPanel
+                value={animationMood}
+                onChange={(mood) =>
+                  setPosterMotionSettings((prev) => applyMoodToPosterSettings(prev, mood))
+                }
+              />
             ) : null}
 
             {step === 4 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step4.title")}</h2>
-                <div className="mt-4 grid gap-3">
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
+                    {t("instant.creatorStep.prompt")}
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                    {t("instant.creatorPrompt.intro")}
+                  </p>
+                </div>
+                <textarea
+                  value={motionText}
+                  onChange={(e) => setMotionText(e.target.value)}
+                  rows={5}
+                  maxLength={500}
+                  placeholder={t("instant.creatorPrompt.placeholder")}
+                  className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm"
+                />
+                <p className="text-right text-xs text-zinc-400">{motionText.length}/500</p>
+              </div>
+            ) : null}
+
+            {step === 5 ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
+                    {t("instant.creatorStep.generate")}
+                  </h2>
+                  <p className="mt-2 text-sm text-zinc-600">{t("instant.creatorGenerate.intro")}</p>
+                </div>
+                <div className="grid gap-3">
                   <button
                     type="button"
                     onClick={() => setDurationSec(8)}
-                    className={`rounded-2xl border p-4 text-left ${
-                      durationSec === 8 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    className={`rounded-2xl border-2 p-5 text-left transition ${
+                      durationSec === 8
+                        ? "border-emerald-500 bg-emerald-50/80"
+                        : "border-zinc-200 bg-white"
                     }`}
                   >
-                    <p className="font-semibold">{t("instant.step4.option8.title")}</p>
-                    <p className="text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
+                    <p className="font-semibold text-zinc-900">{t("instant.step4.option8.title")}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
                     <p className="mt-2 text-lg font-bold text-emerald-800">€1.99</p>
                   </button>
                   <button
                     type="button"
                     onClick={() => setDurationSec(15)}
-                    className={`rounded-2xl border p-4 text-left ${
-                      durationSec === 15 ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
+                    className={`rounded-2xl border-2 p-5 text-left transition ${
+                      durationSec === 15
+                        ? "border-emerald-500 bg-emerald-50/80"
+                        : "border-zinc-200 bg-white"
                     }`}
                   >
-                    <p className="font-semibold">{t("instant.step4.option15.title")}</p>
-                    <p className="text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
+                    <p className="font-semibold text-zinc-900">{t("instant.step4.option15.title")}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
                     <p className="mt-2 text-lg font-bold text-emerald-800">€2.99</p>
                   </button>
                 </div>
-              </>
-            ) : null}
-
-            {step === 5 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step5.title")}</h2>
-            <label className="mt-3 block text-sm font-medium text-zinc-800">{t("instant.step5.label")}</label>
-            <textarea
-              value={motionText}
-              onChange={(e) => setMotionText(e.target.value)}
-              rows={4}
-              maxLength={500}
-              placeholder={t("instant.step5.placeholder")}
-              className="mt-2 w-full resize-none rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-right text-xs text-zinc-400">{motionText.length}/500</p>
-            <p className="mt-4 text-sm font-medium text-zinc-800">{t("instant.step5.chipsTitle")}</p>
-            <p className="text-xs text-zinc-500">{t("instant.step5.chipsHelp")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {CHIP_UI.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleChip(c.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                    selectedChipSet.has(c.id) ? "border-emerald-600 bg-emerald-100 text-emerald-950" : "border-zinc-200 bg-white text-zinc-700"
-                  }`}
-                >
-                  {t(c.labelKey as never)}
-                </button>
-              ))}
-            </div>
-            <p className="mt-4 text-sm font-medium text-zinc-800">{t("instant.step5.continuityTitle")}</p>
-            <p className="text-xs text-zinc-500">{t("instant.step5.continuityHelp")}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setContinuityStrength("balanced")}
-                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                  continuityStrength === "balanced"
-                    ? "border-emerald-600 bg-emerald-100 text-emerald-950"
-                    : "border-zinc-200 bg-white text-zinc-700"
-                }`}
-              >
-                {t("instant.step5.continuityBalanced")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setContinuityStrength("strict")}
-                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                  continuityStrength === "strict"
-                    ? "border-emerald-600 bg-emerald-100 text-emerald-950"
-                    : "border-zinc-200 bg-white text-zinc-700"
-                }`}
-              >
-                {t("instant.step5.continuityStrict")}
-              </button>
-            </div>
-            <p className="group relative mt-4 inline-flex cursor-help text-xs text-zinc-500">
-              <span className="border-b border-dotted border-zinc-400">{t("instant.step5.tooltipTitle")}</span>
-              <span className="pointer-events-none absolute bottom-full left-0 z-30 mb-2 hidden w-64 rounded-lg border border-zinc-200 bg-white p-2 text-[11px] text-zinc-700 shadow-lg group-hover:block group-focus-within:block">
-                {t("instant.step5.tooltipBody")}
-              </span>
-            </p>
-            <p className="mt-5 text-sm font-medium text-zinc-800">{t("instant.step5.textChipsTitle")}</p>
-            <p className="text-xs text-zinc-500">{t("instant.step5.textChipsHelp")}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {TEXT_CHIP_UI.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleChip(c.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                    selectedChipSet.has(c.id)
-                      ? "border-amber-600 bg-amber-100 text-amber-950"
-                      : "border-zinc-200 bg-white text-zinc-700"
-                  }`}
-                >
-                  {t(c.labelKey as never)}
-                </button>
-              ))}
-            </div>
-            {TEXT_IMPLYING_CHIP_IDS.some((id) => selectedChipSet.has(id)) ? (
-              <div className="mt-3 space-y-2">
-                {TEXT_CHIP_UI.filter((c) => selectedChipSet.has(c.id)).map((c) => (
-                  <label key={c.id} className="block text-xs text-zinc-700">
-                    {t(c.labelKey as never)}
-                    <input
-                      type="text"
-                      maxLength={280}
-                      value={chipTextBySlot[c.id] ?? ""}
-                      onChange={(e) =>
-                        setChipTextBySlot((prev) => ({ ...prev, [c.id]: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                    />
-                  </label>
-                ))}
-              </div>
-            ) : null}
-                <LockedTextLayersEditor
-                  enabled={lockedTextMode}
-                  onEnabledChange={setLockedTextMode}
-                  layers={lockedTextLayers}
-                  onLayersChange={setLockedTextLayers}
-                />
-              </>
-            ) : null}
-
-            {step === 6 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step6.title")}</h2>
-                <p className="mt-1 text-sm text-zinc-600">{t("instant.step6.description")}</p>
-                <div className="mt-4 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setAspectRatio("9:16")}
-                    className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
-                      aspectRatio === "9:16" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                    }`}
-                  >
-                    {t("instant.step6.vertical")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAspectRatio("16:9")}
-                    className={`flex-1 rounded-xl border py-3 text-sm font-medium ${
-                      aspectRatio === "16:9" ? "border-emerald-500 bg-emerald-50" : "border-zinc-200"
-                    }`}
-                  >
-                    {t("instant.step6.horizontal")}
-                  </button>
-                </div>
-              </>
-            ) : null}
-
-            {step === 7 ? (
-              <>
-                <h2 className="text-lg font-semibold">{t("instant.step7.title")}</h2>
-                <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+                <ul className="space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 text-sm text-zinc-700">
                   <li>
-                    <span className="text-zinc-500">{t("instant.step7.style")}:</span> {styleLabel(stylePreset)}
+                    <span className="text-zinc-500">{t("instant.step7.animationStyle")}:</span>{" "}
+                    {t(
+                      getAnimationStyle(
+                        normalizeAnimationStyleId(posterMotionSettings.animationStyleId)
+                      ).labelKey as never
+                    )}
                   </li>
+                  {animationMood ? (
+                    <li>
+                      <span className="text-zinc-500">{t("instant.step7.mood")}:</span>{" "}
+                      {t(ANIMATION_MOOD_PRESETS[animationMood].labelKey as never)}
+                    </li>
+                  ) : null}
                   <li>
-                    <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s —{" "}
-                    {durationSec === 8 ? "€1.99" : "€2.99"}
+                    <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s
                   </li>
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}
@@ -1519,19 +1240,13 @@ export default function InstantPremiumPage() {
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
                   </li>
-                  <li>
-                    <span className="text-zinc-500">{t("instant.step7.continuity")}:</span>{" "}
-                    {continuityStrength === "strict"
-                      ? t("instant.step5.continuityStrict")
-                      : t("instant.step5.continuityBalanced")}
-                  </li>
                 </ul>
-                <p className="mt-4 text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500">
                   {premiumMode === "paid"
                     ? t("instant.step7.checkoutHelp")
                     : t("instant.step7.testModeHelp")}
                 </p>
-              </>
+              </div>
             ) : null}
           </InstantWizardContent>
 

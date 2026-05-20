@@ -1,4 +1,4 @@
-import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
+import type { FinalAssemblyMode } from "@/lib/final-assembly-types";
 import type { SegmentTransitionType } from "@/lib/segment-transition-types";
 import type { MotionEnergy } from "@/lib/premium-motion-engine";
 import type { CameraPresetId } from "@/lib/premium-camera-presets";

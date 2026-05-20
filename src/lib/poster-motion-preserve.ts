@@ -26,6 +26,10 @@ import {
   type SegmentationProvider,
 } from "@/lib/premium-foreground-segmentation";
 import {
+  normalizeAnimationMoodId,
+  type AnimationMoodId,
+} from "@/lib/animation-mood-presets";
+import {
   normalizeEmotionalActingPresetId,
   type EmotionalActingPresetId,
 } from "@/lib/premium-emotional-presets";
@@ -105,6 +109,7 @@ export type PosterMotionSettings = {
   manualForegroundRegions?: ManualForegroundRegion[];
   /** excited_seller | playful_mascot | confident_presenter | … */
   emotionalActingPreset?: EmotionalActingPresetId;
+  animationMood?: AnimationMoodId;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -215,6 +220,7 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
       typeof o.minimalCompositorPolish === "boolean" ? o.minimalCompositorPolish : undefined,
     manualForegroundRegions: parseManualForegroundRegions(o.manualForegroundRegions),
     emotionalActingPreset: normalizeEmotionalActingPresetId(o.emotionalActingPreset),
+    animationMood: normalizeAnimationMoodId(o.animationMood),
   };
 }
 

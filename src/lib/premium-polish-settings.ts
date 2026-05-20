@@ -28,8 +28,10 @@ import {
   normalizeSegmentTransitionType,
   type SegmentTransitionType,
 } from "@/lib/segment-transition-types";
-import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
-import { FINAL_ASSEMBLY_MODES } from "@/server/instant-premium/final-assembly";
+import {
+  FINAL_ASSEMBLY_MODES,
+  type FinalAssemblyMode,
+} from "@/lib/final-assembly-types";
 
 /** Stored in instantPosterMotionSettings JSON alongside poster toggles. */
 export type PremiumPolishSettings = {
