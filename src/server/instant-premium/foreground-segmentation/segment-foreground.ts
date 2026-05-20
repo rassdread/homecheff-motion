@@ -141,6 +141,30 @@ export async function segmentForegroundForPosterMotion(
     subject.cropUrl = cropUrl;
     subject.confidence = rembg ? 0.88 : 0.72;
     subject.provider = provider === "rembg" ? "rembg" : "heuristic";
+    for (const layer of fgLayers) {
+      if (layer.id === "subject-face") {
+        layer.bbox = {
+          x: bbox.x + bbox.width * 0.15,
+          y: bbox.y + bbox.height * 0.02,
+          width: bbox.width * 0.7,
+          height: bbox.height * 0.38,
+        };
+      } else if (layer.id === "subject-hands") {
+        layer.bbox = {
+          x: bbox.x + bbox.width * 0.08,
+          y: bbox.y + bbox.height * 0.42,
+          width: bbox.width * 0.84,
+          height: bbox.height * 0.48,
+        };
+      } else if (layer.id === "product-hero") {
+        layer.bbox = {
+          x: bbox.x + bbox.width * 0.2,
+          y: bbox.y + bbox.height * 0.35,
+          width: bbox.width * 0.6,
+          height: bbox.height * 0.45,
+        };
+      }
+    }
   }
   fgLayers = mergeManualRegions(fgLayers, input.manualRegions ?? []);
   fgLayers = sortLayersBySubjectPriority(fgLayers);

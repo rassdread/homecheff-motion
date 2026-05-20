@@ -60,6 +60,15 @@ export function defaultFeatherPx(role: ForegroundSegmentRole): number {
   if (role === "ui_card" || role === "phone") {
     return 2;
   }
+  if (role === "foreground_hand" || role === "foreground_character") {
+    return 3;
+  }
+  if (role === "foreground_mascot") {
+    return 5;
+  }
+  if (role === "headline_object" || role === "foreground_prop") {
+    return 4;
+  }
   return 4;
 }
 
@@ -120,6 +129,48 @@ export function buildHeuristicSegmentationLayers(
       },
       confidence: 0.85,
       zIndex: 5,
+      provider: "heuristic",
+    },
+    {
+      id: "subject-face",
+      role: "foreground_character",
+      regionKind: "animated",
+      bbox: {
+        x: (1 - subjectW) / 2 + subjectW * 0.15,
+        y: (1 - subjectH) / 2 + 0.06,
+        width: subjectW * 0.7,
+        height: subjectH * 0.38,
+      },
+      confidence: 0.72,
+      zIndex: 6,
+      provider: "heuristic",
+    },
+    {
+      id: "subject-hands",
+      role: "foreground_hand",
+      regionKind: "animated",
+      bbox: {
+        x: (1 - subjectW) / 2 + subjectW * 0.08,
+        y: (1 - subjectH) / 2 + subjectH * 0.42,
+        width: subjectW * 0.84,
+        height: subjectH * 0.42,
+      },
+      confidence: 0.68,
+      zIndex: 7,
+      provider: "heuristic",
+    },
+    {
+      id: "product-hero",
+      role: "headline_object",
+      regionKind: "animated",
+      bbox: {
+        x: (1 - subjectW * 0.55) / 2,
+        y: (1 - subjectH) / 2 + subjectH * 0.35,
+        width: subjectW * 0.55,
+        height: subjectH * 0.45,
+      },
+      confidence: 0.6,
+      zIndex: 4,
       provider: "heuristic",
     },
   ];

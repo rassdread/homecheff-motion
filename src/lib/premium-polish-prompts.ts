@@ -1,4 +1,7 @@
-import { buildCameraPromptBlock } from "@/lib/premium-camera-presets";
+import {
+  buildAnimationStyleIdentityPromptBlock,
+} from "@/lib/animation-style-identity";
+import { buildAdvancedMotionIntelligenceBlocks, resolveMotionIntelligenceContext } from "@/lib/premium-motion-automation";
 import { buildComicPromptBlock } from "@/lib/premium-comic-presets";
 import {
   buildEmotionalActingPromptBlock,
@@ -11,7 +14,6 @@ import {
 } from "@/lib/premium-motion-engine";
 import { buildSegmentTransitionContinuityBlock } from "@/lib/segment-transition-types";
 import { buildCharacterRoleEnginePromptBlock } from "@/lib/character-role-engine";
-import { buildPrimarySharedGroupPromptBlock, buildPrimarySharedGroupPlan } from "@/lib/primary-shared-group";
 import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
 import type { ResolvedPremiumPolishProfile } from "@/lib/premium-polish-settings";
 
@@ -36,28 +38,19 @@ export function buildPremiumPolishViduPromptBlocks(
   };
   const scene = options?.sceneIntelligence;
   const roles = scene?.detectedRoles ?? [];
-  const sharedPlan = buildPrimarySharedGroupPlan(roles);
-  const sharedBlock =
-    options?.transitionOrder !== undefined && options?.transitionTotal !== undefined
-      ? buildPrimarySharedGroupPromptBlock({
-          plan: sharedPlan,
-          transitionOrder: options.transitionOrder,
-          transitionTotal: options.transitionTotal,
-        })
-      : sharedPlan.isMultiLead
-        ? buildPrimarySharedGroupPromptBlock({
-            plan: sharedPlan,
-            transitionOrder: 0,
-            transitionTotal: 1,
-          })
-        : "";
+  const intelligenceCtx = resolveMotionIntelligenceContext({
+    profile,
+    scene,
+    transitionOrder: options?.transitionOrder,
+    transitionTotal: options?.transitionTotal,
+  });
 
   const parts = [
+    buildAnimationStyleIdentityPromptBlock(profile.animationStyleId),
     buildPremiumMotionPromptBlocks(motionProfile),
+    buildAdvancedMotionIntelligenceBlocks(intelligenceCtx),
     buildEmotionalActingPromptBlock(profile.emotionalActingPreset),
     buildCharacterRoleEnginePromptBlock(roles),
-    sharedBlock,
-    buildCameraPromptBlock(profile.cameraPreset),
     buildFxPromptBlock(profile.fxPreset),
     buildComicPromptBlock(profile.comicPreset),
     buildSegmentTransitionContinuityBlock(profile.segmentTransitionType),

@@ -63,12 +63,15 @@ export type FutureMotionPipelineCapabilities = {
 export const FUTURE_MOTION_CAPABILITIES: FutureMotionPipelineCapabilities = {
   alphaLayers: false,
   live2dRig: false,
-  faceExpression: false,
-  emotionSystem: false,
+  /** Prompt-layer facial acting via premium-facial-acting.ts (Vidu-directed). */
+  faceExpression: true,
+  /** Prompt-layer emotion + motion memory (not rig-driven). */
+  emotionSystem: true,
   depthMaps: false,
   speechSync: false,
   transparentFx: false,
-  poseVariation: false,
+  /** Prompt-layer gesture variation + motion memory beats. */
+  poseVariation: true,
 };
 
 export function createLive2DRigStub(rigId: string): Live2DMotionRig {

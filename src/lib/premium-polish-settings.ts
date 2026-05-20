@@ -1,3 +1,4 @@
+import { identityCharacterMotion } from "@/lib/animation-style-identity";
 import {
   getAnimationStyle,
   normalizeAnimationStyleId,
@@ -167,7 +168,10 @@ export function resolvePremiumPolishProfile(raw: unknown): ResolvedPremiumPolish
     manualForegroundRegions: parsed.manualForegroundRegions ?? [],
     emotionalActingPreset:
       parsed.emotionalActingPreset ?? emotionalFromScene ?? emotionalFromStyle,
-    characterMotion: parsed.characterMotion ?? preset.characterMotion,
+    characterMotion:
+      parsed.characterMotion ??
+      identityCharacterMotion(style.id) ??
+      preset.characterMotion,
   };
 }
 

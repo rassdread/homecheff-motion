@@ -49,6 +49,7 @@ import {
   getAnimationStyle,
   normalizeAnimationStyleId,
 } from "@/lib/animation-style-presets";
+import { getAnimationStyleIdentity } from "@/lib/animation-style-identity";
 import {
   ANIMATION_MOOD_PRESETS,
   applyMoodToPosterSettings,
@@ -254,6 +255,13 @@ export default function InstantPremiumPage() {
   });
   const isAdmin = session.user?.role?.trim() === "admin";
   const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
+  const activeStyleVisual = useMemo(
+    () =>
+      getAnimationStyleIdentity(
+        normalizeAnimationStyleId(posterMotionSettings.animationStyleId)
+      ).visual,
+    [posterMotionSettings.animationStyleId]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -999,7 +1007,9 @@ export default function InstantPremiumPage() {
           {Array.from({ length: CREATOR_WIZARD_STEP_COUNT }, (_, i) => (
             <div
               key={i}
-              className={`h-1 flex-1 rounded-full ${i + 1 <= step ? "bg-emerald-600" : "bg-zinc-200"}`}
+              className={`h-1 flex-1 rounded-full ${
+                i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
+              }`}
               title={t(creatorWizardStepTitleKey(i + 1) as never)}
             />
           ))}

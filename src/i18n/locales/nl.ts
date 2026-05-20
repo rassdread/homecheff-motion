@@ -648,7 +648,13 @@ export const nl = {
   "instant.animationStyle.fastSocial.title": "Fast Social Animation",
   "instant.animationStyle.fastSocial.desc": "TikTok/Reels-energie — punchy, scroll-stopping motion.",
   "instant.animationStyle.fastSocial.bestFor": "Viral promos · hooks · affiliate snippets",
-  "instant.advancedMotion.title": "Advanced developer mode",
+  "instant.identity.cartoon.tagline": "Speelse comic-mascot wereld",
+  "instant.identity.product.tagline": "Luxe product cinematische showcase",
+  "instant.identity.character.tagline": "Expressieve character performance",
+  "instant.identity.marketplace.tagline": "Warm community-verhaal",
+  "instant.identity.clean.tagline": "Rustige typography-safe motion",
+  "instant.identity.fastSocial.tagline": "Virale social hook-energie",
+  "instant.advancedMotion.title": "Geavanceerde ontwikkelaarsmodus",
   "instant.advancedMotion.hint":
     "Pipeline-internals: overgangen, segmentatie, compositor en legacy tekstmodi.",
   "instant.textIntegration.legacyModeHint":

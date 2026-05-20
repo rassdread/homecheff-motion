@@ -16,10 +16,15 @@ import {
   type InstantPremiumDurationSeconds,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
+import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import {
-  premiumMotionProfileFromPosterSettings,
-  premiumMotionSegmentVariationHint,
-} from "@/lib/premium-motion-engine";
+  buildMotionIntelligenceSegmentHints,
+  resolveMotionIntelligenceContext,
+} from "@/lib/premium-motion-automation";
+import {
+  parsePremiumPolishSettings,
+  resolvePremiumPolishProfile,
+} from "@/lib/premium-polish-settings";
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 
@@ -224,6 +229,8 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 
   const polishSettings = transition.project.instantPosterMotionSettings;
   const motionProfile = premiumMotionProfileFromPosterSettings(polishSettings);
+  const polishProfile = resolvePremiumPolishProfile(polishSettings);
+  const parsedPolish = parsePremiumPolishSettings(polishSettings);
 
   const finalPrompt = isInstantPremium
     ? `${buildInstantVideoPrompt({
@@ -246,10 +253,14 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         transitionOrder: transition.order,
         transitionTotal,
         imageCount,
-      })}\n\n${premiumMotionSegmentVariationHint({
-        transitionOrder: transition.order,
-        transitionTotal,
-      })}`
+      })}\n\n${buildMotionIntelligenceSegmentHints(
+        resolveMotionIntelligenceContext({
+          profile: polishProfile,
+          scene: parsedPolish.sceneIntelligence,
+          transitionOrder: transition.order,
+          transitionTotal,
+        })
+      )}`
     : (() => {
         const presetId: AnimationPresetId = validateAnimationPresetId(transition.project.presetId)
           ? transition.project.presetId

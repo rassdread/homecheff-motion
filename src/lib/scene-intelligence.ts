@@ -2,7 +2,8 @@
  * Automatic scene understanding — heuristic analysis before render (no extra API calls).
  */
 
-import type { AnimationStyleId } from "@/lib/animation-style-presets";
+import { getAnimationStyleIdentity } from "@/lib/animation-style-identity";
+import type { AnimationStyleId } from "@/lib/animation-style-types";
 import type { EmotionalActingPresetId } from "@/lib/premium-emotional-presets";
 import { type CharacterSceneRole, detectCharacterRoles } from "@/lib/character-role-engine";
 
@@ -77,6 +78,22 @@ function detectFocusHint(roles: CharacterSceneRole[], input: SceneIntelligenceIn
   if (mascotRoles.length === 1) {
     return "single_mascot";
   }
+  const strategy = getAnimationStyleIdentity(input.animationStyleId).directing.focusStrategy;
+  if (strategy === "product_lead") {
+    return "product_hero";
+  }
+  if (strategy === "shared_group" || strategy === "mascot_lead") {
+    return mascotRoles.length >= 2 ? "mascot_trio" : "single_mascot";
+  }
+  if (strategy === "minimal_static") {
+    return "typography_heavy";
+  }
+  if (strategy === "social_punch") {
+    return "human_presenter";
+  }
+  if (strategy === "character_expressive") {
+    return "single_mascot";
+  }
   return "mixed";
 }
 
@@ -85,20 +102,9 @@ function resolveEmotionalPresetForScene(
   focusHint: SceneFocusHint,
   roles: CharacterSceneRole[]
 ): EmotionalActingPresetId {
-  if (animationStyleId === "product_showcase") {
-    return "confident_presenter";
-  }
-  if (animationStyleId === "character_animation") {
-    return "playful_mascot";
-  }
-  if (animationStyleId === "marketplace_story") {
-    return "energetic_creator";
-  }
-  if (animationStyleId === "clean_motion") {
-    return "confident_presenter";
-  }
-  if (animationStyleId === "fast_social_animation") {
-    return "energetic_creator";
+  const identityPreset = getAnimationStyleIdentity(animationStyleId).emotionalActingPreset;
+  if (identityPreset !== "auto_detect") {
+    return identityPreset;
   }
   if (focusHint === "mascot_trio") {
     return "playful_mascot";

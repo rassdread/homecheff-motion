@@ -648,6 +648,12 @@ export const en: LocaleSchema = {
   "instant.animationStyle.fastSocial.title": "Fast Social Animation",
   "instant.animationStyle.fastSocial.desc": "TikTok/Reels energy — punchy, scroll-stopping motion.",
   "instant.animationStyle.fastSocial.bestFor": "Viral promos · hooks · affiliate snippets",
+  "instant.identity.cartoon.tagline": "Playful comic mascot world",
+  "instant.identity.product.tagline": "Luxury product cinematic showcase",
+  "instant.identity.character.tagline": "Expressive character performance",
+  "instant.identity.marketplace.tagline": "Warm community storytelling",
+  "instant.identity.clean.tagline": "Calm typography-safe motion",
+  "instant.identity.fastSocial.tagline": "Viral social hook energy",
   "instant.advancedMotion.title": "Advanced developer mode",
   "instant.advancedMotion.hint":
     "Pipeline internals: transitions, segmentation, compositor, and legacy text modes.",
