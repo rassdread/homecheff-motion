@@ -4,6 +4,7 @@ import {
   DEFAULT_POSTER_MOTION_SETTINGS,
   parsePosterMotionSettings,
   POSTER_MOTION_PRESERVE_PROMPT_BLOCK,
+  resolvePosterMotionBlendStrength,
 } from "./poster-motion-preserve";
 import {
   normalizeTextRenderMode,
@@ -17,7 +18,14 @@ describe("poster_motion_preserve architecture", () => {
     const s = parsePosterMotionSettings(undefined);
     assert.equal(s.preserveAllText, true);
     assert.equal(s.animateForegroundOnly, true);
-    assert.deepEqual(s, DEFAULT_POSTER_MOTION_SETTINGS);
+    assert.equal(resolvePosterMotionBlendStrength(s), 0.1);
+    assert.equal(
+      resolvePosterMotionBlendStrength({
+        ...DEFAULT_POSTER_MOTION_SETTINGS,
+        preserveAllText: false,
+      }),
+      0.18
+    );
   });
 
   it("poster mode skips OCR masking and uses base composite", () => {

@@ -593,6 +593,10 @@ export const en: LocaleSchema = {
   "instant.posterMotion.cinematicCamera": "Cinematic camera motion",
   "instant.posterMotion.particlesGlow": "Particles & glow",
   "instant.posterMotion.floatingObject": "Floating generated object",
+  "instant.posterMotion.blendStrengthLabel": "Motion blend strength",
+  "instant.posterMotion.blendStrengthHint":
+    "Highlight-only mix (no full-frame tint). Current:",
+  "instant.posterMotion.blendStrengthMaxHint": " · max 0.30 · text-heavy posters use ~0.10",
   "instant.bakedText.title": "Baked-in text in photos",
   "instant.bakedText.intro":
     "Text already printed on your uploaded image must not be sent to the video AI. Enable protection to mask it before generation and render the exact wording as a locked overlay afterward.",

@@ -593,6 +593,10 @@ export const nl = {
   "instant.posterMotion.cinematicCamera": "Cinematische camerabeweging",
   "instant.posterMotion.particlesGlow": "Deeltjes & gloed",
   "instant.posterMotion.floatingObject": "Zwevend gegenereerd object",
+  "instant.posterMotion.blendStrengthLabel": "Sterkte bewegingsmix",
+  "instant.posterMotion.blendStrengthHint":
+    "Alleen highlights (geen volledige kleurwash). Huidig:",
+  "instant.posterMotion.blendStrengthMaxHint": " · max 0,30 · tekstposters ~0,10",
   "instant.textIntegration.recommended":
     "DeeVid poster-animatie houdt je originele layout en typografie pixel-perfect.",
   "instant.bakedText.title": "Vaste tekst op foto's",

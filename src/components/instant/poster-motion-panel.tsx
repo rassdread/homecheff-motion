@@ -3,6 +3,8 @@
 import { useActiveTranslator } from "@/i18n/client";
 import {
   DEFAULT_POSTER_MOTION_SETTINGS,
+  POSTER_MOTION_BLEND_MAX,
+  resolvePosterMotionBlendStrength,
   type PosterMotionSettings,
 } from "@/lib/poster-motion-preserve";
 
@@ -50,6 +52,30 @@ export function PosterMotionPanel({ settings, onChange }: Props) {
         {t("instant.posterMotion.baseCanvasHint")}
       </p>
 
+      <div className="mt-3">
+        <label className="text-xs font-medium text-zinc-800">
+          {t("instant.posterMotion.blendStrengthLabel")}
+        </label>
+        <input
+          type="range"
+          min={0.05}
+          max={POSTER_MOTION_BLEND_MAX}
+          step={0.01}
+          value={s.posterMotionBlendStrength ?? resolvePosterMotionBlendStrength(s)}
+          className="mt-1 w-full"
+          onChange={(e) =>
+            onChange({ posterMotionBlendStrength: Number.parseFloat(e.target.value) })
+          }
+        />
+        <p className="mt-1 text-[11px] text-zinc-600">
+          {t("instant.posterMotion.blendStrengthHint")}{" "}
+          <span className="font-medium text-amber-950">
+            {(s.posterMotionBlendStrength ?? resolvePosterMotionBlendStrength(s)).toFixed(2)}
+          </span>
+          {t("instant.posterMotion.blendStrengthMaxHint")}
+        </p>
+      </div>
+
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <ToggleRow
           label={t("instant.posterMotion.animateMascot")}
@@ -71,7 +97,12 @@ export function PosterMotionPanel({ settings, onChange }: Props) {
           label={t("instant.posterMotion.preserveAllText")}
           hint={t("instant.posterMotion.preserveAllTextHint")}
           checked={s.preserveAllText}
-          onChange={(v) => onChange({ preserveAllText: v })}
+          onChange={(v) =>
+            onChange({
+              preserveAllText: v,
+              posterMotionBlendStrength: v ? 0.1 : 0.18,
+            })
+          }
         />
         <ToggleRow
           label={t("instant.posterMotion.cinematicCamera")}

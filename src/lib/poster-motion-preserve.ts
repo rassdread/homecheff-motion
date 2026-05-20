@@ -46,7 +46,13 @@ export type PosterMotionSettings = {
   cinematicCameraMotion: boolean;
   particlesGlow: boolean;
   floatingGeneratedObject: boolean;
+  /** 0.05–0.30 — how much Vidu motion is mixed in (highlights only). */
+  posterMotionBlendStrength?: number;
 };
+
+export const POSTER_MOTION_BLEND_MAX = 0.3;
+export const POSTER_MOTION_BLEND_CINEMATIC_DEFAULT = 0.18;
+export const POSTER_MOTION_BLEND_TEXT_HEAVY_DEFAULT = 0.1;
 
 export const DEFAULT_POSTER_MOTION_SETTINGS: PosterMotionSettings = {
   version: 1,
@@ -58,6 +64,22 @@ export const DEFAULT_POSTER_MOTION_SETTINGS: PosterMotionSettings = {
   particlesGlow: true,
   floatingGeneratedObject: false,
 };
+
+export function resolvePosterMotionBlendStrength(settings: PosterMotionSettings): number {
+  if (
+    typeof settings.posterMotionBlendStrength === "number" &&
+    Number.isFinite(settings.posterMotionBlendStrength)
+  ) {
+    return Math.min(
+      POSTER_MOTION_BLEND_MAX,
+      Math.max(0.05, settings.posterMotionBlendStrength)
+    );
+  }
+  if (settings.preserveAllText) {
+    return POSTER_MOTION_BLEND_TEXT_HEAVY_DEFAULT;
+  }
+  return POSTER_MOTION_BLEND_CINEMATIC_DEFAULT;
+}
 
 export const POSTER_MOTION_PRESERVE_PROMPT_BLOCK = `POSTER MOTION PRESERVE (DeeVid-style):
 - The uploaded image is a finished poster/design. Preserve the full layout, typography, logos, UI, and background pixels exactly.
@@ -84,6 +106,11 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     cinematicCameraMotion: o.cinematicCameraMotion !== false,
     particlesGlow: o.particlesGlow !== false,
     floatingGeneratedObject: o.floatingGeneratedObject === true,
+    posterMotionBlendStrength:
+      typeof o.posterMotionBlendStrength === "number" &&
+      Number.isFinite(o.posterMotionBlendStrength)
+        ? Math.min(POSTER_MOTION_BLEND_MAX, Math.max(0.05, o.posterMotionBlendStrength))
+        : undefined,
   };
 }
 

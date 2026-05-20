@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeOverlayToPosterCanvas } from "./poster-motion-normalize";
+import {
+  buildPosterMotionBlendFilterSimple,
+  normalizeOverlayToPosterCanvas,
+} from "./poster-motion-normalize";
+import { resolvePosterMotionBlendStrength } from "./poster-motion-preserve";
+import { DEFAULT_POSTER_MOTION_SETTINGS } from "./poster-motion-preserve";
 
 describe("normalizeOverlayToPosterCanvas", () => {
   it("scales overlay up and center-crops to portrait poster", () => {
@@ -32,6 +37,17 @@ describe("normalizeOverlayToPosterCanvas", () => {
     assert.match(r.overlayFilter, /crop=1920:1080/);
   });
 
+  it("uses lighten blend not screen", () => {
+    const graph = buildPosterMotionBlendFilterSimple({
+      baseFilter: "scale=1280:1920",
+      overlayFilter: "scale=1280:1920:force_original_aspect_ratio=increase,crop=1280:1920",
+      blendStrength: 0.18,
+    });
+    assert.match(graph, /blend=all_mode=lighten:all_opacity=0\.18/);
+    assert.doesNotMatch(graph, /screen/);
+    assert.match(graph, /saturation=0\.25/);
+  });
+
   it("pads base stream without stretching", () => {
     const r = normalizeOverlayToPosterCanvas({
       posterWidth: 1080,
@@ -41,5 +57,37 @@ describe("normalizeOverlayToPosterCanvas", () => {
     });
     assert.match(r.baseFilter, /force_original_aspect_ratio=decrease/);
     assert.match(r.baseFilter, /pad=1080:1920/);
+  });
+});
+
+describe("resolvePosterMotionBlendStrength", () => {
+  it("defaults to cinematic 0.18 when text preservation is off", () => {
+    assert.equal(
+      resolvePosterMotionBlendStrength({
+        ...DEFAULT_POSTER_MOTION_SETTINGS,
+        preserveAllText: false,
+      }),
+      0.18
+    );
+  });
+
+  it("uses 0.10 for text-heavy posters", () => {
+    assert.equal(
+      resolvePosterMotionBlendStrength({
+        ...DEFAULT_POSTER_MOTION_SETTINGS,
+        preserveAllText: true,
+      }),
+      0.1
+    );
+  });
+
+  it("clamps custom strength to 0.30 max", () => {
+    assert.equal(
+      resolvePosterMotionBlendStrength({
+        ...DEFAULT_POSTER_MOTION_SETTINGS,
+        posterMotionBlendStrength: 0.9,
+      }),
+      0.3
+    );
   });
 });

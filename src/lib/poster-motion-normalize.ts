@@ -54,6 +54,49 @@ export function normalizeOverlayToPosterCanvas(
   };
 }
 
+export type PosterMotionBlendFilterInput = {
+  baseFilter: string;
+  overlayFilter: string;
+  /** 0.05–0.30 */
+  blendStrength: number;
+};
+
+/**
+ * Lightweight fallback: desaturated lighten only (no screen / no full-frame wash).
+ */
+export function buildPosterMotionBlendFilterSimple(input: PosterMotionBlendFilterInput): string {
+  const strength = Math.min(0.3, Math.max(0.05, input.blendStrength));
+  const lift = strength.toFixed(3);
+
+  return [
+    `[0:v]${input.baseFilter},format=yuv420p[base]`,
+    `[1:v]${input.overlayFilter},format=yuv420p,eq=saturation=0.25:brightness=0.02[fg]`,
+    `[base][fg]blend=all_mode=lighten:all_opacity=${lift}:shortest=1[out]`,
+  ].join(";");
+}
+
+/**
+ * Subtle highlight-only composite: poster stays dominant, motion adds light/glow only.
+ * Luminance mask limits overlay to areas brighter than the base (reduces ghost duplicate).
+ */
+export function buildPosterMotionBlendFilterComplex(input: PosterMotionBlendFilterInput): string {
+  const strength = Math.min(0.3, Math.max(0.05, input.blendStrength));
+  const lift = strength.toFixed(3);
+  const lumThresh = Math.round(8 + strength * 40);
+
+  return [
+    `[0:v]${input.baseFilter},format=yuv420p[base]`,
+    `[1:v]${input.overlayFilter},format=yuv420p,eq=saturation=0.28:contrast=1.02:brightness=0.02[fg]`,
+    `[base]split=2[base_main][base_y]`,
+    `[fg]extractplanes=y,format=yuv400p[fg_y]`,
+    `[base_y]extractplanes=y,format=yuv400p[base_l]`,
+    `[fg_y][base_l]blend=all_mode=difference,format=yuv400p[diff]`,
+    `[diff]geq=lum='if(gt(lum(X,Y),${lumThresh}),lum(X,Y),0)'[mask]`,
+    `[fg][mask]alphamerge[fg_hi]`,
+    `[base_main][fg_hi]blend=all_mode=lighten:all_opacity=${lift}:shortest=1[out]`,
+  ].join(";");
+}
+
 export function logPosterNormalize(params: {
   posterWidth: number;
   posterHeight: number;

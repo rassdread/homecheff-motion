@@ -6,10 +6,16 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
 } from "@/lib/media-export-constants";
 import {
+  buildPosterMotionBlendFilterComplex,
+  buildPosterMotionBlendFilterSimple,
   logPosterNormalize,
   normalizeOverlayToPosterCanvas,
 } from "@/lib/poster-motion-normalize";
-import { parsePosterMotionSettings, type PosterMotionSettings } from "@/lib/poster-motion-preserve";
+import {
+  parsePosterMotionSettings,
+  resolvePosterMotionBlendStrength,
+  type PosterMotionSettings,
+} from "@/lib/poster-motion-preserve";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 import {
   probeImageFileDimensions,
@@ -151,7 +157,7 @@ export async function compositePosterMotionPreserve(
       phase: "posterMotionProbeFailed",
       reason: "poster_dimensions_unavailable",
     });
-    const ok = await renderStaticPosterOnly({
+    await renderStaticPosterOnly({
       ffmpeg,
       basePath,
       outputVideoPath: input.outputVideoPath,
@@ -161,9 +167,6 @@ export async function compositePosterMotionPreserve(
       durationSec: duration,
       fps,
     });
-    if (!ok) {
-      await fs.copyFile(input.mergedViduPath, input.outputVideoPath).catch(() => undefined);
-    }
     return {
       outputPath: input.outputVideoPath,
       motionBlendApplied: false,
@@ -223,46 +226,73 @@ export async function compositePosterMotionPreserve(
     duration,
     fps
   );
-  const motionOpacity = settings.particlesGlow ? 0.32 : 0.24;
-  const filterComplex = [
-    `[0:v]${baseFilter},format=yuv420p[base]`,
-    `[1:v]${normalized.overlayFilter},format=yuv420p[fg]`,
-    `[base][fg]blend=all_mode=screen:all_opacity=${motionOpacity}:shortest=1[out]`,
-  ].join(";");
-
-  const blendArgs = [
-    "-y",
-    "-loop",
-    "1",
-    "-i",
-    basePath,
-    "-i",
-    input.mergedViduPath,
-    "-filter_complex",
-    filterComplex,
-    "-map",
-    "[out]",
-    "-t",
-    String(duration),
-    "-r",
-    String(fps),
-    "-c:v",
-    "libx264",
-    "-preset",
-    FINAL_MERGE_VIDEO_PRESET,
-    "-crf",
-    String(FINAL_MERGE_VIDEO_CRF),
-    ...(FINAL_MERGE_DISABLE_AUDIO ? ["-an"] : []),
-    input.outputVideoPath,
+  const blendStrength = resolvePosterMotionBlendStrength(settings);
+  const blendInput = {
+    baseFilter,
+    overlayFilter: normalized.overlayFilter,
+    blendStrength,
+  };
+  const blendFilterCandidates = [
+    { mode: "luminance_highlight_lighten", graph: buildPosterMotionBlendFilterComplex(blendInput) },
+    {
+      mode: "lighten_desaturated",
+      graph: buildPosterMotionBlendFilterSimple({
+        ...blendInput,
+        blendStrength: Math.min(blendStrength, 0.15),
+      }),
+    },
   ];
 
-  const blendResult = await runFfmpegToOutput(ffmpeg, blendArgs);
+  let blendResult: { ok: boolean; output: string } = { ok: false, output: "" };
+  let appliedBlendMode = "none";
+
+  for (const candidate of blendFilterCandidates) {
+    const blendArgs = [
+      "-y",
+      "-loop",
+      "1",
+      "-i",
+      basePath,
+      "-i",
+      input.mergedViduPath,
+      "-filter_complex",
+      candidate.graph,
+      "-map",
+      "[out]",
+      "-t",
+      String(duration),
+      "-r",
+      String(fps),
+      "-c:v",
+      "libx264",
+      "-preset",
+      FINAL_MERGE_VIDEO_PRESET,
+      "-crf",
+      String(FINAL_MERGE_VIDEO_CRF),
+      ...(FINAL_MERGE_DISABLE_AUDIO ? ["-an"] : []),
+      input.outputVideoPath,
+    ];
+    blendResult = await runFfmpegToOutput(ffmpeg, blendArgs);
+    if (blendResult.ok) {
+      appliedBlendMode = candidate.mode;
+      break;
+    }
+    console.warn("[hc-instant-premium]", {
+      projectId: input.projectId,
+      phase: "posterMotionBlendAttemptFailed",
+      blendMode: candidate.mode,
+      tail: blendResult.output.slice(-300),
+    });
+  }
+
   if (blendResult.ok) {
     console.info("[hc-instant-premium]", {
       projectId: input.projectId,
       phase: "posterMotionCompositeComplete",
       cinematicCamera: settings.cinematicCameraMotion,
       particlesGlow: settings.particlesGlow,
+      blendStrength,
+      blendMode: appliedBlendMode,
       canvas: `${normalized.posterWidth}x${normalized.posterHeight}`,
     });
     return {
@@ -291,7 +321,11 @@ export async function compositePosterMotionPreserve(
   });
 
   if (!fallbackOk) {
-    await fs.copyFile(input.mergedViduPath, input.outputVideoPath).catch(() => undefined);
+    console.warn("[hc-instant-premium]", {
+      projectId: input.projectId,
+      phase: "posterMotionStaticFallbackExhausted",
+      message: "exporting_base_only_failed",
+    });
   }
 
   return {
