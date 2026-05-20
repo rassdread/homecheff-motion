@@ -1,6 +1,13 @@
+import {
+  inferFailedExportDisplayProgress,
+  inferFailedExportStage,
+  type ExportFailureDiagnostics,
+} from "@/lib/instant-premium-export-failure";
 import { normalizeTextRenderMode, usesPosterBaseComposite } from "@/lib/hybrid-motion-overlay";
+import type { InstantPremiumFailureReason } from "@/types/animation-api";
 
 export const INSTANT_EXPORT_STUCK_MS = 90_000;
+export const REBUILD_PROGRESS_FLOOR = 70;
 
 export type InstantPremiumProgressStage =
   | "segment_rendering"
@@ -34,6 +41,10 @@ export type InstantPremiumProgressInput = {
   isRestoringFinalVideo?: boolean;
   instantTextRenderMode?: string | null;
   overlayFailed?: boolean;
+  exportFailure?: ExportFailureDiagnostics | null;
+  failureReason?: InstantPremiumFailureReason | null;
+  exportProgress?: number | null;
+  exportStatus?: string | null;
 };
 
 export function resolveInstantPremiumProgress(
@@ -42,16 +53,49 @@ export function resolveInstantPremiumProgress(
   const progress = Math.max(0, Math.min(100, Math.round(input.progressPercent)));
   const posterMode = usesPosterBaseComposite(normalizeTextRenderMode(input.instantTextRenderMode));
 
-  if (input.status === "failed" || input.phase === "failed" || input.overlayFailed) {
-    return { stage: "failed", activeOperation: "idle", displayPercent: progress };
+  if (input.isRebuildingFinalVideo) {
+    return resolveFinalizingProgress(
+      Math.max(REBUILD_PROGRESS_FLOOR, progress),
+      posterMode,
+      "rebuild"
+    );
+  }
+
+  const exportFailed =
+    input.exportFailure?.isExportFailure ||
+    input.exportFailure?.finalRebuildFailed ||
+    input.status === "failed" ||
+    input.phase === "failed" ||
+    input.overlayFailed;
+
+  if (exportFailed) {
+    const diagnostics = input.exportFailure;
+    const displayPercent =
+      diagnostics?.displayProgress ??
+      inferFailedExportDisplayProgress({
+        failureReason: input.failureReason ?? diagnostics?.exportFailureReason ?? null,
+        exportProgress: input.exportProgress ?? null,
+        exportStatus: input.exportStatus ?? null,
+      });
+    const failedAtStage =
+      diagnostics?.failedAtStage ??
+      inferFailedExportStage({
+        failureReason: input.failureReason ?? diagnostics?.exportFailureReason ?? null,
+        displayProgress: displayPercent,
+        exportStatus: input.exportStatus ?? null,
+      });
+    const activeOperation: InstantPremiumActiveOperation = diagnostics?.finalRebuildFailed
+      ? "rebuild"
+      : "idle";
+    return {
+      stage: failedAtStage,
+      activeOperation,
+      displayPercent,
+    };
   }
 
   if (input.status === "completed" || input.phase === "completed") {
     return { stage: "completed", activeOperation: "idle", displayPercent: 100 };
-  }
-
-  if (input.isRebuildingFinalVideo) {
-    return resolveFinalizingProgress(progress, posterMode, "rebuild");
   }
 
   if (input.isRestoringFinalVideo) {

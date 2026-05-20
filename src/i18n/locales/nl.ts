@@ -811,6 +811,13 @@ export const nl = {
   "instant.progress.stage.finalize": "Afronden...",
   "instant.progress.stage.completed": "Eindvideo gereed",
   "instant.progress.stage.failed": "Verwerking mislukt",
+  "instant.exportFailure.generic":
+    "Exporteren van de eindvideo is mislukt. Zie details hieronder of probeer opnieuw samen te stellen.",
+  "instant.exportFailure.overlay": "Vergrendelde tekst-overlay is mislukt tijdens de eindexport.",
+  "instant.exportFailure.merge": "Samenvoegen van segmentclips tot de eindvideo is mislukt.",
+  "instant.exportFailure.uploadAuth": "Upload naar opslag mislukt (controleer blob-credentials).",
+  "instant.exportFailure.rebuild":
+    "Opnieuw samenstellen van de eindvideo uit bestaande segmenten is mislukt.",
   "instant.progress.operation.segmentRendering": "Segmenten renderen bezig...",
   "instant.progress.operation.repair": "Herstellen bezig...",
   "instant.progress.operation.rebuild": "Eindvideo opnieuw samenstellen...",

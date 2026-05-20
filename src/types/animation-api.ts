@@ -339,6 +339,11 @@ export type InstantPremiumActiveOperation =
   | "upload"
   | "idle";
 
+export type InstantPremiumFailureReason =
+  | "overlay_failed"
+  | "merge_failed"
+  | "export_upload_auth_failed";
+
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";
@@ -372,7 +377,15 @@ export type InstantPremiumStatusResponse = {
   lockedTextMode?: boolean;
   overlayFailed?: boolean;
   canRetryOverlay?: boolean;
-  failureReason?: "overlay_failed" | "merge_failed" | "export_upload_auth_failed" | null;
+  failureReason?: InstantPremiumFailureReason | null;
+  exportId?: string | null;
+  exportStatus?: string | null;
+  exportFailureReason?: InstantPremiumFailureReason | null;
+  exportLastError?: string | null;
+  workerError?: string | null;
+  failedAtStage?: InstantPremiumProgressStage;
+  finalRebuildFailed?: boolean;
+  userExportErrorKey?: string | null;
   workerJobStatus?: string | null;
   finalizationStuck?: boolean;
   canRepairFinalVideo?: boolean;

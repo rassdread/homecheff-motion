@@ -113,8 +113,14 @@ export function InstantFinalProgressPanel({
   const stage = snapshot?.currentStage ?? (snapshot?.status === "completed" ? "completed" : "segment_rendering");
   const operation = snapshot?.activeOperation ?? "idle";
   const percent = snapshot?.progressPercent ?? 0;
-  const isCompleted = snapshot?.status === "completed" || stage === "completed";
-  const isFailed = snapshot?.status === "failed" || stage === "failed";
+  const isCompleted =
+    (snapshot?.status === "completed" || stage === "completed") && !snapshot?.finalRebuildFailed;
+  const isFailed =
+    snapshot?.status === "failed" ||
+    stage === "failed" ||
+    Boolean(snapshot?.exportFailureReason || snapshot?.finalRebuildFailed);
+  const userFailureKey = snapshot?.userExportErrorKey;
+  const technicalError = snapshot?.exportLastError ?? snapshot?.errorMessage;
   const isActive =
     !isCompleted &&
     !isFailed &&
@@ -135,7 +141,7 @@ export function InstantFinalProgressPanel({
     [isActive, lastProgressChangeAtMs, snapshot?.finalizationStuck, snapshot?.status, percent, isCompleted]
   );
 
-  const tone = barTone(stage, isActive);
+  const tone = barTone(isFailed ? "failed" : stage, isActive);
   const stageLabelKey = STAGE_LABEL_KEYS[stage] ?? STAGE_LABEL_KEYS.segment_rendering;
   const operationLabelKey = repairBusy
     ? OPERATION_LABEL_KEYS.repair
@@ -204,7 +210,47 @@ export function InstantFinalProgressPanel({
           : null}
       </p>
 
-      {stuck && !isCompleted ? (
+      {isFailed ? (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950">
+          <p className="font-medium">
+            {userFailureKey ? t(userFailureKey as never) : t("instant.exportFailure.generic")}
+          </p>
+          {isAdmin && technicalError ? (
+            <p className="mt-1 break-words font-mono text-xs text-red-900/90">{technicalError}</p>
+          ) : null}
+          {snapshot?.finalRebuildFailed && snapshot?.finalVideoUrl ? (
+            <p className="mt-2 text-xs text-red-800/90">
+              {t("instant.progress.rebuildFinalFailedKeepsPrevious")}
+            </p>
+          ) : null}
+          {showStuckActions && (snapshot?.canRebuildFinalVideo || snapshot?.canRepairFinalVideo) ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {snapshot?.canRepairFinalVideo && onRepair ? (
+                <button
+                  type="button"
+                  disabled={repairBusy}
+                  onClick={onRepair}
+                  className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 disabled:opacity-60"
+                >
+                  {repairBusy ? t("instant.recover.restoring") : t("instant.progress.repairFinalVideo")}
+                </button>
+              ) : null}
+              {snapshot?.canRebuildFinalVideo && onRebuild ? (
+                <button
+                  type="button"
+                  disabled={rebuildBusy}
+                  onClick={onRebuild}
+                  className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-900 disabled:opacity-60"
+                >
+                  {rebuildBusy ? t("instant.progress.rebuildingFinal") : t("instant.progress.rebuildFinalVideo")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {stuck && !isCompleted && !isFailed ? (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("instant.progress.exportStuckTitle")}</p>
           <p className="mt-1 text-xs text-amber-900/90">
@@ -244,12 +290,40 @@ export function InstantFinalProgressPanel({
             <dd>{snapshot.currentStage ?? stage}</dd>
           </div>
           <div>
+            <dt className="text-zinc-400">failedAtStage</dt>
+            <dd>{snapshot.failedAtStage ?? "—"}</dd>
+          </div>
+          <div>
             <dt className="text-zinc-400">progress</dt>
             <dd>{percent}</dd>
           </div>
           <div>
+            <dt className="text-zinc-400">exportId</dt>
+            <dd className="truncate">{snapshot.exportId ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">exportStatus</dt>
+            <dd>{snapshot.exportStatus ?? "—"}</dd>
+          </div>
+          <div>
             <dt className="text-zinc-400">exportProvider</dt>
             <dd>{snapshot.exportProvider ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">failureReason</dt>
+            <dd>{snapshot.exportFailureReason ?? snapshot.failureReason ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">exportLastError</dt>
+            <dd className="col-span-2 break-all">{snapshot.exportLastError ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">workerError</dt>
+            <dd className="col-span-2 break-all">{snapshot.workerError ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">workerJobStatus</dt>
+            <dd>{snapshot.workerJobStatus ?? "—"}</dd>
           </div>
           <div>
             <dt className="text-zinc-400">rebuildCount</dt>
@@ -262,6 +336,10 @@ export function InstantFinalProgressPanel({
           <div>
             <dt className="text-zinc-400">activeOperation</dt>
             <dd>{snapshot.activeOperation ?? operation}</dd>
+          </div>
+          <div>
+            <dt className="text-zinc-400">finalRebuildFailed</dt>
+            <dd>{snapshot.finalRebuildFailed ? "true" : "false"}</dd>
           </div>
         </dl>
       ) : null}

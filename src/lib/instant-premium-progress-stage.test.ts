@@ -39,6 +39,50 @@ describe("instant premium progress stage", () => {
     assert.equal(view.activeOperation, "upload");
   });
 
+  it("shows failed merge at 70% not 0%", () => {
+    const view = resolveInstantPremiumProgress({
+      status: "failed",
+      phase: "failed",
+      progressPercent: 0,
+      exportFailure: {
+        exportId: "e1",
+        exportStatus: "failed",
+        exportFailureReason: "merge_failed",
+        exportLastError: "concat failed",
+        workerError: "concat failed",
+        failedAtStage: "merge_clips",
+        displayProgress: 70,
+        isExportFailure: true,
+        finalRebuildFailed: false,
+      },
+    });
+    assert.equal(view.displayPercent, 70);
+    assert.equal(view.stage, "merge_clips");
+    assert.equal(view.activeOperation, "idle");
+  });
+
+  it("prioritizes rebuild over failed snapshot", () => {
+    const view = resolveInstantPremiumProgress({
+      status: "failed",
+      phase: "failed",
+      progressPercent: 0,
+      isRebuildingFinalVideo: true,
+      exportFailure: {
+        exportId: "e1",
+        exportStatus: "failed",
+        exportFailureReason: "merge_failed",
+        exportLastError: "old",
+        workerError: null,
+        failedAtStage: "merge_clips",
+        displayProgress: 70,
+        isExportFailure: true,
+        finalRebuildFailed: false,
+      },
+    });
+    assert.equal(view.activeOperation, "rebuild");
+    assert.equal(view.displayPercent, 70);
+  });
+
   it("detects stuck export after 90s without progress change", () => {
     const now = Date.now();
     assert.equal(

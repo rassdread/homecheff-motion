@@ -20,6 +20,7 @@ import {
   parseLockedTextLayersJson,
   validateLockedTextLayerMetadata,
 } from "@/lib/locked-text-layer";
+import { logFinalExportFailed } from "@/lib/instant-premium-export-failure";
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import {
@@ -366,13 +367,24 @@ export async function retryUploadLocalMergedFinalVideo(projectId: string): Promi
         outputVideoUrl: null,
       },
     });
+    const failureReason =
+      code === "EXPORT_UPLOAD_AUTH_FAILED" ? "export_upload_auth_failed" : "merge_failed";
     await prisma.animationProject.update({
       where: { id: projectId },
       data: {
         status: "failed",
-        failureReason: code === "EXPORT_UPLOAD_AUTH_FAILED" ? "export_upload_auth_failed" : "merge_failed",
+        failureReason,
         instantWorkerJobStatus: "failed",
       },
+    });
+    logFinalExportFailed({
+      projectId,
+      exportId,
+      provider: null,
+      stage: "upload_storage",
+      failureReason,
+      failureMessage: message,
+      workerError: message,
     });
     return { ok: false, message };
   }
@@ -580,7 +592,7 @@ export async function executeInstantPremiumMerge(
             where: { id: exportRow.id },
             data: {
               status: "failed_overlay",
-              progress: 0,
+              progress: 75,
               errorMessage: safeMessage,
               outputVideoUrl: null,
             },
@@ -593,6 +605,15 @@ export async function executeInstantPremiumMerge(
               failureReason: "overlay_failed",
               instantWorkerJobStatus: "failed",
             },
+          });
+          logFinalExportFailed({
+            projectId,
+            exportId: exportRow.id,
+            provider: exportProvider,
+            stage: "poster_compositing",
+            failureReason: "overlay_failed",
+            failureMessage: safeMessage,
+            workerError: safeMessage,
           });
           return;
         }
@@ -655,6 +676,9 @@ export async function executeInstantPremiumMerge(
           provider: FINAL_BLOB_PROVIDER,
         });
       }
+      const failureReason = blobAuthFailed ? "export_upload_auth_failed" : "merge_failed";
+      const failedProgress = blobAuthFailed ? 85 : 70;
+      const failedStage = blobAuthFailed ? "upload_storage" : "merge_clips";
       if (isFinalRebuild && rebuildPreviousFinalUrl) {
         await markInstantPremiumFinalRebuildFailed({
           projectId,
@@ -663,13 +687,16 @@ export async function executeInstantPremiumMerge(
           segmentCount: completed.length,
           rebuildCount: project.instantFinalRebuildCount + 1,
           message,
+          failureReason,
+          provider: exportProvider,
+          failedStage,
         });
       } else {
         await prisma.animationExport.update({
           where: { id: exportRow.id },
           data: {
             status: "failed",
-            progress: blobAuthFailed ? 85 : 0,
+            progress: failedProgress,
             errorMessage: message,
             outputVideoUrl: null,
           },
@@ -678,10 +705,19 @@ export async function executeInstantPremiumMerge(
           where: { id: projectId },
           data: {
             status: "failed",
-            failureReason: blobAuthFailed ? "export_upload_auth_failed" : "merge_failed",
+            failureReason,
             lastOverlayError: null,
             instantWorkerJobStatus: "failed",
           },
+        });
+        logFinalExportFailed({
+          projectId,
+          exportId: exportRow.id,
+          provider: exportProvider,
+          stage: failedStage,
+          failureReason,
+          failureMessage: message,
+          workerError: message,
         });
       }
       console.info("[hc-instant-premium]", {

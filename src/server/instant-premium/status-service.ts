@@ -11,6 +11,10 @@ import {
   repairInstantPremiumFinalVideo,
 } from "@/server/instant-premium/finalize-repair";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
+import {
+  resolveExportFailureDiagnostics,
+  userSafeExportFailureKey,
+} from "@/lib/instant-premium-export-failure";
 import { resolveInstantPremiumProgress } from "@/lib/instant-premium-progress-stage";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -268,10 +272,35 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
           : Math.max(5, averageTransitions);
   const overlayFailed =
     finalState.status === "failed_overlay" || latestExport?.status === "failed_overlay";
+  const finalRebuildFailed = finalState.instantFinalRebuildStatus === "failed";
+  const exportFailureDiagnostics = resolveExportFailureDiagnostics({
+    projectId: finalState.id,
+    projectStatus: finalState.status,
+    failureReason:
+      finalState.failureReason === "overlay_failed" ||
+      finalState.failureReason === "merge_failed" ||
+      finalState.failureReason === "export_upload_auth_failed"
+        ? finalState.failureReason
+        : null,
+    overlayFailed,
+    instantFinalRebuildStatus: finalState.instantFinalRebuildStatus,
+    instantWorkerJobStatus: finalState.instantWorkerJobStatus,
+    lastOverlayError: finalState.lastOverlayError,
+    export: latestExport
+      ? {
+          id: latestExport.id,
+          status: latestExport.status,
+          progress: latestExport.progress,
+          errorMessage: latestExport.errorMessage,
+          provider: latestExport.provider,
+        }
+      : null,
+  });
+  const exportFailed = Boolean(exportFailureDiagnostics?.isExportFailure);
   const phase: InstantPremiumStatusResponse["phase"] =
-    overlayFailed || finalState.status === "failed"
+    exportFailed || overlayFailed || finalState.status === "failed"
       ? "failed"
-      : finalState.status === "completed"
+      : finalState.status === "completed" && !finalRebuildFailed
         ? "completed"
         : finalState.status === "rendering"
           ? latestExport?.progress && latestExport.progress >= 85
@@ -279,9 +308,9 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
             : "merging_clips"
           : "generating_clips";
   const status: InstantPremiumStatusResponse["status"] =
-    overlayFailed || finalState.status === "failed"
+    exportFailed || overlayFailed || finalState.status === "failed"
       ? "failed"
-      : finalState.status === "completed"
+      : finalState.status === "completed" && !finalRebuildFailed
         ? "completed"
         : finalState.status === "rendering"
           ? "finalizing"
@@ -338,7 +367,18 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     isRestoringFinalVideo,
     instantTextRenderMode: finalState.instantTextRenderMode,
     overlayFailed,
+    exportFailure: exportFailureDiagnostics,
+    failureReason,
+    exportProgress: latestExport?.progress ?? null,
+    exportStatus: latestExport?.status ?? null,
   });
+  const exportLastError = exportFailureDiagnostics?.exportLastError ?? null;
+  const userExportErrorKey = exportFailed
+    ? userSafeExportFailureKey(
+        exportFailureDiagnostics?.exportFailureReason ?? failureReason ?? null,
+        finalRebuildFailed
+      )
+    : null;
   return {
     projectId: finalState.id,
     projectType: "instant_premium",
@@ -362,6 +402,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
         : null,
     downloadable: Boolean(finalVideoUrl),
     errorMessage:
+      exportLastError ??
       (overlayFailed ? finalState.lastOverlayError : null) ??
       latestExport?.errorMessage ??
       finalState.transitions.find((t) => t.status === "failed")?.errorMessage ??
@@ -369,6 +410,14 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     overlayFailed,
     canRetryOverlay: overlayFailed && segmentsAllCompleted,
     failureReason,
+    exportId: exportFailureDiagnostics?.exportId ?? latestExport?.id ?? null,
+    exportStatus: exportFailureDiagnostics?.exportStatus ?? latestExport?.status ?? null,
+    exportFailureReason: exportFailureDiagnostics?.exportFailureReason ?? failureReason,
+    exportLastError,
+    workerError: exportFailureDiagnostics?.workerError ?? null,
+    failedAtStage: exportFailureDiagnostics?.failedAtStage,
+    finalRebuildFailed,
+    userExportErrorKey,
     workerJobStatus: finalState.instantWorkerJobStatus,
     missingSegments: finalState.transitions
       .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))

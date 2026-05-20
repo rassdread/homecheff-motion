@@ -1,4 +1,6 @@
+import { logFinalExportFailed } from "@/lib/instant-premium-export-failure";
 import { prisma } from "@/lib/prisma";
+import type { InstantPremiumFailureReason } from "@/types/animation-api";
 import {
   appendFinalVideoRebuildAudit,
   type FinalVideoRebuildAuditEvent,
@@ -137,8 +139,21 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
   segmentCount: number;
   rebuildCount: number;
   message: string;
+  failureReason?: InstantPremiumFailureReason;
+  provider?: string | null;
+  failedStage?: string;
 }): Promise<void> {
-  const { projectId, exportId, previousFinalUrl, segmentCount, rebuildCount, message } = params;
+  const {
+    projectId,
+    exportId,
+    previousFinalUrl,
+    segmentCount,
+    rebuildCount,
+    message,
+    failureReason = "merge_failed",
+    provider = null,
+    failedStage = "merge_clips",
+  } = params;
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
     select: { instantFinalRebuildAuditJson: true },
@@ -185,4 +200,13 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     },
   });
   logFinalVideoRebuildAudit(auditEvent);
+  logFinalExportFailed({
+    projectId,
+    exportId,
+    provider,
+    stage: failedStage,
+    failureReason,
+    failureMessage: message,
+    workerError: message,
+  });
 }
