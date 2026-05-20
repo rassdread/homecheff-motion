@@ -1,3 +1,4 @@
+import { OcrProviderError } from "@/lib/ocr-provider-errors";
 import { createGoogleVisionTextDetectionProvider } from "@/server/image-text-detection/google-vision-provider";
 import { createOpenAiVisionTextDetectionProvider } from "@/server/image-text-detection/openai-vision-provider";
 import type { ImageTextDetectionProvider } from "@/server/image-text-detection/types";
@@ -19,7 +20,8 @@ export function resolveImageTextDetectionProvider(): ImageTextDetectionProvider 
 export async function detectTextBlocksFromImageUrl(imageUrl: string) {
   const provider = resolveImageTextDetectionProvider();
   if (!provider) {
-    throw new Error(
+    throw new OcrProviderError(
+      "OCR_PROVIDER_NOT_CONFIGURED",
       "OCR is not configured. Set GOOGLE_VISION_API_KEY or OPENAI_API_KEY on the server."
     );
   }

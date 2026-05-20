@@ -45,6 +45,7 @@ export type SerializedBakedText = {
   scanBlockCount?: number;
   scanAverageConfidence?: number;
   scanErrorCode?: string;
+  scanStatusMessage?: string;
 };
 
 export type PersistedWizardState = {

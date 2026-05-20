@@ -5,6 +5,11 @@ import {
   resolveAutoConfirmBakedTextBlocks,
 } from "@/lib/baked-text-auto-confirm";
 import { averageBlockConfidence, createScanRequestId } from "@/lib/instant-ocr-scan";
+import {
+  buildOcrErrorPayload,
+  classifyOcrFailure,
+  OcrProviderError,
+} from "@/lib/ocr-provider-errors";
 import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import {
@@ -15,6 +20,10 @@ import {
 type RouteContext = {
   params: Promise<{ imageId: string }>;
 };
+
+function logOcrDetectError(payload: Record<string, unknown>): void {
+  console.info("[ocr-detect]", "error", payload);
+}
 
 export async function POST(request: Request, context: RouteContext) {
   const startedAt = Date.now();
@@ -43,7 +52,13 @@ export async function POST(request: Request, context: RouteContext) {
     const allowed = dbImage.project.ownerId === user.id || canAccessAdmin(user);
     if (!allowed) {
       return NextResponse.json(
-        { ok: false, scanRequestId, error: "Forbidden.", errorCode: "FORBIDDEN" },
+        {
+          ok: false,
+          scanRequestId,
+          error: "Forbidden.",
+          errorCode: "FORBIDDEN",
+          userMessage: "Geen toegang tot deze tekstscan.",
+        },
         { status: 403 }
       );
     }
@@ -54,7 +69,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (!imageUrl) {
     return NextResponse.json(
-      { ok: false, scanRequestId, error: "imageUrl is required.", errorCode: "MISSING_IMAGE_URL" },
+      {
+        ok: false,
+        scanRequestId,
+        error: "imageUrl is required.",
+        errorCode: "MISSING_IMAGE_URL",
+        userMessage: "Afbeelding ontbreekt voor tekstscan.",
+      },
       { status: 400 }
     );
   }
@@ -88,30 +109,55 @@ export async function POST(request: Request, context: RouteContext) {
     });
   } catch (error) {
     const durationMs = Date.now() - startedAt;
+
     if (error instanceof OcrDetectTimeoutError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          scanRequestId,
-          status: "timeout",
-          error: error.message,
-          errorCode: "OCR_TIMEOUT",
-          durationMs,
-        },
-        { status: 504 }
-      );
-    }
-    const message = error instanceof Error ? error.message : "Text detection failed.";
-    return NextResponse.json(
-      {
-        ok: false,
+      const payload = buildOcrErrorPayload({
         scanRequestId,
-        status: "failed",
-        error: message,
-        errorCode: "OCR_FAILED",
+        errorCode: "OPENAI_TIMEOUT",
         durationMs,
-      },
-      { status: 503 }
-    );
+        provider: "openai",
+        logMessage: error.message,
+      });
+      logOcrDetectError({
+        errorCode: payload.errorCode,
+        status: 504,
+        provider: "openai",
+        scanRequestId,
+      });
+      return NextResponse.json(payload, { status: 504 });
+    }
+
+    if (error instanceof OcrProviderError) {
+      const payload = buildOcrErrorPayload({
+        scanRequestId,
+        errorCode: error.errorCode,
+        durationMs,
+        provider: error.provider ?? "openai",
+        logMessage: error.message,
+      });
+      logOcrDetectError({
+        errorCode: payload.errorCode,
+        status: 503,
+        provider: payload.provider ?? "openai",
+        scanRequestId,
+      });
+      return NextResponse.json(payload, { status: 503 });
+    }
+
+    const resolved = classifyOcrFailure(error);
+    const payload = buildOcrErrorPayload({
+      scanRequestId,
+      errorCode: resolved.errorCode,
+      durationMs,
+      provider: resolved.provider,
+      logMessage: resolved.logMessage,
+    });
+    logOcrDetectError({
+      errorCode: payload.errorCode,
+      status: resolved.httpStatus,
+      provider: payload.provider ?? "openai",
+      scanRequestId,
+    });
+    return NextResponse.json(payload, { status: resolved.httpStatus });
   }
 }

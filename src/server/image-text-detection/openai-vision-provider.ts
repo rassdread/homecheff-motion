@@ -6,6 +6,7 @@ import {
   suggestFontSizeForBbox,
   type DetectedTextBlock,
 } from "@/lib/baked-text-detection";
+import { classifyOpenAiApiFailure, OcrProviderError } from "@/lib/ocr-provider-errors";
 import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import type { ImageTextDetectionProvider, ImageTextDetectionResult } from "@/server/image-text-detection/types";
 
@@ -30,7 +31,9 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
           ? AbortSignal.timeout(OCR_DETECT_SERVER_TIMEOUT_MS)
           : undefined;
 
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      let res: Response;
+      try {
+        res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -57,13 +60,25 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
           ],
         }),
       });
+      } catch (error) {
+        const name = error instanceof Error ? error.name : "";
+        if (name === "AbortError" || name === "TimeoutError") {
+          throw new OcrProviderError("OPENAI_TIMEOUT", "OpenAI vision OCR timed out.", "openai_vision");
+        }
+        throw error;
+      }
 
       const body = (await res.json().catch(() => ({}))) as {
         error?: { message?: string };
         choices?: Array<{ message?: { content?: string } }>;
       };
       if (!res.ok) {
-        throw new Error(body.error?.message ?? `OpenAI vision OCR failed (${res.status}).`);
+        const msg = body.error?.message ?? `OpenAI vision OCR failed (${res.status}).`;
+        throw new OcrProviderError(
+          classifyOpenAiApiFailure(res.status, msg),
+          msg,
+          "openai_vision"
+        );
       }
 
       const content = body.choices?.[0]?.message?.content ?? "{}";

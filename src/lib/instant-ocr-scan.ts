@@ -45,9 +45,24 @@ export type DetectTextApiResponse = {
   autoConfirmEnabled?: boolean;
   errorCode?: string;
   error?: string;
+  userMessage?: string;
   blocks?: BakedTextBlockRecord[];
   imageId?: string;
 };
+
+export const OCR_AUTO_RETRY_DELAY_MS = 2_000;
+export const OCR_AUTO_RETRY_MAX = 1;
+
+export function isTerminalOcrScanPhase(phase: OcrScanPhase | undefined): boolean {
+  return (
+    phase === "auto_protected" ||
+    phase === "needs_review" ||
+    phase === "no_text_found" ||
+    phase === "timeout" ||
+    phase === "failed" ||
+    phase === "skipped"
+  );
+}
 
 export function createScanRequestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

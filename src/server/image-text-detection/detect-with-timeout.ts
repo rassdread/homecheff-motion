@@ -1,6 +1,7 @@
+import { OcrProviderError } from "@/lib/ocr-provider-errors";
+import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
 import type { ImageTextDetectionResult } from "@/server/image-text-detection/types";
-import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 
 export class OcrDetectTimeoutError extends Error {
   readonly code = "OCR_TIMEOUT";
@@ -37,11 +38,26 @@ export async function detectTextBlocksFromImageUrlWithTimeout(
     return result;
   } catch (error) {
     if (error instanceof OcrDetectTimeoutError) {
-      logOcrDetect("timeout", { scanRequestId });
+      logOcrDetect("timeout", {
+        scanRequestId,
+        errorCode: error.code,
+        status: 504,
+        provider: "openai",
+      });
       throw error;
     }
+    const errorCode =
+      error instanceof OcrProviderError ? error.errorCode : "OCR_PROVIDER_ERROR";
+    const provider =
+      error instanceof OcrProviderError ? error.provider ?? "openai" : "openai";
     const message = error instanceof Error ? error.message : "OCR failed.";
-    logOcrDetect("error", { scanRequestId, message });
+    logOcrDetect("error", {
+      scanRequestId,
+      errorCode,
+      status: 503,
+      provider,
+      message,
+    });
     throw error;
   } finally {
     if (timer) {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/baked-text-ocr-client-cache";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import { OcrConcurrencyQueue } from "@/lib/ocr-concurrency-queue";
+import { isRetryableOcrErrorCode } from "@/lib/ocr-provider-errors";
 import {
   CHECKOUT_PENDING_SCAN_WAIT_MS,
   createScanRequestId,
@@ -17,6 +18,8 @@ import {
   isActiveOcrScanPhase,
   isTimeoutError,
   logOcrAutoScan,
+  OCR_AUTO_RETRY_DELAY_MS,
+  OCR_AUTO_RETRY_MAX,
   OCR_MAX_CONCURRENT_SCANS,
   OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS,
   OCR_SCAN_TIMEOUT_MS,
@@ -64,6 +67,7 @@ export function useInstantOcrAutoScan(params: {
   const abortByImageRef = useRef<Map<string, boolean>>(new Map());
   const watchdogByImageRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const runningScanIdsRef = useRef<Set<string>>(new Set());
+  const terminalFailureIdsRef = useRef<Set<string>>(new Set());
 
   const clearWatchdog = useCallback((imageId: string) => {
     const timer = watchdogByImageRef.current.get(imageId);
@@ -187,9 +191,13 @@ export function useInstantOcrAutoScan(params: {
       imageId: string,
       code: "timeout" | "failed" | "interrupted",
       scanRequestId: string,
-      startedAt: string
+      startedAt: string,
+      detail?: { errorCode?: string; userMessage?: string }
     ) => {
       clearWatchdog(imageId);
+      if (code === "failed" || code === "timeout") {
+        terminalFailureIdsRef.current.add(imageId);
+      }
       const finishedAt = new Date().toISOString();
       const durationMs = Date.now() - new Date(startedAt).getTime();
       setImages((prev) =>
@@ -213,13 +221,14 @@ export function useInstantOcrAutoScan(params: {
               scanBusy: false,
               autoScanState: "done",
               autoScanComplete: true,
-              needsReview: code === "timeout",
-              reviewOpen: code === "timeout",
+              needsReview: false,
+              reviewOpen: false,
               scanFinishedAt: finishedAt,
               scanDurationMs: durationMs,
-              scanErrorCode: code,
+              scanErrorCode: detail?.errorCode ?? code,
+              scanStatusMessage: detail?.userMessage,
               scanRequestId,
-              blocks: code === "timeout" ? img.bakedText.blocks : [],
+              blocks: [],
             },
           };
         })
@@ -228,8 +237,14 @@ export function useInstantOcrAutoScan(params: {
         imageId,
         scanRequestId,
         durationMs,
+        errorCode: detail?.errorCode,
       });
-      logOcrAutoScan("state-update", { imageId, scanRequestId, phase: code });
+      logOcrAutoScan("state-update", {
+        imageId,
+        scanRequestId,
+        phase: code,
+        errorCode: detail?.errorCode,
+      });
     },
     [clearWatchdog, setImages]
   );
@@ -268,6 +283,7 @@ export function useInstantOcrAutoScan(params: {
         scanRequestId,
         scanStartedAt: startedAt,
         scanErrorCode: undefined,
+        scanStatusMessage: undefined,
         autoScanComplete: false,
       });
 
@@ -340,41 +356,92 @@ export function useInstantOcrAutoScan(params: {
               patchScan(imageId, { remoteWorkingUrl: imageUrl });
             }
 
-            const res = await fetchJsonWithTimeout(
-              `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ imageUrl, scanRequestId }),
-              },
-              OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS
-            );
-            const data = (await res.json().catch(() => ({}))) as DetectTextApiResponse;
+            let lastApiError: {
+              errorCode?: string;
+              userMessage?: string;
+              status: number;
+            } | null = null;
 
-            if (res.status === 504 || data.errorCode === "OCR_TIMEOUT" || data.status === "timeout") {
-              throw new Error("ocr_fetch_timeout");
+            for (let attempt = 0; attempt <= OCR_AUTO_RETRY_MAX; attempt += 1) {
+              if (attempt > 0) {
+                logOcrAutoScan("fetch-retry", { imageId, scanRequestId, attempt });
+                await sleep(OCR_AUTO_RETRY_DELAY_MS);
+              }
+
+              const res = await fetchJsonWithTimeout(
+                `/api/instant-premium/images/${encodeURIComponent(imageId)}/detect-text`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ imageUrl, scanRequestId }),
+                },
+                OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS
+              );
+              const data = (await res.json().catch(() => ({}))) as DetectTextApiResponse;
+
+              if (
+                res.status === 504 ||
+                data.errorCode === "OCR_TIMEOUT" ||
+                data.errorCode === "OPENAI_TIMEOUT" ||
+                data.status === "timeout"
+              ) {
+                const timeoutErr = {
+                  errorCode: data.errorCode ?? "OPENAI_TIMEOUT",
+                  userMessage: data.userMessage,
+                  status: res.status,
+                };
+                if (
+                  attempt < OCR_AUTO_RETRY_MAX &&
+                  isRetryableOcrErrorCode(timeoutErr.errorCode)
+                ) {
+                  lastApiError = timeoutErr;
+                  continue;
+                }
+                const err = new Error("ocr_fetch_timeout");
+                (err as Error & { ocrDetail?: typeof timeoutErr }).ocrDetail = timeoutErr;
+                throw err;
+              }
+
+              if (!res.ok) {
+                lastApiError = {
+                  errorCode: data.errorCode,
+                  userMessage: data.userMessage ?? data.error,
+                  status: res.status,
+                };
+                if (
+                  res.status === 503 &&
+                  attempt < OCR_AUTO_RETRY_MAX &&
+                  isRetryableOcrErrorCode(data.errorCode)
+                ) {
+                  continue;
+                }
+                const err = new Error(data.error ?? t("instant.bakedText.scanFailed"));
+                (err as Error & { ocrDetail?: typeof lastApiError }).ocrDetail = lastApiError;
+                throw err;
+              }
+
+              logOcrAutoScan("fetch-response", {
+                imageId,
+                scanRequestId: data.scanRequestId ?? scanRequestId,
+                blockCount: data.blockCount,
+                provider: data.provider,
+              });
+
+              return {
+                blocks: data.blocks ?? [],
+                autoConfirmed: data.autoConfirmed === true,
+                provider: data.provider,
+                blockCount: data.blockCount,
+                averageConfidence: data.averageConfidence,
+                durationMs: data.durationMs,
+                scanRequestId: data.scanRequestId ?? scanRequestId,
+              };
             }
-            if (!res.ok) {
-              throw new Error(data.error ?? t("instant.bakedText.scanFailed"));
-            }
 
-            logOcrAutoScan("fetch-response", {
-              imageId,
-              scanRequestId: data.scanRequestId ?? scanRequestId,
-              blockCount: data.blockCount,
-              provider: data.provider,
-            });
-
-            return {
-              blocks: data.blocks ?? [],
-              autoConfirmed: data.autoConfirmed === true,
-              provider: data.provider,
-              blockCount: data.blockCount,
-              averageConfidence: data.averageConfidence,
-              durationMs: data.durationMs,
-              scanRequestId: data.scanRequestId ?? scanRequestId,
-            };
+            const err = new Error(lastApiError?.userMessage ?? t("instant.bakedText.scanFailed"));
+            (err as Error & { ocrDetail?: typeof lastApiError }).ocrDetail = lastApiError ?? undefined;
+            throw err;
           };
 
           const promise = withTimeout(fetchBlocks(), OCR_SCAN_TIMEOUT_MS, "ocr");
@@ -413,10 +480,19 @@ export function useInstantOcrAutoScan(params: {
         if (abortByImageRef.current.get(imageId)) {
           return;
         }
-        if (isTimeoutError(error)) {
-          applyScanFailure(imageId, "timeout", scanRequestId, startedAt);
+        const ocrDetail = (error as Error & {
+          ocrDetail?: { errorCode?: string; userMessage?: string };
+        }).ocrDetail;
+        if (isTimeoutError(error) || error instanceof Error && error.message === "ocr_fetch_timeout") {
+          applyScanFailure(imageId, "timeout", scanRequestId, startedAt, {
+            errorCode: ocrDetail?.errorCode ?? "OPENAI_TIMEOUT",
+            userMessage: ocrDetail?.userMessage,
+          });
         } else {
-          applyScanFailure(imageId, "failed", scanRequestId, startedAt);
+          applyScanFailure(imageId, "failed", scanRequestId, startedAt, {
+            errorCode: ocrDetail?.errorCode,
+            userMessage: ocrDetail?.userMessage,
+          });
         }
       } finally {
         if (contentHash) {
@@ -434,7 +510,11 @@ export function useInstantOcrAutoScan(params: {
       }
       if (options?.force) {
         runningScanIdsRef.current.delete(imageId);
-      } else if (runningScanIdsRef.current.has(imageId)) {
+        terminalFailureIdsRef.current.delete(imageId);
+      } else if (
+        runningScanIdsRef.current.has(imageId) ||
+        terminalFailureIdsRef.current.has(imageId)
+      ) {
         return;
       }
       runningScanIdsRef.current.add(imageId);

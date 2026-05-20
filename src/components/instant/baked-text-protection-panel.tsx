@@ -36,6 +36,7 @@ export type BakedTextProtectionDraft = {
   scanBlockCount?: number;
   scanAverageConfidence?: number;
   scanErrorCode?: string;
+  scanStatusMessage?: string;
 };
 
 type Props = {

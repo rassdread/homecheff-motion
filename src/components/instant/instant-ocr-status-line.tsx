@@ -55,7 +55,11 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     return () => clearInterval(timer);
   }, [active, bakedText.scanStartedAt]);
 
-  const labelKey = statusKeyForPhase(bakedText.scanPhase ?? (active ? "calling_ocr" : "idle"));
+  const phase = bakedText.scanPhase ?? (active ? "calling_ocr" : "idle");
+  const labelKey = statusKeyForPhase(phase);
+  const showDetailMessage =
+    Boolean(bakedText.scanStatusMessage) &&
+    (phase === "failed" || phase === "timeout" || phase === "interrupted");
   const blockCount = bakedText.scanBlockCount ?? bakedText.blocks.length;
   const liveElapsedMs =
     active && bakedText.scanStartedAt
@@ -81,6 +85,9 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
           </span>
         ) : null}
       </p>
+      {showDetailMessage ? (
+        <p className="text-xs text-red-800/90">{bakedText.scanStatusMessage}</p>
+      ) : null}
       {isAdmin && bakedText.scanRequestId ? (
         <p className="font-mono text-[10px] text-zinc-400">
           {bakedText.scanRequestId.slice(0, 8)}…

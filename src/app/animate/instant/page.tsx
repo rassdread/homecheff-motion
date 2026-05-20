@@ -446,6 +446,15 @@ export default function InstantPremiumPage() {
       if (bt.userSkipped || bt.scanPhase === "skipped") {
         return false;
       }
+      if (
+        bt.scanPhase === "failed" ||
+        bt.scanPhase === "timeout" ||
+        bt.scanPhase === "auto_protected" ||
+        bt.scanPhase === "needs_review" ||
+        bt.scanPhase === "no_text_found"
+      ) {
+        return false;
+      }
       if (bt.autoScanComplete && bt.scanPhase !== "interrupted") {
         return false;
       }
