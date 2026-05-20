@@ -6,9 +6,14 @@ import {
   suggestFontSizeForBbox,
   type DetectedTextBlock,
 } from "@/lib/baked-text-detection";
+import { OCR_OPENAI_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import { classifyOpenAiApiFailure, OcrProviderError } from "@/lib/ocr-provider-errors";
-import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
-import type { ImageTextDetectionProvider, ImageTextDetectionResult } from "@/server/image-text-detection/types";
+import { logOcrPerf } from "@/lib/ocr-performance-log";
+import type {
+  ImageTextDetectionOptions,
+  ImageTextDetectionProvider,
+  ImageTextDetectionResult,
+} from "@/server/image-text-detection/types";
 
 type OpenAiBlock = {
   text?: string;
@@ -20,53 +25,74 @@ type OpenAiBlock = {
   language?: string;
 };
 
+const FAST_SYSTEM =
+  'Return JSON only: {"imageWidth":number,"imageHeight":number,"blocks":[{"text":string,"confidence":number,"x":number,"y":number,"width":number,"height":number}]} . Normalized 0-1 boxes. UI/sign/caption text ≥2 chars. Skip noise.';
+
+const FULL_SYSTEM =
+  'Return JSON: {"imageWidth", "imageHeight", "blocks":[{"text","confidence","x","y","width","height","language"}]} . Normalized 0-1 top-left boxes. UI labels and readable copy ≥2 chars.';
+
 export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTextDetectionProvider {
   const model = process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o-mini";
 
   return {
     id: "openai_vision",
-    async detectTextBlocks(inputImageUrl: string): Promise<ImageTextDetectionResult> {
+    async detectTextBlocks(
+      inputImageUrl: string,
+      options?: ImageTextDetectionOptions
+    ): Promise<ImageTextDetectionResult> {
+      const mode = options?.mode ?? "fast";
+      const started = Date.now();
       const signal =
         typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
-          ? AbortSignal.timeout(OCR_DETECT_SERVER_TIMEOUT_MS)
+          ? AbortSignal.timeout(OCR_OPENAI_TIMEOUT_MS)
           : undefined;
 
       let res: Response;
       try {
         res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        signal,
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You detect readable text blocks in images. Return JSON: { imageWidth, imageHeight, blocks: [{ text, confidence, x, y, width, height, language }] } where x,y,width,height are normalized 0-1 bounding boxes (top-left origin). Include UI labels, phone screens, signs, captions. Exclude noise under 2 chars.",
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Detect all text blocks." },
-                { type: "image_url", image_url: { url: inputImageUrl } },
-              ],
-            },
-          ],
-        }),
-      });
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          signal,
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: mode === "fast" ? 900 : 1400,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: mode === "fast" ? FAST_SYSTEM : FULL_SYSTEM,
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: mode === "fast" ? "Detect text blocks." : "Detect all text blocks." },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: inputImageUrl,
+                      detail: mode === "fast" ? "low" : "auto",
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        });
       } catch (error) {
         const name = error instanceof Error ? error.name : "";
         if (name === "AbortError" || name === "TimeoutError") {
+          logOcrPerf("openai-timeout", { mode, durationMs: Date.now() - started });
           throw new OcrProviderError("OPENAI_TIMEOUT", "OpenAI vision OCR timed out.", "openai_vision");
         }
         throw error;
       }
+
+      const openAiMs = Date.now() - started;
+      logOcrPerf("openai-response", { mode, status: res.status, openAiMs });
 
       const body = (await res.json().catch(() => ({}))) as {
         error?: { message?: string };
@@ -74,11 +100,7 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
       };
       if (!res.ok) {
         const msg = body.error?.message ?? `OpenAI vision OCR failed (${res.status}).`;
-        throw new OcrProviderError(
-          classifyOpenAiApiFailure(res.status, msg),
-          msg,
-          "openai_vision"
-        );
+        throw new OcrProviderError(classifyOpenAiApiFailure(res.status, msg), msg, "openai_vision");
       }
 
       const content = body.choices?.[0]?.message?.content ?? "{}";
@@ -127,6 +149,8 @@ export function createOpenAiVisionTextDetectionProvider(apiKey: string): ImageTe
           blockType,
         });
       }
+
+      logOcrPerf("openai-parsed", { mode, blockCount: blocks.length, openAiMs });
 
       return { provider: "openai_vision", blocks, imageWidth, imageHeight };
     },

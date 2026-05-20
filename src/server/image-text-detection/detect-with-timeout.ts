@@ -1,12 +1,14 @@
 import { OcrProviderError } from "@/lib/ocr-provider-errors";
+import { logOcrPerf } from "@/lib/ocr-performance-log";
 import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
+import type { OcrDetectMode } from "@/lib/instant-ocr-scan";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
 import type { ImageTextDetectionResult } from "@/server/image-text-detection/types";
 
 export class OcrDetectTimeoutError extends Error {
   readonly code = "OCR_TIMEOUT";
 
-  constructor(message = "OCR detection timed out.") {
+  constructor(message = "OCR detection timed out.", readonly phase = "openai") {
     super(message);
     this.name = "OcrDetectTimeoutError";
   }
@@ -18,32 +20,45 @@ function logOcrDetect(event: string, payload?: Record<string, unknown>): void {
 
 export async function detectTextBlocksFromImageUrlWithTimeout(
   imageUrl: string,
-  scanRequestId: string
+  scanRequestId: string,
+  options?: { mode?: OcrDetectMode }
 ): Promise<ImageTextDetectionResult> {
-  logOcrDetect("start", { scanRequestId, imageUrl: imageUrl.slice(0, 80) });
+  const mode = options?.mode ?? "fast";
+  const started = Date.now();
+  logOcrDetect("start", { scanRequestId, mode, imageUrl: imageUrl.slice(0, 80) });
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const result = await Promise.race([
-      detectTextBlocksFromImageUrl(imageUrl),
+      detectTextBlocksFromImageUrl(imageUrl, { mode }),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new OcrDetectTimeoutError()), OCR_DETECT_SERVER_TIMEOUT_MS);
+        timer = setTimeout(
+          () => reject(new OcrDetectTimeoutError("OpenAI OCR timed out.", "openai")),
+          OCR_DETECT_SERVER_TIMEOUT_MS
+        );
       }),
     ]);
+    const openAiMs = Date.now() - started;
     logOcrDetect("response", {
       scanRequestId,
       provider: result.provider,
       blockCount: result.blocks.length,
+      openAiMs,
     });
+    logOcrPerf("detect-complete", { scanRequestId, mode, openAiMs, blockCount: result.blocks.length });
     return result;
   } catch (error) {
+    const durationMs = Date.now() - started;
     if (error instanceof OcrDetectTimeoutError) {
       logOcrDetect("timeout", {
         scanRequestId,
         errorCode: error.code,
         status: 504,
         provider: "openai",
+        durationMs,
+        phase: error.phase,
       });
+      logOcrPerf("detect-timeout", { scanRequestId, mode, durationMs, phase: error.phase });
       throw error;
     }
     const errorCode =
@@ -57,7 +72,9 @@ export async function detectTextBlocksFromImageUrlWithTimeout(
       status: 503,
       provider,
       message,
+      durationMs,
     });
+    logOcrPerf("detect-error", { scanRequestId, mode, durationMs, errorCode });
     throw error;
   } finally {
     if (timer) {

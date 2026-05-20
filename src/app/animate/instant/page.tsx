@@ -356,6 +356,44 @@ export default function InstantPremiumPage() {
     );
   }, []);
 
+  const uploadOcrBlob = useCallback(
+    async (img: LocalImage, ocrBlob: Blob): Promise<UploadImageResponse> => {
+      const formData = new FormData();
+      formData.append(
+        "workingImage",
+        new File([ocrBlob], `ocr-${img.id}.jpg`, { type: "image/jpeg" })
+      );
+      formData.append(
+        "thumbnailImage",
+        new File([img.thumbnailBlob], `thumb-${img.id}`, { type: img.mimeType })
+      );
+      formData.append("originalFileName", img.originalFileName);
+      formData.append("mimeType", "image/jpeg");
+      formData.append("sizeBytes", String(ocrBlob.size));
+      formData.append("clientUploadId", `${img.id}-ocr`);
+      const res = await fetch("/api/uploads/images", { method: "POST", body: formData });
+      if (!res.ok) {
+        throw new Error(t("instant.errors.uploadFailed"));
+      }
+      const payload = (await res.json()) as UploadImageResponse;
+      setImages((prev) =>
+        prev.map((row) =>
+          row.id === img.id
+            ? {
+                ...row,
+                bakedText: {
+                  ...row.bakedText,
+                  remoteWorkingUrl: payload.workingImageUrl,
+                },
+              }
+            : row
+        )
+      );
+      return payload;
+    },
+    [t]
+  );
+
   const uploadToBlob = useCallback(async (img: LocalImage): Promise<UploadImageResponse> => {
     const formData = new FormData();
     formData.append(
@@ -395,7 +433,7 @@ export default function InstantPremiumPage() {
     useInstantOcrAutoScan({
     fastRenderMode,
     t: (key, values) => t(key as never, values as never),
-    uploadToBlob,
+    uploadOcrBlob,
     setImages,
     updateBakedText,
   });

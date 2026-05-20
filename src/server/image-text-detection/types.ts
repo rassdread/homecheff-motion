@@ -13,7 +13,16 @@ export type ImageTextDetectionResult = {
   imageHeight: number;
 };
 
+export type ImageTextDetectionMode = "fast" | "full";
+
+export type ImageTextDetectionOptions = {
+  mode?: ImageTextDetectionMode;
+};
+
 export type ImageTextDetectionProvider = {
   id: ImageTextDetectionProviderId;
-  detectTextBlocks(inputImageUrl: string): Promise<ImageTextDetectionResult>;
+  detectTextBlocks(
+    inputImageUrl: string,
+    options?: ImageTextDetectionOptions
+  ): Promise<ImageTextDetectionResult>;
 };

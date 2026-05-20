@@ -189,7 +189,13 @@ export function clearPersistedWizardState(): void {
 /** Mark in-flight scans as interrupted after reload. */
 export function normalizeBakedTextAfterRestore(baked: SerializedBakedText): SerializedBakedText {
   const phase = baked.scanPhase;
-  if (phase === "queued" || phase === "uploading" || phase === "calling_ocr") {
+  if (
+    phase === "queued" ||
+    phase === "optimizing" ||
+    phase === "uploading" ||
+    phase === "calling_ocr" ||
+    phase === "detecting_blocks"
+  ) {
     return {
       ...baked,
       scanPhase: "interrupted",

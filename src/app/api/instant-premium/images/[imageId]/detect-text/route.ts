@@ -36,7 +36,9 @@ export async function POST(request: Request, context: RouteContext) {
   const body = (await request.json().catch(() => ({}))) as {
     imageUrl?: string;
     scanRequestId?: string;
+    mode?: "fast" | "full";
   };
+  const mode = body.mode === "full" ? "full" : "fast";
   const scanRequestId =
     typeof body.scanRequestId === "string" && body.scanRequestId.trim()
       ? body.scanRequestId.trim()
@@ -81,7 +83,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId);
+    const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId, { mode });
     const detected = result.blocks.map(detectedBlockToRecord);
     const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
     const { blocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(

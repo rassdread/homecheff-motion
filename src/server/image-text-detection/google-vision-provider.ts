@@ -56,7 +56,11 @@ function mapLocale(locale: string | undefined): DetectedTextBlock["language"] | 
 export function createGoogleVisionTextDetectionProvider(apiKey: string): ImageTextDetectionProvider {
   return {
     id: "google_vision",
-    async detectTextBlocks(inputImageUrl: string): Promise<ImageTextDetectionResult> {
+    async detectTextBlocks(
+      inputImageUrl: string,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- options reserved for OpenAI parity
+      _options?: import("@/server/image-text-detection/types").ImageTextDetectionOptions
+    ): Promise<ImageTextDetectionResult> {
       const { base64, width, height } = await fetchImageBase64(inputImageUrl);
       const res = await fetch(
         `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey)}`,

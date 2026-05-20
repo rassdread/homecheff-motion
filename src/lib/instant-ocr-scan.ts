@@ -1,16 +1,29 @@
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
 
-export const OCR_SCAN_TIMEOUT_MS = 12_000;
-export const OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS = 12_000;
-export const OCR_DETECT_SERVER_TIMEOUT_MS = 10_000;
+/** Upload-only budget (OCR-sized JPEG to blob storage). */
+export const OCR_UPLOAD_TIMEOUT_MS = 8_000;
+/** OpenAI Vision round-trip (server + client fetch). */
+export const OCR_OPENAI_TIMEOUT_MS = 20_000;
+/** Hard watchdog for full scan pipeline per image. */
+export const OCR_WATCHDOG_TIMEOUT_MS = 28_000;
+
+export const OCR_SCAN_CLIENT_FETCH_TIMEOUT_MS = OCR_WATCHDOG_TIMEOUT_MS;
+export const OCR_DETECT_SERVER_TIMEOUT_MS = OCR_OPENAI_TIMEOUT_MS;
+
+/** @deprecated Use OCR_WATCHDOG_TIMEOUT_MS */
+export const OCR_SCAN_TIMEOUT_MS = OCR_WATCHDOG_TIMEOUT_MS;
+
 export const OCR_MAX_CONCURRENT_SCANS = 2;
-export const CHECKOUT_PENDING_SCAN_WAIT_MS = 8_000;
+export const OCR_IMMEDIATE_AUTO_SCAN_COUNT = 2;
+export const CHECKOUT_PENDING_SCAN_WAIT_MS = 24_000;
 
 export type OcrScanPhase =
   | "idle"
   | "queued"
+  | "optimizing"
   | "uploading"
   | "calling_ocr"
+  | "detecting_blocks"
   | "received_result"
   | "auto_protected"
   | "needs_review"
@@ -19,6 +32,8 @@ export type OcrScanPhase =
   | "failed"
   | "skipped"
   | "interrupted";
+
+export type OcrDetectMode = "fast" | "full";
 
 export type OcrScanDiagnostics = {
   scanRequestId?: string;
@@ -48,6 +63,7 @@ export type DetectTextApiResponse = {
   userMessage?: string;
   blocks?: BakedTextBlockRecord[];
   imageId?: string;
+  skippedOpenAi?: boolean;
 };
 
 export const OCR_AUTO_RETRY_DELAY_MS = 2_000;
@@ -72,7 +88,13 @@ export function createScanRequestId(): string {
 }
 
 export function isActiveOcrScanPhase(phase: OcrScanPhase | undefined): boolean {
-  return phase === "queued" || phase === "uploading" || phase === "calling_ocr";
+  return (
+    phase === "queued" ||
+    phase === "optimizing" ||
+    phase === "uploading" ||
+    phase === "calling_ocr" ||
+    phase === "detecting_blocks"
+  );
 }
 
 export function isPendingOcrScanPhase(phase: OcrScanPhase | undefined): boolean {

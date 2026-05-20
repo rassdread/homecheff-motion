@@ -9,12 +9,16 @@ function statusKeyForPhase(phase: OcrScanPhase | undefined): string {
   switch (phase) {
     case "queued":
       return "instant.ocrStatus.queued";
+    case "optimizing":
+      return "instant.ocrStatus.optimizing";
     case "uploading":
       return "instant.ocrStatus.uploading";
     case "calling_ocr":
       return "instant.ocrStatus.callingOcr";
+    case "detecting_blocks":
+      return "instant.ocrStatus.detectingBlocks";
     case "received_result":
-      return "instant.ocrStatus.receivedResult";
+      return "instant.ocrStatus.preparingProtection";
     case "auto_protected":
       return "instant.ocrStatus.autoProtected";
     case "needs_review":
@@ -51,7 +55,7 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
     if (!active || !bakedText.scanStartedAt) {
       return;
     }
-    const timer = setInterval(() => setNowMs(Date.now()), 500);
+    const timer = setInterval(() => setNowMs(Date.now()), 400);
     return () => clearInterval(timer);
   }, [active, bakedText.scanStartedAt]);
 
@@ -66,11 +70,42 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
       ? nowMs - new Date(bakedText.scanStartedAt).getTime()
       : bakedText.scanDurationMs;
 
+  const progressPercent = (() => {
+    if (!active) {
+      return 0;
+    }
+    switch (phase) {
+      case "queued":
+        return 12;
+      case "optimizing":
+        return 28;
+      case "uploading":
+        return 42;
+      case "calling_ocr":
+        return 68;
+      case "detecting_blocks":
+        return 88;
+      default:
+        return 10;
+    }
+  })();
+
   return (
-    <div className="mt-2 space-y-1">
+    <div className="mt-2 space-y-2">
+      {active ? (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-sky-100">
+          <div
+            className="h-full rounded-full bg-sky-600 transition-all duration-500 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      ) : null}
       <p
         className={`text-xs ${active ? "text-sky-800" : "text-zinc-600"} ${active ? "animate-pulse" : ""}`}
       >
+        {active ? (
+          <span className="mr-1.5 inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-sky-300 border-t-sky-700 align-[-2px]" />
+        ) : null}
         {t(labelKey as never)}
         {blockCount > 0 && bakedText.scanPhase === "calling_ocr" ? (
           <span className="text-zinc-500"> · {t("instant.ocrStatus.blocksPending")}</span>
@@ -93,9 +128,6 @@ export function InstantOcrStatusLine({ bakedText, isAdmin }: Props) {
           {bakedText.scanRequestId.slice(0, 8)}…
           {liveElapsedMs != null ? ` · ${liveElapsedMs}ms` : ""}
           {bakedText.scanProvider ? ` · ${bakedText.scanProvider}` : ""}
-          {bakedText.scanAverageConfidence != null
-            ? ` · ${Math.round(bakedText.scanAverageConfidence * 100)}%`
-            : ""}
         </p>
       ) : null}
     </div>
