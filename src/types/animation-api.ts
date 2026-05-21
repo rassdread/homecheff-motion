@@ -325,6 +325,20 @@ export type ProjectPlaybackDebugSummary = {
   finalHash?: string | null;
   previousFinalHash?: string | null;
   identicalOutputDetected?: boolean;
+  rebuildCandidateVideoUrl?: string | null;
+  validationOk?: boolean | null;
+  rebuildCompareLinks?: {
+    previousFinalVideoUrl: string | null;
+    currentFinalVideoUrl: string | null;
+    rebuildCandidateVideoUrl: string | null;
+    segments: Array<{
+      segmentIndex: number;
+      label: string;
+      providerVideoUrl: string | null;
+      downloadedHash: string | null;
+      concatHash: string | null;
+    }>;
+  };
 };
 
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {

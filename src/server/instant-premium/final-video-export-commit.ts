@@ -31,6 +31,9 @@ export async function commitInstantPremiumFinalVideoExport(params: {
   previousFinalUrl: string | null;
   nextRebuildCount: number;
   segmentCount: number;
+  rebuildCandidateUrl?: string | null;
+  identicalOutputDetected?: boolean;
+  validationOk?: boolean;
 }): Promise<void> {
   const {
     projectId,
@@ -41,6 +44,9 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     previousFinalUrl,
     nextRebuildCount,
     segmentCount,
+    rebuildCandidateUrl = null,
+    identicalOutputDetected = false,
+    validationOk = true,
   } = params;
   const rebuiltAt = new Date();
   const textValidation = validateLockedTextLayerMetadata(lockedLayers);
@@ -100,12 +106,25 @@ export async function commitInstantPremiumFinalVideoExport(params: {
                 newFinalVideoUrl: finalUrl,
                 recordedAt: rebuiltAt.toISOString(),
                 status: "completed",
+                rebuildCandidateVideoUrl: rebuildCandidateUrl,
+                identicalOutputDetected,
+                validationOk,
               }
             ) as object,
           }
         : {}),
     },
   });
+
+  if (isRebuild && identicalOutputDetected) {
+    console.warn("[final-video-rebuild-audit]", {
+      projectId,
+      identicalOutputDetected: true,
+      validationOk,
+      rebuildCandidateUrl,
+      committedFinalUrl: finalUrl,
+    });
+  }
 
   const resolvedPlaybackUrl =
     resolveLatestExportPlaybackUrl(
@@ -185,6 +204,8 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
   failureReason?: InstantPremiumFailureReason;
   provider?: string | null;
   failedStage?: string;
+  rebuildCandidateUrl?: string | null;
+  validationErrors?: string[];
 }): Promise<void> {
   const {
     projectId,
@@ -196,6 +217,8 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     failureReason = "merge_failed",
     provider = null,
     failedStage = "merge_clips",
+    rebuildCandidateUrl = null,
+    validationErrors = [],
   } = params;
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
@@ -219,6 +242,9 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     newFinalVideoUrl: null,
     recordedAt: failedAt.toISOString(),
     status: "failed",
+    rebuildCandidateVideoUrl: rebuildCandidateUrl,
+    validationOk: false,
+    validationErrors,
   };
 
   await prisma.animationExport.update({

@@ -227,6 +227,40 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
               value={`/api/admin/instant-premium/projects/${projectId}/assembly-diagnostics`}
             />
           ) : null}
+          {adminDebug?.rebuildCompareLinks ? (
+            <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/80 p-3 text-xs">
+              <p className="font-semibold text-blue-950">Rebuild compare links</p>
+              <DebugRow
+                label="previous final"
+                value={adminDebug.rebuildCompareLinks.previousFinalVideoUrl}
+              />
+              <DebugRow
+                label="current final"
+                value={adminDebug.rebuildCompareLinks.currentFinalVideoUrl}
+              />
+              <DebugRow
+                label="rebuild candidate"
+                value={adminDebug.rebuildCompareLinks.rebuildCandidateVideoUrl}
+              />
+              <ul className="mt-2 space-y-1">
+                {adminDebug.rebuildCompareLinks.segments.map((seg) => (
+                  <li key={seg.segmentIndex} className="break-all text-blue-900">
+                    {seg.label}:{" "}
+                    <a
+                      href={seg.providerVideoUrl ?? undefined}
+                      className="underline"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      provider
+                    </a>
+                    {seg.downloadedHash ? ` · dl ${seg.downloadedHash.slice(0, 12)}…` : ""}
+                    {seg.concatHash ? ` · concat ${seg.concatHash.slice(0, 12)}…` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {adminDebug?.hardAssemblyDiagnostics ? (
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs">
               <p className="font-semibold text-zinc-800">Hard assembly comparison</p>

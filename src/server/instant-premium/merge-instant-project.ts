@@ -84,8 +84,13 @@ import {
   purgeStaleProjectMergeArtifacts,
   removeRebuildWorkspace,
 } from "@/server/instant-premium/clean-rebuild-workspace";
-import { assertFreshRebuildOutput } from "@/server/instant-premium/assert-fresh-rebuild-output";
+import { finalizeRebuildOutput } from "@/server/instant-premium/assert-fresh-rebuild-output";
 import {
+  REBUILD_OUTPUT_VALIDATION_FAILED,
+  RebuildOutputValidationError,
+} from "@/server/instant-premium/rebuild-output-validation";
+import {
+  getRebuildAssemblyTrace,
   startRebuildAssemblyTrace,
   upsertRebuildSegmentTrace,
 } from "@/server/instant-premium/rebuild-assembly-trace";
@@ -768,7 +773,9 @@ export async function executeInstantPremiumMerge(
             segmentIndex: entry.segmentIndex,
             sourceVideoUrl: segmentUrls[entry.segmentIndex] ?? "",
             downloadedFilePath: segmentPaths[entry.segmentIndex] ?? "",
-            downloadedFileHash: concatInputHash,
+            downloadedFileHash: await hashFileSha256(
+              segmentPaths[entry.segmentIndex] ?? entry.selectedSourcePath
+            ).catch(() => concatInputHash),
             concatInputPath: entry.selectedSourcePath,
             concatInputHash,
             durationSec: probed?.durationSec,
@@ -941,15 +948,28 @@ export async function executeInstantPremiumMerge(
         await fs.copyFile(mergedPath, finalAbs);
       }
 
+      let rebuildFinalize: Awaited<ReturnType<typeof finalizeRebuildOutput>> | null = null;
       if (isFinalRebuild && rebuildId) {
         const finalOutputHash = await hashFileSha256(mergedPath);
-        assertFreshRebuildOutput({
+        rebuildFinalize = await finalizeRebuildOutput({
           projectId,
           rebuildId,
           finalOutputPath: mergedPath,
           finalOutputHash,
           previousFinalHash,
+          expectedSegmentCount: expectedTransitionCount,
+          perSegmentDurationSec,
         });
+        if (rebuildFinalize.identicalOutputDetected) {
+          console.warn("[hc-instant-premium]", {
+            projectId,
+            phase: "rebuildIdenticalOutputWarning",
+            identicalOutputDetected: true,
+            validationOk: rebuildFinalize.validationOk,
+            rebuildCandidateUrl: rebuildFinalize.rebuildCandidateUrl,
+            plainConcatSafeMode: rebuildFinalize.plainConcatSafeMode,
+          });
+        }
       }
 
       await prisma.animationExport.update({
@@ -976,6 +996,9 @@ export async function executeInstantPremiumMerge(
         previousFinalUrl,
         nextRebuildCount,
         segmentCount: orderedSegments.length,
+        rebuildCandidateUrl: rebuildFinalize?.rebuildCandidateUrl ?? null,
+        identicalOutputDetected: rebuildFinalize?.identicalOutputDetected ?? false,
+        validationOk: rebuildFinalize?.validationOk ?? true,
       });
       console.info("[hc-instant-premium]", {
         projectId,
@@ -989,11 +1012,22 @@ export async function executeInstantPremiumMerge(
       const uploadCode = classifyExportBlobFailure(error);
       const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
       const timedOut = isTimeoutLikeError(error);
+      const validationFailed =
+        error instanceof RebuildOutputValidationError ||
+        (error instanceof Error &&
+          error.message.includes(REBUILD_OUTPUT_VALIDATION_FAILED));
       const staleRebuild =
-        error instanceof StaleRebuildOutputError ||
-        (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT));
+        !validationFailed &&
+        (error instanceof StaleRebuildOutputError ||
+          (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT)));
+      const failedTrace = getRebuildAssemblyTrace(projectId);
+      const failedCandidateUrl = failedTrace?.rebuildCandidateUrl ?? null;
       const message =
-        staleRebuild
+        validationFailed
+          ? error instanceof Error
+            ? error.message
+            : `[${REBUILD_OUTPUT_VALIDATION_FAILED}] Rebuild validation failed.`
+          : staleRebuild
           ? error instanceof Error
             ? error.message
             : `[${STALE_REBUILD_OUTPUT}] Rebuild produced stale final output.`
@@ -1042,6 +1076,10 @@ export async function executeInstantPremiumMerge(
           failureReason,
           provider: exportProvider,
           failedStage,
+          rebuildCandidateUrl: failedCandidateUrl,
+          validationErrors: validationFailed
+            ? failedTrace?.validationErrors ?? []
+            : [],
         });
       } else {
         await prisma.animationExport.update({

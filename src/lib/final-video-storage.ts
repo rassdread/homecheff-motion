@@ -7,6 +7,12 @@ export function finalBlobPathname(projectId: string, rebuildVersion = 0): string
   return `motion/final/${projectId}/final-v${rebuildVersion}.mp4`;
 }
 
+/** Debug / compare URL for a rebuild attempt (always uploaded when merge succeeds). */
+export function rebuildCandidateBlobPathname(projectId: string, rebuildId: string): string {
+  const safe = rebuildId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);
+  return `motion/final/${projectId}/rebuild-candidate-${safe}.mp4`;
+}
+
 /** Append cache-bust query so players refetch after rebuild. */
 export function resolvePublicFinalVideoUrl(params: {
   outputVideoUrl: string | null | undefined;
@@ -74,6 +80,10 @@ export type FinalVideoRebuildAuditEvent = {
   newFinalVideoUrl: string | null;
   recordedAt: string;
   status: "started" | "completed" | "failed";
+  rebuildCandidateVideoUrl?: string | null;
+  identicalOutputDetected?: boolean;
+  validationOk?: boolean;
+  validationErrors?: string[];
 };
 
 export function parseFinalVideoRebuildAuditJson(

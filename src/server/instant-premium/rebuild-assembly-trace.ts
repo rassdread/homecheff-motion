@@ -25,6 +25,9 @@ export type RebuildAssemblyTrace = {
   finalOutputHash?: string;
   segmentHashes: string[];
   identicalOutputDetected: boolean;
+  rebuildCandidateUrl?: string | null;
+  validationOk?: boolean;
+  validationErrors?: string[];
   segments: RebuildSegmentTrace[];
 };
 
@@ -113,6 +116,9 @@ export function finalizeRebuildAssemblyTrace(
       | "finalOutputHash"
       | "segmentHashes"
       | "identicalOutputDetected"
+      | "rebuildCandidateUrl"
+      | "validationOk"
+      | "validationErrors"
     >
   >
 ): RebuildAssemblyTrace | null {

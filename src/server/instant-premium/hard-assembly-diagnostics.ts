@@ -35,6 +35,18 @@ export type HardAssemblyDiagnostics = {
     FINAL_ASSEMBLY_SAFE_MODE: string | null;
     plainConcatActive: boolean;
   };
+  rebuildCompareLinks: {
+    previousFinalVideoUrl: string | null;
+    currentFinalVideoUrl: string | null;
+    rebuildCandidateVideoUrl: string | null;
+    segments: Array<{
+      segmentIndex: number;
+      label: string;
+      providerVideoUrl: string | null;
+      downloadedHash: string | null;
+      concatHash: string | null;
+    }>;
+  };
 };
 
 export async function buildHardAssemblyDiagnostics(
@@ -134,6 +146,27 @@ export async function buildHardAssemblyDiagnostics(
       providerPresent === expected,
   };
 
+  const sortedImages = [...project.images].sort((a, b) => a.order - b.order);
+  const rebuildCompareLinks = {
+    previousFinalVideoUrl: project.instantPreviousFinalVideoUrl?.trim() ?? null,
+    currentFinalVideoUrl: latestExport?.outputVideoUrl?.trim() ?? null,
+    rebuildCandidateVideoUrl: rebuildTrace?.rebuildCandidateUrl?.trim() ?? null,
+    segments: [...project.transitions]
+      .sort((a, b) => a.order - b.order)
+      .map((t) => {
+        const traceSeg = rebuildTrace?.segments.find((s) => s.transitionId === t.id);
+        const startNum = sortedImages.findIndex((img) => img.id === t.startImageId) + 1 || t.order + 1;
+        const endNum = sortedImages.findIndex((img) => img.id === t.endImageId) + 1 || t.order + 2;
+        return {
+          segmentIndex: t.order,
+          label: `${startNum}→${endNum}`,
+          providerVideoUrl: t.outputVideoUrl?.trim() ?? null,
+          downloadedHash: traceSeg?.downloadedFileHash ?? storageRows.find((r) => r.transitionId === t.id)?.sha256 ?? null,
+          concatHash: traceSeg?.concatInputHash ?? null,
+        };
+      }),
+  };
+
   return {
     projectId,
     imageCount: project.images.length,
@@ -151,6 +184,7 @@ export async function buildHardAssemblyDiagnostics(
       FINAL_ASSEMBLY_SAFE_MODE: readFinalAssemblySafeMode(),
       plainConcatActive: isPlainConcatSafeMode(),
     },
+    rebuildCompareLinks,
   };
 }
 

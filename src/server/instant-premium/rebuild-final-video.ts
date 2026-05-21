@@ -19,6 +19,10 @@ import {
 } from "@/lib/export-timeout";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import {
+  REBUILD_OUTPUT_VALIDATION_FAILED,
+  RebuildOutputValidationError,
+} from "@/server/instant-premium/rebuild-output-validation";
+import {
   STALE_REBUILD_OUTPUT,
   StaleRebuildOutputError,
 } from "@/server/instant-premium/stale-rebuild-output";
@@ -240,9 +244,14 @@ export async function rebuildInstantPremiumFinalVideo(
   try {
     await runFinalExportToCompletion(projectId, { force: true });
   } catch (error) {
+    const validationFailed =
+      error instanceof RebuildOutputValidationError ||
+      (error instanceof Error &&
+        error.message.includes(REBUILD_OUTPUT_VALIDATION_FAILED));
     const staleOutput =
-      error instanceof StaleRebuildOutputError ||
-      (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT));
+      !validationFailed &&
+      (error instanceof StaleRebuildOutputError ||
+        (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT)));
     const timedOut =
       !staleOutput &&
       (error instanceof FinalExportTimeoutError ||
@@ -269,7 +278,11 @@ export async function rebuildInstantPremiumFinalVideo(
         ffmpegCommand: activeStage?.ffmpegCommand,
       });
     }
-    const message = staleOutput
+    const message = validationFailed
+      ? error instanceof Error
+        ? error.message
+        : `[${REBUILD_OUTPUT_VALIDATION_FAILED}] Rebuild validation failed.`
+      : staleOutput
       ? error instanceof Error
         ? error.message
         : `[${STALE_REBUILD_OUTPUT}] Rebuild produced identical output to previous final.`
@@ -284,7 +297,9 @@ export async function rebuildInstantPremiumFinalVideo(
       mode: textRenderMode,
       blendStrength,
       error: message,
-      code: staleOutput
+      code: validationFailed
+        ? REBUILD_OUTPUT_VALIDATION_FAILED
+        : staleOutput
         ? STALE_REBUILD_OUTPUT
         : timedOut
           ? REBUILD_FAILED_TIMEOUT
@@ -311,7 +326,9 @@ export async function rebuildInstantPremiumFinalVideo(
     }
     return {
       ok: false,
-      code: staleOutput
+      code: validationFailed
+        ? REBUILD_OUTPUT_VALIDATION_FAILED
+        : staleOutput
         ? STALE_REBUILD_OUTPUT
         : timedOut
           ? REBUILD_FAILED_TIMEOUT

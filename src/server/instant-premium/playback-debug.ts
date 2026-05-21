@@ -62,6 +62,11 @@ export type ProjectPlaybackDebugPayload = {
   finalHash: string | null;
   previousFinalHash: string | null;
   identicalOutputDetected: boolean;
+  rebuildCandidateVideoUrl: string | null;
+  validationOk: boolean | null;
+  rebuildCompareLinks: NonNullable<
+    Awaited<ReturnType<typeof buildHardAssemblyDiagnostics>>
+  >["rebuildCompareLinks"];
 };
 
 export async function getProjectPlaybackDebug(
@@ -174,6 +179,12 @@ export async function getProjectPlaybackDebug(
         FINAL_ASSEMBLY_SAFE_MODE: null,
         plainConcatActive: false,
       },
+      rebuildCompareLinks: {
+        previousFinalVideoUrl: null,
+        currentFinalVideoUrl: null,
+        rebuildCandidateVideoUrl: null,
+        segments: [],
+      },
     };
 
   return {
@@ -229,6 +240,9 @@ export async function getProjectPlaybackDebug(
     finalHash: rebuildTrace?.finalOutputHash ?? null,
     previousFinalHash: rebuildTrace?.previousFinalHash ?? null,
     identicalOutputDetected: rebuildTrace?.identicalOutputDetected ?? false,
+    rebuildCandidateVideoUrl: hardAssemblyDiagnostics.rebuildCompareLinks.rebuildCandidateVideoUrl,
+    validationOk: rebuildTrace?.validationOk ?? null,
+    rebuildCompareLinks: hardAssemblyDiagnostics.rebuildCompareLinks,
   };
 }
 
