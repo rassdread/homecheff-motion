@@ -1,15 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
-import {
-  requestWorkerInstantPremiumProcess,
-  triggerWorkerInstantPremiumProcess,
-} from "@/lib/video-worker-client";
+import { triggerWorkerInstantPremiumProcess } from "@/lib/video-worker-client";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
 import {
   executeInstantPremiumMerge,
   retryUploadLocalMergedFinalVideo,
 } from "@/server/instant-premium/merge-instant-project";
+import { runFinalExportToCompletion } from "@/server/instant-premium/wait-for-final-export";
 import { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
@@ -153,10 +151,14 @@ export async function orchestrateFinalMerge(
       .catch(() => undefined);
 
     if (options?.awaitWorker || options?.force) {
-      await requestWorkerInstantPremiumProcess(projectId, { force: Boolean(options?.force) });
+      await runFinalExportToCompletion(projectId, { force: Boolean(options?.force) });
     } else {
       triggerWorkerInstantPremiumProcess(projectId, options);
     }
+    return;
+  }
+  if (options?.awaitWorker || options?.force) {
+    await runFinalExportToCompletion(projectId, { force: options?.force });
     return;
   }
   await executeInstantPremiumMerge(projectId, { force: options?.force });

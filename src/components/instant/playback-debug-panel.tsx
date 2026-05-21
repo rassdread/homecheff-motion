@@ -127,6 +127,42 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
           <DebugRow label="selected playback source" value={playback.selectedPlaybackSource} />
           <DebugRow label="language export URL (first completed)" value={selectedLangUrl} />
           <DebugRow label="video player key / cacheBust" value={playback.cacheBust} />
+          {"latestRebuildStatus" in playback ? (
+            <>
+              <DebugRow
+                label="latest rebuild status"
+                value={(playback as AdminPlaybackDebugPayload).latestRebuildStatus}
+              />
+              <DebugRow
+                label="export timeout (EXPORT_TIMEOUT_MS)"
+                value={String((playback as AdminPlaybackDebugPayload).exportTimeoutMs)}
+              />
+              <DebugRow
+                label="active export stage / elapsed"
+                value={
+                  (playback as AdminPlaybackDebugPayload).activeExportStage
+                    ? `${(playback as AdminPlaybackDebugPayload).activeExportStage} · ${(playback as AdminPlaybackDebugPayload).activeExportStageElapsedMs ?? 0}ms`
+                    : null
+                }
+              />
+              <DebugRow
+                label="active ffmpeg command"
+                value={(playback as AdminPlaybackDebugPayload).activeFfmpegCommand}
+              />
+              <DebugRow
+                label="active segment index"
+                value={
+                  (playback as AdminPlaybackDebugPayload).activeSegment != null
+                    ? String((playback as AdminPlaybackDebugPayload).activeSegment)
+                    : null
+                }
+              />
+              <DebugRow
+                label="latest export error"
+                value={(playback as AdminPlaybackDebugPayload).latestExportError}
+              />
+            </>
+          ) : null}
           {adminDebug?.segmentTimeline ? (
             <details className="mt-2 text-xs">
               <summary className="cursor-pointer font-medium text-zinc-600">segmentTimeline</summary>

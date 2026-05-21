@@ -13,6 +13,8 @@ import {
   probeSegmentMotion,
   type SegmentMotionProbe,
 } from "@/server/instant-premium/segment-motion-validation";
+import { resolveSegmentDownloadTimeoutMs } from "@/lib/export-timeout";
+import { setFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 
 export const SEGMENT_VIDEO_MISSING = "SEGMENT_VIDEO_MISSING";
@@ -213,6 +215,7 @@ export async function downloadProviderVideoToWorkDir(params: {
   url: string;
   workDir: string;
   segmentIndex: number;
+  segmentCount?: number;
 }): Promise<string> {
   const trimmed = params.url.trim();
   if (trimmed.startsWith("/")) {
@@ -229,7 +232,8 @@ export async function downloadProviderVideoToWorkDir(params: {
     return dest;
   }
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const response = await fetch(trimmed, { signal: AbortSignal.timeout(120_000) });
+    const downloadTimeoutMs = resolveSegmentDownloadTimeoutMs(params.segmentCount ?? 3);
+    const response = await fetch(trimmed, { signal: AbortSignal.timeout(downloadTimeoutMs) });
     if (!response.ok) {
       throw new FinalSegmentSourceError(
         SEGMENT_VIDEO_MISSING,
@@ -346,10 +350,14 @@ export async function prepareFinalSegmentProviderVideos(params: {
 
   for (const seg of orderedSegments) {
     const row = rows[seg.segmentIndex]!;
+    setFinalExportStage(params.projectId, "download_segments", {
+      activeSegment: seg.segmentIndex,
+    });
     const localPath = await downloadProviderVideoToWorkDir({
       url: row.providerVideoUrl,
       workDir: params.workDir,
       segmentIndex: seg.segmentIndex,
+      segmentCount: rows.length,
     });
     const validated = await validateProviderVideoFile({
       localPath,

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import {
+  REBUILD_FAILED_TIMEOUT,
   REBUILD_SEGMENTS_MISSING,
   rebuildInstantPremiumFinalVideo,
 } from "@/server/instant-premium/rebuild-final-video";
+import { resolveExportTimeoutMs } from "@/lib/export-timeout";
+
+export const maxDuration = 300;
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { STALE_PLAYBACK_URL } from "@/lib/playback-url-resolution";
@@ -59,6 +63,8 @@ export async function POST(_: Request, context: RouteContext) {
         finalVideoUrl: rebuild.finalVideoUrl ?? status?.finalVideoUrl ?? null,
         ...(rebuild.code === REBUILD_SEGMENTS_MISSING ? { code: REBUILD_SEGMENTS_MISSING } : {}),
         ...(rebuild.code === STALE_PLAYBACK_URL ? { code: STALE_PLAYBACK_URL } : {}),
+        ...(rebuild.code === REBUILD_FAILED_TIMEOUT ? { code: REBUILD_FAILED_TIMEOUT } : {}),
+        exportTimeoutMs: resolveExportTimeoutMs(),
       },
       { status: httpStatus }
     );

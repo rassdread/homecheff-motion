@@ -18,6 +18,7 @@ import {
   normalizeSegmentTransitionType,
   type SegmentTransitionType,
 } from "@/lib/segment-transition-types";
+import { resolveFfmpegStageTimeoutMs } from "@/lib/export-timeout";
 
 export type { SegmentTransitionType };
 export {
@@ -59,7 +60,7 @@ function ffprobeBinary(): string {
 function runCapture(
   binary: string,
   args: string[],
-  timeoutMs = 10 * 60 * 1000
+  timeoutMs = resolveFfmpegStageTimeoutMs("concat")
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { shell: false, stdio: ["ignore", "pipe", "pipe"] });

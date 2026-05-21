@@ -312,6 +312,13 @@ export type ProjectPlaybackDebugSummary = {
   previousFinalVideoUrl: string | null;
   previousFinalVideoUrlRaw: string | null;
   cacheBust: string;
+  latestRebuildStatus?: string | null;
+  exportTimeoutMs?: number;
+  activeExportStage?: string | null;
+  activeExportStageElapsedMs?: number | null;
+  activeFfmpegCommand?: string | null;
+  activeSegment?: number | null;
+  latestExportError?: string | null;
 };
 
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {

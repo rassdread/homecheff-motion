@@ -5,7 +5,9 @@ import {
   resolveLatestExportPlaybackUrl,
 } from "@/lib/playback-url-resolution";
 import { withFinalVideoCacheBust } from "@/lib/final-video-storage";
+import { resolveExportTimeoutMs } from "@/lib/export-timeout";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
+import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 
 export type ProjectPlaybackDebugPayload = {
   projectId: string;
@@ -35,6 +37,13 @@ export type ProjectPlaybackDebugPayload = {
     outputVideoUrl: string | null;
   }>;
   segmentTimeline: ReturnType<typeof buildAdminAssemblyTimeline>;
+  latestRebuildStatus: string | null;
+  exportTimeoutMs: number;
+  activeExportStage: string | null;
+  activeExportStageElapsedMs: number | null;
+  activeFfmpegCommand: string | null;
+  activeSegment: number | null;
+  latestExportError: string | null;
 };
 
 export async function getProjectPlaybackDebug(
@@ -60,6 +69,7 @@ export async function getProjectPlaybackDebug(
     previousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
   });
 
+  const activeStage = getFinalExportStage(projectId);
   const segmentTimeline = buildAdminAssemblyTimeline(
     buildFinalSegmentTransitionRows(
       project.transitions.map((t) => ({
@@ -110,6 +120,15 @@ export async function getProjectPlaybackDebug(
       outputVideoUrl: row.outputVideoUrl?.trim() ?? null,
     })),
     segmentTimeline,
+    latestRebuildStatus: project.instantFinalRebuildStatus,
+    exportTimeoutMs: resolveExportTimeoutMs(),
+    activeExportStage: activeStage?.stage ?? null,
+    activeExportStageElapsedMs: activeStage?.startedAt
+      ? Math.max(0, Date.now() - new Date(activeStage.startedAt).getTime())
+      : null,
+    activeFfmpegCommand: activeStage?.ffmpegCommand ?? null,
+    activeSegment: activeStage?.activeSegment ?? null,
+    latestExportError: latestExport?.errorMessage?.trim() ?? null,
   };
 }
 

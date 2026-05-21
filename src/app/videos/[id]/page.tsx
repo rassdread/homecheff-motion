@@ -388,6 +388,12 @@ export default function VideoDetailPage() {
         setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFinalFailed"));
         return;
       }
+      if (body.code === "REBUILD_FAILED_TIMEOUT") {
+        setRebuildError(
+          body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFailedTimeout")
+        );
+        return;
+      }
       if (body.rebuild?.ok) {
         setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
       } else if (body.rebuild?.finalVideoUrlPresent) {

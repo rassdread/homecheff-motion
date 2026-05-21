@@ -10,7 +10,14 @@ import {
   resolvePosterMotionBlendStrength,
 } from "@/lib/poster-motion-preserve";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
-import { orchestrateFinalMerge } from "@/server/instant-premium/finalize-repair";
+import { runFinalExportToCompletion } from "@/server/instant-premium/wait-for-final-export";
+import {
+  FinalExportTimeoutError,
+  isTimeoutLikeError,
+  logFinalExportTimeout,
+  resolveExportTimeoutMs,
+} from "@/lib/export-timeout";
+import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import {
   logFinalVideoRebuildAudit,
   markInstantPremiumFinalRebuildFailed,
@@ -29,6 +36,7 @@ export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
 export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
 export { MERGE_SEGMENTS_MISSING } from "@/server/instant-premium/merge-segments";
 export const REBUILD_ALREADY_RUNNING = "REBUILD_ALREADY_RUNNING";
+export const REBUILD_FAILED_TIMEOUT = "REBUILD_FAILED_TIMEOUT";
 
 export type RebuildFinalVideoResult = {
   ok: boolean;
@@ -221,11 +229,50 @@ export async function rebuildInstantPremiumFinalVideo(
     },
   });
 
+  const exportTimeoutMs = resolveExportTimeoutMs();
+  const mergeStartedAt = Date.now();
+
   try {
-    await orchestrateFinalMerge(projectId, { force: true, awaitWorker: true });
+    await runFinalExportToCompletion(projectId, { force: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Rebuild final video failed.";
-    logRebuildFinalVideo({ projectId, segmentCount, mode: textRenderMode, blendStrength, error: message });
+    const timedOut =
+      error instanceof FinalExportTimeoutError ||
+      (isTimeoutLikeError(error) && Date.now() - mergeStartedAt >= exportTimeoutMs * 0.9);
+    const activeStage = getFinalExportStage(projectId);
+    const stage = error instanceof FinalExportTimeoutError ? error.stage : activeStage?.stage ?? "finalize";
+    const elapsedMs =
+      error instanceof FinalExportTimeoutError
+        ? error.elapsedMs
+        : Date.now() - mergeStartedAt;
+    if (timedOut) {
+      logFinalExportTimeout({
+        projectId,
+        stage,
+        elapsedMs,
+        timeoutMs: exportTimeoutMs,
+        abortSource:
+          error instanceof FinalExportTimeoutError
+            ? error.abortSource
+            : error instanceof Error
+              ? error.name
+              : "merge_timeout",
+        activeSegment: activeStage?.activeSegment,
+        ffmpegCommand: activeStage?.ffmpegCommand,
+      });
+    }
+    const message = timedOut
+      ? `[${REBUILD_FAILED_TIMEOUT}] Final video rebuild timed out during ${stage} (${elapsedMs}ms). Your previous final is unchanged.`
+      : error instanceof Error
+        ? error.message
+        : "Rebuild final video failed.";
+    logRebuildFinalVideo({
+      projectId,
+      segmentCount,
+      mode: textRenderMode,
+      blendStrength,
+      error: message,
+      code: timedOut ? REBUILD_FAILED_TIMEOUT : undefined,
+    });
     const exportAfter = await prisma.animationExport.findFirst({
       where: { projectId },
       orderBy: { createdAt: "desc" },
@@ -247,6 +294,7 @@ export async function rebuildInstantPremiumFinalVideo(
     }
     return {
       ok: false,
+      code: timedOut ? REBUILD_FAILED_TIMEOUT : undefined,
       projectId,
       clipsReady: true,
       mergeTriggered: true,

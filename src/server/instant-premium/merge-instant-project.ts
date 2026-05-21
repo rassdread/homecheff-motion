@@ -64,6 +64,12 @@ import {
 import { applyMinimalPolishToVideo } from "@/server/instant-premium/apply-minimal-polish";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
 import { isExportMergeStuck } from "@/server/instant-premium/finalize-repair";
+import { isTimeoutLikeError } from "@/lib/export-timeout";
+import { REBUILD_FAILED_TIMEOUT } from "@/server/instant-premium/rebuild-final-video";
+import {
+  clearFinalExportStage,
+  setFinalExportStage,
+} from "@/server/instant-premium/final-export-stage";
 import { finalBlobPathname } from "@/lib/final-video-storage";
 import {
   commitInstantPremiumFinalVideoExport,
@@ -376,6 +382,7 @@ export async function executeInstantPremiumMerge(
     const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
     await ensureDir(outDir);
     const finalAbs = path.join(outDir, "final.mp4");
+    setFinalExportStage(projectId, "download_segments", { exportId: exportRow.id });
 
     let orderedSegments: Awaited<
       ReturnType<typeof prepareFinalSegmentProviderVideos>
@@ -668,6 +675,7 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
       });
+      setFinalExportStage(projectId, "concat", { exportId: exportRow.id });
       const concatResult = await concatMotionSegmentsWithTransitions({
         workDir,
         segmentPaths: pathsToConcat,
@@ -708,6 +716,7 @@ export async function executeInstantPremiumMerge(
         lockedLayers.length > 0 &&
         lockedLayers.some((layer) => layer.text.trim().length > 0);
       if (needsOverlay) {
+        setFinalExportStage(projectId, "overlay", { exportId: exportRow.id });
         const withTextPath = path.join(workDir, "final-with-locked-text.mp4");
         const totalDurationMs = (project.instantOutputDurationSeconds ?? 8) * 1000;
         const segmentDurationSec = project.viduDurationSeconds ?? 4;
@@ -781,6 +790,7 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 85, status: "rendering" },
       });
+      setFinalExportStage(projectId, "upload", { exportId: exportRow.id });
       const isRebuild = project.instantFinalRebuildStatus === "running";
       const nextRebuildCount = isRebuild ? project.instantFinalRebuildCount + 1 : 0;
       const previousFinalUrl =
@@ -812,8 +822,13 @@ export async function executeInstantPremiumMerge(
     } catch (error) {
       const uploadCode = classifyExportBlobFailure(error);
       const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
+      const timedOut = isTimeoutLikeError(error);
       const message =
-        error instanceof FinalSegmentSourceError
+        timedOut && isFinalRebuild
+          ? `[${REBUILD_FAILED_TIMEOUT}] ${
+              error instanceof Error ? error.message : "Final export timed out."
+            }`
+          : error instanceof FinalSegmentSourceError
           ? error.message
           : error instanceof InvalidSegmentMappingError
           ? error.message
@@ -883,6 +898,7 @@ export async function executeInstantPremiumMerge(
         uploadCode: blobAuthFailed ? "EXPORT_UPLOAD_AUTH_FAILED" : undefined,
       });
     } finally {
+      clearFinalExportStage(projectId);
       await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
     }
   });

@@ -170,6 +170,13 @@ export async function GET(_: Request, context: RouteContext) {
         previousFinalVideoUrl: debug.previousFinalVideoUrl,
         previousFinalVideoUrlRaw: debug.previousFinalVideoUrlRaw,
         cacheBust: debug.cacheBust,
+        latestRebuildStatus: debug.latestRebuildStatus,
+        exportTimeoutMs: debug.exportTimeoutMs,
+        activeExportStage: debug.activeExportStage,
+        activeExportStageElapsedMs: debug.activeExportStageElapsedMs,
+        activeFfmpegCommand: debug.activeFfmpegCommand,
+        activeSegment: debug.activeSegment,
+        latestExportError: debug.latestExportError,
       };
     }
   }
