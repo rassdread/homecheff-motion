@@ -43,7 +43,7 @@ type Props = {
   languageExports: VideoLanguageExportSummary[];
   onLanguageExportsChange: (exports: VideoLanguageExportSummary[]) => void;
   onRenderCompleted?: (languageCode: string, exportId: string) => void;
-  isAdmin?: boolean;
+  showAdminDebug?: boolean;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -54,7 +54,7 @@ export function LanguageExportPanel({
   languageExports,
   onLanguageExportsChange,
   onRenderCompleted,
-  isAdmin = false,
+  showAdminDebug = false,
 }: Props) {
   const t = useActiveTranslator();
   const [targetLang, setTargetLang] = useState<LanguageExportCode>(() => {
@@ -118,7 +118,7 @@ export function LanguageExportPanel({
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!showAdminDebug) {
       return;
     }
     void fetch("/api/admin/runtime/video-tools", { credentials: "include" })
@@ -129,7 +129,7 @@ export function LanguageExportPanel({
         }
       })
       .catch(() => undefined);
-  }, [isAdmin]);
+  }, [showAdminDebug]);
 
   const refreshExports = useCallback(async () => {
     const exports = await fetchProjectLanguageExports(projectId);
@@ -437,15 +437,9 @@ export function LanguageExportPanel({
   }
 
   return (
-    <div className="mt-6 rounded-xl border border-violet-200/90 bg-violet-50/60 px-4 py-3">
-      <p className="text-sm font-semibold text-violet-950">
-        {t("instant.languageExport.createVersion")}
-      </p>
-      <p className="text-xs font-medium text-violet-900/90">{t("instant.languageExport.title")}</p>
-      <p className="mt-1 text-xs text-violet-900/85">{t("instant.languageExport.hint")}</p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <label className="text-xs font-medium text-violet-950">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs font-medium text-zinc-700">
           {t("instant.languageExport.targetLanguage")}
         </label>
         <select
@@ -455,7 +449,7 @@ export function LanguageExportPanel({
             setPreparePhase("idle");
           }}
           disabled={prepareLoading || renderLoading}
-          className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
+          className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
         >
           {TARGET_CODES.map((code) => (
             <option key={code} value={code}>
@@ -467,7 +461,7 @@ export function LanguageExportPanel({
           type="button"
           disabled={prepareLoading || renderLoading}
           onClick={() => void prepareTexts()}
-          className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
+          className="rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-50"
         >
           {prepareButtonLabel}
         </button>
@@ -475,7 +469,7 @@ export function LanguageExportPanel({
           type="button"
           disabled={renderLoading || prepareLoading || textLayers.length === 0}
           onClick={() => void renderVersion()}
-          className="rounded-md bg-violet-800 px-3 py-1 text-xs font-medium text-white hover:bg-violet-900 disabled:opacity-50"
+          className="rounded-md bg-zinc-800 px-3 py-1 text-xs font-medium text-white hover:bg-zinc-900 disabled:opacity-50"
         >
           {renderLoading
             ? t("instant.languageExport.rendering")
@@ -484,7 +478,7 @@ export function LanguageExportPanel({
       </div>
 
       {preparePhase !== "idle" ? (
-        <p className="mt-2 text-[11px] text-violet-900/80">
+        <p className="text-[11px] text-zinc-600">
           {preparePhase === "loading_layers"
             ? t("instant.languageExport.statusLoadingLayers")
             : preparePhase === "translating"
@@ -498,32 +492,32 @@ export function LanguageExportPanel({
       ) : null}
 
       {renderPhase === "rendering" || renderPhase === "starting" ? (
-        <p className="mt-2 text-[11px] font-medium text-violet-900">
+        <p className="text-[11px] font-medium text-zinc-700">
           {t("instant.languageExport.renderProgress")}
         </p>
       ) : null}
       {renderPhase === "completed" ? (
-        <p className="mt-2 text-[11px] font-medium text-emerald-900">
+        <p className="text-[11px] font-medium text-emerald-800">
           {t("instant.languageExport.renderComplete")}
         </p>
       ) : null}
 
       {textLayers.length > 0 ? (
-        <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-violet-900/85">
+        <div className="space-y-2">
+          <p className="text-[11px] text-zinc-600">
             {t("instant.languageExport.typographyPreviewHint")} ({typographyQuality})
           </p>
           <div className="max-h-72 space-y-2 overflow-y-auto text-xs">
             {textLayers.map((layer) => (
-              <div key={layer.id} className="rounded-lg border border-violet-100 bg-white/80 p-2">
+              <div key={layer.id} className="rounded-lg border border-zinc-200 bg-white p-2">
                 {layer.previewDataUrl ? (
                   <img
                     src={layer.previewDataUrl}
                     alt=""
-                    className="mb-2 w-full rounded border border-violet-50 bg-zinc-900/90 object-contain"
+                    className="mb-2 w-full rounded border border-zinc-100 bg-zinc-900/90 object-contain"
                   />
                 ) : null}
-                <p className="font-mono text-[10px] text-violet-800/80">{layer.sourceText}</p>
+                <p className="font-mono text-[10px] text-zinc-500">{layer.sourceText}</p>
                 <textarea
                   value={layer.translatedText}
                   disabled={renderLoading}
@@ -542,7 +536,7 @@ export function LanguageExportPanel({
                     });
                   }}
                   rows={2}
-                  className="mt-1 w-full rounded border border-violet-100 px-2 py-1 text-xs disabled:opacity-60"
+                  className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-xs disabled:opacity-60"
                 />
               </div>
             ))}
@@ -550,8 +544,8 @@ export function LanguageExportPanel({
         </div>
       ) : null}
 
-      {languageExports.length > 0 ? (
-        <ul className="mt-2 space-y-1 text-[11px] text-violet-900">
+      {showAdminDebug && languageExports.length > 0 ? (
+        <ul className="space-y-1 text-[11px] text-zinc-600">
           {languageExports.map((row) => (
             <li key={row.id}>
               {row.languageLabel ?? row.languageCode}: {row.status}
@@ -561,27 +555,27 @@ export function LanguageExportPanel({
         </ul>
       ) : null}
 
-      {error ? <p className="mt-2 text-xs font-medium text-red-700">{error}</p> : null}
-      {info && !error ? <p className="mt-2 text-xs text-amber-900">{info}</p> : null}
+      {error ? <p className="text-xs font-medium text-red-700">{error}</p> : null}
+      {info && !error ? <p className="text-xs text-amber-900">{info}</p> : null}
 
-      {isAdmin && prepareDebug ? (
-        <div className="mt-3 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+      {showAdminDebug && prepareDebug ? (
+        <div className="rounded border border-dashed border-zinc-300 bg-white p-2 font-mono text-[10px] text-zinc-800">
           <p className="font-semibold">{t("instant.languageExport.adminDebugTitle")}</p>
           <p>prepare HTTP: {prepareDebug.lastHttpStatus ?? "—"}</p>
           <p>layers: {prepareDebug.layerCount}</p>
         </div>
       ) : null}
 
-      {isAdmin && videoTools ? (
-        <div className="mt-2 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+      {showAdminDebug && videoTools ? (
+        <div className="rounded border border-dashed border-zinc-300 bg-white p-2 font-mono text-[10px] text-zinc-800">
           <p className="font-semibold">{t("instant.languageExport.adminVideoToolsTitle")}</p>
           <p>ffmpeg: {String(videoTools.ffmpeg)} ({videoTools.ffmpegPath})</p>
           <p>ffprobe: {String(videoTools.ffprobe)} ({videoTools.ffprobePath})</p>
         </div>
       ) : null}
 
-      {isAdmin && renderDebug ? (
-        <div className="mt-2 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+      {showAdminDebug && renderDebug ? (
+        <div className="rounded border border-dashed border-zinc-300 bg-white p-2 font-mono text-[10px] text-zinc-800">
           <p className="font-semibold">{t("instant.languageExport.adminRenderDebugTitle")}</p>
           <p>render HTTP: {renderDebug.lastHttpStatus ?? "—"}</p>
           <p>exportId: {renderDebug.exportId ?? "—"}</p>

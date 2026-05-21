@@ -13,7 +13,7 @@ type Props = {
   languageExports: VideoLanguageExportSummary[];
   playbackState: ActivePlaybackState;
   onSelectedLanguageChange: (languageCode: string) => void;
-  isAdmin?: boolean;
+  showAdminDebug?: boolean;
   className?: string;
 };
 
@@ -22,7 +22,7 @@ export function LanguagePlaybackSelector({
   languageExports,
   playbackState,
   onSelectedLanguageChange,
-  isAdmin = false,
+  showAdminDebug = false,
   className = "",
 }: Props) {
   const t = useActiveTranslator();
@@ -41,15 +41,20 @@ export function LanguagePlaybackSelector({
     [languageExports, playbackState.selectedLanguageCode]
   );
 
+  if (options.length <= 1) {
+    return null;
+  }
+
   return (
-    <div className={`space-y-2 ${className}`.trim()}>
-      <label className="block text-xs font-medium text-zinc-700">
+    <div className={`flex flex-wrap items-center gap-2 ${className}`.trim()}>
+      <label className="text-xs text-zinc-600" htmlFor="language-playback-select">
         {t("instant.languageExport.playback")}
       </label>
       <select
+        id="language-playback-select"
         value={playbackState.selectedLanguageCode}
         onChange={(e) => onSelectedLanguageChange(e.target.value)}
-        className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200 sm:max-w-xs"
+        className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-900 focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200"
         aria-label={t("instant.languageExport.playback")}
       >
         {options.map((option) => (
@@ -60,15 +65,15 @@ export function LanguagePlaybackSelector({
       </select>
 
       {playbackState.missingOutput ? (
-        <p className="text-xs text-amber-900">{t("instant.languageExport.outputMissing")}</p>
+        <span className="text-xs text-amber-900">{t("instant.languageExport.outputMissing")}</span>
       ) : null}
       {playbackState.fallbackToOriginal &&
       playbackState.selectedLanguageCode !== "original" ? (
-        <p className="text-xs text-zinc-600">{t("instant.languageExport.playbackFallback")}</p>
+        <span className="text-xs text-zinc-500">{t("instant.languageExport.playbackFallback")}</span>
       ) : null}
 
-      {isAdmin ? (
-        <div className="rounded border border-dashed border-zinc-300 bg-zinc-50/80 p-2 font-mono text-[10px] text-zinc-800">
+      {showAdminDebug ? (
+        <div className="w-full rounded border border-dashed border-zinc-300 bg-zinc-50/80 p-2 font-mono text-[10px] text-zinc-800">
           <p className="font-semibold">{t("instant.languageExport.adminPlaybackTitle")}</p>
           <p>selectedLanguage: {playbackState.selectedLanguageCode}</p>
           <p>activeLanguageVersion: {playbackState.activeLanguageVersion ?? "—"}</p>
@@ -76,11 +81,6 @@ export function LanguagePlaybackSelector({
           <p>originalPlaybackUrl: {playbackState.originalPlaybackUrl ? "set" : "—"}</p>
           <p>activePlaybackUrl: {playbackState.activePlaybackUrl ? "set" : "—"}</p>
           <p>status: {activeRow?.status ?? "original"}</p>
-          <p>DB exports: {languageExports.length}</p>
-          <p>selector options: {options.length}</p>
-          <p className="mt-1 text-[9px] text-zinc-600">
-            video tools: use /api/admin/runtime/video-tools
-          </p>
         </div>
       ) : null}
     </div>

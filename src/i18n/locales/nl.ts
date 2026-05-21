@@ -966,6 +966,13 @@ export const nl = {
   "instant.languageExport.noBase": "Rond eerst de eindvideo af voordat je taalversies maakt.",
   "instant.languageExport.typographyPreviewHint": "Typografie-voorbeeld — stijl, regels en uitlijning vóór render",
   "instant.languageExport.overflowWarning": "Tekst is automatisch verkleind om binnen het vlak te blijven.",
+  "instant.languageExport.betaToggle": "Beta taalversie maken",
+  "instant.languageExport.betaPanelTitle": "Beta: taalversie maken",
+  "instant.languageExport.betaNote":
+    "Experimenteel — werkt het best met video's waarbij tekst als losse laag is opgebouwd.",
+  "instant.languageExport.betaCollapse": "Inklappen",
+  "instant.languageExport.showAdminDebug": "Toon technische debug",
+  "instant.languageExport.hideAdminDebug": "Verberg technische debug",
   "instant.progress.rebuildFinalVideo": "Final video opnieuw samenstellen",
   "instant.progress.rebuildingFinal": "Eindvideo wordt opnieuw samengesteld...",
   "instant.progress.rebuildFinalFailed": "Eindvideo opnieuw samenstellen mislukt.",

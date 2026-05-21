@@ -10,12 +10,17 @@ import {
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
-import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { LanguageExportBetaSection } from "@/components/instant/language-export-beta-section";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
   buildPlaybackDownloadLanguageParam,
+  filterCompletedLanguageExportsForPlayback,
   resolveActivePlaybackState,
 } from "@/lib/language-export-playback";
+import {
+  isPublicDebugUiEnabled,
+  shouldShowLanguageExportAdminDebug,
+} from "@/lib/debug-ui";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
@@ -94,6 +99,7 @@ export default function VideoDetailPage() {
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
+  const [languageAdminDebugOpen, setLanguageAdminDebugOpen] = useState(false);
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) {
       setLoading(false);
@@ -308,6 +314,18 @@ export default function VideoDetailPage() {
     () => buildPlaybackDownloadLanguageParam(playbackState.selectedLanguageCode),
     [playbackState.selectedLanguageCode]
   );
+
+  const hasCompletedLanguageVersions = useMemo(
+    () => filterCompletedLanguageExportsForPlayback(languageExports).length > 0,
+    [languageExports]
+  );
+
+  const showLanguageAdminDebug = shouldShowLanguageExportAdminDebug(
+    isAdmin,
+    languageAdminDebugOpen
+  );
+
+  const showPlaybackDebugPanel = isPublicDebugUiEnabled() || (isAdmin && languageAdminDebugOpen);
 
   const hasCompletedInstantFinal = Boolean(
     originalPlaybackUrl &&
@@ -605,14 +623,15 @@ export default function VideoDetailPage() {
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
-          <LanguagePlaybackSelector
-            className="w-full"
-            originalPlaybackUrl={originalPlaybackUrl}
-            languageExports={languageExports}
-            playbackState={playbackState}
-            onSelectedLanguageChange={setPlaybackLanguage}
-            isAdmin={isAdmin}
-          />
+          {hasCompletedLanguageVersions ? (
+            <LanguagePlaybackSelector
+              originalPlaybackUrl={originalPlaybackUrl}
+              languageExports={languageExports}
+              playbackState={playbackState}
+              onSelectedLanguageChange={setPlaybackLanguage}
+              showAdminDebug={showLanguageAdminDebug}
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <a
               href={animationProjectDownloadUrl(id, {
@@ -643,11 +662,13 @@ export default function VideoDetailPage() {
             ) : null}
           </div>
           {instantLikeProject && hasCompletedInstantFinal ? (
-            <LanguageExportPanel
+            <LanguageExportBetaSection
               projectId={id}
               hasCompletedFinal={hasCompletedInstantFinal}
               languageExports={languageExports}
               isAdmin={isAdmin}
+              adminDebugExpanded={languageAdminDebugOpen}
+              onAdminDebugExpandedChange={setLanguageAdminDebugOpen}
               onLanguageExportsChange={updateLanguageExports}
               onRenderCompleted={(languageCode) => {
                 setPlaybackLanguage(languageCode);
@@ -657,7 +678,7 @@ export default function VideoDetailPage() {
           ) : null}
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
-          {isAdmin ? (
+          {showPlaybackDebugPanel ? (
             <PlaybackDebugPanel projectId={id} detailPlayback={detail?.playback} />
           ) : null}
         </div>

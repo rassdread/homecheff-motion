@@ -959,6 +959,13 @@ export const en: LocaleSchema = {
   "instant.languageExport.noBase": "Complete the final video before creating language versions.",
   "instant.languageExport.typographyPreviewHint": "Typography preview — style, wrap, and alignment before render",
   "instant.languageExport.overflowWarning": "Text was auto-fitted to stay inside the region.",
+  "instant.languageExport.betaToggle": "Beta: create language version",
+  "instant.languageExport.betaPanelTitle": "Beta: create language version",
+  "instant.languageExport.betaNote":
+    "Experimental — works best when text was built as separate layers on the video.",
+  "instant.languageExport.betaCollapse": "Collapse",
+  "instant.languageExport.showAdminDebug": "Show technical debug",
+  "instant.languageExport.hideAdminDebug": "Hide technical debug",
   "instant.progress.rebuildFinalVideo": "Rebuild final video",
   "instant.progress.rebuildingFinal": "Rebuilding final video…",
   "instant.progress.rebuildFinalFailed": "Could not rebuild final video.",
