@@ -4,7 +4,7 @@ import { requireAdmin } from "@/server/auth/permissions";
 
 export const dynamic = "force-dynamic";
 
-/** Admin-only ffmpeg/ffprobe binary resolution health. */
+/** Admin-only app ffmpeg/ffprobe paths (env/system). Heavy render runs on worker when VIDEO_RENDER_MODE=worker. */
 export async function GET() {
   const gate = await requireAdmin();
   if (gate instanceof NextResponse) {

@@ -109,3 +109,44 @@ export async function requestWorkerRetryOverlay(projectId: string): Promise<Work
     { force: true }
   );
 }
+
+export type LanguageExportWorkerJobResponse = {
+  ok: boolean;
+  exportId: string;
+  status: string;
+  message?: string;
+};
+
+/** Fire-and-forget language export render on the video worker. */
+export function triggerWorkerLanguageExport(exportId: string): void {
+  void postWorkerJob(`/jobs/language-export/${encodeURIComponent(exportId)}/render`).catch(
+    (error) => {
+      console.error("[language-export]", {
+        exportId,
+        phase: "worker_trigger_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  );
+}
+
+export async function requestWorkerLanguageExportRender(
+  exportId: string
+): Promise<LanguageExportWorkerJobResponse> {
+  const res = await fetch(
+    `${workerBaseUrl()}/jobs/language-export/${encodeURIComponent(exportId)}/render`,
+    {
+      method: "POST",
+      headers: workerHeaders(),
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(30_000),
+    }
+  );
+  const body = (await res.json().catch(() => ({}))) as LanguageExportWorkerJobResponse & {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error ?? body.message ?? `Worker request failed (${res.status})`);
+  }
+  return body;
+}

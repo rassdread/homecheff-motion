@@ -9,11 +9,21 @@ import {
   runInstantPremiumWorkerProcess,
   runInstantPremiumWorkerRetryOverlay,
 } from "../src/server/instant-premium/worker-job";
+import { runLanguageExportWorkerRender } from "../src/server/instant-premium/language-export-worker-job";
+import { installWorkerFfmpegPaths } from "../src/worker/video-tools/resolve-worker-ffmpeg";
 
 logBlobConfigStatus("instant-premium-video-worker");
 
+void installWorkerFfmpegPaths().catch((error) => {
+  console.error("[video-worker]", {
+    phase: "ffmpeg_install_failed",
+    error: error instanceof Error ? error.message : String(error),
+  });
+});
+
 const port = Number.parseInt(String(process.env.PORT || "8090"), 10) || 8090;
 const RUNNING = new Set<string>();
+const LANGUAGE_EXPORT_RUNNING = new Set<string>();
 
 function requireWorkerAuth(
   req: express.Request,
@@ -103,6 +113,37 @@ app.post(
       });
     } finally {
       RUNNING.delete(projectId);
+    }
+  }
+);
+
+app.post(
+  "/jobs/language-export/:exportId/render",
+  requireWorkerAuth,
+  async (req, res) => {
+    const exportId = String(req.params.exportId ?? "").trim();
+    if (!exportId) {
+      res.status(400).json({ error: "exportId is required." });
+      return;
+    }
+    if (LANGUAGE_EXPORT_RUNNING.has(exportId)) {
+      res.status(200).json({ ok: true, exportId, status: "running" });
+      return;
+    }
+    LANGUAGE_EXPORT_RUNNING.add(exportId);
+    try {
+      await installWorkerFfmpegPaths();
+      const result = await runLanguageExportWorkerRender(exportId);
+      res.status(result.ok ? 200 : 500).json(result);
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        exportId,
+        status: "failed",
+        message: error instanceof Error ? error.message : "Language export render failed.",
+      });
+    } finally {
+      LANGUAGE_EXPORT_RUNNING.delete(exportId);
     }
   }
 );

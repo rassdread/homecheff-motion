@@ -12,7 +12,7 @@ import {
 } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 
 describe("resolve-ffmpeg-binaries", () => {
-  it("orders ffmpeg candidates with env and static before PATH fallback", () => {
+  it("orders ffmpeg candidates with env before system and PATH fallback", () => {
     const prev = process.env.FFMPEG_PATH;
     process.env.FFMPEG_PATH = "/custom/ffmpeg";
     try {

@@ -10,7 +10,8 @@ import {
   type CanonicalLanguageTextLayer,
 } from "@/lib/canonical-language-text-layers";
 import { inferBlockType } from "@/lib/baked-text-detection";
-import { requireFfmpegPath, resolveFfmpegBinaries } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
+import { requireFfmpegPath, resolveFfmpegBinaries } from "@/lib/ffmpeg/resolve-app-ffmpeg";
+import { shouldRunFfmpegLocally } from "@/lib/video-ffmpeg-runtime";
 import { runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
 import { OcrProviderError } from "@/lib/ocr-provider-errors";
@@ -61,6 +62,14 @@ export async function recoverLanguageTextLayersFromFinalVideo(params: {
   ocrRecoveredCount: number;
   error?: string;
 }> {
+  if (!shouldRunFfmpegLocally()) {
+    return {
+      layers: [],
+      ocrRecoveredCount: 0,
+      error: "Frame OCR recovery requires local FFmpeg or the video worker.",
+    };
+  }
+
   let ffmpeg: string;
   try {
     await resolveFfmpegBinaries();

@@ -20,21 +20,18 @@ import { translateLanguageTextLayers } from "@/lib/translate-language-text";
 import {
   isLanguageExportCode,
   languageExportLabel,
-  languageFinalBlobPathname,
   MAX_LANGUAGE_EXPORTS_PER_PROJECT,
-  parseLanguageTextLayerJson,
   type LanguageExportAuditEvent,
   type LanguageExportCode,
   type LanguageTextLayerRecord,
 } from "@/lib/video-language-export";
-import { applyTypographyPreservedOverlay } from "@/server/instant-premium/typography-compositor";
 import { renderTypographyPreviewDataUrl } from "@/server/instant-premium/typography-svg-renderer";
-import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
-import { uploadPublicBlob } from "@/lib/vercel-blob-config";
+import { downloadLanguageExportVideoToFile } from "@/server/instant-premium/language-export-io";
+import { triggerWorkerLanguageExport } from "@/lib/video-worker-client";
 import {
-  resolveFfmpegBinaries,
-  VideoToolsMissingError,
-} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
+  assertVideoWorkerConfiguredForRender,
+  shouldRunFfmpegLocally,
+} from "@/lib/video-ffmpeg-runtime";
 
 export const LANGUAGE_EXPORT_IN_PROGRESS = "LANGUAGE_EXPORT_IN_PROGRESS";
 export const LANGUAGE_EXPORT_LIMIT = "LANGUAGE_EXPORT_LIMIT";
@@ -48,25 +45,6 @@ export class LanguageExportPrepareError extends Error {
     this.name = "LanguageExportPrepareError";
     this.code = code;
   }
-}
-
-function absolutePublicPath(...segments: string[]): string {
-  return path.join(process.cwd(), "public", ...segments);
-}
-
-async function downloadVideoToFile(url: string, dest: string): Promise<void> {
-  const trimmed = url.trim();
-  if (trimmed.startsWith("/")) {
-    const relative = trimmed.replace(/^\/+/, "");
-    const abs = absolutePublicPath(...relative.split("/"));
-    await fs.copyFile(abs, dest);
-    return;
-  }
-  const res = await fetch(trimmed, { signal: AbortSignal.timeout(120_000) });
-  if (!res.ok) {
-    throw new Error(`Could not download source video (${res.status}).`);
-  }
-  await fs.writeFile(dest, Buffer.from(await res.arrayBuffer()));
 }
 
 export async function listVideoLanguageExports(projectId: string) {
@@ -198,10 +176,14 @@ async function resolveTranslatableLanguageTextLayers(params: {
     return { merged: [], stats: extracted.stats };
   }
 
+  if (!shouldRunFfmpegLocally()) {
+    return { merged: [], stats: extracted.stats };
+  }
+
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-lang-prepare-${params.project.id}-`));
   const videoPath = path.join(workDir, "final.mp4");
   try {
-    await downloadVideoToFile(finalUrl, videoPath);
+    await downloadLanguageExportVideoToFile(finalUrl, videoPath);
     const recovery = await recoverLanguageTextLayersFromFinalVideo({
       finalVideoPath: videoPath,
       stylePreset: params.project.stylePreset,
@@ -330,8 +312,6 @@ export async function createAndRenderLanguageExport(params: {
     .reduce((max, r) => Math.max(max, r.version), 0);
   const version = maxVersion + 1;
 
-  await resolveFfmpegBinaries();
-
   const prepared = await prepareLanguageTextLayers({
     projectId: params.projectId,
     languageCode,
@@ -372,139 +352,21 @@ export async function createAndRenderLanguageExport(params: {
     },
   });
 
-  void executeLanguageExportRender(row.id).catch((err) => {
-    console.error("[language-export]", {
-      exportId: row.id,
-      projectId: params.projectId,
-      error: err instanceof Error ? err.message : String(err),
+  if (shouldRunFfmpegLocally()) {
+    const { executeLanguageExportRender } = await import(
+      "@/server/instant-premium/language-export-render-execution"
+    );
+    void executeLanguageExportRender(row.id).catch((err) => {
+      console.error("[language-export]", {
+        exportId: row.id,
+        projectId: params.projectId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
-  });
+  } else {
+    assertVideoWorkerConfiguredForRender();
+    triggerWorkerLanguageExport(row.id);
+  }
 
   return { exportId: row.id };
-}
-
-export async function executeLanguageExportRender(exportId: string): Promise<void> {
-  const row = await prisma.videoLanguageExport.findUnique({
-    where: { id: exportId },
-    include: {
-      project: {
-        include: { exports: { orderBy: { createdAt: "desc" }, take: 1 } },
-      },
-    },
-  });
-  if (!row?.project) {
-    return;
-  }
-
-  await prisma.videoLanguageExport.update({
-    where: { id: exportId },
-    data: { status: "rendering", updatedAt: new Date() },
-  });
-
-  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-lang-export-${exportId}-`));
-  try {
-    await resolveFfmpegBinaries();
-    const sourcePath = path.join(workDir, "source.mp4");
-    const outputPath = path.join(workDir, "output.mp4");
-    await downloadVideoToFile(row.sourceFinalVideoUrl, sourcePath);
-
-    const layers = parseLanguageTextLayerJson(row.textLayerJson);
-    const probed = await probeVideoSegment(sourcePath);
-    const totalDurationMs = Math.max(
-      1000,
-      Math.round((probed?.durationSec ?? row.project.instantOutputDurationSeconds ?? 8) * 1000)
-    );
-    const enriched = enrichLanguageTextLayersForRender({
-      layers,
-      languageCode: row.languageCode,
-      aspectRatio: row.project.aspectRatio,
-      viduResolution: row.project.viduResolution,
-    });
-
-    const compositor = await applyTypographyPreservedOverlay({
-      inputVideoPath: sourcePath,
-      outputVideoPath: outputPath,
-      layers: enriched,
-      languageCode: row.languageCode,
-      aspectRatio: row.project.aspectRatio,
-      viduResolution: row.project.viduResolution,
-      totalDurationMs,
-      typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
-    });
-
-    const blobPath = languageFinalBlobPathname(
-      row.projectId,
-      row.languageCode,
-      row.version
-    );
-    const buffer = await fs.readFile(outputPath);
-    const { url } = await uploadPublicBlob({
-      pathname: blobPath,
-      body: buffer,
-      contentType: "video/mp4",
-      addRandomSuffix: false,
-      context: {
-        projectId: row.projectId,
-        uploadTarget: blobPath,
-        provider: "language_export",
-      },
-    });
-
-    const audit = (row.translationAuditJson as { events?: LanguageExportAuditEvent[] }) ?? {
-      events: [],
-    };
-    const completedEvent: LanguageExportAuditEvent = {
-      type: "language_export",
-      billingImpact: "none",
-      aiCreditsUsed: 0,
-      provider: "internal_text_overlay",
-      languageCode: row.languageCode,
-      projectId: row.projectId,
-      sourceFinalVideoUrl: row.sourceFinalVideoUrl,
-      outputVideoUrl: url,
-      recordedAt: new Date().toISOString(),
-      status: "completed",
-    };
-
-    await prisma.videoLanguageExport.update({
-      where: { id: exportId },
-      data: {
-        status: "completed",
-        outputVideoUrl: url,
-        completedAt: new Date(),
-        errorMessage: null,
-        translationAuditJson: {
-          events: [...(audit.events ?? []), completedEvent],
-        } as object,
-      },
-    });
-
-    console.info("[language-export]", {
-      phase: "completed",
-      exportId,
-      projectId: row.projectId,
-      languageCode: row.languageCode,
-      outputVideoUrl: url,
-      layerCount: layers.length,
-      compositorMethod: compositor.method,
-    });
-  } catch (error) {
-    const message =
-      error instanceof VideoToolsMissingError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Language export render failed.";
-    await prisma.videoLanguageExport.update({
-      where: { id: exportId },
-      data: {
-        status: "failed",
-        errorMessage: message,
-        updatedAt: new Date(),
-      },
-    });
-    throw error;
-  } finally {
-    await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
-  }
 }
