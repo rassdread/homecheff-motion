@@ -45,8 +45,10 @@ describe("premium-mascot-animation-preset", () => {
       compact: false,
     });
     assert.match(block, /EXPRESSION CYCLE:/i);
-    assert.match(block, /do not hold one frozen smile/i);
-    assert.match(block, /mouth should not stay frozen/i);
+    assert.match(block, /clearly relax into a neutral closed mouth/i);
+    assert.match(block, /Moderately expressive facial expression cycle/i);
+    assert.match(block, /2–4 small mouth movements/i);
+    assert.ok(!/Subtle facial expression cycle/i.test(block));
   });
 
   it("returns one global block for multiple mascots (no duplicate)", () => {
@@ -76,10 +78,12 @@ describe("premium-mascot-animation-preset", () => {
       userIntent: "chef mascot promo",
     });
     assert.match(motion, /GLOBAL MASCOT \(HomeCheff\)/i);
-    assert.match(motion, /facial expression cycle/i);
-    assert.match(motion, /mouth should not stay frozen/i);
-    assert.match(motion, /neutral closed mouth/i);
-    assert.match(motion, /End close to the original image expression/i);
+    assert.match(motion, /Moderately expressive facial expression cycle/i);
+    assert.match(motion, /visibly change during the clip/i);
+    assert.match(motion, /2–4 small natural mouth movements/i);
+    assert.match(motion, /visible eye movement/i);
+    assert.match(motion, /friendly presenter energy/i);
+    assert.ok(!/Subtle facial expression cycle/i.test(motion));
     assert.ok(!motion.includes("FACIAL PERFORMANCE SYSTEM"));
   });
 
