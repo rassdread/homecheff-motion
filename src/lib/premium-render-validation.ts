@@ -43,6 +43,7 @@ export type PredictedConcatTimelineEntry = {
   fileName: string;
   joinMode?: string;
   continuityMode?: string;
+  sharedKeyframe?: boolean;
 };
 
 export function buildPredictedConcatTimeline(params: {
@@ -59,6 +60,7 @@ export function buildPredictedConcatTimeline(params: {
       break;
     }
     const join = segmentJoins[i];
+    const sharedKeyframe = Boolean(join && join.similarity >= 0.995);
     entries.push({
       playOrder: i + 1,
       segmentIndex: i,
@@ -67,6 +69,7 @@ export function buildPredictedConcatTimeline(params: {
       fileName: `${start.fileName} → ${end.fileName}`,
       joinMode: join?.joinMode,
       continuityMode: join?.mode,
+      sharedKeyframe,
     });
   }
   return entries;

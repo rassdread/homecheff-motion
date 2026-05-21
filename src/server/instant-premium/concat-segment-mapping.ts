@@ -39,6 +39,7 @@ export type ConcatSegmentMapEntry = {
   joinPlanIndex?: number;
   joinMode?: string;
   continuityMode?: string;
+  sharedKeyframe?: boolean;
   outputDurationSec?: number;
   sourceType?: string;
 };
@@ -215,6 +216,9 @@ export function buildConcatSegmentMapEntries(params: {
     const joinPlanIndex =
       seg.segmentIndex < joinPlans.length ? seg.segmentIndex : undefined;
     const join = joinPlanIndex != null ? joinPlans[joinPlanIndex] : undefined;
+    const nextSeg = segments[seg.segmentIndex + 1];
+    const sharedKeyframe =
+      nextSeg != null && seg.endImageId === nextSeg.startImageId;
     return {
       segmentIndex: seg.segmentIndex,
       sourceSegmentId: seg.transitionId,
@@ -227,6 +231,7 @@ export function buildConcatSegmentMapEntries(params: {
       joinPlanIndex,
       joinMode: join?.joinMode,
       continuityMode: join?.mode,
+      sharedKeyframe,
       sourceType: sourceTypes?.[seg.segmentIndex],
     };
   });

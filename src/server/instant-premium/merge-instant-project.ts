@@ -41,7 +41,7 @@ import {
   buildLockedTextRegionsFromBlocks,
   resolveTextLockMode,
 } from "@/lib/hard-text-lock";
-import { buildSegmentJoinPlansForProject } from "@/server/instant-premium/build-segment-join-plans";
+import { buildSeamlessJoinPlansForOrderedSegments } from "@/server/instant-premium/seamless-segment-join";
 import { resolveFinalConcatSegmentPaths } from "@/server/instant-premium/final-concat-segments";
 import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
@@ -50,7 +50,6 @@ import {
   buildOrderedTransitionSegments,
   InvalidSegmentMappingError,
   logConcatSegmentMap,
-  validateJoinPlansAlignment,
   validateOrderedTransitionSegments,
   validateUniqueConcatPaths,
 } from "@/server/instant-premium/concat-segment-mapping";
@@ -592,21 +591,14 @@ export async function executeInstantPremiumMerge(
         animatedViduPaths: segmentPaths,
       });
 
-      const joinPlans = await buildSegmentJoinPlansForProject({
-        transitions: orderedSegments.map((seg) => {
-          const startImg = imageById.get(seg.startImageId);
-          const endImg = imageById.get(seg.endImageId);
-          return {
-            order: seg.order,
-            startImageId: seg.startImageId,
-            endImageId: seg.endImageId,
-            startPreviewUrl: startImg?.previewUrl ?? null,
-            endPreviewUrl: endImg?.previewUrl ?? null,
-          };
-        }),
+      const imagePreviewById = new Map(
+        project.images.map((img) => [img.id, img.previewUrl ?? null])
+      );
+      const joinPlans = await buildSeamlessJoinPlansForOrderedSegments({
+        orderedSegments,
+        imagePreviewById,
         transitionType: segmentTransitionType,
       });
-      validateJoinPlansAlignment(joinPlans, orderedSegments.length);
 
       const mapEntries = buildConcatSegmentMapEntries({
         segments: orderedSegments,

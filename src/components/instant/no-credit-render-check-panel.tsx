@@ -130,6 +130,7 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
               {report.concatTimeline.map((row) => (
                 <dd key={`tl-${row.segmentIndex}`}>
                   {row.playOrder} → {row.fileName}
+                  {row.sharedKeyframe ? " · shared keyframe" : ""}
                   {row.joinMode ? ` · ${row.joinMode}` : ""}
                   {row.continuityMode ? ` · ${row.continuityMode}` : ""}
                 </dd>
