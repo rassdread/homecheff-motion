@@ -673,6 +673,10 @@ export const en: LocaleSchema = {
   "instant.noCreditCheck.bridge": "Segment bridge",
   "instant.noCreditCheck.roles": "Roles",
   "instant.noCreditCheck.joins": "Frame continuity (predicted joins)",
+  "instant.noCreditCheck.continuity": "Continuity mode",
+  "instant.noCreditCheck.microActing": "Micro-acting",
+  "instant.noCreditCheck.locked": "locked",
+  "instant.noCreditCheck.promptOnly": "prompt-only",
   "instant.textIntegration.legacyModeHint":
     "Legacy text pipeline active. Switch to poster animation (default) for the simplified creator flow.",
   "instant.step3.animationStyleAuto":

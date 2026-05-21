@@ -7,7 +7,11 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
 } from "@/lib/media-export-constants";
 import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
-import type { SegmentJoinPlan } from "@/lib/exact-frame-continuity";
+import type { SegmentJoinPlan, SegmentJoinMode } from "@/lib/exact-frame-continuity";
+import {
+  applyIncomingSegmentExposureCorrection,
+  computeExposureCorrectionFromDelta,
+} from "@/server/instant-premium/join-exposure-normalize";
 import {
   DEFAULT_SEGMENT_TRANSITION_TYPE,
   SEGMENT_TRANSITION_TYPES,
@@ -194,15 +198,45 @@ export function getEdgeTrimFrames(
   segmentCount: number,
   transitionType: SegmentTransitionType
 ): { outgoing: number; incoming: number } {
+  return getEdgeTrimFramesForJoin(segmentIndex, segmentCount, transitionType);
+}
+
+export function getEdgeTrimFramesForJoin(
+  segmentIndex: number,
+  segmentCount: number,
+  transitionType: SegmentTransitionType,
+  joinBefore?: SegmentJoinPlan,
+  joinAfter?: SegmentJoinPlan
+): { outgoing: number; incoming: number } {
   if (segmentCount <= 1 || transitionType === "straight_cut") {
     return { outgoing: 0, incoming: 0 };
   }
   const isFirst = segmentIndex === 0;
   const isLast = segmentIndex === segmentCount - 1;
-  return {
-    outgoing: isLast ? 0 : TRIM_OUTGOING_FRAMES,
-    incoming: isFirst ? 0 : TRIM_INCOMING_FRAMES,
+  let outgoing = isLast ? 0 : TRIM_OUTGOING_FRAMES;
+  let incoming = isFirst ? 0 : TRIM_INCOMING_FRAMES;
+
+  const softenIncoming = (mode: SegmentJoinMode | undefined) => {
+    if (mode === "direct_micro_stitch") {
+      incoming = 0;
+    } else if (mode === "optical_micro_blend") {
+      incoming = Math.min(incoming, 1);
+    } else if (mode === "soft_continuation") {
+      incoming = Math.min(incoming, TRIM_INCOMING_FRAMES);
+    }
   };
+  const softenOutgoing = (mode: SegmentJoinMode | undefined) => {
+    if (mode === "direct_micro_stitch") {
+      outgoing = isLast ? 0 : 1;
+    } else if (mode === "optical_micro_blend") {
+      outgoing = isLast ? 0 : Math.min(outgoing, 2);
+    }
+  };
+
+  softenIncoming(joinBefore?.joinMode);
+  softenOutgoing(joinAfter?.joinMode);
+
+  return { outgoing, incoming };
 }
 
 function xfadeTransitionName(transitionType: SegmentTransitionType): string {
@@ -324,16 +358,56 @@ export async function prepareMotionSegmentsForConcat(params: {
   segmentPaths: string[];
   maxWidth: number;
   transitionType: SegmentTransitionType;
+  joinPlans?: SegmentJoinPlan[];
 }): Promise<PreparedSegment[]> {
-  const { workDir, segmentPaths, maxWidth, transitionType } = params;
+  const { workDir, segmentPaths, maxWidth, transitionType, joinPlans } = params;
   const prepared: PreparedSegment[] = [];
 
   for (let i = 0; i < segmentPaths.length; i += 1) {
     const normPath = path.join(workDir, `norm-seg-${i}.mp4`);
-    const readyPath = path.join(workDir, `ready-seg-${i}.mp4`);
+    let readyPath = path.join(workDir, `ready-seg-${i}.mp4`);
     const probed = await normalizeSegment(segmentPaths[i]!, normPath, maxWidth);
-    const trim = getEdgeTrimFrames(i, segmentPaths.length, transitionType);
-    const durationSec = await trimSegmentEdges(normPath, readyPath, probed.durationSec, trim, MERGE_OUTPUT_FPS);
+    const joinBefore = joinPlans?.find((p) => p.segmentB === i);
+    const joinAfter = joinPlans?.find((p) => p.segmentA === i);
+    const trim = getEdgeTrimFramesForJoin(
+      i,
+      segmentPaths.length,
+      transitionType,
+      joinBefore,
+      joinAfter
+    );
+    let durationSec = await trimSegmentEdges(normPath, readyPath, probed.durationSec, trim, MERGE_OUTPUT_FPS);
+
+    if (joinBefore?.applyExposureCorrection) {
+      const correction =
+        joinBefore.exposureDelta != null ?
+          computeExposureCorrectionFromDelta(joinBefore.exposureDelta)
+        : null;
+      if (correction?.shouldApply) {
+        const correctedPath = path.join(workDir, `exp-seg-${i}.mp4`);
+        try {
+          await applyIncomingSegmentExposureCorrection(readyPath, correctedPath, correction);
+          readyPath = correctedPath;
+          const reprobe = await probeVideoSegment(readyPath);
+          if (reprobe) {
+            durationSec = reprobe.durationSec;
+          }
+          console.info("[join-exposure-normalize]", {
+            segmentIndex: i,
+            join: `${joinBefore.segmentA}→${joinBefore.segmentB}`,
+            delta: correction.delta,
+            brightness: correction.brightness,
+            contrast: correction.contrast,
+          });
+        } catch (err) {
+          console.warn("[join-exposure-normalize]", {
+            segmentIndex: i,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+
     const finalProbe = (await probeVideoSegment(readyPath)) ?? probed;
     prepared.push({
       index: i,
@@ -457,7 +531,9 @@ export type TransitionPreviewMetadata = {
     continuityMode?: string;
     mergeDissolveRatio?: number;
     mergeType?: string;
+    joinMode?: string;
     exposureDelta?: number;
+    exposureCorrected?: boolean;
   }>;
   antiFlashGuard: boolean;
   normalizedFps: number;
@@ -508,6 +584,7 @@ export async function concatMotionSegmentsWithTransitions(
     segmentPaths,
     maxWidth,
     transitionType,
+    joinPlans,
   });
 
   const frames = transitionDurationFrames(transitionType);
@@ -517,9 +594,9 @@ export async function concatMotionSegmentsWithTransitions(
   const perJoinTransitionSec: number[] = [];
 
   for (let i = 0; i < prepared.length - 1; i += 1) {
-    const trimA = getEdgeTrimFrames(i, prepared.length, transitionType);
-    const trimB = getEdgeTrimFrames(i + 1, prepared.length, transitionType);
     const plan = joinPlans?.find((p) => p.segmentA === i && p.segmentB === i + 1);
+    const trimA = getEdgeTrimFramesForJoin(i, prepared.length, transitionType, undefined, plan);
+    const trimB = getEdgeTrimFramesForJoin(i + 1, prepared.length, transitionType, plan, undefined);
     const joinTransitionSec = plan?.transitionSec ?? transitionDurationSeconds(transitionType);
     const joinFrames = Math.max(0, Math.round(joinTransitionSec * MERGE_OUTPUT_FPS));
     perJoinTransitionSec.push(joinTransitionSec);
@@ -534,7 +611,9 @@ export async function concatMotionSegmentsWithTransitions(
       continuityMode: plan?.mode,
       mergeDissolveRatio: plan?.mergeDissolveRatio,
       mergeType: plan?.mergeType,
+      joinMode: plan?.joinMode,
       exposureDelta: plan?.exposureDelta,
+      exposureCorrected: plan?.applyExposureCorrection ?? false,
     });
     logSegmentTransition({
       transitionType,
@@ -554,10 +633,12 @@ export async function concatMotionSegmentsWithTransitions(
       segmentB: i + 1,
       similarity: plan?.similarity,
       mode: plan?.mode,
+      joinMode: plan?.joinMode,
       mergeType: plan?.mergeType,
       mergeDissolveRatio: plan?.mergeDissolveRatio,
       transitionSec: joinTransitionSec,
       exposureDelta: plan?.exposureDelta,
+      applyExposureCorrection: plan?.applyExposureCorrection,
     });
   }
 

@@ -150,6 +150,18 @@ export function isTextHeavyImage(blocks: BakedTextBlockRecord[]): boolean {
   return activeKeptBlocks(blocks).length >= TEXT_DENSE_MIN_BLOCKS;
 }
 
+/** Large hero headline / sign copy visible on poster (cartoon safety). */
+export function hasVisibleHeroHeadline(blocks: BakedTextBlockRecord[]): boolean {
+  return blocks.some(
+    (b) =>
+      b.kept !== false &&
+      (b.editedText || b.text).trim().length >= 4 &&
+      (b.blockType === "sign" || b.blockType === "ui" || b.blockType === "cta") &&
+      b.bbox.height >= 0.05 &&
+      b.bbox.width * b.bbox.height >= 0.02
+  );
+}
+
 export function imageNeedsTextLockWarning(
   blocks: BakedTextBlockRecord[],
   mode: TextLockMode,

@@ -19,6 +19,10 @@ import { buildComicStripWorldTransitionBlock } from "@/lib/vidu-comic-strip-tran
 import { buildHardTextLockPromptLine } from "@/lib/hard-text-lock";
 import { buildCompactFacialActingLine } from "@/lib/premium-facial-acting";
 import { buildExactFrameContinuationPromptLine } from "@/lib/exact-frame-continuity";
+import {
+  DEEVID_ORCHESTRATION_LINE,
+  VIDU_NEGATIVE_TEXT_SAFETY_LINE,
+} from "@/lib/deevid-premium-polish";
 
 /** Target max chars sent to Vidu (premium instant). */
 export const VIDU_PROMPT_MAX_CHARS = 3500;
@@ -212,6 +216,7 @@ export function buildCompactViduMotionPrompt(
     emotional ? `Acting: ${emotional.actingPromptBlock.split("\n")[0]?.replace(/^- /, "") ?? profile.emotionalActingPreset}` : "",
     characterCompact ? `Character: ${characterCompact}` : "",
     buildCompactFacialActingLine(roles),
+    DEEVID_ORCHESTRATION_LINE,
     `Segment ${transitionOrder + 1}/${transitionTotal} (${segmentPhase}): gesture ${memory.activeGestureBeat.replace(/_/g, " ")}; avoid repeat loops.`,
     focusLine,
     "Variation: alternate gestures and timing; no robotic sway/hand loops.",
@@ -234,7 +239,8 @@ export function buildCompactViduMotionPrompt(
   const continuationLine = options?.exactFrameContinuation
     ? buildExactFrameContinuationPromptLine("continuation")
     : "";
-  return [body, lockLine, continuationLine].filter(Boolean).join("\n");
+  const negativeLine = VIDU_NEGATIVE_TEXT_SAFETY_LINE;
+  return [body, lockLine, continuationLine, negativeLine].filter(Boolean).join("\n");
 }
 
 /** Shorter instant premium story template (P1 core). */

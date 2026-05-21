@@ -15,12 +15,42 @@ const FACIAL_CORE_BLOCK = `FACIAL PERFORMANCE SYSTEM:
 
 /** Compact line for budgeted Vidu motion stack (priority 1). */
 export const COMPACT_FACIAL_PRIORITY_LINE =
-  "Prioritize living faces: blinking eyes, smile changes, eyebrow motion, subtle mouth movement and emotional reactions; avoid frozen mascot faces and hand-only loops.";
+  "Prioritize living faces: blinking eyes, smile changes, eyebrow motion, subtle mouth movement and emotional reactions.";
 
-const ROLE_FACIAL_HINTS: Partial<Record<CharacterRoleId, string>> = {
-  CHEF_HOST: "Chef mascot: big friendly smile, presenter reactions, welcoming eyes.",
-  GARDEN_GUIDE: "Garden guide: warm curious expression, soft attentive eyes.",
-  DESIGN_CREATOR: "Design creator: creative proud expression, focused inspired eyes.",
+export const FACIAL_ANTI_PATTERN_LINE =
+  "Avoid frozen faces, fixed smiles, dead eyes, repeated hand loops.";
+
+export type MicroActingProfileId =
+  | "chef_mascot"
+  | "garden_mascot"
+  | "design_mascot"
+  | "human_presenter"
+  | "generic_mascot";
+
+const ROLE_MICRO_ACTING: Partial<Record<CharacterRoleId, string>> = {
+  CHEF_HOST:
+    "Chef mascot: warm presenter smile, eye contact, small eyebrow lift, subtle mouth movement, inviting gesture.",
+  GARDEN_GUIDE:
+    "Garden mascot: curious warm eyes, relaxed blink, gentle smile, calm reaction.",
+  DESIGN_CREATOR:
+    "Design mascot: proud creative smile, focused eyes, subtle nod, showcase gesture.",
+  HUMAN_PRESENTER:
+    "Human presenter: realistic eye movement, breathing, natural hand/finger motion, subtle reaction timing.",
+  AFFILIATE_SELLER:
+    "Seller: confident smile, alert eyes, product-forward gesture, subtle eyebrow emphasis.",
+  MARKETPLACE_VISITOR:
+    "Visitor: curious eyes, friendly blink, light discovering reaction.",
+  BACKGROUND_CROWD: "Background: soft ambient reaction only — no hero face lock.",
+};
+
+const ROLE_TO_PROFILE: Partial<Record<CharacterRoleId, MicroActingProfileId>> = {
+  CHEF_HOST: "chef_mascot",
+  GARDEN_GUIDE: "garden_mascot",
+  DESIGN_CREATOR: "design_mascot",
+  HUMAN_PRESENTER: "human_presenter",
+  AFFILIATE_SELLER: "human_presenter",
+  MARKETPLACE_VISITOR: "generic_mascot",
+  BACKGROUND_CROWD: "generic_mascot",
 };
 
 const EMOTIONAL_FACIAL_HINTS: Partial<Record<EmotionalActingPresetId, string>> = {
@@ -32,6 +62,14 @@ const EMOTIONAL_FACIAL_HINTS: Partial<Record<EmotionalActingPresetId, string>> =
   dramatic_comic_reveal: "Comic reveal: expressive brows, animated smile beats, presentation pop on key frame.",
 };
 
+export function resolveMicroActingProfileId(roles: CharacterSceneRole[]): MicroActingProfileId {
+  const lead = roles.find((r) => r.roleId !== "BACKGROUND_CROWD")?.roleId;
+  if (!lead) {
+    return "generic_mascot";
+  }
+  return ROLE_TO_PROFILE[lead] ?? "generic_mascot";
+}
+
 export function buildFacialActingForRole(roleId: CharacterRoleId): string {
   const p = getCharacterRoleProfile(roleId);
   return `${roleId.replace(/_/g, " ")}: ${p.facialEnergy}; blinks: ${p.blinkIntensity}; emotional: ${p.emotionalActing}.`;
@@ -41,20 +79,18 @@ export function buildRoleFacialActingHint(roles: CharacterSceneRole[]): string {
   if (!roles.length) {
     return "";
   }
-  const lead = roles[0]?.roleId;
+  const lead = roles.find((r) => r.roleId !== "BACKGROUND_CROWD")?.roleId;
   if (!lead) {
     return "";
   }
-  return ROLE_FACIAL_HINTS[lead] ?? "";
+  return ROLE_MICRO_ACTING[lead] ?? "";
 }
 
-/** Single combined facial line for compact motion stack. */
+/** Single combined facial line for compact motion stack (priority 1/2). */
 export function buildCompactFacialActingLine(roles: CharacterSceneRole[]): string {
   const roleHint = buildRoleFacialActingHint(roles);
-  if (!roleHint) {
-    return COMPACT_FACIAL_PRIORITY_LINE;
-  }
-  return `${COMPACT_FACIAL_PRIORITY_LINE} ${roleHint}`;
+  const parts = [COMPACT_FACIAL_PRIORITY_LINE, roleHint, FACIAL_ANTI_PATTERN_LINE].filter(Boolean);
+  return parts.join(" ");
 }
 
 /** Verbose block — deprecated for Vidu; kept for automation tests / legacy paths. */

@@ -5,7 +5,9 @@ import {
   buildSegmentJoinPlan,
   resolveFrameContinuityMode,
   resolveMergeDissolveRatio,
+  resolveSegmentJoinMode,
   scoreKeyframePairQuick,
+  transitionSecondsForJoinMode,
   transitionSecondsForSimilarity,
 } from "@/lib/exact-frame-continuity";
 
@@ -19,12 +21,23 @@ describe("exact frame continuity", () => {
     });
     assert.equal(score.mode, "continuation");
     assert.equal(score.similarity, 1);
+    assert.equal(resolveSegmentJoinMode(1), "direct_micro_stitch");
   });
 
   it("uses lower dissolve when similarity is high", () => {
-    assert.equal(resolveMergeDissolveRatio(0.999), 0.05);
-    assert.equal(resolveMergeDissolveRatio(0.992), 0.22);
+    assert.equal(resolveMergeDissolveRatio(0.999), 0.02);
+    assert.equal(resolveMergeDissolveRatio(0.996), 0.08);
     assert.ok(resolveMergeDissolveRatio(0.98) >= 0.3);
+  });
+
+  it("similarity >= 0.998 chooses direct_micro_stitch", () => {
+    assert.equal(resolveSegmentJoinMode(0.998), "direct_micro_stitch");
+    assert.equal(resolveSegmentJoinMode(0.9985), "direct_micro_stitch");
+  });
+
+  it("similarity 0.995–0.998 chooses optical_micro_blend", () => {
+    assert.equal(resolveSegmentJoinMode(0.997), "optical_micro_blend");
+    assert.equal(resolveSegmentJoinMode(0.995), "optical_micro_blend");
   });
 
   it("scales transition duration down for exact match", () => {
@@ -32,6 +45,7 @@ describe("exact frame continuity", () => {
     const short = transitionSecondsForSimilarity(base, 0.999);
     const long = transitionSecondsForSimilarity(base, 0.98);
     assert.ok(short < long);
+    assert.equal(transitionSecondsForJoinMode(base, "direct_micro_stitch"), 1 / 30);
   });
 
   it("builds continuation prompt line only in continuation mode", () => {
@@ -47,6 +61,7 @@ describe("exact frame continuity", () => {
       baseTransitionSec: 0.27,
     });
     assert.equal(plan.mode, "continuation");
+    assert.equal(plan.joinMode, "optical_micro_blend");
     assert.equal(resolveFrameContinuityMode(plan.similarity), "continuation");
   });
 });

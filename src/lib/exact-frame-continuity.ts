@@ -21,18 +21,28 @@ export type KeyframePairScore = {
   phashSimilarity?: number;
   ssimScore?: number;
   exposureDelta?: number;
+  luminanceEnd?: number;
+  luminanceStart?: number;
 };
+
+export type SegmentJoinMode =
+  | "direct_micro_stitch"
+  | "optical_micro_blend"
+  | "soft_continuation"
+  | "normal_capcut_smooth";
 
 export type SegmentJoinPlan = {
   segmentA: number;
   segmentB: number;
   similarity: number;
   mode: FrameContinuityMode;
+  joinMode: SegmentJoinMode;
   mergeDissolveRatio: number;
   transitionSec: number;
   mergeType: string;
   reason: string;
   exposureDelta?: number;
+  applyExposureCorrection?: boolean;
 };
 
 /** Quick identity check (no pixels). */
@@ -70,30 +80,53 @@ export function resolveFrameContinuityMode(similarity: number): FrameContinuityM
   return similarity >= EXACT_FRAME_CONTINUITY_THRESHOLD ? "continuation" : "normal";
 }
 
-export function resolveMergeDissolveRatio(similarity: number): number {
+export function resolveSegmentJoinMode(similarity: number): SegmentJoinMode {
   if (similarity >= 0.998) {
-    return 0.05;
+    return "direct_micro_stitch";
   }
   if (similarity >= 0.995) {
-    return 0.1;
+    return "optical_micro_blend";
   }
   if (similarity >= 0.99) {
-    return 0.22;
+    return "soft_continuation";
   }
-  return 0.4;
+  return "normal_capcut_smooth";
+}
+
+export function resolveMergeDissolveRatio(similarity: number): number {
+  const mode = resolveSegmentJoinMode(similarity);
+  switch (mode) {
+    case "direct_micro_stitch":
+      return 0.02;
+    case "optical_micro_blend":
+      return 0.08;
+    case "soft_continuation":
+      return 0.2;
+    default:
+      return 0.4;
+  }
 }
 
 export function resolveMergeTypeLabel(similarity: number): string {
-  if (similarity >= 0.998) {
-    return "direct_stitch_micro_blend";
+  return resolveSegmentJoinMode(similarity);
+}
+
+/** Per-join transition duration — near-zero xfade for identical keyframes. */
+export function transitionSecondsForJoinMode(
+  baseTransitionSec: number,
+  joinMode: SegmentJoinMode,
+  fps = 30
+): number {
+  switch (joinMode) {
+    case "direct_micro_stitch":
+      return 1 / fps;
+    case "optical_micro_blend":
+      return Math.max(2 / fps, baseTransitionSec * 0.1);
+    case "soft_continuation":
+      return Math.max(3 / fps, baseTransitionSec * 0.3);
+    default:
+      return baseTransitionSec;
   }
-  if (similarity >= 0.995) {
-    return "motion_aware_stitch";
-  }
-  if (similarity >= 0.99) {
-    return "light_dissolve";
-  }
-  return "normal_transition";
 }
 
 /** Scale capcut_smooth (or base) transition duration by similarity — lower dissolve when frames match. */
@@ -102,9 +135,11 @@ export function transitionSecondsForSimilarity(
   similarity: number,
   fps = 30
 ): number {
-  const ratio = resolveMergeDissolveRatio(similarity);
-  const scaled = baseTransitionSec * ratio;
-  return Math.max(1 / fps, Math.min(baseTransitionSec, scaled));
+  return transitionSecondsForJoinMode(
+    baseTransitionSec,
+    resolveSegmentJoinMode(similarity),
+    fps
+  );
 }
 
 export function buildSegmentJoinPlan(params: {
@@ -117,19 +152,40 @@ export function buildSegmentJoinPlan(params: {
   const { segmentA, segmentB, score, baseTransitionSec, fps = 30 } = params;
   const similarity = Math.max(0, Math.min(1, score.similarity));
   const mode = resolveFrameContinuityMode(similarity);
+  const joinMode = resolveSegmentJoinMode(similarity);
   const mergeDissolveRatio = resolveMergeDissolveRatio(similarity);
-  const transitionSec = transitionSecondsForSimilarity(baseTransitionSec, similarity, fps);
+  const transitionSec = transitionSecondsForJoinMode(baseTransitionSec, joinMode, fps);
+  const exposureDelta = score.exposureDelta;
   return {
     segmentA,
     segmentB,
     similarity,
     mode,
+    joinMode,
     mergeDissolveRatio,
     transitionSec,
     mergeType: resolveMergeTypeLabel(similarity),
     reason: score.reason,
-    exposureDelta: score.exposureDelta,
+    exposureDelta,
+    applyExposureCorrection: shouldApplyJoinExposureCorrection(score),
   };
+}
+
+export function shouldApplyJoinExposureCorrection(score: KeyframePairScore): boolean {
+  if (
+    typeof score.luminanceEnd === "number" &&
+    typeof score.luminanceStart === "number" &&
+    Number.isFinite(score.luminanceEnd) &&
+    Number.isFinite(score.luminanceStart)
+  ) {
+    const delta = Math.abs(score.luminanceEnd - score.luminanceStart);
+    return delta >= 0.03 || shouldForceExposureNormalize(delta);
+  }
+  return (
+    typeof score.exposureDelta === "number" &&
+    Number.isFinite(score.exposureDelta) &&
+    (score.exposureDelta >= 0.03 || shouldForceExposureNormalize(score.exposureDelta))
+  );
 }
 
 /** Compact Vidu line (priority 1/2) — only when continuation mode. */

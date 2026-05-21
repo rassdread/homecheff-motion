@@ -159,5 +159,7 @@ export async function scoreKeyframePairWithPixels(input: KeyframePairInput): Pro
     phashSimilarity,
     ssimScore: ssim,
     exposureDelta,
+    luminanceEnd: lumEnd ?? undefined,
+    luminanceStart: lumStart ?? undefined,
   };
 }

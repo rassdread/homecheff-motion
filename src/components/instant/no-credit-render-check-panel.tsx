@@ -69,8 +69,8 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
           <div>
             <dt className="inline font-semibold">{t("instant.noCreditCheck.viduPrompt")}: </dt>
             <dd className="inline">
-              {report.viduPromptChars} · {t("instant.noCreditCheck.wouldCallVidu")}:{" "}
-              {report.wouldCallVidu ? "yes" : "no"}
+              {report.viduPromptChars} / {report.qualityGates.promptMaxChars} ·{" "}
+              {t("instant.noCreditCheck.wouldCallVidu")}: {report.wouldCallVidu ? "yes" : "no"}
             </dd>
           </div>
           <div>
@@ -80,6 +80,14 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
           <div>
             <dt className="inline font-semibold">{t("instant.noCreditCheck.textLock")}: </dt>
             <dd className="inline">{report.textLockMode}</dd>
+          </div>
+          <div>
+            <dt className="inline font-semibold">{t("instant.noCreditCheck.continuity")}: </dt>
+            <dd className="inline">{report.continuityMode}</dd>
+          </div>
+          <div>
+            <dt className="inline font-semibold">{t("instant.noCreditCheck.microActing")}: </dt>
+            <dd className="inline">{report.microActingProfile.replace(/_/g, " ")}</dd>
           </div>
           <div>
             <dt className="inline font-semibold">{t("instant.noCreditCheck.bridge")}: </dt>
@@ -94,9 +102,26 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
           {report.images.map((img) => (
             <div key={img.index}>
               <dt className="font-semibold">
-                {img.fileName}: {img.lockedRegionCount} locked
-                {img.textLockWarning ? " ⚠" : ""}
+                {img.fileName}: {img.lockedRegionCount} {t("instant.noCreditCheck.locked")}
+                {img.promptProtectedCount > 0 ?
+                  ` · ${img.promptProtectedCount} ${t("instant.noCreditCheck.promptOnly")}`
+                : ""}
+                {img.textLockWarning || img.headlineNotLocked ? " ⚠" : ""}
               </dt>
+              {img.lockedRegions.length > 0 ?
+                img.lockedRegions.map((r) => (
+                  <dd key={r.id} className="pl-2 text-amber-900/90">
+                    lock: {r.textPreview || r.blockType} ({Math.round(r.confidence * 100)}%)
+                  </dd>
+                ))
+              : null}
+              {img.promptProtectedPreviews.length > 0 ?
+                img.promptProtectedPreviews.map((preview, i) => (
+                  <dd key={`p-${img.index}-${i}`} className="pl-2 text-amber-800/80">
+                    prompt-only: {preview}
+                  </dd>
+                ))
+              : null}
             </div>
           ))}
           {report.segmentJoins.length > 0 ? (
@@ -104,8 +129,12 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
               <dt className="font-semibold">{t("instant.noCreditCheck.joins")}</dt>
               {report.segmentJoins.map((j) => (
                 <dd key={`${j.segmentA}-${j.segmentB}`}>
-                  {j.segmentA}→{j.segmentB}: sim {(j.similarity * 100).toFixed(2)}% · {j.mode} ·{" "}
-                  {j.mergeType} · dissolve {(j.mergeDissolveRatio * 100).toFixed(0)}%
+                  {j.segmentA}→{j.segmentB}: sim {(j.similarity * 100).toFixed(2)}% · {j.joinMode} ·{" "}
+                  dissolve {(j.mergeDissolveRatio * 100).toFixed(0)}%
+                  {typeof j.exposureDelta === "number" ?
+                    ` · exp Δ ${(j.exposureDelta * 100).toFixed(1)}%`
+                  : ""}
+                  {j.applyExposureCorrection ? " · EQ" : ""}
                 </dd>
               ))}
             </div>
