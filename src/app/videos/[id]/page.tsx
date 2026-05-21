@@ -11,6 +11,12 @@ import {
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
 import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
+import {
+  isValidPlaybackLanguageParam,
+  resolveLanguagePlaybackUrl,
+} from "@/lib/language-export-playback";
+import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
@@ -89,12 +95,14 @@ export default function VideoDetailPage() {
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
   const [selectedLanguagePlayback, setSelectedLanguagePlayback] = useState("original");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
@@ -120,9 +128,33 @@ export default function VideoDetailPage() {
       setError(t("videos.error"));
       setDetail(null);
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, [id]);
+
+  const updateLanguageExports = useCallback((exports: VideoLanguageExportSummary[]) => {
+    setDetail((prev) => (prev ? { ...prev, languageExports: exports } : prev));
+  }, []);
+
+  const setPlaybackLanguage = useCallback(
+    (languageCode: string) => {
+      setSelectedLanguagePlayback(languageCode);
+      if (!id || typeof window === "undefined") {
+        return;
+      }
+      const url = new URL(window.location.href);
+      if (languageCode === "original") {
+        url.searchParams.delete("lang");
+      } else {
+        url.searchParams.set("lang", languageCode);
+      }
+      const next = `${url.pathname}${url.search}`;
+      router.replace(next, { scroll: false });
+    },
+    [id, router]
+  );
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
@@ -248,20 +280,43 @@ export default function VideoDetailPage() {
     detail?.instantPreviousFinalVideoUrl,
   ]);
 
-  const languageExports = detail?.languageExports ?? [];
+  const languageExports = useMemo(
+    () => detail?.languageExports ?? [],
+    [detail?.languageExports]
+  );
 
-  const activeFinalVideoUrl = useMemo(() => {
-    if (selectedLanguagePlayback === "original") {
-      return displayFinalVideoUrl;
+  const completedPlaybackCodes = useMemo(
+    () =>
+      languageExports
+        .filter((e) => e.status === "completed" && e.outputVideoUrl?.trim())
+        .map((e) => e.languageCode),
+    [languageExports]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
     }
-    const row = languageExports.find(
-      (e) =>
-        e.languageCode === selectedLanguagePlayback &&
-        e.status === "completed" &&
-        e.outputVideoUrl?.trim()
-    );
-    return row?.outputVideoUrl?.trim() ?? displayFinalVideoUrl;
-  }, [selectedLanguagePlayback, languageExports, displayFinalVideoUrl]);
+    const langParam = new URLSearchParams(window.location.search).get("lang");
+    if (!langParam) {
+      return;
+    }
+    if (isValidPlaybackLanguageParam(langParam, completedPlaybackCodes)) {
+      setSelectedLanguagePlayback(langParam);
+    }
+  }, [completedPlaybackCodes]);
+
+  const playbackResolved = useMemo(
+    () =>
+      resolveLanguagePlaybackUrl({
+        selectedLanguageCode: selectedLanguagePlayback,
+        originalFinalUrl: displayFinalVideoUrl,
+        languageExports,
+      }),
+    [selectedLanguagePlayback, languageExports, displayFinalVideoUrl]
+  );
+
+  const activeFinalVideoUrl = playbackResolved.url ?? displayFinalVideoUrl;
 
   const playbackCacheKey = buildPlaybackCacheKey(activeFinalVideoUrl ?? displayFinalVideoUrl);
 
@@ -558,6 +613,14 @@ export default function VideoDetailPage() {
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
+          <LanguagePlaybackSelector
+            className="w-full"
+            originalFinalUrl={displayFinalVideoUrl}
+            languageExports={languageExports}
+            selectedLanguageCode={selectedLanguagePlayback}
+            onSelectedLanguageChange={setPlaybackLanguage}
+            isAdmin={isAdmin}
+          />
           <div className="flex flex-wrap gap-2">
             <a
               href={animationProjectDownloadUrl(id, {
@@ -594,12 +657,13 @@ export default function VideoDetailPage() {
             <LanguageExportPanel
               projectId={id}
               hasCompletedFinal={hasCompletedInstantFinal}
-              originalFinalUrl={displayFinalVideoUrl}
               languageExports={languageExports}
               isAdmin={isAdmin}
-              selectedPlayback={selectedLanguagePlayback}
-              onSelectedPlaybackChange={(code) => setSelectedLanguagePlayback(code)}
-              onRefresh={load}
+              onLanguageExportsChange={updateLanguageExports}
+              onRenderCompleted={(languageCode) => {
+                setPlaybackLanguage(languageCode);
+                void load({ silent: true });
+              }}
             />
           ) : null}
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
