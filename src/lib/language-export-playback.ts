@@ -107,6 +107,13 @@ export function playbackOptionLabel(
   return languageCode.toUpperCase();
 }
 
+export function readPlaybackLangFromUrl(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return new URLSearchParams(window.location.search).get("lang");
+}
+
 export function isValidPlaybackLanguageParam(
   value: string | null,
   availableCodes: string[]

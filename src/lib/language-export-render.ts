@@ -4,7 +4,6 @@
 
 import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 import { LANGUAGE_EXPORT_OUTPUT_MISSING } from "@/lib/language-export-playback";
-import type { LanguageExportPlaybackRow } from "@/lib/language-export-playback";
 import { languageExportPrepareUrl } from "@/lib/language-export-prepare";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 

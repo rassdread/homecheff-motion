@@ -57,12 +57,25 @@ export function LanguageExportPanel({
   isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
-  const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
-  const [textLayers, setTextLayers] = useState<LanguageTextLayerRecord[]>([]);
-  const [preparePhase, setPreparePhase] = useState<LanguageExportPreparePhase>("idle");
+  const [targetLang, setTargetLang] = useState<LanguageExportCode>(() => {
+    const draft = loadLanguageExportDraft(projectId);
+    return (draft?.targetLang as LanguageExportCode) || "nl";
+  });
+  const [textLayers, setTextLayers] = useState<LanguageTextLayerRecord[]>(() => {
+    const draft = loadLanguageExportDraft(projectId);
+    return draft?.textLayers?.length ? draft.textLayers : [];
+  });
+  const [preparePhase, setPreparePhase] = useState<LanguageExportPreparePhase>(() => {
+    const draft = loadLanguageExportDraft(projectId);
+    return draft?.textLayers?.length ? "ready" : "idle";
+  });
   const [prepareLoading, setPrepareLoading] = useState(false);
-  const [renderPhase, setRenderPhase] = useState<LanguageExportRenderPhase>("idle");
-  const [activeExportId, setActiveExportId] = useState<string | null>(null);
+  const [renderPhase, setRenderPhase] = useState<LanguageExportRenderPhase>(() =>
+    loadLanguageExportPending(projectId)?.exportId ? "rendering" : "idle"
+  );
+  const [activeExportId, setActiveExportId] = useState<string | null>(
+    () => loadLanguageExportPending(projectId)?.exportId ?? null
+  );
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [typographyQuality, setTypographyQuality] = useState("premium");
@@ -89,21 +102,6 @@ export function LanguageExportPanel({
     }),
     [t]
   );
-
-  useEffect(() => {
-    const draft = loadLanguageExportDraft(projectId);
-    if (draft?.textLayers?.length) {
-      setTargetLang((draft.targetLang as LanguageExportCode) || "nl");
-      setTextLayers(draft.textLayers);
-      setPreparePhase("ready");
-    }
-    const pending = loadLanguageExportPending(projectId);
-    if (pending?.exportId) {
-      setActiveExportId(pending.exportId);
-      setRenderPhase("rendering");
-      setInfo(t("instant.languageExport.renderProgress"));
-    }
-  }, [projectId, t]);
 
   useEffect(() => {
     return () => {
@@ -409,11 +407,8 @@ export function LanguageExportPanel({
       return;
     }
     resumePollOnceRef.current = true;
-    setActiveExportId(pending.exportId);
-    setRenderPhase("rendering");
-    setInfo(t("instant.languageExport.renderProgress"));
     void pollExportUntilDone(pending.exportId);
-  }, [projectId, pollExportUntilDone, t]);
+  }, [projectId, pollExportUntilDone]);
 
   const prepareButtonLabel = t(languageExportPrepareButtonKey(preparePhase, prepareLoading));
 

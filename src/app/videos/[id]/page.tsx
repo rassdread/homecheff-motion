@@ -14,6 +14,7 @@ import { LanguageExportPanel } from "@/components/instant/language-export-panel"
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
   isValidPlaybackLanguageParam,
+  readPlaybackLangFromUrl,
   resolveLanguagePlaybackUrl,
 } from "@/lib/language-export-playback";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
@@ -293,27 +294,22 @@ export default function VideoDetailPage() {
     [languageExports]
   );
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
+  const activePlaybackLanguage = useMemo(() => {
+    const langParam = readPlaybackLangFromUrl();
+    if (langParam && isValidPlaybackLanguageParam(langParam, completedPlaybackCodes)) {
+      return langParam;
     }
-    const langParam = new URLSearchParams(window.location.search).get("lang");
-    if (!langParam) {
-      return;
-    }
-    if (isValidPlaybackLanguageParam(langParam, completedPlaybackCodes)) {
-      setSelectedLanguagePlayback(langParam);
-    }
-  }, [completedPlaybackCodes]);
+    return selectedLanguagePlayback;
+  }, [completedPlaybackCodes, selectedLanguagePlayback]);
 
   const playbackResolved = useMemo(
     () =>
       resolveLanguagePlaybackUrl({
-        selectedLanguageCode: selectedLanguagePlayback,
+        selectedLanguageCode: activePlaybackLanguage,
         originalFinalUrl: displayFinalVideoUrl,
         languageExports,
       }),
-    [selectedLanguagePlayback, languageExports, displayFinalVideoUrl]
+    [activePlaybackLanguage, languageExports, displayFinalVideoUrl]
   );
 
   const activeFinalVideoUrl = playbackResolved.url ?? displayFinalVideoUrl;
@@ -617,7 +613,7 @@ export default function VideoDetailPage() {
             className="w-full"
             originalFinalUrl={displayFinalVideoUrl}
             languageExports={languageExports}
-            selectedLanguageCode={selectedLanguagePlayback}
+            selectedLanguageCode={activePlaybackLanguage}
             onSelectedLanguageChange={setPlaybackLanguage}
             isAdmin={isAdmin}
           />
@@ -625,10 +621,10 @@ export default function VideoDetailPage() {
             <a
               href={animationProjectDownloadUrl(id, {
                 languageCode:
-                  selectedLanguagePlayback !== "original" ? selectedLanguagePlayback : undefined,
+                  activePlaybackLanguage !== "original" ? activePlaybackLanguage : undefined,
               })}
               download={`homecheff-motion-${id}${
-                selectedLanguagePlayback !== "original" ? `-${selectedLanguagePlayback}` : ""
+                activePlaybackLanguage !== "original" ? `-${activePlaybackLanguage}` : ""
               }.mp4`}
               className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
             >
