@@ -2,6 +2,7 @@
  * Client-side language export prepare — request body, response parsing, UI state.
  */
 
+import type { LanguageTextLayerSourceStats } from "@/lib/canonical-language-text-layers";
 import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 
 export const LANGUAGE_EXPORT_NO_LAYERS = "NO_TRANSLATABLE_LAYERS";
@@ -33,6 +34,7 @@ export type LanguageExportPrepareApiResponse = {
   typographyRenderQuality?: string;
   translationFailed?: boolean;
   layerCount?: number;
+  layerSourceStats?: LanguageTextLayerSourceStats;
 };
 
 export type LanguageExportPrepareMessages = {
@@ -58,6 +60,7 @@ export type LanguageExportPrepareDebug = {
   translationProvider: string | null;
   errorCode: string | null;
   errorMessage: string | null;
+  layerSourceStats: LanguageTextLayerSourceStats | null;
 };
 
 export function buildLanguageExportPrepareRequest(languageCode: string): {
@@ -135,6 +138,7 @@ export function applyLanguageExportPrepareResponse(params: {
     translationProvider: data.translationProvider ?? null,
     errorCode: data.code ?? null,
     errorMessage: data.message ?? data.error ?? null,
+    layerSourceStats: data.layerSourceStats ?? null,
   };
 
   const typographyQuality =

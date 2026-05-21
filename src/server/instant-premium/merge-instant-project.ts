@@ -99,6 +99,7 @@ import {
   StaleRebuildOutputError,
 } from "@/server/instant-premium/stale-rebuild-output";
 import { finalBlobPathname } from "@/lib/final-video-storage";
+import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import {
   commitInstantPremiumFinalVideoExport,
   markInstantPremiumFinalRebuildFailed,
@@ -263,6 +264,16 @@ export async function retryUploadLocalMergedFinalVideo(projectId: string): Promi
         lastOverlayError: null,
         instantWorkerJobStatus: "completed",
       },
+    });
+    void syncProjectLanguageTextLayers({
+      projectId,
+      recoverySource: "original_render",
+    }).catch((err) => {
+      console.error("[language-text-layers]", {
+        projectId,
+        phase: "persist_after_upload_retry",
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
     return { ok: true, finalUrl };
   } catch (error) {

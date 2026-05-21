@@ -22,6 +22,8 @@ model AnimationProject {
   instantUserIntent   String?
   /** Locked overlay text layers (JSON LockedTextLayer[]). Rendered after Vidu, not by the model. */
   instantLockedTextLayers Json?
+  /** Canonical language-export layers (JSON LanguageTextLayersSnapshot). */
+  languageTextLayersJson Json?
   /** When true, Vidu prompts include text-safety rules and finals get deterministic text overlays. */
   instantLockedTextMode Boolean @default(true)
   /** poster_motion_preserve | deevid_text_safe | hybrid_overlay | exact_freeze | none */

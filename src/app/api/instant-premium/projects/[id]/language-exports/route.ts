@@ -102,6 +102,7 @@ export async function POST(request: Request, context: RouteContext) {
         typographyRenderQuality: prepared.typographyRenderQuality,
         translationFailed: prepared.translationFailed ?? false,
         message: prepared.translationMessage ?? null,
+        layerSourceStats: prepared.layerSourceStats,
       });
     } catch (error) {
       if (error instanceof LanguageExportPrepareError) {

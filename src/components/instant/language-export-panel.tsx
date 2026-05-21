@@ -205,6 +205,7 @@ export function LanguageExportPanel({
         translationProvider: null,
         errorCode: "NETWORK_ERROR",
         errorMessage: err instanceof Error ? err.message : message,
+        layerSourceStats: null,
       });
       logLanguageExportUi("error", {
         action: "prepare",
@@ -412,6 +413,18 @@ export function LanguageExportPanel({
           <p>provider: {prepareDebug.translationProvider ?? "—"}</p>
           <p>code: {prepareDebug.errorCode ?? "—"}</p>
           {prepareDebug.errorMessage ? <p>message: {prepareDebug.errorMessage}</p> : null}
+          {prepareDebug.layerSourceStats ? (
+            <>
+              <p className="mt-1 font-semibold">{t("instant.languageExport.adminLayerSources")}</p>
+              <p>source: {prepareDebug.layerSourceStats.recoverySource}</p>
+              <p>locked: {prepareDebug.layerSourceStats.lockedCount}</p>
+              <p>baked OCR: {prepareDebug.layerSourceStats.bakedOcrCount}</p>
+              <p>detected meta: {prepareDebug.layerSourceStats.detectedMetadataCount}</p>
+              <p>OCR recovered: {prepareDebug.layerSourceStats.ocrRecoveredCount}</p>
+              <p>style preserved: {prepareDebug.layerSourceStats.stylePreservedCount}</p>
+              <p>persisted: {prepareDebug.layerSourceStats.persistedCount}</p>
+            </>
+          ) : null}
         </div>
       ) : null}
 

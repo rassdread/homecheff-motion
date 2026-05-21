@@ -12,6 +12,7 @@ import {
   scheduleDeleteOldFinalBlob,
 } from "@/server/instant-premium/replace-final-video-blob";
 import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/language-export-service";
+import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import {
   assertPlaybackUrlFreshAfterRebuild,
   logPlaybackUrlUpdated,
@@ -189,6 +190,25 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     };
     logFinalVideoRebuildAudit(auditEvent);
     scheduleDeleteOldFinalBlob(previousFinalUrl);
+  }
+
+  try {
+    const sync = await syncProjectLanguageTextLayers({
+      projectId,
+      recoverySource: isRebuild ? "rebuild" : "original_render",
+    });
+    console.info("[language-text-layers]", {
+      projectId,
+      phase: "persisted_on_final_commit",
+      layerCount: sync.layerCount,
+      recoverySource: sync.stats.recoverySource,
+    });
+  } catch (error) {
+    console.error("[language-text-layers]", {
+      projectId,
+      phase: "persist_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   await markLanguageExportsNeedsRefresh(projectId);

@@ -2,11 +2,14 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
+import type { LanguageTextLayerSourceStats } from "@/lib/canonical-language-text-layers";
 import {
   enrichLanguageTextLayersForRender,
-  extractLanguageTextLayersFromProject,
+  extractLanguageTextLayersWithStats,
   mergeLanguageTextLayerOverrides,
 } from "@/lib/language-text-layers";
+import { recoverLanguageTextLayersFromFinalVideo } from "@/server/instant-premium/recover-language-text-layers-from-video";
+import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 import { DEFAULT_TYPOGRAPHY_RENDER_QUALITY } from "@/lib/typography-style-profile";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
@@ -92,6 +95,7 @@ export async function prepareLanguageTextLayers(params: {
   typographyRenderQuality: typeof DEFAULT_TYPOGRAPHY_RENDER_QUALITY;
   translationFailed?: boolean;
   translationMessage?: string;
+  layerSourceStats: LanguageTextLayerSourceStats;
 }> {
   const project = await prisma.animationProject.findUnique({
     where: { id: params.projectId },
@@ -104,8 +108,10 @@ export async function prepareLanguageTextLayers(params: {
     throw new Error("Instant Premium project not found.");
   }
 
-  const base = extractLanguageTextLayersFromProject(project);
-  const merged = mergeLanguageTextLayerOverrides(base, params.textLayerOverrides);
+  const { merged, stats: layerSourceStats } = await resolveTranslatableLanguageTextLayers({
+    project,
+    textLayerOverrides: params.textLayerOverrides,
+  });
 
   if (merged.length === 0) {
     throw new LanguageExportPrepareError(
@@ -157,7 +163,76 @@ export async function prepareLanguageTextLayers(params: {
     typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
     translationFailed: translationFailed || undefined,
     translationMessage,
+    layerSourceStats,
   };
+}
+
+async function resolveTranslatableLanguageTextLayers(params: {
+  project: {
+    id: string;
+    languageTextLayersJson: unknown;
+    instantLockedTextLayers: unknown;
+    instantDetectedTextMetadata: unknown;
+    instantOutputDurationSeconds: number | null;
+    stylePreset: string | null;
+    aspectRatio: string | null;
+    viduResolution: string | null;
+    images: Array<{ bakedTextBlocksJson: unknown; order: number }>;
+    exports: Array<{ outputVideoUrl: string | null; status: string }>;
+  };
+  textLayerOverrides?: LanguageTextLayerRecord[];
+}): Promise<{ merged: LanguageTextLayerRecord[]; stats: LanguageTextLayerSourceStats }> {
+  const extracted = extractLanguageTextLayersWithStats(params.project);
+  let merged = mergeLanguageTextLayerOverrides(extracted.layers, params.textLayerOverrides);
+  if (merged.length > 0) {
+    return { merged, stats: extracted.stats };
+  }
+
+  const latestExport = params.project.exports[0];
+  const finalUrl = latestExport?.outputVideoUrl?.trim() ?? "";
+  if (!finalUrl) {
+    return { merged: [], stats: extracted.stats };
+  }
+
+  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-lang-prepare-${params.project.id}-`));
+  const videoPath = path.join(workDir, "final.mp4");
+  try {
+    await downloadVideoToFile(finalUrl, videoPath);
+    const recovery = await recoverLanguageTextLayersFromFinalVideo({
+      finalVideoPath: videoPath,
+      stylePreset: params.project.stylePreset,
+      durationSeconds: params.project.instantOutputDurationSeconds,
+    });
+
+    if (recovery.layers.length === 0) {
+      console.warn("[language-export]", {
+        projectId: params.project.id,
+        phase: "ocr_recovery_empty",
+        error: recovery.error ?? null,
+      });
+      return { merged: [], stats: extracted.stats };
+    }
+
+    await syncProjectLanguageTextLayers({
+      projectId: params.project.id,
+      recoverySource: "ocr_recovery",
+      extraLayers: recovery.layers,
+    });
+
+    const refreshed = await prisma.animationProject.findUnique({
+      where: { id: params.project.id },
+      include: { images: { orderBy: { order: "asc" } } },
+    });
+    if (!refreshed) {
+      return { merged: [], stats: extracted.stats };
+    }
+
+    const afterRecovery = extractLanguageTextLayersWithStats(refreshed);
+    merged = mergeLanguageTextLayerOverrides(afterRecovery.layers, params.textLayerOverrides);
+    return { merged, stats: afterRecovery.stats };
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 async function attachTypographyPreviews(params: {

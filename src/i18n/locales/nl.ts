@@ -944,6 +944,7 @@ export const nl = {
   "instant.languageExport.statusReady": "Vertaling klaar — controleer en pas aan indien nodig.",
   "instant.languageExport.statusFailed": "Voorbereiden mislukt.",
   "instant.languageExport.adminDebugTitle": "Taalversie API (admin)",
+  "instant.languageExport.adminLayerSources": "Tekstlagen bronnen",
   "instant.languageExport.preparing": "Voorbereiden…",
   "instant.languageExport.renderButton": "Taalversie renderen",
   "instant.languageExport.rendering": "Renderen…",

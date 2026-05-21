@@ -2,10 +2,15 @@
  * Build language-export text layers from project locked / baked text.
  */
 
-import { parseBakedTextBlockRecords } from "@/lib/baked-text-detection";
+import {
+  aggregateCanonicalLanguageTextLayers,
+  canonicalToLanguageTextLayerRecords,
+  parseLanguageTextLayersSnapshot,
+  type LanguageTextLayerProjectInput,
+  type LanguageTextLayerSourceStats,
+} from "@/lib/canonical-language-text-layers";
 import {
   createLockedTextLayer,
-  parseLockedTextLayersJson,
   type LockedTextLayer,
 } from "@/lib/locked-text-layer";
 import { analyzeTypographyStyleProfile } from "@/lib/typography-style-profile";
@@ -14,97 +19,55 @@ import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 import type { TypographyRenderQuality } from "@/lib/typography-style-profile";
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 
-export function extractLanguageTextLayersFromProject(project: {
-  instantLockedTextLayers: unknown;
-  instantOutputDurationSeconds: number | null;
-  stylePreset?: string | null;
-  images: Array<{ bakedTextBlocksJson: unknown; order: number }>;
-}): LanguageTextLayerRecord[] {
-  const durationMs = Math.max(3000, (project.instantOutputDurationSeconds ?? 8) * 1000);
-  const locked = parseLockedTextLayersJson(project.instantLockedTextLayers);
-  if (locked.length > 0) {
-    return locked.map((layer) => {
-      const typography = analyzeTypographyFromLocked(layer, project.stylePreset);
-      return {
-        id: layer.id,
-        sourceText: layer.text,
-        translatedText: layer.text,
-        x: layer.x,
-        y: layer.y,
-        width: layer.width,
-        height: layer.height,
-        fontSize: layer.fontSize,
-        color: layer.color,
-        backgroundColor: layer.backgroundColor,
-        textAlign: layer.textAlign ?? "center",
-        animation: layer.animation,
-        startMs: layer.startMs,
-        durationMs: layer.durationMs,
-        typography,
-      };
-    });
-  }
+export type ExtractLanguageTextLayersResult = {
+  layers: LanguageTextLayerRecord[];
+  stats: LanguageTextLayerSourceStats;
+};
 
-  const sortedImages = [...project.images].sort((a, b) => a.order - b.order);
-  const heroImage = sortedImages[0];
-  if (!heroImage) {
-    return [];
-  }
-  const blocks = parseBakedTextBlockRecords(heroImage.bakedTextBlocksJson).filter(
-    (b) => b.kept !== false && (b.editedText || b.text).trim().length >= 2
-  );
-  return blocks.slice(0, 8).map((block, index) => {
-    const sourceText = (block.editedText || block.text).trim();
-    const typography = analyzeTypographyStyleProfile({
-      sourceText,
-      fontSize: Math.max(18, Math.min(72, Math.round(block.suggestedFontSize ?? 36))),
-      textAlign:
-        block.suggestedAlign === "left" || block.suggestedAlign === "right"
-          ? block.suggestedAlign
-          : "center",
-      x: block.bbox.x + block.bbox.width / 2,
-      y: block.bbox.y,
-      width: block.bbox.width,
-      height: block.bbox.height,
-      blockType: block.blockType,
-      stylePreset: project.stylePreset,
-    });
-    return {
-      id: block.id || `baked-${index}`,
-      sourceText,
-      translatedText: sourceText,
-      x: block.bbox.x + block.bbox.width / 2,
-      y: block.bbox.y,
-      width: block.bbox.width,
-      height: block.bbox.height,
-      fontSize: typography.fontSize,
-      color: typography.fillColor,
-      backgroundColor: typography.background?.color,
-      textAlign: typography.textAlign,
-      animation: block.animation ?? "none",
-      startMs: 0,
-      durationMs: durationMs,
-      typography,
-    };
-  });
+export function extractLanguageTextLayersFromProject(
+  project: LanguageTextLayerProjectInput
+): LanguageTextLayerRecord[] {
+  return extractLanguageTextLayersWithStats(project).layers;
 }
 
-function analyzeTypographyFromLocked(
-  layer: LockedTextLayer,
-  stylePreset?: string | null
-) {
-  return analyzeTypographyStyleProfile({
-    sourceText: layer.text,
-    fontSize: layer.fontSize,
-    color: layer.color,
-    backgroundColor: layer.backgroundColor,
-    textAlign: layer.textAlign,
-    x: layer.x,
-    y: layer.y,
-    width: layer.width,
-    height: layer.height,
-    stylePreset,
+export function extractLanguageTextLayersWithStats(
+  project: LanguageTextLayerProjectInput
+): ExtractLanguageTextLayersResult {
+  const persisted = parseLanguageTextLayersSnapshot(project.languageTextLayersJson);
+  if (persisted && persisted.layers.length > 0) {
+    const layers = canonicalToLanguageTextLayerRecords(
+      persisted.layers,
+      project.stylePreset
+    );
+    const lockedCount = persisted.layers.filter((l) => l.sourceType === "locked" || l.locked).length;
+    const ocrRecoveredCount = persisted.layers.filter((l) => l.sourceType === "ocr_recovery").length;
+    const bakedOcrCount = persisted.layers.filter((l) => l.sourceType === "ocr_baked").length;
+    const detectedMetadataCount = persisted.layers.filter(
+      (l) => l.sourceType === "detected_metadata"
+    ).length;
+    return {
+      layers,
+      stats: {
+        persistedCount: persisted.layers.length,
+        lockedCount,
+        bakedOcrCount,
+        detectedMetadataCount,
+        ocrRecoveredCount,
+        stylePreservedCount: persisted.layers.filter((l) => l.styleProfile != null || l.locked).length,
+        totalExtracted: layers.length,
+        recoverySource: persisted.recoverySource,
+      },
+    };
+  }
+
+  const { layers: canonical, stats } = aggregateCanonicalLanguageTextLayers({
+    project,
+    recoverySource: "aggregate",
   });
+  return {
+    layers: canonicalToLanguageTextLayerRecords(canonical, project.stylePreset),
+    stats,
+  };
 }
 
 /** Apply smart-fit + motion anchor updates after translation. */

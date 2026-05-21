@@ -937,6 +937,7 @@ export const en: LocaleSchema = {
   "instant.languageExport.statusReady": "Translation ready — review and edit if needed.",
   "instant.languageExport.statusFailed": "Prepare failed.",
   "instant.languageExport.adminDebugTitle": "Language export API (admin)",
+  "instant.languageExport.adminLayerSources": "Text layer sources",
   "instant.languageExport.preparing": "Preparing…",
   "instant.languageExport.renderButton": "Render language version",
   "instant.languageExport.rendering": "Rendering…",
