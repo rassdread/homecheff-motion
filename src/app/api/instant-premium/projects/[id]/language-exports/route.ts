@@ -33,6 +33,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const exports = await listVideoLanguageExports(projectId);
   return NextResponse.json({
+    ok: true,
     exports: exports.map((row) => ({
       id: row.id,
       languageCode: row.languageCode,
@@ -73,6 +74,7 @@ export async function POST(request: Request, context: RouteContext) {
     action?: string;
     languageCode?: string;
     textLayers?: LanguageTextLayerRecord[];
+    exportId?: string;
   };
 
   if (raw.action === "prepare") {
@@ -119,13 +121,29 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
+  const isRenderAction = raw.action === "render" || raw.action === undefined;
+
+  if (!isRenderAction) {
+    return NextResponse.json(
+      { ok: false, code: "INVALID_ACTION", message: "Unsupported action." },
+      { status: 400 }
+    );
+  }
+
   if (!raw.languageCode || !isLanguageExportCode(raw.languageCode)) {
-    return NextResponse.json({ error: "Invalid languageCode." }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, code: "INVALID_LANGUAGE", message: "Invalid languageCode." },
+      { status: 400 }
+    );
   }
 
   if (raw.languageCode === "original") {
     return NextResponse.json(
-      { error: "Use the default final video for the original language." },
+      {
+        ok: false,
+        code: "INVALID_LANGUAGE",
+        message: "Use the default final video for the original language.",
+      },
       { status: 400 }
     );
   }
@@ -143,16 +161,36 @@ export async function POST(request: Request, context: RouteContext) {
     });
     const exports = await listVideoLanguageExports(projectId);
     const created = exports.find((e) => e.id === exportId);
+    const status = created?.status ?? "queued";
+    const outputVideoUrl = created?.outputVideoUrl?.trim() ?? null;
+
+    if (status === "completed" && !outputVideoUrl) {
+      return NextResponse.json({
+        ok: false,
+        code: "LANGUAGE_EXPORT_OUTPUT_MISSING",
+        message: "Language export completed without an output video URL.",
+        exportId,
+        status,
+        languageCode: raw.languageCode,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       exportId,
+      status,
+      outputVideoUrl,
+      languageCode: raw.languageCode,
       export: created
         ? {
             id: created.id,
             languageCode: created.languageCode,
             languageLabel: created.languageLabel,
             status: created.status,
-            textLayerJson: created.textLayerJson,
+            outputVideoUrl: created.outputVideoUrl,
+            errorMessage: created.errorMessage,
+            createdAt: created.createdAt.toISOString(),
+            completedAt: created.completedAt?.toISOString() ?? null,
           }
         : null,
     });
@@ -166,6 +204,16 @@ export async function POST(request: Request, context: RouteContext) {
           : message === LANGUAGE_EXPORT_NO_BASE
             ? LANGUAGE_EXPORT_NO_BASE
             : "LANGUAGE_EXPORT_FAILED";
-    return NextResponse.json({ error: message, code }, { status: 400 });
+    return NextResponse.json(
+      {
+        ok: false,
+        code,
+        message,
+        exportId: raw.exportId ?? null,
+        status: "failed",
+        languageCode: raw.languageCode,
+      },
+      { status: 400 }
+    );
   }
 }

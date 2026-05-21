@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import {
+  LANGUAGE_EXPORT_POLL_INTERVAL_MS,
+  LANGUAGE_EXPORT_POLL_MAX_MS,
+} from "@/lib/language-export-playback";
+import type { VideoLanguageExportSummary } from "@/types/animation-api";
+import {
   applyLanguageExportPrepareResponse,
   buildLanguageExportPrepareRequest,
   languageExportPrepareButtonKey,
@@ -13,33 +18,31 @@ import {
 } from "@/lib/language-export-prepare";
 import type { LanguageExportPrepareApiResponse } from "@/lib/language-export-prepare";
 import {
+  applyLanguageExportPollRow,
+  applyLanguageExportRenderStartResponse,
+  buildLanguageExportRenderRequest,
+  clearLanguageExportPending,
+  fetchProjectLanguageExports,
+  loadLanguageExportDraft,
+  loadLanguageExportPending,
+  logLanguageExportRenderUi,
+  saveLanguageExportDraft,
+  saveLanguageExportPending,
+  type LanguageExportRenderDebug,
+  type LanguageExportRenderPhase,
+} from "@/lib/language-export-render";
+import {
   LANGUAGE_EXPORT_CODES,
   type LanguageExportCode,
 } from "@/lib/video-language-export";
 import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 
-export type VideoLanguageExportDto = {
-  id: string;
-  languageCode: string;
-  languageLabel: string;
-  status: string;
-  outputVideoUrl: string | null;
-  sourceFinalVideoUrl: string;
-  textLayerJson: unknown;
-  translationProvider: string | null;
-  errorMessage: string | null;
-  createdAt: string;
-  completedAt: string | null;
-};
-
 type Props = {
   projectId: string;
   hasCompletedFinal: boolean;
-  originalFinalUrl: string | null;
-  languageExports: VideoLanguageExportDto[];
-  onRefresh: () => void | Promise<void>;
-  selectedPlayback?: string;
-  onSelectedPlaybackChange?: (languageCode: string, playbackUrl: string | null) => void;
+  languageExports: VideoLanguageExportSummary[];
+  onLanguageExportsChange: (exports: VideoLanguageExportSummary[]) => void;
+  onRenderCompleted?: (languageCode: string, exportId: string) => void;
   isAdmin?: boolean;
 };
 
@@ -48,11 +51,9 @@ const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as La
 export function LanguageExportPanel({
   projectId,
   hasCompletedFinal,
-  originalFinalUrl,
   languageExports,
-  onRefresh,
-  selectedPlayback: selectedPlaybackProp,
-  onSelectedPlaybackChange,
+  onLanguageExportsChange,
+  onRenderCompleted,
   isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
@@ -60,54 +61,25 @@ export function LanguageExportPanel({
   const [textLayers, setTextLayers] = useState<LanguageTextLayerRecord[]>([]);
   const [preparePhase, setPreparePhase] = useState<LanguageExportPreparePhase>("idle");
   const [prepareLoading, setPrepareLoading] = useState(false);
-  const [renderLoading, setRenderLoading] = useState(false);
+  const [renderPhase, setRenderPhase] = useState<LanguageExportRenderPhase>("idle");
+  const [activeExportId, setActiveExportId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [typographyQuality, setTypographyQuality] = useState("premium");
   const [prepareDebug, setPrepareDebug] = useState<LanguageExportPrepareDebug | null>(null);
-  const [selectedPlaybackInternal, setSelectedPlaybackInternal] = useState<string>("original");
+  const [renderDebug, setRenderDebug] = useState<LanguageExportRenderDebug | null>(null);
   const translatePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollStartedAtRef = useRef<number | null>(null);
 
-  const selectedPlayback = selectedPlaybackProp ?? selectedPlaybackInternal;
-  const setSelectedPlayback = (value: string) => {
-    if (selectedPlaybackProp === undefined) {
-      setSelectedPlaybackInternal(value);
-    }
-    onSelectedPlaybackChange?.(
-      value,
-      value === "original"
-        ? originalFinalUrl
-        : (languageExports.find(
-            (e) =>
-              e.languageCode === value && e.status === "completed" && e.outputVideoUrl?.trim()
-          )?.outputVideoUrl?.trim() ?? originalFinalUrl)
-    );
-  };
-
-  const completedExports = useMemo(
-    () => languageExports.filter((e) => e.status === "completed" && e.outputVideoUrl),
-    [languageExports]
+  const renderMessages = useMemo(
+    () => ({
+      renderFailed: t("instant.languageExport.renderFailed"),
+      renderProgress: t("instant.languageExport.renderProgress"),
+      renderComplete: t("instant.languageExport.renderComplete"),
+      outputMissing: t("instant.languageExport.outputMissing"),
+    }),
+    [t]
   );
-
-  const playbackUrl = useMemo(() => {
-    if (selectedPlayback === "original") {
-      return originalFinalUrl;
-    }
-    const row = completedExports.find((e) => e.languageCode === selectedPlayback);
-    return row?.outputVideoUrl ?? originalFinalUrl;
-  }, [selectedPlayback, completedExports, originalFinalUrl]);
-
-  useEffect(() => {
-    onSelectedPlaybackChange?.(selectedPlayback, playbackUrl);
-  }, [selectedPlayback, playbackUrl, onSelectedPlaybackChange]);
-
-  useEffect(() => {
-    return () => {
-      if (translatePhaseTimerRef.current) {
-        clearTimeout(translatePhaseTimerRef.current);
-      }
-    };
-  }, []);
 
   const prepareMessages = useMemo(
     () => ({
@@ -117,6 +89,35 @@ export function LanguageExportPanel({
     }),
     [t]
   );
+
+  useEffect(() => {
+    const draft = loadLanguageExportDraft(projectId);
+    if (draft?.textLayers?.length) {
+      setTargetLang((draft.targetLang as LanguageExportCode) || "nl");
+      setTextLayers(draft.textLayers);
+      setPreparePhase("ready");
+    }
+    const pending = loadLanguageExportPending(projectId);
+    if (pending?.exportId) {
+      setActiveExportId(pending.exportId);
+      setRenderPhase("rendering");
+      setInfo(t("instant.languageExport.renderProgress"));
+    }
+  }, [projectId, t]);
+
+  useEffect(() => {
+    return () => {
+      if (translatePhaseTimerRef.current) {
+        clearTimeout(translatePhaseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const refreshExports = useCallback(async () => {
+    const exports = await fetchProjectLanguageExports(projectId);
+    onLanguageExportsChange(exports);
+    return exports;
+  }, [projectId, onLanguageExportsChange]);
 
   const prepareTexts = useCallback(async () => {
     if (!projectId.trim()) {
@@ -173,6 +174,14 @@ export function LanguageExportPanel({
         setTypographyQuality(result.typographyQuality);
       }
 
+      if (result.layers.length > 0) {
+        saveLanguageExportDraft(projectId, {
+          targetLang,
+          textLayers: result.layers,
+          savedAt: new Date().toISOString(),
+        });
+      }
+
       logLanguageExportUi("requestCompleted", {
         action: "prepare",
         projectId,
@@ -180,37 +189,14 @@ export function LanguageExportPanel({
         httpStatus: res.status,
         ok: result.debug.lastApiOk,
         layerCount: result.debug.layerCount,
-        translationProvider: result.debug.translationProvider,
-        errorCode: result.debug.errorCode,
       });
-
-      if (result.error) {
-        logLanguageExportUi("error", {
-          action: "prepare",
-          projectId,
-          targetLanguage: targetLang,
-          message: result.error,
-          code: result.debug.errorCode,
-        });
-      }
     } catch (err) {
       const message = t("instant.languageExport.prepareFailed");
       setPreparePhase("failed");
       setError(message);
-      setPrepareDebug({
-        lastHttpStatus: null,
-        lastApiOk: false,
-        exportId: null,
-        layerCount: 0,
-        translationProvider: null,
-        errorCode: "NETWORK_ERROR",
-        errorMessage: err instanceof Error ? err.message : message,
-        layerSourceStats: null,
-      });
       logLanguageExportUi("error", {
         action: "prepare",
         projectId,
-        targetLanguage: targetLang,
         message: err instanceof Error ? err.message : message,
       });
     } finally {
@@ -222,46 +208,212 @@ export function LanguageExportPanel({
     }
   }, [projectId, targetLang, t, prepareMessages, typographyQuality]);
 
+  const pollExportUntilDone = useCallback(
+    async (exportId: string) => {
+      pollStartedAtRef.current = Date.now();
+      const started = pollStartedAtRef.current;
+
+      while (Date.now() - started < LANGUAGE_EXPORT_POLL_MAX_MS) {
+        await new Promise((resolve) => setTimeout(resolve, LANGUAGE_EXPORT_POLL_INTERVAL_MS));
+        const exports = await refreshExports();
+        const row = exports.find((e) => e.id === exportId);
+        const polledAt = Date.now();
+        setRenderDebug((prev) => ({
+          lastHttpStatus: prev?.lastHttpStatus ?? 200,
+          lastApiOk: true,
+          exportId,
+          status: row?.status ?? prev?.status ?? null,
+          outputVideoUrlPresent: Boolean(row?.outputVideoUrl?.trim()),
+          errorCode: prev?.errorCode ?? null,
+          errorMessage: prev?.errorMessage ?? null,
+          lastPollAtMs: polledAt,
+        }));
+
+        logLanguageExportRenderUi("poll", {
+          projectId,
+          exportId,
+          status: row?.status,
+          outputVideoUrl: row?.outputVideoUrl ?? null,
+        });
+
+        const pollResult = applyLanguageExportPollRow(row, renderMessages);
+        if (!pollResult) {
+          continue;
+        }
+
+        if (pollResult.phase === "completed") {
+          setRenderPhase("completed");
+          setInfo(pollResult.info);
+          setError("");
+          clearLanguageExportPending(projectId);
+          if (pollResult.languageCode) {
+            onRenderCompleted?.(pollResult.languageCode, exportId);
+          }
+          return;
+        }
+
+        if (pollResult.phase === "failed") {
+          setRenderPhase("failed");
+          setError(pollResult.error);
+          setInfo("");
+          clearLanguageExportPending(projectId);
+          return;
+        }
+
+        setInfo(pollResult.info);
+      }
+
+      setRenderPhase("failed");
+      setError(t("instant.languageExport.renderTimeout"));
+      clearLanguageExportPending(projectId);
+    },
+    [projectId, refreshExports, renderMessages, onRenderCompleted, t]
+  );
+
   const renderVersion = useCallback(async () => {
-    setRenderLoading(true);
+    if (textLayers.length === 0) {
+      return;
+    }
+
+    setRenderPhase("starting");
     setError("");
     setInfo("");
+
+    logLanguageExportRenderUi("requestStarted", {
+      projectId,
+      languageCode: targetLang,
+      exportId: activeExportId,
+    });
+
     try {
       const res = await fetch(languageExportPrepareUrl(projectId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          languageCode: targetLang,
-          textLayers,
-        }),
+        body: JSON.stringify(
+          buildLanguageExportRenderRequest({
+            languageCode: targetLang,
+            layers: textLayers,
+            exportId: activeExportId,
+          })
+        ),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) {
-        setError(data.message ?? data.error ?? t("instant.languageExport.renderFailed"));
+      const data = (await res.json().catch(() => ({}))) as Parameters<
+        typeof applyLanguageExportRenderStartResponse
+      >[0]["data"];
+
+      const result = applyLanguageExportRenderStartResponse({
+        httpOk: res.ok,
+        httpStatus: res.status,
+        data,
+        messages: renderMessages,
+      });
+
+      setRenderDebug(result.debug);
+      setActiveExportId(result.exportId);
+
+      logLanguageExportRenderUi("requestCompleted", {
+        projectId,
+        languageCode: targetLang,
+        exportId: result.exportId,
+        httpStatus: res.status,
+        apiOk: result.debug.lastApiOk,
+        status: result.status,
+        outputVideoUrl: result.outputVideoUrl,
+        errorCode: result.debug.errorCode,
+      });
+
+      if (result.phase === "failed") {
+        setRenderPhase("failed");
+        setError(result.error);
+        setInfo("");
         return;
       }
-      setInfo(t("instant.languageExport.renderStarted"));
-      await onRefresh();
-    } catch {
-      setError(t("instant.languageExport.renderFailed"));
-    } finally {
-      setRenderLoading(false);
+
+      if (result.exportId) {
+        saveLanguageExportPending(projectId, {
+          exportId: result.exportId,
+          languageCode: targetLang,
+          savedAt: new Date().toISOString(),
+        });
+      }
+
+      const exports = await refreshExports();
+
+      if (result.phase === "completed" && result.languageCode && result.exportId) {
+        setRenderPhase("completed");
+        setInfo(result.info);
+        clearLanguageExportPending(projectId);
+        onRenderCompleted?.(result.languageCode, result.exportId);
+        return;
+      }
+
+      const exportId = result.exportId;
+      if (!exportId) {
+        setRenderPhase("failed");
+        setError(renderMessages.renderFailed);
+        return;
+      }
+
+      const existing = exports.find((e) => e.id === exportId);
+      if (existing?.status === "completed" && existing.outputVideoUrl?.trim()) {
+        setRenderPhase("completed");
+        setInfo(renderMessages.renderComplete);
+        clearLanguageExportPending(projectId);
+        onRenderCompleted?.(existing.languageCode, exportId);
+        return;
+      }
+
+      setRenderPhase("rendering");
+      setInfo(renderMessages.renderProgress);
+      await pollExportUntilDone(exportId);
+    } catch (err) {
+      setRenderPhase("failed");
+      setError(renderMessages.renderFailed);
+      logLanguageExportRenderUi("error", {
+        projectId,
+        languageCode: targetLang,
+        message: err instanceof Error ? err.message : renderMessages.renderFailed,
+      });
     }
-  }, [projectId, targetLang, textLayers, onRefresh, t]);
+  }, [
+    projectId,
+    targetLang,
+    textLayers,
+    activeExportId,
+    renderMessages,
+    refreshExports,
+    pollExportUntilDone,
+    onRenderCompleted,
+  ]);
+
+  const renderLoading = renderPhase === "starting" || renderPhase === "rendering";
 
   useEffect(() => {
     const pending = languageExports.some(
       (e) => e.status === "queued" || e.status === "rendering"
     );
-    if (!pending) {
+    if (!pending || renderLoading) {
       return;
     }
     const timer = window.setInterval(() => {
-      void onRefresh();
-    }, 3000);
+      void refreshExports();
+    }, LANGUAGE_EXPORT_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [languageExports, onRefresh]);
+  }, [languageExports, refreshExports, renderLoading]);
+
+  const resumePollOnceRef = useRef(false);
+  useEffect(() => {
+    const pending = loadLanguageExportPending(projectId);
+    if (!pending?.exportId || resumePollOnceRef.current) {
+      return;
+    }
+    resumePollOnceRef.current = true;
+    setActiveExportId(pending.exportId);
+    setRenderPhase("rendering");
+    setInfo(t("instant.languageExport.renderProgress"));
+    void pollExportUntilDone(pending.exportId);
+  }, [projectId, pollExportUntilDone, t]);
 
   const prepareButtonLabel = t(languageExportPrepareButtonKey(preparePhase, prepareLoading));
 
@@ -270,7 +422,7 @@ export function LanguageExportPanel({
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-violet-200/90 bg-violet-50/60 px-4 py-3">
+    <div className="mt-6 rounded-xl border border-violet-200/90 bg-violet-50/60 px-4 py-3">
       <p className="text-sm font-semibold text-violet-950">
         {t("instant.languageExport.createVersion")}
       </p>
@@ -287,7 +439,7 @@ export function LanguageExportPanel({
             setTargetLang(e.target.value as LanguageExportCode);
             setPreparePhase("idle");
           }}
-          disabled={prepareLoading}
+          disabled={prepareLoading || renderLoading}
           className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
         >
           {TARGET_CODES.map((code) => (
@@ -298,7 +450,7 @@ export function LanguageExportPanel({
         </select>
         <button
           type="button"
-          disabled={prepareLoading}
+          disabled={prepareLoading || renderLoading}
           onClick={() => void prepareTexts()}
           className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
         >
@@ -306,11 +458,13 @@ export function LanguageExportPanel({
         </button>
         <button
           type="button"
-          disabled={renderLoading || textLayers.length === 0}
+          disabled={renderLoading || prepareLoading || textLayers.length === 0}
           onClick={() => void renderVersion()}
           className="rounded-md bg-violet-800 px-3 py-1 text-xs font-medium text-white hover:bg-violet-900 disabled:opacity-50"
         >
-          {renderLoading ? t("instant.languageExport.rendering") : t("instant.languageExport.renderButton")}
+          {renderLoading
+            ? t("instant.languageExport.rendering")
+            : t("instant.languageExport.renderButton")}
         </button>
       </div>
 
@@ -325,6 +479,17 @@ export function LanguageExportPanel({
                 : preparePhase === "failed"
                   ? t("instant.languageExport.statusFailed")
                   : null}
+        </p>
+      ) : null}
+
+      {renderPhase === "rendering" || renderPhase === "starting" ? (
+        <p className="mt-2 text-[11px] font-medium text-violet-900">
+          {t("instant.languageExport.renderProgress")}
+        </p>
+      ) : null}
+      {renderPhase === "completed" ? (
+        <p className="mt-2 text-[11px] font-medium text-emerald-900">
+          {t("instant.languageExport.renderComplete")}
         </p>
       ) : null}
 
@@ -346,45 +511,27 @@ export function LanguageExportPanel({
                 <p className="font-mono text-[10px] text-violet-800/80">{layer.sourceText}</p>
                 <textarea
                   value={layer.translatedText}
+                  disabled={renderLoading}
                   onChange={(e) => {
                     const next = e.target.value;
-                    setTextLayers((prev) =>
-                      prev.map((row) =>
+                    setTextLayers((prev) => {
+                      const updated = prev.map((row) =>
                         row.id === layer.id ? { ...row, translatedText: next } : row
-                      )
-                    );
+                      );
+                      saveLanguageExportDraft(projectId, {
+                        targetLang,
+                        textLayers: updated,
+                        savedAt: new Date().toISOString(),
+                      });
+                      return updated;
+                    });
                   }}
                   rows={2}
-                  className="mt-1 w-full rounded border border-violet-100 px-2 py-1 text-xs"
+                  className="mt-1 w-full rounded border border-violet-100 px-2 py-1 text-xs disabled:opacity-60"
                 />
-                {layer.fit?.overflowWarning ? (
-                  <p className="mt-1 text-[10px] text-amber-800">
-                    {t("instant.languageExport.overflowWarning")}
-                  </p>
-                ) : null}
               </div>
             ))}
           </div>
-        </div>
-      ) : null}
-
-      {completedExports.length > 0 || originalFinalUrl ? (
-        <div className="mt-3">
-          <label className="text-xs font-medium text-violet-950">
-            {t("instant.languageExport.playback")}
-          </label>
-          <select
-            value={selectedPlayback}
-            onChange={(e) => setSelectedPlayback(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs"
-          >
-            <option value="original">{t("instant.languageExport.original")}</option>
-            {completedExports.map((row) => (
-              <option key={row.id} value={row.languageCode}>
-                {row.languageLabel} ({row.languageCode})
-              </option>
-            ))}
-          </select>
         </div>
       ) : null}
 
@@ -392,8 +539,7 @@ export function LanguageExportPanel({
         <ul className="mt-2 space-y-1 text-[11px] text-violet-900">
           {languageExports.map((row) => (
             <li key={row.id}>
-              {row.languageLabel}: {row.status}
-              {row.status === "needs_refresh" ? " ⚠" : ""}
+              {row.languageLabel ?? row.languageCode}: {row.status}
               {row.errorMessage ? ` — ${row.errorMessage}` : ""}
             </li>
           ))}
@@ -401,35 +547,26 @@ export function LanguageExportPanel({
       ) : null}
 
       {error ? <p className="mt-2 text-xs font-medium text-red-700">{error}</p> : null}
-      {info ? <p className="mt-2 text-xs text-amber-900">{info}</p> : null}
+      {info && !error ? <p className="mt-2 text-xs text-amber-900">{info}</p> : null}
 
       {isAdmin && prepareDebug ? (
         <div className="mt-3 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
           <p className="font-semibold">{t("instant.languageExport.adminDebugTitle")}</p>
-          <p>HTTP: {prepareDebug.lastHttpStatus ?? "—"}</p>
-          <p>API ok: {String(prepareDebug.lastApiOk)}</p>
-          <p>exportId: {prepareDebug.exportId ?? "—"}</p>
+          <p>prepare HTTP: {prepareDebug.lastHttpStatus ?? "—"}</p>
           <p>layers: {prepareDebug.layerCount}</p>
-          <p>provider: {prepareDebug.translationProvider ?? "—"}</p>
-          <p>code: {prepareDebug.errorCode ?? "—"}</p>
-          {prepareDebug.errorMessage ? <p>message: {prepareDebug.errorMessage}</p> : null}
-          {prepareDebug.layerSourceStats ? (
-            <>
-              <p className="mt-1 font-semibold">{t("instant.languageExport.adminLayerSources")}</p>
-              <p>source: {prepareDebug.layerSourceStats.recoverySource}</p>
-              <p>locked: {prepareDebug.layerSourceStats.lockedCount}</p>
-              <p>baked OCR: {prepareDebug.layerSourceStats.bakedOcrCount}</p>
-              <p>detected meta: {prepareDebug.layerSourceStats.detectedMetadataCount}</p>
-              <p>OCR recovered: {prepareDebug.layerSourceStats.ocrRecoveredCount}</p>
-              <p>style preserved: {prepareDebug.layerSourceStats.stylePreservedCount}</p>
-              <p>persisted: {prepareDebug.layerSourceStats.persistedCount}</p>
-            </>
-          ) : null}
         </div>
       ) : null}
 
-      {playbackUrl && selectedPlayback !== "original" ? (
-        <p className="mt-2 text-[10px] text-violet-800/80 break-all">{playbackUrl}</p>
+      {isAdmin && renderDebug ? (
+        <div className="mt-2 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+          <p className="font-semibold">{t("instant.languageExport.adminRenderDebugTitle")}</p>
+          <p>render HTTP: {renderDebug.lastHttpStatus ?? "—"}</p>
+          <p>exportId: {renderDebug.exportId ?? "—"}</p>
+          <p>status: {renderDebug.status ?? "—"}</p>
+          <p>outputVideoUrl: {String(renderDebug.outputVideoUrlPresent)}</p>
+          <p>code: {renderDebug.errorCode ?? "—"}</p>
+          <p>last poll: {renderDebug.lastPollAtMs ? new Date(renderDebug.lastPollAtMs).toISOString() : "—"}</p>
+        </div>
       ) : null}
     </div>
   );
