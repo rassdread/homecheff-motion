@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import {
@@ -13,9 +13,8 @@ import { InstantFinalProgressPanel } from "@/components/instant/instant-final-pr
 import { LanguageExportPanel } from "@/components/instant/language-export-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
-  isValidPlaybackLanguageParam,
-  readPlaybackLangFromUrl,
-  resolveLanguagePlaybackUrl,
+  buildPlaybackDownloadLanguageParam,
+  resolveActivePlaybackState,
 } from "@/lib/language-export-playback";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
@@ -74,6 +73,7 @@ function statusLabelKey(status: string): TranslationKey {
 
 export default function VideoDetailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const session = useAuthSession();
@@ -94,8 +94,6 @@ export default function VideoDetailPage() {
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
-  const [selectedLanguagePlayback, setSelectedLanguagePlayback] = useState("original");
-
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) {
       setLoading(false);
@@ -141,20 +139,21 @@ export default function VideoDetailPage() {
 
   const setPlaybackLanguage = useCallback(
     (languageCode: string) => {
-      setSelectedLanguagePlayback(languageCode);
-      if (!id || typeof window === "undefined") {
+      if (!id) {
         return;
       }
-      const url = new URL(window.location.href);
+      const params = new URLSearchParams(searchParams.toString());
       if (languageCode === "original") {
-        url.searchParams.delete("lang");
+        params.delete("lang");
       } else {
-        url.searchParams.set("lang", languageCode);
+        params.set("lang", languageCode);
       }
-      const next = `${url.pathname}${url.search}`;
-      router.replace(next, { scroll: false });
+      const qs = params.toString();
+      router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
     },
-    [id, router]
+    [id, router, searchParams]
   );
 
   useEffect(() => {
@@ -268,7 +267,7 @@ export default function VideoDetailPage() {
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
-  const displayFinalVideoUrl = useMemo(() => {
+  const originalPlaybackUrl = useMemo(() => {
     const picked = pickPlaybackUrl({
       detailExportUrl: finalVideoUrl,
       statusSnapshotUrl: instantSnapshot?.finalVideoUrl,
@@ -286,38 +285,32 @@ export default function VideoDetailPage() {
     [detail?.languageExports]
   );
 
-  const completedPlaybackCodes = useMemo(
-    () =>
-      languageExports
-        .filter((e) => e.status === "completed" && e.outputVideoUrl?.trim())
-        .map((e) => e.languageCode),
-    [languageExports]
-  );
+  const langFromUrl = searchParams.get("lang");
 
-  const activePlaybackLanguage = useMemo(() => {
-    const langParam = readPlaybackLangFromUrl();
-    if (langParam && isValidPlaybackLanguageParam(langParam, completedPlaybackCodes)) {
-      return langParam;
-    }
-    return selectedLanguagePlayback;
-  }, [completedPlaybackCodes, selectedLanguagePlayback]);
-
-  const playbackResolved = useMemo(
+  const playbackState = useMemo(
     () =>
-      resolveLanguagePlaybackUrl({
-        selectedLanguageCode: activePlaybackLanguage,
-        originalFinalUrl: displayFinalVideoUrl,
+      resolveActivePlaybackState({
+        langFromUrl,
+        originalFinalUrl: originalPlaybackUrl,
         languageExports,
       }),
-    [activePlaybackLanguage, languageExports, displayFinalVideoUrl]
+    [langFromUrl, originalPlaybackUrl, languageExports]
   );
 
-  const activeFinalVideoUrl = playbackResolved.url ?? displayFinalVideoUrl;
+  const activeFinalVideoUrl =
+    playbackState.activePlaybackUrl ?? originalPlaybackUrl;
 
-  const playbackCacheKey = buildPlaybackCacheKey(activeFinalVideoUrl ?? displayFinalVideoUrl);
+  const playbackCacheKey = buildPlaybackCacheKey(
+    activeFinalVideoUrl ?? originalPlaybackUrl
+  );
+
+  const playbackDownload = useMemo(
+    () => buildPlaybackDownloadLanguageParam(playbackState.selectedLanguageCode),
+    [playbackState.selectedLanguageCode]
+  );
 
   const hasCompletedInstantFinal = Boolean(
-    displayFinalVideoUrl &&
+    originalPlaybackUrl &&
       (detail?.status === "completed" ||
         detail?.exports?.some((e) => e.status === "completed" && e.outputVideoUrl?.trim()))
   );
@@ -592,7 +585,7 @@ export default function VideoDetailPage() {
         </p>
       ) : null}
 
-      {displayFinalVideoUrl ? (
+      {originalPlaybackUrl ? (
         <div className="mt-4 space-y-3">
           <video
             key={playbackCacheKey}
@@ -604,34 +597,34 @@ export default function VideoDetailPage() {
             onError={() => setFinalVideoPlaybackError(true)}
             onLoadedData={() => setFinalVideoPlaybackError(false)}
           >
-            <source src={activeFinalVideoUrl ?? displayFinalVideoUrl ?? undefined} type="video/mp4" />
+            <source
+              src={activeFinalVideoUrl ?? originalPlaybackUrl ?? undefined}
+              type="video/mp4"
+            />
           </video>
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
           <LanguagePlaybackSelector
             className="w-full"
-            originalFinalUrl={displayFinalVideoUrl}
+            originalPlaybackUrl={originalPlaybackUrl}
             languageExports={languageExports}
-            selectedLanguageCode={activePlaybackLanguage}
+            playbackState={playbackState}
             onSelectedLanguageChange={setPlaybackLanguage}
             isAdmin={isAdmin}
           />
           <div className="flex flex-wrap gap-2">
             <a
               href={animationProjectDownloadUrl(id, {
-                languageCode:
-                  activePlaybackLanguage !== "original" ? activePlaybackLanguage : undefined,
+                languageCode: playbackDownload.languageCode,
               })}
-              download={`homecheff-motion-${id}${
-                activePlaybackLanguage !== "original" ? `-${activePlaybackLanguage}` : ""
-              }.mp4`}
+              download={`homecheff-motion-${id}${playbackDownload.filenameSuffix}.mp4`}
               className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
             >
               {t("videos.download")}
             </a>
             <a
-              href={activeFinalVideoUrl ?? displayFinalVideoUrl}
+              href={activeFinalVideoUrl ?? originalPlaybackUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"

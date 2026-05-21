@@ -18,6 +18,23 @@ export type LanguageExportPlaybackRow = Pick<
   | "completedAt"
 >;
 
+export type LanguagePlaybackOption = {
+  id: string;
+  languageCode: string;
+  label: string;
+  outputVideoUrl: string | null;
+};
+
+export type ActivePlaybackState = {
+  selectedLanguageCode: string;
+  originalPlaybackUrl: string | null;
+  activePlaybackUrl: string | null;
+  activeExportId: string | null;
+  activeLanguageVersion: string | null;
+  fallbackToOriginal: boolean;
+  missingOutput: boolean;
+};
+
 export const LANGUAGE_EXPORT_OUTPUT_MISSING = "LANGUAGE_EXPORT_OUTPUT_MISSING";
 
 export function filterCompletedLanguageExportsForPlayback(
@@ -26,6 +43,60 @@ export function filterCompletedLanguageExportsForPlayback(
   return exports.filter(
     (row) => row.status === "completed" && Boolean(row.outputVideoUrl?.trim())
   );
+}
+
+/** One completed export per language code (latest completedAt wins). */
+export function pickLatestCompletedExportPerLanguage(
+  exports: LanguageExportPlaybackRow[]
+): LanguageExportPlaybackRow[] {
+  const completed = filterCompletedLanguageExportsForPlayback(exports);
+  const byCode = new Map<string, LanguageExportPlaybackRow>();
+  for (const row of completed) {
+    const existing = byCode.get(row.languageCode);
+    if (!existing) {
+      byCode.set(row.languageCode, row);
+      continue;
+    }
+    const existingAt = existing.completedAt ?? existing.createdAt ?? "";
+    const rowAt = row.completedAt ?? row.createdAt ?? "";
+    if (String(rowAt) >= String(existingAt)) {
+      byCode.set(row.languageCode, row);
+    }
+  }
+  return [...byCode.values()].sort((a, b) => a.languageCode.localeCompare(b.languageCode));
+}
+
+export function buildLanguagePlaybackOptions(
+  originalFinalUrl: string | null,
+  languageExports: LanguageExportPlaybackRow[],
+  locale: "en" | "nl" = "nl"
+): LanguagePlaybackOption[] {
+  const original: LanguagePlaybackOption = {
+    id: "original",
+    languageCode: "original",
+    label: playbackOptionLabel("original", locale),
+    outputVideoUrl: originalFinalUrl,
+  };
+  const exportOptions = pickLatestCompletedExportPerLanguage(languageExports).map((row) => ({
+    id: row.id,
+    languageCode: row.languageCode,
+    label: row.languageLabel || playbackOptionLabel(row.languageCode, locale),
+    outputVideoUrl: row.outputVideoUrl?.trim() ?? null,
+  }));
+  return [original, ...exportOptions];
+}
+
+export function resolveActivePlaybackLanguageFromQuery(
+  langFromUrl: string | null,
+  completedLanguageCodes: string[]
+): string {
+  if (!langFromUrl || langFromUrl === "original") {
+    return "original";
+  }
+  if (completedLanguageCodes.includes(langFromUrl)) {
+    return langFromUrl;
+  }
+  return "original";
 }
 
 export function resolveLanguagePlaybackUrl(params: {
@@ -48,7 +119,11 @@ export function resolveLanguagePlaybackUrl(params: {
     };
   }
 
-  const row = languageExports.find((e) => e.languageCode === selectedLanguageCode);
+  const row =
+    pickLatestCompletedExportPerLanguage(languageExports).find(
+      (e) => e.languageCode === selectedLanguageCode
+    ) ?? languageExports.find((e) => e.languageCode === selectedLanguageCode);
+
   if (!row) {
     return {
       url: originalFinalUrl,
@@ -94,6 +169,36 @@ export function resolveLanguagePlaybackUrl(params: {
   };
 }
 
+export function resolveActivePlaybackState(params: {
+  langFromUrl: string | null;
+  originalFinalUrl: string | null;
+  languageExports: LanguageExportPlaybackRow[];
+}): ActivePlaybackState {
+  const completedCodes = pickLatestCompletedExportPerLanguage(params.languageExports).map(
+    (e) => e.languageCode
+  );
+  const selectedLanguageCode = resolveActivePlaybackLanguageFromQuery(
+    params.langFromUrl,
+    completedCodes
+  );
+
+  const resolved = resolveLanguagePlaybackUrl({
+    selectedLanguageCode,
+    originalFinalUrl: params.originalFinalUrl,
+    languageExports: params.languageExports,
+  });
+
+  return {
+    selectedLanguageCode,
+    originalPlaybackUrl: params.originalFinalUrl,
+    activePlaybackUrl: resolved.url,
+    activeExportId: resolved.exportId,
+    activeLanguageVersion: selectedLanguageCode === "original" ? null : selectedLanguageCode,
+    fallbackToOriginal: resolved.fallbackToOriginal,
+    missingOutput: resolved.missingOutput,
+  };
+}
+
 export function playbackOptionLabel(
   languageCode: string,
   locale: "en" | "nl" = "nl"
@@ -101,7 +206,13 @@ export function playbackOptionLabel(
   if (languageCode === "original") {
     return locale === "nl" ? "Origineel" : "Original";
   }
-  if (languageCode === "nl" || languageCode === "en" || languageCode === "es" || languageCode === "fr" || languageCode === "ar") {
+  if (
+    languageCode === "nl" ||
+    languageCode === "en" ||
+    languageCode === "es" ||
+    languageCode === "fr" ||
+    languageCode === "ar"
+  ) {
     return languageExportLabel(languageCode as LanguageExportCode, locale);
   }
   return languageCode.toUpperCase();
@@ -122,6 +233,18 @@ export function isValidPlaybackLanguageParam(
     return value === "original";
   }
   return availableCodes.includes(value);
+}
+
+export function buildPlaybackDownloadLanguageParam(
+  selectedLanguageCode: string
+): { languageCode?: string; filenameSuffix: string } {
+  if (selectedLanguageCode === "original") {
+    return { filenameSuffix: "" };
+  }
+  return {
+    languageCode: selectedLanguageCode,
+    filenameSuffix: `-${selectedLanguageCode}`,
+  };
 }
 
 export const LANGUAGE_EXPORT_POLL_INTERVAL_MS = 2500;

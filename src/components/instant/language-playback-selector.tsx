@@ -3,25 +3,24 @@
 import { useMemo } from "react";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
-  filterCompletedLanguageExportsForPlayback,
-  playbackOptionLabel,
-  resolveLanguagePlaybackUrl,
+  buildLanguagePlaybackOptions,
+  type ActivePlaybackState,
 } from "@/lib/language-export-playback";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
 type Props = {
-  originalFinalUrl: string | null;
+  originalPlaybackUrl: string | null;
   languageExports: VideoLanguageExportSummary[];
-  selectedLanguageCode: string;
+  playbackState: ActivePlaybackState;
   onSelectedLanguageChange: (languageCode: string) => void;
   isAdmin?: boolean;
   className?: string;
 };
 
 export function LanguagePlaybackSelector({
-  originalFinalUrl,
+  originalPlaybackUrl,
   languageExports,
-  selectedLanguageCode,
+  playbackState,
   onSelectedLanguageChange,
   isAdmin = false,
   className = "",
@@ -29,27 +28,17 @@ export function LanguagePlaybackSelector({
   const t = useActiveTranslator();
   const [locale] = useLocale();
 
-  const completedExports = useMemo(
-    () => filterCompletedLanguageExportsForPlayback(languageExports),
-    [languageExports]
-  );
-
-  const playbackResolved = useMemo(
-    () =>
-      resolveLanguagePlaybackUrl({
-        selectedLanguageCode,
-        originalFinalUrl,
-        languageExports,
-      }),
-    [selectedLanguageCode, originalFinalUrl, languageExports]
+  const options = useMemo(
+    () => buildLanguagePlaybackOptions(originalPlaybackUrl, languageExports, locale),
+    [originalPlaybackUrl, languageExports, locale]
   );
 
   const activeRow = useMemo(
     () =>
-      selectedLanguageCode === "original"
+      playbackState.selectedLanguageCode === "original"
         ? null
-        : languageExports.find((e) => e.languageCode === selectedLanguageCode),
-    [languageExports, selectedLanguageCode]
+        : languageExports.find((e) => e.languageCode === playbackState.selectedLanguageCode),
+    [languageExports, playbackState.selectedLanguageCode]
   );
 
   return (
@@ -58,34 +47,37 @@ export function LanguagePlaybackSelector({
         {t("instant.languageExport.playback")}
       </label>
       <select
-        value={selectedLanguageCode}
+        value={playbackState.selectedLanguageCode}
         onChange={(e) => onSelectedLanguageChange(e.target.value)}
         className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200 sm:max-w-xs"
         aria-label={t("instant.languageExport.playback")}
       >
-        <option value="original">{playbackOptionLabel("original", locale)}</option>
-        {completedExports.map((row) => (
-          <option key={row.id} value={row.languageCode}>
-            {row.languageLabel || playbackOptionLabel(row.languageCode, locale)}
+        {options.map((option) => (
+          <option key={option.languageCode} value={option.languageCode}>
+            {option.label}
           </option>
         ))}
       </select>
 
-      {playbackResolved.missingOutput ? (
+      {playbackState.missingOutput ? (
         <p className="text-xs text-amber-900">{t("instant.languageExport.outputMissing")}</p>
       ) : null}
-      {playbackResolved.fallbackToOriginal && selectedLanguageCode !== "original" ? (
+      {playbackState.fallbackToOriginal &&
+      playbackState.selectedLanguageCode !== "original" ? (
         <p className="text-xs text-zinc-600">{t("instant.languageExport.playbackFallback")}</p>
       ) : null}
 
       {isAdmin ? (
         <div className="rounded border border-dashed border-zinc-300 bg-zinc-50/80 p-2 font-mono text-[10px] text-zinc-800">
           <p className="font-semibold">{t("instant.languageExport.adminPlaybackTitle")}</p>
-          <p>active export id: {playbackResolved.exportId ?? "—"}</p>
-          <p>DB exports: {languageExports.length}</p>
-          <p>completed w/ URL: {completedExports.length}</p>
+          <p>selectedLanguage: {playbackState.selectedLanguageCode}</p>
+          <p>activeLanguageVersion: {playbackState.activeLanguageVersion ?? "—"}</p>
+          <p>activeExportId: {playbackState.activeExportId ?? "—"}</p>
+          <p>originalPlaybackUrl: {playbackState.originalPlaybackUrl ? "set" : "—"}</p>
+          <p>activePlaybackUrl: {playbackState.activePlaybackUrl ? "set" : "—"}</p>
           <p>status: {activeRow?.status ?? "original"}</p>
-          <p>playback URL set: {String(Boolean(playbackResolved.url))}</p>
+          <p>DB exports: {languageExports.length}</p>
+          <p>selector options: {options.length}</p>
           <p className="mt-1 text-[9px] text-zinc-600">
             video tools: use /api/admin/runtime/video-tools
           </p>
