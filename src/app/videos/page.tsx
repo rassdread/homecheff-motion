@@ -14,6 +14,10 @@ import type {
 } from "@/types/animation-api";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
+import {
+  isProjectPlayablyComplete,
+  resolveProjectDisplayStatus,
+} from "@/lib/project-display-status";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
@@ -47,8 +51,16 @@ function canRetryMergeFromList(item: AnimationProjectListItem): boolean {
   return Boolean(failedPair || stuckRendering || completedWithoutFinal);
 }
 
-function statusLabelKey(status: string): TranslationKey {
-  switch (status) {
+function listItemDisplayStatus(item: AnimationProjectListItem): string {
+  return resolveProjectDisplayStatus({
+    projectStatus: item.status,
+    exportStatus: item.latestExport?.status,
+    outputVideoUrl: item.latestExport?.outputVideoUrl,
+  });
+}
+
+function listItemStatusLabelKey(item: AnimationProjectListItem): TranslationKey {
+  switch (listItemDisplayStatus(item)) {
     case "completed":
       return "videos.status.completed";
     case "generating":
@@ -93,13 +105,11 @@ function listItemDurationLabel(item: AnimationProjectListItem): string {
 }
 
 function hasPlayableFinal(item: AnimationProjectListItem): boolean {
-  const url = item.latestExport?.outputVideoUrl?.trim();
-  if (!url) {
-    return false;
-  }
-  const ex = item.latestExport;
-  /** Do not offer inline playback while merge/export is still running — URL may be partial or unplayable (Safari errors). */
-  return item.status === "completed" || ex?.status === "completed";
+  return isProjectPlayablyComplete({
+    projectStatus: item.status,
+    exportStatus: item.latestExport?.status,
+    outputVideoUrl: item.latestExport?.outputVideoUrl,
+  });
 }
 
 function hasPlayableFragmentPreview(item: AnimationProjectListItem): boolean {
@@ -507,7 +517,7 @@ export default function VideosPage() {
                     </div>
                   )}
                   <span className="absolute left-2 top-2 rounded-full border border-white/80 bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm:text-xs">
-                    {t(statusLabelKey(item.status))}
+                    {t(listItemStatusLabelKey(item))}
                   </span>
                 </div>
               </Link>

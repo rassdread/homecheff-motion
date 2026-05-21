@@ -52,7 +52,18 @@ describe("reset-instant-premium-wizard", () => {
     assert.equal(
       isInstantWizardVideoProcessingActive({
         checkoutBusy: false,
-        projectSnapshot: snapshot({ status: "completed", workerJobStatus: "running" }),
+        projectSnapshot: snapshot({
+          status: "running",
+          finalVideoUrl: "https://cdn.example/final.mp4",
+          downloadable: true,
+        }),
+      }),
+      false
+    );
+    assert.equal(
+      isInstantWizardVideoProcessingActive({
+        checkoutBusy: false,
+        projectSnapshot: snapshot({ status: "running", workerJobStatus: "running" }),
       }),
       true
     );

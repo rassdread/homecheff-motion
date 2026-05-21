@@ -29,7 +29,7 @@ describe("vidu prompt budget", () => {
     assert.match(motion, /Freeze all text/);
     assert.match(motion, /cartoon animation/i);
     assert.match(motion, /PREMIUM COMIC-STRIP ENGINE/i);
-    assert.match(motion, /Prioritize living faces/i);
+    assert.match(motion, /GLOBAL MASCOT \(HomeCheff\)/i);
   });
 
   it("all animation presets stay under budget when fully composed", () => {

@@ -18,6 +18,7 @@ import { resolveMotionVariationPhase } from "@/lib/premium-motion-variation";
 import { buildComicStripWorldTransitionBlock } from "@/lib/vidu-comic-strip-transitions";
 import { buildHardTextLockPromptLine } from "@/lib/hard-text-lock";
 import { buildCompactFacialActingLine } from "@/lib/premium-facial-acting";
+import { buildGlobalMascotAnimationPromptBlock } from "@/lib/premium-mascot-animation-preset";
 import { buildExactFrameContinuationPromptLine } from "@/lib/exact-frame-continuity";
 import {
   DEEVID_ORCHESTRATION_LINE,
@@ -68,6 +69,7 @@ const DEDUPE_SIGNATURES: { key: string; re: RegExp }[] = [
   { key: "gesture_var", re: /\b(gesture variation|do not loop|repeated|identical).*(gesture|sway|wave)\b/i },
   { key: "cinematic_tone", re: /\bcinematic\b/i },
   { key: "expressive_act", re: /\bexpressive\b/i },
+  { key: "global_mascot", re: /\bGLOBAL MASCOT \(HomeCheff\)/i },
 ];
 
 function normalizeLine(line: string): string {
@@ -215,7 +217,18 @@ export function buildCompactViduMotionPrompt(
     `Motion energy: ${profile.motionEnergy}.`,
     emotional ? `Acting: ${emotional.actingPromptBlock.split("\n")[0]?.replace(/^- /, "") ?? profile.emotionalActingPreset}` : "",
     characterCompact ? `Character: ${characterCompact}` : "",
-    buildCompactFacialActingLine(roles),
+    (() => {
+      const mascotLine = buildGlobalMascotAnimationPromptBlock({
+        roles,
+        scene,
+        userIntent: options?.userIntent,
+        compact: true,
+      });
+      if (mascotLine) {
+        return mascotLine;
+      }
+      return buildCompactFacialActingLine(roles);
+    })(),
     DEEVID_ORCHESTRATION_LINE,
     `Segment ${transitionOrder + 1}/${transitionTotal} (${segmentPhase}): gesture ${memory.activeGestureBeat.replace(/_/g, " ")}; avoid repeat loops.`,
     focusLine,

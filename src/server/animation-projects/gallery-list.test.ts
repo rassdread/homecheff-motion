@@ -53,6 +53,25 @@ describe("gallery list rebuild metadata", () => {
     assert.ok(item.latestExport?.outputVideoUrl?.includes("final.mp4"));
   });
 
+  it("maps rendering project with final URL to completed for gallery badge", () => {
+    const item = mapPrismaRowToAnimationProjectListItem(
+      baseRow({
+        status: "rendering",
+        exports: [
+          {
+            status: "rendering",
+            progress: 100,
+            outputVideoUrl: "https://example.com/final.mp4",
+            errorMessage: null,
+          },
+        ],
+      }),
+      { includeOwnerEmail: false }
+    );
+    assert.equal(item.status, "completed");
+    assert.equal(item.latestExport?.status, "completed");
+  });
+
   it("maps failed project with export error", () => {
     const item = mapPrismaRowToAnimationProjectListItem(
       baseRow({

@@ -4,6 +4,7 @@
 
 import type { CharacterRoleId, CharacterSceneRole } from "@/lib/character-role-engine";
 import { getCharacterRoleProfile } from "@/lib/character-role-engine";
+import { isHomeCheffMascotRole } from "@/lib/premium-mascot-animation-preset";
 import type { EmotionalActingPresetId } from "@/lib/premium-emotional-presets";
 import type { MotionEnergy } from "@/lib/premium-motion-engine";
 
@@ -99,9 +100,18 @@ export function buildFacialActingPromptBlock(params: {
   emotionalActingPreset?: EmotionalActingPresetId;
   motionEnergy?: MotionEnergy;
   segmentPhase?: "opening" | "mid" | "closing";
+  /** When global mascot animation rules are already injected. */
+  skipGlobalFacialCore?: boolean;
+  /** Omit per-role facial lines for HomeCheff mascots (global preset covers them). */
+  excludeMascotRolesFromRoleHints?: boolean;
 }): string {
   const { roles, emotionalActingPreset, motionEnergy, segmentPhase } = params;
-  const parts: string[] = [FACIAL_CORE_BLOCK];
+  const parts: string[] = [];
+  if (!params.skipGlobalFacialCore) {
+    parts.push(FACIAL_CORE_BLOCK);
+  } else {
+    parts.push("FACIAL SUPPLEMENT (mascot scene — global mascot animation rules already applied):");
+  }
 
   if (emotionalActingPreset && EMOTIONAL_FACIAL_HINTS[emotionalActingPreset]) {
     parts.push(`EMOTIONAL FACE (${emotionalActingPreset}): ${EMOTIONAL_FACIAL_HINTS[emotionalActingPreset]}`);
@@ -115,7 +125,10 @@ export function buildFacialActingPromptBlock(params: {
     parts.push("Calm facial pacing: minimal expression drift, slow blinks, preserve design readability.");
   }
 
-  const leadRoles = roles.filter((r) => r.roleId !== "BACKGROUND_CROWD").slice(0, 3);
+  const leadRoles = roles
+    .filter((r) => r.roleId !== "BACKGROUND_CROWD")
+    .filter((r) => !(params.excludeMascotRolesFromRoleHints && isHomeCheffMascotRole(r.roleId)))
+    .slice(0, 3);
   if (leadRoles.length) {
     parts.push(
       `ROLE FACIAL DIRECTION:\n${leadRoles.map((r) => `- ${buildFacialActingForRole(r.roleId)}`).join("\n")}`

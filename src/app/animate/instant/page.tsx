@@ -70,6 +70,10 @@ import type { PosterMotionSettings } from "@/lib/poster-motion-preserve";
 import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import { buildInstantPremiumBakedTextSnapshot } from "@/lib/build-instant-premium-baked-text-snapshot";
 import {
+  hasUnfinishedWizardDraftContent,
+  isInstantWizardProjectSnapshotComplete,
+} from "@/lib/project-display-status";
+import {
   getInstantWizardFormDefaults,
   INSTANT_WIZARD_DEFAULT_BAKED_TEXT,
   isInstantWizardVideoProcessingActive,
@@ -587,26 +591,43 @@ export default function InstantPremiumPage() {
     setCheckoutGateOpen(false);
   }, []);
 
-  const hasWizardSessionContent = useMemo(
+  const savedProjectComplete = isInstantWizardProjectSnapshotComplete(
+    readActiveWizardProjectSnapshot()
+  );
+
+  const hasUnfinishedDraft = useMemo(
     () =>
-      images.length > 0 ||
-      step > 1 ||
-      motionText.trim().length > 0 ||
-      chips.length > 0 ||
-      lockedTextLayers.length > 0,
+      hasUnfinishedWizardDraftContent({
+        imagesCount: images.length,
+        step,
+        motionText,
+        chipsCount: chips.length,
+        lockedTextLayersCount: lockedTextLayers.length,
+      }),
     [images.length, step, motionText, chips.length, lockedTextLayers.length]
   );
 
+  const showWizardSecondaryAction =
+    mounted && wizardReady && (savedProjectComplete || hasUnfinishedDraft);
+
+  const wizardSecondaryLabel = savedProjectComplete
+    ? t("instant.newVideo.button")
+    : t("instant.reset.button");
+
   const resetProcessingWarning = useMemo(
     () =>
+      !savedProjectComplete &&
       isInstantWizardVideoProcessingActive({
         checkoutBusy,
         projectSnapshot: readActiveWizardProjectSnapshot(),
       }),
-    [checkoutBusy]
+    [checkoutBusy, savedProjectComplete]
   );
 
   const performWizardReset = useCallback(async () => {
+    const startingNewVideoAfterSave = isInstantWizardProjectSnapshotComplete(
+      readActiveWizardProjectSnapshot()
+    );
     setResetBusy(true);
     try {
       if (autoScanDebounceRef.current) {
@@ -622,13 +643,23 @@ export default function InstantPremiumPage() {
       applyWizardFormDefaults();
       await persistNow();
       setResetDialogOpen(false);
-      setToastMessage(t("instant.reset.toast"));
+      setToastMessage(
+        startingNewVideoAfterSave ? t("instant.newVideo.toast") : t("instant.reset.toast")
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
       wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } finally {
       setResetBusy(false);
     }
   }, [applyWizardFormDefaults, cancelAllOcrScans, cancelOcrScanForImage, persistNow, t]);
+
+  const openWizardSecondaryAction = useCallback(() => {
+    if (savedProjectComplete) {
+      void performWizardReset();
+      return;
+    }
+    setResetDialogOpen(true);
+  }, [savedProjectComplete, performWizardReset]);
 
   useEffect(() => {
     if (!toastMessage) {
@@ -1059,14 +1090,18 @@ export default function InstantPremiumPage() {
             <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-2">
-            {mounted && wizardReady && hasWizardSessionContent ? (
+            {showWizardSecondaryAction ? (
               <button
                 type="button"
-                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50"
-                onClick={() => setResetDialogOpen(true)}
+                className={
+                  savedProjectComplete
+                    ? "rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-50 disabled:opacity-50"
+                    : "rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50"
+                }
+                onClick={openWizardSecondaryAction}
                 disabled={resetBusy || checkoutBusy}
               >
-                {t("instant.reset.button")}
+                {wizardSecondaryLabel}
               </button>
             ) : null}
             <Link href="/animate" className="text-xs font-medium text-zinc-600 underline">
@@ -1339,14 +1374,8 @@ export default function InstantPremiumPage() {
             showBack={wizardNav.showBack}
             backPlaceholder={wizardNav.backPlaceholder}
             onBack={wizardNav.onBack}
-            secondaryLabel={
-              mounted && wizardReady && hasWizardSessionContent ? t("instant.reset.button") : undefined
-            }
-            onSecondary={
-              mounted && wizardReady && hasWizardSessionContent
-                ? () => setResetDialogOpen(true)
-                : undefined
-            }
+            secondaryLabel={showWizardSecondaryAction ? wizardSecondaryLabel : undefined}
+            onSecondary={showWizardSecondaryAction ? openWizardSecondaryAction : undefined}
             secondaryDisabled={resetBusy || checkoutBusy}
             primaryLabel={wizardNav.primaryLabel}
             onPrimary={wizardNav.onPrimary}

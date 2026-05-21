@@ -6,6 +6,7 @@ import {
   INSTANT_COMPLETED_POLL_MS,
 } from "@/hooks/use-instant-premium-progress-polling";
 import { instantStatusFromProjectDetail } from "@/lib/instant-premium-status-fallback";
+import { writeCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import type {
   AnimationProjectDetailResponse,
   InstantPremiumStatusApiResponse,
@@ -97,6 +98,12 @@ export function useInstantPremiumStatusPolling(projectId: string, enabled: boole
       }
       if (next) {
         apply(next);
+        if (next.status === "completed" || next.finalVideoUrl?.trim()) {
+          writeCachedInstantProgressSnapshot(next.projectId, {
+            ...next,
+            status: "completed",
+          });
+        }
       }
       const delay = isTerminal(next) ? INSTANT_COMPLETED_POLL_MS : INSTANT_ACTIVE_POLL_MS;
       timer = setTimeout(() => void tick(), delay);

@@ -6,6 +6,7 @@ import { getAnimationStyleIdentity } from "@/lib/animation-style-identity";
 import type { AnimationStyleId } from "@/lib/animation-style-types";
 import type { EmotionalActingPresetId } from "@/lib/premium-emotional-presets";
 import { type CharacterSceneRole, detectCharacterRoles } from "@/lib/character-role-engine";
+import { isHomeCheffMascotRole } from "@/lib/premium-mascot-animation-preset";
 
 export type SceneFocusHint =
   | "mascot_trio"
@@ -57,9 +58,7 @@ function collectKeywords(input: SceneIntelligenceInput): string[] {
 }
 
 function detectFocusHint(roles: CharacterSceneRole[], input: SceneIntelligenceInput): SceneFocusHint {
-  const mascotRoles = roles.filter((r) =>
-    ["CHEF_HOST", "GARDEN_GUIDE", "DESIGN_CREATOR"].includes(r.roleId)
-  );
+  const mascotRoles = roles.filter((r) => isHomeCheffMascotRole(r.roleId));
   if (mascotRoles.length >= 2) {
     return "mascot_trio";
   }

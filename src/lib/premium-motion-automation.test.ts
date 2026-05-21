@@ -7,6 +7,7 @@ import {
 } from "@/lib/premium-motion-automation";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import { shouldApplySocialPolish } from "@/lib/premium-social-polish";
+import { analyzeSceneIntelligence } from "@/lib/scene-intelligence";
 
 describe("premium motion automation", () => {
   it("builds advanced intelligence blocks from resolved profile", () => {
@@ -35,6 +36,25 @@ describe("premium motion automation", () => {
       resolveMotionIntelligenceContext({ profile })
     );
     assert.match(block, /SOCIAL \/ TIKTOK POLISH/);
+  });
+
+  it("injects global mascot animation once for mascot scenes", () => {
+    const profile = resolvePremiumPolishProfile({
+      version: 1,
+      animationStyleId: "cartoon_animation",
+    });
+    const scene = analyzeSceneIntelligence({
+      animationStyleId: "cartoon_animation",
+      userIntent: "HomeCheff chef garden design mascots",
+      imageCount: 3,
+    });
+    const block = buildAdvancedMotionIntelligenceBlocks(
+      resolveMotionIntelligenceContext({ profile, scene, transitionOrder: 0, transitionTotal: 2 })
+    );
+    assert.match(block, /GLOBAL MASCOT ANIMATION/);
+    assert.equal((block.match(/GLOBAL MASCOT ANIMATION/g) ?? []).length, 1);
+    assert.ok(!block.includes("FACIAL PERFORMANCE SYSTEM:"));
+    assert.match(block, /FACIAL SUPPLEMENT \(mascot scene/);
   });
 
   it("segment hints include memory and variation", () => {

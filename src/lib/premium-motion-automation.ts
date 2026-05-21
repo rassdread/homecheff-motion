@@ -5,6 +5,7 @@
 import { buildCinematicDirectingBlock } from "@/lib/premium-cinematic-directing";
 import { buildCameraIntelligenceBlock } from "@/lib/premium-camera-intelligence";
 import { buildFacialActingPromptBlock } from "@/lib/premium-facial-acting";
+import { buildGlobalMascotAnimationPromptBlock } from "@/lib/premium-mascot-animation-preset";
 import { buildForegroundSegmentationPromptBlock } from "@/lib/premium-foreground-intelligence";
 import {
   buildMotionVariationEngineBlock,
@@ -64,6 +65,21 @@ export function buildAdvancedMotionIntelligenceBlocks(ctx: MotionIntelligenceCon
       buildPrimarySharedGroupPromptBlock({ plan: sharedPlan, transitionOrder, transitionTotal })
     : "";
 
+  const mascotGlobalBlock = buildGlobalMascotAnimationPromptBlock({
+    roles,
+    scene,
+    compact: false,
+  });
+
+  const facialBlock = buildFacialActingPromptBlock({
+    roles,
+    emotionalActingPreset: profile.emotionalActingPreset,
+    motionEnergy: profile.motionEnergy,
+    segmentPhase,
+    skipGlobalFacialCore: Boolean(mascotGlobalBlock),
+    excludeMascotRolesFromRoleHints: Boolean(mascotGlobalBlock),
+  });
+
   const parts = [
     buildForegroundSegmentationPromptBlock(),
     buildCinematicDirectingBlock({
@@ -74,12 +90,8 @@ export function buildAdvancedMotionIntelligenceBlocks(ctx: MotionIntelligenceCon
       transitionTotal,
       sharedPlan,
     }),
-    buildFacialActingPromptBlock({
-      roles,
-      emotionalActingPreset: profile.emotionalActingPreset,
-      motionEnergy: profile.motionEnergy,
-      segmentPhase,
-    }),
+    mascotGlobalBlock,
+    facialBlock,
     buildMotionVariationEngineBlock({
       roles,
       motionEnergy: profile.motionEnergy,

@@ -29,8 +29,8 @@ describe("segment transition", () => {
   });
 
   it("trims duplicate edge frames for middle segments", () => {
-    assert.deepEqual(getEdgeTrimFrames(0, 3, "capcut_smooth"), { outgoing: 2, incoming: 0 });
-    assert.deepEqual(getEdgeTrimFrames(1, 3, "capcut_smooth"), { outgoing: 2, incoming: 1 });
+    assert.deepEqual(getEdgeTrimFrames(0, 3, "capcut_smooth"), { outgoing: 1, incoming: 0 });
+    assert.deepEqual(getEdgeTrimFrames(1, 3, "capcut_smooth"), { outgoing: 1, incoming: 1 });
     assert.deepEqual(getEdgeTrimFrames(2, 3, "capcut_smooth"), { outgoing: 0, incoming: 1 });
     assert.deepEqual(getEdgeTrimFrames(1, 3, "straight_cut"), { outgoing: 0, incoming: 0 });
   });

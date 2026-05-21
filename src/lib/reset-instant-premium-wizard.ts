@@ -25,6 +25,7 @@ import type {
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
+import { isInstantWizardProjectSnapshotComplete } from "@/lib/project-display-status";
 
 export const INSTANT_WIZARD_DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
   enabled: false,
@@ -122,9 +123,15 @@ export function isInstantWizardVideoProcessingActive(params: {
   if (!snapshot) {
     return false;
   }
+  if (isInstantWizardProjectSnapshotComplete(snapshot)) {
+    return false;
+  }
   if (snapshot.status === "queued" || snapshot.status === "running" || snapshot.status === "finalizing") {
     return true;
   }
-  const worker = snapshot.workerJobStatus?.trim();
-  return worker === "queued" || worker === "running";
+  const worker = snapshot.workerJobStatus?.trim().toLowerCase();
+  if (worker === "queued" || worker === "running") {
+    return true;
+  }
+  return false;
 }

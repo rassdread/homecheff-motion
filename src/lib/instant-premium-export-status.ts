@@ -1,3 +1,5 @@
+import { isProjectPlayablyComplete } from "@/lib/project-display-status";
+
 /** Terminal states for Instant Premium merge/overlay (no secrets). */
 export function isOverlayFailureStatus(
   projectStatus: string,
@@ -8,7 +10,15 @@ export function isOverlayFailureStatus(
 
 export function isInstantPremiumExportCompleted(
   projectStatus: string,
-  exportStatus?: string | null
+  exportStatus?: string | null,
+  outputVideoUrl?: string | null
 ): boolean {
-  return projectStatus === "completed" && exportStatus === "completed";
+  if (projectStatus === "completed" && exportStatus === "completed") {
+    return true;
+  }
+  return isProjectPlayablyComplete({
+    projectStatus,
+    exportStatus,
+    outputVideoUrl,
+  });
 }

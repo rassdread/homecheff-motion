@@ -108,7 +108,18 @@ export async function syncActiveAnimationProjectsForUser(
   const candidates = await prisma.animationProject.findMany({
     where: {
       ownerId: userId,
-      status: { in: [...ACTIVE_PROJECT_STATUSES] },
+      OR: [
+        { status: { in: [...ACTIVE_PROJECT_STATUSES] } },
+        {
+          status: "rendering",
+          exports: {
+            some: {
+              outputVideoUrl: { not: null },
+              status: { in: ["completed", "rendering", "succeeded", "done"] },
+            },
+          },
+        },
+      ],
     },
     orderBy: { createdAt: "desc" },
     take: MAX_SYNC_PER_REQUEST,

@@ -3,6 +3,7 @@ import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-p
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import { normalizeGalleryRebuildMeta } from "@/server/animation-projects/gallery-list-rebuild-meta";
+import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
 import type { AnimationProjectListItem } from "@/types/animation-api";
 
 export type GalleryListPrismaRow = {
@@ -92,11 +93,28 @@ function mapPrismaRowToAnimationProjectListItemInner(
         String(tr.status).toLowerCase() === "completed" && Boolean(tr.outputVideoUrl?.trim())
     );
 
+  const resolvedExportUrl = latest
+    ? resolvePublicFinalVideoUrl({
+        outputVideoUrl: latest.outputVideoUrl,
+        exportStatus: latest.status,
+        projectStatus: row.status,
+        rebuildStatus: rebuildMeta.rebuildStatus,
+        rebuildCount: rebuildMeta.rebuildCount,
+        rebuiltAt: rebuildMeta.rebuiltAt,
+      })
+    : null;
+
+  const displayStatus = resolveProjectDisplayStatus({
+    projectStatus: row.status,
+    exportStatus: latest?.status,
+    outputVideoUrl: resolvedExportUrl ?? latest?.outputVideoUrl,
+  });
+
   return {
     id: row.id,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    status: row.status,
+    status: displayStatus,
     projectType: isInstantLike ? "instant_premium" : "classic",
     presetId: row.presetId,
     intent: row.intent,
@@ -109,16 +127,9 @@ function mapPrismaRowToAnimationProjectListItemInner(
     transitionCount,
     latestExport: latest
       ? {
-          status: latest.status,
+          status: displayStatus === "completed" ? "completed" : latest.status,
           progress: latest.progress,
-          outputVideoUrl: resolvePublicFinalVideoUrl({
-            outputVideoUrl: latest.outputVideoUrl,
-            exportStatus: latest.status,
-            projectStatus: row.status,
-            rebuildStatus: rebuildMeta.rebuildStatus,
-            rebuildCount: rebuildMeta.rebuildCount,
-            rebuiltAt: rebuildMeta.rebuiltAt,
-          }),
+          outputVideoUrl: resolvedExportUrl,
           errorMessage: latest.errorMessage,
         }
       : null,

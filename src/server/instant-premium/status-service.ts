@@ -19,6 +19,7 @@ import { resolveInstantPremiumProgress } from "@/lib/instant-premium-progress-st
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
+import { reconcilePlayableProjectCompletion } from "@/server/animation-projects/reconcile-project-completion";
 
 export { refreshTransitionOutputsFromProvider };
 
@@ -227,6 +228,8 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     }
   }
 
+  await reconcilePlayableProjectCompletion(projectId);
+
   const finalState = await prisma.animationProject.findUnique({
     where: { id: projectId },
     include: {
@@ -262,7 +265,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
             finalState.transitions.length
         )
       : 0;
-  const progressPercent =
+  let progressPercent =
     finalState.status === "completed"
       ? 100
       : finalState.status === "failed" || finalState.status === "failed_overlay"
@@ -297,7 +300,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       : null,
   });
   const exportFailed = Boolean(exportFailureDiagnostics?.isExportFailure);
-  const phase: InstantPremiumStatusResponse["phase"] =
+  let phase: InstantPremiumStatusResponse["phase"] =
     exportFailed || overlayFailed || finalState.status === "failed"
       ? "failed"
       : finalState.status === "completed" && !finalRebuildFailed
@@ -307,7 +310,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
             ? "uploading_final"
             : "merging_clips"
           : "generating_clips";
-  const status: InstantPremiumStatusResponse["status"] =
+  let status: InstantPremiumStatusResponse["status"] =
     exportFailed || overlayFailed || finalState.status === "failed"
       ? "failed"
       : finalState.status === "completed" && !finalRebuildFailed
@@ -334,8 +337,14 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   const stuckInfo = detectFinalizationStuck(finalState);
   const exportCompleted = isInstantPremiumExportCompleted(
     finalState.status,
-    latestExport?.status
+    latestExport?.status,
+    finalVideoUrl ?? latestExport?.outputVideoUrl
   );
+  if (exportCompleted && status !== "failed") {
+    status = "completed";
+    phase = "completed";
+    progressPercent = 100;
+  }
   const canRepairFinalVideo =
     segmentsAllCompleted && !exportCompleted && !Boolean(latestExport?.outputVideoUrl?.trim());
   const isRestoringFinalVideo =

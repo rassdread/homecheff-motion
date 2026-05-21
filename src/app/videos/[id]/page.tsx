@@ -25,6 +25,7 @@ import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
+import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
@@ -576,7 +577,15 @@ export default function VideoDetailPage() {
           {t("videos.title")}
         </Link>
         <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700">
-          {t(statusLabelKey(detail.status))}
+          {t(
+            statusLabelKey(
+              resolveProjectDisplayStatus({
+                projectStatus: detail.status,
+                exportStatus: latestExport?.status,
+                outputVideoUrl: originalPlaybackUrl ?? finalVideoUrl,
+              })
+            )
+          )}
         </span>
       </div>
 

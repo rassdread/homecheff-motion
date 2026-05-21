@@ -463,6 +463,8 @@ export const en: LocaleSchema = {
   "instant.classicFlow": "Classic flow",
   "instant.common.back": "Back",
   "instant.common.continue": "Continue",
+  "instant.newVideo.button": "Create new video",
+  "instant.newVideo.toast": "Wizard cleared — your previous video is in My videos",
   "instant.reset.button": "Start over",
   "instant.reset.title": "Reset wizard?",
   "instant.reset.body":

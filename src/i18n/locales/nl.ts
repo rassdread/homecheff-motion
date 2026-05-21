@@ -465,6 +465,8 @@ export const nl = {
   "instant.classicFlow": "Klassieke flow",
   "instant.common.back": "Terug",
   "instant.common.continue": "Doorgaan",
+  "instant.newVideo.button": "Nieuwe video maken",
+  "instant.newVideo.toast": "Wizard leeggemaakt — je vorige video staat in Mijn video's",
   "instant.reset.button": "Opnieuw beginnen",
   "instant.reset.title": "Wizard resetten?",
   "instant.reset.body":
