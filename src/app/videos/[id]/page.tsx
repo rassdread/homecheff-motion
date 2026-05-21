@@ -10,6 +10,7 @@ import {
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
+import { LanguageExportPanel } from "@/components/instant/language-export-panel";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
@@ -83,6 +84,7 @@ export default function VideoDetailPage() {
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
+  const [selectedLanguagePlayback, setSelectedLanguagePlayback] = useState("original");
 
   const load = useCallback(async () => {
     if (!id) {
@@ -232,6 +234,27 @@ export default function VideoDetailPage() {
 
   const displayFinalVideoUrl =
     instantSnapshot?.finalVideoUrl?.trim() || finalVideoUrl;
+
+  const languageExports = detail?.languageExports ?? [];
+
+  const activeFinalVideoUrl = useMemo(() => {
+    if (selectedLanguagePlayback === "original") {
+      return displayFinalVideoUrl;
+    }
+    const row = languageExports.find(
+      (e) =>
+        e.languageCode === selectedLanguagePlayback &&
+        e.status === "completed" &&
+        e.outputVideoUrl?.trim()
+    );
+    return row?.outputVideoUrl?.trim() ?? displayFinalVideoUrl;
+  }, [selectedLanguagePlayback, languageExports, displayFinalVideoUrl]);
+
+  const hasCompletedInstantFinal = Boolean(
+    displayFinalVideoUrl &&
+      (detail?.status === "completed" ||
+        detail?.exports?.some((e) => e.status === "completed" && e.outputVideoUrl?.trim()))
+  );
 
   const mergeStuckRetryOnly = Boolean(
     canRetryMergeExport && detail?.status === "rendering" && latestExport?.status !== "failed"
@@ -491,7 +514,7 @@ export default function VideoDetailPage() {
       {displayFinalVideoUrl ? (
         <div className="mt-4 space-y-3">
           <video
-            key={displayFinalVideoUrl}
+            key={activeFinalVideoUrl ?? displayFinalVideoUrl}
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
@@ -500,21 +523,26 @@ export default function VideoDetailPage() {
             onError={() => setFinalVideoPlaybackError(true)}
             onLoadedData={() => setFinalVideoPlaybackError(false)}
           >
-            <source src={displayFinalVideoUrl} type="video/mp4" />
+            <source src={activeFinalVideoUrl ?? displayFinalVideoUrl} type="video/mp4" />
           </video>
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <a
-              href={animationProjectDownloadUrl(id)}
-              download={`homecheff-motion-${id}.mp4`}
+              href={animationProjectDownloadUrl(id, {
+                languageCode:
+                  selectedLanguagePlayback !== "original" ? selectedLanguagePlayback : undefined,
+              })}
+              download={`homecheff-motion-${id}${
+                selectedLanguagePlayback !== "original" ? `-${selectedLanguagePlayback}` : ""
+              }.mp4`}
               className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
             >
               {t("videos.download")}
             </a>
             <a
-              href={displayFinalVideoUrl}
+              href={activeFinalVideoUrl ?? displayFinalVideoUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
@@ -532,6 +560,17 @@ export default function VideoDetailPage() {
               </button>
             ) : null}
           </div>
+          {instantLikeProject && hasCompletedInstantFinal ? (
+            <LanguageExportPanel
+              projectId={id}
+              hasCompletedFinal={hasCompletedInstantFinal}
+              originalFinalUrl={displayFinalVideoUrl}
+              languageExports={languageExports}
+              selectedPlayback={selectedLanguagePlayback}
+              onSelectedPlaybackChange={(code) => setSelectedLanguagePlayback(code)}
+              onRefresh={load}
+            />
+          ) : null}
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
         </div>

@@ -11,6 +11,7 @@ import {
   logFinalVideoReplaced,
   scheduleDeleteOldFinalBlob,
 } from "@/server/instant-premium/replace-final-video-blob";
+import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/language-export-service";
 
 export function logFinalVideoRebuildAudit(event: FinalVideoRebuildAuditEvent): void {
   console.info("[final-video-rebuild-audit]", event);
@@ -130,6 +131,8 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     logFinalVideoRebuildAudit(auditEvent);
     scheduleDeleteOldFinalBlob(previousFinalUrl);
   }
+
+  await markLanguageExportsNeedsRefresh(projectId);
 }
 
 export async function markInstantPremiumFinalRebuildFailed(params: {

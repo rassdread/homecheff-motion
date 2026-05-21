@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { resolveProjectVideoDownload } from "@/server/animation-projects/resolve-video-download";
-import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
+import {
+  getAnimationProjectById,
+  getAnimationProjectByIdForViewer,
+} from "@/server/animation-projects/queries";
 import { requireActiveUser } from "@/server/auth/permissions";
 
 type RouteContext = {
@@ -25,17 +28,24 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  const segmentOrder = parseSegmentOrder(new URL(request.url).searchParams.get("segment"));
+  const searchParams = new URL(request.url).searchParams;
+  const segmentOrder = parseSegmentOrder(searchParams.get("segment"));
   if (Number.isNaN(segmentOrder)) {
     return NextResponse.json({ error: "Invalid segment index." }, { status: 400 });
   }
+  const languageCode = searchParams.get("lang")?.trim() || undefined;
 
-  const project = await getAnimationProjectByIdForViewer(id, user);
+  const viewerProject = await getAnimationProjectByIdForViewer(id, user);
+  if (!viewerProject) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  const project = await getAnimationProjectById(id);
   if (!project) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  const resolved = resolveProjectVideoDownload(project, segmentOrder);
+  const resolved = resolveProjectVideoDownload(project, segmentOrder, languageCode);
   if (!resolved) {
     return NextResponse.json({ error: "Video not available for download." }, { status: 404 });
   }

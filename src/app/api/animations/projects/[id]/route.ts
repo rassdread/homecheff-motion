@@ -70,6 +70,19 @@ function mapToDetailResponse(
     instantSelectedChips: project.instantSelectedChips,
     instantUserIntent: project.instantUserIntent,
     ownerEmail,
+    languageExports: project.languageExports.map((row) => ({
+      id: row.id,
+      languageCode: row.languageCode,
+      languageLabel: row.languageLabel,
+      status: row.status,
+      outputVideoUrl: row.outputVideoUrl,
+      sourceFinalVideoUrl: row.sourceFinalVideoUrl,
+      textLayerJson: row.textLayerJson,
+      translationProvider: row.translationProvider,
+      errorMessage: row.errorMessage,
+      createdAt: row.createdAt.toISOString(),
+      completedAt: row.completedAt?.toISOString() ?? null,
+    })),
   };
 }
 

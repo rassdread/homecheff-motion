@@ -279,12 +279,27 @@ export type AnimationProjectListResponse = {
 };
 
 /** GET /api/animations/projects/[id] — full snapshot for gallery detail. */
+export type VideoLanguageExportSummary = {
+  id: string;
+  languageCode: string;
+  languageLabel: string;
+  status: string;
+  outputVideoUrl: string | null;
+  sourceFinalVideoUrl: string;
+  textLayerJson: unknown;
+  translationProvider: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
   advancedSettingsEnabled: boolean;
   /** Only when viewer is admin (e.g. inspecting another user’s project). */
   ownerEmail?: string;
+  languageExports?: VideoLanguageExportSummary[];
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";

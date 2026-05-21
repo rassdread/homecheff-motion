@@ -1,9 +1,7 @@
-import type { AnimationExport, AnimationProject, AnimationTransition } from "@prisma/client";
+import { isLanguageExportCode } from "@/lib/video-language-export";
+import type { AnimationProjectWithMedia } from "@/server/animation-projects/queries";
 
-type ProjectWithMedia = AnimationProject & {
-  transitions: AnimationTransition[];
-  exports: AnimationExport[];
-};
+export type ProjectWithMedia = AnimationProjectWithMedia;
 
 export type ResolvedVideoDownload = {
   sourceUrl: string;
@@ -17,7 +15,8 @@ export type ResolvedVideoDownload = {
  */
 export function resolveProjectVideoDownload(
   project: ProjectWithMedia,
-  segmentOrder?: number
+  segmentOrder?: number,
+  languageCode?: string
 ): ResolvedVideoDownload | null {
   if (segmentOrder !== undefined) {
     if (!Number.isInteger(segmentOrder) || segmentOrder < 0) {
@@ -32,6 +31,21 @@ export function resolveProjectVideoDownload(
       sourceUrl,
       filename: `homecheff-motion-${project.id}-segment-${segmentOrder + 1}.mp4`,
     };
+  }
+
+  const lang = languageCode?.trim().toLowerCase();
+  if (lang && lang !== "original" && isLanguageExportCode(lang)) {
+    const languageRow = (project.languageExports ?? [])
+      .filter((row) => row.languageCode === lang && row.status === "completed")
+      .sort((a, b) => b.version - a.version)[0];
+    const languageUrl = languageRow?.outputVideoUrl?.trim();
+    if (languageUrl) {
+      return {
+        sourceUrl: languageUrl,
+        filename: `homecheff-motion-${project.id}-${lang}.mp4`,
+      };
+    }
+    return null;
   }
 
   const exportWithUrl = project.exports.find((e) => e.outputVideoUrl?.trim());

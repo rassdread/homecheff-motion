@@ -72,9 +72,35 @@ model AnimationProject {
   images      AnimationImage[]
   transitions AnimationTransition[]
   exports     AnimationExport[]
+  languageExports VideoLanguageExport[]
   usageLedger AnimationUsageLedger[]
 
   @@index([ownerId, createdAt])
+}
+
+/** Additional final MP4 per language — text overlay only, no Vidu. */
+model VideoLanguageExport {
+  id                   String           @id @default(cuid())
+  projectId            String
+  project              AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  languageCode         String
+  languageLabel        String
+  outputVideoUrl       String?
+  /** queued | rendering | completed | failed | needs_refresh */
+  status               String
+  sourceFinalVideoUrl  String
+  textLayerJson        Json
+  translationProvider  String?
+  translationAuditJson Json?
+  isDefault            Boolean          @default(false)
+  version              Int              @default(1)
+  errorMessage         String?
+  createdAt            DateTime         @default(now())
+  completedAt          DateTime?
+  updatedAt            DateTime         @updatedAt
+
+  @@unique([projectId, languageCode, version])
+  @@index([projectId, createdAt])
 }
 
 model AnimationImage {
