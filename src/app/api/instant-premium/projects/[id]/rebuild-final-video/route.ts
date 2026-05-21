@@ -3,6 +3,7 @@ import { requireActiveUser } from "@/server/auth/permissions";
 import {
   REBUILD_FAILED_TIMEOUT,
   REBUILD_SEGMENTS_MISSING,
+  STALE_REBUILD_OUTPUT,
   rebuildInstantPremiumFinalVideo,
 } from "@/server/instant-premium/rebuild-final-video";
 import { resolveExportTimeoutMs } from "@/lib/export-timeout";
@@ -64,6 +65,7 @@ export async function POST(_: Request, context: RouteContext) {
         ...(rebuild.code === REBUILD_SEGMENTS_MISSING ? { code: REBUILD_SEGMENTS_MISSING } : {}),
         ...(rebuild.code === STALE_PLAYBACK_URL ? { code: STALE_PLAYBACK_URL } : {}),
         ...(rebuild.code === REBUILD_FAILED_TIMEOUT ? { code: REBUILD_FAILED_TIMEOUT } : {}),
+        ...(rebuild.code === STALE_REBUILD_OUTPUT ? { code: STALE_REBUILD_OUTPUT } : {}),
         exportTimeoutMs: resolveExportTimeoutMs(),
       },
       { status: httpStatus }

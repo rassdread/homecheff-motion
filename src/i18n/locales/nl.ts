@@ -951,6 +951,8 @@ export const nl = {
   "instant.progress.rebuildFinalFailed": "Eindvideo opnieuw samenstellen mislukt.",
   "instant.progress.rebuildFailedTimeout":
     "Eindvideo opnieuw samenstellen duurde te lang — geen nieuwe export klaar. Je vorige eindvideo blijft staan. Probeer opnieuw of verhoog EXPORT_TIMEOUT_MS op de server.",
+  "instant.progress.rebuildStaleOutput":
+    "Rebuild klaar maar de output is identiek aan de vorige kapotte eindvideo terwijl segmentbronnen wél gewijzigd zijn. Bekijk playback debug (segment hashes) en exporteer segmenten opnieuw indien nodig.",
   "instant.progress.rebuildFinalFailedKeepsPrevious":
     "Opnieuw samenstellen mislukt. Je vorige eindvideo blijft beschikbaar.",
   "instant.progress.rebuildFinalSuccess": "Nieuwe eindvideo klaar.",

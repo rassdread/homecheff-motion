@@ -177,6 +177,12 @@ export async function GET(_: Request, context: RouteContext) {
         activeFfmpegCommand: debug.activeFfmpegCommand,
         activeSegment: debug.activeSegment,
         latestExportError: debug.latestExportError,
+        rebuildId: debug.rebuildId,
+        rebuildWorkspace: debug.rebuildWorkspace,
+        segmentHashes: debug.segmentHashes,
+        finalHash: debug.finalHash,
+        previousFinalHash: debug.previousFinalHash,
+        identicalOutputDetected: debug.identicalOutputDetected,
       };
     }
   }

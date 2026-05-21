@@ -319,6 +319,12 @@ export type ProjectPlaybackDebugSummary = {
   activeFfmpegCommand?: string | null;
   activeSegment?: number | null;
   latestExportError?: string | null;
+  rebuildId?: string | null;
+  rebuildWorkspace?: string | null;
+  segmentHashes?: string[];
+  finalHash?: string | null;
+  previousFinalHash?: string | null;
+  identicalOutputDetected?: boolean;
 };
 
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {

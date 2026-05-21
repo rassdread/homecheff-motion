@@ -944,6 +944,8 @@ export const en: LocaleSchema = {
   "instant.progress.rebuildFinalFailed": "Could not rebuild final video.",
   "instant.progress.rebuildFailedTimeout":
     "Final video rebuild timed out before a new export was ready. Your previous final is unchanged — try again or use a longer EXPORT_TIMEOUT_MS on the server.",
+  "instant.progress.rebuildStaleOutput":
+    "Rebuild finished but the output matches the previous broken final while segment sources changed. Check admin playback debug (segment hashes) and re-export segments if needed.",
   "instant.progress.rebuildFinalFailedKeepsPrevious":
     "Rebuild failed. Your previous final video is still available.",
   "instant.progress.rebuildFinalSuccess": "New final video is ready.",

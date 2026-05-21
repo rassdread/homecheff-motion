@@ -70,6 +70,21 @@ import {
   clearFinalExportStage,
   setFinalExportStage,
 } from "@/server/instant-premium/final-export-stage";
+import { hashFileSha256, hashRemoteVideoUrl } from "@/lib/file-content-hash";
+import {
+  createCleanRebuildWorkspace,
+  purgeStaleProjectMergeArtifacts,
+  removeRebuildWorkspace,
+} from "@/server/instant-premium/clean-rebuild-workspace";
+import { assertFreshRebuildOutput } from "@/server/instant-premium/assert-fresh-rebuild-output";
+import {
+  startRebuildAssemblyTrace,
+  upsertRebuildSegmentTrace,
+} from "@/server/instant-premium/rebuild-assembly-trace";
+import {
+  STALE_REBUILD_OUTPUT,
+  StaleRebuildOutputError,
+} from "@/server/instant-premium/stale-rebuild-output";
 import { finalBlobPathname } from "@/lib/final-video-storage";
 import {
   commitInstantPremiumFinalVideoExport,
@@ -378,10 +393,40 @@ export async function executeInstantPremiumMerge(
       mergeTextRenderMode,
       project.instantPosterMotionSettings
     );
-    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-instant-merge-${projectId}-`));
-    const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
-    await ensureDir(outDir);
-    const finalAbs = path.join(outDir, "final.mp4");
+    const rebuildId = isFinalRebuild ? String(Date.now()) : null;
+    let workDir: string;
+    let finalAbs: string;
+    let previousFinalHash: string | null = null;
+
+    if (isFinalRebuild && rebuildId) {
+      previousFinalHash = rebuildPreviousFinalUrl?.startsWith("http")
+        ? await hashRemoteVideoUrl(rebuildPreviousFinalUrl)
+        : rebuildPreviousFinalUrl
+          ? await hashFileSha256(rebuildPreviousFinalUrl).catch(() => null)
+          : null;
+      workDir = await createCleanRebuildWorkspace(projectId, rebuildId);
+      startRebuildAssemblyTrace({
+        projectId,
+        rebuildId,
+        workspacePath: workDir,
+        previousFinalHash,
+      });
+      finalAbs = path.join(workDir, `final-rebuild-${rebuildId}.mp4`);
+      console.info("[hc-instant-premium]", {
+        projectId,
+        phase: "strictRebuildWorkspace",
+        rebuildId,
+        workDir,
+        finalAbs,
+        previousFinalHash,
+      });
+    } else {
+      workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-instant-merge-${projectId}-`));
+      const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
+      await ensureDir(outDir);
+      finalAbs = path.join(outDir, "final.mp4");
+    }
+
     setFinalExportStage(projectId, "download_segments", { exportId: exportRow.id });
 
     let orderedSegments: Awaited<
@@ -395,6 +440,7 @@ export async function executeInstantPremiumMerge(
     try {
       const prepared = await prepareFinalSegmentProviderVideos({
         projectId,
+        strictRebuild: isFinalRebuild,
         transitions: project.transitions.map((t) => ({
           id: t.id,
           order: t.order,
@@ -656,6 +702,21 @@ export async function executeInstantPremiumMerge(
       for (const entry of mapEntries) {
         const probed = await probeVideoSegment(entry.selectedSourcePath);
         entry.outputDurationSec = probed?.durationSec;
+        if (isFinalRebuild) {
+          const concatInputHash = await hashFileSha256(entry.selectedSourcePath);
+          const seg = orderedSegments.find((s) => s.segmentIndex === entry.segmentIndex);
+          const transition = seg ? transitionById.get(seg.transitionId) : null;
+          upsertRebuildSegmentTrace(projectId, {
+            transitionId: seg?.transitionId ?? transition?.id ?? `seg-${entry.segmentIndex}`,
+            segmentIndex: entry.segmentIndex,
+            sourceVideoUrl: segmentUrls[entry.segmentIndex] ?? "",
+            downloadedFilePath: segmentPaths[entry.segmentIndex] ?? "",
+            downloadedFileHash: concatInputHash,
+            concatInputPath: entry.selectedSourcePath,
+            concatInputHash,
+            durationSec: probed?.durationSec,
+          });
+        }
       }
       logConcatSegmentMap(mapEntries);
       await assertFinalConcatInputOrder({
@@ -786,6 +847,18 @@ export async function executeInstantPremiumMerge(
       if (mergedPath !== finalAbs) {
         await fs.copyFile(mergedPath, finalAbs);
       }
+
+      if (isFinalRebuild && rebuildId) {
+        const finalOutputHash = await hashFileSha256(mergedPath);
+        assertFreshRebuildOutput({
+          projectId,
+          rebuildId,
+          finalOutputPath: mergedPath,
+          finalOutputHash,
+          previousFinalHash,
+        });
+      }
+
       await prisma.animationExport.update({
         where: { id: exportRow.id },
         data: { progress: 85, status: "rendering" },
@@ -823,8 +896,15 @@ export async function executeInstantPremiumMerge(
       const uploadCode = classifyExportBlobFailure(error);
       const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
       const timedOut = isTimeoutLikeError(error);
+      const staleRebuild =
+        error instanceof StaleRebuildOutputError ||
+        (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT));
       const message =
-        timedOut && isFinalRebuild
+        staleRebuild
+          ? error instanceof Error
+            ? error.message
+            : `[${STALE_REBUILD_OUTPUT}] Rebuild produced stale final output.`
+          : timedOut && isFinalRebuild
           ? `[${REBUILD_FAILED_TIMEOUT}] ${
               error instanceof Error ? error.message : "Final export timed out."
             }`
@@ -899,7 +979,12 @@ export async function executeInstantPremiumMerge(
       });
     } finally {
       clearFinalExportStage(projectId);
-      await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+      if (isFinalRebuild) {
+        await removeRebuildWorkspace(workDir);
+        await purgeStaleProjectMergeArtifacts(projectId).catch(() => undefined);
+      } else {
+        await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+      }
     }
   });
 }

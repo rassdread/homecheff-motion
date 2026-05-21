@@ -19,6 +19,10 @@ import {
 } from "@/lib/export-timeout";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import {
+  STALE_REBUILD_OUTPUT,
+  StaleRebuildOutputError,
+} from "@/server/instant-premium/stale-rebuild-output";
+import {
   logFinalVideoRebuildAudit,
   markInstantPremiumFinalRebuildFailed,
 } from "@/server/instant-premium/final-video-export-commit";
@@ -37,6 +41,7 @@ export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
 export { MERGE_SEGMENTS_MISSING } from "@/server/instant-premium/merge-segments";
 export const REBUILD_ALREADY_RUNNING = "REBUILD_ALREADY_RUNNING";
 export const REBUILD_FAILED_TIMEOUT = "REBUILD_FAILED_TIMEOUT";
+export { STALE_REBUILD_OUTPUT };
 
 export type RebuildFinalVideoResult = {
   ok: boolean;
@@ -235,9 +240,13 @@ export async function rebuildInstantPremiumFinalVideo(
   try {
     await runFinalExportToCompletion(projectId, { force: true });
   } catch (error) {
+    const staleOutput =
+      error instanceof StaleRebuildOutputError ||
+      (error instanceof Error && error.message.includes(STALE_REBUILD_OUTPUT));
     const timedOut =
-      error instanceof FinalExportTimeoutError ||
-      (isTimeoutLikeError(error) && Date.now() - mergeStartedAt >= exportTimeoutMs * 0.9);
+      !staleOutput &&
+      (error instanceof FinalExportTimeoutError ||
+        (isTimeoutLikeError(error) && Date.now() - mergeStartedAt >= exportTimeoutMs * 0.9));
     const activeStage = getFinalExportStage(projectId);
     const stage = error instanceof FinalExportTimeoutError ? error.stage : activeStage?.stage ?? "finalize";
     const elapsedMs =
@@ -260,7 +269,11 @@ export async function rebuildInstantPremiumFinalVideo(
         ffmpegCommand: activeStage?.ffmpegCommand,
       });
     }
-    const message = timedOut
+    const message = staleOutput
+      ? error instanceof Error
+        ? error.message
+        : `[${STALE_REBUILD_OUTPUT}] Rebuild produced identical output to previous final.`
+      : timedOut
       ? `[${REBUILD_FAILED_TIMEOUT}] Final video rebuild timed out during ${stage} (${elapsedMs}ms). Your previous final is unchanged.`
       : error instanceof Error
         ? error.message
@@ -271,7 +284,11 @@ export async function rebuildInstantPremiumFinalVideo(
       mode: textRenderMode,
       blendStrength,
       error: message,
-      code: timedOut ? REBUILD_FAILED_TIMEOUT : undefined,
+      code: staleOutput
+        ? STALE_REBUILD_OUTPUT
+        : timedOut
+          ? REBUILD_FAILED_TIMEOUT
+          : undefined,
     });
     const exportAfter = await prisma.animationExport.findFirst({
       where: { projectId },
@@ -294,7 +311,11 @@ export async function rebuildInstantPremiumFinalVideo(
     }
     return {
       ok: false,
-      code: timedOut ? REBUILD_FAILED_TIMEOUT : undefined,
+      code: staleOutput
+        ? STALE_REBUILD_OUTPUT
+        : timedOut
+          ? REBUILD_FAILED_TIMEOUT
+          : undefined,
       projectId,
       clipsReady: true,
       mergeTriggered: true,

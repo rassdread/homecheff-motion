@@ -8,6 +8,7 @@ import { withFinalVideoCacheBust } from "@/lib/final-video-storage";
 import { resolveExportTimeoutMs } from "@/lib/export-timeout";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
+import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 
 export type ProjectPlaybackDebugPayload = {
   projectId: string;
@@ -44,6 +45,12 @@ export type ProjectPlaybackDebugPayload = {
   activeFfmpegCommand: string | null;
   activeSegment: number | null;
   latestExportError: string | null;
+  rebuildId: string | null;
+  rebuildWorkspace: string | null;
+  segmentHashes: string[];
+  finalHash: string | null;
+  previousFinalHash: string | null;
+  identicalOutputDetected: boolean;
 };
 
 export async function getProjectPlaybackDebug(
@@ -70,6 +77,7 @@ export async function getProjectPlaybackDebug(
   });
 
   const activeStage = getFinalExportStage(projectId);
+  const rebuildTrace = getRebuildAssemblyTrace(projectId);
   const segmentTimeline = buildAdminAssemblyTimeline(
     buildFinalSegmentTransitionRows(
       project.transitions.map((t) => ({
@@ -129,6 +137,12 @@ export async function getProjectPlaybackDebug(
     activeFfmpegCommand: activeStage?.ffmpegCommand ?? null,
     activeSegment: activeStage?.activeSegment ?? null,
     latestExportError: latestExport?.errorMessage?.trim() ?? null,
+    rebuildId: rebuildTrace?.rebuildId ?? null,
+    rebuildWorkspace: rebuildTrace?.workspacePath ?? null,
+    segmentHashes: rebuildTrace?.segmentHashes ?? [],
+    finalHash: rebuildTrace?.finalOutputHash ?? null,
+    previousFinalHash: rebuildTrace?.previousFinalHash ?? null,
+    identicalOutputDetected: rebuildTrace?.identicalOutputDetected ?? false,
   };
 }
 

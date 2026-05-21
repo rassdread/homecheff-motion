@@ -394,6 +394,10 @@ export default function VideoDetailPage() {
         );
         return;
       }
+      if (body.code === "STALE_REBUILD_OUTPUT") {
+        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildStaleOutput"));
+        return;
+      }
       if (body.rebuild?.ok) {
         setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
       } else if (body.rebuild?.finalVideoUrlPresent) {

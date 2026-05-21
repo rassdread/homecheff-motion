@@ -14,7 +14,9 @@ import {
   type SegmentMotionProbe,
 } from "@/server/instant-premium/segment-motion-validation";
 import { resolveSegmentDownloadTimeoutMs } from "@/lib/export-timeout";
+import { hashFileSha256 } from "@/lib/file-content-hash";
 import { setFinalExportStage } from "@/server/instant-premium/final-export-stage";
+import { upsertRebuildSegmentTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 
 export const SEGMENT_VIDEO_MISSING = "SEGMENT_VIDEO_MISSING";
@@ -321,6 +323,7 @@ export async function prepareFinalSegmentProviderVideos(params: {
     outputVideoUrl: string | null;
   }>;
   workDir: string;
+  strictRebuild?: boolean;
 }): Promise<{
   orderedSegments: TransitionSegmentRecord[];
   providerVideoPaths: string[];
@@ -373,6 +376,18 @@ export async function prepareFinalSegmentProviderVideos(params: {
     }
 
     providerVideoPaths[seg.segmentIndex] = localPath;
+    const downloadedFileHash = await hashFileSha256(localPath);
+    if (params.strictRebuild) {
+      upsertRebuildSegmentTrace(params.projectId, {
+        transitionId: row.transitionId,
+        segmentIndex: seg.segmentIndex,
+        sourceVideoUrl: row.providerVideoUrl,
+        downloadedFilePath: localPath,
+        downloadedFileHash,
+        durationSec: validated.probed.durationSec,
+        frameCountEstimate: validated.motion.frameCountEstimate,
+      });
+    }
     const entry: FinalSegmentSourceLogEntry = {
       projectId: params.projectId,
       transitionOrder: row.transitionOrder,

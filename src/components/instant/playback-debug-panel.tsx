@@ -161,6 +161,34 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
                 label="latest export error"
                 value={(playback as AdminPlaybackDebugPayload).latestExportError}
               />
+              <DebugRow
+                label="rebuildId / workspace"
+                value={
+                  (playback as AdminPlaybackDebugPayload).rebuildId
+                    ? `${(playback as AdminPlaybackDebugPayload).rebuildId} · ${(playback as AdminPlaybackDebugPayload).rebuildWorkspace ?? "—"}`
+                    : null
+                }
+              />
+              <DebugRow
+                label="previous final hash"
+                value={(playback as AdminPlaybackDebugPayload).previousFinalHash}
+              />
+              <DebugRow
+                label="final hash"
+                value={(playback as AdminPlaybackDebugPayload).finalHash}
+              />
+              <DebugRow
+                label="identicalOutputDetected"
+                value={String((playback as AdminPlaybackDebugPayload).identicalOutputDetected ?? false)}
+              />
+              <DebugRow
+                label="segment hashes"
+                value={
+                  (playback as AdminPlaybackDebugPayload).segmentHashes?.length
+                    ? (playback as AdminPlaybackDebugPayload).segmentHashes!.join("\n")
+                    : null
+                }
+              />
             </>
           ) : null}
           {adminDebug?.segmentTimeline ? (
