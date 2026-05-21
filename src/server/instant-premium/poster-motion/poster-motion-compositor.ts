@@ -34,6 +34,7 @@ import {
   type LockedTextRegion,
 } from "@/lib/hard-text-lock";
 import { applyLockedTextRegionsToVideo } from "@/server/instant-premium/segment-text-restore";
+import { isLikelyFrozenSegment } from "@/server/instant-premium/segment-motion-validation";
 
 export type CompositePosterMotionInput = {
   projectId: string;
@@ -83,6 +84,7 @@ export type CompositePosterMotionSegmentsInput = {
 
 export type CompositePosterMotionSegmentsResult = {
   segmentPaths: string[];
+  segmentResults: CompositePosterMotionResult[];
   motionBlendAppliedCount: number;
   passthroughFallbackCount: number;
   staticFallbackCount: number;
@@ -234,6 +236,60 @@ async function renderStaticPosterOnly(params: {
   return result.ok;
 }
 
+/** Prefer animated Vidu passthrough before any static poster encode. */
+async function tryAnimatedViduPassthrough(params: {
+  ffmpeg: string;
+  input: CompositePosterMotionInput;
+  duration: number;
+  fps: number;
+  reason: string;
+}): Promise<CompositePosterMotionResult | null> {
+  const viduPath = params.input.mergedViduPath;
+  try {
+    await fs.access(viduPath);
+  } catch {
+    return null;
+  }
+
+  if (await isLikelyFrozenSegment(viduPath)) {
+    console.warn("[hc-instant-premium]", {
+      projectId: params.input.projectId,
+      segmentIndex: params.input.segmentIndex,
+      phase: "posterMotionAnimatedSourceFrozen",
+      reason: params.reason,
+      viduPath,
+    });
+    return null;
+  }
+
+  const passthroughOk = await passthroughOverlayVideo({
+    ffmpeg: params.ffmpeg,
+    overlayPath: viduPath,
+    outputVideoPath: params.input.outputVideoPath,
+    durationSec: params.duration,
+    maxWidth: params.input.maxWidth,
+    fps: params.fps,
+  });
+  if (!passthroughOk) {
+    return null;
+  }
+
+  console.info("[hc-instant-premium]", {
+    projectId: params.input.projectId,
+    segmentIndex: params.input.segmentIndex,
+    phase: "posterMotionAnimatedPassthroughSelected",
+    reason: params.reason,
+    sourceType: "animated_vidu",
+  });
+
+  return {
+    outputPath: params.input.outputVideoPath,
+    motionBlendApplied: false,
+    usedStaticFallback: false,
+    usedPassthroughFallback: true,
+  };
+}
+
 async function applyStaticPosterMotionFallback(params: {
   ffmpeg: string;
   input: CompositePosterMotionInput;
@@ -245,6 +301,17 @@ async function applyStaticPosterMotionFallback(params: {
   posterHeight: number;
   reason: string;
 }): Promise<CompositePosterMotionResult> {
+  const animatedFirst = await tryAnimatedViduPassthrough({
+    ffmpeg: params.ffmpeg,
+    input: params.input,
+    duration: params.duration,
+    fps: params.fps,
+    reason: `${params.reason}_animated_priority`,
+  });
+  if (animatedFirst) {
+    return animatedFirst;
+  }
+
   const staticOk = await renderStaticPosterOnly({
     ffmpeg: params.ffmpeg,
     basePath: params.basePath,
@@ -261,25 +328,8 @@ async function applyStaticPosterMotionFallback(params: {
     phase: "posterMotionStaticSegmentFallback",
     reason: params.reason,
     staticOk,
+    note: "static_only_when_animated_vidu_missing_or_unrecoverable",
   });
-  if (!staticOk && isPosterCompositeAssemblyMode(params.input.finalAssemblyMode ?? "poster_composite_segments")) {
-    const passthroughOk = await passthroughOverlayVideo({
-      ffmpeg: params.ffmpeg,
-      overlayPath: params.input.mergedViduPath,
-      outputVideoPath: params.input.outputVideoPath,
-      durationSec: params.duration,
-      maxWidth: params.input.maxWidth,
-      fps: params.fps,
-    });
-    if (passthroughOk) {
-      return {
-        outputPath: params.input.outputVideoPath,
-        motionBlendApplied: false,
-        usedStaticFallback: false,
-        usedPassthroughFallback: true,
-      };
-    }
-  }
 
   return {
     outputPath: params.input.outputVideoPath,
@@ -310,27 +360,15 @@ async function applyPosterMotionFallback(params: {
   }
 
   if (allowsPlainSegmentPassthrough(assemblyMode)) {
-    const passthroughOk = await passthroughOverlayVideo({
+    const passthrough = await tryAnimatedViduPassthrough({
       ffmpeg: params.ffmpeg,
-      overlayPath: params.input.mergedViduPath,
-      outputVideoPath: params.input.outputVideoPath,
-      durationSec: params.duration,
-      maxWidth: params.input.maxWidth,
+      input: params.input,
+      duration: params.duration,
       fps: params.fps,
+      reason: params.reason,
     });
-    if (passthroughOk) {
-      console.warn("[hc-instant-premium]", {
-        projectId: params.input.projectId,
-        segmentIndex: params.input.segmentIndex,
-        phase: "posterMotionPassthroughFallback",
-        reason: params.reason,
-      });
-      return {
-        outputPath: params.input.outputVideoPath,
-        motionBlendApplied: false,
-        usedStaticFallback: false,
-        usedPassthroughFallback: true,
-      };
+    if (passthrough) {
+      return passthrough;
     }
   }
 
@@ -529,7 +567,18 @@ export async function compositePosterMotionPreserve(
         segmentIndex: input.segmentIndex,
       });
       if (restore.applied > 0) {
-        outputPath = restoredPath;
+        const restoredFrozen = await isLikelyFrozenSegment(restoredPath);
+        const blendedFrozen = await isLikelyFrozenSegment(input.outputVideoPath);
+        if (!restoredFrozen || blendedFrozen) {
+          outputPath = restoredPath;
+        } else {
+          console.warn("[hc-instant-premium]", {
+            projectId: input.projectId,
+            segmentIndex: input.segmentIndex,
+            phase: "textLockRestoreSkippedFrozenOutput",
+            action: "keep_blended_animated_segment",
+          });
+        }
       }
     }
     console.info("[hc-instant-premium]", {
@@ -556,11 +605,19 @@ export async function compositePosterMotionPreserve(
     segmentIndex: input.segmentIndex,
     phase: "posterMotionBlendFailed",
     tail: blendResult.output.slice(-500),
-    action:
-      assemblyMode === "concat_segments_only"
-        ? "overlay_passthrough_fallback"
-        : "static_poster_segment_fallback",
+    action: "animated_passthrough_before_static",
   });
+
+  const animatedPassthrough = await tryAnimatedViduPassthrough({
+    ffmpeg,
+    input,
+    duration,
+    fps,
+    reason: "blend_failed",
+  });
+  if (animatedPassthrough) {
+    return animatedPassthrough;
+  }
 
   return applyPosterMotionFallback({
     ffmpeg,
@@ -581,6 +638,7 @@ export async function compositePosterMotionPreserveSegments(
 ): Promise<CompositePosterMotionSegmentsResult> {
   const segmentDurationSec = Math.max(1, Math.round(input.segmentDurationSec));
   const segmentPaths: string[] = [];
+  const segmentResults: CompositePosterMotionResult[] = [];
   let motionBlendAppliedCount = 0;
   let passthroughFallbackCount = 0;
   let staticFallbackCount = 0;
@@ -608,8 +666,12 @@ export async function compositePosterMotionPreserveSegments(
       lockedTextRegions: segment.lockedTextRegions,
     });
     segmentPaths.push(result.outputPath);
+    segmentResults.push(result);
 
-    const compositorApplied = result.motionBlendApplied || result.usedStaticFallback;
+    const compositorApplied =
+      result.motionBlendApplied ||
+      result.usedPassthroughFallback ||
+      result.usedStaticFallback;
     if (compositorApplied) {
       compositorAppliedCount += 1;
     }
@@ -650,6 +712,7 @@ export async function compositePosterMotionPreserveSegments(
 
   return {
     segmentPaths,
+    segmentResults,
     motionBlendAppliedCount,
     passthroughFallbackCount,
     staticFallbackCount,

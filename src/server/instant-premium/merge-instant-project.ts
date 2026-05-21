@@ -42,6 +42,8 @@ import {
   resolveTextLockMode,
 } from "@/lib/hard-text-lock";
 import { buildSegmentJoinPlansForProject } from "@/server/instant-premium/build-segment-join-plans";
+import { resolveFinalConcatSegmentPaths } from "@/server/instant-premium/final-concat-segments";
+import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
   concatMotionSegmentsWithTransitions,
 } from "@/server/instant-premium/segment-transition";
@@ -521,7 +523,21 @@ export async function executeInstantPremiumMerge(
             `[${projectId}] Plain segment passthrough is not allowed for ${finalAssemblyMode} (${posterComposite.passthroughFallbackCount} segments).`
           );
         }
-        pathsToConcat = posterComposite.segmentPaths;
+        if (posterComposite.staticFallbackCount > 0) {
+          console.warn("[hc-instant-premium]", {
+            projectId,
+            phase: "posterMotionStaticFallbackDetected",
+            staticFallbackCount: posterComposite.staticFallbackCount,
+            action: "resolve_animated_vidu_at_concat",
+          });
+        }
+        pathsToConcat = await resolveFinalConcatSegmentPaths({
+          segments: posterSegments.map((seg, idx) => ({
+            segmentIndex: seg.segmentIndex,
+            animatedViduPath: segmentPaths[seg.segmentIndex]!,
+            compositorResult: posterComposite.segmentResults[idx],
+          })),
+        });
         console.info("[hc-instant-premium]", {
           projectId,
           phase: "posterMotionSegmentsCompositeApplied",
@@ -534,6 +550,12 @@ export async function executeInstantPremiumMerge(
           blendStrength,
         });
       }
+
+      await assertSegmentsAnimatedBeforeConcat({
+        projectId,
+        paths: pathsToConcat,
+        animatedViduPaths: segmentPaths,
+      });
 
       logFinalAssembly({
         ...assemblyLogBase,
