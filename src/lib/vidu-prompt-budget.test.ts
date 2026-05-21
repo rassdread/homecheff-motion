@@ -30,6 +30,7 @@ describe("vidu prompt budget", () => {
     assert.match(motion, /cartoon animation/i);
     assert.match(motion, /PREMIUM COMIC-STRIP ENGINE/i);
     assert.match(motion, /GLOBAL MASCOT \(HomeCheff\)/i);
+    assert.match(motion, /mouth should not stay frozen/i);
   });
 
   it("all animation presets stay under budget when fully composed", () => {

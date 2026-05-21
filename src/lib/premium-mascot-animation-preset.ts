@@ -23,14 +23,19 @@ const ROLE_VARIANT_HINTS: Partial<Record<CharacterRoleId, string>> = {
   DESIGN_CREATOR: "Design mascot: creative showcase poise, subtle proud focus.",
 };
 
+/** Facial expression cycle — explicit anti-frozen-smile guidance for Vidu. */
+export const MASCOT_FACIAL_EXPRESSION_CYCLE_LINE =
+  "Subtle facial expression cycle: the mouth should not stay frozen. If the mascot starts smiling, briefly relax into a neutral closed mouth, then return to a soft smile. Add 1–2 small natural mouth movements as if softly speaking or explaining. Keep the mouth mostly closed, no wide open mouth, no teeth, no rubber-mouth animation. End close to the original image expression.";
+
 /** Compact block for budgeted Vidu prompts (single injection, all mascot variants). */
-export const COMPACT_GLOBAL_MASCOT_ANIMATION_LINE = `GLOBAL MASCOT (HomeCheff): living character in a real cinematic world — never a static logo/sticker. Natural blinks and subtle eye/eyebrow motion; mouth mostly closed with occasional soft smile or tiny speaking/reacting moves (subtle, realistic — no rubber mouth or wide cartoon talk). Calm, warm, premium energy; gentle head/body breathing and smooth gestures. Preserve exact face structure, proportions, colors, and outfit — no morphing, deformation, or hyperactive cartoon loops.`;
+export const COMPACT_GLOBAL_MASCOT_ANIMATION_LINE = `GLOBAL MASCOT (HomeCheff): living character in a real cinematic world — never a static logo/sticker. ${MASCOT_FACIAL_EXPRESSION_CYCLE_LINE} Natural blinks and subtle eye/eyebrow motion. Calm, warm, premium energy; gentle head/body breathing and smooth gestures. Preserve exact face structure, proportions, colors, and outfit — no morphing, deformation, exaggerated talking, or hyperactive cartoon loops.`;
 
 const FULL_GLOBAL_MASCOT_SECTIONS = [
   "GLOBAL MASCOT ANIMATION (HomeCheff — all chef/garden/design and future mascot variants):",
   "CHARACTER RULE: mascots are living characters inside the real world, not static logos or stickers. Warm, friendly, calm, emotionally aware, cinematic premium energy.",
-  "FACE: natural blink cycles; subtle eye movement; occasional eyebrow motion; mouth stays closed most of the time; soft natural smile at times; rare subtle mouth movement as if softly speaking, explaining, reacting, or greeting — always subtle and realistic.",
-  "AVOID FACE: exaggerated talking animation, wide cartoon smiles, exaggerated expressions, hyperactive cartoon behavior, rubber-mouth animation, random teeth, face deformation.",
+  `EXPRESSION CYCLE: start close to the source image expression; briefly relax the mouth toward a neutral closed mouth (especially if the source shows a smile — do not hold one frozen smile the whole clip); natural blink cycles; subtle eye and eyebrow motion; 1–2 small mouth movements as if softly explaining or greeting; return to a soft smile; end close to the original source expression.`,
+  MASCOT_FACIAL_EXPRESSION_CYCLE_LINE,
+  "AVOID FACE: frozen smile lock, exaggerated talking animation, wide open mouth, wide cartoon smiles, chaotic expressions, rubber-mouth animation, random teeth, face deformation.",
   "BODY: gentle head movement, subtle body sway, natural breathing, smooth gestures, realistic timing, cinematic pacing — semi-alive, not fully cartoon-animated.",
   "PRESERVE: exact mascot identity, facial structure, proportions, colors, outfit details; integrated real-world lighting and shadows.",
   "AVOID MOTION: morphing, Disney-style chaos, stiff mannequin freeze, repeated identical gesture loops.",

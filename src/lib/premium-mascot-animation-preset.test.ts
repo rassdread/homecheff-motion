@@ -39,6 +39,16 @@ describe("premium-mascot-animation-preset", () => {
     );
   });
 
+  it("full block includes expression cycle arc and anti-frozen-smile rules", () => {
+    const block = buildGlobalMascotAnimationPromptBlock({
+      roles: [{ roleId: "CHEF_HOST", confidence: 0.9, label: "chef" }],
+      compact: false,
+    });
+    assert.match(block, /EXPRESSION CYCLE:/i);
+    assert.match(block, /do not hold one frozen smile/i);
+    assert.match(block, /mouth should not stay frozen/i);
+  });
+
   it("returns one global block for multiple mascots (no duplicate)", () => {
     const block = buildGlobalMascotAnimationPromptBlock({
       roles: [
@@ -66,7 +76,10 @@ describe("premium-mascot-animation-preset", () => {
       userIntent: "chef mascot promo",
     });
     assert.match(motion, /GLOBAL MASCOT \(HomeCheff\)/i);
-    assert.match(motion, /mouth mostly closed/i);
+    assert.match(motion, /facial expression cycle/i);
+    assert.match(motion, /mouth should not stay frozen/i);
+    assert.match(motion, /neutral closed mouth/i);
+    assert.match(motion, /End close to the original image expression/i);
     assert.ok(!motion.includes("FACIAL PERFORMANCE SYSTEM"));
   });
 
