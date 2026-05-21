@@ -10,7 +10,7 @@ import {
   orchestrateFinalMerge,
   repairInstantPremiumFinalVideo,
 } from "@/server/instant-premium/finalize-repair";
-import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
+import { resolveLatestExportPlaybackUrl } from "@/lib/playback-url-resolution";
 import {
   resolveExportFailureDiagnostics,
   userSafeExportFailureKey,
@@ -316,14 +316,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
           ? "finalizing"
           : "running";
 
-  const finalVideoUrl = resolvePublicFinalVideoUrl({
-    outputVideoUrl: latestExport?.outputVideoUrl,
-    exportStatus: latestExport?.status,
-    projectStatus: finalState.status,
-    rebuildStatus: finalState.instantFinalRebuildStatus,
-    rebuildCount: finalState.instantFinalRebuildCount,
-    rebuiltAt: finalState.instantFinalRebuiltAt,
-  });
+  const finalVideoUrl = resolveLatestExportPlaybackUrl(finalState, latestExport);
   const lockedLayers = parseLockedTextLayersJson(finalState.instantLockedTextLayers);
   const segmentsAllCompleted =
     finalState.transitions.length > 0 &&

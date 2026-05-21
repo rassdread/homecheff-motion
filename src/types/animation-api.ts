@@ -293,13 +293,40 @@ export type VideoLanguageExportSummary = {
   completedAt: string | null;
 };
 
+export type ProjectPlaybackDebugSummary = {
+  finalVideoUrl: string | null;
+  selectedPlaybackUrl: string | null;
+  selectedPlaybackSource: string;
+  exportOutputVideoUrl: string | null;
+  exportOutputVideoUrlRaw: string | null;
+  latestExport: {
+    id: string;
+    status: string;
+    progress: number;
+    outputVideoUrl: string | null;
+    updatedAt: string;
+    createdAt: string;
+  } | null;
+  rebuildCount: number;
+  rebuiltAt: string | null;
+  previousFinalVideoUrl: string | null;
+  previousFinalVideoUrlRaw: string | null;
+  cacheBust: string;
+};
+
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
   advancedSettingsEnabled: boolean;
+  instantFinalRebuildCount?: number;
+  instantFinalRebuiltAt?: string | null;
+  instantPreviousFinalVideoUrl?: string | null;
+  latestExportId?: string | null;
+  latestExportUpdatedAt?: string | null;
   /** Only when viewer is admin (e.g. inspecting another user’s project). */
   ownerEmail?: string;
   languageExports?: VideoLanguageExportSummary[];
+  playback?: ProjectPlaybackDebugSummary;
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";

@@ -1,0 +1,145 @@
+import { prisma } from "@/lib/prisma";
+import {
+  buildPlaybackCacheKey,
+  pickPlaybackUrl,
+  resolveLatestExportPlaybackUrl,
+} from "@/lib/playback-url-resolution";
+import { withFinalVideoCacheBust } from "@/lib/final-video-storage";
+import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
+
+export type ProjectPlaybackDebugPayload = {
+  projectId: string;
+  finalVideoUrl: string | null;
+  selectedPlaybackUrl: string | null;
+  selectedPlaybackSource: string;
+  exportOutputVideoUrl: string | null;
+  exportOutputVideoUrlRaw: string | null;
+  latestExport: {
+    id: string;
+    status: string;
+    progress: number;
+    outputVideoUrl: string | null;
+    updatedAt: string;
+    createdAt: string;
+  } | null;
+  rebuildCount: number;
+  rebuiltAt: string | null;
+  previousFinalVideoUrl: string | null;
+  previousFinalVideoUrlRaw: string | null;
+  cacheBust: string;
+  languageExports: Array<{
+    id: string;
+    languageCode: string;
+    languageLabel: string;
+    status: string;
+    outputVideoUrl: string | null;
+  }>;
+  segmentTimeline: ReturnType<typeof buildAdminAssemblyTimeline>;
+};
+
+export async function getProjectPlaybackDebug(
+  projectId: string
+): Promise<ProjectPlaybackDebugPayload | null> {
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      exports: { orderBy: { createdAt: "desc" }, take: 1 },
+      transitions: { orderBy: { order: "asc" } },
+      languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
+    },
+  });
+  if (!project) {
+    return null;
+  }
+
+  const latestExport = project.exports[0] ?? null;
+  const exportPlaybackUrl = resolveLatestExportPlaybackUrl(project, latestExport);
+  const picked = pickPlaybackUrl({
+    detailExportUrl: exportPlaybackUrl,
+    statusSnapshotUrl: exportPlaybackUrl,
+    previousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+  });
+
+  const segmentTimeline = buildAdminAssemblyTimeline(
+    buildFinalSegmentTransitionRows(
+      project.transitions.map((t) => ({
+        id: t.id,
+        order: t.order,
+        startImageId: t.startImageId,
+        endImageId: t.endImageId,
+        status: t.status,
+        providerJobId: t.providerJobId,
+        outputVideoUrl: t.outputVideoUrl,
+      }))
+    )
+  );
+
+  return {
+    projectId: project.id,
+    finalVideoUrl: exportPlaybackUrl,
+    selectedPlaybackUrl: picked.url,
+    selectedPlaybackSource: picked.source,
+    exportOutputVideoUrl: exportPlaybackUrl,
+    exportOutputVideoUrlRaw: latestExport?.outputVideoUrl?.trim() ?? null,
+    latestExport: latestExport
+      ? {
+          id: latestExport.id,
+          status: latestExport.status,
+          progress: latestExport.progress,
+          outputVideoUrl: exportPlaybackUrl,
+          updatedAt: latestExport.updatedAt.toISOString(),
+          createdAt: latestExport.createdAt.toISOString(),
+        }
+      : null,
+    rebuildCount: project.instantFinalRebuildCount,
+    rebuiltAt: project.instantFinalRebuiltAt?.toISOString() ?? null,
+    previousFinalVideoUrl: project.instantPreviousFinalVideoUrl
+      ? withFinalVideoCacheBust(
+          project.instantPreviousFinalVideoUrl,
+          Math.max(0, project.instantFinalRebuildCount - 1),
+          project.instantFinalRebuiltAt
+        )
+      : null,
+    previousFinalVideoUrlRaw: project.instantPreviousFinalVideoUrl?.trim() ?? null,
+    cacheBust: buildPlaybackCacheKey(picked.url),
+    languageExports: project.languageExports.map((row) => ({
+      id: row.id,
+      languageCode: row.languageCode,
+      languageLabel: row.languageLabel,
+      status: row.status,
+      outputVideoUrl: row.outputVideoUrl?.trim() ?? null,
+    })),
+    segmentTimeline,
+  };
+}
+
+export function rawExportUrlForDownload(
+  project: {
+    status: string;
+    instantFinalRebuildCount: number;
+    instantFinalRebuiltAt: Date | null;
+    instantFinalRebuildStatus: string | null;
+    instantPreviousFinalVideoUrl?: string | null;
+  },
+  exportRow: { status: string; outputVideoUrl: string | null } | null | undefined
+): string | null {
+  const raw = exportRow?.outputVideoUrl?.trim();
+  if (!raw) {
+    return null;
+  }
+  return resolveLatestExportPlaybackUrl(
+    {
+      status: project.status,
+      instantFinalRebuildCount: project.instantFinalRebuildCount,
+      instantFinalRebuiltAt: project.instantFinalRebuiltAt,
+      instantPreviousFinalVideoUrl: project.instantPreviousFinalVideoUrl ?? null,
+      instantFinalRebuildStatus: project.instantFinalRebuildStatus,
+    },
+    {
+      id: "download",
+      status: exportRow!.status,
+      outputVideoUrl: raw,
+      updatedAt: project.instantFinalRebuiltAt ?? new Date(),
+    }
+  );
+}

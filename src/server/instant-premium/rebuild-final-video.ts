@@ -18,6 +18,12 @@ import {
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { resolveFinalAssemblyMode } from "@/server/instant-premium/final-assembly";
 import { resolveSegmentTransitionType } from "@/server/instant-premium/segment-transition";
+import {
+  assertPlaybackUrlFreshAfterRebuild,
+  isStaleSelectedPlaybackAfterRebuild,
+  resolveLatestExportPlaybackUrl,
+  STALE_PLAYBACK_URL,
+} from "@/lib/playback-url-resolution";
 
 export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
 export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
@@ -32,6 +38,8 @@ export type RebuildFinalVideoResult = {
   mergeTriggered: boolean;
   mergeCompleted: boolean;
   finalVideoUrlPresent: boolean;
+  /** Cache-busted URL clients should play after rebuild. */
+  finalVideoUrl?: string | null;
   segmentCount: number;
   textRenderMode: string;
   blendStrength: number;
@@ -264,6 +272,43 @@ export async function rebuildInstantPremiumFinalVideo(
   const finalVideoUrlPresent = Boolean(finalExport?.outputVideoUrl?.trim());
   const rebuildFailed = refreshed?.instantFinalRebuildStatus === "failed";
 
+  const playbackUrl = refreshed
+    ? resolveLatestExportPlaybackUrl(refreshed, finalExport)
+    : null;
+
+  let ok = mergeCompleted && finalVideoUrlPresent && !rebuildFailed;
+  let code: string | undefined;
+  let message: string | undefined =
+    rebuildFailed
+      ? "Final video rebuild failed. Your previous final video is still available."
+      : mergeCompleted && finalVideoUrlPresent
+        ? undefined
+        : "Rebuild started but final video is not ready yet. Refresh status shortly.";
+
+  if (ok && refreshed && finalExport && playbackUrl) {
+    const rawNew = finalExport.outputVideoUrl?.trim() ?? "";
+    const staleRaw = assertPlaybackUrlFreshAfterRebuild({
+      projectId,
+      newRawUrl: rawNew,
+      previousRawUrl: refreshed.instantPreviousFinalVideoUrl,
+      rebuildCount: refreshed.instantFinalRebuildCount,
+      exportId: finalExport.id,
+    });
+    const staleSelected = isStaleSelectedPlaybackAfterRebuild({
+      selectedPlaybackUrl: playbackUrl,
+      previousRawUrl: refreshed.instantPreviousFinalVideoUrl,
+      rebuildCount: refreshed.instantFinalRebuildCount,
+    });
+    if (!staleRaw.ok || staleSelected) {
+      ok = false;
+      code = STALE_PLAYBACK_URL;
+      message = staleRaw.ok
+        ? `[${projectId}] Rebuild completed but playback URL still matches previous final (${STALE_PLAYBACK_URL}).`
+        : staleRaw.message;
+      console.warn("[rebuild-final-video]", { projectId, code: STALE_PLAYBACK_URL, playbackUrl });
+    }
+  }
+
   logRebuildFinalVideo({
     projectId,
     segmentCount,
@@ -271,26 +316,25 @@ export async function rebuildInstantPremiumFinalVideo(
     blendStrength,
     mergeCompleted,
     finalVideoUrlPresent,
-    finalVideoUrl: finalExport?.outputVideoUrl ?? null,
+    finalVideoUrl: playbackUrl ?? finalExport?.outputVideoUrl ?? null,
     rebuildCount: refreshed?.instantFinalRebuildCount,
+    ok,
+    code,
   });
 
   return {
-    ok: mergeCompleted && finalVideoUrlPresent && !rebuildFailed,
+    ok,
+    code,
     projectId,
     clipsReady: true,
     mergeTriggered: true,
     mergeCompleted,
     finalVideoUrlPresent,
+    finalVideoUrl: playbackUrl,
     segmentCount,
     textRenderMode,
     blendStrength,
     rebuildCount: refreshed?.instantFinalRebuildCount,
-    message:
-      rebuildFailed
-        ? "Final video rebuild failed. Your previous final video is still available."
-        : mergeCompleted && finalVideoUrlPresent
-          ? undefined
-          : "Rebuild started but final video is not ready yet. Refresh status shortly.",
+    message,
   };
 }

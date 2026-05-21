@@ -1,3 +1,4 @@
+import { resolveLatestExportPlaybackUrl } from "@/lib/playback-url-resolution";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
@@ -7,7 +8,24 @@ export function instantStatusFromProjectDetail(
   detail: AnimationProjectDetailResponse
 ): InstantPremiumStatusResponse | null {
   const latestExport = detail.exports[0];
-  const finalVideoUrl = latestExport?.outputVideoUrl?.trim() ?? null;
+  const finalVideoUrl =
+    resolveLatestExportPlaybackUrl(
+      {
+        status: detail.status,
+        instantFinalRebuildCount: detail.instantFinalRebuildCount ?? 0,
+        instantFinalRebuiltAt: detail.instantFinalRebuiltAt ?? null,
+        instantPreviousFinalVideoUrl: detail.instantPreviousFinalVideoUrl ?? null,
+        instantFinalRebuildStatus: null,
+      },
+      latestExport
+        ? {
+            id: detail.latestExportId ?? "export",
+            status: latestExport.status,
+            outputVideoUrl: latestExport.outputVideoUrl ?? null,
+            updatedAt: detail.latestExportUpdatedAt ?? detail.updatedAt,
+          }
+        : null
+    ) ?? latestExport?.outputVideoUrl?.trim() ?? null;
 
   if (!finalVideoUrl && detail.status !== "completed") {
     return null;

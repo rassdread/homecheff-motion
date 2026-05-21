@@ -1,4 +1,5 @@
 import { isLanguageExportCode } from "@/lib/video-language-export";
+import { rawExportUrlForDownload } from "@/server/instant-premium/playback-debug";
 import type { AnimationProjectWithMedia } from "@/server/animation-projects/queries";
 
 export type ProjectWithMedia = AnimationProjectWithMedia;
@@ -49,7 +50,7 @@ export function resolveProjectVideoDownload(
   }
 
   const exportWithUrl = project.exports.find((e) => e.outputVideoUrl?.trim());
-  const sourceUrl = exportWithUrl?.outputVideoUrl?.trim();
+  const sourceUrl = rawExportUrlForDownload(project, exportWithUrl);
   if (!sourceUrl) {
     return null;
   }

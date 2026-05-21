@@ -70,6 +70,13 @@ export function readCachedInstantProgressSnapshot(
   }
 }
 
+export function invalidateCachedInstantProgressSnapshot(projectId: string): void {
+  if (!storageAvailable() || !projectId.trim()) {
+    return;
+  }
+  window.localStorage.removeItem(`${SNAPSHOT_PREFIX}${projectId.trim()}`);
+}
+
 export function writeCachedInstantProgressSnapshot(
   projectId: string,
   snapshot: InstantPremiumStatusResponse

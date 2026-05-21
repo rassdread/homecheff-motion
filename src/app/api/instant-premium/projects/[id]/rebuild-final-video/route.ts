@@ -6,6 +6,7 @@ import {
 } from "@/server/instant-premium/rebuild-final-video";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import { STALE_PLAYBACK_URL } from "@/lib/playback-url-resolution";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -55,7 +56,9 @@ export async function POST(_: Request, context: RouteContext) {
       {
         rebuild,
         status,
+        finalVideoUrl: rebuild.finalVideoUrl ?? status?.finalVideoUrl ?? null,
         ...(rebuild.code === REBUILD_SEGMENTS_MISSING ? { code: REBUILD_SEGMENTS_MISSING } : {}),
+        ...(rebuild.code === STALE_PLAYBACK_URL ? { code: STALE_PLAYBACK_URL } : {}),
       },
       { status: httpStatus }
     );

@@ -5,8 +5,13 @@ import { resolveProjectVideoDownload } from "@/server/animation-projects/resolve
 describe("resolveProjectVideoDownload", () => {
   const baseProject = {
     id: "p1",
+    status: "completed",
+    instantFinalRebuildCount: 1,
+    instantFinalRebuiltAt: new Date("2026-05-01T12:00:00.000Z"),
+    instantFinalRebuildStatus: null,
+    instantPreviousFinalVideoUrl: null,
     transitions: [{ order: 0, outputVideoUrl: "/seg0.mp4" }],
-    exports: [{ outputVideoUrl: "/final.mp4" }],
+    exports: [{ outputVideoUrl: "https://cdn.example/final.mp4", status: "completed" }],
     languageExports: [
       {
         languageCode: "nl",
@@ -23,9 +28,10 @@ describe("resolveProjectVideoDownload", () => {
     ],
   } as Parameters<typeof resolveProjectVideoDownload>[0];
 
-  it("returns default export when no language is set", () => {
+  it("returns cache-busted default export when no language is set", () => {
     const resolved = resolveProjectVideoDownload(baseProject);
-    assert.equal(resolved?.sourceUrl, "/final.mp4");
+    assert.ok(resolved?.sourceUrl.includes("https://cdn.example/final.mp4"));
+    assert.ok(resolved?.sourceUrl.includes("v=1"));
   });
 
   it("returns latest completed language export", () => {

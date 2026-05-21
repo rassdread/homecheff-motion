@@ -9,6 +9,8 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import { useInstantPremiumProgressPolling } from "@/hooks/use-instant-premium-progress-polling";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
+import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
+import { buildPlaybackCacheKey } from "@/lib/playback-url-resolution";
 import { brand } from "@/lib/brand";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -77,6 +79,10 @@ export default function InstantPremiumProgressPage() {
     connectionState === "worker_connecting" ||
     (connectionState === "polling" && !snapshot);
   const effectiveProjectId = projectId || snapshot?.projectId || "";
+  const finalPlaybackCacheKey = useMemo(
+    () => buildPlaybackCacheKey(snapshot?.finalVideoUrl ?? null),
+    [snapshot?.finalVideoUrl]
+  );
   const transientBanner = transientBannerKey(transientMessage);
 
   const headlineKey = useMemo(() => {
@@ -218,6 +224,9 @@ export default function InstantPremiumProgressPage() {
                             );
                             return;
                           }
+                          if (body.rebuild?.ok && effectiveProjectId) {
+                            invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+                          }
                           if (body.status) {
                             setSnapshot(body.status);
                           }
@@ -338,7 +347,7 @@ export default function InstantPremiumProgressPage() {
             <div className="mt-5">
               <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>
               <video
-                key={snapshot.finalVideoUrl}
+                key={finalPlaybackCacheKey}
                 controls
                 playsInline
                 preload="metadata"
@@ -444,7 +453,7 @@ export default function InstantPremiumProgressPage() {
                     );
                     const body = (await res.json().catch(() => ({}))) as {
                       error?: string;
-                      rebuild?: { clipsReady?: boolean; message?: string };
+                      rebuild?: { ok?: boolean; clipsReady?: boolean; message?: string };
                       status?: InstantPremiumStatusResponse;
                     };
                     if (!res.ok) {
@@ -458,6 +467,9 @@ export default function InstantPremiumProgressPage() {
                         body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
                       );
                       return;
+                    }
+                    if (body.rebuild?.ok && effectiveProjectId) {
+                      invalidateCachedInstantProgressSnapshot(effectiveProjectId);
                     }
                     if (body.status) {
                       setSnapshot(body.status);

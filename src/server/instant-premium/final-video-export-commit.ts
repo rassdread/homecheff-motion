@@ -12,6 +12,11 @@ import {
   scheduleDeleteOldFinalBlob,
 } from "@/server/instant-premium/replace-final-video-blob";
 import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/language-export-service";
+import {
+  assertPlaybackUrlFreshAfterRebuild,
+  logPlaybackUrlUpdated,
+  resolveLatestExportPlaybackUrl,
+} from "@/lib/playback-url-resolution";
 
 export function logFinalVideoRebuildAudit(event: FinalVideoRebuildAuditEvent): void {
   console.info("[final-video-rebuild-audit]", event);
@@ -102,7 +107,42 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     },
   });
 
+  const resolvedPlaybackUrl =
+    resolveLatestExportPlaybackUrl(
+      {
+        status: "completed",
+        instantFinalRebuildCount: nextRebuildCount,
+        instantFinalRebuiltAt: rebuiltAt,
+        instantPreviousFinalVideoUrl: previousFinalUrl,
+        instantFinalRebuildStatus: null,
+      },
+      {
+        id: exportId,
+        status: "completed",
+        outputVideoUrl: finalUrl,
+        updatedAt: rebuiltAt,
+      }
+    ) ?? finalUrl;
+
   if (isRebuild) {
+    const staleCheck = assertPlaybackUrlFreshAfterRebuild({
+      projectId,
+      newRawUrl: finalUrl,
+      previousRawUrl: previousFinalUrl,
+      rebuildCount: nextRebuildCount,
+      exportId,
+    });
+    if (!staleCheck.ok) {
+      console.warn("[playback-url-updated]", staleCheck);
+    }
+    logPlaybackUrlUpdated({
+      projectId,
+      oldUrl: previousFinalUrl,
+      newUrl: finalUrl,
+      rebuildCount: nextRebuildCount,
+      exportId,
+      resolvedPlaybackUrl,
+    });
     logFinalVideoReplaced({
       projectId,
       oldUrl: previousFinalUrl,

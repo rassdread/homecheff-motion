@@ -11,6 +11,9 @@ import {
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
 import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
+import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
+import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
@@ -232,8 +235,18 @@ export default function VideoDetailPage() {
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
-  const displayFinalVideoUrl =
-    instantSnapshot?.finalVideoUrl?.trim() || finalVideoUrl;
+  const displayFinalVideoUrl = useMemo(() => {
+    const picked = pickPlaybackUrl({
+      detailExportUrl: finalVideoUrl,
+      statusSnapshotUrl: instantSnapshot?.finalVideoUrl,
+      previousFinalVideoUrl: detail?.instantPreviousFinalVideoUrl,
+    });
+    return picked.url;
+  }, [
+    finalVideoUrl,
+    instantSnapshot?.finalVideoUrl,
+    detail?.instantPreviousFinalVideoUrl,
+  ]);
 
   const languageExports = detail?.languageExports ?? [];
 
@@ -249,6 +262,8 @@ export default function VideoDetailPage() {
     );
     return row?.outputVideoUrl?.trim() ?? displayFinalVideoUrl;
   }, [selectedLanguagePlayback, languageExports, displayFinalVideoUrl]);
+
+  const playbackCacheKey = buildPlaybackCacheKey(activeFinalVideoUrl ?? displayFinalVideoUrl);
 
   const hasCompletedInstantFinal = Boolean(
     displayFinalVideoUrl &&
@@ -369,6 +384,10 @@ export default function VideoDetailPage() {
         );
         return;
       }
+      if (body.code === "STALE_PLAYBACK_URL") {
+        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFinalFailed"));
+        return;
+      }
       if (body.rebuild?.ok) {
         setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
       } else if (body.rebuild?.finalVideoUrlPresent) {
@@ -378,10 +397,11 @@ export default function VideoDetailPage() {
       } else {
         setRebuildError(body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
       }
+      invalidateCachedInstantProgressSnapshot(id);
+      await load();
       if (body.status) {
         setInstantSnapshot(body.status);
       }
-      await load();
     } finally {
       setRebuildBusy(false);
     }
@@ -514,7 +534,7 @@ export default function VideoDetailPage() {
       {displayFinalVideoUrl ? (
         <div className="mt-4 space-y-3">
           <video
-            key={activeFinalVideoUrl ?? displayFinalVideoUrl}
+            key={playbackCacheKey}
             className="w-full max-h-[70vh] rounded-xl bg-black"
             controls
             playsInline
@@ -523,7 +543,7 @@ export default function VideoDetailPage() {
             onError={() => setFinalVideoPlaybackError(true)}
             onLoadedData={() => setFinalVideoPlaybackError(false)}
           >
-            <source src={activeFinalVideoUrl ?? displayFinalVideoUrl} type="video/mp4" />
+            <source src={activeFinalVideoUrl ?? displayFinalVideoUrl ?? undefined} type="video/mp4" />
           </video>
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
@@ -573,6 +593,9 @@ export default function VideoDetailPage() {
           ) : null}
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
+          {isAdmin ? (
+            <PlaybackDebugPanel projectId={id} detailPlayback={detail?.playback} />
+          ) : null}
         </div>
       ) : (
         <div className="mt-4 space-y-3">

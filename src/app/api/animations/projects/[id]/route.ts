@@ -4,6 +4,12 @@ import { discardExportChainForProject } from "@/server/animation-export/service"
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
+import {
+  buildPlaybackCacheKey,
+  pickPlaybackUrl,
+  resolveLatestExportPlaybackUrl,
+} from "@/lib/playback-url-resolution";
+import { getProjectPlaybackDebug } from "@/server/instant-premium/playback-debug";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
 type RouteContext = {
@@ -19,6 +25,13 @@ function mapToDetailResponse(
       ? (project.owner as { email: string })
       : null;
   const ownerEmail = viewerRole === "admin" && ownerRecord ? ownerRecord.email : undefined;
+  const latestExportRow = project.exports[0] ?? null;
+  const exportPlaybackUrl = resolveLatestExportPlaybackUrl(project, latestExportRow);
+  const picked = pickPlaybackUrl({
+    detailExportUrl: exportPlaybackUrl,
+    statusSnapshotUrl: exportPlaybackUrl,
+    previousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+  });
 
   return {
     id: project.id,
@@ -70,6 +83,11 @@ function mapToDetailResponse(
     instantSelectedChips: project.instantSelectedChips,
     instantUserIntent: project.instantUserIntent,
     ownerEmail,
+    instantFinalRebuildCount: project.instantFinalRebuildCount,
+    instantFinalRebuiltAt: project.instantFinalRebuiltAt?.toISOString() ?? null,
+    instantPreviousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+    latestExportId: latestExportRow?.id ?? null,
+    latestExportUpdatedAt: latestExportRow?.updatedAt.toISOString() ?? null,
     languageExports: project.languageExports.map((row) => ({
       id: row.id,
       languageCode: row.languageCode,
@@ -83,6 +101,44 @@ function mapToDetailResponse(
       createdAt: row.createdAt.toISOString(),
       completedAt: row.completedAt?.toISOString() ?? null,
     })),
+    playback: {
+      finalVideoUrl: exportPlaybackUrl,
+      selectedPlaybackUrl: picked.url,
+      selectedPlaybackSource: picked.source,
+      exportOutputVideoUrl: exportPlaybackUrl,
+      exportOutputVideoUrlRaw: latestExportRow?.outputVideoUrl?.trim() ?? null,
+      latestExport: latestExportRow
+        ? {
+            id: latestExportRow.id,
+            status: latestExportRow.status,
+            progress: latestExportRow.progress,
+            outputVideoUrl: exportPlaybackUrl,
+            updatedAt: latestExportRow.updatedAt.toISOString(),
+            createdAt: latestExportRow.createdAt.toISOString(),
+          }
+        : null,
+      rebuildCount: project.instantFinalRebuildCount,
+      rebuiltAt: project.instantFinalRebuiltAt?.toISOString() ?? null,
+      previousFinalVideoUrl: project.instantPreviousFinalVideoUrl
+        ? resolveLatestExportPlaybackUrl(
+            {
+              status: project.status,
+              instantFinalRebuildCount: Math.max(0, project.instantFinalRebuildCount - 1),
+              instantFinalRebuiltAt: project.instantFinalRebuiltAt,
+              instantPreviousFinalVideoUrl: null,
+              instantFinalRebuildStatus: project.instantFinalRebuildStatus,
+            },
+            {
+              id: "prev",
+              status: "completed",
+              outputVideoUrl: project.instantPreviousFinalVideoUrl,
+              updatedAt: project.instantFinalRebuiltAt ?? project.updatedAt,
+            }
+          )
+        : null,
+      previousFinalVideoUrlRaw: project.instantPreviousFinalVideoUrl?.trim() ?? null,
+      cacheBust: buildPlaybackCacheKey(picked.url),
+    },
   };
 }
 
@@ -99,6 +155,24 @@ export async function GET(_: Request, context: RouteContext) {
   }
 
   const body = mapToDetailResponse(project, user.role);
+  if (user.role === "admin") {
+    const debug = await getProjectPlaybackDebug(id);
+    if (debug) {
+      body.playback = {
+        finalVideoUrl: debug.finalVideoUrl,
+        selectedPlaybackUrl: debug.selectedPlaybackUrl,
+        selectedPlaybackSource: debug.selectedPlaybackSource,
+        exportOutputVideoUrl: debug.exportOutputVideoUrl,
+        exportOutputVideoUrlRaw: debug.exportOutputVideoUrlRaw,
+        latestExport: debug.latestExport,
+        rebuildCount: debug.rebuildCount,
+        rebuiltAt: debug.rebuiltAt,
+        previousFinalVideoUrl: debug.previousFinalVideoUrl,
+        previousFinalVideoUrlRaw: debug.previousFinalVideoUrlRaw,
+        cacheBust: debug.cacheBust,
+      };
+    }
+  }
   return NextResponse.json(body, { status: 200 });
 }
 
