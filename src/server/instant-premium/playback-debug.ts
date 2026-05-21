@@ -9,9 +9,11 @@ import { resolveExportTimeoutMs } from "@/lib/export-timeout";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
+import { buildProviderVideoStorageRows } from "@/server/instant-premium/canonical-provider-video";
 import {
   buildAdminFinalAssemblyReport,
   buildConcatIncludedByTransitionId,
+  buildProviderChainByTransitionId,
 } from "@/server/instant-premium/final-assembly-invariants";
 
 export type ProjectPlaybackDebugPayload = {
@@ -66,7 +68,20 @@ export async function getProjectPlaybackDebug(
     include: {
       exports: { orderBy: { createdAt: "desc" }, take: 1 },
       images: { orderBy: { order: "asc" }, select: { id: true, order: true } },
-      transitions: { orderBy: { order: "asc" } },
+      transitions: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          order: true,
+          startImageId: true,
+          endImageId: true,
+          status: true,
+          provider: true,
+          providerJobId: true,
+          outputVideoUrl: true,
+          updatedAt: true,
+        },
+      },
       languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
     },
   });
@@ -96,15 +111,36 @@ export async function getProjectPlaybackDebug(
   const segmentTimeline = buildAdminAssemblyTimeline(
     buildFinalSegmentTransitionRows(transitionRows)
   );
+  const storageRows = await buildProviderVideoStorageRows(
+    project.transitions.map((t) => ({
+      transitionId: t.id,
+      segmentIndex: t.order,
+      transitionOrder: t.order,
+      status: t.status,
+      provider: t.provider,
+      providerJobId: t.providerJobId,
+      outputVideoUrl: t.outputVideoUrl,
+      updatedAt: t.updatedAt,
+    }))
+  );
+  const storageSha256ByTransitionId = new Map(
+    storageRows.map((row) => [row.transitionId, row.sha256])
+  );
   const concatIncludedByTransitionId = buildConcatIncludedByTransitionId({
     transitions: transitionRows,
     rebuildSegmentTraces: rebuildTrace?.segments ?? [],
     latestExportCompleted: latestExport?.status === "completed",
   });
+  const providerChainByTransitionId = buildProviderChainByTransitionId({
+    transitions: transitionRows,
+    storageSha256ByTransitionId,
+    rebuildSegmentTraces: rebuildTrace?.segments ?? [],
+  });
   const finalAssemblyReport = buildAdminFinalAssemblyReport({
     images: project.images,
     transitions: transitionRows,
     concatIncludedByTransitionId,
+    providerChainByTransitionId,
   });
 
   return {

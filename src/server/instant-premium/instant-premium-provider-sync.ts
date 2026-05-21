@@ -34,6 +34,16 @@ export async function persistSegmentVideoToBlob(
       provider: "instant-segment-sync",
     },
   });
+  console.info("[provider-video-storage]", {
+    action: "blob_persisted",
+    projectId,
+    segmentOrder: segmentOrder + 1,
+    storedBlobUrl: url,
+    outputVideoUrl: url,
+    uploadCompletedAt: new Date().toISOString(),
+    contentLength: body.length,
+    mimeType: "video/mp4",
+  });
   return url;
 }
 

@@ -138,6 +138,13 @@ export function assertFinalConcatInputCount(params: {
   }
 }
 
+export type ProviderChainDebug = {
+  providerVideoUrl: string | null;
+  downloadHash: string | null;
+  concatHash: string | null;
+  chainPreserved: boolean;
+};
+
 export type AdminAssemblyTransitionStatus = {
   label: string;
   transitionOrder: number;
@@ -145,6 +152,10 @@ export type AdminAssemblyTransitionStatus = {
   endImageId: string;
   providerPresent: boolean;
   concatIncluded: boolean;
+  providerVideoUrl?: string | null;
+  downloadHash?: string | null;
+  concatHash?: string | null;
+  chainPreserved?: boolean;
   error?: string | null;
 };
 
@@ -162,6 +173,7 @@ export function buildAdminFinalAssemblyReport(params: {
   images: ImageRowForInvariant[];
   transitions: TransitionRowForInvariant[];
   concatIncludedByTransitionId: Map<string, boolean>;
+  providerChainByTransitionId?: Map<string, ProviderChainDebug>;
 }): AdminFinalAssemblyReport {
   const sortedImages = [...params.images].sort((a, b) => a.order - b.order);
   const sortedTransitions = [...params.transitions].sort((a, b) => a.order - b.order);
@@ -173,11 +185,15 @@ export function buildAdminFinalAssemblyReport(params: {
     const endNum = sortedImages.findIndex((img) => img.id === t.endImageId) + 1 || t.order + 2;
     const providerPresent = t.status === "completed" && Boolean(t.outputVideoUrl?.trim());
     const concatIncluded = params.concatIncludedByTransitionId.get(t.id) ?? false;
+    const chain = params.providerChainByTransitionId?.get(t.id);
+    const chainPreserved = chain?.chainPreserved ?? (providerPresent && concatIncluded);
     let error: string | null = null;
     if (!providerPresent) {
       error = "missing_provider_video";
     } else if (!concatIncluded) {
       error = "missing_from_final_concat";
+    } else if (!chainPreserved) {
+      error = "provider_download_concat_chain_broken";
     }
     return {
       label: `${startNum}→${endNum}`,
@@ -186,6 +202,10 @@ export function buildAdminFinalAssemblyReport(params: {
       endImageId: t.endImageId,
       providerPresent,
       concatIncluded,
+      providerVideoUrl: chain?.providerVideoUrl ?? t.outputVideoUrl,
+      downloadHash: chain?.downloadHash ?? null,
+      concatHash: chain?.concatHash ?? null,
+      chainPreserved,
       error,
     };
   });
@@ -194,6 +214,7 @@ export function buildAdminFinalAssemblyReport(params: {
   const allConcatIncluded =
     transitionStatuses.length === expected &&
     transitionStatuses.every((row) => row.concatIncluded);
+  const allChainsPreserved = transitionStatuses.every((row) => row.chainPreserved);
 
   return {
     imageCount: sortedImages.length,
@@ -206,8 +227,42 @@ export function buildAdminFinalAssemblyReport(params: {
     transitions: transitionStatuses,
     allTransitionsPresent,
     allConcatIncluded,
-    ok: allTransitionsPresent && allConcatIncluded,
+    ok: allTransitionsPresent && allConcatIncluded && allChainsPreserved,
   };
+}
+
+export function buildProviderChainByTransitionId(params: {
+  transitions: TransitionRowForInvariant[];
+  storageSha256ByTransitionId?: Map<string, string | null>;
+  rebuildSegmentTraces: Array<{
+    transitionId: string;
+    downloadedFileHash?: string;
+    concatInputHash?: string;
+  }>;
+}): Map<string, ProviderChainDebug> {
+  const map = new Map<string, ProviderChainDebug>();
+  for (const transition of params.transitions) {
+    const trace = params.rebuildSegmentTraces.find((s) => s.transitionId === transition.id);
+    const downloadHash =
+      trace?.downloadedFileHash ??
+      params.storageSha256ByTransitionId?.get(transition.id) ??
+      null;
+    const concatHash = trace?.concatInputHash ?? null;
+    const providerVideoUrl = transition.outputVideoUrl?.trim() ?? null;
+    const providerPresent =
+      transition.status === "completed" && Boolean(providerVideoUrl);
+    const chainPreserved =
+      providerPresent &&
+      Boolean(downloadHash) &&
+      (!concatHash || concatHash === downloadHash);
+    map.set(transition.id, {
+      providerVideoUrl,
+      downloadHash,
+      concatHash,
+      chainPreserved,
+    });
+  }
+  return map;
 }
 
 export function hashUrlShort(url: string): string {

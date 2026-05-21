@@ -49,6 +49,10 @@ import {
   INVALID_FINAL_ASSEMBLY_SOURCE,
   prepareFinalSegmentProviderVideos,
 } from "@/server/instant-premium/final-segment-source";
+import {
+  assertConcatLockedToCanonicalProviderPaths,
+  ProviderVideoPipelineError,
+} from "@/server/instant-premium/canonical-provider-video";
 import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
   assertFinalConcatInputOrder,
@@ -455,8 +459,10 @@ export async function executeInstantPremiumMerge(
           startImageId: t.startImageId,
           endImageId: t.endImageId,
           status: t.status,
+          provider: t.provider,
           providerJobId: t.providerJobId,
           outputVideoUrl: t.outputVideoUrl,
+          updatedAt: t.updatedAt,
         })),
         workDir,
       });
@@ -466,10 +472,12 @@ export async function executeInstantPremiumMerge(
     } catch (sourceError) {
       if (
         sourceError instanceof FinalSegmentSourceError ||
+        sourceError instanceof ProviderVideoPipelineError ||
         sourceError instanceof FinalAssemblyTransitionCountMismatchError ||
         sourceError instanceof SegmentTrimTooAggressiveError
       ) {
-        const message = sourceError.message;
+        const message =
+          sourceError instanceof Error ? sourceError.message : "Final assembly failed.";
         await prisma.animationExport.update({
           where: { id: exportRow.id },
           data: {
@@ -579,6 +587,7 @@ export async function executeInstantPremiumMerge(
 
       let pathsToConcat = segmentPaths;
       let concatSourceTypes: string[] | undefined;
+      const lockCanonicalConcat = options?.adminRepairMode !== true;
       const mergeMaxWidth = getFinalMergeMaxWidthFromViduResolution(project.viduResolution);
 
       logFinalAssembly({
@@ -661,22 +670,32 @@ export async function executeInstantPremiumMerge(
             posterComposite.segmentResults[idx],
           ])
         );
-        const resolvedConcat = await resolveFinalConcatSegmentPaths({
-          segments: posterSegments.map((seg) => ({
-            segmentIndex: seg.segmentIndex,
-            animatedViduPath: segmentPaths[seg.segmentIndex]!,
-            compositorResult: compositorResultBySegmentIndex.get(seg.segmentIndex),
-          })),
-          expectedSegmentCount: orderedSegments.length,
-          allowStaticFallback,
-        });
-        pathsToConcat = resolvedConcat.paths;
-        concatSourceTypes = resolvedConcat.sourceTypes;
-        assertNoInvalidAssemblySources({
-          projectId,
-          sourceKinds: resolvedConcat.sourceKinds,
-          segmentIndexes: orderedSegments.map((s) => s.segmentIndex),
-        });
+        if (lockCanonicalConcat) {
+          console.info("[canonical-concat-lock]", {
+            projectId,
+            segmentCount: orderedSegments.length,
+            note: "concat_locked_to_fresh_canonical_provider_downloads",
+          });
+          pathsToConcat = [...segmentPaths];
+          concatSourceTypes = orderedSegments.map(() => "animated_vidu" as const);
+        } else {
+          const resolvedConcat = await resolveFinalConcatSegmentPaths({
+            segments: posterSegments.map((seg) => ({
+              segmentIndex: seg.segmentIndex,
+              animatedViduPath: segmentPaths[seg.segmentIndex]!,
+              compositorResult: compositorResultBySegmentIndex.get(seg.segmentIndex),
+            })),
+            expectedSegmentCount: orderedSegments.length,
+            allowStaticFallback,
+          });
+          pathsToConcat = resolvedConcat.paths;
+          concatSourceTypes = resolvedConcat.sourceTypes;
+          assertNoInvalidAssemblySources({
+            projectId,
+            sourceKinds: resolvedConcat.sourceKinds,
+            segmentIndexes: orderedSegments.map((s) => s.segmentIndex),
+          });
+        }
         console.info("[hc-instant-premium]", {
           projectId,
           phase: "posterMotionSegmentsCompositeApplied",
@@ -687,6 +706,15 @@ export async function executeInstantPremiumMerge(
           passthroughFallbackCount: posterComposite.passthroughFallbackCount,
           staticFallbackCount: posterComposite.staticFallbackCount,
           blendStrength,
+          lockCanonicalConcat,
+        });
+      }
+
+      if (lockCanonicalConcat) {
+        assertConcatLockedToCanonicalProviderPaths({
+          projectId,
+          canonicalProviderVideoPaths: segmentPaths,
+          concatInputPaths: pathsToConcat,
         });
       }
 
@@ -957,6 +985,8 @@ export async function executeInstantPremiumMerge(
               error instanceof Error ? error.message : "Final export timed out."
             }`
           : error instanceof FinalSegmentSourceError
+          ? error.message
+          : error instanceof ProviderVideoPipelineError
           ? error.message
           : error instanceof FinalAssemblyTransitionCountMismatchError
           ? error.message

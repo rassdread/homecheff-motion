@@ -2,8 +2,6 @@
  * Final assembly — strict provider-video-only source selection (no poster/image placeholders).
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import {
   buildOrderedTransitionSegments,
   validateOrderedTransitionSegments,
@@ -13,8 +11,6 @@ import {
   probeSegmentMotion,
   type SegmentMotionProbe,
 } from "@/server/instant-premium/segment-motion-validation";
-import { resolveSegmentDownloadTimeoutMs } from "@/lib/export-timeout";
-import { hashFileSha256 } from "@/lib/file-content-hash";
 import { setFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import { upsertRebuildSegmentTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
@@ -23,6 +19,27 @@ import {
   expectedTransitionCountForImageCount,
   logTransitionTableDebug,
 } from "@/server/instant-premium/final-assembly-invariants";
+import {
+  assertUniqueCanonicalProviderSources,
+  downloadCanonicalProviderVideo,
+  logProviderVideoStorage,
+  resolveCanonicalOutputVideoUrl,
+  type CanonicalProviderSegment,
+  type CanonicalProviderTransitionInput,
+  ProviderVideoPipelineError,
+} from "@/server/instant-premium/canonical-provider-video";
+
+export { DUPLICATE_PROVIDER_VIDEO_SOURCE } from "@/server/instant-premium/canonical-provider-video";
+
+export function wrapProviderVideoPipelineError(error: unknown): FinalSegmentSourceError {
+  if (error instanceof FinalSegmentSourceError) {
+    return error;
+  }
+  if (error instanceof ProviderVideoPipelineError) {
+    return new FinalSegmentSourceError(error.code, error.message);
+  }
+  throw error;
+}
 
 export const SEGMENT_VIDEO_MISSING = "SEGMENT_VIDEO_MISSING";
 export const INVALID_FINAL_ASSEMBLY_SOURCE = "INVALID_FINAL_ASSEMBLY_SOURCE";
@@ -205,60 +222,24 @@ export function logFinalSegmentSource(entry: FinalSegmentSourceLogEntry): void {
   console.info("[final-segment-source]", entry);
 }
 
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function absolutePublicPath(...segments: string[]): string {
-  return path.join(process.cwd(), "public", ...segments);
-}
-
+/** @deprecated Use downloadCanonicalProviderVideo — always fresh canonical download. */
 export async function downloadProviderVideoToWorkDir(params: {
   url: string;
   workDir: string;
   segmentIndex: number;
   segmentCount?: number;
+  transitionId?: string;
+  projectId?: string;
 }): Promise<string> {
-  const trimmed = params.url.trim();
-  if (trimmed.startsWith("/")) {
-    const relative = trimmed.replace(/^\/+/, "");
-    const abs = absolutePublicPath(...relative.split("/"));
-    if (!(await pathExists(abs))) {
-      throw new FinalSegmentSourceError(
-        SEGMENT_VIDEO_MISSING,
-        `Missing local provider video: ${trimmed}`
-      );
-    }
-    const dest = path.join(params.workDir, `provider-seg-${params.segmentIndex}.mp4`);
-    await fs.copyFile(abs, dest);
-    return dest;
-  }
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const downloadTimeoutMs = resolveSegmentDownloadTimeoutMs(params.segmentCount ?? 3);
-    const response = await fetch(trimmed, { signal: AbortSignal.timeout(downloadTimeoutMs) });
-    if (!response.ok) {
-      throw new FinalSegmentSourceError(
-        SEGMENT_VIDEO_MISSING,
-        `Could not download provider video (${response.status}): ${trimmed}`
-      );
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length <= 0) {
-      throw new FinalSegmentSourceError(SEGMENT_VIDEO_MISSING, `Empty provider video: ${trimmed}`);
-    }
-    const dest = path.join(params.workDir, `provider-seg-${params.segmentIndex}.mp4`);
-    await fs.writeFile(dest, buffer);
-    return dest;
-  }
-  throw new FinalSegmentSourceError(
-    INVALID_FINAL_ASSEMBLY_SOURCE,
-    `Unsupported provider video URL: ${trimmed}`
-  );
+  const { canonicalProviderVideoPath } = await downloadCanonicalProviderVideo({
+    canonicalOutputVideoUrl: params.url,
+    workDir: params.workDir,
+    transitionId: params.transitionId ?? `seg-${params.segmentIndex}`,
+    segmentIndex: params.segmentIndex,
+    segmentCount: params.segmentCount,
+    projectId: params.projectId ?? "unknown",
+  });
+  return canonicalProviderVideoPath;
 }
 
 export async function validateProviderVideoFile(params: {
@@ -331,8 +312,10 @@ export async function prepareFinalSegmentProviderVideos(params: {
     startImageId: string;
     endImageId: string;
     status: string;
+    provider: string | null;
     providerJobId: string | null;
     outputVideoUrl: string | null;
+    updatedAt?: Date | string | null;
   }>;
   workDir: string;
   strictRebuild?: boolean;
@@ -340,6 +323,8 @@ export async function prepareFinalSegmentProviderVideos(params: {
 }): Promise<{
   orderedSegments: TransitionSegmentRecord[];
   providerVideoPaths: string[];
+  canonicalProviderVideoPaths: string[];
+  canonicalSegments: CanonicalProviderSegment[];
   sourceLogs: FinalSegmentSourceLogEntry[];
   timeline: AdminAssemblyTimelineEntry[];
 }> {
@@ -385,68 +370,123 @@ export async function prepareFinalSegmentProviderVideos(params: {
   );
   validateOrderedTransitionSegments(orderedSegments);
 
+  const storageInputs: CanonicalProviderTransitionInput[] = params.transitions.map((t) => ({
+    transitionId: t.id,
+    segmentIndex: rows.find((r) => r.transitionId === t.id)?.segmentIndex ?? t.order,
+    transitionOrder: t.order,
+    status: t.status,
+    provider: t.provider,
+    providerJobId: t.providerJobId,
+    outputVideoUrl: t.outputVideoUrl,
+    updatedAt: t.updatedAt,
+  }));
+
+  try {
+    await logProviderVideoStorage({
+      projectId: params.projectId,
+      transitions: storageInputs,
+    });
+  } catch (error) {
+    throw wrapProviderVideoPipelineError(error);
+  }
+
   const providerVideoPaths: string[] = new Array(rows.length);
+  const canonicalSegments: CanonicalProviderSegment[] = [];
   const sourceLogs: FinalSegmentSourceLogEntry[] = [];
 
   for (const seg of orderedSegments) {
     const row = rows[seg.segmentIndex]!;
+    const transitionInput = params.transitions.find((t) => t.id === row.transitionId)!;
     setFinalExportStage(params.projectId, "download_segments", {
       activeSegment: seg.segmentIndex,
     });
-    const localPath = await downloadProviderVideoToWorkDir({
-      url: row.providerVideoUrl,
-      workDir: params.workDir,
-      segmentIndex: seg.segmentIndex,
-      segmentCount: rows.length,
-    });
-    const validated = await validateProviderVideoFile({
-      localPath,
-      segmentIndex: seg.segmentIndex,
-      projectId: params.projectId,
-    });
 
-    if (validated.sourceKind === INVALID_IMAGE_PLACEHOLDER) {
-      throw new FinalSegmentSourceError(
-        INVALID_FINAL_ASSEMBLY_SOURCE,
-        `[${params.projectId}] Segment ${seg.segmentIndex} (order ${row.transitionOrder}) is a still/image placeholder, not provider motion video.`
-      );
-    }
-
-    providerVideoPaths[seg.segmentIndex] = localPath;
-    const downloadedFileHash = await hashFileSha256(localPath);
-    if (params.strictRebuild) {
-      upsertRebuildSegmentTrace(params.projectId, {
+    try {
+      const canonicalUrl = resolveCanonicalOutputVideoUrl({
+        status: row.status,
+        outputVideoUrl: row.providerVideoUrl,
+      });
+      const { canonicalProviderVideoPath, downloadedHash } = await downloadCanonicalProviderVideo({
+        canonicalOutputVideoUrl: canonicalUrl,
+        workDir: params.workDir,
         transitionId: row.transitionId,
         segmentIndex: seg.segmentIndex,
-        sourceVideoUrl: row.providerVideoUrl,
-        downloadedFilePath: localPath,
-        downloadedFileHash,
-        durationSec: validated.probed.durationSec,
-        frameCountEstimate: validated.motion.frameCountEstimate,
+        segmentCount: rows.length,
+        projectId: params.projectId,
       });
+
+      const validated = await validateProviderVideoFile({
+        localPath: canonicalProviderVideoPath,
+        segmentIndex: seg.segmentIndex,
+        projectId: params.projectId,
+      });
+
+      if (validated.sourceKind === INVALID_IMAGE_PLACEHOLDER) {
+        throw new FinalSegmentSourceError(
+          INVALID_FINAL_ASSEMBLY_SOURCE,
+          `[${params.projectId}] Segment ${seg.segmentIndex} (order ${row.transitionOrder}) is a still/image placeholder, not provider motion video.`
+        );
+      }
+
+      providerVideoPaths[seg.segmentIndex] = canonicalProviderVideoPath;
+      canonicalSegments.push({
+        transitionId: row.transitionId,
+        segmentIndex: seg.segmentIndex,
+        transitionOrder: row.transitionOrder,
+        canonicalOutputVideoUrl: canonicalUrl,
+        canonicalProviderVideoPath,
+        downloadedHash,
+        provider: transitionInput.provider,
+        providerJobId: row.providerJobId,
+      });
+
+      if (params.strictRebuild) {
+        upsertRebuildSegmentTrace(params.projectId, {
+          transitionId: row.transitionId,
+          segmentIndex: seg.segmentIndex,
+          sourceVideoUrl: canonicalUrl,
+          downloadedFilePath: canonicalProviderVideoPath,
+          downloadedFileHash: downloadedHash,
+          durationSec: validated.probed.durationSec,
+          frameCountEstimate: validated.motion.frameCountEstimate,
+        });
+      }
+      const entry: FinalSegmentSourceLogEntry = {
+        projectId: params.projectId,
+        transitionOrder: row.transitionOrder,
+        transitionId: row.transitionId,
+        startImageId: row.startImageId,
+        endImageId: row.endImageId,
+        status: row.status,
+        selectedVideoUrl: canonicalUrl,
+        localPath: canonicalProviderVideoPath,
+        sourceKind: "provider_video",
+        durationSec: validated.probed.durationSec,
+        frameCount: validated.motion.frameCountEstimate,
+        motionScore: validated.motion.motionScore,
+        providerJobId: row.providerJobId,
+      };
+      logFinalSegmentSource(entry);
+      sourceLogs.push(entry);
+    } catch (error) {
+      throw wrapProviderVideoPipelineError(error);
     }
-    const entry: FinalSegmentSourceLogEntry = {
+  }
+
+  try {
+    assertUniqueCanonicalProviderSources({
       projectId: params.projectId,
-      transitionOrder: row.transitionOrder,
-      transitionId: row.transitionId,
-      startImageId: row.startImageId,
-      endImageId: row.endImageId,
-      status: row.status,
-      selectedVideoUrl: row.providerVideoUrl,
-      localPath,
-      sourceKind: "provider_video",
-      durationSec: validated.probed.durationSec,
-      frameCount: validated.motion.frameCountEstimate,
-      motionScore: validated.motion.motionScore,
-      providerJobId: row.providerJobId,
-    };
-    logFinalSegmentSource(entry);
-    sourceLogs.push(entry);
+      segments: canonicalSegments,
+    });
+  } catch (error) {
+    throw wrapProviderVideoPipelineError(error);
   }
 
   return {
     orderedSegments,
     providerVideoPaths,
+    canonicalProviderVideoPaths: providerVideoPaths,
+    canonicalSegments,
     sourceLogs,
     timeline: buildAdminAssemblyTimeline(rows),
   };

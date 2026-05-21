@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/status-service";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
+import { buildProviderVideoStorageRows } from "@/server/instant-premium/canonical-provider-video";
 import {
   buildAdminFinalAssemblyReport,
   buildConcatIncludedByTransitionId,
+  buildProviderChainByTransitionId,
   expectedTransitionCountForImageCount,
 } from "@/server/instant-premium/final-assembly-invariants";
 import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
@@ -81,6 +83,7 @@ export async function GET(request: Request, context: RouteContext) {
           endImageId: true,
           status: true,
           progress: true,
+          provider: true,
           providerJobId: true,
           outputVideoUrl: true,
           errorMessage: true,
@@ -117,10 +120,30 @@ export async function GET(request: Request, context: RouteContext) {
     rebuildSegmentTraces: rebuildTrace?.segments ?? [],
     latestExportCompleted: latestExport?.status === "completed",
   });
+  const storageRows = await buildProviderVideoStorageRows(
+    project.transitions.map((t) => ({
+      transitionId: t.id,
+      segmentIndex: t.order,
+      transitionOrder: t.order,
+      status: t.status,
+      provider: t.provider,
+      providerJobId: t.providerJobId,
+      outputVideoUrl: t.outputVideoUrl,
+      updatedAt: t.updatedAt,
+    }))
+  );
+  const providerChainByTransitionId = buildProviderChainByTransitionId({
+    transitions: transitionRows,
+    storageSha256ByTransitionId: new Map(
+      storageRows.map((row) => [row.transitionId, row.sha256])
+    ),
+    rebuildSegmentTraces: rebuildTrace?.segments ?? [],
+  });
   const finalAssemblyReport = buildAdminFinalAssemblyReport({
     images: project.images,
     transitions: transitionRows,
     concatIncludedByTransitionId,
+    providerChainByTransitionId,
   });
 
   const assemblyTimeline = buildAdminAssemblyTimeline(
@@ -190,6 +213,7 @@ export async function GET(request: Request, context: RouteContext) {
       transitions,
       assemblyTimeline,
       finalAssemblyReport,
+      providerVideoStorage: storageRows,
       duplicateOutputUrls,
       missingSegments,
     },

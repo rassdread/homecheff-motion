@@ -22,6 +22,10 @@ type AdminPlaybackDebugPayload = ProjectPlaybackDebugSummary & {
       label: string;
       providerPresent: boolean;
       concatIncluded: boolean;
+      providerVideoUrl?: string | null;
+      downloadHash?: string | null;
+      concatHash?: string | null;
+      chainPreserved?: boolean;
       error?: string | null;
     }>;
   };
@@ -231,6 +235,9 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
                   >
                     {row.label}: provider {row.providerPresent ? "present" : "missing"} · concat{" "}
                     {row.concatIncluded ? "included" : "missing"}
+                    {row.chainPreserved ? " · chain OK" : row.providerPresent ? " · chain broken" : ""}
+                    {row.downloadHash ? ` · dl ${row.downloadHash.slice(0, 12)}…` : ""}
+                    {row.concatHash ? ` · concat ${row.concatHash.slice(0, 12)}…` : ""}
                     {row.error ? ` (${row.error})` : ""}
                   </li>
                 ))}
