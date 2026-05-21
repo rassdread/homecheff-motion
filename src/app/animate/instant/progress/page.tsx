@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
+import { InstantSegmentProgressList } from "@/components/instant/instant-segment-progress-list";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useInstantPremiumProgressPolling } from "@/hooks/use-instant-premium-progress-polling";
 import { useActiveTranslator } from "@/i18n/client";
@@ -68,6 +69,7 @@ export default function InstantPremiumProgressPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [segmentRetryBusy, setSegmentRetryBusy] = useState<number | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
@@ -296,46 +298,64 @@ export default function InstantPremiumProgressPage() {
               </p>
             </div>
           ) : null}
-          {snapshot?.segments?.length ? (
-            <>
-              <div className="mt-6">
-                <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.segmentsTitle")}</h2>
-                <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentsHelp")}</p>
-              </div>
-              <div className="mt-3 space-y-3">
-                {snapshot.segments.map((segment) => (
-              <div key={segment.index} className="rounded-xl border border-zinc-200 p-3">
-                <p className="text-xs font-semibold text-zinc-700">
-                  {t("instant.progress.segment")} #{segment.index + 1} - {segment.status}
-                </p>
-                {segment.videoUrl ? (
-                  <video
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="mt-2 max-h-44 w-full rounded-lg border border-zinc-200 bg-black"
-                  >
-                    <source src={segment.videoUrl} type="video/mp4" />
-                  </video>
-                ) : (
-                  <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentPending")}</p>
-                )}
-                {segment.error ? <p className="mt-1 text-xs text-red-700">{segment.error}</p> : null}
-                {segment.videoUrl ? (
-                  <div className="mt-2">
-                    <a
-                      href={animationProjectDownloadUrl(effectiveProjectId, { segmentOrder: segment.index })}
-                      download={`homecheff-motion-${effectiveProjectId}-segment-${segment.index + 1}.mp4`}
-                      className="rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-800"
-                    >
-                      {t("instant.progress.downloadSegment")}
-                    </a>
-                  </div>
-                ) : null}
-              </div>
-                ))}
-              </div>
-            </>
+          {snapshot?.segments?.length && effectiveProjectId ? (
+            <InstantSegmentProgressList
+              projectId={effectiveProjectId}
+              snapshot={snapshot}
+              segmentRetryBusy={segmentRetryBusy}
+              mergeRetryBusy={retryBusy}
+              onRetryMerge={() => {
+                setRetryBusy(true);
+                setActionError(null);
+                void (async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/instant-premium/projects/${effectiveProjectId}/merge/retry`,
+                      { method: "POST", credentials: "include" }
+                    );
+                    if (!res.ok) {
+                      const body = (await res.json().catch(() => ({}))) as { error?: string };
+                      setActionError(body.error ?? t("instant.progress.retryFailed"));
+                      return;
+                    }
+                    const body = (await res.json()) as InstantPremiumStatusResponse;
+                    setSnapshot(body);
+                    invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+                  } finally {
+                    setRetryBusy(false);
+                  }
+                })();
+              }}
+              onRetrySegment={(segmentIndex) => {
+                setSegmentRetryBusy(segmentIndex);
+                setActionError(null);
+                void (async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/instant-premium/projects/${effectiveProjectId}/segments/${segmentIndex}/retry`,
+                      { method: "POST", credentials: "include" }
+                    );
+                    const body = (await res.json().catch(() => ({}))) as
+                      | InstantPremiumStatusResponse
+                      | { error?: string };
+                    if (!res.ok) {
+                      setActionError(
+                        "error" in body && body.error
+                          ? body.error
+                          : t("instant.progress.retryFailed")
+                      );
+                      return;
+                    }
+                    if ("projectId" in body && body.projectId) {
+                      setSnapshot(body);
+                      invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+                    }
+                  } finally {
+                    setSegmentRetryBusy(null);
+                  }
+                })();
+              }}
+            />
           ) : null}
           {isCompleted && snapshot?.finalVideoUrl ? (
             <div className="mt-4">
@@ -553,10 +573,13 @@ export default function InstantPremiumProgressPage() {
               {retryBusy ? t("instant.recover.restoring") : t("instant.progress.retryOverlay")}
             </button>
           ) : null}
-          {effectiveProjectId && snapshot?.status === "failed" && !snapshot?.canRetryOverlay ? (
+          {effectiveProjectId &&
+          snapshot?.canRetryMerge &&
+          !snapshot?.segmentsMergeFailed &&
+          !snapshot?.canRetryOverlay ? (
             <button
               type="button"
-              disabled={retryBusy}
+              disabled={retryBusy || snapshot.retryState === "retrying_merge"}
               className="mt-4 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
               onClick={() => {
                 setRetryBusy(true);
@@ -573,14 +596,17 @@ export default function InstantPremiumProgressPage() {
                     }
                     const body = (await res.json()) as InstantPremiumStatusResponse;
                     setSnapshot(body);
-                      setActionError(null);
+                    setActionError(null);
+                    invalidateCachedInstantProgressSnapshot(effectiveProjectId);
                   } finally {
                     setRetryBusy(false);
                   }
                 })();
               }}
             >
-              {retryBusy ? t("instant.step7.preparing") : t("instant.progress.retryMerge")}
+              {retryBusy || snapshot.retryState === "retrying_merge"
+                ? t("instant.progress.retryingMerge")
+                : t("instant.progress.retryMergeButton")}
             </button>
           ) : null}
 

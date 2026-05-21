@@ -503,8 +503,16 @@ export async function pollProjectJobs(projectId: string) {
   const allCompleted =
     allTransitions.length > 0 &&
     allTransitions.every((transition) => transition.status === "completed");
+  const completedCount = allTransitions.filter((t) => t.status === "completed").length;
+  const partialSegmentFailure =
+    anyFailed && !allCompleted && completedCount > 0 && completedCount < allTransitions.length;
 
-  if (anyFailed) {
+  if (partialSegmentFailure) {
+    await prisma.animationProject.update({
+      where: { id: project.id },
+      data: { status: "generating" },
+    });
+  } else if (anyFailed) {
     await prisma.animationProject.update({
       where: { id: project.id },
       data: { status: "failed" },

@@ -358,6 +358,8 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";
 
+export type InstantPremiumRetryState = "retrying_segment" | "retrying_merge";
+
 /** POST /api/instant-premium/create-and-generate — test mode (INSTANT_PREMIUM_MODE=test). */
 export type InstantPremiumCreateAndGenerateOkBody = {
   ok: true;
@@ -436,7 +438,14 @@ export type InstantPremiumStatusResponse = {
     durationSeconds: number | null;
     providerTaskId: string | null;
     error: string | null;
+    errorCode?: string | null;
+    canRetry?: boolean;
   }>;
+  retryState?: InstantPremiumRetryState | null;
+  retryingSegmentIndex?: number | null;
+  segmentsMergeFailed?: boolean;
+  canRetryMerge?: boolean;
+  hasFailedSegment?: boolean;
   finalVideoUrl: string | null;
   finalDurationSeconds: number | null;
   downloadable: boolean;

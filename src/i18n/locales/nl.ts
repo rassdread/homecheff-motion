@@ -914,6 +914,13 @@ export const nl = {
   "instant.progress.waitingToStart": "Generatie start nog niet. Je kunt de wachtrij-segmenten handmatig starten.",
   "instant.progress.startQueuedSegments": "Wachtrij-segmenten starten",
   "instant.progress.downloadSegment": "Clip downloaden",
+  "instant.progress.retrySegment": "Segment opnieuw renderen",
+  "instant.progress.retryingSegment": "Segment opnieuw renderen…",
+  "instant.progress.retryingMerge": "Samenvoegen opnieuw proberen…",
+  "instant.progress.segmentErrorCode": "Foutcode: {code}",
+  "instant.progress.segmentsMergeFailed":
+    "Alle segmenten klaar — samenvoegen mislukt",
+  "instant.progress.retryMergeButton": "Samenvoegen opnieuw proberen",
   "instant.progress.finalVideoTitle": "Eindvideo",
   "instant.progress.download": "Video downloaden",
   "instant.progress.savedToGallery":

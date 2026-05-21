@@ -20,6 +20,8 @@ import { isInstantLikeProject } from "@/server/instant-premium/instant-project-u
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 import { reconcilePlayableProjectCompletion } from "@/server/animation-projects/reconcile-project-completion";
+import { parseInstantSegmentErrorCode } from "@/lib/instant-segment-error-code";
+import { readPendingSegmentRetryOrder } from "@/server/instant-premium/retry-segment";
 
 export { refreshTransitionOutputsFromProvider };
 
@@ -122,6 +124,33 @@ export async function recoverExistingInstantProject(
     mergeCompleted,
     finalVideoUrlPresent,
   };
+}
+
+async function clearPendingSegmentRetryIfDone(
+  projectId: string,
+  audit: unknown,
+  transitions: Array<{ order: number; status: string }>
+): Promise<void> {
+  const pendingOrder = readPendingSegmentRetryOrder(audit);
+  if (pendingOrder == null) {
+    return;
+  }
+  const pending = transitions.find((t) => t.order === pendingOrder);
+  if (!pending || pending.status === "completed" || pending.status === "failed") {
+    const auditBase =
+      audit && typeof audit === "object" && !Array.isArray(audit)
+        ? (audit as Record<string, unknown>)
+        : {};
+    const rest = { ...auditBase };
+    delete rest.pendingSegmentRetry;
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: {
+        instantFinalRebuildAuditJson:
+          Object.keys(rest).length > 0 ? (rest as object) : undefined,
+      },
+    });
+  }
 }
 
 export async function retryInstantPremiumMerge(projectId: string): Promise<void> {
@@ -241,54 +270,82 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   if (!finalState || !isInstantLikeProject(finalState)) {
     throw new Error("Instant Premium project not found.");
   }
-  const latestExport = finalState.exports[0];
-  const imageById = new Map(finalState.images.map((i) => [i.id, i]));
-  const segmentDuration = finalState.viduDurationSeconds ?? null;
-  const segments = finalState.transitions.map((t) => {
+
+  await clearPendingSegmentRetryIfDone(
+    projectId,
+    finalState.instantFinalRebuildAuditJson,
+    finalState.transitions
+  );
+
+  const stateAfterRetryClear = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      images: { orderBy: { order: "asc" } },
+      transitions: { orderBy: { order: "asc" } },
+      exports: { orderBy: { createdAt: "desc" } },
+    },
+  });
+  const projectState = stateAfterRetryClear && isInstantLikeProject(stateAfterRetryClear)
+    ? stateAfterRetryClear
+    : finalState;
+
+  const latestExport = projectState.exports[0];
+  const imageById = new Map(projectState.images.map((i) => [i.id, i]));
+  const segmentDuration = projectState.viduDurationSeconds ?? null;
+  const pendingSegmentRetryOrder = readPendingSegmentRetryOrder(
+    projectState.instantFinalRebuildAuditJson
+  );
+  const segments = projectState.transitions.map((t) => {
     const source = imageById.get(t.startImageId);
+    const mappedStatus = mapTransitionStatus(t.status);
+    const isPendingRetry =
+      pendingSegmentRetryOrder === t.order &&
+      (mappedStatus === "generating" || mappedStatus === "queued");
     return {
       index: t.order,
-      status: mapTransitionStatus(t.status),
+      status: mappedStatus,
       sourceImageId: t.startImageId,
       sourceImageUrl: source?.previewUrl ?? null,
       videoUrl: t.outputVideoUrl,
       durationSeconds: segmentDuration,
       providerTaskId: t.providerJobId,
       error: t.errorMessage,
+      errorCode: parseInstantSegmentErrorCode(t.errorMessage),
+      canRetry: mappedStatus === "failed" && !isPendingRetry,
     };
   });
 
   const averageTransitions =
-    finalState.transitions.length > 0
+    projectState.transitions.length > 0
       ? Math.round(
-          finalState.transitions.reduce((acc, tr) => acc + (tr.progress ?? 0), 0) /
-            finalState.transitions.length
+          projectState.transitions.reduce((acc, tr) => acc + (tr.progress ?? 0), 0) /
+            projectState.transitions.length
         )
       : 0;
   let progressPercent =
-    finalState.status === "completed"
+    projectState.status === "completed"
       ? 100
-      : finalState.status === "failed" || finalState.status === "failed_overlay"
+      : projectState.status === "failed" || projectState.status === "failed_overlay"
         ? Math.max(0, latestExport?.progress ?? averageTransitions)
-        : finalState.status === "rendering"
+        : projectState.status === "rendering"
           ? Math.max(55, latestExport?.progress ?? 55)
           : Math.max(5, averageTransitions);
   const overlayFailed =
-    finalState.status === "failed_overlay" || latestExport?.status === "failed_overlay";
-  const finalRebuildFailed = finalState.instantFinalRebuildStatus === "failed";
+    projectState.status === "failed_overlay" || latestExport?.status === "failed_overlay";
+  const finalRebuildFailed = projectState.instantFinalRebuildStatus === "failed";
   const exportFailureDiagnostics = resolveExportFailureDiagnostics({
-    projectId: finalState.id,
-    projectStatus: finalState.status,
+    projectId: projectState.id,
+    projectStatus: projectState.status,
     failureReason:
-      finalState.failureReason === "overlay_failed" ||
-      finalState.failureReason === "merge_failed" ||
-      finalState.failureReason === "export_upload_auth_failed"
-        ? finalState.failureReason
+      projectState.failureReason === "overlay_failed" ||
+      projectState.failureReason === "merge_failed" ||
+      projectState.failureReason === "export_upload_auth_failed"
+        ? projectState.failureReason
         : null,
     overlayFailed,
-    instantFinalRebuildStatus: finalState.instantFinalRebuildStatus,
-    instantWorkerJobStatus: finalState.instantWorkerJobStatus,
-    lastOverlayError: finalState.lastOverlayError,
+    instantFinalRebuildStatus: projectState.instantFinalRebuildStatus,
+    instantWorkerJobStatus: projectState.instantWorkerJobStatus,
+    lastOverlayError: projectState.lastOverlayError,
     export: latestExport
       ? {
           id: latestExport.id,
@@ -301,42 +358,42 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   });
   const exportFailed = Boolean(exportFailureDiagnostics?.isExportFailure);
   let phase: InstantPremiumStatusResponse["phase"] =
-    exportFailed || overlayFailed || finalState.status === "failed"
+    exportFailed || overlayFailed || projectState.status === "failed"
       ? "failed"
-      : finalState.status === "completed" && !finalRebuildFailed
+      : projectState.status === "completed" && !finalRebuildFailed
         ? "completed"
-        : finalState.status === "rendering"
+        : projectState.status === "rendering"
           ? latestExport?.progress && latestExport.progress >= 85
             ? "uploading_final"
             : "merging_clips"
           : "generating_clips";
   let status: InstantPremiumStatusResponse["status"] =
-    exportFailed || overlayFailed || finalState.status === "failed"
+    exportFailed || overlayFailed || projectState.status === "failed"
       ? "failed"
-      : finalState.status === "completed" && !finalRebuildFailed
+      : projectState.status === "completed" && !finalRebuildFailed
         ? "completed"
-        : finalState.status === "rendering"
+        : projectState.status === "rendering"
           ? "finalizing"
           : "running";
 
-  const finalVideoUrl = resolveLatestExportPlaybackUrl(finalState, latestExport);
-  const lockedLayers = parseLockedTextLayersJson(finalState.instantLockedTextLayers);
+  const finalVideoUrl = resolveLatestExportPlaybackUrl(projectState, latestExport);
+  const lockedLayers = parseLockedTextLayersJson(projectState.instantLockedTextLayers);
   const segmentsAllCompleted =
-    finalState.transitions.length > 0 &&
-    finalState.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
+    projectState.transitions.length > 0 &&
+    projectState.transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim());
   const failureReason =
-    finalState.failureReason === "overlay_failed" ||
-    finalState.failureReason === "merge_failed" ||
-    finalState.failureReason === "export_upload_auth_failed"
-      ? (finalState.failureReason as InstantPremiumStatusResponse["failureReason"])
+    projectState.failureReason === "overlay_failed" ||
+    projectState.failureReason === "merge_failed" ||
+    projectState.failureReason === "export_upload_auth_failed"
+      ? (projectState.failureReason as InstantPremiumStatusResponse["failureReason"])
       : overlayFailed
         ? "overlay_failed"
-        : finalState.status === "failed"
+        : projectState.status === "failed"
           ? "merge_failed"
           : null;
-  const stuckInfo = detectFinalizationStuck(finalState);
+  const stuckInfo = detectFinalizationStuck(projectState);
   const exportCompleted = isInstantPremiumExportCompleted(
-    finalState.status,
+    projectState.status,
     latestExport?.status,
     finalVideoUrl ?? latestExport?.outputVideoUrl
   );
@@ -350,24 +407,24 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   const isRestoringFinalVideo =
     canRepairFinalVideo &&
     (stuckInfo.mergeInProgress ||
-      finalState.instantWorkerJobStatus === "queued" ||
-      finalState.instantWorkerJobStatus === "running");
+      projectState.instantWorkerJobStatus === "queued" ||
+      projectState.instantWorkerJobStatus === "running");
   const canRebuildFinalVideo = segmentsAllCompleted;
   const isRebuildingFinalVideo =
-    finalState.instantFinalRebuildStatus === "running" ||
+    projectState.instantFinalRebuildStatus === "running" ||
     (canRebuildFinalVideo &&
       latestExport?.status === "rendering" &&
       (latestExport?.progress ?? 0) >= 55 &&
-      (finalState.instantWorkerJobStatus === "queued" ||
-        finalState.instantWorkerJobStatus === "running" ||
-        finalState.status === "rendering"));
+      (projectState.instantWorkerJobStatus === "queued" ||
+        projectState.instantWorkerJobStatus === "running" ||
+        projectState.status === "rendering"));
   const progressView = resolveInstantPremiumProgress({
     status,
     phase,
     progressPercent,
     isRebuildingFinalVideo,
     isRestoringFinalVideo,
-    instantTextRenderMode: finalState.instantTextRenderMode,
+    instantTextRenderMode: projectState.instantTextRenderMode,
     overlayFailed,
     exportFailure: exportFailureDiagnostics,
     failureReason,
@@ -381,8 +438,49 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
         finalRebuildFailed
       )
     : null;
+
+  const hasFailedSegment = segments.some((s) => s.status === "failed");
+  const retryingSegmentIndex =
+    pendingSegmentRetryOrder != null &&
+    segments.some(
+      (s) =>
+        s.index === pendingSegmentRetryOrder &&
+        (s.status === "generating" || s.status === "queued")
+    )
+      ? pendingSegmentRetryOrder
+      : null;
+  const retryingMerge =
+    segmentsAllCompleted &&
+    (isRestoringFinalVideo ||
+      projectState.instantWorkerJobStatus === "queued" ||
+      projectState.instantWorkerJobStatus === "running");
+  const retryState =
+    retryingSegmentIndex != null
+      ? ("retrying_segment" as const)
+      : retryingMerge
+        ? ("retrying_merge" as const)
+        : null;
+  const segmentsMergeFailed =
+    segmentsAllCompleted &&
+    !exportCompleted &&
+    !Boolean(finalVideoUrl?.trim()) &&
+    (exportFailed ||
+      projectState.status === "failed" ||
+      projectState.status === "failed_overlay" ||
+      failureReason === "merge_failed" ||
+      canRepairFinalVideo);
+  const canRetryMerge =
+    segmentsMergeFailed && !retryingMerge && !retryingSegmentIndex && !overlayFailed;
+
+  const partialSegmentFailure =
+    hasFailedSegment && segments.some((s) => s.status === "completed") && !segmentsMergeFailed;
+  if (partialSegmentFailure && status === "failed" && !exportFailed && !overlayFailed) {
+    status = "running";
+    phase = "generating_clips";
+  }
+
   return {
-    projectId: finalState.id,
+    projectId: projectState.id,
     projectType: "instant_premium",
     status,
     phase,
@@ -390,24 +488,24 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     currentStage: progressView.stage,
     activeOperation: progressView.activeOperation,
     exportProvider: latestExport?.provider ?? null,
-    rebuildCount: finalState.instantFinalRebuildCount,
-    segmentCount: finalState.transitions.length,
+    rebuildCount: projectState.instantFinalRebuildCount,
+    segmentCount: projectState.transitions.length,
     progressUpdatedAt: new Date().toISOString(),
-    instantTextRenderMode: finalState.instantTextRenderMode,
+    instantTextRenderMode: projectState.instantTextRenderMode,
     segments,
     finalVideoUrl,
-    lockedTextMode: finalState.instantLockedTextMode,
+    lockedTextMode: projectState.instantLockedTextMode,
     lockedTextLayerCount: lockedLayers.length,
     finalDurationSeconds:
-      finalState.transitions.length > 0 && segmentDuration
-        ? finalState.transitions.length * segmentDuration
+      projectState.transitions.length > 0 && segmentDuration
+        ? projectState.transitions.length * segmentDuration
         : null,
     downloadable: Boolean(finalVideoUrl),
     errorMessage:
       exportLastError ??
-      (overlayFailed ? finalState.lastOverlayError : null) ??
+      (overlayFailed ? projectState.lastOverlayError : null) ??
       latestExport?.errorMessage ??
-      finalState.transitions.find((t) => t.status === "failed")?.errorMessage ??
+      projectState.transitions.find((t) => t.status === "failed")?.errorMessage ??
       null,
     overlayFailed,
     canRetryOverlay: overlayFailed && segmentsAllCompleted,
@@ -420,11 +518,11 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     failedAtStage: exportFailureDiagnostics?.failedAtStage,
     finalRebuildFailed,
     userExportErrorKey,
-    workerJobStatus: finalState.instantWorkerJobStatus,
-    missingSegments: finalState.transitions
+    workerJobStatus: projectState.instantWorkerJobStatus,
+    missingSegments: projectState.transitions
       .filter((t) => !(t.status === "completed" && t.outputVideoUrl?.trim()))
       .map((t) => t.order),
-    queuedWithoutJobCount: finalState.transitions.filter(
+    queuedWithoutJobCount: projectState.transitions.filter(
       (t) => t.status === "queued" && !t.providerJobId?.trim()
     ).length,
     finalizationStuck: stuckInfo.isStuck,
@@ -432,5 +530,10 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     isRestoringFinalVideo,
     canRebuildFinalVideo,
     isRebuildingFinalVideo,
+    retryState,
+    retryingSegmentIndex,
+    segmentsMergeFailed,
+    canRetryMerge,
+    hasFailedSegment,
   };
 }

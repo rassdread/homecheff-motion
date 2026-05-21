@@ -908,6 +908,12 @@ export const en: LocaleSchema = {
   "instant.progress.waitingToStart": "Still waiting to start generation. You can try starting queued segments.",
   "instant.progress.startQueuedSegments": "Start queued segments",
   "instant.progress.downloadSegment": "Download clip",
+  "instant.progress.retrySegment": "Re-render segment",
+  "instant.progress.retryingSegment": "Re-rendering segment…",
+  "instant.progress.retryingMerge": "Retrying merge…",
+  "instant.progress.segmentErrorCode": "Error code: {code}",
+  "instant.progress.segmentsMergeFailed": "All segments ready — merge failed",
+  "instant.progress.retryMergeButton": "Retry merge",
   "instant.progress.finalVideoTitle": "Final video",
   "instant.progress.download": "Download video",
   "instant.progress.savedToGallery":
