@@ -596,6 +596,7 @@ export default function VideoDetailPage() {
               hasCompletedFinal={hasCompletedInstantFinal}
               originalFinalUrl={displayFinalVideoUrl}
               languageExports={languageExports}
+              isAdmin={isAdmin}
               selectedPlayback={selectedLanguagePlayback}
               onSelectedPlaybackChange={(code) => setSelectedLanguagePlayback(code)}
               onRefresh={load}

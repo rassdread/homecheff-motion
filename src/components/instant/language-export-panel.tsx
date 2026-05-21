@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import {
+  applyLanguageExportPrepareResponse,
+  buildLanguageExportPrepareRequest,
+  languageExportPrepareButtonKey,
+  languageExportPrepareUrl,
+  logLanguageExportUi,
+  type LanguageExportPrepareDebug,
+  type LanguageExportPreparePhase,
+} from "@/lib/language-export-prepare";
+import type { LanguageExportPrepareApiResponse } from "@/lib/language-export-prepare";
 import {
   LANGUAGE_EXPORT_CODES,
   type LanguageExportCode,
@@ -30,6 +40,7 @@ type Props = {
   onRefresh: () => void | Promise<void>;
   selectedPlayback?: string;
   onSelectedPlaybackChange?: (languageCode: string, playbackUrl: string | null) => void;
+  isAdmin?: boolean;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -42,16 +53,21 @@ export function LanguageExportPanel({
   onRefresh,
   selectedPlayback: selectedPlaybackProp,
   onSelectedPlaybackChange,
+  isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
   const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
   const [textLayers, setTextLayers] = useState<LanguageTextLayerRecord[]>([]);
+  const [preparePhase, setPreparePhase] = useState<LanguageExportPreparePhase>("idle");
   const [prepareLoading, setPrepareLoading] = useState(false);
   const [renderLoading, setRenderLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [typographyQuality, setTypographyQuality] = useState("premium");
+  const [prepareDebug, setPrepareDebug] = useState<LanguageExportPrepareDebug | null>(null);
   const [selectedPlaybackInternal, setSelectedPlaybackInternal] = useState<string>("original");
+  const translatePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const selectedPlayback = selectedPlaybackProp ?? selectedPlaybackInternal;
   const setSelectedPlayback = (value: string) => {
     if (selectedPlaybackProp === undefined) {
@@ -85,62 +101,143 @@ export function LanguageExportPanel({
     onSelectedPlaybackChange?.(selectedPlayback, playbackUrl);
   }, [selectedPlayback, playbackUrl, onSelectedPlaybackChange]);
 
+  useEffect(() => {
+    return () => {
+      if (translatePhaseTimerRef.current) {
+        clearTimeout(translatePhaseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const prepareMessages = useMemo(
+    () => ({
+      prepareFailed: t("instant.languageExport.prepareFailed"),
+      noLayers: t("instant.languageExport.noLayers"),
+      translationFailed: t("instant.languageExport.translationFailed"),
+    }),
+    [t]
+  );
+
   const prepareTexts = useCallback(async () => {
-    setPrepareLoading(true);
-    setError("");
-    try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            action: "prepare",
-            languageCode: targetLang,
-          }),
-        }
-      );
-      const data = (await res.json().catch(() => ({}))) as {
-        textLayers?: LanguageTextLayerRecord[];
-        typographyRenderQuality?: string;
-        error?: string;
-      };
-      if (!res.ok) {
-        setError(data.error ?? t("instant.languageExport.prepareFailed"));
-        return;
-      }
-      setTextLayers(data.textLayers ?? []);
-      if (data.typographyRenderQuality) {
-        setTypographyQuality(data.typographyRenderQuality);
-      }
-    } catch {
+    if (!projectId.trim()) {
       setError(t("instant.languageExport.prepareFailed"));
+      setPreparePhase("failed");
+      return;
+    }
+
+    setPrepareLoading(true);
+    setPreparePhase("loading_layers");
+    setError("");
+    setInfo("");
+
+    logLanguageExportUi("action", {
+      action: "prepare",
+      projectId,
+      targetLanguage: targetLang,
+    });
+
+    translatePhaseTimerRef.current = setTimeout(() => {
+      setPreparePhase((phase) =>
+        phase === "loading_layers" ? "translating" : phase
+      );
+    }, 200);
+
+    logLanguageExportUi("requestStarted", {
+      action: "prepare",
+      projectId,
+      targetLanguage: targetLang,
+    });
+
+    try {
+      const res = await fetch(languageExportPrepareUrl(projectId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(buildLanguageExportPrepareRequest(targetLang)),
+      });
+      const data = (await res.json().catch(() => ({}))) as LanguageExportPrepareApiResponse;
+      const result = applyLanguageExportPrepareResponse({
+        httpOk: res.ok,
+        httpStatus: res.status,
+        data,
+        messages: prepareMessages,
+        previousTypographyQuality: typographyQuality,
+      });
+
+      setPreparePhase(result.phase);
+      setTextLayers(result.layers);
+      setError(result.error);
+      setInfo(result.info);
+      setPrepareDebug(result.debug);
+      if (result.typographyQuality) {
+        setTypographyQuality(result.typographyQuality);
+      }
+
+      logLanguageExportUi("requestCompleted", {
+        action: "prepare",
+        projectId,
+        targetLanguage: targetLang,
+        httpStatus: res.status,
+        ok: result.debug.lastApiOk,
+        layerCount: result.debug.layerCount,
+        translationProvider: result.debug.translationProvider,
+        errorCode: result.debug.errorCode,
+      });
+
+      if (result.error) {
+        logLanguageExportUi("error", {
+          action: "prepare",
+          projectId,
+          targetLanguage: targetLang,
+          message: result.error,
+          code: result.debug.errorCode,
+        });
+      }
+    } catch (err) {
+      const message = t("instant.languageExport.prepareFailed");
+      setPreparePhase("failed");
+      setError(message);
+      setPrepareDebug({
+        lastHttpStatus: null,
+        lastApiOk: false,
+        exportId: null,
+        layerCount: 0,
+        translationProvider: null,
+        errorCode: "NETWORK_ERROR",
+        errorMessage: err instanceof Error ? err.message : message,
+      });
+      logLanguageExportUi("error", {
+        action: "prepare",
+        projectId,
+        targetLanguage: targetLang,
+        message: err instanceof Error ? err.message : message,
+      });
     } finally {
+      if (translatePhaseTimerRef.current) {
+        clearTimeout(translatePhaseTimerRef.current);
+        translatePhaseTimerRef.current = null;
+      }
       setPrepareLoading(false);
     }
-  }, [projectId, targetLang, t]);
+  }, [projectId, targetLang, t, prepareMessages, typographyQuality]);
 
   const renderVersion = useCallback(async () => {
     setRenderLoading(true);
     setError("");
     setInfo("");
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            languageCode: targetLang,
-            textLayers,
-          }),
-        }
-      );
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const res = await fetch(languageExportPrepareUrl(projectId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          languageCode: targetLang,
+          textLayers,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!res.ok) {
-        setError(data.error ?? t("instant.languageExport.renderFailed"));
+        setError(data.message ?? data.error ?? t("instant.languageExport.renderFailed"));
         return;
       }
       setInfo(t("instant.languageExport.renderStarted"));
@@ -165,6 +262,8 @@ export function LanguageExportPanel({
     return () => window.clearInterval(timer);
   }, [languageExports, onRefresh]);
 
+  const prepareButtonLabel = t(languageExportPrepareButtonKey(preparePhase, prepareLoading));
+
   if (!hasCompletedFinal) {
     return null;
   }
@@ -183,8 +282,12 @@ export function LanguageExportPanel({
         </label>
         <select
           value={targetLang}
-          onChange={(e) => setTargetLang(e.target.value as LanguageExportCode)}
-          className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs"
+          onChange={(e) => {
+            setTargetLang(e.target.value as LanguageExportCode);
+            setPreparePhase("idle");
+          }}
+          disabled={prepareLoading}
+          className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
         >
           {TARGET_CODES.map((code) => (
             <option key={code} value={code}>
@@ -198,7 +301,7 @@ export function LanguageExportPanel({
           onClick={() => void prepareTexts()}
           className="rounded-md border border-violet-300 bg-white px-2.5 py-1 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
         >
-          {prepareLoading ? t("instant.languageExport.preparing") : t("instant.languageExport.loadTexts")}
+          {prepareButtonLabel}
         </button>
         <button
           type="button"
@@ -209,6 +312,20 @@ export function LanguageExportPanel({
           {renderLoading ? t("instant.languageExport.rendering") : t("instant.languageExport.renderButton")}
         </button>
       </div>
+
+      {preparePhase !== "idle" ? (
+        <p className="mt-2 text-[11px] text-violet-900/80">
+          {preparePhase === "loading_layers"
+            ? t("instant.languageExport.statusLoadingLayers")
+            : preparePhase === "translating"
+              ? t("instant.languageExport.statusTranslating")
+              : preparePhase === "ready"
+                ? t("instant.languageExport.statusReady")
+                : preparePhase === "failed"
+                  ? t("instant.languageExport.statusFailed")
+                  : null}
+        </p>
+      ) : null}
 
       {textLayers.length > 0 ? (
         <div className="mt-3 space-y-2">
@@ -282,8 +399,21 @@ export function LanguageExportPanel({
         </ul>
       ) : null}
 
-      {error ? <p className="mt-2 text-xs text-red-700">{error}</p> : null}
-      {info ? <p className="mt-2 text-xs text-violet-800">{info}</p> : null}
+      {error ? <p className="mt-2 text-xs font-medium text-red-700">{error}</p> : null}
+      {info ? <p className="mt-2 text-xs text-amber-900">{info}</p> : null}
+
+      {isAdmin && prepareDebug ? (
+        <div className="mt-3 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+          <p className="font-semibold">{t("instant.languageExport.adminDebugTitle")}</p>
+          <p>HTTP: {prepareDebug.lastHttpStatus ?? "—"}</p>
+          <p>API ok: {String(prepareDebug.lastApiOk)}</p>
+          <p>exportId: {prepareDebug.exportId ?? "—"}</p>
+          <p>layers: {prepareDebug.layerCount}</p>
+          <p>provider: {prepareDebug.translationProvider ?? "—"}</p>
+          <p>code: {prepareDebug.errorCode ?? "—"}</p>
+          {prepareDebug.errorMessage ? <p>message: {prepareDebug.errorMessage}</p> : null}
+        </div>
+      ) : null}
 
       {playbackUrl && selectedPlayback !== "original" ? (
         <p className="mt-2 text-[10px] text-violet-800/80 break-all">{playbackUrl}</p>

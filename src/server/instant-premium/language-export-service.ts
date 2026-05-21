@@ -12,6 +12,7 @@ import { DEFAULT_TYPOGRAPHY_RENDER_QUALITY } from "@/lib/typography-style-profil
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
+import { LANGUAGE_EXPORT_NO_LAYERS } from "@/lib/language-export-prepare";
 import { translateLanguageTextLayers } from "@/lib/translate-language-text";
 import {
   isLanguageExportCode,
@@ -31,6 +32,16 @@ import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 export const LANGUAGE_EXPORT_IN_PROGRESS = "LANGUAGE_EXPORT_IN_PROGRESS";
 export const LANGUAGE_EXPORT_LIMIT = "LANGUAGE_EXPORT_LIMIT";
 export const LANGUAGE_EXPORT_NO_BASE = "LANGUAGE_EXPORT_NO_BASE";
+
+export class LanguageExportPrepareError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "LanguageExportPrepareError";
+    this.code = code;
+  }
+}
 
 function absolutePublicPath(...segments: string[]): string {
   return path.join(process.cwd(), "public", ...segments);
@@ -79,6 +90,8 @@ export async function prepareLanguageTextLayers(params: {
   layers: LanguageTextLayerRecord[];
   translationProvider: string;
   typographyRenderQuality: typeof DEFAULT_TYPOGRAPHY_RENDER_QUALITY;
+  translationFailed?: boolean;
+  translationMessage?: string;
 }> {
   const project = await prisma.animationProject.findUnique({
     where: { id: params.projectId },
@@ -94,7 +107,16 @@ export async function prepareLanguageTextLayers(params: {
   const base = extractLanguageTextLayersFromProject(project);
   const merged = mergeLanguageTextLayerOverrides(base, params.textLayerOverrides);
 
+  if (merged.length === 0) {
+    throw new LanguageExportPrepareError(
+      LANGUAGE_EXPORT_NO_LAYERS,
+      "No translatable text layers found on this project."
+    );
+  }
+
   let translationProvider = "none";
+  let translationFailed = false;
+  let translationMessage: string | undefined;
   let layers: LanguageTextLayerRecord[];
 
   if (params.languageCode === "original") {
@@ -106,6 +128,12 @@ export async function prepareLanguageTextLayers(params: {
     });
     layers = translated.layers;
     translationProvider = translated.provider;
+    if (translated.translationFailed) {
+      translationFailed = true;
+      translationMessage =
+        translated.translationError?.trim() ||
+        "Automatic translation failed; edit text manually.";
+    }
   }
 
   const enriched = enrichLanguageTextLayersForRender({
@@ -127,6 +155,8 @@ export async function prepareLanguageTextLayers(params: {
     layers: withPreviews,
     translationProvider,
     typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
+    translationFailed: translationFailed || undefined,
+    translationMessage,
   };
 }
 

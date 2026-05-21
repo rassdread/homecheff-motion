@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import { buildLanguageExportPreviews } from "@/lib/language-export-prepare";
 import {
   createAndRenderLanguageExport,
   listVideoLanguageExports,
   prepareLanguageTextLayers,
+  LanguageExportPrepareError,
   LANGUAGE_EXPORT_IN_PROGRESS,
   LANGUAGE_EXPORT_LIMIT,
   LANGUAGE_EXPORT_NO_BASE,
@@ -75,7 +77,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (raw.action === "prepare") {
     if (!raw.languageCode || !isLanguageExportCode(raw.languageCode)) {
-      return NextResponse.json({ error: "Invalid languageCode." }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, code: "INVALID_LANGUAGE", message: "Invalid languageCode." },
+        { status: 400 }
+      );
     }
     try {
       const prepared = await prepareLanguageTextLayers({
@@ -83,16 +88,31 @@ export async function POST(request: Request, context: RouteContext) {
         languageCode: raw.languageCode,
         textLayerOverrides: raw.textLayers,
       });
+      const layers = prepared.layers;
+      const previews = buildLanguageExportPreviews(layers);
       return NextResponse.json({
         ok: true,
+        exportId: null,
         languageCode: raw.languageCode,
-        textLayers: prepared.layers,
+        layers,
+        textLayers: layers,
+        previews,
+        layerCount: layers.length,
         translationProvider: prepared.translationProvider,
         typographyRenderQuality: prepared.typographyRenderQuality,
+        translationFailed: prepared.translationFailed ?? false,
+        message: prepared.translationMessage ?? null,
       });
     } catch (error) {
+      if (error instanceof LanguageExportPrepareError) {
+        return NextResponse.json(
+          { ok: false, code: error.code, message: error.message },
+          { status: 200 }
+        );
+      }
+      const message = error instanceof Error ? error.message : "Prepare failed.";
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Prepare failed." },
+        { ok: false, code: "PREPARE_FAILED", message },
         { status: 400 }
       );
     }

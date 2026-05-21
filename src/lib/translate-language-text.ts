@@ -17,6 +17,8 @@ export type TranslateLanguageTextResult = {
   layers: LanguageTextLayerRecord[];
   provider: string;
   translationCostEstimate: number;
+  translationFailed?: boolean;
+  translationError?: string;
 };
 
 export async function translateLanguageTextLayers(params: {
@@ -39,6 +41,10 @@ export async function translateLanguageTextLayers(params: {
       layers: layers.map((l) => ({ ...l, translatedText: l.sourceText })),
       provider: "manual_fallback",
       translationCostEstimate: 0,
+      translationFailed: true,
+      translationError: apiKey
+        ? "Unsupported target language."
+        : "OPENAI_API_KEY is not configured.",
     };
   }
 
@@ -68,7 +74,14 @@ export async function translateLanguageTextLayers(params: {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Translation failed (${res.status}): ${errText.slice(0, 400)}`);
+    const message = `Translation failed (${res.status}): ${errText.slice(0, 400)}`;
+    return {
+      layers: layers.map((l) => ({ ...l, translatedText: l.sourceText })),
+      provider: "manual_fallback",
+      translationCostEstimate: 0,
+      translationFailed: true,
+      translationError: message,
+    };
   }
 
   const json = (await res.json()) as {
@@ -80,7 +93,13 @@ export async function translateLanguageTextLayers(params: {
   try {
     parsed = JSON.parse(content) as typeof parsed;
   } catch {
-    throw new Error("Translation response was not valid JSON.");
+    return {
+      layers: layers.map((l) => ({ ...l, translatedText: l.sourceText })),
+      provider: "manual_fallback",
+      translationCostEstimate: 0,
+      translationFailed: true,
+      translationError: "Translation response was not valid JSON.",
+    };
   }
   const translatedById = new Map(
     (parsed.strings ?? []).map((row) => [row.id, row.text?.trim() ?? ""])
