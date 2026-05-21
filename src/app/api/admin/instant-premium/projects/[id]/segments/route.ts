@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/status-service";
+import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -66,6 +67,8 @@ export async function GET(request: Request, context: RouteContext) {
         select: {
           id: true,
           order: true,
+          startImageId: true,
+          endImageId: true,
           status: true,
           progress: true,
           providerJobId: true,
@@ -84,10 +87,26 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Project is not instant premium." }, { status: 409 });
   }
 
+  const assemblyTimeline = buildAdminAssemblyTimeline(
+    buildFinalSegmentTransitionRows(
+      project.transitions.map((t) => ({
+        id: t.id,
+        order: t.order,
+        startImageId: t.startImageId,
+        endImageId: t.endImageId,
+        status: t.status,
+        providerJobId: t.providerJobId,
+        outputVideoUrl: t.outputVideoUrl,
+      }))
+    )
+  );
+
   const transitions = project.transitions.map((t) => ({
     index: t.order,
     order: t.order,
     transitionId: t.id,
+    startImageId: t.startImageId,
+    endImageId: t.endImageId,
     status: t.status,
     progress: t.progress,
     providerJobId: t.providerJobId,
@@ -131,6 +150,7 @@ export async function GET(request: Request, context: RouteContext) {
       status: project.status,
       expectedSegments: project.transitions.length,
       transitions,
+      assemblyTimeline,
       duplicateOutputUrls,
       missingSegments,
     },

@@ -4,6 +4,10 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import {
+  FinalSegmentSourceError,
+  SEGMENT_VIDEO_MISSING,
+} from "@/server/instant-premium/final-segment-source";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 
 export const FROZEN_SEGMENT_DETECTED = "FROZEN_SEGMENT_DETECTED";
@@ -245,19 +249,24 @@ export async function resolveConcatSegmentPath(params: {
   segmentIndex: number;
   animatedViduPath: string;
   candidates: ResolveConcatSegmentCandidate[];
+  /** When true, reject frozen processed paths and require animated Vidu */
+  requireAnimated?: boolean;
 }): Promise<{
   path: string;
   sourceType: ConcatSegmentSourceType;
   probe: SegmentMotionProbe;
   rejectedReason?: string;
 }> {
-  const { segmentIndex, animatedViduPath, candidates } = params;
+  const { segmentIndex, animatedViduPath, candidates, requireAnimated = false } = params;
   const sorted = [...candidates].sort((a, b) => a.priority - b.priority);
 
   const animatedProbe = await probeSegmentMotion(animatedViduPath);
   const animatedUsable = animatedProbe && !animatedProbe.likelyFrozen;
 
   for (const candidate of sorted) {
+    if (candidate.sourceType === "static_fallback" && requireAnimated) {
+      continue;
+    }
     const probe = await probeSegmentMotion(candidate.path);
     if (!probe) {
       continue;
@@ -295,6 +304,13 @@ export async function resolveConcatSegmentPath(params: {
       probe: animatedProbe,
       rejectedReason: "processed_output_frozen_using_vidu",
     };
+  }
+
+  if (requireAnimated) {
+    throw new FinalSegmentSourceError(
+      SEGMENT_VIDEO_MISSING,
+      `Segment ${segmentIndex}: no animated provider video available (processed outputs frozen or static).`
+    );
   }
 
   const fallbackProbe = animatedProbe ?? {

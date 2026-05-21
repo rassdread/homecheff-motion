@@ -43,11 +43,16 @@ import {
 } from "@/lib/hard-text-lock";
 import { buildSeamlessJoinPlansForOrderedSegments } from "@/server/instant-premium/seamless-segment-join";
 import { resolveFinalConcatSegmentPaths } from "@/server/instant-premium/final-concat-segments";
+import {
+  assertNoInvalidAssemblySources,
+  FinalSegmentSourceError,
+  INVALID_FINAL_ASSEMBLY_SOURCE,
+  prepareFinalSegmentProviderVideos,
+} from "@/server/instant-premium/final-segment-source";
 import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
   assertFinalConcatInputOrder,
   buildConcatSegmentMapEntries,
-  buildOrderedTransitionSegments,
   InvalidSegmentMappingError,
   logConcatSegmentMap,
   validateOrderedTransitionSegments,
@@ -90,36 +95,6 @@ async function pathExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function resolveTransitionVideoToSegment(
-  url: string,
-  workDir: string,
-  index: number
-): Promise<string> {
-  const trimmed = url.trim();
-  if (trimmed.startsWith("/")) {
-    const relative = trimmed.replace(/^\/+/, "");
-    const abs = absolutePublicPath(...relative.split("/"));
-    if (!(await pathExists(abs))) {
-      throw new Error(`Missing local segment: ${trimmed}`);
-    }
-    return abs;
-  }
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const response = await fetch(trimmed, { signal: AbortSignal.timeout(60_000) });
-    if (!response.ok) {
-      throw new Error(`Could not download segment URL ${trimmed} (HTTP ${response.status})`);
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length <= 0) {
-      throw new Error(`Downloaded empty segment for ${trimmed}`);
-    }
-    const dest = path.join(workDir, `segment-${index}.mp4`);
-    await fs.writeFile(dest, buffer);
-    return dest;
-  }
-  throw new Error(`Unsupported segment URL: ${trimmed}`);
 }
 
 async function withMergeLock(projectId: string, fn: () => Promise<void>) {
@@ -293,6 +268,9 @@ export async function retryUploadLocalMergedFinalVideo(projectId: string): Promi
 
 export type ExecuteInstantPremiumMergeOptions = {
   force?: boolean;
+  /** Admin repair / explicit static mode only */
+  allowStaticFallback?: boolean;
+  adminRepairMode?: boolean;
 };
 
 /** Merge Vidu clips + optional locked text overlay; updates project/export in DB. */
@@ -333,24 +311,14 @@ export async function executeInstantPremiumMerge(
       return;
     }
 
-    const completedRaw = project.transitions.filter(
-      (t) => t.status === "completed" && t.outputVideoUrl?.trim()
-    );
-    if (completedRaw.length !== project.transitions.length || completedRaw.length === 0) {
+    if (project.transitions.length === 0) {
       return;
     }
 
-    const orderedSegments = buildOrderedTransitionSegments(
-      completedRaw.map((t) => ({
-        id: t.id,
-        order: t.order,
-        startImageId: t.startImageId,
-        endImageId: t.endImageId,
-        outputVideoUrl: t.outputVideoUrl!,
-      }))
-    );
-    validateOrderedTransitionSegments(orderedSegments);
-    const transitionById = new Map(completedRaw.map((t) => [t.id, t]));
+    const allowStaticFallback =
+      options?.allowStaticFallback === true ||
+      options?.adminRepairMode === true ||
+      process.env.ALLOW_STATIC_SEGMENT_FALLBACK === "true";
 
     const isFinalRebuild = project.instantFinalRebuildStatus === "running";
     const rebuildPreviousFinalUrl =
@@ -405,6 +373,70 @@ export async function executeInstantPremiumMerge(
       mergeTextRenderMode,
       project.instantPosterMotionSettings
     );
+    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-instant-merge-${projectId}-`));
+    const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
+    await ensureDir(outDir);
+    const finalAbs = path.join(outDir, "final.mp4");
+
+    let orderedSegments: Awaited<
+      ReturnType<typeof prepareFinalSegmentProviderVideos>
+    >["orderedSegments"];
+    let segmentPaths: string[] = [];
+    let assemblyTimeline: Awaited<
+      ReturnType<typeof prepareFinalSegmentProviderVideos>
+    >["timeline"] = [];
+
+    try {
+      const prepared = await prepareFinalSegmentProviderVideos({
+        projectId,
+        transitions: project.transitions.map((t) => ({
+          id: t.id,
+          order: t.order,
+          startImageId: t.startImageId,
+          endImageId: t.endImageId,
+          status: t.status,
+          providerJobId: t.providerJobId,
+          outputVideoUrl: t.outputVideoUrl,
+        })),
+        workDir,
+      });
+      orderedSegments = prepared.orderedSegments;
+      segmentPaths = prepared.providerVideoPaths;
+      assemblyTimeline = prepared.timeline;
+    } catch (sourceError) {
+      if (sourceError instanceof FinalSegmentSourceError) {
+        const message = sourceError.message;
+        await prisma.animationExport.update({
+          where: { id: exportRow.id },
+          data: {
+            status: "failed",
+            progress: 65,
+            errorMessage: message,
+            outputVideoUrl: null,
+          },
+        });
+        await prisma.animationProject.update({
+          where: { id: projectId },
+          data: {
+            status: "failed",
+            failureReason: "merge_failed",
+            instantWorkerJobStatus: "failed",
+          },
+        });
+        logFinalExportFailed({
+          projectId,
+          exportId: exportRow.id,
+          provider: exportProvider,
+          stage: "merge_clips",
+          failureReason: "merge_failed",
+          failureMessage: message,
+          workerError: message,
+        });
+        return;
+      }
+      throw sourceError;
+    }
+
     console.info("[hc-instant-premium]", {
       projectId,
       phase: "mergeStart",
@@ -414,10 +446,8 @@ export async function executeInstantPremiumMerge(
       finalAssemblyMode: mergeAssemblyMode,
     });
 
-    const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-instant-merge-${projectId}-`));
-    const outDir = absolutePublicPath("generated", "animations", "projects", projectId);
-    await ensureDir(outDir);
-    const finalAbs = path.join(outDir, "final.mp4");
+    const transitionById = new Map(project.transitions.map((t) => [t.id, t]));
+
     try {
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
@@ -443,10 +473,8 @@ export async function executeInstantPremiumMerge(
       });
       const imageById = new Map(project.images.map((img) => [img.id, img]));
 
-      const segmentPaths: string[] = [];
-      const segmentUrls: string[] = [];
+      const segmentUrls = orderedSegments.map((seg) => seg.outputVideoUrl);
       for (const seg of orderedSegments) {
-        segmentUrls[seg.segmentIndex] = seg.outputVideoUrl;
         logMergeSegment({
           projectId,
           segmentCount: orderedSegments.length,
@@ -455,12 +483,14 @@ export async function executeInstantPremiumMerge(
           duration: perSegmentDurationSec,
           mode: textRenderMode,
         });
-        segmentPaths[seg.segmentIndex] = await resolveTransitionVideoToSegment(
-          seg.outputVideoUrl,
-          workDir,
-          seg.segmentIndex
-        );
       }
+
+      console.info("[hc-instant-premium]", {
+        projectId,
+        phase: "finalAssemblyTimeline",
+        timeline: assemblyTimeline,
+        allowStaticFallback,
+      });
 
       validateMergeSegmentsBeforeExport({
         projectId,
@@ -554,24 +584,34 @@ export async function executeInstantPremiumMerge(
             `[${projectId}] Plain segment passthrough is not allowed for ${finalAssemblyMode} (${posterComposite.passthroughFallbackCount} segments).`
           );
         }
-        if (posterComposite.staticFallbackCount > 0) {
-          console.warn("[hc-instant-premium]", {
-            projectId,
-            phase: "posterMotionStaticFallbackDetected",
-            staticFallbackCount: posterComposite.staticFallbackCount,
-            action: "resolve_animated_vidu_at_concat",
-          });
+        if (posterComposite.staticFallbackCount > 0 && !allowStaticFallback) {
+          throw new FinalSegmentSourceError(
+            INVALID_FINAL_ASSEMBLY_SOURCE,
+            `[${projectId}] Poster compositor produced ${posterComposite.staticFallbackCount} static still segment(s); not allowed for completed projects.`
+          );
         }
+        const compositorResultBySegmentIndex = new Map(
+          posterSegments.map((seg, idx) => [
+            seg.segmentIndex,
+            posterComposite.segmentResults[idx],
+          ])
+        );
         const resolvedConcat = await resolveFinalConcatSegmentPaths({
-          segments: posterSegments.map((seg, idx) => ({
+          segments: posterSegments.map((seg) => ({
             segmentIndex: seg.segmentIndex,
             animatedViduPath: segmentPaths[seg.segmentIndex]!,
-            compositorResult: posterComposite.segmentResults[idx],
+            compositorResult: compositorResultBySegmentIndex.get(seg.segmentIndex),
           })),
           expectedSegmentCount: orderedSegments.length,
+          allowStaticFallback,
         });
         pathsToConcat = resolvedConcat.paths;
         concatSourceTypes = resolvedConcat.sourceTypes;
+        assertNoInvalidAssemblySources({
+          projectId,
+          sourceKinds: resolvedConcat.sourceKinds,
+          segmentIndexes: orderedSegments.map((s) => s.segmentIndex),
+        });
         console.info("[hc-instant-premium]", {
           projectId,
           phase: "posterMotionSegmentsCompositeApplied",
@@ -774,7 +814,9 @@ export async function executeInstantPremiumMerge(
       const uploadCode = classifyExportBlobFailure(error);
       const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
       const message =
-        error instanceof InvalidSegmentMappingError
+        error instanceof FinalSegmentSourceError
+          ? error.message
+          : error instanceof InvalidSegmentMappingError
           ? error.message
           : error instanceof ExportBlobUploadError
             ? exportBlobErrorMessage(error.code)
