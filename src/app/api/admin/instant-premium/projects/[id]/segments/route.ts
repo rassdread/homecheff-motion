@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/status-service";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
+import {
+  buildAdminFinalAssemblyReport,
+  buildConcatIncludedByTransitionId,
+  expectedTransitionCountForImageCount,
+} from "@/server/instant-premium/final-assembly-invariants";
+import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -62,6 +68,10 @@ export async function GET(request: Request, context: RouteContext) {
       instantOutputDurationSeconds: true,
       instantSelectedChips: true,
       instantUserIntent: true,
+      images: {
+        orderBy: { order: "asc" },
+        select: { id: true, order: true },
+      },
       transitions: {
         orderBy: { order: "asc" },
         select: {
@@ -86,6 +96,32 @@ export async function GET(request: Request, context: RouteContext) {
   if (!isInstantLike(project)) {
     return NextResponse.json({ error: "Project is not instant premium." }, { status: 409 });
   }
+
+  const latestExport = await prisma.animationExport.findFirst({
+    where: { projectId: id },
+    orderBy: { createdAt: "desc" },
+    select: { status: true },
+  });
+  const transitionRows = project.transitions.map((t) => ({
+    id: t.id,
+    order: t.order,
+    startImageId: t.startImageId,
+    endImageId: t.endImageId,
+    status: t.status,
+    providerJobId: t.providerJobId,
+    outputVideoUrl: t.outputVideoUrl,
+  }));
+  const rebuildTrace = getRebuildAssemblyTrace(id);
+  const concatIncludedByTransitionId = buildConcatIncludedByTransitionId({
+    transitions: transitionRows,
+    rebuildSegmentTraces: rebuildTrace?.segments ?? [],
+    latestExportCompleted: latestExport?.status === "completed",
+  });
+  const finalAssemblyReport = buildAdminFinalAssemblyReport({
+    images: project.images,
+    transitions: transitionRows,
+    concatIncludedByTransitionId,
+  });
 
   const assemblyTimeline = buildAdminAssemblyTimeline(
     buildFinalSegmentTransitionRows(
@@ -148,9 +184,12 @@ export async function GET(request: Request, context: RouteContext) {
       projectType: "instant_premium",
       userId: project.ownerId,
       status: project.status,
-      expectedSegments: project.transitions.length,
+      imageCount: project.images.length,
+      expectedSegments: expectedTransitionCountForImageCount(project.images.length),
+      expectedTransitionCount: expectedTransitionCountForImageCount(project.images.length),
       transitions,
       assemblyTimeline,
+      finalAssemblyReport,
       duplicateOutputUrls,
       missingSegments,
     },

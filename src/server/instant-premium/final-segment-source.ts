@@ -18,6 +18,11 @@ import { hashFileSha256 } from "@/lib/file-content-hash";
 import { setFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import { upsertRebuildSegmentTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
+import {
+  assertFinalAssemblyTransitionInvariant,
+  expectedTransitionCountForImageCount,
+  logTransitionTableDebug,
+} from "@/server/instant-premium/final-assembly-invariants";
 
 export const SEGMENT_VIDEO_MISSING = "SEGMENT_VIDEO_MISSING";
 export const INVALID_FINAL_ASSEMBLY_SOURCE = "INVALID_FINAL_ASSEMBLY_SOURCE";
@@ -291,9 +296,15 @@ export async function validateProviderVideoFile(params: {
     );
   }
 
-  let sourceKind: FinalSegmentSourceKind = "provider_video";
+  const sourceKind: FinalSegmentSourceKind = "provider_video";
   if (motion?.likelyFrozen) {
-    sourceKind = INVALID_IMAGE_PLACEHOLDER;
+    console.warn("[final-segment-source]", {
+      projectId: params.projectId,
+      segmentIndex: params.segmentIndex,
+      warning: "low_motion_score_not_excluding",
+      motionScore: motion?.motionScore,
+      identicalFrameRatio: motion?.identicalFrameRatio,
+    });
   }
 
   return {
@@ -313,6 +324,7 @@ export async function validateProviderVideoFile(params: {
 
 export async function prepareFinalSegmentProviderVideos(params: {
   projectId: string;
+  images: Array<{ id: string; order: number }>;
   transitions: Array<{
     id: string;
     order: number;
@@ -324,17 +336,42 @@ export async function prepareFinalSegmentProviderVideos(params: {
   }>;
   workDir: string;
   strictRebuild?: boolean;
+  sourceKindsBySegmentIndex?: Record<number, FinalSegmentSourceKind>;
 }): Promise<{
   orderedSegments: TransitionSegmentRecord[];
   providerVideoPaths: string[];
   sourceLogs: FinalSegmentSourceLogEntry[];
   timeline: AdminAssemblyTimelineEntry[];
 }> {
+  assertFinalAssemblyTransitionInvariant({
+    projectId: params.projectId,
+    images: params.images,
+    transitions: params.transitions,
+  });
+
+  const expectedCount = expectedTransitionCountForImageCount(params.images.length);
   const rows = buildFinalSegmentTransitionRows(params.transitions);
   assertAllTransitionsHaveProviderVideo({
     projectId: params.projectId,
     rows,
-    expectedCount: params.transitions.length,
+    expectedCount,
+  });
+
+  logTransitionTableDebug({
+    projectId: params.projectId,
+    imageCount: params.images.length,
+    expectedTransitionCount: expectedCount,
+    transitions: rows.map((row) => ({
+      index: row.segmentIndex,
+      id: row.transitionId,
+      order: row.transitionOrder,
+      status: row.status,
+      startImageId: row.startImageId,
+      endImageId: row.endImageId,
+      outputVideoUrlPresent: Boolean(row.providerVideoUrl),
+      providerJobId: row.providerJobId,
+      sourceKind: params.sourceKindsBySegmentIndex?.[row.segmentIndex] ?? "provider_video",
+    })),
   });
 
   const orderedSegments = buildOrderedTransitionSegments(

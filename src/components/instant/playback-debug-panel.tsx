@@ -13,6 +13,18 @@ type AdminPlaybackDebugPayload = ProjectPlaybackDebugSummary & {
     outputVideoUrl: string | null;
   }>;
   segmentTimeline?: unknown;
+  finalAssemblyReport?: {
+    ok: boolean;
+    imageCount: number;
+    expectedTransitionCount: number;
+    uploadedImages: Array<{ imageNumber: number; imageId: string; order: number }>;
+    transitions: Array<{
+      label: string;
+      providerPresent: boolean;
+      concatIncluded: boolean;
+      error?: string | null;
+    }>;
+  };
 };
 
 type Props = {
@@ -190,6 +202,40 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
                 }
               />
             </>
+          ) : null}
+          {adminDebug?.finalAssemblyReport ? (
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs">
+              <p
+                className={`font-semibold ${adminDebug.finalAssemblyReport.ok ? "text-emerald-800" : "text-red-800"}`}
+              >
+                Final assembly timeline
+                {adminDebug.finalAssemblyReport.ok ? " · OK" : " · ERROR"}
+              </p>
+              <p className="mt-1 text-zinc-600">
+                Uploaded images:{" "}
+                {adminDebug.finalAssemblyReport.uploadedImages
+                  .map((img) => String(img.imageNumber))
+                  .join(", ")}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {adminDebug.finalAssemblyReport.transitions.map((row) => (
+                  <li
+                    key={row.label}
+                    className={
+                      row.error
+                        ? "text-red-700"
+                        : row.concatIncluded && row.providerPresent
+                          ? "text-emerald-800"
+                          : "text-zinc-700"
+                    }
+                  >
+                    {row.label}: provider {row.providerPresent ? "present" : "missing"} · concat{" "}
+                    {row.concatIncluded ? "included" : "missing"}
+                    {row.error ? ` (${row.error})` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
           {adminDebug?.segmentTimeline ? (
             <details className="mt-2 text-xs">

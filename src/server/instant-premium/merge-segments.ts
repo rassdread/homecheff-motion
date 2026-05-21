@@ -44,7 +44,7 @@ export function validateMergeSegmentsBeforeExport(input: ValidateMergeSegmentsIn
     segmentUrls,
   } = input;
 
-  if (segmentCount > 1 && concatInputCount <= 1) {
+  if (segmentCount > 1 && concatInputCount !== segmentCount) {
     throw new MergeSegmentsValidationError(
       `[${projectId}] Expected ${segmentCount} concat inputs but got ${concatInputCount}.`
     );

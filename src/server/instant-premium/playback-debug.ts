@@ -9,6 +9,10 @@ import { resolveExportTimeoutMs } from "@/lib/export-timeout";
 import { buildAdminAssemblyTimeline, buildFinalSegmentTransitionRows } from "@/server/instant-premium/final-segment-source";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
 import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
+import {
+  buildAdminFinalAssemblyReport,
+  buildConcatIncludedByTransitionId,
+} from "@/server/instant-premium/final-assembly-invariants";
 
 export type ProjectPlaybackDebugPayload = {
   projectId: string;
@@ -38,6 +42,7 @@ export type ProjectPlaybackDebugPayload = {
     outputVideoUrl: string | null;
   }>;
   segmentTimeline: ReturnType<typeof buildAdminAssemblyTimeline>;
+  finalAssemblyReport: ReturnType<typeof buildAdminFinalAssemblyReport>;
   latestRebuildStatus: string | null;
   exportTimeoutMs: number;
   activeExportStage: string | null;
@@ -60,6 +65,7 @@ export async function getProjectPlaybackDebug(
     where: { id: projectId },
     include: {
       exports: { orderBy: { createdAt: "desc" }, take: 1 },
+      images: { orderBy: { order: "asc" }, select: { id: true, order: true } },
       transitions: { orderBy: { order: "asc" } },
       languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
     },
@@ -78,19 +84,28 @@ export async function getProjectPlaybackDebug(
 
   const activeStage = getFinalExportStage(projectId);
   const rebuildTrace = getRebuildAssemblyTrace(projectId);
+  const transitionRows = project.transitions.map((t) => ({
+    id: t.id,
+    order: t.order,
+    startImageId: t.startImageId,
+    endImageId: t.endImageId,
+    status: t.status,
+    providerJobId: t.providerJobId,
+    outputVideoUrl: t.outputVideoUrl,
+  }));
   const segmentTimeline = buildAdminAssemblyTimeline(
-    buildFinalSegmentTransitionRows(
-      project.transitions.map((t) => ({
-        id: t.id,
-        order: t.order,
-        startImageId: t.startImageId,
-        endImageId: t.endImageId,
-        status: t.status,
-        providerJobId: t.providerJobId,
-        outputVideoUrl: t.outputVideoUrl,
-      }))
-    )
+    buildFinalSegmentTransitionRows(transitionRows)
   );
+  const concatIncludedByTransitionId = buildConcatIncludedByTransitionId({
+    transitions: transitionRows,
+    rebuildSegmentTraces: rebuildTrace?.segments ?? [],
+    latestExportCompleted: latestExport?.status === "completed",
+  });
+  const finalAssemblyReport = buildAdminFinalAssemblyReport({
+    images: project.images,
+    transitions: transitionRows,
+    concatIncludedByTransitionId,
+  });
 
   return {
     projectId: project.id,
@@ -128,6 +143,7 @@ export async function getProjectPlaybackDebug(
       outputVideoUrl: row.outputVideoUrl?.trim() ?? null,
     })),
     segmentTimeline,
+    finalAssemblyReport,
     latestRebuildStatus: project.instantFinalRebuildStatus,
     exportTimeoutMs: resolveExportTimeoutMs(),
     activeExportStage: activeStage?.stage ?? null,

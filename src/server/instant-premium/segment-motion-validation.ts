@@ -352,13 +352,21 @@ export async function assertSegmentsAnimatedBeforeConcat(params: {
   for (let i = 0; i < params.paths.length; i += 1) {
     const selected = params.paths[i]!;
     const probe = await probeSegmentMotion(selected);
-    if (!probe || probe.likelyFrozen) {
-      const vidu = params.animatedViduPaths[i];
-      const viduProbe = vidu ? await probeSegmentMotion(vidu) : null;
+    if (!probe || probe.durationSec < MIN_SEGMENT_DURATION_SEC) {
       failures.push(
-        `segment ${i}: selected frozen (motion=${probe?.motionScore ?? 0}); ` +
-          `vidu=${viduProbe?.likelyFrozen === false ? "animated_available" : "unusable"}`
+        `segment ${i}: invalid duration (${probe?.durationSec ?? 0}s) path=${selected}`
       );
+      continue;
+    }
+    if (probe.likelyFrozen) {
+      console.warn("[final-concat-source]", {
+        projectId: params.projectId,
+        segmentIndex: i,
+        warning: "low_motion_included",
+        motionScore: probe.motionScore,
+        selectedPath: selected,
+        animatedViduPath: params.animatedViduPaths[i],
+      });
     }
   }
 

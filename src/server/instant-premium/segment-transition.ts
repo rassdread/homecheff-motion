@@ -19,6 +19,9 @@ import {
   type SegmentTransitionType,
 } from "@/lib/segment-transition-types";
 import { resolveFfmpegStageTimeoutMs } from "@/lib/export-timeout";
+import { SegmentTrimTooAggressiveError } from "@/server/instant-premium/final-assembly-invariants";
+
+export const MIN_SEGMENT_DURATION_AFTER_TRIM_SEC = 1;
 
 export type { SegmentTransitionType };
 export {
@@ -214,8 +217,8 @@ export function getEdgeTrimFramesForJoin(
   }
   const isFirst = segmentIndex === 0;
   const isLast = segmentIndex === segmentCount - 1;
-  let outgoing = isLast ? 0 : TRIM_OUTGOING_FRAMES;
-  let incoming = isFirst ? 0 : TRIM_INCOMING_FRAMES;
+  let outgoing = isLast ? 0 : Math.min(TRIM_OUTGOING_FRAMES, 1);
+  let incoming = isFirst ? 0 : Math.min(TRIM_INCOMING_FRAMES, 1);
 
   const softenIncoming = (mode: SegmentJoinMode | undefined) => {
     if (mode === "direct_micro_stitch") {
@@ -223,14 +226,16 @@ export function getEdgeTrimFramesForJoin(
     } else if (mode === "optical_micro_blend") {
       incoming = Math.min(incoming, 1);
     } else if (mode === "soft_continuation") {
-      incoming = Math.min(incoming, TRIM_INCOMING_FRAMES);
+      incoming = Math.min(incoming, 1);
     }
   };
   const softenOutgoing = (mode: SegmentJoinMode | undefined) => {
     if (mode === "direct_micro_stitch") {
       outgoing = isLast ? 0 : 1;
     } else if (mode === "optical_micro_blend") {
-      outgoing = isLast ? 0 : Math.min(outgoing, 2);
+      outgoing = isLast ? 0 : 1;
+    } else if (mode === "soft_continuation") {
+      outgoing = isLast ? 0 : Math.min(outgoing, 1);
     }
   };
 
@@ -410,6 +415,11 @@ export async function prepareMotionSegmentsForConcat(params: {
     }
 
     const finalProbe = (await probeVideoSegment(readyPath)) ?? probed;
+    if (durationSec < MIN_SEGMENT_DURATION_AFTER_TRIM_SEC) {
+      throw new SegmentTrimTooAggressiveError(
+        `Segment ${i} duration after trim ${durationSec.toFixed(3)}s < ${MIN_SEGMENT_DURATION_AFTER_TRIM_SEC}s (incoming=${trim.incoming} outgoing=${trim.outgoing} frames).`
+      );
+    }
     prepared.push({
       index: i,
       path: readyPath,

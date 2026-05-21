@@ -111,8 +111,8 @@ export async function buildSeamlessJoinPlansForOrderedSegments(
           });
 
     const plan = buildSegmentJoinPlan({
-      segmentA: i,
-      segmentB: i + 1,
+      segmentA: current.segmentIndex,
+      segmentB: next.segmentIndex,
       score,
       baseTransitionSec: baseSec,
     });

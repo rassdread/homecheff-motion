@@ -92,6 +92,13 @@ import {
 } from "@/server/instant-premium/final-video-export-commit";
 import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import {
+  assertFinalConcatInputCount,
+  expectedTransitionCountForImageCount,
+  FinalAssemblyTransitionCountMismatchError,
+  logFinalConcatInputs,
+  SegmentTrimTooAggressiveError,
+} from "@/server/instant-premium/final-assembly-invariants";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
@@ -440,6 +447,7 @@ export async function executeInstantPremiumMerge(
     try {
       const prepared = await prepareFinalSegmentProviderVideos({
         projectId,
+        images: project.images.map((img) => ({ id: img.id, order: img.order })),
         strictRebuild: isFinalRebuild,
         transitions: project.transitions.map((t) => ({
           id: t.id,
@@ -456,7 +464,11 @@ export async function executeInstantPremiumMerge(
       segmentPaths = prepared.providerVideoPaths;
       assemblyTimeline = prepared.timeline;
     } catch (sourceError) {
-      if (sourceError instanceof FinalSegmentSourceError) {
+      if (
+        sourceError instanceof FinalSegmentSourceError ||
+        sourceError instanceof FinalAssemblyTransitionCountMismatchError ||
+        sourceError instanceof SegmentTrimTooAggressiveError
+      ) {
         const message = sourceError.message;
         await prisma.animationExport.update({
           where: { id: exportRow.id },
@@ -544,9 +556,10 @@ export async function executeInstantPremiumMerge(
         allowStaticFallback,
       });
 
+      const expectedTransitionCount = expectedTransitionCountForImageCount(project.images.length);
       validateMergeSegmentsBeforeExport({
         projectId,
-        segmentCount: orderedSegments.length,
+        segmentCount: expectedTransitionCount,
         concatInputCount: segmentPaths.length,
         expectedDurationSec,
         perSegmentDurationSec,
@@ -736,6 +749,41 @@ export async function executeInstantPremiumMerge(
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
       });
+      assertFinalConcatInputCount({
+        projectId,
+        expectedTransitionCount,
+        actualConcatInputCount: pathsToConcat.length,
+      });
+
+      const concatInputRows = await Promise.all(
+        mapEntries.map(async (entry) => {
+          const seg = orderedSegments.find((s) => s.segmentIndex === entry.segmentIndex);
+          const transition = seg ? transitionById.get(seg.transitionId) : null;
+          const probed = await probeVideoSegment(entry.selectedSourcePath);
+          const hash = await hashFileSha256(entry.selectedSourcePath).catch(() => undefined);
+          return {
+            concatIndex: entry.segmentIndex,
+            transitionId: seg?.transitionId ?? transition?.id ?? `seg-${entry.segmentIndex}`,
+            transitionOrder: transition?.order ?? entry.segmentIndex,
+            startImageId: transition?.startImageId ?? "",
+            endImageId: transition?.endImageId ?? "",
+            path: entry.selectedSourcePath,
+            durationSec: probed?.durationSec,
+            frameCount:
+              probed?.durationSec != null
+                ? Math.max(1, Math.round(probed.durationSec * 30))
+                : undefined,
+            hash,
+          };
+        })
+      );
+      logFinalConcatInputs({
+        projectId,
+        expectedTransitionCount,
+        actualConcatInputCount: pathsToConcat.length,
+        concatInputs: concatInputRows,
+      });
+
       setFinalExportStage(projectId, "concat", { exportId: exportRow.id });
       const concatResult = await concatMotionSegmentsWithTransitions({
         workDir,
@@ -909,6 +957,12 @@ export async function executeInstantPremiumMerge(
               error instanceof Error ? error.message : "Final export timed out."
             }`
           : error instanceof FinalSegmentSourceError
+          ? error.message
+          : error instanceof FinalAssemblyTransitionCountMismatchError
+          ? error.message
+          : error instanceof SegmentTrimTooAggressiveError
+          ? error.message
+          : error instanceof MergeSegmentsValidationError
           ? error.message
           : error instanceof InvalidSegmentMappingError
           ? error.message
