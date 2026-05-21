@@ -124,6 +124,18 @@ export function NoCreditRenderCheckPanel({ isAdmin, buildPayload }: Props) {
               : null}
             </div>
           ))}
+          {report.concatTimeline.length > 0 ? (
+            <div>
+              <dt className="font-semibold">{t("instant.noCreditCheck.concatTimeline")}</dt>
+              {report.concatTimeline.map((row) => (
+                <dd key={`tl-${row.segmentIndex}`}>
+                  {row.playOrder} → {row.fileName}
+                  {row.joinMode ? ` · ${row.joinMode}` : ""}
+                  {row.continuityMode ? ` · ${row.continuityMode}` : ""}
+                </dd>
+              ))}
+            </div>
+          ) : null}
           {report.segmentJoins.length > 0 ? (
             <div>
               <dt className="font-semibold">{t("instant.noCreditCheck.joins")}</dt>

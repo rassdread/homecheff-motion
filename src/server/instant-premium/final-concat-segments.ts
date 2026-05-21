@@ -35,10 +35,24 @@ export function compositorSourceType(
 
 export async function resolveFinalConcatSegmentPaths(params: {
   segments: SegmentCompositeMeta[];
-}): Promise<string[]> {
-  const paths: string[] = [];
+  expectedSegmentCount: number;
+}): Promise<{ paths: string[]; sourceTypes: string[] }> {
+  const sorted = [...params.segments].sort((a, b) => a.segmentIndex - b.segmentIndex);
+  if (sorted.length !== params.expectedSegmentCount) {
+    throw new Error(
+      `Compositor segment count ${sorted.length} !== expected ${params.expectedSegmentCount}.`
+    );
+  }
 
-  for (const segment of params.segments) {
+  const paths: string[] = new Array(params.expectedSegmentCount);
+  const sourceTypes: string[] = new Array(params.expectedSegmentCount);
+
+  for (const segment of sorted) {
+    const idx = segment.segmentIndex;
+    if (idx < 0 || idx >= params.expectedSegmentCount) {
+      throw new Error(`Compositor segmentIndex ${idx} out of range.`);
+    }
+
     const processedPath = segment.compositorResult?.outputPath;
     const compositorType = compositorSourceType(segment.compositorResult);
 
@@ -57,12 +71,17 @@ export async function resolveFinalConcatSegmentPaths(params: {
     });
 
     const resolved = await resolveConcatSegmentPath({
-      segmentIndex: segment.segmentIndex,
+      segmentIndex: idx,
       animatedViduPath: segment.animatedViduPath,
       candidates,
     });
-    paths.push(resolved.path);
+    paths[idx] = resolved.path;
+    sourceTypes[idx] = resolved.sourceType;
   }
 
-  return paths;
+  if (paths.some((p) => !p)) {
+    throw new Error("Missing concat path for one or more segment indices.");
+  }
+
+  return { paths, sourceTypes };
 }

@@ -673,6 +673,7 @@ export const nl = {
   "instant.noCreditCheck.bridge": "Segment-bridge",
   "instant.noCreditCheck.roles": "Rollen",
   "instant.noCreditCheck.joins": "Frame-continuïteit (voorspelde joins)",
+  "instant.noCreditCheck.concatTimeline": "Concat-volgorde (1 → 2 → 3)",
   "instant.noCreditCheck.continuity": "Continuïteitsmodus",
   "instant.noCreditCheck.microActing": "Micro-acting",
   "instant.noCreditCheck.locked": "vergrendeld",

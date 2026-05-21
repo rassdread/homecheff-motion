@@ -35,6 +35,42 @@ import {
   resolveMicroActingProfileId,
   type MicroActingProfileId,
 } from "@/lib/premium-facial-acting";
+export type PredictedConcatTimelineEntry = {
+  playOrder: number;
+  segmentIndex: number;
+  startImageId: string;
+  endImageId: string;
+  fileName: string;
+  joinMode?: string;
+  continuityMode?: string;
+};
+
+export function buildPredictedConcatTimeline(params: {
+  images: Array<{ fileName: string }>;
+  segmentJoins: SegmentJoinPlan[];
+}): PredictedConcatTimelineEntry[] {
+  const { images, segmentJoins } = params;
+  const entries: PredictedConcatTimelineEntry[] = [];
+  const segmentCount = Math.max(segmentJoins.length, images.length - 1);
+  for (let i = 0; i < segmentCount; i += 1) {
+    const start = images[i];
+    const end = images[i + 1];
+    if (!start || !end) {
+      break;
+    }
+    const join = segmentJoins[i];
+    entries.push({
+      playOrder: i + 1,
+      segmentIndex: i,
+      startImageId: start.fileName,
+      endImageId: end.fileName,
+      fileName: `${start.fileName} → ${end.fileName}`,
+      joinMode: join?.joinMode,
+      continuityMode: join?.mode,
+    });
+  }
+  return entries;
+}
 
 export type PremiumRenderValidationImageReport = {
   index: number;
@@ -65,6 +101,7 @@ export type PremiumRenderValidationReport = {
   continuityMode: FrameContinuityMode;
   transitionTotal: number;
   segmentJoins: SegmentJoinPlan[];
+  concatTimeline: PredictedConcatTimelineEntry[];
   qualityGates: PremiumQualityGateSummary;
   images: PremiumRenderValidationImageReport[];
   warnings: string[];
@@ -185,6 +222,10 @@ export function buildPremiumRenderValidationReport(params: {
   }
 
   const continuityMode = primaryContinuityModeFromJoins(segmentJoins);
+  const concatTimeline = buildPredictedConcatTimeline({
+    images: payload.images.map((img) => ({ fileName: img.fileName })),
+    segmentJoins,
+  });
 
   let ok = true;
   let blockCode: string | undefined;
@@ -241,6 +282,7 @@ export function buildPremiumRenderValidationReport(params: {
     continuityMode,
     transitionTotal,
     segmentJoins,
+    concatTimeline,
     qualityGates,
     images: imageReports,
     warnings,

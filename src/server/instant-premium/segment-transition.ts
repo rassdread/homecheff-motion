@@ -364,8 +364,8 @@ export async function prepareMotionSegmentsForConcat(params: {
   const prepared: PreparedSegment[] = [];
 
   for (let i = 0; i < segmentPaths.length; i += 1) {
-    const normPath = path.join(workDir, `norm-seg-${i}.mp4`);
-    let readyPath = path.join(workDir, `ready-seg-${i}.mp4`);
+    const normPath = path.join(workDir, `concat-seg-${i}-normalized.mp4`);
+    let readyPath = path.join(workDir, `concat-seg-${i}-ready.mp4`);
     const probed = await normalizeSegment(segmentPaths[i]!, normPath, maxWidth);
     const joinBefore = joinPlans?.find((p) => p.segmentB === i);
     const joinAfter = joinPlans?.find((p) => p.segmentA === i);
@@ -384,7 +384,7 @@ export async function prepareMotionSegmentsForConcat(params: {
           computeExposureCorrectionFromDelta(joinBefore.exposureDelta)
         : null;
       if (correction?.shouldApply) {
-        const correctedPath = path.join(workDir, `exp-seg-${i}.mp4`);
+        const correctedPath = path.join(workDir, `concat-seg-${i}-exposure.mp4`);
         try {
           await applyIncomingSegmentExposureCorrection(readyPath, correctedPath, correction);
           readyPath = correctedPath;

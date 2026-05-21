@@ -673,6 +673,7 @@ export const en: LocaleSchema = {
   "instant.noCreditCheck.bridge": "Segment bridge",
   "instant.noCreditCheck.roles": "Roles",
   "instant.noCreditCheck.joins": "Frame continuity (predicted joins)",
+  "instant.noCreditCheck.concatTimeline": "Concat play order (1 → 2 → 3)",
   "instant.noCreditCheck.continuity": "Continuity mode",
   "instant.noCreditCheck.microActing": "Micro-acting",
   "instant.noCreditCheck.locked": "locked",

@@ -45,7 +45,18 @@ import { buildSegmentJoinPlansForProject } from "@/server/instant-premium/build-
 import { resolveFinalConcatSegmentPaths } from "@/server/instant-premium/final-concat-segments";
 import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
+  assertFinalConcatInputOrder,
+  buildConcatSegmentMapEntries,
+  buildOrderedTransitionSegments,
+  InvalidSegmentMappingError,
+  logConcatSegmentMap,
+  validateJoinPlansAlignment,
+  validateOrderedTransitionSegments,
+  validateUniqueConcatPaths,
+} from "@/server/instant-premium/concat-segment-mapping";
+import {
   concatMotionSegmentsWithTransitions,
+  probeVideoSegment,
 } from "@/server/instant-premium/segment-transition";
 import { applyMinimalPolishToVideo } from "@/server/instant-premium/apply-minimal-polish";
 import { applyBestTextOverlayForProject } from "@/server/instant-premium/hybrid-overlay/text-patch-compositor";
@@ -323,12 +334,24 @@ export async function executeInstantPremiumMerge(
       return;
     }
 
-    const completed = project.transitions.filter(
+    const completedRaw = project.transitions.filter(
       (t) => t.status === "completed" && t.outputVideoUrl?.trim()
     );
-    if (completed.length !== project.transitions.length || completed.length === 0) {
+    if (completedRaw.length !== project.transitions.length || completedRaw.length === 0) {
       return;
     }
+
+    const orderedSegments = buildOrderedTransitionSegments(
+      completedRaw.map((t) => ({
+        id: t.id,
+        order: t.order,
+        startImageId: t.startImageId,
+        endImageId: t.endImageId,
+        outputVideoUrl: t.outputVideoUrl!,
+      }))
+    );
+    validateOrderedTransitionSegments(orderedSegments);
+    const transitionById = new Map(completedRaw.map((t) => [t.id, t]));
 
     const isFinalRebuild = project.instantFinalRebuildStatus === "running";
     const rebuildPreviousFinalUrl =
@@ -387,7 +410,7 @@ export async function executeInstantPremiumMerge(
       projectId,
       phase: "mergeStart",
       mergeStart: true,
-      segmentCount: completed.length,
+      segmentCount: orderedSegments.length,
       exportProvider,
       finalAssemblyMode: mergeAssemblyMode,
     });
@@ -415,7 +438,7 @@ export async function executeInstantPremiumMerge(
       const assemblyLogBase = buildFinalAssemblyLogBase({
         projectId,
         assemblyMode: finalAssemblyMode,
-        segmentCount: completed.length,
+        segmentCount: orderedSegments.length,
         transitionType: segmentTransitionType,
         blendStrength,
       });
@@ -423,32 +446,36 @@ export async function executeInstantPremiumMerge(
 
       const segmentPaths: string[] = [];
       const segmentUrls: string[] = [];
-      for (let i = 0; i < completed.length; i += 1) {
-        const segmentUrl = completed[i].outputVideoUrl!.trim();
-        segmentUrls.push(segmentUrl);
+      for (const seg of orderedSegments) {
+        segmentUrls[seg.segmentIndex] = seg.outputVideoUrl;
         logMergeSegment({
           projectId,
-          segmentCount: completed.length,
-          segmentIndex: i,
-          segmentUrl,
+          segmentCount: orderedSegments.length,
+          segmentIndex: seg.segmentIndex,
+          segmentUrl: seg.outputVideoUrl,
           duration: perSegmentDurationSec,
           mode: textRenderMode,
         });
-        segmentPaths.push(await resolveTransitionVideoToSegment(segmentUrl, workDir, i));
+        segmentPaths[seg.segmentIndex] = await resolveTransitionVideoToSegment(
+          seg.outputVideoUrl,
+          workDir,
+          seg.segmentIndex
+        );
       }
 
       validateMergeSegmentsBeforeExport({
         projectId,
-        segmentCount: completed.length,
+        segmentCount: orderedSegments.length,
         concatInputCount: segmentPaths.length,
         expectedDurationSec,
         perSegmentDurationSec,
         segmentUrls,
       });
+      validateUniqueConcatPaths(segmentPaths);
 
       console.info("[merge-segments]", {
         projectId,
-        segmentCount: completed.length,
+        segmentCount: orderedSegments.length,
         phase: "concatReady",
         segmentUrls,
         duration: perSegmentDurationSec,
@@ -457,6 +484,7 @@ export async function executeInstantPremiumMerge(
       });
 
       let pathsToConcat = segmentPaths;
+      let concatSourceTypes: string[] | undefined;
       const mergeMaxWidth = getFinalMergeMaxWidthFromViduResolution(project.viduResolution);
 
       logFinalAssembly({
@@ -470,8 +498,12 @@ export async function executeInstantPremiumMerge(
           polishProfile.animationStyleId,
           polishProfile.textLockMode
         );
-        const posterSegments = completed
-          .map((transition, segmentIndex) => {
+        const posterSegments = orderedSegments
+          .map((seg) => {
+            const transition = transitionById.get(seg.transitionId);
+            if (!transition) {
+              return null;
+            }
             const startImage = imageById.get(transition.startImageId);
             const baseUrl = startImage?.previewUrl?.trim();
             if (!baseUrl) {
@@ -480,19 +512,19 @@ export async function executeInstantPremiumMerge(
             const blocks = parseBakedTextBlockRecords(startImage?.bakedTextBlocksJson);
             const lockedTextRegions = buildLockedTextRegionsFromBlocks(blocks, textLockMode);
             return {
-              segmentPath: segmentPaths[segmentIndex]!,
+              segmentPath: segmentPaths[seg.segmentIndex]!,
               baseImageUrl: baseUrl,
-              segmentIndex,
-              sourceSegmentUrl: segmentUrls[segmentIndex]!,
+              segmentIndex: seg.segmentIndex,
+              sourceSegmentUrl: segmentUrls[seg.segmentIndex]!,
               posterImageId: startImage?.id ?? transition.startImageId,
               lockedTextRegions,
             };
           })
           .filter((row): row is NonNullable<typeof row> => row !== null);
 
-        if (posterSegments.length !== completed.length) {
+        if (posterSegments.length !== orderedSegments.length) {
           throw new MergeSegmentsValidationError(
-            `[${projectId}] Missing poster base image for one or more segments (${posterSegments.length}/${completed.length}).`
+            `[${projectId}] Missing poster base image for one or more segments (${posterSegments.length}/${orderedSegments.length}).`
           );
         }
 
@@ -505,7 +537,7 @@ export async function executeInstantPremiumMerge(
           maxWidth: mergeMaxWidth,
           posterMotionSettings: project.instantPosterMotionSettings,
           finalAssemblyMode,
-          segmentCount: completed.length,
+          segmentCount: orderedSegments.length,
           blendStrength,
         });
         if (posterComposite.segmentPaths.length !== segmentPaths.length) {
@@ -513,9 +545,9 @@ export async function executeInstantPremiumMerge(
             `[${projectId}] Poster compositor returned ${posterComposite.segmentPaths.length} segments; expected ${segmentPaths.length}.`
           );
         }
-        if (posterComposite.compositorAppliedCount < completed.length) {
+        if (posterComposite.compositorAppliedCount < orderedSegments.length) {
           throw new MergeSegmentsValidationError(
-            `[${projectId}] Poster compositor did not apply to all segments (${posterComposite.compositorAppliedCount}/${completed.length}).`
+            `[${projectId}] Poster compositor did not apply to all segments (${posterComposite.compositorAppliedCount}/${orderedSegments.length}).`
           );
         }
         if (posterComposite.passthroughFallbackCount > 0) {
@@ -531,18 +563,21 @@ export async function executeInstantPremiumMerge(
             action: "resolve_animated_vidu_at_concat",
           });
         }
-        pathsToConcat = await resolveFinalConcatSegmentPaths({
+        const resolvedConcat = await resolveFinalConcatSegmentPaths({
           segments: posterSegments.map((seg, idx) => ({
             segmentIndex: seg.segmentIndex,
             animatedViduPath: segmentPaths[seg.segmentIndex]!,
             compositorResult: posterComposite.segmentResults[idx],
           })),
+          expectedSegmentCount: orderedSegments.length,
         });
+        pathsToConcat = resolvedConcat.paths;
+        concatSourceTypes = resolvedConcat.sourceTypes;
         console.info("[hc-instant-premium]", {
           projectId,
           phase: "posterMotionSegmentsCompositeApplied",
           finalAssemblyMode,
-          segmentCount: completed.length,
+          segmentCount: orderedSegments.length,
           motionBlendAppliedCount: posterComposite.motionBlendAppliedCount,
           compositorAppliedCount: posterComposite.compositorAppliedCount,
           passthroughFallbackCount: posterComposite.passthroughFallbackCount,
@@ -557,6 +592,40 @@ export async function executeInstantPremiumMerge(
         animatedViduPaths: segmentPaths,
       });
 
+      const joinPlans = await buildSegmentJoinPlansForProject({
+        transitions: orderedSegments.map((seg) => {
+          const startImg = imageById.get(seg.startImageId);
+          const endImg = imageById.get(seg.endImageId);
+          return {
+            order: seg.order,
+            startImageId: seg.startImageId,
+            endImageId: seg.endImageId,
+            startPreviewUrl: startImg?.previewUrl ?? null,
+            endPreviewUrl: endImg?.previewUrl ?? null,
+          };
+        }),
+        transitionType: segmentTransitionType,
+      });
+      validateJoinPlansAlignment(joinPlans, orderedSegments.length);
+
+      const mapEntries = buildConcatSegmentMapEntries({
+        segments: orderedSegments,
+        pathsToConcat,
+        localSegmentPaths: segmentPaths,
+        joinPlans,
+        sourceTypes: concatSourceTypes,
+      });
+      for (const entry of mapEntries) {
+        const probed = await probeVideoSegment(entry.selectedSourcePath);
+        entry.outputDurationSec = probed?.durationSec;
+      }
+      logConcatSegmentMap(mapEntries);
+      await assertFinalConcatInputOrder({
+        projectId,
+        paths: pathsToConcat,
+        segmentCount: orderedSegments.length,
+      });
+
       logFinalAssembly({
         ...assemblyLogBase,
         processedSegmentCount: pathsToConcat.length,
@@ -567,21 +636,6 @@ export async function executeInstantPremiumMerge(
       await prisma.animationExport.update({
         where: { id: exportRow.id },
         data: { progress: 70, status: "rendering" },
-      });
-      const sortedCompleted = [...completed].sort((a, b) => a.order - b.order);
-      const joinPlans = await buildSegmentJoinPlansForProject({
-        transitions: sortedCompleted.map((t) => {
-          const startImg = imageById.get(t.startImageId);
-          const endImg = imageById.get(t.endImageId);
-          return {
-            order: t.order,
-            startImageId: t.startImageId,
-            endImageId: t.endImageId,
-            startPreviewUrl: startImg?.previewUrl ?? null,
-            endPreviewUrl: endImg?.previewUrl ?? null,
-          };
-        }),
-        transitionType: segmentTransitionType,
       });
       const concatResult = await concatMotionSegmentsWithTransitions({
         workDir,
@@ -638,7 +692,7 @@ export async function executeInstantPremiumMerge(
             aspectRatio: project.aspectRatio,
             viduResolution: project.viduResolution,
             totalDurationMs,
-            segmentCount: completed.length,
+            segmentCount: orderedSegments.length,
             segmentDurationSec,
             overlayStyle,
             textRenderMode,
@@ -714,7 +768,7 @@ export async function executeInstantPremiumMerge(
         isRebuild,
         previousFinalUrl,
         nextRebuildCount,
-        segmentCount: completed.length,
+        segmentCount: orderedSegments.length,
       });
       console.info("[hc-instant-premium]", {
         projectId,
@@ -728,13 +782,15 @@ export async function executeInstantPremiumMerge(
       const uploadCode = classifyExportBlobFailure(error);
       const blobAuthFailed = uploadCode === "EXPORT_UPLOAD_AUTH_FAILED";
       const message =
-        error instanceof ExportBlobUploadError
-          ? exportBlobErrorMessage(error.code)
-          : blobAuthFailed
-            ? exportBlobErrorMessage("EXPORT_UPLOAD_AUTH_FAILED")
-            : sanitizeOverlayError(
-                error instanceof Error ? error.message : "Instant merge failed."
-              );
+        error instanceof InvalidSegmentMappingError
+          ? error.message
+          : error instanceof ExportBlobUploadError
+            ? exportBlobErrorMessage(error.code)
+            : blobAuthFailed
+              ? exportBlobErrorMessage("EXPORT_UPLOAD_AUTH_FAILED")
+              : sanitizeOverlayError(
+                  error instanceof Error ? error.message : "Instant merge failed."
+                );
       if (blobAuthFailed) {
         logExportBlobUploadFailure(error, {
           phase: "merge-final-upload",
@@ -751,7 +807,7 @@ export async function executeInstantPremiumMerge(
           projectId,
           exportId: exportRow.id,
           previousFinalUrl: rebuildPreviousFinalUrl,
-          segmentCount: completed.length,
+          segmentCount: orderedSegments.length,
           rebuildCount: project.instantFinalRebuildCount + 1,
           message,
           failureReason,

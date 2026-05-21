@@ -9,6 +9,7 @@ import {
 import { transitionDurationSeconds } from "@/server/instant-premium/segment-transition";
 import type { SegmentTransitionType } from "@/lib/segment-transition-types";
 import { scoreKeyframePairWithPixels } from "@/server/instant-premium/keyframe-image-similarity";
+import { validateJoinPlansAlignment } from "@/server/instant-premium/concat-segment-mapping";
 
 export type TransitionWithImages = {
   order: number;
@@ -45,5 +46,6 @@ export async function buildSegmentJoinPlansForProject(params: {
     );
   }
 
+  validateJoinPlansAlignment(plans, sorted.length);
   return plans;
 }
