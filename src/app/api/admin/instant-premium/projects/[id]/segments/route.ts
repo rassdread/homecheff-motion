@@ -11,6 +11,7 @@ import {
   buildProviderChainByTransitionId,
   expectedTransitionCountForImageCount,
 } from "@/server/instant-premium/final-assembly-invariants";
+import { buildHardAssemblyDiagnostics } from "@/server/instant-premium/hard-assembly-diagnostics";
 import { getRebuildAssemblyTrace } from "@/server/instant-premium/rebuild-assembly-trace";
 
 type RouteContext = {
@@ -201,6 +202,8 @@ export async function GET(request: Request, context: RouteContext) {
     missingCount: missingSegments.length,
   });
 
+  const hardDiagnostics = await buildHardAssemblyDiagnostics(id);
+
   return NextResponse.json(
     {
       projectId: project.id,
@@ -214,6 +217,7 @@ export async function GET(request: Request, context: RouteContext) {
       assemblyTimeline,
       finalAssemblyReport,
       providerVideoStorage: storageRows,
+      hardAssemblyDiagnostics: hardDiagnostics,
       duplicateOutputUrls,
       missingSegments,
     },

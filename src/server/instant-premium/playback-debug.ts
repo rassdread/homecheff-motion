@@ -15,6 +15,7 @@ import {
   buildConcatIncludedByTransitionId,
   buildProviderChainByTransitionId,
 } from "@/server/instant-premium/final-assembly-invariants";
+import { buildHardAssemblyDiagnostics } from "@/server/instant-premium/hard-assembly-diagnostics";
 
 export type ProjectPlaybackDebugPayload = {
   projectId: string;
@@ -45,6 +46,9 @@ export type ProjectPlaybackDebugPayload = {
   }>;
   segmentTimeline: ReturnType<typeof buildAdminAssemblyTimeline>;
   finalAssemblyReport: ReturnType<typeof buildAdminFinalAssemblyReport>;
+  hardAssemblyDiagnostics: NonNullable<
+    Awaited<ReturnType<typeof buildHardAssemblyDiagnostics>>
+  >;
   latestRebuildStatus: string | null;
   exportTimeoutMs: number;
   activeExportStage: string | null;
@@ -142,6 +146,35 @@ export async function getProjectPlaybackDebug(
     concatIncludedByTransitionId,
     providerChainByTransitionId,
   });
+  const hardAssemblyDiagnostics =
+    (await buildHardAssemblyDiagnostics(projectId)) ?? {
+      projectId,
+      imageCount: project.images.length,
+      expectedTransitions: 0,
+      providerVideoUrlCount: 0,
+      concatInputCount: null,
+      finalOutputUrl: null,
+      previousFinalVideoUrl: null,
+      rebuildTrace: null,
+      segmentIntegrityVerdict: null,
+      finalAssemblyReport,
+      providerVideoStorage: storageRows,
+      comparison: {
+        expectedTransitions: 0,
+        providerUrlsPresent: 0,
+        concatInputsFromTrace: 0,
+        segment2InConcatTrace: false,
+        segment2DownloadHash: null,
+        segment2ConcatHash: null,
+        finalHashBefore: null,
+        finalHashAfter: null,
+        allCountsMatch: false,
+      },
+      env: {
+        FINAL_ASSEMBLY_SAFE_MODE: null,
+        plainConcatActive: false,
+      },
+    };
 
   return {
     projectId: project.id,
@@ -180,6 +213,7 @@ export async function getProjectPlaybackDebug(
     })),
     segmentTimeline,
     finalAssemblyReport,
+    hardAssemblyDiagnostics,
     latestRebuildStatus: project.instantFinalRebuildStatus,
     exportTimeoutMs: resolveExportTimeoutMs(),
     activeExportStage: activeStage?.stage ?? null,

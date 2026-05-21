@@ -53,6 +53,10 @@ import {
   assertConcatLockedToCanonicalProviderPaths,
   ProviderVideoPipelineError,
 } from "@/server/instant-premium/canonical-provider-video";
+import {
+  isPlainConcatSafeMode,
+  resolveSafeModeSegmentTransitionType,
+} from "@/server/instant-premium/final-assembly-safe-mode";
 import { assertSegmentsAnimatedBeforeConcat } from "@/server/instant-premium/segment-motion-validation";
 import {
   assertFinalConcatInputOrder,
@@ -524,18 +528,28 @@ export async function executeInstantPremiumMerge(
       const lockedLayers = parseLockedTextLayersJson(project.instantLockedTextLayers);
       const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
       const overlayStyle = normalizeOverlayStyle(project.instantHybridOverlayStyle);
-      const finalAssemblyMode = resolveFinalAssemblyMode(
-        textRenderMode,
-        project.instantPosterMotionSettings
-      );
-      const runSegmentCompositor = shouldRunSegmentCompositor(finalAssemblyMode);
+      const plainConcatSafeMode = isPlainConcatSafeMode();
+      if (plainConcatSafeMode) {
+        console.info("[final-assembly-safe-mode]", {
+          projectId,
+          mode: "plain_concat",
+          note: "skipping_compositor_overlay_seamless_joins",
+        });
+      }
+      const finalAssemblyMode = plainConcatSafeMode
+        ? "concat_segments_only"
+        : resolveFinalAssemblyMode(textRenderMode, project.instantPosterMotionSettings);
+      const runSegmentCompositor =
+        !plainConcatSafeMode && shouldRunSegmentCompositor(finalAssemblyMode);
       const blendStrength = resolvePosterMotionBlendStrength(
         parsePosterMotionSettings(project.instantPosterMotionSettings)
       );
       const expectedDurationSec = project.instantOutputDurationSeconds ?? 8;
       const perSegmentDurationSec = project.viduDurationSeconds ?? null;
       const polishProfile = resolvePremiumPolishProfile(project.instantPosterMotionSettings);
-      const segmentTransitionType = polishProfile.segmentTransitionType;
+      const segmentTransitionType = resolveSafeModeSegmentTransitionType(
+        polishProfile.segmentTransitionType
+      );
       const assemblyLogBase = buildFinalAssemblyLogBase({
         projectId,
         assemblyMode: finalAssemblyMode,
@@ -727,11 +741,13 @@ export async function executeInstantPremiumMerge(
       const imagePreviewById = new Map(
         project.images.map((img) => [img.id, img.previewUrl ?? null])
       );
-      const joinPlans = await buildSeamlessJoinPlansForOrderedSegments({
-        orderedSegments,
-        imagePreviewById,
-        transitionType: segmentTransitionType,
-      });
+      const joinPlans = plainConcatSafeMode
+        ? []
+        : await buildSeamlessJoinPlansForOrderedSegments({
+            orderedSegments,
+            imagePreviewById,
+            transitionType: segmentTransitionType,
+          });
 
       const mapEntries = buildConcatSegmentMapEntries({
         segments: orderedSegments,
@@ -829,7 +845,7 @@ export async function executeInstantPremiumMerge(
       });
       let mergedPath = finalAbs;
 
-      if (polishProfile.minimalCompositorPolish) {
+      if (!plainConcatSafeMode && polishProfile.minimalCompositorPolish) {
         const polishedPath = path.join(workDir, "final-minimal-polish.mp4");
         const applied = await applyMinimalPolishToVideo({
           inputPath: mergedPath,
@@ -847,6 +863,7 @@ export async function executeInstantPremiumMerge(
       }
 
       const needsOverlay =
+        !plainConcatSafeMode &&
         shouldApplyOcrTextOverlay(textRenderMode) &&
         textRenderMode !== "none" &&
         project.instantLockedTextMode &&

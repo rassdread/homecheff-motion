@@ -13,6 +13,20 @@ type AdminPlaybackDebugPayload = ProjectPlaybackDebugSummary & {
     outputVideoUrl: string | null;
   }>;
   segmentTimeline?: unknown;
+  hardAssemblyDiagnostics?: {
+    comparison: {
+      expectedTransitions: number;
+      providerUrlsPresent: number;
+      concatInputsFromTrace: number;
+      segment2InConcatTrace: boolean;
+      segment2DownloadHash: string | null;
+      segment2ConcatHash: string | null;
+      finalHashBefore: string | null;
+      finalHashAfter: string | null;
+      allCountsMatch: boolean;
+    };
+    segmentIntegrityVerdict: string | null;
+  };
   finalAssemblyReport?: {
     ok: boolean;
     imageCount: number;
@@ -206,6 +220,20 @@ export function PlaybackDebugPanel({ projectId, detailPlayback }: Props) {
                 }
               />
             </>
+          ) : null}
+          {adminDebug ? (
+            <DebugRow
+              label="assembly diagnostics API"
+              value={`/api/admin/instant-premium/projects/${projectId}/assembly-diagnostics`}
+            />
+          ) : null}
+          {adminDebug?.hardAssemblyDiagnostics ? (
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs">
+              <p className="font-semibold text-zinc-800">Hard assembly comparison</p>
+              <pre className="mt-1 overflow-x-auto text-[10px]">
+                {JSON.stringify(adminDebug.hardAssemblyDiagnostics.comparison, null, 2)}
+              </pre>
+            </div>
           ) : null}
           {adminDebug?.finalAssemblyReport ? (
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs">

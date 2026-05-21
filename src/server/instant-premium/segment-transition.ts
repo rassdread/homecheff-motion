@@ -20,6 +20,7 @@ import {
 } from "@/lib/segment-transition-types";
 import { resolveFfmpegStageTimeoutMs } from "@/lib/export-timeout";
 import { SegmentTrimTooAggressiveError } from "@/server/instant-premium/final-assembly-invariants";
+import { isPlainConcatSafeMode } from "@/server/instant-premium/final-assembly-safe-mode";
 
 export const MIN_SEGMENT_DURATION_AFTER_TRIM_SEC = 1;
 
@@ -365,14 +366,27 @@ export async function prepareMotionSegmentsForConcat(params: {
   maxWidth: number;
   transitionType: SegmentTransitionType;
   joinPlans?: SegmentJoinPlan[];
+  /** FINAL_ASSEMBLY_SAFE_MODE=plain_concat — normalize only, no trim/exposure/joins */
+  plainConcat?: boolean;
 }): Promise<PreparedSegment[]> {
   const { workDir, segmentPaths, maxWidth, transitionType, joinPlans } = params;
+  const plainConcat = params.plainConcat === true || isPlainConcatSafeMode();
   const prepared: PreparedSegment[] = [];
 
   for (let i = 0; i < segmentPaths.length; i += 1) {
     const normPath = path.join(workDir, `concat-seg-${i}-normalized.mp4`);
     let readyPath = path.join(workDir, `concat-seg-${i}-ready.mp4`);
     const probed = await normalizeSegment(segmentPaths[i]!, normPath, maxWidth);
+    if (plainConcat) {
+      prepared.push({
+        index: i,
+        path: normPath,
+        durationSec: probed.durationSec,
+        width: probed.width,
+        height: probed.height,
+      });
+      continue;
+    }
     const joinBefore = joinPlans?.find((p) => p.segmentB === i);
     const joinAfter = joinPlans?.find((p) => p.segmentA === i);
     const trim = getEdgeTrimFramesForJoin(
@@ -565,7 +579,17 @@ export type ConcatMotionSegmentsResult = {
 export async function concatMotionSegmentsWithTransitions(
   input: ConcatMotionSegmentsInput
 ): Promise<ConcatMotionSegmentsResult> {
-  const { workDir, segmentPaths, outputFile, maxWidth, transitionType, joinPlans } = input;
+  const { workDir, segmentPaths, outputFile, maxWidth, joinPlans } = input;
+  const plainConcat = isPlainConcatSafeMode();
+  const transitionType = plainConcat ? "straight_cut" : input.transitionType;
+
+  if (plainConcat) {
+    console.info("[final-assembly-safe-mode]", {
+      mode: "plain_concat",
+      segmentCount: segmentPaths.length,
+      note: "straight_cut_normalize_only_no_compositor_overlay",
+    });
+  }
 
   if (segmentPaths.length === 0) {
     throw new Error("No segments to concatenate.");
@@ -595,7 +619,8 @@ export async function concatMotionSegmentsWithTransitions(
     segmentPaths,
     maxWidth,
     transitionType,
-    joinPlans,
+    joinPlans: plainConcat ? undefined : joinPlans,
+    plainConcat,
   });
 
   const frames = transitionDurationFrames(transitionType);
