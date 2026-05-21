@@ -58,6 +58,8 @@ export type FutureMotionPipelineCapabilities = {
   speechSync: boolean;
   transparentFx: boolean;
   poseVariation: boolean;
+  /** SVG raster typography compositor for multilingual / templates */
+  typographyPreservation: boolean;
 };
 
 export const FUTURE_MOTION_CAPABILITIES: FutureMotionPipelineCapabilities = {
@@ -72,6 +74,7 @@ export const FUTURE_MOTION_CAPABILITIES: FutureMotionPipelineCapabilities = {
   transparentFx: false,
   /** Prompt-layer gesture variation + motion memory beats. */
   poseVariation: true,
+  typographyPreservation: true,
 };
 
 export function createLive2DRigStub(rigId: string): Live2DMotionRig {

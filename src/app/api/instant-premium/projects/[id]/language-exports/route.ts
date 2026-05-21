@@ -88,6 +88,7 @@ export async function POST(request: Request, context: RouteContext) {
         languageCode: raw.languageCode,
         textLayers: prepared.layers,
         translationProvider: prepared.translationProvider,
+        typographyRenderQuality: prepared.typographyRenderQuality,
       });
     } catch (error) {
       return NextResponse.json(

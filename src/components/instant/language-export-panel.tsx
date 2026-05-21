@@ -50,6 +50,7 @@ export function LanguageExportPanel({
   const [renderLoading, setRenderLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [typographyQuality, setTypographyQuality] = useState("premium");
   const [selectedPlaybackInternal, setSelectedPlaybackInternal] = useState<string>("original");
   const selectedPlayback = selectedPlaybackProp ?? selectedPlaybackInternal;
   const setSelectedPlayback = (value: string) => {
@@ -102,6 +103,7 @@ export function LanguageExportPanel({
       );
       const data = (await res.json().catch(() => ({}))) as {
         textLayers?: LanguageTextLayerRecord[];
+        typographyRenderQuality?: string;
         error?: string;
       };
       if (!res.ok) {
@@ -109,6 +111,9 @@ export function LanguageExportPanel({
         return;
       }
       setTextLayers(data.textLayers ?? []);
+      if (data.typographyRenderQuality) {
+        setTypographyQuality(data.typographyRenderQuality);
+      }
     } catch {
       setError(t("instant.languageExport.prepareFailed"));
     } finally {
@@ -206,25 +211,42 @@ export function LanguageExportPanel({
       </div>
 
       {textLayers.length > 0 ? (
-        <div className="mt-3 max-h-48 space-y-2 overflow-y-auto text-xs">
-          {textLayers.map((layer) => (
-            <div key={layer.id} className="rounded-lg border border-violet-100 bg-white/80 p-2">
-              <p className="font-mono text-[10px] text-violet-800/80">{layer.sourceText}</p>
-              <textarea
-                value={layer.translatedText}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setTextLayers((prev) =>
-                    prev.map((row) =>
-                      row.id === layer.id ? { ...row, translatedText: next } : row
-                    )
-                  );
-                }}
-                rows={2}
-                className="mt-1 w-full rounded border border-violet-100 px-2 py-1 text-xs"
-              />
-            </div>
-          ))}
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-violet-900/85">
+            {t("instant.languageExport.typographyPreviewHint")} ({typographyQuality})
+          </p>
+          <div className="max-h-72 space-y-2 overflow-y-auto text-xs">
+            {textLayers.map((layer) => (
+              <div key={layer.id} className="rounded-lg border border-violet-100 bg-white/80 p-2">
+                {layer.previewDataUrl ? (
+                  <img
+                    src={layer.previewDataUrl}
+                    alt=""
+                    className="mb-2 w-full rounded border border-violet-50 bg-zinc-900/90 object-contain"
+                  />
+                ) : null}
+                <p className="font-mono text-[10px] text-violet-800/80">{layer.sourceText}</p>
+                <textarea
+                  value={layer.translatedText}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setTextLayers((prev) =>
+                      prev.map((row) =>
+                        row.id === layer.id ? { ...row, translatedText: next } : row
+                      )
+                    );
+                  }}
+                  rows={2}
+                  className="mt-1 w-full rounded border border-violet-100 px-2 py-1 text-xs"
+                />
+                {layer.fit?.overflowWarning ? (
+                  <p className="mt-1 text-[10px] text-amber-800">
+                    {t("instant.languageExport.overflowWarning")}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -3,10 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import {
+  enrichLanguageTextLayersForRender,
   extractLanguageTextLayersFromProject,
-  languageLayersToLockedLayers,
   mergeLanguageTextLayerOverrides,
 } from "@/lib/language-text-layers";
+import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
+import { DEFAULT_TYPOGRAPHY_RENDER_QUALITY } from "@/lib/typography-style-profile";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
@@ -21,7 +23,8 @@ import {
   type LanguageExportCode,
   type LanguageTextLayerRecord,
 } from "@/lib/video-language-export";
-import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
+import { applyTypographyPreservedOverlay } from "@/server/instant-premium/typography-compositor";
+import { renderTypographyPreviewDataUrl } from "@/server/instant-premium/typography-svg-renderer";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 
@@ -75,6 +78,7 @@ export async function prepareLanguageTextLayers(params: {
 }): Promise<{
   layers: LanguageTextLayerRecord[];
   translationProvider: string;
+  typographyRenderQuality: typeof DEFAULT_TYPOGRAPHY_RENDER_QUALITY;
 }> {
   const project = await prisma.animationProject.findUnique({
     where: { id: params.projectId },
@@ -90,21 +94,72 @@ export async function prepareLanguageTextLayers(params: {
   const base = extractLanguageTextLayersFromProject(project);
   const merged = mergeLanguageTextLayerOverrides(base, params.textLayerOverrides);
 
+  let translationProvider = "none";
+  let layers: LanguageTextLayerRecord[];
+
   if (params.languageCode === "original") {
-    return {
-      layers: merged.map((l) => ({ ...l, translatedText: l.sourceText })),
-      translationProvider: "none",
-    };
+    layers = merged.map((l) => ({ ...l, translatedText: l.sourceText }));
+  } else {
+    const translated = await translateLanguageTextLayers({
+      layers: merged,
+      targetLanguage: params.languageCode,
+    });
+    layers = translated.layers;
+    translationProvider = translated.provider;
   }
 
-  const translated = await translateLanguageTextLayers({
-    layers: merged,
-    targetLanguage: params.languageCode,
+  const enriched = enrichLanguageTextLayersForRender({
+    layers,
+    languageCode: params.languageCode,
+    aspectRatio: project.aspectRatio,
+    viduResolution: project.viduResolution,
+    quality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
   });
+
+  const withPreviews = await attachTypographyPreviews({
+    layers: enriched,
+    languageCode: params.languageCode,
+    aspectRatio: project.aspectRatio,
+    viduResolution: project.viduResolution,
+  });
+
   return {
-    layers: translated.layers,
-    translationProvider: translated.provider,
+    layers: withPreviews,
+    translationProvider,
+    typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
   };
+}
+
+async function attachTypographyPreviews(params: {
+  layers: LanguageTextLayerRecord[];
+  languageCode: string;
+  aspectRatio: string | null;
+  viduResolution: string | null;
+}): Promise<LanguageTextLayerRecord[]> {
+  const { width, height } = resolveInstantVideoDimensions(
+    params.aspectRatio,
+    params.viduResolution
+  );
+  const out: LanguageTextLayerRecord[] = [];
+  for (const layer of params.layers) {
+    if (!layer.fit || !layer.typography) {
+      out.push(layer);
+      continue;
+    }
+    try {
+      const previewDataUrl = await renderTypographyPreviewDataUrl({
+        layer,
+        languageCode: params.languageCode,
+        canvasWidth: width,
+        canvasHeight: height,
+        fit: layer.fit,
+      });
+      out.push({ ...layer, previewDataUrl });
+    } catch {
+      out.push(layer);
+    }
+  }
+  return out;
 }
 
 export async function createAndRenderLanguageExport(params: {
@@ -171,6 +226,12 @@ export async function createAndRenderLanguageExport(params: {
     languageCode,
     textLayerOverrides: params.textLayerOverrides,
   });
+  const renderLayers = enrichLanguageTextLayersForRender({
+    layers: prepared.layers,
+    languageCode,
+    aspectRatio: project.aspectRatio,
+    viduResolution: project.viduResolution,
+  });
 
   const row = await prisma.videoLanguageExport.create({
     data: {
@@ -179,7 +240,7 @@ export async function createAndRenderLanguageExport(params: {
       languageLabel: languageExportLabel(languageCode, "nl"),
       status: "queued",
       sourceFinalVideoUrl,
-      textLayerJson: prepared.layers as object,
+      textLayerJson: renderLayers as object,
       translationProvider: prepared.translationProvider,
       version,
       translationAuditJson: {
@@ -241,19 +302,22 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       1000,
       Math.round((probed?.durationSec ?? row.project.instantOutputDurationSeconds ?? 8) * 1000)
     );
-    const lockedLayers = languageLayersToLockedLayers(
+    const enriched = enrichLanguageTextLayersForRender({
       layers,
-      row.languageCode,
-      totalDurationMs
-    );
+      languageCode: row.languageCode,
+      aspectRatio: row.project.aspectRatio,
+      viduResolution: row.project.viduResolution,
+    });
 
-    await applyLockedTextOverlay({
+    const compositor = await applyTypographyPreservedOverlay({
       inputVideoPath: sourcePath,
       outputVideoPath: outputPath,
-      layers: lockedLayers,
+      layers: enriched,
+      languageCode: row.languageCode,
       aspectRatio: row.project.aspectRatio,
       viduResolution: row.project.viduResolution,
       totalDurationMs,
+      typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
     });
 
     const blobPath = languageFinalBlobPathname(
@@ -310,6 +374,7 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       languageCode: row.languageCode,
       outputVideoUrl: url,
       layerCount: layers.length,
+      compositorMethod: compositor.method,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Language export render failed.";

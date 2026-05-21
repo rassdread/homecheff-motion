@@ -937,6 +937,8 @@ export const en: LocaleSchema = {
   "instant.languageExport.limitReached": "Maximum number of language versions reached for this project.",
   "instant.languageExport.inProgress": "A render for this language is already in progress.",
   "instant.languageExport.noBase": "Complete the final video before creating language versions.",
+  "instant.languageExport.typographyPreviewHint": "Typography preview — style, wrap, and alignment before render",
+  "instant.languageExport.overflowWarning": "Text was auto-fitted to stay inside the region.",
   "instant.progress.rebuildFinalVideo": "Rebuild final video",
   "instant.progress.rebuildingFinal": "Rebuilding final video…",
   "instant.progress.rebuildFinalFailed": "Could not rebuild final video.",

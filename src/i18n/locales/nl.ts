@@ -944,6 +944,8 @@ export const nl = {
   "instant.languageExport.limitReached": "Maximum aantal taalversies voor dit project bereikt.",
   "instant.languageExport.inProgress": "Er wordt al een versie voor deze taal gerenderd.",
   "instant.languageExport.noBase": "Rond eerst de eindvideo af voordat je taalversies maakt.",
+  "instant.languageExport.typographyPreviewHint": "Typografie-voorbeeld — stijl, regels en uitlijning vóór render",
+  "instant.languageExport.overflowWarning": "Tekst is automatisch verkleind om binnen het vlak te blijven.",
   "instant.progress.rebuildFinalVideo": "Final video opnieuw samenstellen",
   "instant.progress.rebuildingFinal": "Eindvideo wordt opnieuw samengesteld...",
   "instant.progress.rebuildFinalFailed": "Eindvideo opnieuw samenstellen mislukt.",

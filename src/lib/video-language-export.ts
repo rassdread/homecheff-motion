@@ -22,6 +22,9 @@ export type LanguageExportStatus =
   | "failed"
   | "needs_refresh";
 
+import type { TypographyFitResult, TypographyStyleProfile } from "@/lib/typography-style-profile";
+import { parseTypographyStyleProfile } from "@/lib/typography-style-profile";
+
 export type LanguageTextLayerRecord = {
   id: string;
   sourceText: string;
@@ -37,6 +40,12 @@ export type LanguageTextLayerRecord = {
   animation?: string;
   startMs?: number;
   durationMs?: number;
+  /** Visual typography identity + compositing rules */
+  typography?: TypographyStyleProfile;
+  /** Smart-fit output after translation */
+  fit?: TypographyFitResult;
+  /** Client/server preview thumbnail (prepare step) */
+  previewDataUrl?: string;
 };
 
 export type LanguageExportAuditEvent = {
@@ -117,7 +126,32 @@ export function parseLanguageTextLayerJson(value: unknown): LanguageTextLayerRec
       animation: typeof o.animation === "string" ? o.animation : "none",
       startMs: typeof o.startMs === "number" ? o.startMs : 0,
       durationMs: typeof o.durationMs === "number" ? o.durationMs : undefined,
+      typography: parseTypographyStyleProfile(o.typography),
+      fit: parseTypographyFit(o.fit),
+      previewDataUrl:
+        typeof o.previewDataUrl === "string" ? o.previewDataUrl : undefined,
     });
   }
   return out.slice(0, 12);
+}
+
+function parseTypographyFit(value: unknown): TypographyFitResult | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const o = value as Record<string, unknown>;
+  if (!Array.isArray(o.lines)) {
+    return undefined;
+  }
+  const lines = o.lines.filter((line): line is string => typeof line === "string");
+  if (lines.length === 0) {
+    return undefined;
+  }
+  return {
+    fontSize: typeof o.fontSize === "number" ? o.fontSize : 42,
+    lines,
+    lineHeightPx: typeof o.lineHeightPx === "number" ? o.lineHeightPx : 48,
+    overflowWarning: o.overflowWarning === true,
+    readabilityScore: typeof o.readabilityScore === "number" ? o.readabilityScore : 0.8,
+  };
 }
