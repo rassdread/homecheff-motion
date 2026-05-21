@@ -10,7 +10,8 @@ import {
   type CanonicalLanguageTextLayer,
 } from "@/lib/canonical-language-text-layers";
 import { inferBlockType } from "@/lib/baked-text-detection";
-import { runFfmpegCapture, resolveFfmpegForTextOverlay } from "@/lib/video-ffmpeg-capability";
+import { requireFfmpegPath, resolveFfmpegBinaries } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
+import { runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
 import { OcrProviderError } from "@/lib/ocr-provider-errors";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
@@ -62,7 +63,8 @@ export async function recoverLanguageTextLayersFromFinalVideo(params: {
 }> {
   let ffmpeg: string;
   try {
-    ffmpeg = await resolveFfmpegForTextOverlay();
+    await resolveFfmpegBinaries();
+    ffmpeg = await requireFfmpegPath();
   } catch {
     return { layers: [], ocrRecoveredCount: 0, error: "FFmpeg unavailable for frame OCR recovery." };
   }

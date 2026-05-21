@@ -956,6 +956,7 @@ export const nl = {
   "instant.languageExport.playbackFallback": "Deze taalversie is niet beschikbaar — origineel wordt afgespeeld.",
   "instant.languageExport.adminPlaybackTitle": "Afspelen (admin)",
   "instant.languageExport.adminRenderDebugTitle": "Render API (admin)",
+  "instant.languageExport.adminVideoToolsTitle": "Video tools (admin)",
   "instant.languageExport.playback": "Afspelen",
   "instant.languageExport.original": "Origineel",
   "instant.languageExport.prepareFailed": "Vertaalde tekst kon niet worden voorbereid.",

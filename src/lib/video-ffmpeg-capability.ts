@@ -1,5 +1,12 @@
 import { access, constants } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import {
+  buildFfmpegCandidatePaths,
+  isSpawnEnoent,
+  requireFfmpegPath,
+  resolveFfmpegBinaries,
+  sanitizeSpawnErrorMessage,
+} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
 import {
   isVideoRenderWorkerMode,
@@ -11,13 +18,6 @@ export const VIDEO_TEXT_RENDERING_UNAVAILABLE =
   "Video text rendering is not available on this server. Please contact support.";
 
 export const FFMPEG_DRAWTEXT_REQUIRED_CODE = "VIDEO_RENDERING_UNAVAILABLE";
-
-const FFMPEG_CANDIDATE_PATHS = [
-  "/usr/bin/ffmpeg",
-  "/usr/local/bin/ffmpeg",
-  "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
-  "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
-] as const;
 
 export type VideoFfmpegCapabilityReport = {
   ok: boolean;
@@ -75,16 +75,7 @@ export function resolveConfiguredFontPath(): string {
 
 /** Ordered FFmpeg binary candidates (deduped). */
 export function resolveFfmpegCandidatePaths(): string[] {
-  const ordered: string[] = [];
-  const fromEnv = process.env.FFMPEG_PATH?.trim();
-  if (fromEnv) {
-    ordered.push(fromEnv);
-  }
-  for (const candidate of FFMPEG_CANDIDATE_PATHS) {
-    ordered.push(candidate);
-  }
-  ordered.push("ffmpeg");
-  return [...new Set(ordered)];
+  return buildFfmpegCandidatePaths();
 }
 
 export function ffmpegFiltersOutputIncludesDrawtext(output: string): boolean {
@@ -113,7 +104,10 @@ export async function runFfmpegCapture(
     child.stderr?.on("data", append);
     child.on("error", (err: NodeJS.ErrnoException) => {
       if (timeout) clearTimeout(timeout);
-      resolve({ code: 1, output, spawnError: err.message });
+      const spawnError = isSpawnEnoent(err.message)
+        ? sanitizeSpawnErrorMessage(err.message)
+        : err.message;
+      resolve({ code: 1, output, spawnError });
     });
     child.on("close", (code) => {
       if (timeout) clearTimeout(timeout);
@@ -233,13 +227,18 @@ export function toVideoHealthResponse(report: VideoFfmpegCapabilityReport): Vide
 }
 
 export async function resolveFfmpegForTextOverlay(): Promise<string> {
+  await resolveFfmpegBinaries();
   const report = await checkVideoFfmpegCapability();
   if (report.ffmpegPath && report.hasDrawtext) {
     return report.ffmpegPath;
   }
-  throw new Error(
-    "FFmpeg with drawtext is required for locked text overlays. Set FFMPEG_PATH to a build with libfreetype and install fonts (FFMPEG_FONT_PATH)."
-  );
+  try {
+    return await requireFfmpegPath();
+  } catch {
+    throw new Error(
+      "FFmpeg with drawtext is required for locked text overlays. Set FFMPEG_PATH to a build with libfreetype and install fonts (FFMPEG_FONT_PATH)."
+    );
+  }
 }
 
 export type AssertVideoRenderingResult =

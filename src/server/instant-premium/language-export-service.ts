@@ -31,6 +31,10 @@ import { applyTypographyPreservedOverlay } from "@/server/instant-premium/typogr
 import { renderTypographyPreviewDataUrl } from "@/server/instant-premium/typography-svg-renderer";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
+import {
+  resolveFfmpegBinaries,
+  VideoToolsMissingError,
+} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 
 export const LANGUAGE_EXPORT_IN_PROGRESS = "LANGUAGE_EXPORT_IN_PROGRESS";
 export const LANGUAGE_EXPORT_LIMIT = "LANGUAGE_EXPORT_LIMIT";
@@ -326,6 +330,8 @@ export async function createAndRenderLanguageExport(params: {
     .reduce((max, r) => Math.max(max, r.version), 0);
   const version = maxVersion + 1;
 
+  await resolveFfmpegBinaries();
+
   const prepared = await prepareLanguageTextLayers({
     projectId: params.projectId,
     languageCode,
@@ -397,6 +403,7 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
 
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-lang-export-${exportId}-`));
   try {
+    await resolveFfmpegBinaries();
     const sourcePath = path.join(workDir, "source.mp4");
     const outputPath = path.join(workDir, "output.mp4");
     await downloadVideoToFile(row.sourceFinalVideoUrl, sourcePath);
@@ -482,7 +489,12 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       compositorMethod: compositor.method,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Language export render failed.";
+    const message =
+      error instanceof VideoToolsMissingError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Language export render failed.";
     await prisma.videoLanguageExport.update({
       where: { id: exportId },
       data: {

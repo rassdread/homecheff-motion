@@ -19,6 +19,12 @@ import {
   type SegmentTransitionType,
 } from "@/lib/segment-transition-types";
 import { resolveFfmpegStageTimeoutMs } from "@/lib/export-timeout";
+import {
+  getResolvedFfmpegPathSync,
+  getResolvedFfprobePathSync,
+  mapSpawnError,
+  resolveFfmpegBinaries,
+} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { SegmentTrimTooAggressiveError } from "@/server/instant-premium/final-assembly-invariants";
 import { isPlainConcatSafeMode } from "@/server/instant-premium/final-assembly-safe-mode";
 
@@ -54,11 +60,11 @@ export function logSegmentTransition(entry: SegmentTransitionLogEntry): void {
 }
 
 function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
+  return getResolvedFfmpegPathSync();
 }
 
 function ffprobeBinary(): string {
-  return process.env.FFPROBE_PATH?.trim() || "ffprobe";
+  return getResolvedFfprobePathSync();
 }
 
 function runCapture(
@@ -82,7 +88,7 @@ function runCapture(
     });
     child.on("error", (err: NodeJS.ErrnoException) => {
       if (timeout) clearTimeout(timeout);
-      reject(err);
+      mapSpawnError(err, binary.toLowerCase().includes("ffprobe") ? "ffprobe" : "ffmpeg");
     });
     child.on("close", (code) => {
       if (timeout) clearTimeout(timeout);
@@ -99,6 +105,7 @@ export type ProbedVideoSegment = {
 };
 
 export async function probeVideoSegment(filePath: string): Promise<ProbedVideoSegment | null> {
+  await resolveFfmpegBinaries();
   const result = await runCapture(
     ffprobeBinary(),
     [

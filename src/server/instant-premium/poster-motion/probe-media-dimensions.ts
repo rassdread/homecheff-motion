@@ -4,8 +4,14 @@ import sharp from "sharp";
 
 export type MediaDimensions = { width: number; height: number };
 
+import {
+  getResolvedFfprobePathSync,
+  mapSpawnError,
+  resolveFfmpegBinaries,
+} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
+
 function ffprobeBinary(): string {
-  return process.env.FFPROBE_PATH?.trim() || "ffprobe";
+  return getResolvedFfprobePathSync();
 }
 
 function runCapture(
@@ -30,9 +36,9 @@ function runCapture(
       if (timeout) clearTimeout(timeout);
       resolve({ code: code ?? 1, output });
     });
-    child.on("error", () => {
+    child.on("error", (err) => {
       if (timeout) clearTimeout(timeout);
-      resolve({ code: 1, output });
+      mapSpawnError(err, "ffprobe");
     });
   });
 }
@@ -53,6 +59,7 @@ export async function probeImageFileDimensions(filePath: string): Promise<MediaD
 }
 
 export async function probeVideoDurationSeconds(filePath: string): Promise<number | null> {
+  await resolveFfmpegBinaries();
   const binary = ffprobeBinary();
   const result = await runCapture(binary, [
     "-v",
@@ -77,6 +84,7 @@ export async function probeVideoDurationSeconds(filePath: string): Promise<numbe
 }
 
 export async function probeVideoFileDimensions(filePath: string): Promise<MediaDimensions | null> {
+  await resolveFfmpegBinaries();
   const binary = ffprobeBinary();
   const result = await runCapture(binary, [
     "-v",

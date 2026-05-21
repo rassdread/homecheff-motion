@@ -16,6 +16,7 @@ import {
   resolvePosterMotionBlendStrength,
   type PosterMotionSettings,
 } from "@/lib/poster-motion-preserve";
+import { getResolvedFfmpegPathSync } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 import type { FinalAssemblyMode } from "@/server/instant-premium/final-assembly";
 import {
@@ -92,7 +93,7 @@ export type CompositePosterMotionSegmentsResult = {
 };
 
 function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
+  return getResolvedFfmpegPathSync();
 }
 
 async function downloadToFile(url: string, dest: string): Promise<void> {

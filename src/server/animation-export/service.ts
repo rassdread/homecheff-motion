@@ -22,13 +22,14 @@ import {
   FINAL_MERGE_VIDEO_PRESET,
   getFinalMergeMaxWidthFromViduResolution,
 } from "@/lib/media-export-constants";
+import { getResolvedFfmpegPathSync } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { getVideoProvider } from "@/server/video-providers";
 
 const EXPORT_CHAIN = new Map<string, Promise<unknown>>();
 const EXTERNAL_EXPORT_PROVIDER = "external-ffmpeg";
 
 function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
+  return getResolvedFfmpegPathSync();
 }
 
 function assertClassicProjectType(project: { id: string; projectType?: string | null }): void {

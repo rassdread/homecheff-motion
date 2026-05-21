@@ -81,6 +81,12 @@ export function LanguageExportPanel({
   const [typographyQuality, setTypographyQuality] = useState("premium");
   const [prepareDebug, setPrepareDebug] = useState<LanguageExportPrepareDebug | null>(null);
   const [renderDebug, setRenderDebug] = useState<LanguageExportRenderDebug | null>(null);
+  const [videoTools, setVideoTools] = useState<{
+    ffmpeg: boolean;
+    ffprobe: boolean;
+    ffmpegPath: string;
+    ffprobePath: string;
+  } | null>(null);
   const translatePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollStartedAtRef = useRef<number | null>(null);
 
@@ -110,6 +116,20 @@ export function LanguageExportPanel({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+    void fetch("/api/admin/runtime/video-tools", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data === "object" && "ffmpegPath" in data) {
+          setVideoTools(data as typeof videoTools);
+        }
+      })
+      .catch(() => undefined);
+  }, [isAdmin]);
 
   const refreshExports = useCallback(async () => {
     const exports = await fetchProjectLanguageExports(projectId);
@@ -549,6 +569,14 @@ export function LanguageExportPanel({
           <p className="font-semibold">{t("instant.languageExport.adminDebugTitle")}</p>
           <p>prepare HTTP: {prepareDebug.lastHttpStatus ?? "—"}</p>
           <p>layers: {prepareDebug.layerCount}</p>
+        </div>
+      ) : null}
+
+      {isAdmin && videoTools ? (
+        <div className="mt-2 rounded border border-dashed border-violet-300 bg-white/70 p-2 font-mono text-[10px] text-violet-950">
+          <p className="font-semibold">{t("instant.languageExport.adminVideoToolsTitle")}</p>
+          <p>ffmpeg: {String(videoTools.ffmpeg)} ({videoTools.ffmpegPath})</p>
+          <p>ffprobe: {String(videoTools.ffprobe)} ({videoTools.ffprobePath})</p>
         </div>
       ) : null}
 

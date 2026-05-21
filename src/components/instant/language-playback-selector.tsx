@@ -86,6 +86,9 @@ export function LanguagePlaybackSelector({
           <p>completed w/ URL: {completedExports.length}</p>
           <p>status: {activeRow?.status ?? "original"}</p>
           <p>playback URL set: {String(Boolean(playbackResolved.url))}</p>
+          <p className="mt-1 text-[9px] text-zinc-600">
+            video tools: use /api/admin/runtime/video-tools
+          </p>
         </div>
       ) : null}
     </div>

@@ -949,6 +949,7 @@ export const en: LocaleSchema = {
   "instant.languageExport.playbackFallback": "This language version is unavailable — playing original.",
   "instant.languageExport.adminPlaybackTitle": "Playback (admin)",
   "instant.languageExport.adminRenderDebugTitle": "Render API (admin)",
+  "instant.languageExport.adminVideoToolsTitle": "Video tools (admin)",
   "instant.languageExport.playback": "Playback version",
   "instant.languageExport.original": "Original",
   "instant.languageExport.prepareFailed": "Could not prepare translated text.",

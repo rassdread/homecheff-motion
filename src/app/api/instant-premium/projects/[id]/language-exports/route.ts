@@ -3,6 +3,7 @@ import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { buildLanguageExportPreviews } from "@/lib/language-export-prepare";
+import { VideoToolsMissingError } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import {
   createAndRenderLanguageExport,
   listVideoLanguageExports,
@@ -195,6 +196,19 @@ export async function POST(request: Request, context: RouteContext) {
         : null,
     });
   } catch (error) {
+    if (error instanceof VideoToolsMissingError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: error.code,
+          message: error.message,
+          exportId: raw.exportId ?? null,
+          status: "failed",
+          languageCode: raw.languageCode,
+        },
+        { status: 400 }
+      );
+    }
     const message = error instanceof Error ? error.message : "Language export failed.";
     const code =
       message === LANGUAGE_EXPORT_LIMIT

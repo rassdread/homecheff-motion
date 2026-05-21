@@ -7,6 +7,7 @@ import {
   EXPOSURE_MISMATCH_FORCE_NORMALIZE,
   shouldForceExposureNormalize,
 } from "@/lib/exact-frame-continuity";
+import { getResolvedFfmpegPathSync } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 
 export const EXPOSURE_APPLY_THRESHOLD = 0.03;
 export const MAX_BRIGHTNESS_CORRECTION = 0.04;
@@ -57,7 +58,7 @@ export function computeExposureCorrectionFromDelta(
 }
 
 function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
+  return getResolvedFfmpegPathSync();
 }
 
 function runCapture(

@@ -3,6 +3,11 @@
  */
 
 import { spawn } from "node:child_process";
+import {
+  getResolvedFfmpegPathSync,
+  mapSpawnError,
+  resolveFfmpegBinaries,
+} from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import fs from "node:fs/promises";
 import {
   FinalSegmentSourceError,
@@ -38,7 +43,7 @@ export type SegmentMotionProbe = {
 };
 
 function ffmpegBinary(): string {
-  return process.env.FFMPEG_PATH?.trim() || "ffmpeg";
+  return getResolvedFfmpegPathSync();
 }
 
 function runCapture(
@@ -53,7 +58,7 @@ function runCapture(
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
-    child.on("error", reject);
+    child.on("error", (err) => mapSpawnError(err, "ffmpeg"));
     child.on("close", (code) => {
       resolve({ code: code ?? 1, stderr, stdout: Buffer.concat(chunks) });
     });
@@ -129,6 +134,7 @@ export async function probeSegmentMotion(filePath: string): Promise<SegmentMotio
     return null;
   }
 
+  await resolveFfmpegBinaries();
   const probed = await probeVideoSegment(filePath);
   if (!probed) {
     return {
