@@ -56,7 +56,7 @@ export type PersistedWizardState = {
   wizardFlowVersion?: number;
   step: number;
   stylePreset: InstantPremiumStylePreset;
-  durationSec: 8 | 15;
+  durationSec?: number;
   motionText: string;
   continuityStrength: InstantPremiumContinuityStrength;
   chips: (InstantPremiumChipId | TextImplyingChipId)[];

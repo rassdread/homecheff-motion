@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   const mode = getInstantPremiumMode();
-  if (mode !== "test") {
+  if (mode !== "test" && user.role !== "admin") {
     return NextResponse.json(
       {
         ok: false as const,

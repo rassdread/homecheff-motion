@@ -29,7 +29,7 @@ export default function Home() {
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-4">
-            <GradientButton href="/animate" className="px-7">
+            <GradientButton href="/animate/instant" className="px-7">
               {t("landing.cta")}
             </GradientButton>
             <p className="text-xs text-zinc-500">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { estimateInstantPremiumPriceCents, formatInstantPremiumPriceEur } from "@/lib/instant-premium-pricing";
 import { getPublicOrigin } from "@/lib/public-origin";
 import { assertStripeSecretKeyConfigured, getStripeClient } from "@/lib/stripe-server";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
@@ -17,6 +18,16 @@ export async function POST(request: Request) {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;
+  }
+
+  if (user.role === "admin") {
+    return NextResponse.json(
+      {
+        error: "Admins use test-mode generation without checkout.",
+        code: "ADMIN_FREE_GENERATION",
+      },
+      { status: 409 }
+    );
   }
 
   let body: unknown;
@@ -72,11 +83,10 @@ export async function POST(request: Request) {
 
   const stripe = getStripeClient();
   const origin = getPublicOrigin();
-  const amountCents = validated.data.duration === 8 ? 199 : 299;
-  const label =
-    validated.data.duration === 8
-      ? "HomeCheff Motion — Instant Premium (8s)"
-      : "HomeCheff Motion — Instant Premium (15s)";
+  const imageCount = validated.data.images.length;
+  const amountCents = estimateInstantPremiumPriceCents(imageCount);
+  const priceLabel = formatInstantPremiumPriceEur(imageCount, "en");
+  const label = `HomeCheff Motion — AI video (${imageCount} images, ${priceLabel})`;
 
   const pending = await prisma.instantPremiumPendingOrder.create({
     data: {

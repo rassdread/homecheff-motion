@@ -2,7 +2,7 @@ export type InstantPremiumStylePreset = "food_promo" | "clean_business" | "socia
 
 export type InstantPremiumAspectRatio = "9:16" | "16:9";
 
-export type InstantPremiumDurationSeconds = 8 | 15;
+export type InstantPremiumDurationSeconds = number;
 export type InstantPremiumContinuityStrength = "balanced" | "strict";
 
 /** Stable ids sent from client / stored in DB */

@@ -32,7 +32,7 @@ function sampleBuildInput(
     : "food_promo";
   return {
     stylePreset,
-    duration: payload.duration === 15 ? 15 : 8,
+    duration: payload.duration,
     aspectRatio:
       payload.aspectRatio === "16:9" || payload.aspectRatio === "9:16" ? payload.aspectRatio : "9:16",
     userIntent: payload.userIntent ?? null,

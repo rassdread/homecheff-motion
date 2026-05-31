@@ -26,6 +26,7 @@ import {
 } from "@/lib/vidu-prompt-budget";
 import { prisma } from "@/lib/prisma";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
+import { ensureTransitionOutputInBlob } from "@/server/animation-projects/ensure-transition-blob";
 
 const ACTIVE_TRANSITION_STATUSES = ["queued", "generating", "processing", "rendering"] as const;
 const TERMINAL_TRANSITION_STATUSES = ["completed", "failed"] as const;
@@ -126,8 +127,8 @@ function resolveInstantPremiumAspect(
 function resolveInstantPremiumDuration(
   seconds: number | null | undefined
 ): InstantPremiumDurationSeconds {
-  if (seconds === 15) {
-    return 15;
+  if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {
+    return seconds;
   }
   return 8;
 }
@@ -416,6 +417,23 @@ export async function pollTransitionJob(transitionId: string): Promise<Animation
       errorMessage: providerStatus.errorMessage ?? null,
     },
   });
+
+  if (
+    providerStatus.status === "completed" &&
+    providerStatus.outputVideoUrl?.trim()
+  ) {
+    await ensureTransitionOutputInBlob(updatedTransition).catch((error) => {
+      console.error("[pollTransitionJob]", {
+        transitionId: transition.id,
+        projectId: transition.projectId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+    return (
+      (await prisma.animationTransition.findUnique({ where: { id: transition.id } })) ??
+      updatedTransition
+    );
+  }
 
   return updatedTransition;
 }

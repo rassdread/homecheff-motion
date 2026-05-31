@@ -14,6 +14,14 @@ import {
   type TextImplyingChipId,
 } from "@/lib/locked-text-layer";
 import {
+  instantPremiumPerTransitionSeconds,
+  resolveInstantPremiumOutputPlan,
+} from "@/lib/instant-premium-output-plan";
+import {
+  MAX_INSTANT_PREMIUM_IMAGES,
+  MIN_INSTANT_PREMIUM_IMAGES,
+} from "@/lib/instant-premium-pricing";
+import {
   composeStoredInstantUserIntent,
   isInstantPremiumChipId,
   normalizeInstantPremiumContinuityStrength,
@@ -47,8 +55,8 @@ import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validat
 import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
-const MIN_IMAGES = 3;
-const MAX_IMAGES = 5;
+const MIN_IMAGES = MIN_INSTANT_PREMIUM_IMAGES;
+const MAX_IMAGES = MAX_INSTANT_PREMIUM_IMAGES;
 const MAX_CHIPS = 3;
 const MAX_INTENT_LENGTH = 500;
 
@@ -126,10 +134,8 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     return { ok: false, error: "Invalid style preset.", status: 400 };
   }
 
-  const duration = typeof o.duration === "number" ? o.duration : Number.NaN;
-  if (duration !== 8 && duration !== 15) {
-    return { ok: false, error: "Duration must be 8 or 15 seconds.", status: 400 };
-  }
+  const outputPlan = resolveInstantPremiumOutputPlan(images.length);
+  const duration = outputPlan.totalDurationSeconds;
 
   const aspectRatio = typeof o.aspectRatio === "string" ? o.aspectRatio.trim() : "";
   if (aspectRatio !== "9:16" && aspectRatio !== "16:9") {
@@ -169,7 +175,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
   }
 
   const explicitLayers = parseLockedTextLayersJson(o.lockedTextLayers);
-  const durationMs = (duration === 15 ? 15 : 8) * 1000;
+  const durationMs = duration * 1000;
   const chipTextBySlot = parseChipTextBySlot(o.chipTextBySlot);
   const fromChips = buildLockedTextLayersFromChips({
     selectedChips: chips,
@@ -294,18 +300,7 @@ function parseChips(raw: unknown): string[] {
   return out;
 }
 
-/** Per-transition Vidu duration: spread total target across segments, clamped 1–16s. */
-export function instantPremiumPerTransitionSeconds(
-  totalSeconds: InstantPremiumDurationSeconds,
-  imageCount: number
-): number {
-  const n = imageCount - 1;
-  if (n <= 0) {
-    return 1;
-  }
-  const raw = Math.round(totalSeconds / n);
-  return Math.max(1, Math.min(16, raw));
-}
+export { instantPremiumPerTransitionSeconds } from "@/lib/instant-premium-output-plan";
 
 export async function createInstantPremiumAnimationProject(
   ownerId: string,
@@ -353,7 +348,6 @@ export async function createInstantPremiumAnimationProject(
   const {
     images,
     stylePreset,
-    duration,
     aspectRatio,
     userIntent,
     selectedChips,
@@ -375,11 +369,12 @@ export async function createInstantPremiumAnimationProject(
     text: intentBase,
   });
 
-  const durationResolved: InstantPremiumDurationSeconds = duration === 15 ? 15 : 8;
+  const outputPlan = resolveInstantPremiumOutputPlan(images.length);
+  const durationResolved: InstantPremiumDurationSeconds = outputPlan.totalDurationSeconds;
 
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
   const transitionCount = images.length - 1;
-  const perTransition = instantPremiumPerTransitionSeconds(durationResolved, images.length);
+  const perTransition = outputPlan.perTransitionSeconds;
   const estimatedCredits =
     transitionCount * perTransition * preset.estimatedCreditsPerSecond;
 
@@ -516,13 +511,15 @@ export async function createInstantPremiumAnimationProject(
 /** Credit estimate for UI (same formula as persisted project). */
 export function estimateInstantPremiumCredits(
   imageCount: number,
-  duration: InstantPremiumDurationSeconds
+  duration?: InstantPremiumDurationSeconds
 ): number {
   if (imageCount < MIN_IMAGES) {
     return 0;
   }
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
-  const per = instantPremiumPerTransitionSeconds(duration, imageCount);
+  const plan = resolveInstantPremiumOutputPlan(imageCount);
+  const totalSeconds = duration ?? plan.totalDurationSeconds;
+  const per = instantPremiumPerTransitionSeconds(totalSeconds, imageCount);
   const transitions = imageCount - 1;
   return transitions * per * preset.estimatedCreditsPerSecond;
 }

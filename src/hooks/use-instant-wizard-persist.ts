@@ -21,6 +21,7 @@ import {
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
+import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 
 export type PersistableLocalImage = {
   id: string;
@@ -62,7 +63,7 @@ export function useInstantWizardPersist(params: {
   step: number;
   images: PersistableLocalImage[];
   stylePreset: InstantPremiumStylePreset;
-  durationSec: 8 | 15;
+  durationSec: number;
   motionText: string;
   continuityStrength: InstantPremiumContinuityStrength;
   chips: (InstantPremiumChipId | TextImplyingChipId)[];
@@ -76,7 +77,7 @@ export function useInstantWizardPersist(params: {
     step: number;
     images: PersistableLocalImage[];
     stylePreset: InstantPremiumStylePreset;
-    durationSec: 8 | 15;
+    durationSec: number;
     motionText: string;
     continuityStrength: InstantPremiumContinuityStrength;
     chips: (InstantPremiumChipId | TextImplyingChipId)[];
@@ -149,7 +150,9 @@ export function useInstantWizardPersist(params: {
           step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
           images: restored,
           stylePreset: saved.stylePreset,
-          durationSec: saved.durationSec,
+          durationSec:
+            saved.durationSec ??
+            resolveInstantPremiumOutputPlan(restored.length).totalDurationSeconds,
           motionText: saved.motionText,
           continuityStrength: saved.continuityStrength,
           chips: saved.chips,

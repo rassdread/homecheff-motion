@@ -101,14 +101,18 @@ import {
   ImageUploadError,
   postWizardImageUpload,
 } from "@/lib/instant-image-upload-client";
+import {
+  formatInstantPremiumPriceEur,
+  MAX_INSTANT_PREMIUM_IMAGES,
+  MIN_INSTANT_PREMIUM_IMAGES,
+} from "@/lib/instant-premium-pricing";
+import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
   InstantPremiumCreateAndGenerateOkBody,
   UploadImageResponse,
 } from "@/types/animation-api";
-
-const MIN_IMAGES = 3;
 
 function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string): string | null {
   if (!body || typeof body !== "object") {
@@ -137,7 +141,9 @@ function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string)
     return id && id.length > 0 ? id : null;
   }
 }
-const MAX_IMAGES = 5;
+
+const MIN_IMAGES = MIN_INSTANT_PREMIUM_IMAGES;
+const MAX_IMAGES = MAX_INSTANT_PREMIUM_IMAGES;
 const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
 
 type LocalImage = {
@@ -228,7 +234,6 @@ export default function InstantPremiumPage() {
   const [error, setError] = useState("");
   const [preflightNotice, setPreflightNotice] = useState("");
   const [stylePreset, setStylePreset] = useState<InstantPremiumStylePreset>("food_promo");
-  const [durationSec, setDurationSec] = useState<8 | 15>(8);
   const [motionText, setMotionText] = useState("");
   const [continuityStrength, setContinuityStrength] =
     useState<InstantPremiumContinuityStrength>("balanced");
@@ -267,10 +272,21 @@ export default function InstantPremiumPage() {
   }, [mounted]);
   const isAdmin = session.user?.role?.trim() === "admin";
 
+  const outputPlan = useMemo(
+    () => resolveInstantPremiumOutputPlan(images.length),
+    [images.length]
+  );
+  const estimatedPriceLabel = useMemo(
+    () => formatInstantPremiumPriceEur(Math.max(MIN_IMAGES, images.length), locale === "nl" ? "nl" : "en"),
+    [images.length, locale]
+  );
+  const usesFreeGeneration = premiumMode === "test" || isAdmin;
+
   const buildValidationPayload = useCallback((): Record<string, unknown> | null => {
-    if (images.length < 3) {
+    if (images.length < MIN_IMAGES) {
       return null;
     }
+    const plan = resolveInstantPremiumOutputPlan(images.length);
     return {
       images: images.map((img) => {
         const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
@@ -287,7 +303,7 @@ export default function InstantPremiumPage() {
         };
       }),
       stylePreset,
-      duration: durationSec,
+      duration: plan.totalDurationSeconds,
       aspectRatio,
       uiLanguage: locale,
       userIntent: motionText.trim() || null,
@@ -301,7 +317,6 @@ export default function InstantPremiumPage() {
   }, [
     images,
     stylePreset,
-    durationSec,
     aspectRatio,
     locale,
     motionText,
@@ -523,7 +538,7 @@ export default function InstantPremiumPage() {
     step,
     images,
     stylePreset,
-    durationSec,
+    durationSec: outputPlan.totalDurationSeconds,
     motionText,
     continuityStrength,
     chips,
@@ -537,7 +552,6 @@ export default function InstantPremiumPage() {
       setImages(saved.images);
       setStep(saved.step);
       setStylePreset(saved.stylePreset);
-      setDurationSec(saved.durationSec);
       setMotionText(saved.motionText);
       setContinuityStrength(saved.continuityStrength);
       setChips(saved.chips);
@@ -574,7 +588,6 @@ export default function InstantPremiumPage() {
     const defaults = getInstantWizardFormDefaults();
     setStep(defaults.step);
     setStylePreset(defaults.stylePreset);
-    setDurationSec(defaults.durationSec);
     setMotionText(defaults.motionText);
     setContinuityStrength(defaults.continuityStrength);
     setChips(defaults.chips);
@@ -795,10 +808,11 @@ export default function InstantPremiumPage() {
             textAlign: l.textAlign,
           })
         );
+      const plan = resolveInstantPremiumOutputPlan(images.length);
       const body = {
         images: uploaded,
         stylePreset,
-        duration: durationSec,
+        duration: plan.totalDurationSeconds,
         aspectRatio,
         uiLanguage: locale,
         userIntent: motionText.trim() || null,
@@ -845,7 +859,7 @@ export default function InstantPremiumPage() {
         }
       }
 
-      if (premiumMode === "test") {
+      if (usesFreeGeneration) {
         const testResponse = await fetch("/api/instant-premium/create-and-generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -936,7 +950,6 @@ export default function InstantPremiumPage() {
       chipTextBySlot,
       chips,
       continuityStrength,
-      durationSec,
       fastRenderMode,
       hybridOverlayStyle,
       images,
@@ -944,7 +957,6 @@ export default function InstantPremiumPage() {
       lockedTextLayers,
       lockedTextMode,
       motionText,
-      premiumMode,
       router,
       session.user,
       stylePreset,
@@ -954,6 +966,7 @@ export default function InstantPremiumPage() {
       t,
       uploadToBlob,
       waitForPendingScans,
+      usesFreeGeneration,
     ]
   );
 
@@ -987,9 +1000,11 @@ export default function InstantPremiumPage() {
     const continueLabel = t("instant.common.continue");
     const generateLabel = checkoutBusy
       ? t("instant.step7.preparing")
-      : premiumMode === "paid"
-        ? t("instant.step7.ctaPaid", { price: durationSec === 8 ? "€1.99" : "€2.99" })
-        : t("instant.step7.ctaTest");
+      : usesFreeGeneration
+        ? isAdmin
+          ? t("instant.step7.ctaAdminTest")
+          : t("instant.step7.ctaTest")
+        : t("instant.step7.ctaPaid", { price: estimatedPriceLabel });
     switch (step) {
       case 1:
         return {
@@ -1046,7 +1061,7 @@ export default function InstantPremiumPage() {
           stackButtons: false,
         };
     }
-  }, [checkoutBusy, durationSec, images.length, premiumMode, startCheckout, step, t]);
+  }, [checkoutBusy, estimatedPriceLabel, images.length, isAdmin, startCheckout, step, t, usesFreeGeneration]);
 
   if (!session.resolved) {
     return (
@@ -1104,8 +1119,8 @@ export default function InstantPremiumPage() {
                 {wizardSecondaryLabel}
               </button>
             ) : null}
-            <Link href="/animate" className="text-xs font-medium text-zinc-600 underline">
-              {t("instant.classicFlow")}
+            <Link href="/videos" prefetch={false} className="text-xs font-medium text-zinc-600 underline">
+              {t("nav.myVideos")}
             </Link>
           </div>
         </div>
@@ -1178,8 +1193,9 @@ export default function InstantPremiumPage() {
               <>
                 <h2 className="text-xl font-semibold tracking-tight">{t("instant.creatorStep.upload")}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                  {t("instant.step1.description", { min: MIN_IMAGES, max: MAX_IMAGES })}
+                  {t("instant.step1.description")}
                 </p>
+                <p className="mt-1 text-xs text-zinc-500">{t("instant.step1.uploadHint")}</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1226,6 +1242,9 @@ export default function InstantPremiumPage() {
                   >
                     {t("instant.step1.clearAll")}
                   </button>
+                ) : null}
+                {images.length >= MIN_IMAGES && images.length < MAX_IMAGES ? (
+                  <p className="mt-2 text-xs text-zinc-500">{t("instant.step1.extraTransitionHint")}</p>
                 ) : null}
                 {images.length >= MIN_IMAGES ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
@@ -1307,33 +1326,20 @@ export default function InstantPremiumPage() {
                   </h2>
                   <p className="mt-2 text-sm text-zinc-600">{t("instant.creatorGenerate.intro")}</p>
                 </div>
-                <div className="grid gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDurationSec(8)}
-                    className={`rounded-2xl border-2 p-5 text-left transition ${
-                      durationSec === 8
-                        ? "border-emerald-500 bg-emerald-50/80"
-                        : "border-zinc-200 bg-white"
-                    }`}
-                  >
-                    <p className="font-semibold text-zinc-900">{t("instant.step4.option8.title")}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{t("instant.step4.option8.subtitle")}</p>
-                    <p className="mt-2 text-lg font-bold text-emerald-800">€1.99</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDurationSec(15)}
-                    className={`rounded-2xl border-2 p-5 text-left transition ${
-                      durationSec === 15
-                        ? "border-emerald-500 bg-emerald-50/80"
-                        : "border-zinc-200 bg-white"
-                    }`}
-                  >
-                    <p className="font-semibold text-zinc-900">{t("instant.step4.option15.title")}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{t("instant.step4.option15.subtitle")}</p>
-                    <p className="mt-2 text-lg font-bold text-emerald-800">€2.99</p>
-                  </button>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                  <p className="text-sm font-semibold text-emerald-950">
+                    {outputPlan.mode === "single_transition"
+                      ? t("instant.outputPlan.singleTransition")
+                      : t("instant.outputPlan.cinematicStory")}
+                  </p>
+                  <p className="mt-1 text-sm text-emerald-900/90">
+                    {t("instant.pricing.estimated", { price: estimatedPriceLabel })}
+                  </p>
+                  {isAdmin ? (
+                    <p className="mt-2 text-xs font-medium text-amber-900">
+                      {t("instant.pricing.adminTestMode")}
+                    </p>
+                  ) : null}
                 </div>
                 <ul className="space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 text-sm text-zinc-700">
                   <li>
@@ -1351,7 +1357,8 @@ export default function InstantPremiumPage() {
                     </li>
                   ) : null}
                   <li>
-                    <span className="text-zinc-500">{t("instant.step7.duration")}:</span> {durationSec}s
+                    <span className="text-zinc-500">{t("instant.step7.duration")}:</span>{" "}
+                    {outputPlan.totalDurationSeconds}s
                   </li>
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}
@@ -1359,11 +1366,17 @@ export default function InstantPremiumPage() {
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.images")}:</span> {images.length}
                   </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.outputPlan.transitions")}:</span>{" "}
+                    {outputPlan.transitionCount}
+                  </li>
                 </ul>
                 <p className="text-xs text-zinc-500">
-                  {premiumMode === "paid"
-                    ? t("instant.step7.checkoutHelp")
-                    : t("instant.step7.testModeHelp")}
+                  {usesFreeGeneration
+                    ? isAdmin
+                      ? t("instant.pricing.adminTestMode")
+                      : t("instant.step7.testModeHelp")
+                    : t("instant.step7.checkoutHelp")}
                 </p>
               </div>
             ) : null}

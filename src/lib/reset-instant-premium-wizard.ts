@@ -43,7 +43,7 @@ export const INSTANT_WIZARD_DEFAULT_BAKED_TEXT: BakedTextProtectionDraft = {
 export type InstantWizardFormDefaults = {
   step: number;
   stylePreset: InstantPremiumStylePreset;
-  durationSec: 8 | 15;
+  durationSec?: number;
   motionText: string;
   continuityStrength: InstantPremiumContinuityStrength;
   chips: (InstantPremiumChipId | TextImplyingChipId)[];
@@ -61,7 +61,6 @@ export function getInstantWizardFormDefaults(): InstantWizardFormDefaults {
   return {
     step: 1,
     stylePreset: "food_promo",
-    durationSec: 8,
     motionText: "",
     continuityStrength: "balanced",
     chips: [],

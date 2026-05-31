@@ -9,10 +9,7 @@ import {
 import { requireActiveUser } from "@/server/auth/permissions";
 import { startProjectJobs } from "@/server/animation-jobs/service";
 
-const EXPECTED_CENTS: Record<8 | 15, number> = {
-  8: 199,
-  15: 299,
-};
+import { estimateInstantPremiumPriceCents } from "@/lib/instant-premium-pricing";
 
 export async function POST(request: Request) {
   if (getInstantPremiumMode() !== "paid") {
@@ -89,8 +86,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const duration = payloadValidated.data.duration;
-  const expectedCents = EXPECTED_CENTS[duration === 15 ? 15 : 8];
+  const imageCount = payloadValidated.data.images.length;
+  const expectedCents = estimateInstantPremiumPriceCents(imageCount);
   if (
     typeof session.amount_total === "number" &&
     session.amount_total > 0 &&
@@ -98,7 +95,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error: "Paid amount does not match selected duration.",
+        error: "Paid amount does not match selected image count.",
         expectedCents,
         got: session.amount_total,
       },

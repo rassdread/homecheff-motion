@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { put } from "@vercel/blob";
+import { head, put } from "@vercel/blob";
 
 export const EXPORT_BLOB_UPLOAD_CODES = [
   "EXPORT_UPLOAD_AUTH_FAILED",
@@ -116,6 +116,7 @@ export async function uploadPublicBlob(params: {
   body: Buffer | Uint8Array | Blob | ArrayBuffer | string;
   contentType: string;
   addRandomSuffix?: boolean;
+  allowOverwrite?: boolean;
   context: ExportBlobUploadContext;
 }): Promise<{ url: string; pathname: string }> {
   const token = getBlobReadWriteToken();
@@ -140,6 +141,7 @@ export async function uploadPublicBlob(params: {
       access: "public",
       contentType: params.contentType,
       addRandomSuffix: params.addRandomSuffix ?? false,
+      allowOverwrite: params.allowOverwrite ?? false,
       token,
     });
     return { url: blob.url, pathname: blob.pathname };
@@ -152,5 +154,18 @@ export async function uploadPublicBlob(params: {
       ...params.context,
       cause: error,
     });
+  }
+}
+
+export async function resolvePublicBlobUrlByPathname(pathname: string): Promise<string | null> {
+  const token = getBlobReadWriteToken();
+  if (!token) {
+    return null;
+  }
+  try {
+    const meta = await head(pathname, { token });
+    return meta.url?.trim() || null;
+  } catch {
+    return null;
   }
 }
