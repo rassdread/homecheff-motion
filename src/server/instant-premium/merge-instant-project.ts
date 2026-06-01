@@ -106,7 +106,8 @@ import {
 } from "@/server/instant-premium/final-video-export-commit";
 import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
-import { parseInstantMode, parseInstantSceneTexts } from "@/lib/instant-premium-mode-types";
+import { parseInstantMode } from "@/lib/instant-premium-mode-types";
+import { hasSceneOverlayContent, parseInstantSceneTexts } from "@/lib/story-overlay-templates";
 import { applyStorySceneTextOverlay } from "@/server/animation-export/story-text-overlay";
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 import {
@@ -888,7 +889,7 @@ export async function executeInstantPremiumMerge(
 
       const storyMode = parseInstantMode(project.instantMode) === "story";
       const storySceneTexts = parseInstantSceneTexts(project.instantSceneTexts);
-      if (storyMode && storySceneTexts.some((s) => s.title.trim() || s.subtitle.trim())) {
+      if (storyMode && storySceneTexts.some((s) => hasSceneOverlayContent(s))) {
         setFinalExportStage(projectId, "overlay", { exportId: exportRow.id });
         const withStoryPath = path.join(workDir, "final-with-story-text.mp4");
         const probedMerged = await probeVideoSegment(mergedPath);
@@ -906,7 +907,6 @@ export async function executeInstantPremiumMerge(
             width: probedMerged?.width ?? dims.width,
             height: probedMerged?.height ?? dims.height,
             workDir,
-            template: "cinematic",
           });
           mergedPath = withStoryPath;
           console.info("[hc-instant-premium]", {

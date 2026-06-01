@@ -2,12 +2,26 @@
 
 import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import { INSTANT_TRANSITION_SECONDS_OPTIONS } from "@/lib/instant-premium-mode-types";
+import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
 
 export type InstantSceneTextDraft = {
+  template: SceneOverlayTemplate;
+  heroText: string;
   title: string;
   subtitle: string;
+  accentWords: string;
 };
+
+export function emptySceneTextDraft(): InstantSceneTextDraft {
+  return {
+    template: "auto",
+    heroText: "",
+    title: "",
+    subtitle: "",
+    accentWords: "",
+  };
+}
 
 type InstantModePanelProps = {
   instantMode: InstantMode;
@@ -39,6 +53,16 @@ const DURATION_LABEL_KEYS: Record<
     subtitle: "instant.mode.duration.cinematicHint",
   },
 };
+
+const TEMPLATE_OPTIONS: SceneOverlayTemplate[] = ["auto", "hero", "scene"];
+
+function showHeroFields(template: SceneOverlayTemplate): boolean {
+  return template === "auto" || template === "hero";
+}
+
+function showSceneFields(template: SceneOverlayTemplate): boolean {
+  return template === "auto" || template === "scene";
+}
 
 export function InstantModePanel({
   instantMode,
@@ -131,6 +155,7 @@ export function InstantModePanel({
           <p className="rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
             {t("instant.mode.story.warning")}
           </p>
+          <p className="text-xs leading-relaxed text-zinc-600">{t("instant.overlay.heroHelper")}</p>
           {sceneTexts.map((scene, index) => (
             <div
               key={index}
@@ -140,23 +165,67 @@ export function InstantModePanel({
                 {t("instant.mode.sceneLabel", { index: index + 1 })}
               </p>
               <label className="mt-2 block text-xs text-zinc-500">
-                {t("instant.mode.sceneTitle")}
-                <input
-                  type="text"
-                  value={scene.title}
-                  onChange={(e) => onSceneTextChange(index, { title: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                  placeholder={t("instant.mode.sceneTitlePlaceholder")}
-                />
+                {t("instant.overlay.templateLabel")}
+                <select
+                  value={scene.template}
+                  onChange={(e) =>
+                    onSceneTextChange(index, {
+                      template: e.target.value as SceneOverlayTemplate,
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
+                >
+                  {TEMPLATE_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {t(`instant.overlay.template.${opt}` as never)}
+                    </option>
+                  ))}
+                </select>
               </label>
+              {showHeroFields(scene.template) ? (
+                <label className="mt-2 block text-xs text-zinc-500">
+                  {t("instant.overlay.heroText")}
+                  <textarea
+                    value={scene.heroText}
+                    onChange={(e) => onSceneTextChange(index, { heroText: e.target.value })}
+                    rows={2}
+                    className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase text-zinc-900"
+                    placeholder={t("instant.overlay.heroTextPlaceholder")}
+                  />
+                </label>
+              ) : null}
+              {showSceneFields(scene.template) ? (
+                <>
+                  <label className="mt-2 block text-xs text-zinc-500">
+                    {t("instant.mode.sceneTitle")}
+                    <input
+                      type="text"
+                      value={scene.title}
+                      onChange={(e) => onSceneTextChange(index, { title: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                      placeholder={t("instant.mode.sceneTitlePlaceholder")}
+                    />
+                  </label>
+                  <label className="mt-2 block text-xs text-zinc-500">
+                    {t("instant.mode.sceneSubtitle")}
+                    <input
+                      type="text"
+                      value={scene.subtitle}
+                      onChange={(e) => onSceneTextChange(index, { subtitle: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                      placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
+                    />
+                  </label>
+                </>
+              ) : null}
               <label className="mt-2 block text-xs text-zinc-500">
-                {t("instant.mode.sceneSubtitle")}
+                {t("instant.overlay.accentWords")}
                 <input
                   type="text"
-                  value={scene.subtitle}
-                  onChange={(e) => onSceneTextChange(index, { subtitle: e.target.value })}
+                  value={scene.accentWords}
+                  onChange={(e) => onSceneTextChange(index, { accentWords: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                  placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
+                  placeholder={t("instant.overlay.accentWordsPlaceholder")}
                 />
               </label>
             </div>

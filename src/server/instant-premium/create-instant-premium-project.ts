@@ -15,6 +15,7 @@ import {
 } from "@/lib/locked-text-layer";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 import {
+  emptyNormalizedSceneText,
   isInstantMode,
   isInstantTransitionSeconds,
   maxImagesForInstantMode,
@@ -154,7 +155,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     };
   }
   while (instantSceneTexts.length < images.length) {
-    instantSceneTexts.push({ title: "", subtitle: "" });
+    instantSceneTexts.push(emptyNormalizedSceneText());
   }
 
   if (images.some((image) => !image.fileName?.trim() || !image.previewUrl?.trim())) {

@@ -33,6 +33,8 @@ import {
   LOCKED_TEXT_SAFETY_BLOCK,
   isTextImplyingChipId,
 } from "@/lib/locked-text-layer";
+import type { InstantSceneText } from "@/lib/story-overlay-templates";
+import { heroSourceText, normalizeSceneText } from "@/lib/story-overlay-templates";
 
 export type InstantPremiumChipId =
   | "slow_zoom_in"
@@ -256,7 +258,7 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
 export type BuildInstantStoryModePromptInput = {
   userIntent: string | null;
   imageCount: number;
-  sceneTexts: Array<{ title: string; subtitle: string }>;
+  sceneTexts: InstantSceneText[];
   transitionSeconds: number;
   stylePreset?: InstantPremiumStylePreset;
 };
@@ -272,15 +274,17 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
 
   const sceneLines: string[] = [];
   for (let i = 0; i < input.imageCount; i += 1) {
-    const scene = input.sceneTexts[i] ?? { title: "", subtitle: "" };
-    const title = scene.title.trim();
-    const subtitle = scene.subtitle.trim();
+    const scene = normalizeSceneText(input.sceneTexts[i]);
     const parts: string[] = [];
-    if (title) {
-      parts.push(`title context: ${title}`);
+    const hero = heroSourceText(scene);
+    if (hero) {
+      parts.push(`story beat: ${hero}`);
     }
-    if (subtitle) {
-      parts.push(`subtitle context: ${subtitle}`);
+    if (scene.title) {
+      parts.push(`title context: ${scene.title}`);
+    }
+    if (scene.subtitle) {
+      parts.push(`subtitle context: ${scene.subtitle}`);
     }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";
@@ -297,8 +301,8 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     "Treat each image as a fixed visual anchor.",
     "Preserve the same characters, mascot identity, clothing, logo placement, body shape, colors, and visual style.",
     "Smoothly transition from image 1 to image 2, then image 2 to image 3, until the final image.",
-    "Do not add, generate, distort, or invent any text inside the video.",
-    "Leave clean space for later text overlays.",
+    "Do not generate any visible text, letters, captions, subtitles, logos, UI words, or typography inside the video.",
+    "Text overlays will be added after generation. Leave clean space for post-production captions.",
     "Keep motion cinematic, natural, and coherent.",
     "The full video should feel like one complete story from beginning to end.",
     styleLine,

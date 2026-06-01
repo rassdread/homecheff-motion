@@ -9,10 +9,17 @@ export const MIN_STORY_MODE_IMAGES = 2;
 export const MIN_TRANSITION_MODE_IMAGES = 2;
 export const MAX_TRANSITION_MODE_IMAGES = 5;
 
-export type InstantSceneText = {
-  title: string;
-  subtitle: string;
-};
+export type {
+  InstantSceneText,
+  NormalizedSceneText,
+  SceneOverlayTemplate,
+  SceneTemplatePosition,
+} from "@/lib/story-overlay-templates";
+
+export {
+  emptyNormalizedSceneText,
+  parseInstantSceneTexts,
+} from "@/lib/story-overlay-templates";
 
 export function isInstantMode(value: unknown): value is InstantMode {
   return value === "transition" || value === "story";
@@ -47,22 +54,6 @@ export function maxImagesForInstantMode(mode: InstantMode): number {
 
 export function minImagesForInstantMode(mode: InstantMode): number {
   return mode === "story" ? MIN_STORY_MODE_IMAGES : MIN_TRANSITION_MODE_IMAGES;
-}
-
-export function parseInstantSceneTexts(raw: unknown): InstantSceneText[] {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-  return raw.map((item) => {
-    if (!item || typeof item !== "object") {
-      return { title: "", subtitle: "" };
-    }
-    const o = item as Record<string, unknown>;
-    return {
-      title: typeof o.title === "string" ? o.title.trim() : "",
-      subtitle: typeof o.subtitle === "string" ? o.subtitle.trim() : "",
-    };
-  });
 }
 
 /** Vidu multiframe accepts 2–7s per segment; cinematic 8s maps to 7. */

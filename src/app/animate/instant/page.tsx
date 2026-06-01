@@ -112,6 +112,7 @@ import {
   type InstantTransitionSeconds,
 } from "@/lib/instant-premium-mode-types";
 import {
+  emptySceneTextDraft,
   InstantModePanel,
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
@@ -315,7 +316,16 @@ export default function InstantPremiumPage() {
     return {
       instantMode,
       instantTransitionSeconds: transitionSeconds,
-      instantSceneTexts: sceneTexts.slice(0, images.length),
+      instantSceneTexts: sceneTexts.slice(0, images.length).map((scene) => ({
+        template: scene.template,
+        heroText: scene.heroText.trim() || undefined,
+        title: scene.title.trim() || undefined,
+        subtitle: scene.subtitle.trim() || undefined,
+        accentWords: scene.accentWords
+          .split(",")
+          .map((w) => w.trim())
+          .filter(Boolean),
+      })),
       images: images.map((img) => {
         const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
         return {
@@ -435,7 +445,7 @@ export default function InstantPremiumPage() {
           setSceneTexts((st) => {
             const next = [...st];
             while (next.length < updated.length) {
-              next.push({ title: "", subtitle: "" });
+              next.push(emptySceneTextDraft());
             }
             return next.slice(0, updated.length);
           });
@@ -866,7 +876,16 @@ export default function InstantPremiumPage() {
         images: uploaded,
         instantMode,
         instantTransitionSeconds: transitionSeconds,
-        instantSceneTexts: sceneTexts.slice(0, images.length),
+        instantSceneTexts: sceneTexts.slice(0, images.length).map((scene) => ({
+        template: scene.template,
+        heroText: scene.heroText.trim() || undefined,
+        title: scene.title.trim() || undefined,
+        subtitle: scene.subtitle.trim() || undefined,
+        accentWords: scene.accentWords
+          .split(",")
+          .map((w) => w.trim())
+          .filter(Boolean),
+      })),
         stylePreset,
         duration: plan.totalDurationSeconds,
         aspectRatio,
