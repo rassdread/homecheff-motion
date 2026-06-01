@@ -13,14 +13,20 @@ import {
   isTextImplyingChipId,
   type TextImplyingChipId,
 } from "@/lib/locked-text-layer";
+import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 import {
-  instantPremiumPerTransitionSeconds,
-  resolveInstantPremiumOutputPlan,
-} from "@/lib/instant-premium-output-plan";
-import {
-  MAX_INSTANT_PREMIUM_IMAGES,
-  MIN_INSTANT_PREMIUM_IMAGES,
-} from "@/lib/instant-premium-pricing";
+  isInstantMode,
+  isInstantTransitionSeconds,
+  maxImagesForInstantMode,
+  minImagesForInstantMode,
+  parseInstantMode,
+  parseInstantSceneTexts,
+  type InstantMode,
+  type InstantSceneText,
+  type InstantTransitionSeconds,
+  viduMultiframeTotalDurationSeconds,
+} from "@/lib/instant-premium-mode-types";
+import { MIN_INSTANT_PREMIUM_IMAGES } from "@/lib/instant-premium-pricing";
 import {
   composeStoredInstantUserIntent,
   isInstantPremiumChipId,
@@ -55,13 +61,14 @@ import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validat
 import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
-const MIN_IMAGES = MIN_INSTANT_PREMIUM_IMAGES;
-const MAX_IMAGES = MAX_INSTANT_PREMIUM_IMAGES;
 const MAX_CHIPS = 3;
 const MAX_INTENT_LENGTH = 500;
 
 export type InstantPremiumCreatePayload = {
   images: CreateAnimationProjectImageInput[];
+  instantMode?: InstantMode;
+  instantTransitionSeconds?: InstantTransitionSeconds;
+  instantSceneTexts?: InstantSceneText[];
   stylePreset: string;
   duration: number;
   aspectRatio: string;
@@ -106,12 +113,48 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     return { ok: false, error: "images must be an array.", status: 400 };
   }
   const images = imagesRaw.filter(isImageInput);
-  if (images.length < MIN_IMAGES || images.length > MAX_IMAGES) {
+  const instantMode = parseInstantMode(o.instantMode);
+  const minImages = minImagesForInstantMode(instantMode);
+  const maxImages = maxImagesForInstantMode(instantMode);
+  if (images.length < minImages || images.length > maxImages) {
     return {
       ok: false,
-      error: `Instant premium requires between ${MIN_IMAGES} and ${MAX_IMAGES} images.`,
+      error: `Instant premium ${instantMode} mode requires between ${minImages} and ${maxImages} images.`,
       status: 400,
     };
+  }
+
+  if (o.instantMode !== undefined && o.instantMode !== null && !isInstantMode(o.instantMode)) {
+    return { ok: false, error: "instantMode must be transition or story.", status: 400 };
+  }
+
+  const transitionSecondsRaw = o.instantTransitionSeconds ?? o.transitionSeconds;
+  if (
+    transitionSecondsRaw !== undefined &&
+    transitionSecondsRaw !== null &&
+    !isInstantTransitionSeconds(transitionSecondsRaw)
+  ) {
+    return {
+      ok: false,
+      error: "transitionSeconds must be 3, 5, or 8.",
+      status: 400,
+    };
+  }
+  const instantTransitionSeconds: InstantTransitionSeconds =
+    transitionSecondsRaw === 3 || transitionSecondsRaw === 5 || transitionSecondsRaw === 8 ?
+      transitionSecondsRaw
+    : 5;
+
+  const instantSceneTexts = parseInstantSceneTexts(o.instantSceneTexts);
+  if (instantSceneTexts.length > images.length) {
+    return {
+      ok: false,
+      error: "instantSceneTexts cannot exceed image count.",
+      status: 400,
+    };
+  }
+  while (instantSceneTexts.length < images.length) {
+    instantSceneTexts.push({ title: "", subtitle: "" });
   }
 
   if (images.some((image) => !image.fileName?.trim() || !image.previewUrl?.trim())) {
@@ -134,7 +177,11 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     return { ok: false, error: "Invalid style preset.", status: 400 };
   }
 
-  const outputPlan = resolveInstantPremiumOutputPlan(images.length);
+  const outputPlan = resolveInstantPremiumOutputPlan({
+    imageCount: images.length,
+    instantMode,
+    transitionSeconds: instantTransitionSeconds,
+  });
   const duration = outputPlan.totalDurationSeconds;
 
   const aspectRatio = typeof o.aspectRatio === "string" ? o.aspectRatio.trim() : "";
@@ -225,6 +272,9 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
 
   const data: InstantPremiumCreatePayload = {
     images,
+    instantMode,
+    instantTransitionSeconds,
+    instantSceneTexts,
     stylePreset,
     duration,
     aspectRatio,
@@ -301,6 +351,7 @@ function parseChips(raw: unknown): string[] {
 }
 
 export { instantPremiumPerTransitionSeconds } from "@/lib/instant-premium-output-plan";
+export type { InstantMode, InstantSceneText, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 
 export async function createInstantPremiumAnimationProject(
   ownerId: string,
@@ -369,12 +420,23 @@ export async function createInstantPremiumAnimationProject(
     text: intentBase,
   });
 
-  const outputPlan = resolveInstantPremiumOutputPlan(images.length);
-  const durationResolved: InstantPremiumDurationSeconds = outputPlan.totalDurationSeconds;
+  const instantMode = parseInstantMode(validated.data.instantMode);
+  const instantTransitionSeconds = validated.data.instantTransitionSeconds ?? 5;
+  const instantSceneTexts = validated.data.instantSceneTexts ?? [];
+
+  const outputPlan = resolveInstantPremiumOutputPlan({
+    imageCount: images.length,
+    instantMode,
+    transitionSeconds: instantTransitionSeconds,
+  });
+  const durationResolved: InstantPremiumDurationSeconds =
+    instantMode === "story" ?
+      viduMultiframeTotalDurationSeconds(images.length, instantTransitionSeconds)
+    : outputPlan.totalDurationSeconds;
 
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
   const transitionCount = images.length - 1;
-  const perTransition = outputPlan.perTransitionSeconds;
+  const perTransition = outputPlan.viduSegmentDurationSeconds;
   const estimatedCredits =
     transitionCount * perTransition * preset.estimatedCreditsPerSecond;
 
@@ -429,6 +491,12 @@ export async function createInstantPremiumAnimationProject(
           stylePreset,
           aspectRatio,
           instantOutputDurationSeconds: durationResolved,
+          instantMode,
+          instantTransitionSeconds,
+          instantSceneTexts:
+            instantMode === "story" ?
+              (instantSceneTexts as unknown as Prisma.InputJsonValue)
+            : undefined,
           instantSelectedChips: chipsJson ?? undefined,
           instantUserIntent: intent,
           instantLockedTextLayers: lockedLayersJson,
@@ -478,20 +546,33 @@ export async function createInstantPremiumAnimationProject(
         )
       );
 
-      for (let index = 0; index < createdImages.length - 1; index += 1) {
-        const image = createdImages[index];
-        const nextImage = createdImages[index + 1];
-
+      if (instantMode === "story") {
         await tx.animationTransition.create({
           data: {
             projectId: project.id,
-            startImageId: image.id,
-            endImageId: nextImage.id,
-            order: index,
+            startImageId: createdImages[0].id,
+            endImageId: createdImages[createdImages.length - 1].id,
+            order: 0,
             status: "queued",
             progress: 0,
           },
         });
+      } else {
+        for (let index = 0; index < createdImages.length - 1; index += 1) {
+          const image = createdImages[index];
+          const nextImage = createdImages[index + 1];
+
+          await tx.animationTransition.create({
+            data: {
+              projectId: project.id,
+              startImageId: image.id,
+              endImageId: nextImage.id,
+              order: index,
+              status: "queued",
+              progress: 0,
+            },
+          });
+        }
       }
 
       return project.id;
@@ -511,15 +592,20 @@ export async function createInstantPremiumAnimationProject(
 /** Credit estimate for UI (same formula as persisted project). */
 export function estimateInstantPremiumCredits(
   imageCount: number,
-  duration?: InstantPremiumDurationSeconds
+  duration?: InstantPremiumDurationSeconds,
+  options?: { instantMode?: InstantMode; transitionSeconds?: InstantTransitionSeconds }
 ): number {
-  if (imageCount < MIN_IMAGES) {
+  if (imageCount < MIN_INSTANT_PREMIUM_IMAGES) {
     return 0;
   }
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
-  const plan = resolveInstantPremiumOutputPlan(imageCount);
-  const totalSeconds = duration ?? plan.totalDurationSeconds;
-  const per = instantPremiumPerTransitionSeconds(totalSeconds, imageCount);
+  const instantMode = parseInstantMode(options?.instantMode);
+  const plan = resolveInstantPremiumOutputPlan({
+    imageCount,
+    instantMode,
+    transitionSeconds: options?.transitionSeconds,
+  });
+  const per = plan.viduSegmentDurationSeconds;
   const transitions = imageCount - 1;
   return transitions * per * preset.estimatedCreditsPerSecond;
 }

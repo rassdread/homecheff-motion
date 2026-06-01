@@ -8,6 +8,13 @@ import {
 } from "@/lib/animation-presets";
 import { normalizeTextRenderMode } from "@/lib/hybrid-motion-overlay";
 import {
+  normalizeInstantTransitionSeconds,
+  parseInstantMode,
+  parseInstantSceneTexts,
+  viduMultiframeSegmentDurationSeconds,
+} from "@/lib/instant-premium-mode-types";
+import {
+  buildInstantStoryModePrompt,
   buildInstantVideoPrompt,
   instantPremiumTransitionSegmentHint,
   isInstantPremiumStylePreset,
@@ -223,8 +230,18 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       textRenderMode === "exact_freeze");
 
   const transitionTotal = transition.project._count.transitions;
-  const imageCount = transitionTotal + 1;
   const isInstantPremium = transition.project.projectType === "instant_premium";
+  const instantMode = parseInstantMode(transition.project.instantMode);
+  const isStoryMode = isInstantPremium && instantMode === "story";
+
+  const orderedProjectImages = isStoryMode ?
+    await prisma.animationImage.findMany({
+      where: { projectId: transition.projectId },
+      orderBy: { order: "asc" },
+    })
+  : [];
+
+  const imageCount = isStoryMode ? orderedProjectImages.length : transitionTotal + 1;
   const instantStoredIntent = parseStoredInstantUserIntent(transition.project.instantUserIntent);
 
   const polishSettings = transition.project.instantPosterMotionSettings;
@@ -251,7 +268,25 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     }
   }
   let finalPrompt: string;
-  if (isInstantPremium) {
+  if (isInstantPremium && isStoryMode) {
+    const transitionSeconds = normalizeInstantTransitionSeconds(
+      transition.project.instantTransitionSeconds
+    );
+    const sceneTexts = parseInstantSceneTexts(transition.project.instantSceneTexts);
+    finalPrompt = buildInstantStoryModePrompt({
+      userIntent: instantStoredIntent.text || null,
+      imageCount,
+      sceneTexts,
+      transitionSeconds,
+      stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
+    });
+    const lengthCheck = validateViduPromptLength(finalPrompt, VIDU_PROMPT_HARD_MAX_CHARS);
+    if (!lengthCheck.ok) {
+      throw new Error(
+        `VIDU_PROMPT_TOO_LONG: ${lengthCheck.debug.charsAfter} chars (max ${VIDU_PROMPT_HARD_MAX_CHARS}).`
+      );
+    }
+  } else if (isInstantPremium) {
     const mainPrompt = buildInstantVideoPrompt({
       stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
       duration: resolveInstantPremiumDuration(transition.project.instantOutputDurationSeconds),
@@ -321,23 +356,63 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
   const jobSettings = resolveProviderJobSettings(transition.project);
   let providerResult;
   try {
-    providerResult = await provider.createStartEndVideoJob({
-      transitionId: transition.id,
-      projectId: transition.projectId,
-      startImageUrl: startViduUrl,
-      endImageUrl: endViduUrl,
-      prompt: finalPrompt,
-      durationSeconds: jobSettings.providerDurationSeconds,
-      aspectRatio: isInstantPremium
-        ? resolveInstantPremiumAspect(transition.project.aspectRatio)
-        : (transition.project.aspectRatio ?? "16:9"),
-      stylePreset: isInstantPremium
-        ? resolveInstantPremiumStyle(transition.project.stylePreset)
-        : (transition.project.stylePreset ?? "homecheff-motion"),
-      providerModel: jobSettings.providerModel,
-      providerResolution: jobSettings.providerResolution,
-      providerDurationSeconds: jobSettings.providerDurationSeconds,
-    });
+    if (isStoryMode) {
+      if (!provider.createMultiImageVideoJob) {
+        throw new Error("Video provider does not support multi-image story mode.");
+      }
+      if (orderedProjectImages.length < 2) {
+        throw new Error("Story mode requires at least two images.");
+      }
+      const transitionSeconds = normalizeInstantTransitionSeconds(
+        transition.project.instantTransitionSeconds
+      );
+      const segmentDuration = viduMultiframeSegmentDurationSeconds(transitionSeconds);
+      const firstUrl =
+        orderedProjectImages[0].viduInputUrl?.trim() ||
+        orderedProjectImages[0].previewUrl?.trim() ||
+        "";
+      if (!firstUrl) {
+        throw new Error("Story mode start image is missing a preview URL.");
+      }
+      const segments = orderedProjectImages.slice(1).map((img, index) => {
+        const url = img.viduInputUrl?.trim() || img.previewUrl?.trim() || "";
+        if (!url) {
+          throw new Error(`Story mode image ${index + 2} is missing a preview URL.`);
+        }
+        return {
+          keyImageUrl: url,
+          durationSeconds: segmentDuration,
+        };
+      });
+      providerResult = await provider.createMultiImageVideoJob({
+        transitionId: transition.id,
+        projectId: transition.projectId,
+        startImageUrl: firstUrl,
+        segments,
+        prompt: finalPrompt,
+        aspectRatio: resolveInstantPremiumAspect(transition.project.aspectRatio),
+        providerModel: jobSettings.providerModel,
+        providerResolution: jobSettings.providerResolution,
+      });
+    } else {
+      providerResult = await provider.createStartEndVideoJob({
+        transitionId: transition.id,
+        projectId: transition.projectId,
+        startImageUrl: startViduUrl,
+        endImageUrl: endViduUrl,
+        prompt: finalPrompt,
+        durationSeconds: jobSettings.providerDurationSeconds,
+        aspectRatio: isInstantPremium
+          ? resolveInstantPremiumAspect(transition.project.aspectRatio)
+          : (transition.project.aspectRatio ?? "16:9"),
+        stylePreset: isInstantPremium
+          ? resolveInstantPremiumStyle(transition.project.stylePreset)
+          : (transition.project.stylePreset ?? "homecheff-motion"),
+        providerModel: jobSettings.providerModel,
+        providerResolution: jobSettings.providerResolution,
+        providerDurationSeconds: jobSettings.providerDurationSeconds,
+      });
+    }
     console.info("[hc-instant-premium]", {
       action: "start_queued_segment",
       projectId: transition.projectId,

@@ -38,7 +38,13 @@ export type ImageRowForInvariant = {
   order: number;
 };
 
-export function expectedTransitionCountForImageCount(imageCount: number): number {
+export function expectedTransitionCountForImageCount(
+  imageCount: number,
+  instantMode?: string | null
+): number {
+  if (instantMode === "story" && imageCount >= 2) {
+    return 1;
+  }
   return Math.max(0, imageCount - 1);
 }
 

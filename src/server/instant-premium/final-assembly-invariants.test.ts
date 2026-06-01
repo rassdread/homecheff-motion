@@ -29,6 +29,10 @@ describe("expectedTransitionCountForImageCount", () => {
     assert.equal(expectedTransitionCountForImageCount(4), 3);
     assert.equal(expectedTransitionCountForImageCount(1), 0);
   });
+
+  it("requires one transition row for story mode", () => {
+    assert.equal(expectedTransitionCountForImageCount(9, "story"), 1);
+  });
 });
 
 describe("assertFinalAssemblyTransitionInvariant", () => {

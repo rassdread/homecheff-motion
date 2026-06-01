@@ -1,4 +1,5 @@
 import type {
+  CreateMultiImageVideoJobInput,
   CreateStartEndVideoJobInput,
   CreateStartEndVideoJobResult,
   VideoJobLifecycleStatus,
@@ -168,7 +169,87 @@ async function viduRequestJson(
   return { ok: response.ok, status: response.status, json, text };
 }
 
+const MULTIFRAME_MODELS = new Set(["viduq2-pro", "viduq2-turbo"]);
+
+function resolveViduMultiframeModel(override?: string | null): string {
+  const raw = override?.trim() ?? process.env.VIDU_MULTIFRAME_MODEL ?? "viduq2-turbo";
+  const normalized = raw.toLowerCase().replace("vidu-q2-turbo", "viduq2-turbo").replace("vidu-q2-pro", "viduq2-pro");
+  if (MULTIFRAME_MODELS.has(normalized)) {
+    return normalized;
+  }
+  return "viduq2-turbo";
+}
+
 export class ViduVideoProvider implements VideoProvider {
+  async createMultiImageVideoJob(
+    input: CreateMultiImageVideoJobInput
+  ): Promise<CreateStartEndVideoJobResult> {
+    assertViduRealCallsEnabled();
+    assertViduApiKeyPresent();
+
+    if (input.segments.length < 1) {
+      throw new Error("Multi-image video requires at least one keyframe segment.");
+    }
+
+    const startUrl = resolvePublicImageUrlForVidu(input.startImageUrl, "start");
+    const model = resolveViduMultiframeModel(input.providerModel ?? null);
+    const resolution = resolveViduResolutionForJob(input.providerResolution ?? null);
+
+    const imageSettings = input.segments.map((segment) => ({
+      key_image: resolvePublicImageUrlForVidu(segment.keyImageUrl, "end"),
+      prompt: segment.prompt?.trim() || input.prompt.trim() || undefined,
+      duration: Math.max(2, Math.min(7, Math.floor(segment.durationSeconds))),
+    }));
+
+    const payload = {
+      model,
+      start_image: startUrl,
+      image_settings: imageSettings,
+      resolution,
+      payload: input.projectId ? `hc_project:${input.projectId}` : undefined,
+    };
+
+    const { ok, status, json, text } = await viduRequestJson(
+      "POST",
+      "/ent/v2/multiframe",
+      payload
+    );
+
+    if (!ok) {
+      const msg =
+        extractErrMessage(json) ??
+        (text.length > 0 && text.length < 2000 ? text : `HTTP ${status}`);
+      throw new Error(`Vidu multiframe failed (${status}): ${msg}`);
+    }
+
+    const body = json as Record<string, unknown> | null;
+    const taskId =
+      typeof body?.task_id === "string"
+        ? body.task_id
+        : typeof body?.id === "string"
+          ? body.id
+          : undefined;
+
+    if (!taskId?.trim()) {
+      throw new Error("Vidu multiframe response missing task_id.");
+    }
+
+    const rawState = typeof body?.state === "string" ? body.state : "created";
+    const lifecycle = mapViduStateToLifecycle(rawState);
+
+    if (lifecycle === "failed") {
+      const err =
+        extractErrMessage(json) ?? "Vidu multiframe task reported failed state immediately after create.";
+      throw new Error(err);
+    }
+
+    return {
+      providerJobId: taskId.trim(),
+      status: lifecycle,
+      providerKey: "vidu",
+    };
+  }
+
   async createStartEndVideoJob(
     input: CreateStartEndVideoJobInput
   ): Promise<CreateStartEndVideoJobResult> {

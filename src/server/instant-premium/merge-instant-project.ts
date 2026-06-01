@@ -106,6 +106,9 @@ import {
 } from "@/server/instant-premium/final-video-export-commit";
 import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import { parseInstantMode, parseInstantSceneTexts } from "@/lib/instant-premium-mode-types";
+import { applyStorySceneTextOverlay } from "@/server/animation-export/story-text-overlay";
+import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 import {
   assertFinalConcatInputCount,
   expectedTransitionCountForImageCount,
@@ -594,7 +597,10 @@ export async function executeInstantPremiumMerge(
         allowStaticFallback,
       });
 
-      const expectedTransitionCount = expectedTransitionCountForImageCount(project.images.length);
+      const expectedTransitionCount = expectedTransitionCountForImageCount(
+        project.images.length,
+        project.instantMode
+      );
       validateMergeSegmentsBeforeExport({
         projectId,
         segmentCount: expectedTransitionCount,
@@ -880,8 +886,72 @@ export async function executeInstantPremiumMerge(
         }
       }
 
+      const storyMode = parseInstantMode(project.instantMode) === "story";
+      const storySceneTexts = parseInstantSceneTexts(project.instantSceneTexts);
+      if (storyMode && storySceneTexts.some((s) => s.title.trim() || s.subtitle.trim())) {
+        setFinalExportStage(projectId, "overlay", { exportId: exportRow.id });
+        const withStoryPath = path.join(workDir, "final-with-story-text.mp4");
+        const probedMerged = await probeVideoSegment(mergedPath);
+        const dims = resolveInstantVideoDimensions(project.aspectRatio, project.viduResolution);
+        const overlayDurationSec =
+          probedMerged?.durationSec ??
+          project.instantOutputDurationSeconds ??
+          expectedDurationSec;
+        try {
+          await applyStorySceneTextOverlay({
+            inputVideoPath: mergedPath,
+            outputVideoPath: withStoryPath,
+            sceneTexts: storySceneTexts,
+            durationSeconds: overlayDurationSec,
+            width: probedMerged?.width ?? dims.width,
+            height: probedMerged?.height ?? dims.height,
+            workDir,
+            template: "cinematic",
+          });
+          mergedPath = withStoryPath;
+          console.info("[hc-instant-premium]", {
+            projectId,
+            phase: "storySceneTextOverlayComplete",
+            durationSec: overlayDurationSec,
+          });
+        } catch (overlayError) {
+          const safeMessage = sanitizeOverlayError(
+            overlayError instanceof Error ? overlayError.message : "Story text overlay failed."
+          );
+          await prisma.animationExport.update({
+            where: { id: exportRow.id },
+            data: {
+              status: "failed_overlay",
+              progress: 75,
+              errorMessage: safeMessage,
+              outputVideoUrl: null,
+            },
+          });
+          await prisma.animationProject.update({
+            where: { id: projectId },
+            data: {
+              status: "failed_overlay",
+              lastOverlayError: safeMessage,
+              failureReason: "overlay_failed",
+              instantWorkerJobStatus: "failed",
+            },
+          });
+          logFinalExportFailed({
+            projectId,
+            exportId: exportRow.id,
+            provider: exportProvider,
+            stage: "story_text_overlay",
+            failureReason: "overlay_failed",
+            failureMessage: safeMessage,
+            workerError: safeMessage,
+          });
+          return;
+        }
+      }
+
       const needsOverlay =
         !plainConcatSafeMode &&
+        !storyMode &&
         shouldApplyOcrTextOverlay(textRenderMode) &&
         textRenderMode !== "none" &&
         project.instantLockedTextMode &&

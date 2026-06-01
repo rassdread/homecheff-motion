@@ -84,9 +84,14 @@ export async function POST(request: Request) {
   const stripe = getStripeClient();
   const origin = getPublicOrigin();
   const imageCount = validated.data.images.length;
-  const amountCents = estimateInstantPremiumPriceCents(imageCount);
-  const priceLabel = formatInstantPremiumPriceEur(imageCount, "en");
-  const label = `HomeCheff Motion — AI video (${imageCount} images, ${priceLabel})`;
+  const priceOptions = {
+    durationSeconds: validated.data.duration,
+    transitionSeconds: validated.data.instantTransitionSeconds,
+  };
+  const amountCents = estimateInstantPremiumPriceCents(imageCount, priceOptions);
+  const priceLabel = formatInstantPremiumPriceEur(imageCount, "en", priceOptions);
+  const modeLabel = validated.data.instantMode === "story" ? "Story" : "Transition";
+  const label = `HomeCheff Motion — ${modeLabel} (${imageCount} images, ${validated.data.duration}s, ${priceLabel})`;
 
   const pending = await prisma.instantPremiumPendingOrder.create({
     data: {

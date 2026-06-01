@@ -103,10 +103,18 @@ import {
 } from "@/lib/instant-image-upload-client";
 import {
   formatInstantPremiumPriceEur,
-  MAX_INSTANT_PREMIUM_IMAGES,
   MIN_INSTANT_PREMIUM_IMAGES,
 } from "@/lib/instant-premium-pricing";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
+import {
+  maxImagesForInstantMode,
+  type InstantMode,
+  type InstantTransitionSeconds,
+} from "@/lib/instant-premium-mode-types";
+import {
+  InstantModePanel,
+  type InstantSceneTextDraft,
+} from "@/components/instant/instant-mode-panel";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -143,7 +151,6 @@ function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string)
 }
 
 const MIN_IMAGES = MIN_INSTANT_PREMIUM_IMAGES;
-const MAX_IMAGES = MAX_INSTANT_PREMIUM_IMAGES;
 const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
 
 type LocalImage = {
@@ -248,6 +255,9 @@ export default function InstantPremiumPage() {
   const [chipTextBySlot, setChipTextBySlot] = useState<Partial<Record<TextImplyingChipId, string>>>({});
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9">("9:16");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [instantMode, setInstantMode] = useState<InstantMode>("transition");
+  const [transitionSeconds, setTransitionSeconds] = useState<InstantTransitionSeconds>(5);
+  const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
   const [fastRenderMode, setFastRenderMode] = useState(false);
   const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -272,22 +282,40 @@ export default function InstantPremiumPage() {
   }, [mounted]);
   const isAdmin = session.user?.role?.trim() === "admin";
 
+  const maxImages = maxImagesForInstantMode(instantMode);
   const outputPlan = useMemo(
-    () => resolveInstantPremiumOutputPlan(images.length),
-    [images.length]
+    () =>
+      resolveInstantPremiumOutputPlan({
+        imageCount: images.length,
+        instantMode,
+        transitionSeconds,
+      }),
+    [images.length, instantMode, transitionSeconds]
   );
   const estimatedPriceLabel = useMemo(
-    () => formatInstantPremiumPriceEur(Math.max(MIN_IMAGES, images.length), locale === "nl" ? "nl" : "en"),
-    [images.length, locale]
+    () =>
+      formatInstantPremiumPriceEur(Math.max(MIN_IMAGES, images.length), locale === "nl" ? "nl" : "en", {
+        durationSeconds: outputPlan.totalDurationSeconds,
+        transitionSeconds,
+      }),
+    [images.length, locale, outputPlan.totalDurationSeconds, transitionSeconds]
   );
+
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
 
   const buildValidationPayload = useCallback((): Record<string, unknown> | null => {
     if (images.length < MIN_IMAGES) {
       return null;
     }
-    const plan = resolveInstantPremiumOutputPlan(images.length);
+    const plan = resolveInstantPremiumOutputPlan({
+      imageCount: images.length,
+      instantMode,
+      transitionSeconds,
+    });
     return {
+      instantMode,
+      instantTransitionSeconds: transitionSeconds,
+      instantSceneTexts: sceneTexts.slice(0, images.length),
       images: images.map((img) => {
         const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
         return {
@@ -327,6 +355,9 @@ export default function InstantPremiumPage() {
     textRenderMode,
     hybridOverlayStyle,
     posterMotionSettings,
+    instantMode,
+    transitionSeconds,
+    sceneTexts,
   ]);
 
   const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
@@ -361,9 +392,9 @@ export default function InstantPremiumPage() {
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
-      const room = MAX_IMAGES - images.length;
+      const room = maxImages - images.length;
       if (room <= 0) {
-        setError(t("instant.errors.maxImages", { max: MAX_IMAGES }));
+        setError(t("instant.errors.maxImages", { max: maxImages }));
         return;
       }
       const take = list.slice(0, room);
@@ -399,7 +430,17 @@ export default function InstantPremiumPage() {
             } satisfies LocalImage;
           })
         );
-        setImages((prev) => [...prev, ...processed]);
+        setImages((prev) => {
+          const updated = [...prev, ...processed];
+          setSceneTexts((st) => {
+            const next = [...st];
+            while (next.length < updated.length) {
+              next.push({ title: "", subtitle: "" });
+            }
+            return next.slice(0, updated.length);
+          });
+          return updated;
+        });
         for (const img of processed) {
           void safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
         }
@@ -414,7 +455,7 @@ export default function InstantPremiumPage() {
         );
       }
     },
-    [images.length, session.user?.role, t]
+    [images.length, maxImages, session.user?.role, t]
   );
 
   const updateBakedText = useCallback((imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
@@ -568,7 +609,14 @@ export default function InstantPremiumPage() {
     async (im: LocalImage) => {
       cancelOcrScanForImage(im.id);
       await purgeInstantWizardImagePersistence(im);
-      setImages((prev) => prev.filter((x) => x.id !== im.id));
+      setImages((prev) => {
+        const index = prev.findIndex((x) => x.id === im.id);
+        const next = prev.filter((x) => x.id !== im.id);
+        if (index >= 0) {
+          setSceneTexts((st) => st.filter((_, i) => i !== index));
+        }
+        return next;
+      });
       await persistNow();
     },
     [cancelOcrScanForImage, persistNow]
@@ -580,6 +628,7 @@ export default function InstantPremiumPage() {
       revokeWizardImagePreviewUrls(im);
     }
     setImages([]);
+    setSceneTexts([]);
     await purgeAllInstantWizardUploadPersistence();
     await persistNow();
   }, [cancelOcrScanForImage, persistNow]);
@@ -808,9 +857,16 @@ export default function InstantPremiumPage() {
             textAlign: l.textAlign,
           })
         );
-      const plan = resolveInstantPremiumOutputPlan(images.length);
+      const plan = resolveInstantPremiumOutputPlan({
+        imageCount: images.length,
+        instantMode,
+        transitionSeconds,
+      });
       const body = {
         images: uploaded,
+        instantMode,
+        instantTransitionSeconds: transitionSeconds,
+        instantSceneTexts: sceneTexts.slice(0, images.length),
         stylePreset,
         duration: plan.totalDurationSeconds,
         aspectRatio,
@@ -967,6 +1023,9 @@ export default function InstantPremiumPage() {
       uploadToBlob,
       waitForPendingScans,
       usesFreeGeneration,
+      instantMode,
+      transitionSeconds,
+      sceneTexts,
     ]
   );
 
@@ -1191,7 +1250,41 @@ export default function InstantPremiumPage() {
           <InstantWizardContent>
             {step === 1 ? (
               <>
-                <h2 className="text-xl font-semibold tracking-tight">{t("instant.creatorStep.upload")}</h2>
+                <InstantModePanel
+                  instantMode={instantMode}
+                  onInstantModeChange={(mode) => {
+                    setInstantMode(mode);
+                    const cap = maxImagesForInstantMode(mode);
+                    setImages((prev) => {
+                      if (prev.length <= cap) {
+                        return prev;
+                      }
+                      const kept = prev.slice(0, cap);
+                      for (const removed of prev.slice(cap)) {
+                        cancelOcrScanForImage(removed.id);
+                        void purgeInstantWizardImagePersistence(removed);
+                        revokeWizardImagePreviewUrls(removed);
+                      }
+                      setSceneTexts((st) => st.slice(0, cap));
+                      return kept;
+                    });
+                  }}
+                  transitionSeconds={transitionSeconds}
+                  onTransitionSecondsChange={setTransitionSeconds}
+                  imageCount={images.length}
+                  transitionCount={outputPlan.transitionCount}
+                  totalDurationSeconds={outputPlan.totalDurationSeconds}
+                  estimatedPriceLabel={estimatedPriceLabel}
+                  sceneTexts={sceneTexts}
+                  onSceneTextChange={(index, patch) =>
+                    setSceneTexts((prev) =>
+                      prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
+                    )
+                  }
+                />
+                <h2 className="mt-6 text-xl font-semibold tracking-tight">
+                  {t("instant.creatorStep.upload")}
+                </h2>
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
                   {t("instant.step1.description")}
                 </p>
@@ -1232,7 +1325,7 @@ export default function InstantPremiumPage() {
                   ))}
                 </div>
                 <p className="mt-3 text-center text-xs text-zinc-500">
-                  {t("instant.step1.counter", { count: images.length, max: MAX_IMAGES })}
+                  {t("instant.step1.counter", { count: images.length, max: maxImages })}
                 </p>
                 {images.length > 0 ? (
                   <button
@@ -1243,7 +1336,7 @@ export default function InstantPremiumPage() {
                     {t("instant.step1.clearAll")}
                   </button>
                 ) : null}
-                {images.length >= MIN_IMAGES && images.length < MAX_IMAGES ? (
+                {images.length >= MIN_IMAGES && images.length < maxImages ? (
                   <p className="mt-2 text-xs text-zinc-500">{t("instant.step1.extraTransitionHint")}</p>
                 ) : null}
                 {images.length >= MIN_IMAGES ? (
@@ -1328,9 +1421,11 @@ export default function InstantPremiumPage() {
                 </div>
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                   <p className="text-sm font-semibold text-emerald-950">
-                    {outputPlan.mode === "single_transition"
-                      ? t("instant.outputPlan.singleTransition")
-                      : t("instant.outputPlan.cinematicStory")}
+                    {outputPlan.mode === "story_multiframe"
+                      ? t("instant.outputPlan.storyMode")
+                      : outputPlan.mode === "single_transition"
+                        ? t("instant.outputPlan.singleTransition", { seconds: transitionSeconds })
+                        : t("instant.outputPlan.cinematicStory", { seconds: transitionSeconds })}
                   </p>
                   <p className="mt-1 text-sm text-emerald-900/90">
                     {t("instant.pricing.estimated", { price: estimatedPriceLabel })}
@@ -1369,6 +1464,16 @@ export default function InstantPremiumPage() {
                   <li>
                     <span className="text-zinc-500">{t("instant.outputPlan.transitions")}:</span>{" "}
                     {outputPlan.transitionCount}
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.mode.perTransition")}:</span>{" "}
+                    {transitionSeconds}s
+                  </li>
+                  <li>
+                    <span className="text-zinc-500">{t("instant.mode.modeLabel")}:</span>{" "}
+                    {instantMode === "story"
+                      ? t("instant.mode.story.title")
+                      : t("instant.mode.transition.title")}
                   </li>
                 </ul>
                 <p className="text-xs text-zinc-500">

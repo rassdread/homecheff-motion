@@ -1,4 +1,5 @@
 import type {
+  CreateMultiImageVideoJobInput,
   CreateStartEndVideoJobInput,
   CreateStartEndVideoJobResult,
   VideoJobStatusResult,
@@ -49,23 +50,31 @@ function deriveStatus(job: MockVideoJob): VideoJobStatusResult {
   };
 }
 
+function registerMockJob(transitionId: string): CreateStartEndVideoJobResult {
+  const providerJobId = `mock-job-${transitionId}-${Date.now()}`;
+  jobStore.set(providerJobId, {
+    providerJobId,
+    createdAtMs: Date.now(),
+    transitionId,
+  });
+  return {
+    providerJobId,
+    status: "queued",
+    providerKey: "mock",
+  };
+}
+
 export class MockVideoProvider implements VideoProvider {
+  async createMultiImageVideoJob(
+    input: CreateMultiImageVideoJobInput
+  ): Promise<CreateStartEndVideoJobResult> {
+    return registerMockJob(input.transitionId);
+  }
+
   async createStartEndVideoJob(
     input: CreateStartEndVideoJobInput
   ): Promise<CreateStartEndVideoJobResult> {
-    const providerJobId = `mock-job-${input.transitionId}-${Date.now()}`;
-
-    jobStore.set(providerJobId, {
-      providerJobId,
-      createdAtMs: Date.now(),
-      transitionId: input.transitionId,
-    });
-
-    return {
-      providerJobId,
-      status: "queued",
-      providerKey: "mock",
-    };
+    return registerMockJob(input.transitionId);
   }
 
   async getVideoJobStatus(providerJobId: string): Promise<VideoJobStatusResult> {

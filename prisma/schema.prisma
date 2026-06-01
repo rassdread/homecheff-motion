@@ -15,8 +15,14 @@ model AnimationProject {
   status      String
   /** classic (default) | instant_premium */
   projectType String                @default("classic")
-  /** Target merged length for instant_premium (8 or 15 seconds); per-transition duration is derived. */
+  /** Target merged length for instant_premium; derived from image count × transition seconds. */
   instantOutputDurationSeconds Int?
+  /** transition = pairwise Vidu segments; story = single Vidu multiframe video. */
+  instantMode String @default("transition")
+  /** Per-transition / per-multiframe-segment duration: 3, 5, or 8 (UI: Fast / Standard / Cinematic). */
+  instantTransitionSeconds Int @default(5)
+  /** Story mode scene copy for post-Vidu ASS overlay (JSON InstantSceneText[]). */
+  instantSceneTexts Json?
   /** string[] chip ids for instant_premium */
   instantSelectedChips Json?
   instantUserIntent   String?

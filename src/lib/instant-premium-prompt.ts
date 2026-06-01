@@ -253,6 +253,63 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
   return [storyBlock, premiumMotionBlock, ...tailBlocks, powerLine].filter(Boolean).join("\n\n");
 }
 
+export type BuildInstantStoryModePromptInput = {
+  userIntent: string | null;
+  imageCount: number;
+  sceneTexts: Array<{ title: string; subtitle: string }>;
+  transitionSeconds: number;
+  stylePreset?: InstantPremiumStylePreset;
+};
+
+/**
+ * Single Vidu multiframe prompt — scene titles are narrative context only, never rendered in-video.
+ */
+export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptInput): string {
+  const styleLine =
+    input.stylePreset && isInstantPremiumStylePreset(input.stylePreset) ?
+      STYLE_PROMPTS[input.stylePreset]
+    : STYLE_PROMPTS.food_promo;
+
+  const sceneLines: string[] = [];
+  for (let i = 0; i < input.imageCount; i += 1) {
+    const scene = input.sceneTexts[i] ?? { title: "", subtitle: "" };
+    const title = scene.title.trim();
+    const subtitle = scene.subtitle.trim();
+    const parts: string[] = [];
+    if (title) {
+      parts.push(`title context: ${title}`);
+    }
+    if (subtitle) {
+      parts.push(`subtitle context: ${subtitle}`);
+    }
+    const context =
+      parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";
+    sceneLines.push(`Scene ${i + 1}: ${context}`);
+  }
+
+  const intentBlock =
+    input.userIntent?.trim() ?
+      `User direction: ${input.userIntent.trim()}`
+    : "Follow cinematic defaults and preserve subject identity across all keyframes.";
+
+  return [
+    "Create one continuous cinematic vertical video using the uploaded images in the exact order as keyframes.",
+    "Treat each image as a fixed visual anchor.",
+    "Preserve the same characters, mascot identity, clothing, logo placement, body shape, colors, and visual style.",
+    "Smoothly transition from image 1 to image 2, then image 2 to image 3, until the final image.",
+    "Do not add, generate, distort, or invent any text inside the video.",
+    "Leave clean space for later text overlays.",
+    "Keep motion cinematic, natural, and coherent.",
+    "The full video should feel like one complete story from beginning to end.",
+    styleLine,
+    intentBlock,
+    `Target pacing: approximately ${input.transitionSeconds} seconds per transition between keyframes.`,
+    "Scene list (narrative context only — do not render these words as visible text):",
+    ...sceneLines,
+    LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 4).join("\n"),
+  ].join("\n\n");
+}
+
 export function instantPremiumTransitionSegmentHint(params: {
   transitionOrder: number;
   transitionTotal: number;

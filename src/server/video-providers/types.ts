@@ -34,9 +34,29 @@ export type VideoJobStatusResult = {
   errorMessage?: string;
 };
 
+export type MultiFrameSegmentInput = {
+  keyImageUrl: string;
+  prompt?: string;
+  durationSeconds: number;
+};
+
+export type CreateMultiImageVideoJobInput = {
+  transitionId: string;
+  projectId?: string;
+  startImageUrl: string;
+  segments: MultiFrameSegmentInput[];
+  prompt: string;
+  aspectRatio: string;
+  providerModel?: string;
+  providerResolution?: string;
+};
+
 export interface VideoProvider {
   createStartEndVideoJob(
     input: CreateStartEndVideoJobInput
+  ): Promise<CreateStartEndVideoJobResult>;
+  createMultiImageVideoJob?(
+    input: CreateMultiImageVideoJobInput
   ): Promise<CreateStartEndVideoJobResult>;
   getVideoJobStatus(providerJobId: string): Promise<VideoJobStatusResult>;
 }
