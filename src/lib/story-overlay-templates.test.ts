@@ -2,14 +2,23 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildHeroLines,
+  buildSceneFieldRevealSlots,
+  buildSceneLayeredRevealSlots,
   buildSequenceTiming,
+  buildStagedRevealSlots,
   chooseTemplate,
   detectAccentWords,
+  getSceneHeadline,
+  getSceneTimingWindows,
+  hasLayeredSceneContent,
   hasSceneOverlayContent,
   normalizeSceneText,
   parseSequenceLines,
   resolveSequenceLineStyle,
   sceneOverlayTiming,
+  splitSequenceSceneTiming,
+  STAGED_REVEAL_STEP_SEC,
+  STORY_FINALE_MIN_VISIBLE_SEC,
 } from "@/lib/story-overlay-templates";
 import { defaultV2OverlayTheme } from "@/server/animation-export/adaptive-overlay-style";
 import { buildSequenceAssEvents } from "@/server/animation-export/story-sequence-overlay";
@@ -83,6 +92,74 @@ describe("story-overlay-templates", () => {
     assert.equal(slots[0]!.end, 1.15);
     assert.equal(slots[3]!.start, 3.85);
     assert.equal(slots[3]!.end, 4.9);
+  });
+
+  it("buildSceneLayeredRevealSlots staggers headline → title → subtitle", () => {
+    const slots = buildSceneLayeredRevealSlots(0.15, 4.85, {
+      headline: true,
+      title: true,
+      subtitle: true,
+    });
+    assert.ok(slots.headline);
+    assert.ok(slots.title);
+    assert.ok(slots.subtitle);
+    assert.equal(slots.headline!.revealStart, 0.15);
+    assert.equal(slots.title!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC);
+    assert.equal(slots.subtitle!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC * 2);
+    assert.equal(slots.subtitle!.visibleEnd, 4.85);
+  });
+
+  it("buildSceneFieldRevealSlots staggers title before subtitle on a 5s window", () => {
+    const slots = buildSceneFieldRevealSlots(0.15, 4.85, { title: true, subtitle: true });
+    assert.ok(slots.title);
+    assert.ok(slots.subtitle);
+    assert.equal(slots.title!.revealStart, 0.15);
+    assert.equal(slots.subtitle!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC);
+    assert.notEqual(slots.title!.revealStart, slots.subtitle!.revealStart);
+  });
+
+  it("auto chooses scene when koptekst + title + subtitle are filled", () => {
+    const scene = normalizeSceneText({
+      template: "auto",
+      heroText: "Rotterdam",
+      title: "Hidden talent",
+      subtitle: "is everywhere.",
+    });
+    assert.equal(chooseTemplate(scene), "scene");
+    assert.equal(getSceneHeadline(scene), "ROTTERDAM");
+    assert.ok(hasLayeredSceneContent(scene));
+  });
+
+  it("scene template includes koptekst-only content", () => {
+    const scene = normalizeSceneText({
+      template: "scene",
+      heroText: "LOCAL FOOD",
+    });
+    assert.equal(chooseTemplate(scene), "scene");
+  });
+
+  it("getSceneTimingWindows creates N windows for N storyboard frames", () => {
+    const scenes = [
+      { transitionDurationSeconds: 5 },
+      { transitionDurationSeconds: 5 },
+      {},
+    ];
+    const windows = getSceneTimingWindows(scenes, 12, 3);
+    assert.equal(windows.length, 3);
+    assert.ok(windows[2]!.end > windows[2]!.start);
+    assert.ok(windows[2]!.sceneDuration >= STORY_FINALE_MIN_VISIBLE_SEC - 0.01);
+  });
+
+  it("splitSequenceSceneTiming keeps hero finale at least 2s when possible", () => {
+    const split = splitSequenceSceneTiming(0, 8, true);
+    assert.ok(split.finaleEnd - split.finaleStart >= STORY_FINALE_MIN_VISIBLE_SEC - 0.01);
+  });
+
+  it("buildStagedRevealSlots compresses steps on short windows", () => {
+    const slots = buildStagedRevealSlots(0, 2, 3);
+    assert.equal(slots.length, 3);
+    assert.ok(slots[1]!.revealStart - slots[0]!.revealStart < STAGED_REVEAL_STEP_SEC);
+    assert.equal(slots[2]!.visibleEnd, 2);
   });
 
   it("auto template chooses sequence when multiple lines", () => {
@@ -171,8 +248,9 @@ describe("buildStoryOverlayAss V2", () => {
       width: 1080,
       height: 1920,
     });
-    assert.match(ass, /\\fad\(250,250\)/);
-    assert.match(ass, /\\t\(0,500,\\fscx103\\fscy103\)/);
+    assert.match(ass, /\\fad\(220,220\)/);
+    assert.match(ass, /\\move\(/);
+    assert.match(ass, /\\t\(0,480,\\fscx102\\fscy102\)/);
     assert.match(ass, /HCHeroMain/);
     assert.match(ass, /\\c&H0000B7F5&/);
     assert.match(ass, /MONEY/);
@@ -180,16 +258,97 @@ describe("buildStoryOverlayAss V2", () => {
     assert.match(ass, /MarginV, Encoding/);
   });
 
-  it("keeps scene title/subtitle layout", () => {
+  it("renders koptekst + title + subtitle as three layers (Rotterdam case)", () => {
+    const ass = buildStoryOverlayAss({
+      sceneTexts: [
+        {
+          template: "scene",
+          heroText: "Rotterdam",
+          title: "Hidden talent",
+          subtitle: "is everywhere.",
+        },
+      ],
+      durationSeconds: 5,
+      width: 1080,
+      height: 1920,
+    });
+    assert.match(ass, /HCStoryHeadline/);
+    assert.match(ass, /ROTTERDAM/);
+    assert.match(ass, /HIDDEN TALENT/);
+    assert.match(ass, /is everywhere/);
+    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:"));
+    assert.equal(
+      dialogues.filter(
+        (line) =>
+          line.includes("ROTTERDAM") ||
+          line.includes("HIDDEN TALENT") ||
+          line.includes("is everywhere")
+      ).length,
+      3
+    );
+  });
+
+  it("headline style is larger than title style", () => {
+    const ass = buildStoryOverlayAss({
+      sceneTexts: [
+        {
+          template: "scene",
+          heroText: "ROTTERDAM",
+          title: "HIDDEN TALENT",
+          subtitle: "is everywhere.",
+        },
+      ],
+      durationSeconds: 5,
+      width: 1080,
+      height: 1920,
+    });
+    const headlineStyle = ass
+      .split("\n")
+      .find((line) => line.startsWith("Style: HCStoryHeadline_s0"));
+    const titleStyle = ass.split("\n").find((line) => line.startsWith("Style: HCStoryTitle_s0"));
+    assert.ok(headlineStyle);
+    assert.ok(titleStyle);
+    const headlineSize = Number(headlineStyle!.split(",")[2]);
+    const titleSize = Number(titleStyle!.split(",")[2]);
+    assert.ok(headlineSize > titleSize);
+  });
+
+  it("keeps scene title/subtitle layout with staged reveal times", () => {
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "scene", title: "THE SYSTEM", subtitle: "Line one" }],
-      durationSeconds: 6,
+      durationSeconds: 5,
       width: 1080,
       height: 1920,
     });
     assert.match(ass, /HCStoryTitle/);
     assert.match(ass, /THE SYSTEM/);
     assert.match(ass, /HCStorySubtitle/);
+    assert.match(ass, /\\move\(/);
+    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:"));
+    const titleLine = dialogues.find((line) => line.includes("THE SYSTEM"));
+    const subtitleLine = dialogues.find((line) => line.includes("Line one"));
+    assert.ok(titleLine);
+    assert.ok(subtitleLine);
+    const titleStart = titleLine!.split(",")[1]!;
+    const subtitleStart = subtitleLine!.split(",")[1]!;
+    assert.notEqual(titleStart, subtitleStart);
+  });
+
+  it("three-frame story creates three overlay timing windows", () => {
+    const ass = buildStoryOverlayAss({
+      sceneTexts: [
+        { heroText: "ONE", title: "A", subtitle: "a" },
+        { heroText: "TWO", title: "B", subtitle: "b" },
+        { heroText: "THREE", title: "C", subtitle: "c" },
+      ],
+      durationSeconds: 9,
+      width: 1080,
+      height: 1920,
+    });
+    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:"));
+    assert.ok(dialogues.some((line) => line.includes("ONE")));
+    assert.ok(dialogues.some((line) => line.includes("TWO")));
+    assert.ok(dialogues.some((line) => line.includes("THREE")));
   });
 
   it("supports legacy title/subtitle without template", () => {
@@ -201,6 +360,25 @@ describe("buildStoryOverlayAss V2", () => {
     });
     assert.match(ass, /LEGACY/);
     assert.match(ass, /Still works/);
+  });
+
+  it("staggers hero lines instead of one static block", () => {
+    const ass = buildStoryOverlayAss({
+      sceneTexts: [
+        {
+          template: "hero",
+          heroText: "MOST PEOPLE\nTRADE TIME\nFOR MONEY",
+        },
+      ],
+      durationSeconds: 5,
+      width: 1080,
+      height: 1920,
+    });
+    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:"));
+    assert.ok(dialogues.length >= 3);
+    const starts = dialogues.map((line) => line.split(",")[1]!);
+    assert.notEqual(starts[0], starts[1]);
+    assert.notEqual(starts[1], starts[2]);
   });
 
   it("renders sequence template with staggered dialogue times", () => {
@@ -247,6 +425,35 @@ describe("buildStoryOverlayAss V2", () => {
 });
 
 describe("buildSequenceAssEvents", () => {
+  it("staggers hero finale lines within the finale window", () => {
+    const scene = normalizeSceneText({
+      template: "sequence",
+      lines: ["Build", "The", "Story"],
+      heroFinaleText: "LINE ONE\nLINE TWO",
+    });
+    const events = buildSequenceAssEvents({
+      scene,
+      sceneStart: 0,
+      sceneEnd: 5,
+      width: 1080,
+      height: 1920,
+      styleNames: {
+        heroMain: "HCHeroMain_s0",
+        heroSmall: "HCHeroSmall_s0",
+        title: "HCStoryTitle_s0",
+        subtitle: "HCStorySubtitle_s0",
+      },
+      theme: defaultV2OverlayTheme(),
+      assTime: (s) => String(s),
+      escapeAssText: (t) => t,
+      heroLineWithAccents: (line) => line,
+      motionTags: () => "",
+    });
+    const finaleEvents = events.filter((ev) => ev.text.includes("LINE"));
+    assert.equal(finaleEvents.length, 2);
+    assert.notEqual(finaleEvents[0]!.start, finaleEvents[1]!.start);
+  });
+
   it("emits one event per non-empty line", () => {
     const scene = normalizeSceneText({
       template: "sequence",

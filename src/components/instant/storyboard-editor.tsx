@@ -40,12 +40,12 @@ function defaultSequenceLines(scene: InstantSceneTextDraft): string[] {
   return ["", ""];
 }
 
-function showHeroFields(template: SceneOverlayTemplate): boolean {
-  return template === "auto" || template === "hero";
+function showHeadlineField(template: SceneOverlayTemplate): boolean {
+  return template === "auto" || template === "scene" || template === "hero";
 }
 
-function showSceneFields(template: SceneOverlayTemplate): boolean {
-  return template === "auto" || template === "scene";
+function showTitleSubtitleFields(template: SceneOverlayTemplate): boolean {
+  return template === "auto" || template === "scene" || template === "hero";
 }
 
 function showSequenceFields(template: SceneOverlayTemplate): boolean {
@@ -219,7 +219,7 @@ export function StoryboardEditor({
                   </select>
                 </label>
 
-                {showHeroFields(scene.template) ?
+                {showHeadlineField(scene.template) ?
                   <label className="block text-xs text-zinc-500">
                     <StoryboardFieldHint
                       label={t("instant.overlay.heroText")}
@@ -235,7 +235,7 @@ export function StoryboardEditor({
                   </label>
                 : null}
 
-                {showSceneFields(scene.template) ?
+                {showTitleSubtitleFields(scene.template) ?
                   <>
                     <label className="block text-xs text-zinc-500">
                       <StoryboardFieldHint

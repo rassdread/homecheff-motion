@@ -113,7 +113,7 @@ describe("buildStoryOverlayAss adaptive colors", () => {
     assert.match(ass, /HCHeroMain_s0/);
     assert.match(ass, /&H00111111&/);
     assert.match(ass, /&H00B16700&/);
-    assert.match(ass, /\\fad\(250,250\)/);
+    assert.match(ass, /\\fad\(220,220\)/);
     assert.match(ass, /PlayResX: 1080/);
     assert.match(ass, /MarginV, Encoding/);
   });

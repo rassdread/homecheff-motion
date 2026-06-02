@@ -19,4 +19,17 @@ describe("buildStoryOverlayAss", () => {
     assert.match(ass, /END/);
     assert.match(ass, /0:00:00\.15,0:00:02\.85/);
   });
+
+  it("language rerender path uses the same staged scene timing", () => {
+    const ass = buildStoryOverlayAss({
+      sceneTexts: [{ template: "scene", title: "HEADLINE", subtitle: "Subtitle copy" }],
+      durationSeconds: 5,
+      width: 1080,
+      height: 1920,
+    });
+    const title = ass.split("\n").find((line) => line.includes("HEADLINE"));
+    const subtitle = ass.split("\n").find((line) => line.includes("Subtitle copy"));
+    assert.ok(title && subtitle);
+    assert.notEqual(title.split(",")[1], subtitle.split(",")[1]);
+  });
 });

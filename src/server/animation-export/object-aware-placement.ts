@@ -27,7 +27,14 @@ export type ObjectAwarePlacement = SafeZonePlacement & {
   intent: SceneIntent;
 };
 
-export type OverlayTemplateKind = "hero" | "scene" | "sequence" | "heroFinale";
+export type OverlayTemplateKind =
+  | "hero"
+  | "headline"
+  | "title"
+  | "subtitle"
+  | "scene"
+  | "sequence"
+  | "heroFinale";
 
 const EARNINGS_KEYWORDS = ["earn", "earning", "money", "payout", "income", "order", "customer"];
 const COMMUNITY_KEYWORDS = ["share", "connect", "community", "people", "together"];
@@ -121,10 +128,13 @@ function defaultZoneForTemplate(
   analysis: SafeZoneAnalysis,
   template: OverlayTemplateKind
 ): SafeZoneId {
-  if (template === "hero") {
+  if (template === "hero" || template === "headline") {
     return analysis.bestTopZone;
   }
-  if (template === "scene") {
+  if (template === "title") {
+    return analysis.bestOverallZone ?? analysis.bestCenterZone;
+  }
+  if (template === "subtitle" || template === "scene") {
     return analysis.bestBottomZone;
   }
   if (template === "heroFinale") {
@@ -305,7 +315,15 @@ export function resolveAllTemplatePlacements(params: {
   height: number;
   accentWords?: string[];
 }): Record<OverlayTemplateKind, ObjectAwarePlacement> {
-  const templates: OverlayTemplateKind[] = ["hero", "scene", "sequence", "heroFinale"];
+  const templates: OverlayTemplateKind[] = [
+    "hero",
+    "headline",
+    "title",
+    "subtitle",
+    "scene",
+    "sequence",
+    "heroFinale",
+  ];
   const out = {} as Record<OverlayTemplateKind, ObjectAwarePlacement>;
   for (const template of templates) {
     out[template] = resolveObjectAwarePlacement({ ...params, template });

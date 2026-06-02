@@ -15,6 +15,7 @@ import type { AdaptiveOverlayTheme } from "@/server/animation-export/adaptive-ov
 export type AdaptiveTypographyTemplate =
   | "hero"
   | "hero_small"
+  | "headline"
   | "scene"
   | "subtitle"
   | "sequence"
@@ -59,6 +60,7 @@ const TEMPLATE_BASES: Record<
 > = {
   hero: { default: 118, min: 78, max: 144, maxLines: 3 },
   hero_small: { default: 74, min: 54, max: 92, maxLines: 3 },
+  headline: { default: 96, min: 68, max: 118, maxLines: 2 },
   scene: { default: 72, min: 48, max: 92, maxLines: 2 },
   subtitle: { default: 48, min: 34, max: 62, maxLines: 3 },
   sequence: { default: 64, min: 42, max: 82, maxLines: 2 },
@@ -359,7 +361,7 @@ export function breakTextIntoLines(params: {
   }
 
   const wordsPerLine =
-    template === "hero" || template === "hero_small" ?
+    template === "hero" || template === "hero_small" || template === "headline" ?
       { min: 2, max: 4 }
     : template === "scene" || template === "sequence" ?
       { min: 2, max: 5 }
@@ -687,13 +689,24 @@ export function resolveTypographyFromPlacement(params: {
 }
 
 export function overlayTemplateToTypography(
-  kind: "hero" | "hero_small" | "scene" | "sequence" | "heroFinale"
+  kind:
+    | "hero"
+    | "hero_small"
+    | "headline"
+    | "title"
+    | "subtitle"
+    | "scene"
+    | "sequence"
+    | "heroFinale"
 ): AdaptiveTypographyTemplate {
   if (kind === "heroFinale") {
     return "hero_finale";
   }
   if (kind === "hero_small") {
     return "hero_small";
+  }
+  if (kind === "title") {
+    return "scene";
   }
   return kind;
 }

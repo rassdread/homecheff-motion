@@ -68,6 +68,15 @@ export type ResolvedSceneTemplate = "hero" | "scene" | "sequence" | "skip";
 
 export const STORY_OVERLAY_TIMING_EDGE_SEC = 0.15;
 export const SEQUENCE_TIMING_PADDING_SEC = 0.1;
+/** Preferred stagger between staged text reveals (headline → title → subtitle, hero lines). */
+export const STAGED_REVEAL_STEP_SEC = 0.8;
+/** Minimum time all staged lines remain visible after the last reveal. */
+export const STAGED_REVEAL_MIN_HOLD_SEC = 0.5;
+/** Shortest stagger when the scene window is too small for full 0.8s steps. */
+export const STAGED_REVEAL_MIN_STEP_SEC = 0.35;
+/** Minimum visible time for the last storyboard frame overlay (finale hold). */
+export const STORY_FINALE_MIN_VISIBLE_SEC = 2;
+export const HERO_LINE_REVEAL_STEP_SEC = 0.55;
 export const HERO_AUTO_MAX_WORDS = 10;
 export const HERO_PUNCHLINE_MAX_WORDS = 8;
 export const HERO_MAX_CHARS_PER_LINE = 18;
@@ -232,6 +241,16 @@ export function hasSceneOverlayContent(scene: InstantSceneText | NormalizedScene
   return chooseTemplate(n) !== "skip";
 }
 
+/** Koptekst / headline — stored as `heroText` in sceneTexts JSON. */
+export function getSceneHeadline(scene: InstantSceneText | NormalizedSceneText): string {
+  return normalizeSceneText(scene).heroText.trim();
+}
+
+export function hasLayeredSceneContent(scene: InstantSceneText | NormalizedSceneText): boolean {
+  const n = normalizeSceneText(scene);
+  return Boolean(getSceneHeadline(n) || n.title.trim() || n.subtitle.trim());
+}
+
 export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): ResolvedSceneTemplate {
   const n = normalizeSceneText(scene);
 
@@ -239,6 +258,9 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
     return n.lines.length > 0 ? "sequence" : "skip";
   }
   if (n.template === "hero") {
+    if (hasLayeredSceneContent(n) && (n.title.trim() || n.subtitle.trim())) {
+      return "scene";
+    }
     if (n.heroText.trim()) {
       return "hero";
     }
@@ -248,7 +270,7 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
     return "skip";
   }
   if (n.template === "scene") {
-    return n.title.trim() || n.subtitle.trim() ? "scene" : "skip";
+    return hasLayeredSceneContent(n) ? "scene" : "skip";
   }
 
   if (n.lines.length > 1) {
@@ -259,6 +281,9 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
     return wc <= HERO_AUTO_MAX_WORDS ? "hero" : "scene";
   }
 
+  if (getSceneHeadline(n) && (n.title.trim() || n.subtitle.trim())) {
+    return "scene";
+  }
   if (n.title.trim()) {
     return "scene";
   }
@@ -282,6 +307,101 @@ export type SequenceTimingSlot = {
 };
 
 /** Split scene window into equal slots with padding to avoid hard cuts. */
+export type StagedRevealSlot = {
+  index: number;
+  revealStart: number;
+  visibleEnd: number;
+};
+
+/**
+ * Stagger reveal times within a scene window. Each item stays visible until `visibleEnd`
+ * (cinematic hold after appearing).
+ */
+export function buildStagedRevealSlots(
+  windowStart: number,
+  windowEnd: number,
+  itemCount: number,
+  options?: {
+    stepSec?: number;
+    minStepSec?: number;
+    minHoldSec?: number;
+  }
+): StagedRevealSlot[] {
+  const count = Math.max(0, Math.floor(itemCount));
+  if (count <= 0 || windowEnd <= windowStart) {
+    return [];
+  }
+  const available = windowEnd - windowStart;
+  const minHold = options?.minHoldSec ?? STAGED_REVEAL_MIN_HOLD_SEC;
+  const minStep = options?.minStepSec ?? STAGED_REVEAL_MIN_STEP_SEC;
+  const preferredStep = options?.stepSec ?? STAGED_REVEAL_STEP_SEC;
+  const totalPreferred = preferredStep * count;
+  const step =
+    totalPreferred > available - minHold ?
+      Math.max(minStep, (available - minHold) / count)
+    : preferredStep;
+
+  const slots: StagedRevealSlot[] = [];
+  for (let index = 0; index < count; index += 1) {
+    slots.push({
+      index,
+      revealStart: windowStart + index * step,
+      visibleEnd: windowEnd,
+    });
+  }
+  return slots;
+}
+
+export type SceneLayeredRevealSlots = {
+  headline?: StagedRevealSlot;
+  title?: StagedRevealSlot;
+  subtitle?: StagedRevealSlot;
+};
+
+/** Scene template: headline (koptekst) → title → subtitle, staggered within the scene window. */
+export function buildSceneLayeredRevealSlots(
+  sceneStart: number,
+  sceneEnd: number,
+  fields: { headline: boolean; title: boolean; subtitle: boolean }
+): SceneLayeredRevealSlots {
+  const order: Array<"headline" | "title" | "subtitle"> = [];
+  if (fields.headline) {
+    order.push("headline");
+  }
+  if (fields.title) {
+    order.push("title");
+  }
+  if (fields.subtitle) {
+    order.push("subtitle");
+  }
+  const slots = buildStagedRevealSlots(sceneStart, sceneEnd, order.length);
+  const out: SceneLayeredRevealSlots = {};
+  order.forEach((key, index) => {
+    out[key] = slots[index];
+  });
+  return out;
+}
+
+/** @deprecated Use buildSceneLayeredRevealSlots */
+export function buildSceneFieldRevealSlots(
+  sceneStart: number,
+  sceneEnd: number,
+  fields: { title: boolean; subtitle: boolean }
+): { title?: StagedRevealSlot; subtitle?: StagedRevealSlot } {
+  const layered = buildSceneLayeredRevealSlots(sceneStart, sceneEnd, {
+    headline: false,
+    title: fields.title,
+    subtitle: fields.subtitle,
+  });
+  return { title: layered.title, subtitle: layered.subtitle };
+}
+
+/** ASS motion: fade + slight upward slide + subtle scale pulse. */
+export function storyOverlayMotionTags(x: number, y: number): string {
+  const yFrom = y + 28;
+  return `{\\fad(220,220)\\move(${x},${yFrom},${x},${y},0,420)\\t(0,480,\\fscx102\\fscy102)\\pos(${x},${y})}`;
+}
+
 export function buildSequenceTiming(
   sceneStart: number,
   sceneEnd: number,
@@ -715,23 +835,54 @@ export function getSceneTimingWindows(
   const fallback = 5 as StorySceneDurationSeconds;
   let cursor = 0;
   const windows: SceneTimingWindow[] = [];
+  const segmentDurations: number[] = [];
 
   for (let index = 0; index < count; index += 1) {
-    const transitionSeconds =
+    const segmentSeconds =
       index < count - 1 ?
         getSceneTransitionDurationSeconds(normalized[index], fallback)
-      : getSceneTransitionDurationSeconds(normalized[index - 1], fallback);
+      : (() => {
+          const explicitLast =
+            normalized[index]?.transitionDurationSeconds != null ||
+            normalized[index]?.durationSeconds != null;
+          const holdSeconds = explicitLast ?
+            getSceneTransitionDurationSeconds(normalized[index], fallback)
+          : index > 0 ?
+            getSceneTransitionDurationSeconds(normalized[index - 1]!, fallback)
+          : fallback;
+          return Math.max(STORY_FINALE_MIN_VISIBLE_SEC, holdSeconds);
+        })();
+    segmentDurations.push(segmentSeconds);
     const start = cursor + STORY_OVERLAY_TIMING_EDGE_SEC;
-    const end = cursor + transitionSeconds - STORY_OVERLAY_TIMING_EDGE_SEC;
+    const end = cursor + segmentSeconds - STORY_OVERLAY_TIMING_EDGE_SEC;
     windows.push({
       index,
       start: Math.max(0, start),
-      end: Math.max(start, end),
-      sceneDuration: transitionSeconds,
-      storyboardDuration: transitionSeconds,
-      plannedDuration: transitionSeconds,
+      end: Math.max(start + 0.25, end),
+      sceneDuration: segmentSeconds,
+      storyboardDuration: segmentSeconds,
+      plannedDuration: segmentSeconds,
     });
-    cursor += transitionSeconds;
+    cursor += segmentSeconds;
+  }
+
+  if (cursor > 0 && Math.abs(cursor - totalDurationSeconds) > 0.05) {
+    const scale = totalDurationSeconds / cursor;
+    let scaledCursor = 0;
+    for (let index = 0; index < windows.length; index += 1) {
+      const segmentSeconds = segmentDurations[index]! * scale;
+      const start = scaledCursor + STORY_OVERLAY_TIMING_EDGE_SEC;
+      const end = scaledCursor + segmentSeconds - STORY_OVERLAY_TIMING_EDGE_SEC;
+      windows[index] = {
+        index,
+        start: Math.max(0, start),
+        end: Math.max(start + 0.25, end),
+        sceneDuration: segmentSeconds,
+        storyboardDuration: segmentSeconds,
+        plannedDuration: segmentSeconds,
+      };
+      scaledCursor += segmentSeconds;
+    }
   }
 
   return windows;
@@ -760,8 +911,11 @@ export function splitSequenceSceneTiming(
       finaleEnd: sceneEnd,
     };
   }
-  const finaleDuration = available * SEQUENCE_HERO_FINALE_SHARE;
-  const linesEnd = sceneEnd - finaleDuration;
+  const finaleDuration = Math.max(
+    STORY_FINALE_MIN_VISIBLE_SEC,
+    available * SEQUENCE_HERO_FINALE_SHARE
+  );
+  const linesEnd = Math.max(sceneStart, sceneEnd - finaleDuration);
   return {
     linesStart: sceneStart,
     linesEnd,

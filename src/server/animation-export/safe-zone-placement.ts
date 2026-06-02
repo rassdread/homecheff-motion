@@ -53,6 +53,14 @@ export type SafeZoneDebugInfo = {
     hero: SafeZoneId;
     scene: SafeZoneId;
     sequence: SafeZoneId;
+    headline?: SafeZoneId;
+    title?: SafeZoneId;
+    subtitle?: SafeZoneId;
+  };
+  layerPlacementReasons?: {
+    headline?: string;
+    title?: string;
+    subtitle?: string;
   };
   confidence: number;
   intent?: string;
@@ -61,6 +69,8 @@ export type SafeZoneDebugInfo = {
   mediaPipeCount?: number;
   objectCount?: number;
   failedDetectors?: string[];
+  /** Admin-only note when object-aware placement is off or unavailable. */
+  adminVisionNote?: string;
 };
 
 /** TikTok / Reels safe margins (fraction of frame). */
@@ -274,6 +284,33 @@ export function heroPlacement(analysis: SafeZoneAnalysis, width: number, height:
 }
 
 export function scenePlacement(analysis: SafeZoneAnalysis, width: number, height: number): SafeZonePlacement {
+  const zone = analysis.zones.find((z) => z.zoneId === analysis.bestBottomZone)!;
+  return placementForZone(analysis.bestBottomZone, zone.score, width, height);
+}
+
+export function headlinePlacement(
+  analysis: SafeZoneAnalysis,
+  width: number,
+  height: number
+): SafeZonePlacement {
+  return heroPlacement(analysis, width, height);
+}
+
+export function titleLayerPlacement(
+  analysis: SafeZoneAnalysis,
+  width: number,
+  height: number
+): SafeZonePlacement {
+  const zoneId = analysis.bestOverallZone ?? analysis.bestCenterZone;
+  const zone = analysis.zones.find((z) => z.zoneId === zoneId)!;
+  return placementForZone(zoneId, zone.score, width, height);
+}
+
+export function subtitleLayerPlacement(
+  analysis: SafeZoneAnalysis,
+  width: number,
+  height: number
+): SafeZonePlacement {
   const zone = analysis.zones.find((z) => z.zoneId === analysis.bestBottomZone)!;
   return placementForZone(analysis.bestBottomZone, zone.score, width, height);
 }

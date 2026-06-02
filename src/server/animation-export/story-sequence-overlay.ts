@@ -1,6 +1,7 @@
 import {
   buildHeroLines,
   buildSequenceTiming,
+  buildStagedRevealSlots,
   detectAccentWords,
   resolveSequenceLineStyle,
   splitSequenceSceneTiming,
@@ -190,33 +191,47 @@ function appendFinaleEvent(
     return;
   }
   const accentWords = detectAccentWords(finaleText, scene);
-  const rendered = renderSequencePhrase(
-    finaleText,
-    "hero",
-    accentWords,
-    theme,
-    styleNames,
-    input.escapeAssText,
-    input.heroLineWithAccents,
-    input,
-    true
-  );
+  const finaleLines = buildHeroLines(finaleText);
+  const linesToRender = finaleLines.length > 0 ? finaleLines : [finaleText.toUpperCase()];
+  const revealSlots = buildStagedRevealSlots(finaleStart, finaleEnd, linesToRender.length, {
+    stepSec: 0.55,
+    minStepSec: 0.35,
+  });
   const cx = resolveSequenceCenterX(width, height, input.safeZone, true);
-  const y = resolveSequenceCenterY(
-    rendered.visualLineCount,
+
+  let yCursor = resolveSequenceCenterY(
+    Math.max(1, linesToRender.length),
     width,
     height,
     "hero",
     input.safeZone,
     true
   );
-  out.push({
-    start: finaleStart,
-    end: finaleEnd,
-    styleName: rendered.styleName,
-    text: rendered.text,
-    x: cx,
-    y,
+  const lineStep = 136;
+
+  linesToRender.forEach((line, lineIndex) => {
+    const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
+    const rendered = renderSequencePhrase(
+      line,
+      "hero",
+      accentWords,
+      theme,
+      styleNames,
+      input.escapeAssText,
+      input.heroLineWithAccents,
+      input,
+      true
+    );
+    const y = yCursor;
+    yCursor += lineStep;
+    out.push({
+      start: slot.revealStart,
+      end: slot.visibleEnd,
+      styleName: rendered.styleName,
+      text: rendered.text,
+      x: cx,
+      y,
+    });
   });
 }
 

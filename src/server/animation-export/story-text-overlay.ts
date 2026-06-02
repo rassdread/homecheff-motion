@@ -10,7 +10,12 @@ import {
   layoutHeroScene,
   normalizeSceneText,
   resolveSequenceLineStyle,
+  buildSceneFieldRevealSlots,
+  buildSceneLayeredRevealSlots,
+  buildStagedRevealSlots,
+  getSceneHeadline,
   sceneOverlayTiming,
+  storyOverlayMotionTags,
   type InstantSceneText,
   type NormalizedSceneText,
 } from "@/lib/story-overlay-templates";
@@ -54,7 +59,12 @@ export {
   hasSceneOverlayContent,
   normalizeSceneText,
   resolveSequenceLineStyle,
+  buildSceneFieldRevealSlots,
+  buildSceneLayeredRevealSlots,
+  buildStagedRevealSlots,
+  getSceneHeadline,
   sceneOverlayTiming,
+  storyOverlayMotionTags,
 } from "@/lib/story-overlay-templates";
 import { buildSequenceAssEvents } from "@/server/animation-export/story-sequence-overlay";
 
@@ -81,6 +91,7 @@ const SUBTITLE_GAP = 8;
 type SceneFontSizes = {
   heroMain: number;
   heroSmall: number;
+  headline: number;
   title: number;
   subtitle: number;
 };
@@ -90,6 +101,7 @@ function defaultSceneFontSizes(width: number, height: number): SceneFontSizes {
   return {
     heroMain: LEGACY_HERO_SIZE_MAIN,
     heroSmall: LEGACY_HERO_SIZE_SMALL,
+    headline: Math.round(title * 1.28),
     title,
     subtitle: legacySceneSubtitleSize(title),
   };
@@ -202,7 +214,7 @@ function heroLineWithAccents(
 }
 
 function motionTags(x: number, y: number): string {
-  return `{\\fad(250,250)\\t(0,500,\\fscx103\\fscy103)\\pos(${x},${y})}`;
+  return storyOverlayMotionTags(x, y);
 }
 
 function sceneTextForSafeZone(scene: NormalizedSceneText): string {
@@ -370,9 +382,16 @@ function registerSceneStyles(
   sizes: SceneFontSizes,
   safeZone?: SafeZoneInput,
   template?: OverlayTemplateKind
-): { heroMain: string; heroSmall: string; title: string; subtitle: string } {
+): {
+  heroMain: string;
+  heroSmall: string;
+  headline: string;
+  title: string;
+  subtitle: string;
+} {
   const heroMain = `HCHeroMain_s${sceneIndex}`;
   const heroSmall = `HCHeroSmall_s${sceneIndex}`;
+  const headline = `HCStoryHeadline_s${sceneIndex}`;
   const title = `HCStoryTitle_s${sceneIndex}`;
   const subtitle = `HCStorySubtitle_s${sceneIndex}`;
 
@@ -392,6 +411,9 @@ function registerSceneStyles(
   }
   if (kinds.scene || kinds.sequence) {
     styleLines.push(
+      assStyleLine(headline, "Arial Black", sizes.headline, theme, 8, 120, marginH)
+    );
+    styleLines.push(
       assStyleLine(title, "Arial", sizes.title, theme, 2, SCENE_TITLE_MARGIN_V, marginH)
     );
     styleLines.push(
@@ -407,7 +429,7 @@ function registerSceneStyles(
     );
   }
 
-  return { heroMain, heroSmall, title, subtitle };
+  return { heroMain, heroSmall, headline, title, subtitle };
 }
 
 function appendHeroEvents(
@@ -456,6 +478,11 @@ function appendHeroEvents(
   const lineStep = mainSize + 18;
   const anchorY = resolveHeroAnchorY(lines.length, width, height, position, safeZone);
 
+  const revealSlots =
+    lines.length > 1 ?
+      buildStagedRevealSlots(start, end, lines.length, { stepSec: 0.55, minStepSec: 0.35 })
+    : [{ index: 0, revealStart: start, visibleEnd: end }];
+
   let yCursor = anchorY;
   lines.forEach((line, lineIndex) => {
     const isMain = lineIndex === mainLineIndex;
@@ -463,10 +490,13 @@ function appendHeroEvents(
     const step = isMain ? lineStep : smallSize + 14;
     const y = yCursor;
     yCursor += step;
+    const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
+    const lineStart = slot.revealStart;
+    const lineEnd = slot.visibleEnd;
     const tags = motionTags(cx, y);
     const text = heroLineWithAccents(line, accents, theme);
     events.push(
-      `Dialogue: 0,${assTime(start)},${assTime(end)},${style},,0,0,0,,${tags}${text}`
+      `Dialogue: 0,${assTime(lineStart)},${assTime(lineEnd)},${style},,0,0,0,,${tags}${text}`
     );
   });
 }
@@ -512,27 +542,52 @@ function appendSceneEvents(
   end: number,
   width: number,
   height: number,
-  styleNames: { title: string; subtitle: string },
+  styleNames: { headline: string; title: string; subtitle: string },
   safeZone?: SafeZoneInput,
-  titleTypography?: AdaptiveTypographyResult | null,
-  subtitleTypography?: AdaptiveTypographyResult | null,
+  precomputedTypography?: {
+    headline?: AdaptiveTypographyResult | null;
+    title?: AdaptiveTypographyResult | null;
+    subtitle?: AdaptiveTypographyResult | null;
+  } | null,
+  _legacySubtitleTypography?: AdaptiveTypographyResult | null,
   sceneIndex = 0
 ): void {
+  const headlineRaw = getSceneHeadline(scene);
   const titleRaw = scene.title.trim();
   const subtitleRaw = scene.subtitle.trim();
-  if (!titleRaw && !subtitleRaw) {
+  if (!headlineRaw && !titleRaw && !subtitleRaw) {
     return;
   }
 
-  const placement = safeZone ? resolvePlacementForTemplate(safeZone, "scene", width, height) : undefined;
   const accentWords = scene.accentWords;
+  const headlinePlacement =
+    safeZone ? resolvePlacementForTemplate(safeZone, "headline", width, height) : undefined;
+  const titlePlacement =
+    safeZone ? resolvePlacementForTemplate(safeZone, "title", width, height) : undefined;
+  const subtitlePlacement =
+    safeZone ? resolvePlacementForTemplate(safeZone, "subtitle", width, height) : undefined;
+
+  const headlineTypo =
+    precomputedTypography?.headline ??
+    (headlineRaw ?
+      tryAdaptiveTypography({
+        text: headlineRaw,
+        template: "headline",
+        placement: headlinePlacement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords,
+        sceneIndex,
+      })
+    : null);
   const titleTypo =
-    titleTypography ??
+    precomputedTypography?.title ??
     (titleRaw ?
       tryAdaptiveTypography({
         text: titleRaw,
         template: "scene",
-        placement,
+        placement: titlePlacement,
         width,
         height,
         safeZone: safeZone ?? null,
@@ -541,12 +596,12 @@ function appendSceneEvents(
       })
     : null);
   const subtitleTypo =
-    subtitleTypography ??
+    precomputedTypography?.subtitle ??
     (subtitleRaw ?
       tryAdaptiveTypography({
         text: subtitleRaw,
         template: "subtitle",
-        placement,
+        placement: subtitlePlacement,
         width,
         height,
         safeZone: safeZone ?? null,
@@ -555,30 +610,47 @@ function appendSceneEvents(
       })
     : null);
 
+  const headlineLines =
+    headlineTypo?.lines.length ? headlineTypo.lines : headlineRaw ? [headlineRaw] : [];
   const titleLines = titleTypo?.lines.length ? titleTypo.lines : titleRaw ? [titleRaw] : [];
   const subtitleLines =
     subtitleTypo?.lines.length ? subtitleTypo.lines : subtitleRaw ? [subtitleRaw] : [];
 
   const titleSize = titleTypo?.fontSize ?? legacySceneTitleSize(width, height);
-  let cx = Math.round(width / 2);
-  let bottomThirdY = Math.round(height * 0.72);
-  if (safeZone) {
-    const p = resolvePlacementForTemplate(safeZone, "scene", width, height);
-    cx = p.anchorX;
-    bottomThirdY = p.anchorY;
-  }
+  const headlineY =
+    headlinePlacement?.anchorY ?? Math.round(height * (SAFE_AREA_MARGIN_V + 0.1));
+  const headlineX = headlinePlacement?.anchorX ?? Math.round(width / 2);
+  const titleX = titlePlacement?.anchorX ?? Math.round(width / 2);
+  const titleY = titlePlacement?.anchorY ?? Math.round(height * 0.52);
+  const subtitleX = subtitlePlacement?.anchorX ?? titleX;
+  const subtitleY =
+    titleLines.length > 0 ? titleY + titleSize + SUBTITLE_GAP : subtitlePlacement?.anchorY ?? titleY + titleSize + SUBTITLE_GAP;
 
+  const reveal = buildSceneLayeredRevealSlots(start, end, {
+    headline: headlineLines.length > 0,
+    title: titleLines.length > 0,
+    subtitle: subtitleLines.length > 0,
+  });
+
+  if (headlineLines.length > 0) {
+    const headlineText = headlineLines.map((l) => escapeAssText(l)).join("\\N");
+    const slot = reveal.headline ?? { revealStart: start, visibleEnd: end };
+    events.push(
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY)}${headlineText}`
+    );
+  }
   if (titleLines.length > 0) {
     const titleText = titleLines.map((l) => escapeAssText(l)).join("\\N");
+    const slot = reveal.title ?? { revealStart: start, visibleEnd: end };
     events.push(
-      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.title},,0,0,0,,${motionTags(cx, bottomThirdY)}${titleText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.title},,0,0,0,,${motionTags(titleX, titleY)}${titleText}`
     );
   }
   if (subtitleLines.length > 0) {
-    const subY = bottomThirdY + titleSize + SUBTITLE_GAP;
     const subtitleText = subtitleLines.map((l) => escapeAssText(l)).join("\\N");
+    const slot = reveal.subtitle ?? { revealStart: start, visibleEnd: end };
     events.push(
-      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.subtitle},,0,0,0,,${motionTags(cx, subY)}${subtitleText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.subtitle},,0,0,0,,${motionTags(subtitleX, subtitleY)}${subtitleText}`
     );
   }
 }
@@ -624,12 +696,30 @@ function resolveSceneFontSizes(params: {
   }
 
   if (resolved === "scene") {
-    const placement = safeZone ? resolvePlacementForTemplate(safeZone, "scene", width, height) : undefined;
+    const headline = getSceneHeadline(scene);
+    const headlinePlacement =
+      safeZone ? resolvePlacementForTemplate(safeZone, "headline", width, height) : undefined;
+    const titlePlacement =
+      safeZone ? resolvePlacementForTemplate(safeZone, "title", width, height) : undefined;
+    const subtitlePlacement =
+      safeZone ? resolvePlacementForTemplate(safeZone, "subtitle", width, height) : undefined;
+    const headlineTypo = headline ?
+      tryAdaptiveTypography({
+        text: headline,
+        template: "headline",
+        placement: headlinePlacement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords: scene.accentWords,
+        sceneIndex,
+      })
+    : null;
     const titleTypo = scene.title.trim() ?
       tryAdaptiveTypography({
         text: scene.title,
         template: "scene",
-        placement,
+        placement: titlePlacement,
         width,
         height,
         safeZone: safeZone ?? null,
@@ -641,7 +731,7 @@ function resolveSceneFontSizes(params: {
       tryAdaptiveTypography({
         text: scene.subtitle,
         template: "subtitle",
-        placement,
+        placement: subtitlePlacement,
         width,
         height,
         safeZone: safeZone ?? null,
@@ -649,6 +739,9 @@ function resolveSceneFontSizes(params: {
         sceneIndex,
       })
     : null;
+    if (headlineTypo) {
+      sizes.headline = headlineTypo.fontSize;
+    }
     if (titleTypo) {
       sizes.title = titleTypo.fontSize;
     }

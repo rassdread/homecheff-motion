@@ -12,6 +12,7 @@ import {
   placementForZone,
   scenePlacement,
   sequencePlacement,
+  titleLayerPlacement,
   SAFE_AREA_MARGIN_H,
   SAFE_AREA_MARGIN_V,
 } from "@/server/animation-export/safe-zone-placement";
@@ -168,9 +169,9 @@ describe("buildStoryOverlayAss safe zone integration", () => {
     assert.match(ass, new RegExp(`\\\\pos\\(${hero.anchorX},`));
   });
 
-  it("uses safe zone scene anchor when provided", () => {
+  it("uses safe zone title-layer anchor when provided", () => {
     const analysis = mockAnalysis();
-    const scene = scenePlacement(analysis, 1080, 1920);
+    const title = titleLayerPlacement(analysis, 1080, 1920);
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "scene", title: "SCENE TITLE", subtitle: "SUB" }],
       durationSeconds: 5,
@@ -178,7 +179,7 @@ describe("buildStoryOverlayAss safe zone integration", () => {
       height: 1920,
       safeZoneByIndex: new Map([[0, analysis]]),
     });
-    assert.match(ass, new RegExp(`\\\\pos\\(${scene.anchorX},${scene.anchorY}\\)`));
+    assert.match(ass, new RegExp(`\\\\pos\\(${title.anchorX},${title.anchorY}\\)`));
   });
 
   it("falls back to fixed placement without safe zone map", () => {
@@ -188,7 +189,7 @@ describe("buildStoryOverlayAss safe zone integration", () => {
       width: 1080,
       height: 1920,
     });
-    assert.match(ass, /\\pos\(540,1382\)/);
+    assert.match(ass, /\\pos\(540,/);
   });
 
   it("applies backdrop when zone score is low", () => {

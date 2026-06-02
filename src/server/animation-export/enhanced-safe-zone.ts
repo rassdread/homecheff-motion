@@ -5,7 +5,10 @@
 import { boxOverlapFraction, zoneBoundsNormalized } from "@/server/animation-export/local-vision/box-utils";
 import type { SceneDetectionContext } from "@/server/animation-export/local-vision/scene-detection-context";
 import type { AvoidBox, MediaPipeDetection } from "@/server/animation-export/local-vision/types";
-import { isAnyLocalDetectionEnabled } from "@/server/animation-export/local-vision/feature-flags";
+import {
+  isAnyLocalDetectionEnabled,
+  isObjectSafeZonesEnabled,
+} from "@/server/animation-export/local-vision/feature-flags";
 import { objectLabelPenalty } from "@/server/animation-export/local-vision/object-detector";
 import {
   resolveAllTemplatePlacements,
@@ -19,11 +22,14 @@ import {
   type SceneIntent,
 } from "@/server/animation-export/scene-intent-rules";
 import {
+  headlinePlacement,
   heroFinalePlacement,
   heroPlacement,
   placementForZone,
   scenePlacement,
   sequencePlacement,
+  subtitleLayerPlacement,
+  titleLayerPlacement,
   type SafeZoneAnalysis,
   type SafeZoneDebugInfo,
   type SafeZonePlacement,
@@ -235,6 +241,15 @@ export function resolvePlacementForTemplate(
   if (template === "hero") {
     return heroPlacement(ctx, width, height);
   }
+  if (template === "headline") {
+    return headlinePlacement(ctx, width, height);
+  }
+  if (template === "title") {
+    return titleLayerPlacement(ctx, width, height);
+  }
+  if (template === "subtitle") {
+    return subtitleLayerPlacement(ctx, width, height);
+  }
   if (template === "scene") {
     return scenePlacement(ctx, width, height);
   }
@@ -257,6 +272,14 @@ export function buildEnhancedSafeZoneDebugInfo(
       hero: ctx.placements.hero.zoneId,
       scene: ctx.placements.scene.zoneId,
       sequence: ctx.placements.sequence.zoneId,
+      headline: ctx.placements.headline.zoneId,
+      title: ctx.placements.title.zoneId,
+      subtitle: ctx.placements.subtitle.zoneId,
+    },
+    layerPlacementReasons: {
+      headline: ctx.placements.headline.placementReason,
+      title: ctx.placements.title.placementReason,
+      subtitle: ctx.placements.subtitle.placementReason,
     },
     confidence: ctx.enhanced.confidence,
     intent: ctx.intent,
@@ -265,5 +288,12 @@ export function buildEnhancedSafeZoneDebugInfo(
     mediaPipeCount: ctx.detection.mediaPipeDetections.length,
     objectCount: ctx.detection.objectDetections.length,
     failedDetectors: ctx.detection.failedDetectors,
+    adminVisionNote: !isObjectSafeZonesEnabled() ?
+      "Object-aware placement off (set HC_ENABLE_OBJECT_SAFE_ZONES=1 and run npm run setup:vision-models -- --include-object-detector on the worker)."
+    : ctx.detection.objectDetections.length === 0 &&
+        isObjectSafeZonesEnabled() &&
+        ctx.detection.failedDetectors.some((d) => d.includes("object")) ?
+      "Object detector enabled but no detections on this frame — using Safe Zone V1 placement."
+    : undefined,
   };
 }

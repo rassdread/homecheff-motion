@@ -105,15 +105,16 @@ describe("storyboard transition timing", () => {
     assert.ok(windows[1]!.end <= 10);
   });
 
-  it("last frame timing window uses final transition duration", () => {
+  it("last frame timing window uses previous segment hold when unset", () => {
     const scenes = [
       { transitionDurationSeconds: 3 },
       { transitionDurationSeconds: 7 },
       {},
     ];
-    const windows = getSceneTimingWindows(scenes, 10, 3);
+    const windows = getSceneTimingWindows(scenes, 17, 3);
     assert.equal(windows.length, 3);
     assert.ok(Math.abs(windows[2]!.storyboardDuration - 7) < 0.01);
+    assert.ok(windows[2]!.end > windows[2]!.start);
   });
 
   it("getSceneTimingWindows keeps equal split without custom transitions", () => {
