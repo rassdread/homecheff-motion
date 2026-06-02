@@ -424,9 +424,9 @@ export const en: LocaleSchema = {
   "projectDetail.quickActions.viewClean.label": "View clean video",
   "projectDetail.quickActions.viewClean.hint":
     "Watch the video without text layers.",
-  "projectDetail.quickActions.textRerender.label": "Re-render texts",
+  "projectDetail.quickActions.textRerender.label": "Edit texts",
   "projectDetail.quickActions.textRerender.hint":
-    "Apply text or overlays again without new AI video credits.",
+    "Edit storyboard texts and re-render the overlay without new AI video credits.",
   "projectDetail.quickActions.newLanguage.label": "Create language version",
   "projectDetail.quickActions.newLanguage.hint":
     "Translate texts automatically and render a new text version.",
@@ -1129,9 +1129,15 @@ export const en: LocaleSchema = {
   "instant.videoRepair.stage.uploadingFinal": "Uploading final video",
   "instant.videoRepair.stage.done": "Done",
   "instant.videoRepair.stage.failed": "Repair failed",
-  "instant.textRerender.cta": "Re-render texts",
+  "instant.textRerender.cta": "Edit texts",
+  "instant.textRerender.render": "Render text version",
+  "instant.textRerender.editorTitle": "Edit storyboard texts",
+  "instant.textRerender.editorHint":
+    "Edit texts and re-render without using new AI video credits.",
+  "instant.textRerender.readingOrderHint":
+    "On screen: Headline → Title → Subtitle → Extra lines → Footer (final frame only).",
   "instant.textRerender.hint":
-    "Creates a new version with updated texts, translations or overlays. No new AI video credits are used.",
+    "Edit texts and re-render without using new AI video credits.",
   "instant.textRerender.busy": "Re-rendering texts…",
   "instant.textRerender.aborted":
     "Text version could not be started. Please try again.",

@@ -77,10 +77,12 @@ describe("story-overlay-templates", () => {
     assert.equal(lines[1], "TRADE TIME FOR");
   });
 
-  it("uses 0.15s timing edges except final scene holds to video end", () => {
+  it("uses 0s start on first scene and 0.15s edge on later scenes", () => {
     const t = sceneOverlayTiming(0, 3, 9);
-    assert.equal(t.start, 0.15);
+    assert.equal(t.start, 0);
     assert.equal(t.end, 3 - 0.15);
+    const mid = sceneOverlayTiming(1, 3, 9);
+    assert.equal(mid.start, 3 + 0.15);
     const last = sceneOverlayTiming(2, 3, 9);
     assert.equal(last.end, 9);
   });
@@ -250,7 +252,7 @@ describe("buildStoryOverlayAss V2", () => {
       width: 1080,
       height: 1920,
     });
-    assert.match(ass, /\\fad\(220,200\)/);
+    assert.match(ass, /\\fad\(220,0\)/);
     assert.match(ass, /\\move\(/);
     assert.match(ass, /\\t\(0,480,\\fscx102\\fscy102\)/);
     assert.match(ass, /HCHeroMain/);

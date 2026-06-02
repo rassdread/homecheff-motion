@@ -86,6 +86,35 @@ function emptySpaceBonusForZone(zoneId: string, avoidBoxes: AvoidBox[]): number 
   return Math.min(15, bonus);
 }
 
+function verticalZoneBonus(zoneId: SafeZoneScore["zoneId"]): number {
+  if (zoneId.startsWith("TOP_")) {
+    return 14;
+  }
+  if (zoneId.startsWith("CENTER_")) {
+    return 7;
+  }
+  if (zoneId.startsWith("BOTTOM_")) {
+    return -12;
+  }
+  return 0;
+}
+
+function lowerThirdClutterPenalty(zone: SafeZoneScore): number {
+  if (!zone.zoneId.startsWith("BOTTOM_")) {
+    return 0;
+  }
+  return zone.edgeDensity * 0.55 + Math.max(0, zone.contrast - 20) * 0.15;
+}
+
+function objectOverlapPercent(zoneId: SafeZoneScore["zoneId"], avoidBoxes: AvoidBox[]): number {
+  const zone = zoneBoundsNormalized(zoneId);
+  let maxOverlap = 0;
+  for (const box of avoidBoxes) {
+    maxOverlap = Math.max(maxOverlap, boxOverlapFraction(zone, box));
+  }
+  return Math.round(maxOverlap * 1000) / 10;
+}
+
 /** Apply detection overlap penalties on top of Safe Zone V1 scores. */
 export function computeEnhancedZoneScores(
   v1: SafeZoneAnalysis,
@@ -104,19 +133,29 @@ export function computeEnhancedZoneScores(
     for (const det of detection.mediaPipeDetections) {
       const overlap = boxOverlapFraction(zoneBounds, det.box);
       if (overlap > 0) {
-        detectionPenalty += mediapipeOverlapPenalty(det, overlap);
+        detectionPenalty += mediapipeOverlapPenalty(det, overlap) * 1.35;
       }
     }
 
     for (const det of detection.objectDetections) {
       const overlap = boxOverlapFraction(zoneBounds, det.box);
       if (overlap > 0) {
-        objectPenalty += objectLabelPenalty(det.label, det.confidence) * overlap;
+        objectPenalty += objectLabelPenalty(det.label, det.confidence) * overlap * 1.5;
       }
     }
 
     const emptyBonus = emptySpaceBonusForZone(zone.zoneId, detection.combinedAvoidBoxes);
-    const rawScore = zone.score - detectionPenalty - objectPenalty + emptyBonus;
+    const edgeClutterPenalty = zone.edgeDensity * 0.65;
+    const verticalBonus = verticalZoneBonus(zone.zoneId);
+    const bottomPenalty = lowerThirdClutterPenalty(zone);
+    const rawScore =
+      zone.score -
+      detectionPenalty -
+      objectPenalty +
+      emptyBonus +
+      verticalBonus -
+      edgeClutterPenalty -
+      bottomPenalty;
     const withIntent = applyIntentBonus(zone.zoneId, intent, rawScore);
 
     return {
@@ -268,6 +307,50 @@ export function buildEnhancedSafeZoneDebugInfo(
   ctx: SceneSafeZoneContext
 ): SafeZoneDebugInfo {
   const heroPlacementInfo = ctx.placements.hero;
+  const layerKinds: OverlayTemplateKind[] = ["headline", "title", "subtitle"];
+  const layerZoneScoringDebug: NonNullable<SafeZoneDebugInfo["layerZoneScoringDebug"]> = {};
+
+  for (const kind of layerKinds) {
+    const selected = ctx.placements[kind];
+    const topZones = ["TOP_LEFT", "TOP_CENTER", "TOP_RIGHT"] as const;
+    const centerZones = ["CENTER_LEFT", "CENTER", "CENTER_RIGHT"] as const;
+    const candidates = ctx.enhanced.zones
+      .map((zone) => {
+        const overlapPct = objectOverlapPercent(zone.zoneId, ctx.detection.combinedAvoidBoxes);
+        let rejected: string | undefined;
+        if (overlapPct > 15) {
+          rejected = "object_overlap";
+        } else if (zone.zoneId.startsWith("BOTTOM_") && kind !== "subtitle") {
+          const bestUpper = [...topZones, ...centerZones]
+            .map((id) => ctx.enhanced.zones.find((z) => z.zoneId === id))
+            .filter(Boolean)
+            .sort((a, b) => (b!.score - a!.score))[0];
+          if (bestUpper && bestUpper.score >= zone.score * 0.55) {
+            rejected = "upper_zone_preferred";
+          }
+        }
+        return {
+          zoneId: zone.zoneId,
+          score: zone.score,
+          edgeDensity: zone.edgeDensity,
+          contrast: zone.contrast,
+          objectOverlapPct: overlapPct,
+          rejected,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    layerZoneScoringDebug[kind] = {
+      selectedZone: selected.zoneId,
+      reason: selected.placementReason,
+      candidates: candidates.slice(0, 5),
+      bottomChosenBecause:
+        selected.zoneId.startsWith("BOTTOM_") ?
+          "bottom_zone_highest_object_free_score_after_penalties"
+        : undefined,
+    };
+  }
+
   return {
     sceneIndex,
     zones: ctx.enhanced.zones,
@@ -285,6 +368,7 @@ export function buildEnhancedSafeZoneDebugInfo(
       title: ctx.placements.title.placementReason,
       subtitle: ctx.placements.subtitle.placementReason,
     },
+    layerZoneScoringDebug,
     confidence: ctx.enhanced.confidence,
     intent: ctx.intent,
     placementReason: heroPlacementInfo.placementReason,

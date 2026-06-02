@@ -424,9 +424,9 @@ export const nl = {
   "projectDetail.quickActions.viewClean.label": "Schone video bekijken",
   "projectDetail.quickActions.viewClean.hint":
     "Bekijk de video zonder tekstlagen.",
-  "projectDetail.quickActions.textRerender.label": "Teksten opnieuw renderen",
+  "projectDetail.quickActions.textRerender.label": "Teksten aanpassen",
   "projectDetail.quickActions.textRerender.hint":
-    "Pas teksten of overlays opnieuw toe zonder nieuwe AI-videocredits.",
+    "Pas teksten aan en render opnieuw zonder nieuwe AI-videocredits.",
   "projectDetail.quickActions.newLanguage.label": "Nieuwe taalversie maken",
   "projectDetail.quickActions.newLanguage.hint":
     "Vertaal de teksten automatisch en render een nieuwe tekstversie.",
@@ -1137,9 +1137,15 @@ export const nl = {
   "instant.videoRepair.stage.uploadingFinal": "Eindvideo uploaden",
   "instant.videoRepair.stage.done": "Klaar",
   "instant.videoRepair.stage.failed": "Herstellen mislukt",
-  "instant.textRerender.cta": "Teksten opnieuw renderen",
+  "instant.textRerender.cta": "Teksten aanpassen",
+  "instant.textRerender.render": "Tekstversie renderen",
+  "instant.textRerender.editorTitle": "Storyboardteksten aanpassen",
+  "instant.textRerender.editorHint":
+    "Pas teksten aan en render opnieuw zonder nieuwe AI-videocredits.",
+  "instant.textRerender.readingOrderHint":
+    "Volgorde op scherm: Koptekst → Titel → Ondertitel → Extra regels → Footer (alleen laatste frame).",
   "instant.textRerender.hint":
-    "Maakt een nieuwe versie met aangepaste teksten, vertalingen of overlays. Gebruikt geen nieuwe AI-videocredits.",
+    "Pas teksten aan en render opnieuw zonder nieuwe AI-videocredits.",
   "instant.textRerender.busy": "Teksten opnieuw renderen…",
   "instant.textRerender.aborted":
     "Tekstversie kon niet worden gestart. Probeer opnieuw.",

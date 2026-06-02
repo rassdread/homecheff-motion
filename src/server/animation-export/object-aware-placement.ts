@@ -97,6 +97,36 @@ function zoneScoreForId(analysis: SafeZoneAnalysis, zoneId: SafeZoneId): number 
   return analysis.zones.find((z) => z.zoneId === zoneId)?.score ?? 0;
 }
 
+function pickBestScoredZone(analysis: SafeZoneAnalysis, zoneIds: SafeZoneId[]): SafeZoneId | null {
+  let best: SafeZoneId | null = null;
+  let bestScore = -1;
+  for (const zoneId of zoneIds) {
+    const score = zoneScoreForId(analysis, zoneId);
+    if (score > bestScore) {
+      bestScore = score;
+      best = zoneId;
+    }
+  }
+  return best;
+}
+
+function preferUpperZoneIfBusyBottom(
+  analysis: SafeZoneAnalysis,
+  chosenZone: SafeZoneId,
+  topZones: SafeZoneId[],
+  centerZones: SafeZoneId[]
+): { zoneId: SafeZoneId; reason?: string } {
+  if (!chosenZone.startsWith("BOTTOM_")) {
+    return { zoneId: chosenZone };
+  }
+  const upperBest = pickBestScoredZone(analysis, [...topZones, ...centerZones]);
+  const bottomScore = zoneScoreForId(analysis, chosenZone);
+  if (upperBest && zoneScoreForId(analysis, upperBest) >= bottomScore * 0.55) {
+    return { zoneId: upperBest, reason: "preferred_upper_empty_zone" };
+  }
+  return { zoneId: chosenZone, reason: "bottom_only_viable_zone" };
+}
+
 function pickBestZoneNearObject(
   analysis: SafeZoneAnalysis,
   objectBox: AvoidBox,
@@ -128,14 +158,24 @@ function defaultZoneForTemplate(
   analysis: SafeZoneAnalysis,
   template: OverlayTemplateKind
 ): SafeZoneId {
+  const topZones: SafeZoneId[] = ["TOP_LEFT", "TOP_CENTER", "TOP_RIGHT"];
+  const centerZones: SafeZoneId[] = ["CENTER_LEFT", "CENTER", "CENTER_RIGHT"];
   if (template === "hero" || template === "headline") {
     return analysis.bestTopZone;
   }
   if (template === "title") {
-    return analysis.bestOverallZone ?? analysis.bestCenterZone;
+    const upper = pickBestScoredZone(analysis, [...topZones, ...centerZones]);
+    if (upper) {
+      return upper;
+    }
+    return analysis.bestCenterZone;
   }
   if (template === "subtitle" || template === "scene") {
-    return analysis.bestBottomZone;
+    const upper = pickBestScoredZone(analysis, [...centerZones, ...topZones]);
+    if (upper && !upper.startsWith("BOTTOM_")) {
+      return upper;
+    }
+    return analysis.bestCenterZone;
   }
   if (template === "heroFinale") {
     const topScore = zoneScoreForId(analysis, analysis.bestTopZone);
@@ -296,6 +336,20 @@ export function resolveObjectAwarePlacement(params: {
 
   if (template === "headline" && !topZones.includes(chosenZone)) {
     chosenZone = enhancedAnalysis.bestTopZone;
+  }
+
+  if (template === "title" || template === "headline") {
+    const preferred = preferUpperZoneIfBusyBottom(
+      enhancedAnalysis,
+      chosenZone,
+      topZones,
+      centerZones
+    );
+    if (preferred.reason) {
+      chosenZone = preferred.zoneId;
+      placementReason = preferred.reason;
+      confidence = Math.max(confidence, 0.72);
+    }
   }
 
   const objectBox =

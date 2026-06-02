@@ -14,6 +14,7 @@ import {
   buildSceneLayeredRevealSlots,
   buildStagedRevealSlots,
   getSceneHeadline,
+  resolveSceneOverlayStart,
   resolveSceneOverlayVisibleEnd,
   sceneOverlayTiming,
   storyOverlayMotionTags,
@@ -230,8 +231,12 @@ function heroLineWithAccents(
     .join("");
 }
 
-function motionTags(x: number, y: number, finaleHold = false): string {
-  return storyOverlayMotionTags(x, y, { finaleHold });
+type MotionTagOptions = { finaleHold?: boolean; instant?: boolean };
+
+function motionTags(x: number, y: number, options?: boolean | MotionTagOptions): string {
+  const opts: MotionTagOptions =
+    typeof options === "boolean" ? { finaleHold: options } : (options ?? {});
+  return storyOverlayMotionTags(x, y, opts);
 }
 
 function sceneTextForSafeZone(scene: NormalizedSceneText): string {
@@ -489,6 +494,44 @@ function registerSceneStyles(
   return { heroMain, heroSmall, headline, title, subtitle, extraLines, finaleFooter };
 }
 
+function appendFinaleFooterEvent(
+  events: string[],
+  params: {
+    scene: NormalizedSceneText;
+    start: number;
+    visibleEnd: number;
+    width: number;
+    height: number;
+    subtitleSize: number;
+    styleName: string;
+    revealStart?: number;
+  }
+): void {
+  const finaleFooterRaw = params.scene.finaleFooter.trim();
+  if (!finaleFooterRaw) {
+    return;
+  }
+  const footerFontSize = Math.max(28, Math.round(params.subtitleSize * 0.78));
+  const footerY = Math.round(
+    params.height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35
+  );
+  const footerClamped = clampAssAnchor({
+    x: Math.round(params.width / 2),
+    y: footerY,
+    alignment: STORY_FOOTER_ASS_ALIGNMENT,
+    lines: [finaleFooterRaw],
+    fontSize: footerFontSize,
+    frameWidth: params.width,
+    frameHeight: params.height,
+  });
+  const revealStart = params.revealStart ?? params.start;
+  events.push(
+    `Dialogue: 0,${assTime(revealStart)},${assTime(params.visibleEnd)},${params.styleName},,0,0,0,,${motionTags(footerClamped.clampedX, footerClamped.clampedY, {
+      finaleHold: true,
+    })}${escapeAssText(finaleFooterRaw)}`
+  );
+}
+
 function appendHeroEvents(
   events: string[],
   scene: NormalizedSceneText,
@@ -496,7 +539,7 @@ function appendHeroEvents(
   end: number,
   width: number,
   height: number,
-  styleNames: { heroMain: string; heroSmall: string },
+  styleNames: { heroMain: string; heroSmall: string; finaleFooter: string },
   theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
   heroTypography?: AdaptiveTypographyResult | null,
@@ -586,12 +629,28 @@ function appendHeroEvents(
     const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
     const lineStart = slot.revealStart;
     const lineEnd = slot.visibleEnd;
-    const tags = motionTags(clampedCx, y, finaleHold);
+    const tags = motionTags(clampedCx, y, {
+      finaleHold,
+      instant: sceneIndex === 0 && lineIndex === 0,
+    });
     const text = heroLineWithAccents(line, accents, theme);
     events.push(
       `Dialogue: 0,${assTime(lineStart)},${assTime(lineEnd)},${style},,0,0,0,,${tags}${text}`
     );
   });
+
+  if (finaleHold && scene.finaleFooter.trim()) {
+    const sizes = defaultSceneFontSizes(width, height);
+    appendFinaleFooterEvent(events, {
+      scene,
+      start,
+      visibleEnd,
+      width,
+      height,
+      subtitleSize: sizes.subtitle,
+      styleName: styleNames.finaleFooter,
+    });
+  }
 }
 
 function appendSequenceEvents(
@@ -601,13 +660,14 @@ function appendSequenceEvents(
   end: number,
   width: number,
   height: number,
-  styleNames: { heroMain: string; heroSmall: string; title: string; subtitle: string },
+  styleNames: { heroMain: string; heroSmall: string; title: string; subtitle: string; finaleFooter: string },
   theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
   sceneIndex = 0,
   options?: { visibleEnd?: number; isFinalScene?: boolean }
 ): void {
   const visibleEnd = options?.visibleEnd ?? end;
+  const finaleHold = options?.isFinalScene ?? false;
   const sequenceEvents = buildSequenceAssEvents({
     scene,
     sceneStart: start,
@@ -623,10 +683,26 @@ function appendSequenceEvents(
     heroLineWithAccents,
     motionTags,
   });
-  for (const ev of sequenceEvents) {
+  for (const [evIndex, ev] of sequenceEvents.entries()) {
     events.push(
-      `Dialogue: 0,${assTime(ev.start)},${assTime(ev.end)},${ev.styleName},,0,0,0,,${motionTags(ev.x, ev.y)}${ev.text}`
+      `Dialogue: 0,${assTime(ev.start)},${assTime(ev.end)},${ev.styleName},,0,0,0,,${motionTags(ev.x, ev.y, {
+        finaleHold,
+        instant: sceneIndex === 0 && evIndex === 0 && ev.start <= start + 0.01,
+      })}${ev.text}`
     );
+  }
+
+  if (finaleHold && scene.finaleFooter.trim()) {
+    const sizes = defaultSceneFontSizes(width, height);
+    appendFinaleFooterEvent(events, {
+      scene,
+      start,
+      visibleEnd,
+      width,
+      height,
+      subtitleSize: sizes.subtitle,
+      styleName: styleNames.finaleFooter,
+    });
   }
 }
 
@@ -853,7 +929,10 @@ function appendSceneEvents(
     const headlineText = headlineLines.map((l) => escapeAssText(l)).join("\\N");
     const slot = reveal.headline ?? { revealStart: start, visibleEnd };
     events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY, finaleHold)}${headlineText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY, {
+        finaleHold,
+        instant: sceneIndex === 0,
+      })}${headlineText}`
     );
   }
   if (titleLines.length > 0) {
@@ -887,24 +966,21 @@ function appendSceneEvents(
   });
 
   if (finaleHold && finaleFooterRaw) {
-    const footerFontSize = Math.round(subtitleSize * 0.78);
-    const footerY = Math.round(height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35);
-    const footerClamped = clampAssAnchor({
-      x: Math.round(width / 2),
-      y: footerY,
-      alignment: STORY_FOOTER_ASS_ALIGNMENT,
-      lines: [finaleFooterRaw],
-      fontSize: footerFontSize,
-      frameWidth: width,
-      frameHeight: height,
-    });
-    const slot = reveal.finaleFooter ?? reveal.subtitle ?? reveal.title ?? reveal.headline ?? {
-      revealStart: start,
+    appendFinaleFooterEvent(events, {
+      scene,
+      start,
       visibleEnd,
-    };
-    events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(visibleEnd)},${styleNames.finaleFooter},,0,0,0,,${motionTags(footerClamped.clampedX, footerClamped.clampedY, true)}${escapeAssText(finaleFooterRaw)}`
-    );
+      width,
+      height,
+      subtitleSize,
+      styleName: styleNames.finaleFooter,
+      revealStart:
+        reveal.finaleFooter?.revealStart ??
+        reveal.subtitle?.revealStart ??
+        reveal.title?.revealStart ??
+        reveal.headline?.revealStart ??
+        start,
+    });
   }
 }
 
@@ -1075,7 +1151,8 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
       continue;
     }
     const timing = getSceneTimingWindows(normalized, durationSeconds, normalized.length)[index];
-    const start = timing?.start ?? sceneOverlayTiming(index, normalized.length, durationSeconds).start;
+    const rawStart = timing?.start ?? sceneOverlayTiming(index, normalized.length, durationSeconds).start;
+    const start = resolveSceneOverlayStart(index, rawStart);
     const end = timing?.end ?? sceneOverlayTiming(index, normalized.length, durationSeconds).end;
     const visibleEnd = resolveSceneOverlayVisibleEnd({
       sceneIndex: index,

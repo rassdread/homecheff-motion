@@ -24,7 +24,7 @@ describe("instant recovery action visibility", () => {
     assert.equal(visibility.showAdminForceRebuild, true);
   });
 
-  it("shows Teksten opnieuw renderen when final video exists and export completed", () => {
+  it("shows Edit texts when final video exists and export completed", () => {
     const visibility = resolveInstantRecoveryActionVisibility({
       canRepairFinalVideo: false,
       canRebuildFinalVideo: true,
@@ -56,8 +56,8 @@ describe("instant recovery action visibility", () => {
   });
 
   it("needs_refresh language path uses text rerender label keys", () => {
-    assert.equal(en["instant.textRerender.cta"], "Re-render texts");
-    assert.equal(nl["instant.textRerender.cta"], "Teksten opnieuw renderen");
+    assert.equal(en["instant.textRerender.cta"], "Edit texts");
+    assert.equal(nl["instant.textRerender.cta"], "Teksten aanpassen");
   });
 
   it("normal user labels avoid merge/ffmpeg/worker/recovery jargon", () => {

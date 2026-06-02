@@ -22,7 +22,10 @@ import { VideoPreview } from "@/components/ui/video-preview";
 import {
   instantExportUserErrorMessage,
   postRebuildFinalVideo,
+  type RebuildFinalVideoResponse,
 } from "@/lib/instant-export-client";
+import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
+import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
@@ -80,6 +83,7 @@ export default function InstantPremiumProgressPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [segmentRetryBusy, setSegmentRetryBusy] = useState<number | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [textRerenderEditorOpen, setTextRerenderEditorOpen] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
@@ -200,6 +204,32 @@ export default function InstantPremiumProgressPage() {
     void syncActiveAnimationProjects();
   }, [effectiveProjectId, snapshot?.finalVideoUrl, snapshot?.status]);
 
+  const applyTextRerenderResponse = useCallback(
+    async (body: RebuildFinalVideoResponse) => {
+      if (body.rebuild?.clipsReady === false) {
+        setActionError(body.rebuild?.message ?? t("instant.textRerender.segmentsMissing"));
+        return;
+      }
+      if (body.rebuild?.ok) {
+        setActionError(null);
+      } else {
+        setActionError(
+          body.rebuild?.message ??
+            (body.rebuild?.finalVideoUrlPresent
+              ? t("instant.progress.rebuildFinalFailedKeepsPrevious")
+              : t("instant.textRerender.failed"))
+        );
+      }
+      if (body.rebuild?.ok && effectiveProjectId) {
+        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+      }
+      if (body.status) {
+        setSnapshot(body.status);
+      }
+    },
+    [effectiveProjectId, setSnapshot, t]
+  );
+
   const runTextRerender = useCallback(async () => {
     if (!effectiveProjectId) {
       return;
@@ -230,22 +260,7 @@ export default function InstantPremiumProgressPage() {
         setActionError(body.rebuild?.message ?? t("instant.textRerender.segmentsMissing"));
         return;
       }
-      if (body.rebuild?.ok) {
-        setActionError(null);
-      } else {
-        setActionError(
-          body.rebuild?.message ??
-            (body.rebuild?.finalVideoUrlPresent
-              ? t("instant.progress.rebuildFinalFailedKeepsPrevious")
-              : t("instant.textRerender.failed"))
-        );
-      }
-      if (body.rebuild?.ok && effectiveProjectId) {
-        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-      }
-      if (body.status) {
-        setSnapshot(body.status);
-      }
+      await applyTextRerenderResponse(body);
     } catch (e) {
       setActionError(
         instantExportUserErrorMessage({
@@ -258,7 +273,7 @@ export default function InstantPremiumProgressPage() {
     } finally {
       setRebuildBusy(false);
     }
-  }, [effectiveProjectId, setSnapshot, t]);
+  }, [applyTextRerenderResponse, effectiveProjectId, setSnapshot, t]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -297,7 +312,7 @@ export default function InstantPremiumProgressPage() {
               }
               onTextRerender={
                 effectiveProjectId && snapshot?.canRebuildFinalVideo
-                  ? () => void runTextRerender()
+                  ? () => setTextRerenderEditorOpen(true)
                   : undefined
               }
               onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
@@ -386,7 +401,7 @@ export default function InstantPremiumProgressPage() {
                 textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                 forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                 isAdmin={isAdmin}
-                onTextRerender={() => void runTextRerender()}
+                onTextRerender={() => setTextRerenderEditorOpen(true)}
                 onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
                 buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
               />
@@ -525,7 +540,7 @@ export default function InstantPremiumProgressPage() {
                 textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                 forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                 isAdmin={isAdmin}
-                onTextRerender={() => void runTextRerender()}
+                onTextRerender={() => setTextRerenderEditorOpen(true)}
                 onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
                 buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
               />
@@ -555,6 +570,18 @@ export default function InstantPremiumProgressPage() {
           </div>
         </AppCard>
       </div>
+
+      {effectiveProjectId && versionMeta?.usesStoryOverlay ?
+        <TextRerenderEditorModal
+          open={textRerenderEditorOpen}
+          onClose={() => setTextRerenderEditorOpen(false)}
+          projectId={effectiveProjectId}
+          instantSceneTexts={versionMeta?.instantSceneTexts}
+          imageCount={Math.max(parseSceneTextsJson(versionMeta?.instantSceneTexts).length, 1)}
+          onSuccess={(response) => void applyTextRerenderResponse(response)}
+          onError={(message) => setActionError(message)}
+        />
+      : null}
     </main>
   );
 }

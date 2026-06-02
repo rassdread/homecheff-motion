@@ -76,6 +76,22 @@ export type SafeZoneDebugInfo = {
       layout?: string;
     }
   >;
+  layerZoneScoringDebug?: Record<
+    string,
+    {
+      selectedZone: SafeZoneId;
+      reason: string;
+      candidates: Array<{
+        zoneId: SafeZoneId;
+        score: number;
+        edgeDensity: number;
+        contrast: number;
+        objectOverlapPct: number;
+        rejected?: string;
+      }>;
+      bottomChosenBecause?: string;
+    }
+  >;
   confidence: number;
   intent?: string;
   placementReason?: string;
@@ -147,8 +163,9 @@ function scoreZoneMetrics(params: {
   rs: number[];
   gs: number[];
   bs: number[];
+  rowIndex: number;
 }): Omit<SafeZoneScore, "zoneId"> {
-  const { lumas, rs, gs, bs } = params;
+  const { lumas, rs, gs, bs, rowIndex } = params;
   const n = Math.max(1, lumas.length);
   const meanLuma = lumas.reduce((a, b) => a + b, 0) / n;
   let variance = 0;
@@ -174,10 +191,16 @@ function scoreZoneMetrics(params: {
   colorVariance = Math.sqrt(colorVariance / (n * 3));
 
   const quietBonus = clamp(100 - contrast * 1.1, 0, 55);
-  const edgePenalty = edgeDensity * 0.85;
-  const clutterPenalty = colorVariance * 0.35;
+  const edgePenalty = edgeDensity * 1.15;
+  const clutterPenalty = colorVariance * 0.55;
   const openSpaceBonus = contrast < 25 ? 12 : contrast < 40 ? 6 : 0;
-  const score = clamp(quietBonus + openSpaceBonus - edgePenalty - clutterPenalty, 0, 100);
+  const verticalBonus = rowIndex === 0 ? 10 : rowIndex === 1 ? 5 : -8;
+  const lowerThirdPenalty = rowIndex === 2 ? edgeDensity * 0.35 + colorVariance * 0.12 : 0;
+  const score = clamp(
+    quietBonus + openSpaceBonus + verticalBonus - edgePenalty - clutterPenalty - lowerThirdPenalty,
+    0,
+    100
+  );
 
   return {
     score,
@@ -226,7 +249,7 @@ export function analyzeSafeZonesFromBuffer(
 
       zones.push({
         zoneId,
-        ...scoreZoneMetrics({ lumas, rs, gs, bs }),
+        ...scoreZoneMetrics({ lumas, rs, gs, bs, rowIndex: row }),
       });
     }
   }
@@ -325,8 +348,9 @@ export function subtitleLayerPlacement(
   width: number,
   height: number
 ): SafeZonePlacement {
-  const zone = analysis.zones.find((z) => z.zoneId === analysis.bestBottomZone)!;
-  return placementForZone(analysis.bestBottomZone, zone.score, width, height);
+  const zoneId = analysis.bestCenterZone ?? analysis.bestOverallZone ?? analysis.bestTopZone;
+  const zone = analysis.zones.find((z) => z.zoneId === zoneId)!;
+  return placementForZone(zoneId, zone.score, width, height);
 }
 
 export function sequencePlacement(

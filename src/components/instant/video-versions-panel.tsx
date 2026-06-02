@@ -12,7 +12,9 @@ import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { LANGUAGE_EXPORT_POLL_INTERVAL_MS } from "@/lib/language-export-playback";
 import { sceneTextsSummary } from "@/lib/story-language-export";
+import { sceneTextToDraft } from "@/lib/instant-scene-text-editor";
 import { instantSceneTextFromDraft } from "@/lib/instant-scene-text-draft";
+import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import {
   LANGUAGE_EXPORT_CODES,
@@ -48,7 +50,7 @@ type Props = {
   layout?: "default" | "detail";
   /** Called when user chooses to create a language version from outside the panel. */
   onRequestCreateLanguage?: () => void;
-  onRerenderOriginalTexts?: () => void;
+  onTextsRerendered?: () => void;
   textRerenderBusy?: boolean;
 };
 
@@ -64,22 +66,7 @@ function toDraftDuration(value: number | undefined, fallback: StorySceneDuration
 }
 
 function sceneToDraft(scene: ReturnType<typeof parseSceneTextsJson>[number]): InstantSceneTextDraft {
-  const pace = toDraftDuration(scene.transitionDurationSeconds ?? scene.durationSeconds);
-  return {
-    ...emptySceneTextDraft(pace),
-    template: scene.template ?? "auto",
-    transitionDurationSeconds: pace,
-    durationSeconds: pace,
-    heroText: scene.heroText ?? "",
-    title: scene.title ?? "",
-    subtitle: scene.subtitle ?? "",
-    extraLines: Array.isArray(scene.extraLines) ? scene.extraLines.map(String) : [],
-    accentWords: Array.isArray(scene.accentWords) ? scene.accentWords.join(", ") : "",
-    lines: Array.isArray(scene.lines) ? scene.lines.map(String) : [],
-    heroFinale: scene.heroFinale !== false,
-    heroFinaleText: scene.heroFinaleText ?? "",
-    finaleFooter: scene.finaleFooter ?? "",
-  };
+  return sceneTextToDraft(scene);
 }
 
 function statusLabel(status: string, t: ReturnType<typeof useActiveTranslator>): string {
@@ -164,11 +151,12 @@ export function VideoVersionsPanel({
   hideOriginalVideoPlayer = false,
   layout = "default",
   onRequestCreateLanguage,
-  onRerenderOriginalTexts,
+  onTextsRerendered,
   textRerenderBusy = false,
 }: Props) {
   const t = useActiveTranslator();
   const [createOpen, setCreateOpen] = useState(false);
+  const [textRerenderOpen, setTextRerenderOpen] = useState(false);
   const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
   const [storyboardExpandedIndex, setStoryboardExpandedIndex] = useState<number | null>(0);
@@ -373,11 +361,11 @@ export function VideoVersionsPanel({
           >
             {t("instant.videoVersions.download")}
           </a>
-          {onRerenderOriginalTexts && usesStoryOverlay ?
+          {usesStoryOverlay ?
             <button
               type="button"
               disabled={busy || hasActiveRender || textRerenderBusy}
-              onClick={onRerenderOriginalTexts}
+              onClick={() => setTextRerenderOpen(true)}
               className="w-full rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-900 disabled:opacity-50 sm:w-auto"
             >
               {textRerenderBusy ? t("instant.textRerender.busy") : t("instant.textRerender.cta")}
@@ -477,7 +465,7 @@ export function VideoVersionsPanel({
               onClick={() => void rerenderExport(row.id)}
               className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-900 disabled:opacity-50"
             >
-              {t("instant.textRerender.cta")}
+              {t("instant.textRerender.render")}
             </button>
           )}
         </VideoCard>
@@ -656,7 +644,7 @@ export function VideoVersionsPanel({
               }
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {t("instant.textRerender.cta")}
+              {t("instant.textRerender.render")}
             </button>
             <button
               type="button"
@@ -678,6 +666,20 @@ export function VideoVersionsPanel({
           {t("instant.videoVersions.openProjectPage")}
         </Link>
       </p>
+
+      <TextRerenderEditorModal
+        open={textRerenderOpen}
+        onClose={() => setTextRerenderOpen(false)}
+        projectId={projectId}
+        instantSceneTexts={instantSceneTexts}
+        images={images}
+        imageCount={Math.max(images.length, parseSceneTextsJson(instantSceneTexts).length, 1)}
+        onSuccess={() => {
+          setInfo(t("instant.progress.rebuildFinalSuccess"));
+          onTextsRerendered?.();
+        }}
+        onError={(message) => setError(message)}
+      />
     </section>
   );
 }

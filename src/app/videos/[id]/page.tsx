@@ -42,7 +42,9 @@ import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 import {
   instantExportUserErrorMessage,
   postRebuildFinalVideo,
+  type RebuildFinalVideoResponse,
 } from "@/lib/instant-export-client";
+import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { VideoPreview } from "@/components/ui/video-preview";
 import {
   ProjectDetailHeader,
@@ -107,6 +109,7 @@ export default function VideoDetailPage() {
   const [retryExportBusy, setRetryExportBusy] = useState(false);
   const [retryExportError, setRetryExportError] = useState<string | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
+  const [textRerenderEditorOpen, setTextRerenderEditorOpen] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -394,6 +397,52 @@ export default function VideoDetailPage() {
     }
   }, [id, load]);
 
+  const applyRebuildResponse = useCallback(
+    async (body: RebuildFinalVideoResponse) => {
+      if (body.rebuild?.clipsReady === false || body.code === "REBUILD_SEGMENTS_MISSING") {
+        setRebuildError(
+          body.rebuild?.message ??
+            (body.rebuild?.suggestRepair
+              ? t("instant.progress.rebuildSegmentsMissing")
+              : t("instant.progress.rebuildFinalFailed"))
+        );
+        return;
+      }
+      if (body.code === "STALE_PLAYBACK_URL") {
+        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFinalFailed"));
+        return;
+      }
+      if (body.code === "REBUILD_FAILED_TIMEOUT") {
+        setRebuildError(
+          body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFailedTimeout")
+        );
+        return;
+      }
+      if (body.code === "STALE_REBUILD_OUTPUT") {
+        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildStaleOutput"));
+        return;
+      }
+      if (body.rebuild?.ok) {
+        setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
+        setRebuildError(null);
+      } else if (body.rebuild?.finalVideoUrlPresent) {
+        setRebuildError(
+          body.rebuild?.message ?? t("instant.progress.rebuildFinalFailedKeepsPrevious")
+        );
+      } else {
+        setRebuildError(body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
+      }
+      if (id) {
+        invalidateCachedInstantProgressSnapshot(id);
+      }
+      await load();
+      if (body.status) {
+        setInstantSnapshot(body.status);
+      }
+    },
+    [id, load, setInstantSnapshot, t]
+  );
+
   const rebuildFinalVideo = useCallback(async () => {
     if (!id) {
       return;
@@ -424,43 +473,7 @@ export default function VideoDetailPage() {
         setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
         return;
       }
-      if (body.rebuild?.clipsReady === false || body.code === "REBUILD_SEGMENTS_MISSING") {
-        setRebuildError(
-          body.rebuild?.message ??
-            (body.rebuild?.suggestRepair
-              ? t("instant.progress.rebuildSegmentsMissing")
-              : t("instant.progress.rebuildFinalFailed"))
-        );
-        return;
-      }
-      if (body.code === "STALE_PLAYBACK_URL") {
-        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFinalFailed"));
-        return;
-      }
-      if (body.code === "REBUILD_FAILED_TIMEOUT") {
-        setRebuildError(
-          body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildFailedTimeout")
-        );
-        return;
-      }
-      if (body.code === "STALE_REBUILD_OUTPUT") {
-        setRebuildError(body.rebuild?.message ?? body.error ?? t("instant.progress.rebuildStaleOutput"));
-        return;
-      }
-      if (body.rebuild?.ok) {
-        setRebuildInfo(t("instant.progress.rebuildFinalSuccess"));
-      } else if (body.rebuild?.finalVideoUrlPresent) {
-        setRebuildError(
-          body.rebuild?.message ?? t("instant.progress.rebuildFinalFailedKeepsPrevious")
-        );
-      } else {
-        setRebuildError(body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
-      }
-      invalidateCachedInstantProgressSnapshot(id);
-      await load();
-      if (body.status) {
-        setInstantSnapshot(body.status);
-      }
+      await applyRebuildResponse(body);
     } catch (e) {
       setRebuildInfo(null);
       setRebuildError(
@@ -475,7 +488,7 @@ export default function VideoDetailPage() {
     } finally {
       setRebuildBusy(false);
     }
-  }, [id, isAdmin, load, setInstantSnapshot, touchProgressClock, t]);
+  }, [applyRebuildResponse, id, isAdmin, load, setInstantSnapshot, touchProgressClock, t]);
 
   useEffect(() => {
     if (!instantSnapshot?.finalVideoUrl) {
@@ -621,7 +634,9 @@ export default function VideoDetailPage() {
             videoRepair.showRepairCard ? () => void videoRepair.runRepair() : undefined
           }
           onTextRerender={
-            canRebuildInstant && Boolean(finalVideoUrl) ? () => void rebuildFinalVideo() : undefined
+            canRebuildInstant && Boolean(finalVideoUrl) ?
+              () => setTextRerenderEditorOpen(true)
+            : undefined
           }
           onForceRebuild={isAdmin && canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
         />
@@ -694,7 +709,7 @@ export default function VideoDetailPage() {
                 id: "text-rerender",
                 labelKey: "projectDetail.quickActions.textRerender.label",
                 hintKey: "projectDetail.quickActions.textRerender.hint",
-                onClick: () => void rebuildFinalVideo(),
+                onClick: () => setTextRerenderEditorOpen(true),
                 disabled: !canRebuildInstant || !finalVideoUrl,
                 busy: rebuildBusy,
                 busyLabelKey: "instant.textRerender.busy",
@@ -738,7 +753,7 @@ export default function VideoDetailPage() {
               }))}
               languageExports={languageExports}
               onLanguageExportsChange={updateLanguageExports}
-              onRerenderOriginalTexts={() => void rebuildFinalVideo()}
+              onTextsRerendered={() => void load()}
               textRerenderBusy={rebuildBusy}
               onRequestCreateLanguage={() => scrollToSection("version-languages")}
             />
@@ -1002,6 +1017,32 @@ export default function VideoDetailPage() {
       {deleteProjectError ? (
         <p className="mt-3 text-sm text-red-700">{deleteProjectError}</p>
       ) : null}
+
+      {detail && id && usesStoryOverlay ?
+        <TextRerenderEditorModal
+          open={textRerenderEditorOpen}
+          onClose={() => setTextRerenderEditorOpen(false)}
+          projectId={id}
+          instantSceneTexts={detail.instantSceneTexts}
+          images={(detail.images ?? []).map((img) => ({
+            id: img.id,
+            previewUrl: img.previewUrl ?? "",
+          }))}
+          imageCount={detail.images?.length}
+          onSuccess={(response) => {
+            setRebuildInfo(t("instant.textRerender.busy"));
+            void (async () => {
+              setRebuildBusy(true);
+              try {
+                await applyRebuildResponse(response);
+              } finally {
+                setRebuildBusy(false);
+              }
+            })();
+          }}
+          onError={(message) => setRebuildError(message)}
+        />
+      : null}
     </main>
   );
 }

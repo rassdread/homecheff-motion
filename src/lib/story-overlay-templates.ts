@@ -291,6 +291,9 @@ export function emptyNormalizedSceneText(): NormalizedSceneText {
 
 export function hasSceneOverlayContent(scene: InstantSceneText | NormalizedSceneText): boolean {
   const n = normalizeSceneText(scene);
+  if (n.finaleFooter.trim()) {
+    return true;
+  }
   return chooseTemplate(n) !== "skip";
 }
 
@@ -305,7 +308,8 @@ export function hasLayeredSceneContent(scene: InstantSceneText | NormalizedScene
     getSceneHeadline(n) ||
       n.title.trim() ||
       n.subtitle.trim() ||
-      n.extraLines.some((line) => line.trim())
+      n.extraLines.some((line) => line.trim()) ||
+      n.finaleFooter.trim()
   );
 }
 
@@ -313,7 +317,7 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
   const n = normalizeSceneText(scene);
 
   if (n.template === "sequence") {
-    return n.lines.length > 0 ? "sequence" : "skip";
+    return n.lines.length > 0 ? "sequence" : n.finaleFooter.trim() ? "scene" : "skip";
   }
   if (n.template === "hero") {
     if (hasLayeredSceneContent(n) && (n.title.trim() || n.subtitle.trim())) {
@@ -324,6 +328,9 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
     }
     if (n.lines.length === 1) {
       return "hero";
+    }
+    if (n.finaleFooter.trim()) {
+      return "scene";
     }
     return "skip";
   }
@@ -352,6 +359,9 @@ export function chooseTemplate(scene: InstantSceneText | NormalizedSceneText): R
     return "hero";
   }
   if (n.subtitle.trim()) {
+    return "scene";
+  }
+  if (n.finaleFooter.trim()) {
     return "scene";
   }
   return "skip";
@@ -513,11 +523,16 @@ export function buildSceneFieldRevealSlots(
 export function storyOverlayMotionTags(
   x: number,
   y: number,
-  options?: { finaleHold?: boolean }
+  options?: { finaleHold?: boolean; instant?: boolean }
 ): string {
   const yFrom = y + 28;
-  const fadeOutMs = options?.finaleHold ? 200 : 220;
-  return `{\\fad(220,${fadeOutMs})\\move(${x},${yFrom},${x},${y},0,420)\\t(0,480,\\fscx102\\fscy102)\\pos(${x},${y})}`;
+  const fadeInMs = options?.instant ? 0 : 220;
+  const fadeOutMs = options?.finaleHold ? 0 : 220;
+  const scalePulse = `\\t(0,480,\\fscx102\\fscy102)`;
+  if (options?.instant) {
+    return `{\\fad(${fadeInMs},${fadeOutMs})${scalePulse}\\pos(${x},${y})}`;
+  }
+  return `{\\fad(${fadeInMs},${fadeOutMs})\\move(${x},${yFrom},${x},${y},0,420)${scalePulse}\\pos(${x},${y})}`;
 }
 
 export function buildSequenceTiming(
@@ -716,12 +731,18 @@ export function sceneOverlayTiming(
 ): { start: number; end: number; sceneDuration: number } {
   const safeCount = Math.max(1, sceneCount);
   const sceneDuration = durationSeconds / safeCount;
-  const start = index * sceneDuration + STORY_OVERLAY_TIMING_EDGE_SEC;
+  const start =
+    index === 0 ? 0 : index * sceneDuration + STORY_OVERLAY_TIMING_EDGE_SEC;
   const isLast = index >= safeCount - 1;
   const end = isLast ?
     durationSeconds
   : (index + 1) * sceneDuration - STORY_OVERLAY_TIMING_EDGE_SEC;
   return { start, end, sceneDuration };
+}
+
+/** First scene overlays start at 0.00s so paused frame 0 shows koptekst. */
+export function resolveSceneOverlayStart(sceneIndex: number, sceneStart: number): number {
+  return sceneIndex === 0 ? 0 : sceneStart;
 }
 
 /** Visible end for overlay dialogue — final scene holds until video end. */
@@ -949,7 +970,8 @@ export function getSceneTimingWindows(
   if (!hasCustomTransitionDurations(scenes)) {
     const sceneDuration = totalDurationSeconds / count;
     return Array.from({ length: count }, (_, index) => {
-      const start = index * sceneDuration + STORY_OVERLAY_TIMING_EDGE_SEC;
+      const start =
+        index === 0 ? 0 : index * sceneDuration + STORY_OVERLAY_TIMING_EDGE_SEC;
       const isLast = index >= count - 1;
       const end = isLast ?
         totalDurationSeconds
@@ -987,7 +1009,7 @@ export function getSceneTimingWindows(
           return Math.max(STORY_FINALE_MIN_VISIBLE_SEC, holdSeconds);
         })();
     segmentDurations.push(segmentSeconds);
-    const start = cursor + STORY_OVERLAY_TIMING_EDGE_SEC;
+    const start = index === 0 ? 0 : cursor + STORY_OVERLAY_TIMING_EDGE_SEC;
     const isLast = index >= count - 1;
     const end = isLast ?
       totalDurationSeconds
@@ -1008,7 +1030,7 @@ export function getSceneTimingWindows(
     let scaledCursor = 0;
     for (let index = 0; index < windows.length; index += 1) {
       const segmentSeconds = segmentDurations[index]! * scale;
-      const start = scaledCursor + STORY_OVERLAY_TIMING_EDGE_SEC;
+      const start = index === 0 ? 0 : scaledCursor + STORY_OVERLAY_TIMING_EDGE_SEC;
       const isLast = index >= windows.length - 1;
       const end = isLast ?
         totalDurationSeconds

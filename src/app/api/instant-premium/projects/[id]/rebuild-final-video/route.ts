@@ -13,16 +13,27 @@ import { getInstantPremiumStatus } from "@/server/instant-premium/status-service
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { STALE_PLAYBACK_URL } from "@/lib/playback-url-resolution";
 import { prisma } from "@/lib/prisma";
+import { persistInstantSceneTextsForProject } from "@/server/instant-premium/persist-instant-scene-texts";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;
+  }
+
+  let sceneTextsPayload: unknown;
+  try {
+    const body = (await request.json().catch(() => null)) as { sceneTexts?: unknown } | null;
+    if (body && body.sceneTexts !== undefined) {
+      sceneTextsPayload = body.sceneTexts;
+    }
+  } catch {
+    // Empty body is valid — rebuild from stored texts.
   }
 
   const project = await prisma.animationProject.findUnique({
@@ -45,6 +56,13 @@ export async function POST(_: Request, context: RouteContext) {
   }
   if (project.ownerId !== user.id && user.role !== "admin") {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  if (sceneTextsPayload !== undefined) {
+    const persisted = await persistInstantSceneTextsForProject(id, sceneTextsPayload);
+    if (!persisted.ok) {
+      return NextResponse.json({ error: persisted.error }, { status: persisted.status });
+    }
   }
 
   try {

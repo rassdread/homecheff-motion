@@ -8,6 +8,7 @@ import {
   sameOriginApiPath,
 } from "@/lib/client-api-fetch";
 import { languageExportPrepareUrl } from "@/lib/language-export-prepare";
+import type { InstantSceneText } from "@/lib/story-overlay-templates";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
@@ -124,16 +125,24 @@ export type RebuildFinalVideoResponse = {
   status?: InstantPremiumStatusResponse;
 };
 
-export async function postRebuildFinalVideo(projectId: string): Promise<{
+export async function postRebuildFinalVideo(
+  projectId: string,
+  options?: { sceneTexts?: InstantSceneText[] }
+): Promise<{
   ok: boolean;
   status: number;
   data: RebuildFinalVideoResponse;
   networkError: boolean;
   errorKind: InstantExportClientErrorKind | null;
 }> {
+  const hasBody = Boolean(options?.sceneTexts);
   const result = await fetchSameOriginJson<RebuildFinalVideoResponse>(
     rebuildFinalVideoPath(projectId),
-    { method: "POST" }
+    {
+      method: "POST",
+      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+      body: hasBody ? JSON.stringify({ sceneTexts: options!.sceneTexts }) : undefined,
+    }
   );
 
   const errorKind =

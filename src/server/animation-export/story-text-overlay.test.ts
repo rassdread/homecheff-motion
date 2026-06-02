@@ -17,7 +17,7 @@ describe("buildStoryOverlayAss", () => {
     assert.match(ass, /THE SYSTEM/);
     assert.match(ass, /Line one/);
     assert.match(ass, /END/);
-    assert.match(ass, /0:00:00\.15,0:00:02\.85/);
+    assert.match(ass, /0:00:00\.00,0:00:02\.85/);
   });
 
   it("language rerender path uses the same staged scene timing", () => {
