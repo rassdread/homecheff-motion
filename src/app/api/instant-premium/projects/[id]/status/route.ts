@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import { fetchWorkerVideoHealth } from "@/lib/video-worker-client";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { getAnimationProjectByIdForOwner } from "@/server/animation-projects/queries";
+import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import type { InstantPremiumStatusApiResponse } from "@/types/animation-api";
 
@@ -35,7 +35,7 @@ export async function GET(_: Request, context: RouteContext) {
     return user;
   }
 
-  const ownedProject = await getAnimationProjectByIdForOwner(id, user.id);
+  const ownedProject = await getAnimationProjectByIdForViewer(id, user);
   if (!ownedProject) {
     const body: InstantPremiumStatusApiResponse = {
       availability: "not_found",

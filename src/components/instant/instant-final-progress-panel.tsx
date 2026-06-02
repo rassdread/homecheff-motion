@@ -51,6 +51,10 @@ export type InstantFinalProgressPanelProps = {
   showUnifiedRepair?: boolean;
   repairUiView?: InstantRepairUiView;
   repairFeedback?: InstantVideoRepairFeedback;
+  pollingError?: {
+    userMessageKey: "instant.videoRepair.pollFailed";
+    adminDetail: string | null;
+  } | null;
   className?: string;
 };
 
@@ -123,6 +127,7 @@ export function InstantFinalProgressPanel({
     adminDetail: null,
     lastHttpStatus: null,
   },
+  pollingError = null,
   className = "",
 }: InstantFinalProgressPanelProps) {
   const t = useActiveTranslator();
@@ -150,14 +155,33 @@ export function InstantFinalProgressPanel({
       snapshot?.status === "finalizing" ||
       snapshot?.status === "queued");
 
+  const repairActive =
+    repairBusy ||
+    snapshot?.videoRepairStatus === "running" ||
+    Boolean(snapshot?.isRestoringFinalVideo) ||
+    repairFeedback.kind === "starting" ||
+    repairFeedback.kind === "started";
+
   const stuck = useMemo(
     () =>
       isInstantExportProgressStuck({
         isActive: Boolean(isActive && (snapshot?.status === "finalizing" || (percent >= 70 && !isCompleted))),
         lastProgressChangeAtMs,
-      }) || Boolean(snapshot?.finalizationStuck),
-    [isActive, lastProgressChangeAtMs, snapshot?.finalizationStuck, snapshot?.status, percent, isCompleted]
+        repairInProgress: repairActive,
+      }) || (Boolean(snapshot?.finalizationStuck) && !repairActive),
+    [
+      isActive,
+      lastProgressChangeAtMs,
+      snapshot?.finalizationStuck,
+      snapshot?.status,
+      percent,
+      isCompleted,
+      repairActive,
+    ]
   );
+
+  const showFailedBanner = isFailed && !repairActive;
+  const showStuckBanner = stuck && !isCompleted && !showFailedBanner && !repairActive;
 
   const tone = barTone(isFailed ? "failed" : stage, isActive);
   const stageLabelKey = STAGE_LABEL_KEYS[stage] ?? STAGE_LABEL_KEYS.segment_rendering;
@@ -240,7 +264,16 @@ export function InstantFinalProgressPanel({
         />
       ) : null}
 
-      {isFailed ? (
+      {pollingError ? (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-medium">{t(pollingError.userMessageKey as never)}</p>
+          {isAdmin && pollingError.adminDetail ? (
+            <p className="mt-1 break-words font-mono text-xs text-amber-900/90">{pollingError.adminDetail}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showFailedBanner ? (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950">
           <p className="font-medium">
             {userFailureKey ? t(userFailureKey as never) : t("instant.exportFailure.generic")}
@@ -270,7 +303,7 @@ export function InstantFinalProgressPanel({
         </div>
       ) : null}
 
-      {stuck && !isCompleted && !isFailed ? (
+      {showStuckBanner ? (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("instant.progress.exportStuckTitle")}</p>
           <p className="mt-1 text-xs text-amber-900/90">

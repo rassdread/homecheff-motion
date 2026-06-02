@@ -167,7 +167,12 @@ export function isInstantExportProgressStuck(params: {
   isActive: boolean;
   lastProgressChangeAtMs: number | null;
   nowMs?: number;
+  /** When true, repair/rebuild is in flight — do not show "stuck" heuristics. */
+  repairInProgress?: boolean;
 }): boolean {
+  if (params.repairInProgress) {
+    return false;
+  }
   if (!params.isActive || params.lastProgressChangeAtMs == null) {
     return false;
   }

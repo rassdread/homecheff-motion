@@ -1058,6 +1058,8 @@ export const en: LocaleSchema = {
   "instant.videoRepair.failed": "Could not repair the video.",
   "instant.videoRepair.failedUser":
     "Repair failed. Try again or open advanced details.",
+  "instant.videoRepair.pollFailed":
+    "Status could not be refreshed. Reload the page or try again.",
   "instant.videoRepair.started": "Repair started",
   "instant.videoRepair.stage.started": "Repair started",
   "instant.videoRepair.stage.checkingSource": "Checking source video",

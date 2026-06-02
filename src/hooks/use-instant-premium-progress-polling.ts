@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { instantStatusFromProjectDetail } from "@/lib/instant-premium-status-fallback";
+import {
+  fetchInstantPremiumStatus,
+  fetchInstantStatusFromProjectDetail,
+} from "@/lib/instant-premium-polling-api";
 import {
   readActiveInstantProjectId,
   readCachedInstantProgressSnapshot,
@@ -9,11 +12,7 @@ import {
   writeActiveInstantProjectId,
   writeCachedInstantProgressSnapshot,
 } from "@/lib/instant-premium-progress-cache";
-import type {
-  AnimationProjectDetailResponse,
-  InstantPremiumStatusApiResponse,
-  InstantPremiumStatusResponse,
-} from "@/types/animation-api";
+import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 export type InstantProgressConnectionState =
   | "idle"
@@ -22,6 +21,11 @@ export type InstantProgressConnectionState =
   | "worker_connecting"
   | "fatal_missing"
   | "completed";
+
+export type InstantProgressPollingError = {
+  userMessageKey: "instant.videoRepair.pollFailed";
+  adminDetail: string | null;
+};
 
 const GRACE_MS = 60_000;
 const MAX_TRANSIENT_RETRIES = 24;
@@ -62,49 +66,11 @@ function hasRecoverableSnapshot(projectId: string, snapshot: InstantPremiumStatu
   return Boolean(cached?.snapshot?.finalVideoUrl || cached?.snapshot?.status === "completed");
 }
 
-async function fetchStatus(
-  projectId: string
-): Promise<
-  | { kind: "ok"; data: InstantPremiumStatusResponse }
-  | { kind: "api"; body: InstantPremiumStatusApiResponse; status: number }
-  | { kind: "network" }
-> {
-  try {
-    const res = await fetch(`/api/instant-premium/projects/${encodeURIComponent(projectId)}/status`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    const body = (await res.json().catch(() => ({}))) as InstantPremiumStatusApiResponse;
-    if (res.ok) {
-      if ("availability" in body && body.availability === "ok") {
-        return { kind: "ok", data: body };
-      }
-      if ("projectId" in body && "segments" in body && !("availability" in body)) {
-        return { kind: "ok", data: body as unknown as InstantPremiumStatusResponse };
-      }
-    }
-    return { kind: "api", body, status: res.status };
-  } catch {
-    return { kind: "network" };
-  }
-}
-
-async function fetchProjectDetailFallback(
-  projectId: string
-): Promise<InstantPremiumStatusResponse | null> {
-  try {
-    const res = await fetch(`/api/animations/projects/${encodeURIComponent(projectId)}`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return null;
-    }
-    const detail = (await res.json()) as AnimationProjectDetailResponse;
-    return instantStatusFromProjectDetail(projectId, detail);
-  } catch {
-    return null;
-  }
+function formatPollAdminDetail(parts: {
+  primary: string;
+  fallback?: string;
+}): string {
+  return parts.fallback ? `${parts.primary}; fallback: ${parts.fallback}` : parts.primary;
 }
 
 export function useInstantPremiumProgressPolling() {
@@ -148,6 +114,7 @@ export function useInstantPremiumProgressPolling() {
   });
 
   const [transientMessage, setTransientMessage] = useState<string | null>(null);
+  const [pollingError, setPollingError] = useState<InstantProgressPollingError | null>(null);
   const [lastPolledAtMs, setLastPolledAtMs] = useState<number | null>(null);
   const [lastProgressChangeAtMs, setLastProgressChangeAtMs] = useState<number | null>(null);
 
@@ -178,18 +145,50 @@ export function useInstantPremiumProgressPolling() {
     }
     transientFailuresRef.current = 0;
     setTransientMessage(null);
+    setPollingError(null);
   }, []);
 
+  const recordPollingFailure = useCallback(
+    (adminDetail: string) => {
+      setPollingError({
+        userMessageKey: "instant.videoRepair.pollFailed",
+        adminDetail,
+      });
+    },
+    []
+  );
+
   const tryDetailFallback = useCallback(
-    async (id: string): Promise<InstantPremiumStatusResponse | null> => {
-      const fallback = await fetchProjectDetailFallback(id);
-      if (fallback && (fallback.status === "completed" || fallback.finalVideoUrl)) {
-        applySnapshot(fallback);
-        return fallback;
+    async (
+      id: string,
+      options?: { requireTerminal?: boolean }
+    ): Promise<InstantPremiumStatusResponse | null> => {
+      const fallback = await fetchInstantStatusFromProjectDetail(id);
+      if (fallback.kind === "ok") {
+        if (options?.requireTerminal && !isTerminalSnapshot(fallback.data)) {
+          return null;
+        }
+        applySnapshot(fallback.data);
+        return fallback.data;
+      }
+      if (fallback.kind === "network") {
+        recordPollingFailure(
+          formatPollAdminDetail({
+            primary: `GET /api/instant-premium/.../status failed`,
+            fallback: `GET /api/animations/projects/${id}: ${fallback.error}`,
+          })
+        );
+      } else if (fallback.kind === "auth") {
+        recordPollingFailure(
+          formatPollAdminDetail({
+            primary: `instant status unavailable`,
+            fallback: `GET /api/animations/projects/${id}: HTTP ${fallback.status}`,
+          })
+        );
       }
       return null;
     },
-    [applySnapshot]
+    [applySnapshot, recordPollingFailure]
   );
 
   useEffect(() => {
@@ -292,7 +291,7 @@ export function useInstantPremiumProgressPolling() {
         return;
       }
 
-      const result = await fetchStatus(projectId);
+      const result = await fetchInstantPremiumStatus(projectId);
       if (cancelled) {
         return;
       }
@@ -309,7 +308,12 @@ export function useInstantPremiumProgressPolling() {
           workerJobStatusRef.current === "queued" || workerJobStatusRef.current === "running";
         setConnectionState(workerHint ? "worker_connecting" : "reconnecting");
         setTransientMessage(workerHint ? "worker_connecting" : "connection_lost");
-        void tryDetailFallback(projectId);
+        recordPollingFailure(
+          formatPollAdminDetail({
+            primary: `GET /api/instant-premium/projects/${projectId}/status: ${result.error}`,
+          })
+        );
+        void tryDetailFallback(projectId, { requireTerminal: false });
         scheduleRetry(transientFailuresRef.current, false);
         return;
       }
@@ -322,8 +326,18 @@ export function useInstantPremiumProgressPolling() {
         return;
       }
 
+      if (status === 401 || status === 403) {
+        recordPollingFailure(
+          `GET /api/instant-premium/projects/${projectId}/status: HTTP ${status}`
+        );
+        setConnectionState("reconnecting");
+        setTransientMessage("connection_lost");
+        scheduleRetry(transientFailuresRef.current + 1, false);
+        return;
+      }
+
       if (body.availability === "not_found" && status === 404) {
-        const fallback = await tryDetailFallback(projectId);
+        const fallback = await tryDetailFallback(projectId, { requireTerminal: true });
         if (fallback) {
           if (!isTerminalSnapshot(fallback)) {
             scheduleRetry(0, false);
@@ -359,6 +373,9 @@ export function useInstantPremiumProgressPolling() {
       transientFailuresRef.current += 1;
       setConnectionState("reconnecting");
       setTransientMessage("connection_lost");
+      recordPollingFailure(
+        `GET /api/instant-premium/projects/${projectId}/status: HTTP ${status}`
+      );
       scheduleRetry(transientFailuresRef.current, false);
     };
 
@@ -373,7 +390,7 @@ export function useInstantPremiumProgressPolling() {
         clearTimeout(timer);
       }
     };
-  }, [projectId, applySnapshot, tryDetailFallback]);
+  }, [projectId, applySnapshot, tryDetailFallback, recordPollingFailure]);
 
   const showFatalMissing =
     connectionState === "fatal_missing" && !hasRecoverableSnapshot(projectId, snapshot);
@@ -384,6 +401,7 @@ export function useInstantPremiumProgressPolling() {
     setSnapshot,
     connectionState,
     transientMessage,
+    pollingError,
     showFatalMissing,
     lastPolledAtMs,
     lastProgressChangeAtMs,
@@ -391,7 +409,7 @@ export function useInstantPremiumProgressPolling() {
       if (!projectId) {
         return;
       }
-      const result = await fetchStatus(projectId);
+      const result = await fetchInstantPremiumStatus(projectId);
       if (result.kind === "ok") {
         applySnapshot(result.data);
         return;

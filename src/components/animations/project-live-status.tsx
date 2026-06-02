@@ -103,7 +103,11 @@ export function ProjectLiveStatus({
       requestSequenceRef.current = requestSequence;
 
       try {
-        const response = await fetch(`/api/animations/projects/${projectId}`);
+        const response = await fetch(`/api/animations/projects/${projectId}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
         if (!response.ok) {
           throw new Error("Polling request failed");
         }

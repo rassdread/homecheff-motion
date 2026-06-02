@@ -1065,6 +1065,8 @@ export const nl = {
   "instant.videoRepair.failed": "Video herstellen is mislukt.",
   "instant.videoRepair.failedUser":
     "Herstellen mislukt. Probeer opnieuw of open geavanceerde details.",
+  "instant.videoRepair.pollFailed":
+    "Status kon niet worden bijgewerkt. Vernieuw de pagina of probeer opnieuw.",
   "instant.videoRepair.started": "Herstel gestart",
   "instant.videoRepair.stage.started": "Herstel gestart",
   "instant.videoRepair.stage.checkingSource": "Bronvideo controleren",

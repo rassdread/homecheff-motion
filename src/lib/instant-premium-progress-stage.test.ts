@@ -104,4 +104,17 @@ describe("instant premium progress stage", () => {
       true
     );
   });
+
+  it("does not flag stuck while repair is in progress", () => {
+    const now = Date.now();
+    assert.equal(
+      isInstantExportProgressStuck({
+        isActive: true,
+        lastProgressChangeAtMs: now - INSTANT_EXPORT_STUCK_MS - 1,
+        nowMs: now,
+        repairInProgress: true,
+      }),
+      false
+    );
+  });
 });

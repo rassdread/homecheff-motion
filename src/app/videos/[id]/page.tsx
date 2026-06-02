@@ -115,7 +115,9 @@ export default function VideoDetailPage() {
     setError(null);
     try {
       const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
-        credentials: "include",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
       });
       const json: unknown = await res.json().catch(() => null);
       if (res.status === 401) {
@@ -273,6 +275,7 @@ export default function VideoDetailPage() {
     lastProgressChangeAtMs: instantLastProgressChangeAtMs,
     touchProgressClock,
     pollNow,
+    pollingError: instantPollingError,
   } = useInstantPremiumStatusPolling(id, showInstantProgress);
 
   const isAdmin = session.resolved && session.user?.role === "admin";
@@ -285,6 +288,15 @@ export default function VideoDetailPage() {
     onPollNow: pollNow,
     onReload: load,
   });
+
+  const panelPollingError =
+    instantPollingError ??
+    (videoRepair.feedback.kind === "poll_failed" && videoRepair.feedback.userMessageKey
+      ? {
+          userMessageKey: videoRepair.feedback.userMessageKey as "instant.videoRepair.pollFailed",
+          adminDetail: videoRepair.feedback.adminDetail,
+        }
+      : null);
 
   const originalPlaybackUrl = useMemo(() => {
     const picked = pickPlaybackUrl({
@@ -576,6 +588,7 @@ export default function VideoDetailPage() {
           showUnifiedRepair={videoRepair.showRepairCard}
           repairUiView={videoRepair.uiView}
           repairFeedback={videoRepair.feedback}
+          pollingError={panelPollingError}
           onRepair={
             videoRepair.showRepairCard ? () => void videoRepair.runRepair() : undefined
           }

@@ -68,6 +68,7 @@ export default function InstantPremiumProgressPage() {
     showFatalMissing,
     lastPolledAtMs,
     lastProgressChangeAtMs,
+    pollingError,
     refreshSnapshot,
   } = useInstantPremiumProgressPolling();
 
@@ -135,6 +136,15 @@ export default function InstantPremiumProgressPage() {
     isAdmin,
     onPollNow: refreshSnapshot,
   });
+
+  const panelPollingError =
+    pollingError ??
+    (videoRepair.feedback.kind === "poll_failed" && videoRepair.feedback.userMessageKey
+      ? {
+          userMessageKey: videoRepair.feedback.userMessageKey as "instant.videoRepair.pollFailed",
+          adminDetail: videoRepair.feedback.adminDetail,
+        }
+      : null);
 
   const headlineKey = useMemo(() => {
     if (showFatalMissing) {
@@ -267,6 +277,7 @@ export default function InstantPremiumProgressPage() {
               showUnifiedRepair={videoRepair.showRepairCard}
               repairUiView={videoRepair.uiView}
               repairFeedback={videoRepair.feedback}
+              pollingError={panelPollingError}
               onRepair={
                 effectiveProjectId && videoRepair.showRepairCard
                   ? () => void videoRepair.runRepair()

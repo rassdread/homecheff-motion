@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { fetchInstantPremiumStatus } from "@/lib/instant-premium-polling-api";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import {
   repairSnapshotFromStatus,
@@ -10,7 +11,7 @@ import {
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 export type InstantVideoRepairFeedback = {
-  kind: "idle" | "starting" | "started" | "completed" | "already_running" | "error";
+  kind: "idle" | "starting" | "started" | "completed" | "already_running" | "error" | "poll_failed";
   userMessageKey: string | null;
   adminDetail: string | null;
   lastHttpStatus: number | null;
@@ -24,30 +25,6 @@ export type UseInstantVideoRepairOptions = {
   onPollNow?: () => Promise<void>;
   onReload?: () => Promise<void>;
 };
-
-async function fetchRepairStatus(projectId: string): Promise<InstantPremiumStatusResponse | null> {
-  try {
-    const res = await fetch(
-      `/api/instant-premium/projects/${encodeURIComponent(projectId)}/status`,
-      { credentials: "include", cache: "no-store" }
-    );
-    const body = (await res.json().catch(() => ({}))) as InstantPremiumStatusResponse & {
-      availability?: string;
-    };
-    if (!res.ok) {
-      return null;
-    }
-    if ("availability" in body && body.availability === "ok") {
-      return body;
-    }
-    if ("projectId" in body && "segments" in body) {
-      return body;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 export function useInstantVideoRepair(options: UseInstantVideoRepairOptions) {
   const { projectId, snapshot, setSnapshot, isAdmin = false, onPollNow, onReload } = options;
@@ -67,17 +44,31 @@ export function useInstantVideoRepair(options: UseInstantVideoRepairOptions) {
   });
   const repairInFlight = uiView === "repair_running" || repairStarting;
 
-  const pollNow = useCallback(async () => {
+  const pollNow = useCallback(async (): Promise<boolean> => {
     if (onPollNow) {
       await onPollNow();
-      return;
+      return true;
     }
-    const next = await fetchRepairStatus(projectId);
-    if (next) {
-      setSnapshot(next);
+    const result = await fetchInstantPremiumStatus(projectId);
+    if (result.kind === "ok") {
+      setSnapshot(result.data);
       invalidateCachedInstantProgressSnapshot(projectId);
+      return true;
     }
-  }, [onPollNow, projectId, setSnapshot]);
+    const adminDetail =
+      result.kind === "network"
+        ? `GET /api/instant-premium/projects/${projectId}/status: ${result.error}`
+        : result.kind === "api"
+          ? `GET /api/instant-premium/projects/${projectId}/status: HTTP ${result.status}`
+          : "poll failed";
+    setFeedback({
+      kind: "poll_failed",
+      userMessageKey: "instant.videoRepair.pollFailed",
+      adminDetail: isAdmin ? adminDetail : null,
+      lastHttpStatus: result.kind === "api" ? result.status : null,
+    });
+    return false;
+  }, [onPollNow, projectId, setSnapshot, isAdmin]);
 
   async function runRepair() {
     if (!projectId || repairInFlight || repairStarting) {
@@ -117,7 +108,12 @@ export function useInstantVideoRepair(options: UseInstantVideoRepairOptions) {
         ? `/api/instant-premium/projects/${encodeURIComponent(projectId)}/merge/retry`
         : `/api/instant-premium/projects/${encodeURIComponent(projectId)}/repair-final-video`;
 
-      const res = await fetch(url, { method: "POST", credentials: "include" });
+      const res = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
         status?: InstantPremiumStatusResponse;
