@@ -41,6 +41,21 @@ export function getStoryModePrimaryTransition<
   );
 }
 
+/** Story assembly uses one multiframe clip — only validate that row for provider blob checks. */
+export function selectTransitionsForProviderStorageValidation<
+  T extends { order: number },
+>(instantMode: string | null | undefined, transitions: T[]): T[] {
+  if (!isStoryInstantMode(instantMode)) {
+    return transitions;
+  }
+  const primary = getStoryModePrimaryTransition(transitions);
+  if (primary) {
+    return [primary];
+  }
+  const orderZero = transitions.filter((t) => t.order === STORY_MODE_PRIMARY_TRANSITION_ORDER);
+  return orderZero.length > 0 ? orderZero : transitions.slice(0, 1);
+}
+
 export function storyModeClipsReadyForMerge(
   instantMode: string | null | undefined,
   transitions: Array<{ order: number; status: string; outputVideoUrl: string | null }>

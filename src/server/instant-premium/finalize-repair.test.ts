@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
-  FINALIZATION_STUCK_MS,
+  clipsReadyForFinalizeRepair,
   detectFinalizationStuck,
+  FINALIZATION_STUCK_MS,
   isExportMergeStuck,
   isWorkerJobStuck,
+  REPAIR_MERGE_START_PROGRESS,
 } from "./finalize-repair";
 
 describe("detectFinalizationStuck", () => {
@@ -74,6 +79,58 @@ describe("detectFinalizationStuck", () => {
     assert.equal(info.isStuck, false);
     assert.equal(info.mergeInProgress, true);
     assert.equal(info.shouldAutoRepair, false);
+  });
+
+  it("clipsReadyForFinalizeRepair ignores stale story rows without primary video", () => {
+    assert.equal(
+      clipsReadyForFinalizeRepair("story", [
+        {
+          order: 0,
+          status: "completed",
+          outputVideoUrl: "https://blob.example.com/segment-1.mp4",
+        },
+        { order: 1, status: "completed", outputVideoUrl: null },
+      ]),
+      true
+    );
+    assert.equal(
+      clipsReadyForFinalizeRepair("story", [
+        { order: 0, status: "queued", outputVideoUrl: null },
+        { order: 1, status: "completed", outputVideoUrl: "https://blob.example.com/segment-2.mp4" },
+      ]),
+      false
+    );
+  });
+
+  it("clipsReadyForFinalizeRepair requires all segments in transition mode", () => {
+    assert.equal(
+      clipsReadyForFinalizeRepair("transition", [
+        { order: 0, status: "completed", outputVideoUrl: "https://a.mp4" },
+        { order: 1, status: "completed", outputVideoUrl: "https://b.mp4" },
+      ]),
+      true
+    );
+    assert.equal(
+      clipsReadyForFinalizeRepair("transition", [
+        { order: 0, status: "completed", outputVideoUrl: "https://a.mp4" },
+        { order: 1, status: "queued", outputVideoUrl: null },
+      ]),
+      false
+    );
+  });
+
+  it("repair merge restart progress is below stuck merge threshold", () => {
+    assert.equal(REPAIR_MERGE_START_PROGRESS, 10);
+    assert.ok(REPAIR_MERGE_START_PROGRESS < 55);
+  });
+
+  it("finalize repair path does not call Vidu", () => {
+    const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+    const src = fs.readFileSync(path.join(root, "instant-premium/finalize-repair.ts"), "utf8");
+    assert.ok(!src.includes("triggerVidu"));
+    assert.ok(!src.includes("createVidu"));
+    assert.ok(src.includes("ensureStoryModeTransitionRows"));
+    assert.ok(src.includes("resetInstantRepairExportState"));
   });
 
   it("detects worker job stuck", () => {

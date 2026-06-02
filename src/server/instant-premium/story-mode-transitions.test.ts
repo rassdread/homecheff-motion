@@ -7,6 +7,7 @@ import {
 import {
   expectedAssemblySegmentCount,
   expectedTransitionRowCount,
+  selectTransitionsForProviderStorageValidation,
   storyModeClipsReadyForMerge,
   STORY_MODE_MULTIFRAME_ROW_COUNT,
 } from "@/server/instant-premium/story-mode-transitions";
@@ -131,6 +132,47 @@ describe("assertFinalAssemblyTransitionInvariant transition mode", () => {
         }),
       (err: unknown) => err instanceof FinalAssemblyTransitionCountMismatchError
     );
+  });
+});
+
+describe("selectTransitionsForProviderStorageValidation", () => {
+  const primaryUrl = "https://blob.example.com/segment-1.mp4";
+  const staleUrl = "https://blob.example.com/segment-2.mp4";
+
+  it("returns only primary transition for story mode", () => {
+    const transitions = [
+      {
+        id: "primary",
+        order: 0,
+        status: "completed",
+        outputVideoUrl: primaryUrl,
+      },
+      {
+        id: "stale",
+        order: 1,
+        status: "completed",
+        outputVideoUrl: staleUrl,
+      },
+      {
+        id: "stale2",
+        order: 2,
+        status: "completed",
+        outputVideoUrl: "https://blob.example.com/segment-3.mp4",
+      },
+    ];
+    const selected = selectTransitionsForProviderStorageValidation("story", transitions);
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0]!.id, "primary");
+    assert.equal(selected[0]!.outputVideoUrl, primaryUrl);
+  });
+
+  it("returns all transitions for transition mode", () => {
+    const transitions = [
+      { id: "t0", order: 0, status: "completed", outputVideoUrl: "https://a.mp4" },
+      { id: "t1", order: 1, status: "completed", outputVideoUrl: "https://b.mp4" },
+    ];
+    const selected = selectTransitionsForProviderStorageValidation("transition", transitions);
+    assert.equal(selected.length, 2);
   });
 });
 

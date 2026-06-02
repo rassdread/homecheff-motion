@@ -117,7 +117,10 @@ import {
   logFinalConcatInputs,
   SegmentTrimTooAggressiveError,
 } from "@/server/instant-premium/final-assembly-invariants";
-import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
+import {
+  ensureStoryModeTransitionRows,
+  isStoryInstantMode,
+} from "@/server/instant-premium/story-mode-transitions";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
@@ -658,12 +661,16 @@ export async function executeInstantPremiumMerge(
         mergeProject.images.length,
         mergeProject.instantMode
       );
+      const mergeValidatePerSegmentDuration =
+        isStoryInstantMode(mergeProject.instantMode) && expectedAssemblySegments === 1
+          ? null
+          : perSegmentDurationSec;
       validateMergeSegmentsBeforeExport({
         projectId,
         segmentCount: expectedAssemblySegments,
         concatInputCount: segmentPaths.length,
         expectedDurationSec,
-        perSegmentDurationSec,
+        perSegmentDurationSec: mergeValidatePerSegmentDuration,
         segmentUrls,
       });
       validateUniqueConcatPaths(segmentPaths);

@@ -22,6 +22,7 @@ import {
   expectedAssemblySegmentCount,
   getStoryModePrimaryTransition,
   isStoryInstantMode,
+  selectTransitionsForProviderStorageValidation,
 } from "@/server/instant-premium/story-mode-transitions";
 import {
   assertUniqueCanonicalProviderSources,
@@ -388,16 +389,22 @@ export async function prepareFinalSegmentProviderVideos(params: {
   );
   validateOrderedTransitionSegments(orderedSegments);
 
-  const storageInputs: CanonicalProviderTransitionInput[] = params.transitions.map((t) => ({
-    transitionId: t.id,
-    segmentIndex: rows.find((r) => r.transitionId === t.id)?.segmentIndex ?? t.order,
-    transitionOrder: t.order,
-    status: t.status,
-    provider: t.provider,
-    providerJobId: t.providerJobId,
-    outputVideoUrl: t.outputVideoUrl,
-    updatedAt: t.updatedAt,
-  }));
+  const transitionsForProviderStorage = selectTransitionsForProviderStorageValidation(
+    params.instantMode,
+    params.transitions
+  );
+  const storageInputs: CanonicalProviderTransitionInput[] = transitionsForProviderStorage.map(
+    (t) => ({
+      transitionId: t.id,
+      segmentIndex: rows.find((r) => r.transitionId === t.id)?.segmentIndex ?? t.order,
+      transitionOrder: t.order,
+      status: t.status,
+      provider: t.provider,
+      providerJobId: t.providerJobId,
+      outputVideoUrl: t.outputVideoUrl,
+      updatedAt: t.updatedAt,
+    })
+  );
 
   try {
     await logProviderVideoStorage({

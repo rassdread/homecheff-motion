@@ -11,8 +11,15 @@ import { runFinalExportToCompletion } from "@/server/instant-premium/wait-for-fi
 import { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
+import {
+  ensureStoryModeTransitionRows,
+  isStoryInstantMode,
+  storyModeClipsReadyForMerge,
+} from "@/server/instant-premium/story-mode-transitions";
 
 export const FINALIZATION_STUCK_MS = 5 * 60 * 1000;
+/** Restart merge from segment download — avoids leaving UI stuck at 55–70%. */
+export const REPAIR_MERGE_START_PROGRESS = 10;
 
 export type FinalizationStuckInfo = {
   isStuck: boolean;
@@ -42,6 +49,52 @@ function transitionsAllCompleted(
     transitions.length > 0 &&
     transitions.every((t) => t.status === "completed" && t.outputVideoUrl?.trim())
   );
+}
+
+export function clipsReadyForFinalizeRepair(
+  instantMode: string | null | undefined,
+  transitions: Array<{ order: number; status: string; outputVideoUrl: string | null }>
+): boolean {
+  if (isStoryInstantMode(instantMode)) {
+    return storyModeClipsReadyForMerge(instantMode, transitions);
+  }
+  return transitionsAllCompleted(transitions);
+}
+
+/** Clears stuck worker/export state so merge can restart from segment download. */
+export async function resetInstantRepairExportState(projectId: string): Promise<void> {
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: { exports: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  if (!project) {
+    return;
+  }
+
+  const latestExport = project.exports[0];
+  if (latestExport) {
+    await prisma.animationExport.update({
+      where: { id: latestExport.id },
+      data: {
+        status: "rendering",
+        progress: REPAIR_MERGE_START_PROGRESS,
+        errorMessage: null,
+        outputVideoUrl: null,
+      },
+    });
+  }
+
+  await prisma.animationProject.update({
+    where: { id: projectId },
+    data: {
+      status: "rendering",
+      failureReason: null,
+      lastOverlayError: null,
+      instantWorkerJobStatus: "queued",
+      instantWorkerJobStartedAt: new Date(),
+      instantFinalRebuildStatus: null,
+    },
+  });
 }
 
 function ageMs(date: Date | null | undefined): number {
@@ -174,6 +227,7 @@ export async function repairInstantPremiumFinalVideo(
 
   await refreshTransitionOutputsFromProvider(projectId).catch(() => undefined);
   await pollProjectJobs(projectId).catch(() => undefined);
+  await ensureStoryModeTransitionRows(projectId).catch(() => undefined);
 
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
@@ -196,7 +250,7 @@ export async function repairInstantPremiumFinalVideo(
     };
   }
 
-  const clipsReady = transitionsAllCompleted(project.transitions);
+  const clipsReady = clipsReadyForFinalizeRepair(project.instantMode, project.transitions);
   if (!clipsReady) {
     logFinalizeRepair("failed", { projectId, source, reason: "clips_not_ready" });
     return {
@@ -243,32 +297,10 @@ export async function repairInstantPremiumFinalVideo(
     }
   }
 
-  const latestExport = project.exports[0];
   const force = Boolean(options?.force) || detectFinalizationStuck(project).isStuck;
 
-  if (force && latestExport) {
-    await prisma.animationExport.update({
-      where: { id: latestExport.id },
-      data: {
-        status: "rendering",
-        progress: latestExport.progress >= 55 ? 55 : Math.max(10, latestExport.progress),
-        errorMessage: null,
-        outputVideoUrl: null,
-      },
-    });
-  }
-
   if (force) {
-    await prisma.animationProject.update({
-      where: { id: projectId },
-      data: {
-        status: "rendering",
-        failureReason: null,
-        lastOverlayError: null,
-        instantWorkerJobStatus: "queued",
-        instantWorkerJobStartedAt: new Date(),
-      },
-    });
+    await resetInstantRepairExportState(projectId);
   }
 
   try {
