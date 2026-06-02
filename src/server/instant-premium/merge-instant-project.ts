@@ -33,6 +33,7 @@ import { compositePosterMotionPreserveSegments } from "@/server/instant-premium/
 import {
   logMergeSegment,
   MergeSegmentsValidationError,
+  buildMergeSegmentsValidationInput,
   validateMergeSegmentsBeforeExport,
 } from "@/server/instant-premium/merge-segments";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
@@ -117,10 +118,7 @@ import {
   logFinalConcatInputs,
   SegmentTrimTooAggressiveError,
 } from "@/server/instant-premium/final-assembly-invariants";
-import {
-  ensureStoryModeTransitionRows,
-  isStoryInstantMode,
-} from "@/server/instant-premium/story-mode-transitions";
+import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
@@ -529,6 +527,7 @@ export async function executeInstantPremiumMerge(
     let assemblyTimeline: Awaited<
       ReturnType<typeof prepareFinalSegmentProviderVideos>
     >["timeline"] = [];
+    let segmentSourceDurationsSec: number[] = [];
 
     try {
       const prepared = await prepareFinalSegmentProviderVideos({
@@ -552,6 +551,7 @@ export async function executeInstantPremiumMerge(
       orderedSegments = prepared.orderedSegments;
       segmentPaths = prepared.providerVideoPaths;
       assemblyTimeline = prepared.timeline;
+      segmentSourceDurationsSec = prepared.sourceLogs.map((log) => log.durationSec);
     } catch (sourceError) {
       if (
         sourceError instanceof FinalSegmentSourceError ||
@@ -661,18 +661,18 @@ export async function executeInstantPremiumMerge(
         mergeProject.images.length,
         mergeProject.instantMode
       );
-      const mergeValidatePerSegmentDuration =
-        isStoryInstantMode(mergeProject.instantMode) && expectedAssemblySegments === 1
-          ? null
-          : perSegmentDurationSec;
-      validateMergeSegmentsBeforeExport({
-        projectId,
-        segmentCount: expectedAssemblySegments,
-        concatInputCount: segmentPaths.length,
-        expectedDurationSec,
-        perSegmentDurationSec: mergeValidatePerSegmentDuration,
-        segmentUrls,
-      });
+      validateMergeSegmentsBeforeExport(
+        buildMergeSegmentsValidationInput({
+          projectId,
+          instantMode: mergeProject.instantMode,
+          imageCount: mergeProject.images.length,
+          concatInputCount: segmentPaths.length,
+          expectedDurationSec,
+          perSegmentDurationSec,
+          segmentUrls,
+          probedSegmentDurationsSec: segmentSourceDurationsSec,
+        })
+      );
       validateUniqueConcatPaths(segmentPaths);
 
       console.info("[merge-segments]", {
