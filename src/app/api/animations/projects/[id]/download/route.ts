@@ -46,7 +46,13 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  const resolved = resolveProjectVideoDownload(project, segmentOrder, languageCode, variant);
+  const resolved = resolveProjectVideoDownload(
+    project,
+    segmentOrder,
+    languageCode,
+    variant,
+    searchParams.get("exportId")?.trim() || undefined
+  );
   if (!resolved) {
     return NextResponse.json({ error: "Video not available for download." }, { status: 404 });
   }

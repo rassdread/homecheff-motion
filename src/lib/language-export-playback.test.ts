@@ -32,6 +32,8 @@ describe("language-export-playback", () => {
         errorMessage: null,
         createdAt: "2026-01-01",
         completedAt: "2026-01-02",
+        version: 1,
+        isDefault: true,
       },
     ];
 
@@ -49,7 +51,6 @@ describe("language-export-playback", () => {
       langFromUrl: "nl",
       originalFinalUrl: originalUrl,
       languageExports: exports,
-      userSelectedLanguage: "nl",
     });
     assert.equal(dutch.selectedLanguageCode, "nl");
     assert.equal(dutch.activePlaybackUrl, nlUrl);
@@ -96,6 +97,8 @@ describe("language-export-playback", () => {
           errorMessage: "x",
           createdAt: "",
           completedAt: null,
+          version: 1,
+          isDefault: false,
         },
       ],
     });
@@ -127,6 +130,8 @@ describe("language-export-playback", () => {
           errorMessage: null,
           createdAt: "",
           completedAt: null,
+          version: 1,
+          isDefault: true,
         },
       ],
     });

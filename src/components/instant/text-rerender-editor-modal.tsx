@@ -11,6 +11,8 @@ import {
   postRebuildFinalVideo,
   type RebuildFinalVideoResponse,
 } from "@/lib/instant-export-client";
+import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
+import { resolveTextRerenderProgress } from "@/lib/text-language-render-progress";
 
 type StoryboardImage = { id: string; previewUrl: string };
 
@@ -23,6 +25,7 @@ type Props = {
   imageCount?: number;
   onSuccess?: (response: RebuildFinalVideoResponse) => void;
   onError?: (message: string) => void;
+  onRenderStart?: () => void;
 };
 
 type ContentProps = Omit<Props, "open"> & {
@@ -37,6 +40,7 @@ function TextRerenderEditorModalContent({
   frameCount,
   onSuccess,
   onError,
+  onRenderStart,
 }: ContentProps) {
   const t = useActiveTranslator();
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>(() =>
@@ -45,6 +49,7 @@ function TextRerenderEditorModalContent({
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [versionNote, setVersionNote] = useState("");
 
   const editorImages = useMemo((): StoryboardImage[] => {
     return Array.from({ length: frameCount }, (_, index) =>
@@ -55,11 +60,15 @@ function TextRerenderEditorModalContent({
   const handleRender = useCallback(async () => {
     setBusy(true);
     setError("");
+    onRenderStart?.();
     try {
       const payload = sceneTexts.map((scene, index) =>
         instantSceneTextFromDraft(scene, index, sceneTexts.length)
       );
-      const result = await postRebuildFinalVideo(projectId, { sceneTexts: payload });
+      const result = await postRebuildFinalVideo(projectId, {
+        sceneTexts: payload,
+        versionNote: versionNote.trim() || undefined,
+      });
       if (result.networkError) {
         const msg = instantExportUserErrorMessage({
           kind: result.errorKind ?? "network",
@@ -104,7 +113,9 @@ function TextRerenderEditorModalContent({
     } finally {
       setBusy(false);
     }
-  }, [onClose, onError, onSuccess, projectId, sceneTexts, t]);
+  }, [onClose, onError, onRenderStart, onSuccess, projectId, sceneTexts, t]);
+
+  const savingProgress = resolveTextRerenderProgress({ localPhase: busy ? "saving" : "idle" });
 
   return (
     <div
@@ -130,6 +141,9 @@ function TextRerenderEditorModalContent({
               {error}
             </p>
           : null}
+          {busy ? (
+            <TextLanguageRenderProgressPanel progress={savingProgress} className="mb-4" />
+          ) : null}
           <StoryboardEditor
             images={editorImages}
             imageCount={frameCount}
@@ -189,6 +203,17 @@ function TextRerenderEditorModalContent({
               );
             }}
           />
+          <label className="mt-4 block text-xs text-zinc-600">
+            {t("projectDetail.versions.noteLabel")}
+            <textarea
+              value={versionNote}
+              onChange={(e) => setVersionNote(e.target.value)}
+              rows={2}
+              maxLength={240}
+              className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+              placeholder={t("projectDetail.versions.notePlaceholder")}
+            />
+          </label>
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-4 py-4 sm:px-6">

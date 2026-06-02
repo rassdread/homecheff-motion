@@ -22,6 +22,7 @@ import {
   isLanguageExportCode,
   languageExportLabel,
   MAX_LANGUAGE_EXPORTS_PER_PROJECT,
+  parseLanguageTextLayerJson,
   type LanguageExportAuditEvent,
   type LanguageExportCode,
   type LanguageTextLayerRecord,
@@ -570,6 +571,24 @@ export async function rerenderLanguageExport(params: {
     throw new Error(LANGUAGE_EXPORT_IN_PROGRESS);
   }
 
+  if (row.status === "completed") {
+    const sceneTexts =
+      row.overlayRenderMode === "story_overlay" && row.sceneTextsJson ?
+        parseSceneTextsJson(row.sceneTextsJson)
+      : undefined;
+    const textLayers =
+      row.textLayerJson ?
+        parseLanguageTextLayerJson(row.textLayerJson as LanguageTextLayerRecord[])
+      : undefined;
+    return createAndRenderLanguageExport({
+      projectId: row.projectId,
+      viewer: params.viewer,
+      languageCode: row.languageCode,
+      textLayerOverrides: textLayers,
+      sceneTextOverrides: sceneTexts,
+    });
+  }
+
   await prisma.videoLanguageExport.update({
     where: { id: params.exportId },
     data: { status: "queued", errorMessage: null, updatedAt: new Date() },
@@ -585,6 +604,7 @@ export async function createAndRenderLanguageExport(params: {
   textLayerOverrides?: LanguageTextLayerRecord[];
   sceneTextOverrides?: InstantSceneText[];
   exportId?: string;
+  versionNote?: string;
 }): Promise<{ exportId: string }> {
   if (!isLanguageExportCode(params.languageCode)) {
     throw new Error("Unsupported language code.");
@@ -638,6 +658,7 @@ export async function createAndRenderLanguageExport(params: {
     .filter((r) => r.languageCode === languageCode)
     .reduce((max, r) => Math.max(max, r.version), 0);
   const version = maxVersion + 1;
+  const versionNote = params.versionNote?.trim() || null;
 
   const useStoryOverlay =
     projectUsesStoryOverlay(project) || (params.sceneTextOverrides?.length ?? 0) > 0;
@@ -708,6 +729,7 @@ export async function createAndRenderLanguageExport(params: {
         textLayerJson: [] as object,
         translationProvider: prepared.translationProvider,
         version,
+        versionNote,
         translationAuditJson: {
           sourceLanguage: storySourceLanguageCode(),
           targetLanguage: languageCode,
@@ -753,6 +775,7 @@ export async function createAndRenderLanguageExport(params: {
       textLayerJson: renderLayers as object,
       translationProvider: prepared.translationProvider,
       version,
+      versionNote,
       translationAuditJson: {
         events: [
           {

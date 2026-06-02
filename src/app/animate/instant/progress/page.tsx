@@ -247,6 +247,7 @@ export default function InstantPremiumProgressPage() {
             httpMessage: result.data.error,
           })
         );
+        setRebuildBusy(false);
         return;
       }
       const body = result.data;
@@ -254,10 +255,12 @@ export default function InstantPremiumProgressPage() {
         setActionError(
           body.error ?? body.rebuild?.message ?? t("instant.textRerender.failed")
         );
+        setRebuildBusy(false);
         return;
       }
       if (body.rebuild?.clipsReady === false) {
         setActionError(body.rebuild?.message ?? t("instant.textRerender.segmentsMissing"));
+        setRebuildBusy(false);
         return;
       }
       await applyTextRerenderResponse(body);
@@ -270,10 +273,19 @@ export default function InstantPremiumProgressPage() {
           adminDetail: e instanceof Error ? e.message : String(e),
         })
       );
-    } finally {
       setRebuildBusy(false);
     }
-  }, [applyTextRerenderResponse, effectiveProjectId, setSnapshot, t]);
+  }, [applyTextRerenderResponse, effectiveProjectId, t]);
+
+  useEffect(() => {
+    if (!rebuildBusy || !snapshot || snapshot.isRebuildingFinalVideo) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setRebuildBusy(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [rebuildBusy, snapshot]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -299,7 +311,7 @@ export default function InstantPremiumProgressPage() {
                     : "polling"
               }
               repairBusy={videoRepair.repairInFlight}
-              rebuildBusy={rebuildBusy}
+              rebuildBusy={rebuildBusy || Boolean(snapshot?.isRebuildingFinalVideo)}
               isAdmin={isAdmin}
               showUnifiedRepair={videoRepair.showRepairCard}
               repairUiView={videoRepair.uiView}
@@ -578,8 +590,15 @@ export default function InstantPremiumProgressPage() {
           projectId={effectiveProjectId}
           instantSceneTexts={versionMeta?.instantSceneTexts}
           imageCount={Math.max(parseSceneTextsJson(versionMeta?.instantSceneTexts).length, 1)}
-          onSuccess={(response) => void applyTextRerenderResponse(response)}
-          onError={(message) => setActionError(message)}
+          onRenderStart={() => setRebuildBusy(true)}
+          onSuccess={(response) => {
+            setRebuildBusy(true);
+            void applyTextRerenderResponse(response);
+          }}
+          onError={(message) => {
+            setActionError(message);
+            setRebuildBusy(false);
+          }}
         />
       : null}
     </main>

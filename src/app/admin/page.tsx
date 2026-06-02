@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { VideoStorageAuditCard } from "@/components/admin/video-storage-audit-card";
 import { OcrHealthCard } from "@/components/admin/ocr-health-card";
 import { OverlayEngineStatusCard } from "@/components/admin/overlay-engine-status-card";
 import { VisionHealthCard } from "@/components/admin/vision-health-card";
@@ -17,6 +18,7 @@ export default function AdminDashboardPage() {
       <p className="mt-2 text-sm text-zinc-600">{t("admin.dashboard.intro")}</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <VideoCreditsCard />
+        <VideoStorageAuditCard />
         <OverlayEngineStatusCard />
         <OcrHealthCard />
         <VisionHealthCard />

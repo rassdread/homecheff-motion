@@ -55,6 +55,8 @@ model AnimationProject {
   instantFinalRebuiltAt DateTime?
   /** Last successful final URL before the most recent rebuild. */
   instantPreviousFinalVideoUrl String?
+  /** Optional notes per text rerender generation (JSON TextVersionNoteEntry[]). */
+  instantTextVersionNotesJson Json?
   /** Pre-overlay merged Vidu video (concat only, no ASS/locked text). */
   instantCleanFinalVideoUrl String?
   /** running | failed — null when idle */
@@ -112,6 +114,7 @@ model VideoLanguageExport {
   translationAuditJson Json?
   isDefault            Boolean          @default(false)
   version              Int              @default(1)
+  versionNote          String?
   errorMessage         String?
   createdAt            DateTime         @default(now())
   completedAt          DateTime?

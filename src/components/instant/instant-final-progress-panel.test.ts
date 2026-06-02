@@ -33,11 +33,12 @@ test("InstantFinalProgressPanel hides stuck and failed banners during repair", (
   assert.match(src, /pollingError\.adminDetail/);
 });
 
-test("InstantFinalProgressPanel does not show duplicate stuck while repair runs", () => {
+test("InstantFinalProgressPanel shows text rerender step progress", () => {
   const src = readFileSync(
     join(__dirname, "instant-final-progress-panel.tsx"),
     "utf8"
   );
-  assert.match(src, /showStuckBanner \?/);
-  assert.doesNotMatch(src, /stuck && !isCompleted && !isFailed/);
+  assert.match(src, /TextLanguageRenderProgressPanel/);
+  assert.match(src, /resolveTextRerenderProgress/);
+  assert.match(src, /showTextRerenderProgress/);
 });

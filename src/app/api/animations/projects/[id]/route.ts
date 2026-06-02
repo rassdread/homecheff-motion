@@ -89,6 +89,7 @@ function mapToDetailResponse(
     instantFinalRebuildCount: project.instantFinalRebuildCount,
     instantFinalRebuiltAt: project.instantFinalRebuiltAt?.toISOString() ?? null,
     instantPreviousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+    instantTextVersionNotesJson: project.instantTextVersionNotesJson,
     latestExportId: latestExportRow?.id ?? null,
     latestExportUpdatedAt: latestExportRow?.updatedAt.toISOString() ?? null,
     languageExports: project.languageExports.map((row) => ({
@@ -106,6 +107,9 @@ function mapToDetailResponse(
       errorMessage: row.errorMessage,
       createdAt: row.createdAt.toISOString(),
       completedAt: row.completedAt?.toISOString() ?? null,
+      version: row.version,
+      isDefault: row.isDefault,
+      versionNote: row.versionNote,
     })),
     playback: {
       finalVideoUrl: exportPlaybackUrl,

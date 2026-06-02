@@ -9,8 +9,14 @@ import {
 } from "@/lib/instant-premium-progress-stage";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
 import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
+import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
 import type { InstantVideoRepairFeedback } from "@/hooks/use-instant-video-repair";
 import type { InstantRepairUiView } from "@/lib/instant-repair-ui-state";
+import {
+  deriveTextRerenderLocalPhase,
+  isTextRerenderProgressActive,
+  resolveTextRerenderProgress,
+} from "@/lib/text-language-render-progress";
 import { useSecondsSince } from "@/hooks/use-seconds-since";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -151,6 +157,48 @@ export function InstantFinalProgressPanel({
     repairFeedback.kind === "starting" ||
     repairFeedback.kind === "started";
 
+  const textRerenderLocalPhase = deriveTextRerenderLocalPhase({
+    savingStoryboard: rebuildBusy && !snapshot?.isRebuildingFinalVideo,
+    isRebuildingFinalVideo: snapshot?.isRebuildingFinalVideo,
+    rebuildFailed:
+      Boolean(snapshot?.finalRebuildFailed) &&
+      !snapshot?.isRebuildingFinalVideo &&
+      !rebuildBusy,
+  });
+
+  const textRerenderProgress = useMemo(
+    () =>
+      resolveTextRerenderProgress({
+        localPhase: textRerenderLocalPhase,
+        progressPercent: snapshot?.progressPercent,
+        finalExportStage:
+          snapshot?.finalExportStage ?? snapshot?.repairAdminDetail?.finalExportStage ?? null,
+        isRebuildingFinalVideo: snapshot?.isRebuildingFinalVideo,
+        rebuildFailed:
+          Boolean(snapshot?.finalRebuildFailed) &&
+          !snapshot?.isRebuildingFinalVideo &&
+          !rebuildBusy,
+        errorMessage: snapshot?.exportLastError ?? snapshot?.errorMessage,
+      }),
+    [
+      rebuildBusy,
+      snapshot?.errorMessage,
+      snapshot?.exportLastError,
+      snapshot?.finalExportStage,
+      snapshot?.finalRebuildFailed,
+      snapshot?.isRebuildingFinalVideo,
+      snapshot?.progressPercent,
+      snapshot?.repairAdminDetail?.finalExportStage,
+      textRerenderLocalPhase,
+    ]
+  );
+
+  const showTextRerenderProgress =
+    isTextRerenderProgressActive({
+      localPhase: textRerenderLocalPhase,
+      isRebuildingFinalVideo: snapshot?.isRebuildingFinalVideo,
+    }) || textRerenderProgress.phase === "failed";
+
   const stuck = useMemo(
     () =>
       isInstantExportProgressStuck({
@@ -208,7 +256,13 @@ export function InstantFinalProgressPanel({
         <p className="text-sm font-bold tabular-nums text-zinc-800">{percent}%</p>
       </div>
 
-      <p className="mt-1 text-xs text-zinc-600">{t(operationLabelKey as never)}</p>
+      <p className="mt-1 text-xs text-zinc-600">
+        {showTextRerenderProgress ? null : t(operationLabelKey as never)}
+      </p>
+
+      {showTextRerenderProgress ? (
+        <TextLanguageRenderProgressPanel progress={textRerenderProgress} className="mt-3" />
+      ) : null}
 
       <div className={`mt-3 h-3 w-full overflow-hidden rounded-full ${tone.track}`}>
         <div

@@ -32,6 +32,11 @@ import {
   type LanguageExportRenderPhase,
 } from "@/lib/language-export-render";
 import {
+  isLanguageExportProgressActive,
+  resolveLanguageExportProgress,
+} from "@/lib/text-language-render-progress";
+import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
+import {
   LANGUAGE_EXPORT_CODES,
   type LanguageExportCode,
 } from "@/lib/video-language-export";
@@ -92,7 +97,8 @@ export function LanguageExportPanel({
     ffprobePath: string;
   } | null>(null);
   const translatePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollStartedAtRef = useRef<number | null>(null);
+  const [renderStartedAtMs, setRenderStartedAtMs] = useState<number | null>(null);
+  const [progressTick, setProgressTick] = useState(0);
 
   const renderMessages = useMemo(
     () => ({
@@ -249,8 +255,8 @@ export function LanguageExportPanel({
 
   const pollExportUntilDone = useCallback(
     async (exportId: string) => {
-      pollStartedAtRef.current = Date.now();
-      const started = pollStartedAtRef.current;
+      const started = Date.now();
+      setRenderStartedAtMs(started);
 
       while (Date.now() - started < LANGUAGE_EXPORT_POLL_MAX_MS) {
         await new Promise((resolve) => setTimeout(resolve, LANGUAGE_EXPORT_POLL_INTERVAL_MS));
@@ -314,9 +320,10 @@ export function LanguageExportPanel({
       return;
     }
 
-    setRenderPhase("starting");
-    setError("");
-    setInfo("");
+      setRenderPhase("starting");
+      setError("");
+      setInfo("");
+      setRenderStartedAtMs(Date.now());
 
     logLanguageExportRenderUi("requestStarted", {
       projectId,
@@ -444,6 +451,34 @@ export function LanguageExportPanel({
   ]);
 
   const renderLoading = renderPhase === "starting" || renderPhase === "rendering";
+  const languageExportProgressActive =
+    prepareLoading ||
+    renderLoading ||
+    isLanguageExportProgressActive({ preparePhase, renderPhase });
+
+  useEffect(() => {
+    if (!languageExportProgressActive) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setProgressTick((value) => value + 1);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [languageExportProgressActive]);
+
+  const languageExportProgress = useMemo(
+    () =>
+      resolveLanguageExportProgress({
+        preparePhase,
+        renderPhase,
+        usesStoryOverlay: false,
+        renderStartedAtMs,
+        nowMs:
+          renderStartedAtMs != null ? renderStartedAtMs + progressTick * 2000 : undefined,
+        errorMessage: error || null,
+      }),
+    [error, preparePhase, progressTick, renderPhase, renderStartedAtMs]
+  );
 
   useEffect(() => {
     const pending = languageExports.some(
@@ -515,29 +550,8 @@ export function LanguageExportPanel({
         </button>
       </div>
 
-      {preparePhase !== "idle" ? (
-        <p className="text-[11px] text-zinc-600">
-          {preparePhase === "loading_layers"
-            ? t("instant.languageExport.statusLoadingLayers")
-            : preparePhase === "translating"
-              ? t("instant.languageExport.statusTranslating")
-              : preparePhase === "ready"
-                ? t("instant.languageExport.statusReady")
-                : preparePhase === "failed"
-                  ? t("instant.languageExport.statusFailed")
-                  : null}
-        </p>
-      ) : null}
-
-      {renderPhase === "rendering" || renderPhase === "starting" ? (
-        <p className="text-[11px] font-medium text-zinc-700">
-          {t("instant.languageExport.renderProgress")}
-        </p>
-      ) : null}
-      {renderPhase === "completed" ? (
-        <p className="text-[11px] font-medium text-emerald-800">
-          {t("instant.languageExport.renderComplete")}
-        </p>
+      {languageExportProgress.phase !== "idle" ? (
+        <TextLanguageRenderProgressPanel progress={languageExportProgress} />
       ) : null}
 
       {textLayers.length > 0 ? (

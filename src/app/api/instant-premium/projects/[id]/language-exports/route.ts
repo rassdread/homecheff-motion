@@ -43,6 +43,7 @@ function mapExportRow(row: Awaited<ReturnType<typeof listVideoLanguageExports>>[
     isDefault: row.isDefault,
     version: row.version,
     errorMessage: row.errorMessage,
+    versionNote: row.versionNote,
     createdAt: row.createdAt.toISOString(),
     completedAt: row.completedAt?.toISOString() ?? null,
   };
@@ -96,6 +97,7 @@ export async function POST(request: Request, context: RouteContext) {
     textLayers?: LanguageTextLayerRecord[];
     sceneTexts?: InstantSceneText[];
     exportId?: string;
+    versionNote?: string;
   };
 
   if (raw.action === "update") {
@@ -254,6 +256,7 @@ export async function POST(request: Request, context: RouteContext) {
       textLayerOverrides: overrides,
       sceneTextOverrides: sceneOverrides,
       exportId: raw.exportId?.trim() || undefined,
+      versionNote: raw.versionNote?.trim() || undefined,
     });
     const exports = await listVideoLanguageExports(projectId);
     const created = exports.find((e) => e.id === exportId);

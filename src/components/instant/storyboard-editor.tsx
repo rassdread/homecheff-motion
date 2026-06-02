@@ -13,6 +13,7 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
+import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
 
 export type StoryboardImage = {
   id: string;
@@ -429,6 +430,13 @@ export function StoryboardEditor({
                     />
                   </label>
                 : null}
+
+                <StoryboardOverlayPreview
+                  scene={scene}
+                  isFinalFrame={index >= frameCount - 1}
+                  variant={index >= frameCount - 1 ? "final_frame" : "inline"}
+                  className="mt-1"
+                />
 
                 <label className="block text-xs text-zinc-500">
                   <StoryboardFieldHint

@@ -135,18 +135,29 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       status: "completed",
     };
 
-    await prisma.videoLanguageExport.update({
-      where: { id: exportId },
-      data: {
-        status: "completed",
-        outputVideoUrl: url,
-        completedAt: new Date(),
-        errorMessage: null,
-        translationAuditJson: {
-          events: [...(audit.events ?? []), completedEvent],
-        } as object,
-      },
-    });
+    await prisma.$transaction([
+      prisma.videoLanguageExport.updateMany({
+        where: {
+          projectId: row.projectId,
+          languageCode: row.languageCode,
+          id: { not: exportId },
+        },
+        data: { isDefault: false },
+      }),
+      prisma.videoLanguageExport.update({
+        where: { id: exportId },
+        data: {
+          status: "completed",
+          outputVideoUrl: url,
+          completedAt: new Date(),
+          errorMessage: null,
+          isDefault: true,
+          translationAuditJson: {
+            events: [...(audit.events ?? []), completedEvent],
+          } as object,
+        },
+      }),
+    ]);
 
     console.info("[language-export]", {
       phase: "completed",

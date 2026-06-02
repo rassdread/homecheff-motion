@@ -127,7 +127,7 @@ export type RebuildFinalVideoResponse = {
 
 export async function postRebuildFinalVideo(
   projectId: string,
-  options?: { sceneTexts?: InstantSceneText[] }
+  options?: { sceneTexts?: InstantSceneText[]; versionNote?: string }
 ): Promise<{
   ok: boolean;
   status: number;
@@ -135,13 +135,18 @@ export async function postRebuildFinalVideo(
   networkError: boolean;
   errorKind: InstantExportClientErrorKind | null;
 }> {
-  const hasBody = Boolean(options?.sceneTexts);
+  const hasBody = Boolean(options?.sceneTexts || options?.versionNote?.trim());
   const result = await fetchSameOriginJson<RebuildFinalVideoResponse>(
     rebuildFinalVideoPath(projectId),
     {
       method: "POST",
       headers: hasBody ? { "Content-Type": "application/json" } : undefined,
-      body: hasBody ? JSON.stringify({ sceneTexts: options!.sceneTexts }) : undefined,
+      body: hasBody
+        ? JSON.stringify({
+            sceneTexts: options?.sceneTexts,
+            versionNote: options?.versionNote?.trim() || undefined,
+          })
+        : undefined,
     }
   );
 

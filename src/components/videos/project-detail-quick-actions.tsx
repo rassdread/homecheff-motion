@@ -17,6 +17,7 @@ export type ProjectDetailQuickAction = {
 
 type ProjectDetailQuickActionsProps = {
   actions: ProjectDetailQuickAction[];
+  leadingSlot?: React.ReactNode;
 };
 
 function ActionButton({
@@ -63,7 +64,7 @@ function ActionButton({
   );
 }
 
-export function ProjectDetailQuickActions({ actions }: ProjectDetailQuickActionsProps) {
+export function ProjectDetailQuickActions({ actions, leadingSlot }: ProjectDetailQuickActionsProps) {
   const t = useActiveTranslator();
   const visible = actions.filter((a) => a.visible !== false);
   if (visible.length === 0) {
@@ -79,6 +80,7 @@ export function ProjectDetailQuickActions({ actions }: ProjectDetailQuickActions
         {t("projectDetail.quickActions.title")}
       </h2>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {leadingSlot ? <li>{leadingSlot}</li> : null}
         {visible.map((action) => (
           <li key={action.id}>
             <ActionButton

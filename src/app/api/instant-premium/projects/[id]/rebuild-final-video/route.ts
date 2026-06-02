@@ -14,6 +14,7 @@ import { isInstantLikeProject } from "@/server/instant-premium/instant-project-u
 import { STALE_PLAYBACK_URL } from "@/lib/playback-url-resolution";
 import { prisma } from "@/lib/prisma";
 import { persistInstantSceneTextsForProject } from "@/server/instant-premium/persist-instant-scene-texts";
+import { appendTextVersionNote } from "@/lib/text-version-notes";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -27,10 +28,17 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   let sceneTextsPayload: unknown;
+  let versionNote = "";
   try {
-    const body = (await request.json().catch(() => null)) as { sceneTexts?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as {
+      sceneTexts?: unknown;
+      versionNote?: string;
+    } | null;
     if (body && body.sceneTexts !== undefined) {
       sceneTextsPayload = body.sceneTexts;
+    }
+    if (body?.versionNote?.trim()) {
+      versionNote = body.versionNote.trim();
     }
   } catch {
     // Empty body is valid — rebuild from stored texts.
@@ -67,6 +75,27 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const rebuild = await rebuildInstantPremiumFinalVideo(id);
+    if (rebuild.ok && versionNote) {
+      const notesProject = await prisma.animationProject.findUnique({
+        where: { id },
+        select: { instantFinalRebuildCount: true, instantTextVersionNotesJson: true },
+      });
+      if (notesProject) {
+        await prisma.animationProject.update({
+          where: { id },
+          data: {
+            instantTextVersionNotesJson: appendTextVersionNote(
+              notesProject.instantTextVersionNotesJson,
+              {
+                version: notesProject.instantFinalRebuildCount,
+                note: versionNote,
+                createdAt: new Date().toISOString(),
+              }
+            ),
+          },
+        });
+      }
+    }
     const status = await getInstantPremiumStatus(id);
     const httpStatus = rebuild.ok
       ? 200

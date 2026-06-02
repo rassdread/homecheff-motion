@@ -609,6 +609,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     isRestoringFinalVideo,
     canRebuildFinalVideo,
     isRebuildingFinalVideo,
+    finalExportStage: isRebuildingFinalVideo ? finalExportStage : null,
     retryState,
     retryingSegmentIndex,
     segmentsMergeFailed,

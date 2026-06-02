@@ -294,6 +294,9 @@ export type VideoLanguageExportSummary = {
   errorMessage: string | null;
   createdAt: string;
   completedAt: string | null;
+  version: number;
+  isDefault: boolean;
+  versionNote?: string | null;
 };
 
 export type ProjectPlaybackDebugSummary = {
@@ -354,6 +357,7 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   instantFinalRebuildCount?: number;
   instantFinalRebuiltAt?: string | null;
   instantPreviousFinalVideoUrl?: string | null;
+  instantTextVersionNotesJson?: unknown;
   latestExportId?: string | null;
   latestExportUpdatedAt?: string | null;
   /** Only when viewer is admin (e.g. inspecting another user’s project). */
@@ -477,6 +481,8 @@ export type InstantPremiumStatusResponse = {
   isRestoringFinalVideo?: boolean;
   canRebuildFinalVideo?: boolean;
   isRebuildingFinalVideo?: boolean;
+  /** Active FFmpeg merge/export stage during text rerender rebuild. */
+  finalExportStage?: string | null;
   videoRepairStage?: string | null;
   videoRepairStatus?: "running" | "completed" | "failed" | null;
   videoRepairUpdatedAt?: string | null;

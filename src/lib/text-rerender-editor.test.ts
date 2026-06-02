@@ -21,7 +21,7 @@ describe("text rerender editor flow", () => {
       "utf8"
     );
     assert.match(src, /StoryboardEditor/);
-    assert.match(src, /postRebuildFinalVideo\(projectId, \{ sceneTexts: payload \}\)/);
+    assert.match(src, /postRebuildFinalVideo\(projectId, \{\s*sceneTexts: payload,\s*versionNote:/);
     assert.match(src, /instant\.textRerender\.render/);
   });
 
@@ -52,7 +52,8 @@ describe("text rerender editor flow", () => {
   it("postRebuildFinalVideo sends sceneTexts JSON body", () => {
     const src = readFileSync(join(__dirname, "instant-export-client.ts"), "utf8");
     assert.match(src, /sceneTexts\?: InstantSceneText\[\]/);
-    assert.match(src, /JSON\.stringify\(\{ sceneTexts: options!\.sceneTexts \}\)/);
+    assert.match(src, /versionNote\?: string/);
+    assert.match(src, /versionNote: options\?\.versionNote/);
     assert.equal(typeof postRebuildFinalVideo, "function");
   });
 

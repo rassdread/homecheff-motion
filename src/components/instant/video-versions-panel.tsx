@@ -8,9 +8,29 @@ import {
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { LanguageExportPanel } from "@/components/instant/language-export-panel";
+import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
+import type { LanguageExportPreparePhase } from "@/lib/language-export-prepare";
+import type { LanguageExportRenderPhase } from "@/lib/language-export-render";
+import {
+  isLanguageExportProgressActive,
+  resolveLanguageExportProgress,
+} from "@/lib/text-language-render-progress";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { LANGUAGE_EXPORT_POLL_INTERVAL_MS } from "@/lib/language-export-playback";
+import {
+  normalizeLanguageExportRows,
+  pickCurrentLanguageExportPerLanguage,
+} from "@/lib/project-video-versions";
+import {
+  formatLanguageVersionTitle,
+  formatTextVersionTitle,
+} from "@/lib/language-version-display";
+import { parseTextVersionNotesJson, findTextVersionNote } from "@/lib/text-version-notes";
+import {
+  VersionLifecycleBadge,
+  VersionNoteDisplay,
+} from "@/components/videos/version-lifecycle-badge";
 import { sceneTextsSummary } from "@/lib/story-language-export";
 import { sceneTextToDraft } from "@/lib/instant-scene-text-editor";
 import { instantSceneTextFromDraft } from "@/lib/instant-scene-text-draft";
@@ -52,6 +72,9 @@ type Props = {
   onRequestCreateLanguage?: () => void;
   onTextsRerendered?: () => void;
   textRerenderBusy?: boolean;
+  rebuildCount?: number;
+  previousFinalVideoUrl?: string | null;
+  textVersionNotesJson?: unknown;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -90,20 +113,22 @@ function statusLabel(status: string, t: ReturnType<typeof useActiveTranslator>):
 
 function VideoCard({
   title,
-  badge,
+  lifecycleBadge,
   status,
   videoUrl,
   summary,
+  versionNote,
   downloadHref,
   errorMessage,
   showVideoPlayer = true,
   children,
 }: {
   title: string;
-  badge?: string;
+  lifecycleBadge?: "current" | "archived" | null;
   status?: string;
   videoUrl?: string | null;
   summary?: string;
+  versionNote?: string | null;
   downloadHref?: string;
   errorMessage?: string | null;
   showVideoPlayer?: boolean;
@@ -113,18 +138,21 @@ function VideoCard({
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-zinc-900">{title}</p>
-          {badge ?
-            <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-              {badge}
-            </p>
-          : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-zinc-900">{title}</p>
+            {lifecycleBadge ?
+              <VersionLifecycleBadge lifecycle={lifecycleBadge} />
+            : null}
+          </div>
           {status ?
             <p className="mt-1 text-xs text-zinc-600">{status}</p>
           : null}
           {summary ?
             <p className="mt-1 text-xs text-zinc-500">{summary}</p>
+          : null}
+          {versionNote ?
+            <VersionNoteDisplay note={versionNote} className="mt-2" />
           : null}
           {errorMessage ?
             <p className="mt-2 text-xs text-red-700">{errorMessage}</p>
@@ -153,10 +181,15 @@ export function VideoVersionsPanel({
   onRequestCreateLanguage,
   onTextsRerendered,
   textRerenderBusy = false,
+  rebuildCount = 0,
+  previousFinalVideoUrl = null,
+  textVersionNotesJson,
 }: Props) {
   const t = useActiveTranslator();
   const [createOpen, setCreateOpen] = useState(false);
   const [textRerenderOpen, setTextRerenderOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLanguageFilter, setHistoryLanguageFilter] = useState<string>("all");
   const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
   const [storyboardExpandedIndex, setStoryboardExpandedIndex] = useState<number | null>(0);
@@ -165,6 +198,15 @@ export function VideoVersionsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [langPreparePhase, setLangPreparePhase] = useState<LanguageExportPreparePhase>("idle");
+  const [langRenderPhase, setLangRenderPhase] = useState<LanguageExportRenderPhase>("idle");
+  const [langRenderStartedAtMs, setLangRenderStartedAtMs] = useState<number | null>(() =>
+    languageExports.some((row) => row.status === "queued" || row.status === "rendering")
+      ? Date.now()
+      : null
+  );
+  const langTranslateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [langProgressTick, setLangProgressTick] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const originalSummary = useMemo(() => {
@@ -201,6 +243,69 @@ export function VideoVersionsPanel({
     (row) => row.status === "queued" || row.status === "rendering"
   );
 
+  const effectiveLangRenderPhase = useMemo((): LanguageExportRenderPhase => {
+    if (langRenderPhase === "failed") {
+      return "failed";
+    }
+    if (hasActiveRender) {
+      return langRenderPhase === "starting" ? "starting" : "rendering";
+    }
+    if (langRenderPhase === "rendering" || langRenderPhase === "starting") {
+      return languageExports.some((row) => row.status === "failed") ? "failed" : "completed";
+    }
+    return langRenderPhase;
+  }, [hasActiveRender, langRenderPhase, languageExports]);
+
+  const storyLanguageExportProgressActive =
+    usesStoryOverlay &&
+    (busy ||
+      hasActiveRender ||
+      isLanguageExportProgressActive({
+        preparePhase: langPreparePhase,
+        renderPhase: effectiveLangRenderPhase,
+      }) ||
+      effectiveLangRenderPhase === "completed");
+
+  useEffect(() => {
+    if (!storyLanguageExportProgressActive) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setLangProgressTick((value) => value + 1);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [storyLanguageExportProgressActive]);
+
+  const storyLanguageExportProgress = useMemo(
+    () =>
+      resolveLanguageExportProgress({
+        preparePhase: langPreparePhase,
+        renderPhase: effectiveLangRenderPhase,
+        usesStoryOverlay: true,
+        renderStartedAtMs: langRenderStartedAtMs,
+        nowMs:
+          langRenderStartedAtMs != null
+            ? langRenderStartedAtMs + langProgressTick * 2000
+            : undefined,
+        errorMessage: error || null,
+      }),
+    [
+      effectiveLangRenderPhase,
+      error,
+      langPreparePhase,
+      langProgressTick,
+      langRenderStartedAtMs,
+    ]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (langTranslateTimerRef.current) {
+        clearTimeout(langTranslateTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!hasActiveRender) {
       if (pollRef.current) {
@@ -223,6 +328,10 @@ export function VideoVersionsPanel({
     setError("");
     setInfo("");
     setBusy(true);
+    setLangPreparePhase("loading_layers");
+    langTranslateTimerRef.current = setTimeout(() => {
+      setLangPreparePhase((phase) => (phase === "loading_layers" ? "translating" : phase));
+    }, 200);
     try {
       const result = await postLanguageExportAction<{
         ok?: boolean;
@@ -256,9 +365,15 @@ export function VideoVersionsPanel({
         : t("instant.videoVersions.autoTranslateNote")
       );
       setCreateOpen(true);
+      setLangPreparePhase("ready");
     } catch (e) {
+      setLangPreparePhase("failed");
       setError(e instanceof Error ? e.message : t("instant.languageExport.prepareFailed"));
     } finally {
+      if (langTranslateTimerRef.current) {
+        clearTimeout(langTranslateTimerRef.current);
+        langTranslateTimerRef.current = null;
+      }
       setBusy(false);
     }
   };
@@ -266,6 +381,8 @@ export function VideoVersionsPanel({
   const renderLanguageVersion = async (lang: LanguageExportCode, texts: InstantSceneTextDraft[]) => {
     setBusy(true);
     setError("");
+    setLangRenderPhase("starting");
+    setLangRenderStartedAtMs(Date.now());
     try {
       const result = await postLanguageExportAction<{
         ok?: boolean;
@@ -296,7 +413,9 @@ export function VideoVersionsPanel({
       setEditExportId(null);
       setDraftExportId(null);
       setInfo(t("instant.videoVersions.renderStarted"));
+      setLangRenderPhase("rendering");
     } catch (e) {
+      setLangRenderPhase("failed");
       setError(e instanceof Error ? e.message : t("instant.languageExport.renderFailed"));
     } finally {
       setBusy(false);
@@ -306,6 +425,8 @@ export function VideoVersionsPanel({
   const rerenderExport = async (exportId: string) => {
     setBusy(true);
     setError("");
+    setLangRenderPhase("starting");
+    setLangRenderStartedAtMs(Date.now());
     try {
       const result = await postLanguageExportAction<{
         ok?: boolean;
@@ -325,12 +446,55 @@ export function VideoVersionsPanel({
       if (json.exports) {
         onLanguageExportsChange(json.exports);
       }
+      setLangRenderPhase("rendering");
     } catch (e) {
+      setLangRenderPhase("failed");
       setError(e instanceof Error ? e.message : t("instant.videoVersions.errorRerender"));
     } finally {
       setBusy(false);
     }
   };
+
+  const textVersionNotes = useMemo(
+    () => parseTextVersionNotesJson(textVersionNotesJson),
+    [textVersionNotesJson]
+  );
+
+  const { primaryLanguageExports, historyLanguageExports } = useMemo(() => {
+    const normalized = normalizeLanguageExportRows(languageExports);
+    const currentByLang = new Map(
+      pickCurrentLanguageExportPerLanguage(normalized).map((row) => [row.languageCode, row.id])
+    );
+    const primary: VideoLanguageExportSummary[] = [];
+    const history: VideoLanguageExportSummary[] = [];
+    for (const row of languageExports) {
+      if (row.status !== "completed") {
+        primary.push(row);
+        continue;
+      }
+      if (currentByLang.get(row.languageCode) === row.id) {
+        primary.push(row);
+      } else if (row.outputVideoUrl?.trim()) {
+        history.push(row);
+      }
+    }
+    return { primaryLanguageExports: primary, historyLanguageExports: history };
+  }, [languageExports]);
+
+  const historyLanguageCodes = useMemo(
+    () =>
+      [...new Set(historyLanguageExports.map((row) => row.languageCode))].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [historyLanguageExports]
+  );
+
+  const filteredHistoryLanguageExports = useMemo(() => {
+    if (historyLanguageFilter === "all") {
+      return historyLanguageExports;
+    }
+    return historyLanguageExports.filter((row) => row.languageCode === historyLanguageFilter);
+  }, [historyLanguageExports, historyLanguageFilter]);
 
   if (!finalVideoUrl && !cleanVideoUrl) {
     return null;
@@ -342,11 +506,28 @@ export function VideoVersionsPanel({
   const cleanTitle =
     isDetailLayout ? t("projectDetail.versions.cleanTitle") : t("instant.videoVersions.cleanTitle");
 
+  const currentTextVersionNote =
+    rebuildCount > 0 ? findTextVersionNote(textVersionNotes, rebuildCount) : null;
+
+  const archivedTextVersion =
+    previousFinalVideoUrl?.trim() && rebuildCount > 0
+      ? {
+          version: Math.max(1, rebuildCount - 1),
+          url: previousFinalVideoUrl.trim(),
+          note: findTextVersionNote(textVersionNotes, Math.max(1, rebuildCount - 1)),
+        }
+      : null;
+
   const originalCard = (
     <VideoCard
-      title={originalTitle}
-      badge={isDetailLayout ? undefined : t("instant.videoVersions.overlayBadge")}
+      title={
+        rebuildCount > 0
+          ? formatTextVersionTitle(rebuildCount)
+          : originalTitle
+      }
+      lifecycleBadge="current"
       videoUrl={finalVideoUrl}
+      versionNote={currentTextVersionNote}
       showVideoPlayer={!hideOriginalVideoPlayer}
       summary={
         isDetailLayout ? t("projectDetail.versions.originalDesc") : originalSummary || undefined
@@ -379,7 +560,6 @@ export function VideoVersionsPanel({
   const cleanCard = (
     <VideoCard
       title={cleanTitle}
-      badge={isDetailLayout ? undefined : t("instant.videoVersions.cleanBadge")}
       videoUrl={cleanVideoUrl}
       summary={isDetailLayout ? t("projectDetail.versions.cleanDesc") : undefined}
       downloadHref={
@@ -399,13 +579,18 @@ export function VideoVersionsPanel({
     </VideoCard>
   );
 
-  const languageCards = languageExports.map((row) => (
+  const renderLanguageCard = (row: VideoLanguageExportSummary, archived = false) => (
         <VideoCard
           key={row.id}
-          title={row.languageLabel}
-          badge={t("instant.videoVersions.overlayBadge")}
+          title={formatLanguageVersionTitle(
+            row.languageCode,
+            row.languageLabel,
+            row.version ?? 1
+          )}
+          lifecycleBadge={archived ? "archived" : row.status === "completed" ? "current" : null}
           status={statusLabel(row.status, t)}
           videoUrl={row.status === "completed" ? row.outputVideoUrl : null}
+          versionNote={row.versionNote}
           summary={
             row.overlayRenderMode === "story_overlay" && row.sceneTextsJson ?
               sceneTextsSummary(parseSceneTextsJson(row.sceneTextsJson))
@@ -416,12 +601,15 @@ export function VideoVersionsPanel({
           {row.status === "completed" && row.outputVideoUrl ?
             <>
               <a
-                href={animationProjectDownloadUrl(projectId, { languageCode: row.languageCode })}
+                href={animationProjectDownloadUrl(projectId, {
+                  languageCode: row.languageCode,
+                  languageExportId: row.id,
+                })}
                 className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white"
               >
                 {t("instant.videoVersions.download")}
               </a>
-              {usesStoryOverlay ?
+              {!archived && usesStoryOverlay ?
                 <button
                   type="button"
                   disabled={busy}
@@ -440,7 +628,7 @@ export function VideoVersionsPanel({
               : null}
             </>
           : null}
-          {row.status === "draft" && usesStoryOverlay ?
+          {row.status === "draft" && usesStoryOverlay && !archived ?
             <button
               type="button"
               disabled={busy}
@@ -469,7 +657,9 @@ export function VideoVersionsPanel({
             </button>
           )}
         </VideoCard>
-      ));
+      );
+
+  const languageCards = primaryLanguageExports.map((row) => renderLanguageCard(row, false));
 
   const createLanguageBlock = usesStoryOverlay ?
     <div className="space-y-2" id="version-languages-create">
@@ -564,6 +754,65 @@ export function VideoVersionsPanel({
               </p>
             </div>
             {languageCards}
+            {historyLanguageExports.length > 0 || archivedTextVersion ?
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3">
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen((value) => !value)}
+                  className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-800"
+                >
+                  <span>{t("projectDetail.versions.historyTitle")}</span>
+                  <span className="text-xs text-zinc-500">
+                    {historyLanguageExports.length + (archivedTextVersion ? 1 : 0)}
+                  </span>
+                </button>
+                {historyOpen ?
+                  <div className="mt-3 space-y-3">
+                    {historyLanguageCodes.length > 1 ?
+                      <label className="flex flex-col gap-1 text-xs text-zinc-600">
+                        {t("projectDetail.versions.historyFilterLabel")}
+                        <select
+                          value={historyLanguageFilter}
+                          onChange={(e) => setHistoryLanguageFilter(e.target.value)}
+                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900"
+                        >
+                          <option value="all">{t("projectDetail.versions.historyFilterAll")}</option>
+                          {historyLanguageCodes.map((code) => {
+                            const label =
+                              historyLanguageExports.find((row) => row.languageCode === code)
+                                ?.languageLabel ?? code.toUpperCase();
+                            return (
+                              <option key={code} value={code}>
+                                {formatLanguageVersionTitle(code, label, 1).replace(/ v1$/, "")}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                    : null}
+                    {archivedTextVersion ?
+                      <VideoCard
+                        title={formatTextVersionTitle(archivedTextVersion.version)}
+                        lifecycleBadge="archived"
+                        videoUrl={archivedTextVersion.url}
+                        versionNote={archivedTextVersion.note}
+                      >
+                        <a
+                          href={animationProjectDownloadUrl(projectId, { variant: "previous_final" })}
+                          className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white"
+                        >
+                          {t("instant.videoVersions.download")}
+                        </a>
+                      </VideoCard>
+                    : null}
+                    {filteredHistoryLanguageExports.map((row) => renderLanguageCard(row, true))}
+                  </div>
+                : null}
+              </div>
+            : null}
+            {storyLanguageExportProgress.phase !== "idle" ? (
+              <TextLanguageRenderProgressPanel progress={storyLanguageExportProgress} />
+            ) : null}
             {createLanguageBlock}
           </div>
         </>
@@ -571,6 +820,9 @@ export function VideoVersionsPanel({
           {cleanCard}
           {originalCard}
           {languageCards}
+          {storyLanguageExportProgress.phase !== "idle" ? (
+            <TextLanguageRenderProgressPanel progress={storyLanguageExportProgress} />
+          ) : null}
           {createLanguageBlock}
         </>
       }

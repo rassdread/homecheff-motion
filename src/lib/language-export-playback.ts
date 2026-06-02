@@ -2,6 +2,10 @@
  * Multilingual playback — options from persisted VideoLanguageExport rows.
  */
 
+import {
+  normalizeLanguageExportRows,
+  pickCurrentLanguageExportPerLanguage,
+} from "@/lib/project-video-versions";
 import { languageExportLabel, type LanguageExportCode } from "@/lib/video-language-export";
 
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
@@ -16,6 +20,8 @@ export type LanguageExportPlaybackRow = Pick<
   | "errorMessage"
   | "createdAt"
   | "completedAt"
+  | "version"
+  | "isDefault"
 >;
 
 export type LanguagePlaybackOption = {
@@ -45,25 +51,11 @@ export function filterCompletedLanguageExportsForPlayback(
   );
 }
 
-/** One completed export per language code (latest completedAt wins). */
+/** One current completed export per language (prefers isDefault, else highest version). */
 export function pickLatestCompletedExportPerLanguage(
   exports: LanguageExportPlaybackRow[]
 ): LanguageExportPlaybackRow[] {
-  const completed = filterCompletedLanguageExportsForPlayback(exports);
-  const byCode = new Map<string, LanguageExportPlaybackRow>();
-  for (const row of completed) {
-    const existing = byCode.get(row.languageCode);
-    if (!existing) {
-      byCode.set(row.languageCode, row);
-      continue;
-    }
-    const existingAt = existing.completedAt ?? existing.createdAt ?? "";
-    const rowAt = row.completedAt ?? row.createdAt ?? "";
-    if (String(rowAt) >= String(existingAt)) {
-      byCode.set(row.languageCode, row);
-    }
-  }
-  return [...byCode.values()].sort((a, b) => a.languageCode.localeCompare(b.languageCode));
+  return pickCurrentLanguageExportPerLanguage(normalizeLanguageExportRows(exports));
 }
 
 export function buildLanguagePlaybackOptions(

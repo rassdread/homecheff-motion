@@ -18,7 +18,8 @@ export function resolveProjectVideoDownload(
   project: ProjectWithMedia,
   segmentOrder?: number,
   languageCode?: string,
-  variant?: string
+  variant?: string,
+  languageExportId?: string
 ): ResolvedVideoDownload | null {
   if (segmentOrder !== undefined) {
     if (!Number.isInteger(segmentOrder) || segmentOrder < 0) {
@@ -36,6 +37,19 @@ export function resolveProjectVideoDownload(
   }
 
   const lang = languageCode?.trim().toLowerCase();
+  const exportId = languageExportId?.trim();
+
+  if (variant?.trim().toLowerCase() === "previous_final") {
+    const previousUrl = project.instantPreviousFinalVideoUrl?.trim();
+    if (!previousUrl) {
+      return null;
+    }
+    return {
+      sourceUrl: previousUrl,
+      filename: `homecheff-motion-${project.id}-text-archived.mp4`,
+    };
+  }
+
   if (variant?.trim().toLowerCase() === "clean") {
     const cleanUrl = project.instantCleanFinalVideoUrl?.trim();
     if (!cleanUrl) {
@@ -47,10 +61,29 @@ export function resolveProjectVideoDownload(
     };
   }
 
+  if (exportId) {
+    const languageRow = (project.languageExports ?? []).find(
+      (row) => row.id === exportId && row.status === "completed" && row.outputVideoUrl?.trim()
+    );
+    const languageUrl = languageRow?.outputVideoUrl?.trim();
+    if (languageUrl && languageRow) {
+      return {
+        sourceUrl: languageUrl,
+        filename: `homecheff-motion-${project.id}-${languageRow.languageCode}-v${languageRow.version}.mp4`,
+      };
+    }
+    return null;
+  }
+
   if (lang && lang !== "original" && isLanguageExportCode(lang)) {
     const languageRow = (project.languageExports ?? [])
       .filter((row) => row.languageCode === lang && row.status === "completed")
-      .sort((a, b) => b.version - a.version)[0];
+      .sort((a, b) => {
+        if (a.isDefault !== b.isDefault) {
+          return a.isDefault ? -1 : 1;
+        }
+        return b.version - a.version;
+      })[0];
     const languageUrl = languageRow?.outputVideoUrl?.trim();
     if (languageUrl) {
       return {

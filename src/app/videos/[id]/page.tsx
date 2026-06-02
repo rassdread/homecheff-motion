@@ -15,7 +15,6 @@ import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
-  buildPlaybackDownloadLanguageParam,
   filterCompletedLanguageExportsForPlayback,
   resolveActivePlaybackState,
 } from "@/lib/language-export-playback";
@@ -51,6 +50,11 @@ import {
   type ProjectDetailModeKind,
 } from "@/components/videos/project-detail-header";
 import { ProjectDetailQuickActions } from "@/components/videos/project-detail-quick-actions";
+import {
+  ProjectStorageUsageCard,
+  useProjectStorageAudit,
+  VideoVersionDownloadTrigger,
+} from "@/components/videos/project-storage-usage-card";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -288,6 +292,16 @@ export default function VideoDetailPage() {
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
+  useEffect(() => {
+    if (!rebuildBusy || !instantSnapshot || instantSnapshot.isRebuildingFinalVideo) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setRebuildBusy(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [instantSnapshot, rebuildBusy]);
+
   const videoRepair = useInstantVideoRepair({
     projectId: id,
     snapshot: instantSnapshot,
@@ -343,15 +357,18 @@ export default function VideoDetailPage() {
     activeFinalVideoUrl ?? originalPlaybackUrl
   );
 
-  const playbackDownload = useMemo(
-    () => buildPlaybackDownloadLanguageParam(playbackState.selectedLanguageCode),
-    [playbackState.selectedLanguageCode]
-  );
-
   const hasCompletedLanguageVersions = useMemo(
     () => filterCompletedLanguageExportsForPlayback(languageExports).length > 0,
     [languageExports]
   );
+
+  const showProjectStorage = Boolean(originalPlaybackUrl && id);
+  const {
+    audit: projectStorageAudit,
+    loading: projectStorageLoading,
+    error: projectStorageError,
+    refresh: refreshProjectStorage,
+  } = useProjectStorageAudit(id, showProjectStorage);
 
   const showPlaybackDebugPanel = isPublicDebugUiEnabled() || isAdmin;
 
@@ -465,12 +482,14 @@ export default function VideoDetailPage() {
             isAdmin,
           })
         );
+        setRebuildBusy(false);
         return;
       }
       const body = result.data;
       if (!result.ok) {
         setRebuildInfo(null);
         setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
+        setRebuildBusy(false);
         return;
       }
       await applyRebuildResponse(body);
@@ -485,10 +504,9 @@ export default function VideoDetailPage() {
           isAdmin,
         })
       );
-    } finally {
       setRebuildBusy(false);
     }
-  }, [applyRebuildResponse, id, isAdmin, load, setInstantSnapshot, touchProgressClock, t]);
+  }, [applyRebuildResponse, id, isAdmin, touchProgressClock, t]);
 
   useEffect(() => {
     if (!instantSnapshot?.finalVideoUrl) {
@@ -622,7 +640,7 @@ export default function VideoDetailPage() {
           lastProgressChangeAtMs={instantLastProgressChangeAtMs}
           connectionState="polling"
           repairBusy={videoRepair.repairInFlight}
-          rebuildBusy={rebuildBusy}
+          rebuildBusy={rebuildBusy || Boolean(instantSnapshot?.isRebuildingFinalVideo)}
           isAdmin={isAdmin}
           hideRecoveryActions
           hideAdminDiagnostics
@@ -687,17 +705,18 @@ export default function VideoDetailPage() {
           ) : null}
 
           <ProjectDetailQuickActions
+            leadingSlot={
+              id ?
+                <VideoVersionDownloadTrigger
+                  projectId={id}
+                  originalVideoUrl={originalPlaybackUrl}
+                  cleanVideoUrl={cleanVideoUrl}
+                  languageExports={languageExports}
+                  storageAudit={projectStorageAudit}
+                />
+              : null
+            }
             actions={[
-              {
-                id: "download",
-                labelKey: "projectDetail.quickActions.download.label",
-                hintKey: "projectDetail.quickActions.download.hint",
-                href: animationProjectDownloadUrl(id, {
-                  languageCode: playbackDownload.languageCode,
-                }),
-                download: `homecheff-motion-${id}${playbackDownload.filenameSuffix}.mp4`,
-                visible: true,
-              },
               {
                 id: "view-clean",
                 labelKey: "projectDetail.quickActions.viewClean.label",
@@ -735,6 +754,17 @@ export default function VideoDetailPage() {
             ]}
           />
 
+          {showProjectStorage && id ?
+            <ProjectStorageUsageCard
+              projectId={id}
+              isAdmin={isAdmin}
+              audit={projectStorageAudit}
+              loading={projectStorageLoading}
+              error={projectStorageError}
+              onRefresh={refreshProjectStorage}
+            />
+          : null}
+
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
 
@@ -755,6 +785,9 @@ export default function VideoDetailPage() {
               onLanguageExportsChange={updateLanguageExports}
               onTextsRerendered={() => void load()}
               textRerenderBusy={rebuildBusy}
+              rebuildCount={detail.instantFinalRebuildCount ?? 0}
+              previousFinalVideoUrl={detail.instantPreviousFinalVideoUrl}
+              textVersionNotesJson={detail.instantTextVersionNotesJson}
               onRequestCreateLanguage={() => scrollToSection("version-languages")}
             />
           ) : null}
@@ -1030,17 +1063,23 @@ export default function VideoDetailPage() {
           }))}
           imageCount={detail.images?.length}
           onSuccess={(response) => {
-            setRebuildInfo(t("instant.textRerender.busy"));
             void (async () => {
               setRebuildBusy(true);
+              setRebuildInfo(null);
+              setRebuildError(null);
               try {
                 await applyRebuildResponse(response);
-              } finally {
+              } catch (e) {
+                setRebuildError(e instanceof Error ? e.message : t("instant.textRerender.failed"));
                 setRebuildBusy(false);
               }
             })();
           }}
-          onError={(message) => setRebuildError(message)}
+          onRenderStart={() => setRebuildBusy(true)}
+          onError={(message) => {
+            setRebuildError(message);
+            setRebuildBusy(false);
+          }}
         />
       : null}
     </main>
