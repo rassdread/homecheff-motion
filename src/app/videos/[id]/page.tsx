@@ -605,7 +605,10 @@ export default function VideoDetailPage() {
           rebuildBusy={rebuildBusy}
           isAdmin={isAdmin}
           onRepair={canRecoverInstant ? () => void recoverFinalVideo() : undefined}
-          onRebuild={canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
+          onTextRerender={
+            canRebuildInstant && Boolean(finalVideoUrl) ? () => void rebuildFinalVideo() : undefined
+          }
+          onForceRebuild={isAdmin && canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
         />
       ) : null}
 
@@ -662,16 +665,16 @@ export default function VideoDetailPage() {
             >
               {t("videos.open")}
             </a>
-            {canRebuildInstant ? (
+            {canRebuildInstant && finalVideoUrl ?
               <button
                 type="button"
                 disabled={rebuildBusy}
                 onClick={() => void rebuildFinalVideo()}
                 className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-60"
               >
-                {rebuildBusy ? t("instant.progress.rebuildingFinal") : t("instant.progress.rebuildFinalVideo")}
+                {rebuildBusy ? t("instant.textRerender.busy") : t("instant.textRerender.cta")}
               </button>
-            ) : null}
+            : null}
           </div>
           {instantLikeProject && hasCompletedInstantFinal ? (
             <VideoVersionsPanel
@@ -748,13 +751,14 @@ export default function VideoDetailPage() {
           {canRecoverInstant ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-950">{t("instant.recover.notCompleted")}</p>
+              <p className="mt-1 text-xs text-amber-900/90">{t("instant.recover.hint")}</p>
               <button
                 type="button"
                 disabled={recoverBusy}
                 onClick={() => void recoverFinalVideo()}
                 className="mt-3 rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-60"
               >
-                {recoverBusy ? t("instant.recover.restoring") : t("instant.recover.cta")}
+                {recoverBusy ? t("instant.videoRepair.busy") : t("instant.videoRepair.cta")}
               </button>
               {recoverInfo ? <p className="mt-2 text-xs text-zinc-700">{recoverInfo}</p> : null}
               {recoverError ? <p className="mt-2 text-xs text-red-700">{recoverError}</p> : null}

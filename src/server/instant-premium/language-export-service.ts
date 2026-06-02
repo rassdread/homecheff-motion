@@ -39,7 +39,9 @@ import {
   prepareStorySceneTexts,
   projectUsesStoryOverlay,
   resolveCleanVideoUrlForOverlay,
+  storySourceLanguageCode,
 } from "@/lib/story-language-export";
+import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 
 export const LANGUAGE_EXPORT_IN_PROGRESS = "LANGUAGE_EXPORT_IN_PROGRESS";
 export const LANGUAGE_EXPORT_LIMIT = "LANGUAGE_EXPORT_LIMIT";
@@ -279,17 +281,150 @@ async function queueLanguageExportRender(exportId: string, projectId: string): P
   }
 }
 
+function storyCompositionAudit(params: {
+  sourceLanguage: LanguageExportCode;
+  targetLanguage: LanguageExportCode;
+  translationProvider: string;
+  projectId: string;
+  sourceCleanVideoUrl: string;
+}): object {
+  return {
+    sourceLanguage: params.sourceLanguage,
+    targetLanguage: params.targetLanguage,
+    events: [
+      {
+        type: "language_composition",
+        billingImpact: "none",
+        aiCreditsUsed: 0,
+        provider: params.translationProvider,
+        languageCode: params.targetLanguage,
+        projectId: params.projectId,
+        sourceFinalVideoUrl: params.sourceCleanVideoUrl,
+        recordedAt: new Date().toISOString(),
+        status: "draft",
+      },
+    ],
+  };
+}
+
+export async function createDraftStoryLanguageComposition(params: {
+  projectId: string;
+  viewer: { id: string; role: string };
+  languageCode: LanguageExportCode;
+  sceneTexts: InstantSceneText[];
+  translationProvider: string;
+  sourceLanguage?: LanguageExportCode;
+  targetLanguage?: LanguageExportCode;
+}): Promise<{ exportId: string }> {
+  const projectRecord = await getAnimationProjectByIdForViewer(params.projectId, params.viewer);
+  if (!projectRecord || !isInstantLikeProject(projectRecord)) {
+    throw new Error("Instant Premium project not found.");
+  }
+
+  const project = await prisma.animationProject.findUnique({
+    where: { id: params.projectId },
+    include: {
+      exports: { orderBy: { createdAt: "desc" }, take: 1 },
+      languageExports: true,
+    },
+  });
+  if (!project) {
+    throw new Error("Instant Premium project not found.");
+  }
+
+  const latestExport = project.exports[0];
+  const exportCompleted = isInstantPremiumExportCompleted(
+    project.status,
+    latestExport?.status
+  );
+  if (!exportCompleted) {
+    throw new Error(LANGUAGE_EXPORT_NO_BASE);
+  }
+
+  const cleanUrl = resolveCleanVideoUrlForOverlay(project);
+  if (!cleanUrl) {
+    throw new Error(LANGUAGE_EXPORT_NO_CLEAN);
+  }
+
+  if (project.languageExports.length >= MAX_LANGUAGE_EXPORTS_PER_PROJECT) {
+    throw new Error(LANGUAGE_EXPORT_LIMIT);
+  }
+
+  const active = project.languageExports.find(
+    (row) =>
+      row.languageCode === params.languageCode &&
+      (row.status === "queued" || row.status === "rendering")
+  );
+  if (active) {
+    throw new Error(LANGUAGE_EXPORT_IN_PROGRESS);
+  }
+
+  const existingDraft = project.languageExports.find(
+    (row) => row.languageCode === params.languageCode && row.status === "draft"
+  );
+  if (existingDraft) {
+    await prisma.videoLanguageExport.update({
+      where: { id: existingDraft.id },
+      data: {
+        sceneTextsJson: params.sceneTexts as object,
+        translationProvider: params.translationProvider,
+        translationAuditJson: storyCompositionAudit({
+          sourceLanguage: params.sourceLanguage ?? storySourceLanguageCode(),
+          targetLanguage: params.targetLanguage ?? params.languageCode,
+          translationProvider: params.translationProvider,
+          projectId: params.projectId,
+          sourceCleanVideoUrl: cleanUrl,
+        }) as object,
+        updatedAt: new Date(),
+      },
+    });
+    return { exportId: existingDraft.id };
+  }
+
+  const maxVersion = project.languageExports
+    .filter((r) => r.languageCode === params.languageCode)
+    .reduce((max, r) => Math.max(max, r.version), 0);
+  const version = maxVersion + 1;
+
+  const row = await prisma.videoLanguageExport.create({
+    data: {
+      projectId: params.projectId,
+      languageCode: params.languageCode,
+      languageLabel: languageExportLabel(params.languageCode, "nl"),
+      status: "draft",
+      overlayRenderMode: "story_overlay",
+      sourceCleanVideoUrl: cleanUrl,
+      sourceFinalVideoUrl: cleanUrl,
+      sceneTextsJson: params.sceneTexts as object,
+      textLayerJson: [] as object,
+      translationProvider: params.translationProvider,
+      version,
+      translationAuditJson: storyCompositionAudit({
+        sourceLanguage: params.sourceLanguage ?? storySourceLanguageCode(),
+        targetLanguage: params.targetLanguage ?? params.languageCode,
+        translationProvider: params.translationProvider,
+        projectId: params.projectId,
+        sourceCleanVideoUrl: cleanUrl,
+      }) as object,
+    },
+  });
+
+  return { exportId: row.id };
+}
+
 export async function prepareLanguageExport(params: {
   projectId: string;
   languageCode: LanguageExportCode;
   textLayerOverrides?: LanguageTextLayerRecord[];
   sceneTextOverrides?: InstantSceneText[];
+  viewer?: { id: string; role: string };
 }) {
   const project = await prisma.animationProject.findUnique({
     where: { id: params.projectId },
     include: {
       images: { orderBy: { order: "asc" } },
       exports: { orderBy: { createdAt: "desc" }, take: 1 },
+      languageExports: true,
     },
   });
   if (!project || !isInstantLikeProject(project)) {
@@ -297,17 +432,51 @@ export async function prepareLanguageExport(params: {
   }
 
   if (projectUsesStoryOverlay(project) || params.sceneTextOverrides?.length) {
+    const existingDraft = project.languageExports.find(
+      (row) => row.languageCode === params.languageCode && row.status === "draft"
+    );
+    if (existingDraft && !params.sceneTextOverrides?.length) {
+      return {
+        mode: "story_overlay" as const,
+        exportId: existingDraft.id,
+        sceneTexts: parseSceneTextsJson(existingDraft.sceneTextsJson),
+        translationProvider: existingDraft.translationProvider ?? "user_reviewed",
+        translationFailed: false,
+        message: null,
+        sourceLanguage: storySourceLanguageCode(),
+        targetLanguage: params.languageCode,
+      };
+    }
+
     const prepared = await prepareStorySceneTexts({
       project,
       languageCode: params.languageCode,
       sceneTextOverrides: params.sceneTextOverrides,
     });
+
+    let exportId: string | null = null;
+    if (params.viewer && params.languageCode !== "original") {
+      const draft = await createDraftStoryLanguageComposition({
+        projectId: params.projectId,
+        viewer: params.viewer,
+        languageCode: params.languageCode,
+        sceneTexts: prepared.sceneTexts,
+        translationProvider: prepared.translationProvider,
+        sourceLanguage: prepared.sourceLanguage,
+        targetLanguage: prepared.targetLanguage,
+      });
+      exportId = draft.exportId;
+    }
+
     return {
       mode: "story_overlay" as const,
+      exportId,
       sceneTexts: prepared.sceneTexts,
       translationProvider: prepared.translationProvider,
       translationFailed: prepared.translationFailed,
       message: prepared.translationMessage ?? null,
+      sourceLanguage: prepared.sourceLanguage,
+      targetLanguage: prepared.targetLanguage,
     };
   }
 
@@ -415,6 +584,7 @@ export async function createAndRenderLanguageExport(params: {
   languageCode: string;
   textLayerOverrides?: LanguageTextLayerRecord[];
   sceneTextOverrides?: InstantSceneText[];
+  exportId?: string;
 }): Promise<{ exportId: string }> {
   if (!isLanguageExportCode(params.languageCode)) {
     throw new Error("Unsupported language code.");
@@ -477,11 +647,54 @@ export async function createAndRenderLanguageExport(params: {
     if (!cleanUrl) {
       throw new Error(LANGUAGE_EXPORT_NO_CLEAN);
     }
+
+    const draftExportId = params.exportId?.trim();
+    const draftRow =
+      draftExportId ?
+        project.languageExports.find((row) => row.id === draftExportId)
+      : project.languageExports.find(
+          (row) => row.languageCode === languageCode && row.status === "draft"
+        );
+
     const prepared = await prepareStorySceneTexts({
       project,
       languageCode,
       sceneTextOverrides: params.sceneTextOverrides,
+      skipTranslation: Boolean(params.sceneTextOverrides?.length),
     });
+
+    if (draftRow?.status === "draft") {
+      await prisma.videoLanguageExport.update({
+        where: { id: draftRow.id },
+        data: {
+          sceneTextsJson: prepared.sceneTexts as object,
+          translationProvider: prepared.translationProvider,
+          status: "queued",
+          errorMessage: null,
+          translationAuditJson: {
+            sourceLanguage: storySourceLanguageCode(),
+            targetLanguage: languageCode,
+            events: [
+              {
+                type: "language_export",
+                billingImpact: "none",
+                aiCreditsUsed: 0,
+                provider: "internal_text_overlay",
+                languageCode,
+                projectId: params.projectId,
+                sourceFinalVideoUrl: cleanUrl,
+                recordedAt: new Date().toISOString(),
+                status: "started",
+              } satisfies LanguageExportAuditEvent,
+            ],
+          } as object,
+          updatedAt: new Date(),
+        },
+      });
+      await queueLanguageExportRender(draftRow.id, params.projectId);
+      return { exportId: draftRow.id };
+    }
+
     const row = await prisma.videoLanguageExport.create({
       data: {
         projectId: params.projectId,
@@ -496,6 +709,8 @@ export async function createAndRenderLanguageExport(params: {
         translationProvider: prepared.translationProvider,
         version,
         translationAuditJson: {
+          sourceLanguage: storySourceLanguageCode(),
+          targetLanguage: languageCode,
           events: [
             {
               type: "language_export",

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { cleanFinalBlobPathname } from "@/lib/final-video-storage";
-import { projectUsesStoryOverlay, sceneTextsSummary } from "@/lib/story-language-export";
+import {
+  prepareStorySceneTexts,
+  projectUsesStoryOverlay,
+  sceneTextsSummary,
+  storySourceLanguageCode,
+} from "@/lib/story-language-export";
 import { resolveProjectVideoDownload } from "@/server/animation-projects/resolve-video-download";
 
 describe("story language export helpers", () => {
@@ -23,6 +28,21 @@ describe("story language export helpers", () => {
       }),
       false
     );
+  });
+
+  it("storySourceLanguageCode is original (canonical project storyboard)", () => {
+    assert.equal(storySourceLanguageCode(), "original");
+  });
+
+  it("prepareStorySceneTexts returns original copy without translation", async () => {
+    const prepared = await prepareStorySceneTexts({
+      project: {
+        instantSceneTexts: [{ template: "hero", heroText: "HELLO" }],
+      },
+      languageCode: "original",
+    });
+    assert.equal(prepared.translationProvider, "none");
+    assert.equal(prepared.sceneTexts[0]?.heroText, "HELLO");
   });
 
   it("sceneTextsSummary joins hero and lines", () => {

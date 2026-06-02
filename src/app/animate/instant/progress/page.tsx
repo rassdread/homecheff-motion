@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
@@ -175,6 +176,96 @@ export default function InstantPremiumProgressPage() {
     void syncActiveAnimationProjects();
   }, [effectiveProjectId, snapshot?.finalVideoUrl, snapshot?.status]);
 
+  const runTextRerender = useCallback(async () => {
+    if (!effectiveProjectId) {
+      return;
+    }
+    setRebuildBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(
+        `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/rebuild-final-video`,
+        { method: "POST", credentials: "include" }
+      );
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        rebuild?: {
+          ok?: boolean;
+          clipsReady?: boolean;
+          message?: string;
+          suggestRepair?: boolean;
+          finalVideoUrlPresent?: boolean;
+        };
+        status?: InstantPremiumStatusResponse;
+      };
+      if (!res.ok) {
+        setActionError(
+          body.error ?? body.rebuild?.message ?? t("instant.textRerender.failed")
+        );
+        return;
+      }
+      if (body.rebuild?.clipsReady === false) {
+        setActionError(body.rebuild?.message ?? t("instant.textRerender.segmentsMissing"));
+        return;
+      }
+      if (body.rebuild?.ok) {
+        setActionError(null);
+      } else {
+        setActionError(
+          body.rebuild?.message ??
+            (body.rebuild?.finalVideoUrlPresent
+              ? t("instant.progress.rebuildFinalFailedKeepsPrevious")
+              : t("instant.textRerender.failed"))
+        );
+      }
+      if (body.rebuild?.ok && effectiveProjectId) {
+        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+      }
+      if (body.status) {
+        setSnapshot(body.status);
+      }
+    } finally {
+      setRebuildBusy(false);
+    }
+  }, [effectiveProjectId, setSnapshot, t]);
+
+  const runVideoRepair = useCallback(async () => {
+    if (!effectiveProjectId) {
+      return;
+    }
+    setRetryBusy(true);
+    setActionError(null);
+    try {
+      const useMergeRetry =
+        snapshot?.canRetryMerge &&
+        !snapshot?.canRepairFinalVideo &&
+        !snapshot?.canRetryOverlay;
+      const res = await fetch(
+        useMergeRetry
+          ? `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/merge/retry`
+          : `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/repair-final-video`,
+        { method: "POST", credentials: "include" }
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setActionError(body.error ?? t("instant.videoRepair.failed"));
+        return;
+      }
+      const body = (await res.json()) as {
+        status?: InstantPremiumStatusResponse;
+      };
+      if (body.status) {
+        setSnapshot(body.status);
+      }
+      if (useMergeRetry) {
+        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+      }
+      setActionError(null);
+    } finally {
+      setRetryBusy(false);
+    }
+  }, [effectiveProjectId, setSnapshot, snapshot, t]);
+
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-xl px-4 py-10">
@@ -202,82 +293,20 @@ export default function InstantPremiumProgressPage() {
               rebuildBusy={rebuildBusy}
               isAdmin={isAdmin}
               onRepair={
-                effectiveProjectId && snapshot?.canRepairFinalVideo
-                  ? () => {
-                      setRetryBusy(true);
-                      void (async () => {
-                        try {
-                          const res = await fetch(
-                            `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
-                            { method: "POST", credentials: "include" }
-                          );
-                          if (!res.ok) {
-                            const body = (await res.json().catch(() => ({}))) as { error?: string };
-                            setActionError(body.error ?? t("instant.recover.failed"));
-                            return;
-                          }
-                          const body = (await res.json()) as {
-                            status?: InstantPremiumStatusResponse;
-                          };
-                          if (body.status) {
-                            setSnapshot(body.status);
-                          }
-                          setActionError(null);
-                        } finally {
-                          setRetryBusy(false);
-                        }
-                      })();
-                    }
+                effectiveProjectId &&
+                (snapshot?.canRepairFinalVideo ||
+                  snapshot?.canRetryOverlay ||
+                  snapshot?.canRetryMerge ||
+                  snapshot?.segmentsMergeFailed)
+                  ? () => void runVideoRepair()
                   : undefined
               }
-              onRebuild={
+              onTextRerender={
                 effectiveProjectId && snapshot?.canRebuildFinalVideo
-                  ? () => {
-                      setRebuildBusy(true);
-                      setActionError(null);
-                      void (async () => {
-                        try {
-                          const res = await fetch(
-                            `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
-                            { method: "POST", credentials: "include" }
-                          );
-                          const body = (await res.json().catch(() => ({}))) as {
-                            error?: string;
-                            rebuild?: {
-                              ok?: boolean;
-                              clipsReady?: boolean;
-                              message?: string;
-                              finalVideoUrlPresent?: boolean;
-                            };
-                            status?: InstantPremiumStatusResponse;
-                          };
-                          if (!res.ok) {
-                            setActionError(
-                              body.error ??
-                                body.rebuild?.message ??
-                                t("instant.progress.rebuildFinalFailed")
-                            );
-                            return;
-                          }
-                          if (body.rebuild?.clipsReady === false) {
-                            setActionError(
-                              body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
-                            );
-                            return;
-                          }
-                          if (body.rebuild?.ok && effectiveProjectId) {
-                            invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-                          }
-                          if (body.status) {
-                            setSnapshot(body.status);
-                          }
-                        } finally {
-                          setRebuildBusy(false);
-                        }
-                      })();
-                    }
+                  ? () => void runTextRerender()
                   : undefined
               }
+              onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
             />
           ) : null}
 
@@ -414,7 +443,8 @@ export default function InstantPremiumProgressPage() {
               >
                 <source src={snapshot.finalVideoUrl} type="video/mp4" />
               </video>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
                 <a
                   href={animationProjectDownloadUrl(effectiveProjectId)}
                   download={`homecheff-motion-${effectiveProjectId}.mp4`}
@@ -422,231 +452,25 @@ export default function InstantPremiumProgressPage() {
                 >
                   {t("instant.progress.download")}
                 </a>
-                {snapshot.canRebuildFinalVideo ? (
-                  <button
-                    type="button"
-                    disabled={rebuildBusy || snapshot.isRebuildingFinalVideo}
-                    className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 disabled:opacity-60"
-                    onClick={() => {
-                      setRebuildBusy(true);
-                      setActionError(null);
-                      void (async () => {
-                        try {
-                          const res = await fetch(
-                            `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
-                            { method: "POST", credentials: "include" }
-                          );
-                          const body = (await res.json().catch(() => ({}))) as {
-                            error?: string;
-                            rebuild?: {
-                              ok?: boolean;
-                              clipsReady?: boolean;
-                              message?: string;
-                              suggestRepair?: boolean;
-                              finalVideoUrlPresent?: boolean;
-                            };
-                            status?: InstantPremiumStatusResponse;
-                          };
-                          if (!res.ok) {
-                            setActionError(
-                              body.error ??
-                                body.rebuild?.message ??
-                                t("instant.progress.rebuildFinalFailed")
-                            );
-                            return;
-                          }
-                          if (body.rebuild?.clipsReady === false) {
-                            setActionError(
-                              body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
-                            );
-                            return;
-                          }
-                          if (body.rebuild?.ok) {
-                            setActionError(null);
-                          } else {
-                            setActionError(
-                              body.rebuild?.message ??
-                                (body.rebuild?.finalVideoUrlPresent
-                                  ? t("instant.progress.rebuildFinalFailedKeepsPrevious")
-                                  : t("instant.progress.rebuildFinalFailed"))
-                            );
-                          }
-                          if (body.status) {
-                            setSnapshot(body.status);
-                          }
-                        } finally {
-                          setRebuildBusy(false);
-                        }
-                      })();
-                    }}
-                  >
-                    {rebuildBusy || snapshot.isRebuildingFinalVideo
-                      ? t("instant.progress.rebuildingFinal")
-                      : t("instant.progress.rebuildFinalVideo")}
-                  </button>
-                ) : null}
                 {snapshot.finalDurationSeconds ? (
                   <p className="text-xs text-zinc-500">
                     {t("instant.progress.finalDuration", { seconds: snapshot.finalDurationSeconds })}
                   </p>
                 ) : null}
+                </div>
+                <InstantRecoveryActionButtons
+                  snapshot={snapshot}
+                  repairBusy={retryBusy}
+                  textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                  forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                  isAdmin={isAdmin}
+                  onVideoRepair={() => void runVideoRepair()}
+                  onTextRerender={() => void runTextRerender()}
+                  onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
+                  buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+                />
               </div>
             </div>
-          ) : null}
-          {effectiveProjectId &&
-          snapshot?.canRebuildFinalVideo &&
-          !snapshot?.finalVideoUrl &&
-          !snapshot?.canRetryOverlay ? (
-            <button
-              type="button"
-              disabled={rebuildBusy || snapshot.isRebuildingFinalVideo}
-              className="mt-4 rounded-lg bg-sky-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-              onClick={() => {
-                setRebuildBusy(true);
-                setActionError(null);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/rebuild-final-video`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    const body = (await res.json().catch(() => ({}))) as {
-                      error?: string;
-                      rebuild?: { ok?: boolean; clipsReady?: boolean; message?: string };
-                      status?: InstantPremiumStatusResponse;
-                    };
-                    if (!res.ok) {
-                      setActionError(
-                        body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed")
-                      );
-                      return;
-                    }
-                    if (body.rebuild?.clipsReady === false) {
-                      setActionError(
-                        body.rebuild?.message ?? t("instant.progress.rebuildSegmentsMissing")
-                      );
-                      return;
-                    }
-                    if (body.rebuild?.ok && effectiveProjectId) {
-                      invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-                    }
-                    if (body.status) {
-                      setSnapshot(body.status);
-                    }
-                  } finally {
-                    setRebuildBusy(false);
-                  }
-                })();
-              }}
-            >
-              {rebuildBusy || snapshot.isRebuildingFinalVideo
-                ? t("instant.progress.rebuildingFinal")
-                : t("instant.progress.rebuildFinalVideo")}
-            </button>
-          ) : null}
-          {effectiveProjectId && snapshot?.canRepairFinalVideo && !snapshot?.canRetryOverlay ? (
-            <button
-              type="button"
-              disabled={retryBusy}
-              className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-              onClick={() => {
-                setRetryBusy(true);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    if (!res.ok) {
-                      const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setActionError(body.error ?? t("instant.recover.failed"));
-                      return;
-                    }
-                    const body = (await res.json()) as {
-                      status?: InstantPremiumStatusResponse;
-                    };
-                    if (body.status) {
-                      setSnapshot(body.status);
-                    }
-                    setActionError(null);
-                  } finally {
-                    setRetryBusy(false);
-                  }
-                })();
-              }}
-            >
-              {retryBusy ? t("instant.recover.restoring") : t("instant.progress.repairFinalVideo")}
-            </button>
-          ) : null}
-          {effectiveProjectId && snapshot?.canRetryOverlay ? (
-            <button
-              type="button"
-              disabled={retryBusy}
-              className="mt-4 rounded-lg bg-amber-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-              onClick={() => {
-                setRetryBusy(true);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/repair-final-video`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    if (!res.ok) {
-                      const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setActionError(body.error ?? t("instant.progress.retryFailed"));
-                      return;
-                    }
-                    const body = (await res.json()) as {
-                      status?: InstantPremiumStatusResponse;
-                    };
-                    if (body.status) {
-                      setSnapshot(body.status);
-                    }
-                    setActionError(null);
-                  } finally {
-                    setRetryBusy(false);
-                  }
-                })();
-              }}
-            >
-              {retryBusy ? t("instant.recover.restoring") : t("instant.progress.retryOverlay")}
-            </button>
-          ) : null}
-          {effectiveProjectId &&
-          snapshot?.canRetryMerge &&
-          !snapshot?.segmentsMergeFailed &&
-          !snapshot?.canRetryOverlay ? (
-            <button
-              type="button"
-              disabled={retryBusy || snapshot.retryState === "retrying_merge"}
-              className="mt-4 rounded-lg bg-red-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
-              onClick={() => {
-                setRetryBusy(true);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/merge/retry`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    if (!res.ok) {
-                      const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setActionError(body.error ?? t("instant.progress.retryFailed"));
-                      return;
-                    }
-                    const body = (await res.json()) as InstantPremiumStatusResponse;
-                    setSnapshot(body);
-                    setActionError(null);
-                    invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-                  } finally {
-                    setRetryBusy(false);
-                  }
-                })();
-              }}
-            >
-              {retryBusy || snapshot.retryState === "retrying_merge"
-                ? t("instant.progress.retryingMerge")
-                : t("instant.progress.retryMergeButton")}
-            </button>
           ) : null}
 
           {isCompleted && snapshot?.finalVideoUrl && effectiveProjectId ?

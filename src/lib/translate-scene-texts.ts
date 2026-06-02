@@ -11,19 +11,32 @@ const TARGET_LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   es: "Spanish",
   fr: "French",
+  de: "German",
+  pt: "Portuguese",
+  it: "Italian",
   ar: "Arabic",
 };
 
-const BRAND_TOKENS = ["HomeCheff", "HomeGarden", "HomeDesigner", "HCP"] as const;
+export const PROTECTED_BRAND_LITERALS = [
+  "HomeCheff",
+  "HomeGarden",
+  "HomeDesigner",
+  "HCP",
+  "Rotterdam",
+  "Paramaribo",
+] as const;
+
+const URL_PATTERN = /\bhttps?:\/\/[^\s]+|www\.[^\s]+/gi;
 
 type TranslatableField = {
   sceneIndex: number;
-  field: "heroText" | "title" | "subtitle" | "heroFinaleText" | "line";
+  field: "heroText" | "title" | "subtitle" | "heroFinaleText" | "line" | "accentWord";
   lineIndex?: number;
+  accentIndex?: number;
   text: string;
 };
 
-function collectTranslatableFields(scenes: InstantSceneText[]): TranslatableField[] {
+export function collectTranslatableFields(scenes: InstantSceneText[]): TranslatableField[] {
   const out: TranslatableField[] = [];
   scenes.forEach((raw, sceneIndex) => {
     const scene = normalizeSceneText(raw);
@@ -44,28 +57,108 @@ function collectTranslatableFields(scenes: InstantSceneText[]): TranslatableFiel
         out.push({ sceneIndex, field: "line", lineIndex, text: line.text });
       }
     });
+    scene.accentWords.forEach((word, accentIndex) => {
+      if (word.trim()) {
+        out.push({ sceneIndex, field: "accentWord", accentIndex, text: word.trim() });
+      }
+    });
   });
   return out;
 }
 
-function protectBrands(text: string): { protectedText: string; map: Map<string, string> } {
+export function protectProtectedLiterals(text: string): {
+  protectedText: string;
+  map: Map<string, string>;
+} {
   let protectedText = text;
   const map = new Map<string, string>();
-  BRAND_TOKENS.forEach((brand, index) => {
-    const token = `__BRAND_${index}__`;
+  let tokenIndex = 0;
+
+  const protectToken = (literal: string) => {
+    const token = `__LIT_${tokenIndex}__`;
+    tokenIndex += 1;
+    map.set(token, literal);
+    protectedText = protectedText.split(literal).join(token);
+  };
+
+  PROTECTED_BRAND_LITERALS.forEach((brand) => {
     if (protectedText.includes(brand)) {
-      map.set(token, brand);
-      protectedText = protectedText.split(brand).join(token);
+      protectToken(brand);
     }
   });
+
+  const urls = protectedText.match(URL_PATTERN) ?? [];
+  for (const url of urls) {
+    if (protectedText.includes(url)) {
+      protectToken(url);
+    }
+  }
+
   return { protectedText, map };
 }
 
-function restoreBrands(text: string, map: Map<string, string>): string {
+export function restoreProtectedLiterals(text: string, map: Map<string, string>): string {
   let out = text;
-  for (const [token, brand] of map) {
-    out = out.split(token).join(brand);
+  for (const [token, literal] of map) {
+    out = out.split(token).join(literal);
   }
+  return out;
+}
+
+export function applySceneTextTranslations(params: {
+  base: InstantSceneText[];
+  fields: TranslatableField[];
+  translated: Array<{ id: number; text: string }>;
+}): InstantSceneText[] {
+  const out: InstantSceneText[] = params.base.map((scene) => {
+    const normalized = normalizeSceneText(scene);
+    return {
+      template: normalized.template,
+      heroText: normalized.heroText,
+      title: normalized.title,
+      subtitle: normalized.subtitle,
+      heroFinale: normalized.heroFinale,
+      heroFinaleText: normalized.heroFinaleText,
+      accentWords: normalized.accentWords,
+      lines: normalized.lines.map((l) => l.text),
+      transitionDurationSeconds: normalized.transitionDurationSeconds,
+      durationSeconds: normalized.durationSeconds,
+    };
+  });
+
+  for (const item of params.translated) {
+    const field = params.fields[item.id];
+    if (!field) {
+      continue;
+    }
+    const brandMap = protectProtectedLiterals(field.text).map;
+    const text = restoreProtectedLiterals(String(item.text ?? ""), brandMap);
+    const scene = out[field.sceneIndex]!;
+    if (field.field === "heroText") {
+      scene.heroText = text.toUpperCase();
+    } else if (field.field === "title") {
+      scene.title = text.toUpperCase();
+    } else if (field.field === "subtitle") {
+      scene.subtitle = text;
+    } else if (field.field === "heroFinaleText") {
+      scene.heroFinaleText = text;
+    } else if (field.field === "line" && field.lineIndex != null) {
+      const lines = Array.isArray(scene.lines) ? [...scene.lines] : [];
+      while (lines.length <= field.lineIndex) {
+        lines.push("");
+      }
+      lines[field.lineIndex] = text;
+      scene.lines = lines;
+    } else if (field.field === "accentWord" && field.accentIndex != null) {
+      const words = Array.isArray(scene.accentWords) ? [...scene.accentWords] : [];
+      while (words.length <= field.accentIndex) {
+        words.push("");
+      }
+      words[field.accentIndex] = text;
+      scene.accentWords = words.filter((w) => w.trim().length > 0);
+    }
+  }
+
   return out;
 }
 
@@ -104,11 +197,15 @@ export async function translateSceneTexts(params: {
   }
 
   const payload = fields.map((f, id) => {
-    const { protectedText } = protectBrands(f.text);
+    const { protectedText } = protectProtectedLiterals(f.text);
     return { id, text: protectedText };
   });
 
-  const system = `You translate on-screen marketing text for video overlays. Target language: ${targetName}. Preserve meaning and similar length. Do not translate placeholder tokens like __BRAND_0__. Return JSON: {"strings":[{"id":0,"text":"..."}]}.`;
+  const system = `You translate on-screen marketing text for short-form video overlays. Target language: ${targetName}.
+Preserve meaning, punctuation, and line intent. Keep similar length and punchy marketing tone.
+Preserve capitalization style where possible (ALL CAPS headlines stay ALL CAPS in the target language).
+Do not translate placeholder tokens like __LIT_0__. Do not translate brand names or URLs.
+Return JSON: {"strings":[{"id":0,"text":"..."}]}.`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -155,46 +252,10 @@ export async function translateSceneTexts(params: {
     };
   }
 
-  const out: InstantSceneText[] = base.map((scene) => ({
-    template: scene.template,
-    heroText: scene.heroText,
-    title: scene.title,
-    subtitle: scene.subtitle,
-    heroFinale: scene.heroFinale,
-    heroFinaleText: scene.heroFinaleText,
-    accentWords: scene.accentWords,
-    lines: scene.lines.map((l) => l.text),
-    transitionDurationSeconds: scene.transitionDurationSeconds,
-    durationSeconds: scene.durationSeconds,
-  }));
-
-  for (const item of translated) {
-    const field = fields[item.id];
-    if (!field) {
-      continue;
-    }
-    const brandMap = protectBrands(field.text).map;
-    const text = restoreBrands(String(item.text ?? ""), brandMap);
-    const scene = out[field.sceneIndex]!;
-    if (field.field === "heroText") {
-      scene.heroText = text.toUpperCase();
-    } else if (field.field === "title") {
-      scene.title = text.toUpperCase();
-    } else if (field.field === "subtitle") {
-      scene.subtitle = text;
-    } else if (field.field === "heroFinaleText") {
-      scene.heroFinaleText = text;
-    } else if (field.field === "line" && field.lineIndex != null) {
-      const lines = Array.isArray(scene.lines) ? [...scene.lines] : [];
-      while (lines.length <= field.lineIndex) {
-        lines.push("");
-      }
-      lines[field.lineIndex] = text;
-      scene.lines = lines;
-    }
-  }
-
-  return { sceneTexts: out, provider: "openai" };
+  return {
+    sceneTexts: applySceneTextTranslations({ base, fields, translated }),
+    provider: "openai",
+  };
 }
 
 export function parseSceneTextsJson(raw: unknown): InstantSceneText[] {

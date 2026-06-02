@@ -7,6 +7,7 @@ import {
   type InstantPremiumActiveOperation,
   type InstantPremiumProgressStage,
 } from "@/lib/instant-premium-progress-stage";
+import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
 import { useMounted } from "@/hooks/use-mounted";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -25,8 +26,8 @@ const STAGE_LABEL_KEYS: Record<InstantPremiumProgressStage, string> = {
 
 const OPERATION_LABEL_KEYS: Record<InstantPremiumActiveOperation, string> = {
   segment_rendering: "instant.progress.operation.segmentRendering",
-  repair: "instant.progress.operation.repair",
-  rebuild: "instant.progress.operation.rebuild",
+  repair: "instant.videoRepair.busy",
+  rebuild: "instant.textRerender.busy",
   merge_export: "instant.progress.operation.export",
   upload: "instant.progress.operation.upload",
   idle: "instant.progress.operation.idle",
@@ -42,7 +43,8 @@ export type InstantFinalProgressPanelProps = {
   isAdmin?: boolean;
   showStuckActions?: boolean;
   onRepair?: () => void;
-  onRebuild?: () => void;
+  onTextRerender?: () => void;
+  onForceRebuild?: () => void;
   className?: string;
 };
 
@@ -105,7 +107,8 @@ export function InstantFinalProgressPanel({
   isAdmin = false,
   showStuckActions = true,
   onRepair,
-  onRebuild,
+  onTextRerender,
+  onForceRebuild,
   className = "",
 }: InstantFinalProgressPanelProps) {
   const t = useActiveTranslator();
@@ -224,30 +227,19 @@ export function InstantFinalProgressPanel({
               {t("instant.progress.rebuildFinalFailedKeepsPrevious")}
             </p>
           ) : null}
-          {showStuckActions && (snapshot?.canRebuildFinalVideo || snapshot?.canRepairFinalVideo) ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {snapshot?.canRepairFinalVideo && onRepair ? (
-                <button
-                  type="button"
-                  disabled={repairBusy}
-                  onClick={onRepair}
-                  className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 disabled:opacity-60"
-                >
-                  {repairBusy ? t("instant.recover.restoring") : t("instant.progress.repairFinalVideo")}
-                </button>
-              ) : null}
-              {snapshot?.canRebuildFinalVideo && onRebuild ? (
-                <button
-                  type="button"
-                  disabled={rebuildBusy}
-                  onClick={onRebuild}
-                  className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-900 disabled:opacity-60"
-                >
-                  {rebuildBusy ? t("instant.progress.rebuildingFinal") : t("instant.progress.rebuildFinalVideo")}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+          {showStuckActions ?
+            <InstantRecoveryActionButtons
+              className="mt-3"
+              snapshot={snapshot}
+              repairBusy={repairBusy}
+              textRerenderBusy={rebuildBusy}
+              forceRebuildBusy={rebuildBusy}
+              isAdmin={isAdmin}
+              onVideoRepair={onRepair}
+              onTextRerender={onTextRerender}
+              onForceRebuild={onForceRebuild}
+            />
+          : null}
         </div>
       ) : null}
 
@@ -257,30 +249,19 @@ export function InstantFinalProgressPanel({
           <p className="mt-1 text-xs text-amber-900/90">
             {t("instant.progress.exportStuckHint", { seconds: Math.round(INSTANT_EXPORT_STUCK_MS / 1000) })}
           </p>
-          {showStuckActions ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {snapshot?.canRepairFinalVideo && onRepair ? (
-                <button
-                  type="button"
-                  disabled={repairBusy}
-                  onClick={onRepair}
-                  className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 disabled:opacity-60"
-                >
-                  {repairBusy ? t("instant.recover.restoring") : t("instant.progress.repairFinalVideo")}
-                </button>
-              ) : null}
-              {snapshot?.canRebuildFinalVideo && onRebuild ? (
-                <button
-                  type="button"
-                  disabled={rebuildBusy}
-                  onClick={onRebuild}
-                  className="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-900 disabled:opacity-60"
-                >
-                  {rebuildBusy ? t("instant.progress.rebuildingFinal") : t("instant.progress.rebuildFinalVideo")}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+          {showStuckActions ?
+            <InstantRecoveryActionButtons
+              className="mt-3"
+              snapshot={snapshot}
+              repairBusy={repairBusy}
+              textRerenderBusy={rebuildBusy}
+              forceRebuildBusy={rebuildBusy}
+              isAdmin={isAdmin}
+              onVideoRepair={onRepair}
+              onTextRerender={onTextRerender}
+              onForceRebuild={onForceRebuild}
+            />
+          : null}
         </div>
       ) : null}
 

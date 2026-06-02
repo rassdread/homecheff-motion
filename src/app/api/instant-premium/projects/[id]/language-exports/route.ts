@@ -166,16 +166,20 @@ export async function POST(request: Request, context: RouteContext) {
         sceneTextOverrides: Array.isArray(raw.sceneTexts)
           ? parseSceneTextsJson(raw.sceneTexts)
           : undefined,
+        viewer: user,
       });
       if (prepared.mode === "story_overlay") {
         return NextResponse.json({
           ok: true,
           mode: "story_overlay",
           languageCode: raw.languageCode,
+          exportId: prepared.exportId ?? null,
           sceneTexts: prepared.sceneTexts,
           translationProvider: prepared.translationProvider,
           translationFailed: prepared.translationFailed ?? false,
           message: prepared.message,
+          sourceLanguage: prepared.sourceLanguage,
+          targetLanguage: prepared.targetLanguage,
         });
       }
       return NextResponse.json({
@@ -249,6 +253,7 @@ export async function POST(request: Request, context: RouteContext) {
       languageCode: raw.languageCode,
       textLayerOverrides: overrides,
       sceneTextOverrides: sceneOverrides,
+      exportId: raw.exportId?.trim() || undefined,
     });
     const exports = await listVideoLanguageExports(projectId);
     const created = exports.find((e) => e.id === exportId);

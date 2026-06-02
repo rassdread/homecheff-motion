@@ -77,6 +77,9 @@ function statusLabel(status: string, t: ReturnType<typeof useActiveTranslator>):
   if (status === "needs_refresh") {
     return t("instant.videoVersions.statusNeedsRefresh");
   }
+  if (status === "draft") {
+    return t("instant.videoVersions.statusDraft");
+  }
   return status;
 }
 
@@ -148,6 +151,7 @@ export function VideoVersionsPanel({
   const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
   const [editExportId, setEditExportId] = useState<string | null>(null);
+  const [draftExportId, setDraftExportId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -210,6 +214,7 @@ export function VideoVersionsPanel({
       const json = (await res.json()) as {
         ok?: boolean;
         sceneTexts?: unknown;
+        exportId?: string | null;
         message?: string | null;
       };
       if (!json.ok) {
@@ -217,9 +222,13 @@ export function VideoVersionsPanel({
       }
       const parsed = parseSceneTextsJson(json.sceneTexts ?? instantSceneTexts);
       setSceneTexts(parsed.map(sceneToDraft));
-      if (json.message) {
-        setInfo(json.message);
-      }
+      setDraftExportId(json.exportId?.trim() || null);
+      setEditExportId(null);
+      setInfo(
+        (json as { translationFailed?: boolean }).translationFailed && json.message ?
+          json.message
+        : t("instant.videoVersions.autoTranslateNote")
+      );
       setCreateOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("instant.languageExport.prepareFailed"));
@@ -241,6 +250,7 @@ export function VideoVersionsPanel({
           body: JSON.stringify({
             action: "render",
             languageCode: lang,
+            exportId: draftExportId ?? undefined,
             sceneTexts: texts.map((scene, index) => ({
               template: scene.template,
               heroText: scene.heroText.trim() || undefined,
@@ -277,6 +287,7 @@ export function VideoVersionsPanel({
       }
       setCreateOpen(false);
       setEditExportId(null);
+      setDraftExportId(null);
       setInfo(t("instant.videoVersions.renderStarted"));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("instant.languageExport.renderFailed"));
@@ -416,6 +427,23 @@ export function VideoVersionsPanel({
               : null}
             </>
           : null}
+          {row.status === "draft" && usesStoryOverlay ?
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setEditExportId(null);
+                setDraftExportId(row.id);
+                setTargetLang(row.languageCode as LanguageExportCode);
+                const parsed = parseSceneTextsJson(row.sceneTextsJson ?? instantSceneTexts);
+                setSceneTexts(parsed.map(sceneToDraft));
+                setCreateOpen(true);
+              }}
+              className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-800"
+            >
+              {t("instant.videoVersions.reviewDraft")}
+            </button>
+          : null}
           {(row.status === "failed" || row.status === "needs_refresh") && (
             <button
               type="button"
@@ -423,14 +451,17 @@ export function VideoVersionsPanel({
               onClick={() => void rerenderExport(row.id)}
               className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-900 disabled:opacity-50"
             >
-              {t("instant.videoVersions.rerender")}
+              {t("instant.textRerender.cta")}
             </button>
           )}
         </VideoCard>
       ))}
 
       {usesStoryOverlay ?
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-2">
+          <p className="text-sm text-zinc-600">{t("instant.videoVersions.createLanguageHint")}</p>
+          <p className="text-xs text-zinc-500">{t("instant.videoVersions.autoTranslateNote")}</p>
+          <div className="flex flex-wrap gap-2">
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             {t("instant.videoVersions.chooseLanguage")}
             <select
@@ -453,6 +484,7 @@ export function VideoVersionsPanel({
           >
             {t("instant.videoVersions.createLanguageVersion")}
           </button>
+          </div>
         </div>
       : (
         <LanguageExportPanel
@@ -532,13 +564,14 @@ export function VideoVersionsPanel({
               }
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {t("instant.videoVersions.renderTextOnly")}
+              {t("instant.textRerender.cta")}
             </button>
             <button
               type="button"
               onClick={() => {
                 setCreateOpen(false);
                 setEditExportId(null);
+                setDraftExportId(null);
               }}
               className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700"
             >

@@ -42,8 +42,8 @@ export function InstantSegmentProgressList({
               onClick={() => onRetryMerge()}
             >
               {mergeRetryBusy || snapshot.retryState === "retrying_merge"
-                ? t("instant.progress.retryingMerge")
-                : t("instant.progress.retryMergeButton")}
+                ? t("instant.videoRepair.busy")
+                : t("instant.videoRepair.cta")}
             </button>
           ) : null}
         </div>

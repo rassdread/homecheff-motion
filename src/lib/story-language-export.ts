@@ -32,23 +32,44 @@ export function resolveCleanVideoUrlForOverlay(project: {
   return clean || null;
 }
 
+/** Canonical storyboard language stored on the project (not re-translated). */
+export function storySourceLanguageCode(): LanguageExportCode {
+  return "original";
+}
+
 export async function prepareStorySceneTexts(params: {
   project: { instantSceneTexts: unknown };
   languageCode: LanguageExportCode;
   sceneTextOverrides?: InstantSceneText[];
+  /** When true, use overrides as-is (reviewed composition) without machine translation. */
+  skipTranslation?: boolean;
 }): Promise<{
   sceneTexts: InstantSceneText[];
   translationProvider: string;
   translationFailed?: boolean;
   translationMessage?: string;
+  sourceLanguage: LanguageExportCode;
+  targetLanguage: LanguageExportCode;
 }> {
+  const sourceLanguage = storySourceLanguageCode();
+  const targetLanguage = params.languageCode;
   const base =
     params.sceneTextOverrides?.length ?
       params.sceneTextOverrides
     : parseSceneTextsJson(params.project.instantSceneTexts);
 
-  if (params.languageCode === "original") {
-    return { sceneTexts: base, translationProvider: "none" };
+  if (
+    params.languageCode === "original" ||
+    params.skipTranslation ||
+    params.sceneTextOverrides?.length
+  ) {
+    return {
+      sceneTexts: base,
+      translationProvider:
+        params.skipTranslation || params.sceneTextOverrides?.length ? "user_reviewed" : "none",
+      sourceLanguage,
+      targetLanguage,
+    };
   }
 
   const translated = await translateSceneTexts({
@@ -61,6 +82,8 @@ export async function prepareStorySceneTexts(params: {
     translationProvider: translated.provider,
     translationFailed: translated.translationFailed,
     translationMessage: translated.translationError,
+    sourceLanguage,
+    targetLanguage,
   };
 }
 

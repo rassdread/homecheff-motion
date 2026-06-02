@@ -10,12 +10,16 @@ export const LANGUAGE_EXPORT_CODES = [
   "en",
   "es",
   "fr",
+  "de",
+  "pt",
+  "it",
   "ar",
 ] as const;
 
 export type LanguageExportCode = (typeof LANGUAGE_EXPORT_CODES)[number];
 
 export type LanguageExportStatus =
+  | "draft"
   | "queued"
   | "rendering"
   | "completed"
@@ -69,6 +73,9 @@ const LANGUAGE_LABELS: Record<LanguageExportCode, { en: string; nl: string }> = 
   en: { en: "English", nl: "Engels" },
   es: { en: "Spanish", nl: "Spaans" },
   fr: { en: "French", nl: "Frans" },
+  de: { en: "German", nl: "Duits" },
+  pt: { en: "Portuguese", nl: "Portugees" },
+  it: { en: "Italian", nl: "Italiaans" },
   ar: { en: "Arabic", nl: "Arabisch" },
 };
 

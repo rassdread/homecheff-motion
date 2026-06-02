@@ -16,7 +16,10 @@ describe("video-language-export", () => {
   it("recognizes supported language codes", () => {
     assert.equal(isLanguageExportCode("nl"), true);
     assert.equal(isLanguageExportCode("ar"), true);
-    assert.equal(isLanguageExportCode("de"), false);
+    assert.equal(isLanguageExportCode("de"), true);
+    assert.equal(isLanguageExportCode("pt"), true);
+    assert.equal(isLanguageExportCode("it"), true);
+    assert.equal(isLanguageExportCode("xx"), false);
   });
 
   it("builds versioned blob paths under motion/final", () => {

@@ -735,6 +735,7 @@ export default function VideosPage() {
                 {instantNeedsRecovery ? (
                   <div className="mt-1 rounded-lg border border-amber-100 bg-amber-50/80 p-2 text-xs text-amber-950">
                     <p className="font-medium">{t("instant.recover.notCompleted")}</p>
+                    <p className="mt-1 text-[11px] leading-snug">{t("instant.recover.hint")}</p>
                     <button
                       type="button"
                       disabled={recoverBusyId === item.id}
@@ -742,8 +743,8 @@ export default function VideosPage() {
                       className="mt-2 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-50"
                     >
                       {recoverBusyId === item.id
-                        ? t("instant.recover.restoring")
-                        : t("instant.recover.cta")}
+                        ? t("instant.videoRepair.busy")
+                        : t("instant.videoRepair.cta")}
                     </button>
                   </div>
                 ) : null}
