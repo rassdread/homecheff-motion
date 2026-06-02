@@ -18,6 +18,11 @@ import { brand } from "@/lib/brand";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
 import type { InstantPremiumStatusResponse, VideoLanguageExportSummary } from "@/types/animation-api";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
+import { VideoPreview } from "@/components/ui/video-preview";
+import {
+  instantExportUserErrorMessage,
+  postRebuildFinalVideo,
+} from "@/lib/instant-export-client";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
@@ -202,22 +207,20 @@ export default function InstantPremiumProgressPage() {
     setRebuildBusy(true);
     setActionError(null);
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/rebuild-final-video`,
-        { method: "POST", credentials: "include" }
-      );
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        rebuild?: {
-          ok?: boolean;
-          clipsReady?: boolean;
-          message?: string;
-          suggestRepair?: boolean;
-          finalVideoUrlPresent?: boolean;
-        };
-        status?: InstantPremiumStatusResponse;
-      };
-      if (!res.ok) {
+      const result = await postRebuildFinalVideo(effectiveProjectId);
+      if (result.networkError) {
+        setActionError(
+          instantExportUserErrorMessage({
+            kind: result.errorKind ?? "network",
+            abortedMessage: t("instant.textRerender.aborted"),
+            networkMessage: t("instant.textRerender.failed"),
+            httpMessage: result.data.error,
+          })
+        );
+        return;
+      }
+      const body = result.data;
+      if (!result.ok) {
         setActionError(
           body.error ?? body.rebuild?.message ?? t("instant.textRerender.failed")
         );
@@ -243,6 +246,15 @@ export default function InstantPremiumProgressPage() {
       if (body.status) {
         setSnapshot(body.status);
       }
+    } catch (e) {
+      setActionError(
+        instantExportUserErrorMessage({
+          kind: "network",
+          abortedMessage: t("instant.textRerender.aborted"),
+          networkMessage: t("instant.textRerender.failed"),
+          adminDetail: e instanceof Error ? e.message : String(e),
+        })
+      );
     } finally {
       setRebuildBusy(false);
     }
@@ -396,15 +408,15 @@ export default function InstantPremiumProgressPage() {
           {snapshot?.finalVideoUrl ? (
             <div className="mt-5">
               <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>
-              <video
+              <VideoPreview
                 key={finalPlaybackCacheKey}
+                variant="main"
+                className="mt-2 border border-zinc-200"
                 controls
                 playsInline
                 preload="metadata"
-                className="mt-2 max-h-80 w-full rounded-xl border border-zinc-200 bg-black"
-              >
-                <source src={snapshot.finalVideoUrl} type="video/mp4" />
-              </video>
+                src={snapshot.finalVideoUrl}
+              />
               <div className="mt-3 space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                 <a
@@ -437,6 +449,7 @@ export default function InstantPremiumProgressPage() {
           {isCompleted && snapshot?.finalVideoUrl && effectiveProjectId ?
             <VideoVersionsPanel
               projectId={effectiveProjectId}
+              hideOriginalVideoPlayer
               cleanVideoUrl={versionMeta?.cleanVideoUrl ?? null}
               finalVideoUrl={snapshot.finalVideoUrl}
               usesStoryOverlay={versionMeta?.usesStoryOverlay ?? false}

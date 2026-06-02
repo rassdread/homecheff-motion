@@ -55,6 +55,10 @@ export type InstantFinalProgressPanelProps = {
     userMessageKey: "instant.videoRepair.pollFailed";
     adminDetail: string | null;
   } | null;
+  /** Hide repair / rerender buttons (e.g. project detail quick actions). */
+  hideRecoveryActions?: boolean;
+  /** Hide worker/export debug grid (project detail uses collapsed advanced section). */
+  hideAdminDiagnostics?: boolean;
   className?: string;
 };
 
@@ -111,6 +115,8 @@ export function InstantFinalProgressPanel({
     lastHttpStatus: null,
   },
   pollingError = null,
+  hideRecoveryActions = false,
+  hideAdminDiagnostics = false,
   className = "",
 }: InstantFinalProgressPanelProps) {
   const t = useActiveTranslator();
@@ -271,7 +277,7 @@ export function InstantFinalProgressPanel({
               {t("instant.progress.rebuildFinalFailedKeepsPrevious")}
             </p>
           ) : null}
-          {showStuckActions ?
+          {showStuckActions && !hideRecoveryActions ?
             <InstantRecoveryActionButtons
               className="mt-3"
               snapshot={snapshot}
@@ -294,7 +300,7 @@ export function InstantFinalProgressPanel({
           <p className="mt-1 text-xs text-amber-900/90">
             {t("instant.progress.exportStuckHint", { seconds: Math.round(INSTANT_EXPORT_STUCK_MS / 1000) })}
           </p>
-          {showStuckActions && !showUnifiedRepair ?
+          {showStuckActions && !showUnifiedRepair && !hideRecoveryActions ?
             <InstantRecoveryActionButtons
               className="mt-3"
               snapshot={snapshot}
@@ -311,7 +317,7 @@ export function InstantFinalProgressPanel({
         </div>
       ) : null}
 
-      {isAdmin && snapshot ? (
+      {isAdmin && snapshot && !hideAdminDiagnostics ? (
         <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-zinc-100 pt-3 font-mono text-[10px] text-zinc-500">
           <div>
             <dt className="text-zinc-400">currentStage</dt>

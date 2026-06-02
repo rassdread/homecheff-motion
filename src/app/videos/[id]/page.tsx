@@ -19,16 +19,12 @@ import {
   filterCompletedLanguageExportsForPlayback,
   resolveActivePlaybackState,
 } from "@/lib/language-export-playback";
-import {
-  isPublicDebugUiEnabled,
-  shouldShowLanguageExportAdminDebug,
-} from "@/lib/debug-ui";
+import { isPublicDebugUiEnabled } from "@/lib/debug-ui";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
 import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
-import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -43,6 +39,16 @@ import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { projectUsesStoryOverlay } from "@/lib/story-language-export";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
+import {
+  instantExportUserErrorMessage,
+  postRebuildFinalVideo,
+} from "@/lib/instant-export-client";
+import { VideoPreview } from "@/components/ui/video-preview";
+import {
+  ProjectDetailHeader,
+  type ProjectDetailModeKind,
+} from "@/components/videos/project-detail-header";
+import { ProjectDetailQuickActions } from "@/components/videos/project-detail-quick-actions";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -103,7 +109,6 @@ export default function VideoDetailPage() {
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
-  const [languageAdminDebugOpen, setLanguageAdminDebugOpen] = useState(false);
   const load = useCallback(async (options?: { silent?: boolean }) => {
     if (!id) {
       setLoading(false);
@@ -345,12 +350,7 @@ export default function VideoDetailPage() {
     [languageExports]
   );
 
-  const showLanguageAdminDebug = shouldShowLanguageExportAdminDebug(
-    isAdmin,
-    languageAdminDebugOpen
-  );
-
-  const showPlaybackDebugPanel = isPublicDebugUiEnabled() || (isAdmin && languageAdminDebugOpen);
+  const showPlaybackDebugPanel = isPublicDebugUiEnabled() || isAdmin;
 
   const hasCompletedInstantFinal = Boolean(
     originalPlaybackUrl &&
@@ -401,25 +401,26 @@ export default function VideoDetailPage() {
     touchProgressClock();
     setRebuildBusy(true);
     setRebuildError(null);
-    setRebuildInfo(null);
+    setRebuildInfo(t("instant.textRerender.busy"));
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(id)}/rebuild-final-video`,
-        { method: "POST", credentials: "include" }
-      );
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        code?: string;
-        rebuild?: {
-          ok?: boolean;
-          clipsReady?: boolean;
-          message?: string;
-          suggestRepair?: boolean;
-          finalVideoUrlPresent?: boolean;
-        };
-        status?: InstantPremiumStatusResponse;
-      };
-      if (!res.ok) {
+      const result = await postRebuildFinalVideo(id);
+      if (result.networkError) {
+        setRebuildInfo(null);
+        setRebuildError(
+          instantExportUserErrorMessage({
+            kind: result.errorKind ?? "network",
+            abortedMessage: t("instant.textRerender.aborted"),
+            networkMessage: t("instant.textRerender.failed"),
+            httpMessage: result.data.error,
+            adminDetail: result.data.error,
+            isAdmin,
+          })
+        );
+        return;
+      }
+      const body = result.data;
+      if (!result.ok) {
+        setRebuildInfo(null);
         setRebuildError(body.error ?? body.rebuild?.message ?? t("instant.progress.rebuildFinalFailed"));
         return;
       }
@@ -460,10 +461,21 @@ export default function VideoDetailPage() {
       if (body.status) {
         setInstantSnapshot(body.status);
       }
+    } catch (e) {
+      setRebuildInfo(null);
+      setRebuildError(
+        instantExportUserErrorMessage({
+          kind: "network",
+          abortedMessage: t("instant.textRerender.aborted"),
+          networkMessage: t("instant.textRerender.failed"),
+          adminDetail: e instanceof Error ? e.message : String(e),
+          isAdmin,
+        })
+      );
     } finally {
       setRebuildBusy(false);
     }
-  }, [id, load, setInstantSnapshot, touchProgressClock]);
+  }, [id, isAdmin, load, setInstantSnapshot, touchProgressClock, t]);
 
   useEffect(() => {
     if (!instantSnapshot?.finalVideoUrl) {
@@ -554,30 +566,44 @@ export default function VideoDetailPage() {
     latestExport?.status === "failed" &&
     latestExport?.errorMessage?.trim() === EXPORT_CANCELLED_BY_USER_MESSAGE;
 
-  return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-8 sm:px-10 sm:py-10">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <Link href="/videos" prefetch={false} className="text-sm font-medium text-emerald-800 hover:underline">
-          {t("videos.title")}
-        </Link>
-        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700">
-          {t(
-            statusLabelKey(
-              resolveProjectDisplayStatus({
-                projectStatus: detail.status,
-                exportStatus: latestExport?.status,
-                outputVideoUrl: originalPlaybackUrl ?? finalVideoUrl,
-              })
-            )
-          )}
-        </span>
-      </div>
+  const projectTitle =
+    detail.userPrompt?.trim().slice(0, 80) || t("videos.finalVideo");
+  const projectMode: ProjectDetailModeKind =
+    detail.instantMode === "story" ? "story"
+    : instantLikeProject ? "transition"
+    : "classic";
+  const displayStatusKey = statusLabelKey(
+    resolveProjectDisplayStatus({
+      projectStatus: detail.status,
+      exportStatus: latestExport?.status,
+      outputVideoUrl: originalPlaybackUrl ?? finalVideoUrl,
+    })
+  );
+  const usesStoryOverlay = projectUsesStoryOverlay({
+    instantMode: detail.instantMode ?? "transition",
+    instantSceneTexts: detail.instantSceneTexts,
+  });
+  const cleanVideoUrl = detail.instantCleanFinalVideoUrl?.trim() || null;
+  const showStandaloneRepair =
+    !showInstantProgress && videoRepair.showRepairCard && !originalPlaybackUrl;
+  const showRepairQuickAction = videoRepair.showRepairCard && !hasCompletedInstantFinal;
 
-      <h1 className="text-xl font-semibold text-zinc-900">{t("videos.finalVideo")}</h1>
+  const scrollToSection = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <main className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 py-8 sm:px-10 sm:py-10">
+      <ProjectDetailHeader
+        title={projectTitle}
+        statusLabelKey={displayStatusKey}
+        createdAtIso={detail.createdAt}
+        mode={projectMode}
+      />
 
       {showInstantProgress ? (
         <InstantFinalProgressPanel
-          className="mt-4"
+          className="mt-6"
           snapshot={instantSnapshot}
           lastPolledAtMs={instantLastPolledAtMs}
           lastProgressChangeAtMs={instantLastProgressChangeAtMs}
@@ -585,6 +611,8 @@ export default function VideoDetailPage() {
           repairBusy={videoRepair.repairInFlight}
           rebuildBusy={rebuildBusy}
           isAdmin={isAdmin}
+          hideRecoveryActions
+          hideAdminDiagnostics
           showUnifiedRepair={videoRepair.showRepairCard}
           repairUiView={videoRepair.uiView}
           repairFeedback={videoRepair.feedback}
@@ -599,17 +627,25 @@ export default function VideoDetailPage() {
         />
       ) : null}
 
-      {detail.ownerEmail ? (
-        <p className="mt-2 text-sm text-zinc-600">
-          {t("videos.owner")}: <span className="font-medium text-zinc-800">{detail.ownerEmail}</span>
-        </p>
+      {showStandaloneRepair ? (
+        <InstantVideoRepairCard
+          className="mt-6"
+          uiView={videoRepair.uiView}
+          repairInFlight={videoRepair.repairInFlight}
+          feedback={videoRepair.feedback}
+          snapshot={instantSnapshot}
+          lastPolledAtMs={instantLastPolledAtMs}
+          lastProgressChangeAtMs={instantLastProgressChangeAtMs}
+          isAdmin={isAdmin}
+          onRepair={() => void videoRepair.runRepair()}
+        />
       ) : null}
 
       {originalPlaybackUrl ? (
-        <div className="mt-4 space-y-3">
-          <video
+        <div className="mt-6 space-y-5">
+          <VideoPreview
             key={playbackCacheKey}
-            className="w-full max-h-[70vh] rounded-xl bg-black"
+            variant="main"
             controls
             playsInline
             preload="none"
@@ -621,7 +657,7 @@ export default function VideoDetailPage() {
               src={activeFinalVideoUrl ?? originalPlaybackUrl ?? undefined}
               type="video/mp4"
             />
-          </video>
+          </VideoPreview>
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
@@ -631,72 +667,89 @@ export default function VideoDetailPage() {
               languageExports={languageExports}
               playbackState={playbackState}
               onSelectedLanguageChange={setPlaybackLanguage}
-              showAdminDebug={showLanguageAdminDebug}
+              showAdminDebug={false}
             />
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={animationProjectDownloadUrl(id, {
-                languageCode: playbackDownload.languageCode,
-              })}
-              download={`homecheff-motion-${id}${playbackDownload.filenameSuffix}.mp4`}
-              className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100"
-            >
-              {t("videos.download")}
-            </a>
-            <a
-              href={activeFinalVideoUrl ?? originalPlaybackUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-            >
-              {t("videos.open")}
-            </a>
-            {canRebuildInstant && finalVideoUrl ?
-              <button
-                type="button"
-                disabled={rebuildBusy}
-                onClick={() => void rebuildFinalVideo()}
-                className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-60"
-              >
-                {rebuildBusy ? t("instant.textRerender.busy") : t("instant.textRerender.cta")}
-              </button>
-            : null}
-          </div>
+
+          <ProjectDetailQuickActions
+            actions={[
+              {
+                id: "download",
+                labelKey: "projectDetail.quickActions.download.label",
+                hintKey: "projectDetail.quickActions.download.hint",
+                href: animationProjectDownloadUrl(id, {
+                  languageCode: playbackDownload.languageCode,
+                }),
+                download: `homecheff-motion-${id}${playbackDownload.filenameSuffix}.mp4`,
+                visible: true,
+              },
+              {
+                id: "view-clean",
+                labelKey: "projectDetail.quickActions.viewClean.label",
+                hintKey: "projectDetail.quickActions.viewClean.hint",
+                onClick: () => scrollToSection("version-clean"),
+                visible: Boolean(cleanVideoUrl),
+              },
+              {
+                id: "text-rerender",
+                labelKey: "projectDetail.quickActions.textRerender.label",
+                hintKey: "projectDetail.quickActions.textRerender.hint",
+                onClick: () => void rebuildFinalVideo(),
+                disabled: !canRebuildInstant || !finalVideoUrl,
+                busy: rebuildBusy,
+                busyLabelKey: "instant.textRerender.busy",
+                visible: Boolean(canRebuildInstant && finalVideoUrl && usesStoryOverlay),
+              },
+              {
+                id: "new-language",
+                labelKey: "projectDetail.quickActions.newLanguage.label",
+                hintKey: "projectDetail.quickActions.newLanguage.hint",
+                onClick: () => scrollToSection("version-languages"),
+                visible: Boolean(
+                  instantLikeProject && hasCompletedInstantFinal && usesStoryOverlay
+                ),
+              },
+              {
+                id: "repair",
+                labelKey: "projectDetail.quickActions.repair.label",
+                hintKey: "projectDetail.quickActions.repair.hint",
+                onClick: () => void videoRepair.runRepair(),
+                disabled: videoRepair.repairInFlight,
+                visible: showRepairQuickAction,
+              },
+            ]}
+          />
+
+          {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
+          {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
+
           {instantLikeProject && hasCompletedInstantFinal ? (
             <VideoVersionsPanel
+              layout="detail"
               projectId={id}
-              cleanVideoUrl={detail?.instantCleanFinalVideoUrl?.trim() || null}
+              cleanVideoUrl={cleanVideoUrl}
               finalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
-              usesStoryOverlay={
-                detail ?
-                  projectUsesStoryOverlay({
-                    instantMode: detail.instantMode ?? "transition",
-                    instantSceneTexts: detail.instantSceneTexts,
-                  })
-                : false
-              }
-              instantSceneTexts={detail?.instantSceneTexts}
-              images={(detail?.images ?? []).map((img) => ({
+              hideOriginalVideoPlayer
+              usesStoryOverlay={usesStoryOverlay}
+              instantSceneTexts={detail.instantSceneTexts}
+              images={(detail.images ?? []).map((img) => ({
                 id: img.id,
                 previewUrl: img.previewUrl ?? "",
               }))}
               languageExports={languageExports}
               onLanguageExportsChange={updateLanguageExports}
+              onRerenderOriginalTexts={() => void rebuildFinalVideo()}
+              textRerenderBusy={rebuildBusy}
+              onRequestCreateLanguage={() => scrollToSection("version-languages")}
             />
-          ) : null}
-          {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
-          {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
-          {showPlaybackDebugPanel ? (
-            <PlaybackDebugPanel projectId={id} detailPlayback={detail?.playback} />
           ) : null}
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
-          {!showInstantProgress ? (
+        <div className="mt-6 space-y-4">
+          {!showInstantProgress && !showStandaloneRepair ?
             <p className="text-sm text-zinc-600">{t("videos.processing")}</p>
-          ) : null}
-          {detail.status === "rendering" && showVideoExportCancel ? (
+          : null}
+          {detail.status === "rendering" && showVideoExportCancel ?
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <button
                 type="button"
@@ -726,36 +779,22 @@ export default function VideoDetailPage() {
                     }
                   })();
                 }}
-                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {exportCancelBusy ? t("animate.retry.busy") : t("animate.export.cancel")}
               </button>
-              {exportCancelFeedback ? (
+              {exportCancelFeedback ?
                 <p className="mt-2 text-xs text-red-700">{exportCancelFeedback}</p>
-              ) : null}
+              : null}
             </div>
-          ) : null}
-          {!showInstantProgress && videoRepair.showRepairCard ? (
-            <InstantVideoRepairCard
-              className="mt-4"
-              uiView={videoRepair.uiView}
-              repairInFlight={videoRepair.repairInFlight}
-              feedback={videoRepair.feedback}
-              snapshot={instantSnapshot}
-              lastPolledAtMs={instantLastPolledAtMs}
-              lastProgressChangeAtMs={instantLastProgressChangeAtMs}
-              isAdmin={isAdmin}
-              onRepair={() => void videoRepair.runRepair()}
-            />
-          ) : null}
+          : null}
         </div>
       )}
 
-      <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{t("projectDetail.meta.createdAt")}</h2>
-        <p className="text-sm text-zinc-800">
-          <ClientFormattedDateTime iso={detail.createdAt} />
-        </p>
+      <details className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+          {t("projectDetail.info.title")}
+        </summary>
         <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
           <dt className="text-zinc-500">{t("videos.preset")}</dt>
           <dd className="text-right font-medium text-zinc-900">{t(presetTitleKey(detail.presetId ?? "standard"))}</dd>
@@ -780,10 +819,37 @@ export default function VideoDetailPage() {
             <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800">{detail.userPrompt.trim()}</p>
           </div>
         ) : null}
-      </section>
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            {t("projectDetail.images.title")}
+          </h3>
+          {detail.images.length === 0 ?
+            <p className="mt-2 text-sm text-zinc-600">{t("projectDetail.images.empty")}</p>
+          : <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {detail.images.map((img) => (
+                <li key={img.id} className="overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
+                  {img.previewUrl?.trim() ?
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={img.previewUrl.trim()}
+                      alt={img.fileName}
+                      className="aspect-square w-full object-cover"
+                      loading="lazy"
+                    />
+                  : <div className="flex aspect-square items-center justify-center p-2 text-center text-xs text-zinc-400">
+                      {img.fileName}
+                    </div>
+                  }
+                </li>
+              ))}
+            </ul>
+          }
+        </div>
+      </details>
 
-      {(canRetryMergeExport ||
-        Boolean(latestExport && (latestExport.status === "failed" || latestExport.errorMessage?.trim()))) ? (
+      {!instantLikeProject &&
+      (canRetryMergeExport ||
+        Boolean(latestExport && (latestExport.status === "failed" || latestExport.errorMessage?.trim()))) ?
         <section
           className={`mt-8 rounded-lg border px-4 py-3 text-sm ${
             mergeStuckRetryOnly || userCancelledExport
@@ -792,59 +858,47 @@ export default function VideoDetailPage() {
           }`}
         >
           <p className="font-medium">{t("projectDetail.export.title")}</p>
-          {mergeStuckRetryOnly ? (
+          {mergeStuckRetryOnly ?
             <p className="mt-1">{t("videos.exportMergeStuckTitle")}</p>
-          ) : (
-            <p className="mt-1">
+          : <p className="mt-1">
               {userCancelledExport ? t("animate.export.cancelled") : t("videos.status.failed")}
             </p>
-          )}
-          {!mergeStuckRetryOnly && !userCancelledExport && latestExport?.errorMessage?.trim() ? (
-            <p className="mt-2 font-mono text-xs text-red-800/90">{latestExport.errorMessage.trim()}</p>
-          ) : null}
-          {canRetryMergeExport ? (
+          }
+          {isAdmin &&
+          !mergeStuckRetryOnly &&
+          !userCancelledExport &&
+          latestExport?.errorMessage?.trim() ?
+            <p className="mt-2 break-words font-mono text-xs text-red-800/90">
+              {latestExport.errorMessage.trim()}
+            </p>
+          : null}
+          {canRetryMergeExport ?
             <>
               <p className="mt-2 text-xs leading-relaxed opacity-90">{t("videos.mergeRetryHint")}</p>
               <button
                 type="button"
                 disabled={retryExportBusy}
                 onClick={() => void retryExportMerge()}
-                className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-3 w-full rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {retryExportBusy ? t("animate.retry.busy") : t("animate.export.retryMerge")}
               </button>
               {retryExportError ? <p className="mt-2 text-xs text-red-800">{retryExportError}</p> : null}
             </>
-          ) : null}
+          : null}
         </section>
-      ) : null}
+      : null}
 
-      <section className="mt-10">
-        <h2 className="text-sm font-semibold text-zinc-900">{t("projectDetail.images.title")}</h2>
-        {detail.images.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-600">{t("projectDetail.images.empty")}</p>
-        ) : (
-          <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {detail.images.map((img) => (
-              <li key={img.id} className="overflow-hidden rounded-lg border border-zinc-100 bg-zinc-50">
-                {img.previewUrl?.trim() ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={img.previewUrl.trim()}
-                    alt={img.fileName}
-                    className="aspect-square w-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="flex aspect-square items-center justify-center p-2 text-center text-xs text-zinc-400">
-                    {img.fileName}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {showPlaybackDebugPanel ?
+        <details className="mt-8 rounded-xl border border-zinc-200 bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-zinc-900">
+            {t("projectDetail.advanced.title")}
+          </summary>
+          <div className="mt-4">
+            <PlaybackDebugPanel projectId={id} detailPlayback={detail.playback} />
+          </div>
+        </details>
+      : null}
 
       <details
         className="mt-10 rounded-xl border border-zinc-100 bg-zinc-50/50 p-4"

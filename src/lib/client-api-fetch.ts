@@ -22,7 +22,19 @@ export type SameOriginJsonResult<T> = {
   status: number;
   data: T;
   networkError: boolean;
+  aborted?: boolean;
 };
+
+export function isAbortLikeError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return true;
+  }
+  if (error instanceof Error && error.name === "AbortError") {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /\babort(ed)?\b/i.test(message);
+}
 
 export async function fetchSameOriginJson<T>(
   path: string,
@@ -39,7 +51,7 @@ export async function fetchSameOriginJson<T>(
       },
     });
     const data = (await res.json().catch(() => ({}))) as T;
-    return { ok: res.ok, status: res.status, data, networkError: false };
+    return { ok: res.ok, status: res.status, data, networkError: false, aborted: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -47,6 +59,7 @@ export async function fetchSameOriginJson<T>(
       status: 0,
       data: { error: message } as T,
       networkError: true,
+      aborted: isAbortLikeError(error),
     };
   }
 }

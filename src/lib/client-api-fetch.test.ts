@@ -7,7 +7,11 @@ import {
   ANIMATION_PROJECT_DETAIL_PATH,
   INSTANT_PREMIUM_STATUS_PATH,
 } from "@/lib/instant-premium-polling-api";
-import { sameOriginApiPath, SAME_ORIGIN_JSON_FETCH_INIT } from "@/lib/client-api-fetch";
+import {
+  isAbortLikeError,
+  sameOriginApiPath,
+  SAME_ORIGIN_JSON_FETCH_INIT,
+} from "@/lib/client-api-fetch";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -15,6 +19,12 @@ test("SAME_ORIGIN_JSON_FETCH_INIT uses same-origin credentials and no-store cach
   assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.credentials, "same-origin");
   assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.cache, "no-store");
   assert.deepEqual(SAME_ORIGIN_JSON_FETCH_INIT.headers, { Accept: "application/json" });
+});
+
+test("isAbortLikeError detects AbortError and aborted messages", () => {
+  assert.ok(isAbortLikeError(new DOMException("aborted", "AbortError")));
+  assert.ok(isAbortLikeError(new Error("The operation was aborted.")));
+  assert.equal(isAbortLikeError(new Error("timeout")), false);
 });
 
 test("sameOriginApiPath rejects absolute URLs", () => {

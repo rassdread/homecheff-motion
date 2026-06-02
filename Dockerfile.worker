@@ -15,9 +15,15 @@ RUN npx prisma generate
 
 COPY . .
 
+# RT-DETR ONNX (Apache-2.0) — not in git; fetch at image build time.
+RUN npm run setup:vision-models -- --include-object-detector --kind=rtdetr
+
 ENV FFMPEG_PATH=/usr/bin/ffmpeg
 ENV FFMPEG_FONT_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
 ENV NODE_ENV=production
+ENV HC_ENABLE_OBJECT_SAFE_ZONES=1
+ENV HC_OBJECT_DETECTOR_KIND=rtdetr
+ENV HC_OBJECT_DETECTOR_MODEL_DIR=/app/models/object-detector
 
 EXPOSE 8090
 

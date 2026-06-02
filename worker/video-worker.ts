@@ -60,6 +60,18 @@ app.get("/health/video", async (_req, res) => {
   res.status(body.ok ? 200 : 503).json(body);
 });
 
+app.get("/health/vision", async (req, res) => {
+  const probe = req.query.probe === "1" || req.query.probe === "true";
+  const { getVisionSetupDiagnostics } = await import(
+    "../src/server/animation-export/local-vision/vision-setup-validation"
+  );
+  const diagnostics = await getVisionSetupDiagnostics(probe);
+  res.status(diagnostics.ok ? 200 : 503).json({
+    ...diagnostics,
+    service: "instant-premium-video-worker",
+  });
+});
+
 app.post(
   "/jobs/instant-premium/:projectId/process",
   requireWorkerAuth,

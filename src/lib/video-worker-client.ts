@@ -4,6 +4,7 @@ import {
   isVideoRenderWorkerMode,
 } from "@/lib/video-render-mode";
 import type { VideoHealthResponse } from "@/lib/video-ffmpeg-capability";
+import type { VisionSetupDiagnostics } from "@/server/animation-export/local-vision/vision-setup-validation";
 
 export type WorkerHealthResponse = VideoHealthResponse & {
   service?: string;
@@ -33,6 +34,30 @@ function workerBaseUrl(): string {
     throw new Error("VIDEO_WORKER_BASE_URL is not configured.");
   }
   return base;
+}
+
+export async function fetchWorkerVisionHealth(
+  probe = false
+): Promise<(VisionSetupDiagnostics & { service?: string }) | null> {
+  if (!isVideoRenderWorkerMode()) {
+    return null;
+  }
+  const base = getVideoWorkerBaseUrl();
+  if (!base) {
+    return null;
+  }
+  const url = probe ? `${base}/health/vision?probe=1` : `${base}/health/vision`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      signal: AbortSignal.timeout(probe ? 20_000 : 12_000),
+      cache: "no-store",
+    });
+    const body = (await res.json()) as VisionSetupDiagnostics & { service?: string };
+    return { ...body, ok: res.ok && body.ok === true };
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchWorkerVideoHealth(): Promise<WorkerHealthResponse | null> {

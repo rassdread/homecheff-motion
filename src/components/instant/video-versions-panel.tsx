@@ -21,6 +21,13 @@ import {
   STORY_SCENE_DURATION_OPTIONS,
   type StorySceneDurationSeconds,
 } from "@/lib/story-overlay-templates";
+import { VideoPreview } from "@/components/ui/video-preview";
+import {
+  getProjectLanguageExports,
+  instantExportUserErrorMessage,
+  postLanguageExportAction,
+  type InstantExportClientErrorKind,
+} from "@/lib/instant-export-client";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
@@ -34,6 +41,14 @@ type Props = {
   images?: StoryboardImage[];
   languageExports: VideoLanguageExportSummary[];
   onLanguageExportsChange: (exports: VideoLanguageExportSummary[]) => void;
+  /** When the hero player already shows the original final, skip a second full preview. */
+  hideOriginalVideoPlayer?: boolean;
+  /** Grouped layout for project detail page (original → clean → languages). */
+  layout?: "default" | "detail";
+  /** Called when user chooses to create a language version from outside the panel. */
+  onRequestCreateLanguage?: () => void;
+  onRerenderOriginalTexts?: () => void;
+  textRerenderBusy?: boolean;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -91,6 +106,7 @@ function VideoCard({
   summary,
   downloadHref,
   errorMessage,
+  showVideoPlayer = true,
   children,
 }: {
   title: string;
@@ -100,8 +116,10 @@ function VideoCard({
   summary?: string;
   downloadHref?: string;
   errorMessage?: string | null;
+  showVideoPlayer?: boolean;
   children?: React.ReactNode;
 }) {
+  const showVideo = showVideoPlayer !== false;
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -123,13 +141,8 @@ function VideoCard({
           : null}
         </div>
       </div>
-      {videoUrl ?
-        <video
-          src={videoUrl}
-          controls
-          playsInline
-          className="mt-3 w-full rounded-xl bg-black/5"
-        />
+      {videoUrl && showVideo ?
+        <VideoPreview variant="version" src={videoUrl} controls playsInline preload="none" />
       : null}
       <div className="mt-3 flex flex-wrap gap-2">{children}</div>
     </div>
@@ -145,6 +158,11 @@ export function VideoVersionsPanel({
   images = [],
   languageExports,
   onLanguageExportsChange,
+  hideOriginalVideoPlayer = false,
+  layout = "default",
+  onRequestCreateLanguage,
+  onRerenderOriginalTexts,
+  textRerenderBusy = false,
 }: Props) {
   const t = useActiveTranslator();
   const [createOpen, setCreateOpen] = useState(false);
@@ -162,16 +180,21 @@ export function VideoVersionsPanel({
     return sceneTextsSummary(texts);
   }, [instantSceneTexts]);
 
+  const mapExportError = useCallback(
+    (kind: InstantExportClientErrorKind | null, fallback: string, detail?: string) =>
+      instantExportUserErrorMessage({
+        kind: kind === "abort" ? "abort" : "network",
+        abortedMessage: t("instant.languageExport.requestAborted"),
+        networkMessage: fallback,
+        httpMessage: detail,
+      }),
+    [t]
+  );
+
   const refreshExports = useCallback(async () => {
-    const res = await fetch(
-      `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-      { credentials: "include" }
-    );
-    const json = (await res.json().catch(() => null)) as {
-      exports?: VideoLanguageExportSummary[];
-    } | null;
-    if (json?.exports) {
-      onLanguageExportsChange(json.exports);
+    const result = await getProjectLanguageExports(projectId);
+    if (result.exports.length > 0 || !result.networkError) {
+      onLanguageExportsChange(result.exports);
     }
   }, [projectId, onLanguageExportsChange]);
 
@@ -202,23 +225,26 @@ export function VideoVersionsPanel({
     setInfo("");
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "prepare", languageCode: lang }),
-        }
-      );
-      const json = (await res.json()) as {
+      const result = await postLanguageExportAction<{
         ok?: boolean;
         sceneTexts?: unknown;
         exportId?: string | null;
         message?: string | null;
-      };
-      if (!json.ok) {
-        throw new Error((json as { message?: string }).message ?? t("instant.languageExport.prepareFailed"));
+        translationFailed?: boolean;
+        error?: string;
+      }>(projectId, { action: "prepare", languageCode: lang });
+      if (result.networkError) {
+        throw new Error(
+          mapExportError(
+            result.errorKind,
+            t("instant.languageExport.prepareFailed"),
+            result.data.error ?? result.data.message ?? undefined
+          )
+        );
+      }
+      const json = result.data;
+      if (!result.ok || !json.ok) {
+        throw new Error(json.message ?? t("instant.languageExport.prepareFailed"));
       }
       const parsed = parseSceneTextsJson(json.sceneTexts ?? instantSceneTexts);
       setSceneTexts(parsed.map(sceneToDraft));
@@ -241,17 +267,16 @@ export function VideoVersionsPanel({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "render",
-            languageCode: lang,
-            exportId: draftExportId ?? undefined,
-            sceneTexts: texts.map((scene, index) => ({
+      const result = await postLanguageExportAction<{
+        ok?: boolean;
+        message?: string;
+        exports?: VideoLanguageExportSummary[];
+        error?: string;
+      }>(projectId, {
+        action: "render",
+        languageCode: lang,
+        exportId: draftExportId ?? undefined,
+        sceneTexts: texts.map((scene, index) => ({
               template: scene.template,
               heroText: scene.heroText.trim() || undefined,
               title: scene.title.trim() || undefined,
@@ -273,11 +298,14 @@ export function VideoVersionsPanel({
                 }
               : {}),
             })),
-          }),
-        }
-      );
-      const json = (await res.json()) as { ok?: boolean; message?: string; exports?: VideoLanguageExportSummary[] };
-      if (!json.ok) {
+      });
+      if (result.networkError) {
+        throw new Error(
+          mapExportError(result.errorKind, t("instant.languageExport.renderFailed"), result.data.error)
+        );
+      }
+      const json = result.data;
+      if (!result.ok || !json.ok) {
         throw new Error(json.message ?? t("instant.languageExport.renderFailed"));
       }
       if (json.exports) {
@@ -300,17 +328,19 @@ export function VideoVersionsPanel({
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "rerender", exportId }),
-        }
-      );
-      const json = (await res.json()) as { ok?: boolean; message?: string; exports?: VideoLanguageExportSummary[] };
-      if (!json.ok) {
+      const result = await postLanguageExportAction<{
+        ok?: boolean;
+        message?: string;
+        exports?: VideoLanguageExportSummary[];
+        error?: string;
+      }>(projectId, { action: "rerender", exportId });
+      if (result.networkError) {
+        throw new Error(
+          mapExportError(result.errorKind, t("instant.videoVersions.errorRerender"), result.data.error)
+        );
+      }
+      const json = result.data;
+      if (!result.ok || !json.ok) {
         throw new Error(json.message ?? t("instant.videoVersions.errorRerender"));
       }
       if (json.exports) {
@@ -327,67 +357,70 @@ export function VideoVersionsPanel({
     return null;
   }
 
-  return (
-    <section className="mt-6 space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-zinc-900">{t("instant.videoVersions.title")}</h2>
-        <p className="mt-1 text-sm text-zinc-600">{t("instant.videoVersions.subtitle")}</p>
-        <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950">
-          {t("instant.videoVersions.noCreditsNote")}
-        </p>
-      </div>
+  const isDetailLayout = layout === "detail";
+  const originalTitle =
+    isDetailLayout ? t("projectDetail.versions.originalTitle") : t("instant.videoVersions.originalTitle");
+  const cleanTitle =
+    isDetailLayout ? t("projectDetail.versions.cleanTitle") : t("instant.videoVersions.cleanTitle");
 
-      {error ?
-        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {error}
-        </p>
-      : null}
-      {info ?
-        <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
-          {info}
-        </p>
-      : null}
-
-      <VideoCard
-        title={t("instant.videoVersions.cleanTitle")}
-        badge={t("instant.videoVersions.cleanBadge")}
-        videoUrl={cleanVideoUrl}
-        downloadHref={
-          cleanVideoUrl ?
-            animationProjectDownloadUrl(projectId, { variant: "clean" })
-          : undefined
-        }
-      >
-        {cleanVideoUrl ?
-          <a
-            href={animationProjectDownloadUrl(projectId, { variant: "clean" })}
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white"
-          >
-            {t("instant.videoVersions.download")}
-          </a>
-        : (
-          <p className="text-xs text-zinc-500">{t("instant.videoVersions.cleanUnavailable")}</p>
-        )}
-      </VideoCard>
-
-      <VideoCard
-        title={t("instant.videoVersions.originalTitle")}
-        badge={t("instant.videoVersions.overlayBadge")}
-        videoUrl={finalVideoUrl}
-        summary={originalSummary || undefined}
-        downloadHref={finalVideoUrl ? animationProjectDownloadUrl(projectId) : undefined}
-      >
-        {finalVideoUrl ?
+  const originalCard = (
+    <VideoCard
+      title={originalTitle}
+      badge={isDetailLayout ? undefined : t("instant.videoVersions.overlayBadge")}
+      videoUrl={finalVideoUrl}
+      showVideoPlayer={!hideOriginalVideoPlayer}
+      summary={
+        isDetailLayout ? t("projectDetail.versions.originalDesc") : originalSummary || undefined
+      }
+      downloadHref={finalVideoUrl ? animationProjectDownloadUrl(projectId) : undefined}
+    >
+      {finalVideoUrl ?
+        <>
           <a
             href={animationProjectDownloadUrl(projectId)}
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white"
+            className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-center text-sm font-medium text-white sm:w-auto"
           >
             {t("instant.videoVersions.download")}
           </a>
-        : null}
-      </VideoCard>
+          {onRerenderOriginalTexts && usesStoryOverlay ?
+            <button
+              type="button"
+              disabled={busy || hasActiveRender || textRerenderBusy}
+              onClick={onRerenderOriginalTexts}
+              className="w-full rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-900 disabled:opacity-50 sm:w-auto"
+            >
+              {textRerenderBusy ? t("instant.textRerender.busy") : t("instant.textRerender.cta")}
+            </button>
+          : null}
+        </>
+      : null}
+    </VideoCard>
+  );
 
-      {languageExports.map((row) => (
+  const cleanCard = (
+    <VideoCard
+      title={cleanTitle}
+      badge={isDetailLayout ? undefined : t("instant.videoVersions.cleanBadge")}
+      videoUrl={cleanVideoUrl}
+      summary={isDetailLayout ? t("projectDetail.versions.cleanDesc") : undefined}
+      downloadHref={
+        cleanVideoUrl ? animationProjectDownloadUrl(projectId, { variant: "clean" }) : undefined
+      }
+    >
+      {cleanVideoUrl ?
+        <a
+          href={animationProjectDownloadUrl(projectId, { variant: "clean" })}
+          className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-center text-sm font-medium text-white sm:w-auto"
+        >
+          {t("instant.videoVersions.download")}
+        </a>
+      : (
+        <p className="text-xs text-zinc-500">{t("instant.videoVersions.cleanUnavailable")}</p>
+      )}
+    </VideoCard>
+  );
+
+  const languageCards = languageExports.map((row) => (
         <VideoCard
           key={row.id}
           title={row.languageLabel}
@@ -455,45 +488,111 @@ export function VideoVersionsPanel({
             </button>
           )}
         </VideoCard>
-      ))}
+      ));
 
-      {usesStoryOverlay ?
-        <div className="space-y-2">
-          <p className="text-sm text-zinc-600">{t("instant.videoVersions.createLanguageHint")}</p>
-          <p className="text-xs text-zinc-500">{t("instant.videoVersions.autoTranslateNote")}</p>
-          <div className="flex flex-wrap gap-2">
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
-            {t("instant.videoVersions.chooseLanguage")}
-            <select
-              value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value as LanguageExportCode)}
-              className="rounded-lg border border-zinc-200 px-2 py-1.5"
-            >
-              {TARGET_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {code.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={busy || hasActiveRender || !cleanVideoUrl}
-            onClick={() => void initCreateFlow(targetLang)}
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+  const createLanguageBlock = usesStoryOverlay ?
+    <div className="space-y-2" id="version-languages-create">
+      <p className="text-sm text-zinc-600">{t("instant.videoVersions.createLanguageHint")}</p>
+      <p className="text-xs text-zinc-500">{t("instant.videoVersions.autoTranslateNote")}</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <label className="flex w-full flex-col gap-1 text-sm text-zinc-700 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+          {t("instant.videoVersions.chooseLanguage")}
+          <select
+            value={targetLang}
+            onChange={(e) => setTargetLang(e.target.value as LanguageExportCode)}
+            className="w-full rounded-lg border border-zinc-200 px-2 py-2 sm:w-auto"
           >
-            {t("instant.videoVersions.createLanguageVersion")}
-          </button>
-          </div>
+            {TARGET_CODES.map((code) => (
+              <option key={code} value={code}>
+                {code.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={busy || hasActiveRender || !cleanVideoUrl}
+          onClick={() => {
+            onRequestCreateLanguage?.();
+            void initCreateFlow(targetLang);
+          }}
+          className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
+        >
+          {t("instant.videoVersions.createLanguageVersion")}
+        </button>
+      </div>
+    </div>
+  : (
+    <LanguageExportPanel
+      projectId={projectId}
+      hasCompletedFinal={Boolean(finalVideoUrl)}
+      languageExports={languageExports}
+      onLanguageExportsChange={onLanguageExportsChange}
+    />
+  );
+
+  return (
+    <section
+      className={isDetailLayout ? "mt-8 space-y-6" : "mt-6 space-y-4"}
+      aria-labelledby={isDetailLayout ? "project-detail-versions-title" : undefined}
+    >
+      {isDetailLayout ?
+        <div>
+          <h2 id="project-detail-versions-title" className="text-lg font-semibold text-zinc-900">
+            {t("projectDetail.versions.title")}
+          </h2>
+          <p className="mt-1 text-sm text-zinc-600">{t("instant.videoVersions.noCreditsNote")}</p>
         </div>
-      : (
-        <LanguageExportPanel
-          projectId={projectId}
-          hasCompletedFinal={Boolean(finalVideoUrl)}
-          languageExports={languageExports}
-          onLanguageExportsChange={onLanguageExportsChange}
-        />
-      )}
+      : <div>
+          <h2 className="text-lg font-semibold text-zinc-900">{t("instant.videoVersions.title")}</h2>
+          <p className="mt-1 text-sm text-zinc-600">{t("instant.videoVersions.subtitle")}</p>
+          <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950">
+            {t("instant.videoVersions.noCreditsNote")}
+          </p>
+        </div>
+      }
+
+      {error ?
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {error}
+        </p>
+      : null}
+      {info ?
+        <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+          {info}
+        </p>
+      : null}
+
+      {isDetailLayout ?
+        <>
+          <div id="version-original" className="scroll-mt-6 space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-800">{originalTitle}</h3>
+            {originalCard}
+          </div>
+          <div id="version-clean" className="scroll-mt-6 space-y-2">
+            <h3 className="text-sm font-semibold text-zinc-800">{cleanTitle}</h3>
+            {cleanCard}
+          </div>
+          <div id="version-languages" className="scroll-mt-6 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-800">
+                {t("projectDetail.versions.languagesTitle")}
+              </h3>
+              <p className="mt-0.5 text-xs text-zinc-600">
+                {t("projectDetail.versions.languagesDesc")}
+              </p>
+            </div>
+            {languageCards}
+            {createLanguageBlock}
+          </div>
+        </>
+      : <>
+          {cleanCard}
+          {originalCard}
+          {languageCards}
+          {createLanguageBlock}
+        </>
+      }
 
       {createOpen && usesStoryOverlay ?
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -524,32 +623,40 @@ export function VideoVersionsPanel({
                   void (async () => {
                     setBusy(true);
                     try {
-                      const res = await fetch(
-                        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/language-exports`,
+                      setInfo(t("instant.textRerender.busy"));
+                      const result = await postLanguageExportAction<{
+                        ok?: boolean;
+                        message?: string;
+                        error?: string;
+                      }>(
+                        projectId,
                         {
-                          method: "POST",
-                          credentials: "include",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            action: "update",
-                            exportId: editExportId,
-                            sceneTexts: sceneTexts.map((scene, index) => ({
-                              template: scene.template,
-                              heroText: scene.heroText.trim() || undefined,
-                              title: scene.title.trim() || undefined,
-                              subtitle: scene.subtitle.trim() || undefined,
-                              lines: scene.lines.filter((l) => l.trim()),
-                              heroFinaleText: scene.heroFinaleText.trim() || undefined,
-                              ...(index < sceneTexts.length - 1 ?
-                                { transitionDurationSeconds: scene.transitionDurationSeconds }
-                              : {}),
-                            })),
-                          }),
+                          action: "update",
+                          exportId: editExportId,
+                          sceneTexts: sceneTexts.map((scene, index) => ({
+                            template: scene.template,
+                            heroText: scene.heroText.trim() || undefined,
+                            title: scene.title.trim() || undefined,
+                            subtitle: scene.subtitle.trim() || undefined,
+                            lines: scene.lines.filter((l) => l.trim()),
+                            heroFinaleText: scene.heroFinaleText.trim() || undefined,
+                            ...(index < sceneTexts.length - 1 ?
+                              { transitionDurationSeconds: scene.transitionDurationSeconds }
+                            : {}),
+                          })),
                         }
                       );
-                      const json = (await res.json()) as { ok?: boolean; message?: string };
-                      if (!json.ok) {
-                        throw new Error(json.message ?? t("instant.videoVersions.errorSave"));
+                      if (result.networkError) {
+                        throw new Error(
+                          mapExportError(
+                            result.errorKind,
+                            t("instant.videoVersions.errorSave"),
+                            result.data.error
+                          )
+                        );
+                      }
+                      if (!result.ok || !result.data.ok) {
+                        throw new Error(result.data.message ?? t("instant.videoVersions.errorSave"));
                       }
                       await rerenderExport(editExportId);
                       setCreateOpen(false);

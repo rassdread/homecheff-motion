@@ -4,6 +4,7 @@
 
 import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 import { LANGUAGE_EXPORT_OUTPUT_MISSING } from "@/lib/language-export-playback";
+import { getProjectLanguageExports } from "@/lib/instant-export-client";
 import { languageExportPrepareUrl } from "@/lib/language-export-prepare";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
@@ -213,17 +214,8 @@ export function applyLanguageExportPollRow(
 export async function fetchProjectLanguageExports(
   projectId: string
 ): Promise<VideoLanguageExportSummary[]> {
-  const res = await fetch(languageExportPrepareUrl(projectId), {
-    credentials: "include",
-  });
-  const data = (await res.json().catch(() => ({}))) as {
-    exports?: VideoLanguageExportSummary[];
-    ok?: boolean;
-  };
-  if (!res.ok || !Array.isArray(data.exports)) {
-    return [];
-  }
-  return data.exports;
+  const result = await getProjectLanguageExports(projectId);
+  return result.exports;
 }
 
 export function logLanguageExportRenderUi(

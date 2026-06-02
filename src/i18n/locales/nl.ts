@@ -314,6 +314,18 @@ export const nl = {
   "admin.ocrHealth.checking": "Testen…",
   "admin.ocrHealth.warningTitle": "OCR is niet klaar voor productie",
   "admin.ocrHealth.checkFailed": "API-test mislukt ({code})",
+  "admin.overlayEngine.title": "Overlay engine status",
+  "admin.overlayEngine.intro": "Story Mode plaatsing, timing en vision-gereedheid.",
+  "admin.overlayEngine.score": "Score {score}/100",
+  "admin.overlayEngine.safeZones": "Safe zones",
+  "admin.overlayEngine.objectDetection": "Objectdetectie",
+  "admin.overlayEngine.typography": "Typografie",
+  "admin.overlayEngine.placement": "Plaatsing",
+  "admin.overlayEngine.timing": "Timing",
+  "admin.overlayEngine.ocr": "OCR",
+  "admin.overlayEngine.loading": "Laden…",
+  "admin.overlayEngine.unavailable": "Overlay-status kon niet worden geladen.",
+  "admin.overlayEngine.lastChecked": "Laatst gecontroleerd",
   "admin.invites.title": "Uitnodigingen",
   "admin.invites.intro": "Maak een eenmalige link om iemand te laten registreren.",
   "admin.invites.createTitle": "Gebruiker uitnodigen",
@@ -402,6 +414,35 @@ export const nl = {
   "projectDetail.transitions.title": "Overgangen op volgorde",
   "projectDetail.transitions.empty":
     "Er zijn nog geen overgangen opgeslagen voor dit project.",
+  "projectDetail.mode.story": "Story Mode",
+  "projectDetail.mode.transition": "Transition Mode",
+  "projectDetail.mode.classic": "Klassieke animatie",
+  "projectDetail.quickActions.title": "Wat wil je doen?",
+  "projectDetail.quickActions.download.label": "Download video",
+  "projectDetail.quickActions.download.hint":
+    "Download de versie die je wilt gebruiken.",
+  "projectDetail.quickActions.viewClean.label": "Schone video bekijken",
+  "projectDetail.quickActions.viewClean.hint":
+    "Bekijk de video zonder tekstlagen.",
+  "projectDetail.quickActions.textRerender.label": "Teksten opnieuw renderen",
+  "projectDetail.quickActions.textRerender.hint":
+    "Pas teksten of overlays opnieuw toe zonder nieuwe AI-videocredits.",
+  "projectDetail.quickActions.newLanguage.label": "Nieuwe taalversie maken",
+  "projectDetail.quickActions.newLanguage.hint":
+    "Vertaal de teksten automatisch en render een nieuwe tekstversie.",
+  "projectDetail.quickActions.repair.label": "Video herstellen",
+  "projectDetail.quickActions.repair.hint":
+    "Herstelt een mislukte of vastgelopen video zonder nieuwe AI-generatie.",
+  "projectDetail.versions.title": "Video versies",
+  "projectDetail.versions.originalTitle": "Originele versie",
+  "projectDetail.versions.originalDesc": "Met tekst en overlays op je video.",
+  "projectDetail.versions.cleanTitle": "Schone video",
+  "projectDetail.versions.cleanDesc":
+    "Zonder tekstlagen — handig als basis voor taalversies.",
+  "projectDetail.versions.languagesTitle": "Taalversies",
+  "projectDetail.versions.languagesDesc": "Vertaalde tekstlagen op dezelfde beelden.",
+  "projectDetail.advanced.title": "Geavanceerde details",
+  "projectDetail.info.title": "Projectgegevens",
   "projectDetail.export.title": "Exportstatus",
   "projectDetail.export.empty": "Nog geen exportrecord beschikbaar.",
   "projectDetail.back": "Terug naar maken",
@@ -1090,6 +1131,8 @@ export const nl = {
   "instant.textRerender.hint":
     "Maakt een nieuwe versie met aangepaste teksten, vertalingen of overlays. Gebruikt geen nieuwe AI-videocredits.",
   "instant.textRerender.busy": "Teksten opnieuw renderen…",
+  "instant.textRerender.aborted":
+    "Tekstversie kon niet worden gestart. Probeer opnieuw.",
   "instant.textRerender.failed": "Teksten opnieuw renderen is mislukt.",
   "instant.textRerender.segmentsMissing": "Videoclips ontbreken. Herstel eerst de video.",
   "instant.advancedOptions.title": "Geavanceerde opties",
@@ -1162,6 +1205,8 @@ export const nl = {
   "instant.languageExport.playback": "Afspelen",
   "instant.languageExport.original": "Origineel",
   "instant.languageExport.prepareFailed": "Vertaalde tekst kon niet worden voorbereid.",
+  "instant.languageExport.requestAborted":
+    "Taalversie kon niet worden gestart. Probeer opnieuw.",
   "instant.languageExport.renderFailed": "Taalversie renderen is mislukt.",
   "instant.languageExport.limitReached": "Maximum aantal taalversies voor dit project bereikt.",
   "instant.languageExport.inProgress": "Er wordt al een versie voor deze taal gerenderd.",

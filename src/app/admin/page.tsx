@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { OcrHealthCard } from "@/components/admin/ocr-health-card";
+import { OverlayEngineStatusCard } from "@/components/admin/overlay-engine-status-card";
 import { VisionHealthCard } from "@/components/admin/vision-health-card";
 import { VideoCreditsCard } from "@/components/admin/video-credits-card";
 import { AppCard } from "@/components/ui/app-card";
@@ -16,6 +17,7 @@ export default function AdminDashboardPage() {
       <p className="mt-2 text-sm text-zinc-600">{t("admin.dashboard.intro")}</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <VideoCreditsCard />
+        <OverlayEngineStatusCard />
         <OcrHealthCard />
         <VisionHealthCard />
         <AppCard>

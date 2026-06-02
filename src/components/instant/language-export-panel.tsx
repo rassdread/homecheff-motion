@@ -35,6 +35,10 @@ import {
   LANGUAGE_EXPORT_CODES,
   type LanguageExportCode,
 } from "@/lib/video-language-export";
+import {
+  instantExportUserErrorMessage,
+  postLanguageExportAction,
+} from "@/lib/instant-export-client";
 import type { LanguageTextLayerRecord } from "@/lib/video-language-export";
 
 type Props = {
@@ -168,16 +172,27 @@ export function LanguageExportPanel({
     });
 
     try {
-      const res = await fetch(languageExportPrepareUrl(projectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(buildLanguageExportPrepareRequest(targetLang)),
-      });
-      const data = (await res.json().catch(() => ({}))) as LanguageExportPrepareApiResponse;
+      const response = await postLanguageExportAction<LanguageExportPrepareApiResponse>(
+        projectId,
+        buildLanguageExportPrepareRequest(targetLang)
+      );
+      if (response.networkError) {
+        const message = instantExportUserErrorMessage({
+          kind: response.errorKind ?? "network",
+          abortedMessage: t("instant.languageExport.requestAborted"),
+          networkMessage: prepareMessages.prepareFailed,
+          httpMessage: response.data.error,
+          adminDetail: response.data.error,
+          isAdmin: showAdminDebug,
+        });
+        setPreparePhase("failed");
+        setError(message);
+        return;
+      }
+      const data = response.data;
       const result = applyLanguageExportPrepareResponse({
-        httpOk: res.ok,
-        httpStatus: res.status,
+        httpOk: response.ok,
+        httpStatus: response.status,
         data,
         messages: prepareMessages,
         previousTypographyQuality: typographyQuality,
@@ -204,12 +219,18 @@ export function LanguageExportPanel({
         action: "prepare",
         projectId,
         targetLanguage: targetLang,
-        httpStatus: res.status,
+        httpStatus: response.status,
         ok: result.debug.lastApiOk,
         layerCount: result.debug.layerCount,
       });
     } catch (err) {
-      const message = t("instant.languageExport.prepareFailed");
+      const message = instantExportUserErrorMessage({
+        kind: "network",
+        abortedMessage: t("instant.languageExport.requestAborted"),
+        networkMessage: prepareMessages.prepareFailed,
+        adminDetail: err instanceof Error ? err.message : String(err),
+        isAdmin: showAdminDebug,
+      });
       setPreparePhase("failed");
       setError(message);
       logLanguageExportUi("error", {
@@ -304,26 +325,35 @@ export function LanguageExportPanel({
     });
 
     try {
-      const res = await fetch(languageExportPrepareUrl(projectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(
-          buildLanguageExportRenderRequest({
-            languageCode: targetLang,
-            layers: textLayers,
-            exportId: activeExportId,
+      const response = await postLanguageExportAction<
+        Parameters<typeof applyLanguageExportRenderStartResponse>[0]["data"]
+      >(
+        projectId,
+        buildLanguageExportRenderRequest({
+          languageCode: targetLang,
+          layers: textLayers,
+          exportId: activeExportId,
+        })
+      );
+      if (response.networkError) {
+        setRenderPhase("failed");
+        setError(
+          instantExportUserErrorMessage({
+            kind: response.errorKind ?? "network",
+            abortedMessage: t("instant.languageExport.requestAborted"),
+            networkMessage: renderMessages.renderFailed,
+            httpMessage: response.data.error,
+            adminDetail: response.data.error,
+            isAdmin: showAdminDebug,
           })
-        ),
-      });
-      const data = (await res.json().catch(() => ({}))) as Parameters<
-        typeof applyLanguageExportRenderStartResponse
-      >[0]["data"];
+        );
+        return;
+      }
 
       const result = applyLanguageExportRenderStartResponse({
-        httpOk: res.ok,
-        httpStatus: res.status,
-        data,
+        httpOk: response.ok,
+        httpStatus: response.status,
+        data: response.data,
         messages: renderMessages,
       });
 
@@ -334,7 +364,7 @@ export function LanguageExportPanel({
         projectId,
         languageCode: targetLang,
         exportId: result.exportId,
-        httpStatus: res.status,
+        httpStatus: response.status,
         apiOk: result.debug.lastApiOk,
         status: result.status,
         outputVideoUrl: result.outputVideoUrl,
@@ -387,7 +417,15 @@ export function LanguageExportPanel({
       await pollExportUntilDone(exportId);
     } catch (err) {
       setRenderPhase("failed");
-      setError(renderMessages.renderFailed);
+      setError(
+        instantExportUserErrorMessage({
+          kind: "network",
+          abortedMessage: t("instant.languageExport.requestAborted"),
+          networkMessage: renderMessages.renderFailed,
+          adminDetail: err instanceof Error ? err.message : String(err),
+          isAdmin: showAdminDebug,
+        })
+      );
       logLanguageExportRenderUi("error", {
         projectId,
         languageCode: targetLang,
