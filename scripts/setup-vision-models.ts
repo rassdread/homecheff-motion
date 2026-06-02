@@ -25,22 +25,24 @@ import {
   resolveMediaPipeModelDir,
 } from "../src/server/animation-export/local-vision/vision-model-paths";
 
-async function downloadFile(url: string, destPath: string): Promise<void> {
+async function downloadFile(url: string, destPath: string): Promise<number> {
   await fs.mkdir(path.dirname(destPath), { recursive: true });
   const exists = await fs.access(destPath).then(() => true).catch(() => false);
   if (exists) {
-    console.info(`[setup:vision] skip (exists): ${destPath}`);
-    return;
+    const stat = await fs.stat(destPath);
+    console.info(`[setup:vision] skip (exists): ${destPath} (${stat.size} bytes)`);
+    return stat.size;
   }
 
-  console.info(`[setup:vision] downloading ${url}`);
+  console.info("[setup:vision] download started");
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Download failed (${res.status}): ${url}`);
+    throw new Error(`Download failed (${res.status}) from ${url}`);
   }
   const buffer = Buffer.from(await res.arrayBuffer());
   await fs.writeFile(destPath, buffer);
-  console.info(`[setup:vision] saved ${destPath} (${buffer.length} bytes)`);
+  console.info("[setup:vision] download completed");
+  return buffer.length;
 }
 
 function parseObjectDetectorKind(): ObjectDetectorKind {
@@ -72,7 +74,11 @@ async function main(): Promise<void> {
     const modelPath = path.join(objectDir, spec.modelFile);
     console.info(`[setup:vision] Object detector kind: ${spec.kind} (${spec.license})`);
     console.info(`[setup:vision] Source: ${spec.source}`);
-    await downloadFile(spec.url, modelPath);
+    console.info(`[setup:vision] Target path: ${modelPath}`);
+    const bytes = await downloadFile(spec.url, modelPath);
+    if (bytes < 1024) {
+      throw new Error(`Downloaded model is too small (${bytes} bytes): ${spec.url}`);
+    }
 
     await writeObjectDetectorMetadata({
       kind: spec.kind,
@@ -81,7 +87,12 @@ async function main(): Promise<void> {
       license: spec.license,
       downloadedAt: new Date().toISOString(),
     });
-    console.info(`[setup:vision] wrote ${path.join(objectDir, "model.json")}`);
+    const metadataPath = path.join(objectDir, "model.json");
+    console.info(`[setup:vision] model path: ${modelPath}`);
+    console.info(`[setup:vision] model size: ${bytes} bytes`);
+    console.info(`[setup:vision] wrote metadata: ${metadataPath}`);
+    console.info(`[setup:vision] license: ${spec.license}`);
+    console.info(`[setup:vision] model ready: ${modelPath}`);
   } else {
     console.info(
       "[setup:vision] Object detector skipped. Run with --include-object-detector to fetch a permissive ONNX model."

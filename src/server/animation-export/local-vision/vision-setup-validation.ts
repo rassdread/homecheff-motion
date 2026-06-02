@@ -215,7 +215,13 @@ export async function getVisionSetupDiagnostics(probe = false): Promise<VisionSe
     objectDetector.warnings.push("onnxruntime-node is not installed.");
   } else if (!objectModelPresent) {
     objectDetector.status = "MODEL_MISSING";
-    objectDetector.warnings.push(`Object detector model missing at ${objectModelPath}`);
+    const specHint =
+      detectorKind === "rtdetr" || detectorKind === "mobilenet-ssd"
+        ? ` Run: npm run setup:vision-models -- --include-object-detector --kind=${detectorKind}`
+        : "";
+    objectDetector.warnings.push(
+      `Object detector model missing at ${objectModelPath}.${specHint}`
+    );
   } else {
     objectDetector.status = "READY";
   }

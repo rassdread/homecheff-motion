@@ -1,0 +1,28 @@
+# Render Blueprint — Instant Premium video worker (FFmpeg + RT-DETR)
+# https://homecheff-motion.onrender.com
+#
+# Preferred: Docker image bakes RT-DETR at build via Dockerfile.worker.
+# After merging, open Render Dashboard → Blueprint → Sync (or create service from repo).
+
+services:
+  - type: web
+    name: homecheff-motion
+    runtime: docker
+    dockerfilePath: ./Dockerfile.worker
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HC_ENABLE_OBJECT_SAFE_ZONES
+        value: "1"
+      - key: HC_OBJECT_DETECTOR_KIND
+        value: rtdetr
+      - key: HC_OBJECT_DETECTOR_MODEL_DIR
+        value: /app/models/object-detector
+      - key: FFMPEG_PATH
+        value: /usr/bin/ffmpeg
+      - key: FFMPEG_FONT_PATH
+        value: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+      # Set in Render Dashboard (not committed): DATABASE_URL, BLOB_READ_WRITE_TOKEN,
+      # VIDU_API_KEY, VIDEO_WORKER_SECRET, ANIMATION_PROVIDER, VIDU_ENABLE_REAL_CALLS, etc.

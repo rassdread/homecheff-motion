@@ -1,6 +1,8 @@
-# Instant Premium video worker (Railway / Docker)
+# Instant Premium video worker (Railway / Docker / Render)
 
-Vercel cannot run FFmpeg with `drawtext` reliably. Set **`VIDEO_RENDER_MODE=worker`** on Vercel and run this worker on Railway or Docker.
+Vercel cannot run FFmpeg with `drawtext` reliably. Set **`VIDEO_RENDER_MODE=worker`** on Vercel and run this worker on Railway, Render, or Docker.
+
+**Render:** see [render-video-worker.md](./render-video-worker.md) (`render.yaml` + `Dockerfile.worker`).
 
 ## Deploy with Dockerfile.worker
 
