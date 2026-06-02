@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { repairInstantPremiumFinalVideo } from "@/server/instant-premium/finalize-repair";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
+import { startInstantVideoRepair } from "@/server/instant-premium/start-instant-video-repair";
+
+export const maxDuration = 60;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -46,12 +48,30 @@ export async function POST(_: Request, context: RouteContext) {
   }
 
   try {
-    const repair = await repairInstantPremiumFinalVideo(id, {
+    const repair = await startInstantVideoRepair(id, {
       force: true,
       source: "repair-api",
+      scheduleBackground: true,
     });
     const status = await getInstantPremiumStatus(id);
-    return NextResponse.json({ repair, status }, { status: repair.ok ? 200 : 202 });
+    const httpStatus = repair.completedImmediately
+      ? 200
+      : repair.alreadyRunning
+        ? 409
+        : repair.accepted
+          ? 202
+          : repair.ok
+            ? 200
+            : 400;
+
+    return NextResponse.json(
+      {
+        repair,
+        status,
+        repairAdminDetail: status.repairAdminDetail ?? null,
+      },
+      { status: httpStatus }
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Repair failed." },

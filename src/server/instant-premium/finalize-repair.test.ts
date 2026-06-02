@@ -126,11 +126,15 @@ describe("detectFinalizationStuck", () => {
 
   it("finalize repair path does not call Vidu", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-    const src = fs.readFileSync(path.join(root, "instant-premium/finalize-repair.ts"), "utf8");
-    assert.ok(!src.includes("triggerVidu"));
-    assert.ok(!src.includes("createVidu"));
-    assert.ok(src.includes("ensureStoryModeTransitionRows"));
-    assert.ok(src.includes("resetInstantRepairExportState"));
+    const repairSrc = fs.readFileSync(
+      path.join(root, "instant-premium/start-instant-video-repair.ts"),
+      "utf8"
+    );
+    assert.ok(!repairSrc.includes("triggerVidu"));
+    assert.ok(!repairSrc.includes("createVidu"));
+    assert.ok(repairSrc.includes("ensureStoryModeTransitionRows"));
+    assert.ok(repairSrc.includes("resetInstantRepairExportState"));
+    assert.ok(repairSrc.includes("syncFinalVideoArtifactsFromBlob"));
   });
 
   it("detects worker job stuck", () => {

@@ -477,4 +477,22 @@ export type InstantPremiumStatusResponse = {
   isRestoringFinalVideo?: boolean;
   canRebuildFinalVideo?: boolean;
   isRebuildingFinalVideo?: boolean;
+  videoRepairStage?: string | null;
+  videoRepairStatus?: "running" | "completed" | "failed" | null;
+  videoRepairUpdatedAt?: string | null;
+  videoRepairUserMessageKey?: string | null;
+  repairAdminDetail?: {
+    stage: string | null;
+    status: string | null;
+    errorCode: string | null;
+    workerError: string | null;
+    exportLastError: string | null;
+    failureReason: string | null;
+    exportStatus: string | null;
+    exportProgress: number | null;
+    workerJobStatus: string | null;
+    finalExportStage: string | null;
+    updatedAt: string | null;
+    startedAt: string | null;
+  } | null;
 };

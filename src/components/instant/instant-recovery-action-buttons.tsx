@@ -10,6 +10,8 @@ import {
 export type InstantRecoveryActionButtonsProps = {
   snapshot: InstantRecoveryActionSnapshot | null | undefined;
   repairBusy?: boolean;
+  repairStageLabel?: string | null;
+  repairUpdatedAt?: string | null;
   textRerenderBusy?: boolean;
   forceRebuildBusy?: boolean;
   isAdmin?: boolean;
@@ -23,6 +25,8 @@ export type InstantRecoveryActionButtonsProps = {
 export function InstantRecoveryActionButtons({
   snapshot,
   repairBusy = false,
+  repairStageLabel = null,
+  repairUpdatedAt = null,
   textRerenderBusy = false,
   forceRebuildBusy = false,
   isAdmin = false,
@@ -56,6 +60,14 @@ export function InstantRecoveryActionButtons({
           >
             {repairBusy ? t("instant.videoRepair.busy") : t("instant.videoRepair.cta")}
           </button>
+          {repairBusy && repairStageLabel ? (
+            <p className="text-[11px] font-medium text-emerald-900">{repairStageLabel}</p>
+          ) : null}
+          {repairBusy && repairUpdatedAt ? (
+            <p className="text-[10px] text-zinc-500">
+              {new Date(repairUpdatedAt).toLocaleString()}
+            </p>
+          ) : null}
           <p className="text-[11px] leading-snug text-zinc-600">{t("instant.videoRepair.hint")}</p>
         </div>
       : null}

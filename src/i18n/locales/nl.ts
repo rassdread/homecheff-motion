@@ -1058,6 +1058,16 @@ export const nl = {
     "Herstelt automatisch een mislukte video zonder nieuwe AI-generatie.",
   "instant.videoRepair.busy": "Video herstellen…",
   "instant.videoRepair.failed": "Video herstellen is mislukt.",
+  "instant.videoRepair.failedUser":
+    "Herstellen mislukt. Probeer opnieuw of open geavanceerde details.",
+  "instant.videoRepair.started": "Herstel gestart",
+  "instant.videoRepair.stage.started": "Herstel gestart",
+  "instant.videoRepair.stage.checkingSource": "Bronvideo controleren",
+  "instant.videoRepair.stage.preparingClean": "Schone video voorbereiden",
+  "instant.videoRepair.stage.reapplyingTexts": "Teksten opnieuw plaatsen",
+  "instant.videoRepair.stage.uploadingFinal": "Eindvideo uploaden",
+  "instant.videoRepair.stage.done": "Klaar",
+  "instant.videoRepair.stage.failed": "Herstellen mislukt",
   "instant.textRerender.cta": "Teksten opnieuw renderen",
   "instant.textRerender.hint":
     "Maakt een nieuwe versie met aangepaste teksten, vertalingen of overlays. Gebruikt geen nieuwe AI-videocredits.",

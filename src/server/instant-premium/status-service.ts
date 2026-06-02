@@ -7,9 +7,17 @@ import {
 } from "@/server/animation-jobs/service";
 import {
   detectFinalizationStuck,
+  isInstantVideoRepairInProgress,
   orchestrateFinalMerge,
-  repairInstantPremiumFinalVideo,
+  startInstantVideoRepair,
 } from "@/server/instant-premium/finalize-repair";
+import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
+import { reconcileVideoRepairState } from "@/server/instant-premium/reconcile-video-repair";
+import {
+  INSTANT_VIDEO_REPAIR_STAGE_I18N,
+  readVideoRepairAudit,
+  resolveVideoRepairStageFromExport,
+} from "@/lib/instant-video-repair";
 import { resolveLatestExportPlaybackUrl } from "@/lib/playback-url-resolution";
 import {
   resolveExportFailureDiagnostics,
@@ -106,13 +114,13 @@ export async function recoverExistingInstantProject(
   let finalVideoUrlPresent = alreadyFinal;
 
   if (missingSegments.length === 0 && completed.length > 0 && (options?.force || !alreadyFinal)) {
-    const repair = await repairInstantPremiumFinalVideo(projectId, {
+    const repair = await startInstantVideoRepair(projectId, {
       force: Boolean(options?.force),
       source: "recover",
     });
-    mergeStarted = repair.workerTriggered;
-    mergeCompleted = repair.mergeCompleted && repair.finalVideoUrlPresent;
-    finalVideoUrlPresent = repair.finalVideoUrlPresent;
+    mergeStarted = repair.accepted || repair.workerTriggered;
+    mergeCompleted = repair.completedImmediately;
+    finalVideoUrlPresent = repair.completedImmediately;
   }
 
   return {
@@ -168,24 +176,27 @@ export async function retryInstantPremiumMerge(projectId: string): Promise<void>
   if (!p || !isInstantLikeProject(p)) {
     throw new Error("Instant Premium project not found.");
   }
-  const repair = await repairInstantPremiumFinalVideo(projectId, {
+  const repair = await startInstantVideoRepair(projectId, {
     force: true,
     source: "merge-retry",
   });
-  if (!repair.ok && repair.message) {
+  if (!repair.clipsReady && repair.message) {
+    throw new Error(repair.message);
+  }
+  if (!repair.accepted && !repair.alreadyRunning && repair.message) {
     throw new Error(repair.message);
   }
 }
 
 export async function retryInstantPremiumOverlay(projectId: string): Promise<void> {
-  const repair = await repairInstantPremiumFinalVideo(projectId, {
+  const repair = await startInstantVideoRepair(projectId, {
     force: true,
     source: "retry-overlay",
   });
   if (!repair.clipsReady) {
     throw new Error(repair.message ?? "Provider clips are not ready yet.");
   }
-  if (!repair.ok && repair.message) {
+  if (!repair.accepted && !repair.alreadyRunning && repair.message) {
     throw new Error(repair.message);
   }
 }
@@ -243,7 +254,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   if (transitionsCompleted && refreshed.status !== "completed") {
     const stuckInfo = detectFinalizationStuck(refreshed);
     if (stuckInfo.shouldAutoRepair || refreshed.status === "failed_overlay") {
-      void repairInstantPremiumFinalVideo(projectId, {
+      void startInstantVideoRepair(projectId, {
         force: true,
         source: "status-auto",
       }).catch((error) => {
@@ -285,7 +296,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
       exports: { orderBy: { createdAt: "desc" } },
     },
   });
-  const projectState = stateAfterRetryClear && isInstantLikeProject(stateAfterRetryClear)
+  let projectState = stateAfterRetryClear && isInstantLikeProject(stateAfterRetryClear)
     ? stateAfterRetryClear
     : finalState;
 
@@ -402,13 +413,44 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     phase = "completed";
     progressPercent = 100;
   }
+  await reconcileVideoRepairState(projectId).catch(() => undefined);
+  const repairStateRow = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    select: {
+      instantFinalRebuildAuditJson: true,
+      instantWorkerJobStatus: true,
+      instantWorkerJobStartedAt: true,
+      status: true,
+      failureReason: true,
+    },
+  });
+  if (repairStateRow) {
+    projectState = { ...projectState, ...repairStateRow };
+  }
+
+  const repairAudit = readVideoRepairAudit(projectState.instantFinalRebuildAuditJson);
+  const repairInProgress =
+    repairAudit?.status === "running" ||
+    isInstantVideoRepairInProgress({
+      instantFinalRebuildAuditJson: projectState.instantFinalRebuildAuditJson,
+      instantWorkerJobStatus: projectState.instantWorkerJobStatus,
+      instantWorkerJobStartedAt: projectState.instantWorkerJobStartedAt,
+      status: projectState.status,
+      transitions: projectState.transitions,
+      exports: projectState.exports,
+    });
   const canRepairFinalVideo =
-    segmentsAllCompleted && !exportCompleted && !Boolean(latestExport?.outputVideoUrl?.trim());
+    segmentsAllCompleted &&
+    !exportCompleted &&
+    !Boolean(latestExport?.outputVideoUrl?.trim()) &&
+    !repairInProgress;
   const isRestoringFinalVideo =
-    canRepairFinalVideo &&
-    (stuckInfo.mergeInProgress ||
-      projectState.instantWorkerJobStatus === "queued" ||
-      projectState.instantWorkerJobStatus === "running");
+    repairInProgress ||
+    (segmentsAllCompleted &&
+      !exportCompleted &&
+      (stuckInfo.mergeInProgress ||
+        projectState.instantWorkerJobStatus === "queued" ||
+        projectState.instantWorkerJobStatus === "running"));
   const canRebuildFinalVideo = segmentsAllCompleted;
   const isRebuildingFinalVideo =
     projectState.instantFinalRebuildStatus === "running" ||
@@ -479,6 +521,43 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     phase = "generating_clips";
   }
 
+  const finalExportStage = getFinalExportStage(projectId)?.stage ?? null;
+  const videoRepairStage =
+    resolveVideoRepairStageFromExport({
+      repairRunning: repairInProgress,
+      exportProgress: latestExport?.progress ?? null,
+      exportStatus: latestExport?.status ?? null,
+      projectStatus: projectState.status,
+      finalExportStage,
+    }) ?? repairAudit?.stage ?? null;
+  const videoRepairStatus = repairAudit?.status ?? (repairInProgress ? "running" : null);
+  const videoRepairUpdatedAt = repairAudit?.updatedAt ?? null;
+  const videoRepairUserMessageKey =
+    repairAudit?.status === "failed"
+      ? "instant.videoRepair.failedUser"
+      : repairInProgress
+        ? INSTANT_VIDEO_REPAIR_STAGE_I18N[
+            (videoRepairStage ?? "started") as keyof typeof INSTANT_VIDEO_REPAIR_STAGE_I18N
+          ] ?? "instant.videoRepair.stage.started"
+        : null;
+  const repairAdminDetail =
+    repairAudit || repairInProgress || exportFailed
+      ? {
+          stage: videoRepairStage,
+          status: videoRepairStatus,
+          errorCode: repairAudit?.errorCode ?? failureReason ?? null,
+          workerError: exportFailureDiagnostics?.workerError ?? null,
+          exportLastError: exportLastError ?? latestExport?.errorMessage ?? null,
+          failureReason: failureReason ?? projectState.failureReason ?? null,
+          exportStatus: latestExport?.status ?? null,
+          exportProgress: latestExport?.progress ?? null,
+          workerJobStatus: projectState.instantWorkerJobStatus,
+          finalExportStage,
+          updatedAt: videoRepairUpdatedAt,
+          startedAt: repairAudit?.startedAt ?? null,
+        }
+      : null;
+
   return {
     projectId: projectState.id,
     projectType: "instant_premium",
@@ -535,5 +614,10 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     segmentsMergeFailed,
     canRetryMerge,
     hasFailedSegment,
+    videoRepairStage,
+    videoRepairStatus,
+    videoRepairUpdatedAt,
+    videoRepairUserMessageKey,
+    repairAdminDetail,
   };
 }

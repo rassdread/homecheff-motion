@@ -1051,6 +1051,16 @@ export const en: LocaleSchema = {
     "Automatically repairs a failed video without generating a new AI video.",
   "instant.videoRepair.busy": "Repairing video…",
   "instant.videoRepair.failed": "Could not repair the video.",
+  "instant.videoRepair.failedUser":
+    "Repair failed. Try again or open advanced details.",
+  "instant.videoRepair.started": "Repair started",
+  "instant.videoRepair.stage.started": "Repair started",
+  "instant.videoRepair.stage.checkingSource": "Checking source video",
+  "instant.videoRepair.stage.preparingClean": "Preparing clean video",
+  "instant.videoRepair.stage.reapplyingTexts": "Re-applying texts",
+  "instant.videoRepair.stage.uploadingFinal": "Uploading final video",
+  "instant.videoRepair.stage.done": "Done",
+  "instant.videoRepair.stage.failed": "Repair failed",
   "instant.textRerender.cta": "Re-render texts",
   "instant.textRerender.hint":
     "Creates a new version with updated texts, translations or overlays. No new AI video credits are used.",

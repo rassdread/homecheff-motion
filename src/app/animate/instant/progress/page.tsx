@@ -127,6 +127,15 @@ export default function InstantPremiumProgressPage() {
     };
   }, [isCompleted, effectiveProjectId]);
 
+  const repairInFlight = Boolean(
+    retryBusy ||
+      snapshot?.isRestoringFinalVideo ||
+      snapshot?.videoRepairStatus === "running"
+  );
+  const repairStageLabel = snapshot?.videoRepairUserMessageKey
+    ? t(snapshot.videoRepairUserMessageKey as never)
+    : null;
+
   const headlineKey = useMemo(() => {
     if (showFatalMissing) {
       return "instant.progress.missingProjectParam";
@@ -246,14 +255,22 @@ export default function InstantPremiumProgressPage() {
           : `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/repair-final-video`,
         { method: "POST", credentials: "include" }
       );
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        status?: InstantPremiumStatusResponse;
+        repair?: { accepted?: boolean; alreadyRunning?: boolean; message?: string };
+      };
+      if (res.status === 409) {
+        setActionError(body.repair?.message ?? t("instant.videoRepair.busy"));
+        if (body.status) {
+          setSnapshot(body.status);
+        }
+        return;
+      }
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
         setActionError(body.error ?? t("instant.videoRepair.failed"));
         return;
       }
-      const body = (await res.json()) as {
-        status?: InstantPremiumStatusResponse;
-      };
       if (body.status) {
         setSnapshot(body.status);
       }
@@ -289,7 +306,7 @@ export default function InstantPremiumProgressPage() {
                     ? connectionState
                     : "polling"
               }
-              repairBusy={retryBusy}
+              repairBusy={repairInFlight}
               rebuildBusy={rebuildBusy}
               isAdmin={isAdmin}
               onRepair={
@@ -460,7 +477,9 @@ export default function InstantPremiumProgressPage() {
                 </div>
                 <InstantRecoveryActionButtons
                   snapshot={snapshot}
-                  repairBusy={retryBusy}
+                  repairBusy={repairInFlight}
+                  repairStageLabel={repairStageLabel}
+                  repairUpdatedAt={snapshot?.videoRepairUpdatedAt ?? null}
                   textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                   forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                   isAdmin={isAdmin}

@@ -276,6 +276,15 @@ export default function VideoDetailPage() {
     touchProgressClock,
   } = useInstantPremiumStatusPolling(id, showInstantProgress);
 
+  const repairInFlight = Boolean(
+    recoverBusy ||
+      instantSnapshot?.isRestoringFinalVideo ||
+      instantSnapshot?.videoRepairStatus === "running"
+  );
+  const repairStageLabel = instantSnapshot?.videoRepairUserMessageKey
+    ? t(instantSnapshot.videoRepairUserMessageKey as never)
+    : null;
+
   const isAdmin = session.resolved && session.user?.role === "admin";
 
   const originalPlaybackUrl = useMemo(() => {
@@ -387,13 +396,22 @@ export default function VideoDetailPage() {
       );
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
+        status?: InstantPremiumStatusResponse;
         repair?: {
+          accepted?: boolean;
+          alreadyRunning?: boolean;
+          completedImmediately?: boolean;
           clipsReady?: boolean;
-          mergeCompleted?: boolean;
-          finalVideoUrlPresent?: boolean;
           message?: string;
         };
       };
+      if (body.status) {
+        setInstantSnapshot(body.status);
+      }
+      if (res.status === 409) {
+        setRecoverInfo(body.repair?.message ?? t("instant.videoRepair.busy"));
+        return;
+      }
       if (!res.ok) {
         setRecoverError(body.error ?? body.repair?.message ?? t("instant.recover.failed"));
         return;
@@ -402,16 +420,17 @@ export default function VideoDetailPage() {
         setRecoverError(body.repair?.message ?? t("instant.recover.failed"));
         return;
       }
-      if (body.repair?.mergeCompleted && body.repair?.finalVideoUrlPresent) {
+      if (body.repair?.completedImmediately) {
         setRecoverInfo(t("videos.status.completed"));
-      } else {
-        setRecoverInfo(t("instant.recover.restoring"));
+        await load();
+        return;
       }
+      setRecoverInfo(t("instant.videoRepair.started"));
       await load();
     } finally {
       setRecoverBusy(false);
     }
-  }, [id, load, touchProgressClock]);
+  }, [id, load, setInstantSnapshot, t, touchProgressClock]);
 
   const rebuildFinalVideo = useCallback(async () => {
     if (!id) {
@@ -601,7 +620,7 @@ export default function VideoDetailPage() {
           lastPolledAtMs={instantLastPolledAtMs}
           lastProgressChangeAtMs={instantLastProgressChangeAtMs}
           connectionState="polling"
-          repairBusy={recoverBusy}
+          repairBusy={repairInFlight}
           rebuildBusy={rebuildBusy}
           isAdmin={isAdmin}
           onRepair={canRecoverInstant ? () => void recoverFinalVideo() : undefined}
@@ -754,14 +773,33 @@ export default function VideoDetailPage() {
               <p className="mt-1 text-xs text-amber-900/90">{t("instant.recover.hint")}</p>
               <button
                 type="button"
-                disabled={recoverBusy}
+                disabled={repairInFlight}
                 onClick={() => void recoverFinalVideo()}
                 className="mt-3 rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-60"
               >
-                {recoverBusy ? t("instant.videoRepair.busy") : t("instant.videoRepair.cta")}
+                {repairInFlight ? t("instant.videoRepair.busy") : t("instant.videoRepair.cta")}
               </button>
+              {repairInFlight && repairStageLabel ? (
+                <p className="mt-2 text-xs font-medium text-emerald-900">{repairStageLabel}</p>
+              ) : null}
+              {repairInFlight && instantSnapshot?.videoRepairUpdatedAt ? (
+                <p className="text-[10px] text-zinc-500">
+                  {new Date(instantSnapshot.videoRepairUpdatedAt).toLocaleString()}
+                </p>
+              ) : null}
               {recoverInfo ? <p className="mt-2 text-xs text-zinc-700">{recoverInfo}</p> : null}
-              {recoverError ? <p className="mt-2 text-xs text-red-700">{recoverError}</p> : null}
+              {recoverError ? (
+                <p className="mt-2 text-xs text-red-700">
+                  {instantSnapshot?.videoRepairUserMessageKey === "instant.videoRepair.failedUser"
+                    ? t("instant.videoRepair.failedUser")
+                    : recoverError}
+                </p>
+              ) : null}
+              {isAdmin && instantSnapshot?.repairAdminDetail ? (
+                <pre className="mt-2 max-h-40 overflow-auto rounded border border-zinc-200 bg-white p-2 text-[10px] text-zinc-700">
+                  {JSON.stringify(instantSnapshot.repairAdminDetail, null, 2)}
+                </pre>
+              ) : null}
             </div>
           ) : null}
         </div>
