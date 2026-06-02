@@ -742,6 +742,8 @@ export default function VideoDetailPage() {
               repairInFlight={videoRepair.repairInFlight}
               feedback={videoRepair.feedback}
               snapshot={instantSnapshot}
+              lastPolledAtMs={instantLastPolledAtMs}
+              lastProgressChangeAtMs={instantLastProgressChangeAtMs}
               isAdmin={isAdmin}
               onRepair={() => void videoRepair.runRepair()}
             />

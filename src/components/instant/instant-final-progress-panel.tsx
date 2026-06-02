@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   INSTANT_EXPORT_STUCK_MS,
   isInstantExportProgressStuck,
@@ -11,7 +11,7 @@ import { InstantRecoveryActionButtons } from "@/components/instant/instant-recov
 import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
 import type { InstantVideoRepairFeedback } from "@/hooks/use-instant-video-repair";
 import type { InstantRepairUiView } from "@/lib/instant-repair-ui-state";
-import { useMounted } from "@/hooks/use-mounted";
+import { useSecondsSince } from "@/hooks/use-seconds-since";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
@@ -57,23 +57,6 @@ export type InstantFinalProgressPanelProps = {
   } | null;
   className?: string;
 };
-
-function useSecondsSince(timestampMs: number | null): number | null {
-  const mounted = useMounted();
-  const [seconds, setSeconds] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!mounted || timestampMs == null) {
-      return;
-    }
-    const tick = () => setSeconds(Math.max(0, Math.floor((Date.now() - timestampMs) / 1000)));
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [mounted, timestampMs]);
-
-  return mounted && timestampMs != null ? seconds : null;
-}
 
 function barTone(
   stage: InstantPremiumProgressStage | undefined,
@@ -259,6 +242,8 @@ export function InstantFinalProgressPanel({
           repairInFlight={Boolean(repairBusy)}
           feedback={repairFeedback}
           snapshot={snapshot}
+          lastPolledAtMs={lastPolledAtMs}
+          lastProgressChangeAtMs={lastProgressChangeAtMs}
           isAdmin={isAdmin}
           onRepair={onRepair}
         />

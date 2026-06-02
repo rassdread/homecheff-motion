@@ -1060,6 +1060,17 @@ export const en: LocaleSchema = {
     "Repair failed. Try again or open advanced details.",
   "instant.videoRepair.pollFailed":
     "Status could not be refreshed. Reload the page or try again.",
+  "instant.videoRepair.stepProgress": "Step {current} of {total} — {stage}",
+  "instant.videoRepair.executing": "Repair in progress…",
+  "instant.videoRepair.workerQueued": "Repair is queued…",
+  "instant.videoRepair.workerConnecting": "Connecting to video worker…",
+  "instant.videoRepair.stillBusy":
+    "Still working. Video repair can take several minutes.",
+  "instant.videoRepair.admin.activeOperation": "activeOperation",
+  "instant.videoRepair.admin.workerJobStatus": "workerJobStatus",
+  "instant.videoRepair.admin.repairStage": "repair stage",
+  "instant.videoRepair.admin.exportProgress": "export progress",
+  "instant.videoRepair.admin.lastRepairUpdate": "last repair update",
   "instant.videoRepair.started": "Repair started",
   "instant.videoRepair.stage.started": "Repair started",
   "instant.videoRepair.stage.checkingSource": "Checking source video",

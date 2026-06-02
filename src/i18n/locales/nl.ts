@@ -1067,6 +1067,17 @@ export const nl = {
     "Herstellen mislukt. Probeer opnieuw of open geavanceerde details.",
   "instant.videoRepair.pollFailed":
     "Status kon niet worden bijgewerkt. Vernieuw de pagina of probeer opnieuw.",
+  "instant.videoRepair.stepProgress": "Stap {current} van {total} — {stage}",
+  "instant.videoRepair.executing": "Herstel wordt uitgevoerd…",
+  "instant.videoRepair.workerQueued": "Herstel staat in de wachtrij…",
+  "instant.videoRepair.workerConnecting": "Verbinding met video-worker…",
+  "instant.videoRepair.stillBusy":
+    "Nog bezig. Video herstellen kan enkele minuten duren.",
+  "instant.videoRepair.admin.activeOperation": "activeOperation",
+  "instant.videoRepair.admin.workerJobStatus": "workerJobStatus",
+  "instant.videoRepair.admin.repairStage": "repair stage",
+  "instant.videoRepair.admin.exportProgress": "export progress",
+  "instant.videoRepair.admin.lastRepairUpdate": "last repair update",
   "instant.videoRepair.started": "Herstel gestart",
   "instant.videoRepair.stage.started": "Herstel gestart",
   "instant.videoRepair.stage.checkingSource": "Bronvideo controleren",

@@ -28,4 +28,6 @@ test("InstantVideoRepairCard shows spinner while starting", () => {
   );
   assert.match(src, /animate-spin/);
   assert.match(src, /instant\.videoRepair\.starting/);
+  assert.match(src, /instant\.videoRepair\.stepProgress/);
+  assert.match(src, /instant\.videoRepair\.stillBusy/);
 });
