@@ -1053,7 +1053,12 @@ export const nl = {
   "instant.progress.workerConnecting": "Video wordt nog verwerkt… opnieuw verbinden…",
   "instant.progress.restoringState": "Voortgang herstellen…",
   "instant.progress.repairFinalVideo": "Video herstellen",
+  "instant.videoRepair.cardTitle": "Video herstellen",
   "instant.videoRepair.cta": "Video herstellen",
+  "instant.videoRepair.starting": "Herstel gestart…",
+  "instant.videoRepair.startedChecking": "Herstel gestart. We controleren de bronvideo.",
+  "instant.videoRepair.startFailed": "Herstellen kon niet worden gestart. Probeer opnieuw.",
+  "instant.videoRepair.alreadyRunning": "Herstel loopt al.",
   "instant.videoRepair.hint":
     "Herstelt automatisch een mislukte video zonder nieuwe AI-generatie.",
   "instant.videoRepair.busy": "Video herstellen…",

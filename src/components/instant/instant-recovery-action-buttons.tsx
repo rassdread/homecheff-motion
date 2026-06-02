@@ -18,6 +18,7 @@ export type InstantRecoveryActionButtonsProps = {
   onVideoRepair?: () => void;
   onTextRerender?: () => void;
   onForceRebuild?: () => void;
+  hideVideoRepair?: boolean;
   className?: string;
   buttonClassName?: string;
 };
@@ -33,6 +34,7 @@ export function InstantRecoveryActionButtons({
   onVideoRepair,
   onTextRerender,
   onForceRebuild,
+  hideVideoRepair = false,
   className = "",
   buttonClassName = "rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-60",
 }: InstantRecoveryActionButtonsProps) {
@@ -40,9 +42,8 @@ export function InstantRecoveryActionButtons({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const visibility = resolveInstantRecoveryActionVisibility(snapshot);
 
-  const hasPrimary =
-    (visibility.showVideoRepair && onVideoRepair) ||
-    (visibility.showTextRerender && onTextRerender);
+  const showRepairButton = visibility.showVideoRepair && onVideoRepair && !hideVideoRepair;
+  const hasPrimary = showRepairButton || (visibility.showTextRerender && onTextRerender);
 
   if (!hasPrimary && !(isAdmin && visibility.showAdminForceRebuild && onForceRebuild)) {
     return null;
@@ -50,7 +51,7 @@ export function InstantRecoveryActionButtons({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {visibility.showVideoRepair && onVideoRepair ?
+      {showRepairButton ?
         <div className="space-y-1">
           <button
             type="button"

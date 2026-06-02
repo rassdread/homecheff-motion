@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
+import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
@@ -67,10 +68,10 @@ export default function InstantPremiumProgressPage() {
     showFatalMissing,
     lastPolledAtMs,
     lastProgressChangeAtMs,
+    refreshSnapshot,
   } = useInstantPremiumProgressPolling();
 
   const [actionError, setActionError] = useState<string | null>(null);
-  const [retryBusy, setRetryBusy] = useState(false);
   const [segmentRetryBusy, setSegmentRetryBusy] = useState<number | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
@@ -127,14 +128,13 @@ export default function InstantPremiumProgressPage() {
     };
   }, [isCompleted, effectiveProjectId]);
 
-  const repairInFlight = Boolean(
-    retryBusy ||
-      snapshot?.isRestoringFinalVideo ||
-      snapshot?.videoRepairStatus === "running"
-  );
-  const repairStageLabel = snapshot?.videoRepairUserMessageKey
-    ? t(snapshot.videoRepairUserMessageKey as never)
-    : null;
+  const videoRepair = useInstantVideoRepair({
+    projectId: effectiveProjectId,
+    snapshot,
+    setSnapshot,
+    isAdmin,
+    onPollNow: refreshSnapshot,
+  });
 
   const headlineKey = useMemo(() => {
     if (showFatalMissing) {
@@ -238,51 +238,6 @@ export default function InstantPremiumProgressPage() {
     }
   }, [effectiveProjectId, setSnapshot, t]);
 
-  const runVideoRepair = useCallback(async () => {
-    if (!effectiveProjectId) {
-      return;
-    }
-    setRetryBusy(true);
-    setActionError(null);
-    try {
-      const useMergeRetry =
-        snapshot?.canRetryMerge &&
-        !snapshot?.canRepairFinalVideo &&
-        !snapshot?.canRetryOverlay;
-      const res = await fetch(
-        useMergeRetry
-          ? `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/merge/retry`
-          : `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/repair-final-video`,
-        { method: "POST", credentials: "include" }
-      );
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        status?: InstantPremiumStatusResponse;
-        repair?: { accepted?: boolean; alreadyRunning?: boolean; message?: string };
-      };
-      if (res.status === 409) {
-        setActionError(body.repair?.message ?? t("instant.videoRepair.busy"));
-        if (body.status) {
-          setSnapshot(body.status);
-        }
-        return;
-      }
-      if (!res.ok) {
-        setActionError(body.error ?? t("instant.videoRepair.failed"));
-        return;
-      }
-      if (body.status) {
-        setSnapshot(body.status);
-      }
-      if (useMergeRetry) {
-        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-      }
-      setActionError(null);
-    } finally {
-      setRetryBusy(false);
-    }
-  }, [effectiveProjectId, setSnapshot, snapshot, t]);
-
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-xl px-4 py-10">
@@ -306,16 +261,15 @@ export default function InstantPremiumProgressPage() {
                     ? connectionState
                     : "polling"
               }
-              repairBusy={repairInFlight}
+              repairBusy={videoRepair.repairInFlight}
               rebuildBusy={rebuildBusy}
               isAdmin={isAdmin}
+              showUnifiedRepair={videoRepair.showRepairCard}
+              repairUiView={videoRepair.uiView}
+              repairFeedback={videoRepair.feedback}
               onRepair={
-                effectiveProjectId &&
-                (snapshot?.canRepairFinalVideo ||
-                  snapshot?.canRetryOverlay ||
-                  snapshot?.canRetryMerge ||
-                  snapshot?.segmentsMergeFailed)
-                  ? () => void runVideoRepair()
+                effectiveProjectId && videoRepair.showRepairCard
+                  ? () => void videoRepair.runRepair()
                   : undefined
               }
               onTextRerender={
@@ -388,29 +342,9 @@ export default function InstantPremiumProgressPage() {
               projectId={effectiveProjectId}
               snapshot={snapshot}
               segmentRetryBusy={segmentRetryBusy}
-              mergeRetryBusy={retryBusy}
-              onRetryMerge={() => {
-                setRetryBusy(true);
-                setActionError(null);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/merge/retry`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    if (!res.ok) {
-                      const body = (await res.json().catch(() => ({}))) as { error?: string };
-                      setActionError(body.error ?? t("instant.progress.retryFailed"));
-                      return;
-                    }
-                    const body = (await res.json()) as InstantPremiumStatusResponse;
-                    setSnapshot(body);
-                    invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-                  } finally {
-                    setRetryBusy(false);
-                  }
-                })();
-              }}
+              mergeRetryBusy={videoRepair.repairInFlight}
+              hideMergeRepairButton={videoRepair.showRepairCard}
+              onRetryMerge={() => void videoRepair.runRepair()}
               onRetrySegment={(segmentIndex) => {
                 setSegmentRetryBusy(segmentIndex);
                 setActionError(null);
@@ -477,13 +411,10 @@ export default function InstantPremiumProgressPage() {
                 </div>
                 <InstantRecoveryActionButtons
                   snapshot={snapshot}
-                  repairBusy={repairInFlight}
-                  repairStageLabel={repairStageLabel}
-                  repairUpdatedAt={snapshot?.videoRepairUpdatedAt ?? null}
+                  hideVideoRepair={videoRepair.showRepairCard}
                   textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                   forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
                   isAdmin={isAdmin}
-                  onVideoRepair={() => void runVideoRepair()}
                   onTextRerender={() => void runTextRerender()}
                   onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
                   buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"

@@ -10,6 +10,8 @@ import {
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
+import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
+import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
@@ -98,9 +100,6 @@ export default function VideoDetailPage() {
   const [finalVideoPlaybackError, setFinalVideoPlaybackError] = useState(false);
   const [retryExportBusy, setRetryExportBusy] = useState(false);
   const [retryExportError, setRetryExportError] = useState<string | null>(null);
-  const [recoverBusy, setRecoverBusy] = useState(false);
-  const [recoverError, setRecoverError] = useState<string | null>(null);
-  const [recoverInfo, setRecoverInfo] = useState<string | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
@@ -263,7 +262,6 @@ export default function VideoDetailPage() {
       (detail.status === "rendering" ||
         detail.status === "generating" ||
         rebuildBusy ||
-        recoverBusy ||
         (allFragmentsDone &&
           (!finalVideoUrl || latestExport?.status === "rendering")))
   );
@@ -274,18 +272,19 @@ export default function VideoDetailPage() {
     lastPolledAtMs: instantLastPolledAtMs,
     lastProgressChangeAtMs: instantLastProgressChangeAtMs,
     touchProgressClock,
+    pollNow,
   } = useInstantPremiumStatusPolling(id, showInstantProgress);
 
-  const repairInFlight = Boolean(
-    recoverBusy ||
-      instantSnapshot?.isRestoringFinalVideo ||
-      instantSnapshot?.videoRepairStatus === "running"
-  );
-  const repairStageLabel = instantSnapshot?.videoRepairUserMessageKey
-    ? t(instantSnapshot.videoRepairUserMessageKey as never)
-    : null;
-
   const isAdmin = session.resolved && session.user?.role === "admin";
+
+  const videoRepair = useInstantVideoRepair({
+    projectId: id,
+    snapshot: instantSnapshot,
+    setSnapshot: setInstantSnapshot,
+    isAdmin,
+    onPollNow: pollNow,
+    onReload: load,
+  });
 
   const originalPlaybackUrl = useMemo(() => {
     const picked = pickPlaybackUrl({
@@ -382,55 +381,6 @@ export default function VideoDetailPage() {
       setRetryExportBusy(false);
     }
   }, [id, load]);
-
-  const recoverFinalVideo = useCallback(async () => {
-    if (!id) return;
-    touchProgressClock();
-    setRecoverBusy(true);
-    setRecoverError(null);
-    setRecoverInfo(null);
-    try {
-      const res = await fetch(
-        `/api/instant-premium/projects/${encodeURIComponent(id)}/repair-final-video`,
-        { method: "POST", credentials: "include" }
-      );
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        status?: InstantPremiumStatusResponse;
-        repair?: {
-          accepted?: boolean;
-          alreadyRunning?: boolean;
-          completedImmediately?: boolean;
-          clipsReady?: boolean;
-          message?: string;
-        };
-      };
-      if (body.status) {
-        setInstantSnapshot(body.status);
-      }
-      if (res.status === 409) {
-        setRecoverInfo(body.repair?.message ?? t("instant.videoRepair.busy"));
-        return;
-      }
-      if (!res.ok) {
-        setRecoverError(body.error ?? body.repair?.message ?? t("instant.recover.failed"));
-        return;
-      }
-      if (body.repair?.clipsReady === false) {
-        setRecoverError(body.repair?.message ?? t("instant.recover.failed"));
-        return;
-      }
-      if (body.repair?.completedImmediately) {
-        setRecoverInfo(t("videos.status.completed"));
-        await load();
-        return;
-      }
-      setRecoverInfo(t("instant.videoRepair.started"));
-      await load();
-    } finally {
-      setRecoverBusy(false);
-    }
-  }, [id, load, setInstantSnapshot, t, touchProgressClock]);
 
   const rebuildFinalVideo = useCallback(async () => {
     if (!id) {
@@ -620,10 +570,15 @@ export default function VideoDetailPage() {
           lastPolledAtMs={instantLastPolledAtMs}
           lastProgressChangeAtMs={instantLastProgressChangeAtMs}
           connectionState="polling"
-          repairBusy={repairInFlight}
+          repairBusy={videoRepair.repairInFlight}
           rebuildBusy={rebuildBusy}
           isAdmin={isAdmin}
-          onRepair={canRecoverInstant ? () => void recoverFinalVideo() : undefined}
+          showUnifiedRepair={videoRepair.showRepairCard}
+          repairUiView={videoRepair.uiView}
+          repairFeedback={videoRepair.feedback}
+          onRepair={
+            videoRepair.showRepairCard ? () => void videoRepair.runRepair() : undefined
+          }
           onTextRerender={
             canRebuildInstant && Boolean(finalVideoUrl) ? () => void rebuildFinalVideo() : undefined
           }
@@ -767,40 +722,16 @@ export default function VideoDetailPage() {
               ) : null}
             </div>
           ) : null}
-          {canRecoverInstant ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-medium text-amber-950">{t("instant.recover.notCompleted")}</p>
-              <p className="mt-1 text-xs text-amber-900/90">{t("instant.recover.hint")}</p>
-              <button
-                type="button"
-                disabled={repairInFlight}
-                onClick={() => void recoverFinalVideo()}
-                className="mt-3 rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-950 hover:bg-emerald-50 disabled:opacity-60"
-              >
-                {repairInFlight ? t("instant.videoRepair.busy") : t("instant.videoRepair.cta")}
-              </button>
-              {repairInFlight && repairStageLabel ? (
-                <p className="mt-2 text-xs font-medium text-emerald-900">{repairStageLabel}</p>
-              ) : null}
-              {repairInFlight && instantSnapshot?.videoRepairUpdatedAt ? (
-                <p className="text-[10px] text-zinc-500">
-                  {new Date(instantSnapshot.videoRepairUpdatedAt).toLocaleString()}
-                </p>
-              ) : null}
-              {recoverInfo ? <p className="mt-2 text-xs text-zinc-700">{recoverInfo}</p> : null}
-              {recoverError ? (
-                <p className="mt-2 text-xs text-red-700">
-                  {instantSnapshot?.videoRepairUserMessageKey === "instant.videoRepair.failedUser"
-                    ? t("instant.videoRepair.failedUser")
-                    : recoverError}
-                </p>
-              ) : null}
-              {isAdmin && instantSnapshot?.repairAdminDetail ? (
-                <pre className="mt-2 max-h-40 overflow-auto rounded border border-zinc-200 bg-white p-2 text-[10px] text-zinc-700">
-                  {JSON.stringify(instantSnapshot.repairAdminDetail, null, 2)}
-                </pre>
-              ) : null}
-            </div>
+          {!showInstantProgress && videoRepair.showRepairCard ? (
+            <InstantVideoRepairCard
+              className="mt-4"
+              uiView={videoRepair.uiView}
+              repairInFlight={videoRepair.repairInFlight}
+              feedback={videoRepair.feedback}
+              snapshot={instantSnapshot}
+              isAdmin={isAdmin}
+              onRepair={() => void videoRepair.runRepair()}
+            />
           ) : null}
         </div>
       )}

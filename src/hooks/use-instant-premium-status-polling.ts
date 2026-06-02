@@ -119,11 +119,25 @@ export function useInstantPremiumStatusPolling(projectId: string, enabled: boole
     };
   }, [projectId, enabled, apply]);
 
+  const pollNow = useCallback(async () => {
+    if (!projectId) {
+      return;
+    }
+    let next = await fetchInstantStatus(projectId);
+    if (!next) {
+      next = await fetchDetailFallback(projectId);
+    }
+    if (next) {
+      apply(next);
+    }
+  }, [projectId, apply]);
+
   return {
     snapshot,
     setSnapshot,
     lastPolledAtMs,
     lastProgressChangeAtMs,
     touchProgressClock: () => setLastProgressChangeAtMs(Date.now()),
+    pollNow,
   };
 }

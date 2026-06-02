@@ -8,6 +8,9 @@ import {
   type InstantPremiumProgressStage,
 } from "@/lib/instant-premium-progress-stage";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
+import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
+import type { InstantVideoRepairFeedback } from "@/hooks/use-instant-video-repair";
+import type { InstantRepairUiView } from "@/lib/instant-repair-ui-state";
 import { useMounted } from "@/hooks/use-mounted";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -45,6 +48,9 @@ export type InstantFinalProgressPanelProps = {
   onRepair?: () => void;
   onTextRerender?: () => void;
   onForceRebuild?: () => void;
+  showUnifiedRepair?: boolean;
+  repairUiView?: InstantRepairUiView;
+  repairFeedback?: InstantVideoRepairFeedback;
   className?: string;
 };
 
@@ -109,6 +115,14 @@ export function InstantFinalProgressPanel({
   onRepair,
   onTextRerender,
   onForceRebuild,
+  showUnifiedRepair = false,
+  repairUiView = "none",
+  repairFeedback = {
+    kind: "idle",
+    userMessageKey: null,
+    adminDetail: null,
+    lastHttpStatus: null,
+  },
   className = "",
 }: InstantFinalProgressPanelProps) {
   const t = useActiveTranslator();
@@ -214,6 +228,18 @@ export function InstantFinalProgressPanel({
           : null}
       </p>
 
+      {showUnifiedRepair && onRepair ? (
+        <InstantVideoRepairCard
+          className="mt-3"
+          uiView={repairUiView}
+          repairInFlight={Boolean(repairBusy)}
+          feedback={repairFeedback}
+          snapshot={snapshot}
+          isAdmin={isAdmin}
+          onRepair={onRepair}
+        />
+      ) : null}
+
       {isFailed ? (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950">
           <p className="font-medium">
@@ -232,6 +258,7 @@ export function InstantFinalProgressPanel({
               className="mt-3"
               snapshot={snapshot}
               repairBusy={repairBusy}
+              hideVideoRepair={showUnifiedRepair}
               textRerenderBusy={rebuildBusy}
               forceRebuildBusy={rebuildBusy}
               isAdmin={isAdmin}
@@ -249,11 +276,12 @@ export function InstantFinalProgressPanel({
           <p className="mt-1 text-xs text-amber-900/90">
             {t("instant.progress.exportStuckHint", { seconds: Math.round(INSTANT_EXPORT_STUCK_MS / 1000) })}
           </p>
-          {showStuckActions ?
+          {showStuckActions && !showUnifiedRepair ?
             <InstantRecoveryActionButtons
               className="mt-3"
               snapshot={snapshot}
               repairBusy={repairBusy}
+              hideVideoRepair={showUnifiedRepair}
               textRerenderBusy={rebuildBusy}
               forceRebuildBusy={rebuildBusy}
               isAdmin={isAdmin}

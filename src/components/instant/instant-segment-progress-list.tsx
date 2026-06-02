@@ -9,6 +9,7 @@ type Props = {
   snapshot: InstantPremiumStatusResponse;
   segmentRetryBusy: number | null;
   mergeRetryBusy: boolean;
+  hideMergeRepairButton?: boolean;
   onRetrySegment: (segmentIndex: number) => void;
   onRetryMerge: () => void;
 };
@@ -18,6 +19,7 @@ export function InstantSegmentProgressList({
   snapshot,
   segmentRetryBusy,
   mergeRetryBusy,
+  hideMergeRepairButton = false,
   onRetrySegment,
   onRetryMerge,
 }: Props) {
@@ -34,7 +36,7 @@ export function InstantSegmentProgressList({
       {snapshot.segmentsMergeFailed ? (
         <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           <p className="font-semibold">{t("instant.progress.segmentsMergeFailed")}</p>
-          {snapshot.canRetryMerge ? (
+          {snapshot.canRetryMerge && !hideMergeRepairButton ? (
             <button
               type="button"
               disabled={mergeRetryBusy || snapshot.retryState === "retrying_merge"}

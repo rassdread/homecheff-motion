@@ -1046,7 +1046,12 @@ export const en: LocaleSchema = {
   "instant.progress.workerConnecting": "Video is still processing… reconnecting.",
   "instant.progress.restoringState": "Restoring progress…",
   "instant.progress.repairFinalVideo": "Repair video",
+  "instant.videoRepair.cardTitle": "Repair video",
   "instant.videoRepair.cta": "Repair video",
+  "instant.videoRepair.starting": "Repair started…",
+  "instant.videoRepair.startedChecking": "Repair started. Checking the source video.",
+  "instant.videoRepair.startFailed": "Could not start repair. Please try again.",
+  "instant.videoRepair.alreadyRunning": "Repair is already running.",
   "instant.videoRepair.hint":
     "Automatically repairs a failed video without generating a new AI video.",
   "instant.videoRepair.busy": "Repairing video…",

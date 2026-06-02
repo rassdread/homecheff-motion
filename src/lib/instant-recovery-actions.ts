@@ -23,6 +23,8 @@ export type InstantRecoveryActionSnapshot = Pick<
   | "finalVideoUrl"
   | "overlayFailed"
   | "status"
+  | "videoRepairStatus"
+  | "isRestoringFinalVideo"
 >;
 
 export function resolveInstantRecoveryActionVisibility(
