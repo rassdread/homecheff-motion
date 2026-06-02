@@ -14,6 +14,7 @@ import {
   buildSceneLayeredRevealSlots,
   buildStagedRevealSlots,
   getSceneHeadline,
+  resolveSceneOverlayVisibleEnd,
   sceneOverlayTiming,
   storyOverlayMotionTags,
   type InstantSceneText,
@@ -34,8 +35,23 @@ import {
   resolvePlacementForTemplate,
   type SceneSafeZoneContext,
 } from "@/server/animation-export/enhanced-safe-zone";
-import { isSafeZoneDebugEnabled } from "@/server/animation-export/safe-zone-placement";
-import type { OverlayTemplateKind } from "@/server/animation-export/object-aware-placement";
+import {
+  isSafeZoneDebugEnabled,
+  SAFE_AREA_MARGIN_H,
+  SAFE_AREA_MARGIN_V,
+  type SafeZoneId,
+} from "@/server/animation-export/safe-zone-placement";
+import {
+  clampAssAnchor,
+  clampHeroLineAnchors,
+  resolveExtraLinePositions,
+  resolveStoryLayerPositions,
+  assTextBounds,
+  STORY_HEADLINE_ASS_ALIGNMENT,
+  STORY_SUBTITLE_ASS_ALIGNMENT,
+  STORY_TITLE_ASS_ALIGNMENT,
+} from "@/server/animation-export/story-layer-placement";
+import type { ObjectAwarePlacement, OverlayTemplateKind } from "@/server/animation-export/object-aware-placement";
 import {
   applyTypographyToTheme,
   LEGACY_HERO_SIZE_MAIN,
@@ -87,6 +103,7 @@ export type StoryOverlayTemplate = "cinematic";
 
 const SCENE_TITLE_MARGIN_V = 72;
 const SUBTITLE_GAP = 8;
+const STORY_FOOTER_ASS_ALIGNMENT = 2;
 
 type SceneFontSizes = {
   heroMain: number;
@@ -213,8 +230,8 @@ function heroLineWithAccents(
     .join("");
 }
 
-function motionTags(x: number, y: number): string {
-  return storyOverlayMotionTags(x, y);
+function motionTags(x: number, y: number, finaleHold = false): string {
+  return storyOverlayMotionTags(x, y, { finaleHold });
 }
 
 function sceneTextForSafeZone(scene: NormalizedSceneText): string {
@@ -273,7 +290,12 @@ function resolveHeroAnchorX(
   return Math.round(width / 2);
 }
 
-const SAFE_AREA_MARGIN_V = 0.08;
+function logStoryLayerPositions(sceneIndex: number, positions: ReturnType<typeof resolveStoryLayerPositions>): void {
+  if (!isSafeZoneDebugEnabled()) {
+    return;
+  }
+  console.info("[hc-story-layer-placement]", { sceneIndex, ...positions });
+}
 
 function defaultHeroPosition(
   scene: NormalizedSceneText,
@@ -381,13 +403,17 @@ function registerSceneStyles(
   kinds: { hero: boolean; scene: boolean; sequence: boolean },
   sizes: SceneFontSizes,
   safeZone?: SafeZoneInput,
-  template?: OverlayTemplateKind
+  template?: OverlayTemplateKind,
+  extraLineCount = 0,
+  hasFinaleFooter = false
 ): {
   heroMain: string;
   heroSmall: string;
   headline: string;
   title: string;
   subtitle: string;
+  extraLines: string[];
+  finaleFooter: string;
 } {
   const heroMain = `HCHeroMain_s${sceneIndex}`;
   const heroSmall = `HCHeroSmall_s${sceneIndex}`;
@@ -411,10 +437,10 @@ function registerSceneStyles(
   }
   if (kinds.scene || kinds.sequence) {
     styleLines.push(
-      assStyleLine(headline, "Arial Black", sizes.headline, theme, 8, 120, marginH)
+      assStyleLine(headline, "Arial Black", sizes.headline, theme, STORY_HEADLINE_ASS_ALIGNMENT, 120, marginH)
     );
     styleLines.push(
-      assStyleLine(title, "Arial", sizes.title, theme, 2, SCENE_TITLE_MARGIN_V, marginH)
+      assStyleLine(title, "Arial", sizes.title, theme, STORY_TITLE_ASS_ALIGNMENT, SCENE_TITLE_MARGIN_V, marginH)
     );
     styleLines.push(
       assStyleLine(
@@ -422,14 +448,45 @@ function registerSceneStyles(
         "Arial",
         sizes.subtitle,
         theme,
-        2,
+        STORY_SUBTITLE_ASS_ALIGNMENT,
         SCENE_TITLE_MARGIN_V + sizes.title + SUBTITLE_GAP,
+        marginH
+      )
+    );
+    for (let extraIndex = 0; extraIndex < extraLineCount; extraIndex += 1) {
+      const extraStyle = `HCStoryExtra${extraIndex}_s${sceneIndex}`;
+      styleLines.push(
+        assStyleLine(
+          extraStyle,
+          "Arial",
+          sizes.subtitle,
+          theme,
+          STORY_SUBTITLE_ASS_ALIGNMENT,
+          SCENE_TITLE_MARGIN_V + sizes.title + SUBTITLE_GAP,
+          marginH
+        )
+      );
+    }
+  }
+
+  const extraLines = Array.from({ length: extraLineCount }, (_, extraIndex) => `HCStoryExtra${extraIndex}_s${sceneIndex}`);
+  const finaleFooter = `HCStoryFooter_s${sceneIndex}`;
+
+  if (hasFinaleFooter) {
+    styleLines.push(
+      assStyleLine(
+        finaleFooter,
+        "Arial",
+        Math.round(sizes.subtitle * 0.78),
+        theme,
+        STORY_FOOTER_ASS_ALIGNMENT,
+        Math.round(height * SAFE_AREA_MARGIN_V) + 8,
         marginH
       )
     );
   }
 
-  return { heroMain, heroSmall, headline, title, subtitle };
+  return { heroMain, heroSmall, headline, title, subtitle, extraLines, finaleFooter };
 }
 
 function appendHeroEvents(
@@ -443,8 +500,11 @@ function appendHeroEvents(
   theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
   heroTypography?: AdaptiveTypographyResult | null,
-  sceneIndex = 0
+  sceneIndex = 0,
+  options?: { visibleEnd?: number; isFinalScene?: boolean }
 ): void {
+  const visibleEnd = options?.visibleEnd ?? end;
+  const finaleHold = options?.isFinalScene ?? false;
   const source = heroSourceText(scene);
   const accentWords = detectAccentWords(source, scene);
   const placement = safeZone ? resolvePlacementForTemplate(safeZone, "hero", width, height) : undefined;
@@ -476,12 +536,45 @@ function appendHeroEvents(
   const mainSize = adaptive?.fontSize ?? LEGACY_HERO_SIZE_MAIN;
   const smallSize = adaptive ? Math.round(adaptive.fontSize * 0.63) : LEGACY_HERO_SIZE_SMALL;
   const lineStep = mainSize + 18;
-  const anchorY = resolveHeroAnchorY(lines.length, width, height, position, safeZone);
+  let anchorY = resolveHeroAnchorY(lines.length, width, height, position, safeZone);
+  let clampedCx = cx;
+
+  const firstLineBounds = assTextBounds({
+    x: cx,
+    y: anchorY,
+    alignment: STORY_HEADLINE_ASS_ALIGNMENT,
+    lines: [lines[0] ?? ""],
+    fontSize: mainSize,
+  });
+  const safeLeft = width * SAFE_AREA_MARGIN_H;
+  const safeRight = width * (1 - SAFE_AREA_MARGIN_H);
+  const safeTop = height * SAFE_AREA_MARGIN_V;
+  const safeBottom = height * (1 - SAFE_AREA_MARGIN_V);
+  const needsClamp =
+    firstLineBounds.left < safeLeft ||
+    firstLineBounds.right > safeRight ||
+    firstLineBounds.top < safeTop ||
+    firstLineBounds.bottom > safeBottom;
+
+  if (needsClamp) {
+    const heroClamp = clampHeroLineAnchors({
+      cx,
+      startY: anchorY,
+      lines,
+      mainFontSize: mainSize,
+      smallFontSize: smallSize,
+      mainLineIndex,
+      width,
+      height,
+    });
+    clampedCx = heroClamp.cx;
+    anchorY = heroClamp.startY;
+  }
 
   const revealSlots =
     lines.length > 1 ?
-      buildStagedRevealSlots(start, end, lines.length, { stepSec: 0.55, minStepSec: 0.35 })
-    : [{ index: 0, revealStart: start, visibleEnd: end }];
+      buildStagedRevealSlots(start, visibleEnd, lines.length, { stepSec: 0.55, minStepSec: 0.35 })
+    : [{ index: 0, revealStart: start, visibleEnd }];
 
   let yCursor = anchorY;
   lines.forEach((line, lineIndex) => {
@@ -493,7 +586,7 @@ function appendHeroEvents(
     const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
     const lineStart = slot.revealStart;
     const lineEnd = slot.visibleEnd;
-    const tags = motionTags(cx, y);
+    const tags = motionTags(clampedCx, y, finaleHold);
     const text = heroLineWithAccents(line, accents, theme);
     events.push(
       `Dialogue: 0,${assTime(lineStart)},${assTime(lineEnd)},${style},,0,0,0,,${tags}${text}`
@@ -511,12 +604,14 @@ function appendSequenceEvents(
   styleNames: { heroMain: string; heroSmall: string; title: string; subtitle: string },
   theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
-  sceneIndex = 0
+  sceneIndex = 0,
+  options?: { visibleEnd?: number; isFinalScene?: boolean }
 ): void {
+  const visibleEnd = options?.visibleEnd ?? end;
   const sequenceEvents = buildSequenceAssEvents({
     scene,
     sceneStart: start,
-    sceneEnd: end,
+    sceneEnd: visibleEnd,
     width,
     height,
     styleNames,
@@ -542,7 +637,13 @@ function appendSceneEvents(
   end: number,
   width: number,
   height: number,
-  styleNames: { headline: string; title: string; subtitle: string },
+  styleNames: {
+    headline: string;
+    title: string;
+    subtitle: string;
+    extraLines: string[];
+    finaleFooter: string;
+  },
   safeZone?: SafeZoneInput,
   precomputedTypography?: {
     headline?: AdaptiveTypographyResult | null;
@@ -550,12 +651,23 @@ function appendSceneEvents(
     subtitle?: AdaptiveTypographyResult | null;
   } | null,
   _legacySubtitleTypography?: AdaptiveTypographyResult | null,
-  sceneIndex = 0
+  sceneIndex = 0,
+  options?: { visibleEnd?: number; isFinalScene?: boolean }
 ): void {
+  const visibleEnd = options?.visibleEnd ?? end;
+  const finaleHold = options?.isFinalScene ?? false;
+  const finaleFooterRaw = scene.finaleFooter.trim();
   const headlineRaw = getSceneHeadline(scene);
   const titleRaw = scene.title.trim();
   const subtitleRaw = scene.subtitle.trim();
-  if (!headlineRaw && !titleRaw && !subtitleRaw) {
+  const extraLineTexts = scene.extraLines.map((line) => line.trim()).filter(Boolean);
+  if (
+    !headlineRaw &&
+    !titleRaw &&
+    !subtitleRaw &&
+    extraLineTexts.length === 0 &&
+    !(finaleHold && finaleFooterRaw)
+  ) {
     return;
   }
 
@@ -617,40 +729,181 @@ function appendSceneEvents(
     subtitleTypo?.lines.length ? subtitleTypo.lines : subtitleRaw ? [subtitleRaw] : [];
 
   const titleSize = titleTypo?.fontSize ?? legacySceneTitleSize(width, height);
-  const headlineY =
-    headlinePlacement?.anchorY ?? Math.round(height * (SAFE_AREA_MARGIN_V + 0.1));
-  const headlineX = headlinePlacement?.anchorX ?? Math.round(width / 2);
-  const titleX = titlePlacement?.anchorX ?? Math.round(width / 2);
-  const titleY = titlePlacement?.anchorY ?? Math.round(height * 0.52);
-  const subtitleX = subtitlePlacement?.anchorX ?? titleX;
-  const subtitleY =
-    titleLines.length > 0 ? titleY + titleSize + SUBTITLE_GAP : subtitlePlacement?.anchorY ?? titleY + titleSize + SUBTITLE_GAP;
+  const subtitleSize = subtitleTypo?.fontSize ?? legacySceneSubtitleSize(titleSize);
 
-  const reveal = buildSceneLayeredRevealSlots(start, end, {
+  const headlineFontSize = headlineTypo?.fontSize ?? Math.round(titleSize * 1.28);
+  let layerPositions: ReturnType<typeof resolveStoryLayerPositions> | null = null;
+
+  if (safeZone && "placements" in safeZone) {
+    layerPositions = resolveStoryLayerPositions({
+      placements: safeZone.placements,
+      width,
+      height,
+      headlineLines,
+      titleLines,
+      subtitleLines,
+      headlineFontSize,
+      titleFontSize: titleSize,
+      subtitleFontSize: subtitleSize,
+    });
+  } else if (headlinePlacement || titlePlacement || subtitlePlacement) {
+    const wrap = (placement: typeof headlinePlacement): ObjectAwarePlacement | undefined =>
+      placement ?
+        {
+          ...placement,
+          placementReason: "safe_zone_v1_fallback",
+          confidence: 0.5,
+          intent: "generic",
+        }
+      : undefined;
+
+    layerPositions = resolveStoryLayerPositions({
+      placements: {
+        hero: wrap(headlinePlacement) ?? wrap(titlePlacement)!,
+        headline: wrap(headlinePlacement) ?? wrap(titlePlacement)!,
+        title: wrap(titlePlacement) ?? wrap(headlinePlacement)!,
+        subtitle: wrap(subtitlePlacement) ?? wrap(titlePlacement)!,
+        scene: wrap(titlePlacement) ?? wrap(subtitlePlacement)!,
+        sequence: wrap(titlePlacement)!,
+        heroFinale: wrap(headlinePlacement) ?? wrap(titlePlacement)!,
+      },
+      width,
+      height,
+      headlineLines,
+      titleLines,
+      subtitleLines,
+      headlineFontSize,
+      titleFontSize: titleSize,
+      subtitleFontSize: subtitleSize,
+    });
+  }
+
+  logStoryLayerPositions(sceneIndex, layerPositions ?? {});
+
+  const headlineX = layerPositions?.headline?.clampedX ?? headlinePlacement?.anchorX ?? Math.round(width / 2);
+  const headlineY =
+    layerPositions?.headline?.clampedY ??
+    headlinePlacement?.anchorY ??
+    Math.round(height * (SAFE_AREA_MARGIN_V + 0.1));
+  const titleX = layerPositions?.title?.clampedX ?? titlePlacement?.anchorX ?? Math.round(width / 2);
+  const titleY = layerPositions?.title?.clampedY ?? titlePlacement?.anchorY ?? Math.round(height * 0.52);
+  const subtitleX = layerPositions?.subtitle?.clampedX ?? titleX;
+  const subtitleY =
+    layerPositions?.subtitle?.clampedY ??
+    (titleLines.length > 0 ? titleY + titleSize + SUBTITLE_GAP : subtitlePlacement?.anchorY ?? titleY + titleSize + SUBTITLE_GAP);
+
+  const reveal = buildSceneLayeredRevealSlots(start, visibleEnd, {
     headline: headlineLines.length > 0,
     title: titleLines.length > 0,
     subtitle: subtitleLines.length > 0,
+    extraLineCount: extraLineTexts.length,
+    finaleFooter: finaleHold && Boolean(finaleFooterRaw),
+  });
+
+  const occupiedZones: SafeZoneId[] = [];
+  if (finaleHold && finaleFooterRaw) {
+    occupiedZones.push("BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT");
+  }
+  if (layerPositions?.headline?.zoneId) {
+    occupiedZones.push(layerPositions.headline.zoneId);
+  }
+  if (layerPositions?.title?.zoneId) {
+    occupiedZones.push(layerPositions.title.zoneId);
+  } else if (titlePlacement?.zoneId) {
+    occupiedZones.push(titlePlacement.zoneId);
+  }
+  const zoneScores =
+    safeZone && "enhanced" in safeZone ?
+      safeZone.enhanced.zones.map((zone) => ({ zoneId: zone.zoneId, score: zone.score }))
+    : safeZone ?
+      safeZone.zones.map((zone) => ({ zoneId: zone.zoneId, score: zone.score }))
+    : undefined;
+  const titleSubtitleBottom = Math.max(
+    layerPositions?.subtitle ?
+      assTextBounds({
+        x: layerPositions.subtitle.clampedX,
+        y: layerPositions.subtitle.clampedY,
+        alignment: STORY_SUBTITLE_ASS_ALIGNMENT,
+        lines: subtitleLines.length > 0 ? subtitleLines : [subtitleRaw || " "],
+        fontSize: subtitleSize,
+      }).bottom
+    : subtitleY + subtitleSize / 2,
+    layerPositions?.title ?
+      assTextBounds({
+        x: layerPositions.title.clampedX,
+        y: layerPositions.title.clampedY,
+        alignment: STORY_TITLE_ASS_ALIGNMENT,
+        lines: titleLines.length > 0 ? titleLines : [titleRaw || " "],
+        fontSize: titleSize,
+      }).bottom
+    : titleY + titleSize / 2,
+    headlineY + headlineFontSize
+  );
+  const extraLinePositions = resolveExtraLinePositions({
+    extraLines: extraLineTexts,
+    fontSize: subtitleSize,
+    width,
+    height,
+    occupiedZoneIds: occupiedZones,
+    zoneScores,
+    minY: titleSubtitleBottom + SUBTITLE_GAP,
   });
 
   if (headlineLines.length > 0) {
     const headlineText = headlineLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.headline ?? { revealStart: start, visibleEnd: end };
+    const slot = reveal.headline ?? { revealStart: start, visibleEnd };
     events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY)}${headlineText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY, finaleHold)}${headlineText}`
     );
   }
   if (titleLines.length > 0) {
     const titleText = titleLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.title ?? { revealStart: start, visibleEnd: end };
+    const slot = reveal.title ?? { revealStart: start, visibleEnd };
     events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.title},,0,0,0,,${motionTags(titleX, titleY)}${titleText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.title},,0,0,0,,${motionTags(titleX, titleY, finaleHold)}${titleText}`
     );
   }
   if (subtitleLines.length > 0) {
     const subtitleText = subtitleLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.subtitle ?? { revealStart: start, visibleEnd: end };
+    const slot = reveal.subtitle ?? { revealStart: start, visibleEnd };
     events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.subtitle},,0,0,0,,${motionTags(subtitleX, subtitleY)}${subtitleText}`
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.subtitle},,0,0,0,,${motionTags(subtitleX, subtitleY, finaleHold)}${subtitleText}`
+    );
+  }
+
+  extraLinePositions.forEach((position, index) => {
+    const line = extraLineTexts[position.lineIndex];
+    if (!line) {
+      return;
+    }
+    const styleName = styleNames.extraLines[index] ?? styleNames.extraLines[styleNames.extraLines.length - 1];
+    if (!styleName) {
+      return;
+    }
+    const slot = reveal.extraLines?.[index] ?? { revealStart: start, visibleEnd };
+    events.push(
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleName},,0,0,0,,${motionTags(position.clampedX, position.clampedY, finaleHold)}${escapeAssText(line)}`
+    );
+  });
+
+  if (finaleHold && finaleFooterRaw) {
+    const footerFontSize = Math.round(subtitleSize * 0.78);
+    const footerY = Math.round(height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35);
+    const footerClamped = clampAssAnchor({
+      x: Math.round(width / 2),
+      y: footerY,
+      alignment: STORY_FOOTER_ASS_ALIGNMENT,
+      lines: [finaleFooterRaw],
+      fontSize: footerFontSize,
+      frameWidth: width,
+      frameHeight: height,
+    });
+    const slot = reveal.finaleFooter ?? reveal.subtitle ?? reveal.title ?? reveal.headline ?? {
+      revealStart: start,
+      visibleEnd,
+    };
+    events.push(
+      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(visibleEnd)},${styleNames.finaleFooter},,0,0,0,,${motionTags(footerClamped.clampedX, footerClamped.clampedY, true)}${escapeAssText(finaleFooterRaw)}`
     );
   }
 }
@@ -789,6 +1042,10 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
       resolved,
       heroTypography
     );
+    const extraLineCount =
+      resolved === "scene" ? scene.extraLines.filter((line) => line.trim()).length : 0;
+    const isFinalScene = index === normalized.length - 1;
+    const hasFinaleFooter = isFinalScene && Boolean(scene.finaleFooter.trim());
     const names = registerSceneStyles(
       styleLines,
       index,
@@ -802,7 +1059,9 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
       },
       sizes,
       safeZone ?? undefined,
-      resolved
+      resolved,
+      extraLineCount,
+      hasFinaleFooter
     );
     styleNamesByScene.set(index, names);
   }
@@ -818,7 +1077,14 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
     const timing = getSceneTimingWindows(normalized, durationSeconds, normalized.length)[index];
     const start = timing?.start ?? sceneOverlayTiming(index, normalized.length, durationSeconds).start;
     const end = timing?.end ?? sceneOverlayTiming(index, normalized.length, durationSeconds).end;
-    if (end <= start) {
+    const visibleEnd = resolveSceneOverlayVisibleEnd({
+      sceneIndex: index,
+      sceneCount: normalized.length,
+      sceneEnd: end,
+      videoEnd: durationSeconds,
+    });
+    const isFinalScene = index === normalized.length - 1;
+    if (visibleEnd <= start) {
       continue;
     }
     const names = styleNamesByScene.get(index);
@@ -848,12 +1114,38 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
         theme,
         safeZone,
         heroTypography,
-        index
+        index,
+        { visibleEnd, isFinalScene }
       );
     } else if (resolved === "sequence") {
-      appendSequenceEvents(events, scene, start, end, width, height, names, theme, safeZone, index);
+      appendSequenceEvents(
+        events,
+        scene,
+        start,
+        end,
+        width,
+        height,
+        names,
+        theme,
+        safeZone,
+        index,
+        { visibleEnd, isFinalScene }
+      );
     } else {
-      appendSceneEvents(events, scene, start, end, width, height, names, safeZone, null, null, index);
+      appendSceneEvents(
+        events,
+        scene,
+        start,
+        end,
+        width,
+        height,
+        names,
+        safeZone,
+        null,
+        null,
+        index,
+        { visibleEnd, isFinalScene }
+      );
     }
   }
 

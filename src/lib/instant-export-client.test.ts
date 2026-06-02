@@ -53,17 +53,18 @@ describe("instant-export-client", () => {
 });
 
 describe("video preview sizing", () => {
-  it("main preview uses max-height and object-contain", () => {
-    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /max-h-\[55vh\]/);
-    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /md:max-h-\[65vh\]/);
+  it("main preview uses viewport vh caps and object-contain", () => {
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /max-h-\[60vh\]/);
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /md:max-h-\[50vh\]/);
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /lg:max-h-\[40vh\]/);
     assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /aspect-\[9\/16\]/);
     assert.match(VIDEO_PREVIEW_MAIN_VIDEO_CLASS, /object-contain/);
   });
 
-  it("version previews are smaller than main preview", () => {
-    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /max-h-\[320px\]/);
-    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /md:max-h-\[360px\]/);
-    assert.doesNotMatch(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /65vh/);
+  it("version previews share viewport caps with narrower max width", () => {
+    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /max-h-\[60vh\]/);
+    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /lg:max-h-\[40vh\]/);
+    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /max-w-sm/);
     assert.match(VIDEO_PREVIEW_VERSION_VIDEO_CLASS, /object-contain/);
   });
 });

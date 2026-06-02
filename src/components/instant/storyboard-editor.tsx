@@ -2,9 +2,12 @@
 
 import Image from "next/image";
 import {
+  MAX_EXTRA_LINES,
+  MAX_FINALE_FOOTER_CHARS,
   MAX_HERO_FINALE_TEXT_CHARS,
   MAX_SEQUENCE_LINES,
   STORY_SCENE_DURATION_OPTIONS,
+  splitSubtitleMultilineInput,
   type SceneOverlayTemplate,
 } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
@@ -56,6 +59,9 @@ function sceneHasText(scene: InstantSceneTextDraft): boolean {
   if (scene.heroText.trim() || scene.title.trim() || scene.subtitle.trim()) {
     return true;
   }
+  if (scene.extraLines.some((line) => line.trim())) {
+    return true;
+  }
   if (scene.lines.some((line) => line.trim())) {
     return true;
   }
@@ -104,10 +110,11 @@ export function StoryboardEditor({
 }: StoryboardEditorProps) {
   const t = useActiveTranslator();
 
-  if (images.length === 0) {
+  if (images.length === 0 && imageCount <= 0) {
     return null;
   }
 
+  const frameCount = Math.max(imageCount, images.length, sceneTexts.length);
   return (
     <div className="mt-6 space-y-3 border-t border-zinc-100 pt-6">
       <div>
@@ -117,7 +124,7 @@ export function StoryboardEditor({
         </p>
       </div>
 
-      {sceneTexts.slice(0, images.length).map((scene, index) => {
+      {sceneTexts.slice(0, frameCount).map((scene, index) => {
         const image = images[index];
         const expanded = expandedIndex === index;
         const collapsed = sceneHasText(scene) && !expanded;
@@ -170,7 +177,7 @@ export function StoryboardEditor({
                   </button>
                   <button
                     type="button"
-                    disabled={index >= images.length - 1}
+                    disabled={index >= frameCount - 1}
                     onClick={() => onMoveScene(index, "down")}
                     className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-zinc-700 disabled:opacity-40"
                   >
@@ -258,11 +265,72 @@ export function StoryboardEditor({
                       <input
                         type="text"
                         value={scene.subtitle}
-                        onChange={(e) => onSceneChange(index, { subtitle: e.target.value })}
+                        onChange={(e) => {
+                          const split = splitSubtitleMultilineInput(e.target.value, scene.extraLines);
+                          onSceneChange(index, split);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && e.shiftKey) {
+                            e.preventDefault();
+                            if (scene.extraLines.length >= MAX_EXTRA_LINES) {
+                              return;
+                            }
+                            onSceneChange(index, {
+                              subtitle: scene.subtitle.trim(),
+                              extraLines: [...scene.extraLines, ""],
+                            });
+                          }
+                        }}
                         className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
                         placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
                       />
                     </label>
+                    <div className="space-y-2">
+                      <StoryboardFieldHint
+                        label={t("instant.storyboard.extraLinesLabel")}
+                        hint={t("instant.storyboard.hint.extraLines")}
+                      />
+                      {scene.extraLines.map((line, lineIndex) => (
+                        <div key={lineIndex} className="flex gap-2">
+                          <label className="block min-w-0 flex-1 text-xs text-zinc-500">
+                            {t("instant.storyboard.extraLineLabel", { index: lineIndex + 1 })}
+                            <input
+                              type="text"
+                              value={line}
+                              onChange={(e) => {
+                                const next = [...scene.extraLines];
+                                next[lineIndex] = e.target.value;
+                                onSceneChange(index, { extraLines: next });
+                              }}
+                              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                              placeholder={t("instant.storyboard.extraLinePlaceholder")}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = scene.extraLines.filter((_, i) => i !== lineIndex);
+                              onSceneChange(index, { extraLines: next });
+                            }}
+                            className="mt-5 shrink-0 text-xs text-zinc-400 hover:text-red-600"
+                            aria-label={t("instant.storyboard.removeLine")}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {scene.extraLines.length < MAX_EXTRA_LINES ?
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onSceneChange(index, { extraLines: [...scene.extraLines, ""] })
+                          }
+                          className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                        >
+                          {t("instant.storyboard.addExtraLine")}
+                        </button>
+                      : null}
+                    </div>
                   </>
                 : null}
 
@@ -343,6 +411,23 @@ export function StoryboardEditor({
                       </label>
                     : null}
                   </div>
+                : null}
+
+                {index >= frameCount - 1 ?
+                  <label className="block text-xs text-zinc-500">
+                    <StoryboardFieldHint
+                      label={t("instant.storyboard.finaleFooterLabel")}
+                      hint={t("instant.storyboard.hint.finaleFooter")}
+                    />
+                    <input
+                      type="text"
+                      value={scene.finaleFooter}
+                      onChange={(e) => onSceneChange(index, { finaleFooter: e.target.value })}
+                      maxLength={MAX_FINALE_FOOTER_CHARS}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                      placeholder={t("instant.storyboard.finaleFooterPlaceholder")}
+                    />
+                  </label>
                 : null}
 
                 <label className="block text-xs text-zinc-500">

@@ -16,6 +16,7 @@ import {
   type ObjectAwarePlacement,
   type OverlayTemplateKind,
 } from "@/server/animation-export/object-aware-placement";
+import { applyStoryReadingFlowToPlacements } from "@/server/animation-export/story-layer-placement";
 import {
   applyIntentBonus,
   inferSceneIntent,
@@ -181,14 +182,16 @@ export function buildSceneSafeZoneContext(params: {
   const intent = inferSceneIntent(sceneText);
 
   if (!isAnyLocalDetectionEnabled() && detection.combinedAvoidBoxes.length === 0) {
-    const placements = resolveAllTemplatePlacements({
-      sceneText,
-      detectionContext: detection,
-      enhancedAnalysis: v1,
-      width,
-      height,
-      accentWords,
-    });
+    const placements = applyStoryReadingFlowToPlacements(
+      resolveAllTemplatePlacements({
+        sceneText,
+        detectionContext: detection,
+        enhancedAnalysis: v1,
+        width,
+        height,
+        accentWords,
+      })
+    );
     return {
       v1,
       enhanced: v1,
@@ -205,7 +208,7 @@ export function buildSceneSafeZoneContext(params: {
     sceneText
   );
   const analysisForPlacement = fallbackReason ? v1 : enhanced;
-  const placements = resolveAllTemplatePlacements({
+  const rawPlacements = resolveAllTemplatePlacements({
     sceneText,
     detectionContext: detection,
     enhancedAnalysis: analysisForPlacement,
@@ -213,6 +216,7 @@ export function buildSceneSafeZoneContext(params: {
     height,
     accentWords,
   });
+  const placements = applyStoryReadingFlowToPlacements(rawPlacements);
 
   return {
     v1,

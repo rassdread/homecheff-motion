@@ -12,6 +12,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { LANGUAGE_EXPORT_POLL_INTERVAL_MS } from "@/lib/language-export-playback";
 import { sceneTextsSummary } from "@/lib/story-language-export";
+import { instantSceneTextFromDraft } from "@/lib/instant-scene-text-draft";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import {
   LANGUAGE_EXPORT_CODES,
@@ -72,10 +73,12 @@ function sceneToDraft(scene: ReturnType<typeof parseSceneTextsJson>[number]): In
     heroText: scene.heroText ?? "",
     title: scene.title ?? "",
     subtitle: scene.subtitle ?? "",
+    extraLines: Array.isArray(scene.extraLines) ? scene.extraLines.map(String) : [],
     accentWords: Array.isArray(scene.accentWords) ? scene.accentWords.join(", ") : "",
     lines: Array.isArray(scene.lines) ? scene.lines.map(String) : [],
     heroFinale: scene.heroFinale !== false,
     heroFinaleText: scene.heroFinaleText ?? "",
+    finaleFooter: scene.finaleFooter ?? "",
   };
 }
 
@@ -168,6 +171,7 @@ export function VideoVersionsPanel({
   const [createOpen, setCreateOpen] = useState(false);
   const [targetLang, setTargetLang] = useState<LanguageExportCode>("nl");
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
+  const [storyboardExpandedIndex, setStoryboardExpandedIndex] = useState<number | null>(0);
   const [editExportId, setEditExportId] = useState<string | null>(null);
   const [draftExportId, setDraftExportId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -179,6 +183,13 @@ export function VideoVersionsPanel({
     const texts = parseSceneTextsJson(instantSceneTexts);
     return sceneTextsSummary(texts);
   }, [instantSceneTexts]);
+
+  const editorImages = useMemo((): StoryboardImage[] => {
+    const count = Math.max(images.length, sceneTexts.length, 1);
+    return Array.from({ length: count }, (_, index) =>
+      images[index] ?? { id: `lang-frame-${index}`, previewUrl: "" }
+    );
+  }, [images, sceneTexts.length]);
 
   const mapExportError = useCallback(
     (kind: InstantExportClientErrorKind | null, fallback: string, detail?: string) =>
@@ -248,6 +259,7 @@ export function VideoVersionsPanel({
       }
       const parsed = parseSceneTextsJson(json.sceneTexts ?? instantSceneTexts);
       setSceneTexts(parsed.map(sceneToDraft));
+      setStoryboardExpandedIndex(0);
       setDraftExportId(json.exportId?.trim() || null);
       setEditExportId(null);
       setInfo(
@@ -276,28 +288,7 @@ export function VideoVersionsPanel({
         action: "render",
         languageCode: lang,
         exportId: draftExportId ?? undefined,
-        sceneTexts: texts.map((scene, index) => ({
-              template: scene.template,
-              heroText: scene.heroText.trim() || undefined,
-              title: scene.title.trim() || undefined,
-              subtitle: scene.subtitle.trim() || undefined,
-              accentWords: scene.accentWords
-                .split(",")
-                .map((w) => w.trim())
-                .filter(Boolean),
-              lines: scene.lines.map((l) => l.trim()).filter(Boolean),
-              heroFinale: scene.template === "sequence" ? scene.heroFinale : undefined,
-              heroFinaleText:
-                scene.template === "sequence" && scene.heroFinaleText.trim() ?
-                  scene.heroFinaleText.trim()
-                : undefined,
-              ...(index < texts.length - 1 ?
-                {
-                  transitionDurationSeconds: scene.transitionDurationSeconds,
-                  durationSeconds: scene.durationSeconds,
-                }
-              : {}),
-            })),
+        sceneTexts: texts.map((scene, index) => instantSceneTextFromDraft(scene, index, texts.length)),
       });
       if (result.networkError) {
         throw new Error(
@@ -451,6 +442,7 @@ export function VideoVersionsPanel({
                     setTargetLang(row.languageCode as LanguageExportCode);
                     const parsed = parseSceneTextsJson(row.sceneTextsJson ?? instantSceneTexts);
                     setSceneTexts(parsed.map(sceneToDraft));
+                    setStoryboardExpandedIndex(0);
                     setCreateOpen(true);
                   }}
                   className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-800"
@@ -470,6 +462,7 @@ export function VideoVersionsPanel({
                 setTargetLang(row.languageCode as LanguageExportCode);
                 const parsed = parseSceneTextsJson(row.sceneTextsJson ?? instantSceneTexts);
                 setSceneTexts(parsed.map(sceneToDraft));
+                setStoryboardExpandedIndex(0);
                 setCreateOpen(true);
               }}
               className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-800"
@@ -602,11 +595,11 @@ export function VideoVersionsPanel({
             : t("instant.videoVersions.createLanguageVersion")}
           </p>
           <StoryboardEditor
-            images={images}
-            imageCount={Math.max(images.length, sceneTexts.length)}
+            images={editorImages}
+            imageCount={Math.max(editorImages.length, sceneTexts.length)}
             sceneTexts={sceneTexts}
-            expandedIndex={0}
-            onExpandedIndexChange={() => undefined}
+            expandedIndex={storyboardExpandedIndex}
+            onExpandedIndexChange={setStoryboardExpandedIndex}
             onSceneChange={(index, patch) =>
               setSceneTexts((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
             }
@@ -633,17 +626,9 @@ export function VideoVersionsPanel({
                         {
                           action: "update",
                           exportId: editExportId,
-                          sceneTexts: sceneTexts.map((scene, index) => ({
-                            template: scene.template,
-                            heroText: scene.heroText.trim() || undefined,
-                            title: scene.title.trim() || undefined,
-                            subtitle: scene.subtitle.trim() || undefined,
-                            lines: scene.lines.filter((l) => l.trim()),
-                            heroFinaleText: scene.heroFinaleText.trim() || undefined,
-                            ...(index < sceneTexts.length - 1 ?
-                              { transitionDurationSeconds: scene.transitionDurationSeconds }
-                            : {}),
-                          })),
+                          sceneTexts: sceneTexts.map((scene, index) =>
+                            instantSceneTextFromDraft(scene, index, sceneTexts.length)
+                          ),
                         }
                       );
                       if (result.networkError) {

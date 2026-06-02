@@ -642,7 +642,7 @@ export default function VideoDetailPage() {
       ) : null}
 
       {originalPlaybackUrl ? (
-        <div className="mt-6 space-y-5">
+        <div className="mt-6 space-y-3">
           <VideoPreview
             key={playbackCacheKey}
             variant="main"
@@ -940,14 +940,13 @@ export default function VideoDetailPage() {
                           {t("videos.download")}
                         </a>
                       </div>
-                      <video
-                        className="w-full max-w-md rounded-md bg-black"
+                      <VideoPreview
+                        variant="version"
                         controls
                         playsInline
                         preload="metadata"
-                      >
-                        <source src={clipUrl} type="video/mp4" />
-                      </video>
+                        src={clipUrl}
+                      />
                     </div>
                   ) : null}
                   {tr.errorMessage?.trim() ? (

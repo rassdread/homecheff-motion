@@ -76,10 +76,12 @@ function serializeSceneTextDrafts(drafts: InstantSceneTextDraft[]): PersistedSce
     heroText: scene.heroText,
     title: scene.title,
     subtitle: scene.subtitle,
+    extraLines: [...scene.extraLines],
     accentWords: scene.accentWords,
     lines: [...scene.lines],
     heroFinale: scene.heroFinale,
     heroFinaleText: scene.heroFinaleText,
+    finaleFooter: scene.finaleFooter,
   }));
 }
 
@@ -112,12 +114,16 @@ function restoreSceneTextDrafts(
       heroText: typeof raw.heroText === "string" ? raw.heroText : "",
       title: typeof raw.title === "string" ? raw.title : "",
       subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
+      extraLines: Array.isArray(raw.extraLines)
+        ? raw.extraLines.filter((line): line is string => typeof line === "string")
+        : [],
       accentWords: typeof raw.accentWords === "string" ? raw.accentWords : "",
       lines: Array.isArray(raw.lines)
         ? raw.lines.filter((line): line is string => typeof line === "string")
         : [],
       heroFinale: typeof raw.heroFinale === "boolean" ? raw.heroFinale : true,
       heroFinaleText: typeof raw.heroFinaleText === "string" ? raw.heroFinaleText : "",
+      finaleFooter: typeof raw.finaleFooter === "string" ? raw.finaleFooter : "",
     });
   }
   return out;

@@ -25,10 +25,12 @@ export type PersistedSceneTextDraft = {
   heroText: string;
   title: string;
   subtitle: string;
+  extraLines: string[];
   accentWords: string;
   lines: string[];
   heroFinale: boolean;
   heroFinaleText: string;
+  finaleFooter: string;
 };
 
 export type PersistedWizardImage = {

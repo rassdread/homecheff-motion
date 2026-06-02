@@ -209,8 +209,9 @@ export function resolveObjectAwarePlacement(params: {
 
   if (sceneOrAccentMatches(sceneText, accentWords, EARNINGS_KEYWORDS)) {
     const devices = findRelevantObjects(detectionContext, DEVICE_LABELS);
+    const candidatePool = template === "headline" ? topZones : allZones;
     if (devices.length > 0) {
-      const near = pickBestZoneNearObject(enhancedAnalysis, devices[0]!, allZones);
+      const near = pickBestZoneNearObject(enhancedAnalysis, devices[0]!, candidatePool);
       if (near && near.score >= fallbackScore * 0.7) {
         chosenZone = near.zoneId;
         placementReason = accentWords?.length ? "accent_earnings_near_device" : "earnings_near_device";
@@ -292,6 +293,11 @@ export function resolveObjectAwarePlacement(params: {
   }
 
   const zoneScore = zoneScoreForId(enhancedAnalysis, chosenZone);
+
+  if (template === "headline" && !topZones.includes(chosenZone)) {
+    chosenZone = enhancedAnalysis.bestTopZone;
+  }
+
   const objectBox =
     placementReason !== "safe_zone_v1_fallback"
       ? detectionContext.combinedAvoidBoxes[0]

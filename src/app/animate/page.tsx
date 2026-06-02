@@ -8,6 +8,7 @@ import { AnimateEstimateCard } from "@/components/animate/animate-estimate-card"
 import { AppCard } from "@/components/ui/app-card";
 import { ClientFormattedTime } from "@/components/ui/client-formatted-datetime";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { VideoPreview } from "@/components/ui/video-preview";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
@@ -888,14 +889,13 @@ export default function AnimatePage() {
                     <p className="mb-1 text-xs font-medium text-zinc-600">
                       {t("animate.transitionVideo")}
                     </p>
-                    <video
+                    <VideoPreview
+                      variant="version"
                       controls
                       playsInline
                       preload="metadata"
-                      className="max-h-48 w-full rounded-lg border border-zinc-200 bg-black"
-                    >
-                      <source src={transition.outputVideoUrl} type="video/mp4" />
-                    </video>
+                      src={transition.outputVideoUrl}
+                    />
                   </div>
                 ) : null}
               </li>
@@ -936,14 +936,13 @@ export default function AnimatePage() {
               <p className="mb-2 text-xs font-medium text-zinc-600">
                 {t("animate.export.finalVideo")}
               </p>
-              <video
+              <VideoPreview
+                variant="main"
                 controls
                 playsInline
                 preload="metadata"
-                className="max-h-64 w-full rounded-xl border border-zinc-200 bg-black"
-              >
-                <source src={finalProjectVideoUrl} type="video/mp4" />
-              </video>
+                src={finalProjectVideoUrl}
+              />
             </div>
           ) : (
             <div className="mt-4 flex h-44 w-full items-center justify-center rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 text-sm text-zinc-500">

@@ -24,7 +24,7 @@ describe("project detail page UX", () => {
   it("uses compact VideoPreview main variant", () => {
     assert.match(detailPage, /VideoPreview/);
     assert.match(detailPage, /variant="main"/);
-    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /max-h-\[55vh\]/);
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /lg:max-h-\[40vh\]/);
     assert.match(VIDEO_PREVIEW_MAIN_VIDEO_CLASS, /object-contain/);
   });
 
@@ -62,8 +62,29 @@ describe("project detail page UX", () => {
     assert.match(detailPage, /projectDetail\.quickActions\.textRerender\.hint/);
   });
 
+  it("gallery and animate pages use VideoPreview instead of raw video tags", () => {
+    const galleryPage = readFileSync(join(__dirname, "../page.tsx"), "utf8");
+    const animatePage = readFileSync(join(__dirname, "../../animate/page.tsx"), "utf8");
+    const segmentList = readFileSync(
+      join(__dirname, "../../components/instant/instant-segment-progress-list.tsx"),
+      "utf8"
+    );
+    assert.match(galleryPage, /VideoPreview/);
+    assert.doesNotMatch(galleryPage, /<video[\s>]/);
+    assert.match(animatePage, /VideoPreview/);
+    assert.doesNotMatch(animatePage, /<video[\s>]/);
+    assert.match(segmentList, /VideoPreview/);
+    assert.doesNotMatch(segmentList, /<video[\s>]/);
+  });
+
   it("mobile preview uses viewport-capped max-height", () => {
-    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /max-h-\[55vh\]/);
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /max-h-\[60vh\]/);
+    assert.match(VIDEO_PREVIEW_MAIN_FRAME_CLASS, /lg:max-h-\[40vh\]/);
     assert.match(detailPage, /overflow-x-hidden/);
+  });
+
+  it("version previews use shared viewport caps", () => {
+    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /md:max-h-\[50vh\]/);
+    assert.match(VIDEO_PREVIEW_VERSION_FRAME_CLASS, /max-w-sm/);
   });
 });

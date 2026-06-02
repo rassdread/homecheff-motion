@@ -350,75 +350,22 @@ export default function InstantPremiumProgressPage() {
               </button>
             </div>
           ) : null}
-          {snapshot?.status === "failed" ? (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              {snapshot.overlayFailed ? (
-                <p>{t("instant.progress.overlayFailedHelp")}</p>
-              ) : null}
-              <p className={snapshot.overlayFailed ? "mt-2" : undefined}>
-                {snapshot.errorMessage || t("instant.progress.failedHelp")}
-              </p>
-            </div>
-          ) : null}
-          {snapshot?.segments?.length && effectiveProjectId ? (
-            <InstantSegmentProgressList
-              projectId={effectiveProjectId}
-              snapshot={snapshot}
-              segmentRetryBusy={segmentRetryBusy}
-              mergeRetryBusy={videoRepair.repairInFlight}
-              hideMergeRepairButton={videoRepair.showRepairCard}
-              onRetryMerge={() => void videoRepair.runRepair()}
-              onRetrySegment={(segmentIndex) => {
-                setSegmentRetryBusy(segmentIndex);
-                setActionError(null);
-                void (async () => {
-                  try {
-                    const res = await fetch(
-                      `/api/instant-premium/projects/${effectiveProjectId}/segments/${segmentIndex}/retry`,
-                      { method: "POST", credentials: "include" }
-                    );
-                    const body = (await res.json().catch(() => ({}))) as
-                      | InstantPremiumStatusResponse
-                      | { error?: string };
-                    if (!res.ok) {
-                      setActionError(
-                        "error" in body && body.error
-                          ? body.error
-                          : t("instant.progress.retryFailed")
-                      );
-                      return;
-                    }
-                    if ("projectId" in body && body.projectId) {
-                      setSnapshot(body);
-                      invalidateCachedInstantProgressSnapshot(effectiveProjectId);
-                    }
-                  } finally {
-                    setSegmentRetryBusy(null);
-                  }
-                })();
-              }}
-            />
-          ) : null}
+
           {isCompleted && snapshot?.finalVideoUrl ? (
-            <div className="mt-4">
-              <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
-              <p className="mt-2 text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
-            </div>
-          ) : null}
-          {snapshot?.finalVideoUrl ? (
-            <div className="mt-5">
-              <h2 className="text-base font-semibold text-zinc-900">{t("instant.progress.finalVideoTitle")}</h2>
+            <div className="mt-4 space-y-3">
+              <h2 className="text-base font-semibold text-zinc-900">
+                {t("instant.progress.finalVideoTitle")}
+              </h2>
               <VideoPreview
                 key={finalPlaybackCacheKey}
                 variant="main"
-                className="mt-2 border border-zinc-200"
+                frameClassName="overflow-hidden rounded-xl border border-zinc-200"
                 controls
                 playsInline
                 preload="metadata"
                 src={snapshot.finalVideoUrl}
               />
-              <div className="mt-3 space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <a
                   href={animationProjectDownloadUrl(effectiveProjectId)}
                   download={`homecheff-motion-${effectiveProjectId}.mp4`}
@@ -431,18 +378,157 @@ export default function InstantPremiumProgressPage() {
                     {t("instant.progress.finalDuration", { seconds: snapshot.finalDurationSeconds })}
                   </p>
                 ) : null}
-                </div>
-                <InstantRecoveryActionButtons
-                  snapshot={snapshot}
-                  hideVideoRepair={videoRepair.showRepairCard}
-                  textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
-                  forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
-                  isAdmin={isAdmin}
-                  onTextRerender={() => void runTextRerender()}
-                  onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
-                  buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
-                />
+                <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
               </div>
+              <InstantRecoveryActionButtons
+                snapshot={snapshot}
+                hideVideoRepair={videoRepair.showRepairCard}
+                textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                isAdmin={isAdmin}
+                onTextRerender={() => void runTextRerender()}
+                onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
+                buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+              />
+              <p className="text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
+            </div>
+          ) : null}
+
+          {snapshot?.status === "failed" ? (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {snapshot.overlayFailed ? (
+                <p>{t("instant.progress.overlayFailedHelp")}</p>
+              ) : null}
+              <p className={snapshot.overlayFailed ? "mt-2" : undefined}>
+                {snapshot.errorMessage || t("instant.progress.failedHelp")}
+              </p>
+            </div>
+          ) : null}
+          {snapshot?.segments?.length && effectiveProjectId ? (
+            isCompleted ? (
+              <details className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-zinc-800">
+                  {t("instant.progress.segment")} ({snapshot.segments.length})
+                </summary>
+                <div className="mt-3">
+                  <InstantSegmentProgressList
+                    projectId={effectiveProjectId}
+                    snapshot={snapshot}
+                    segmentRetryBusy={segmentRetryBusy}
+                    mergeRetryBusy={videoRepair.repairInFlight}
+                    hideMergeRepairButton={videoRepair.showRepairCard}
+                    onRetryMerge={() => void videoRepair.runRepair()}
+                    onRetrySegment={(segmentIndex) => {
+                      setSegmentRetryBusy(segmentIndex);
+                      setActionError(null);
+                      void (async () => {
+                        try {
+                          const res = await fetch(
+                            `/api/instant-premium/projects/${effectiveProjectId}/segments/${segmentIndex}/retry`,
+                            { method: "POST", credentials: "include" }
+                          );
+                          const body = (await res.json().catch(() => ({}))) as
+                            | InstantPremiumStatusResponse
+                            | { error?: string };
+                          if (!res.ok) {
+                            setActionError(
+                              "error" in body && body.error
+                                ? body.error
+                                : t("instant.progress.retryFailed")
+                            );
+                            return;
+                          }
+                          if ("projectId" in body && body.projectId) {
+                            setSnapshot(body);
+                            invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+                          }
+                        } finally {
+                          setSegmentRetryBusy(null);
+                        }
+                      })();
+                    }}
+                  />
+                </div>
+              </details>
+            ) : (
+              <InstantSegmentProgressList
+                projectId={effectiveProjectId}
+                snapshot={snapshot}
+                segmentRetryBusy={segmentRetryBusy}
+                mergeRetryBusy={videoRepair.repairInFlight}
+                hideMergeRepairButton={videoRepair.showRepairCard}
+                onRetryMerge={() => void videoRepair.runRepair()}
+                onRetrySegment={(segmentIndex) => {
+                  setSegmentRetryBusy(segmentIndex);
+                  setActionError(null);
+                  void (async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/instant-premium/projects/${effectiveProjectId}/segments/${segmentIndex}/retry`,
+                        { method: "POST", credentials: "include" }
+                      );
+                      const body = (await res.json().catch(() => ({}))) as
+                        | InstantPremiumStatusResponse
+                        | { error?: string };
+                      if (!res.ok) {
+                        setActionError(
+                          "error" in body && body.error
+                            ? body.error
+                            : t("instant.progress.retryFailed")
+                        );
+                        return;
+                      }
+                      if ("projectId" in body && body.projectId) {
+                        setSnapshot(body);
+                        invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+                      }
+                    } finally {
+                      setSegmentRetryBusy(null);
+                    }
+                  })();
+                }}
+              />
+            )
+          ) : null}
+
+          {snapshot?.finalVideoUrl && !isCompleted ? (
+            <div className="mt-5 space-y-3">
+              <h2 className="text-base font-semibold text-zinc-900">
+                {t("instant.progress.finalVideoTitle")}
+              </h2>
+              <VideoPreview
+                key={finalPlaybackCacheKey}
+                variant="main"
+                frameClassName="overflow-hidden rounded-xl border border-zinc-200"
+                controls
+                playsInline
+                preload="metadata"
+                src={snapshot.finalVideoUrl}
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={animationProjectDownloadUrl(effectiveProjectId)}
+                  download={`homecheff-motion-${effectiveProjectId}.mp4`}
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900"
+                >
+                  {t("instant.progress.download")}
+                </a>
+                {snapshot.finalDurationSeconds ? (
+                  <p className="text-xs text-zinc-500">
+                    {t("instant.progress.finalDuration", { seconds: snapshot.finalDurationSeconds })}
+                  </p>
+                ) : null}
+              </div>
+              <InstantRecoveryActionButtons
+                snapshot={snapshot}
+                hideVideoRepair={videoRepair.showRepairCard}
+                textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                isAdmin={isAdmin}
+                onTextRerender={() => void runTextRerender()}
+                onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
+                buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+              />
             </div>
           ) : null}
 

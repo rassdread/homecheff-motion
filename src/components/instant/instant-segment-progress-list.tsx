@@ -1,5 +1,6 @@
 "use client";
 
+import { VideoPreview } from "@/components/ui/video-preview";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
@@ -74,14 +75,14 @@ export function InstantSegmentProgressList({
                 {t("instant.progress.segment")} #{segment.index + 1} — {segment.status}
               </p>
               {segment.videoUrl ? (
-                <video
+                <VideoPreview
+                  variant="version"
+                  frameClassName="mt-2"
                   controls
                   playsInline
                   preload="metadata"
-                  className="mt-2 max-h-44 w-full rounded-lg border border-zinc-200 bg-black"
-                >
-                  <source src={segment.videoUrl} type="video/mp4" />
-                </video>
+                  src={segment.videoUrl}
+                />
               ) : segment.status !== "failed" ? (
                 <p className="mt-1 text-xs text-zinc-500">{t("instant.progress.segmentPending")}</p>
               ) : null}

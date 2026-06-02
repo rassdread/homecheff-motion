@@ -96,6 +96,16 @@ export function sceneTextsSummary(sceneTexts: InstantSceneText[]): string {
     if (typeof scene.title === "string" && scene.title.trim()) {
       parts.push(scene.title.trim());
     }
+    if (typeof scene.subtitle === "string" && scene.subtitle.trim()) {
+      parts.push(scene.subtitle.trim());
+    }
+    if (Array.isArray(scene.extraLines)) {
+      for (const line of scene.extraLines) {
+        if (typeof line === "string" && line.trim()) {
+          parts.push(line.trim());
+        }
+      }
+    }
     if (Array.isArray(scene.lines)) {
       for (const line of scene.lines) {
         if (typeof line === "string" && line.trim()) {

@@ -27,10 +27,12 @@ export type InstantSceneTextDraft = {
   heroText: string;
   title: string;
   subtitle: string;
+  extraLines: string[];
   accentWords: string;
   lines: string[];
   heroFinale: boolean;
   heroFinaleText: string;
+  finaleFooter: string;
 };
 
 export function emptySceneTextDraft(
@@ -44,10 +46,12 @@ export function emptySceneTextDraft(
     heroText: "",
     title: "",
     subtitle: "",
+    extraLines: [],
     accentWords: "",
     lines: [],
     heroFinale: true,
     heroFinaleText: "",
+    finaleFooter: "",
   };
 }
 

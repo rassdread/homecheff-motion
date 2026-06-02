@@ -30,8 +30,9 @@ const URL_PATTERN = /\bhttps?:\/\/[^\s]+|www\.[^\s]+/gi;
 
 type TranslatableField = {
   sceneIndex: number;
-  field: "heroText" | "title" | "subtitle" | "heroFinaleText" | "line" | "accentWord";
+  field: "heroText" | "title" | "subtitle" | "heroFinaleText" | "finaleFooter" | "line" | "accentWord" | "extraLine";
   lineIndex?: number;
+  extraIndex?: number;
   accentIndex?: number;
   text: string;
 };
@@ -49,8 +50,16 @@ export function collectTranslatableFields(scenes: InstantSceneText[]): Translata
     if (scene.subtitle.trim()) {
       out.push({ sceneIndex, field: "subtitle", text: scene.subtitle });
     }
+    scene.extraLines.forEach((line, extraIndex) => {
+      if (line.trim()) {
+        out.push({ sceneIndex, field: "extraLine", extraIndex, text: line });
+      }
+    });
     if (scene.heroFinaleText.trim()) {
       out.push({ sceneIndex, field: "heroFinaleText", text: scene.heroFinaleText });
+    }
+    if (scene.finaleFooter.trim()) {
+      out.push({ sceneIndex, field: "finaleFooter", text: scene.finaleFooter });
     }
     scene.lines.forEach((line, lineIndex) => {
       if (line.text.trim()) {
@@ -117,8 +126,10 @@ export function applySceneTextTranslations(params: {
       heroText: normalized.heroText,
       title: normalized.title,
       subtitle: normalized.subtitle,
+      extraLines: [...normalized.extraLines],
       heroFinale: normalized.heroFinale,
       heroFinaleText: normalized.heroFinaleText,
+      finaleFooter: normalized.finaleFooter,
       accentWords: normalized.accentWords,
       lines: normalized.lines.map((l) => l.text),
       transitionDurationSeconds: normalized.transitionDurationSeconds,
@@ -140,8 +151,17 @@ export function applySceneTextTranslations(params: {
       scene.title = text.toUpperCase();
     } else if (field.field === "subtitle") {
       scene.subtitle = text;
+    } else if (field.field === "extraLine" && field.extraIndex != null) {
+      const extraLines = Array.isArray(scene.extraLines) ? [...scene.extraLines] : [];
+      while (extraLines.length <= field.extraIndex) {
+        extraLines.push("");
+      }
+      extraLines[field.extraIndex] = text;
+      scene.extraLines = extraLines.filter((line) => line.trim().length > 0);
     } else if (field.field === "heroFinaleText") {
       scene.heroFinaleText = text;
+    } else if (field.field === "finaleFooter") {
+      scene.finaleFooter = text;
     } else if (field.field === "line" && field.lineIndex != null) {
       const lines = Array.isArray(scene.lines) ? [...scene.lines] : [];
       while (lines.length <= field.lineIndex) {
@@ -264,8 +284,10 @@ export function parseSceneTextsJson(raw: unknown): InstantSceneText[] {
     heroText: scene.heroText || undefined,
     title: scene.title || undefined,
     subtitle: scene.subtitle || undefined,
+    extraLines: scene.extraLines.length > 0 ? scene.extraLines : undefined,
     heroFinale: scene.heroFinale,
     heroFinaleText: scene.heroFinaleText || undefined,
+    finaleFooter: scene.finaleFooter || undefined,
     accentWords: scene.accentWords,
     lines: scene.lines.map((l) => l.text),
     transitionDurationSeconds: scene.transitionDurationSeconds,

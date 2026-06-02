@@ -118,6 +118,7 @@ import {
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
+import { instantSceneTextsFromDrafts } from "@/lib/instant-scene-text-draft";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -160,33 +161,7 @@ function serializeSceneTextDrafts(
   drafts: InstantSceneTextDraft[],
   imageCount: number
 ): InstantSceneText[] {
-  return drafts.slice(0, imageCount).map((scene, index) => {
-    const lines = scene.lines.map((l) => l.trim()).filter(Boolean);
-    const isLast = index >= imageCount - 1;
-    const transitionSeconds = scene.transitionDurationSeconds ?? scene.durationSeconds;
-    return {
-      template: scene.template,
-      ...(isLast ?
-        {}
-      : {
-          transitionDurationSeconds: transitionSeconds,
-          durationSeconds: transitionSeconds,
-        }),
-      heroText: scene.heroText.trim() || undefined,
-      title: scene.title.trim() || undefined,
-      subtitle: scene.subtitle.trim() || undefined,
-      lines: lines.length > 0 ? lines : undefined,
-      heroFinale: scene.template === "sequence" ? scene.heroFinale : undefined,
-      heroFinaleText:
-        scene.template === "sequence" && scene.heroFinaleText.trim() ?
-          scene.heroFinaleText.trim()
-        : undefined,
-      accentWords: scene.accentWords
-        .split(",")
-        .map((w) => w.trim())
-        .filter(Boolean),
-    };
-  });
+  return instantSceneTextsFromDrafts(drafts, imageCount);
 }
 
 type LocalImage = {

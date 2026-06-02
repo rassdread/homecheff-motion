@@ -765,11 +765,21 @@ export const en: LocaleSchema = {
   "instant.overlay.accentWords": "Accent words (optional)",
   "instant.overlay.accentWordsPlaceholder": "MONEY, TIME",
   "instant.storyboard.hint.heroText":
-    "Large standout text for short, punchy messages.",
+    "Appears immediately when the scene starts to grab attention.",
   "instant.storyboard.hint.sceneTitle":
-    "Main text for this scene — place names, topics, or short statements.",
+    "The main message of this scene.",
   "instant.storyboard.hint.sceneSubtitle":
-    "Smaller explanation below the title. Keep sentences short.",
+    "Supports the title and appears after it.",
+  "instant.storyboard.extraLinesLabel": "Extra lines",
+  "instant.storyboard.extraLineLabel": "Extra line {index}",
+  "instant.storyboard.extraLinePlaceholder": "Optional supporting line",
+  "instant.storyboard.addExtraLine": "+ Extra line",
+  "instant.storyboard.hint.extraLines":
+    "Separate text layers that may be placed independently.",
+  "instant.storyboard.finaleFooterLabel": "Footer CTA",
+  "instant.storyboard.finaleFooterPlaceholder": "homecheff.eu",
+  "instant.storyboard.hint.finaleFooter":
+    "Optional website or call-to-action shown at the bottom of the final scene.",
   "instant.storyboard.hint.accentWords":
     "Words that get extra emphasis (color or weight). Use commas: Talent, Money, Community.",
   "instant.storyboard.hint.sequenceLines":

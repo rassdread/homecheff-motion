@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
+import { VideoPreview } from "@/components/ui/video-preview";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -567,9 +568,10 @@ export default function VideosPage() {
                     </p>
                     {expandedFragmentProjectId === item.id ? (
                       <div>
-                        <video
+                        <VideoPreview
                           key={fragmentUrl}
-                          className="w-full rounded-lg bg-black"
+                          variant="version"
+                          frameClassName="mt-0"
                           controls
                           playsInline
                           preload="none"
@@ -578,9 +580,8 @@ export default function VideosPage() {
                           onLoadedData={() => {
                             setPlaybackFragmentErrorProjectId((eid) => (eid === item.id ? null : eid));
                           }}
-                        >
-                          <source src={fragmentUrl} type="video/mp4" />
-                        </video>
+                          src={fragmentUrl}
+                        />
                         {playbackFragmentErrorProjectId === item.id ? (
                           <p className="mt-2 text-xs text-red-700">{t("videos.playbackError")}</p>
                         ) : null}
@@ -628,9 +629,10 @@ export default function VideosPage() {
                   <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
                     {expandedVideoId === item.id ? (
                       <div>
-                        <video
+                        <VideoPreview
                           key={finalUrl}
-                          className="w-full rounded-lg bg-black"
+                          variant="version"
+                          frameClassName="mt-0"
                           controls
                           playsInline
                           preload="none"
@@ -639,9 +641,8 @@ export default function VideosPage() {
                           onLoadedData={() => {
                             setPlaybackErrorProjectId((eid) => (eid === item.id ? null : eid));
                           }}
-                        >
-                          <source src={finalUrl} type="video/mp4" />
-                        </video>
+                          src={finalUrl}
+                        />
                         {playbackErrorProjectId === item.id ? (
                           <p className="mt-2 text-xs text-red-700">{t("videos.playbackError")}</p>
                         ) : null}

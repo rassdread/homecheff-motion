@@ -766,11 +766,21 @@ export const nl = {
   "instant.overlay.accentWords": "Accentwoorden (optioneel)",
   "instant.overlay.accentWordsPlaceholder": "MONEY, TIME",
   "instant.storyboard.hint.heroText":
-    "Grote opvallende tekst. Wordt gebruikt voor korte krachtige boodschappen.",
+    "Verschijnt direct bij het begin van de scène en trekt aandacht.",
   "instant.storyboard.hint.sceneTitle":
-    "Hoofdtekst van deze scène. Goed voor plaatsnamen, onderwerpen of korte statements.",
+    "De hoofdboodschap van deze scène.",
   "instant.storyboard.hint.sceneSubtitle":
-    "Kleinere uitleg onder de titel. Gebruik korte zinnen.",
+    "Ondersteunt de titel en verschijnt daarna.",
+  "instant.storyboard.extraLinesLabel": "Extra regels",
+  "instant.storyboard.extraLineLabel": "Extra regel {index}",
+  "instant.storyboard.extraLinePlaceholder": "Optionele extra zin",
+  "instant.storyboard.addExtraLine": "+ Extra regel",
+  "instant.storyboard.hint.extraLines":
+    "Losse tekstlagen die apart geplaatst mogen worden.",
+  "instant.storyboard.finaleFooterLabel": "Footer CTA",
+  "instant.storyboard.finaleFooterPlaceholder": "homecheff.eu",
+  "instant.storyboard.hint.finaleFooter":
+    "Optionele website of call-to-action onderaan de laatste scène.",
   "instant.storyboard.hint.accentWords":
     "Woorden die extra nadruk krijgen, bijvoorbeeld met kleur of grotere aandacht. Gebruik komma's: Talent, Money, Community.",
   "instant.storyboard.hint.sequenceLines":

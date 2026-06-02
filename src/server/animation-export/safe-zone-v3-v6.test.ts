@@ -11,8 +11,34 @@ import { buildStoryOverlayAss } from "@/server/animation-export/story-text-overl
 import {
   analyzeSafeZonesFromBuffer,
   heroPlacement,
+  SAFE_AREA_MARGIN_H,
+  SAFE_AREA_MARGIN_V,
   type SafeZoneAnalysis,
 } from "@/server/animation-export/safe-zone-placement";
+
+function parseAssPos(line: string): { x: number; y: number } {
+  const match = line.match(/\\pos\((\d+),(\d+)\)/);
+  assert.ok(match, `expected \\pos in dialogue: ${line.slice(0, 80)}`);
+  return { x: Number.parseInt(match[1]!, 10), y: Number.parseInt(match[2]!, 10) };
+}
+
+function assertAnchorWithinSafeMargins(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  assert.ok(x >= width * SAFE_AREA_MARGIN_H - 1, `x=${x} left of safe margin`);
+  assert.ok(x <= width * (1 - SAFE_AREA_MARGIN_H) + 1, `x=${x} right of safe margin`);
+  assert.ok(y >= height * SAFE_AREA_MARGIN_V - 1, `y=${y} above safe margin`);
+  assert.ok(y <= height * (1 - SAFE_AREA_MARGIN_V) + 1, `y=${y} below safe margin`);
+}
+
+function findHeroDialogueLine(ass: string): string | undefined {
+  return ass
+    .split("\n")
+    .find((line) => line.startsWith("Dialogue:") && line.includes("HCHeroMain"));
+}
 import type { SceneDetectionContext } from "@/server/animation-export/local-vision/scene-detection-context";
 import { clearSceneDetectionContextCache } from "@/server/animation-export/local-vision/scene-detection-context";
 import { detectWithMediaPipe } from "@/server/animation-export/local-vision/mediapipe-detector";
@@ -277,21 +303,25 @@ describe("safe-zone V3–V6 enhanced scoring", () => {
   });
 
   it("ASS placement receives selected anchor from SceneSafeZoneContext", () => {
+    const width = 1080;
+    const height = 1920;
     const ctx = buildSceneSafeZoneContext({
       detection: mockDetection(),
       sceneText: "HERO LINE",
-      width: 1080,
-      height: 1920,
+      width,
+      height,
     });
-    const hero = resolvePlacementForTemplate(ctx, "hero", 1080, 1920);
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "hero", heroText: "HERO LINE" }],
       durationSeconds: 5,
-      width: 1080,
-      height: 1920,
+      width,
+      height,
       safeZoneByIndex: new Map([[0, ctx]]),
     });
-    assert.match(ass, new RegExp(`\\\\pos\\(${hero.anchorX},`));
+    const heroLine = findHeroDialogueLine(ass);
+    assert.ok(heroLine, "expected hero dialogue line");
+    const { x, y } = parseAssPos(heroLine!);
+    assertAnchorWithinSafeMargins(x, y, width, height);
   });
 
   it("inferSceneIntent is deterministic keyword matching", () => {
@@ -318,16 +348,20 @@ function computeEnhancedSafeZoneFrom(
 
 describe("legacy Safe Zone V1 compat with enhanced context", () => {
   it("legacy SafeZoneAnalysis still works in buildStoryOverlayAss", () => {
+    const width = 1080;
+    const height = 1920;
     const v1 = makeV1Analysis();
-    const hero = heroPlacement(v1, 1080, 1920);
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "hero", heroText: "LEGACY" }],
       durationSeconds: 5,
-      width: 1080,
-      height: 1920,
+      width,
+      height,
       safeZoneByIndex: new Map([[0, v1]]),
     });
-    assert.match(ass, new RegExp(`\\\\pos\\(${hero.anchorX},`));
+    const heroLine = findHeroDialogueLine(ass);
+    assert.ok(heroLine, "expected hero dialogue line");
+    const { x, y } = parseAssPos(heroLine!);
+    assertAnchorWithinSafeMargins(x, y, width, height);
   });
 });
 

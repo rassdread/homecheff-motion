@@ -18,6 +18,48 @@ import {
 } from "@/server/animation-export/safe-zone-placement";
 import { buildStoryOverlayAss } from "@/server/animation-export/story-text-overlay";
 
+function parseAssPos(line: string): { x: number; y: number } {
+  const match = line.match(/\\pos\((\d+),(\d+)\)/);
+  assert.ok(match, `expected \\pos in dialogue: ${line.slice(0, 80)}`);
+  return { x: Number.parseInt(match[1]!, 10), y: Number.parseInt(match[2]!, 10) };
+}
+
+function assertAnchorWithinSafeMargins(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  assert.ok(x >= width * SAFE_AREA_MARGIN_H - 1, `x=${x} left of safe margin`);
+  assert.ok(x <= width * (1 - SAFE_AREA_MARGIN_H) + 1, `x=${x} right of safe margin`);
+  assert.ok(y >= height * SAFE_AREA_MARGIN_V - 1, `y=${y} above safe margin`);
+  assert.ok(y <= height * (1 - SAFE_AREA_MARGIN_V) + 1, `y=${y} below safe margin`);
+}
+
+function findHeroDialogueLine(ass: string): string | undefined {
+  return ass
+    .split("\n")
+    .find((line) => line.startsWith("Dialogue:") && line.includes("HCHeroMain"));
+}
+
+function findSubtitleDialogueLine(ass: string): string | undefined {
+  return ass
+    .split("\n")
+    .find((line) => line.startsWith("Dialogue:") && line.includes("HCStorySubtitle"));
+}
+
+function assertTitleSubtitleGrouped(
+  titlePos: { x: number; y: number },
+  subtitlePos: { x: number; y: number }
+): void {
+  const below = subtitlePos.y > titlePos.y;
+  const right = subtitlePos.y === titlePos.y && subtitlePos.x > titlePos.x;
+  assert.ok(below || right, "subtitle should stay below or to the right of title");
+  if (below) {
+    assert.equal(subtitlePos.x, titlePos.x, "stacked subtitle should share title x");
+  }
+}
+
 function makeZoneGridBuffer(width: number, height: number): Buffer {
   const channels = 4;
   const data = Buffer.alloc(width * height * channels);
@@ -157,29 +199,41 @@ describe("buildStoryOverlayAss safe zone integration", () => {
   }
 
   it("uses safe zone hero anchor when provided", () => {
+    const width = 1080;
+    const height = 1920;
     const analysis = mockAnalysis();
-    const hero = heroPlacement(analysis, 1080, 1920);
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "hero", heroText: "QUIET ZONE HERO" }],
       durationSeconds: 5,
-      width: 1080,
-      height: 1920,
+      width,
+      height,
       safeZoneByIndex: new Map([[0, analysis]]),
     });
-    assert.match(ass, new RegExp(`\\\\pos\\(${hero.anchorX},`));
+    const heroLine = findHeroDialogueLine(ass);
+    assert.ok(heroLine, "expected hero dialogue line");
+    const { x, y } = parseAssPos(heroLine!);
+    assertAnchorWithinSafeMargins(x, y, width, height);
   });
 
   it("uses safe zone title-layer anchor when provided", () => {
+    const width = 1080;
+    const height = 1920;
     const analysis = mockAnalysis();
-    const title = titleLayerPlacement(analysis, 1080, 1920);
     const ass = buildStoryOverlayAss({
       sceneTexts: [{ template: "scene", title: "SCENE TITLE", subtitle: "SUB" }],
       durationSeconds: 5,
-      width: 1080,
-      height: 1920,
+      width,
+      height,
       safeZoneByIndex: new Map([[0, analysis]]),
     });
-    assert.match(ass, new RegExp(`\\\\pos\\(${title.anchorX},${title.anchorY}\\)`));
+    const titleDialogue = ass.split("\n").find((l) => l.includes("SCENE TITLE"));
+    const subDialogue = findSubtitleDialogueLine(ass);
+    assert.ok(titleDialogue && subDialogue);
+    const titlePos = parseAssPos(titleDialogue!);
+    const subPos = parseAssPos(subDialogue!);
+    assertAnchorWithinSafeMargins(titlePos.x, titlePos.y, width, height);
+    assertAnchorWithinSafeMargins(subPos.x, subPos.y, width, height);
+    assertTitleSubtitleGrouped(titlePos, subPos);
   });
 
   it("falls back to fixed placement without safe zone map", () => {

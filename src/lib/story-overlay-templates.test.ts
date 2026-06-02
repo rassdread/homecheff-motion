@@ -77,11 +77,12 @@ describe("story-overlay-templates", () => {
     assert.equal(lines[1], "TRADE TIME FOR");
   });
 
-  it("uses 0.15s timing edges", () => {
+  it("uses 0.15s timing edges except final scene holds to video end", () => {
     const t = sceneOverlayTiming(0, 3, 9);
     assert.equal(t.start, 0.15);
     assert.equal(t.end, 3 - 0.15);
-    assert.equal(t.sceneDuration, 3);
+    const last = sceneOverlayTiming(2, 3, 9);
+    assert.equal(last.end, 9);
   });
 
   it("buildSequenceTiming splits scene evenly with padding", () => {
@@ -104,6 +105,7 @@ describe("story-overlay-templates", () => {
     assert.ok(slots.title);
     assert.ok(slots.subtitle);
     assert.equal(slots.headline!.revealStart, 0.15);
+    assert.equal(slots.headline!.visibleEnd, 4.85);
     assert.equal(slots.title!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC);
     assert.equal(slots.subtitle!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC * 2);
     assert.equal(slots.subtitle!.visibleEnd, 4.85);
@@ -248,7 +250,7 @@ describe("buildStoryOverlayAss V2", () => {
       width: 1080,
       height: 1920,
     });
-    assert.match(ass, /\\fad\(220,220\)/);
+    assert.match(ass, /\\fad\(220,200\)/);
     assert.match(ass, /\\move\(/);
     assert.match(ass, /\\t\(0,480,\\fscx102\\fscy102\)/);
     assert.match(ass, /HCHeroMain/);

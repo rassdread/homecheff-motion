@@ -62,6 +62,20 @@ export type SafeZoneDebugInfo = {
     title?: string;
     subtitle?: string;
   };
+  layerPositionDebug?: Record<
+    string,
+    {
+      zoneId: string;
+      x: number;
+      y: number;
+      clampedX: number;
+      clampedY: number;
+      estimatedTextWidthPx: number;
+      reason: string;
+      groupedWithTitle?: boolean;
+      layout?: string;
+    }
+  >;
   confidence: number;
   intent?: string;
   placementReason?: string;
@@ -75,7 +89,7 @@ export type SafeZoneDebugInfo = {
 
 /** TikTok / Reels safe margins (fraction of frame). */
 export const SAFE_AREA_MARGIN_H = 0.06;
-export const SAFE_AREA_MARGIN_V = 0.08;
+export const SAFE_AREA_MARGIN_V = 0.05;
 
 const TOP_ZONES: SafeZoneId[] = ["TOP_LEFT", "TOP_CENTER", "TOP_RIGHT"];
 const CENTER_ZONES: SafeZoneId[] = ["CENTER_LEFT", "CENTER", "CENTER_RIGHT"];
