@@ -6,8 +6,10 @@ import {
   buildAdminFinalAssemblyReport,
   buildConcatIncludedByTransitionId,
   expectedTransitionCountForImageCount,
+  expectedTransitionRowCount,
   FinalAssemblyTransitionCountMismatchError,
 } from "@/server/instant-premium/final-assembly-invariants";
+import { expectedAssemblySegmentCount } from "@/server/instant-premium/story-mode-transitions";
 import { validateJoinPlansAlignment } from "@/server/instant-premium/concat-segment-mapping";
 import { buildOrderedTransitionSegments } from "@/server/instant-premium/concat-segment-mapping";
 import { buildSegmentJoinPlan } from "@/lib/exact-frame-continuity";
@@ -25,13 +27,16 @@ function transition(id: string, order: number, start: string, end: string, url: 
 }
 
 describe("expectedTransitionCountForImageCount", () => {
-  it("requires N-1 transitions for N images", () => {
+  it("requires N-1 transition rows when mode omitted", () => {
     assert.equal(expectedTransitionCountForImageCount(4), 3);
     assert.equal(expectedTransitionCountForImageCount(1), 0);
+    assert.equal(expectedTransitionRowCount(3, "transition"), 2);
   });
 
-  it("requires one transition row for story mode", () => {
+  it("returns one row/segment for story multiframe when mode is provided", () => {
     assert.equal(expectedTransitionCountForImageCount(9, "story"), 1);
+    assert.equal(expectedTransitionRowCount(3, "story"), 1);
+    assert.equal(expectedAssemblySegmentCount(9, "transition"), 8);
   });
 });
 

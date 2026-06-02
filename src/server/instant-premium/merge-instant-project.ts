@@ -112,11 +112,12 @@ import { applyStorySceneTextOverlay } from "@/server/animation-export/story-text
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 import {
   assertFinalConcatInputCount,
-  expectedTransitionCountForImageCount,
+  expectedAssemblySegmentCount,
   FinalAssemblyTransitionCountMismatchError,
   logFinalConcatInputs,
   SegmentTrimTooAggressiveError,
 } from "@/server/instant-premium/final-assembly-invariants";
+import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
@@ -412,22 +413,34 @@ export async function executeInstantPremiumMerge(
       return;
     }
 
+    await ensureStoryModeTransitionRows(projectId);
+    const mergeProject =
+      (await prisma.animationProject.findUnique({
+        where: { id: projectId },
+        include: {
+          transitions: { orderBy: { order: "asc" } },
+          exports: { orderBy: { createdAt: "desc" } },
+          images: { orderBy: { order: "asc" } },
+        },
+      })) ?? project;
+    const latestExportForMerge = mergeProject.exports[0];
+
     const allowStaticFallback =
       options?.allowStaticFallback === true ||
       options?.adminRepairMode === true ||
       process.env.ALLOW_STATIC_SEGMENT_FALLBACK === "true";
 
-    const isFinalRebuild = project.instantFinalRebuildStatus === "running";
+    const isFinalRebuild = mergeProject.instantFinalRebuildStatus === "running";
     const rebuildPreviousFinalUrl =
-      project.instantPreviousFinalVideoUrl?.trim() ??
-      latestExport?.outputVideoUrl?.trim() ??
+      mergeProject.instantPreviousFinalVideoUrl?.trim() ??
+      latestExportForMerge?.outputVideoUrl?.trim() ??
       null;
     const mergeStartProgress = isFinalRebuild ? 70 : 10;
     const clearOutputOnRestart = !isFinalRebuild;
     const exportRow =
-      latestExport?.status === "failed" || latestExport?.status === "failed_overlay"
+      latestExportForMerge?.status === "failed" || latestExportForMerge?.status === "failed_overlay"
         ? await prisma.animationExport.update({
-            where: { id: latestExport.id },
+            where: { id: latestExportForMerge.id },
             data: {
               status: "rendering",
               progress: mergeStartProgress,
@@ -435,9 +448,9 @@ export async function executeInstantPremiumMerge(
               ...(clearOutputOnRestart ? { outputVideoUrl: null } : {}),
             },
           })
-        : latestExport
+        : latestExportForMerge
           ? await prisma.animationExport.update({
-              where: { id: latestExport.id },
+              where: { id: latestExportForMerge.id },
               data: {
                 status: "rendering",
                 progress: mergeStartProgress,
@@ -465,10 +478,10 @@ export async function executeInstantPremiumMerge(
       },
     });
 
-    const mergeTextRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
+    const mergeTextRenderMode = normalizeTextRenderMode(mergeProject.instantTextRenderMode);
     const mergeAssemblyMode = resolveFinalAssemblyMode(
       mergeTextRenderMode,
-      project.instantPosterMotionSettings
+      mergeProject.instantPosterMotionSettings
     );
     const rebuildId = isFinalRebuild ? String(Date.now()) : null;
     let workDir: string;
@@ -517,9 +530,10 @@ export async function executeInstantPremiumMerge(
     try {
       const prepared = await prepareFinalSegmentProviderVideos({
         projectId,
-        images: project.images.map((img) => ({ id: img.id, order: img.order })),
+        instantMode: mergeProject.instantMode,
+        images: mergeProject.images.map((img) => ({ id: img.id, order: img.order })),
         strictRebuild: isFinalRebuild,
-        transitions: project.transitions.map((t) => ({
+        transitions: mergeProject.transitions.map((t) => ({
           id: t.id,
           order: t.order,
           startImageId: t.startImageId,
@@ -640,13 +654,13 @@ export async function executeInstantPremiumMerge(
         allowStaticFallback,
       });
 
-      const expectedTransitionCount = expectedTransitionCountForImageCount(
-        project.images.length,
-        project.instantMode
+      const expectedAssemblySegments = expectedAssemblySegmentCount(
+        mergeProject.images.length,
+        mergeProject.instantMode
       );
       validateMergeSegmentsBeforeExport({
         projectId,
-        segmentCount: expectedTransitionCount,
+        segmentCount: expectedAssemblySegments,
         concatInputCount: segmentPaths.length,
         expectedDurationSec,
         perSegmentDurationSec,
@@ -862,7 +876,7 @@ export async function executeInstantPremiumMerge(
       });
       assertFinalConcatInputCount({
         projectId,
-        expectedTransitionCount,
+        expectedTransitionCount: expectedAssemblySegments,
         actualConcatInputCount: pathsToConcat.length,
       });
 
@@ -890,7 +904,7 @@ export async function executeInstantPremiumMerge(
       );
       logFinalConcatInputs({
         projectId,
-        expectedTransitionCount,
+        expectedTransitionCount: expectedAssemblySegments,
         actualConcatInputCount: pathsToConcat.length,
         concatInputs: concatInputRows,
       });
@@ -1086,7 +1100,7 @@ export async function executeInstantPremiumMerge(
           finalOutputPath: mergedPath,
           finalOutputHash,
           previousFinalHash,
-          expectedSegmentCount: expectedTransitionCount,
+          expectedSegmentCount: expectedAssemblySegments,
           perSegmentDurationSec,
         });
         if (rebuildFinalize.identicalOutputDetected) {

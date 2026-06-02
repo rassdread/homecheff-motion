@@ -261,6 +261,70 @@ export const STORY_MODE_BAKED_UI_PRESERVATION_BLOCK = `BAKED UI IN SOURCE FRAMES
 - Keep those elements stable, readable, and visually consistent during motion.
 - Do not rewrite, translate, replace, or invent new on-frame UI copy.`;
 
+export const STORY_GENERAL_ANTI_ARTIFACT_BLOCK = `GENERAL STABILITY (preserve the source frames):
+- No extra people appearing in the foreground.
+- No duplicate faces or duplicated mascot heads.
+- No floating limbs, distorted fingers, or warped hands.
+- No melting clothing, warped food plates, or unreadable text morphing inside the video.`;
+
+export const STORY_CHARACTER_ANATOMY_PRESERVATION_BLOCK = `CHARACTER & ANATOMY PRESERVATION:
+- Preserve the exact number of visible hands, arms, fingers, and bodies from each source image.
+- Do not invent extra hands, arms, fingers, shoulders, or limbs.
+- Do not create new body parts between people and mascots.
+- Do not merge hands or arms between different characters.
+- Keep hands attached only to their correct visible owner.
+- Keep physical contact simple and believable.
+- Avoid adding hands in gaps between characters; if a hand is unclear, keep it subtle or hidden instead of inventing anatomy.
+- Keep mascots clean, toy-like, and stable; do not deform mascot faces, eyes, mouths, gloves, aprons, hats, or props.
+- Keep real human faces and sunglasses stable.
+- Maintain original pose and body structure.
+- Animate with subtle motion only: gentle camera move, small smiles, subtle head movement, light environmental motion.`;
+
+export type StoryPromptSceneSignals = {
+  hasPeopleCues: boolean;
+  hasMascotCues: boolean;
+  hasGroupOrFinaleCues: boolean;
+};
+
+export function resolveStoryPromptSceneSignals(
+  sceneTexts: InstantSceneText[],
+  imageCount: number
+): StoryPromptSceneSignals {
+  const chunks: string[] = [];
+  for (let i = 0; i < imageCount; i += 1) {
+    const scene = normalizeSceneText(sceneTexts[i]);
+    chunks.push(
+      scene.heroText,
+      scene.title,
+      scene.subtitle,
+      scene.heroFinaleText,
+      ...scene.lines.map((l) => l.text)
+    );
+  }
+  const blob = chunks.join(" ").toLowerCase();
+  const peopleCue =
+    /\b(person|people|human|man|woman|chef|host|presenter|friends?|team|group|shoulder|hand|hands|together|hug|arm)\b/i.test(
+      blob
+    );
+  const mascotCue =
+    /\b(mascot|cartoon|character|toy|bear|bunny|rabbit|chef\s+mascot|garden\s+mascot)\b/i.test(
+      blob
+    );
+  const lastScene = normalizeSceneText(sceneTexts[imageCount - 1]);
+  const groupFinaleCue =
+    imageCount >= 3 ||
+    Boolean(lastScene.heroFinaleText.trim()) ||
+    lastScene.lines.length >= 2 ||
+    /\b(finale|together|group|movement|join)\b/i.test(
+      [lastScene.title, lastScene.subtitle, lastScene.heroFinaleText].join(" ")
+    );
+  return {
+    hasPeopleCues: peopleCue,
+    hasMascotCues: mascotCue,
+    hasGroupOrFinaleCues: groupFinaleCue,
+  };
+}
+
 export type BuildInstantStoryModePromptInput = {
   userIntent: string | null;
   imageCount: number;
@@ -318,6 +382,21 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     BAKED_TEXT_CLEANED_PROMPT_BLOCK.split("\n").slice(0, 4).join("\n")
   : STORY_MODE_BAKED_UI_PRESERVATION_BLOCK.split("\n").slice(0, 4).join("\n");
 
+  const sceneSignals = resolveStoryPromptSceneSignals(input.sceneTexts, input.imageCount);
+  const anatomyBlocks: string[] = [STORY_GENERAL_ANTI_ARTIFACT_BLOCK];
+  if (
+    sceneSignals.hasPeopleCues ||
+    sceneSignals.hasMascotCues ||
+    sceneSignals.hasGroupOrFinaleCues
+  ) {
+    anatomyBlocks.push(STORY_CHARACTER_ANATOMY_PRESERVATION_BLOCK);
+  }
+  if (sceneSignals.hasGroupOrFinaleCues) {
+    anatomyBlocks.push(
+      "Final frames with multiple characters: keep spacing between people and mascots clear; do not fill gaps with extra limbs or hands; preserve each character's original silhouette."
+    );
+  }
+
   return [
     "Create one continuous cinematic vertical video using the uploaded images in the exact order as storyboard scenes.",
     "Treat each image as a fixed visual anchor.",
@@ -335,6 +414,7 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     "Scene list (FFmpeg overlay context only — do not render these words as visible text):",
     ...sceneLines,
     bakedTextTail,
+    ...anatomyBlocks,
     LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 3).join("\n"),
   ].join("\n\n");
 }

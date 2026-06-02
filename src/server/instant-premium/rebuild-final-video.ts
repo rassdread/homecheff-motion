@@ -31,6 +31,10 @@ import {
   markInstantPremiumFinalRebuildFailed,
 } from "@/server/instant-premium/final-video-export-commit";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import {
+  ensureStoryModeTransitionRows,
+  storyModeClipsReadyForMerge,
+} from "@/server/instant-premium/story-mode-transitions";
 import { resolveFinalAssemblyMode } from "@/server/instant-premium/final-assembly";
 import { resolveSegmentTransitionType } from "@/server/instant-premium/segment-transition";
 import {
@@ -110,18 +114,34 @@ export async function rebuildInstantPremiumFinalVideo(
     };
   }
 
-  const segmentCount = project.transitions.length;
-  const textRenderMode = normalizeTextRenderMode(project.instantTextRenderMode);
+  await ensureStoryModeTransitionRows(projectId);
+  const projectAfterRepair = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      transitions: { orderBy: { order: "asc" } },
+      exports: { orderBy: { createdAt: "desc" } },
+      images: { orderBy: { order: "asc" } },
+    },
+  });
+  const mergeProject = projectAfterRepair ?? project;
+
+  const segmentCount = mergeProject.transitions.length;
+  const textRenderMode = normalizeTextRenderMode(mergeProject.instantTextRenderMode);
   const finalAssemblyMode = resolveFinalAssemblyMode(
     textRenderMode,
-    project.instantPosterMotionSettings
+    mergeProject.instantPosterMotionSettings
   );
-  const segmentTransitionType = resolveSegmentTransitionType(project.instantPosterMotionSettings);
+  const segmentTransitionType = resolveSegmentTransitionType(
+    mergeProject.instantPosterMotionSettings
+  );
   const blendStrength = resolvePosterMotionBlendStrength(
-    parsePosterMotionSettings(project.instantPosterMotionSettings)
+    parsePosterMotionSettings(mergeProject.instantPosterMotionSettings)
   );
 
-  const clipsReady = transitionsAllCompleted(project.transitions);
+  const clipsReady = storyModeClipsReadyForMerge(
+    mergeProject.instantMode,
+    mergeProject.transitions
+  );
   if (!clipsReady) {
     logRebuildFinalVideo({
       projectId,

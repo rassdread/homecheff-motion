@@ -13,6 +13,7 @@ import {
   parseInstantSceneTexts,
   viduMultiframeSegmentDurationSeconds,
 } from "@/lib/instant-premium-mode-types";
+import { STORY_MODE_PRIMARY_TRANSITION_ORDER } from "@/server/instant-premium/story-mode-transitions";
 import {
   hasPerSceneDurations,
   resolveViduSegmentDurationsFromStoryboard,
@@ -204,6 +205,15 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     if (transition.status === "generating") {
       return transition;
     }
+  }
+
+  const instantModeEarly = parseInstantMode(transition.project.instantMode);
+  if (
+    transition.project.projectType === "instant_premium" &&
+    instantModeEarly === "story" &&
+    transition.order > STORY_MODE_PRIMARY_TRANSITION_ORDER
+  ) {
+    return transition;
   }
 
   const [startImage, endImage] = await Promise.all([
@@ -479,6 +489,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 export async function pollTransitionJob(transitionId: string): Promise<AnimationTransition> {
   const transition = await prisma.animationTransition.findUnique({
     where: { id: transitionId },
+    include: { project: { select: { instantMode: true, projectType: true } } },
   });
 
   if (!transition) {
@@ -522,9 +533,12 @@ export async function pollTransitionJob(transitionId: string): Promise<Animation
         message: error instanceof Error ? error.message : String(error),
       });
     });
+    const afterBlob =
+      (await prisma.animationTransition.findUnique({ where: { id: transition.id } })) ??
+      updatedTransition;
     return (
       (await prisma.animationTransition.findUnique({ where: { id: transition.id } })) ??
-      updatedTransition
+      afterBlob
     );
   }
 

@@ -59,6 +59,57 @@ describe("buildInstantStoryModePrompt", () => {
     assert.match(prompt, /intentionally cleaned or blanked/i);
     assert.doesNotMatch(prompt, /BAKED UI IN SOURCE FRAMES/i);
   });
+
+  it("includes anti-extra-limbs and mascot stability blocks for character scenes", () => {
+    const prompt = buildInstantStoryModePrompt({
+      ...baseInput,
+      imageCount: 3,
+      sceneTexts: [
+        ...baseInput.sceneTexts,
+        {
+          template: "scene" as const,
+          heroText: "",
+          title: "JOIN THE MOVEMENT",
+          subtitle: "Friends together hand on shoulder",
+          accentWords: [],
+          lines: [],
+          heroFinale: true,
+          heroFinaleText: "TOGETHER WE GROW",
+          transitionDurationSeconds: 5,
+          durationSeconds: 7,
+        },
+      ],
+    });
+    assert.match(prompt, /Do not invent extra hands/i);
+    assert.match(prompt, /Keep mascots clean, toy-like, and stable/i);
+    assert.match(prompt, /GENERAL STABILITY/i);
+    assert.match(prompt, /CHARACTER & ANATOMY PRESERVATION/i);
+    assert.match(prompt, /FFmpeg overlay copy added after generation/i);
+  });
+
+  it("still states FFmpeg overlays are added after generation", () => {
+    const prompt = buildInstantStoryModePrompt(baseInput);
+    assert.match(prompt, /FFmpeg overlay copy added after generation/i);
+    assert.match(prompt, /never render them inside the Vidu video/i);
+  });
+});
+
+describe("storyModeClipsReadyForMerge rebuild path", () => {
+  it("reuses existing provider output without requiring extra transition rows", async () => {
+    const { storyModeClipsReadyForMerge } = await import(
+      "@/server/instant-premium/story-mode-transitions"
+    );
+    assert.equal(
+      storyModeClipsReadyForMerge("story", [
+        {
+          order: 0,
+          status: "completed",
+          outputVideoUrl: "https://cdn.example/vidu-multiframe.mp4",
+        },
+      ]),
+      true
+    );
+  });
 });
 
 describe("transition mode baked text prompt unchanged", () => {

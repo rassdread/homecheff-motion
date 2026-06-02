@@ -16,9 +16,13 @@ import { upsertRebuildSegmentTrace } from "@/server/instant-premium/rebuild-asse
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 import {
   assertFinalAssemblyTransitionInvariant,
-  expectedTransitionCountForImageCount,
   logTransitionTableDebug,
 } from "@/server/instant-premium/final-assembly-invariants";
+import {
+  expectedAssemblySegmentCount,
+  getStoryModePrimaryTransition,
+  isStoryInstantMode,
+} from "@/server/instant-premium/story-mode-transitions";
 import {
   assertUniqueCanonicalProviderSources,
   downloadCanonicalProviderVideo,
@@ -305,6 +309,7 @@ export async function validateProviderVideoFile(params: {
 
 export async function prepareFinalSegmentProviderVideos(params: {
   projectId: string;
+  instantMode?: string | null;
   images: Array<{ id: string; order: number }>;
   transitions: Array<{
     id: string;
@@ -332,20 +337,28 @@ export async function prepareFinalSegmentProviderVideos(params: {
     projectId: params.projectId,
     images: params.images,
     transitions: params.transitions,
+    instantMode: params.instantMode,
   });
 
-  const expectedCount = expectedTransitionCountForImageCount(params.images.length);
+  const storyMode = isStoryInstantMode(params.instantMode);
+  const assemblySegmentCount = expectedAssemblySegmentCount(
+    params.images.length,
+    params.instantMode
+  );
   const rows = buildFinalSegmentTransitionRows(params.transitions);
+  const assemblyRows = storyMode
+    ? rows.filter((row) => row.transitionOrder === 0)
+    : rows;
   assertAllTransitionsHaveProviderVideo({
     projectId: params.projectId,
-    rows,
-    expectedCount,
+    rows: assemblyRows,
+    expectedCount: assemblySegmentCount,
   });
 
   logTransitionTableDebug({
     projectId: params.projectId,
     imageCount: params.images.length,
-    expectedTransitionCount: expectedCount,
+    expectedTransitionCount: assemblySegmentCount,
     transitions: rows.map((row) => ({
       index: row.segmentIndex,
       id: row.transitionId,
@@ -359,10 +372,15 @@ export async function prepareFinalSegmentProviderVideos(params: {
     })),
   });
 
+  const primaryRow = storyMode ? getStoryModePrimaryTransition(rows) : null;
+  const segmentRows =
+    storyMode && primaryRow ?
+      [primaryRow]
+    : rows.filter((r) => Boolean(r.providerVideoUrl));
   const orderedSegments = buildOrderedTransitionSegments(
-    rows.map((r) => ({
+    segmentRows.map((r, index) => ({
       id: r.transitionId,
-      order: r.transitionOrder,
+      order: index,
       startImageId: r.startImageId,
       endImageId: r.endImageId,
       outputVideoUrl: r.providerVideoUrl,
@@ -390,12 +408,14 @@ export async function prepareFinalSegmentProviderVideos(params: {
     throw wrapProviderVideoPipelineError(error);
   }
 
-  const providerVideoPaths: string[] = new Array(rows.length);
+  const providerVideoPaths: string[] = new Array(orderedSegments.length);
   const canonicalSegments: CanonicalProviderSegment[] = [];
   const sourceLogs: FinalSegmentSourceLogEntry[] = [];
 
   for (const seg of orderedSegments) {
-    const row = rows[seg.segmentIndex]!;
+    const row =
+      segmentRows.find((r) => r.transitionId === seg.transitionId) ??
+      rows[seg.segmentIndex]!;
     const transitionInput = params.transitions.find((t) => t.id === row.transitionId)!;
     setFinalExportStage(params.projectId, "download_segments", {
       activeSegment: seg.segmentIndex,
@@ -411,7 +431,7 @@ export async function prepareFinalSegmentProviderVideos(params: {
         workDir: params.workDir,
         transitionId: row.transitionId,
         segmentIndex: seg.segmentIndex,
-        segmentCount: rows.length,
+        segmentCount: orderedSegments.length,
         projectId: params.projectId,
       });
 

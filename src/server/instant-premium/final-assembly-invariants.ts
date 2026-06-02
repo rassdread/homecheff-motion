@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 import type { FinalSegmentSourceKind } from "@/server/instant-premium/final-segment-source";
+import {
+  expectedAssemblySegmentCount,
+  expectedTransitionRowCount,
+  isStoryInstantMode,
+} from "@/server/instant-premium/story-mode-transitions";
 
 export const FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH =
   "FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH";
@@ -38,15 +43,18 @@ export type ImageRowForInvariant = {
   order: number;
 };
 
+/** @deprecated Use expectedTransitionRowCount or expectedAssemblySegmentCount. */
 export function expectedTransitionCountForImageCount(
   imageCount: number,
   instantMode?: string | null
 ): number {
-  if (instantMode === "story" && imageCount >= 2) {
-    return 1;
+  if (instantMode !== undefined && instantMode !== null) {
+    return expectedAssemblySegmentCount(imageCount, instantMode);
   }
-  return Math.max(0, imageCount - 1);
+  return expectedTransitionRowCount(imageCount);
 }
+
+export { expectedAssemblySegmentCount, expectedTransitionRowCount };
 
 export function countCompletedTransitionsWithVideo(
   transitions: TransitionRowForInvariant[]
@@ -60,20 +68,44 @@ export function assertFinalAssemblyTransitionInvariant(params: {
   projectId: string;
   images: ImageRowForInvariant[];
   transitions: TransitionRowForInvariant[];
+  instantMode?: string | null;
 }): void {
   const imageCount = params.images.length;
-  const expected = expectedTransitionCountForImageCount(imageCount);
+  const expectedRows = expectedTransitionRowCount(imageCount, params.instantMode);
   const transitionRowCount = params.transitions.length;
-  const completedCount = countCompletedTransitionsWithVideo(params.transitions);
 
-  if (transitionRowCount !== expected) {
+  if (isStoryInstantMode(params.instantMode)) {
+    if (imageCount < 2) {
+      throw new FinalAssemblyTransitionCountMismatchError(
+        `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: story mode requires at least 2 images.`
+      );
+    }
+    if (transitionRowCount !== expectedRows) {
+      throw new FinalAssemblyTransitionCountMismatchError(
+        `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: story multiframe expects ${expectedRows} transition row for ${imageCount} images; found ${transitionRowCount}.`
+      );
+    }
+    const primary = params.transitions.find((t) => t.order === 0);
+    const primaryReady =
+      primary?.status === "completed" && Boolean(primary.outputVideoUrl?.trim());
+    if (!primaryReady) {
+      throw new FinalAssemblyTransitionCountMismatchError(
+        `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: story mode requires one completed multiframe provider video.`
+      );
+    }
+    return;
+  }
+
+  if (transitionRowCount !== expectedRows) {
     throw new FinalAssemblyTransitionCountMismatchError(
-      `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: ${imageCount} images require ${expected} transitions; found ${transitionRowCount} transition row(s).`
+      `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: ${imageCount} images require ${expectedRows} transitions; found ${transitionRowCount} transition row(s).`
     );
   }
-  if (completedCount !== expected) {
+
+  const completedCount = countCompletedTransitionsWithVideo(params.transitions);
+  if (completedCount !== expectedRows) {
     throw new FinalAssemblyTransitionCountMismatchError(
-      `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: expected ${expected} completed transitions with outputVideoUrl; got ${completedCount}.`
+      `[${params.projectId}] FINAL_ASSEMBLY_TRANSITION_COUNT_MISMATCH: expected ${expectedRows} completed transitions with outputVideoUrl; got ${completedCount}.`
     );
   }
 }
@@ -178,12 +210,16 @@ export type AdminFinalAssemblyReport = {
 export function buildAdminFinalAssemblyReport(params: {
   images: ImageRowForInvariant[];
   transitions: TransitionRowForInvariant[];
+  instantMode?: string | null;
   concatIncludedByTransitionId: Map<string, boolean>;
   providerChainByTransitionId?: Map<string, ProviderChainDebug>;
 }): AdminFinalAssemblyReport {
   const sortedImages = [...params.images].sort((a, b) => a.order - b.order);
   const sortedTransitions = [...params.transitions].sort((a, b) => a.order - b.order);
-  const expected = expectedTransitionCountForImageCount(sortedImages.length);
+  const expected = expectedTransitionRowCount(
+    sortedImages.length,
+    params.instantMode
+  );
 
   const transitionStatuses: AdminAssemblyTransitionStatus[] = sortedTransitions.map((t) => {
     const startNum =
