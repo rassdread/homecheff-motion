@@ -657,6 +657,69 @@ export const en: LocaleSchema = {
   "instant.overlay.template.auto": "Auto",
   "instant.overlay.template.hero": "Hero Text",
   "instant.overlay.template.scene": "Title + Subtitle",
+  "instant.overlay.template.sequence": "Sequence",
+  "instant.overlay.sequenceHelper":
+    "Lines will automatically appear one after another during the scene.",
+  "instant.overlay.sequenceLineLabel": "Line {index}",
+  "instant.overlay.sequenceLinePlaceholder": "People know people.",
+  "instant.overlay.addSequenceLine": "+ Add line",
+  "instant.storyboard.title": "Storyboard",
+  "instant.storyboard.subtitle":
+    "Set text per frame and how long each transition into the next frame lasts.",
+  "instant.storyboard.defaultPaceTitle": "Default scene pace",
+  "instant.storyboard.defaultPaceHint":
+    "Used for new scenes. Adjust each scene in the storyboard below.",
+  "instant.storyboard.defaultTransitionPaceTitle": "Default transition pace",
+  "instant.storyboard.defaultTransitionPaceHint":
+    "Used for new frames. Adjust each transition in the storyboard below.",
+  "instant.storyboard.frameLabel": "Frame {index}",
+  "instant.storyboard.transitionToFrame": "Transition to frame {index}",
+  "instant.storyboard.transitionDurationHint":
+    "Controls how long the transition into the next frame lasts.",
+  "instant.storyboard.transitionTimingPreview":
+    "This transition lasts {seconds}s in the generated video.",
+  "instant.storyboard.finalFrameLabel": "Final frame",
+  "instant.storyboard.finalFrameNoTransition": "Final frame. No transition.",
+  "instant.storyboard.durationLabel": "Duration",
+  "instant.storyboard.durationHint":
+    "Use longer scenes for finales or emotional moments.",
+  "instant.storyboard.duration.3": "Fast — 3s",
+  "instant.storyboard.duration.5": "Standard — 5s",
+  "instant.storyboard.duration.7": "Cinematic — 7s",
+  "instant.storyboard.moveUp": "Move up",
+  "instant.storyboard.moveDown": "Move down",
+  "instant.storyboard.duplicatePrevious": "Copy previous text",
+  "instant.storyboard.clearText": "Clear text",
+  "instant.storyboard.removeLine": "Remove line",
+  "instant.storyboard.heroFinaleToggle": "Hero finale",
+  "instant.storyboard.heroFinaleText": "Hero finale text",
+  "instant.storyboard.heroFinaleHelper": "Use this for the final big message of the scene.",
+  "instant.storyboard.heroFinalePlaceholder": "THIS ISN'T\nJUST AN APP.\nIT'S A MOVEMENT.",
+  "instant.storyboard.sceneTimingPreview":
+    "Scene duration: {seconds}s. Text will appear automatically during this scene.",
+  "instant.storyboard.stats": "{scenes} scenes · {seconds} seconds · Story Mode · {price}",
+  "instant.storyboard.statsTransition":
+    "{frames} frames · {transitions} transitions · {seconds}s video · {price}",
+  "instant.storyboard.statsDetailed":
+    "{scenes} scenes · Storyboard: {storyboard}s · Video: {video}s · {price}",
+  "instant.storyboard.step7VideoDuration": "{seconds}s video",
+  "instant.storyboard.durationHelp":
+    "Storyboard duration includes scene pacing and overlay timing across all scene cards.",
+  "instant.storyboard.videoDurationHelp":
+    "Video duration reflects the actual Vidu generation length (one segment per transition between images).",
+  "instant.storyboard.priceBasedOnVideo": "Estimated price is based on generated video length.",
+  "instant.storyboard.finalScenePacingNote":
+    "Final scene pacing is partially achieved through overlays and may not increase generated video length.",
+  "instant.storyboard.step7Duration": "{storyboard}s storyboard · {video}s video",
+  "instant.storyboard.lastSceneHelper":
+    "This scene mainly affects text pacing and finale timing. It may not increase generated video length.",
+  "instant.storyboard.admin.storyboardDuration": "Storyboard duration: {seconds}s",
+  "instant.storyboard.admin.providerDuration": "Provider duration: {seconds}s",
+  "instant.storyboard.admin.scale": "Scale: {scale}",
+  "instant.storyboard.admin.segments": "Segments: {count}",
+  "instant.storyboard.admin.images": "Images: {count}",
+  "instant.storyboard.providerDurationNote":
+    "Video duration may be adjusted slightly by the provider.",
   "instant.overlay.heroText": "Hero text",
   "instant.overlay.heroTextPlaceholder": "Most people trade time for money",
   "instant.overlay.accentWords": "Accent words (optional)",
@@ -972,6 +1035,30 @@ export const en: LocaleSchema = {
   "instant.progress.restoringState": "Restoring progress…",
   "instant.progress.repairFinalVideo": "Recover final video",
   "instant.languageExport.title": "Language versions",
+  "instant.videoVersions.title": "Video versions",
+  "instant.videoVersions.subtitle":
+    "Download the clean animation or text overlay versions in different languages.",
+  "instant.videoVersions.noCreditsNote":
+    "Text-only versions reuse your clean video. No new AI video credits.",
+  "instant.videoVersions.cleanTitle": "Clean video",
+  "instant.videoVersions.cleanBadge": "No text overlays",
+  "instant.videoVersions.cleanUnavailable":
+    "Clean video is not available for this project yet. Rebuild the final video to generate it.",
+  "instant.videoVersions.originalTitle": "Original",
+  "instant.videoVersions.overlayBadge": "Text overlay",
+  "instant.videoVersions.download": "Download",
+  "instant.videoVersions.createLanguageVersion": "Create language version",
+  "instant.videoVersions.chooseLanguage": "Language",
+  "instant.videoVersions.editTexts": "Edit texts",
+  "instant.videoVersions.rerender": "Re-render text",
+  "instant.videoVersions.renderTextOnly": "Render text-only version",
+  "instant.videoVersions.cancel": "Cancel",
+  "instant.videoVersions.renderStarted": "Rendering text overlay…",
+  "instant.videoVersions.statusReady": "Ready",
+  "instant.videoVersions.statusRendering": "Rendering…",
+  "instant.videoVersions.statusFailed": "Failed",
+  "instant.videoVersions.statusNeedsRefresh": "Needs re-render",
+  "instant.videoVersions.openProjectPage": "Open full project page",
   "instant.languageExport.hint":
     "Create another language from your completed final video. No new AI video generation — only text is translated and overlaid.",
   "instant.languageExport.createVersion": "Create language version",

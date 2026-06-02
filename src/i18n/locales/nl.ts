@@ -657,6 +657,69 @@ export const nl = {
   "instant.overlay.template.auto": "Auto",
   "instant.overlay.template.hero": "Hero Text",
   "instant.overlay.template.scene": "Titel + ondertitel",
+  "instant.overlay.template.sequence": "Sequence",
+  "instant.overlay.sequenceHelper":
+    "Regels verschijnen automatisch één voor één tijdens de scène.",
+  "instant.overlay.sequenceLineLabel": "Regel {index}",
+  "instant.overlay.sequenceLinePlaceholder": "People know people.",
+  "instant.overlay.addSequenceLine": "+ Regel toevoegen",
+  "instant.storyboard.title": "Storyboard",
+  "instant.storyboard.subtitle":
+    "Stel tekst per frame in en hoe lang elke overgang naar het volgende frame duurt.",
+  "instant.storyboard.defaultPaceTitle": "Standaard scènetempo",
+  "instant.storyboard.defaultPaceHint":
+    "Voor nieuwe scènes. Pas per scène aan in het storyboard hieronder.",
+  "instant.storyboard.defaultTransitionPaceTitle": "Standaard overgangstempo",
+  "instant.storyboard.defaultTransitionPaceHint":
+    "Voor nieuwe frames. Pas elke overgang aan in het storyboard hieronder.",
+  "instant.storyboard.frameLabel": "Frame {index}",
+  "instant.storyboard.transitionToFrame": "Overgang naar frame {index}",
+  "instant.storyboard.transitionDurationHint":
+    "Bepaalt hoe lang de overgang naar het volgende frame duurt.",
+  "instant.storyboard.transitionTimingPreview":
+    "Deze overgang duurt {seconds}s in de gegenereerde video.",
+  "instant.storyboard.finalFrameLabel": "Laatste frame",
+  "instant.storyboard.finalFrameNoTransition": "Laatste frame. Geen overgang.",
+  "instant.storyboard.durationLabel": "Duur",
+  "instant.storyboard.durationHint":
+    "Gebruik langere scènes voor finales of emotionele momenten.",
+  "instant.storyboard.duration.3": "Snel — 3s",
+  "instant.storyboard.duration.5": "Standaard — 5s",
+  "instant.storyboard.duration.7": "Cinematisch — 7s",
+  "instant.storyboard.moveUp": "Omhoog",
+  "instant.storyboard.moveDown": "Omlaag",
+  "instant.storyboard.duplicatePrevious": "Kopieer vorige tekst",
+  "instant.storyboard.clearText": "Tekst wissen",
+  "instant.storyboard.removeLine": "Regel verwijderen",
+  "instant.storyboard.heroFinaleToggle": "Hero finale",
+  "instant.storyboard.heroFinaleText": "Hero finale tekst",
+  "instant.storyboard.heroFinaleHelper": "Gebruik dit voor de grote slotboodschap van de scène.",
+  "instant.storyboard.heroFinalePlaceholder": "THIS ISN'T\nJUST AN APP.\nIT'S A MOVEMENT.",
+  "instant.storyboard.sceneTimingPreview":
+    "Scèneduur: {seconds}s. Tekst verschijnt automatisch tijdens deze scène.",
+  "instant.storyboard.stats": "{scenes} scènes · {seconds} seconden · Story Mode · {price}",
+  "instant.storyboard.statsTransition":
+    "{frames} frames · {transitions} overgangen · {seconds}s video · {price}",
+  "instant.storyboard.statsDetailed":
+    "{scenes} scènes · Storyboard: {storyboard}s · Video: {video}s · {price}",
+  "instant.storyboard.step7VideoDuration": "{seconds}s video",
+  "instant.storyboard.durationHelp":
+    "Storyboard-duur omvat scènetempo en overlay-timing over alle scènes.",
+  "instant.storyboard.videoDurationHelp":
+    "Videoduur is de werkelijke Vidu-lengte (één segment per overgang tussen beelden).",
+  "instant.storyboard.priceBasedOnVideo": "Geschatte prijs is gebaseerd op de gegenereerde videolengte.",
+  "instant.storyboard.finalScenePacingNote":
+    "Finale scènetiming wordt deels via overlays bereikt en verlengt de video niet altijd.",
+  "instant.storyboard.step7Duration": "{storyboard}s storyboard · {video}s video",
+  "instant.storyboard.lastSceneHelper":
+    "Deze scène beïnvloedt vooral teksttiming en finale. Het verlengt de video mogelijk niet.",
+  "instant.storyboard.admin.storyboardDuration": "Storyboard-duur: {seconds}s",
+  "instant.storyboard.admin.providerDuration": "Provider-duur: {seconds}s",
+  "instant.storyboard.admin.scale": "Schaal: {scale}",
+  "instant.storyboard.admin.segments": "Segmenten: {count}",
+  "instant.storyboard.admin.images": "Beelden: {count}",
+  "instant.storyboard.providerDurationNote":
+    "Videoduur kan licht worden aangepast door de provider.",
   "instant.overlay.heroText": "Hero tekst",
   "instant.overlay.heroTextPlaceholder": "Most people trade time for money",
   "instant.overlay.accentWords": "Accentwoorden (optioneel)",
@@ -980,6 +1043,30 @@ export const nl = {
   "instant.progress.restoringState": "Voortgang herstellen…",
   "instant.progress.repairFinalVideo": "Eindvideo herstellen",
   "instant.languageExport.title": "Taalversies",
+  "instant.videoVersions.title": "Videoversies",
+  "instant.videoVersions.subtitle":
+    "Download de schone animatie of tekstoverlayversies in andere talen.",
+  "instant.videoVersions.noCreditsNote":
+    "Tekst-only versies hergebruiken je schone video. Geen nieuwe AI-videocredits.",
+  "instant.videoVersions.cleanTitle": "Schone video",
+  "instant.videoVersions.cleanBadge": "Geen tekstoverlays",
+  "instant.videoVersions.cleanUnavailable":
+    "Schone video is nog niet beschikbaar voor dit project. Herbouw de finale video om deze te genereren.",
+  "instant.videoVersions.originalTitle": "Origineel",
+  "instant.videoVersions.overlayBadge": "Tekstoverlay",
+  "instant.videoVersions.download": "Download",
+  "instant.videoVersions.createLanguageVersion": "Maak taalversie",
+  "instant.videoVersions.chooseLanguage": "Taal",
+  "instant.videoVersions.editTexts": "Tekst bewerken",
+  "instant.videoVersions.rerender": "Tekst opnieuw renderen",
+  "instant.videoVersions.renderTextOnly": "Render tekst-only versie",
+  "instant.videoVersions.cancel": "Annuleren",
+  "instant.videoVersions.renderStarted": "Tekstoverlay wordt gerenderd…",
+  "instant.videoVersions.statusReady": "Klaar",
+  "instant.videoVersions.statusRendering": "Renderen…",
+  "instant.videoVersions.statusFailed": "Mislukt",
+  "instant.videoVersions.statusNeedsRefresh": "Opnieuw renderen nodig",
+  "instant.videoVersions.openProjectPage": "Open volledige projectpagina",
   "instant.languageExport.hint":
     "Maak een andere taalversie van je voltooide eindvideo. Geen nieuwe AI-video — alleen tekst wordt vertaald en opnieuw geplaatst.",
   "instant.languageExport.createVersion": "Andere taalversie maken",

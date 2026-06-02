@@ -14,6 +14,10 @@ import { installWorkerFfmpegPaths } from "../src/worker/video-tools/resolve-work
 
 logBlobConfigStatus("instant-premium-video-worker");
 
+void import("../src/server/animation-export/local-vision/vision-setup-validation").then(
+  ({ logVisionSetupWarningsOnce }) => logVisionSetupWarningsOnce()
+);
+
 void installWorkerFfmpegPaths().catch((error) => {
   console.error("[video-worker]", {
     phase: "ffmpeg_install_failed",

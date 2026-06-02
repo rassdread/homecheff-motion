@@ -28,8 +28,9 @@
 # production
 /build
 
-# misc
-.DS_Store
+/models/mediapipe/*
+/models/object-detector/*
+!/models/README.md
 *.pem
 
 # debug

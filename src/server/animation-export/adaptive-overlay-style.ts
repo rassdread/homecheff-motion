@@ -1,6 +1,24 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
+import {
+  analyzeSafeZonesFromBuffer,
+  buildSafeZoneDebugInfo,
+  isSafeZoneDebugEnabled,
+  maybeWriteSafeZoneDebug,
+  type SafeZoneAnalysis,
+} from "@/server/animation-export/safe-zone-placement";
+import { buildSceneDetectionContext } from "@/server/animation-export/local-vision/scene-detection-context";
+import type { SceneDetectionContext } from "@/server/animation-export/local-vision/scene-detection-context";
+
+export type { SafeZoneAnalysis, SafeZoneDebugInfo, SafeZonePlacement } from "@/server/animation-export/safe-zone-placement";
+export {
+  heroFinalePlacement,
+  heroPlacement,
+  scenePlacement,
+  sequencePlacement,
+  enhanceThemeForZonePlacement,
+} from "@/server/animation-export/safe-zone-placement";
 
 export type FrameColorMetrics = {
   luma: number;
@@ -149,7 +167,16 @@ export async function extractSceneSampleFrame(
   }
 }
 
-export async function analyzeFrameColors(imagePath: string): Promise<FrameColorMetrics> {
+export type SceneAdaptiveOverlayContext = {
+  theme: AdaptiveOverlayTheme;
+  safeZone: SafeZoneAnalysis | null;
+  detection: SceneDetectionContext | null;
+};
+
+export async function analyzeSceneFrame(imagePath: string): Promise<{
+  metrics: FrameColorMetrics;
+  safeZone: SafeZoneAnalysis;
+}> {
   const sharp = (await import("sharp")).default;
   const { data, info } = await sharp(imagePath)
     .ensureAlpha()
@@ -183,13 +210,21 @@ export async function analyzeFrameColors(imagePath: string): Promise<FrameColorM
   }
   const stddev = Math.sqrt(variance / pixels);
 
-  return {
+  const metrics: FrameColorMetrics = {
     luma: meanLuma,
     stddev,
     avgR: sumR / pixels,
     avgG: sumG / pixels,
     avgB: sumB / pixels,
   };
+
+  const safeZone = analyzeSafeZonesFromBuffer(data, info.width, info.height, channels);
+  return { metrics, safeZone };
+}
+
+export async function analyzeFrameColors(imagePath: string): Promise<FrameColorMetrics> {
+  const { metrics } = await analyzeSceneFrame(imagePath);
+  return metrics;
 }
 
 export async function buildAdaptiveThemesForScenes(params: {
@@ -197,7 +232,20 @@ export async function buildAdaptiveThemesForScenes(params: {
   sceneWindows: SceneOverlayWindow[];
   workDir: string;
 }): Promise<Map<number, AdaptiveOverlayTheme | null>> {
+  const contexts = await buildAdaptiveOverlayContextsForScenes(params);
   const out = new Map<number, AdaptiveOverlayTheme | null>();
+  for (const [index, ctx] of contexts) {
+    out.set(index, ctx?.theme ?? null);
+  }
+  return out;
+}
+
+export async function buildAdaptiveOverlayContextsForScenes(params: {
+  inputVideoPath: string;
+  sceneWindows: SceneOverlayWindow[];
+  workDir: string;
+}): Promise<Map<number, SceneAdaptiveOverlayContext | null>> {
+  const out = new Map<number, SceneAdaptiveOverlayContext | null>();
   await fs.mkdir(params.workDir, { recursive: true }).catch(() => undefined);
 
   for (const window of params.sceneWindows) {
@@ -208,8 +256,28 @@ export async function buildAdaptiveThemesForScenes(params: {
     try {
       const sampleTime = window.start + (window.end - window.start) * 0.5;
       await extractSceneSampleFrame(params.inputVideoPath, sampleTime, samplePath);
-      const metrics = await analyzeFrameColors(samplePath);
-      out.set(window.sceneIndex, chooseAdaptiveOverlayTheme(metrics));
+      const { metrics, safeZone } = await analyzeSceneFrame(samplePath);
+      const detection = await buildSceneDetectionContext(samplePath, safeZone);
+      await maybeWriteSafeZoneDebug({
+        workDir: params.workDir,
+        sceneIndex: window.sceneIndex,
+        samplePath,
+        analysis: safeZone,
+      });
+      if (isSafeZoneDebugEnabled()) {
+        console.info("[hc-safe-zone]", buildSafeZoneDebugInfo(window.sceneIndex, safeZone));
+        console.info("[hc-safe-zone-detection]", {
+          sceneIndex: window.sceneIndex,
+          mediaPipe: detection.mediaPipeDetections.length,
+          object: detection.objectDetections.length,
+          failed: detection.failedDetectors,
+        });
+      }
+      out.set(window.sceneIndex, {
+        theme: chooseAdaptiveOverlayTheme(metrics),
+        safeZone,
+        detection,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn("[hc-adaptive-overlay]", {

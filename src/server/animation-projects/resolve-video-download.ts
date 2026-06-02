@@ -17,7 +17,8 @@ export type ResolvedVideoDownload = {
 export function resolveProjectVideoDownload(
   project: ProjectWithMedia,
   segmentOrder?: number,
-  languageCode?: string
+  languageCode?: string,
+  variant?: string
 ): ResolvedVideoDownload | null {
   if (segmentOrder !== undefined) {
     if (!Number.isInteger(segmentOrder) || segmentOrder < 0) {
@@ -35,6 +36,17 @@ export function resolveProjectVideoDownload(
   }
 
   const lang = languageCode?.trim().toLowerCase();
+  if (variant?.trim().toLowerCase() === "clean") {
+    const cleanUrl = project.instantCleanFinalVideoUrl?.trim();
+    if (!cleanUrl) {
+      return null;
+    }
+    return {
+      sourceUrl: cleanUrl,
+      filename: `homecheff-motion-${project.id}-clean.mp4`,
+    };
+  }
+
   if (lang && lang !== "original" && isLanguageExportCode(lang)) {
     const languageRow = (project.languageExports ?? [])
       .filter((row) => row.languageCode === lang && row.status === "completed")

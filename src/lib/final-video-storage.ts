@@ -7,6 +7,14 @@ export function finalBlobPathname(projectId: string, rebuildVersion = 0): string
   return `motion/final/${projectId}/final-v${rebuildVersion}.mp4`;
 }
 
+/** Pre-overlay concat (no ASS / locked text). */
+export function cleanFinalBlobPathname(projectId: string, rebuildVersion = 0): string {
+  if (rebuildVersion <= 0) {
+    return `motion/final/${projectId}/clean.mp4`;
+  }
+  return `motion/final/${projectId}/clean-v${rebuildVersion}.mp4`;
+}
+
 /** Debug / compare URL for a rebuild attempt (always uploaded when merge succeeds). */
 export function rebuildCandidateBlobPathname(projectId: string, rebuildId: string): string {
   const safe = rebuildId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48);

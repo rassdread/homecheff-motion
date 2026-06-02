@@ -13,7 +13,7 @@ import {
   isTextImplyingChipId,
   type TextImplyingChipId,
 } from "@/lib/locked-text-layer";
-import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
+import { resolveInstantPremiumOutputPlan, estimateInstantPremiumCreditsForPlan } from "@/lib/instant-premium-output-plan";
 import {
   emptyNormalizedSceneText,
   isInstantMode,
@@ -25,8 +25,16 @@ import {
   type InstantMode,
   type InstantSceneText,
   type InstantTransitionSeconds,
-  viduMultiframeTotalDurationSeconds,
+  type NormalizedSceneText,
 } from "@/lib/instant-premium-mode-types";
+import {
+  MAX_HERO_FINALE_TEXT_CHARS,
+  MAX_SCENE_LINE_CHARS,
+  MAX_SEQUENCE_LINES,
+  isStorySceneDurationAllowed,
+  normalizeStorySceneDurationSeconds,
+  sanitizeSceneTextField,
+} from "@/lib/story-overlay-templates";
 import { MIN_INSTANT_PREMIUM_IMAGES } from "@/lib/instant-premium-pricing";
 import {
   composeStoredInstantUserIntent,
@@ -146,17 +154,41 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
       transitionSecondsRaw
     : 5;
 
-  const instantSceneTexts = parseInstantSceneTexts(o.instantSceneTexts);
-  if (instantSceneTexts.length > images.length) {
+  const instantSceneTextsRaw = parseInstantSceneTexts(o.instantSceneTexts);
+  if (instantSceneTextsRaw.length > images.length) {
     return {
       ok: false,
       error: "instantSceneTexts cannot exceed image count.",
       status: 400,
     };
   }
-  while (instantSceneTexts.length < images.length) {
-    instantSceneTexts.push(emptyNormalizedSceneText());
+  for (let index = 0; index < instantSceneTextsRaw.length; index += 1) {
+    const scene = instantSceneTextsRaw[index]!;
+    if (scene.lines.length > MAX_SEQUENCE_LINES) {
+      return {
+        ok: false,
+        error: `Scene ${index + 1} exceeds ${MAX_SEQUENCE_LINES} sequence lines.`,
+        status: 400,
+      };
+    }
+    const transitionDuration =
+      scene.transitionDurationSeconds ?? scene.durationSeconds;
+    if (
+      transitionDuration !== undefined &&
+      !isStorySceneDurationAllowed(transitionDuration)
+    ) {
+      return {
+        ok: false,
+        error: `Scene ${index + 1} transition duration must be 3, 5, 7, or 8.`,
+        status: 400,
+      };
+    }
   }
+  const instantSceneTexts = sanitizeInstantSceneTexts(
+    instantSceneTextsRaw,
+    images.length,
+    instantTransitionSeconds
+  );
 
   if (images.some((image) => !image.fileName?.trim() || !image.previewUrl?.trim())) {
     return { ok: false, error: "Each image must include fileName and previewUrl.", status: 400 };
@@ -182,8 +214,9 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     imageCount: images.length,
     instantMode,
     transitionSeconds: instantTransitionSeconds,
+    sceneTexts: instantSceneTexts,
   });
-  const duration = outputPlan.totalDurationSeconds;
+  const duration = outputPlan.providerDurationSeconds;
 
   const aspectRatio = typeof o.aspectRatio === "string" ? o.aspectRatio.trim() : "";
   if (aspectRatio !== "9:16" && aspectRatio !== "16:9") {
@@ -292,6 +325,39 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
   };
 
   return { ok: true, data };
+}
+
+function sanitizeInstantSceneTexts(
+  scenes: NormalizedSceneText[],
+  imageCount: number,
+  fallbackTransitionSeconds: InstantTransitionSeconds
+): NormalizedSceneText[] {
+  const out: NormalizedSceneText[] = [];
+  for (let index = 0; index < imageCount; index += 1) {
+    const scene = scenes[index] ?? emptyNormalizedSceneText();
+    const isLast = index === imageCount - 1;
+    const transitionDurationSeconds =
+      isLast ? undefined : (
+        normalizeStorySceneDurationSeconds(
+          scene.transitionDurationSeconds ?? scene.durationSeconds,
+          fallbackTransitionSeconds
+        )
+      );
+    out.push({
+      ...scene,
+      heroText: sanitizeSceneTextField(scene.heroText, MAX_SCENE_LINE_CHARS),
+      title: sanitizeSceneTextField(scene.title, MAX_SCENE_LINE_CHARS),
+      subtitle: sanitizeSceneTextField(scene.subtitle, MAX_SCENE_LINE_CHARS),
+      heroFinaleText: sanitizeSceneTextField(scene.heroFinaleText, MAX_HERO_FINALE_TEXT_CHARS),
+      lines: scene.lines.slice(0, MAX_SEQUENCE_LINES).map((line) => ({
+        ...line,
+        text: sanitizeSceneTextField(line.text, MAX_SCENE_LINE_CHARS),
+      })),
+      transitionDurationSeconds,
+      durationSeconds: transitionDurationSeconds,
+    });
+  }
+  return out;
 }
 
 function parseChipTextBySlot(raw: unknown): Partial<Record<TextImplyingChipId, string>> {
@@ -429,17 +495,15 @@ export async function createInstantPremiumAnimationProject(
     imageCount: images.length,
     instantMode,
     transitionSeconds: instantTransitionSeconds,
+    sceneTexts: instantSceneTexts,
   });
-  const durationResolved: InstantPremiumDurationSeconds =
-    instantMode === "story" ?
-      viduMultiframeTotalDurationSeconds(images.length, instantTransitionSeconds)
-    : outputPlan.totalDurationSeconds;
+  const durationResolved: InstantPremiumDurationSeconds = outputPlan.providerDurationSeconds;
 
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
-  const transitionCount = images.length - 1;
-  const perTransition = outputPlan.viduSegmentDurationSeconds;
-  const estimatedCredits =
-    transitionCount * perTransition * preset.estimatedCreditsPerSecond;
+  const estimatedCredits = estimateInstantPremiumCreditsForPlan(
+    outputPlan,
+    preset.estimatedCreditsPerSecond
+  );
 
   const chipsJson = chips.length > 0 ? (chips as unknown as Prisma.InputJsonValue) : undefined;
   const totalDurationMs = durationResolved * 1000;
@@ -492,6 +556,10 @@ export async function createInstantPremiumAnimationProject(
           stylePreset,
           aspectRatio,
           instantOutputDurationSeconds: durationResolved,
+          instantStoryboardDurationSeconds:
+            instantMode === "story" ?
+              outputPlan.storyboardDurationSeconds
+            : null,
           instantMode,
           instantTransitionSeconds,
           instantSceneTexts:
@@ -514,7 +582,7 @@ export async function createInstantPremiumAnimationProject(
           presetId: preset.id,
           viduModel,
           viduResolution,
-          viduDurationSeconds: perTransition,
+          viduDurationSeconds: outputPlan.viduSegmentDurationSeconds,
           estimatedCredits,
           advancedSettingsEnabled: false,
           userPrompt: null,
@@ -593,20 +661,22 @@ export async function createInstantPremiumAnimationProject(
 /** Credit estimate for UI (same formula as persisted project). */
 export function estimateInstantPremiumCredits(
   imageCount: number,
-  duration?: InstantPremiumDurationSeconds,
-  options?: { instantMode?: InstantMode; transitionSeconds?: InstantTransitionSeconds }
+  _duration?: InstantPremiumDurationSeconds,
+  options?: {
+    instantMode?: InstantMode;
+    transitionSeconds?: InstantTransitionSeconds;
+    sceneTexts?: import("@/lib/story-overlay-templates").InstantSceneText[];
+  }
 ): number {
   if (imageCount < MIN_INSTANT_PREMIUM_IMAGES) {
     return 0;
   }
   const preset = getAnimationPreset(INSTANT_PRESET_ID);
-  const instantMode = parseInstantMode(options?.instantMode);
   const plan = resolveInstantPremiumOutputPlan({
     imageCount,
-    instantMode,
+    instantMode: options?.instantMode,
     transitionSeconds: options?.transitionSeconds,
+    sceneTexts: options?.sceneTexts,
   });
-  const per = plan.viduSegmentDurationSeconds;
-  const transitions = imageCount - 1;
-  return transitions * per * preset.estimatedCreditsPerSecond;
+  return estimateInstantPremiumCreditsForPlan(plan, preset.estimatedCreditsPerSecond);
 }

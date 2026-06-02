@@ -98,7 +98,7 @@ import {
   STALE_REBUILD_OUTPUT,
   StaleRebuildOutputError,
 } from "@/server/instant-premium/stale-rebuild-output";
-import { finalBlobPathname } from "@/lib/final-video-storage";
+import { finalBlobPathname, cleanFinalBlobPathname } from "@/lib/final-video-storage";
 import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import {
   commitInstantPremiumFinalVideoExport,
@@ -193,6 +193,48 @@ async function uploadMergedVideoToBlob(
     provider: FINAL_BLOB_PROVIDER,
   });
   return url;
+}
+
+async function uploadCleanFinalVideoToBlob(
+  projectId: string,
+  cleanPath: string,
+  rebuildVersion = 0
+): Promise<string> {
+  const body = await fs.readFile(cleanPath);
+  if (!body || body.length <= 0) {
+    throw new Error("Clean merged video is empty before blob upload.");
+  }
+  const uploadTarget = cleanFinalBlobPathname(projectId, rebuildVersion);
+  const { url } = await uploadPublicBlob({
+    pathname: uploadTarget,
+    body,
+    contentType: "video/mp4",
+    addRandomSuffix: false,
+    context: {
+      projectId,
+      uploadTarget,
+      provider: "instant_clean_final",
+    },
+  });
+  console.info("[hc-instant-premium]", {
+    projectId,
+    phase: "cleanFinalBlobUploadComplete",
+    uploadTarget,
+  });
+  return url;
+}
+
+async function persistCleanFinalVideoUrl(
+  projectId: string,
+  cleanPath: string,
+  rebuildVersion = 0
+): Promise<string> {
+  const cleanUrl = await uploadCleanFinalVideoToBlob(projectId, cleanPath, rebuildVersion);
+  await prisma.animationProject.update({
+    where: { id: projectId },
+    data: { instantCleanFinalVideoUrl: cleanUrl },
+  });
+  return cleanUrl;
 }
 
 /** Upload cached local merge when FFmpeg already finished (blob auth retry). */
@@ -886,6 +928,12 @@ export async function executeInstantPremiumMerge(
           });
         }
       }
+
+      const cleanRebuildVersion =
+        project.instantFinalRebuildStatus === "running" ?
+          project.instantFinalRebuildCount + 1
+        : 0;
+      await persistCleanFinalVideoUrl(projectId, mergedPath, cleanRebuildVersion);
 
       const storyMode = parseInstantMode(project.instantMode) === "story";
       const storySceneTexts = parseInstantSceneTexts(project.instantSceneTexts);

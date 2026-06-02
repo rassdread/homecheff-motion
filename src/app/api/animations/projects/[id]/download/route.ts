@@ -34,6 +34,7 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid segment index." }, { status: 400 });
   }
   const languageCode = searchParams.get("lang")?.trim() || undefined;
+  const variant = searchParams.get("variant")?.trim() || undefined;
 
   const viewerProject = await getAnimationProjectByIdForViewer(id, user);
   if (!viewerProject) {
@@ -45,7 +46,7 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
   }
 
-  const resolved = resolveProjectVideoDownload(project, segmentOrder, languageCode);
+  const resolved = resolveProjectVideoDownload(project, segmentOrder, languageCode, variant);
   if (!resolved) {
     return NextResponse.json({ error: "Video not available for download." }, { status: 404 });
   }

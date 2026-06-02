@@ -14,6 +14,10 @@ import {
   viduMultiframeSegmentDurationSeconds,
 } from "@/lib/instant-premium-mode-types";
 import {
+  hasPerSceneDurations,
+  resolveViduSegmentDurationsFromStoryboard,
+} from "@/lib/story-overlay-templates";
+import {
   buildInstantStoryModePrompt,
   buildInstantVideoPrompt,
   instantPremiumTransitionSegmentHint,
@@ -273,12 +277,16 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       transition.project.instantTransitionSeconds
     );
     const sceneTexts = parseInstantSceneTexts(transition.project.instantSceneTexts);
+    const storyBakedTextProtectionActive =
+      !posterMotionActive &&
+      orderedProjectImages.some((img) => img.bakedTextProtectionStatus === "masked");
     finalPrompt = buildInstantStoryModePrompt({
       userIntent: instantStoredIntent.text || null,
       imageCount,
       sceneTexts,
       transitionSeconds,
       stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
+      bakedTextProtectionActive: storyBakedTextProtectionActive,
     });
     const lengthCheck = validateViduPromptLength(finalPrompt, VIDU_PROMPT_HARD_MAX_CHARS);
     if (!lengthCheck.ok) {
@@ -366,7 +374,17 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       const transitionSeconds = normalizeInstantTransitionSeconds(
         transition.project.instantTransitionSeconds
       );
-      const segmentDuration = viduMultiframeSegmentDurationSeconds(transitionSeconds);
+      const sceneTexts = parseInstantSceneTexts(transition.project.instantSceneTexts);
+      const segmentDurations =
+        hasPerSceneDurations(sceneTexts) ?
+          resolveViduSegmentDurationsFromStoryboard(
+            sceneTexts,
+            orderedProjectImages.length,
+            transitionSeconds
+          )
+        : orderedProjectImages.slice(1).map(() =>
+            viduMultiframeSegmentDurationSeconds(transitionSeconds)
+          );
       const firstUrl =
         orderedProjectImages[0].viduInputUrl?.trim() ||
         orderedProjectImages[0].previewUrl?.trim() ||
@@ -381,7 +399,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
         }
         return {
           keyImageUrl: url,
-          durationSeconds: segmentDuration,
+          durationSeconds: segmentDurations[index] ?? viduMultiframeSegmentDurationSeconds(transitionSeconds),
         };
       });
       providerResult = await provider.createMultiImageVideoJob({

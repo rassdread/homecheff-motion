@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { OcrHealthCard } from "@/components/admin/ocr-health-card";
+import { VisionHealthCard } from "@/components/admin/vision-health-card";
 import { VideoCreditsCard } from "@/components/admin/video-credits-card";
 import { AppCard } from "@/components/ui/app-card";
 import { getActiveTranslator } from "@/i18n";
@@ -14,6 +15,7 @@ export default function AdminDashboardPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <VideoCreditsCard />
         <OcrHealthCard />
+        <VisionHealthCard />
         <AppCard>
           <h2 className="text-lg font-semibold">{t("admin.nav.invites")}</h2>
           <p className="mt-2 text-sm text-zinc-600">{t("admin.invites.intro")}</p>

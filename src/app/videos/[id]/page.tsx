@@ -10,7 +10,7 @@ import {
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
-import { LanguageExportBetaSection } from "@/components/instant/language-export-beta-section";
+import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import {
   buildPlaybackDownloadLanguageParam,
@@ -38,6 +38,7 @@ import type {
 import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-messages";
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
+import { projectUsesStoryOverlay } from "@/lib/story-language-export";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 
@@ -671,18 +672,25 @@ export default function VideoDetailPage() {
             ) : null}
           </div>
           {instantLikeProject && hasCompletedInstantFinal ? (
-            <LanguageExportBetaSection
+            <VideoVersionsPanel
               projectId={id}
-              hasCompletedFinal={hasCompletedInstantFinal}
+              cleanVideoUrl={detail?.instantCleanFinalVideoUrl?.trim() || null}
+              finalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
+              usesStoryOverlay={
+                detail ?
+                  projectUsesStoryOverlay({
+                    instantMode: detail.instantMode ?? "transition",
+                    instantSceneTexts: detail.instantSceneTexts,
+                  })
+                : false
+              }
+              instantSceneTexts={detail?.instantSceneTexts}
+              images={(detail?.images ?? []).map((img) => ({
+                id: img.id,
+                previewUrl: img.previewUrl ?? "",
+              }))}
               languageExports={languageExports}
-              isAdmin={isAdmin}
-              adminDebugExpanded={languageAdminDebugOpen}
-              onAdminDebugExpandedChange={setLanguageAdminDebugOpen}
               onLanguageExportsChange={updateLanguageExports}
-              onRenderCompleted={(languageCode) => {
-                setPlaybackLanguage(languageCode);
-                void load({ silent: true });
-              }}
             />
           ) : null}
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}

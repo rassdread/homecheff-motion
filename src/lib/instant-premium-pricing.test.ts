@@ -24,4 +24,12 @@ describe("instant-premium-pricing", () => {
     assert.equal(formatInstantPremiumPriceEur(2, "nl"), "€0,49");
     assert.equal(formatInstantPremiumPriceEur(3, "en"), "€0.99");
   });
+
+  it("scales price by provider duration not storyboard duration", () => {
+    const baseline = estimateInstantPremiumPriceEur(9, { providerDurationSeconds: 40 });
+    const shorter = estimateInstantPremiumPriceEur(9, { providerDurationSeconds: 42 });
+    const storyboardInflated = estimateInstantPremiumPriceEur(9, { durationSeconds: 49 });
+    assert.ok(shorter > baseline);
+    assert.ok(storyboardInflated > shorter);
+  });
 });

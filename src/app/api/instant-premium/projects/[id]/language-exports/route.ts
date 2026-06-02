@@ -2,24 +2,51 @@ import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
-import { buildLanguageExportPreviews } from "@/lib/language-export-prepare";
 import { VideoToolsMissingError } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import {
   createAndRenderLanguageExport,
   listVideoLanguageExports,
-  prepareLanguageTextLayers,
+  prepareLanguageExport,
+  rerenderLanguageExport,
+  updateLanguageExportTexts,
   LanguageExportPrepareError,
   LANGUAGE_EXPORT_IN_PROGRESS,
   LANGUAGE_EXPORT_LIMIT,
   LANGUAGE_EXPORT_NO_BASE,
 } from "@/server/instant-premium/language-export-service";
+import { LANGUAGE_EXPORT_NO_CLEAN } from "@/lib/story-language-export";
 import {
   isLanguageExportCode,
   parseLanguageTextLayerJson,
   type LanguageTextLayerRecord,
 } from "@/lib/video-language-export";
+import type { InstantSceneText } from "@/lib/story-overlay-templates";
+import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
+import { parseInstantMode } from "@/lib/instant-premium-mode-types";
+import { projectUsesStoryOverlay } from "@/lib/story-language-export";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function mapExportRow(row: Awaited<ReturnType<typeof listVideoLanguageExports>>[number]) {
+  return {
+    id: row.id,
+    languageCode: row.languageCode,
+    languageLabel: row.languageLabel,
+    status: row.status,
+    outputVideoUrl: row.outputVideoUrl,
+    sourceFinalVideoUrl: row.sourceFinalVideoUrl,
+    sourceCleanVideoUrl: row.sourceCleanVideoUrl,
+    overlayRenderMode: row.overlayRenderMode,
+    sceneTextsJson: row.sceneTextsJson,
+    textLayerJson: row.textLayerJson,
+    translationProvider: row.translationProvider,
+    isDefault: row.isDefault,
+    version: row.version,
+    errorMessage: row.errorMessage,
+    createdAt: row.createdAt.toISOString(),
+    completedAt: row.completedAt?.toISOString() ?? null,
+  };
+}
 
 export async function GET(_request: Request, context: RouteContext) {
   const user = await requireActiveUser();
@@ -33,23 +60,15 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const exports = await listVideoLanguageExports(projectId);
+  const latestExport = project.exports.find((e) => e.outputVideoUrl?.trim());
   return NextResponse.json({
     ok: true,
-    exports: exports.map((row) => ({
-      id: row.id,
-      languageCode: row.languageCode,
-      languageLabel: row.languageLabel,
-      status: row.status,
-      outputVideoUrl: row.outputVideoUrl,
-      sourceFinalVideoUrl: row.sourceFinalVideoUrl,
-      textLayerJson: row.textLayerJson,
-      translationProvider: row.translationProvider,
-      isDefault: row.isDefault,
-      version: row.version,
-      errorMessage: row.errorMessage,
-      createdAt: row.createdAt.toISOString(),
-      completedAt: row.completedAt?.toISOString() ?? null,
-    })),
+    cleanVideoUrl: project.instantCleanFinalVideoUrl?.trim() || null,
+    finalVideoUrl: latestExport?.outputVideoUrl?.trim() || null,
+    instantMode: parseInstantMode(project.instantMode),
+    usesStoryOverlay: projectUsesStoryOverlay(project),
+    instantSceneTexts: project.instantSceneTexts ?? null,
+    exports: exports.map(mapExportRow),
   });
 }
 
@@ -75,8 +94,62 @@ export async function POST(request: Request, context: RouteContext) {
     action?: string;
     languageCode?: string;
     textLayers?: LanguageTextLayerRecord[];
+    sceneTexts?: InstantSceneText[];
     exportId?: string;
   };
+
+  if (raw.action === "update") {
+    if (!raw.exportId?.trim()) {
+      return NextResponse.json(
+        { ok: false, code: "INVALID_EXPORT", message: "exportId required." },
+        { status: 400 }
+      );
+    }
+    try {
+      await updateLanguageExportTexts({
+        exportId: raw.exportId.trim(),
+        viewer: user,
+        sceneTexts: Array.isArray(raw.sceneTexts) ? parseSceneTextsJson(raw.sceneTexts) : undefined,
+        textLayers: Array.isArray(raw.textLayers)
+          ? parseLanguageTextLayerJson(raw.textLayers)
+          : undefined,
+      });
+      const exports = await listVideoLanguageExports(projectId);
+      return NextResponse.json({ ok: true, exports: exports.map(mapExportRow) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Update failed.";
+      return NextResponse.json({ ok: false, code: "UPDATE_FAILED", message }, { status: 400 });
+    }
+  }
+
+  if (raw.action === "rerender") {
+    if (!raw.exportId?.trim()) {
+      return NextResponse.json(
+        { ok: false, code: "INVALID_EXPORT", message: "exportId required." },
+        { status: 400 }
+      );
+    }
+    try {
+      const { exportId } = await rerenderLanguageExport({
+        exportId: raw.exportId.trim(),
+        viewer: user,
+      });
+      const exports = await listVideoLanguageExports(projectId);
+      const created = exports.find((e) => e.id === exportId);
+      return NextResponse.json({
+        ok: true,
+        exportId,
+        status: created?.status ?? "queued",
+        export: created ? mapExportRow(created) : null,
+        exports: exports.map(mapExportRow),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Rerender failed.";
+      const code =
+        message === LANGUAGE_EXPORT_IN_PROGRESS ? LANGUAGE_EXPORT_IN_PROGRESS : "RERENDER_FAILED";
+      return NextResponse.json({ ok: false, code, message }, { status: 400 });
+    }
+  }
 
   if (raw.action === "prepare") {
     if (!raw.languageCode || !isLanguageExportCode(raw.languageCode)) {
@@ -86,25 +159,38 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
     try {
-      const prepared = await prepareLanguageTextLayers({
+      const prepared = await prepareLanguageExport({
         projectId,
         languageCode: raw.languageCode,
         textLayerOverrides: raw.textLayers,
+        sceneTextOverrides: Array.isArray(raw.sceneTexts)
+          ? parseSceneTextsJson(raw.sceneTexts)
+          : undefined,
       });
-      const layers = prepared.layers;
-      const previews = buildLanguageExportPreviews(layers);
+      if (prepared.mode === "story_overlay") {
+        return NextResponse.json({
+          ok: true,
+          mode: "story_overlay",
+          languageCode: raw.languageCode,
+          sceneTexts: prepared.sceneTexts,
+          translationProvider: prepared.translationProvider,
+          translationFailed: prepared.translationFailed ?? false,
+          message: prepared.message,
+        });
+      }
       return NextResponse.json({
         ok: true,
+        mode: "typography",
         exportId: null,
         languageCode: raw.languageCode,
-        layers,
-        textLayers: layers,
-        previews,
-        layerCount: layers.length,
+        layers: prepared.layers,
+        textLayers: prepared.textLayers,
+        previews: prepared.previews,
+        layerCount: prepared.layerCount,
         translationProvider: prepared.translationProvider,
         typographyRenderQuality: prepared.typographyRenderQuality,
-        translationFailed: prepared.translationFailed ?? false,
-        message: prepared.translationMessage ?? null,
+        translationFailed: prepared.translationFailed,
+        message: prepared.message,
         layerSourceStats: prepared.layerSourceStats,
       });
     } catch (error) {
@@ -152,6 +238,9 @@ export async function POST(request: Request, context: RouteContext) {
   const overrides = Array.isArray(raw.textLayers)
     ? parseLanguageTextLayerJson(raw.textLayers)
     : undefined;
+  const sceneOverrides = Array.isArray(raw.sceneTexts)
+    ? parseSceneTextsJson(raw.sceneTexts)
+    : undefined;
 
   try {
     const { exportId } = await createAndRenderLanguageExport({
@@ -159,6 +248,7 @@ export async function POST(request: Request, context: RouteContext) {
       viewer: user,
       languageCode: raw.languageCode,
       textLayerOverrides: overrides,
+      sceneTextOverrides: sceneOverrides,
     });
     const exports = await listVideoLanguageExports(projectId);
     const created = exports.find((e) => e.id === exportId);
@@ -182,18 +272,8 @@ export async function POST(request: Request, context: RouteContext) {
       status,
       outputVideoUrl,
       languageCode: raw.languageCode,
-      export: created
-        ? {
-            id: created.id,
-            languageCode: created.languageCode,
-            languageLabel: created.languageLabel,
-            status: created.status,
-            outputVideoUrl: created.outputVideoUrl,
-            errorMessage: created.errorMessage,
-            createdAt: created.createdAt.toISOString(),
-            completedAt: created.completedAt?.toISOString() ?? null,
-          }
-        : null,
+      export: created ? mapExportRow(created) : null,
+      exports: exports.map(mapExportRow),
     });
   } catch (error) {
     if (error instanceof VideoToolsMissingError) {
@@ -217,7 +297,9 @@ export async function POST(request: Request, context: RouteContext) {
           ? LANGUAGE_EXPORT_IN_PROGRESS
           : message === LANGUAGE_EXPORT_NO_BASE
             ? LANGUAGE_EXPORT_NO_BASE
-            : "LANGUAGE_EXPORT_FAILED";
+            : message === LANGUAGE_EXPORT_NO_CLEAN
+              ? LANGUAGE_EXPORT_NO_CLEAN
+              : "LANGUAGE_EXPORT_FAILED";
     return NextResponse.json(
       {
         ok: false,

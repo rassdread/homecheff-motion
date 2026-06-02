@@ -14,7 +14,8 @@ import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-p
 import { buildPlaybackCacheKey } from "@/lib/playback-url-resolution";
 import { brand } from "@/lib/brand";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
-import type { InstantPremiumStatusResponse } from "@/types/animation-api";
+import type { InstantPremiumStatusResponse, VideoLanguageExportSummary } from "@/types/animation-api";
+import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
@@ -75,6 +76,13 @@ export default function InstantPremiumProgressPage() {
   const queuedSinceMsRef = useRef<number | null>(null);
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
 
+  const [languageExports, setLanguageExports] = useState<VideoLanguageExportSummary[]>([]);
+  const [versionMeta, setVersionMeta] = useState<{
+    cleanVideoUrl: string | null;
+    instantSceneTexts: unknown;
+    usesStoryOverlay: boolean;
+  } | null>(null);
+
   const isCompleted = snapshot?.status === "completed" || Boolean(snapshot?.finalVideoUrl);
   const isReconnecting =
     connectionState === "reconnecting" ||
@@ -86,6 +94,37 @@ export default function InstantPremiumProgressPage() {
     [snapshot?.finalVideoUrl]
   );
   const transientBanner = transientBannerKey(transientMessage);
+
+  useEffect(() => {
+    if (!isCompleted || !effectiveProjectId) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(
+        `/api/instant-premium/projects/${encodeURIComponent(effectiveProjectId)}/language-exports`,
+        { credentials: "include" }
+      );
+      const json = (await res.json().catch(() => null)) as {
+        exports?: VideoLanguageExportSummary[];
+        cleanVideoUrl?: string | null;
+        instantSceneTexts?: unknown;
+        usesStoryOverlay?: boolean;
+      } | null;
+      if (cancelled || !json) {
+        return;
+      }
+      setLanguageExports(json.exports ?? []);
+      setVersionMeta({
+        cleanVideoUrl: json.cleanVideoUrl ?? null,
+        instantSceneTexts: json.instantSceneTexts,
+        usesStoryOverlay: json.usesStoryOverlay ?? false,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isCompleted, effectiveProjectId]);
 
   const headlineKey = useMemo(() => {
     if (showFatalMissing) {
@@ -609,6 +648,18 @@ export default function InstantPremiumProgressPage() {
                 : t("instant.progress.retryMergeButton")}
             </button>
           ) : null}
+
+          {isCompleted && snapshot?.finalVideoUrl && effectiveProjectId ?
+            <VideoVersionsPanel
+              projectId={effectiveProjectId}
+              cleanVideoUrl={versionMeta?.cleanVideoUrl ?? null}
+              finalVideoUrl={snapshot.finalVideoUrl}
+              usesStoryOverlay={versionMeta?.usesStoryOverlay ?? false}
+              instantSceneTexts={versionMeta?.instantSceneTexts}
+              languageExports={languageExports}
+              onLanguageExportsChange={setLanguageExports}
+            />
+          : null}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/animate/instant" className="rounded-xl border border-zinc-200 px-4 py-2 text-sm">

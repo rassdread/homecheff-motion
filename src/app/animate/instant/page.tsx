@@ -109,6 +109,7 @@ import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-pl
 import {
   maxImagesForInstantMode,
   type InstantMode,
+  type InstantSceneText,
   type InstantTransitionSeconds,
 } from "@/lib/instant-premium-mode-types";
 import {
@@ -116,6 +117,7 @@ import {
   InstantModePanel,
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
+import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -153,6 +155,39 @@ function extractInstantPremiumCreateProjectId(body: unknown, pageOrigin: string)
 
 const MIN_IMAGES = MIN_INSTANT_PREMIUM_IMAGES;
 const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] as const;
+
+function serializeSceneTextDrafts(
+  drafts: InstantSceneTextDraft[],
+  imageCount: number
+): InstantSceneText[] {
+  return drafts.slice(0, imageCount).map((scene, index) => {
+    const lines = scene.lines.map((l) => l.trim()).filter(Boolean);
+    const isLast = index >= imageCount - 1;
+    const transitionSeconds = scene.transitionDurationSeconds ?? scene.durationSeconds;
+    return {
+      template: scene.template,
+      ...(isLast ?
+        {}
+      : {
+          transitionDurationSeconds: transitionSeconds,
+          durationSeconds: transitionSeconds,
+        }),
+      heroText: scene.heroText.trim() || undefined,
+      title: scene.title.trim() || undefined,
+      subtitle: scene.subtitle.trim() || undefined,
+      lines: lines.length > 0 ? lines : undefined,
+      heroFinale: scene.template === "sequence" ? scene.heroFinale : undefined,
+      heroFinaleText:
+        scene.template === "sequence" && scene.heroFinaleText.trim() ?
+          scene.heroFinaleText.trim()
+        : undefined,
+      accentWords: scene.accentWords
+        .split(",")
+        .map((w) => w.trim())
+        .filter(Boolean),
+    };
+  });
+}
 
 type LocalImage = {
   id: string;
@@ -259,6 +294,7 @@ export default function InstantPremiumPage() {
   const [instantMode, setInstantMode] = useState<InstantMode>("transition");
   const [transitionSeconds, setTransitionSeconds] = useState<InstantTransitionSeconds>(5);
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
+  const [storyboardExpandedIndex, setStoryboardExpandedIndex] = useState<number | null>(0);
   const [fastRenderMode, setFastRenderMode] = useState(false);
   const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -290,16 +326,17 @@ export default function InstantPremiumPage() {
         imageCount: images.length,
         instantMode,
         transitionSeconds,
+        sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
       }),
-    [images.length, instantMode, transitionSeconds]
+    [images.length, instantMode, transitionSeconds, sceneTexts]
   );
   const estimatedPriceLabel = useMemo(
     () =>
       formatInstantPremiumPriceEur(Math.max(MIN_IMAGES, images.length), locale === "nl" ? "nl" : "en", {
-        durationSeconds: outputPlan.totalDurationSeconds,
+        providerDurationSeconds: outputPlan.providerDurationSeconds,
         transitionSeconds,
       }),
-    [images.length, locale, outputPlan.totalDurationSeconds, transitionSeconds]
+    [images.length, locale, outputPlan.providerDurationSeconds, transitionSeconds]
   );
 
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
@@ -312,20 +349,12 @@ export default function InstantPremiumPage() {
       imageCount: images.length,
       instantMode,
       transitionSeconds,
+      sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
     });
     return {
       instantMode,
       instantTransitionSeconds: transitionSeconds,
-      instantSceneTexts: sceneTexts.slice(0, images.length).map((scene) => ({
-        template: scene.template,
-        heroText: scene.heroText.trim() || undefined,
-        title: scene.title.trim() || undefined,
-        subtitle: scene.subtitle.trim() || undefined,
-        accentWords: scene.accentWords
-          .split(",")
-          .map((w) => w.trim())
-          .filter(Boolean),
-      })),
+      instantSceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
       images: images.map((img) => {
         const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
         return {
@@ -341,7 +370,7 @@ export default function InstantPremiumPage() {
         };
       }),
       stylePreset,
-      duration: plan.totalDurationSeconds,
+      duration: plan.providerDurationSeconds,
       aspectRatio,
       uiLanguage: locale,
       userIntent: motionText.trim() || null,
@@ -395,6 +424,7 @@ export default function InstantPremiumPage() {
       if (oldIndex < 0 || newIndex < 0) {
         return items;
       }
+      setSceneTexts((texts) => arrayMove(texts, oldIndex, newIndex));
       return arrayMove(items, oldIndex, newIndex);
     });
   }, []);
@@ -445,7 +475,7 @@ export default function InstantPremiumPage() {
           setSceneTexts((st) => {
             const next = [...st];
             while (next.length < updated.length) {
-              next.push(emptySceneTextDraft());
+              next.push(emptySceneTextDraft(transitionSeconds));
             }
             return next.slice(0, updated.length);
           });
@@ -465,7 +495,7 @@ export default function InstantPremiumPage() {
         );
       }
     },
-    [images.length, maxImages, session.user?.role, t]
+    [images.length, maxImages, session.user?.role, t, transitionSeconds]
   );
 
   const updateBakedText = useCallback((imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
@@ -589,7 +619,7 @@ export default function InstantPremiumPage() {
     step,
     images,
     stylePreset,
-    durationSec: outputPlan.totalDurationSeconds,
+    durationSec: outputPlan.providerDurationSeconds,
     motionText,
     continuityStrength,
     chips,
@@ -871,23 +901,15 @@ export default function InstantPremiumPage() {
         imageCount: images.length,
         instantMode,
         transitionSeconds,
+        sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
       });
       const body = {
         images: uploaded,
         instantMode,
         instantTransitionSeconds: transitionSeconds,
-        instantSceneTexts: sceneTexts.slice(0, images.length).map((scene) => ({
-        template: scene.template,
-        heroText: scene.heroText.trim() || undefined,
-        title: scene.title.trim() || undefined,
-        subtitle: scene.subtitle.trim() || undefined,
-        accentWords: scene.accentWords
-          .split(",")
-          .map((w) => w.trim())
-          .filter(Boolean),
-      })),
+        instantSceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
         stylePreset,
-        duration: plan.totalDurationSeconds,
+        duration: plan.providerDurationSeconds,
         aspectRatio,
         uiLanguage: locale,
         userIntent: motionText.trim() || null,
@@ -1241,6 +1263,17 @@ export default function InstantPremiumPage() {
         <AdvancedCreatorSettingsPanel
           isAdmin={mounted && isAdmin}
           showAdminDiagnostics={mounted && isAdmin}
+          durationDebug={
+            instantMode === "story" && images.length >= MIN_IMAGES ?
+              {
+                storyboardDurationSeconds: outputPlan.storyboardDurationSeconds,
+                providerDurationSeconds: outputPlan.providerDurationSeconds,
+                durationScale: outputPlan.durationScale,
+                segmentCount: outputPlan.providerSegmentCount,
+                imageCount: outputPlan.imageCount,
+              }
+            : null
+          }
           textRenderMode={textRenderMode}
           overlayStyle={hybridOverlayStyle}
           posterMotionSettings={posterMotionSettings}
@@ -1291,15 +1324,10 @@ export default function InstantPremiumPage() {
                   transitionSeconds={transitionSeconds}
                   onTransitionSecondsChange={setTransitionSeconds}
                   imageCount={images.length}
+                  frameCount={images.length}
                   transitionCount={outputPlan.transitionCount}
-                  totalDurationSeconds={outputPlan.totalDurationSeconds}
+                  videoDurationSeconds={outputPlan.providerDurationSeconds}
                   estimatedPriceLabel={estimatedPriceLabel}
-                  sceneTexts={sceneTexts}
-                  onSceneTextChange={(index, patch) =>
-                    setSceneTexts((prev) =>
-                      prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
-                    )
-                  }
                 />
                 <h2 className="mt-6 text-xl font-semibold tracking-tight">
                   {t("instant.creatorStep.upload")}
@@ -1382,6 +1410,63 @@ export default function InstantPremiumPage() {
                         </div>
                       </SortableContext>
                     </DndContext>
+                    {instantMode === "story" ?
+                      <StoryboardEditor
+                        images={images.map((im) => ({
+                          id: im.id,
+                          previewUrl: im.workingPreviewUrl,
+                        }))}
+                        imageCount={images.length}
+                        sceneTexts={sceneTexts}
+                        expandedIndex={storyboardExpandedIndex}
+                        onExpandedIndexChange={setStoryboardExpandedIndex}
+                        onSceneChange={(index, patch) =>
+                          setSceneTexts((prev) =>
+                            prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
+                          )
+                        }
+                        onMoveScene={(index, direction) => {
+                          const target = direction === "up" ? index - 1 : index + 1;
+                          if (target < 0 || target >= images.length) {
+                            return;
+                          }
+                          setImages((prev) => arrayMove(prev, index, target));
+                          setSceneTexts((prev) => arrayMove(prev, index, target));
+                          setStoryboardExpandedIndex(target);
+                        }}
+                        onDuplicateTextFromPrevious={(index) => {
+                          if (index <= 0) {
+                            return;
+                          }
+                          setSceneTexts((prev) => {
+                            const source = prev[index - 1];
+                            if (!source) {
+                              return prev;
+                            }
+                            const next = [...prev];
+                            next[index] = {
+                              ...next[index]!,
+                              template: source.template,
+                              heroText: source.heroText,
+                              title: source.title,
+                              subtitle: source.subtitle,
+                              lines: [...source.lines],
+                              heroFinale: source.heroFinale,
+                              heroFinaleText: source.heroFinaleText,
+                              accentWords: source.accentWords,
+                            };
+                            return next;
+                          });
+                        }}
+                        onClearText={(index) => {
+                          setSceneTexts((prev) => {
+                            const next = [...prev];
+                            next[index] = emptySceneTextDraft(transitionSeconds);
+                            return next;
+                          });
+                        }}
+                      />
+                    : null}
                   </div>
                 ) : null}
               </>
@@ -1472,7 +1557,11 @@ export default function InstantPremiumPage() {
                   ) : null}
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.duration")}:</span>{" "}
-                    {outputPlan.totalDurationSeconds}s
+                    {instantMode === "story" ?
+                      t("instant.storyboard.step7VideoDuration", {
+                        seconds: outputPlan.providerDurationSeconds,
+                      })
+                    : `${outputPlan.providerDurationSeconds}s`}
                   </li>
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.format")}:</span> {aspectRatio}

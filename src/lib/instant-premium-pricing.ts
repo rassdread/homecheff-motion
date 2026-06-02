@@ -41,11 +41,14 @@ function standardPacingDurationSeconds(imageCount: number): number {
 }
 
 export type InstantPremiumPriceOptions = {
+  /** @deprecated Prefer providerDurationSeconds for billing estimates. */
   durationSeconds?: number;
+  /** Billable generated video length (Vidu output). */
+  providerDurationSeconds?: number;
   transitionSeconds?: InstantTransitionSeconds;
 };
 
-/** EUR estimate scaled by output duration vs legacy baseline for the same image count. */
+/** EUR estimate scaled by provider output duration vs legacy baseline for the same image count. */
 export function estimateInstantPremiumPriceEur(
   imageCount: number,
   options?: InstantPremiumPriceOptions
@@ -57,6 +60,7 @@ export function estimateInstantPremiumPriceEur(
   const baselineDuration = standardPacingDurationSeconds(imageCount);
   const transitionSeconds = options?.transitionSeconds ?? 5;
   const durationSeconds =
+    options?.providerDurationSeconds ??
     options?.durationSeconds ??
     getInstantOutputDurationSeconds(imageCount, transitionSeconds);
   if (baselineDuration <= 0 || durationSeconds <= 0) {

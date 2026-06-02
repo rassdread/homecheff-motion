@@ -21,6 +21,9 @@ import { applyTypographyPreservedOverlay } from "@/server/instant-premium/typogr
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import { downloadLanguageExportVideoToFile } from "@/server/instant-premium/language-export-io";
+import { applyStorySceneTextOverlay } from "@/server/animation-export/story-text-overlay";
+import { parseInstantSceneTexts } from "@/lib/story-overlay-templates";
+import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 
 export async function executeLanguageExportRender(exportId: string): Promise<void> {
   const row = await prisma.videoLanguageExport.findUnique({
@@ -43,33 +46,60 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `hc-lang-export-${exportId}-`));
   try {
     await resolveFfmpegBinaries();
+    const sourceUrl =
+      row.sourceCleanVideoUrl?.trim() ||
+      row.sourceFinalVideoUrl?.trim() ||
+      "";
     const sourcePath = path.join(workDir, "source.mp4");
     const outputPath = path.join(workDir, "output.mp4");
-    await downloadLanguageExportVideoToFile(row.sourceFinalVideoUrl, sourcePath);
+    await downloadLanguageExportVideoToFile(sourceUrl, sourcePath);
 
-    const layers = parseLanguageTextLayerJson(row.textLayerJson);
     const probed = await probeVideoSegment(sourcePath);
     const totalDurationMs = Math.max(
       1000,
       Math.round((probed?.durationSec ?? row.project.instantOutputDurationSeconds ?? 8) * 1000)
     );
-    const enriched = enrichLanguageTextLayersForRender({
-      layers,
-      languageCode: row.languageCode,
-      aspectRatio: row.project.aspectRatio,
-      viduResolution: row.project.viduResolution,
-    });
+    const overlayDurationSec =
+      probed?.durationSec ?? row.project.instantOutputDurationSeconds ?? 8;
+    const dims = resolveInstantVideoDimensions(
+      row.project.aspectRatio,
+      row.project.viduResolution
+    );
 
-    const compositor = await applyTypographyPreservedOverlay({
-      inputVideoPath: sourcePath,
-      outputVideoPath: outputPath,
-      layers: enriched,
-      languageCode: row.languageCode,
-      aspectRatio: row.project.aspectRatio,
-      viduResolution: row.project.viduResolution,
-      totalDurationMs,
-      typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
-    });
+    let compositorMethod = "story_overlay";
+
+    if (row.overlayRenderMode === "story_overlay") {
+      const sceneTexts = parseInstantSceneTexts(row.sceneTextsJson);
+      await applyStorySceneTextOverlay({
+        inputVideoPath: sourcePath,
+        outputVideoPath: outputPath,
+        sceneTexts,
+        durationSeconds: overlayDurationSec,
+        width: probed?.width ?? dims.width,
+        height: probed?.height ?? dims.height,
+        workDir,
+      });
+    } else {
+      const layers = parseLanguageTextLayerJson(row.textLayerJson);
+      const enriched = enrichLanguageTextLayersForRender({
+        layers,
+        languageCode: row.languageCode,
+        aspectRatio: row.project.aspectRatio,
+        viduResolution: row.project.viduResolution,
+      });
+
+      const compositor = await applyTypographyPreservedOverlay({
+        inputVideoPath: sourcePath,
+        outputVideoPath: outputPath,
+        layers: enriched,
+        languageCode: row.languageCode,
+        aspectRatio: row.project.aspectRatio,
+        viduResolution: row.project.viduResolution,
+        totalDurationMs,
+        typographyRenderQuality: DEFAULT_TYPOGRAPHY_RENDER_QUALITY,
+      });
+      compositorMethod = compositor.method;
+    }
 
     const blobPath = languageFinalBlobPathname(
       row.projectId,
@@ -99,7 +129,7 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       provider: "internal_text_overlay",
       languageCode: row.languageCode,
       projectId: row.projectId,
-      sourceFinalVideoUrl: row.sourceFinalVideoUrl,
+      sourceFinalVideoUrl: sourceUrl,
       outputVideoUrl: url,
       recordedAt: new Date().toISOString(),
       status: "completed",
@@ -124,8 +154,8 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       projectId: row.projectId,
       languageCode: row.languageCode,
       outputVideoUrl: url,
-      layerCount: layers.length,
-      compositorMethod: compositor.method,
+      overlayRenderMode: row.overlayRenderMode,
+      compositorMethod,
     });
   } catch (error) {
     const message =

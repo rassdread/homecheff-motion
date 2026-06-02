@@ -17,6 +17,8 @@ model AnimationProject {
   projectType String                @default("classic")
   /** Target merged length for instant_premium; derived from image count × transition seconds. */
   instantOutputDurationSeconds Int?
+  /** Story Mode: sum of all scene card durations (overlay pacing plan); may exceed instantOutputDurationSeconds. */
+  instantStoryboardDurationSeconds Int?
   /** transition = pairwise Vidu segments; story = single Vidu multiframe video. */
   instantMode String @default("transition")
   /** Per-transition / per-multiframe-segment duration: 3, 5, or 8 (UI: Fast / Standard / Cinematic). */
@@ -53,6 +55,8 @@ model AnimationProject {
   instantFinalRebuiltAt DateTime?
   /** Last successful final URL before the most recent rebuild. */
   instantPreviousFinalVideoUrl String?
+  /** Pre-overlay merged Vidu video (concat only, no ASS/locked text). */
+  instantCleanFinalVideoUrl String?
   /** running | failed — null when idle */
   instantFinalRebuildStatus String?
   /** Non-billable rebuild audit events (JSON). */
@@ -97,6 +101,12 @@ model VideoLanguageExport {
   /** queued | rendering | completed | failed | needs_refresh */
   status               String
   sourceFinalVideoUrl  String
+  /** Pre-overlay source when available (story overlay re-render). */
+  sourceCleanVideoUrl  String?
+  /** typography | story_overlay */
+  overlayRenderMode    String           @default("typography")
+  /** Story Mode overlay copy for this language version (JSON InstantSceneText[]). */
+  sceneTextsJson       Json?
   textLayerJson        Json
   translationProvider  String?
   translationAuditJson Json?

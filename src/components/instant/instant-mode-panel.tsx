@@ -2,24 +2,52 @@
 
 import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import { INSTANT_TRANSITION_SECONDS_OPTIONS } from "@/lib/instant-premium-mode-types";
-import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
+import { STORY_SCENE_DURATION_OPTIONS } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
+import type { SceneOverlayTemplate, StorySceneDurationSeconds } from "@/lib/story-overlay-templates";
+
+export function storyDurationDefault(
+  transitionSeconds: number
+): StorySceneDurationSeconds {
+  if (transitionSeconds === 3) {
+    return 3;
+  }
+  if (transitionSeconds === 8) {
+    return 7;
+  }
+  return 5;
+}
 
 export type InstantSceneTextDraft = {
   template: SceneOverlayTemplate;
+  /** Duration of transition into the next frame (ignored on last frame). */
+  transitionDurationSeconds: StorySceneDurationSeconds;
+  /** @deprecated Mirrored from transitionDurationSeconds for API compatibility. */
+  durationSeconds: StorySceneDurationSeconds;
   heroText: string;
   title: string;
   subtitle: string;
   accentWords: string;
+  lines: string[];
+  heroFinale: boolean;
+  heroFinaleText: string;
 };
 
-export function emptySceneTextDraft(): InstantSceneTextDraft {
+export function emptySceneTextDraft(
+  fallbackTransitionSeconds: InstantTransitionSeconds | number = 5
+): InstantSceneTextDraft {
+  const pace = storyDurationDefault(fallbackTransitionSeconds);
   return {
     template: "auto",
+    transitionDurationSeconds: pace,
+    durationSeconds: pace,
     heroText: "",
     title: "",
     subtitle: "",
     accentWords: "",
+    lines: [],
+    heroFinale: true,
+    heroFinaleText: "",
   };
 }
 
@@ -29,14 +57,13 @@ type InstantModePanelProps = {
   transitionSeconds: InstantTransitionSeconds;
   onTransitionSecondsChange: (seconds: InstantTransitionSeconds) => void;
   imageCount: number;
+  frameCount: number;
   transitionCount: number;
-  totalDurationSeconds: number;
+  videoDurationSeconds: number;
   estimatedPriceLabel: string;
-  sceneTexts: InstantSceneTextDraft[];
-  onSceneTextChange: (index: number, patch: Partial<InstantSceneTextDraft>) => void;
 };
 
-const DURATION_LABEL_KEYS: Record<
+const TRANSITION_DURATION_LABEL_KEYS: Record<
   InstantTransitionSeconds,
   { title: string; subtitle: string }
 > = {
@@ -54,14 +81,28 @@ const DURATION_LABEL_KEYS: Record<
   },
 };
 
-const TEMPLATE_OPTIONS: SceneOverlayTemplate[] = ["auto", "hero", "scene"];
+const STORY_FALLBACK_DURATION_KEYS: Record<
+  StorySceneDurationSeconds,
+  { title: string; subtitle: string }
+> = {
+  3: {
+    title: "instant.storyboard.duration.3",
+    subtitle: "instant.mode.duration.fastHint",
+  },
+  5: {
+    title: "instant.storyboard.duration.5",
+    subtitle: "instant.mode.duration.standardHint",
+  },
+  7: {
+    title: "instant.storyboard.duration.7",
+    subtitle: "instant.storyboard.durationHint",
+  },
+};
 
-function showHeroFields(template: SceneOverlayTemplate): boolean {
-  return template === "auto" || template === "hero";
-}
-
-function showSceneFields(template: SceneOverlayTemplate): boolean {
-  return template === "auto" || template === "scene";
+function storyFallbackFromTransition(
+  seconds: InstantTransitionSeconds
+): StorySceneDurationSeconds {
+  return storyDurationDefault(seconds);
 }
 
 export function InstantModePanel({
@@ -70,11 +111,10 @@ export function InstantModePanel({
   transitionSeconds,
   onTransitionSecondsChange,
   imageCount,
+  frameCount,
   transitionCount,
-  totalDurationSeconds,
+  videoDurationSeconds,
   estimatedPriceLabel,
-  sceneTexts,
-  onSceneTextChange,
 }: InstantModePanelProps) {
   const t = useActiveTranslator();
 
@@ -115,123 +155,86 @@ export function InstantModePanel({
       </div>
 
       <div>
-        <p className="text-sm font-semibold text-zinc-900">{t("instant.mode.durationTitle")}</p>
+        <p className="text-sm font-semibold text-zinc-900">
+          {instantMode === "story" ?
+            t("instant.storyboard.defaultTransitionPaceTitle")
+          : t("instant.mode.durationTitle")}
+        </p>
+        {instantMode === "story" ?
+          <p className="mt-1 text-xs text-zinc-500">{t("instant.storyboard.defaultTransitionPaceHint")}</p>
+        : null}
         <div className="mt-3 flex flex-col gap-2">
-          {INSTANT_TRANSITION_SECONDS_OPTIONS.map((seconds) => {
-            const keys = DURATION_LABEL_KEYS[seconds];
-            const selected = transitionSeconds === seconds;
-            return (
-              <button
-                key={seconds}
-                type="button"
-                onClick={() => onTransitionSecondsChange(seconds)}
-                className={`rounded-xl border px-4 py-2.5 text-left ${
-                  selected ?
-                    "border-emerald-500 bg-emerald-50"
-                  : "border-zinc-200 bg-white hover:border-zinc-300"
-                }`}
-              >
-                <p className="text-sm font-medium text-zinc-900">{t(keys.title as never)}</p>
-                <p className="text-xs text-zinc-500">{t(keys.subtitle as never)}</p>
-              </button>
-            );
-          })}
+          {instantMode === "story" ?
+            STORY_SCENE_DURATION_OPTIONS.map((seconds) => {
+              const keys = STORY_FALLBACK_DURATION_KEYS[seconds];
+              const selected = storyFallbackFromTransition(transitionSeconds) === seconds;
+              return (
+                <button
+                  key={seconds}
+                  type="button"
+                  onClick={() => {
+                    const mapped: InstantTransitionSeconds =
+                      seconds === 3 ? 3 : seconds === 7 ? 8 : 5;
+                    onTransitionSecondsChange(mapped);
+                  }}
+                  className={`rounded-xl border px-4 py-2.5 text-left ${
+                    selected ?
+                      "border-emerald-500 bg-emerald-50"
+                    : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-zinc-900">{t(keys.title as never)}</p>
+                  <p className="text-xs text-zinc-500">{t(keys.subtitle as never)}</p>
+                </button>
+              );
+            })
+          : INSTANT_TRANSITION_SECONDS_OPTIONS.map((seconds) => {
+              const keys = TRANSITION_DURATION_LABEL_KEYS[seconds];
+              const selected = transitionSeconds === seconds;
+              return (
+                <button
+                  key={seconds}
+                  type="button"
+                  onClick={() => onTransitionSecondsChange(seconds)}
+                  className={`rounded-xl border px-4 py-2.5 text-left ${
+                    selected ?
+                      "border-emerald-500 bg-emerald-50"
+                    : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-zinc-900">{t(keys.title as never)}</p>
+                  <p className="text-xs text-zinc-500">{t(keys.subtitle as never)}</p>
+                </button>
+              );
+            })}
         </div>
       </div>
 
       {imageCount >= 2 ? (
-        <p className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-          {t("instant.mode.stats", {
-            images: imageCount,
-            transitions: transitionCount,
-            seconds: totalDurationSeconds,
-            price: estimatedPriceLabel,
-          })}
-        </p>
-      ) : null}
-
-      {instantMode === "story" && imageCount > 0 ? (
-        <div className="space-y-3">
-          <p className="rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
-            {t("instant.mode.story.warning")}
+        <div className="space-y-2">
+          <p className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+            {instantMode === "story" ?
+              t("instant.storyboard.statsTransition", {
+                frames: frameCount,
+                transitions: transitionCount,
+                seconds: videoDurationSeconds,
+                price: estimatedPriceLabel,
+              })
+            : t("instant.mode.stats", {
+                images: imageCount,
+                transitions: transitionCount,
+                seconds: videoDurationSeconds,
+                price: estimatedPriceLabel,
+              })}
           </p>
-          <p className="text-xs leading-relaxed text-zinc-600">{t("instant.overlay.heroHelper")}</p>
-          {sceneTexts.map((scene, index) => (
-            <div
-              key={index}
-              className="rounded-2xl border border-zinc-100 bg-white p-3 shadow-sm"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("instant.mode.sceneLabel", { index: index + 1 })}
-              </p>
-              <label className="mt-2 block text-xs text-zinc-500">
-                {t("instant.overlay.templateLabel")}
-                <select
-                  value={scene.template}
-                  onChange={(e) =>
-                    onSceneTextChange(index, {
-                      template: e.target.value as SceneOverlayTemplate,
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
-                >
-                  {TEMPLATE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {t(`instant.overlay.template.${opt}` as never)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {showHeroFields(scene.template) ? (
-                <label className="mt-2 block text-xs text-zinc-500">
-                  {t("instant.overlay.heroText")}
-                  <textarea
-                    value={scene.heroText}
-                    onChange={(e) => onSceneTextChange(index, { heroText: e.target.value })}
-                    rows={2}
-                    className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase text-zinc-900"
-                    placeholder={t("instant.overlay.heroTextPlaceholder")}
-                  />
-                </label>
-              ) : null}
-              {showSceneFields(scene.template) ? (
-                <>
-                  <label className="mt-2 block text-xs text-zinc-500">
-                    {t("instant.mode.sceneTitle")}
-                    <input
-                      type="text"
-                      value={scene.title}
-                      onChange={(e) => onSceneTextChange(index, { title: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                      placeholder={t("instant.mode.sceneTitlePlaceholder")}
-                    />
-                  </label>
-                  <label className="mt-2 block text-xs text-zinc-500">
-                    {t("instant.mode.sceneSubtitle")}
-                    <input
-                      type="text"
-                      value={scene.subtitle}
-                      onChange={(e) => onSceneTextChange(index, { subtitle: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                      placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
-                    />
-                  </label>
-                </>
-              ) : null}
-              <label className="mt-2 block text-xs text-zinc-500">
-                {t("instant.overlay.accentWords")}
-                <input
-                  type="text"
-                  value={scene.accentWords}
-                  onChange={(e) => onSceneTextChange(index, { accentWords: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                  placeholder={t("instant.overlay.accentWordsPlaceholder")}
-                />
-              </label>
-            </div>
-          ))}
         </div>
       ) : null}
+
+      {instantMode === "story" && imageCount > 0 ?
+        <p className="rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2 text-xs text-amber-950">
+          {t("instant.mode.story.warning")}
+        </p>
+      : null}
     </div>
   );
 }

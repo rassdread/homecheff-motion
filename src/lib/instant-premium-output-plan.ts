@@ -8,6 +8,12 @@ import {
   viduMultiframeSegmentDurationSeconds,
   viduMultiframeTotalDurationSeconds,
 } from "@/lib/instant-premium-mode-types";
+import type { InstantSceneText, NormalizedSceneText } from "@/lib/story-overlay-templates";
+import {
+  getStoryTransitionDurationSeconds,
+  hasCustomTransitionDurations,
+  resolveViduSegmentDurationsFromStoryboard,
+} from "@/lib/story-overlay-templates";
 import { MIN_INSTANT_PREMIUM_IMAGES } from "@/lib/instant-premium-pricing";
 
 export type InstantPremiumOutputMode = "single_transition" | "cinematic_story" | "story_multiframe";
@@ -15,12 +21,20 @@ export type InstantPremiumOutputMode = "single_transition" | "cinematic_story" |
 export type InstantPremiumOutputPlan = {
   imageCount: number;
   transitionCount: number;
+  /** @deprecated Same as providerDurationSeconds in Story Mode (transition sum). */
+  storyboardDurationSeconds: number;
+  /** Vidu-generated / billable video duration (sum of transition durations). */
+  providerDurationSeconds: number;
+  /** @deprecated Use storyboardDurationSeconds */
   totalDurationSeconds: number;
   perTransitionSeconds: number;
-  /** Vidu-requested duration per segment (may differ from UI transition seconds in story mode). */
+  /** Vidu-requested duration per segment (first segment when durations vary). */
   viduSegmentDurationSeconds: number;
-  /** Story multiframe: sum of Vidu segment durations. */
+  /** @deprecated Use providerDurationSeconds */
   viduTotalDurationSeconds: number;
+  /** providerDurationSeconds / storyboardDurationSeconds when storyboard > 0 */
+  durationScale: number;
+  providerSegmentCount: number;
   mode: InstantPremiumOutputMode;
   instantMode: InstantMode;
   transitionSeconds: InstantTransitionSeconds;
@@ -30,6 +44,7 @@ export type ResolveInstantPremiumOutputPlanInput = {
   imageCount: number;
   instantMode?: InstantMode | string | null;
   transitionSeconds?: InstantTransitionSeconds | number | null;
+  sceneTexts?: InstantSceneText[] | NormalizedSceneText[] | null;
 };
 
 /** Total target length from image count and per-transition seconds. */
@@ -50,6 +65,70 @@ export function instantPremiumPerTransitionSeconds(
   return Math.max(1, Math.min(16, raw));
 }
 
+function buildPlanFields(params: {
+  safeCount: number;
+  instantMode: InstantMode;
+  transitionSeconds: InstantTransitionSeconds;
+  transitionCount: number;
+  sceneTexts: InstantSceneText[] | NormalizedSceneText[];
+}): Pick<
+  InstantPremiumOutputPlan,
+  | "storyboardDurationSeconds"
+  | "providerDurationSeconds"
+  | "viduSegmentDurationSeconds"
+  | "durationScale"
+  | "providerSegmentCount"
+  | "perTransitionSeconds"
+> {
+  const { safeCount, instantMode, transitionSeconds, transitionCount, sceneTexts } = params;
+  const customTransitions = instantMode === "story" && hasCustomTransitionDurations(sceneTexts);
+  let storyboardDurationSeconds =
+    customTransitions ?
+      getStoryTransitionDurationSeconds(sceneTexts, safeCount, transitionSeconds)
+    : getInstantOutputDurationSeconds(safeCount, transitionSeconds);
+
+  const providerSegmentCount = Math.max(0, transitionCount);
+  let providerDurationSeconds: number;
+  let viduSegmentDurationSeconds: number;
+
+  if (instantMode === "story") {
+    if (customTransitions) {
+      const segments = resolveViduSegmentDurationsFromStoryboard(
+        sceneTexts,
+        safeCount,
+        transitionSeconds
+      );
+      providerDurationSeconds = segments.reduce((sum, value) => sum + value, 0);
+      storyboardDurationSeconds = providerDurationSeconds;
+      viduSegmentDurationSeconds =
+        segments[0] ?? viduMultiframeSegmentDurationSeconds(transitionSeconds);
+    } else {
+      viduSegmentDurationSeconds = viduMultiframeSegmentDurationSeconds(transitionSeconds);
+      providerDurationSeconds = viduMultiframeTotalDurationSeconds(safeCount, transitionSeconds);
+    }
+  } else {
+    viduSegmentDurationSeconds = Math.max(1, Math.min(16, transitionSeconds));
+    providerDurationSeconds = providerSegmentCount * viduSegmentDurationSeconds;
+  }
+
+  const durationScale =
+    storyboardDurationSeconds > 0 ?
+      providerDurationSeconds / storyboardDurationSeconds
+    : 1;
+
+  const perTransitionSeconds =
+    instantMode === "story" ? viduSegmentDurationSeconds : viduSegmentDurationSeconds;
+
+  return {
+    storyboardDurationSeconds,
+    providerDurationSeconds,
+    viduSegmentDurationSeconds,
+    durationScale,
+    providerSegmentCount,
+    perTransitionSeconds,
+  };
+}
+
 export function resolveInstantPremiumOutputPlan(
   input: number | ResolveInstantPremiumOutputPlanInput
 ): InstantPremiumOutputPlan {
@@ -59,58 +138,61 @@ export function resolveInstantPremiumOutputPlan(
   const instantMode = parseInstantMode(params.instantMode);
   const transitionSeconds = normalizeInstantTransitionSeconds(params.transitionSeconds);
   const transitionCount = getInstantTransitionCount(safeCount);
-  const totalDurationSeconds = getInstantOutputDurationSeconds(safeCount, transitionSeconds);
-  const viduSegmentDurationSeconds =
-    instantMode === "story" ?
-      viduMultiframeSegmentDurationSeconds(transitionSeconds)
-    : Math.max(1, Math.min(16, transitionSeconds));
-  const viduTotalDurationSeconds =
-    instantMode === "story" ?
-      viduMultiframeTotalDurationSeconds(safeCount, transitionSeconds)
-    : transitionCount * viduSegmentDurationSeconds;
+  const sceneTexts = params.sceneTexts ?? [];
+  const durations = buildPlanFields({
+    safeCount,
+    instantMode,
+    transitionSeconds,
+    transitionCount,
+    sceneTexts,
+  });
 
-  const perTransitionSeconds =
-    instantMode === "story" ?
-      viduSegmentDurationSeconds
-    : viduSegmentDurationSeconds;
+  const base = {
+    imageCount: safeCount,
+    transitionCount,
+    ...durations,
+    totalDurationSeconds: durations.storyboardDurationSeconds,
+    viduTotalDurationSeconds: durations.providerDurationSeconds,
+    instantMode,
+    transitionSeconds,
+  };
 
   if (instantMode === "story" && safeCount >= MIN_INSTANT_PREMIUM_IMAGES) {
     return {
-      imageCount: safeCount,
-      transitionCount,
-      totalDurationSeconds,
-      perTransitionSeconds,
-      viduSegmentDurationSeconds,
-      viduTotalDurationSeconds,
+      ...base,
       mode: "story_multiframe",
-      instantMode,
-      transitionSeconds,
     };
   }
 
   if (safeCount <= MIN_INSTANT_PREMIUM_IMAGES) {
     return {
-      imageCount: safeCount,
-      transitionCount: Math.max(1, transitionCount),
-      totalDurationSeconds,
+      ...base,
       perTransitionSeconds: transitionSeconds,
       viduSegmentDurationSeconds: Math.max(1, Math.min(16, transitionSeconds)),
-      viduTotalDurationSeconds: transitionCount * Math.max(1, Math.min(16, transitionSeconds)),
+      providerDurationSeconds:
+        Math.max(1, transitionCount) * Math.max(1, Math.min(16, transitionSeconds)),
+      storyboardDurationSeconds: getInstantOutputDurationSeconds(safeCount, transitionSeconds),
+      totalDurationSeconds: getInstantOutputDurationSeconds(safeCount, transitionSeconds),
+      viduTotalDurationSeconds:
+        Math.max(1, transitionCount) * Math.max(1, Math.min(16, transitionSeconds)),
+      durationScale: 1,
       mode: "single_transition",
       instantMode: "transition",
-      transitionSeconds,
     };
   }
 
   return {
-    imageCount: safeCount,
-    transitionCount,
-    totalDurationSeconds,
+    ...base,
     perTransitionSeconds: transitionSeconds,
-    viduSegmentDurationSeconds,
-    viduTotalDurationSeconds,
     mode: "cinematic_story",
     instantMode: "transition",
-    transitionSeconds,
   };
+}
+
+/** Credit estimate from provider (generated) video duration. */
+export function estimateInstantPremiumCreditsForPlan(
+  plan: InstantPremiumOutputPlan,
+  creditsPerSecond: number
+): number {
+  return Math.round(plan.providerDurationSeconds * creditsPerSecond);
 }

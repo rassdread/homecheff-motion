@@ -255,12 +255,20 @@ export function buildInstantVideoPrompt(input: BuildInstantVideoPromptInput): st
   return [storyBlock, premiumMotionBlock, ...tailBlocks, powerLine].filter(Boolean).join("\n\n");
 }
 
+/** When source frames still contain intentional UI/card text (not pre-masked for Vidu). */
+export const STORY_MODE_BAKED_UI_PRESERVATION_BLOCK = `BAKED UI IN SOURCE FRAMES:
+- Preserve existing visible UI text already printed in the uploaded images (message boxes, city names, location labels, dashboard labels, stats cards, app cards).
+- Keep those elements stable, readable, and visually consistent during motion.
+- Do not rewrite, translate, replace, or invent new on-frame UI copy.`;
+
 export type BuildInstantStoryModePromptInput = {
   userIntent: string | null;
   imageCount: number;
   sceneTexts: InstantSceneText[];
   transitionSeconds: number;
   stylePreset?: InstantPremiumStylePreset;
+  /** True when any keyframe was pre-masked for baked-text protection before Vidu. */
+  bakedTextProtectionActive?: boolean;
 };
 
 /**
@@ -286,6 +294,16 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     if (scene.subtitle) {
       parts.push(`subtitle context: ${scene.subtitle}`);
     }
+    if (scene.lines.length > 0) {
+      const sequenceContext = scene.lines.map((l) => l.text).join(" → ");
+      parts.push(`timed overlay sequence (post-production only): ${sequenceContext}`);
+    }
+    if (scene.heroFinaleText.trim()) {
+      parts.push(`hero finale overlay context: ${scene.heroFinaleText.trim()}`);
+    }
+    if (typeof scene.durationSeconds === "number") {
+      parts.push(`intended scene pacing: ~${scene.durationSeconds}s`);
+    }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";
     sceneLines.push(`Scene ${i + 1}: ${context}`);
@@ -296,21 +314,28 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
       `User direction: ${input.userIntent.trim()}`
     : "Follow cinematic defaults and preserve subject identity across all keyframes.";
 
+  const bakedTextTail = input.bakedTextProtectionActive ?
+    BAKED_TEXT_CLEANED_PROMPT_BLOCK.split("\n").slice(0, 4).join("\n")
+  : STORY_MODE_BAKED_UI_PRESERVATION_BLOCK.split("\n").slice(0, 4).join("\n");
+
   return [
-    "Create one continuous cinematic vertical video using the uploaded images in the exact order as keyframes.",
+    "Create one continuous cinematic vertical video using the uploaded images in the exact order as storyboard scenes.",
     "Treat each image as a fixed visual anchor.",
+    "Use the uploaded images in order as storyboard scenes. Some scenes may be intended to last longer for emotional or final moments. Keep motion natural and cinematic.",
     "Preserve the same characters, mascot identity, clothing, logo placement, body shape, colors, and visual style.",
     "Smoothly transition from image 1 to image 2, then image 2 to image 3, until the final image.",
-    "Do not generate any visible text, letters, captions, subtitles, logos, UI words, or typography inside the video.",
-    "Text overlays will be added after generation. Leave clean space for post-production captions.",
+    "Hero, title, subtitle, sequence lines, and hero finale strings are FFmpeg overlay copy added after generation — never render them inside the Vidu video.",
+    "The following scene list is narrative context for motion and pacing only.",
+    "Do not generate new visible captions, hero lines, subtitles, or marketing overlay typography inside the video.",
     "Keep motion cinematic, natural, and coherent.",
     "The full video should feel like one complete story from beginning to end.",
     styleLine,
     intentBlock,
     `Target pacing: approximately ${input.transitionSeconds} seconds per transition between keyframes.`,
-    "Scene list (narrative context only — do not render these words as visible text):",
+    "Scene list (FFmpeg overlay context only — do not render these words as visible text):",
     ...sceneLines,
-    LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 4).join("\n"),
+    bakedTextTail,
+    LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 3).join("\n"),
   ].join("\n\n");
 }
 

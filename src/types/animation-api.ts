@@ -286,6 +286,9 @@ export type VideoLanguageExportSummary = {
   status: string;
   outputVideoUrl: string | null;
   sourceFinalVideoUrl: string;
+  sourceCleanVideoUrl?: string | null;
+  overlayRenderMode?: string;
+  sceneTextsJson?: unknown;
   textLayerJson: unknown;
   translationProvider: string | null;
   errorMessage: string | null;
@@ -345,6 +348,9 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
   advancedSettingsEnabled: boolean;
+  instantCleanFinalVideoUrl?: string | null;
+  instantSceneTexts?: unknown;
+  instantMode?: string;
   instantFinalRebuildCount?: number;
   instantFinalRebuiltAt?: string | null;
   instantPreviousFinalVideoUrl?: string | null;
