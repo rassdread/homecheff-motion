@@ -645,9 +645,9 @@ export const en: LocaleSchema = {
   "instant.mode.story.warning":
     "Upload images without text for best results. Add titles below each scene — HomeCheff will place them automatically.",
   "instant.mode.sceneLabel": "Scene {index}",
-  "instant.mode.sceneTitle": "Scene title",
+  "instant.mode.sceneTitle": "Title",
   "instant.mode.sceneTitlePlaceholder": "THE SYSTEM",
-  "instant.mode.sceneSubtitle": "Scene subtitle",
+  "instant.mode.sceneSubtitle": "Subtitle",
   "instant.mode.sceneSubtitlePlaceholder": "Most people trade time for money",
   "instant.mode.perTransition": "Per transition",
   "instant.mode.modeLabel": "Mode",
@@ -655,7 +655,7 @@ export const en: LocaleSchema = {
     "Use Hero Text for big social-ad captions like: MOST PEOPLE TRADE TIME FOR MONEY.",
   "instant.overlay.templateLabel": "Text template",
   "instant.overlay.template.auto": "Auto",
-  "instant.overlay.template.hero": "Hero Text",
+  "instant.overlay.template.hero": "Headline",
   "instant.overlay.template.scene": "Title + Subtitle",
   "instant.overlay.template.sequence": "Sequence",
   "instant.overlay.sequenceHelper":
@@ -691,8 +691,8 @@ export const en: LocaleSchema = {
   "instant.storyboard.duplicatePrevious": "Copy previous text",
   "instant.storyboard.clearText": "Clear text",
   "instant.storyboard.removeLine": "Remove line",
-  "instant.storyboard.heroFinaleToggle": "Hero finale",
-  "instant.storyboard.heroFinaleText": "Hero finale text",
+  "instant.storyboard.heroFinaleToggle": "Finale text",
+  "instant.storyboard.heroFinaleText": "Finale text",
   "instant.storyboard.heroFinaleHelper": "Use this for the final big message of the scene.",
   "instant.storyboard.heroFinalePlaceholder": "THIS ISN'T\nJUST AN APP.\nIT'S A MOVEMENT.",
   "instant.storyboard.sceneTimingPreview":
@@ -706,7 +706,7 @@ export const en: LocaleSchema = {
   "instant.storyboard.durationHelp":
     "Storyboard duration includes scene pacing and overlay timing across all scene cards.",
   "instant.storyboard.videoDurationHelp":
-    "Video duration reflects the actual Vidu generation length (one segment per transition between images).",
+    "Video duration is based on generated clip length (one segment per transition between frames).",
   "instant.storyboard.priceBasedOnVideo": "Estimated price is based on generated video length.",
   "instant.storyboard.finalScenePacingNote":
     "Final scene pacing is partially achieved through overlays and may not increase generated video length.",
@@ -720,10 +720,22 @@ export const en: LocaleSchema = {
   "instant.storyboard.admin.images": "Images: {count}",
   "instant.storyboard.providerDurationNote":
     "Video duration may be adjusted slightly by the provider.",
-  "instant.overlay.heroText": "Hero text",
+  "instant.overlay.heroText": "Headline",
   "instant.overlay.heroTextPlaceholder": "Most people trade time for money",
   "instant.overlay.accentWords": "Accent words (optional)",
   "instant.overlay.accentWordsPlaceholder": "MONEY, TIME",
+  "instant.storyboard.hint.heroText":
+    "Large standout text for short, punchy messages.",
+  "instant.storyboard.hint.sceneTitle":
+    "Main text for this scene — place names, topics, or short statements.",
+  "instant.storyboard.hint.sceneSubtitle":
+    "Smaller explanation below the title. Keep sentences short.",
+  "instant.storyboard.hint.accentWords":
+    "Words that get extra emphasis (color or weight). Use commas: Talent, Money, Community.",
+  "instant.storyboard.hint.sequenceLines":
+    "These lines appear one at a time during the scene.",
+  "instant.storyboard.hint.heroFinale":
+    "Big closing message for this scene — especially on the last frame.",
   "instant.advancedCreator.title": "Advanced creator settings",
   "instant.advancedCreator.hint": "Admin only: motion chips, transitions, segmentation, and pipeline debug.",
   "instant.step7.animationStyle": "Animation",
@@ -1031,7 +1043,7 @@ export const en: LocaleSchema = {
     "Video clips were generated, but locked text rendering failed. Retry after server video setup is fixed.",
   "instant.progress.retryFailed": "Could not retry merge.",
   "instant.progress.reconnecting": "Connection lost, retrying…",
-  "instant.progress.workerConnecting": "Video is still processing… connecting worker.",
+  "instant.progress.workerConnecting": "Video is still processing… reconnecting.",
   "instant.progress.restoringState": "Restoring progress…",
   "instant.progress.repairFinalVideo": "Recover final video",
   "instant.languageExport.title": "Language versions",
@@ -1039,19 +1051,19 @@ export const en: LocaleSchema = {
   "instant.videoVersions.subtitle":
     "Download the clean animation or text overlay versions in different languages.",
   "instant.videoVersions.noCreditsNote":
-    "Text-only versions reuse your clean video. No new AI video credits.",
+    "Text versions reuse the same clean video. No new AI video credits are used.",
   "instant.videoVersions.cleanTitle": "Clean video",
   "instant.videoVersions.cleanBadge": "No text overlays",
   "instant.videoVersions.cleanUnavailable":
     "Clean video is not available for this project yet. Rebuild the final video to generate it.",
-  "instant.videoVersions.originalTitle": "Original",
+  "instant.videoVersions.originalTitle": "Original version",
   "instant.videoVersions.overlayBadge": "Text overlay",
   "instant.videoVersions.download": "Download",
   "instant.videoVersions.createLanguageVersion": "Create language version",
   "instant.videoVersions.chooseLanguage": "Language",
   "instant.videoVersions.editTexts": "Edit texts",
   "instant.videoVersions.rerender": "Re-render text",
-  "instant.videoVersions.renderTextOnly": "Render text-only version",
+  "instant.videoVersions.renderTextOnly": "Render text version",
   "instant.videoVersions.cancel": "Cancel",
   "instant.videoVersions.renderStarted": "Rendering text overlay…",
   "instant.videoVersions.statusReady": "Ready",
@@ -1059,6 +1071,8 @@ export const en: LocaleSchema = {
   "instant.videoVersions.statusFailed": "Failed",
   "instant.videoVersions.statusNeedsRefresh": "Needs re-render",
   "instant.videoVersions.openProjectPage": "Open full project page",
+  "instant.videoVersions.errorRerender": "Could not re-render the text overlay.",
+  "instant.videoVersions.errorSave": "Could not save your text changes.",
   "instant.languageExport.hint":
     "Create another language from your completed final video. No new AI video generation — only text is translated and overlaid.",
   "instant.languageExport.createVersion": "Create language version",

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { GradientButton } from "@/components/ui/gradient-button";
 
 type AuthFormProps = {
@@ -11,6 +11,18 @@ type AuthFormProps = {
 };
 
 const isDev = process.env.NODE_ENV === "development";
+const DEFAULT_POST_AUTH_PATH = "/animate/instant";
+
+function resolvePostAuthRedirect(): string {
+  if (typeof window === "undefined") {
+    return DEFAULT_POST_AUTH_PATH;
+  }
+  const next = new URLSearchParams(window.location.search).get("next")?.trim();
+  if (next && next.startsWith("/") && !next.startsWith("//")) {
+    return next;
+  }
+  return DEFAULT_POST_AUTH_PATH;
+}
 
 async function parseErrorJson(
   response: Response
@@ -23,7 +35,7 @@ async function parseErrorJson(
 }
 
 export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -105,7 +117,7 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
       }
 
       // Full navigation so the browser reliably applies Set-Cookie before the next request.
-      window.location.assign("/animate");
+      window.location.assign(resolvePostAuthRedirect());
     } catch {
       setError(t("auth.form.errorNetwork"));
     } finally {

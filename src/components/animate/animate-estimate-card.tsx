@@ -1,7 +1,7 @@
 "use client";
 
 import type { TranslationKey } from "@/i18n";
-import { getActiveLocale } from "@/i18n";
+import { useLocale } from "@/i18n/client";
 import {
   formatDurationSeconds,
   getTransitionCount,
@@ -55,7 +55,8 @@ export function AnimateEstimateCard({
   compact = false,
   className = "",
 }: AnimateEstimateCardProps) {
-  const locale = getActiveLocale() === "nl" ? "nl" : "en";
+  const [activeLocale] = useLocale();
+  const locale = activeLocale === "nl" ? "nl" : "en";
   const per = Math.max(0, Math.round(Number(secondsPerTransition)));
   const tc = transitionsForEstimate(imageCount, maxTransitions);
   const totalSeconds = tc * per;

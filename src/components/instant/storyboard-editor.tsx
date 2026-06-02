@@ -9,6 +9,7 @@ import {
 } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
+import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
 
 export type StoryboardImage = {
   id: string;
@@ -220,7 +221,10 @@ export function StoryboardEditor({
 
                 {showHeroFields(scene.template) ?
                   <label className="block text-xs text-zinc-500">
-                    {t("instant.overlay.heroText")}
+                    <StoryboardFieldHint
+                      label={t("instant.overlay.heroText")}
+                      hint={t("instant.storyboard.hint.heroText")}
+                    />
                     <textarea
                       value={scene.heroText}
                       onChange={(e) => onSceneChange(index, { heroText: e.target.value })}
@@ -234,7 +238,10 @@ export function StoryboardEditor({
                 {showSceneFields(scene.template) ?
                   <>
                     <label className="block text-xs text-zinc-500">
-                      {t("instant.mode.sceneTitle")}
+                      <StoryboardFieldHint
+                        label={t("instant.mode.sceneTitle")}
+                        hint={t("instant.storyboard.hint.sceneTitle")}
+                      />
                       <input
                         type="text"
                         value={scene.title}
@@ -244,7 +251,10 @@ export function StoryboardEditor({
                       />
                     </label>
                     <label className="block text-xs text-zinc-500">
-                      {t("instant.mode.sceneSubtitle")}
+                      <StoryboardFieldHint
+                        label={t("instant.mode.sceneSubtitle")}
+                        hint={t("instant.storyboard.hint.sceneSubtitle")}
+                      />
                       <input
                         type="text"
                         value={scene.subtitle}
@@ -259,7 +269,10 @@ export function StoryboardEditor({
                 {showSequenceFields(scene.template) ?
                   <div className="space-y-2">
                     <p className="text-xs leading-relaxed text-zinc-500">
-                      {t("instant.overlay.sequenceHelper")}
+                      <StoryboardFieldHint
+                        label={t("instant.overlay.sequenceHelper")}
+                        hint={t("instant.storyboard.hint.sequenceLines")}
+                      />
                     </p>
                     {sequenceLines.map((line, lineIndex) => (
                       <div key={lineIndex} className="flex gap-2">
@@ -312,7 +325,10 @@ export function StoryboardEditor({
                     </label>
                     {scene.heroFinale ?
                       <label className="block text-xs text-zinc-500">
-                        {t("instant.storyboard.heroFinaleText")}
+                        <StoryboardFieldHint
+                          label={t("instant.storyboard.heroFinaleText")}
+                          hint={t("instant.storyboard.hint.heroFinale")}
+                        />
                         <p className="mt-0.5 text-[11px] text-zinc-400">
                           {t("instant.storyboard.heroFinaleHelper")}
                         </p>
@@ -330,7 +346,10 @@ export function StoryboardEditor({
                 : null}
 
                 <label className="block text-xs text-zinc-500">
-                  {t("instant.overlay.accentWords")}
+                  <StoryboardFieldHint
+                    label={t("instant.overlay.accentWords")}
+                    hint={t("instant.storyboard.hint.accentWords")}
+                  />
                   <input
                     type="text"
                     value={scene.accentWords}

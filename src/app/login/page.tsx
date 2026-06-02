@@ -1,10 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { AuthForm } from "@/components/auth/auth-form";
 import { AppCard } from "@/components/ui/app-card";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 
 export default function LoginPage() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
 
   return (
     <main className="mx-auto w-full max-w-xl px-6 py-12">

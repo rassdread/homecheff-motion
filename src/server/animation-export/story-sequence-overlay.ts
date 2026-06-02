@@ -12,6 +12,10 @@ import {
   resolvePlacementForTemplate,
   type SceneSafeZoneContext,
 } from "@/server/animation-export/enhanced-safe-zone";
+import {
+  resolveTypographyFromPlacement,
+  type AdaptiveTypographyTemplate,
+} from "@/server/animation-export/adaptive-typography";
 import { SAFE_AREA_MARGIN_V } from "@/server/animation-export/safe-zone-placement";
 
 export type SafeZoneInput = SceneSafeZoneContext | import("@/server/animation-export/safe-zone-placement").SafeZoneAnalysis | null | undefined;
@@ -39,11 +43,50 @@ export type BuildSequenceAssEventsInput = {
   };
   theme: AdaptiveOverlayTheme;
   safeZone?: SafeZoneInput;
+  sceneIndex?: number;
   assTime: (seconds: number) => string;
   escapeAssText: (text: string) => string;
   heroLineWithAccents: (line: string, accentWords: string[], theme: AdaptiveOverlayTheme) => string;
   motionTags: (x: number, y: number) => string;
 };
+
+function phraseLines(
+  phrase: string,
+  template: AdaptiveTypographyTemplate,
+  style: ResolvedSequenceLineStyle,
+  input: BuildSequenceAssEventsInput,
+  isFinale: boolean
+): string[] {
+  if (!input.safeZone || !phrase.trim()) {
+    return buildHeroLines(phrase);
+  }
+  try {
+    const overlayTemplate = isFinale ? "heroFinale" : style === "scene" ? "scene" : "sequence";
+    const placement = resolvePlacementForTemplate(
+      input.safeZone,
+      overlayTemplate,
+      input.width,
+      input.height
+    );
+    const isBusy = "useStrongBackdrop" in input.safeZone && input.safeZone.useStrongBackdrop;
+    const typography = resolveTypographyFromPlacement({
+      text: phrase,
+      template,
+      placement,
+      frameWidth: input.width,
+      frameHeight: input.height,
+      accentWords: input.scene.accentWords,
+      sceneIntent: "intent" in input.safeZone ? input.safeZone.intent : undefined,
+      isBusy,
+    });
+    if (typography.lines.length > 0) {
+      return typography.lines;
+    }
+  } catch {
+    /* fallback */
+  }
+  return buildHeroLines(phrase);
+}
 
 function resolveSequenceCenterY(
   visualLineCount: number,
@@ -92,10 +135,12 @@ function renderSequencePhrase(
   theme: AdaptiveOverlayTheme,
   styleNames: BuildSequenceAssEventsInput["styleNames"],
   escapeAssText: (text: string) => string,
-  heroLineWithAccents: BuildSequenceAssEventsInput["heroLineWithAccents"]
+  heroLineWithAccents: BuildSequenceAssEventsInput["heroLineWithAccents"],
+  input: BuildSequenceAssEventsInput,
+  isFinale = false
 ): { styleName: string; text: string; visualLineCount: number } {
   if (style === "scene") {
-    const sceneLines = buildHeroLines(phrase);
+    const sceneLines = phraseLines(phrase, "scene", style, input, isFinale);
     const joined = sceneLines.map((line) => escapeAssText(line)).join("\\N");
     return {
       styleName: styleNames.title,
@@ -104,7 +149,11 @@ function renderSequencePhrase(
     };
   }
 
-  const heroLines = buildHeroLines(phrase);
+  const typoTemplate: AdaptiveTypographyTemplate =
+    style === "hero_small" ? "hero_small"
+    : isFinale ? "hero_finale"
+    : "sequence";
+  const heroLines = phraseLines(phrase, typoTemplate, style, input, isFinale);
   const visualLineCount = Math.max(1, heroLines.length);
   const useMain = style === "hero";
   const styleName = useMain ? styleNames.heroMain : styleNames.heroSmall;
@@ -148,7 +197,9 @@ function appendFinaleEvent(
     theme,
     styleNames,
     input.escapeAssText,
-    input.heroLineWithAccents
+    input.heroLineWithAccents,
+    input,
+    true
   );
   const cx = resolveSequenceCenterX(width, height, input.safeZone, true);
   const y = resolveSequenceCenterY(
@@ -211,7 +262,9 @@ export function buildSequenceAssEvents(input: BuildSequenceAssEventsInput): Sequ
       theme,
       styleNames,
       input.escapeAssText,
-      input.heroLineWithAccents
+      input.heroLineWithAccents,
+      input,
+      false
     );
     const y = resolveSequenceCenterY(
       rendered.visualLineCount,

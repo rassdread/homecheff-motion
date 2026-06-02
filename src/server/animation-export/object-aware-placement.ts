@@ -32,6 +32,7 @@ export type OverlayTemplateKind = "hero" | "scene" | "sequence" | "heroFinale";
 const EARNINGS_KEYWORDS = ["earn", "earning", "money", "payout", "income", "order", "customer"];
 const COMMUNITY_KEYWORDS = ["share", "connect", "community", "people", "together"];
 const PRODUCT_KEYWORDS = ["food", "meal", "chef", "garden", "create"];
+const GARDEN_KEYWORDS = ["garden", "plant", "herb", "green", "grow", "harvest"];
 
 const DEVICE_LABELS = ["cell phone", "laptop", "tv", "monitor", "screen", "keyboard"];
 const PERSON_LABELS = ["person", "face", "body"];
@@ -50,6 +51,30 @@ function textMatchesKeywords(text: string, keywords: string[]): boolean {
     }
     return words.includes(kw);
   });
+}
+
+function accentMatchesKeywords(accentWords: string[] | undefined, keywords: string[]): boolean {
+  if (!accentWords?.length) {
+    return false;
+  }
+  for (const raw of accentWords) {
+    const word = raw.trim().toLowerCase();
+    if (!word) {
+      continue;
+    }
+    if (keywords.some((kw) => word === kw || word.includes(kw) || kw.includes(word))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function sceneOrAccentMatches(
+  sceneText: string,
+  accentWords: string[] | undefined,
+  keywords: string[]
+): boolean {
+  return textMatchesKeywords(sceneText, keywords) || accentMatchesKeywords(accentWords, keywords);
 }
 
 function findRelevantObjects(
@@ -155,8 +180,10 @@ export function resolveObjectAwarePlacement(params: {
   enhancedAnalysis: SafeZoneAnalysis;
   width: number;
   height: number;
+  accentWords?: string[];
 }): ObjectAwarePlacement {
-  const { sceneText, template, detectionContext, enhancedAnalysis, width, height } = params;
+  const { sceneText, template, detectionContext, enhancedAnalysis, width, height, accentWords } =
+    params;
   const intent = inferSceneIntent(sceneText);
   const fallbackZone = defaultZoneForTemplate(enhancedAnalysis, template);
   const fallbackScore = zoneScoreForId(enhancedAnalysis, fallbackZone);
@@ -170,17 +197,17 @@ export function resolveObjectAwarePlacement(params: {
   const bottomZones: SafeZoneId[] = ["BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT"];
   const allZones = [...topZones, ...centerZones, ...bottomZones];
 
-  if (textMatchesKeywords(sceneText, EARNINGS_KEYWORDS)) {
+  if (sceneOrAccentMatches(sceneText, accentWords, EARNINGS_KEYWORDS)) {
     const devices = findRelevantObjects(detectionContext, DEVICE_LABELS);
     if (devices.length > 0) {
       const near = pickBestZoneNearObject(enhancedAnalysis, devices[0]!, allZones);
       if (near && near.score >= fallbackScore * 0.7) {
         chosenZone = near.zoneId;
-        placementReason = "earnings_near_device";
+        placementReason = accentWords?.length ? "accent_earnings_near_device" : "earnings_near_device";
         confidence = 0.82;
       }
     }
-  } else if (textMatchesKeywords(sceneText, COMMUNITY_KEYWORDS)) {
+  } else if (sceneOrAccentMatches(sceneText, accentWords, COMMUNITY_KEYWORDS)) {
     const people = findRelevantObjects(detectionContext, PERSON_LABELS);
     const faceFreeZones = allZones.filter((zoneId) => {
       const zone = zoneBoundsNormalized(zoneId);
@@ -198,17 +225,41 @@ export function resolveObjectAwarePlacement(params: {
       );
       if (near) {
         chosenZone = near.zoneId;
-        placementReason = "community_near_people_avoid_faces";
+        placementReason = accentWords?.length ?
+          "accent_community_near_people_avoid_faces"
+        : "community_near_people_avoid_faces";
         confidence = 0.78;
       }
     }
-  } else if (textMatchesKeywords(sceneText, PRODUCT_KEYWORDS)) {
+  } else if (sceneOrAccentMatches(sceneText, accentWords, GARDEN_KEYWORDS)) {
+    const plants = findRelevantObjects(detectionContext, [
+      "potted plant",
+      "plant",
+      "vase",
+      "broccoli",
+      "carrot",
+    ]);
+    if (plants.length > 0) {
+      const near = pickBestZoneNearObject(
+        enhancedAnalysis,
+        plants[0]!,
+        bottomZones.concat(centerZones, topZones)
+      );
+      if (near && near.score >= fallbackScore * 0.65) {
+        chosenZone = near.zoneId;
+        placementReason = accentWords?.length ? "accent_garden_near_plants" : "garden_near_plants";
+        confidence = 0.76;
+      }
+    }
+  } else if (sceneOrAccentMatches(sceneText, accentWords, PRODUCT_KEYWORDS)) {
     const products = findRelevantObjects(detectionContext, FOOD_LABELS);
     if (products.length > 0) {
       const near = pickBestZoneNearObject(enhancedAnalysis, products[0]!, bottomZones.concat(centerZones));
       if (near) {
         chosenZone = near.zoneId;
-        placementReason = "product_near_relevant_object";
+        placementReason = accentWords?.length ?
+          "accent_product_near_relevant_object"
+        : "product_near_relevant_object";
         confidence = 0.75;
       }
     }
@@ -252,6 +303,7 @@ export function resolveAllTemplatePlacements(params: {
   enhancedAnalysis: SafeZoneAnalysis;
   width: number;
   height: number;
+  accentWords?: string[];
 }): Record<OverlayTemplateKind, ObjectAwarePlacement> {
   const templates: OverlayTemplateKind[] = ["hero", "scene", "sequence", "heroFinale"];
   const out = {} as Record<OverlayTemplateKind, ObjectAwarePlacement>;

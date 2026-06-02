@@ -645,9 +645,9 @@ export const nl = {
   "instant.mode.story.warning":
     "Upload afbeeldingen zonder tekst voor het beste resultaat. Voeg titels per scene toe — HomeCheff plaatst ze automatisch.",
   "instant.mode.sceneLabel": "Scene {index}",
-  "instant.mode.sceneTitle": "Scene titel",
+  "instant.mode.sceneTitle": "Titel",
   "instant.mode.sceneTitlePlaceholder": "HET SYSTEEM",
-  "instant.mode.sceneSubtitle": "Scene ondertitel",
+  "instant.mode.sceneSubtitle": "Ondertitel",
   "instant.mode.sceneSubtitlePlaceholder": "De meeste mensen ruilen tijd voor geld",
   "instant.mode.perTransition": "Per overgang",
   "instant.mode.modeLabel": "Modus",
@@ -655,7 +655,7 @@ export const nl = {
     "Gebruik Hero Text voor grote social-ad captions zoals: MOST PEOPLE TRADE TIME FOR MONEY.",
   "instant.overlay.templateLabel": "Teksttemplate",
   "instant.overlay.template.auto": "Auto",
-  "instant.overlay.template.hero": "Hero Text",
+  "instant.overlay.template.hero": "Koptekst",
   "instant.overlay.template.scene": "Titel + ondertitel",
   "instant.overlay.template.sequence": "Sequence",
   "instant.overlay.sequenceHelper":
@@ -691,8 +691,8 @@ export const nl = {
   "instant.storyboard.duplicatePrevious": "Kopieer vorige tekst",
   "instant.storyboard.clearText": "Tekst wissen",
   "instant.storyboard.removeLine": "Regel verwijderen",
-  "instant.storyboard.heroFinaleToggle": "Hero finale",
-  "instant.storyboard.heroFinaleText": "Hero finale tekst",
+  "instant.storyboard.heroFinaleToggle": "Eindtekst",
+  "instant.storyboard.heroFinaleText": "Eindtekst",
   "instant.storyboard.heroFinaleHelper": "Gebruik dit voor de grote slotboodschap van de scène.",
   "instant.storyboard.heroFinalePlaceholder": "THIS ISN'T\nJUST AN APP.\nIT'S A MOVEMENT.",
   "instant.storyboard.sceneTimingPreview":
@@ -706,7 +706,7 @@ export const nl = {
   "instant.storyboard.durationHelp":
     "Storyboard-duur omvat scènetempo en overlay-timing over alle scènes.",
   "instant.storyboard.videoDurationHelp":
-    "Videoduur is de werkelijke Vidu-lengte (één segment per overgang tussen beelden).",
+    "Videoduur is gebaseerd op de lengte van de gegenereerde clips (één segment per overgang tussen frames).",
   "instant.storyboard.priceBasedOnVideo": "Geschatte prijs is gebaseerd op de gegenereerde videolengte.",
   "instant.storyboard.finalScenePacingNote":
     "Finale scènetiming wordt deels via overlays bereikt en verlengt de video niet altijd.",
@@ -720,10 +720,22 @@ export const nl = {
   "instant.storyboard.admin.images": "Beelden: {count}",
   "instant.storyboard.providerDurationNote":
     "Videoduur kan licht worden aangepast door de provider.",
-  "instant.overlay.heroText": "Hero tekst",
+  "instant.overlay.heroText": "Koptekst",
   "instant.overlay.heroTextPlaceholder": "Most people trade time for money",
   "instant.overlay.accentWords": "Accentwoorden (optioneel)",
   "instant.overlay.accentWordsPlaceholder": "MONEY, TIME",
+  "instant.storyboard.hint.heroText":
+    "Grote opvallende tekst. Wordt gebruikt voor korte krachtige boodschappen.",
+  "instant.storyboard.hint.sceneTitle":
+    "Hoofdtekst van deze scène. Goed voor plaatsnamen, onderwerpen of korte statements.",
+  "instant.storyboard.hint.sceneSubtitle":
+    "Kleinere uitleg onder de titel. Gebruik korte zinnen.",
+  "instant.storyboard.hint.accentWords":
+    "Woorden die extra nadruk krijgen, bijvoorbeeld met kleur of grotere aandacht. Gebruik komma's: Talent, Money, Community.",
+  "instant.storyboard.hint.sequenceLines":
+    "Deze regels verschijnen één voor één tijdens de scène.",
+  "instant.storyboard.hint.heroFinale":
+    "Grote eindboodschap van deze scène. Vooral handig bij de laatste frame.",
   "instant.advancedCreator.title": "Advanced creator settings",
   "instant.advancedCreator.hint": "Alleen admin: motion chips, overgangen, segmentatie en pipeline debug.",
   "instant.step7.animationStyle": "Animatie",
@@ -1038,8 +1050,7 @@ export const nl = {
     "De videoclips zijn gegenereerd, maar het renderen van vergrendelde tekst is mislukt. Probeer opnieuw nadat de video-instellingen op de server zijn hersteld.",
   "instant.progress.retryFailed": "Merge opnieuw starten mislukt.",
   "instant.progress.reconnecting": "Verbinding verbroken, opnieuw proberen…",
-  "instant.progress.workerConnecting":
-    "Video wordt nog verwerkt… worker wordt verbonden.",
+  "instant.progress.workerConnecting": "Video wordt nog verwerkt… opnieuw verbinden…",
   "instant.progress.restoringState": "Voortgang herstellen…",
   "instant.progress.repairFinalVideo": "Eindvideo herstellen",
   "instant.languageExport.title": "Taalversies",
@@ -1047,19 +1058,19 @@ export const nl = {
   "instant.videoVersions.subtitle":
     "Download de schone animatie of tekstoverlayversies in andere talen.",
   "instant.videoVersions.noCreditsNote":
-    "Tekst-only versies hergebruiken je schone video. Geen nieuwe AI-videocredits.",
+    "Tekstversies gebruiken dezelfde schone video. Er worden geen nieuwe AI-videocredits gebruikt.",
   "instant.videoVersions.cleanTitle": "Schone video",
   "instant.videoVersions.cleanBadge": "Geen tekstoverlays",
   "instant.videoVersions.cleanUnavailable":
     "Schone video is nog niet beschikbaar voor dit project. Herbouw de finale video om deze te genereren.",
-  "instant.videoVersions.originalTitle": "Origineel",
+  "instant.videoVersions.originalTitle": "Originele versie",
   "instant.videoVersions.overlayBadge": "Tekstoverlay",
   "instant.videoVersions.download": "Download",
   "instant.videoVersions.createLanguageVersion": "Maak taalversie",
   "instant.videoVersions.chooseLanguage": "Taal",
   "instant.videoVersions.editTexts": "Tekst bewerken",
   "instant.videoVersions.rerender": "Tekst opnieuw renderen",
-  "instant.videoVersions.renderTextOnly": "Render tekst-only versie",
+  "instant.videoVersions.renderTextOnly": "Tekstversie renderen",
   "instant.videoVersions.cancel": "Annuleren",
   "instant.videoVersions.renderStarted": "Tekstoverlay wordt gerenderd…",
   "instant.videoVersions.statusReady": "Klaar",
@@ -1067,6 +1078,8 @@ export const nl = {
   "instant.videoVersions.statusFailed": "Mislukt",
   "instant.videoVersions.statusNeedsRefresh": "Opnieuw renderen nodig",
   "instant.videoVersions.openProjectPage": "Open volledige projectpagina",
+  "instant.videoVersions.errorRerender": "Tekstoverlay opnieuw renderen is mislukt.",
+  "instant.videoVersions.errorSave": "Tekstwijzigingen opslaan is mislukt.",
   "instant.languageExport.hint":
     "Maak een andere taalversie van je voltooide eindvideo. Geen nieuwe AI-video — alleen tekst wordt vertaald en opnieuw geplaatst.",
   "instant.languageExport.createVersion": "Andere taalversie maken",

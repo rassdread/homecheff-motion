@@ -628,6 +628,9 @@ export default function InstantPremiumPage() {
     chipTextBySlot,
     aspectRatio,
     fastRenderMode,
+    instantMode,
+    transitionSeconds,
+    sceneTexts,
     onHydrated: () => setWizardReady(true),
     onRestore: (saved) => {
       setImages(saved.images);
@@ -641,6 +644,9 @@ export default function InstantPremiumPage() {
       setChipTextBySlot(saved.chipTextBySlot);
       setAspectRatio(saved.aspectRatio);
       setFastRenderMode(saved.fastRenderMode);
+      setInstantMode(saved.instantMode);
+      setTransitionSeconds(saved.transitionSeconds);
+      setSceneTexts(saved.sceneTexts);
       setWizardReady(true);
     },
   });

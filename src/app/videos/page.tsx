@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
-import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type {
   AnimationProjectListItem,
@@ -95,12 +95,11 @@ function intentLabelKey(intent: string | null): TranslationKey | null {
   return `animate.intent.${intent}` as TranslationKey;
 }
 
-function listItemDurationLabel(item: AnimationProjectListItem): string {
+function listItemDurationLabel(item: AnimationProjectListItem, locale: "nl" | "en"): string {
   const sec = item.estimatedTotalDurationSeconds;
   if (sec == null || !Number.isFinite(sec)) {
     return "—";
   }
-  const locale = getActiveLocale() === "nl" ? "nl" : "en";
   return formatDurationSeconds(sec, locale);
 }
 
@@ -131,6 +130,9 @@ function isProcessingState(item: AnimationProjectListItem): boolean {
 }
 
 export default function VideosPage() {
+  const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const dateLocale = locale === "nl" ? "nl" : "en";
   const session = useAuthSession();
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
@@ -458,7 +460,7 @@ export default function VideosPage() {
           <h2 className="text-lg font-semibold text-zinc-900">{t("videos.emptyTitle")}</h2>
           <p className="mt-2 text-sm text-zinc-600">{t("videos.emptyDescription")}</p>
           <Link
-            href="/animate"
+            href="/animate/instant"
             prefetch={false}
             className="mt-6 inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
           >
@@ -481,8 +483,8 @@ export default function VideosPage() {
           const durationFromParts = getTotalVideoDurationSeconds(item.imageCount, secondsPerTransition);
           const durationLabel =
             item.estimatedTotalDurationSeconds != null
-              ? listItemDurationLabel(item)
-              : formatDurationSeconds(durationFromParts, getActiveLocale() === "nl" ? "nl" : "en");
+              ? listItemDurationLabel(item, dateLocale)
+              : formatDurationSeconds(durationFromParts, dateLocale);
           const intentKey = intentLabelKey(item.intent);
           const finalUrl = item.latestExport?.outputVideoUrl?.trim() || null;
           const fragmentUrl = item.firstTransitionVideoUrl?.trim() || null;
@@ -723,7 +725,7 @@ export default function VideosPage() {
                       </div>
                     ) : null}
                     {failed ? (
-                      <Link href="/animate" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
+                      <Link href="/animate/instant" prefetch={false} className="mt-2 inline-block font-medium text-emerald-800 underline">
                         {t("videos.createNew")}
                       </Link>
                     ) : null}

@@ -54,7 +54,9 @@ export default function InstantPremiumSuccessPage() {
             ? `${t("instant.success.projectReady")} ${data.warning} ${t("instant.success.myVideosHint")}`
             : t("instant.success.paymentConfirmed")
         );
-        router.replace(`/animate?resume=${encodeURIComponent(data.projectId)}`);
+        router.replace(
+          `/animate/instant/progress?projectId=${encodeURIComponent(data.projectId)}`
+        );
       } catch {
         if (!cancelled) {
           setStatus("error");

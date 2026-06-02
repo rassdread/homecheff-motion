@@ -1,5 +1,6 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { t, type TranslationKey } from "@/i18n";
+import type { TranslationKey } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import {
   getClientImagePreprocessOptionsForRole,
@@ -174,6 +175,7 @@ function averageTransitionProgress(snapshot: ProjectSnapshotResponse): number {
 }
 
 export function useAnimationWorkflow() {
+  const t = useActiveTranslator();
   const [images, setImages] = useState<AnimationImage[]>([]);
   const [error, setError] = useState<string>("");
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>("idle");

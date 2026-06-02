@@ -1,9 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import {
+  emptySceneTextDraft,
+  type InstantSceneTextDraft,
+} from "@/components/instant/instant-mode-panel";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
+import type {
+  InstantMode,
+  InstantTransitionSeconds,
+} from "@/lib/instant-premium-mode-types";
+import {
+  isInstantMode,
+  isInstantTransitionSeconds,
+  normalizeInstantTransitionSeconds,
+  parseInstantMode,
+} from "@/lib/instant-premium-mode-types";
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
+import {
+  normalizeStorySceneDurationSeconds,
+  type SceneOverlayTemplate,
+} from "@/lib/story-overlay-templates";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
@@ -18,6 +36,7 @@ import {
   pruneOrphanedWizardBlobs,
   readPersistedWizardState,
   safeIndexedDbSet,
+  type PersistedSceneTextDraft,
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
@@ -40,6 +59,68 @@ export type PersistableLocalImage = {
 
 function serializeBakedText(bt: BakedTextProtectionDraft): PersistedWizardImage["bakedText"] {
   return { ...bt };
+}
+
+const SCENE_TEMPLATES = new Set<SceneOverlayTemplate>([
+  "auto",
+  "hero",
+  "scene",
+  "sequence",
+]);
+
+function serializeSceneTextDrafts(drafts: InstantSceneTextDraft[]): PersistedSceneTextDraft[] {
+  return drafts.map((scene) => ({
+    template: scene.template,
+    transitionDurationSeconds: scene.transitionDurationSeconds,
+    durationSeconds: scene.durationSeconds,
+    heroText: scene.heroText,
+    title: scene.title,
+    subtitle: scene.subtitle,
+    accentWords: scene.accentWords,
+    lines: [...scene.lines],
+    heroFinale: scene.heroFinale,
+    heroFinaleText: scene.heroFinaleText,
+  }));
+}
+
+function restoreSceneTextDrafts(
+  saved: PersistedSceneTextDraft[] | undefined,
+  imageCount: number,
+  fallbackTransition: InstantTransitionSeconds
+): InstantSceneTextDraft[] {
+  if (imageCount <= 0) {
+    return [];
+  }
+  const out: InstantSceneTextDraft[] = [];
+  for (let i = 0; i < imageCount; i++) {
+    const raw = saved?.[i];
+    if (!raw || typeof raw !== "object") {
+      out.push(emptySceneTextDraft(fallbackTransition));
+      continue;
+    }
+    const template = SCENE_TEMPLATES.has(raw.template as SceneOverlayTemplate)
+      ? (raw.template as SceneOverlayTemplate)
+      : "auto";
+    const transitionDurationSeconds = normalizeStorySceneDurationSeconds(
+      raw.transitionDurationSeconds ?? raw.durationSeconds,
+      fallbackTransition
+    );
+    out.push({
+      template,
+      transitionDurationSeconds,
+      durationSeconds: transitionDurationSeconds,
+      heroText: typeof raw.heroText === "string" ? raw.heroText : "",
+      title: typeof raw.title === "string" ? raw.title : "",
+      subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
+      accentWords: typeof raw.accentWords === "string" ? raw.accentWords : "",
+      lines: Array.isArray(raw.lines)
+        ? raw.lines.filter((line): line is string => typeof line === "string")
+        : [],
+      heroFinale: typeof raw.heroFinale === "boolean" ? raw.heroFinale : true,
+      heroFinaleText: typeof raw.heroFinaleText === "string" ? raw.heroFinaleText : "",
+    });
+  }
+  return out;
 }
 
 async function blobFromUrl(url: string): Promise<Blob | null> {
@@ -72,6 +153,9 @@ export function useInstantWizardPersist(params: {
   chipTextBySlot: Partial<Record<TextImplyingChipId, string>>;
   aspectRatio: "9:16" | "16:9";
   fastRenderMode: boolean;
+  instantMode: InstantMode;
+  transitionSeconds: InstantTransitionSeconds;
+  sceneTexts: InstantSceneTextDraft[];
   onHydrated?: () => void;
   onRestore: (state: {
     step: number;
@@ -86,6 +170,9 @@ export function useInstantWizardPersist(params: {
     chipTextBySlot: Partial<Record<TextImplyingChipId, string>>;
     aspectRatio: "9:16" | "16:9";
     fastRenderMode: boolean;
+    instantMode: InstantMode;
+    transitionSeconds: InstantTransitionSeconds;
+    sceneTexts: InstantSceneTextDraft[];
   }) => void;
 }) {
   const hydratedRef = useRef(false);
@@ -146,6 +233,12 @@ export function useInstantWizardPersist(params: {
           params.onHydrated?.();
           return;
         }
+        const transitionSeconds = isInstantTransitionSeconds(saved.transitionSeconds)
+          ? saved.transitionSeconds
+          : normalizeInstantTransitionSeconds(saved.transitionSeconds);
+        const instantMode = isInstantMode(saved.instantMode)
+          ? saved.instantMode
+          : parseInstantMode(saved.instantMode);
         params.onRestore({
           step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
           images: restored,
@@ -161,6 +254,9 @@ export function useInstantWizardPersist(params: {
           chipTextBySlot: saved.chipTextBySlot,
           aspectRatio: saved.aspectRatio,
           fastRenderMode: saved.fastRenderMode,
+          instantMode,
+          transitionSeconds,
+          sceneTexts: restoreSceneTextDrafts(saved.sceneTexts, restored.length, transitionSeconds),
         });
       } catch (error) {
         console.warn("[indexeddb-cache-failed]", {
@@ -188,6 +284,9 @@ export function useInstantWizardPersist(params: {
       chipTextBySlot: params.chipTextBySlot,
       aspectRatio: params.aspectRatio,
       fastRenderMode: params.fastRenderMode,
+      instantMode: params.instantMode,
+      transitionSeconds: params.transitionSeconds,
+      sceneTexts: serializeSceneTextDrafts(params.sceneTexts),
       images: [],
     };
   }, [params]);
@@ -251,7 +350,25 @@ export function useInstantWizardPersist(params: {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [params.ready, persistNow, params.images, params.step, params.fastRenderMode]);
+  }, [
+    params.ready,
+    persistNow,
+    params.images,
+    params.step,
+    params.fastRenderMode,
+    params.instantMode,
+    params.transitionSeconds,
+    params.sceneTexts,
+    params.motionText,
+    params.stylePreset,
+    params.chips,
+    params.lockedTextMode,
+    params.lockedTextLayers,
+    params.chipTextBySlot,
+    params.aspectRatio,
+    params.continuityStrength,
+    params.durationSec,
+  ]);
 
   return { persistNow };
 }

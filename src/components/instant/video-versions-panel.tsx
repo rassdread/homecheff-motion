@@ -213,7 +213,7 @@ export function VideoVersionsPanel({
         message?: string | null;
       };
       if (!json.ok) {
-        throw new Error((json as { message?: string }).message ?? "Prepare failed.");
+        throw new Error((json as { message?: string }).message ?? t("instant.languageExport.prepareFailed"));
       }
       const parsed = parseSceneTextsJson(json.sceneTexts ?? instantSceneTexts);
       setSceneTexts(parsed.map(sceneToDraft));
@@ -222,7 +222,7 @@ export function VideoVersionsPanel({
       }
       setCreateOpen(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Prepare failed.");
+      setError(e instanceof Error ? e.message : t("instant.languageExport.prepareFailed"));
     } finally {
       setBusy(false);
     }
@@ -268,7 +268,7 @@ export function VideoVersionsPanel({
       );
       const json = (await res.json()) as { ok?: boolean; message?: string; exports?: VideoLanguageExportSummary[] };
       if (!json.ok) {
-        throw new Error(json.message ?? "Render failed.");
+        throw new Error(json.message ?? t("instant.languageExport.renderFailed"));
       }
       if (json.exports) {
         onLanguageExportsChange(json.exports);
@@ -279,7 +279,7 @@ export function VideoVersionsPanel({
       setEditExportId(null);
       setInfo(t("instant.videoVersions.renderStarted"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Render failed.");
+      setError(e instanceof Error ? e.message : t("instant.languageExport.renderFailed"));
     } finally {
       setBusy(false);
     }
@@ -300,13 +300,13 @@ export function VideoVersionsPanel({
       );
       const json = (await res.json()) as { ok?: boolean; message?: string; exports?: VideoLanguageExportSummary[] };
       if (!json.ok) {
-        throw new Error(json.message ?? "Rerender failed.");
+        throw new Error(json.message ?? t("instant.videoVersions.errorRerender"));
       }
       if (json.exports) {
         onLanguageExportsChange(json.exports);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Rerender failed.");
+      setError(e instanceof Error ? e.message : t("instant.videoVersions.errorRerender"));
     } finally {
       setBusy(false);
     }
@@ -517,13 +517,13 @@ export function VideoVersionsPanel({
                       );
                       const json = (await res.json()) as { ok?: boolean; message?: string };
                       if (!json.ok) {
-                        throw new Error(json.message ?? "Save failed.");
+                        throw new Error(json.message ?? t("instant.videoVersions.errorSave"));
                       }
                       await rerenderExport(editExportId);
                       setCreateOpen(false);
                       setEditExportId(null);
                     } catch (e) {
-                      setError(e instanceof Error ? e.message : "Save failed.");
+                      setError(e instanceof Error ? e.message : t("instant.videoVersions.errorSave"));
                     } finally {
                       setBusy(false);
                     }

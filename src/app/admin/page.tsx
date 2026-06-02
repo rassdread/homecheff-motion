@@ -1,12 +1,14 @@
+"use client";
+
 import Link from "next/link";
 import { OcrHealthCard } from "@/components/admin/ocr-health-card";
 import { VisionHealthCard } from "@/components/admin/vision-health-card";
 import { VideoCreditsCard } from "@/components/admin/video-credits-card";
 import { AppCard } from "@/components/ui/app-card";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 
 export default function AdminDashboardPage() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
 
   return (
     <main>

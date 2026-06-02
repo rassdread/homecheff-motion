@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ComponentPropsWithoutRef, ReactNode } from "react";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 
 type SharedProps = {
@@ -34,7 +36,7 @@ function getClasses(
 }
 
 export function GradientButton(props: GradientButtonProps) {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const loading = props.loading ?? false;
   const disabled = props.disabled ?? false;
   const content = loading

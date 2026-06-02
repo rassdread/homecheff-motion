@@ -1,5 +1,7 @@
+"use client";
+
 import type { AnimationStatus } from "@/types/animation";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 
 type StatusBadgeProps = {
   status: AnimationStatus;
@@ -16,7 +18,7 @@ const STATUS_STYLES: Record<AnimationStatus, string> = {
 };
 
 export function StatusBadge({ status, className = "" }: StatusBadgeProps) {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
 
   return (
     <span

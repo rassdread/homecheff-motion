@@ -2,6 +2,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import {
   chooseTemplate,
+  detectAccentWords,
   emptyNormalizedSceneText,
   getSceneTimingWindows,
   hasSceneOverlayContent,
@@ -30,6 +31,17 @@ import {
 } from "@/server/animation-export/enhanced-safe-zone";
 import { isSafeZoneDebugEnabled } from "@/server/animation-export/safe-zone-placement";
 import type { OverlayTemplateKind } from "@/server/animation-export/object-aware-placement";
+import {
+  applyTypographyToTheme,
+  LEGACY_HERO_SIZE_MAIN,
+  LEGACY_HERO_SIZE_SMALL,
+  legacySceneSubtitleSize,
+  legacySceneTitleSize,
+  logAdaptiveTypographyDebug,
+  overlayTemplateToTypography,
+  resolveTypographyFromPlacement,
+  type AdaptiveTypographyResult,
+} from "@/server/animation-export/adaptive-typography";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 
 export type { InstantSceneText } from "@/lib/story-overlay-templates";
@@ -63,10 +75,97 @@ export {
 /** @deprecated Use template field on scene; kept for API compat. */
 export type StoryOverlayTemplate = "cinematic";
 
-const HERO_SIZE_MAIN = 118;
-const HERO_SIZE_SMALL = 74;
 const SCENE_TITLE_MARGIN_V = 72;
 const SUBTITLE_GAP = 8;
+
+type SceneFontSizes = {
+  heroMain: number;
+  heroSmall: number;
+  title: number;
+  subtitle: number;
+};
+
+function defaultSceneFontSizes(width: number, height: number): SceneFontSizes {
+  const title = legacySceneTitleSize(width, height);
+  return {
+    heroMain: LEGACY_HERO_SIZE_MAIN,
+    heroSmall: LEGACY_HERO_SIZE_SMALL,
+    title,
+    subtitle: legacySceneSubtitleSize(title),
+  };
+}
+
+function zoneContrastFromSafeZone(
+  safeZone: SafeZoneInput | null | undefined,
+  zoneId: string
+): number | undefined {
+  if (!safeZone) {
+    return undefined;
+  }
+  const zones = "enhanced" in safeZone ? safeZone.enhanced.zones : safeZone.zones;
+  return zones.find((z) => z.zoneId === zoneId)?.contrast;
+}
+
+function tryAdaptiveTypography(params: {
+  text: string;
+  template: ReturnType<typeof overlayTemplateToTypography>;
+  placement: ReturnType<typeof resolvePlacementForTemplate> | undefined;
+  width: number;
+  height: number;
+  safeZone: SafeZoneInput | null | undefined;
+  accentWords: string[];
+  sceneIndex: number;
+}): AdaptiveTypographyResult | null {
+  const { text, template, placement, width, height, safeZone, accentWords, sceneIndex } = params;
+  if (!placement || !text.trim()) {
+    return null;
+  }
+  try {
+    const isBusy = Boolean(safeZone && "useStrongBackdrop" in safeZone && safeZone.useStrongBackdrop);
+    const objectDetectionConfidence =
+      safeZone && "detection" in safeZone && safeZone.detection.objectDetections.length > 0 ?
+        Math.max(...safeZone.detection.objectDetections.map((d) => d.confidence))
+      : undefined;
+    const typography = resolveTypographyFromPlacement({
+      text,
+      template,
+      placement,
+      frameWidth: width,
+      frameHeight: height,
+      accentWords,
+      sceneIntent: safeZone && "intent" in safeZone ? safeZone.intent : undefined,
+      isBusy,
+      contrast: zoneContrastFromSafeZone(safeZone, placement.zoneId),
+      objectDetectionConfidence,
+    });
+    logAdaptiveTypographyDebug({
+      sceneIndex,
+      template,
+      zoneId: placement.zoneId,
+      typography,
+    });
+    return typography;
+  } catch {
+    return null;
+  }
+}
+
+function heroMainLineIndex(lines: string[], accentWords: string[]): number {
+  if (lines.length >= 3) {
+    return 1;
+  }
+  if (lines.length === 2) {
+    return lines[1]!.length >= lines[0]!.length ? 1 : 0;
+  }
+  const accentSet = new Set(accentWords.map((w) => w.toUpperCase()));
+  for (let i = 0; i < lines.length; i += 1) {
+    const lineUpper = lines[i]!.toUpperCase();
+    if ([...accentSet].some((a) => lineUpper.includes(a))) {
+      return i;
+    }
+  }
+  return 0;
+}
 
 function assTime(seconds: number): string {
   const clamped = Math.max(0, seconds);
@@ -130,14 +229,14 @@ function resolveHeroAnchorY(
 ): number {
   if (safeZone) {
     const placement = resolvePlacementForTemplate(safeZone, "hero", width, height);
-    const lineStep = HERO_SIZE_MAIN + 18;
+    const lineStep = LEGACY_HERO_SIZE_MAIN + 18;
     const blockHeight = lineCount * lineStep;
     return Math.max(
       Math.round(height * SAFE_AREA_MARGIN_V) + lineStep / 2,
       placement.anchorY - blockHeight / 2 + lineStep / 2
     );
   }
-  const lineStep = HERO_SIZE_MAIN + 20;
+  const lineStep = LEGACY_HERO_SIZE_MAIN + 20;
   const blockHeight = lineCount * lineStep;
   if (position === "center") {
     return Math.round(height * 0.5 - blockHeight / 2 + lineStep / 2);
@@ -211,12 +310,13 @@ function resolveSceneTheme(
   sceneIndex: number,
   width: number,
   height: number,
-  template: OverlayTemplateKind
+  template: OverlayTemplateKind,
+  typography?: AdaptiveTypographyResult | null
 ): AdaptiveOverlayTheme {
   const base = resolveSceneOverlayTheme(themeByIndex, sceneIndex);
   const safeZone = safeZoneByIndex?.get(sceneIndex);
   if (!safeZone) {
-    return base;
+    return typography ? applyTypographyToTheme(base, typography) : base;
   }
   const placement = resolvePlacementForTemplate(safeZone, template, width, height);
   let theme = enhanceThemeForZonePlacement(base, placement.zoneScore);
@@ -229,6 +329,9 @@ function resolveSceneTheme(
       outline: Math.max(theme.outline, 6),
       shadow: Math.max(theme.shadow, 4),
     };
+  }
+  if (typography) {
+    theme = applyTypographyToTheme(theme, typography);
   }
   return theme;
 }
@@ -264,11 +367,10 @@ function registerSceneStyles(
   width: number,
   height: number,
   kinds: { hero: boolean; scene: boolean; sequence: boolean },
+  sizes: SceneFontSizes,
   safeZone?: SafeZoneInput,
   template?: OverlayTemplateKind
 ): { heroMain: string; heroSmall: string; title: string; subtitle: string } {
-  const titleSize = Math.round(Math.min(width, height) * 0.065);
-  const subtitleSize = Math.round(titleSize * 0.55);
   const heroMain = `HCHeroMain_s${sceneIndex}`;
   const heroSmall = `HCHeroSmall_s${sceneIndex}`;
   const title = `HCStoryTitle_s${sceneIndex}`;
@@ -281,21 +383,25 @@ function registerSceneStyles(
   }
 
   if (kinds.hero || kinds.sequence) {
-    styleLines.push(assStyleLine(heroMain, "Arial Black", HERO_SIZE_MAIN, theme, 5, 154, marginH));
-    styleLines.push(assStyleLine(heroSmall, "Arial Black", HERO_SIZE_SMALL, theme, 5, 154, marginH));
+    styleLines.push(
+      assStyleLine(heroMain, "Arial Black", sizes.heroMain, theme, 5, 154, marginH)
+    );
+    styleLines.push(
+      assStyleLine(heroSmall, "Arial Black", sizes.heroSmall, theme, 5, 154, marginH)
+    );
   }
   if (kinds.scene || kinds.sequence) {
     styleLines.push(
-      assStyleLine(title, "Arial", titleSize, theme, 2, SCENE_TITLE_MARGIN_V, marginH)
+      assStyleLine(title, "Arial", sizes.title, theme, 2, SCENE_TITLE_MARGIN_V, marginH)
     );
     styleLines.push(
       assStyleLine(
         subtitle,
         "Arial",
-        subtitleSize,
+        sizes.subtitle,
         theme,
         2,
-        SCENE_TITLE_MARGIN_V + titleSize + SUBTITLE_GAP,
+        SCENE_TITLE_MARGIN_V + sizes.title + SUBTITLE_GAP,
         marginH
       )
     );
@@ -313,23 +419,52 @@ function appendHeroEvents(
   height: number,
   styleNames: { heroMain: string; heroSmall: string },
   theme: AdaptiveOverlayTheme,
-  safeZone?: SafeZoneInput
+  safeZone?: SafeZoneInput,
+  heroTypography?: AdaptiveTypographyResult | null,
+  sceneIndex = 0
 ): void {
+  const source = heroSourceText(scene);
+  const accentWords = detectAccentWords(source, scene);
+  const placement = safeZone ? resolvePlacementForTemplate(safeZone, "hero", width, height) : undefined;
+  const adaptive =
+    heroTypography ??
+    tryAdaptiveTypography({
+      text: source,
+      template: "hero",
+      placement,
+      width,
+      height,
+      safeZone: safeZone ?? null,
+      accentWords,
+      sceneIndex,
+    });
+
   const layout = layoutHeroScene(scene);
-  if (!layout) {
+  if (!layout && !adaptive?.lines.length) {
     return;
   }
-  const position = defaultHeroPosition(scene, layout.lines.length);
-  const cx = resolveHeroAnchorX(width, height, safeZone);
-  const anchorY = resolveHeroAnchorY(layout.lines.length, width, height, position, safeZone);
-  const lineStep = HERO_SIZE_MAIN + 18;
 
-  layout.lines.forEach((line, lineIndex) => {
-    const isMain = lineIndex === layout.mainLineIndex;
+  const lines = adaptive?.lines.length ? adaptive.lines : layout!.lines;
+  const mainLineIndex =
+    adaptive?.lines.length ? heroMainLineIndex(lines, accentWords) : layout!.mainLineIndex;
+  const accents = layout?.accentWords ?? accentWords;
+
+  const position = defaultHeroPosition(scene, lines.length);
+  const cx = resolveHeroAnchorX(width, height, safeZone);
+  const mainSize = adaptive?.fontSize ?? LEGACY_HERO_SIZE_MAIN;
+  const smallSize = adaptive ? Math.round(adaptive.fontSize * 0.63) : LEGACY_HERO_SIZE_SMALL;
+  const lineStep = mainSize + 18;
+  const anchorY = resolveHeroAnchorY(lines.length, width, height, position, safeZone);
+
+  let yCursor = anchorY;
+  lines.forEach((line, lineIndex) => {
+    const isMain = lineIndex === mainLineIndex;
     const style = isMain ? styleNames.heroMain : styleNames.heroSmall;
-    const y = anchorY + lineIndex * lineStep;
+    const step = isMain ? lineStep : smallSize + 14;
+    const y = yCursor;
+    yCursor += step;
     const tags = motionTags(cx, y);
-    const text = heroLineWithAccents(line, layout.accentWords, theme);
+    const text = heroLineWithAccents(line, accents, theme);
     events.push(
       `Dialogue: 0,${assTime(start)},${assTime(end)},${style},,0,0,0,,${tags}${text}`
     );
@@ -345,7 +480,8 @@ function appendSequenceEvents(
   height: number,
   styleNames: { heroMain: string; heroSmall: string; title: string; subtitle: string },
   theme: AdaptiveOverlayTheme,
-  safeZone?: SafeZoneInput
+  safeZone?: SafeZoneInput,
+  sceneIndex = 0
 ): void {
   const sequenceEvents = buildSequenceAssEvents({
     scene,
@@ -356,6 +492,7 @@ function appendSequenceEvents(
     styleNames,
     theme,
     safeZone,
+    sceneIndex,
     assTime,
     escapeAssText,
     heroLineWithAccents,
@@ -376,31 +513,72 @@ function appendSceneEvents(
   width: number,
   height: number,
   styleNames: { title: string; subtitle: string },
-  safeZone?: SafeZoneInput
+  safeZone?: SafeZoneInput,
+  titleTypography?: AdaptiveTypographyResult | null,
+  subtitleTypography?: AdaptiveTypographyResult | null,
+  sceneIndex = 0
 ): void {
-  const title = scene.title.trim();
-  const subtitle = scene.subtitle.trim();
-  if (!title && !subtitle) {
+  const titleRaw = scene.title.trim();
+  const subtitleRaw = scene.subtitle.trim();
+  if (!titleRaw && !subtitleRaw) {
     return;
   }
-  const titleSize = Math.round(Math.min(width, height) * 0.065);
+
+  const placement = safeZone ? resolvePlacementForTemplate(safeZone, "scene", width, height) : undefined;
+  const accentWords = scene.accentWords;
+  const titleTypo =
+    titleTypography ??
+    (titleRaw ?
+      tryAdaptiveTypography({
+        text: titleRaw,
+        template: "scene",
+        placement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords,
+        sceneIndex,
+      })
+    : null);
+  const subtitleTypo =
+    subtitleTypography ??
+    (subtitleRaw ?
+      tryAdaptiveTypography({
+        text: subtitleRaw,
+        template: "subtitle",
+        placement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords,
+        sceneIndex,
+      })
+    : null);
+
+  const titleLines = titleTypo?.lines.length ? titleTypo.lines : titleRaw ? [titleRaw] : [];
+  const subtitleLines =
+    subtitleTypo?.lines.length ? subtitleTypo.lines : subtitleRaw ? [subtitleRaw] : [];
+
+  const titleSize = titleTypo?.fontSize ?? legacySceneTitleSize(width, height);
   let cx = Math.round(width / 2);
   let bottomThirdY = Math.round(height * 0.72);
   if (safeZone) {
-    const placement = resolvePlacementForTemplate(safeZone, "scene", width, height);
-    cx = placement.anchorX;
-    bottomThirdY = placement.anchorY;
+    const p = resolvePlacementForTemplate(safeZone, "scene", width, height);
+    cx = p.anchorX;
+    bottomThirdY = p.anchorY;
   }
 
-  if (title) {
+  if (titleLines.length > 0) {
+    const titleText = titleLines.map((l) => escapeAssText(l)).join("\\N");
     events.push(
-      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.title},,0,0,0,,${motionTags(cx, bottomThirdY)}${escapeAssText(title)}`
+      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.title},,0,0,0,,${motionTags(cx, bottomThirdY)}${titleText}`
     );
   }
-  if (subtitle) {
+  if (subtitleLines.length > 0) {
     const subY = bottomThirdY + titleSize + SUBTITLE_GAP;
+    const subtitleText = subtitleLines.map((l) => escapeAssText(l)).join("\\N");
     events.push(
-      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.subtitle},,0,0,0,,${motionTags(cx, subY)}${escapeAssText(subtitle)}`
+      `Dialogue: 0,${assTime(start)},${assTime(end)},${styleNames.subtitle},,0,0,0,,${motionTags(cx, subY)}${subtitleText}`
     );
   }
 }
@@ -414,6 +592,74 @@ export type BuildStoryOverlayAssInput = {
   safeZoneByIndex?: Map<number, SafeZoneInput>;
 };
 
+function resolveSceneFontSizes(params: {
+  scene: NormalizedSceneText;
+  resolved: "hero" | "scene" | "sequence";
+  width: number;
+  height: number;
+  safeZone: SafeZoneInput | null | undefined;
+  sceneIndex: number;
+}): { sizes: SceneFontSizes; heroTypography: AdaptiveTypographyResult | null } {
+  const { scene, resolved, width, height, safeZone, sceneIndex } = params;
+  const sizes = defaultSceneFontSizes(width, height);
+  let heroTypography: AdaptiveTypographyResult | null = null;
+
+  if (resolved === "hero") {
+    const source = heroSourceText(scene);
+    const placement = safeZone ? resolvePlacementForTemplate(safeZone, "hero", width, height) : undefined;
+    heroTypography = tryAdaptiveTypography({
+      text: source,
+      template: "hero",
+      placement,
+      width,
+      height,
+      safeZone: safeZone ?? null,
+      accentWords: scene.accentWords,
+      sceneIndex,
+    });
+    if (heroTypography) {
+      sizes.heroMain = heroTypography.fontSize;
+      sizes.heroSmall = Math.round(heroTypography.fontSize * 0.63);
+    }
+  }
+
+  if (resolved === "scene") {
+    const placement = safeZone ? resolvePlacementForTemplate(safeZone, "scene", width, height) : undefined;
+    const titleTypo = scene.title.trim() ?
+      tryAdaptiveTypography({
+        text: scene.title,
+        template: "scene",
+        placement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords: scene.accentWords,
+        sceneIndex,
+      })
+    : null;
+    const subtitleTypo = scene.subtitle.trim() ?
+      tryAdaptiveTypography({
+        text: scene.subtitle,
+        template: "subtitle",
+        placement,
+        width,
+        height,
+        safeZone: safeZone ?? null,
+        accentWords: scene.accentWords,
+        sceneIndex,
+      })
+    : null;
+    if (titleTypo) {
+      sizes.title = titleTypo.fontSize;
+    }
+    if (subtitleTypo) {
+      sizes.subtitle = subtitleTypo.fontSize;
+    }
+  }
+
+  return { sizes, heroTypography };
+}
+
 export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
   const { sceneTexts, durationSeconds, width, height, themeByIndex, safeZoneByIndex } = input;
   const normalized = sceneTexts.map((s) => normalizeSceneText(s));
@@ -423,6 +669,7 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
     number,
     ReturnType<typeof registerSceneStyles>
   >();
+  const heroTypographyByScene = new Map<number, AdaptiveTypographyResult | null>();
 
   for (let index = 0; index < normalized.length; index += 1) {
     const scene = normalized[index]!;
@@ -430,13 +677,40 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
     if (resolved === "skip") {
       continue;
     }
-    const theme = resolveSceneTheme(themeByIndex, safeZoneByIndex, index, width, height, resolved);
     const safeZone = safeZoneByIndex?.get(index) ?? null;
-    const names = registerSceneStyles(styleLines, index, theme, width, height, {
-      hero: resolved === "hero",
-      scene: resolved === "scene",
-      sequence: resolved === "sequence",
-    }, safeZone, resolved);
+    const { sizes, heroTypography } = resolveSceneFontSizes({
+      scene,
+      resolved,
+      width,
+      height,
+      safeZone,
+      sceneIndex: index,
+    });
+    heroTypographyByScene.set(index, heroTypography);
+    const theme = resolveSceneTheme(
+      themeByIndex,
+      safeZoneByIndex,
+      index,
+      width,
+      height,
+      resolved,
+      heroTypography
+    );
+    const names = registerSceneStyles(
+      styleLines,
+      index,
+      theme,
+      width,
+      height,
+      {
+        hero: resolved === "hero",
+        scene: resolved === "scene",
+        sequence: resolved === "sequence",
+      },
+      sizes,
+      safeZone ?? undefined,
+      resolved
+    );
     styleNamesByScene.set(index, names);
   }
 
@@ -458,14 +732,35 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
     if (!names) {
       continue;
     }
-    const theme = resolveSceneTheme(themeByIndex, safeZoneByIndex, index, width, height, resolved);
+    const heroTypography = heroTypographyByScene.get(index) ?? null;
+    const theme = resolveSceneTheme(
+      themeByIndex,
+      safeZoneByIndex,
+      index,
+      width,
+      height,
+      resolved,
+      heroTypography
+    );
     const safeZone = safeZoneByIndex?.get(index) ?? null;
     if (resolved === "hero") {
-      appendHeroEvents(events, scene, start, end, width, height, names, theme, safeZone);
+      appendHeroEvents(
+        events,
+        scene,
+        start,
+        end,
+        width,
+        height,
+        names,
+        theme,
+        safeZone,
+        heroTypography,
+        index
+      );
     } else if (resolved === "sequence") {
-      appendSequenceEvents(events, scene, start, end, width, height, names, theme, safeZone);
+      appendSequenceEvents(events, scene, start, end, width, height, names, theme, safeZone, index);
     } else {
-      appendSceneEvents(events, scene, start, end, width, height, names, safeZone);
+      appendSceneEvents(events, scene, start, end, width, height, names, safeZone, null, null, index);
     }
   }
 
@@ -585,11 +880,13 @@ export async function applyStorySceneTextOverlay(params: {
         for (const [index, ctx] of contexts) {
           themeByIndex.set(index, ctx?.theme ?? null);
           if (ctx?.detection) {
+            const sceneForZone = normalized[index] ?? emptyNormalizedSceneText();
             const sceneSafeZone = buildSceneSafeZoneContext({
               detection: ctx.detection,
-              sceneText: sceneTextForSafeZone(normalized[index] ?? emptyNormalizedSceneText()),
+              sceneText: sceneTextForSafeZone(sceneForZone),
               width: params.width,
               height: params.height,
+              accentWords: sceneForZone.accentWords,
             });
             safeZoneByIndex.set(index, sceneSafeZone);
             if (isSafeZoneDebugEnabled()) {

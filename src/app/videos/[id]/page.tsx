@@ -27,8 +27,8 @@ import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-p
 import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
 import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
-import { getActiveLocale, t } from "@/i18n";
 import type { TranslationKey } from "@/i18n";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useInstantPremiumStatusPolling } from "@/hooks/use-instant-premium-status-polling";
 import type {
@@ -79,6 +79,9 @@ function statusLabelKey(status: string): TranslationKey {
 }
 
 export default function VideoDetailPage() {
+  const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const dateLocale = locale === "nl" ? "nl" : "en";
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
@@ -521,9 +524,8 @@ export default function VideoDetailPage() {
         ? detail.viduDurationSeconds
         : preset.durationSeconds;
     const sec = getTotalVideoDurationSeconds(detail.images.length, per);
-    const locale = getActiveLocale() === "nl" ? "nl" : "en";
-    return formatDurationSeconds(sec, locale);
-  }, [detail]);
+    return formatDurationSeconds(sec, dateLocale);
+  }, [detail, dateLocale]);
 
   if (!session.resolved) {
     return (
@@ -918,7 +920,7 @@ export default function VideoDetailPage() {
 
       <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
         <Link
-          href="/animate"
+          href="/animate/instant"
           prefetch={false}
           className="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
         >

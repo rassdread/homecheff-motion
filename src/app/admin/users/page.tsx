@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 
 type UserRow = {
   id: string;
@@ -24,7 +24,7 @@ function TableSkeletonRow() {
 }
 
 export default function AdminUsersPage() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);

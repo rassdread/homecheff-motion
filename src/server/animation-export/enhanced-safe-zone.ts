@@ -168,8 +168,9 @@ export function buildSceneSafeZoneContext(params: {
   sceneText: string;
   width: number;
   height: number;
+  accentWords?: string[];
 }): SceneSafeZoneContext {
-  const { detection, sceneText, width, height } = params;
+  const { detection, sceneText, width, height, accentWords } = params;
   const v1 = detection.safeZoneV1;
   const intent = inferSceneIntent(sceneText);
 
@@ -180,6 +181,7 @@ export function buildSceneSafeZoneContext(params: {
       enhancedAnalysis: v1,
       width,
       height,
+      accentWords,
     });
     return {
       v1,
@@ -203,6 +205,7 @@ export function buildSceneSafeZoneContext(params: {
     enhancedAnalysis: analysisForPlacement,
     width,
     height,
+    accentWords,
   });
 
   return {

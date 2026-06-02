@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 
 type InviteRow = {
   id: string;
@@ -27,7 +27,7 @@ function TableSkeletonRow() {
 }
 
 export default function AdminInvitesPage() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [loadError, setLoadError] = useState("");
   const [listLoading, setListLoading] = useState(true);

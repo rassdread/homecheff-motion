@@ -1,10 +1,12 @@
+"use client";
+
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
-import { getActiveTranslator } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 
 export default function Home() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>

@@ -11,7 +11,8 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useAnimationWorkflow } from "@/hooks/use-animation-workflow";
-import { getActiveTranslator, type TranslationKey } from "@/i18n";
+import type { TranslationKey } from "@/i18n";
+import { useActiveTranslator } from "@/i18n/client";
 import { getTotalVideoDurationSeconds, getTransitionCount } from "@/lib/animation-duration";
 import {
   ANIMATION_INTENTS,
@@ -55,7 +56,7 @@ const PRESET_LABELS: Record<
 };
 
 export default function AnimatePage() {
-  const t = getActiveTranslator();
+  const t = useActiveTranslator();
   const authSession = useAuthSession();
   const {
     images,

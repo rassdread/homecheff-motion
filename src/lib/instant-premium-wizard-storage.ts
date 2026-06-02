@@ -1,5 +1,10 @@
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
+import type {
+  InstantMode,
+  InstantTransitionSeconds,
+} from "@/lib/instant-premium-mode-types";
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
+import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
@@ -11,6 +16,20 @@ const WIZARD_STORAGE_KEY = "hc-instant-wizard:v1";
 const DB_NAME = "hc-instant-wizard-blobs";
 const DB_VERSION = 1;
 const BLOB_STORE = "images";
+
+/** Storyboard copy per scene (localStorage-safe JSON). */
+export type PersistedSceneTextDraft = {
+  template: SceneOverlayTemplate;
+  transitionDurationSeconds: number;
+  durationSeconds: number;
+  heroText: string;
+  title: string;
+  subtitle: string;
+  accentWords: string;
+  lines: string[];
+  heroFinale: boolean;
+  heroFinaleText: string;
+};
 
 export type PersistedWizardImage = {
   id: string;
@@ -66,6 +85,9 @@ export type PersistedWizardState = {
   aspectRatio: "9:16" | "16:9";
   fastRenderMode: boolean;
   images: PersistedWizardImage[];
+  instantMode?: InstantMode;
+  transitionSeconds?: InstantTransitionSeconds;
+  sceneTexts?: PersistedSceneTextDraft[];
 };
 
 function storageAvailable(): boolean {
