@@ -635,6 +635,7 @@ export const nl = {
   "instant.step1.clearAll": "Alle uploads wissen",
   "instant.preview.imageUnavailable": "Voorbeeld niet beschikbaar",
   "instant.preview.expiredReupload": "Preview verlopen — upload opnieuw",
+  "instant.preview.missingImageReupload": "Afbeelding ontbreekt — upload opnieuw",
   "instant.errors.previewExpiredReupload":
     "Een of meer previews zijn verlopen. Verwijder ze en upload opnieuw voordat je genereert.",
   "instant.step2.title": "2 · Volgorde bepalen",
@@ -852,6 +853,9 @@ export const nl = {
   "instant.storyboard.moveDown": "Omlaag",
   "instant.storyboard.duplicatePrevious": "Kopieer vorige tekst",
   "instant.storyboard.clearText": "Tekst wissen",
+  "instant.storyboard.deleteScene": "Scène verwijderen",
+  "instant.storyboard.deleteSceneConfirm":
+    "Deze scène en alle storyboardtekst verwijderen? Dit kan niet ongedaan worden gemaakt.",
   "instant.storyboard.removeLine": "Regel verwijderen",
   "instant.storyboard.heroFinaleToggle": "Eindtekst",
   "instant.storyboard.heroFinaleText": "Eindtekst",

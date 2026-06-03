@@ -29,6 +29,11 @@ import {
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 
 const WIZARD_STORAGE_KEY = "hc-instant-wizard:v1";
+
+/** Stable id for the current local wizard draft — rotated on explicit “new project”. */
+export function createWizardDraftId(): string {
+  return `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+}
 const DB_NAME = "hc-instant-wizard-blobs";
 const DB_VERSION = 1;
 const BLOB_STORE = "images";
@@ -47,6 +52,13 @@ export type PersistedSceneTextDraft = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+};
+
+/** Decoupled scene slot — text + optional image metadata. */
+export type PersistedWizardSceneSlot = {
+  sceneId: string;
+  text: PersistedSceneTextDraft;
+  image: PersistedWizardImage | null;
 };
 
 export type PersistedWizardImage = {
@@ -89,6 +101,8 @@ export type SerializedBakedText = {
 export type PersistedWizardState = {
   version: 1;
   savedAt: string;
+  /** Rotates when the user explicitly starts a new project. */
+  draftId?: string;
   /** 2 = creator-first 5-step flow */
   wizardFlowVersion?: number;
   step: number;
@@ -106,6 +120,8 @@ export type PersistedWizardState = {
   instantMode?: InstantMode;
   transitionSeconds?: InstantTransitionSeconds;
   sceneTexts?: PersistedSceneTextDraft[];
+  /** v2: decoupled storyboard slots (text + optional image). */
+  sceneSlots?: PersistedWizardSceneSlot[];
 };
 
 function storageAvailable(): boolean {

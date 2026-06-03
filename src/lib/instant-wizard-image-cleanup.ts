@@ -1,9 +1,11 @@
 import { purgeWizardImagePreview } from "@/lib/instant-wizard-preview-src";
 import {
   clearPersistedWizardState,
+  createWizardDraftId,
   deleteWizardImageBlobs,
   pruneOrphanedWizardBlobs,
   clearAllWizardImageBlobs,
+  readPersistedWizardState,
   writePersistedWizardState,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
@@ -37,18 +39,42 @@ export async function purgeAllInstantWizardUploadPersistence(): Promise<void> {
   clearPersistedWizardState();
 }
 
+/** True when localStorage should retain wizard state (text-only drafts included). */
+export function shouldPersistWizardDraftState(
+  state: Pick<
+    PersistedWizardState,
+    "images" | "sceneSlots" | "sceneTexts" | "step" | "motionText" | "chips" | "lockedTextLayers"
+  >
+): boolean {
+  return (
+    state.images.length > 0 ||
+    (state.sceneSlots?.length ?? 0) > 0 ||
+    (state.sceneTexts?.length ?? 0) > 0 ||
+    state.motionText.trim().length > 0 ||
+    state.chips.length > 0 ||
+    state.lockedTextLayers.length > 0 ||
+    state.step > 1
+  );
+}
+
 export async function syncInstantWizardPersistedImages(
-  state: Omit<PersistedWizardState, "version" | "savedAt"> & { images: PersistedWizardState["images"] }
+  state: Omit<PersistedWizardState, "version" | "savedAt" | "draftId"> & {
+    images: PersistedWizardState["images"];
+  }
 ): Promise<void> {
   const keepIds = state.images.map((img) => img.id);
   await pruneOrphanedWizardBlobs(keepIds);
-  if (keepIds.length === 0) {
+
+  if (!shouldPersistWizardDraftState(state)) {
     clearPersistedWizardState();
     return;
   }
+
+  const existingDraftId = readPersistedWizardState()?.draftId?.trim();
   writePersistedWizardState({
     version: 1,
     savedAt: new Date().toISOString(),
+    draftId: existingDraftId || createWizardDraftId(),
     ...state,
   });
 }

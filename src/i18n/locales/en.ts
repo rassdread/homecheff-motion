@@ -631,6 +631,7 @@ export const en: LocaleSchema = {
   "instant.step1.clearAll": "Clear all uploads",
   "instant.preview.imageUnavailable": "Preview unavailable",
   "instant.preview.expiredReupload": "Preview expired — re-upload",
+  "instant.preview.missingImageReupload": "Image missing — re-upload",
   "instant.errors.previewExpiredReupload":
     "One or more image previews expired. Remove them and upload again before generating.",
   "instant.step2.title": "2 · Reorder",
@@ -850,6 +851,9 @@ export const en: LocaleSchema = {
   "instant.storyboard.moveDown": "Move down",
   "instant.storyboard.duplicatePrevious": "Copy previous text",
   "instant.storyboard.clearText": "Clear text",
+  "instant.storyboard.deleteScene": "Delete scene",
+  "instant.storyboard.deleteSceneConfirm":
+    "Delete this scene and all its storyboard text? This cannot be undone.",
   "instant.storyboard.removeLine": "Remove line",
   "instant.storyboard.heroFinaleToggle": "Finale text",
   "instant.storyboard.heroFinaleText": "Finale text",

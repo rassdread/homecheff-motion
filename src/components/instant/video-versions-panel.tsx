@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { StoryboardEditor } from "@/components/instant/storyboard-editor";
+import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import {
   emptySceneTextDraft,
   type InstantSceneTextDraft,
@@ -834,7 +834,7 @@ export function VideoVersionsPanel({
               t("instant.videoVersions.editTexts")
             : t("instant.videoVersions.createLanguageVersion")}
           </p>
-          <StoryboardEditor
+          <StoryboardEditorLegacy
             images={editorImages}
             imageCount={Math.max(editorImages.length, sceneTexts.length)}
             sceneTexts={sceneTexts}

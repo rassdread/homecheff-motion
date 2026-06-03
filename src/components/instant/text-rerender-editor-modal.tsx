@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { StoryboardEditor } from "@/components/instant/storyboard-editor";
+import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { buildSceneTextDraftsFromProject } from "@/lib/instant-scene-text-editor";
@@ -144,7 +144,8 @@ function TextRerenderEditorModalContent({
           {busy ? (
             <TextLanguageRenderProgressPanel progress={savingProgress} className="mb-4" />
           ) : null}
-          <StoryboardEditor
+          <StoryboardEditorLegacy
+            sceneIds={sceneTexts.map((_, index) => `rerender-${index}`)}
             images={editorImages}
             imageCount={frameCount}
             sceneTexts={sceneTexts}
@@ -156,6 +157,7 @@ function TextRerenderEditorModalContent({
               )
             }
             onMoveScene={() => undefined}
+            onDeleteScene={() => undefined}
             onDuplicateTextFromPrevious={(index) => {
               if (index <= 0) {
                 return;

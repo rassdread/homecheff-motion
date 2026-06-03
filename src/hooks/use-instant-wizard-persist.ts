@@ -1,10 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import {
-  emptySceneTextDraft,
-  type InstantSceneTextDraft,
-} from "@/components/instant/instant-mode-panel";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import type {
@@ -18,10 +14,6 @@ import {
   parseInstantMode,
 } from "@/lib/instant-premium-mode-types";
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
-import {
-  normalizeStorySceneDurationSeconds,
-  type SceneOverlayTemplate,
-} from "@/lib/story-overlay-templates";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import { warnIndexedDbCacheFailed } from "@/lib/instant-cache-diagnostics";
@@ -37,7 +29,6 @@ import {
   pruneOrphanedWizardBlobs,
   readPersistedWizardState,
   safeIndexedDbSet,
-  type PersistedSceneTextDraft,
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
@@ -45,79 +36,19 @@ import { EMPTY_WIZARD_IMAGE_BLOB } from "@/lib/instant-wizard-image-model";
 import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
 import { attachWizardImageFromMemory } from "@/lib/instant-wizard-preview-src";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
+import {
+  listAttachedImages,
+  mergePersistedSceneSlotsWithImages,
+  serializeSceneSlotsForPersist,
+  type WizardSceneSlot,
+} from "@/lib/instant-wizard-scene-slots";
 
 export type PersistableLocalImage = InstantWizardLocalImage;
 
+const WIZARD_AUTOSAVE_MS = 800;
+
 function serializeBakedText(bt: BakedTextProtectionDraft): PersistedWizardImage["bakedText"] {
   return { ...bt };
-}
-
-const SCENE_TEMPLATES = new Set<SceneOverlayTemplate>([
-  "auto",
-  "hero",
-  "scene",
-  "sequence",
-]);
-
-function serializeSceneTextDrafts(drafts: InstantSceneTextDraft[]): PersistedSceneTextDraft[] {
-  return drafts.map((scene) => ({
-    template: scene.template,
-    transitionDurationSeconds: scene.transitionDurationSeconds,
-    durationSeconds: scene.durationSeconds,
-    heroText: scene.heroText,
-    title: scene.title,
-    subtitle: scene.subtitle,
-    extraLines: [...scene.extraLines],
-    accentWords: scene.accentWords,
-    lines: [...scene.lines],
-    heroFinale: scene.heroFinale,
-    heroFinaleText: scene.heroFinaleText,
-    finaleFooter: scene.finaleFooter,
-  }));
-}
-
-function restoreSceneTextDrafts(
-  saved: PersistedSceneTextDraft[] | undefined,
-  imageCount: number,
-  fallbackTransition: InstantTransitionSeconds
-): InstantSceneTextDraft[] {
-  if (imageCount <= 0) {
-    return [];
-  }
-  const out: InstantSceneTextDraft[] = [];
-  for (let i = 0; i < imageCount; i++) {
-    const raw = saved?.[i];
-    if (!raw || typeof raw !== "object") {
-      out.push(emptySceneTextDraft(fallbackTransition));
-      continue;
-    }
-    const template = SCENE_TEMPLATES.has(raw.template as SceneOverlayTemplate)
-      ? (raw.template as SceneOverlayTemplate)
-      : "auto";
-    const transitionDurationSeconds = normalizeStorySceneDurationSeconds(
-      raw.transitionDurationSeconds ?? raw.durationSeconds,
-      fallbackTransition
-    );
-    out.push({
-      template,
-      transitionDurationSeconds,
-      durationSeconds: transitionDurationSeconds,
-      heroText: typeof raw.heroText === "string" ? raw.heroText : "",
-      title: typeof raw.title === "string" ? raw.title : "",
-      subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
-      extraLines: Array.isArray(raw.extraLines)
-        ? raw.extraLines.filter((line): line is string => typeof line === "string")
-        : [],
-      accentWords: typeof raw.accentWords === "string" ? raw.accentWords : "",
-      lines: Array.isArray(raw.lines)
-        ? raw.lines.filter((line): line is string => typeof line === "string")
-        : [],
-      heroFinale: typeof raw.heroFinale === "boolean" ? raw.heroFinale : true,
-      heroFinaleText: typeof raw.heroFinaleText === "string" ? raw.heroFinaleText : "",
-      finaleFooter: typeof raw.finaleFooter === "string" ? raw.finaleFooter : "",
-    });
-  }
-  return out;
 }
 
 async function blobFromUrl(url: string): Promise<Blob | null> {
@@ -136,10 +67,95 @@ async function blobFromUrl(url: string): Promise<Blob | null> {
   }
 }
 
+function hydratePersistedImageMeta(pi: PersistedWizardImage): InstantWizardLocalImage | null {
+  const baked = normalizeBakedTextAfterRestore(
+    serializeBakedText(pi.bakedText as BakedTextProtectionDraft)
+  ) as BakedTextProtectionDraft;
+  const remoteUrl = pi.remoteWorkingUrl ?? pi.bakedText.remoteWorkingUrl;
+  return {
+    id: pi.id,
+    originalFileName: pi.originalFileName,
+    mimeType: pi.mimeType,
+    sizeBytes: pi.sizeBytes,
+    optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
+    thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
+    remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
+    remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
+    remoteStorageKey: pi.remoteStorageKey,
+    bakedText: baked,
+    previewUnavailable: false,
+  };
+}
+
+async function hydratePersistedImageWithBlobs(
+  pi: PersistedWizardImage
+): Promise<InstantWizardLocalImage | null> {
+  const baked = normalizeBakedTextAfterRestore(
+    serializeBakedText(pi.bakedText as BakedTextProtectionDraft)
+  ) as BakedTextProtectionDraft;
+  let blobs = await loadWizardImageBlobs(pi.id);
+  const remoteUrl = pi.remoteWorkingUrl ?? pi.bakedText.remoteWorkingUrl;
+
+  if (!blobs && remoteUrl) {
+    const fetched = await blobFromUrl(remoteUrl);
+    if (fetched) {
+      blobs = { optimized: fetched, thumbnail: fetched };
+      void safeIndexedDbSet(pi.id, fetched, fetched);
+    }
+  }
+
+  if (!blobs && isValidHttpUrl(remoteUrl)) {
+    return {
+      id: pi.id,
+      originalFileName: pi.originalFileName,
+      mimeType: pi.mimeType,
+      sizeBytes: pi.sizeBytes,
+      optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
+      thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
+      remoteWorkingUrl: remoteUrl,
+      remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
+      remoteStorageKey: pi.remoteStorageKey,
+      bakedText: baked,
+      previewUnavailable: false,
+    };
+  }
+
+  if (!blobs) {
+    return {
+      id: pi.id,
+      originalFileName: pi.originalFileName,
+      mimeType: pi.mimeType,
+      sizeBytes: pi.sizeBytes,
+      optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
+      thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
+      remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
+      remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
+      remoteStorageKey: pi.remoteStorageKey,
+      bakedText: baked,
+      previewUnavailable: true,
+    };
+  }
+
+  const previewRegistered = attachWizardImageFromMemory(pi.id, blobs);
+  return {
+    id: pi.id,
+    originalFileName: pi.originalFileName,
+    mimeType: pi.mimeType,
+    sizeBytes: pi.sizeBytes,
+    optimizedBlob: blobs.optimized,
+    thumbnailBlob: blobs.thumbnail,
+    remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
+    remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
+    remoteStorageKey: pi.remoteStorageKey,
+    bakedText: baked,
+    previewUnavailable: previewRegistered === null,
+  };
+}
+
 export function useInstantWizardPersist(params: {
   ready: boolean;
   step: number;
-  images: PersistableLocalImage[];
+  sceneSlots: WizardSceneSlot[];
   stylePreset: InstantPremiumStylePreset;
   durationSec: number;
   motionText: string;
@@ -152,11 +168,10 @@ export function useInstantWizardPersist(params: {
   fastRenderMode: boolean;
   instantMode: InstantMode;
   transitionSeconds: InstantTransitionSeconds;
-  sceneTexts: InstantSceneTextDraft[];
   onHydrated?: () => void;
   onRestore: (state: {
     step: number;
-    images: PersistableLocalImage[];
+    sceneSlots: WizardSceneSlot[];
     stylePreset: InstantPremiumStylePreset;
     durationSec: number;
     motionText: string;
@@ -169,7 +184,6 @@ export function useInstantWizardPersist(params: {
     fastRenderMode: boolean;
     instantMode: InstantMode;
     transitionSeconds: InstantTransitionSeconds;
-    sceneTexts: InstantSceneTextDraft[];
   }) => void;
 }) {
   const hydratedRef = useRef(false);
@@ -183,101 +197,83 @@ export function useInstantWizardPersist(params: {
     void (async () => {
       try {
         const saved = readPersistedWizardState();
-        if (!saved || saved.images.length === 0) {
+        if (!saved) {
           await pruneOrphanedWizardBlobs([]);
           params.onHydrated?.();
           return;
         }
-        const allowedIds = new Set(saved.images.map((pi) => pi.id));
-        await pruneOrphanedWizardBlobs(allowedIds);
 
-        const restored: PersistableLocalImage[] = [];
-        for (const pi of saved.images) {
-          const baked = normalizeBakedTextAfterRestore(
-            serializeBakedText(pi.bakedText as BakedTextProtectionDraft)
-          );
-          let blobs = await loadWizardImageBlobs(pi.id);
-          const remoteUrl = pi.remoteWorkingUrl ?? pi.bakedText.remoteWorkingUrl;
-          if (!blobs && remoteUrl) {
-            const fetched = await blobFromUrl(remoteUrl);
-            if (fetched) {
-              blobs = { optimized: fetched, thumbnail: fetched };
-              void safeIndexedDbSet(pi.id, fetched, fetched);
-            }
-          }
-          if (!blobs && isValidHttpUrl(remoteUrl)) {
-            restored.push({
-              id: pi.id,
-              originalFileName: pi.originalFileName,
-              mimeType: pi.mimeType,
-              sizeBytes: pi.sizeBytes,
-              optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
-              thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
-              remoteWorkingUrl: remoteUrl,
-              remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
-                ? pi.remoteThumbnailUrl
-                : undefined,
-              remoteStorageKey: pi.remoteStorageKey,
-              bakedText: baked as BakedTextProtectionDraft,
-              previewUnavailable: false,
-            });
-            continue;
-          }
-          if (!blobs) {
-            restored.push({
-              id: pi.id,
-              originalFileName: pi.originalFileName,
-              mimeType: pi.mimeType,
-              sizeBytes: pi.sizeBytes,
-              optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
-              thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
-              remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
-              remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
-                ? pi.remoteThumbnailUrl
-                : undefined,
-              remoteStorageKey: pi.remoteStorageKey,
-              bakedText: baked as BakedTextProtectionDraft,
-              previewUnavailable: true,
-            });
-            continue;
-          }
-          const previewRegistered = attachWizardImageFromMemory(pi.id, blobs);
-          restored.push({
-            id: pi.id,
-            originalFileName: pi.originalFileName,
-            mimeType: pi.mimeType,
-            sizeBytes: pi.sizeBytes,
-            optimizedBlob: blobs.optimized,
-            thumbnailBlob: blobs.thumbnail,
-            remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
-            remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
-              ? pi.remoteThumbnailUrl
-              : undefined,
-            remoteStorageKey: pi.remoteStorageKey,
-            bakedText: baked as BakedTextProtectionDraft,
-            previewUnavailable: previewRegistered === null,
-          });
-        }
+        const hasStoryboard =
+          (saved.sceneSlots?.length ?? 0) > 0 ||
+          (saved.sceneTexts?.length ?? 0) > 0 ||
+          saved.images.length > 0;
 
-        await pruneOrphanedWizardBlobs(new Set(restored.map((img) => img.id)));
-
-        if (restored.length === 0) {
+        if (!hasStoryboard) {
+          await pruneOrphanedWizardBlobs([]);
           params.onHydrated?.();
           return;
         }
+
         const transitionSeconds = isInstantTransitionSeconds(saved.transitionSeconds)
           ? saved.transitionSeconds
           : normalizeInstantTransitionSeconds(saved.transitionSeconds);
         const instantMode = isInstantMode(saved.instantMode)
           ? saved.instantMode
           : parseInstantMode(saved.instantMode);
+
+        const allowedIds = new Set(saved.images.map((pi) => pi.id));
+        for (const slot of saved.sceneSlots ?? []) {
+          if (slot.image?.id) {
+            allowedIds.add(slot.image.id);
+          }
+        }
+        await pruneOrphanedWizardBlobs(allowedIds);
+
+        const restoredSlots = mergePersistedSceneSlotsWithImages(
+          saved.sceneSlots,
+          saved.images,
+          saved.sceneTexts,
+          transitionSeconds,
+          (meta) => hydratePersistedImageMeta(meta)
+        );
+
+        const hydratedSlots: WizardSceneSlot[] = [];
+        for (const slot of restoredSlots) {
+          if (!slot.image) {
+            hydratedSlots.push(slot);
+            continue;
+          }
+          const meta =
+            saved.sceneSlots?.find((s) => s.image?.id === slot.image?.id)?.image ??
+            saved.images.find((img) => img.id === slot.image?.id);
+          if (!meta) {
+            hydratedSlots.push({ ...slot, image: null });
+            continue;
+          }
+          const hydrated = await hydratePersistedImageWithBlobs(meta);
+          hydratedSlots.push({
+            ...slot,
+            image: hydrated,
+          });
+        }
+
+        await pruneOrphanedWizardBlobs(
+          new Set(
+            listAttachedImages(hydratedSlots)
+              .map((img) => img.id)
+              .filter(Boolean)
+          )
+        );
+
         params.onRestore({
           step: normalizeCreatorWizardStep(saved.step, saved.wizardFlowVersion),
-          images: restored,
+          sceneSlots: hydratedSlots,
           stylePreset: saved.stylePreset,
           durationSec:
             saved.durationSec ??
-            resolveInstantPremiumOutputPlan(restored.length).totalDurationSeconds,
+            resolveInstantPremiumOutputPlan(
+              Math.max(1, listAttachedImages(hydratedSlots).length)
+            ).totalDurationSeconds,
           motionText: saved.motionText,
           continuityStrength: saved.continuityStrength,
           chips: saved.chips,
@@ -288,7 +284,6 @@ export function useInstantWizardPersist(params: {
           fastRenderMode: saved.fastRenderMode,
           instantMode,
           transitionSeconds,
-          sceneTexts: restoreSceneTextDrafts(saved.sceneTexts, restored.length, transitionSeconds),
         });
       } catch (error) {
         warnIndexedDbCacheFailed("hydrate", {
@@ -302,6 +297,7 @@ export function useInstantWizardPersist(params: {
   }, []);
 
   const buildPersistedState = useCallback((): Omit<PersistedWizardState, "version" | "savedAt"> => {
+    const serializedSlots = serializeSceneSlotsForPersist(params.sceneSlots);
     return {
       wizardFlowVersion: CREATOR_WIZARD_FLOW_VERSION,
       step: params.step,
@@ -317,7 +313,8 @@ export function useInstantWizardPersist(params: {
       fastRenderMode: params.fastRenderMode,
       instantMode: params.instantMode,
       transitionSeconds: params.transitionSeconds,
-      sceneTexts: serializeSceneTextDrafts(params.sceneTexts),
+      sceneSlots: serializedSlots,
+      sceneTexts: serializedSlots.map((slot) => slot.text),
       images: [],
     };
   }, [params]);
@@ -328,17 +325,13 @@ export function useInstantWizardPersist(params: {
     }
 
     try {
-      if (params.images.length === 0) {
-        await syncInstantWizardPersistedImages({
-          ...buildPersistedState(),
-          images: [],
-        });
-        return;
-      }
-
+      const attached = listAttachedImages(params.sceneSlots);
       const persistedImages: PersistedWizardImage[] = [];
-      for (const img of params.images) {
-        await safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
+
+      for (const img of attached) {
+        if (img.optimizedBlob.size > 0 && img.thumbnailBlob.size > 0) {
+          await safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
+        }
         const remoteWorking = img.remoteWorkingUrl ?? img.bakedText.remoteWorkingUrl;
         persistedImages.push({
           id: img.id,
@@ -374,7 +367,7 @@ export function useInstantWizardPersist(params: {
     }
     saveTimerRef.current = setTimeout(() => {
       void persistNow();
-    }, 600);
+    }, WIZARD_AUTOSAVE_MS);
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -383,12 +376,11 @@ export function useInstantWizardPersist(params: {
   }, [
     params.ready,
     persistNow,
-    params.images,
+    params.sceneSlots,
     params.step,
     params.fastRenderMode,
     params.instantMode,
     params.transitionSeconds,
-    params.sceneTexts,
     params.motionText,
     params.stylePreset,
     params.chips,

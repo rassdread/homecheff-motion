@@ -10,7 +10,6 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -19,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
 import { InstantWizardContent } from "@/components/instant/instant-wizard-content";
 import { InstantWizardFooter } from "@/components/instant/instant-wizard-footer";
@@ -30,12 +29,11 @@ import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
 import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
 import {
-  purgeAllInstantWizardUploadPersistence,
   purgeInstantWizardImagePersistence,
   revokeWizardImagePreviewUrls,
 } from "@/lib/instant-wizard-image-cleanup";
 import {
-  allWizardImagesHaveValidSource,
+  hasValidWizardImageSourceFromLocal,
   registerWizardImageBlobs,
   toWizardPreviewInput,
 } from "@/lib/instant-wizard-preview-src";
@@ -126,6 +124,20 @@ import {
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import { instantSceneTextsFromDrafts } from "@/lib/instant-scene-text-draft";
+import {
+  assignImagesToSceneSlots,
+  clearSceneImageByImageId,
+  deleteSceneAt,
+  listAttachedImages,
+  moveSceneAt,
+  moveScenesByImageId,
+  patchSceneTextAt,
+  sceneHasUserText,
+  sceneTextsFromSlots,
+  trimScenesToCount,
+  updateAttachedImagesInSlots,
+  type WizardSceneSlot,
+} from "@/lib/instant-wizard-scene-slots";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -166,9 +178,18 @@ const ORDER_ROLE_KEY_SUFFIXES = ["start", "detail", "context", "extra", "end"] a
 
 function serializeSceneTextDrafts(
   drafts: InstantSceneTextDraft[],
-  imageCount: number
+  sceneCount: number
 ): InstantSceneText[] {
-  return instantSceneTextsFromDrafts(drafts, imageCount);
+  return instantSceneTextsFromDrafts(drafts, sceneCount);
+}
+
+function sceneSlotsHaveValidImageSources(slots: WizardSceneSlot[]): boolean {
+  if (slots.length < MIN_IMAGES) {
+    return false;
+  }
+  return slots.every(
+    (slot) => slot.image !== null && hasValidWizardImageSourceFromLocal(slot.image)
+  );
 }
 
 type LocalImage = InstantWizardLocalImage;
@@ -235,7 +256,7 @@ export default function InstantPremiumPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wizardShellRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
-  const [images, setImages] = useState<LocalImage[]>([]);
+  const [sceneSlots, setSceneSlots] = useState<WizardSceneSlot[]>([]);
   const [error, setError] = useState("");
   const [preflightNotice, setPreflightNotice] = useState("");
   const [stylePreset, setStylePreset] = useState<InstantPremiumStylePreset>("food_promo");
@@ -255,8 +276,17 @@ export default function InstantPremiumPage() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [instantMode, setInstantMode] = useState<InstantMode>("transition");
   const [transitionSeconds, setTransitionSeconds] = useState<InstantTransitionSeconds>(5);
-  const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>([]);
-  const [storyboardExpandedIndex, setStoryboardExpandedIndex] = useState<number | null>(0);
+  /** `auto` expands the first scene until the user explicitly toggles. */
+  const [expandedSceneSelection, setExpandedSceneSelection] = useState<string | null | "auto">(
+    "auto"
+  );
+  const expandedSceneId = useMemo(
+    () =>
+      expandedSceneSelection === "auto"
+        ? (sceneSlots[0]?.sceneId ?? null)
+        : expandedSceneSelection,
+    [expandedSceneSelection, sceneSlots]
+  );
   const [fastRenderMode, setFastRenderMode] = useState(false);
   const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
@@ -265,6 +295,18 @@ export default function InstantPremiumPage() {
   const [wizardReady, setWizardReady] = useState(false);
   const imagesRef = useRef<LocalImage[]>([]);
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const images = useMemo(() => listAttachedImages(sceneSlots), [sceneSlots]);
+  const sceneTexts = useMemo(() => sceneTextsFromSlots(sceneSlots), [sceneSlots]);
+  const attachedImageCount = images.length;
+
+  const setImages = useCallback((action: SetStateAction<LocalImage[]>) => {
+    setSceneSlots((slots) =>
+      updateAttachedImagesInSlots(slots, (attached) =>
+        typeof action === "function" ? action(attached) : action
+      )
+    );
+  }, []);
+
   useEffect(() => {
     imagesRef.current = images;
   }, [images]);
@@ -282,42 +324,61 @@ export default function InstantPremiumPage() {
   const isAdmin = session.user?.role?.trim() === "admin";
 
   const maxImages = maxImagesForInstantMode(instantMode);
+  const sceneCount = Math.max(sceneSlots.length, attachedImageCount);
   const outputPlan = useMemo(
     () =>
       resolveInstantPremiumOutputPlan({
-        imageCount: images.length,
+        imageCount: attachedImageCount >= MIN_IMAGES ? attachedImageCount : sceneCount,
         instantMode,
         transitionSeconds,
-        sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+        sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       }),
-    [images.length, instantMode, transitionSeconds, sceneTexts]
+    [attachedImageCount, instantMode, sceneCount, transitionSeconds, sceneTexts]
   );
   const pricingSummary = useMemo(
     () =>
       resolveInstantPremiumPricingSummary(
-        Math.max(MIN_IMAGES, images.length),
+        Math.max(MIN_IMAGES, attachedImageCount >= MIN_IMAGES ? attachedImageCount : sceneCount),
         {
-          imageCount: images.length,
+          imageCount: attachedImageCount >= MIN_IMAGES ? attachedImageCount : sceneCount,
           instantMode,
           transitionSeconds,
-          sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+          sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
         },
         locale === "nl" ? "nl" : "en"
       ),
-    [images.length, instantMode, locale, transitionSeconds, sceneTexts]
+    [attachedImageCount, instantMode, locale, sceneCount, transitionSeconds, sceneTexts]
   );
   const estimatedPriceLabel = pricingSummary.priceLabel;
+
+  const handleStoryboardSceneChange = useCallback(
+    (index: number, patch: Partial<InstantSceneTextDraft>) => {
+      setSceneSlots((prev) => patchSceneTextAt(prev, index, patch));
+    },
+    []
+  );
+
+  const handleStoryboardMoveScene = useCallback((index: number, direction: "up" | "down") => {
+    let keepExpandedId: string | undefined;
+    setSceneSlots((prev) => {
+      keepExpandedId = prev[index]?.sceneId;
+      return moveSceneAt(prev, index, direction);
+    });
+    if (keepExpandedId) {
+      setExpandedSceneSelection(keepExpandedId);
+    }
+  }, []);
 
   const handleTransitionSecondsChange = useCallback(
     (seconds: InstantTransitionSeconds) => {
       if (instantMode === "story") {
         const previousPace = storyDurationDefault(transitionSeconds);
         const nextPace = storyDurationDefault(seconds);
-        setSceneTexts((rows) => {
+        setSceneSlots((rows) => {
           const nonLast = rows.slice(0, -1);
           const allMatchPreviousDefault =
             nonLast.length === 0 ||
-            nonLast.every((row) => row.transitionDurationSeconds === previousPace);
+            nonLast.every((row) => row.text.transitionDurationSeconds === previousPace);
           if (!allMatchPreviousDefault || previousPace === nextPace) {
             return rows;
           }
@@ -326,8 +387,11 @@ export default function InstantPremiumPage() {
               row
             : {
                 ...row,
-                transitionDurationSeconds: nextPace,
-                durationSeconds: nextPace,
+                text: {
+                  ...row.text,
+                  transitionDurationSeconds: nextPace,
+                  durationSeconds: nextPace,
+                },
               }
           );
         });
@@ -340,24 +404,24 @@ export default function InstantPremiumPage() {
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
 
   const imagesHaveValidSources = useMemo(
-    () => allWizardImagesHaveValidSource(images),
-    [images]
+    () => sceneSlotsHaveValidImageSources(sceneSlots),
+    [sceneSlots]
   );
 
   const buildValidationPayload = useCallback((): Record<string, unknown> | null => {
-    if (images.length < MIN_IMAGES) {
+    if (attachedImageCount < MIN_IMAGES && sceneSlots.length < MIN_IMAGES) {
       return null;
     }
     const plan = resolveInstantPremiumOutputPlan({
-      imageCount: images.length,
+      imageCount: attachedImageCount >= MIN_IMAGES ? attachedImageCount : sceneCount,
       instantMode,
       transitionSeconds,
-      sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+      sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
     });
     return {
       instantMode,
       instantTransitionSeconds: transitionSeconds,
-      instantSceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+      instantSceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       images: images.map((img) => {
         const remoteWorking = resolveRemoteImageSrc(img.remoteWorkingUrl, img.bakedText.remoteWorkingUrl);
         const remoteThumb = resolveRemoteImageSrc(img.remoteThumbnailUrl);
@@ -386,7 +450,10 @@ export default function InstantPremiumPage() {
       posterMotionSettings,
     };
   }, [
+    attachedImageCount,
     images,
+    sceneCount,
+    sceneTexts,
     stylePreset,
     aspectRatio,
     locale,
@@ -400,7 +467,7 @@ export default function InstantPremiumPage() {
     posterMotionSettings,
     instantMode,
     transitionSeconds,
-    sceneTexts,
+    sceneSlots,
   ]);
 
   const animationMood = normalizeAnimationMoodId(posterMotionSettings.animationMood) ?? null;
@@ -422,21 +489,15 @@ export default function InstantPremiumPage() {
     if (!over || active.id === over.id) {
       return;
     }
-    setImages((items) => {
-      const oldIndex = items.findIndex((i) => i.id === active.id);
-      const newIndex = items.findIndex((i) => i.id === over.id);
-      if (oldIndex < 0 || newIndex < 0) {
-        return items;
-      }
-      setSceneTexts((texts) => arrayMove(texts, oldIndex, newIndex));
-      return arrayMove(items, oldIndex, newIndex);
-    });
+    setSceneSlots((slots) =>
+      moveScenesByImageId(slots, String(active.id), String(over.id))
+    );
   }, []);
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
       const list = Array.from(files);
-      const room = maxImages - images.length;
+      const room = maxImages - attachedImageCount;
       if (room <= 0) {
         setError(t("instant.errors.maxImages", { max: maxImages }));
         return;
@@ -474,17 +535,7 @@ export default function InstantPremiumPage() {
             } satisfies LocalImage;
           })
         );
-        setImages((prev) => {
-          const updated = [...prev, ...processed];
-          setSceneTexts((st) => {
-            const next = [...st];
-            while (next.length < updated.length) {
-              next.push(emptySceneTextDraft(transitionSeconds));
-            }
-            return next.slice(0, updated.length);
-          });
-          return updated;
-        });
+        setSceneSlots((prev) => assignImagesToSceneSlots(prev, processed, transitionSeconds));
         for (const img of processed) {
           void safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
         }
@@ -499,7 +550,7 @@ export default function InstantPremiumPage() {
         );
       }
     },
-    [images.length, maxImages, session.user?.role, t, transitionSeconds]
+    [attachedImageCount, maxImages, session.user?.role, t, transitionSeconds]
   );
 
   const updateBakedText = useCallback((imageId: string, patch: Partial<BakedTextProtectionDraft>) => {
@@ -621,7 +672,7 @@ export default function InstantPremiumPage() {
   const { persistNow } = useInstantWizardPersist({
     ready: wizardReady,
     step,
-    images,
+    sceneSlots,
     stylePreset,
     durationSec: outputPlan.providerDurationSeconds,
     motionText,
@@ -634,10 +685,9 @@ export default function InstantPremiumPage() {
     fastRenderMode,
     instantMode,
     transitionSeconds,
-    sceneTexts,
     onHydrated: () => setWizardReady(true),
     onRestore: (saved) => {
-      setImages(saved.images);
+      setSceneSlots(saved.sceneSlots);
       setStep(saved.step);
       setStylePreset(saved.stylePreset);
       setMotionText(saved.motionText);
@@ -650,36 +700,90 @@ export default function InstantPremiumPage() {
       setFastRenderMode(saved.fastRenderMode);
       setInstantMode(saved.instantMode);
       setTransitionSeconds(saved.transitionSeconds);
-      setSceneTexts(saved.sceneTexts);
       setWizardReady(true);
     },
   });
 
-  const removeUploadedImage = useCallback(
+  const clearSceneImage = useCallback(
     async (im: LocalImage) => {
       cancelOcrScanForImage(im.id);
       await purgeInstantWizardImagePersistence(im);
-      setImages((prev) => {
-        const index = prev.findIndex((x) => x.id === im.id);
-        const next = prev.filter((x) => x.id !== im.id);
-        if (index >= 0) {
-          setSceneTexts((st) => st.filter((_, i) => i !== index));
-        }
-        return next;
-      });
+      revokeWizardImagePreviewUrls(im);
+      setSceneSlots((prev) => clearSceneImageByImageId(prev, im.id));
       await persistNow();
     },
     [cancelOcrScanForImage, persistNow]
+  );
+
+  const deleteScene = useCallback(
+    async (index: number) => {
+      const slot = sceneSlots[index];
+      const removedId = slot?.sceneId;
+      if (slot?.image) {
+        cancelOcrScanForImage(slot.image.id);
+        await purgeInstantWizardImagePersistence(slot.image);
+        revokeWizardImagePreviewUrls(slot.image);
+      }
+      setSceneSlots((prev) => deleteSceneAt(prev, index));
+      if (removedId && expandedSceneId === removedId) {
+        setExpandedSceneSelection("auto");
+      }
+      await persistNow();
+    },
+    [cancelOcrScanForImage, expandedSceneId, persistNow, sceneSlots]
+  );
+
+  const handleStoryboardDeleteScene = useCallback(
+    (index: number) => {
+      if (
+        sceneHasUserText(sceneTexts[index] ?? emptySceneTextDraft()) &&
+        !window.confirm(t("instant.storyboard.deleteSceneConfirm"))
+      ) {
+        return;
+      }
+      void deleteScene(index);
+    },
+    [deleteScene, sceneTexts, t]
+  );
+
+  const handleStoryboardDuplicateFromPrevious = useCallback((index: number) => {
+    if (index <= 0) {
+      return;
+    }
+    setSceneSlots((prev) => {
+      const source = prev[index - 1]?.text;
+      if (!source) {
+        return prev;
+      }
+      return patchSceneTextAt(prev, index, {
+        template: source.template,
+        heroText: source.heroText,
+        title: source.title,
+        subtitle: source.subtitle,
+        lines: [...source.lines],
+        heroFinale: source.heroFinale,
+        heroFinaleText: source.heroFinaleText,
+        accentWords: source.accentWords,
+      });
+    });
+  }, []);
+
+  const handleStoryboardClearText = useCallback(
+    (index: number) => {
+      setSceneSlots((prev) =>
+        patchSceneTextAt(prev, index, emptySceneTextDraft(transitionSeconds))
+      );
+    },
+    [transitionSeconds]
   );
 
   const clearAllUploads = useCallback(async () => {
     for (const im of imagesRef.current) {
       cancelOcrScanForImage(im.id);
       revokeWizardImagePreviewUrls(im);
+      await purgeInstantWizardImagePersistence(im);
     }
-    setImages([]);
-    setSceneTexts([]);
-    await purgeAllInstantWizardUploadPersistence();
+    setSceneSlots((prev) => prev.map((slot) => ({ ...slot, image: null })));
     await persistNow();
   }, [cancelOcrScanForImage, persistNow]);
 
@@ -711,12 +815,13 @@ export default function InstantPremiumPage() {
     () =>
       hasUnfinishedWizardDraftContent({
         imagesCount: images.length,
+        sceneSlotsCount: sceneSlots.length,
         step,
         motionText,
         chipsCount: chips.length,
         lockedTextLayersCount: lockedTextLayers.length,
       }),
-    [images.length, step, motionText, chips.length, lockedTextLayers.length]
+    [images.length, sceneSlots.length, step, motionText, chips.length, lockedTextLayers.length]
   );
 
   const showWizardSecondaryAction =
@@ -751,7 +856,10 @@ export default function InstantPremiumPage() {
         cancelOcrScanForImage,
         cancelAllOcrScans,
       });
-      setImages([]);
+      setSceneSlots([]);
+      setExpandedSceneSelection("auto");
+      setInstantMode("transition");
+      setTransitionSeconds(5);
       applyWizardFormDefaults();
       await persistNow();
       setResetDialogOpen(false);
@@ -912,16 +1020,16 @@ export default function InstantPremiumPage() {
           })
         );
       const plan = resolveInstantPremiumOutputPlan({
-        imageCount: images.length,
+        imageCount: attachedImageCount,
         instantMode,
         transitionSeconds,
-        sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+        sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       });
       const body = {
         images: uploaded,
         instantMode,
         instantTransitionSeconds: transitionSeconds,
-        instantSceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+        instantSceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
         stylePreset,
         duration: plan.providerDurationSeconds,
         aspectRatio,
@@ -1081,7 +1189,7 @@ export default function InstantPremiumPage() {
       imagesHaveValidSources,
       instantMode,
       transitionSeconds,
-      sceneTexts,
+      sceneSlots,
     ]
   );
 
@@ -1127,7 +1235,7 @@ export default function InstantPremiumPage() {
           backPlaceholder: true,
           onPrimary: () => setStep(2),
           primaryLabel: continueLabel,
-          primaryDisabled: images.length < MIN_IMAGES || !imagesHaveValidSources,
+          primaryDisabled: sceneCount < MIN_IMAGES || !imagesHaveValidSources,
           stackButtons: false,
         };
       case 2:
@@ -1176,7 +1284,7 @@ export default function InstantPremiumPage() {
           stackButtons: false,
         };
     }
-  }, [checkoutBusy, estimatedPriceLabel, images.length, imagesHaveValidSources, isAdmin, startCheckout, step, t, usesFreeGeneration]);
+  }, [checkoutBusy, estimatedPriceLabel, sceneCount, imagesHaveValidSources, isAdmin, startCheckout, step, t, usesFreeGeneration]);
 
   if (!session.resolved) {
     return (
@@ -1322,24 +1430,25 @@ export default function InstantPremiumPage() {
                   onInstantModeChange={(mode) => {
                     setInstantMode(mode);
                     const cap = maxImagesForInstantMode(mode);
-                    setImages((prev) => {
+                    setSceneSlots((prev) => {
                       if (prev.length <= cap) {
                         return prev;
                       }
-                      const kept = prev.slice(0, cap);
+                      const trimmed = trimScenesToCount(prev, cap);
                       for (const removed of prev.slice(cap)) {
-                        cancelOcrScanForImage(removed.id);
-                        void purgeInstantWizardImagePersistence(removed);
-                        revokeWizardImagePreviewUrls(removed);
+                        if (removed.image) {
+                          cancelOcrScanForImage(removed.image.id);
+                          void purgeInstantWizardImagePersistence(removed.image);
+                          revokeWizardImagePreviewUrls(removed.image);
+                        }
                       }
-                      setSceneTexts((st) => st.slice(0, cap));
-                      return kept;
+                      return trimmed;
                     });
                   }}
                   transitionSeconds={transitionSeconds}
                   onTransitionSecondsChange={handleTransitionSecondsChange}
-                  imageCount={images.length}
-                  frameCount={images.length}
+                  imageCount={attachedImageCount}
+                  frameCount={sceneCount}
                   transitionCount={outputPlan.transitionCount}
                   videoDurationSeconds={pricingSummary.providerDurationSeconds}
                   storyboardDurationSeconds={pricingSummary.storyboardDurationSeconds}
@@ -1388,7 +1497,7 @@ export default function InstantPremiumPage() {
                       <button
                         type="button"
                         className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white"
-                        onClick={() => void removeUploadedImage(im)}
+                        onClick={() => void clearSceneImage(im)}
                       >
                         ✕
                       </button>
@@ -1412,10 +1521,10 @@ export default function InstantPremiumPage() {
                     {t("instant.step1.clearAll")}
                   </button>
                 ) : null}
-                {images.length >= MIN_IMAGES && images.length < maxImages ? (
+                {attachedImageCount >= MIN_IMAGES && attachedImageCount < maxImages ? (
                   <p className="mt-2 text-xs text-zinc-500">{t("instant.step1.extraTransitionHint")}</p>
                 ) : null}
-                {images.length >= MIN_IMAGES ? (
+                {attachedImageCount >= MIN_IMAGES ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
                     <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
                     <p className="mt-1 text-xs text-zinc-500">{t("instant.step2.description")}</p>
@@ -1441,56 +1550,19 @@ export default function InstantPremiumPage() {
                     </DndContext>
                     {instantMode === "story" ?
                       <StoryboardEditor
-                        images={images.map((im) => toWizardPreviewInput(im))}
-                        imageCount={images.length}
+                        sceneIds={sceneSlots.map((slot) => slot.sceneId)}
+                        images={sceneSlots.map((slot) =>
+                          slot.image ? toWizardPreviewInput(slot.image) : undefined
+                        )}
+                        imageCount={sceneCount}
                         sceneTexts={sceneTexts}
-                        expandedIndex={storyboardExpandedIndex}
-                        onExpandedIndexChange={setStoryboardExpandedIndex}
-                        onSceneChange={(index, patch) =>
-                          setSceneTexts((prev) =>
-                            prev.map((row, i) => (i === index ? { ...row, ...patch } : row))
-                          )
-                        }
-                        onMoveScene={(index, direction) => {
-                          const target = direction === "up" ? index - 1 : index + 1;
-                          if (target < 0 || target >= images.length) {
-                            return;
-                          }
-                          setImages((prev) => arrayMove(prev, index, target));
-                          setSceneTexts((prev) => arrayMove(prev, index, target));
-                          setStoryboardExpandedIndex(target);
-                        }}
-                        onDuplicateTextFromPrevious={(index) => {
-                          if (index <= 0) {
-                            return;
-                          }
-                          setSceneTexts((prev) => {
-                            const source = prev[index - 1];
-                            if (!source) {
-                              return prev;
-                            }
-                            const next = [...prev];
-                            next[index] = {
-                              ...next[index]!,
-                              template: source.template,
-                              heroText: source.heroText,
-                              title: source.title,
-                              subtitle: source.subtitle,
-                              lines: [...source.lines],
-                              heroFinale: source.heroFinale,
-                              heroFinaleText: source.heroFinaleText,
-                              accentWords: source.accentWords,
-                            };
-                            return next;
-                          });
-                        }}
-                        onClearText={(index) => {
-                          setSceneTexts((prev) => {
-                            const next = [...prev];
-                            next[index] = emptySceneTextDraft(transitionSeconds);
-                            return next;
-                          });
-                        }}
+                        expandedSceneId={expandedSceneId}
+                        onExpandedSceneIdChange={setExpandedSceneSelection}
+                        onSceneChange={handleStoryboardSceneChange}
+                        onMoveScene={handleStoryboardMoveScene}
+                        onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
+                        onClearText={handleStoryboardClearText}
+                        onDeleteScene={handleStoryboardDeleteScene}
                       />
                     : null}
                   </div>

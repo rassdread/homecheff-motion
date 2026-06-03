@@ -122,6 +122,8 @@ export function isInstantWizardProjectSnapshotComplete(
 
 export function hasUnfinishedWizardDraftContent(params: {
   imagesCount: number;
+  /** Storyboard slots (text persists without images). */
+  sceneSlotsCount?: number;
   step: number;
   motionText: string;
   chipsCount: number;
@@ -129,6 +131,7 @@ export function hasUnfinishedWizardDraftContent(params: {
 }): boolean {
   return (
     params.imagesCount > 0 ||
+    (params.sceneSlotsCount ?? 0) > 0 ||
     params.step > 1 ||
     params.motionText.trim().length > 0 ||
     params.chipsCount > 0 ||
