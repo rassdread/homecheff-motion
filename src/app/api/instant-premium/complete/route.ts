@@ -87,7 +87,11 @@ export async function POST(request: Request) {
   }
 
   const imageCount = payloadValidated.data.images.length;
-  const expectedCents = estimateInstantPremiumPriceCents(imageCount);
+  const priceOptions = {
+    providerDurationSeconds: payloadValidated.data.duration,
+    transitionSeconds: payloadValidated.data.instantTransitionSeconds,
+  };
+  const expectedCents = estimateInstantPremiumPriceCents(imageCount, priceOptions);
   if (
     typeof session.amount_total === "number" &&
     session.amount_total > 0 &&
@@ -95,7 +99,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error: "Paid amount does not match selected image count.",
+        error: "Paid amount does not match selected video duration.",
         expectedCents,
         got: session.amount_total,
       },

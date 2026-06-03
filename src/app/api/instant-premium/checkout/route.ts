@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { estimateInstantPremiumPriceCents, formatInstantPremiumPriceEur } from "@/lib/instant-premium-pricing";
+import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 import { getPublicOrigin } from "@/lib/public-origin";
 import { assertStripeSecretKeyConfigured, getStripeClient } from "@/lib/stripe-server";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
@@ -84,14 +85,20 @@ export async function POST(request: Request) {
   const stripe = getStripeClient();
   const origin = getPublicOrigin();
   const imageCount = validated.data.images.length;
+  const outputPlan = resolveInstantPremiumOutputPlan({
+    imageCount,
+    instantMode: validated.data.instantMode,
+    transitionSeconds: validated.data.instantTransitionSeconds,
+    sceneTexts: validated.data.instantSceneTexts,
+  });
   const priceOptions = {
-    durationSeconds: validated.data.duration,
+    providerDurationSeconds: outputPlan.providerDurationSeconds,
     transitionSeconds: validated.data.instantTransitionSeconds,
   };
   const amountCents = estimateInstantPremiumPriceCents(imageCount, priceOptions);
   const priceLabel = formatInstantPremiumPriceEur(imageCount, "en", priceOptions);
   const modeLabel = validated.data.instantMode === "story" ? "Story" : "Transition";
-  const label = `HomeCheff Motion — ${modeLabel} (${imageCount} images, ${validated.data.duration}s, ${priceLabel})`;
+  const label = `HomeCheff Motion — ${modeLabel} (${imageCount} images, ${outputPlan.providerDurationSeconds}s, ${priceLabel})`;
 
   const pending = await prisma.instantPremiumPendingOrder.create({
     data: {

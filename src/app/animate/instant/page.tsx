@@ -108,8 +108,8 @@ import {
   postWizardImageUpload,
 } from "@/lib/instant-image-upload-client";
 import {
-  formatInstantPremiumPriceEur,
   MIN_INSTANT_PREMIUM_IMAGES,
+  resolveInstantPremiumPricingSummary,
 } from "@/lib/instant-premium-pricing";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 import {
@@ -121,6 +121,7 @@ import {
 import {
   emptySceneTextDraft,
   InstantModePanel,
+  storyDurationDefault,
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
@@ -291,13 +292,49 @@ export default function InstantPremiumPage() {
       }),
     [images.length, instantMode, transitionSeconds, sceneTexts]
   );
-  const estimatedPriceLabel = useMemo(
+  const pricingSummary = useMemo(
     () =>
-      formatInstantPremiumPriceEur(Math.max(MIN_IMAGES, images.length), locale === "nl" ? "nl" : "en", {
-        providerDurationSeconds: outputPlan.providerDurationSeconds,
-        transitionSeconds,
-      }),
-    [images.length, locale, outputPlan.providerDurationSeconds, transitionSeconds]
+      resolveInstantPremiumPricingSummary(
+        Math.max(MIN_IMAGES, images.length),
+        {
+          imageCount: images.length,
+          instantMode,
+          transitionSeconds,
+          sceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
+        },
+        locale === "nl" ? "nl" : "en"
+      ),
+    [images.length, instantMode, locale, transitionSeconds, sceneTexts]
+  );
+  const estimatedPriceLabel = pricingSummary.priceLabel;
+
+  const handleTransitionSecondsChange = useCallback(
+    (seconds: InstantTransitionSeconds) => {
+      if (instantMode === "story") {
+        const previousPace = storyDurationDefault(transitionSeconds);
+        const nextPace = storyDurationDefault(seconds);
+        setSceneTexts((rows) => {
+          const nonLast = rows.slice(0, -1);
+          const allMatchPreviousDefault =
+            nonLast.length === 0 ||
+            nonLast.every((row) => row.transitionDurationSeconds === previousPace);
+          if (!allMatchPreviousDefault || previousPace === nextPace) {
+            return rows;
+          }
+          return rows.map((row, index) =>
+            index >= rows.length - 1 ?
+              row
+            : {
+                ...row,
+                transitionDurationSeconds: nextPace,
+                durationSeconds: nextPace,
+              }
+          );
+        });
+      }
+      setTransitionSeconds(seconds);
+    },
+    [instantMode, transitionSeconds]
   );
 
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
@@ -1300,12 +1337,15 @@ export default function InstantPremiumPage() {
                     });
                   }}
                   transitionSeconds={transitionSeconds}
-                  onTransitionSecondsChange={setTransitionSeconds}
+                  onTransitionSecondsChange={handleTransitionSecondsChange}
                   imageCount={images.length}
                   frameCount={images.length}
                   transitionCount={outputPlan.transitionCount}
-                  videoDurationSeconds={outputPlan.providerDurationSeconds}
+                  videoDurationSeconds={pricingSummary.providerDurationSeconds}
+                  storyboardDurationSeconds={pricingSummary.storyboardDurationSeconds}
+                  perTransitionProviderSeconds={pricingSummary.perTransitionProviderSeconds}
                   estimatedPriceLabel={estimatedPriceLabel}
+                  pacingOptionsShareSamePrice={pricingSummary.pacingOptionsShareSamePrice}
                 />
                 <h2 className="mt-6 text-xl font-semibold tracking-tight">
                   {t("instant.creatorStep.upload")}
@@ -1514,12 +1554,21 @@ export default function InstantPremiumPage() {
                     {outputPlan.mode === "story_multiframe"
                       ? t("instant.outputPlan.storyMode")
                       : outputPlan.mode === "single_transition"
-                        ? t("instant.outputPlan.singleTransition", { seconds: transitionSeconds })
-                        : t("instant.outputPlan.cinematicStory", { seconds: transitionSeconds })}
+                        ? t("instant.outputPlan.singleTransition", {
+                            seconds: pricingSummary.perTransitionProviderSeconds,
+                          })
+                        : t("instant.outputPlan.cinematicStory", {
+                            seconds: pricingSummary.perTransitionProviderSeconds,
+                          })}
                   </p>
                   <p className="mt-1 text-sm text-emerald-900/90">
                     {t("instant.pricing.estimated", { price: estimatedPriceLabel })}
                   </p>
+                  {pricingSummary.pacingOptionsShareSamePrice ?
+                    <p className="mt-2 text-xs text-emerald-900/80">
+                      {t("instant.pricing.samePricePacingOnly")}
+                    </p>
+                  : null}
                   {isAdmin ? (
                     <p className="mt-2 text-xs font-medium text-amber-900">
                       {t("instant.pricing.adminTestMode")}
@@ -1561,7 +1610,7 @@ export default function InstantPremiumPage() {
                   </li>
                   <li>
                     <span className="text-zinc-500">{t("instant.mode.perTransition")}:</span>{" "}
-                    {transitionSeconds}s
+                    {pricingSummary.perTransitionProviderSeconds}s
                   </li>
                   <li>
                     <span className="text-zinc-500">{t("instant.mode.modeLabel")}:</span>{" "}

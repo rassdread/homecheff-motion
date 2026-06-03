@@ -4,6 +4,8 @@ import {
   estimateInstantPremiumPriceCents,
   estimateInstantPremiumPriceEur,
   formatInstantPremiumPriceEur,
+  instantPremiumPacingOptionsShareSamePrice,
+  resolveInstantPremiumPricingSummary,
 } from "@/lib/instant-premium-pricing";
 
 describe("instant-premium-pricing", () => {
@@ -31,5 +33,40 @@ describe("instant-premium-pricing", () => {
     const storyboardInflated = estimateInstantPremiumPriceEur(9, { durationSeconds: 49 });
     assert.ok(shorter > baseline);
     assert.ok(storyboardInflated > shorter);
+  });
+
+  it("detects when pacing presets share the same EUR price", () => {
+    const shared = instantPremiumPacingOptionsShareSamePrice(4, {
+      instantMode: "story",
+      sceneTexts: [
+        { transitionDurationSeconds: 5 },
+        { transitionDurationSeconds: 5 },
+        { transitionDurationSeconds: 5 },
+        {},
+      ],
+    });
+    assert.equal(shared, true);
+
+    const varied = instantPremiumPacingOptionsShareSamePrice(4, {
+      instantMode: "transition",
+      sceneTexts: [],
+    });
+    assert.equal(varied, false);
+  });
+
+  it("resolveInstantPremiumPricingSummary scales price with provider seconds", () => {
+    const fast = resolveInstantPremiumPricingSummary(4, {
+      imageCount: 4,
+      instantMode: "transition",
+      transitionSeconds: 3,
+    });
+    const standard = resolveInstantPremiumPricingSummary(4, {
+      imageCount: 4,
+      instantMode: "transition",
+      transitionSeconds: 5,
+    });
+    assert.ok(fast.providerDurationSeconds < standard.providerDurationSeconds);
+    assert.ok(fast.priceEur < standard.priceEur);
+    assert.equal(fast.pacingOptionsShareSamePrice, false);
   });
 });

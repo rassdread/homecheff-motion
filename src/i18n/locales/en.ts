@@ -770,6 +770,8 @@ export const en: LocaleSchema = {
   "instant.creatorGenerate.intro": "Review your video and start generation.",
   "instant.pricing.estimated": "Estimated price: {price}",
   "instant.pricing.adminTestMode": "Test mode: free for admin",
+  "instant.pricing.samePricePacingOnly": "Same price — only affects pacing.",
+  "instant.pricing.providerPerTransition": "Vidu receives {seconds}s per transition.",
   "instant.outputPlan.singleTransition": "Single transition · {seconds}s output",
   "instant.outputPlan.cinematicStory": "Multi-transition video · {seconds}s per transition",
   "instant.outputPlan.storyMode": "Continuous story video (one render)",

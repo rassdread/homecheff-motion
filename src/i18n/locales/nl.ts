@@ -772,6 +772,8 @@ export const nl = {
   "instant.creatorGenerate.intro": "Controleer je video en start de generatie.",
   "instant.pricing.estimated": "Geschatte prijs: {price}",
   "instant.pricing.adminTestMode": "Testmodus: gratis voor admin",
+  "instant.pricing.samePricePacingOnly": "Zelfde prijs — alleen het tempo verandert.",
+  "instant.pricing.providerPerTransition": "Vidu krijgt {seconds}s per overgang.",
   "instant.outputPlan.singleTransition": "Enkele overgang · {seconds}s output",
   "instant.outputPlan.cinematicStory": "Multi-overgang video · {seconds}s per overgang",
   "instant.outputPlan.storyMode": "Doorlopend story-video (één render)",

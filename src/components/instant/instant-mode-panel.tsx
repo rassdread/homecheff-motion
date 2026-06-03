@@ -64,7 +64,10 @@ type InstantModePanelProps = {
   frameCount: number;
   transitionCount: number;
   videoDurationSeconds: number;
+  storyboardDurationSeconds: number;
+  perTransitionProviderSeconds: number;
   estimatedPriceLabel: string;
+  pacingOptionsShareSamePrice: boolean;
 };
 
 const TRANSITION_DURATION_LABEL_KEYS: Record<
@@ -118,7 +121,10 @@ export function InstantModePanel({
   frameCount,
   transitionCount,
   videoDurationSeconds,
+  storyboardDurationSeconds,
+  perTransitionProviderSeconds,
   estimatedPriceLabel,
+  pacingOptionsShareSamePrice,
 }: InstantModePanelProps) {
   const t = useActiveTranslator();
 
@@ -218,12 +224,19 @@ export function InstantModePanel({
         <div className="space-y-2">
           <p className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
             {instantMode === "story" ?
-              t("instant.storyboard.statsTransition", {
-                frames: frameCount,
-                transitions: transitionCount,
-                seconds: videoDurationSeconds,
-                price: estimatedPriceLabel,
-              })
+              storyboardDurationSeconds !== videoDurationSeconds ?
+                t("instant.storyboard.statsDetailed", {
+                  scenes: frameCount,
+                  storyboard: storyboardDurationSeconds,
+                  video: videoDurationSeconds,
+                  price: estimatedPriceLabel,
+                })
+              : t("instant.storyboard.statsTransition", {
+                  frames: frameCount,
+                  transitions: transitionCount,
+                  seconds: videoDurationSeconds,
+                  price: estimatedPriceLabel,
+                })
             : t("instant.mode.stats", {
                 images: imageCount,
                 transitions: transitionCount,
@@ -231,6 +244,18 @@ export function InstantModePanel({
                 price: estimatedPriceLabel,
               })}
           </p>
+          {pacingOptionsShareSamePrice ?
+            <p className="rounded-xl border border-sky-100 bg-sky-50/80 px-3 py-2 text-xs text-sky-950">
+              {t("instant.pricing.samePricePacingOnly")}
+            </p>
+          : null}
+          {instantMode === "story" && perTransitionProviderSeconds !== storyDurationDefault(transitionSeconds) ?
+            <p className="text-xs text-zinc-500">
+              {t("instant.pricing.providerPerTransition", {
+                seconds: perTransitionProviderSeconds,
+              })}
+            </p>
+          : null}
         </div>
       ) : null}
 
