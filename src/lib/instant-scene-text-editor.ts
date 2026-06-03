@@ -8,6 +8,8 @@ import {
   type StorySceneDurationSeconds,
 } from "@/lib/story-overlay-templates";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
+import { beatsForEditor } from "@/lib/story-text-beats";
+import { sanitizeOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
 
 function toDraftDuration(
   value: number | undefined,
@@ -28,20 +30,49 @@ export function sceneTextToDraft(
   scene: ReturnType<typeof parseSceneTextsJson>[number]
 ): InstantSceneTextDraft {
   const pace = toDraftDuration(scene.transitionDurationSeconds ?? scene.durationSeconds);
+  const heroText = scene.heroText ?? "";
+  const title = scene.title ?? "";
+  const subtitle = scene.subtitle ?? "";
+  const heroFinaleText = scene.heroFinaleText ?? "";
   return {
     ...emptySceneTextDraft(pace),
     template: scene.template ?? "auto",
     transitionDurationSeconds: pace,
     durationSeconds: pace,
-    heroText: scene.heroText ?? "",
-    title: scene.title ?? "",
-    subtitle: scene.subtitle ?? "",
+    heroText,
+    title,
+    subtitle,
+    headlineBeats: beatsForEditor(
+      Array.isArray(scene.headlineBeats) ? scene.headlineBeats.map(String) : undefined,
+      heroText
+    ),
+    titleBeats: beatsForEditor(
+      Array.isArray(scene.titleBeats) ? scene.titleBeats.map(String) : undefined,
+      title
+    ),
+    subtitleBeats: beatsForEditor(
+      Array.isArray(scene.subtitleBeats) ? scene.subtitleBeats.map(String) : undefined,
+      subtitle
+    ),
+    heroTextBeats: beatsForEditor(
+      Array.isArray(scene.heroTextBeats) ? scene.heroTextBeats.map(String) : undefined,
+      heroText
+    ),
+    finaleTextBeats: beatsForEditor(
+      Array.isArray(scene.finaleTextBeats) ? scene.finaleTextBeats.map(String) : undefined,
+      heroFinaleText
+    ),
     extraLines: Array.isArray(scene.extraLines) ? scene.extraLines.map(String) : [],
     accentWords: Array.isArray(scene.accentWords) ? scene.accentWords.join(", ") : "",
     lines: Array.isArray(scene.lines) ? scene.lines.map(String) : [],
     heroFinale: scene.heroFinale !== false,
     heroFinaleText: scene.heroFinaleText ?? "",
     finaleFooter: scene.finaleFooter ?? "",
+    overlayLayerStyles: sanitizeOverlayLayerStyles(
+      (scene as { overlayLayerStyles?: unknown }).overlayLayerStyles as
+        | import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles
+        | undefined
+    ),
   };
 }
 

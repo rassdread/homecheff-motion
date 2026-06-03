@@ -54,6 +54,71 @@ export const STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX = Math.round(
   12 * STORY_OVERLAY_SUBTITLE_GAP_SCALE
 );
 
+export type StoryOverlayFontCapRole =
+  | StoryOverlayTypographyRole
+  | "hero"
+  | "hero_finale"
+  | "footer"
+  | "extra";
+
+type StoryAspectBucket = "9:16" | "16:9" | "other";
+
+function storyAspectBucket(width: number, height: number): StoryAspectBucket {
+  const ratio = width / height;
+  if (ratio < 0.7) {
+    return "9:16";
+  }
+  if (ratio > 1.3) {
+    return "16:9";
+  }
+  return "other";
+}
+
+const STORY_OVERLAY_MAX_FONT_PX: Record<
+  StoryAspectBucket,
+  Record<StoryOverlayFontCapRole, number>
+> = {
+  "9:16": {
+    headline: 112,
+    title: 78,
+    subtitle: 52,
+    hero: 120,
+    hero_finale: 96,
+    footer: 36,
+    extra: 48,
+  },
+  "16:9": {
+    headline: 128,
+    title: 92,
+    subtitle: 58,
+    hero: 136,
+    hero_finale: 108,
+    footer: 40,
+    extra: 54,
+  },
+  other: {
+    headline: 120,
+    title: 84,
+    subtitle: 56,
+    hero: 128,
+    hero_finale: 102,
+    footer: 38,
+    extra: 50,
+  },
+};
+
+/** Cap adaptive font sizes so hero/finale text stays professional on mobile. */
+export function capStoryOverlayFontSize(
+  role: StoryOverlayFontCapRole,
+  fontSize: number,
+  width: number,
+  height: number
+): number {
+  const bucket = storyAspectBucket(width, height);
+  const cap = STORY_OVERLAY_MAX_FONT_PX[bucket][role];
+  return Math.min(fontSize, cap);
+}
+
 /** Tailwind classes for live storyboard preview (relative hierarchy matches render scale). */
 export const STORY_PREVIEW_TYPOGRAPHY_CLASS = {
   headline: "text-[1.125rem] font-bold uppercase tracking-wide text-white sm:text-xl",

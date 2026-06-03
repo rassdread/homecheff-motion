@@ -347,6 +347,33 @@ export type ProjectPlaybackDebugSummary = {
   };
 };
 
+export type ProjectRenderVersionSummary = {
+  id: string;
+  renderVersionNumber: number;
+  kind: "initial" | "full_rerender";
+  status: string;
+  isDefault: boolean;
+  versionNote: string | null;
+  finalVideoUrl: string | null;
+  cleanVideoUrl: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  createdFromRenderId: string | null;
+};
+
+export type FullRerenderResponse = {
+  fullRerender: {
+    ok: boolean;
+    code?: string;
+    projectId: string;
+    status?: "started";
+    progressRoute?: string;
+    startedSegmentCount?: number;
+    message?: string;
+  };
+  status?: InstantPremiumStatusResponse;
+};
+
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
@@ -354,6 +381,7 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   instantCleanFinalVideoUrl?: string | null;
   instantSceneTexts?: unknown;
   instantMode?: string;
+  instantTransitionSeconds?: number;
   instantFinalRebuildCount?: number;
   instantFinalRebuiltAt?: string | null;
   instantPreviousFinalVideoUrl?: string | null;
@@ -363,6 +391,7 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   /** Only when viewer is admin (e.g. inspecting another user’s project). */
   ownerEmail?: string;
   languageExports?: VideoLanguageExportSummary[];
+  renderVersions?: ProjectRenderVersionSummary[];
   playback?: ProjectPlaybackDebugSummary;
 };
 

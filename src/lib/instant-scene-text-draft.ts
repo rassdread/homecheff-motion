@@ -1,8 +1,11 @@
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import {
   MAX_EXTRA_LINES,
+  normalizeSceneText,
   type InstantSceneText,
 } from "@/lib/story-overlay-templates";
+import { hasCustomOverlayLayerStyles, sanitizeOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
+import { pickBeatArraysForApi, trimBeats } from "@/lib/story-text-beats";
 import { resolveSceneEmotionId } from "@/lib/animation-scene-emotions";
 
 /** Serialize wizard / language-editor draft row to API sceneTexts payload. */
@@ -32,6 +35,18 @@ export function instantSceneTextFromDraft(
     },
   });
 
+  const normalized = normalizeSceneText({
+    template: scene.template,
+    heroText: scene.heroText.trim() || undefined,
+    title: scene.title.trim() || undefined,
+    subtitle: scene.subtitle.trim() || undefined,
+    headlineBeats: trimBeats(scene.headlineBeats),
+    titleBeats: trimBeats(scene.titleBeats),
+    subtitleBeats: trimBeats(scene.subtitleBeats),
+    heroTextBeats: trimBeats(scene.heroTextBeats),
+    finaleTextBeats: trimBeats(scene.finaleTextBeats),
+  });
+
   return {
     template: scene.template,
     ...(isLast ?
@@ -44,6 +59,10 @@ export function instantSceneTextFromDraft(
     title: scene.title.trim() || undefined,
     subtitle: scene.subtitle.trim() || undefined,
     extraLines: extraLines.length > 0 ? extraLines : undefined,
+    ...pickBeatArraysForApi(normalized),
+    ...(hasCustomOverlayLayerStyles(scene.overlayLayerStyles) ?
+      { overlayLayerStyles: sanitizeOverlayLayerStyles(scene.overlayLayerStyles) }
+    : {}),
     accentWords: scene.accentWords
       .split(",")
       .map((word) => word.trim())

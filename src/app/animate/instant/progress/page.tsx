@@ -25,6 +25,7 @@ import {
   type RebuildFinalVideoResponse,
 } from "@/lib/instant-export-client";
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
+import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
@@ -84,6 +85,8 @@ export default function InstantPremiumProgressPage() {
   const [segmentRetryBusy, setSegmentRetryBusy] = useState<number | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [textRerenderEditorOpen, setTextRerenderEditorOpen] = useState(false);
+  const [fullRerenderEditorOpen, setFullRerenderEditorOpen] = useState(false);
+  const [fullRerenderBusy, setFullRerenderBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
@@ -145,6 +148,24 @@ export default function InstantPremiumProgressPage() {
     isAdmin,
     onPollNow: refreshSnapshot,
   });
+
+  const canShowFullRerender = Boolean(
+    effectiveProjectId &&
+      snapshot?.projectType === "instant_premium" &&
+      (snapshot.segmentCount ?? snapshot.segments?.length ?? 0) > 0
+  );
+  const fullRerenderDisabled = Boolean(
+    fullRerenderBusy ||
+      rebuildBusy ||
+      videoRepair.repairInFlight ||
+      snapshot?.isRebuildingFinalVideo ||
+      snapshot?.status === "running" ||
+      snapshot?.status === "finalizing" ||
+      snapshot?.status === "queued" ||
+      snapshot?.phase === "generating_clips" ||
+      snapshot?.phase === "merging_clips" ||
+      snapshot?.phase === "uploading_final"
+  );
 
   const panelPollingError =
     pollingError ??
@@ -417,6 +438,23 @@ export default function InstantPremiumProgressPage() {
                 onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
                 buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
               />
+              {canShowFullRerender ?
+                <button
+                  type="button"
+                  disabled={fullRerenderDisabled}
+                  onClick={() => setFullRerenderEditorOpen(true)}
+                  className="flex w-full flex-col gap-1 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left transition hover:bg-emerald-50 disabled:opacity-60"
+                >
+                  <span className="text-sm font-semibold text-emerald-950">
+                    {fullRerenderBusy ?
+                      t("instant.fullRerender.busy")
+                    : t("projectDetail.renderAgain.label")}
+                  </span>
+                  <span className="text-xs leading-relaxed text-emerald-900/80">
+                    {t("projectDetail.renderAgain.hint")}
+                  </span>
+                </button>
+              : null}
               <p className="text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
             </div>
           ) : null}
@@ -598,6 +636,40 @@ export default function InstantPremiumProgressPage() {
           onError={(message) => {
             setActionError(message);
             setRebuildBusy(false);
+          }}
+        />
+      : null}
+
+      {effectiveProjectId && canShowFullRerender ?
+        <FullRerenderEditorModal
+          open={fullRerenderEditorOpen}
+          onClose={() => setFullRerenderEditorOpen(false)}
+          projectId={effectiveProjectId}
+          instantSceneTexts={versionMeta?.instantSceneTexts ?? snapshot?.segments?.map(() => ({}))}
+          imageCount={Math.max(
+            snapshot?.segmentCount ?? snapshot?.segments?.length ?? 0,
+            parseSceneTextsJson(versionMeta?.instantSceneTexts).length,
+            1
+          )}
+          images={(snapshot?.segments ?? []).map((segment) => ({
+            id: segment.sourceImageId,
+            previewUrl: segment.sourceImageUrl ?? "",
+          }))}
+          onRenderStart={() => {
+            setFullRerenderBusy(true);
+            setActionError(null);
+          }}
+          onSuccess={(response) => {
+            setFullRerenderBusy(false);
+            setActionError(null);
+            if (response.status) {
+              setSnapshot(response.status);
+            }
+            invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+          }}
+          onError={(message) => {
+            setActionError(message);
+            setFullRerenderBusy(false);
           }}
         />
       : null}

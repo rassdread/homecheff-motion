@@ -22,6 +22,10 @@ import {
   normalizeSceneEmotionFields,
   withAutoSceneEmotionPatch,
 } from "@/lib/animation-scene-emotions";
+import {
+  hasCustomOverlayLayerStyles,
+  sanitizeOverlayLayerStyles,
+} from "@/lib/story-overlay-layer-styles";
 
 export type WizardSceneSlot = {
   sceneId: string;
@@ -65,6 +69,15 @@ export function sceneTextsFromSlots(slots: WizardSceneSlot[]): InstantSceneTextD
 
 export function sceneHasUserText(text: InstantSceneTextDraft): boolean {
   if (text.heroText.trim() || text.title.trim() || text.subtitle.trim()) {
+    return true;
+  }
+  if (
+    text.headlineBeats.some((line) => line.trim()) ||
+    text.titleBeats.some((line) => line.trim()) ||
+    text.subtitleBeats.some((line) => line.trim()) ||
+    text.heroTextBeats.some((line) => line.trim()) ||
+    text.finaleTextBeats.some((line) => line.trim())
+  ) {
     return true;
   }
   if (text.extraLines.some((line) => line.trim())) {
@@ -254,6 +267,21 @@ function restoreSceneTextDraft(
     heroText: typeof raw.heroText === "string" ? raw.heroText : "",
     title: typeof raw.title === "string" ? raw.title : "",
     subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
+    headlineBeats: Array.isArray(raw.headlineBeats)
+      ? raw.headlineBeats.filter((line): line is string => typeof line === "string")
+      : [],
+    titleBeats: Array.isArray(raw.titleBeats)
+      ? raw.titleBeats.filter((line): line is string => typeof line === "string")
+      : [],
+    subtitleBeats: Array.isArray(raw.subtitleBeats)
+      ? raw.subtitleBeats.filter((line): line is string => typeof line === "string")
+      : [],
+    heroTextBeats: Array.isArray(raw.heroTextBeats)
+      ? raw.heroTextBeats.filter((line): line is string => typeof line === "string")
+      : [],
+    finaleTextBeats: Array.isArray(raw.finaleTextBeats)
+      ? raw.finaleTextBeats.filter((line): line is string => typeof line === "string")
+      : [],
     extraLines: Array.isArray(raw.extraLines)
       ? raw.extraLines.filter((line): line is string => typeof line === "string")
       : [],
@@ -270,6 +298,7 @@ function restoreSceneTextDraft(
       autoEmotion: raw.autoEmotion,
     }),
     actingIntensity: normalizeSceneActingIntensity(raw.actingIntensity),
+    overlayLayerStyles: sanitizeOverlayLayerStyles(raw.overlayLayerStyles),
   };
 }
 
@@ -285,6 +314,11 @@ export function serializeSceneSlotsForPersist(
       heroText: slot.text.heroText,
       title: slot.text.title,
       subtitle: slot.text.subtitle,
+      headlineBeats: [...slot.text.headlineBeats],
+      titleBeats: [...slot.text.titleBeats],
+      subtitleBeats: [...slot.text.subtitleBeats],
+      heroTextBeats: [...slot.text.heroTextBeats],
+      finaleTextBeats: [...slot.text.finaleTextBeats],
       extraLines: [...slot.text.extraLines],
       accentWords: slot.text.accentWords,
       lines: [...slot.text.lines],
@@ -295,6 +329,9 @@ export function serializeSceneSlotsForPersist(
       emotion: slot.text.emotion,
       autoEmotion: slot.text.autoEmotion,
       actingIntensity: slot.text.actingIntensity,
+      ...(hasCustomOverlayLayerStyles(slot.text.overlayLayerStyles) ?
+        { overlayLayerStyles: sanitizeOverlayLayerStyles(slot.text.overlayLayerStyles) }
+      : {}),
     },
     image: slot.image
       ? {

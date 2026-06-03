@@ -105,6 +105,7 @@ import {
   commitInstantPremiumFinalVideoExport,
   markInstantPremiumFinalRebuildFailed,
 } from "@/server/instant-premium/final-video-export-commit";
+import { markFullRerenderFailedIfRunning } from "@/server/instant-premium/full-rerender-project";
 import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
@@ -1259,6 +1260,7 @@ export async function executeInstantPremiumMerge(
             instantWorkerJobStatus: "failed",
           },
         });
+        await markFullRerenderFailedIfRunning(projectId, message);
         logFinalExportFailed({
           projectId,
           exportId: exportRow.id,

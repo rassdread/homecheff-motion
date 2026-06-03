@@ -10,7 +10,12 @@ import {
 } from "@/lib/project-video-versions";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
-export type VideoDownloadOptionKind = "original" | "clean" | "language" | "text_rerender";
+export type VideoDownloadOptionKind =
+  | "original"
+  | "clean"
+  | "language"
+  | "text_rerender"
+  | "full_rerender";
 
 export type VideoDownloadOption = {
   id: string;
@@ -39,6 +44,7 @@ const DESCRIPTION_BY_KIND: Record<VideoDownloadOptionKind, string> = {
   clean: "projectDetail.downloadPicker.cleanDescription",
   language: "projectDetail.downloadPicker.languageDescription",
   text_rerender: "projectDetail.downloadPicker.textRerenderDescription",
+  full_rerender: "projectDetail.downloadPicker.fullRerenderDescription",
 };
 
 const BADGE_BY_KIND: Partial<Record<VideoDownloadOptionKind, string>> = {

@@ -776,6 +776,7 @@ export default function InstantPremiumPage() {
         heroFinale: source.heroFinale,
         heroFinaleText: source.heroFinaleText,
         accentWords: source.accentWords,
+        overlayLayerStyles: { ...source.overlayLayerStyles },
       });
     });
   }, []);
@@ -1575,6 +1576,7 @@ export default function InstantPremiumPage() {
                         onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
                         onClearText={handleStoryboardClearText}
                         onDeleteScene={handleStoryboardDeleteScene}
+                        textStyleEditorMode="optional"
                       />
                     : null}
                   </div>

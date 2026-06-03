@@ -2,7 +2,6 @@ import {
   buildHeroLines,
   buildSequenceTiming,
   buildStagedRevealSlots,
-  detectAccentWords,
   resolveSequenceLineStyle,
   splitSequenceSceneTiming,
   type NormalizedSceneText,
@@ -18,6 +17,12 @@ import {
   type AdaptiveTypographyTemplate,
 } from "@/server/animation-export/adaptive-typography";
 import { SAFE_AREA_MARGIN_V } from "@/server/animation-export/safe-zone-placement";
+import { mergeLayerStyleIntoTheme } from "@/lib/story-overlay-layer-styles-theme";
+import {
+  applyAccentHighlightsToAssLine,
+  resolveSceneAccentWords,
+} from "@/lib/story-overlay-accent-text";
+import { yForPositionPreference } from "@/server/animation-export/story-overlay-layout-bands";
 
 export type SafeZoneInput = SceneSafeZoneContext | import("@/server/animation-export/safe-zone-placement").SafeZoneAnalysis | null | undefined;
 
@@ -39,6 +44,7 @@ export type BuildSequenceAssEventsInput = {
   styleNames: {
     heroMain: string;
     heroSmall: string;
+    heroFinale: string;
     title: string;
     subtitle: string;
   };
@@ -140,15 +146,34 @@ function renderSequencePhrase(
   input: BuildSequenceAssEventsInput,
   isFinale = false
 ): { styleName: string; text: string; visualLineCount: number } {
+  const highlightAccents = resolveSceneAccentWords(input.scene, phrase, {
+    allowAutoDetect: style === "scene" ? false : undefined,
+  });
   if (style === "scene") {
     const sceneLines = phraseLines(phrase, "scene", style, input, isFinale);
-    const joined = sceneLines.map((line) => escapeAssText(line)).join("\\N");
+    const titleTheme = mergeLayerStyleIntoTheme(theme, input.scene.overlayLayerStyles?.title);
+    const highlightColors = {
+      primaryColorAss: titleTheme.primaryColorAss,
+      accentColorAss: theme.accentColorAss,
+    };
+    const joined = sceneLines
+      .map((line) => applyAccentHighlightsToAssLine(line, highlightAccents, highlightColors))
+      .join("\\N");
     return {
       styleName: styleNames.title,
-      text: joined || escapeAssText(phrase.toUpperCase()),
+      text: joined || applyAccentHighlightsToAssLine(phrase.toUpperCase(), highlightAccents, highlightColors),
       visualLineCount: Math.max(1, sceneLines.length),
     };
   }
+
+  const heroTheme = mergeLayerStyleIntoTheme(
+    theme,
+    isFinale ? input.scene.overlayLayerStyles?.finale : input.scene.overlayLayerStyles?.hero
+  );
+  const heroHighlightColors = {
+    primaryColorAss: heroTheme.primaryColorAss,
+    accentColorAss: theme.accentColorAss,
+  };
 
   const typoTemplate: AdaptiveTypographyTemplate =
     style === "hero_small" ? "hero_small"
@@ -157,10 +182,13 @@ function renderSequencePhrase(
   const heroLines = phraseLines(phrase, typoTemplate, style, input, isFinale);
   const visualLineCount = Math.max(1, heroLines.length);
   const useMain = style === "hero";
-  const styleName = useMain ? styleNames.heroMain : styleNames.heroSmall;
+  const styleName =
+    isFinale && styleNames.heroFinale ? styleNames.heroFinale
+    : useMain ? styleNames.heroMain
+    : styleNames.heroSmall;
   const joined = heroLines
     .map((line, idx) => {
-      const accented = heroLineWithAccents(line, accentWords, theme);
+      const accented = applyAccentHighlightsToAssLine(line, highlightAccents, heroHighlightColors);
       if (heroLines.length > 1 && idx < heroLines.length - 1) {
         return `${accented}\\N`;
       }
@@ -186,26 +214,35 @@ function appendFinaleEvent(
   theme: AdaptiveOverlayTheme,
   input: BuildSequenceAssEventsInput
 ): void {
-  const finaleText = scene.heroFinaleText.trim();
+  const finaleBeats = scene.finaleTextBeats;
+  const finaleText = finaleBeats.length > 0 ? finaleBeats.join(" ") : scene.heroFinaleText.trim();
   if (!finaleText || finaleEnd <= finaleStart) {
     return;
   }
-  const accentWords = detectAccentWords(finaleText, scene);
+  const highlightAccents = resolveSceneAccentWords(scene, finaleText);
+  const finaleTheme = mergeLayerStyleIntoTheme(theme, scene.overlayLayerStyles?.finale);
   const finaleLines = buildHeroLines(finaleText);
-  const linesToRender = finaleLines.length > 0 ? finaleLines : [finaleText.toUpperCase()];
+  const linesToRender =
+    finaleBeats.length > 1 ? finaleBeats
+    : finaleLines.length > 0 ? finaleLines
+    : [finaleText.toUpperCase()];
   const revealSlots = buildStagedRevealSlots(finaleStart, finaleEnd, linesToRender.length, {
     stepSec: 0.55,
     minStepSec: 0.35,
   });
   const cx = resolveSequenceCenterX(width, height, input.safeZone, true);
 
-  let yCursor = resolveSequenceCenterY(
-    Math.max(1, linesToRender.length),
-    width,
-    height,
-    "hero",
-    input.safeZone,
-    true
+  let yCursor = yForPositionPreference(
+    scene.overlayLayerStyles?.finale?.position,
+    resolveSequenceCenterY(
+      Math.max(1, linesToRender.length),
+      width,
+      height,
+      "hero",
+      input.safeZone,
+      true
+    ),
+    height
   );
   const lineStep = 136;
 
@@ -214,8 +251,8 @@ function appendFinaleEvent(
     const rendered = renderSequencePhrase(
       line,
       "hero",
-      accentWords,
-      theme,
+      highlightAccents,
+      finaleTheme,
       styleNames,
       input.escapeAssText,
       input.heroLineWithAccents,
@@ -269,11 +306,11 @@ export function buildSequenceAssEvents(input: BuildSequenceAssEventsInput): Sequ
       sequenceLines.length,
       hasFinaleText ? { ...scene, heroFinale: false } : scene
     );
-    const accentWords = detectAccentWords(line.text, scene);
+    const highlightAccents = resolveSceneAccentWords(scene, line.text);
     const rendered = renderSequencePhrase(
       line.text,
       visualStyle,
-      accentWords,
+      highlightAccents,
       theme,
       styleNames,
       input.escapeAssText,

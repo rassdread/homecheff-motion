@@ -124,7 +124,7 @@ export function VideoVersionDownloadPicker({ open, onClose, options }: Props) {
   const sortedPrimary = useMemo(
     () =>
       [...primary].sort((a, b) => {
-        const order = { original: 0, clean: 1, language: 2, text_rerender: 3 } as const;
+        const order = { original: 0, clean: 1, language: 2, text_rerender: 3, full_rerender: 4 } as const;
         const kindDiff = order[a.kind] - order[b.kind];
         if (kindDiff !== 0) {
           return kindDiff;

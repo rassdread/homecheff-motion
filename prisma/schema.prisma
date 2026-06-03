@@ -87,9 +87,42 @@ model AnimationProject {
   transitions AnimationTransition[]
   exports     AnimationExport[]
   languageExports VideoLanguageExport[]
+  renderVersions ProjectRenderVersion[]
   usageLedger AnimationUsageLedger[]
 
   @@index([ownerId, createdAt])
+}
+
+/** Full Vidu re-render generation — same project images, versioned outputs and snapshots. */
+model ProjectRenderVersion {
+  id                    String           @id @default(cuid())
+  projectId             String
+  project               AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  renderVersionNumber   Int
+  /** initial | full_rerender */
+  kind                  String           @default("initial")
+  /** queued | generating | completed | failed */
+  status                String           @default("queued")
+  /** Reuses project images — no duplicate image rows. */
+  sourceImageSetId      String
+  createdFromRenderId   String?
+  versionNote           String?
+  isDefault             Boolean          @default(false)
+  promptSnapshot        Json
+  storyboardSnapshot    Json
+  settingsSnapshot      Json
+  segmentSnapshot       Json?
+  finalVideoUrl         String?
+  cleanVideoUrl         String?
+  exportId              String?
+  errorMessage          String?
+  createdAt             DateTime         @default(now())
+  completedAt           DateTime?
+  updatedAt             DateTime         @updatedAt
+
+  @@unique([projectId, renderVersionNumber])
+  @@index([projectId, createdAt])
+  @@index([projectId, isDefault])
 }
 
 /** Additional final MP4 per language — text overlay only, no Vidu. */

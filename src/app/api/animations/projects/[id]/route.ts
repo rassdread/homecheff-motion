@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { discardExportChainForProject } from "@/server/animation-export/service";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
+import { backfillRenderVersionsIfNeeded } from "@/server/instant-premium/render-version-service";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import {
   buildPlaybackCacheKey,
@@ -83,6 +84,7 @@ function mapToDetailResponse(
     instantCleanFinalVideoUrl: project.instantCleanFinalVideoUrl,
     instantSceneTexts: project.instantSceneTexts,
     instantMode: project.instantMode,
+    instantTransitionSeconds: project.instantTransitionSeconds,
     instantSelectedChips: project.instantSelectedChips,
     instantUserIntent: project.instantUserIntent,
     ownerEmail,
@@ -92,6 +94,19 @@ function mapToDetailResponse(
     instantTextVersionNotesJson: project.instantTextVersionNotesJson,
     latestExportId: latestExportRow?.id ?? null,
     latestExportUpdatedAt: latestExportRow?.updatedAt.toISOString() ?? null,
+    renderVersions: project.renderVersions.map((row) => ({
+      id: row.id,
+      renderVersionNumber: row.renderVersionNumber,
+      kind: row.kind === "full_rerender" ? "full_rerender" : "initial",
+      status: row.status,
+      isDefault: row.isDefault,
+      versionNote: row.versionNote,
+      finalVideoUrl: row.finalVideoUrl,
+      cleanVideoUrl: row.cleanVideoUrl,
+      createdAt: row.createdAt.toISOString(),
+      completedAt: row.completedAt?.toISOString() ?? null,
+      createdFromRenderId: row.createdFromRenderId,
+    })),
     languageExports: project.languageExports.map((row) => ({
       id: row.id,
       languageCode: row.languageCode,
@@ -159,9 +174,14 @@ export async function GET(_: Request, context: RouteContext) {
     return user;
   }
 
-  const project = await getAnimationProjectByIdForViewer(id, user);
+  let project = await getAnimationProjectByIdForViewer(id, user);
   if (!project) {
     return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  await backfillRenderVersionsIfNeeded(project);
+  if (project.renderVersions.length === 0) {
+    project = (await getAnimationProjectByIdForViewer(id, user)) ?? project;
   }
 
   const body = mapToDetailResponse(project, user.role);

@@ -15,6 +15,7 @@ export type StoryboardOverlayPreviewLine = {
     | "sequence_line"
     | "hero_finale"
     | "footer";
+  styleLayer: import("@/lib/story-overlay-layer-styles").StoryOverlayStyleLayer;
   labelKey: string;
   text: string;
 };
@@ -45,9 +46,11 @@ export function buildStoryboardOverlayPreviewLines(
   const isFinalFrame = options?.isFinalFrame ?? false;
 
   if (showHeadline(scene.template) && scene.heroText.trim()) {
+    const styleLayer = scene.template === "hero" ? "hero" : "headline";
     lines.push({
       id: "headline",
       kind: "headline",
+      styleLayer,
       labelKey: "instant.storyboard.preview.headline",
       text: scene.heroText.trim().toUpperCase(),
     });
@@ -57,6 +60,7 @@ export function buildStoryboardOverlayPreviewLines(
     lines.push({
       id: "title",
       kind: "title",
+      styleLayer: "title",
       labelKey: "instant.storyboard.preview.title",
       text: scene.title.trim(),
     });
@@ -66,6 +70,7 @@ export function buildStoryboardOverlayPreviewLines(
     lines.push({
       id: "subtitle",
       kind: "subtitle",
+      styleLayer: "subtitle",
       labelKey: "instant.storyboard.preview.subtitle",
       text: scene.subtitle.trim(),
     });
@@ -78,6 +83,7 @@ export function buildStoryboardOverlayPreviewLines(
     lines.push({
       id: `extra-${index}`,
       kind: "extra_line",
+      styleLayer: "subtitle",
       labelKey: "instant.storyboard.preview.extraLine",
       text: line.trim(),
     });
@@ -91,6 +97,7 @@ export function buildStoryboardOverlayPreviewLines(
       lines.push({
         id: `sequence-${index}`,
         kind: "sequence_line",
+        styleLayer: "hero",
         labelKey: "instant.storyboard.preview.sequenceLine",
         text: line.trim(),
       });
@@ -99,6 +106,7 @@ export function buildStoryboardOverlayPreviewLines(
       lines.push({
         id: "hero-finale",
         kind: "hero_finale",
+        styleLayer: "finale",
         labelKey: "instant.storyboard.preview.heroFinale",
         text: scene.heroFinaleText.trim().toUpperCase(),
       });
@@ -109,6 +117,7 @@ export function buildStoryboardOverlayPreviewLines(
     lines.push({
       id: "footer",
       kind: "footer",
+      styleLayer: "footer",
       labelKey: "instant.storyboard.preview.footer",
       text: scene.finaleFooter.trim(),
     });

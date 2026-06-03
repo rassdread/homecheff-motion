@@ -2,9 +2,13 @@
  * Story Mode layered text — reading flow, title+subtitle grouping, ASS safe clamping.
  */
 
-import { STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX } from "@/lib/story-overlay-typography-scale";
 import { estimateTextLineWidthPx } from "@/server/animation-export/adaptive-typography";
 import type { ObjectAwarePlacement, OverlayTemplateKind } from "@/server/animation-export/object-aware-placement";
+import {
+  bandAnchorY,
+  defaultBandForSceneLayer,
+  type StoryLayoutBand,
+} from "@/server/animation-export/story-overlay-layout-bands";
 import {
   placementForZone,
   SAFE_AREA_MARGIN_H,
@@ -32,7 +36,8 @@ export type StoryLayerPositionDebug = {
   reason: string;
   groupedWithTitle: boolean;
   objectAvoidanceUsed: boolean;
-  layout?: "below" | "right";
+  layout?: "below" | "right" | "band";
+  layoutBand?: StoryLayoutBand;
 };
 
 export type StoryLayerPositions = {
@@ -185,10 +190,8 @@ export function applyStoryReadingFlowToPlacements(
   const subtitle = { ...placements.subtitle };
 
   if (title && subtitle) {
-    subtitle.zoneId = title.zoneId;
     subtitle.anchorX = title.anchorX;
     subtitle.textWidthFraction = title.textWidthFraction;
-    subtitle.zoneScore = title.zoneScore;
     subtitle.placementReason = "grouped_with_title";
     subtitle.confidence = title.confidence;
   }
@@ -216,7 +219,7 @@ function canPlaceSubtitleRightOfTitle(params: {
   return titleW + subW + SUBTITLE_HORIZONTAL_GAP_PX <= safeW * 0.88;
 }
 
-/** Resolve clamped pixel anchors for headline → title → subtitle with grouping. */
+/** Resolve clamped pixel anchors using vertical layout bands (headline → title → subtitle). */
 export function resolveStoryLayerPositions(params: {
   placements: Record<OverlayTemplateKind, ObjectAwarePlacement>;
   width: number;
@@ -241,17 +244,14 @@ export function resolveStoryLayerPositions(params: {
   } = params;
 
   const out: StoryLayerPositions = {};
-  const safe = safeBounds(width, height);
   const headlinePlacement = placements.headline;
   const titlePlacement = placements.title;
   const subtitlePlacement = placements.subtitle;
 
-  let headlineBottom = safe.top;
-
   if (headlineLines.length > 0 && headlinePlacement) {
+    const headlineBand = defaultBandForSceneLayer("headline");
     const headlineBlockH = blockHeight(headlineLines, headlineFontSize);
-    let headlineY = headlinePlacement.anchorY - headlineBlockH / 2;
-    headlineY = Math.max(safe.top, Math.min(headlineY, safe.bottom - headlineBlockH));
+    const headlineY = bandAnchorY(headlineBand, height);
 
     const clamped = clampAssAnchor({
       x: headlinePlacement.anchorX,
@@ -274,22 +274,14 @@ export function resolveStoryLayerPositions(params: {
       reason: headlinePlacement.placementReason,
       groupedWithTitle: false,
       objectAvoidanceUsed: objectAvoidanceUsed(headlinePlacement),
+      layout: "band",
+      layoutBand: headlineBand,
     };
-    headlineBottom =
-      assTextBounds({
-        x: clamped.clampedX,
-        y: clamped.clampedY,
-        alignment: STORY_HEADLINE_ASS_ALIGNMENT,
-        lines: headlineLines,
-        fontSize: headlineFontSize,
-      }).bottom + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX;
   }
 
   if (titleLines.length > 0 && titlePlacement) {
-    const titleBlockH = blockHeight(titleLines, titleFontSize);
-    const minTitleY = headlineBottom + titleBlockH / 2;
-    const maxTitleY = safe.bottom - titleBlockH / 2 - (subtitleLines.length > 0 ? blockHeight(subtitleLines, subtitleFontSize) + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX : 0);
-    const titleY = clamp(titlePlacement.anchorY, minTitleY, Math.max(minTitleY, maxTitleY));
+    const titleBand = defaultBandForSceneLayer("title");
+    const titleY = bandAnchorY(titleBand, height);
 
     const titleClamped = clampAssAnchor({
       x: titlePlacement.anchorX,
@@ -312,15 +304,9 @@ export function resolveStoryLayerPositions(params: {
       reason: titlePlacement.placementReason,
       groupedWithTitle: false,
       objectAvoidanceUsed: objectAvoidanceUsed(titlePlacement),
+      layout: "band",
+      layoutBand: titleBand,
     };
-
-    const titleBounds = assTextBounds({
-      x: titleClamped.clampedX,
-      y: titleClamped.clampedY,
-      alignment: STORY_TITLE_ASS_ALIGNMENT,
-      lines: titleLines,
-      fontSize: titleFontSize,
-    });
 
     if (subtitleLines.length > 0 && subtitlePlacement) {
       const useRightLayout = canPlaceSubtitleRightOfTitle({
@@ -332,17 +318,21 @@ export function resolveStoryLayerPositions(params: {
         titleZoneId: titlePlacement.zoneId,
       });
 
+      let subtitleBand: StoryLayoutBand =
+        headlineLines.length > 0 ? "lower_middle" : defaultBandForSceneLayer("subtitle");
+      if (subtitleBand === titleBand) {
+        subtitleBand = "lower_middle";
+      }
+
       let subtitleX = titleClamped.clampedX;
-      let subtitleY: number;
+      let subtitleY = bandAnchorY(subtitleBand, height);
 
       if (useRightLayout) {
         const titleW = maxLineWidth(titleLines, titleFontSize);
         const subW = maxLineWidth(subtitleLines, subtitleFontSize);
         subtitleX = Math.round(titleClamped.clampedX + titleW / 2 + SUBTITLE_HORIZONTAL_GAP_PX + subW / 2);
         subtitleY = titleClamped.clampedY;
-      } else {
-        const subBlockH = blockHeight(subtitleLines, subtitleFontSize);
-        subtitleY = titleBounds.bottom + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX + subBlockH / 2;
+        subtitleBand = titleBand;
       }
 
       const subtitleClamped = clampAssAnchor({
@@ -356,23 +346,25 @@ export function resolveStoryLayerPositions(params: {
       });
 
       out.subtitle = {
-        zoneId: titlePlacement.zoneId,
+        zoneId: subtitlePlacement.zoneId,
         x: subtitleClamped.x,
         y: subtitleClamped.y,
         clampedX: subtitleClamped.clampedX,
         clampedY: subtitleClamped.clampedY,
         estimatedTextWidthPx: subtitleClamped.estimatedTextWidthPx,
         estimatedBlockHeightPx: subtitleClamped.estimatedBlockHeightPx,
-        reason: useRightLayout ? "grouped_right_of_title" : "grouped_below_title",
+        reason: useRightLayout ? "grouped_right_of_title" : "band_layout",
         groupedWithTitle: true,
-        objectAvoidanceUsed: objectAvoidanceUsed(titlePlacement),
-        layout: useRightLayout ? "right" : "below",
+        objectAvoidanceUsed: objectAvoidanceUsed(subtitlePlacement),
+        layout: useRightLayout ? "right" : "band",
+        layoutBand: subtitleBand,
       };
     }
   } else if (subtitleLines.length > 0 && subtitlePlacement) {
+    const subtitleBand = defaultBandForSceneLayer("subtitle");
     const subtitleClamped = clampAssAnchor({
       x: subtitlePlacement.anchorX,
-      y: subtitlePlacement.anchorY,
+      y: bandAnchorY(subtitleBand, height),
       alignment: STORY_SUBTITLE_ASS_ALIGNMENT,
       lines: subtitleLines,
       fontSize: subtitleFontSize,
@@ -390,7 +382,8 @@ export function resolveStoryLayerPositions(params: {
       reason: subtitlePlacement.placementReason,
       groupedWithTitle: false,
       objectAvoidanceUsed: objectAvoidanceUsed(subtitlePlacement),
-      layout: "below",
+      layout: "band",
+      layoutBand: subtitleBand,
     };
   }
 

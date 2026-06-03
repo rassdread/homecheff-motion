@@ -28,6 +28,7 @@ export async function POST() {
       transitions: { orderBy: { order: "asc" } },
       exports: { orderBy: { createdAt: "desc" } },
       languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
+      renderVersions: { orderBy: { renderVersionNumber: "desc" } },
     },
     orderBy: { updatedAt: "desc" },
     take: 100,

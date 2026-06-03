@@ -11,7 +11,17 @@ import {
   logFinalVideoReplaced,
   scheduleDeleteOldFinalBlob,
 } from "@/server/instant-premium/replace-final-video-blob";
+import {
+  clearRunningFullRerenderAudit,
+  isFullRerenderInProgress,
+} from "@/lib/full-rerender-audit";
 import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/language-export-service";
+import {
+  completePendingFullRerenderVersion,
+  ensureInitialRenderVersion,
+  readPendingFullRerender,
+} from "@/server/instant-premium/render-version-service";
+import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import {
   assertPlaybackUrlFreshAfterRebuild,
@@ -212,6 +222,61 @@ export async function commitInstantPremiumFinalVideoExport(params: {
   }
 
   await markLanguageExportsNeedsRefresh(projectId);
+
+  const projectForVersion = await getAnimationProjectById(projectId);
+  if (projectForVersion) {
+    if (isFullRerenderInProgress(projectForVersion.instantFinalRebuildAuditJson)) {
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: {
+          instantFinalRebuildAuditJson: clearRunningFullRerenderAudit(
+            projectForVersion.instantFinalRebuildAuditJson,
+            { status: "completed", completedAt: rebuiltAt.toISOString() }
+          ) as object,
+        },
+      });
+    }
+
+    const pending = readPendingFullRerender(projectForVersion.instantFinalRebuildAuditJson);
+    if (pending) {
+      await completePendingFullRerenderVersion({
+        projectId,
+        renderVersionId: pending.renderVersionId,
+        finalVideoUrl: finalUrl,
+        cleanVideoUrl: projectForVersion.instantCleanFinalVideoUrl,
+        exportId,
+      });
+      const auditBase =
+        projectForVersion.instantFinalRebuildAuditJson &&
+        typeof projectForVersion.instantFinalRebuildAuditJson === "object" &&
+        !Array.isArray(projectForVersion.instantFinalRebuildAuditJson)
+          ? (projectForVersion.instantFinalRebuildAuditJson as Record<string, unknown>)
+          : {};
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: {
+          instantFinalRebuildAuditJson: {
+            ...auditBase,
+            pendingFullRerender: null,
+            lastFullRerender: {
+              renderVersionId: pending.renderVersionId,
+              renderVersionNumber: pending.renderVersionNumber,
+              completedAt: rebuiltAt.toISOString(),
+              status: "completed",
+              finalVideoUrl: finalUrl,
+            },
+          } as object,
+        },
+      });
+    } else if (!isRebuild) {
+      await ensureInitialRenderVersion({
+        project: projectForVersion,
+        finalVideoUrl: finalUrl,
+        cleanVideoUrl: projectForVersion.instantCleanFinalVideoUrl,
+        exportId,
+      });
+    }
+  }
 }
 
 export async function markInstantPremiumFinalRebuildFailed(params: {

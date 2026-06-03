@@ -151,6 +151,7 @@ function TextRerenderEditorModalContent({
             sceneTexts={sceneTexts}
             expandedIndex={expandedIndex}
             onExpandedIndexChange={setExpandedIndex}
+            textStyleEditorMode="always"
             onSceneChange={(index, patch) =>
               setSceneTexts((prev) =>
                 prev.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row))
@@ -180,6 +181,7 @@ function TextRerenderEditorModalContent({
                       lines: [...source.lines],
                       heroFinale: source.heroFinale,
                       heroFinaleText: source.heroFinaleText,
+                      overlayLayerStyles: { ...source.overlayLayerStyles },
                     }
                   : row
                 )
@@ -199,6 +201,7 @@ function TextRerenderEditorModalContent({
                       lines: [],
                       heroFinaleText: "",
                       finaleFooter: "",
+                      overlayLayerStyles: {},
                     }
                   : row
                 )

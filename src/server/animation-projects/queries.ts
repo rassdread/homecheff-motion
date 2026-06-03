@@ -14,6 +14,9 @@ const projectInclude = {
   languageExports: {
     orderBy: [{ languageCode: "asc" as const }, { version: "desc" as const }],
   },
+  renderVersions: {
+    orderBy: { renderVersionNumber: "desc" as const },
+  },
 };
 
 export type AnimationProjectWithMedia = Prisma.AnimationProjectGetPayload<{

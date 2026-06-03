@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/video-preview";
 
 describe("story overlay v3 timing", () => {
-  it("headline starts at sceneStart and stays until sceneEnd", () => {
+  it("headline/title/subtitle stagger in but stay visible until scene end", () => {
     const slots = buildSceneLayeredRevealSlots(0, 5, {
       headline: true,
       title: true,
@@ -32,7 +32,9 @@ describe("story overlay v3 timing", () => {
     assert.equal(slots.headline!.revealStart, 0);
     assert.equal(slots.headline!.visibleEnd, 5);
     assert.equal(slots.title!.revealStart, STAGED_REVEAL_STEP_SEC);
+    assert.equal(slots.title!.visibleEnd, 5);
     assert.equal(slots.subtitle!.revealStart, STAGED_REVEAL_STEP_SEC * 2);
+    assert.equal(slots.subtitle!.visibleEnd, 5);
   });
 
   it("resolveSceneOverlayVisibleEnd extends final scene to video end", () => {
@@ -66,7 +68,7 @@ describe("story overlay v3 timing", () => {
       width: 1080,
       height: 1920,
     });
-    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:") && line.includes("FINALE"));
+    const dialogues = ass.split("\n").filter((line) => line.startsWith("Dialogue:") && line.includes("LAST"));
     assert.ok(dialogues.length > 0);
     for (const line of dialogues) {
       const end = line.match(/^Dialogue: 0,\d+:\d+:\d+\.\d+,(\d+:\d+:\d+\.\d+),/)?.[1];

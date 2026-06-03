@@ -5,11 +5,16 @@ import {
   MAX_EXTRA_LINES,
   MAX_FINALE_FOOTER_CHARS,
   MAX_HERO_FINALE_TEXT_CHARS,
+  MAX_LAYER_BEATS,
   MAX_SEQUENCE_LINES,
   STORY_SCENE_DURATION_OPTIONS,
-  splitSubtitleMultilineInput,
   type SceneOverlayTemplate,
 } from "@/lib/story-overlay-templates";
+import {
+  beatsForEditor,
+  syncLegacyFieldFromBeats,
+  trimBeats,
+} from "@/lib/story-text-beats";
 import {
   ANIMATION_SCENE_EMOTION_IDS,
   SCENE_ACTING_INTENSITIES,
@@ -20,7 +25,9 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
+import { TextBeatsEditor } from "@/components/instant/text-beats-editor";
 import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
+import { TextStyleEditorForScene, OptionalTextStyleSection } from "@/components/instant/text-style-editor-panel";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import type { WizardPreviewImageInput } from "@/lib/instant-wizard-preview-src";
 
@@ -39,6 +46,8 @@ type StoryboardEditorProps = {
   onDuplicateTextFromPrevious: (index: number) => void;
   onClearText: (index: number) => void;
   onDeleteScene?: (index: number) => void;
+  /** `always` — rerender modals; `optional` — collapsed first-render wizard section. */
+  textStyleEditorMode?: "always" | "optional";
 };
 
 /** @deprecated Use expandedSceneId — kept for callers migrating from index. */
@@ -101,6 +110,7 @@ type StoryboardSceneRowProps = {
   onDuplicateTextFromPrevious: (index: number) => void;
   onClearText: (index: number) => void;
   onDeleteScene?: (index: number) => void;
+  textStyleEditorMode?: "always" | "optional";
 };
 
 const StoryboardSceneRow = memo(function StoryboardSceneRow({
@@ -117,6 +127,7 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
   onDuplicateTextFromPrevious,
   onClearText,
   onDeleteScene,
+  textStyleEditorMode,
 }: StoryboardSceneRowProps) {
   const t = useActiveTranslator();
   const previewScene = useDeferredValue(scene);
@@ -315,66 +326,66 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
           </label>
 
           {showHeadlineField(scene.template) ?
-            <label className="block text-xs text-zinc-500">
-              <StoryboardFieldHint
-                label={t("instant.overlay.heroText")}
-                hint={t("instant.storyboard.hint.heroText")}
-              />
-              <textarea
-                value={scene.heroText}
-                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                  patch({ heroText: e.target.value })
+            <TextBeatsEditor
+              label={t("instant.overlay.heroText")}
+              hint={t("instant.storyboard.hint.heroText")}
+              beats={beatsForEditor(
+                scene.template === "hero" ? scene.heroTextBeats : scene.headlineBeats,
+                scene.heroText
+              )}
+              onChange={(beats) => {
+                const legacy = syncLegacyFieldFromBeats(beats);
+                if (scene.template === "hero") {
+                  patch({ heroTextBeats: beats, heroText: legacy });
+                } else {
+                  patch({ headlineBeats: beats, heroText: legacy });
                 }
-                rows={2}
-                className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase text-zinc-900"
-                placeholder={t("instant.overlay.heroTextPlaceholder")}
-              />
-            </label>
+              }}
+              uppercase
+              placeholder={t("instant.overlay.heroTextPlaceholder")}
+              multiline
+              addLabel={t("instant.storyboard.addBeat")}
+              duplicateLabel={t("instant.storyboard.duplicateBeat")}
+              removeLabel={t("instant.storyboard.removeLine")}
+              beatLabel={(index) => t("instant.storyboard.beatLabel", { index })}
+              moveUpLabel={t("instant.storyboard.moveBeatUp")}
+              moveDownLabel={t("instant.storyboard.moveBeatDown")}
+            />
           : null}
 
           {showTitleSubtitleFields(scene.template) ?
             <>
-              <label className="block text-xs text-zinc-500">
-                <StoryboardFieldHint
-                  label={t("instant.mode.sceneTitle")}
-                  hint={t("instant.storyboard.hint.sceneTitle")}
-                />
-                <input
-                  type="text"
-                  value={scene.title}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => patch({ title: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                  placeholder={t("instant.mode.sceneTitlePlaceholder")}
-                />
-              </label>
-              <label className="block text-xs text-zinc-500">
-                <StoryboardFieldHint
-                  label={t("instant.mode.sceneSubtitle")}
-                  hint={t("instant.storyboard.hint.sceneSubtitle")}
-                />
-                <input
-                  type="text"
-                  value={scene.subtitle}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                    const split = splitSubtitleMultilineInput(e.target.value, scene.extraLines);
-                    patch(split);
-                  }}
-                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                    if (e.key === "Enter" && e.shiftKey) {
-                      e.preventDefault();
-                      if (scene.extraLines.length >= MAX_EXTRA_LINES) {
-                        return;
-                      }
-                      patch({
-                        subtitle: scene.subtitle.trim(),
-                        extraLines: [...scene.extraLines, ""],
-                      });
-                    }
-                  }}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                  placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
-                />
-              </label>
+              <TextBeatsEditor
+                label={t("instant.mode.sceneTitle")}
+                hint={t("instant.storyboard.hint.sceneTitle")}
+                beats={beatsForEditor(scene.titleBeats, scene.title)}
+                onChange={(beats) =>
+                  patch({ titleBeats: beats, title: syncLegacyFieldFromBeats(beats) })
+                }
+                uppercase
+                placeholder={t("instant.mode.sceneTitlePlaceholder")}
+                addLabel={t("instant.storyboard.addBeat")}
+                duplicateLabel={t("instant.storyboard.duplicateBeat")}
+                removeLabel={t("instant.storyboard.removeLine")}
+                beatLabel={(index) => t("instant.storyboard.beatLabel", { index })}
+                moveUpLabel={t("instant.storyboard.moveBeatUp")}
+                moveDownLabel={t("instant.storyboard.moveBeatDown")}
+              />
+              <TextBeatsEditor
+                label={t("instant.mode.sceneSubtitle")}
+                hint={t("instant.storyboard.hint.sceneSubtitle")}
+                beats={beatsForEditor(scene.subtitleBeats, scene.subtitle)}
+                onChange={(beats) =>
+                  patch({ subtitleBeats: beats, subtitle: syncLegacyFieldFromBeats(beats) })
+                }
+                placeholder={t("instant.mode.sceneSubtitlePlaceholder")}
+                addLabel={t("instant.storyboard.addBeat")}
+                duplicateLabel={t("instant.storyboard.duplicateBeat")}
+                removeLabel={t("instant.storyboard.removeLine")}
+                beatLabel={(index) => t("instant.storyboard.beatLabel", { index })}
+                moveUpLabel={t("instant.storyboard.moveBeatUp")}
+                moveDownLabel={t("instant.storyboard.moveBeatDown")}
+              />
               <div className="space-y-2">
                 <StoryboardFieldHint
                   label={t("instant.storyboard.extraLinesLabel")}
@@ -482,25 +493,27 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
                 {t("instant.storyboard.heroFinaleToggle")}
               </label>
               {scene.heroFinale ?
-                <label className="block text-xs text-zinc-500">
-                  <StoryboardFieldHint
-                    label={t("instant.storyboard.heroFinaleText")}
-                    hint={t("instant.storyboard.hint.heroFinale")}
-                  />
-                  <p className="mt-0.5 text-[11px] text-zinc-400">
-                    {t("instant.storyboard.heroFinaleHelper")}
-                  </p>
-                  <textarea
-                    value={scene.heroFinaleText}
-                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                      patch({ heroFinaleText: e.target.value })
-                    }
-                    rows={3}
-                    maxLength={MAX_HERO_FINALE_TEXT_CHARS}
-                    className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase text-zinc-900"
-                    placeholder={t("instant.storyboard.heroFinalePlaceholder")}
-                  />
-                </label>
+                <TextBeatsEditor
+                  label={t("instant.storyboard.heroFinaleText")}
+                  hint={t("instant.storyboard.hint.heroFinale")}
+                  beats={beatsForEditor(scene.finaleTextBeats, scene.heroFinaleText)}
+                  onChange={(beats) =>
+                    patch({
+                      finaleTextBeats: beats,
+                      heroFinaleText: syncLegacyFieldFromBeats(beats),
+                    })
+                  }
+                  uppercase
+                  multiline
+                  maxBeats={MAX_LAYER_BEATS}
+                  placeholder={t("instant.storyboard.heroFinalePlaceholder")}
+                  addLabel={t("instant.storyboard.addBeat")}
+                  duplicateLabel={t("instant.storyboard.duplicateBeat")}
+                  removeLabel={t("instant.storyboard.removeLine")}
+                  beatLabel={(index) => t("instant.storyboard.beatLabel", { index })}
+                  moveUpLabel={t("instant.storyboard.moveBeatUp")}
+                  moveDownLabel={t("instant.storyboard.moveBeatDown")}
+                />
               : null}
             </div>
           : null}
@@ -530,6 +543,12 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
             variant={index >= frameCount - 1 ? "final_frame" : "inline"}
             className="mt-1 min-h-[4.5rem]"
           />
+
+          {textStyleEditorMode === "always" ?
+            <TextStyleEditorForScene scene={scene} onSceneChange={(partial) => patch(partial)} />
+          : textStyleEditorMode === "optional" ?
+            <OptionalTextStyleSection scene={scene} onSceneChange={(partial) => patch(partial)} />
+          : null}
 
           <label className="block text-xs text-zinc-500">
             <StoryboardFieldHint
@@ -632,6 +651,7 @@ export function StoryboardEditor({
   onDuplicateTextFromPrevious,
   onClearText,
   onDeleteScene,
+  textStyleEditorMode,
 }: StoryboardEditorProps) {
   const t = useActiveTranslator();
 
@@ -672,6 +692,7 @@ export function StoryboardEditor({
             onDuplicateTextFromPrevious={onDuplicateTextFromPrevious}
             onClearText={onClearText}
             onDeleteScene={onDeleteScene}
+            textStyleEditorMode={textStyleEditorMode}
           />
         );
       })}

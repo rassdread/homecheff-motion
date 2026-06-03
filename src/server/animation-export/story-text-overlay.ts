@@ -12,6 +12,7 @@ import {
   resolveSequenceLineStyle,
   buildSceneFieldRevealSlots,
   buildSceneLayeredRevealSlots,
+  buildLayerBeatRevealSlots,
   buildStagedRevealSlots,
   getSceneHeadline,
   resolveSceneOverlayStart,
@@ -67,8 +68,26 @@ import {
 import {
   STORY_ASS_SUBTITLE_GAP_PX,
   STORY_HEADLINE_TO_TITLE_RATIO,
+  capStoryOverlayFontSize,
 } from "@/lib/story-overlay-typography-scale";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
+import {
+  applyLayerFontSize,
+  mergeLayerStyleIntoTheme,
+} from "@/lib/story-overlay-layer-styles-theme";
+import {
+  assAlignmentForLayer,
+  type StoryOverlayLayerStyles,
+  type StoryOverlayStyleLayer,
+} from "@/lib/story-overlay-layer-styles";
+import {
+  applyAccentHighlightsToAssLine,
+  escapeAssText,
+  resolveSceneAccentWords,
+  sceneAccentFallbackText,
+  type AccentHighlightColors,
+} from "@/lib/story-overlay-accent-text";
+import { yForPositionPreference } from "@/server/animation-export/story-overlay-layout-bands";
 
 export type { InstantSceneText } from "@/lib/story-overlay-templates";
 export {
@@ -88,7 +107,10 @@ export {
   storyOverlayMotionTags,
 } from "@/lib/story-overlay-templates";
 import { buildSequenceAssEvents } from "@/server/animation-export/story-sequence-overlay";
-import { chooseFinaleChannel } from "@/server/animation-export/story-overlay-collision";
+import {
+  chooseFinaleChannel,
+  type OverlayCollisionLayerKind,
+} from "@/server/animation-export/story-overlay-collision";
 import {
   makeDialogueDraft,
   resolveSceneDialogueCollisions,
@@ -229,8 +251,16 @@ function assTime(seconds: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
-function escapeAssText(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/\{/g, "\\{").replace(/\}/g, "\\}").replace(/\n/g, "\\N");
+function layerHighlightColors(
+  baseTheme: AdaptiveOverlayTheme,
+  layer: StoryOverlayStyleLayer,
+  layerStyles?: StoryOverlayLayerStyles
+): AccentHighlightColors {
+  const merged = mergeLayerStyleIntoTheme(baseTheme, layerStyles?.[layer]);
+  return {
+    primaryColorAss: merged.primaryColorAss,
+    accentColorAss: baseTheme.accentColorAss,
+  };
 }
 
 function heroLineWithAccents(
@@ -238,20 +268,10 @@ function heroLineWithAccents(
   accentWords: string[],
   theme: AdaptiveOverlayTheme
 ): string {
-  const accentSet = new Set(accentWords.map((w) => w.toUpperCase()));
-  const parts = line.split(/(\s+)/);
-  return parts
-    .map((part) => {
-      if (!part.trim()) {
-        return part;
-      }
-      const bare = part.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-      if (accentSet.has(bare)) {
-        return `{\\c${theme.accentColorAss}&}${escapeAssText(part)}{\\c${theme.primaryColorAss}&}`;
-      }
-      return escapeAssText(part);
-    })
-    .join("");
+  return applyAccentHighlightsToAssLine(line, accentWords, {
+    primaryColorAss: theme.primaryColorAss,
+    accentColorAss: theme.accentColorAss,
+  });
 }
 
 type MotionTagOptions = { finaleHold?: boolean; instant?: boolean };
@@ -367,6 +387,91 @@ function logStoryLayerPositions(sceneIndex: number, positions: ReturnType<typeof
   console.info("[hc-story-layer-placement]", { sceneIndex, ...positions });
 }
 
+type LayerBeatDraftParams = {
+  beats: string[];
+  layerSlot: ReturnType<typeof buildSceneLayeredRevealSlots>["headline"];
+  kind: OverlayCollisionLayerKind;
+  idPrefix: string;
+  sceneIndex: number;
+  styleName: string;
+  baseX: number;
+  baseY: number;
+  defaultFontSize: number;
+  alignment: number;
+  typographyTemplate: ReturnType<typeof overlayTemplateToTypography>;
+  placement?: ReturnType<typeof resolvePlacementForTemplate>;
+  width: number;
+  height: number;
+  safeZone?: SafeZoneInput;
+  accentWords: string[];
+  highlightAccentWords: string[];
+  highlightColors: AccentHighlightColors;
+  visibleEnd: number;
+  finaleHold: boolean;
+  motionInstant?: boolean;
+  fontCapRole: Parameters<typeof capStoryOverlayFontSize>[0];
+};
+
+function appendLayerBeatDrafts(
+  drafts: StoryDialogueDraft[],
+  params: LayerBeatDraftParams
+): void {
+  const beats = params.beats.map((beat) => beat.trim()).filter(Boolean);
+  if (beats.length === 0) {
+    return;
+  }
+
+  const beatSlots = buildLayerBeatRevealSlots(params.layerSlot, beats.length, params.visibleEnd);
+  const lineStep = Math.round(params.defaultFontSize * 1.18) + 10;
+
+  beats.forEach((beatText, beatIndex) => {
+    const typo =
+      params.placement ?
+        tryAdaptiveTypography({
+          text: beatText,
+          template: params.typographyTemplate,
+          placement: params.placement,
+          width: params.width,
+          height: params.height,
+          safeZone: params.safeZone ?? null,
+          accentWords: params.accentWords,
+          sceneIndex: params.sceneIndex,
+        })
+      : null;
+    const beatLines = typo?.lines.length ? typo.lines : [beatText];
+    const beatFontSize = capStoryOverlayFontSize(
+      params.fontCapRole,
+      typo?.fontSize ?? params.defaultFontSize,
+      params.width,
+      params.height
+    );
+    const slot = beatSlots[beatIndex] ?? beatSlots[beatSlots.length - 1]!;
+    const beatY = params.baseY + beatIndex * lineStep;
+    drafts.push(
+      makeDialogueDraft({
+        id: `${params.idPrefix}-beat-${beatIndex}`,
+        kind: params.kind,
+        sceneIndex: params.sceneIndex,
+        styleName: params.styleName,
+        assText: beatLines
+          .map((line) =>
+            applyAccentHighlightsToAssLine(line, params.highlightAccentWords, params.highlightColors)
+          )
+          .join("\\N"),
+        lines: beatLines,
+        x: params.baseX,
+        y: beatY,
+        alignment: params.alignment,
+        fontSize: beatFontSize,
+        start: slot.revealStart,
+        end: slot.visibleEnd,
+        motionFinaleHold: params.finaleHold,
+        motionInstant: params.motionInstant,
+      })
+    );
+  });
+}
+
 function defaultHeroPosition(
   scene: NormalizedSceneText,
   _lineCount: number
@@ -472,10 +577,12 @@ function registerSceneStyles(
   safeZone?: SafeZoneInput,
   template?: OverlayTemplateKind,
   extraLineCount = 0,
-  hasFinaleFooter = false
+  hasFinaleFooter = false,
+  layerStyles?: StoryOverlayLayerStyles
 ): {
   heroMain: string;
   heroSmall: string;
+  heroFinale: string;
   headline: string;
   title: string;
   subtitle: string;
@@ -484,6 +591,7 @@ function registerSceneStyles(
 } {
   const heroMain = `HCHeroMain_s${sceneIndex}`;
   const heroSmall = `HCHeroSmall_s${sceneIndex}`;
+  const heroFinale = `HCHeroFinale_s${sceneIndex}`;
   const headline = `HCStoryHeadline_s${sceneIndex}`;
   const title = `HCStoryTitle_s${sceneIndex}`;
   const subtitle = `HCStorySubtitle_s${sceneIndex}`;
@@ -494,28 +602,80 @@ function registerSceneStyles(
     marginH = horizontalMarginForPlacement(width, placement.textWidthFraction);
   }
 
+  const themed = (layer: StoryOverlayStyleLayer) =>
+    mergeLayerStyleIntoTheme(theme, layerStyles?.[layer]);
+  const sized = (layer: StoryOverlayStyleLayer, base: number) =>
+    applyLayerFontSize(base, layer, layerStyles?.[layer], width, height);
+  const aligned = (layer: StoryOverlayStyleLayer, fallback: number) =>
+    assAlignmentForLayer(layer, layerStyles?.[layer]?.alignment, fallback);
+
   if (kinds.hero || kinds.sequence) {
     styleLines.push(
-      assStyleLine(heroMain, "Arial Black", sizes.heroMain, theme, 5, 154, marginH)
+      assStyleLine(
+        heroMain,
+        "Arial Black",
+        sized("hero", sizes.heroMain),
+        themed("hero"),
+        aligned("hero", 5),
+        154,
+        marginH
+      )
     );
     styleLines.push(
-      assStyleLine(heroSmall, "Arial Black", sizes.heroSmall, theme, 5, 154, marginH)
+      assStyleLine(
+        heroSmall,
+        "Arial Black",
+        sized("hero", sizes.heroSmall),
+        themed("hero"),
+        aligned("hero", 5),
+        154,
+        marginH
+      )
+    );
+  }
+  if (kinds.sequence) {
+    styleLines.push(
+      assStyleLine(
+        heroFinale,
+        "Arial Black",
+        sized("finale", sizes.heroMain),
+        themed("finale"),
+        aligned("finale", 5),
+        154,
+        marginH
+      )
     );
   }
   if (kinds.scene || kinds.sequence) {
     styleLines.push(
-      assStyleLine(headline, "Arial Black", sizes.headline, theme, STORY_HEADLINE_ASS_ALIGNMENT, 120, marginH)
+      assStyleLine(
+        headline,
+        "Arial Black",
+        sized("headline", sizes.headline),
+        themed("headline"),
+        aligned("headline", STORY_HEADLINE_ASS_ALIGNMENT),
+        120,
+        marginH
+      )
     );
     styleLines.push(
-      assStyleLine(title, "Arial", sizes.title, theme, STORY_TITLE_ASS_ALIGNMENT, SCENE_TITLE_MARGIN_V, marginH)
+      assStyleLine(
+        title,
+        "Arial",
+        sized("title", sizes.title),
+        themed("title"),
+        aligned("title", STORY_TITLE_ASS_ALIGNMENT),
+        SCENE_TITLE_MARGIN_V,
+        marginH
+      )
     );
     styleLines.push(
       assStyleLine(
         subtitle,
         "Arial",
-        sizes.subtitle,
-        theme,
-        STORY_SUBTITLE_ASS_ALIGNMENT,
+        sized("subtitle", sizes.subtitle),
+        themed("subtitle"),
+        aligned("subtitle", STORY_SUBTITLE_ASS_ALIGNMENT),
         SCENE_TITLE_MARGIN_V + sizes.title + STORY_ASS_SUBTITLE_GAP_PX,
         marginH
       )
@@ -526,9 +686,9 @@ function registerSceneStyles(
         assStyleLine(
           extraStyle,
           "Arial",
-          sizes.subtitle,
-          theme,
-          STORY_SUBTITLE_ASS_ALIGNMENT,
+          sized("subtitle", sizes.subtitle),
+          themed("subtitle"),
+          aligned("subtitle", STORY_SUBTITLE_ASS_ALIGNMENT),
           SCENE_TITLE_MARGIN_V + sizes.title + STORY_ASS_SUBTITLE_GAP_PX,
           marginH
         )
@@ -544,16 +704,16 @@ function registerSceneStyles(
       assStyleLine(
         finaleFooter,
         "Arial",
-        Math.round(sizes.subtitle * 0.78),
-        theme,
-        STORY_FOOTER_ASS_ALIGNMENT,
+        sized("footer", Math.round(sizes.subtitle * 0.78)),
+        themed("footer"),
+        aligned("footer", STORY_FOOTER_ASS_ALIGNMENT),
         Math.round(height * SAFE_AREA_MARGIN_V) + 8,
         marginH
       )
     );
   }
 
-  return { heroMain, heroSmall, headline, title, subtitle, extraLines, finaleFooter };
+  return { heroMain, heroSmall, heroFinale, headline, title, subtitle, extraLines, finaleFooter };
 }
 
 function collectFinaleFooterDraft(
@@ -573,14 +733,33 @@ function collectFinaleFooterDraft(
   if (!finaleFooterRaw) {
     return null;
   }
-  const footerFontSize = Math.max(28, Math.round(params.subtitleSize * 0.78));
-  const footerY = Math.round(
-    params.height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35
+  const layerStyles = params.scene.overlayLayerStyles;
+  const footerFontSize = Math.max(
+    28,
+    Math.round(
+      applyLayerFontSize(
+        Math.round(params.subtitleSize * 0.78),
+        "footer",
+        layerStyles?.footer,
+        params.width,
+        params.height
+      )
+    )
+  );
+  const footerY = yForPositionPreference(
+    layerStyles?.footer?.position,
+    Math.round(params.height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35),
+    params.height
+  );
+  const footerAlignment = assAlignmentForLayer(
+    "footer",
+    layerStyles?.footer?.alignment,
+    STORY_FOOTER_ASS_ALIGNMENT
   );
   const footerClamped = clampAssAnchor({
     x: Math.round(params.width / 2),
     y: footerY,
-    alignment: STORY_FOOTER_ASS_ALIGNMENT,
+    alignment: footerAlignment,
     lines: [finaleFooterRaw],
     fontSize: footerFontSize,
     frameWidth: params.width,
@@ -596,7 +775,7 @@ function collectFinaleFooterDraft(
     lines: [finaleFooterRaw],
     x: footerClamped.clampedX,
     y: footerClamped.clampedY,
-    alignment: STORY_FOOTER_ASS_ALIGNMENT,
+    alignment: footerAlignment,
     fontSize: footerFontSize,
     start: revealStart,
     end: params.visibleEnd,
@@ -621,7 +800,8 @@ function collectHeroDialogueDrafts(
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
   const source = heroSourceText(scene);
-  const accentWords = detectAccentWords(source, scene);
+  const accentWords = scene.accentWords.length > 0 ? scene.accentWords : detectAccentWords(source, scene);
+  const highlightAccents = resolveSceneAccentWords(scene, source);
   const placement = safeZone ? resolvePlacementForTemplate(safeZone, "hero", width, height) : undefined;
   const adaptive =
     heroTypography ??
@@ -637,22 +817,51 @@ function collectHeroDialogueDrafts(
     });
 
   const layout = layoutHeroScene(scene);
-  if (!layout && !adaptive?.lines.length) {
+  const explicitHeroBeats = scene.heroTextBeats;
+  let lines: string[];
+  if (explicitHeroBeats.length > 1) {
+    lines = explicitHeroBeats;
+  } else if (adaptive?.lines.length) {
+    lines = adaptive.lines;
+  } else if (layout?.lines.length) {
+    lines = layout.lines;
+  } else if (explicitHeroBeats.length === 1) {
+    lines = explicitHeroBeats;
+  } else {
     return drafts;
   }
 
-  const lines = adaptive?.lines.length ? adaptive.lines : layout!.lines;
   const mainLineIndex =
-    adaptive?.lines.length ? heroMainLineIndex(lines, accentWords) : layout!.mainLineIndex;
-  const accents = layout?.accentWords ?? accentWords;
+    explicitHeroBeats.length > 1 ?
+      explicitHeroBeats.length - 1
+    : adaptive?.lines.length ?
+      heroMainLineIndex(lines, highlightAccents)
+    : layout!.mainLineIndex;
+  const layerStyles = scene.overlayLayerStyles;
+  const heroTheme = mergeLayerStyleIntoTheme(theme, layerStyles?.hero);
+  const heroHighlightColors: AccentHighlightColors = {
+    primaryColorAss: heroTheme.primaryColorAss,
+    accentColorAss: theme.accentColorAss,
+  };
 
   const position = defaultHeroPosition(scene, lines.length);
   const cx = resolveHeroAnchorX(width, height, safeZone);
-  const mainSize = adaptive?.fontSize ?? LEGACY_HERO_SIZE_MAIN;
-  const smallSize = adaptive ? Math.round(adaptive.fontSize * 0.63) : LEGACY_HERO_SIZE_SMALL;
+  let mainSize = capStoryOverlayFontSize(
+    "hero",
+    adaptive?.fontSize ?? LEGACY_HERO_SIZE_MAIN,
+    width,
+    height
+  );
+  mainSize = applyLayerFontSize(mainSize, "hero", layerStyles?.hero, width, height);
+  const smallSize = adaptive ? Math.round(mainSize * 0.63) : LEGACY_HERO_SIZE_SMALL;
   const lineStep = mainSize + 18;
-  let anchorY = resolveHeroAnchorY(lines.length, width, height, position, safeZone);
+  let anchorY = yForPositionPreference(
+    layerStyles?.hero?.position,
+    resolveHeroAnchorY(lines.length, width, height, position, safeZone),
+    height
+  );
   let clampedCx = cx;
+  const heroAlignment = assAlignmentForLayer("hero", layerStyles?.hero?.alignment, 5);
 
   const firstLineBounds = assTextBounds({
     x: cx,
@@ -701,7 +910,7 @@ function collectHeroDialogueDrafts(
     const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
     const lineStart = slot.revealStart;
     const lineEnd = slot.visibleEnd;
-    const text = heroLineWithAccents(line, accents, theme);
+    const text = applyAccentHighlightsToAssLine(line, highlightAccents, heroHighlightColors);
     drafts.push(
       makeDialogueDraft({
         id: `s${sceneIndex}-hero-${lineIndex}`,
@@ -712,7 +921,7 @@ function collectHeroDialogueDrafts(
         lines: [line],
         x: clampedCx,
         y,
-        alignment: 5,
+        alignment: heroAlignment,
         fontSize: isMain ? mainSize : smallSize,
         start: lineStart,
         end: lineEnd,
@@ -752,7 +961,7 @@ function collectSequenceDialogueDrafts(
   end: number,
   width: number,
   height: number,
-  styleNames: { heroMain: string; heroSmall: string; title: string; subtitle: string; finaleFooter: string },
+  styleNames: { heroMain: string; heroSmall: string; heroFinale: string; title: string; subtitle: string; finaleFooter: string },
   theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
   sceneIndex = 0,
@@ -777,7 +986,9 @@ function collectSequenceDialogueDrafts(
     motionTags,
   });
   for (const [evIndex, ev] of sequenceEvents.entries()) {
-    const isFinaleLine = ev.styleName === styleNames.heroMain && scene.heroFinaleText.trim().length > 0;
+    const isFinaleLine =
+      ev.styleName === styleNames.heroFinale ||
+      (ev.styleName === styleNames.heroMain && scene.heroFinaleText.trim().length > 0);
     drafts.push(
       makeDialogueDraft({
         id: `s${sceneIndex}-seq-${evIndex}`,
@@ -839,6 +1050,7 @@ function collectSceneDialogueDrafts(
     extraLines: string[];
     finaleFooter: string;
   },
+  theme: AdaptiveOverlayTheme,
   safeZone?: SafeZoneInput,
   precomputedTypography?: {
     headline?: AdaptiveTypographyResult | null;
@@ -853,21 +1065,29 @@ function collectSceneDialogueDrafts(
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
   const finaleFooterRaw = scene.finaleFooter.trim();
-  const headlineRaw = getSceneHeadline(scene);
-  const titleRaw = scene.title.trim();
-  const subtitleRaw = scene.subtitle.trim();
+  const headlineBeats = scene.headlineBeats;
+  const titleBeats = scene.titleBeats;
+  const subtitleBeats = scene.subtitleBeats;
   const extraLineTexts = scene.extraLines.map((line) => line.trim()).filter(Boolean);
   if (
-    !headlineRaw &&
-    !titleRaw &&
-    !subtitleRaw &&
+    headlineBeats.length === 0 &&
+    titleBeats.length === 0 &&
+    subtitleBeats.length === 0 &&
     extraLineTexts.length === 0 &&
     !(finaleHold && finaleFooterRaw)
   ) {
     return drafts;
   }
 
+  const headlineRaw = headlineBeats[0] ?? "";
+  const titleRaw = titleBeats[0] ?? "";
+  const subtitleRaw = subtitleBeats[0] ?? "";
+
   const accentWords = scene.accentWords;
+  const accentWordsForHighlight = resolveSceneAccentWords(scene, sceneAccentFallbackText(scene), {
+    allowAutoDetect: false,
+  });
+  const layerStyles = scene.overlayLayerStyles;
   const headlinePlacement =
     safeZone ? resolvePlacementForTemplate(safeZone, "headline", width, height) : undefined;
   const titlePlacement =
@@ -918,16 +1138,50 @@ function collectSceneDialogueDrafts(
       })
     : null);
 
-  const headlineLines =
-    headlineTypo?.lines.length ? headlineTypo.lines : headlineRaw ? [headlineRaw] : [];
+  const headlineLines = headlineTypo?.lines.length ? headlineTypo.lines : headlineRaw ? [headlineRaw] : [];
   const titleLines = titleTypo?.lines.length ? titleTypo.lines : titleRaw ? [titleRaw] : [];
   const subtitleLines =
     subtitleTypo?.lines.length ? subtitleTypo.lines : subtitleRaw ? [subtitleRaw] : [];
 
-  const titleSize = titleTypo?.fontSize ?? legacySceneTitleSize(width, height);
-  const subtitleSize = subtitleTypo?.fontSize ?? legacySceneSubtitleSize(titleSize);
+  const titleSize = capStoryOverlayFontSize(
+    "title",
+    titleTypo?.fontSize ?? legacySceneTitleSize(width, height),
+    width,
+    height
+  );
+  const subtitleSize = capStoryOverlayFontSize(
+    "subtitle",
+    subtitleTypo?.fontSize ?? legacySceneSubtitleSize(titleSize),
+    width,
+    height
+  );
 
-  const headlineFontSize = headlineTypo?.fontSize ?? Math.round(titleSize * STORY_HEADLINE_TO_TITLE_RATIO);
+  const headlineFontSize = applyLayerFontSize(
+    capStoryOverlayFontSize(
+      "headline",
+      headlineTypo?.fontSize ?? Math.round(titleSize * STORY_HEADLINE_TO_TITLE_RATIO),
+      width,
+      height
+    ),
+    "headline",
+    scene.overlayLayerStyles?.headline,
+    width,
+    height
+  );
+  const adjustedTitleSize = applyLayerFontSize(
+    titleSize,
+    "title",
+    scene.overlayLayerStyles?.title,
+    width,
+    height
+  );
+  const adjustedSubtitleSize = applyLayerFontSize(
+    subtitleSize,
+    "subtitle",
+    scene.overlayLayerStyles?.subtitle,
+    width,
+    height
+  );
   let layerPositions: ReturnType<typeof resolveStoryLayerPositions> | null = null;
 
   if (safeZone && "placements" in safeZone) {
@@ -939,8 +1193,8 @@ function collectSceneDialogueDrafts(
       titleLines,
       subtitleLines,
       headlineFontSize,
-      titleFontSize: titleSize,
-      subtitleFontSize: subtitleSize,
+      titleFontSize: adjustedTitleSize,
+      subtitleFontSize: adjustedSubtitleSize,
     });
   } else if (headlinePlacement || titlePlacement || subtitlePlacement) {
     const wrap = (placement: typeof headlinePlacement): ObjectAwarePlacement | undefined =>
@@ -969,29 +1223,49 @@ function collectSceneDialogueDrafts(
       titleLines,
       subtitleLines,
       headlineFontSize,
-      titleFontSize: titleSize,
-      subtitleFontSize: subtitleSize,
+      titleFontSize: adjustedTitleSize,
+      subtitleFontSize: adjustedSubtitleSize,
     });
   }
 
   logStoryLayerPositions(sceneIndex, layerPositions ?? {});
 
   const headlineX = layerPositions?.headline?.clampedX ?? headlinePlacement?.anchorX ?? Math.round(width / 2);
-  const headlineY =
+  let headlineY =
     layerPositions?.headline?.clampedY ??
     headlinePlacement?.anchorY ??
     Math.round(height * (SAFE_AREA_MARGIN_V + 0.1));
   const titleX = layerPositions?.title?.clampedX ?? titlePlacement?.anchorX ?? Math.round(width / 2);
-  const titleY = layerPositions?.title?.clampedY ?? titlePlacement?.anchorY ?? Math.round(height * 0.52);
+  let titleY = layerPositions?.title?.clampedY ?? titlePlacement?.anchorY ?? Math.round(height * 0.52);
   const subtitleX = layerPositions?.subtitle?.clampedX ?? titleX;
-  const subtitleY =
+  let subtitleY =
     layerPositions?.subtitle?.clampedY ??
-    (titleLines.length > 0 ? titleY + titleSize + STORY_ASS_SUBTITLE_GAP_PX : subtitlePlacement?.anchorY ?? titleY + titleSize + STORY_ASS_SUBTITLE_GAP_PX);
+    (titleLines.length > 0 ? titleY + adjustedTitleSize + STORY_ASS_SUBTITLE_GAP_PX : subtitlePlacement?.anchorY ?? titleY + adjustedTitleSize + STORY_ASS_SUBTITLE_GAP_PX);
+
+  headlineY = yForPositionPreference(layerStyles?.headline?.position, headlineY, height);
+  titleY = yForPositionPreference(layerStyles?.title?.position, titleY, height);
+  subtitleY = yForPositionPreference(layerStyles?.subtitle?.position, subtitleY, height);
+
+  const headlineAlignment = assAlignmentForLayer(
+    "headline",
+    layerStyles?.headline?.alignment,
+    STORY_HEADLINE_ASS_ALIGNMENT
+  );
+  const titleAlignment = assAlignmentForLayer(
+    "title",
+    layerStyles?.title?.alignment,
+    STORY_TITLE_ASS_ALIGNMENT
+  );
+  const subtitleAlignment = assAlignmentForLayer(
+    "subtitle",
+    layerStyles?.subtitle?.alignment,
+    STORY_SUBTITLE_ASS_ALIGNMENT
+  );
 
   const reveal = buildSceneLayeredRevealSlots(start, visibleEnd, {
-    headline: headlineLines.length > 0,
-    title: titleLines.length > 0,
-    subtitle: subtitleLines.length > 0,
+    headline: headlineBeats.length > 0,
+    title: titleBeats.length > 0,
+    subtitle: subtitleBeats.length > 0,
     extraLineCount: extraLineTexts.length,
     finaleFooter: finaleHold && Boolean(finaleFooterRaw),
   });
@@ -1021,23 +1295,23 @@ function collectSceneDialogueDrafts(
         y: layerPositions.subtitle.clampedY,
         alignment: STORY_SUBTITLE_ASS_ALIGNMENT,
         lines: subtitleLines.length > 0 ? subtitleLines : [subtitleRaw || " "],
-        fontSize: subtitleSize,
+        fontSize: adjustedSubtitleSize,
       }).bottom
-    : subtitleY + subtitleSize / 2,
+    : subtitleY + adjustedSubtitleSize / 2,
     layerPositions?.title ?
       assTextBounds({
         x: layerPositions.title.clampedX,
         y: layerPositions.title.clampedY,
         alignment: STORY_TITLE_ASS_ALIGNMENT,
         lines: titleLines.length > 0 ? titleLines : [titleRaw || " "],
-        fontSize: titleSize,
+        fontSize: adjustedTitleSize,
       }).bottom
-    : titleY + titleSize / 2,
+    : titleY + adjustedTitleSize / 2,
     headlineY + headlineFontSize
   );
   const extraLinePositions = resolveExtraLinePositions({
     extraLines: extraLineTexts,
-    fontSize: subtitleSize,
+    fontSize: adjustedSubtitleSize,
     width,
     height,
     occupiedZoneIds: occupiedZones,
@@ -1045,66 +1319,81 @@ function collectSceneDialogueDrafts(
     minY: titleSubtitleBottom + STORY_ASS_SUBTITLE_GAP_PX,
   });
 
-  if (headlineLines.length > 0) {
-    const headlineText = headlineLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.headline ?? { revealStart: start, visibleEnd };
-    drafts.push(
-      makeDialogueDraft({
-        id: `s${sceneIndex}-headline`,
-        kind: "headline",
-        sceneIndex,
-        styleName: styleNames.headline,
-        assText: headlineText,
-        lines: headlineLines,
-        x: headlineX,
-        y: headlineY,
-        fontSize: headlineFontSize,
-        start: slot.revealStart,
-        end: slot.visibleEnd,
-        motionFinaleHold: finaleHold,
-        motionInstant: sceneIndex === 0,
-      })
-    );
+  if (headlineBeats.length > 0) {
+    appendLayerBeatDrafts(drafts, {
+      beats: headlineBeats,
+      layerSlot: reveal.headline,
+      kind: "headline",
+      idPrefix: `s${sceneIndex}-headline`,
+      sceneIndex,
+      styleName: styleNames.headline,
+      baseX: headlineX,
+      baseY: headlineY,
+      defaultFontSize: headlineFontSize,
+      alignment: headlineAlignment,
+      typographyTemplate: "headline",
+      placement: headlinePlacement,
+      width,
+      height,
+      safeZone,
+      accentWords,
+      highlightAccentWords: accentWordsForHighlight,
+      highlightColors: layerHighlightColors(theme, "headline", layerStyles),
+      visibleEnd,
+      finaleHold,
+      motionInstant: sceneIndex === 0,
+      fontCapRole: "headline",
+    });
   }
-  if (titleLines.length > 0) {
-    const titleText = titleLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.title ?? { revealStart: start, visibleEnd };
-    drafts.push(
-      makeDialogueDraft({
-        id: `s${sceneIndex}-title`,
-        kind: "title",
-        sceneIndex,
-        styleName: styleNames.title,
-        assText: titleText,
-        lines: titleLines,
-        x: titleX,
-        y: titleY,
-        fontSize: titleSize,
-        start: slot.revealStart,
-        end: slot.visibleEnd,
-        motionFinaleHold: finaleHold,
-      })
-    );
+  if (titleBeats.length > 0) {
+    appendLayerBeatDrafts(drafts, {
+      beats: titleBeats,
+      layerSlot: reveal.title,
+      kind: "title",
+      idPrefix: `s${sceneIndex}-title`,
+      sceneIndex,
+      styleName: styleNames.title,
+      baseX: titleX,
+      baseY: titleY,
+      defaultFontSize: adjustedTitleSize,
+      alignment: titleAlignment,
+      typographyTemplate: "scene",
+      placement: titlePlacement,
+      width,
+      height,
+      safeZone,
+      accentWords,
+      highlightAccentWords: accentWordsForHighlight,
+      highlightColors: layerHighlightColors(theme, "title", layerStyles),
+      visibleEnd,
+      finaleHold,
+      fontCapRole: "title",
+    });
   }
-  if (subtitleLines.length > 0) {
-    const subtitleText = subtitleLines.map((l) => escapeAssText(l)).join("\\N");
-    const slot = reveal.subtitle ?? { revealStart: start, visibleEnd };
-    drafts.push(
-      makeDialogueDraft({
-        id: `s${sceneIndex}-subtitle`,
-        kind: "subtitle",
-        sceneIndex,
-        styleName: styleNames.subtitle,
-        assText: subtitleText,
-        lines: subtitleLines,
-        x: subtitleX,
-        y: subtitleY,
-        fontSize: subtitleSize,
-        start: slot.revealStart,
-        end: slot.visibleEnd,
-        motionFinaleHold: finaleHold,
-      })
-    );
+  if (subtitleBeats.length > 0) {
+    appendLayerBeatDrafts(drafts, {
+      beats: subtitleBeats,
+      layerSlot: reveal.subtitle,
+      kind: "subtitle",
+      idPrefix: `s${sceneIndex}-subtitle`,
+      sceneIndex,
+      styleName: styleNames.subtitle,
+      baseX: subtitleX,
+      baseY: subtitleY,
+      defaultFontSize: adjustedSubtitleSize,
+      alignment: subtitleAlignment,
+      typographyTemplate: "subtitle",
+      placement: subtitlePlacement,
+      width,
+      height,
+      safeZone,
+      accentWords,
+      highlightAccentWords: accentWordsForHighlight,
+      highlightColors: layerHighlightColors(theme, "subtitle", layerStyles),
+      visibleEnd,
+      finaleHold,
+      fontCapRole: "subtitle",
+    });
   }
 
   extraLinePositions.forEach((position, index) => {
@@ -1123,11 +1412,15 @@ function collectSceneDialogueDrafts(
         kind: "extra",
         sceneIndex,
         styleName,
-        assText: escapeAssText(line),
+        assText: applyAccentHighlightsToAssLine(
+          line,
+          accentWordsForHighlight,
+          layerHighlightColors(theme, "subtitle", layerStyles)
+        ),
         lines: [line],
         x: position.clampedX,
         y: position.clampedY,
-        fontSize: subtitleSize,
+        fontSize: adjustedSubtitleSize,
         start: slot.revealStart,
         end: slot.visibleEnd,
         motionFinaleHold: finaleHold,
@@ -1152,7 +1445,7 @@ function collectSceneDialogueDrafts(
       visibleEnd,
       width,
       height,
-      subtitleSize,
+      subtitleSize: adjustedSubtitleSize,
       styleName: styleNames.finaleFooter,
       revealStart:
         reveal.finaleFooter?.revealStart ??
@@ -1208,8 +1501,8 @@ function resolveSceneFontSizes(params: {
       sceneIndex,
     });
     if (heroTypography) {
-      sizes.heroMain = heroTypography.fontSize;
-      sizes.heroSmall = Math.round(heroTypography.fontSize * 0.63);
+      sizes.heroMain = capStoryOverlayFontSize("hero", heroTypography.fontSize, width, height);
+      sizes.heroSmall = Math.round(sizes.heroMain * 0.63);
     }
   }
 
@@ -1258,13 +1551,13 @@ function resolveSceneFontSizes(params: {
       })
     : null;
     if (headlineTypo) {
-      sizes.headline = headlineTypo.fontSize;
+      sizes.headline = capStoryOverlayFontSize("headline", headlineTypo.fontSize, width, height);
     }
     if (titleTypo) {
-      sizes.title = titleTypo.fontSize;
+      sizes.title = capStoryOverlayFontSize("title", titleTypo.fontSize, width, height);
     }
     if (subtitleTypo) {
-      sizes.subtitle = subtitleTypo.fontSize;
+      sizes.subtitle = capStoryOverlayFontSize("subtitle", subtitleTypo.fontSize, width, height);
     }
   }
 
@@ -1327,7 +1620,8 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
       safeZone ?? undefined,
       resolved,
       extraLineCount,
-      hasFinaleFooter
+      hasFinaleFooter,
+      scene.overlayLayerStyles
     );
     styleNamesByScene.set(index, names);
   }
@@ -1404,6 +1698,7 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
           width,
           height,
           names,
+          theme,
           safeZone,
           null,
           null,

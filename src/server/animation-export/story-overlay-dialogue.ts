@@ -10,6 +10,13 @@ import {
   type OverlayCollisionCandidate,
   type OverlayCollisionLayerKind,
 } from "@/server/animation-export/story-overlay-collision";
+import {
+  bandAnchorY,
+  defaultBandForOverlayKind,
+  nextAlternateBand,
+  STORY_LAYOUT_BAND_ORDER,
+  type StoryLayoutBand,
+} from "@/server/animation-export/story-overlay-layout-bands";
 import { isStoryModeDebugEnabled } from "@/lib/story-mode-debug";
 
 export type StoryDialogueDraft = OverlayCollisionCandidate & {
@@ -92,8 +99,34 @@ function draftFromCandidate(
   };
 }
 
+function inferLayoutBand(y: number, frameHeight: number): StoryLayoutBand {
+  let best: StoryLayoutBand = "center";
+  let bestDist = Infinity;
+  for (const band of STORY_LAYOUT_BAND_ORDER) {
+    const dist = Math.abs(y - bandAnchorY(band, frameHeight));
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = band;
+    }
+  }
+  return best;
+}
+
+function occupiedBands(
+  placed: OverlayCollisionCandidate[],
+  frameHeight: number
+): Set<StoryLayoutBand> {
+  const used = new Set<StoryLayoutBand>();
+  for (const item of placed) {
+    if (!item.hidden) {
+      used.add(inferLayoutBand(item.y, frameHeight));
+    }
+  }
+  return used;
+}
+
 /**
- * Resolve collisions with reposition → resize → shorten timing → hide.
+ * Resolve collisions with reposition (band) → shift → resize → shorten timing → hide.
  */
 export function resolveSceneDialogueCollisions(params: {
   drafts: StoryDialogueDraft[];
@@ -117,8 +150,11 @@ export function resolveSceneDialogueCollisions(params: {
     let working = candidateFromDraft(draft);
     let action: DialogueCollisionAction["action"] = "kept";
     let reason = "no_collision";
+    const triedBands = new Set<StoryLayoutBand>([
+      inferLayoutBand(working.y, params.frameHeight),
+    ]);
 
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
       const box = boundsForCandidate(working);
       let hit: OverlayCollisionCandidate | null = null;
       for (const other of placed) {
@@ -136,6 +172,20 @@ export function resolveSceneDialogueCollisions(params: {
       }
       if (!hit) {
         break;
+      }
+
+      const usedBands = occupiedBands(placed, params.frameHeight);
+      for (const band of triedBands) {
+        usedBands.add(band);
+      }
+      const startBand = defaultBandForOverlayKind(working.kind);
+      const altBand = nextAlternateBand(startBand, usedBands);
+      if (altBand && !triedBands.has(altBand)) {
+        triedBands.add(altBand);
+        working = { ...working, y: bandAnchorY(altBand, params.frameHeight) };
+        action = "moved";
+        reason = `repositioned_to_band_${altBand}`;
+        continue;
       }
 
       const otherBox = boundsForCandidate(hit);

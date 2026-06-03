@@ -5,7 +5,7 @@
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
-export type VideoVersionKind = "original" | "clean" | "text_rerender" | "language";
+export type VideoVersionKind = "original" | "clean" | "text_rerender" | "full_rerender" | "language";
 
 export type VideoVersionLifecycle = "current" | "archived" | "pending" | "failed";
 
@@ -40,11 +40,24 @@ export type ProjectVideoVersionCatalog = {
   all: ProjectVideoVersionItem[];
 };
 
+export type RenderVersionCatalogRow = {
+  id: string;
+  renderVersionNumber: number;
+  kind: "initial" | "full_rerender";
+  status: string;
+  isDefault: boolean;
+  versionNote: string | null;
+  finalVideoUrl: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
 export type BuildVersionCatalogInput = {
   projectId: string;
   originalVideoUrl: string | null;
   cleanVideoUrl: string | null;
   languageExports: LanguageExportVersionRow[];
+  renderVersions?: RenderVersionCatalogRow[];
   previousFinalVideoUrl?: string | null;
   rebuildCount?: number;
   rebuiltAt?: string | null;
@@ -240,6 +253,35 @@ export function buildProjectVideoVersionCatalog(
 
   const textItems = buildTextRerenderItems(input);
   history.push(...textItems.history);
+
+  const renderRows = input.renderVersions ?? [];
+  for (const row of [...renderRows].sort((a, b) => b.renderVersionNumber - a.renderVersionNumber)) {
+    if (!row.finalVideoUrl?.trim() || row.status !== "completed") {
+      continue;
+    }
+    const item: ProjectVideoVersionItem = {
+      id: `render-${row.id}`,
+      kind: row.kind === "full_rerender" ? "full_rerender" : "original",
+      versionNumber: row.renderVersionNumber,
+      lifecycle: row.isDefault ? "current" : "archived",
+      status: row.status,
+      outputVideoUrl: row.finalVideoUrl.trim(),
+      createdAt: row.createdAt,
+      completedAt: row.completedAt,
+      downloadHref: row.finalVideoUrl.trim(),
+      filename: `homecheff-motion-${input.projectId}-v${row.renderVersionNumber}.mp4`,
+      label:
+        row.kind === "full_rerender"
+          ? `Full render v${row.renderVersionNumber}`
+          : `Initial render v${row.renderVersionNumber}`,
+      section: row.isDefault ? "primary" : "history",
+    };
+    if (row.isDefault) {
+      primary.push(item);
+    } else {
+      history.push(item);
+    }
+  }
 
   const languageItems = buildLanguageItems(input.projectId, input.languageExports);
   primary.push(...languageItems.primary);

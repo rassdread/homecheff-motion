@@ -53,6 +53,7 @@ export async function auditAdminVideoStorage(params?: {
       transitions: { orderBy: { order: "asc" } },
       exports: { orderBy: { createdAt: "desc" } },
       languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
+      renderVersions: { orderBy: { renderVersionNumber: "desc" } },
     },
     orderBy: { updatedAt: "desc" },
     take: limit,

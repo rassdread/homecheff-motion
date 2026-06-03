@@ -103,11 +103,12 @@ describe("story overlay v4 timing", () => {
       width: 1080,
       height: 1920,
     });
-    for (const needle of ["LAST TITLE", "LAST SUB", "FINALE", "homecheff.eu"]) {
-      const line = ass.split("\n").find((row) => row.startsWith("Dialogue:") && row.includes(needle));
-      assert.ok(line, `missing dialogue for ${needle}`);
-      assert.equal(dialogueTimes(line!).end, "0:00:10.00", needle);
-    }
+    const footer = ass.split("\n").find((row) => row.startsWith("Dialogue:") && row.includes("homecheff.eu"));
+    assert.ok(footer, "missing finale footer dialogue");
+    assert.equal(dialogueTimes(footer!).end, "0:00:10.00", "homecheff.eu");
+    const lastSub = ass.split("\n").find((row) => row.startsWith("Dialogue:") && row.includes("LAST SUB"));
+    assert.ok(lastSub);
+    assert.equal(dialogueTimes(lastSub!).end, "0:00:10.00", "subtitle stays visible until video end");
   });
 
   it("final frame keeps text visible with no fade-out tags", () => {
@@ -117,10 +118,10 @@ describe("story overlay v4 timing", () => {
       width: 1080,
       height: 1920,
     });
-    const title = ass.split("\n").find((line) => line.includes("ONLY SCENE"));
-    assert.ok(title);
-    assert.match(title!, /\\fad\(220,0\)/);
-    assert.equal(dialogueTimes(title!).end, "0:00:08.00");
+    const subtitle = ass.split("\n").find((line) => line.includes("hold me"));
+    assert.ok(subtitle);
+    assert.match(subtitle!, /\\fad\(220,0\)/);
+    assert.equal(dialogueTimes(subtitle!).end, "0:00:08.00");
   });
 
   it("finale footer ends at videoEnd", () => {
@@ -227,7 +228,7 @@ describe("story overlay v4 placement scoring", () => {
     );
   });
 
-  it("subtitle remains grouped with title", () => {
+  it("subtitle shares title horizontal anchor but keeps independent zone", () => {
     const v1 = makeV1Analysis();
     const detection = mockDetection();
     const placements = applyStoryReadingFlowToPlacements(
@@ -239,7 +240,7 @@ describe("story overlay v4 placement scoring", () => {
         height: 1920,
       })
     );
-    assert.equal(placements.subtitle.zoneId, placements.title.zoneId);
+    assert.equal(placements.subtitle.anchorX, placements.title.anchorX);
     assert.equal(placements.subtitle.placementReason, "grouped_with_title");
   });
 });

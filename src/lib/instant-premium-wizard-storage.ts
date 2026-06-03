@@ -46,6 +46,11 @@ export type PersistedSceneTextDraft = {
   heroText: string;
   title: string;
   subtitle: string;
+  headlineBeats?: string[];
+  titleBeats?: string[];
+  subtitleBeats?: string[];
+  heroTextBeats?: string[];
+  finaleTextBeats?: string[];
   extraLines: string[];
   accentWords: string;
   lines: string[];
@@ -56,6 +61,7 @@ export type PersistedSceneTextDraft = {
   emotion?: string;
   autoEmotion?: string;
   actingIntensity?: string;
+  overlayLayerStyles?: import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles;
 };
 
 /** Decoupled scene slot — text + optional image metadata. */

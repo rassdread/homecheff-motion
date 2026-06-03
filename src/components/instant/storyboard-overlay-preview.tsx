@@ -7,6 +7,7 @@ import {
   type StoryboardOverlayPreviewLine,
 } from "@/lib/storyboard-overlay-preview";
 import { STORY_PREVIEW_TYPOGRAPHY_CLASS } from "@/lib/story-overlay-typography-scale";
+import { previewInlineStyleForLayer } from "@/lib/story-overlay-layer-styles";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 
 type Props = {
@@ -71,7 +72,13 @@ export function StoryboardOverlayPreview({
               <p className="text-[10px] uppercase tracking-wide text-zinc-500">
                 {t(line.labelKey as never)}
               </p>
-              <p className={`whitespace-pre-wrap ${previewLineClass(line, isFinalFrame)}`}>
+              <p
+                className={`whitespace-pre-wrap ${previewLineClass(line, isFinalFrame)}`}
+                style={previewInlineStyleForLayer(
+                  scene.overlayLayerStyles?.[line.styleLayer],
+                  line.kind === "headline" || line.kind === "hero_finale" ? 1.1 : 1
+                )}
+              >
                 {line.text}
               </p>
             </div>

@@ -45,6 +45,7 @@ import {
   VIDU_PROMPT_HARD_MAX_CHARS,
 } from "@/lib/vidu-prompt-budget";
 import { prisma } from "@/lib/prisma";
+import { markFullRerenderFailedIfRunning } from "@/server/instant-premium/full-rerender-project";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 import { ensureTransitionOutputInBlob } from "@/server/animation-projects/ensure-transition-blob";
 
@@ -698,6 +699,10 @@ export async function pollProjectJobs(projectId: string) {
       where: { id: project.id },
       data: { status: "failed" },
     });
+    await markFullRerenderFailedIfRunning(
+      project.id,
+      "One or more Vidu segment jobs failed during full rerender."
+    );
   } else if (allCompleted) {
     await prisma.animationProject.update({
       where: { id: project.id },

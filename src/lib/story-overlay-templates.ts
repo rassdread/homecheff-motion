@@ -1,4 +1,12 @@
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import {
+  MAX_LAYER_BEATS,
+  parseTextBeats,
+  resolveTextBeats,
+} from "@/lib/story-text-beats";
+import { sanitizeOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
+
+export { MAX_LAYER_BEATS, parseTextBeats, resolveTextBeats } from "@/lib/story-text-beats";
 import type { AnimationSceneEmotionId, SceneActingIntensity, SceneEmotionMode } from "@/lib/animation-scene-emotions";
 import {
   normalizeSceneActingIntensity,
@@ -51,6 +59,12 @@ export type InstantSceneText = {
   heroFinaleText?: string;
   /** Optional CTA / website footer on the final scene only. */
   finaleFooter?: string;
+  /** Sequential punchlines per text layer (same style/band, staggered timing). */
+  headlineBeats?: string[];
+  titleBeats?: string[];
+  subtitleBeats?: string[];
+  heroTextBeats?: string[];
+  finaleTextBeats?: string[];
   /** Transition into the next frame (Story Mode). Not used on the last frame. */
   transitionDurationSeconds?: number;
   /** @deprecated Use transitionDurationSeconds — kept for legacy projects. */
@@ -61,6 +75,8 @@ export type InstantSceneText = {
   autoEmotion?: AnimationSceneEmotionId;
   /** subtle | normal | active | very_active — default active for Story Mode. */
   actingIntensity?: SceneActingIntensity;
+  /** Optional per-layer visual overrides for text rerender / export. */
+  overlayLayerStyles?: import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles;
 };
 
 export type NormalizedSequenceLine = {
@@ -80,6 +96,11 @@ export type NormalizedSceneText = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  headlineBeats: string[];
+  titleBeats: string[];
+  subtitleBeats: string[];
+  heroTextBeats: string[];
+  finaleTextBeats: string[];
   transitionDurationSeconds?: StorySceneDurationSeconds;
   /** @deprecated Use transitionDurationSeconds */
   durationSeconds?: StorySceneDurationSeconds;
@@ -87,6 +108,7 @@ export type NormalizedSceneText = {
   emotion?: AnimationSceneEmotionId;
   autoEmotion?: AnimationSceneEmotionId;
   actingIntensity: SceneActingIntensity;
+  overlayLayerStyles: import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles;
 };
 
 export type ResolvedSceneTemplate = "hero" | "scene" | "sequence" | "skip";
@@ -243,9 +265,41 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
     subtitleRaw = split.subtitle;
     extraLines = split.extraLines;
   }
-  const heroText = heroRaw ? heroRaw.toUpperCase() : "";
-  const title = titleRaw ? titleRaw.toUpperCase() : "";
-  const subtitle = subtitleRaw;
+  const heroFinaleRaw =
+    typeof scene?.heroFinaleText === "string" ? scene.heroFinaleText.trim() : "";
+  const headlineBeats = resolveTextBeats({
+    beats: scene?.headlineBeats,
+    legacy: heroRaw,
+    uppercase: true,
+    max: MAX_LAYER_BEATS,
+  });
+  const heroTextBeats = resolveTextBeats({
+    beats: scene?.heroTextBeats,
+    legacy: heroRaw,
+    uppercase: true,
+    max: MAX_LAYER_BEATS,
+  });
+  const titleBeats = resolveTextBeats({
+    beats: scene?.titleBeats,
+    legacy: titleRaw,
+    uppercase: true,
+    max: MAX_LAYER_BEATS,
+  });
+  const subtitleBeats = resolveTextBeats({
+    beats: scene?.subtitleBeats,
+    legacy: subtitleRaw,
+    uppercase: false,
+    max: MAX_LAYER_BEATS,
+  });
+  const finaleTextBeats = resolveTextBeats({
+    beats: scene?.finaleTextBeats,
+    legacy: heroFinaleRaw,
+    uppercase: false,
+    max: MAX_LAYER_BEATS,
+  });
+  const heroText = headlineBeats[0] ?? heroTextBeats[0] ?? "";
+  const title = titleBeats[0] ?? "";
+  const subtitle = subtitleBeats[0] ?? subtitleRaw;
   const accentWords = parseAccentWordsInput(scene?.accentWords);
   const templatePosition =
     scene?.templatePosition === "top" ||
@@ -257,9 +311,9 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
   const lines = parseSequenceLines(scene?.lines);
   const heroFinale =
     scene?.heroFinale === false ? false : lines.length >= 2;
-  const heroFinaleRaw =
-    typeof scene?.heroFinaleText === "string" ? scene.heroFinaleText.trim() : "";
-  const heroFinaleText = heroFinaleRaw ?
+  const heroFinaleText = finaleTextBeats.length > 0 ?
+    finaleTextBeats.join(" ").slice(0, MAX_HERO_FINALE_TEXT_CHARS)
+  : heroFinaleRaw ?
     heroFinaleRaw.slice(0, MAX_HERO_FINALE_TEXT_CHARS)
   : "";
   const finaleFooterRaw =
@@ -294,10 +348,16 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
     heroFinale,
     heroFinaleText,
     finaleFooter,
+    headlineBeats,
+    titleBeats,
+    subtitleBeats,
+    heroTextBeats,
+    finaleTextBeats,
     transitionDurationSeconds,
     durationSeconds,
     ...emotionFields,
     actingIntensity: normalizeSceneActingIntensity(scene?.actingIntensity),
+    overlayLayerStyles: sanitizeOverlayLayerStyles(scene?.overlayLayerStyles),
   };
 }
 
@@ -322,15 +382,16 @@ export function hasSceneOverlayContent(scene: InstantSceneText | NormalizedScene
 
 /** Koptekst / headline — stored as `heroText` in sceneTexts JSON. */
 export function getSceneHeadline(scene: InstantSceneText | NormalizedSceneText): string {
-  return normalizeSceneText(scene).heroText.trim();
+  const n = normalizeSceneText(scene);
+  return n.headlineBeats[0] ?? n.heroText.trim();
 }
 
 export function hasLayeredSceneContent(scene: InstantSceneText | NormalizedSceneText): boolean {
   const n = normalizeSceneText(scene);
   return Boolean(
-    getSceneHeadline(n) ||
-      n.title.trim() ||
-      n.subtitle.trim() ||
+    n.headlineBeats.length > 0 ||
+      n.titleBeats.length > 0 ||
+      n.subtitleBeats.length > 0 ||
       n.extraLines.some((line) => line.trim()) ||
       n.finaleFooter.trim()
   );
@@ -525,38 +586,29 @@ export function buildSceneLayeredRevealSlots(
     );
   }
 
-  chainExclusiveLayerVisibility(out, sceneEnd);
-
   return out;
 }
 
-/** Earlier layers hide when the next layer appears (reduces stacked overlap). */
-function chainExclusiveLayerVisibility(slots: SceneLayeredRevealSlots, sceneEnd: number): void {
-  const chain: StagedRevealSlot[] = [];
-  if (slots.headline) {
-    chain.push(slots.headline);
+/** Stagger beats within a layer's reveal window (each beat stays visible until layer end). */
+export function buildLayerBeatRevealSlots(
+  layerSlot: StagedRevealSlot | undefined,
+  beatCount: number,
+  sceneEnd: number,
+  options?: { stepSec?: number; minStepSec?: number }
+): StagedRevealSlot[] {
+  const count = Math.max(0, Math.floor(beatCount));
+  if (count <= 0) {
+    return [];
   }
-  if (slots.title) {
-    chain.push(slots.title);
+  const windowStart = layerSlot?.revealStart ?? 0;
+  const windowEnd = layerSlot?.visibleEnd ?? sceneEnd;
+  if (count === 1) {
+    return [{ index: 0, revealStart: windowStart, visibleEnd: windowEnd }];
   }
-  if (slots.subtitle) {
-    chain.push(slots.subtitle);
-  }
-  if (slots.extraLines?.length) {
-    chain.push(...slots.extraLines);
-  }
-  for (let i = 0; i < chain.length - 1; i += 1) {
-    const current = chain[i]!;
-    const next = chain[i + 1]!;
-    current.visibleEnd = Math.min(current.visibleEnd, next.revealStart);
-  }
-  if (slots.finaleFooter) {
-    const last = chain[chain.length - 1];
-    slots.finaleFooter.visibleEnd = sceneEnd;
-    if (last) {
-      last.visibleEnd = Math.min(last.visibleEnd, slots.finaleFooter.revealStart);
-    }
-  }
+  return buildStagedRevealSlots(windowStart, windowEnd, count, {
+    stepSec: options?.stepSec ?? HERO_LINE_REVEAL_STEP_SEC,
+    minStepSec: options?.minStepSec ?? STAGED_REVEAL_MIN_STEP_SEC,
+  });
 }
 
 /** @deprecated Use buildSceneLayeredRevealSlots */
@@ -655,6 +707,9 @@ export function resolveSequenceLineStyle(
 
 /** Hero body text for auto (subtitle-only punchline) or explicit heroText. */
 export function heroSourceText(scene: NormalizedSceneText): string {
+  if (scene.heroTextBeats.length > 0) {
+    return scene.heroTextBeats.join(" ");
+  }
   if (scene.heroText.trim()) {
     return scene.heroText;
   }
@@ -754,7 +809,7 @@ export function detectAccentWords(
 ): string[] {
   const fromScene = scene.accentWords.map((w) => w.toUpperCase()).filter(Boolean);
   if (fromScene.length > 0) {
-    return fromScene.slice(0, 2);
+    return fromScene;
   }
 
   const upper = collapseSpaces(text).toUpperCase();

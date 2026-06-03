@@ -44,6 +44,8 @@ import {
   type RebuildFinalVideoResponse,
 } from "@/lib/instant-export-client";
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
+import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
+import { RenderHistoryPanel } from "@/components/instant/render-history-panel";
 import { VideoPreview } from "@/components/ui/video-preview";
 import {
   ProjectDetailHeader,
@@ -114,6 +116,10 @@ export default function VideoDetailPage() {
   const [retryExportError, setRetryExportError] = useState<string | null>(null);
   const [rebuildBusy, setRebuildBusy] = useState(false);
   const [textRerenderEditorOpen, setTextRerenderEditorOpen] = useState(false);
+  const [fullRerenderEditorOpen, setFullRerenderEditorOpen] = useState(false);
+  const [fullRerenderBusy, setFullRerenderBusy] = useState(false);
+  const [fullRerenderError, setFullRerenderError] = useState<string | null>(null);
+  const [fullRerenderInfo, setFullRerenderInfo] = useState<string | null>(null);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -268,6 +274,12 @@ export default function VideoDetailPage() {
     detail && instantLikeProject && allFragmentsDone && !finalVideoUrl
   );
   const canRebuildInstant = Boolean(detail && instantLikeProject && allFragmentsDone);
+  const canFullRerenderInstant = Boolean(
+    detail &&
+      detail.projectType === "instant_premium" &&
+      detail.images &&
+      detail.images.length > 0
+  );
 
   const showInstantProgress = Boolean(
     id &&
@@ -276,6 +288,7 @@ export default function VideoDetailPage() {
       (detail.status === "rendering" ||
         detail.status === "generating" ||
         rebuildBusy ||
+        fullRerenderBusy ||
         (allFragmentsDone &&
           (!finalVideoUrl || latestExport?.status === "rendering")))
   );
@@ -310,6 +323,15 @@ export default function VideoDetailPage() {
     onPollNow: pollNow,
     onReload: load,
   });
+
+  const fullRerenderDisabled = Boolean(
+    fullRerenderBusy ||
+      rebuildBusy ||
+      videoRepair.repairInFlight ||
+      detail?.status === "generating" ||
+      detail?.status === "rendering" ||
+      instantSnapshot?.isRebuildingFinalVideo
+  );
 
   const panelPollingError =
     instantPollingError ??
@@ -707,32 +729,68 @@ export default function VideoDetailPage() {
           <ProjectDetailQuickActions
             leadingSlot={
               id ?
-                <VideoVersionDownloadTrigger
-                  projectId={id}
-                  originalVideoUrl={originalPlaybackUrl}
-                  cleanVideoUrl={cleanVideoUrl}
-                  languageExports={languageExports}
-                  storageAudit={projectStorageAudit}
-                />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <VideoVersionDownloadTrigger
+                    projectId={id}
+                    originalVideoUrl={originalPlaybackUrl}
+                    cleanVideoUrl={cleanVideoUrl}
+                    languageExports={languageExports}
+                    storageAudit={projectStorageAudit}
+                  />
+                  {hasCompletedInstantFinal && canFullRerenderInstant ?
+                    <button
+                      type="button"
+                      onClick={() => setFullRerenderEditorOpen(true)}
+                      disabled={fullRerenderDisabled}
+                      className="flex w-full flex-col gap-1 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left transition hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      <span className="text-sm font-semibold text-emerald-950">
+                        {fullRerenderBusy ?
+                          t("instant.fullRerender.busy")
+                        : t("projectDetail.renderAgain.label")}
+                      </span>
+                      <span className="text-xs leading-relaxed text-emerald-900/80">
+                        {t("projectDetail.renderAgain.hint")}
+                      </span>
+                    </button>
+                  : null}
+                </div>
               : null
             }
             actions={[
+              {
+                id: "full-rerender",
+                labelKey: "projectDetail.quickActions.fullRerender.label",
+                hintKey: "projectDetail.quickActions.fullRerender.hint",
+                onClick: () => setFullRerenderEditorOpen(true),
+                disabled: fullRerenderDisabled || !canFullRerenderInstant,
+                busy: fullRerenderBusy,
+                busyLabelKey: "instant.fullRerender.busy",
+                visible: Boolean(canFullRerenderInstant),
+              },
+              {
+                id: "text-rerender",
+                labelKey: "projectDetail.quickActions.textOnlyRerender.label",
+                hintKey: "projectDetail.quickActions.textOnlyRerender.hint",
+                onClick: () => setTextRerenderEditorOpen(true),
+                disabled: !canRebuildInstant || !finalVideoUrl,
+                busy: rebuildBusy,
+                busyLabelKey: "instant.textRerender.busy",
+                visible: Boolean(canRebuildInstant && finalVideoUrl && usesStoryOverlay),
+              },
+              {
+                id: "duplicate-project",
+                labelKey: "projectDetail.quickActions.duplicateProject.label",
+                hintKey: "projectDetail.quickActions.duplicateProject.hint",
+                href: `/animate/instant?duplicateFrom=${encodeURIComponent(id)}`,
+                visible: Boolean(instantLikeProject && usesStoryOverlay),
+              },
               {
                 id: "view-clean",
                 labelKey: "projectDetail.quickActions.viewClean.label",
                 hintKey: "projectDetail.quickActions.viewClean.hint",
                 onClick: () => scrollToSection("version-clean"),
                 visible: Boolean(cleanVideoUrl),
-              },
-              {
-                id: "text-rerender",
-                labelKey: "projectDetail.quickActions.textRerender.label",
-                hintKey: "projectDetail.quickActions.textRerender.hint",
-                onClick: () => setTextRerenderEditorOpen(true),
-                disabled: !canRebuildInstant || !finalVideoUrl,
-                busy: rebuildBusy,
-                busyLabelKey: "instant.textRerender.busy",
-                visible: Boolean(canRebuildInstant && finalVideoUrl && usesStoryOverlay),
               },
               {
                 id: "new-language",
@@ -767,6 +825,12 @@ export default function VideoDetailPage() {
 
           {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
+          {fullRerenderInfo ? <p className="text-sm text-emerald-800">{fullRerenderInfo}</p> : null}
+          {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
+
+          {instantLikeProject && (detail.renderVersions?.length ?? 0) > 0 ?
+            <RenderHistoryPanel versions={detail.renderVersions ?? []} projectId={id} />
+          : null}
 
           {instantLikeProject && hasCompletedInstantFinal ? (
             <VideoVersionsPanel
@@ -1050,6 +1114,33 @@ export default function VideoDetailPage() {
       {deleteProjectError ? (
         <p className="mt-3 text-sm text-red-700">{deleteProjectError}</p>
       ) : null}
+
+      {detail && id && instantLikeProject ?
+        <FullRerenderEditorModal
+          open={fullRerenderEditorOpen}
+          onClose={() => setFullRerenderEditorOpen(false)}
+          projectId={id}
+          instantSceneTexts={detail.instantSceneTexts}
+          images={(detail.images ?? []).map((img) => ({
+            id: img.id,
+            previewUrl: img.previewUrl ?? "",
+          }))}
+          imageCount={detail.images?.length}
+          onSuccess={() => {
+            setFullRerenderInfo(t("instant.fullRerender.busy"));
+            setFullRerenderError(null);
+            void load({ silent: true });
+          }}
+          onRenderStart={() => {
+            setFullRerenderBusy(true);
+            setFullRerenderError(null);
+          }}
+          onError={(message) => {
+            setFullRerenderError(message);
+            setFullRerenderBusy(false);
+          }}
+        />
+      : null}
 
       {detail && id && usesStoryOverlay ?
         <TextRerenderEditorModal

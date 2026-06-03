@@ -67,7 +67,7 @@ function mockDetection(): SceneDetectionContext {
 }
 
 describe("story-layer-placement", () => {
-  it("groups subtitle with title zone and anchor", () => {
+  it("groups subtitle horizontally with title anchor", () => {
     const raw = {
       hero: mockPlacement("TOP_CENTER"),
       headline: mockPlacement("TOP_CENTER"),
@@ -78,12 +78,11 @@ describe("story-layer-placement", () => {
       heroFinale: mockPlacement("TOP_CENTER"),
     };
     const grouped = applyStoryReadingFlowToPlacements(raw);
-    assert.equal(grouped.subtitle.zoneId, "CENTER");
     assert.equal(grouped.subtitle.anchorX, grouped.title.anchorX);
     assert.equal(grouped.subtitle.placementReason, "grouped_with_title");
   });
 
-  it("places subtitle below title for Rotterdam case", () => {
+  it("places headline/title/subtitle in separate vertical bands", () => {
     const positions = resolveStoryLayerPositions({
       placements: {
         hero: mockPlacement("TOP_CENTER"),
@@ -109,7 +108,7 @@ describe("story-layer-placement", () => {
     assert.ok(positions.headline!.clampedY < positions.title!.clampedY);
     assert.ok(positions.title!.clampedY < positions.subtitle!.clampedY);
     assert.equal(positions.subtitle!.groupedWithTitle, true);
-    assert.equal(positions.subtitle!.layout, "below");
+    assert.equal(positions.subtitle!.layout, "band");
   });
 
   it("clampAssAnchor keeps title inside horizontal safe margins when text fits", () => {
@@ -209,7 +208,7 @@ describe("story-layer-placement", () => {
       height: H,
     });
     assert.equal(ctx.placements.subtitle.placementReason, "grouped_with_title");
-    assert.equal(ctx.placements.subtitle.zoneId, ctx.placements.title.zoneId);
+    assert.equal(ctx.placements.subtitle.anchorX, ctx.placements.title.anchorX);
   });
 
   it("stagger timing remains headline then title then subtitle", () => {

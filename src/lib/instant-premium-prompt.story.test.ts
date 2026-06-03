@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildInstantStoryModePrompt,
   buildInstantStoryModePromptDetailed,
+  buildStoryModeBudgetedViduPrompt,
 } from "@/lib/instant-premium-prompt";
 import { buildInstantVideoPrompt } from "@/lib/instant-premium-prompt";
 
@@ -129,6 +130,43 @@ describe("buildInstantStoryModePrompt", () => {
     assert.match(detailed.prompt, /Never transform Chef into Garden/i);
     assert.doesNotMatch(detailed.prompt, /subtle motion only/i);
     assert.match(detailed.prompt, /clearly visible on mobile/i);
+  });
+
+  it("budgeted prompt places strict continuity block before narrative scene text", () => {
+    const detailed = buildInstantStoryModePromptDetailed({
+      userIntent: "Chef promo",
+      imageCount: 2,
+      aspectRatio: "9:16",
+      sceneTexts: [
+        {
+          template: "scene",
+          title: "CHEF SERGIO",
+          subtitle: "local talent",
+          emotionMode: "manual",
+          emotion: "proud",
+          actingIntensity: "very_active",
+        },
+        {
+          template: "scene",
+          title: "GROW",
+          subtitle: "community garden",
+          emotionMode: "auto",
+          actingIntensity: "active",
+        },
+      ],
+      transitionSeconds: 5,
+      stylePreset: "food_promo",
+    });
+    const budgeted = buildStoryModeBudgetedViduPrompt({ detailed, projectId: "proj-test" });
+    assert.match(budgeted.prompt, /STRICT CHARACTER CONTINUITY/);
+    assert.ok(!budgeted.log.droppedBlocks.includes("text_preservation"));
+    const continuityIdx = budgeted.prompt.indexOf("STRICT CHARACTER CONTINUITY");
+    const sceneListIdx = budgeted.prompt.indexOf("Scene list (FFmpeg overlay context only");
+    if (sceneListIdx >= 0) {
+      assert.ok(continuityIdx < sceneListIdx, "continuity must precede scene list");
+    }
+    assert.doesNotMatch(budgeted.prompt, /subtle motion only/i);
+    assert.ok(budgeted.log.charsAfter <= 4500, "prompt within provider hard limit");
   });
 });
 

@@ -98,4 +98,24 @@ describe("instant wizard draft persistence rules", () => {
     assert.equal(restored[0]!.image, null);
     assert.equal(restored[0]!.sceneId, "scene-keep");
   });
+
+  it("persists overlayLayerStyles in scene slots when customized", () => {
+    const slots = serializeSceneSlotsForPersist([
+      {
+        ...createWizardSceneSlot(5, null),
+        text: {
+          ...emptySceneTextDraft(5),
+          title: "Styled",
+          overlayLayerStyles: { title: { fontSize: "smaller" } },
+        },
+      },
+    ]);
+    const restored = restoreSceneSlotsFromPersisted(slots, undefined, 5);
+    assert.deepEqual(restored[0]!.text.overlayLayerStyles, {
+      title: { fontSize: "smaller" },
+    });
+    assert.deepEqual(serializeSceneSlotsForPersist(restored)[0]!.text.overlayLayerStyles, {
+      title: { fontSize: "smaller" },
+    });
+  });
 });

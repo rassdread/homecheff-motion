@@ -30,10 +30,24 @@ const URL_PATTERN = /\bhttps?:\/\/[^\s]+|www\.[^\s]+/gi;
 
 type TranslatableField = {
   sceneIndex: number;
-  field: "heroText" | "title" | "subtitle" | "heroFinaleText" | "finaleFooter" | "line" | "accentWord" | "extraLine";
+  field:
+    | "heroText"
+    | "title"
+    | "subtitle"
+    | "headlineBeat"
+    | "titleBeat"
+    | "subtitleBeat"
+    | "heroTextBeat"
+    | "finaleTextBeat"
+    | "heroFinaleText"
+    | "finaleFooter"
+    | "line"
+    | "accentWord"
+    | "extraLine";
   lineIndex?: number;
   extraIndex?: number;
   accentIndex?: number;
+  beatIndex?: number;
   text: string;
 };
 
@@ -41,22 +55,54 @@ export function collectTranslatableFields(scenes: InstantSceneText[]): Translata
   const out: TranslatableField[] = [];
   scenes.forEach((raw, sceneIndex) => {
     const scene = normalizeSceneText(raw);
-    if (scene.heroText.trim()) {
+    if (scene.headlineBeats.length > 1) {
+      scene.headlineBeats.forEach((text, beatIndex) => {
+        if (text.trim()) {
+          out.push({ sceneIndex, field: "headlineBeat", beatIndex, text });
+        }
+      });
+    } else if (scene.heroText.trim()) {
       out.push({ sceneIndex, field: "heroText", text: scene.heroText });
     }
-    if (scene.title.trim()) {
+    if (scene.titleBeats.length > 1) {
+      scene.titleBeats.forEach((text, beatIndex) => {
+        if (text.trim()) {
+          out.push({ sceneIndex, field: "titleBeat", beatIndex, text });
+        }
+      });
+    } else if (scene.title.trim()) {
       out.push({ sceneIndex, field: "title", text: scene.title });
     }
-    if (scene.subtitle.trim()) {
+    if (scene.subtitleBeats.length > 1) {
+      scene.subtitleBeats.forEach((text, beatIndex) => {
+        if (text.trim()) {
+          out.push({ sceneIndex, field: "subtitleBeat", beatIndex, text });
+        }
+      });
+    } else if (scene.subtitle.trim()) {
       out.push({ sceneIndex, field: "subtitle", text: scene.subtitle });
+    }
+    if (scene.heroTextBeats.length > 1) {
+      scene.heroTextBeats.forEach((text, beatIndex) => {
+        if (text.trim()) {
+          out.push({ sceneIndex, field: "heroTextBeat", beatIndex, text });
+        }
+      });
     }
     scene.extraLines.forEach((line, extraIndex) => {
       if (line.trim()) {
         out.push({ sceneIndex, field: "extraLine", extraIndex, text: line });
       }
     });
-    if (scene.heroFinaleText.trim()) {
+    if (scene.heroFinaleText.trim() && scene.finaleTextBeats.length <= 1) {
       out.push({ sceneIndex, field: "heroFinaleText", text: scene.heroFinaleText });
+    }
+    if (scene.finaleTextBeats.length > 1) {
+      scene.finaleTextBeats.forEach((text, beatIndex) => {
+        if (text.trim()) {
+          out.push({ sceneIndex, field: "finaleTextBeat", beatIndex, text });
+        }
+      });
     }
     if (scene.finaleFooter.trim()) {
       out.push({ sceneIndex, field: "finaleFooter", text: scene.finaleFooter });
@@ -126,6 +172,11 @@ export function applySceneTextTranslations(params: {
       heroText: normalized.heroText,
       title: normalized.title,
       subtitle: normalized.subtitle,
+      headlineBeats: [...normalized.headlineBeats],
+      titleBeats: [...normalized.titleBeats],
+      subtitleBeats: [...normalized.subtitleBeats],
+      heroTextBeats: [...normalized.heroTextBeats],
+      finaleTextBeats: [...normalized.finaleTextBeats],
       extraLines: [...normalized.extraLines],
       heroFinale: normalized.heroFinale,
       heroFinaleText: normalized.heroFinaleText,
@@ -147,10 +198,57 @@ export function applySceneTextTranslations(params: {
     const scene = out[field.sceneIndex]!;
     if (field.field === "heroText") {
       scene.heroText = text.toUpperCase();
+      if (!scene.headlineBeats?.length) {
+        scene.headlineBeats = [text.toUpperCase()];
+      } else {
+        scene.headlineBeats[0] = text.toUpperCase();
+      }
+    } else if (field.field === "headlineBeat" && field.beatIndex != null) {
+      const beats = Array.isArray(scene.headlineBeats) ? [...scene.headlineBeats] : [];
+      while (beats.length <= field.beatIndex) {
+        beats.push("");
+      }
+      beats[field.beatIndex] = text.toUpperCase();
+      scene.headlineBeats = beats.filter((line) => line.trim().length > 0);
+      scene.heroText = beats[0]?.toUpperCase() ?? "";
     } else if (field.field === "title") {
       scene.title = text.toUpperCase();
+      if (!scene.titleBeats?.length) {
+        scene.titleBeats = [text.toUpperCase()];
+      } else {
+        scene.titleBeats[0] = text.toUpperCase();
+      }
+    } else if (field.field === "titleBeat" && field.beatIndex != null) {
+      const beats = Array.isArray(scene.titleBeats) ? [...scene.titleBeats] : [];
+      while (beats.length <= field.beatIndex) {
+        beats.push("");
+      }
+      beats[field.beatIndex] = text.toUpperCase();
+      scene.titleBeats = beats.filter((line) => line.trim().length > 0);
+      scene.title = beats[0]?.toUpperCase() ?? "";
     } else if (field.field === "subtitle") {
       scene.subtitle = text;
+      if (!scene.subtitleBeats?.length) {
+        scene.subtitleBeats = [text];
+      } else {
+        scene.subtitleBeats[0] = text;
+      }
+    } else if (field.field === "subtitleBeat" && field.beatIndex != null) {
+      const beats = Array.isArray(scene.subtitleBeats) ? [...scene.subtitleBeats] : [];
+      while (beats.length <= field.beatIndex) {
+        beats.push("");
+      }
+      beats[field.beatIndex] = text;
+      scene.subtitleBeats = beats.filter((line) => line.trim().length > 0);
+      scene.subtitle = beats[0] ?? "";
+    } else if (field.field === "heroTextBeat" && field.beatIndex != null) {
+      const beats = Array.isArray(scene.heroTextBeats) ? [...scene.heroTextBeats] : [];
+      while (beats.length <= field.beatIndex) {
+        beats.push("");
+      }
+      beats[field.beatIndex] = text.toUpperCase();
+      scene.heroTextBeats = beats.filter((line) => line.trim().length > 0);
+      scene.heroText = beats[0]?.toUpperCase() ?? "";
     } else if (field.field === "extraLine" && field.extraIndex != null) {
       const extraLines = Array.isArray(scene.extraLines) ? [...scene.extraLines] : [];
       while (extraLines.length <= field.extraIndex) {
@@ -160,6 +258,19 @@ export function applySceneTextTranslations(params: {
       scene.extraLines = extraLines.filter((line) => line.trim().length > 0);
     } else if (field.field === "heroFinaleText") {
       scene.heroFinaleText = text;
+      if (!scene.finaleTextBeats?.length) {
+        scene.finaleTextBeats = [text];
+      } else {
+        scene.finaleTextBeats[0] = text;
+      }
+    } else if (field.field === "finaleTextBeat" && field.beatIndex != null) {
+      const beats = Array.isArray(scene.finaleTextBeats) ? [...scene.finaleTextBeats] : [];
+      while (beats.length <= field.beatIndex) {
+        beats.push("");
+      }
+      beats[field.beatIndex] = text;
+      scene.finaleTextBeats = beats.filter((line) => line.trim().length > 0);
+      scene.heroFinaleText = beats.join(" ");
     } else if (field.field === "finaleFooter") {
       scene.finaleFooter = text;
     } else if (field.field === "line" && field.lineIndex != null) {
