@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 
 export type AuthSessionUser = {
+  id: string;
   email: string;
   role: string;
   isActive: boolean;
@@ -31,6 +32,7 @@ export function useAuthSession(): AuthSessionState {
         setState({
           resolved: true,
           user: {
+            id: data.user.id,
             email: data.user.email,
             role: data.user.role,
             isActive: data.user.isActive !== false,

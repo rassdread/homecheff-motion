@@ -1,8 +1,9 @@
 /**
- * Lightweight Studio domain models (V1).
- * No persistence layer yet — types only, to prepare future CRUD and APIs.
+ * Lightweight Studio domain models for non-character pillars (V1).
+ * Characters are persisted — see `@/types/studio-api` and Prisma `StudioCharacter`.
  */
 
+/** @deprecated Use StudioCharacterListItem from `@/types/studio-api` for persisted characters. */
 export type StudioCharacter = {
   id: string;
   name: string;

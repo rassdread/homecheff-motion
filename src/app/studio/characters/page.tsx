@@ -1,10 +1,5 @@
-import { StudioPlaceholderPage } from "@/components/studio/studio-placeholder-page";
+import { StudioCharactersLibrary } from "@/components/studio/studio-characters-library";
 
 export default function StudioCharactersPage() {
-  return (
-    <StudioPlaceholderPage
-      titleKey="studio.placeholder.characters.title"
-      descriptionKey="studio.placeholder.characters.description"
-    />
-  );
+  return <StudioCharactersLibrary />;
 }

@@ -33,12 +33,32 @@
  * - AI world generation
  * - CRUD, uploads, or project linking from Studio assets to Motion jobs
  *
- * ## V2+ considerations
+ * ## V2 (Characters Library)
  *
- * - Persist Studio assets (Prisma models mirroring `@/types/studio`)
+ * - `StudioCharacter` Prisma model + CRUD service (`@/server/studio/studio-character-service`)
+ * - `CharacterSnapshot` for future Motion handoff (`@/types/studio-character-snapshot`)
+ *
+ * ## Planned Motion handoff (not wired yet)
+ *
+ * ```
+ * Studio Character → CharacterSnapshot
+ *   ↓
+ * Scene Composer
+ *   ↓
+ * Motion Prompt Builder
+ *   ↓
+ * Vidu
+ *   ↓
+ * Video
+ * ```
+ *
+ * ## V3+ considerations
+ *
+ * - Locations, props, storyboards persistence (same service pattern)
  * - Link storyboard scenes to Motion wizard scene slots
  * - Pass character reference images into Vidu multi-image prompts
  * - Render-version snapshots may store Studio asset IDs used per export
+ * - System character seeds (`isSystemCharacter`) — see `docs/studio-characters-future.md`
  */
 
 export const STUDIO_INTEGRATION_ARCHITECTURE_VERSION = "v1" as const;

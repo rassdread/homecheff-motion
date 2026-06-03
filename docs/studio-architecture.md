@@ -30,19 +30,26 @@ Video
 
 - Top nav: Motion | Studio | My Videos
 - `/studio` landing with four alpha feature cards + vision roadmap
-- Placeholder routes: `/studio/characters`, `/locations`, `/props`, `/storyboards`
-- Types: `src/types/studio.ts` (no database)
+- Placeholder routes for locations, props, storyboards
+- Types: `src/types/studio.ts` (non-character pillars)
 
-## Not in V1
+## V2 deliverables (Characters)
+
+- Prisma `StudioCharacter` + migration
+- CRUD API: `/api/studio/characters`
+- UI: library, create, detail, edit (`/studio/characters/*`)
+- Service layer: `src/server/studio/studio-character-service.ts`
+- `CharacterSnapshot` for future Motion integration (no Vidu wiring)
+
+## Not in V2
 
 - Scene Composer
-- Character / world AI generation
-- CRUD or asset storage
-- Wiring Studio assets into Motion export jobs
+- Vidu / Motion prompt wiring
+- Locations, props, storyboards persistence
 
-## Before Studio V2
+## Before Studio V3
 
-- Prisma models and migrations aligned with `StudioCharacter`, `StudioLocation`, etc.
+- Prisma models for locations, props, storyboards
 - Auth / ownership rules for Studio assets
 - Upload pipeline for reference images
 - API routes and list/detail UI per pillar

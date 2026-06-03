@@ -246,6 +246,30 @@ model User {
   invitesCreated    AnimationInvite[] @relation("InviteCreator")
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
+  studioCharacters  StudioCharacter[]
+}
+
+/** Reusable character identity for Studio → future Scene Composer → Motion. */
+model StudioCharacter {
+  id                  String   @id @default(cuid())
+  ownerId             String
+  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                String
+  slug                String
+  /** human | mascot | animal | object | other */
+  role                String
+  description         String   @default("")
+  personality         String   @default("")
+  referenceImageUrl   String
+  referenceStorageKey String
+  isMascot            Boolean  @default(false)
+  /** Reserved for globally seeded HomeCheff mascots (Chef, Garden, …). */
+  isSystemCharacter   Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, createdAt])
 }
 
 /** Stripe checkout payload before project creation (paid instant premium). */
