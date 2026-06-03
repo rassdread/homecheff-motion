@@ -247,6 +247,7 @@ model User {
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
   studioCharacters  StudioCharacter[]
+  studioLocations   StudioLocation[]
 }
 
 /** Reusable character identity for Studio → future Scene Composer → Motion. */
@@ -265,6 +266,27 @@ model StudioCharacter {
   isMascot            Boolean  @default(false)
   /** Reserved for globally seeded HomeCheff mascots (Chef, Garden, …). */
   isSystemCharacter   Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, createdAt])
+}
+
+/** Reusable environment / world for Studio → future Scene Composer → Motion. */
+model StudioLocation {
+  id                  String   @id @default(cuid())
+  ownerId             String
+  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                String
+  slug                String
+  description         String   @default("")
+  /** city | restaurant | garden | market | street | home | office | nature | fantasy | other */
+  category            String
+  referenceImageUrl   String
+  referenceStorageKey String
+  /** Reserved for globally seeded HomeCheff locations (Rotterdam, Community Garden, …). */
+  isSystemLocation    Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

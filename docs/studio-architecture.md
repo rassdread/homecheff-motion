@@ -38,18 +38,24 @@ Video
 - Prisma `StudioCharacter` + migration
 - CRUD API: `/api/studio/characters`
 - UI: library, create, detail, edit (`/studio/characters/*`)
-- Service layer: `src/server/studio/studio-character-service.ts`
 - `CharacterSnapshot` for future Motion integration (no Vidu wiring)
 
-## Not in V2
+## V3 deliverables (Locations)
+
+- Prisma `StudioLocation` + migration `20260605120000_studio_location`
+- CRUD API: `/api/studio/locations`
+- UI: library, create, detail, edit (`/studio/locations/*`)
+- `LocationSnapshot` for future Motion integration (no Vidu wiring)
+
+## Not in V3
 
 - Scene Composer
 - Vidu / Motion prompt wiring
-- Locations, props, storyboards persistence
+- Props, storyboards persistence
 
-## Before Studio V3
+## Before Studio V4
 
-- Prisma models for locations, props, storyboards
+- Prisma models for props, storyboards
 - Auth / ownership rules for Studio assets
 - Upload pipeline for reference images
 - API routes and list/detail UI per pillar

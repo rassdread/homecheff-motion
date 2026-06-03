@@ -1,10 +1,5 @@
-import { StudioPlaceholderPage } from "@/components/studio/studio-placeholder-page";
+import { StudioLocationsLibrary } from "@/components/studio/studio-locations-library";
 
 export default function StudioLocationsPage() {
-  return (
-    <StudioPlaceholderPage
-      titleKey="studio.placeholder.locations.title"
-      descriptionKey="studio.placeholder.locations.description"
-    />
-  );
+  return <StudioLocationsLibrary />;
 }

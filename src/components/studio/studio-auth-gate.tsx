@@ -3,15 +3,22 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { AppCard } from "@/components/ui/app-card";
+import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
 
 type StudioAuthGateProps = {
   children: ReactNode;
+  authTitleKey?: TranslationKey;
+  authBodyKey?: TranslationKey;
 };
 
-export function StudioAuthGate({ children }: StudioAuthGateProps) {
+export function StudioAuthGate({
+  children,
+  authTitleKey = "studio.characters.authRequiredTitle",
+  authBodyKey = "studio.characters.authRequiredBody",
+}: StudioAuthGateProps) {
   const t = useActiveTranslator();
   const session = useAuthSession();
 
@@ -31,10 +38,10 @@ export function StudioAuthGate({ children }: StudioAuthGateProps) {
         <section className="mx-auto max-w-lg px-6 py-16">
           <AppCard className="bg-white p-8 text-center">
             <h1 className="text-xl font-semibold text-zinc-900">
-              {t("studio.characters.authRequiredTitle")}
+              {t(authTitleKey)}
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
-              {t("studio.characters.authRequiredBody")}
+              {t(authBodyKey)}
             </p>
             <Link
               href="/login"

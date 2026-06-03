@@ -1,4 +1,5 @@
 import type { StudioCharacterRole } from "@/lib/studio-character-roles";
+import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 
 export type StudioCharacterListItem = {
   id: string;
@@ -26,4 +27,30 @@ export type StudioCharacterListResponse = {
 
 export type StudioCharacterDetailResponse = {
   character: StudioCharacterDetail;
+};
+
+export type StudioLocationListItem = {
+  id: string;
+  ownerId: string;
+  name: string;
+  slug: string;
+  category: StudioLocationCategory;
+  description: string;
+  referenceImageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  ownerEmail?: string;
+};
+
+export type StudioLocationDetail = StudioLocationListItem & {
+  referenceStorageKey: string;
+  isSystemLocation: boolean;
+};
+
+export type StudioLocationListResponse = {
+  locations: StudioLocationListItem[];
+};
+
+export type StudioLocationDetailResponse = {
+  location: StudioLocationDetail;
 };

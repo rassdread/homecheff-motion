@@ -38,6 +38,11 @@
  * - `StudioCharacter` Prisma model + CRUD service (`@/server/studio/studio-character-service`)
  * - `CharacterSnapshot` for future Motion handoff (`@/types/studio-character-snapshot`)
  *
+ * ## V3 (Locations Library)
+ *
+ * - `StudioLocation` Prisma model + CRUD service (`@/server/studio/studio-location-service`)
+ * - `LocationSnapshot` for future Motion handoff (`@/types/studio-location-snapshot`)
+ *
  * ## Planned Motion handoff (not wired yet)
  *
  * ```
@@ -52,9 +57,9 @@
  * Video
  * ```
  *
- * ## V3+ considerations
+ * ## V4+ considerations
  *
- * - Locations, props, storyboards persistence (same service pattern)
+ * - Props, storyboards persistence (same service pattern)
  * - Link storyboard scenes to Motion wizard scene slots
  * - Pass character reference images into Vidu multi-image prompts
  * - Render-version snapshots may store Studio asset IDs used per export
