@@ -14,11 +14,9 @@ import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-pa
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
 import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
+import type { WizardPreviewImageInput } from "@/lib/instant-wizard-preview-src";
 
-export type StoryboardImage = {
-  id: string;
-  previewUrl: string;
-};
+export type StoryboardImage = WizardPreviewImageInput;
 
 type StoryboardEditorProps = {
   images: StoryboardImage[];
@@ -144,7 +142,7 @@ export function StoryboardEditor({
             >
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
                 <SafePreviewImage
-                  src={image?.previewUrl}
+                  image={image ?? undefined}
                   alt=""
                   fill
                   className="object-cover"

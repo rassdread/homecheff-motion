@@ -11,11 +11,15 @@ import type { LockedTextLayerDraft } from "@/components/instant/locked-text-laye
 import type { OcrScanPhase } from "@/lib/instant-ocr-scan";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
 import {
-  deleteWizardBlobMemoryCache,
+  clearAllWizardImagePreviews,
+  ensureWizardPreviewUrls,
+  purgeWizardImagePreview,
+} from "@/lib/instant-wizard-preview-src";
+import {
+  clearWizardBlobMemoryCache,
   getWizardBlobMemoryCache,
   listWizardBlobMemoryCacheIds,
   setWizardBlobMemoryCache,
-  clearWizardBlobMemoryCache,
 } from "@/lib/instant-wizard-blob-memory-cache";
 import {
   warnIndexedDbCacheFailed,
@@ -161,6 +165,7 @@ export async function safeIndexedDbSet(
   thumbnail: Blob
 ): Promise<boolean> {
   setWizardBlobMemoryCache(imageId, optimized, thumbnail);
+  ensureWizardPreviewUrls(imageId);
 
   if (!isIndexedDbAvailable() || indexedDbWriteDisabled) {
     return false;
@@ -267,12 +272,13 @@ export async function pruneOrphanedWizardBlobs(keepImageIds: Iterable<string>): 
 }
 
 export async function clearAllWizardImageBlobs(): Promise<void> {
+  clearAllWizardImagePreviews();
   clearWizardBlobMemoryCache();
   await pruneOrphanedWizardBlobs([]);
 }
 
 export async function deleteWizardImageBlobs(imageId: string): Promise<void> {
-  deleteWizardBlobMemoryCache(imageId);
+  purgeWizardImagePreview(imageId);
   if (!isIndexedDbAvailable()) {
     return;
   }

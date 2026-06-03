@@ -41,6 +41,7 @@ import {
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
+import { attachWizardImageFromMemory } from "@/lib/instant-wizard-preview-src";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 
 export type PersistableLocalImage = {
@@ -218,6 +219,7 @@ export function useInstantWizardPersist(params: {
           if (!blobs) {
             continue;
           }
+          const previewUrls = attachWizardImageFromMemory(pi.id, blobs);
           restored.push({
             id: pi.id,
             originalFileName: pi.originalFileName,
@@ -225,8 +227,8 @@ export function useInstantWizardPersist(params: {
             sizeBytes: pi.sizeBytes,
             optimizedBlob: blobs.optimized,
             thumbnailBlob: blobs.thumbnail,
-            workingPreviewUrl: URL.createObjectURL(blobs.optimized),
-            thumbnailPreviewUrl: URL.createObjectURL(blobs.thumbnail),
+            workingPreviewUrl: previewUrls.workingPreviewUrl,
+            thumbnailPreviewUrl: previewUrls.thumbnailPreviewUrl,
             remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
             remoteThumbnailUrl: pi.remoteThumbnailUrl,
             remoteStorageKey: pi.remoteStorageKey,

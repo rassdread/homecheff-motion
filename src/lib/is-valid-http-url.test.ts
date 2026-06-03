@@ -17,13 +17,17 @@ describe("isValidHttpUrl", () => {
     assert.equal(isValidHttpUrl(undefined), false);
   });
 
-  it("allows blob previews for render", () => {
-    assert.equal(isRenderableImageUrl("blob:http://localhost/abc"), true);
+  it("rejects unregistered blob URLs for generic render checks", () => {
+    assert.equal(isRenderableImageUrl("blob:http://localhost/abc"), false);
     assert.equal(isRenderableImageUrl("/images"), false);
+    assert.equal(isRenderableImageUrl("images"), false);
   });
 
-  it("resolveRenderableImageSrc picks first valid candidate", () => {
-    assert.equal(resolveRenderableImageSrc("", "/images", "https://cdn.example.com/a.jpg"), "https://cdn.example.com/a.jpg");
+  it("resolveRenderableImageSrc picks first valid https candidate", () => {
+    assert.equal(
+      resolveRenderableImageSrc("", "/images", "images", "https://cdn.example.com/a.jpg"),
+      "https://cdn.example.com/a.jpg"
+    );
     assert.equal(resolveRenderableImageSrc(undefined, null), null);
   });
 

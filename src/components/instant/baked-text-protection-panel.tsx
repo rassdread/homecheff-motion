@@ -1,5 +1,6 @@
 "use client";
 
+import { resolvePreviewSrc } from "@/lib/instant-wizard-preview-src";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
@@ -102,13 +103,26 @@ function updateBlock(
 }
 
 function ImageWithOverlays({
-  src,
+  image,
   blocks,
 }: {
-  src: string;
+  image: {
+    id: string;
+    workingPreviewUrl: string;
+    remoteWorkingUrl?: string;
+    remoteThumbnailUrl?: string;
+    thumbnailPreviewUrl?: string;
+  };
   blocks: BakedTextBlockRecord[];
 }) {
   const visible = blocks.filter((b) => b.kept);
+  const src = resolvePreviewSrc({
+    id: image.id,
+    workingPreviewUrl: image.workingPreviewUrl,
+    thumbnailPreviewUrl: image.thumbnailPreviewUrl,
+    remoteWorkingUrl: image.remoteWorkingUrl,
+    remoteThumbnailUrl: image.remoteThumbnailUrl,
+  });
   return (
     <div className="relative mx-auto aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
       <SafePreviewImage src={src} alt="" fill className="object-cover" sizes="220px" />
@@ -324,7 +338,7 @@ export function BakedTextProtectionPanel({
 
                 {showReview ? (
                   <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
-                    <ImageWithOverlays src={image.workingPreviewUrl} blocks={bt.blocks} />
+                    <ImageWithOverlays image={image} blocks={bt.blocks} />
                     <div className="space-y-2">
                       {bt.blocks.map((block) => (
                         <div

@@ -1,6 +1,7 @@
 "use client";
 
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
+import { resolvePreviewSrc, resolvePreviewSrcFromUnknown } from "@/lib/instant-wizard-preview-src";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
@@ -42,7 +43,7 @@ function PreviewFrame({
   emphasize = false,
 }: {
   label: string;
-  src: string;
+  src: string | null | undefined;
   regions?: Array<{ x: number; y: number; width: number; height: number }>;
   highlight?: boolean;
   emphasize?: boolean;
@@ -142,8 +143,13 @@ function ImagePreviewCard({
     return () => clearTimeout(timer);
   }, [isScanning, keptBlocks.length, blocksKey, textRenderMode, runPreview]);
 
-  const originalSrc = bt.debugOriginalUrl ?? image.workingPreviewUrl;
-  const cleanSrc = bt.maskedPreviewUrl;
+  const originalSrc = resolvePreviewSrcFromUnknown(bt.debugOriginalUrl) ??
+    resolvePreviewSrc({
+      id: image.id,
+      workingPreviewUrl: image.workingPreviewUrl,
+      remoteWorkingUrl: image.bakedText.remoteWorkingUrl,
+    });
+  const cleanSrc = resolvePreviewSrcFromUnknown(bt.maskedPreviewUrl);
 
   return (
     <div className="rounded-xl border border-violet-300/80 bg-violet-50/60 p-3">

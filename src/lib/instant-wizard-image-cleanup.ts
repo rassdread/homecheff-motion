@@ -1,4 +1,4 @@
-import { removeCachedBakedTextOcr, clearBakedTextOcrCacheCompletely } from "@/lib/baked-text-ocr-client-cache";
+import { purgeWizardImagePreview } from "@/lib/instant-wizard-preview-src";
 import {
   clearPersistedWizardState,
   deleteWizardImageBlobs,
@@ -10,35 +10,28 @@ import {
 
 export type WizardImageCleanupTarget = {
   id: string;
-  workingPreviewUrl: string;
-  thumbnailPreviewUrl: string;
+  workingPreviewUrl?: string;
+  thumbnailPreviewUrl?: string;
   bakedText?: { contentHash?: string };
 };
-
-export function revokeWizardImagePreviewUrls(image: WizardImageCleanupTarget): void {
-  for (const url of [image.workingPreviewUrl, image.thumbnailPreviewUrl]) {
-    if (typeof url !== "string" || !url.startsWith("blob:")) {
-      continue;
-    }
-    try {
-      URL.revokeObjectURL(url);
-    } catch {
-      // ignore
-    }
-  }
-}
 
 /** Remove persisted blobs, OCR cache, and preview URLs for one wizard image. */
 export async function purgeInstantWizardImagePersistence(
   image: WizardImageCleanupTarget
 ): Promise<void> {
-  revokeWizardImagePreviewUrls(image);
+  const { removeCachedBakedTextOcr } = await import("@/lib/baked-text-ocr-client-cache");
   removeCachedBakedTextOcr(image.bakedText?.contentHash);
   await deleteWizardImageBlobs(image.id);
 }
 
+/** @deprecated Use purgeWizardImagePreview(imageId) from preview-src. */
+export function revokeWizardImagePreviewUrls(image: WizardImageCleanupTarget): void {
+  purgeWizardImagePreview(image.id);
+}
+
 /** Clear all wizard upload persistence (localStorage draft + IndexedDB blobs + OCR cache). */
 export async function purgeAllInstantWizardUploadPersistence(): Promise<void> {
+  const { clearBakedTextOcrCacheCompletely } = await import("@/lib/baked-text-ocr-client-cache");
   await clearBakedTextOcrCacheCompletely();
   await clearAllWizardImageBlobs();
   clearPersistedWizardState();

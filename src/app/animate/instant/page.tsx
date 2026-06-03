@@ -34,8 +34,9 @@ import {
   purgeInstantWizardImagePersistence,
   revokeWizardImagePreviewUrls,
 } from "@/lib/instant-wizard-image-cleanup";
+import { registerWizardImageBlobs } from "@/lib/instant-wizard-preview-src";
 import { safeIndexedDbSet } from "@/lib/instant-premium-wizard-storage";
-import { resolveRenderableImageSrc, resolveRemoteImageSrc } from "@/lib/is-valid-http-url";
+import { resolveRemoteImageSrc } from "@/lib/is-valid-http-url";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useMounted } from "@/hooks/use-mounted";
 import { AppCard } from "@/components/ui/app-card";
@@ -210,7 +211,13 @@ function SortableThumb({
       <div className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-100">
           <SafePreviewImage
-            src={item.workingPreviewUrl}
+            image={{
+              id: item.id,
+              workingPreviewUrl: item.workingPreviewUrl,
+              thumbnailPreviewUrl: item.thumbnailPreviewUrl,
+              remoteWorkingUrl: item.remoteWorkingUrl,
+              remoteThumbnailUrl: item.remoteThumbnailUrl,
+            }}
             alt=""
             fill
             className="object-cover"
@@ -426,13 +433,14 @@ export default function InstantPremiumPage() {
           safe.map(async (file) => {
             const p = await preprocessImageFile(file, getClientImagePreprocessOptionsForRole(role));
             const id = `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 9)}`;
+            const previewUrls = registerWizardImageBlobs(id, p.optimizedBlob, p.thumbnailBlob);
             return {
               id,
               originalFileName: file.name,
               optimizedBlob: p.optimizedBlob,
               thumbnailBlob: p.thumbnailBlob,
-              workingPreviewUrl: URL.createObjectURL(p.optimizedBlob),
-              thumbnailPreviewUrl: URL.createObjectURL(p.thumbnailBlob),
+              workingPreviewUrl: previewUrls.workingPreviewUrl,
+              thumbnailPreviewUrl: previewUrls.thumbnailPreviewUrl,
               mimeType: p.mimeType,
               sizeBytes: p.optimizedBlob.size,
               bakedText: { ...INSTANT_WIZARD_DEFAULT_BAKED_TEXT },
@@ -1336,7 +1344,13 @@ export default function InstantPremiumPage() {
                   {images.map((im) => (
                     <div key={im.id} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100">
                       <SafePreviewImage
-                        src={im.workingPreviewUrl}
+                        image={{
+                          id: im.id,
+                          workingPreviewUrl: im.workingPreviewUrl,
+                          thumbnailPreviewUrl: im.thumbnailPreviewUrl,
+                          remoteWorkingUrl: im.remoteWorkingUrl,
+                          remoteThumbnailUrl: im.remoteThumbnailUrl,
+                        }}
                         alt=""
                         fill
                         className="object-cover"
@@ -1395,13 +1409,10 @@ export default function InstantPremiumPage() {
                       <StoryboardEditor
                         images={images.map((im) => ({
                           id: im.id,
-                          previewUrl:
-                            resolveRenderableImageSrc(
-                              im.workingPreviewUrl,
-                              im.thumbnailPreviewUrl,
-                              im.remoteWorkingUrl,
-                              im.remoteThumbnailUrl
-                            ) ?? "",
+                          workingPreviewUrl: im.workingPreviewUrl,
+                          thumbnailPreviewUrl: im.thumbnailPreviewUrl,
+                          remoteWorkingUrl: im.remoteWorkingUrl,
+                          remoteThumbnailUrl: im.remoteThumbnailUrl,
                         }))}
                         imageCount={images.length}
                         sceneTexts={sceneTexts}

@@ -4,14 +4,37 @@
 
 import { warnInvalidImageUrl } from "@/lib/instant-cache-diagnostics";
 
-export function isValidHttpUrl(value: unknown): boolean {
+export function isBlockedPreviewLiteral(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return true;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return true;
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower === "images" || lower === "/images") {
+    return true;
+  }
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return true;
+  }
+  return false;
+}
+
+export function isValidDataImageUrl(value: unknown): boolean {
   if (typeof value !== "string") {
     return false;
   }
   const trimmed = value.trim();
-  if (!trimmed) {
+  return trimmed.startsWith("data:image/") && trimmed.length > 24;
+}
+
+export function isValidHttpUrl(value: unknown): boolean {
+  if (typeof value !== "string" || isBlockedPreviewLiteral(value)) {
     return false;
   }
+  const trimmed = value.trim();
   try {
     const url = new URL(trimmed);
     return url.protocol === "http:" || url.protocol === "https:";
@@ -20,28 +43,29 @@ export function isValidHttpUrl(value: unknown): boolean {
   }
 }
 
-/** Blob/object URLs from createObjectURL — valid for previews only. */
+/** Blob/data shape check only — use resolvePreviewSrc for wizard previews. */
 export function isBlobOrObjectUrl(value: unknown): boolean {
-  if (typeof value !== "string") {
+  if (typeof value !== "string" || isBlockedPreviewLiteral(value)) {
     return false;
   }
   const trimmed = value.trim();
-  if (!trimmed) {
-    return false;
-  }
-  return trimmed.startsWith("blob:") || trimmed.startsWith("data:image/");
+  return trimmed.startsWith("blob:") || isValidDataImageUrl(trimmed);
 }
 
-/** Safe for <Image unoptimized> / fetch — http(s) or local blob preview. */
+/** Prefer resolvePreviewSrc / SafePreviewImage for wizard UI. */
 export function isRenderableImageUrl(value: unknown): boolean {
-  return isValidHttpUrl(value) || isBlobOrObjectUrl(value);
+  if (typeof value !== "string" || isBlockedPreviewLiteral(value)) {
+    return false;
+  }
+  const trimmed = value.trim();
+  return isValidHttpUrl(trimmed) || isValidDataImageUrl(trimmed);
 }
 
 export function resolveRenderableImageSrc(
   ...candidates: Array<unknown>
 ): string | null {
   for (const candidate of candidates) {
-    if (typeof candidate !== "string") {
+    if (typeof candidate !== "string" || isBlockedPreviewLiteral(candidate)) {
       continue;
     }
     const trimmed = candidate.trim();
