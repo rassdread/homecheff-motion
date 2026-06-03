@@ -37,18 +37,9 @@ import { IMAGE_UPLOAD_USER_MESSAGE_NL } from "@/lib/instant-image-upload-errors"
 import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
 import type { UploadImageResponse } from "@/types/animation-api";
 
-export type LocalImageWithBakedText = {
-  id: string;
-  originalFileName: string;
-  workingPreviewUrl: string;
-  thumbnailPreviewUrl: string;
-  mimeType: string;
-  sizeBytes: number;
-  optimizedBlob: Blob;
-  thumbnailBlob: Blob;
-  bakedText: BakedTextProtectionDraft;
-  remoteWorkingUrl?: string;
-};
+import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
+
+export type LocalImageWithBakedText = InstantWizardLocalImage;
 
 type ScanResultPayload = {
   blocks: BakedTextBlockRecord[];

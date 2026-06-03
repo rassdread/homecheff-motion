@@ -1,7 +1,7 @@
 "use client";
 
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
-import { resolvePreviewSrc, resolvePreviewSrcFromUnknown } from "@/lib/instant-wizard-preview-src";
+import { resolvePreviewSrc, resolvePreviewSrcFromUnknown, toWizardPreviewInput } from "@/lib/instant-wizard-preview-src";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
@@ -12,8 +12,10 @@ import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 type PreviewImage = {
   id: string;
   originalFileName: string;
-  workingPreviewUrl: string;
   bakedText: BakedTextProtectionDraft;
+  remoteWorkingUrl?: string;
+  remoteThumbnailUrl?: string;
+  previewUnavailable?: boolean;
 };
 
 type Props = {
@@ -143,12 +145,16 @@ function ImagePreviewCard({
     return () => clearTimeout(timer);
   }, [isScanning, keptBlocks.length, blocksKey, textRenderMode, runPreview]);
 
-  const originalSrc = resolvePreviewSrcFromUnknown(bt.debugOriginalUrl) ??
-    resolvePreviewSrc({
-      id: image.id,
-      workingPreviewUrl: image.workingPreviewUrl,
-      remoteWorkingUrl: image.bakedText.remoteWorkingUrl,
-    });
+  const originalSrc =
+    resolvePreviewSrcFromUnknown(bt.debugOriginalUrl) ??
+    resolvePreviewSrc(
+      toWizardPreviewInput({
+        id: image.id,
+        remoteWorkingUrl: image.bakedText.remoteWorkingUrl,
+        remoteThumbnailUrl: image.remoteThumbnailUrl,
+        previewUnavailable: image.previewUnavailable,
+      })
+    );
   const cleanSrc = resolvePreviewSrcFromUnknown(bt.maskedPreviewUrl);
 
   return (

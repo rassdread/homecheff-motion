@@ -34,7 +34,12 @@ import {
   purgeInstantWizardImagePersistence,
   revokeWizardImagePreviewUrls,
 } from "@/lib/instant-wizard-image-cleanup";
-import { registerWizardImageBlobs } from "@/lib/instant-wizard-preview-src";
+import {
+  allWizardImagesHaveValidSource,
+  registerWizardImageBlobs,
+  toWizardPreviewInput,
+} from "@/lib/instant-wizard-preview-src";
+import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
 import { safeIndexedDbSet } from "@/lib/instant-premium-wizard-storage";
 import { resolveRemoteImageSrc } from "@/lib/is-valid-http-url";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
@@ -165,20 +170,7 @@ function serializeSceneTextDrafts(
   return instantSceneTextsFromDrafts(drafts, imageCount);
 }
 
-type LocalImage = {
-  id: string;
-  originalFileName: string;
-  workingPreviewUrl: string;
-  thumbnailPreviewUrl: string;
-  mimeType: string;
-  sizeBytes: number;
-  optimizedBlob: Blob;
-  thumbnailBlob: Blob;
-  bakedText: BakedTextProtectionDraft;
-  remoteWorkingUrl?: string;
-  remoteThumbnailUrl?: string;
-  remoteStorageKey?: string;
-};
+type LocalImage = InstantWizardLocalImage;
 
 const AUTO_SCAN_DEBOUNCE_MS = 450;
 
@@ -211,13 +203,7 @@ function SortableThumb({
       <div className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-100">
           <SafePreviewImage
-            image={{
-              id: item.id,
-              workingPreviewUrl: item.workingPreviewUrl,
-              thumbnailPreviewUrl: item.thumbnailPreviewUrl,
-              remoteWorkingUrl: item.remoteWorkingUrl,
-              remoteThumbnailUrl: item.remoteThumbnailUrl,
-            }}
+            image={toWizardPreviewInput(item)}
             alt=""
             fill
             className="object-cover"
@@ -315,6 +301,11 @@ export default function InstantPremiumPage() {
   );
 
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
+
+  const imagesHaveValidSources = useMemo(
+    () => allWizardImagesHaveValidSource(images),
+    [images]
+  );
 
   const buildValidationPayload = useCallback((): Record<string, unknown> | null => {
     if (images.length < MIN_IMAGES) {
@@ -433,17 +424,16 @@ export default function InstantPremiumPage() {
           safe.map(async (file) => {
             const p = await preprocessImageFile(file, getClientImagePreprocessOptionsForRole(role));
             const id = `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 9)}`;
-            const previewUrls = registerWizardImageBlobs(id, p.optimizedBlob, p.thumbnailBlob);
+            const registered = registerWizardImageBlobs(id, p.optimizedBlob, p.thumbnailBlob);
             return {
               id,
               originalFileName: file.name,
               optimizedBlob: p.optimizedBlob,
               thumbnailBlob: p.thumbnailBlob,
-              workingPreviewUrl: previewUrls.workingPreviewUrl,
-              thumbnailPreviewUrl: previewUrls.thumbnailPreviewUrl,
               mimeType: p.mimeType,
               sizeBytes: p.optimizedBlob.size,
               bakedText: { ...INSTANT_WIZARD_DEFAULT_BAKED_TEXT },
+              previewUnavailable: registered === null,
             } satisfies LocalImage;
           })
         );
@@ -806,6 +796,10 @@ export default function InstantPremiumPage() {
       setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
     }
+    if (!imagesHaveValidSources) {
+      setError(t("instant.errors.previewExpiredReupload"));
+      return;
+    }
     if (!fastRenderMode && !skipPendingScans) {
       const scansDone = await waitForPendingScans(() => imagesRef.current);
       if (!scansDone) {
@@ -1047,6 +1041,7 @@ export default function InstantPremiumPage() {
       uploadToBlob,
       waitForPendingScans,
       usesFreeGeneration,
+      imagesHaveValidSources,
       instantMode,
       transitionSeconds,
       sceneTexts,
@@ -1095,7 +1090,7 @@ export default function InstantPremiumPage() {
           backPlaceholder: true,
           onPrimary: () => setStep(2),
           primaryLabel: continueLabel,
-          primaryDisabled: images.length < MIN_IMAGES,
+          primaryDisabled: images.length < MIN_IMAGES || !imagesHaveValidSources,
           stackButtons: false,
         };
       case 2:
@@ -1131,7 +1126,7 @@ export default function InstantPremiumPage() {
           onBack: () => setStep(4),
           onPrimary: () => void startCheckout(),
           primaryLabel: generateLabel,
-          primaryDisabled: checkoutBusy,
+          primaryDisabled: checkoutBusy || !imagesHaveValidSources,
           stackButtons: true,
         };
       default:
@@ -1144,7 +1139,7 @@ export default function InstantPremiumPage() {
           stackButtons: false,
         };
     }
-  }, [checkoutBusy, estimatedPriceLabel, images.length, isAdmin, startCheckout, step, t, usesFreeGeneration]);
+  }, [checkoutBusy, estimatedPriceLabel, images.length, imagesHaveValidSources, isAdmin, startCheckout, step, t, usesFreeGeneration]);
 
   if (!session.resolved) {
     return (
@@ -1344,13 +1339,7 @@ export default function InstantPremiumPage() {
                   {images.map((im) => (
                     <div key={im.id} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100">
                       <SafePreviewImage
-                        image={{
-                          id: im.id,
-                          workingPreviewUrl: im.workingPreviewUrl,
-                          thumbnailPreviewUrl: im.thumbnailPreviewUrl,
-                          remoteWorkingUrl: im.remoteWorkingUrl,
-                          remoteThumbnailUrl: im.remoteThumbnailUrl,
-                        }}
+                        image={toWizardPreviewInput(im)}
                         alt=""
                         fill
                         className="object-cover"
@@ -1369,6 +1358,11 @@ export default function InstantPremiumPage() {
                 <p className="mt-3 text-center text-xs text-zinc-500">
                   {t("instant.step1.counter", { count: images.length, max: maxImages })}
                 </p>
+                {!imagesHaveValidSources && images.length > 0 ? (
+                  <p className="mt-2 text-center text-xs text-amber-800">
+                    {t("instant.errors.previewExpiredReupload")}
+                  </p>
+                ) : null}
                 {images.length > 0 ? (
                   <button
                     type="button"
@@ -1407,13 +1401,7 @@ export default function InstantPremiumPage() {
                     </DndContext>
                     {instantMode === "story" ?
                       <StoryboardEditor
-                        images={images.map((im) => ({
-                          id: im.id,
-                          workingPreviewUrl: im.workingPreviewUrl,
-                          thumbnailPreviewUrl: im.thumbnailPreviewUrl,
-                          remoteWorkingUrl: im.remoteWorkingUrl,
-                          remoteThumbnailUrl: im.remoteThumbnailUrl,
-                        }))}
+                        images={images.map((im) => toWizardPreviewInput(im))}
                         imageCount={images.length}
                         sceneTexts={sceneTexts}
                         expandedIndex={storyboardExpandedIndex}

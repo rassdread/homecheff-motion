@@ -158,14 +158,16 @@ async function writeWizardImageBlobs(
   });
 }
 
-/** Safe IndexedDB write — returns false instead of rejecting; always caches in memory. */
+/** Safe IndexedDB write — returns false instead of rejecting; memory preview is registered separately. */
 export async function safeIndexedDbSet(
   imageId: string,
   optimized: Blob,
   thumbnail: Blob
 ): Promise<boolean> {
-  setWizardBlobMemoryCache(imageId, optimized, thumbnail);
-  ensureWizardPreviewUrls(imageId);
+  if (!getWizardBlobMemoryCache(imageId)) {
+    setWizardBlobMemoryCache(imageId, optimized, thumbnail);
+    ensureWizardPreviewUrls(imageId);
+  }
 
   if (!isIndexedDbAvailable() || indexedDbWriteDisabled) {
     return false;

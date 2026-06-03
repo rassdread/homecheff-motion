@@ -630,6 +630,9 @@ export const en: LocaleSchema = {
   "instant.step1.counter": "{count} / {max} images",
   "instant.step1.clearAll": "Clear all uploads",
   "instant.preview.imageUnavailable": "Preview unavailable",
+  "instant.preview.expiredReupload": "Preview expired — re-upload",
+  "instant.errors.previewExpiredReupload":
+    "One or more image previews expired. Remove them and upload again before generating.",
   "instant.step2.title": "2 · Reorder",
   "instant.step2.description": "Drag horizontally. This order is sent to the AI.",
   "instant.step2.drag": "Drag",

@@ -634,6 +634,9 @@ export const nl = {
   "instant.step1.counter": "{count} / {max} afbeeldingen",
   "instant.step1.clearAll": "Alle uploads wissen",
   "instant.preview.imageUnavailable": "Voorbeeld niet beschikbaar",
+  "instant.preview.expiredReupload": "Preview verlopen — upload opnieuw",
+  "instant.errors.previewExpiredReupload":
+    "Een of meer previews zijn verlopen. Verwijder ze en upload opnieuw voordat je genereert.",
   "instant.step2.title": "2 · Volgorde bepalen",
   "instant.step2.description": "Sleep horizontaal. Deze volgorde wordt naar de AI gestuurd.",
   "instant.step2.drag": "Sleep",

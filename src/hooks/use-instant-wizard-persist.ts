@@ -41,23 +41,12 @@ import {
   type PersistedWizardImage,
   type PersistedWizardState,
 } from "@/lib/instant-premium-wizard-storage";
+import { EMPTY_WIZARD_IMAGE_BLOB } from "@/lib/instant-wizard-image-model";
+import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
 import { attachWizardImageFromMemory } from "@/lib/instant-wizard-preview-src";
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
 
-export type PersistableLocalImage = {
-  id: string;
-  originalFileName: string;
-  workingPreviewUrl: string;
-  thumbnailPreviewUrl: string;
-  mimeType: string;
-  sizeBytes: number;
-  optimizedBlob: Blob;
-  thumbnailBlob: Blob;
-  bakedText: BakedTextProtectionDraft;
-  remoteWorkingUrl?: string;
-  remoteThumbnailUrl?: string;
-  remoteStorageKey?: string;
-};
+export type PersistableLocalImage = InstantWizardLocalImage;
 
 function serializeBakedText(bt: BakedTextProtectionDraft): PersistedWizardImage["bakedText"] {
   return { ...bt };
@@ -216,10 +205,43 @@ export function useInstantWizardPersist(params: {
               void safeIndexedDbSet(pi.id, fetched, fetched);
             }
           }
-          if (!blobs) {
+          if (!blobs && isValidHttpUrl(remoteUrl)) {
+            restored.push({
+              id: pi.id,
+              originalFileName: pi.originalFileName,
+              mimeType: pi.mimeType,
+              sizeBytes: pi.sizeBytes,
+              optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
+              thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
+              remoteWorkingUrl: remoteUrl,
+              remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
+                ? pi.remoteThumbnailUrl
+                : undefined,
+              remoteStorageKey: pi.remoteStorageKey,
+              bakedText: baked as BakedTextProtectionDraft,
+              previewUnavailable: false,
+            });
             continue;
           }
-          const previewUrls = attachWizardImageFromMemory(pi.id, blobs);
+          if (!blobs) {
+            restored.push({
+              id: pi.id,
+              originalFileName: pi.originalFileName,
+              mimeType: pi.mimeType,
+              sizeBytes: pi.sizeBytes,
+              optimizedBlob: EMPTY_WIZARD_IMAGE_BLOB,
+              thumbnailBlob: EMPTY_WIZARD_IMAGE_BLOB,
+              remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
+              remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
+                ? pi.remoteThumbnailUrl
+                : undefined,
+              remoteStorageKey: pi.remoteStorageKey,
+              bakedText: baked as BakedTextProtectionDraft,
+              previewUnavailable: true,
+            });
+            continue;
+          }
+          const previewRegistered = attachWizardImageFromMemory(pi.id, blobs);
           restored.push({
             id: pi.id,
             originalFileName: pi.originalFileName,
@@ -227,12 +249,13 @@ export function useInstantWizardPersist(params: {
             sizeBytes: pi.sizeBytes,
             optimizedBlob: blobs.optimized,
             thumbnailBlob: blobs.thumbnail,
-            workingPreviewUrl: previewUrls.workingPreviewUrl,
-            thumbnailPreviewUrl: previewUrls.thumbnailPreviewUrl,
             remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
-            remoteThumbnailUrl: pi.remoteThumbnailUrl,
+            remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl)
+              ? pi.remoteThumbnailUrl
+              : undefined,
             remoteStorageKey: pi.remoteStorageKey,
             bakedText: baked as BakedTextProtectionDraft,
+            previewUnavailable: previewRegistered === null,
           });
         }
 

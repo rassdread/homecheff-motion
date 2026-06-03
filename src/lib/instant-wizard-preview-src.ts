@@ -10,6 +10,10 @@ import {
   type WizardBlobPair,
 } from "@/lib/instant-wizard-blob-memory-cache";
 import {
+  hasWizardImageBlobPayload,
+  type InstantWizardLocalImage,
+} from "@/lib/instant-wizard-image-model";
+import {
   isBlockedPreviewLiteral,
   isValidDataImageUrl,
   isValidHttpUrl,
@@ -18,10 +22,9 @@ import {
 
 export type WizardPreviewImageInput = {
   id: string;
-  workingPreviewUrl?: string;
-  thumbnailPreviewUrl?: string;
   remoteWorkingUrl?: string;
   remoteThumbnailUrl?: string;
+  previewUnavailable?: boolean;
 };
 
 type PreviewUrlEntry = {
@@ -31,6 +34,17 @@ type PreviewUrlEntry = {
 
 const previewUrlsByImageId = new Map<string, PreviewUrlEntry>();
 const blobUrlOwnerByUrl = new Map<string, string>();
+
+export function toWizardPreviewInput(
+  image: InstantWizardLocalImage | WizardPreviewImageInput
+): WizardPreviewImageInput {
+  return {
+    id: image.id,
+    remoteWorkingUrl: image.remoteWorkingUrl,
+    remoteThumbnailUrl: image.remoteThumbnailUrl,
+    previewUnavailable: image.previewUnavailable,
+  };
+}
 
 export function isValidBlobUrl(value: unknown, imageId?: string): boolean {
   if (typeof value !== "string" || isBlockedPreviewLiteral(value)) {
@@ -103,7 +117,12 @@ export function registerWizardImageBlobs(
   imageId: string,
   optimized: Blob,
   thumbnail: Blob
-): PreviewUrlEntry {
+): PreviewUrlEntry | null {
+  if (optimized.size <= 0 || thumbnail.size <= 0) {
+    revokeWizardImagePreviewUrls(imageId);
+    deleteWizardBlobMemoryCache(imageId);
+    return null;
+  }
   revokeWizardImagePreviewUrls(imageId);
   setWizardBlobMemoryCache(imageId, optimized, thumbnail);
   const urls: PreviewUrlEntry = {
@@ -124,7 +143,7 @@ export function getRegisteredWizardPreviewUrls(imageId: string): PreviewUrlEntry
 export function attachWizardImageFromMemory(
   imageId: string,
   blobs: WizardBlobPair
-): PreviewUrlEntry {
+): PreviewUrlEntry | null {
   return registerWizardImageBlobs(imageId, blobs.optimized, blobs.thumbnail);
 }
 
@@ -162,6 +181,10 @@ export function resolvePreviewSrc(
   image: WizardPreviewImageInput,
   prefer: "working" | "thumbnail" = "working"
 ): string | null {
+  if (image.previewUnavailable) {
+    return null;
+  }
+
   const ensured = ensureWizardPreviewUrls(image.id);
   if (ensured) {
     const blobUrl =
@@ -169,12 +192,6 @@ export function resolvePreviewSrc(
     if (isValidBlobUrl(blobUrl, image.id)) {
       return blobUrl;
     }
-  }
-
-  const stateBlob =
-    prefer === "thumbnail" ? image.thumbnailPreviewUrl : image.workingPreviewUrl;
-  if (stateBlob && isValidBlobUrl(stateBlob, image.id)) {
-    return stateBlob.trim();
   }
 
   const remote = resolveRemoteImageSrc(
@@ -187,6 +204,34 @@ export function resolvePreviewSrc(
   }
 
   return null;
+}
+
+export function hasValidWizardImageSource(image: WizardPreviewImageInput): boolean {
+  if (image.previewUnavailable) {
+    return false;
+  }
+  const preview = resolvePreviewSrc(image);
+  if (!preview) {
+    return false;
+  }
+  return hasMemoryBlobForPreview(image.id);
+}
+
+export function hasValidWizardImageSourceFromLocal(image: InstantWizardLocalImage): boolean {
+  if (image.previewUnavailable) {
+    return false;
+  }
+  if (!hasWizardImageBlobPayload(image)) {
+    return false;
+  }
+  if (!hasMemoryBlobForPreview(image.id)) {
+    return false;
+  }
+  return resolvePreviewSrc(toWizardPreviewInput(image)) !== null;
+}
+
+export function allWizardImagesHaveValidSource(images: InstantWizardLocalImage[]): boolean {
+  return images.length > 0 && images.every((image) => hasValidWizardImageSourceFromLocal(image));
 }
 
 export function resolvePreviewSrcFromUnknown(value: unknown): string | null {
@@ -209,4 +254,9 @@ export function resolvePreviewSrcFromUnknown(value: unknown): string | null {
 /** Test helper. */
 export function resetWizardPreviewRegistryForTests(): void {
   clearAllWizardImagePreviews();
+}
+
+/** Test helper — memory preview survives IndexedDB write failure. */
+export function simulateSafariIndexedDbWriteFailure(imageId: string): boolean {
+  return hasMemoryBlobForPreview(imageId);
 }
