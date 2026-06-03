@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isRenderableImageUrl, isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { isRenderableImageUrl, isValidHttpUrl, resolveRenderableImageSrc, resolveRemoteImageSrc } from "@/lib/is-valid-http-url";
 
 describe("isValidHttpUrl", () => {
   it("accepts https URLs", () => {
@@ -20,5 +20,16 @@ describe("isValidHttpUrl", () => {
   it("allows blob previews for render", () => {
     assert.equal(isRenderableImageUrl("blob:http://localhost/abc"), true);
     assert.equal(isRenderableImageUrl("/images"), false);
+  });
+
+  it("resolveRenderableImageSrc picks first valid candidate", () => {
+    assert.equal(resolveRenderableImageSrc("", "/images", "https://cdn.example.com/a.jpg"), "https://cdn.example.com/a.jpg");
+    assert.equal(resolveRenderableImageSrc(undefined, null), null);
+  });
+
+  it("resolveRemoteImageSrc rejects blob and relative paths", () => {
+    assert.equal(resolveRemoteImageSrc("blob:http://localhost/x"), null);
+    assert.equal(resolveRemoteImageSrc("/images/foo.jpg"), null);
+    assert.equal(resolveRemoteImageSrc("https://cdn.example.com/a.jpg"), "https://cdn.example.com/a.jpg");
   });
 });

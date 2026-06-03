@@ -6,6 +6,7 @@ import {
   computeAvailableSpace,
   estimateTextLineWidthPx,
   isSideZone,
+  LEGACY_HERO_SIZE_MAIN,
   resolveAdaptiveTypography,
   resolveTypographyFromPlacement,
 } from "@/server/animation-export/adaptive-typography";
@@ -123,7 +124,7 @@ describe("adaptive typography V1", () => {
     for (const word of allWords) {
       assert.ok(rendered.includes(word), `missing word ${word}`);
     }
-    assert.ok(result.fontSize <= 118);
+    assert.ok(result.fontSize <= LEGACY_HERO_SIZE_MAIN);
   });
 
   it("busy zone increases backdrop strength", () => {
@@ -155,7 +156,7 @@ describe("adaptive typography V1", () => {
 
   it("high confidence zone allows larger font", () => {
     const low = resolveAdaptiveTypography({
-      text: "Grow together",
+      text: "Earn",
       template: "hero",
       frameWidth: W,
       frameHeight: H,
@@ -164,7 +165,7 @@ describe("adaptive typography V1", () => {
       textWidthFraction: 0.72,
     });
     const high = resolveAdaptiveTypography({
-      text: "Grow together",
+      text: "Earn",
       template: "hero",
       frameWidth: W,
       frameHeight: H,

@@ -6,6 +6,7 @@ import {
   storyboardPreviewHasContent,
   type StoryboardOverlayPreviewLine,
 } from "@/lib/storyboard-overlay-preview";
+import { STORY_PREVIEW_TYPOGRAPHY_CLASS } from "@/lib/story-overlay-typography-scale";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 
 type Props = {
@@ -17,18 +18,28 @@ type Props = {
 
 function previewLineClass(line: StoryboardOverlayPreviewLine, isFinalFrame: boolean): string {
   if (line.kind === "headline" || line.kind === "hero_finale") {
-    return "text-sm font-bold uppercase tracking-wide text-white";
+    return line.kind === "hero_finale"
+      ? STORY_PREVIEW_TYPOGRAPHY_CLASS.heroFinale
+      : STORY_PREVIEW_TYPOGRAPHY_CLASS.headline;
   }
   if (line.kind === "title") {
-    return "text-base font-semibold text-white";
+    return STORY_PREVIEW_TYPOGRAPHY_CLASS.title;
   }
   if (line.kind === "footer") {
-    return "mt-2 text-xs font-medium tracking-wide text-emerald-200";
+    return STORY_PREVIEW_TYPOGRAPHY_CLASS.footer;
   }
-  if (isFinalFrame && line.kind === "subtitle") {
-    return "text-sm font-medium uppercase tracking-wide text-zinc-100";
+  if (line.kind === "subtitle") {
+    return isFinalFrame
+      ? STORY_PREVIEW_TYPOGRAPHY_CLASS.subtitle
+      : `mt-1.5 ${STORY_PREVIEW_TYPOGRAPHY_CLASS.extraLine}`;
   }
-  return "text-sm text-zinc-200";
+  if (line.kind === "extra_line") {
+    return STORY_PREVIEW_TYPOGRAPHY_CLASS.extraLine;
+  }
+  if (line.kind === "sequence_line") {
+    return STORY_PREVIEW_TYPOGRAPHY_CLASS.sequenceLine;
+  }
+  return STORY_PREVIEW_TYPOGRAPHY_CLASS.extraLine;
 }
 
 export function StoryboardOverlayPreview({

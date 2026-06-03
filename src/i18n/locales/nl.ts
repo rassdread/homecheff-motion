@@ -633,6 +633,7 @@ export const nl = {
   "instant.step1.pick": "Tik om afbeeldingen te kiezen",
   "instant.step1.counter": "{count} / {max} afbeeldingen",
   "instant.step1.clearAll": "Alle uploads wissen",
+  "instant.preview.imageUnavailable": "Voorbeeld niet beschikbaar",
   "instant.step2.title": "2 · Volgorde bepalen",
   "instant.step2.description": "Sleep horizontaal. Deze volgorde wordt naar de AI gestuurd.",
   "instant.step2.drag": "Sleep",

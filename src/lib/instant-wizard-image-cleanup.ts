@@ -16,11 +16,15 @@ export type WizardImageCleanupTarget = {
 };
 
 export function revokeWizardImagePreviewUrls(image: WizardImageCleanupTarget): void {
-  try {
-    URL.revokeObjectURL(image.workingPreviewUrl);
-    URL.revokeObjectURL(image.thumbnailPreviewUrl);
-  } catch {
-    // ignore
+  for (const url of [image.workingPreviewUrl, image.thumbnailPreviewUrl]) {
+    if (typeof url !== "string" || !url.startsWith("blob:")) {
+      continue;
+    }
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
   }
 }
 

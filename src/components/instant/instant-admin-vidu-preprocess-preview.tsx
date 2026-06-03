@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
@@ -65,7 +65,7 @@ function PreviewFrame({
               : "border border-zinc-200"
         }`}
       >
-        <Image src={src} alt="" fill className="object-cover" unoptimized sizes="(max-width:768px) 33vw, 200px" />
+        <SafePreviewImage src={src} alt="" fill className="object-cover" sizes="(max-width:768px) 33vw, 200px" />
         {regions?.map((region, idx) => (
           <div
             key={`region-${idx}`}

@@ -2,6 +2,7 @@
  * Story Mode layered text — reading flow, title+subtitle grouping, ASS safe clamping.
  */
 
+import { STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX } from "@/lib/story-overlay-typography-scale";
 import { estimateTextLineWidthPx } from "@/server/animation-export/adaptive-typography";
 import type { ObjectAwarePlacement, OverlayTemplateKind } from "@/server/animation-export/object-aware-placement";
 import {
@@ -17,7 +18,6 @@ export const STORY_HEADLINE_ASS_ALIGNMENT = 8; // top center
 export const STORY_TITLE_ASS_ALIGNMENT = 5; // middle center
 export const STORY_SUBTITLE_ASS_ALIGNMENT = 5;
 
-const SUBTITLE_VERTICAL_GAP_PX = 12;
 const SUBTITLE_HORIZONTAL_GAP_PX = 28;
 const MIN_LINE_HEIGHT_RATIO = 1.18;
 
@@ -282,13 +282,13 @@ export function resolveStoryLayerPositions(params: {
         alignment: STORY_HEADLINE_ASS_ALIGNMENT,
         lines: headlineLines,
         fontSize: headlineFontSize,
-      }).bottom + SUBTITLE_VERTICAL_GAP_PX;
+      }).bottom + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX;
   }
 
   if (titleLines.length > 0 && titlePlacement) {
     const titleBlockH = blockHeight(titleLines, titleFontSize);
     const minTitleY = headlineBottom + titleBlockH / 2;
-    const maxTitleY = safe.bottom - titleBlockH / 2 - (subtitleLines.length > 0 ? blockHeight(subtitleLines, subtitleFontSize) + SUBTITLE_VERTICAL_GAP_PX : 0);
+    const maxTitleY = safe.bottom - titleBlockH / 2 - (subtitleLines.length > 0 ? blockHeight(subtitleLines, subtitleFontSize) + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX : 0);
     const titleY = clamp(titlePlacement.anchorY, minTitleY, Math.max(minTitleY, maxTitleY));
 
     const titleClamped = clampAssAnchor({
@@ -342,7 +342,7 @@ export function resolveStoryLayerPositions(params: {
         subtitleY = titleClamped.clampedY;
       } else {
         const subBlockH = blockHeight(subtitleLines, subtitleFontSize);
-        subtitleY = titleBounds.bottom + SUBTITLE_VERTICAL_GAP_PX + subBlockH / 2;
+        subtitleY = titleBounds.bottom + STORY_LAYER_SUBTITLE_VERTICAL_GAP_PX + subBlockH / 2;
       }
 
       const subtitleClamped = clampAssAnchor({

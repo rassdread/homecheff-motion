@@ -24,6 +24,7 @@ import {
 } from "@/lib/story-overlay-templates";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
+import { warnIndexedDbCacheFailed } from "@/lib/instant-cache-diagnostics";
 import { isValidHttpUrl, logInvalidImageUrl } from "@/lib/is-valid-http-url";
 import { syncInstantWizardPersistedImages } from "@/lib/instant-wizard-image-cleanup";
 import {
@@ -265,8 +266,7 @@ export function useInstantWizardPersist(params: {
           sceneTexts: restoreSceneTextDrafts(saved.sceneTexts, restored.length, transitionSeconds),
         });
       } catch (error) {
-        console.warn("[indexeddb-cache-failed]", {
-          op: "hydrate",
+        warnIndexedDbCacheFailed("hydrate", {
           message: error instanceof Error ? error.message : String(error),
         });
       } finally {
@@ -334,8 +334,7 @@ export function useInstantWizardPersist(params: {
         images: persistedImages,
       });
     } catch (error) {
-      console.warn("[indexeddb-cache-failed]", {
-        op: "persist",
+      warnIndexedDbCacheFailed("persist", {
         message: error instanceof Error ? error.message : String(error),
       });
     }

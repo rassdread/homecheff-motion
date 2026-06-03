@@ -64,6 +64,10 @@ import {
   resolveTypographyFromPlacement,
   type AdaptiveTypographyResult,
 } from "@/server/animation-export/adaptive-typography";
+import {
+  STORY_ASS_SUBTITLE_GAP_PX,
+  STORY_HEADLINE_TO_TITLE_RATIO,
+} from "@/lib/story-overlay-typography-scale";
 import { resolveFfmpegForTextOverlay, runFfmpegCapture } from "@/lib/video-ffmpeg-capability";
 
 export type { InstantSceneText } from "@/lib/story-overlay-templates";
@@ -103,7 +107,6 @@ export {
 export type StoryOverlayTemplate = "cinematic";
 
 const SCENE_TITLE_MARGIN_V = 72;
-const SUBTITLE_GAP = 8;
 const STORY_FOOTER_ASS_ALIGNMENT = 2;
 
 type SceneFontSizes = {
@@ -119,7 +122,7 @@ function defaultSceneFontSizes(width: number, height: number): SceneFontSizes {
   return {
     heroMain: LEGACY_HERO_SIZE_MAIN,
     heroSmall: LEGACY_HERO_SIZE_SMALL,
-    headline: Math.round(title * 1.28),
+    headline: Math.round(title * STORY_HEADLINE_TO_TITLE_RATIO),
     title,
     subtitle: legacySceneSubtitleSize(title),
   };
@@ -454,7 +457,7 @@ function registerSceneStyles(
         sizes.subtitle,
         theme,
         STORY_SUBTITLE_ASS_ALIGNMENT,
-        SCENE_TITLE_MARGIN_V + sizes.title + SUBTITLE_GAP,
+        SCENE_TITLE_MARGIN_V + sizes.title + STORY_ASS_SUBTITLE_GAP_PX,
         marginH
       )
     );
@@ -467,7 +470,7 @@ function registerSceneStyles(
           sizes.subtitle,
           theme,
           STORY_SUBTITLE_ASS_ALIGNMENT,
-          SCENE_TITLE_MARGIN_V + sizes.title + SUBTITLE_GAP,
+          SCENE_TITLE_MARGIN_V + sizes.title + STORY_ASS_SUBTITLE_GAP_PX,
           marginH
         )
       );
@@ -807,7 +810,7 @@ function appendSceneEvents(
   const titleSize = titleTypo?.fontSize ?? legacySceneTitleSize(width, height);
   const subtitleSize = subtitleTypo?.fontSize ?? legacySceneSubtitleSize(titleSize);
 
-  const headlineFontSize = headlineTypo?.fontSize ?? Math.round(titleSize * 1.28);
+  const headlineFontSize = headlineTypo?.fontSize ?? Math.round(titleSize * STORY_HEADLINE_TO_TITLE_RATIO);
   let layerPositions: ReturnType<typeof resolveStoryLayerPositions> | null = null;
 
   if (safeZone && "placements" in safeZone) {
@@ -866,7 +869,7 @@ function appendSceneEvents(
   const subtitleX = layerPositions?.subtitle?.clampedX ?? titleX;
   const subtitleY =
     layerPositions?.subtitle?.clampedY ??
-    (titleLines.length > 0 ? titleY + titleSize + SUBTITLE_GAP : subtitlePlacement?.anchorY ?? titleY + titleSize + SUBTITLE_GAP);
+    (titleLines.length > 0 ? titleY + titleSize + STORY_ASS_SUBTITLE_GAP_PX : subtitlePlacement?.anchorY ?? titleY + titleSize + STORY_ASS_SUBTITLE_GAP_PX);
 
   const reveal = buildSceneLayeredRevealSlots(start, visibleEnd, {
     headline: headlineLines.length > 0,
@@ -922,7 +925,7 @@ function appendSceneEvents(
     height,
     occupiedZoneIds: occupiedZones,
     zoneScores,
-    minY: titleSubtitleBottom + SUBTITLE_GAP,
+    minY: titleSubtitleBottom + STORY_ASS_SUBTITLE_GAP_PX,
   });
 
   if (headlineLines.length > 0) {

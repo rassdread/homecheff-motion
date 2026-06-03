@@ -2,6 +2,12 @@
  * Adaptive Typography V1 — font size, line breaks, and backdrop strength from safe-zone space.
  */
 
+import {
+  scaleStoryOverlayTemplateBase,
+  scaleStoryOverlayFontSize,
+  STORY_LEGACY_TITLE_HEIGHT_FRACTION,
+  STORY_SUBTITLE_TO_TITLE_RATIO,
+} from "@/lib/story-overlay-typography-scale";
 import type { SceneIntent } from "@/server/animation-export/scene-intent-rules";
 import {
   isSafeZoneDebugEnabled,
@@ -58,13 +64,34 @@ const TEMPLATE_BASES: Record<
   AdaptiveTypographyTemplate,
   { default: number; min: number; max: number; maxLines: number }
 > = {
-  hero: { default: 118, min: 78, max: 144, maxLines: 3 },
-  hero_small: { default: 74, min: 54, max: 92, maxLines: 3 },
-  headline: { default: 96, min: 68, max: 118, maxLines: 2 },
-  scene: { default: 72, min: 48, max: 92, maxLines: 2 },
-  subtitle: { default: 48, min: 34, max: 62, maxLines: 3 },
-  sequence: { default: 64, min: 42, max: 82, maxLines: 2 },
-  hero_finale: { default: 118, min: 78, max: 144, maxLines: 4 },
+  hero: {
+    ...scaleStoryOverlayTemplateBase({ default: 118, min: 78, max: 144, role: "headline" }),
+    maxLines: 3,
+  },
+  hero_small: {
+    ...scaleStoryOverlayTemplateBase({ default: 74, min: 54, max: 92, role: "headline" }),
+    maxLines: 3,
+  },
+  headline: {
+    ...scaleStoryOverlayTemplateBase({ default: 96, min: 68, max: 118, role: "headline" }),
+    maxLines: 2,
+  },
+  scene: {
+    ...scaleStoryOverlayTemplateBase({ default: 72, min: 48, max: 92, role: "title" }),
+    maxLines: 2,
+  },
+  subtitle: {
+    ...scaleStoryOverlayTemplateBase({ default: 48, min: 34, max: 62, role: "subtitle" }),
+    maxLines: 3,
+  },
+  sequence: {
+    ...scaleStoryOverlayTemplateBase({ default: 64, min: 42, max: 82, role: "title" }),
+    maxLines: 2,
+  },
+  hero_finale: {
+    ...scaleStoryOverlayTemplateBase({ default: 118, min: 78, max: 144, role: "headline" }),
+    maxLines: 4,
+  },
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -649,15 +676,15 @@ export function logAdaptiveTypographyDebug(params: {
 }
 
 /** Legacy fixed sizes when adaptive typography is unavailable. */
-export const LEGACY_HERO_SIZE_MAIN = 118;
-export const LEGACY_HERO_SIZE_SMALL = 74;
+export const LEGACY_HERO_SIZE_MAIN = scaleStoryOverlayFontSize("headline", 118);
+export const LEGACY_HERO_SIZE_SMALL = scaleStoryOverlayFontSize("headline", 74);
 
 export function legacySceneTitleSize(width: number, height: number): number {
-  return Math.round(Math.min(width, height) * 0.065);
+  return Math.round(Math.min(width, height) * STORY_LEGACY_TITLE_HEIGHT_FRACTION);
 }
 
 export function legacySceneSubtitleSize(titleSize: number): number {
-  return Math.round(titleSize * 0.55);
+  return Math.round(titleSize * STORY_SUBTITLE_TO_TITLE_RATIO);
 }
 
 export function resolveTypographyFromPlacement(params: {

@@ -10,6 +10,18 @@ import type { TextImplyingChipId } from "@/lib/locked-text-layer";
 import type { LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import type { OcrScanPhase } from "@/lib/instant-ocr-scan";
 import type { BakedTextBlockRecord } from "@/lib/baked-text-detection";
+import {
+  deleteWizardBlobMemoryCache,
+  getWizardBlobMemoryCache,
+  listWizardBlobMemoryCacheIds,
+  setWizardBlobMemoryCache,
+  clearWizardBlobMemoryCache,
+} from "@/lib/instant-wizard-blob-memory-cache";
+import {
+  warnIndexedDbCacheFailed,
+  warnInvalidImageUrl,
+  warnWizardStorageFailed,
+} from "@/lib/instant-cache-diagnostics";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 
 const WIZARD_STORAGE_KEY = "hc-instant-wizard:v1";
@@ -104,6 +116,13 @@ export function isIndexedDbAvailable(): boolean {
   }
 }
 
+let indexedDbWriteDisabled = false;
+
+function disableIndexedDbWrites(reason: string, details: Record<string, unknown>): void {
+  indexedDbWriteDisabled = true;
+  warnIndexedDbCacheFailed("write-disabled", { reason, ...details });
+}
+
 function openBlobDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -135,23 +154,22 @@ async function writeWizardImageBlobs(
   });
 }
 
-/** Safe IndexedDB write — returns false instead of rejecting. */
+/** Safe IndexedDB write — returns false instead of rejecting; always caches in memory. */
 export async function safeIndexedDbSet(
   imageId: string,
   optimized: Blob,
   thumbnail: Blob
 ): Promise<boolean> {
-  if (!isIndexedDbAvailable()) {
+  setWizardBlobMemoryCache(imageId, optimized, thumbnail);
+
+  if (!isIndexedDbAvailable() || indexedDbWriteDisabled) {
     return false;
   }
   try {
     await writeWizardImageBlobs(imageId, optimized, thumbnail);
     return true;
   } catch (error) {
-    console.warn("[indexeddb-cache-failed]", {
-      imageId,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    disableIndexedDbWrites(error instanceof Error ? error.message : String(error), { imageId });
     return false;
   }
 }
@@ -186,22 +204,29 @@ async function readWizardImageBlobs(
   return record;
 }
 
-/** Safe IndexedDB read — never throws. */
+/** Safe IndexedDB read — never throws; falls back to in-memory cache. */
 export async function safeIndexedDbGet(
   imageId: string
 ): Promise<{ optimized: Blob; thumbnail: Blob } | null> {
+  const fromMemory = getWizardBlobMemoryCache(imageId);
+  if (fromMemory) {
+    return fromMemory;
+  }
   if (!isIndexedDbAvailable()) {
     return null;
   }
   try {
-    return await readWizardImageBlobs(imageId);
+    const fromDb = await readWizardImageBlobs(imageId);
+    if (fromDb) {
+      setWizardBlobMemoryCache(imageId, fromDb.optimized, fromDb.thumbnail);
+    }
+    return fromDb;
   } catch (error) {
-    console.warn("[indexeddb-cache-failed]", {
+    warnIndexedDbCacheFailed("get", {
       imageId,
-      op: "get",
       message: error instanceof Error ? error.message : String(error),
     });
-    return null;
+    return getWizardBlobMemoryCache(imageId);
   }
 }
 
@@ -212,24 +237,25 @@ export async function loadWizardImageBlobs(
 }
 
 export async function listWizardImageBlobIds(): Promise<string[]> {
+  const memoryIds = listWizardBlobMemoryCacheIds();
   if (!isIndexedDbAvailable()) {
-    return [];
+    return memoryIds;
   }
   try {
     const db = await openBlobDb();
-    return await new Promise<string[]>((resolve, reject) => {
+    const idbIds = await new Promise<string[]>((resolve, reject) => {
       const tx = db.transaction(BLOB_STORE, "readonly");
       const req = tx.objectStore(BLOB_STORE).getAllKeys();
       req.onsuccess = () => resolve((req.result as string[]) ?? []);
       req.onerror = () => reject(req.error ?? new Error("IndexedDB keys failed."));
       tx.oncomplete = () => db.close();
     });
+    return [...new Set([...memoryIds, ...idbIds])];
   } catch (error) {
-    console.warn("[indexeddb-cache-failed]", {
-      op: "keys",
+    warnIndexedDbCacheFailed("keys", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return [];
+    return memoryIds;
   }
 }
 
@@ -241,10 +267,12 @@ export async function pruneOrphanedWizardBlobs(keepImageIds: Iterable<string>): 
 }
 
 export async function clearAllWizardImageBlobs(): Promise<void> {
+  clearWizardBlobMemoryCache();
   await pruneOrphanedWizardBlobs([]);
 }
 
 export async function deleteWizardImageBlobs(imageId: string): Promise<void> {
+  deleteWizardBlobMemoryCache(imageId);
   if (!isIndexedDbAvailable()) {
     return;
   }
@@ -260,9 +288,8 @@ export async function deleteWizardImageBlobs(imageId: string): Promise<void> {
       tx.objectStore(BLOB_STORE).delete(imageId);
     });
   } catch (error) {
-    console.warn("[indexeddb-cache-failed]", {
+    warnIndexedDbCacheFailed("delete", {
       imageId,
-      op: "delete",
       message: error instanceof Error ? error.message : String(error),
     });
   }
@@ -272,8 +299,7 @@ export async function deleteWizardImageBlobs(imageId: string): Promise<void> {
 export function sanitizePersistedRemoteUrl(value: unknown): string | undefined {
   if (!isValidHttpUrl(value)) {
     if (typeof value === "string" && value.trim()) {
-      console.warn("[image-url-invalid]", {
-        context: "sanitizePersistedRemoteUrl",
+      warnInvalidImageUrl("sanitizePersistedRemoteUrl", {
         value: value.trim().slice(0, 80),
       });
     }
@@ -317,8 +343,7 @@ export function writePersistedWizardState(state: PersistedWizardState): void {
   try {
     window.localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
-    console.warn("[indexeddb-cache-failed]", {
-      op: "localStorage-write",
+    warnWizardStorageFailed("localStorage-write", {
       message: error instanceof Error ? error.message : String(error),
     });
   }

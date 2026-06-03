@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   MAX_EXTRA_LINES,
   MAX_FINALE_FOOTER_CHARS,
@@ -14,6 +13,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
 import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
+import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 
 export type StoryboardImage = {
   id: string;
@@ -143,16 +143,13 @@ export function StoryboardEditor({
               onClick={() => onExpandedIndexChange(expanded ? null : index)}
             >
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
-                {image?.previewUrl ?
-                  <Image
-                    src={image.previewUrl}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    sizes="56px"
-                    unoptimized
-                  />
-                : null}
+                <SafePreviewImage
+                  src={image?.previewUrl}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="56px"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">

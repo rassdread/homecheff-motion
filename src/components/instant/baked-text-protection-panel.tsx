@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { InstantOcrStatusLine } from "@/components/instant/instant-ocr-status-line";
@@ -111,7 +111,7 @@ function ImageWithOverlays({
   const visible = blocks.filter((b) => b.kept);
   return (
     <div className="relative mx-auto aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
-      <Image src={src} alt="" fill className="object-cover" unoptimized sizes="220px" />
+      <SafePreviewImage src={src} alt="" fill className="object-cover" sizes="220px" />
       {visible.map((block) => (
         <div
           key={block.id}

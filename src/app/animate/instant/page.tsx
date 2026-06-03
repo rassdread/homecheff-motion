@@ -17,7 +17,6 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +35,8 @@ import {
   revokeWizardImagePreviewUrls,
 } from "@/lib/instant-wizard-image-cleanup";
 import { safeIndexedDbSet } from "@/lib/instant-premium-wizard-storage";
-import { isRenderableImageUrl } from "@/lib/is-valid-http-url";
+import { resolveRenderableImageSrc, resolveRemoteImageSrc } from "@/lib/is-valid-http-url";
+import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useMounted } from "@/hooks/use-mounted";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -209,20 +209,13 @@ function SortableThumb({
     >
       <div className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-100">
-          {isRenderableImageUrl(item.workingPreviewUrl) ? (
-            <Image
-              src={item.workingPreviewUrl}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="120px"
-              unoptimized
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-zinc-500">
-              —
-            </div>
-          )}
+          <SafePreviewImage
+            src={item.workingPreviewUrl}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="120px"
+          />
         </div>
         <button
           type="button"
@@ -331,11 +324,12 @@ export default function InstantPremiumPage() {
       instantTransitionSeconds: transitionSeconds,
       instantSceneTexts: serializeSceneTextDrafts(sceneTexts, images.length),
       images: images.map((img) => {
-        const url = img.remoteWorkingUrl ?? img.workingPreviewUrl;
+        const remoteWorking = resolveRemoteImageSrc(img.remoteWorkingUrl, img.bakedText.remoteWorkingUrl);
+        const remoteThumb = resolveRemoteImageSrc(img.remoteThumbnailUrl);
         return {
           fileName: img.originalFileName,
-          previewUrl: url,
-          workingImageUrl: img.remoteWorkingUrl ?? url,
+          previewUrl: remoteThumb ?? remoteWorking ?? "",
+          workingImageUrl: remoteWorking ?? "",
           mimeType: img.mimeType,
           sizeBytes: img.sizeBytes,
           ...(() => {
@@ -1341,7 +1335,13 @@ export default function InstantPremiumPage() {
                 <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {images.map((im) => (
                     <div key={im.id} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-100">
-                      <Image src={im.workingPreviewUrl} alt="" fill className="object-cover" sizes="120px" unoptimized />
+                      <SafePreviewImage
+                        src={im.workingPreviewUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="120px"
+                      />
                       <button
                         type="button"
                         className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white"
@@ -1395,7 +1395,13 @@ export default function InstantPremiumPage() {
                       <StoryboardEditor
                         images={images.map((im) => ({
                           id: im.id,
-                          previewUrl: im.workingPreviewUrl,
+                          previewUrl:
+                            resolveRenderableImageSrc(
+                              im.workingPreviewUrl,
+                              im.thumbnailPreviewUrl,
+                              im.remoteWorkingUrl,
+                              im.remoteThumbnailUrl
+                            ) ?? "",
                         }))}
                         imageCount={images.length}
                         sceneTexts={sceneTexts}
