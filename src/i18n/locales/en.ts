@@ -3,7 +3,8 @@ import type { nl } from "./nl";
 type LocaleSchema = Record<keyof typeof nl, string>;
 
 export const en: LocaleSchema = {
-  "nav.create": "Create",
+  "nav.motion": "Motion",
+  "nav.studio": "Studio",
   "nav.login": "Log in",
   "nav.signup": "Create account",
   "nav.logout": "Logout",
@@ -13,6 +14,57 @@ export const en: LocaleSchema = {
   "nav.role.user": "User",
   "nav.myVideos": "My videos",
   "nav.premium": "Premium",
+
+  "studio.label": "HomeCheff Studio",
+  "studio.title": "HomeCheff Studio",
+  "studio.subtitle":
+    "Build reusable characters, locations, props and storyboards for better AI movies.",
+  "studio.product.motion.label": "Motion",
+  "studio.product.motion.description": "Fast AI video generation — your current quick path to finished videos.",
+  "studio.product.motion.link": "Open Motion",
+  "studio.product.studio.label": "Studio",
+  "studio.product.studio.description":
+    "Future movie-making environment — reusable assets and pre-production before render.",
+  "studio.feature.characters.title": "Characters",
+  "studio.feature.characters.description":
+    "Save mascots and people once and reuse them across videos.",
+  "studio.feature.locations.title": "Locations",
+  "studio.feature.locations.description":
+    "Build reusable worlds, backgrounds and environments.",
+  "studio.feature.props.title": "Props",
+  "studio.feature.props.description":
+    "Create reusable objects like phones, laptops, food, plants and screens.",
+  "studio.feature.storyboards.title": "Storyboards",
+  "studio.feature.storyboards.description":
+    "Plan scenes, actions, emotions and transitions before rendering.",
+  "studio.badge.alpha": "Alpha",
+  "studio.badge.comingSoon": "Coming Soon",
+  "studio.badge.planned": "Planned",
+  "studio.card.open": "Open",
+  "studio.vision.title": "Where Studio is going",
+  "studio.vision.body":
+    "Motion generates videos. Studio will become the place where reusable characters, locations, props and storyboards live. The goal is to build movies, stories, marketing campaigns and recurring worlds with consistent identities.",
+  "studio.roadmap.characters": "Characters",
+  "studio.roadmap.locations": "Locations",
+  "studio.roadmap.props": "Props",
+  "studio.roadmap.storyboards": "Storyboards",
+  "studio.roadmap.scenes": "Scenes",
+  "studio.roadmap.transitions": "Transitions",
+  "studio.roadmap.voice": "Voice",
+  "studio.roadmap.music": "Music",
+  "studio.placeholder.back": "Back to Studio",
+  "studio.placeholder.characters.title": "Characters",
+  "studio.placeholder.characters.description":
+    "Build reusable actors, mascots and identities for future projects.",
+  "studio.placeholder.locations.title": "Locations",
+  "studio.placeholder.locations.description":
+    "Define reusable worlds, backgrounds and environments for your stories.",
+  "studio.placeholder.props.title": "Props",
+  "studio.placeholder.props.description":
+    "Catalog reusable objects — devices, food, plants, screens and more.",
+  "studio.placeholder.storyboards.title": "Storyboards",
+  "studio.placeholder.storyboards.description":
+    "Plan scenes, actions, emotions and transitions before you render.",
 
   "videos.title": "My videos",
   "videos.emptyTitle": "No videos yet",

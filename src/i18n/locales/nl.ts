@@ -1,5 +1,6 @@
 export const nl = {
-  "nav.create": "Maken",
+  "nav.motion": "Motion",
+  "nav.studio": "Studio",
   "nav.login": "Inloggen",
   "nav.signup": "Account maken",
   "nav.logout": "Uitloggen",
@@ -9,6 +10,58 @@ export const nl = {
   "nav.role.user": "Gebruiker",
   "nav.myVideos": "Mijn video’s",
   "nav.premium": "Premium",
+
+  "studio.label": "HomeCheff Studio",
+  "studio.title": "HomeCheff Studio",
+  "studio.subtitle":
+    "Bouw herbruikbare personages, locaties, props en storyboards voor betere AI-films.",
+  "studio.product.motion.label": "Motion",
+  "studio.product.motion.description":
+    "Snelle AI-videogeneratie — je huidige snelle route naar afgeronde video’s.",
+  "studio.product.motion.link": "Open Motion",
+  "studio.product.studio.label": "Studio",
+  "studio.product.studio.description":
+    "Toekomstige filmomgeving — herbruikbare assets en pre-productie vóór de render.",
+  "studio.feature.characters.title": "Personages",
+  "studio.feature.characters.description":
+    "Sla mascottes en mensen één keer op en hergebruik ze in meerdere video’s.",
+  "studio.feature.locations.title": "Locaties",
+  "studio.feature.locations.description":
+    "Bouw herbruikbare werelden, achtergronden en omgevingen.",
+  "studio.feature.props.title": "Props",
+  "studio.feature.props.description":
+    "Maak herbruikbare objecten zoals telefoons, laptops, eten, planten en schermen.",
+  "studio.feature.storyboards.title": "Storyboards",
+  "studio.feature.storyboards.description":
+    "Plan scènes, acties, emoties en overgangen vóór je rendert.",
+  "studio.badge.alpha": "Alpha",
+  "studio.badge.comingSoon": "Binnenkort",
+  "studio.badge.planned": "Gepland",
+  "studio.card.open": "Openen",
+  "studio.vision.title": "Waar Studio naartoe gaat",
+  "studio.vision.body":
+    "Motion genereert video’s. Studio wordt de plek waar herbruikbare personages, locaties, props en storyboards leven. Het doel is films, verhalen, campagnes en terugkerende werelden met consistente identiteiten te bouwen.",
+  "studio.roadmap.characters": "Personages",
+  "studio.roadmap.locations": "Locaties",
+  "studio.roadmap.props": "Props",
+  "studio.roadmap.storyboards": "Storyboards",
+  "studio.roadmap.scenes": "Scènes",
+  "studio.roadmap.transitions": "Overgangen",
+  "studio.roadmap.voice": "Stem",
+  "studio.roadmap.music": "Muziek",
+  "studio.placeholder.back": "Terug naar Studio",
+  "studio.placeholder.characters.title": "Personages",
+  "studio.placeholder.characters.description":
+    "Bouw herbruikbare acteurs, mascottes en identiteiten voor toekomstige projecten.",
+  "studio.placeholder.locations.title": "Locaties",
+  "studio.placeholder.locations.description":
+    "Definieer herbruikbare werelden, achtergronden en omgevingen voor je verhalen.",
+  "studio.placeholder.props.title": "Props",
+  "studio.placeholder.props.description":
+    "Catalogiseer herbruikbare objecten — apparaten, eten, planten, schermen en meer.",
+  "studio.placeholder.storyboards.title": "Storyboards",
+  "studio.placeholder.storyboards.description":
+    "Plan scènes, acties, emoties en overgangen voordat je rendert.",
 
   "videos.title": "Mijn video’s",
   "videos.emptyTitle": "Nog geen video’s",
