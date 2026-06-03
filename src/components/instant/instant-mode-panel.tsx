@@ -5,6 +5,15 @@ import { INSTANT_TRANSITION_SECONDS_OPTIONS } from "@/lib/instant-premium-mode-t
 import { STORY_SCENE_DURATION_OPTIONS } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
 import type { SceneOverlayTemplate, StorySceneDurationSeconds } from "@/lib/story-overlay-templates";
+import type {
+  AnimationSceneEmotionId,
+  SceneActingIntensity,
+  SceneEmotionMode,
+} from "@/lib/animation-scene-emotions";
+import {
+  DEFAULT_SCENE_EMOTION_MODE,
+  DEFAULT_STORY_ACTING_INTENSITY,
+} from "@/lib/animation-scene-emotions";
 
 export function storyDurationDefault(
   transitionSeconds: number
@@ -33,6 +42,10 @@ export type InstantSceneTextDraft = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  emotionMode: SceneEmotionMode;
+  emotion?: AnimationSceneEmotionId;
+  autoEmotion?: AnimationSceneEmotionId;
+  actingIntensity: SceneActingIntensity;
 };
 
 export function emptySceneTextDraft(
@@ -52,6 +65,8 @@ export function emptySceneTextDraft(
     heroFinale: true,
     heroFinaleText: "",
     finaleFooter: "",
+    emotionMode: DEFAULT_SCENE_EMOTION_MODE,
+    actingIntensity: DEFAULT_STORY_ACTING_INTENSITY,
   };
 }
 

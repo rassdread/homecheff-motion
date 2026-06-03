@@ -968,6 +968,7 @@ export async function executeInstantPremiumMerge(
           project.instantOutputDurationSeconds ??
           expectedDurationSec;
         try {
+          const orderedImages = [...(project.images ?? [])].sort((a, b) => a.order - b.order);
           await applyStorySceneTextOverlay({
             inputVideoPath: mergedPath,
             outputVideoPath: withStoryPath,
@@ -976,6 +977,14 @@ export async function executeInstantPremiumMerge(
             width: probedMerged?.width ?? dims.width,
             height: probedMerged?.height ?? dims.height,
             workDir,
+            projectId,
+            aspectRatio: project.aspectRatio ?? "9:16",
+            projectDetectedTextMetadata: project.instantDetectedTextMetadata,
+            imageMeta: orderedImages.map((img) => ({
+              imageId: img.id,
+              order: img.order,
+              bakedTextBlocksJson: img.bakedTextBlocksJson,
+            })),
           });
           mergedPath = withStoryPath;
           console.info("[hc-instant-premium]", {

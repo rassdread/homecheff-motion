@@ -19,15 +19,23 @@ import {
   resolveViduSegmentDurationsFromStoryboard,
 } from "@/lib/story-overlay-templates";
 import {
-  buildInstantStoryModePrompt,
+  buildInstantStoryModePromptDetailed,
+  buildStoryModeBudgetedViduPrompt,
   buildInstantVideoPrompt,
   instantPremiumTransitionSegmentHint,
   isInstantPremiumStylePreset,
   parseStoredInstantUserIntent,
+  parseStoredStoryContinuityStrength,
   type InstantPremiumAspectRatio,
   type InstantPremiumDurationSeconds,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
+import {
+  createEmptyStoryModeDebugReport,
+  isStoryModeDebugEnabled,
+  logStoryModeDebugReport,
+  stashStoryModeDebugReport,
+} from "@/lib/story-mode-debug";
 import { premiumMotionProfileFromPosterSettings } from "@/lib/premium-motion-engine";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import { scoreKeyframePairQuick } from "@/lib/exact-frame-continuity";
@@ -290,19 +298,67 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     const storyBakedTextProtectionActive =
       !posterMotionActive &&
       orderedProjectImages.some((img) => img.bakedTextProtectionStatus === "masked");
-    finalPrompt = buildInstantStoryModePrompt({
+    const aspectRatio = resolveInstantPremiumAspect(transition.project.aspectRatio);
+    const storyDetailed = buildInstantStoryModePromptDetailed({
       userIntent: instantStoredIntent.text || null,
       imageCount,
       sceneTexts,
       transitionSeconds,
       stylePreset: resolveInstantPremiumStyle(transition.project.stylePreset),
       bakedTextProtectionActive: storyBakedTextProtectionActive,
+      aspectRatio,
+      continuityStrength: parseStoredStoryContinuityStrength(transition.project.instantUserIntent),
     });
+    const budgetedStory = buildStoryModeBudgetedViduPrompt({
+      projectId: transition.projectId,
+      detailed: storyDetailed,
+    });
+    finalPrompt = budgetedStory.prompt;
     const lengthCheck = validateViduPromptLength(finalPrompt, VIDU_PROMPT_HARD_MAX_CHARS);
     if (!lengthCheck.ok) {
       throw new Error(
-        `VIDU_PROMPT_TOO_LONG: ${lengthCheck.debug.charsAfter} chars (max ${VIDU_PROMPT_HARD_MAX_CHARS}).`
+        `VIDU_PROMPT_TOO_LONG: ${lengthCheck.debug.charsAfter} chars (max ${VIDU_PROMPT_HARD_MAX_CHARS}). ` +
+          `truncated=${lengthCheck.debug.truncatedBlocks.join(",")}`
       );
+    }
+    if (isStoryModeDebugEnabled()) {
+      const report = {
+        ...createEmptyStoryModeDebugReport({
+          projectId: transition.projectId,
+          transitionId: transition.id,
+          imageCount,
+          imageOrder: orderedProjectImages.map((img) => ({
+            imageId: img.id,
+            order: img.order,
+          })),
+        }),
+        continuityStrength: storyDetailed.continuityStrength,
+        characterContinuityBlock: storyDetailed.characterContinuityBlock,
+        finalViduPrompt: finalPrompt,
+        finalViduPromptChars: finalPrompt.length,
+        promptBudget: {
+          truncatedBlocks: budgetedStory.log.truncatedBlocks,
+          droppedBlocks: budgetedStory.log.droppedBlocks,
+        },
+        scenes: storyDetailed.sceneMeta.map((meta, index) => ({
+          sceneIndex: meta.sceneIndex,
+          imageId: orderedProjectImages[index]?.id,
+          imageOrder: orderedProjectImages[index]?.order,
+          resolvedEmotion: meta.resolvedEmotion,
+          emotionMode: meta.emotionMode,
+          actingIntensity: meta.actingIntensity,
+          storyCharacterRole: meta.characterRole.roleId,
+          overlayTemplate: "skip" as const,
+          overlayTextBlocks: [],
+          overlayPositions: [],
+          ocrBoxes: [],
+          faceSafeZones: [],
+          objectSafeZones: [],
+          collisionWarnings: [],
+        })),
+      };
+      stashStoryModeDebugReport(transition.projectId, report);
+      logStoryModeDebugReport(report);
     }
   } else if (isInstantPremium) {
     const mainPrompt = buildInstantVideoPrompt({

@@ -132,6 +132,8 @@ import {
   moveSceneAt,
   moveScenesByImageId,
   patchSceneTextAt,
+  patchSceneTextAtWithEmotion,
+  syncAutoEmotionsForSceneSlots,
   sceneHasUserText,
   sceneTextsFromSlots,
   trimScenesToCount,
@@ -353,21 +355,24 @@ export default function InstantPremiumPage() {
 
   const handleStoryboardSceneChange = useCallback(
     (index: number, patch: Partial<InstantSceneTextDraft>) => {
-      setSceneSlots((prev) => patchSceneTextAt(prev, index, patch));
+      setSceneSlots((prev) => patchSceneTextAtWithEmotion(prev, index, patch, instantMode));
     },
-    []
+    [instantMode]
   );
 
   const handleStoryboardMoveScene = useCallback((index: number, direction: "up" | "down") => {
     let keepExpandedId: string | undefined;
     setSceneSlots((prev) => {
       keepExpandedId = prev[index]?.sceneId;
-      return moveSceneAt(prev, index, direction);
+      return syncAutoEmotionsForSceneSlots(
+        moveSceneAt(prev, index, direction),
+        instantMode
+      );
     });
     if (keepExpandedId) {
       setExpandedSceneSelection(keepExpandedId);
     }
-  }, []);
+  }, [instantMode]);
 
   const handleTransitionSecondsChange = useCallback(
     (seconds: InstantTransitionSeconds) => {
@@ -535,7 +540,12 @@ export default function InstantPremiumPage() {
             } satisfies LocalImage;
           })
         );
-        setSceneSlots((prev) => assignImagesToSceneSlots(prev, processed, transitionSeconds));
+        setSceneSlots((prev) =>
+          syncAutoEmotionsForSceneSlots(
+            assignImagesToSceneSlots(prev, processed, transitionSeconds),
+            instantMode
+          )
+        );
         for (const img of processed) {
           void safeIndexedDbSet(img.id, img.optimizedBlob, img.thumbnailBlob);
         }
@@ -687,7 +697,7 @@ export default function InstantPremiumPage() {
     transitionSeconds,
     onHydrated: () => setWizardReady(true),
     onRestore: (saved) => {
-      setSceneSlots(saved.sceneSlots);
+      setSceneSlots(syncAutoEmotionsForSceneSlots(saved.sceneSlots, saved.instantMode));
       setStep(saved.step);
       setStylePreset(saved.stylePreset);
       setMotionText(saved.motionText);
@@ -724,13 +734,15 @@ export default function InstantPremiumPage() {
         await purgeInstantWizardImagePersistence(slot.image);
         revokeWizardImagePreviewUrls(slot.image);
       }
-      setSceneSlots((prev) => deleteSceneAt(prev, index));
+      setSceneSlots((prev) =>
+        syncAutoEmotionsForSceneSlots(deleteSceneAt(prev, index), instantMode)
+      );
       if (removedId && expandedSceneId === removedId) {
         setExpandedSceneSelection("auto");
       }
       await persistNow();
     },
-    [cancelOcrScanForImage, expandedSceneId, persistNow, sceneSlots]
+    [cancelOcrScanForImage, expandedSceneId, instantMode, persistNow, sceneSlots]
   );
 
   const handleStoryboardDeleteScene = useCallback(

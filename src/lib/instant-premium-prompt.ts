@@ -35,6 +35,29 @@ import {
 } from "@/lib/locked-text-layer";
 import type { InstantSceneText } from "@/lib/story-overlay-templates";
 import { heroSourceText, normalizeSceneText } from "@/lib/story-overlay-templates";
+import {
+  buildSceneEmotionPromptLineForScene,
+  resolveSceneEmotionId,
+  resolveStoryActingIntensity,
+  shouldUseSubtleMotionOnly,
+  VIDU_MULTI_IMAGE_EMOTION_DIRECTOR_BLOCK,
+  type SceneActingIntensity,
+} from "@/lib/animation-scene-emotions";
+import { buildCharacterRoleEnginePromptBlock, detectCharacterRoles } from "@/lib/character-role-engine";
+import {
+  buildPerSceneContinuityHint,
+  buildStoryCharacterContinuityBlock,
+  buildStoryFrameCharacterAssignments,
+  DEFAULT_STORY_CONTINUITY_STRENGTH,
+  normalizeStoryContinuityStrength,
+  type StoryContinuityStrength,
+  type StoryFrameCharacterAssignment,
+} from "@/lib/story-character-continuity";
+import { buildCompactFacialActingLine } from "@/lib/premium-facial-acting";
+import {
+  buildBudgetedViduPrompt,
+  type ViduPromptBudgetLog,
+} from "@/lib/vidu-prompt-budget";
 
 export type InstantPremiumChipId =
   | "slow_zoom_in"
@@ -325,29 +348,134 @@ export function resolveStoryPromptSceneSignals(
   };
 }
 
+const STORY_CONTINUITY_MARKER_RE = /^\[hc_story_continuity:(normal|strong|strict)\]\s*\n?/i;
+
+export function parseStoredStoryContinuityStrength(
+  raw: string | null | undefined
+): StoryContinuityStrength {
+  const input = raw?.trim() ?? "";
+  const match = input.match(STORY_CONTINUITY_MARKER_RE);
+  if (match) {
+    return normalizeStoryContinuityStrength(match[1]?.toLowerCase());
+  }
+  return DEFAULT_STORY_CONTINUITY_STRENGTH;
+}
+
+export function composeStoredStoryUserIntent(params: {
+  continuityStrength: StoryContinuityStrength;
+  text: string;
+}): string {
+  const marker = `[hc_story_continuity:${params.continuityStrength}]`;
+  const clean = params.text.replace(STORY_CONTINUITY_MARKER_RE, "").trim();
+  return clean ? `${marker}\n${clean}` : marker;
+}
+
+export type StoryScenePromptMeta = {
+  sceneIndex: number;
+  resolvedEmotion: ReturnType<typeof resolveSceneEmotionId>;
+  emotionMode: "auto" | "manual";
+  actingIntensity: SceneActingIntensity;
+  characterRole: StoryFrameCharacterAssignment;
+  continuityHint: string;
+};
+
 export type BuildInstantStoryModePromptInput = {
   userIntent: string | null;
   imageCount: number;
   sceneTexts: InstantSceneText[];
   transitionSeconds: number;
   stylePreset?: InstantPremiumStylePreset;
+  aspectRatio?: InstantPremiumAspectRatio;
   /** True when any keyframe was pre-masked for baked-text protection before Vidu. */
   bakedTextProtectionActive?: boolean;
+  continuityStrength?: StoryContinuityStrength;
+  projectActingIntensity?: SceneActingIntensity;
+};
+
+export type BuildInstantStoryModePromptResult = {
+  prompt: string;
+  characterContinuityBlock: string;
+  continuityStrength: StoryContinuityStrength;
+  sceneMeta: StoryScenePromptMeta[];
+  actingIntensityDefault: SceneActingIntensity;
 };
 
 /**
  * Single Vidu multiframe prompt — scene titles are narrative context only, never rendered in-video.
  */
 export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptInput): string {
+  return buildInstantStoryModePromptDetailed(input).prompt;
+}
+
+export function buildInstantStoryModePromptDetailed(
+  input: BuildInstantStoryModePromptInput
+): BuildInstantStoryModePromptResult {
   const styleLine =
     input.stylePreset && isInstantPremiumStylePreset(input.stylePreset) ?
       STYLE_PROMPTS[input.stylePreset]
     : STYLE_PROMPTS.food_promo;
 
+  const continuityStrength =
+    input.continuityStrength ??
+    parseStoredStoryContinuityStrength(input.userIntent);
+  const normalizedScenes = Array.from({ length: input.imageCount }, (_, i) =>
+    normalizeSceneText(input.sceneTexts[i])
+  );
+  const assignments = buildStoryFrameCharacterAssignments(normalizedScenes, input.imageCount);
+  const characterContinuityBlock = buildStoryCharacterContinuityBlock({
+    assignments,
+    strength: continuityStrength,
+    aspectRatio: input.aspectRatio,
+  });
+
+  const actingIntensityDefault = resolveStoryActingIntensity({
+    projectDefault: input.projectActingIntensity,
+  });
+  const anyActiveActing = normalizedScenes.some(
+    (scene) =>
+      !shouldUseSubtleMotionOnly(
+        resolveStoryActingIntensity({
+          sceneActingIntensity: scene.actingIntensity,
+          projectDefault: input.projectActingIntensity,
+        })
+      )
+  );
+
+  const sceneMeta: StoryScenePromptMeta[] = [];
   const sceneLines: string[] = [];
   for (let i = 0; i < input.imageCount; i += 1) {
-    const scene = normalizeSceneText(input.sceneTexts[i]);
-    const parts: string[] = [];
+    const scene = normalizedScenes[i]!;
+    const assignment = assignments[i]!;
+    const actingIntensity = resolveStoryActingIntensity({
+      sceneActingIntensity: scene.actingIntensity,
+      projectDefault: input.projectActingIntensity,
+    });
+    const resolvedEmotion = resolveSceneEmotionId({
+      emotionMode: scene.emotionMode,
+      emotion: scene.emotion,
+      autoEmotion: scene.autoEmotion,
+      sceneIndex: i,
+      sceneCount: input.imageCount,
+      textSignals: {
+        heroText: scene.heroText,
+        title: scene.title,
+        subtitle: scene.subtitle,
+        heroFinaleText: scene.heroFinaleText,
+        finaleFooter: scene.finaleFooter,
+        extraLines: scene.extraLines,
+        lines: scene.lines.map((line) => line.text),
+      },
+    });
+    sceneMeta.push({
+      sceneIndex: i,
+      resolvedEmotion,
+      emotionMode: scene.emotionMode,
+      actingIntensity,
+      characterRole: assignment,
+      continuityHint: buildPerSceneContinuityHint(assignment, continuityStrength),
+    });
+
+    const parts: string[] = [buildPerSceneContinuityHint(assignment, continuityStrength)];
     const hero = heroSourceText(scene);
     if (hero) {
       parts.push(`story beat: ${hero}`);
@@ -368,14 +496,35 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     if (typeof scene.durationSeconds === "number") {
       parts.push(`intended scene pacing: ~${scene.durationSeconds}s`);
     }
+    const emotionLine = buildSceneEmotionPromptLineForScene({
+      emotionMode: scene.emotionMode,
+      emotion: scene.emotion,
+      autoEmotion: scene.autoEmotion,
+      sceneIndex: i,
+      sceneCount: input.imageCount,
+      actingIntensity,
+      textSignals: {
+        heroText: scene.heroText,
+        title: scene.title,
+        subtitle: scene.subtitle,
+        heroFinaleText: scene.heroFinaleText,
+        finaleFooter: scene.finaleFooter,
+        extraLines: scene.extraLines,
+        lines: scene.lines.map((line) => line.text),
+      },
+    });
+    if (emotionLine) {
+      parts.push(`emotion & acting: ${emotionLine}`);
+    }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";
     sceneLines.push(`Scene ${i + 1}: ${context}`);
   }
 
+  const intentClean = (input.userIntent ?? "").replace(STORY_CONTINUITY_MARKER_RE, "").trim();
   const intentBlock =
-    input.userIntent?.trim() ?
-      `User direction: ${input.userIntent.trim()}`
+    intentClean ?
+      `User direction: ${intentClean}`
     : "Follow cinematic defaults and preserve subject identity across all keyframes.";
 
   const bakedTextTail = input.bakedTextProtectionActive ?
@@ -389,7 +538,12 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     sceneSignals.hasMascotCues ||
     sceneSignals.hasGroupOrFinaleCues
   ) {
-    anatomyBlocks.push(STORY_CHARACTER_ANATOMY_PRESERVATION_BLOCK);
+    const anatomy = STORY_CHARACTER_ANATOMY_PRESERVATION_BLOCK.split("\n");
+    const filteredAnatomy =
+      anyActiveActing ?
+        anatomy.filter((line) => !/subtle motion only/i.test(line))
+      : anatomy;
+    anatomyBlocks.push(filteredAnatomy.join("\n"));
   }
   if (sceneSignals.hasGroupOrFinaleCues) {
     anatomyBlocks.push(
@@ -397,17 +551,30 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     );
   }
 
-  return [
-    "Create one continuous cinematic vertical video using the uploaded images in the exact order as storyboard scenes.",
-    "Treat each image as a fixed visual anchor.",
-    "Use the uploaded images in order as storyboard scenes. Some scenes may be intended to last longer for emotional or final moments. Keep motion natural and cinematic.",
-    "Preserve the same characters, mascot identity, clothing, logo placement, body shape, colors, and visual style.",
-    "Smoothly transition from image 1 to image 2, then image 2 to image 3, until the final image.",
+  const corpus = normalizedScenes
+    .map((s) => [s.heroText, s.title, s.subtitle, s.heroFinaleText].join(" "))
+    .join(" ");
+  const roles = detectCharacterRoles({ corpus, imageCount: input.imageCount });
+  const roleBlock = buildCharacterRoleEnginePromptBlock(roles);
+  const facialLine = buildCompactFacialActingLine(roles);
+
+  const prompt = [
+    characterContinuityBlock,
+    VIDU_MULTI_IMAGE_EMOTION_DIRECTOR_BLOCK,
+    anyActiveActing ?
+      "FACIAL ACTING: expressions must be clearly visible on mobile — active smiles, eyebrow movement, eye openness, and readable reactions."
+    : "",
+    "Create one continuous cinematic video using the uploaded images in the exact order as storyboard scenes.",
+    "Treat each image as a fixed visual anchor — animate motion within each identity; do not morph one character into another.",
+    "Use the uploaded images in order. Some scenes may last longer for emotional beats. Keep motion natural and cinematic.",
+    "Smoothly transition between consecutive keyframes without identity swaps.",
     "Hero, title, subtitle, sequence lines, and hero finale strings are FFmpeg overlay copy added after generation — never render them inside the Vidu video.",
     "The following scene list is narrative context for motion and pacing only.",
     "Do not generate new visible captions, hero lines, subtitles, or marketing overlay typography inside the video.",
     "Keep motion cinematic, natural, and coherent.",
     "The full video should feel like one complete story from beginning to end.",
+    roleBlock,
+    facialLine,
     styleLine,
     intentBlock,
     `Target pacing: approximately ${input.transitionSeconds} seconds per transition between keyframes.`,
@@ -416,7 +583,36 @@ export function buildInstantStoryModePrompt(input: BuildInstantStoryModePromptIn
     bakedTextTail,
     ...anatomyBlocks,
     LOCKED_TEXT_SAFETY_BLOCK.split("\n").slice(0, 3).join("\n"),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  return {
+    prompt,
+    characterContinuityBlock,
+    continuityStrength,
+    sceneMeta,
+    actingIntensityDefault,
+  };
+}
+
+/** Story Mode prompt with priority budgeting (identity first). */
+export function buildStoryModeBudgetedViduPrompt(params: {
+  projectId?: string;
+  detailed: BuildInstantStoryModePromptResult;
+}): { prompt: string; log: ViduPromptBudgetLog } {
+  const continuity = params.detailed.characterContinuityBlock.trim();
+  const storyBody = params.detailed.prompt
+    .replace(continuity, "")
+    .replace(/^\n{2,}/, "")
+    .trim();
+  return buildBudgetedViduPrompt({
+    projectId: params.projectId,
+    segmentIndex: 0,
+    preservationBlock: continuity,
+    storyBlock: storyBody,
+    motionBlock: "",
+  });
 }
 
 export function instantPremiumTransitionSegmentHint(params: {

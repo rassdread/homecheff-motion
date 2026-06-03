@@ -6,7 +6,7 @@ import {
   emptySceneTextDraft,
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
-import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
 import type {
   PersistedSceneTextDraft,
@@ -17,6 +17,11 @@ import {
   normalizeStorySceneDurationSeconds,
   type SceneOverlayTemplate,
 } from "@/lib/story-overlay-templates";
+import {
+  normalizeSceneActingIntensity,
+  normalizeSceneEmotionFields,
+  withAutoSceneEmotionPatch,
+} from "@/lib/animation-scene-emotions";
 
 export type WizardSceneSlot = {
   sceneId: string;
@@ -180,6 +185,47 @@ export function patchSceneTextAt(
   );
 }
 
+export function patchSceneTextAtWithEmotion(
+  slots: WizardSceneSlot[],
+  index: number,
+  patch: Partial<InstantSceneTextDraft>,
+  instantMode?: InstantMode
+): WizardSceneSlot[] {
+  const next = patchSceneTextAt(slots, index, patch);
+  const slot = next[index];
+  if (!slot) {
+    return next;
+  }
+  const merged = { ...slot.text, ...patch };
+  if (merged.emotionMode === "manual") {
+    return patchSceneTextAt(next, index, {
+      emotionMode: "manual",
+      emotion: merged.emotion,
+      actingIntensity: normalizeSceneActingIntensity(merged.actingIntensity),
+    });
+  }
+  const autoPatched = withAutoSceneEmotionPatch(merged, index, next.length, instantMode);
+  return patchSceneTextAt(next, index, {
+    emotionMode: "auto",
+    autoEmotion: autoPatched.autoEmotion,
+    actingIntensity: normalizeSceneActingIntensity(merged.actingIntensity ?? autoPatched.actingIntensity),
+  });
+}
+
+export function syncAutoEmotionsForSceneSlots(
+  slots: WizardSceneSlot[],
+  instantMode?: InstantMode
+): WizardSceneSlot[] {
+  const count = Math.max(slots.length, 1);
+  return slots.map((slot, index) => ({
+    ...slot,
+    text:
+      slot.text.emotionMode === "manual"
+        ? slot.text
+        : withAutoSceneEmotionPatch(slot.text, index, count, instantMode),
+  }));
+}
+
 export function trimScenesToCount(slots: WizardSceneSlot[], maxCount: number): WizardSceneSlot[] {
   if (slots.length <= maxCount) {
     return slots;
@@ -218,6 +264,12 @@ function restoreSceneTextDraft(
     heroFinale: typeof raw.heroFinale === "boolean" ? raw.heroFinale : true,
     heroFinaleText: typeof raw.heroFinaleText === "string" ? raw.heroFinaleText : "",
     finaleFooter: typeof raw.finaleFooter === "string" ? raw.finaleFooter : "",
+    ...normalizeSceneEmotionFields({
+      emotionMode: raw.emotionMode,
+      emotion: raw.emotion,
+      autoEmotion: raw.autoEmotion,
+    }),
+    actingIntensity: normalizeSceneActingIntensity(raw.actingIntensity),
   };
 }
 
@@ -239,6 +291,10 @@ export function serializeSceneSlotsForPersist(
       heroFinale: slot.text.heroFinale,
       heroFinaleText: slot.text.heroFinaleText,
       finaleFooter: slot.text.finaleFooter,
+      emotionMode: slot.text.emotionMode,
+      emotion: slot.text.emotion,
+      autoEmotion: slot.text.autoEmotion,
+      actingIntensity: slot.text.actingIntensity,
     },
     image: slot.image
       ? {

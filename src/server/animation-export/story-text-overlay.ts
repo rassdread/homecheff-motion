@@ -88,6 +88,26 @@ export {
   storyOverlayMotionTags,
 } from "@/lib/story-overlay-templates";
 import { buildSequenceAssEvents } from "@/server/animation-export/story-sequence-overlay";
+import { chooseFinaleChannel } from "@/server/animation-export/story-overlay-collision";
+import {
+  makeDialogueDraft,
+  resolveSceneDialogueCollisions,
+  type FinalizeSceneDialoguesResult,
+  type StoryDialogueDraft,
+} from "@/server/animation-export/story-overlay-dialogue";
+import {
+  collectOcrAvoidBoxesForScene,
+  storyFailSafeAvoidBoxes,
+} from "@/server/animation-export/story-overlay-avoid-zones";
+import {
+  createEmptyStoryModeDebugReport,
+  isStoryModeDebugEnabled,
+  logStoryModeDebugReport,
+  stashStoryModeDebugReport,
+  type StoryModeDebugReport,
+  type StorySceneDebugEntry,
+} from "@/lib/story-mode-debug";
+import { resolveSceneEmotionId } from "@/lib/animation-scene-emotions";
 
 export { buildSequenceAssEvents } from "@/server/animation-export/story-sequence-overlay";
 export {
@@ -242,6 +262,48 @@ function motionTags(x: number, y: number, options?: boolean | MotionTagOptions):
   return storyOverlayMotionTags(x, y, opts);
 }
 
+function buildOverlayTextBlockSummary(
+  scene: NormalizedSceneText,
+  resolved: ReturnType<typeof chooseTemplate>
+): Array<{ kind: import("@/lib/story-mode-debug").StoryOverlayLayerKind; text: string }> {
+  const blocks: Array<{ kind: import("@/lib/story-mode-debug").StoryOverlayLayerKind; text: string }> = [];
+  const hero = heroSourceText(scene);
+  if (resolved === "hero" && hero) {
+    blocks.push({ kind: "hero", text: hero });
+  }
+  if (resolved === "scene") {
+    const headline = getSceneHeadline(scene);
+    if (headline) {
+      blocks.push({ kind: "headline", text: headline });
+    }
+    if (scene.title.trim()) {
+      blocks.push({ kind: "title", text: scene.title });
+    }
+    if (scene.subtitle.trim()) {
+      blocks.push({ kind: "subtitle", text: scene.subtitle });
+    }
+    scene.extraLines.forEach((line, i) => {
+      if (line.trim()) {
+        blocks.push({ kind: "extra", text: line });
+      }
+    });
+  }
+  if (resolved === "sequence") {
+    scene.lines.forEach((line) => {
+      if (line.text.trim()) {
+        blocks.push({ kind: "sequence_line", text: line.text });
+      }
+    });
+    if (scene.heroFinaleText.trim()) {
+      blocks.push({ kind: "hero_finale", text: scene.heroFinaleText });
+    }
+  }
+  if (scene.finaleFooter.trim()) {
+    blocks.push({ kind: "finale_footer", text: scene.finaleFooter });
+  }
+  return blocks;
+}
+
 function sceneTextForSafeZone(scene: NormalizedSceneText): string {
   if (scene.heroText.trim()) {
     return scene.heroText;
@@ -307,13 +369,10 @@ function logStoryLayerPositions(sceneIndex: number, positions: ReturnType<typeof
 
 function defaultHeroPosition(
   scene: NormalizedSceneText,
-  lineCount: number
+  _lineCount: number
 ): NormalizedSceneText["templatePosition"] {
   if (scene.templatePosition) {
     return scene.templatePosition;
-  }
-  if (lineCount <= 2 && heroSourceText(scene).split(/\s+/).length <= 4) {
-    return "center";
   }
   return "top";
 }
@@ -497,10 +556,10 @@ function registerSceneStyles(
   return { heroMain, heroSmall, headline, title, subtitle, extraLines, finaleFooter };
 }
 
-function appendFinaleFooterEvent(
-  events: string[],
+function collectFinaleFooterDraft(
   params: {
     scene: NormalizedSceneText;
+    sceneIndex: number;
     start: number;
     visibleEnd: number;
     width: number;
@@ -509,10 +568,10 @@ function appendFinaleFooterEvent(
     styleName: string;
     revealStart?: number;
   }
-): void {
+): StoryDialogueDraft | null {
   const finaleFooterRaw = params.scene.finaleFooter.trim();
   if (!finaleFooterRaw) {
-    return;
+    return null;
   }
   const footerFontSize = Math.max(28, Math.round(params.subtitleSize * 0.78));
   const footerY = Math.round(
@@ -528,15 +587,24 @@ function appendFinaleFooterEvent(
     frameHeight: params.height,
   });
   const revealStart = params.revealStart ?? params.start;
-  events.push(
-    `Dialogue: 0,${assTime(revealStart)},${assTime(params.visibleEnd)},${params.styleName},,0,0,0,,${motionTags(footerClamped.clampedX, footerClamped.clampedY, {
-      finaleHold: true,
-    })}${escapeAssText(finaleFooterRaw)}`
-  );
+  return makeDialogueDraft({
+    id: `s${params.sceneIndex}-footer`,
+    kind: "finale_footer",
+    sceneIndex: params.sceneIndex,
+    styleName: params.styleName,
+    assText: escapeAssText(finaleFooterRaw),
+    lines: [finaleFooterRaw],
+    x: footerClamped.clampedX,
+    y: footerClamped.clampedY,
+    alignment: STORY_FOOTER_ASS_ALIGNMENT,
+    fontSize: footerFontSize,
+    start: revealStart,
+    end: params.visibleEnd,
+    motionFinaleHold: true,
+  });
 }
 
-function appendHeroEvents(
-  events: string[],
+function collectHeroDialogueDrafts(
   scene: NormalizedSceneText,
   start: number,
   end: number,
@@ -548,7 +616,8 @@ function appendHeroEvents(
   heroTypography?: AdaptiveTypographyResult | null,
   sceneIndex = 0,
   options?: { visibleEnd?: number; isFinalScene?: boolean }
-): void {
+): StoryDialogueDraft[] {
+  const drafts: StoryDialogueDraft[] = [];
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
   const source = heroSourceText(scene);
@@ -569,7 +638,7 @@ function appendHeroEvents(
 
   const layout = layoutHeroScene(scene);
   if (!layout && !adaptive?.lines.length) {
-    return;
+    return drafts;
   }
 
   const lines = adaptive?.lines.length ? adaptive.lines : layout!.lines;
@@ -632,20 +701,37 @@ function appendHeroEvents(
     const slot = revealSlots[lineIndex] ?? revealSlots[revealSlots.length - 1]!;
     const lineStart = slot.revealStart;
     const lineEnd = slot.visibleEnd;
-    const tags = motionTags(clampedCx, y, {
-      finaleHold,
-      instant: sceneIndex === 0 && lineIndex === 0,
-    });
     const text = heroLineWithAccents(line, accents, theme);
-    events.push(
-      `Dialogue: 0,${assTime(lineStart)},${assTime(lineEnd)},${style},,0,0,0,,${tags}${text}`
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-hero-${lineIndex}`,
+        kind: "hero",
+        sceneIndex,
+        styleName: style,
+        assText: text,
+        lines: [line],
+        x: clampedCx,
+        y,
+        alignment: 5,
+        fontSize: isMain ? mainSize : smallSize,
+        start: lineStart,
+        end: lineEnd,
+        motionFinaleHold: finaleHold,
+        motionInstant: sceneIndex === 0 && lineIndex === 0,
+      })
     );
   });
 
-  if (finaleHold && scene.finaleFooter.trim()) {
+  const finaleChannel = chooseFinaleChannel({
+    heroFinaleText: scene.heroFinaleText,
+    finaleFooter: scene.finaleFooter,
+    template: "hero",
+  });
+  if (finaleHold && finaleChannel === "finale_footer" && scene.finaleFooter.trim()) {
     const sizes = defaultSceneFontSizes(width, height);
-    appendFinaleFooterEvent(events, {
+    const footer = collectFinaleFooterDraft({
       scene,
+      sceneIndex,
       start,
       visibleEnd,
       width,
@@ -653,11 +739,14 @@ function appendHeroEvents(
       subtitleSize: sizes.subtitle,
       styleName: styleNames.finaleFooter,
     });
+    if (footer) {
+      drafts.push(footer);
+    }
   }
+  return drafts;
 }
 
-function appendSequenceEvents(
-  events: string[],
+function collectSequenceDialogueDrafts(
   scene: NormalizedSceneText,
   start: number,
   end: number,
@@ -668,7 +757,8 @@ function appendSequenceEvents(
   safeZone?: SafeZoneInput,
   sceneIndex = 0,
   options?: { visibleEnd?: number; isFinalScene?: boolean }
-): void {
+): StoryDialogueDraft[] {
+  const drafts: StoryDialogueDraft[] = [];
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
   const sequenceEvents = buildSequenceAssEvents({
@@ -687,18 +777,41 @@ function appendSequenceEvents(
     motionTags,
   });
   for (const [evIndex, ev] of sequenceEvents.entries()) {
-    events.push(
-      `Dialogue: 0,${assTime(ev.start)},${assTime(ev.end)},${ev.styleName},,0,0,0,,${motionTags(ev.x, ev.y, {
-        finaleHold,
-        instant: sceneIndex === 0 && evIndex === 0 && ev.start <= start + 0.01,
-      })}${ev.text}`
+    const isFinaleLine = ev.styleName === styleNames.heroMain && scene.heroFinaleText.trim().length > 0;
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-seq-${evIndex}`,
+        kind: isFinaleLine ? "hero_finale" : "sequence_line",
+        sceneIndex,
+        styleName: ev.styleName,
+        assText: ev.text,
+        lines: ev.text.split("\\N").filter(Boolean),
+        x: ev.x,
+        y: ev.y,
+        alignment: 5,
+        fontSize: ev.styleName === styleNames.heroMain ? LEGACY_HERO_SIZE_MAIN : LEGACY_HERO_SIZE_SMALL,
+        start: ev.start,
+        end: ev.end,
+        motionFinaleHold: finaleHold,
+        motionInstant: sceneIndex === 0 && evIndex === 0 && ev.start <= start + 0.01,
+      })
     );
   }
 
-  if (finaleHold && scene.finaleFooter.trim()) {
+  const finaleChannel = chooseFinaleChannel({
+    heroFinaleText: scene.heroFinaleText,
+    finaleFooter: scene.finaleFooter,
+    template: "sequence",
+  });
+  if (
+    finaleHold &&
+    finaleChannel === "both_separate" &&
+    scene.finaleFooter.trim()
+  ) {
     const sizes = defaultSceneFontSizes(width, height);
-    appendFinaleFooterEvent(events, {
+    const footer = collectFinaleFooterDraft({
       scene,
+      sceneIndex,
       start,
       visibleEnd,
       width,
@@ -706,11 +819,14 @@ function appendSequenceEvents(
       subtitleSize: sizes.subtitle,
       styleName: styleNames.finaleFooter,
     });
+    if (footer) {
+      drafts.push(footer);
+    }
   }
+  return drafts;
 }
 
-function appendSceneEvents(
-  events: string[],
+function collectSceneDialogueDrafts(
   scene: NormalizedSceneText,
   start: number,
   end: number,
@@ -732,7 +848,8 @@ function appendSceneEvents(
   _legacySubtitleTypography?: AdaptiveTypographyResult | null,
   sceneIndex = 0,
   options?: { visibleEnd?: number; isFinalScene?: boolean }
-): void {
+): StoryDialogueDraft[] {
+  const drafts: StoryDialogueDraft[] = [];
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
   const finaleFooterRaw = scene.finaleFooter.trim();
@@ -747,7 +864,7 @@ function appendSceneEvents(
     extraLineTexts.length === 0 &&
     !(finaleHold && finaleFooterRaw)
   ) {
-    return;
+    return drafts;
   }
 
   const accentWords = scene.accentWords;
@@ -931,25 +1048,62 @@ function appendSceneEvents(
   if (headlineLines.length > 0) {
     const headlineText = headlineLines.map((l) => escapeAssText(l)).join("\\N");
     const slot = reveal.headline ?? { revealStart: start, visibleEnd };
-    events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.headline},,0,0,0,,${motionTags(headlineX, headlineY, {
-        finaleHold,
-        instant: sceneIndex === 0,
-      })}${headlineText}`
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-headline`,
+        kind: "headline",
+        sceneIndex,
+        styleName: styleNames.headline,
+        assText: headlineText,
+        lines: headlineLines,
+        x: headlineX,
+        y: headlineY,
+        fontSize: headlineFontSize,
+        start: slot.revealStart,
+        end: slot.visibleEnd,
+        motionFinaleHold: finaleHold,
+        motionInstant: sceneIndex === 0,
+      })
     );
   }
   if (titleLines.length > 0) {
     const titleText = titleLines.map((l) => escapeAssText(l)).join("\\N");
     const slot = reveal.title ?? { revealStart: start, visibleEnd };
-    events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.title},,0,0,0,,${motionTags(titleX, titleY, finaleHold)}${titleText}`
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-title`,
+        kind: "title",
+        sceneIndex,
+        styleName: styleNames.title,
+        assText: titleText,
+        lines: titleLines,
+        x: titleX,
+        y: titleY,
+        fontSize: titleSize,
+        start: slot.revealStart,
+        end: slot.visibleEnd,
+        motionFinaleHold: finaleHold,
+      })
     );
   }
   if (subtitleLines.length > 0) {
     const subtitleText = subtitleLines.map((l) => escapeAssText(l)).join("\\N");
     const slot = reveal.subtitle ?? { revealStart: start, visibleEnd };
-    events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleNames.subtitle},,0,0,0,,${motionTags(subtitleX, subtitleY, finaleHold)}${subtitleText}`
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-subtitle`,
+        kind: "subtitle",
+        sceneIndex,
+        styleName: styleNames.subtitle,
+        assText: subtitleText,
+        lines: subtitleLines,
+        x: subtitleX,
+        y: subtitleY,
+        fontSize: subtitleSize,
+        start: slot.revealStart,
+        end: slot.visibleEnd,
+        motionFinaleHold: finaleHold,
+      })
     );
   }
 
@@ -963,14 +1117,37 @@ function appendSceneEvents(
       return;
     }
     const slot = reveal.extraLines?.[index] ?? { revealStart: start, visibleEnd };
-    events.push(
-      `Dialogue: 0,${assTime(slot.revealStart)},${assTime(slot.visibleEnd)},${styleName},,0,0,0,,${motionTags(position.clampedX, position.clampedY, finaleHold)}${escapeAssText(line)}`
+    drafts.push(
+      makeDialogueDraft({
+        id: `s${sceneIndex}-extra-${index}`,
+        kind: "extra",
+        sceneIndex,
+        styleName,
+        assText: escapeAssText(line),
+        lines: [line],
+        x: position.clampedX,
+        y: position.clampedY,
+        fontSize: subtitleSize,
+        start: slot.revealStart,
+        end: slot.visibleEnd,
+        motionFinaleHold: finaleHold,
+      })
     );
   });
 
-  if (finaleHold && finaleFooterRaw) {
-    appendFinaleFooterEvent(events, {
+  const finaleChannel = chooseFinaleChannel({
+    heroFinaleText: scene.heroFinaleText,
+    finaleFooter: scene.finaleFooter,
+    template: "scene",
+  });
+  if (
+    finaleHold &&
+    (finaleChannel === "finale_footer" || finaleChannel === "both_separate") &&
+    finaleFooterRaw
+  ) {
+    const footer = collectFinaleFooterDraft({
       scene,
+      sceneIndex,
       start,
       visibleEnd,
       width,
@@ -984,7 +1161,11 @@ function appendSceneEvents(
         reveal.headline?.revealStart ??
         start,
     });
+    if (footer) {
+      drafts.push(footer);
+    }
   }
+  return drafts;
 }
 
 export type BuildStoryOverlayAssInput = {
@@ -994,6 +1175,11 @@ export type BuildStoryOverlayAssInput = {
   height: number;
   themeByIndex?: Map<number, AdaptiveOverlayTheme | null>;
   safeZoneByIndex?: Map<number, SafeZoneInput>;
+  /** Receives per-scene collision resolution (for debug reports). */
+  onSceneCollision?: (
+    sceneIndex: number,
+    result: FinalizeSceneDialoguesResult
+  ) => void;
 };
 
 function resolveSceneFontSizes(params: {
@@ -1086,7 +1272,8 @@ function resolveSceneFontSizes(params: {
 }
 
 export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
-  const { sceneTexts, durationSeconds, width, height, themeByIndex, safeZoneByIndex } = input;
+  const { sceneTexts, durationSeconds, width, height, themeByIndex, safeZoneByIndex, onSceneCollision } =
+    input;
   const normalized = sceneTexts.map((s) => normalizeSceneText(s));
   const styleLines: string[] = [];
   const events: string[] = [];
@@ -1182,51 +1369,55 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
       heroTypography
     );
     const safeZone = safeZoneByIndex?.get(index) ?? null;
-    if (resolved === "hero") {
-      appendHeroEvents(
-        events,
-        scene,
-        start,
-        end,
-        width,
-        height,
-        names,
-        theme,
-        safeZone,
-        heroTypography,
-        index,
-        { visibleEnd, isFinalScene }
-      );
-    } else if (resolved === "sequence") {
-      appendSequenceEvents(
-        events,
-        scene,
-        start,
-        end,
-        width,
-        height,
-        names,
-        theme,
-        safeZone,
-        index,
-        { visibleEnd, isFinalScene }
-      );
-    } else {
-      appendSceneEvents(
-        events,
-        scene,
-        start,
-        end,
-        width,
-        height,
-        names,
-        safeZone,
-        null,
-        null,
-        index,
-        { visibleEnd, isFinalScene }
-      );
-    }
+    const rawDrafts =
+      resolved === "hero" ?
+        collectHeroDialogueDrafts(
+          scene,
+          start,
+          end,
+          width,
+          height,
+          names,
+          theme,
+          safeZone,
+          heroTypography,
+          index,
+          { visibleEnd, isFinalScene }
+        )
+      : resolved === "sequence" ?
+        collectSequenceDialogueDrafts(
+          scene,
+          start,
+          end,
+          width,
+          height,
+          names,
+          theme,
+          safeZone,
+          index,
+          { visibleEnd, isFinalScene }
+        )
+      : collectSceneDialogueDrafts(
+          scene,
+          start,
+          end,
+          width,
+          height,
+          names,
+          safeZone,
+          null,
+          null,
+          index,
+          { visibleEnd, isFinalScene }
+        );
+
+    const finalized = resolveSceneDialogueCollisions({
+      drafts: rawDrafts,
+      frameWidth: width,
+      frameHeight: height,
+    });
+    onSceneCollision?.(index, finalized);
+    events.push(...finalized.events);
   }
 
   return [...header, ...events].join("\n");
@@ -1312,7 +1503,7 @@ function collectSceneOverlayWindows(
   return windows;
 }
 
-export async function applyStorySceneTextOverlay(params: {
+export type ApplyStorySceneTextOverlayInput = {
   inputVideoPath: string;
   outputVideoPath: string;
   sceneTexts: InstantSceneText[];
@@ -1321,7 +1512,16 @@ export async function applyStorySceneTextOverlay(params: {
   height: number;
   workDir: string;
   adaptiveOverlay?: boolean;
-}): Promise<boolean> {
+  projectId?: string;
+  aspectRatio?: string;
+  sceneIds?: string[];
+  imageMeta?: Array<{ imageId: string; order: number; bakedTextBlocksJson?: unknown }>;
+  projectDetectedTextMetadata?: unknown;
+};
+
+export async function applyStorySceneTextOverlay(
+  params: ApplyStorySceneTextOverlayInput
+): Promise<boolean> {
   const hasCopy = params.sceneTexts.some((s) => hasSceneOverlayContent(s));
   if (!hasCopy) {
     return false;
@@ -1346,12 +1546,21 @@ export async function applyStorySceneTextOverlay(params: {
           themeByIndex.set(index, ctx?.theme ?? null);
           if (ctx?.detection) {
             const sceneForZone = normalized[index] ?? emptyNormalizedSceneText();
+            const imageRow = params.imageMeta?.[index];
+            const ocrAvoid = collectOcrAvoidBoxesForScene({
+              sceneIndex: index,
+              imageId: imageRow?.imageId,
+              imageBakedTextJson: imageRow?.bakedTextBlocksJson,
+              projectDetectedTextMetadata: params.projectDetectedTextMetadata,
+            });
             const sceneSafeZone = buildSceneSafeZoneContext({
               detection: ctx.detection,
               sceneText: sceneTextForSafeZone(sceneForZone),
               width: params.width,
               height: params.height,
               accentWords: sceneForZone.accentWords,
+              extraAvoidBoxes: ocrAvoid,
+              aspectRatio: params.aspectRatio,
             });
             safeZoneByIndex.set(index, sceneSafeZone);
             if (isSafeZoneDebugEnabled()) {
@@ -1373,6 +1582,11 @@ export async function applyStorySceneTextOverlay(params: {
     }
   }
 
+  const collisionByScene = new Map<
+    number,
+    FinalizeSceneDialoguesResult
+  >();
+
   const assContent = buildStoryOverlayAss({
     sceneTexts: params.sceneTexts,
     durationSeconds: params.durationSeconds,
@@ -1380,7 +1594,115 @@ export async function applyStorySceneTextOverlay(params: {
     height: params.height,
     themeByIndex,
     safeZoneByIndex,
+    onSceneCollision: (sceneIndex, result) => {
+      collisionByScene.set(sceneIndex, result);
+    },
   });
+
+  if (isStoryModeDebugEnabled() && params.projectId) {
+    const debugScenes: StorySceneDebugEntry[] = normalized.map((scene, index) => {
+      const resolved = chooseTemplate(scene);
+      const safeZone = safeZoneByIndex?.get(index);
+      const ocrAvoid = collectOcrAvoidBoxesForScene({
+        sceneIndex: index,
+        imageId: params.imageMeta?.[index]?.imageId,
+        imageBakedTextJson: params.imageMeta?.[index]?.bakedTextBlocksJson,
+        projectDetectedTextMetadata: params.projectDetectedTextMetadata,
+      });
+      const failSafe = storyFailSafeAvoidBoxes(params.aspectRatio);
+      const detection =
+        safeZone && "detection" in safeZone ? safeZone.detection.combinedAvoidBoxes : [];
+      return {
+        sceneId: params.sceneIds?.[index],
+        sceneIndex: index,
+        imageId: params.imageMeta?.[index]?.imageId,
+        imageOrder: params.imageMeta?.[index]?.order,
+        resolvedEmotion: resolveSceneEmotionId({
+          emotionMode: scene.emotionMode,
+          emotion: scene.emotion,
+          autoEmotion: scene.autoEmotion,
+          sceneIndex: index,
+          sceneCount: normalized.length,
+          textSignals: {
+            heroText: scene.heroText,
+            title: scene.title,
+            subtitle: scene.subtitle,
+            heroFinaleText: scene.heroFinaleText,
+            finaleFooter: scene.finaleFooter,
+            extraLines: scene.extraLines,
+            lines: scene.lines.map((l) => l.text),
+          },
+        }),
+        emotionMode: scene.emotionMode,
+        actingIntensity: scene.actingIntensity,
+        overlayTemplate: resolved,
+        overlayTextBlocks: buildOverlayTextBlockSummary(scene, resolved),
+        ocrBoxes: [...ocrAvoid, ...failSafe].map((b) => ({
+          x: b.x,
+          y: b.y,
+          width: b.width,
+          height: b.height,
+          label: b.label,
+        })),
+        faceSafeZones: detection
+          .filter((b) => (b.label ?? "").toLowerCase().includes("face"))
+          .map((b) => ({
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+            type: b.label ?? "face",
+          })),
+        objectSafeZones: detection
+          .filter((b) => !["face", "center_head_fail_safe"].includes(b.label ?? ""))
+          .map((b) => ({
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+            label: b.label ?? "object",
+          })),
+        collisionWarnings: collisionByScene.get(index)?.warnings ?? [],
+        overlayPositions: (() => {
+          const collision = collisionByScene.get(index);
+          if (!collision) {
+            return [];
+          }
+          const draftById = new Map(collision.resolvedDrafts.map((d) => [d.id, d]));
+          return collision.actions.map((action) => {
+            const draft = draftById.get(action.id);
+            const placementAction =
+              action.action === "kept" ? "kept"
+              : action.action === "hidden" ? "hidden"
+              : action.action === "resized" ? "resized"
+              : "moved";
+            return {
+              layer: action.kind,
+              x: draft?.x ?? 0,
+              y: draft?.y ?? 0,
+              action: placementAction,
+              reason: `${action.action}:${action.reason}`,
+            };
+          });
+        })(),
+      };
+    });
+    const report: StoryModeDebugReport = {
+      ...createEmptyStoryModeDebugReport({
+        projectId: params.projectId,
+        imageCount: normalized.length,
+        imageOrder:
+          params.imageMeta?.map((row) => ({ imageId: row.imageId, order: row.order })) ?? [],
+      }),
+      scenes: debugScenes,
+      characterContinuityBlock: "",
+      finalViduPrompt: "",
+      finalViduPromptChars: 0,
+    };
+    stashStoryModeDebugReport(params.projectId, report);
+    logStoryModeDebugReport(report);
+  }
+
   await burnStoryTextOverlay({
     inputVideoPath: params.inputVideoPath,
     outputVideoPath: params.outputVideoPath,

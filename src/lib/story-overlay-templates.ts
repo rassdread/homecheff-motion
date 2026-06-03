@@ -1,4 +1,10 @@
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import type { AnimationSceneEmotionId, SceneActingIntensity, SceneEmotionMode } from "@/lib/animation-scene-emotions";
+import {
+  normalizeSceneActingIntensity,
+  normalizeSceneEmotionFields,
+  recommendSceneEmotion,
+} from "@/lib/animation-scene-emotions";
 
 export const SCENE_OVERLAY_TEMPLATES = ["auto", "hero", "scene", "sequence"] as const;
 
@@ -49,6 +55,12 @@ export type InstantSceneText = {
   transitionDurationSeconds?: number;
   /** @deprecated Use transitionDurationSeconds — kept for legacy projects. */
   durationSeconds?: number;
+  /** Per-scene Vidu acting emotion mode and overrides. */
+  emotionMode?: SceneEmotionMode;
+  emotion?: AnimationSceneEmotionId;
+  autoEmotion?: AnimationSceneEmotionId;
+  /** subtle | normal | active | very_active — default active for Story Mode. */
+  actingIntensity?: SceneActingIntensity;
 };
 
 export type NormalizedSequenceLine = {
@@ -71,6 +83,10 @@ export type NormalizedSceneText = {
   transitionDurationSeconds?: StorySceneDurationSeconds;
   /** @deprecated Use transitionDurationSeconds */
   durationSeconds?: StorySceneDurationSeconds;
+  emotionMode: SceneEmotionMode;
+  emotion?: AnimationSceneEmotionId;
+  autoEmotion?: AnimationSceneEmotionId;
+  actingIntensity: SceneActingIntensity;
 };
 
 export type ResolvedSceneTemplate = "hero" | "scene" | "sequence" | "skip";
@@ -260,6 +276,11 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
       normalizeStorySceneDurationSeconds(durationRaw)
     : undefined;
   const durationSeconds = transitionDurationSeconds;
+  const emotionFields = normalizeSceneEmotionFields({
+    emotionMode: scene?.emotionMode,
+    emotion: scene?.emotion,
+    autoEmotion: scene?.autoEmotion,
+  });
 
   return {
     template,
@@ -275,6 +296,8 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
     finaleFooter,
     transitionDurationSeconds,
     durationSeconds,
+    ...emotionFields,
+    actingIntensity: normalizeSceneActingIntensity(scene?.actingIntensity),
   };
 }
 
@@ -502,7 +525,38 @@ export function buildSceneLayeredRevealSlots(
     );
   }
 
+  chainExclusiveLayerVisibility(out, sceneEnd);
+
   return out;
+}
+
+/** Earlier layers hide when the next layer appears (reduces stacked overlap). */
+function chainExclusiveLayerVisibility(slots: SceneLayeredRevealSlots, sceneEnd: number): void {
+  const chain: StagedRevealSlot[] = [];
+  if (slots.headline) {
+    chain.push(slots.headline);
+  }
+  if (slots.title) {
+    chain.push(slots.title);
+  }
+  if (slots.subtitle) {
+    chain.push(slots.subtitle);
+  }
+  if (slots.extraLines?.length) {
+    chain.push(...slots.extraLines);
+  }
+  for (let i = 0; i < chain.length - 1; i += 1) {
+    const current = chain[i]!;
+    const next = chain[i + 1]!;
+    current.visibleEnd = Math.min(current.visibleEnd, next.revealStart);
+  }
+  if (slots.finaleFooter) {
+    const last = chain[chain.length - 1];
+    slots.finaleFooter.visibleEnd = sceneEnd;
+    if (last) {
+      last.visibleEnd = Math.min(last.visibleEnd, slots.finaleFooter.revealStart);
+    }
+  }
 }
 
 /** @deprecated Use buildSceneLayeredRevealSlots */

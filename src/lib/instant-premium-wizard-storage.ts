@@ -52,6 +52,10 @@ export type PersistedSceneTextDraft = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  emotionMode?: string;
+  emotion?: string;
+  autoEmotion?: string;
+  actingIntensity?: string;
 };
 
 /** Decoupled scene slot — text + optional image metadata. */

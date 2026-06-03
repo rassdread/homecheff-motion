@@ -107,7 +107,9 @@ describe("story-overlay-templates", () => {
     assert.ok(slots.title);
     assert.ok(slots.subtitle);
     assert.equal(slots.headline!.revealStart, 0.15);
-    assert.equal(slots.headline!.visibleEnd, 4.85);
+    assert.equal(slots.headline!.visibleEnd, slots.title!.revealStart);
+    assert.equal(slots.title!.visibleEnd, slots.subtitle!.revealStart);
+    assert.equal(slots.subtitle!.visibleEnd, 4.85);
     assert.equal(slots.title!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC);
     assert.equal(slots.subtitle!.revealStart, 0.15 + STAGED_REVEAL_STEP_SEC * 2);
     assert.equal(slots.subtitle!.visibleEnd, 4.85);

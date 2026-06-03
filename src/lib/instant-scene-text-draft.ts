@@ -3,6 +3,7 @@ import {
   MAX_EXTRA_LINES,
   type InstantSceneText,
 } from "@/lib/story-overlay-templates";
+import { resolveSceneEmotionId } from "@/lib/animation-scene-emotions";
 
 /** Serialize wizard / language-editor draft row to API sceneTexts payload. */
 export function instantSceneTextFromDraft(
@@ -14,6 +15,23 @@ export function instantSceneTextFromDraft(
   const transitionSeconds = scene.transitionDurationSeconds ?? scene.durationSeconds;
   const extraLines = scene.extraLines.map((line) => line.trim()).filter(Boolean).slice(0, MAX_EXTRA_LINES);
   const lines = scene.lines.map((line) => line.trim()).filter(Boolean);
+  const resolvedEmotion = resolveSceneEmotionId({
+    emotionMode: scene.emotionMode,
+    emotion: scene.emotion,
+    autoEmotion: scene.autoEmotion,
+    sceneIndex: index,
+    sceneCount: totalCount,
+    textSignals: {
+      heroText: scene.heroText,
+      title: scene.title,
+      subtitle: scene.subtitle,
+      heroFinaleText: scene.heroFinaleText,
+      finaleFooter: scene.finaleFooter,
+      extraLines: scene.extraLines,
+      lines: scene.lines,
+    },
+  });
+
   return {
     template: scene.template,
     ...(isLast ?
@@ -38,6 +56,10 @@ export function instantSceneTextFromDraft(
       : undefined,
     finaleFooter:
       isLast && scene.finaleFooter.trim() ? scene.finaleFooter.trim() : undefined,
+    emotionMode: scene.emotionMode,
+    emotion: scene.emotionMode === "manual" ? scene.emotion : undefined,
+    autoEmotion: scene.emotionMode === "auto" ? (scene.autoEmotion ?? resolvedEmotion) : undefined,
+    actingIntensity: scene.actingIntensity,
   };
 }
 

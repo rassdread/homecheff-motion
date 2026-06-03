@@ -6,6 +6,12 @@ import { boxOverlapFraction, zoneBoundsNormalized } from "@/server/animation-exp
 import type { SceneDetectionContext } from "@/server/animation-export/local-vision/scene-detection-context";
 import type { AvoidBox, MediaPipeDetection } from "@/server/animation-export/local-vision/types";
 import {
+  applyAvoidBoxPenaltiesToZones,
+  mergeStoryAvoidBoxes,
+  rejectUnsafeCenterForHero,
+  storyFailSafeAvoidBoxes,
+} from "@/server/animation-export/story-overlay-avoid-zones";
+import {
   isAnyLocalDetectionEnabled,
   isObjectSafeZonesEnabled,
 } from "@/server/animation-export/local-vision/feature-flags";
@@ -215,9 +221,26 @@ export function buildSceneSafeZoneContext(params: {
   width: number;
   height: number;
   accentWords?: string[];
+  extraAvoidBoxes?: AvoidBox[];
+  aspectRatio?: string;
 }): SceneSafeZoneContext {
-  const { detection, sceneText, width, height, accentWords } = params;
-  const v1 = detection.safeZoneV1;
+  const { sceneText, width, height, accentWords, aspectRatio } = params;
+  const mergedDetection: SceneDetectionContext = {
+    ...params.detection,
+    combinedAvoidBoxes: mergeStoryAvoidBoxes(
+      params.detection.combinedAvoidBoxes,
+      params.extraAvoidBoxes ?? [],
+      storyFailSafeAvoidBoxes(aspectRatio)
+    ),
+  };
+  const detection = mergedDetection;
+  let v1 = detection.safeZoneV1;
+  if (detection.combinedAvoidBoxes.length > 0) {
+    v1 = {
+      ...v1,
+      zones: applyAvoidBoxPenaltiesToZones(v1.zones, detection.combinedAvoidBoxes),
+    };
+  }
   const intent = inferSceneIntent(sceneText);
 
   if (!isAnyLocalDetectionEnabled() && detection.combinedAvoidBoxes.length === 0) {
@@ -255,7 +278,30 @@ export function buildSceneSafeZoneContext(params: {
     height,
     accentWords,
   });
-  const placements = applyStoryReadingFlowToPlacements(rawPlacements);
+  let placements = applyStoryReadingFlowToPlacements(rawPlacements);
+  if (aspectRatio === "9:16" || aspectRatio === "9/16") {
+    const heroZone = rejectUnsafeCenterForHero(
+      placements.hero.zoneId,
+      detection.combinedAvoidBoxes,
+      aspectRatio
+    );
+    if (heroZone !== placements.hero.zoneId) {
+      const zone = (fallbackReason ? v1 : enhanced).zones.find((z) => z.zoneId === heroZone);
+      const repl = placementForZone(heroZone, zone?.score ?? placements.hero.zoneScore, width, height);
+      placements = {
+        ...placements,
+        hero: {
+          ...placements.hero,
+          zoneId: repl.zoneId,
+          anchorX: repl.anchorX,
+          anchorY: repl.anchorY,
+          textWidthFraction: repl.textWidthFraction,
+          zoneScore: repl.zoneScore,
+          placementReason: "reject_unsafe_center_hero_9_16",
+        },
+      };
+    }
+  }
 
   return {
     v1,

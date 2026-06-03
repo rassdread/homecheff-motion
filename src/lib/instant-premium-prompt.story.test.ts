@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildInstantStoryModePrompt } from "@/lib/instant-premium-prompt";
+import {
+  buildInstantStoryModePrompt,
+  buildInstantStoryModePromptDetailed,
+} from "@/lib/instant-premium-prompt";
 import { buildInstantVideoPrompt } from "@/lib/instant-premium-prompt";
 
 describe("buildInstantStoryModePrompt", () => {
@@ -91,6 +94,41 @@ describe("buildInstantStoryModePrompt", () => {
     const prompt = buildInstantStoryModePrompt(baseInput);
     assert.match(prompt, /FFmpeg overlay copy added after generation/i);
     assert.match(prompt, /never render them inside the Vidu video/i);
+  });
+
+  it("includes strict character continuity and omits subtle-only when acting is active", () => {
+    const detailed = buildInstantStoryModePromptDetailed({
+      ...baseInput,
+      imageCount: 3,
+      aspectRatio: "9:16",
+      sceneTexts: [
+        {
+          template: "hero",
+          heroText: "START",
+          emotionMode: "auto",
+          actingIntensity: "active",
+        },
+        {
+          template: "scene",
+          title: "BUILD",
+          subtitle: "grow and create",
+          emotionMode: "manual",
+          emotion: "motivated",
+          actingIntensity: "active",
+        },
+        {
+          template: "scene",
+          title: "TOGETHER",
+          subtitle: "community movement finale",
+          emotionMode: "auto",
+          actingIntensity: "very_active",
+        },
+      ],
+    });
+    assert.match(detailed.characterContinuityBlock, /STRICT CHARACTER CONTINUITY/i);
+    assert.match(detailed.prompt, /Never transform Chef into Garden/i);
+    assert.doesNotMatch(detailed.prompt, /subtle motion only/i);
+    assert.match(detailed.prompt, /clearly visible on mobile/i);
   });
 });
 

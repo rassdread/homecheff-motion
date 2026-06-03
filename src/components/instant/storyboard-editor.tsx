@@ -10,6 +10,13 @@ import {
   splitSubtitleMultilineInput,
   type SceneOverlayTemplate,
 } from "@/lib/story-overlay-templates";
+import {
+  ANIMATION_SCENE_EMOTION_IDS,
+  SCENE_ACTING_INTENSITIES,
+  recommendSceneEmotion,
+  type AnimationSceneEmotionId,
+  type SceneActingIntensity,
+} from "@/lib/animation-scene-emotions";
 import { useActiveTranslator } from "@/i18n/client";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
@@ -128,6 +135,18 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
     [index, onSceneChange]
   );
 
+  const resolvedAutoEmotion = recommendSceneEmotion({
+    ...scene,
+    sceneIndex: index,
+    sceneCount: frameCount,
+  });
+  const resolvedEmotion =
+    scene.emotionMode === "manual" && scene.emotion
+      ? scene.emotion
+      : (scene.autoEmotion ?? resolvedAutoEmotion);
+  const selectValue =
+    scene.emotionMode === "manual" && scene.emotion ? scene.emotion : "auto";
+
   return (
     <div
       data-scene-id={sceneId}
@@ -229,6 +248,67 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
               {TEMPLATE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
                   {t(`instant.overlay.template.${opt}` as never)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-xs text-zinc-500">
+            <StoryboardFieldHint
+              label={t("instant.storyboard.emotionLabel")}
+              hint={t("instant.storyboard.emotionHint")}
+            />
+            {scene.emotionMode !== "manual" ?
+              <p className="mt-1 text-[11px] font-medium text-emerald-800">
+                {t("instant.storyboard.emotion.autoSelected", {
+                  emotion: t(`instant.storyboard.emotion.${resolvedEmotion}` as never),
+                })}
+              </p>
+            : null}
+            <select
+              value={selectValue}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "auto") {
+                  patch({
+                    emotionMode: "auto",
+                    autoEmotion: resolvedAutoEmotion,
+                    emotion: undefined,
+                  });
+                  return;
+                }
+                patch({
+                  emotionMode: "manual",
+                  emotion: value as AnimationSceneEmotionId,
+                });
+              }}
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
+            >
+              <option value="auto">{t("instant.storyboard.emotion.auto")}</option>
+              {ANIMATION_SCENE_EMOTION_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {t(`instant.storyboard.emotion.${id}` as never)}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-zinc-500">{t("instant.storyboard.emotion.autoHelper")}</p>
+          </label>
+
+          <label className="block text-xs text-zinc-500">
+            <StoryboardFieldHint
+              label={t("instant.storyboard.actingIntensityLabel")}
+              hint={t("instant.storyboard.actingIntensityHint")}
+            />
+            <select
+              value={scene.actingIntensity}
+              onChange={(e) =>
+                patch({ actingIntensity: e.target.value as SceneActingIntensity })
+              }
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900"
+            >
+              {SCENE_ACTING_INTENSITIES.map((id) => (
+                <option key={id} value={id}>
+                  {t(`instant.storyboard.actingIntensity.${id}` as never)}
                 </option>
               ))}
             </select>
