@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
   isFullRerenderInProgress,
-  markFullRerenderAuditFailed,
-  mergeFullRerenderAudit,
   type FullRerenderAuditEntry,
   type FullRerenderSource,
   type FullRerenderTransitionArchive,
@@ -15,6 +13,12 @@ import { persistInstantSceneTextsForProject } from "@/server/instant-premium/per
 import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
 import { isInstantVideoRepairInProgress } from "@/server/instant-premium/start-instant-video-repair";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
+import {
+  createPendingFullRerenderVersion,
+  handleFullRerenderFailure,
+  mergeAuditWithPendingFullRerender,
+  sealDefaultRenderVersion,
+} from "@/server/instant-premium/render-version-service";
 import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
 import {
   buildStudioRenderAuditMetadata,
@@ -102,7 +106,7 @@ function instantPremiumProgressRoute(projectId: string): string {
 
 /**
  * Full Vidu re-generation from existing project images — no re-upload.
- * MVP: archives prior final/segment URLs in audit JSON; does not use ProjectRenderVersion.
+ * Seals the current final into ProjectRenderVersion, then starts a pending version row.
  */
 export async function fullRerenderInstantPremiumProject(params: {
   projectId: string;
@@ -255,6 +259,28 @@ export async function fullRerenderInstantPremiumProject(params: {
     newProviderJobsCreated: true,
   };
 
+  await sealDefaultRenderVersion({
+    project: refreshed,
+    finalVideoUrl: previousFinalVideoUrl,
+    cleanVideoUrl: previousCleanFinalVideoUrl,
+    exportId: latestExport?.id ?? null,
+  });
+
+  const pendingVersion = await createPendingFullRerenderVersion({
+    project: refreshed,
+    versionNote: versionNote?.trim() || null,
+  });
+
+  const auditJson = mergeAuditWithPendingFullRerender(
+    refreshed.instantFinalRebuildAuditJson,
+    auditEntry,
+    {
+      renderVersionId: pendingVersion.id,
+      renderVersionNumber: pendingVersion.renderVersionNumber,
+      startedAt,
+    }
+  );
+
   await prisma.$transaction([
     ...refreshed.transitions.map((transition) =>
       prisma.animationTransition.update({
@@ -278,10 +304,7 @@ export async function fullRerenderInstantPremiumProject(params: {
         instantWorkerJobStatus: "queued",
         instantWorkerJobStartedAt: startedAt,
         instantPreviousFinalVideoUrl: previousFinalVideoUrl,
-        instantFinalRebuildAuditJson: mergeFullRerenderAudit(
-          refreshed.instantFinalRebuildAuditJson,
-          auditEntry
-        ) as object,
+        instantFinalRebuildAuditJson: auditJson as object,
       },
     }),
     ...(latestExport
@@ -314,6 +337,7 @@ export async function fullRerenderInstantPremiumProject(params: {
     projectId,
     segmentCount: refreshed.transitions.length,
     previousFinalVideoUrl,
+    pendingRenderVersionNumber: pendingVersion.renderVersionNumber,
     archivedTransitionCount: previousTransitions.filter((t) => t.outputVideoUrl).length,
   });
 
@@ -346,22 +370,10 @@ export async function fullRerenderInstantPremiumProjectWithStatus(params: {
   return { fullRerender, status };
 }
 
-/** Clears running full-rerender audit when generation or merge fails terminally. */
+/** Clears running full-rerender audit and restores last playable version when possible. */
 export async function markFullRerenderFailedIfRunning(
   projectId: string,
   message?: string
 ): Promise<boolean> {
-  const project = await prisma.animationProject.findUnique({
-    where: { id: projectId },
-    select: { instantFinalRebuildAuditJson: true },
-  });
-  const nextAudit = markFullRerenderAuditFailed(project?.instantFinalRebuildAuditJson, message);
-  if (!nextAudit) {
-    return false;
-  }
-  await prisma.animationProject.update({
-    where: { id: projectId },
-    data: { instantFinalRebuildAuditJson: nextAudit as object },
-  });
-  return true;
+  return handleFullRerenderFailure(projectId, message);
 }

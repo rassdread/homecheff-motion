@@ -36,10 +36,23 @@ describe("gallery completed where", () => {
     );
   });
 
-  it("buildCompletedGalleryWhere adds OR for export or archived previous", () => {
+  it("includes completed render version rows in gallery filter", () => {
+    assert.equal(
+      projectMatchesCompletedGalleryFilter({
+        exports: [{ outputVideoUrl: null }],
+        instantPreviousFinalVideoUrl: null,
+        renderVersions: [
+          { status: "completed", finalVideoUrl: "https://blob.example/v1.mp4" },
+        ],
+      }),
+      true
+    );
+  });
+
+  it("buildCompletedGalleryWhere adds OR for export, archived previous, or render versions", () => {
     const where = buildCompletedGalleryWhere({ ownerId: "user-1" });
     assert.equal(where.ownerId, "user-1");
     assert.ok(Array.isArray(where.OR));
-    assert.equal(where.OR?.length, 2);
+    assert.equal(where.OR?.length, 3);
   });
 });

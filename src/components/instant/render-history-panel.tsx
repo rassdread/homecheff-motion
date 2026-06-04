@@ -7,9 +7,10 @@ import type { ProjectRenderVersionSummary } from "@/types/animation-api";
 type Props = {
   versions: ProjectRenderVersionSummary[];
   projectId: string;
+  onRestored?: () => void;
 };
 
-export function RenderHistoryPanel({ versions, projectId }: Props) {
+export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const dateLocale = locale === "nl" ? "nl-NL" : "en-US";
@@ -17,6 +18,8 @@ export function RenderHistoryPanel({ versions, projectId }: Props) {
   const [compareB, setCompareB] = useState<string>("");
   const [diffLines, setDiffLines] = useState<Array<{ field: string; before: string; after: string }>>([]);
   const [diffBusy, setDiffBusy] = useState(false);
+  const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null);
+  const [restoreFeedback, setRestoreFeedback] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...versions].sort((a, b) => b.renderVersionNumber - a.renderVersionNumber),
@@ -41,6 +44,11 @@ export function RenderHistoryPanel({ versions, projectId }: Props) {
     }
   };
 
+  const kindLabel = (kind: ProjectRenderVersionSummary["kind"]) =>
+    kind === "full_rerender"
+      ? t("projectDetail.renderHistory.kindFullRerender")
+      : t("projectDetail.renderHistory.kindInitial");
+
   const loadDiff = async () => {
     if (!compareA || !compareB || compareA === compareB) {
       return;
@@ -58,38 +66,96 @@ export function RenderHistoryPanel({ versions, projectId }: Props) {
     }
   };
 
+  const restoreVersion = async (versionId: string) => {
+    setRestoreBusyId(versionId);
+    setRestoreFeedback(null);
+    try {
+      const res = await fetch(
+        `/api/instant-premium/projects/${encodeURIComponent(projectId)}/render-versions/${encodeURIComponent(versionId)}/restore`,
+        { method: "POST", credentials: "same-origin" }
+      );
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setRestoreFeedback(json.error ?? t("projectDetail.renderHistory.restoreFailed"));
+        return;
+      }
+      setRestoreFeedback(t("projectDetail.renderHistory.restoreDone"));
+      onRestored?.();
+    } catch {
+      setRestoreFeedback(t("projectDetail.renderHistory.restoreFailed"));
+    } finally {
+      setRestoreBusyId(null);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
       <h2 className="text-base font-semibold text-zinc-900">{t("projectDetail.renderHistory.title")}</h2>
       <p className="mt-1 text-sm text-zinc-600">{t("projectDetail.renderHistory.hint")}</p>
 
+      {restoreFeedback ? (
+        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">{restoreFeedback}</p>
+      ) : null}
+
       <ul className="mt-4 space-y-2">
-        {sorted.map((row) => (
-          <li
-            key={row.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2"
-          >
-            <div>
-              <p className="text-sm font-semibold text-zinc-900">
-                {t("projectDetail.renderHistory.versionLabel", {
-                  number: String(row.renderVersionNumber),
-                })}
-                {row.isDefault ? (
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
-                    {t("projectDetail.renderHistory.current")}
-                  </span>
+        {sorted.map((row) => {
+          const finalUrl = row.finalVideoUrl?.trim() || null;
+          const canRestore = row.status === "completed" && Boolean(finalUrl) && !row.isDefault;
+
+          return (
+            <li
+              key={row.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-zinc-900">
+                  {t("projectDetail.renderHistory.versionLabel", {
+                    number: String(row.renderVersionNumber),
+                  })}
+                  {row.isDefault ? (
+                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                      {t("projectDetail.renderHistory.current")}
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {kindLabel(row.kind)} · {t("projectDetail.renderHistory.created")}:{" "}
+                  {formatDate(row.completedAt ?? row.createdAt)}
+                </p>
+                {row.versionNote ? (
+                  <p className="mt-0.5 text-xs text-zinc-600">{row.versionNote}</p>
                 ) : null}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {t("projectDetail.renderHistory.created")}: {formatDate(row.createdAt)}
-              </p>
-              {row.versionNote ? (
-                <p className="mt-0.5 text-xs text-zinc-600">{row.versionNote}</p>
-              ) : null}
-            </div>
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">{row.status}</span>
-          </li>
-        ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  {row.status}
+                </span>
+                {finalUrl ? (
+                  <a
+                    href={finalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+                  >
+                    {t("projectDetail.renderHistory.preview")}
+                  </a>
+                ) : null}
+                {canRestore ? (
+                  <button
+                    type="button"
+                    disabled={restoreBusyId === row.id}
+                    onClick={() => void restoreVersion(row.id)}
+                    className="rounded-lg border border-[#0067B1]/30 bg-[#0067B1]/10 px-2.5 py-1 text-xs font-medium text-[#0067B1] hover:bg-[#0067B1]/15 disabled:opacity-50"
+                  >
+                    {restoreBusyId === row.id
+                      ? "…"
+                      : t("projectDetail.renderHistory.restore")}
+                  </button>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {sorted.length >= 2 ? (

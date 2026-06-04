@@ -31,10 +31,12 @@ describe("full rerender project", () => {
     assert.match(src, /no images to rerender/i);
   });
 
-  it("does not depend on ProjectRenderVersion table", () => {
+  it("wires ProjectRenderVersion seal and pending row at start", () => {
     const src = readFileSync(join(__dirname, "full-rerender-project.ts"), "utf8");
-    assert.doesNotMatch(src, /render-version-service/);
-    assert.doesNotMatch(src, /createPendingFullRerenderVersion/);
+    assert.match(src, /sealDefaultRenderVersion/);
+    assert.match(src, /createPendingFullRerenderVersion/);
+    assert.match(src, /mergeAuditWithPendingFullRerender/);
+    assert.match(src, /pendingRenderVersionNumber/);
   });
 
   it("persists provided sceneTexts before rerender", () => {

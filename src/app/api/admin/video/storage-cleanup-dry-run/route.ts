@@ -67,6 +67,11 @@ export async function POST() {
 
     const dryRun = selectCleanupDryRunCandidates({
       assets: audit.assets,
+      versionHistory: {
+        instantPreviousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+        instantFinalRebuildAuditJson: project.instantFinalRebuildAuditJson,
+        renderVersions: project.renderVersions,
+      },
       languageVersions: catalog.all
         .filter((item) => item.kind === "language")
         .map((item) => ({

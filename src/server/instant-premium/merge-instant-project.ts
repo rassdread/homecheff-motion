@@ -106,6 +106,10 @@ import {
   markInstantPremiumFinalRebuildFailed,
 } from "@/server/instant-premium/final-video-export-commit";
 import { markFullRerenderFailedIfRunning } from "@/server/instant-premium/full-rerender-project";
+import {
+  readPendingFullRerender,
+  resolveFinalBlobVersionForUpload,
+} from "@/server/instant-premium/render-version-service";
 import { replaceFinalVideoBlobSafely } from "@/server/instant-premium/replace-final-video-blob";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
@@ -951,11 +955,14 @@ export async function executeInstantPremiumMerge(
         }
       }
 
-      const cleanRebuildVersion =
-        project.instantFinalRebuildStatus === "running" ?
-          project.instantFinalRebuildCount + 1
-        : 0;
-      await persistCleanFinalVideoUrl(projectId, mergedPath, cleanRebuildVersion);
+      const pendingRender = readPendingFullRerender(project.instantFinalRebuildAuditJson);
+      const isTextRebuild = project.instantFinalRebuildStatus === "running";
+      const finalBlobVersion = resolveFinalBlobVersionForUpload({
+        pendingRenderVersionNumber: pendingRender?.renderVersionNumber ?? null,
+        isMergeOnlyTextRebuild: isTextRebuild,
+        nextTextRebuildCount: project.instantFinalRebuildCount + 1,
+      });
+      await persistCleanFinalVideoUrl(projectId, mergedPath, finalBlobVersion);
 
       const storyMode = parseInstantMode(project.instantMode) === "story";
       const storySceneTexts = parseInstantSceneTexts(project.instantSceneTexts);
@@ -1137,14 +1144,14 @@ export async function executeInstantPremiumMerge(
         data: { progress: 85, status: "rendering" },
       });
       setFinalExportStage(projectId, "upload", { exportId: exportRow.id });
-      const isRebuild = project.instantFinalRebuildStatus === "running";
+      const isRebuild = isTextRebuild;
       const nextRebuildCount = isRebuild ? project.instantFinalRebuildCount + 1 : 0;
       const previousFinalUrl =
         project.instantPreviousFinalVideoUrl?.trim() ??
         latestExport?.outputVideoUrl?.trim() ??
         null;
       const finalUrl = await uploadMergedVideoToBlob(projectId, mergedPath, {
-        rebuildVersion: nextRebuildCount,
+        rebuildVersion: finalBlobVersion,
         previousFinalUrl,
       });
       await commitInstantPremiumFinalVideoExport({

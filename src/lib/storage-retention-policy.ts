@@ -2,6 +2,10 @@
  * Storage retention policy — constants and dry-run cleanup selection (no deletes).
  */
 
+import {
+  isVideoUrlReferencedByVersionHistory,
+  type VersionHistoryUrlSource,
+} from "@/lib/video-version-retention";
 import type { ProjectStorageAsset } from "@/types/storage-audit";
 
 export const STORAGE_RETENTION_POLICY = {
@@ -43,6 +47,7 @@ export type CleanupDryRunResult = {
 export function selectCleanupDryRunCandidates(params: {
   assets: ProjectStorageAsset[];
   nowMs?: number;
+  versionHistory?: VersionHistoryUrlSource;
   languageVersions?: Array<{
     languageCode: string;
     version: number;
@@ -50,13 +55,22 @@ export function selectCleanupDryRunCandidates(params: {
     url: string | null;
   }>;
 }): CleanupDryRunResult {
+  const versionHistory = params.versionHistory;
   const now = params.nowMs ?? Date.now();
   const failedCutoff = now - STORAGE_RETENTION_POLICY.failedOutputRetentionDays * 86_400_000;
   const segmentCutoff = now - STORAGE_RETENTION_POLICY.orphanSegmentRetentionDays * 86_400_000;
   const candidates: CleanupDryRunCandidate[] = [];
 
   for (const asset of params.assets) {
-    if (asset.kind === "original" || asset.kind === "clean") {
+    if (asset.kind === "original" || asset.kind === "clean" || asset.kind === "previous_final") {
+      continue;
+    }
+
+    if (
+      versionHistory &&
+      asset.url &&
+      isVideoUrlReferencedByVersionHistory(asset.url, versionHistory)
+    ) {
       continue;
     }
 

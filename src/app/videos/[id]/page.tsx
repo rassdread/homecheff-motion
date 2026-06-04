@@ -887,7 +887,11 @@ export default function VideoDetailPage() {
           {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
 
           {instantLikeProject && (detail.renderVersions?.length ?? 0) > 0 ?
-            <RenderHistoryPanel versions={detail.renderVersions ?? []} projectId={id} />
+            <RenderHistoryPanel
+              versions={detail.renderVersions ?? []}
+              projectId={id}
+              onRestored={() => void load()}
+            />
           : null}
 
           {instantLikeProject && hasCompletedInstantFinal ? (

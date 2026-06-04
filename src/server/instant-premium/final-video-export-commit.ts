@@ -19,8 +19,13 @@ import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/langua
 import {
   completePendingFullRerenderVersion,
   ensureInitialRenderVersion,
+  loadVersionHistoryUrlSource,
   readPendingFullRerender,
 } from "@/server/instant-premium/render-version-service";
+import {
+  collectVersionHistoryVideoUrls,
+  isVideoUrlReferencedByVersionHistory,
+} from "@/lib/video-version-retention";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-language-text-layers";
 import {
@@ -199,7 +204,18 @@ export async function commitInstantPremiumFinalVideoExport(params: {
       status: "completed",
     };
     logFinalVideoRebuildAudit(auditEvent);
-    scheduleDeleteOldFinalBlob(previousFinalUrl);
+    const versionHistory = await loadVersionHistoryUrlSource(projectId);
+    if (!isVideoUrlReferencedByVersionHistory(previousFinalUrl, versionHistory)) {
+      scheduleDeleteOldFinalBlob(previousFinalUrl);
+    } else {
+      console.info("[final-video-blob-cleanup]", {
+        projectId,
+        skipped: true,
+        reason: "referenced_by_render_version_history",
+        oldUrl: previousFinalUrl,
+        retainedUrls: collectVersionHistoryVideoUrls(versionHistory).length,
+      });
+    }
   }
 
   try {
