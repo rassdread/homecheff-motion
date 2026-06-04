@@ -149,6 +149,12 @@ export type PersistedWizardState = {
     importedAt: string;
     /** V18: Studio continuity / character QA snapshot (read-only). */
     intelligence?: import("@/types/motion-studio-intelligence").MotionStudioIntelligenceSnapshot;
+    /** V30: execution readiness from handoff v11. */
+    executionReadiness?: import("@/types/studio-scene-execution").StudioExecutionReadiness;
+    executionWarnings?: import("@/types/studio-scene-execution").StudioExecutionWarning[];
+    executionPackage?: import("@/types/studio-scene-execution").StudioStoryExecutionPackage;
+    /** Sanitized handoff persisted for project create (includes execution prompts). */
+    storedHandoff?: Record<string, unknown>;
   };
 };
 

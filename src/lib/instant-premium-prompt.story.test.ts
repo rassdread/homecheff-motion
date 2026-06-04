@@ -132,6 +132,16 @@ describe("buildInstantStoryModePrompt", () => {
     assert.match(detailed.prompt, /clearly visible on mobile/i);
   });
 
+  it("injects Studio execution prompts into scene lines when provided", () => {
+    const detailed = buildInstantStoryModePromptDetailed({
+      ...baseInput,
+      imageCount: 1,
+      studioExecutionPrompts: ["Close-up framing. Maintain Chef mascot with chef hat."],
+    });
+    assert.match(detailed.prompt, /Studio execution/i);
+    assert.match(detailed.prompt, /Chef mascot/i);
+  });
+
   it("budgeted prompt places strict continuity block before narrative scene text", () => {
     const detailed = buildInstantStoryModePromptDetailed({
       userIntent: "Chef promo",

@@ -36,6 +36,27 @@ export function MotionImportSummaryBanner({
               consistency: String(intelligence.overallConsistencyScore ?? "—"),
             })}
           </p>
+          <p className="mt-2 text-xs text-zinc-700">
+            {t("motion.qa.importSummary.execution", {
+              world: intelligence.worldName ?? "—",
+              director: intelligence.promptStyleProfile ?? "—",
+              characters: String(intelligence.charactersUsed.length),
+              locations: String(intelligence.locationsUsed.length),
+              props: String(intelligence.propsUsed.length),
+              readiness:
+                intelligence.executionReadiness ?
+                  `${intelligence.executionReadiness.score} (${intelligence.executionReadiness.tier})`
+                : intelligence.legacyHandoff ? t("motion.qa.importSummary.executionLegacy")
+                : "—",
+            })}
+          </p>
+          {(intelligence.executionWarningCount ?? 0) > 0 ?
+            <p className="mt-1 text-xs text-amber-800">
+              {t("motion.qa.importSummary.executionWarnings", {
+                count: String(intelligence.executionWarningCount),
+              })}
+            </p>
+          : null}
           {intelligence.partialData || intelligence.legacyHandoff ?
             <p className="mt-1 text-xs text-amber-800">{t("motion.qa.importSummary.partial")}</p>
           : null}

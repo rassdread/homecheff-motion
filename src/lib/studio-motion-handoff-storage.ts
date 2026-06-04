@@ -11,6 +11,8 @@ const STRIP_SCENE_KEYS = new Set([
   "description",
 ]);
 
+const EXECUTION_PROMPT_MAX_STORE = 2400;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -50,10 +52,33 @@ function stripLargeStrings(value: unknown, depth = 0): unknown {
   return out;
 }
 
+function truncateExecutionString(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length <= EXECUTION_PROMPT_MAX_STORE) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, EXECUTION_PROMPT_MAX_STORE - 3)}...`;
+}
+
 function sanitizeScene(scene: Record<string, unknown>): Record<string, unknown> {
   const copy: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(scene)) {
     if (STRIP_SCENE_KEYS.has(key)) {
+      continue;
+    }
+    if (key === "executionPrompt") {
+      copy[key] = truncateExecutionString(value);
+      continue;
+    }
+    if (key === "sceneExecutionPackage" && isPlainObject(value)) {
+      const pkg = { ...value };
+      if (typeof pkg.prompt === "string") {
+        pkg.prompt = truncateExecutionString(pkg.prompt);
+      }
+      copy[key] = stripLargeStrings(pkg);
       continue;
     }
     copy[key] = stripLargeStrings(value);
@@ -92,6 +117,10 @@ export function sanitizeMotionHandoffForStorage(
     locationMemory: raw.locationMemory,
     propMemory: raw.propMemory,
     worldMemory: raw.worldMemory,
+    directorProfile: raw.directorProfile,
+    executionPackage: raw.executionPackage,
+    executionReadiness: raw.executionReadiness,
+    executionWarnings: raw.executionWarnings,
     scenes: scenes.map((scene) =>
       isPlainObject(scene) ? sanitizeScene(scene) : scene
     ),

@@ -1056,6 +1056,19 @@ export const en: LocaleSchema = {
   "motion.qa.importSummary.partial":
     "Some Studio QA metadata is missing (older handoff). Refresh from Studio for full character consistency.",
   "motion.qa.importSummary.openStoryboard": "Open storyboard",
+  "motion.qa.importSummary.execution":
+    "Execution · World {world} · Director {director} · Characters {characters} · Locations {locations} · Props {props} · Readiness {readiness}",
+  "motion.qa.importSummary.executionLegacy": "legacy (refresh from Studio for V11 execution)",
+  "motion.qa.importSummary.executionWarnings":
+    "{count} execution continuity warning(s) — review before render.",
+  "motion.execution.preview.title": "Execution preview — {scene}",
+  "motion.execution.preview.generatedPrompt": "Generated prompt",
+  "motion.execution.preview.director": "Director instructions",
+  "motion.execution.preview.characters": "Character rules",
+  "motion.execution.preview.world": "World rules",
+  "motion.execution.preview.continuity": "Continuity rules",
+  "motion.execution.preview.aiDirector": "AI director notes",
+  "motion.execution.preview.finalPrompt": "Final execution prompt",
   "motion.qa.intelligence.title": "Studio intelligence",
   "motion.qa.source.title": "Studio source",
   "motion.qa.source.storyboard": "Storyboard",

@@ -729,7 +729,12 @@ export async function getStoryboardSceneRowsForHandoff(
   | {
       storyboard: Pick<
         StudioStoryboard,
-        "id" | "title" | "description" | "promptStyleProfile" | "directorProfile"
+        | "id"
+        | "title"
+        | "description"
+        | "promptStyleProfile"
+        | "directorProfile"
+        | "aiDirectorPrompt"
       >;
       scenes: SceneRow[];
     }
@@ -751,6 +756,7 @@ export async function getStoryboardSceneRowsForHandoff(
       description: row.description,
       promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
       directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
+      aiDirectorPrompt: row.aiDirectorPrompt ?? "",
     },
     scenes: row.scenes,
   };

@@ -137,6 +137,18 @@ export function buildStudioProjectImportFromWizard(
   if (!handoff?.storyboardId?.trim() || !intelligence) {
     return null;
   }
+  let handoffPayload: unknown;
+  if (handoff.storedHandoff && typeof handoff.storedHandoff === "object") {
+    handoffPayload = sanitizeMotionHandoffForStorage(handoff.storedHandoff);
+    const handoffSize = assertStudioJsonWithinSizeLimit(
+      "studioHandoff",
+      handoffPayload,
+      STUDIO_HANDOFF_JSON_MAX_BYTES
+    );
+    if (!handoffSize.ok) {
+      handoffPayload = undefined;
+    }
+  }
   return {
     storyboardId: handoff.storyboardId.trim(),
     storyboardTitle: handoff.storyboardTitle?.trim() || intelligence.storyboardTitle,
@@ -144,6 +156,7 @@ export function buildStudioProjectImportFromWizard(
     importedAt: handoff.importedAt ?? intelligence.importedAt,
     intelligence,
     imageLineage: buildStudioImageLineageFromWizard(state),
+    ...(handoffPayload ? { handoff: handoffPayload } : {}),
   };
 }
 

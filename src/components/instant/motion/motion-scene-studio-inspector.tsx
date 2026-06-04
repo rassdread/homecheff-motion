@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioScenePresetLabel } from "@/lib/studio-scene-preset-label";
+import { MotionExecutionPreview } from "@/components/instant/motion/motion-execution-preview";
 import { MotionScoreBadge } from "@/components/instant/motion/motion-score-badge";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 
@@ -23,8 +24,17 @@ export function MotionSceneStudioInspector({ context, storyboardTitle }: Props) 
         ? t("motion.handoff.context.imageSourceManual")
         : "—";
 
+  const sceneLabel = context.studioQa?.sceneTitle ?? context.sceneId;
+
   return (
     <div className="mt-4 space-y-3">
+      {context.sceneExecutionPackage ?
+        <MotionExecutionPreview
+          sceneLabel={sceneLabel}
+          executionPackage={context.sceneExecutionPackage}
+          executionPrompt={context.executionPrompt}
+        />
+      : null}
       {qa ?
         <div className="rounded-xl border border-violet-200/70 bg-violet-50/50 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">

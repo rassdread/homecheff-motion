@@ -96,4 +96,7 @@ export type MotionStudioIntelligenceSnapshot = {
   legacyHandoff: boolean;
   /** True when scores/reports are incomplete. */
   partialData: boolean;
+  /** V30: execution readiness from handoff v11. */
+  executionReadiness?: import("@/types/studio-scene-execution").StudioExecutionReadiness;
+  executionWarningCount?: number;
 };

@@ -29,6 +29,7 @@ import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
 import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-character-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
+import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -326,7 +327,7 @@ export async function createMotionHandoffPayload(
     })
   );
 
-  const payload: MotionHandoffPayload = {
+  const basePayload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
     title: storyboard.title,
@@ -354,6 +355,10 @@ export async function createMotionHandoffPayload(
     perSceneCharacterIdentityScores,
     scenes: handoffScenes,
   };
+
+  const payload = attachExecutionToHandoffPayload(basePayload, {
+    aiDirectorNotes: storyboard.aiDirectorPrompt?.trim() ?? "",
+  });
 
   return { payload };
 }

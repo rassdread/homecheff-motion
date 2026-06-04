@@ -229,5 +229,7 @@ export function buildMotionStudioIntelligenceSnapshot(
     sceneCount: payload.scenes.length,
     legacyHandoff,
     partialData,
+    executionReadiness: payload.executionReadiness,
+    executionWarningCount: payload.executionWarnings?.length ?? 0,
   };
 }

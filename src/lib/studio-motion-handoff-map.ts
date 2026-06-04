@@ -20,6 +20,7 @@ import {
   buildMotionSceneStudioQa,
   buildMotionStudioIntelligenceSnapshot,
 } from "@/lib/build-motion-studio-intelligence";
+import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
@@ -179,6 +180,10 @@ export function mapHandoffToPersistedWizardState(
       handoffVersion: payload.version,
       importedAt: new Date().toISOString(),
       intelligence,
+      executionReadiness: payload.executionReadiness,
+      executionWarnings: payload.executionWarnings,
+      executionPackage: payload.executionPackage,
+      storedHandoff: sanitizeMotionHandoffForStorage(payload),
     },
   };
 }
@@ -190,6 +195,8 @@ export function enrichStudioContextForMotion(
   const ref = scene.sceneImageReference;
   return {
     ...scene.studioContext,
+    sceneExecutionPackage: scene.sceneExecutionPackage,
+    executionPrompt: scene.executionPrompt,
     selectedSceneImageId: scene.selectedSceneImageId,
     preferredSceneImageUrl: scene.selectedSceneImageUrl,
     sceneImageReference: ref,

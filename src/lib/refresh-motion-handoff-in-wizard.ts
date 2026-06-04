@@ -1,7 +1,9 @@
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import type { PersistedWizardState } from "@/lib/instant-premium-wizard-storage";
 import { readPersistedWizardState, writePersistedWizardState } from "@/lib/instant-premium-wizard-storage";
+import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import {
+  enrichStudioContextForMotion,
   mapHandoffSceneToPersistedImage,
   mapHandoffSceneToPersistedText,
   mapHandoffSceneToWizardLocalImage,
@@ -11,10 +13,7 @@ import {
   restoreSceneTextDraft,
   type WizardSceneSlot,
 } from "@/lib/instant-wizard-scene-slots";
-import {
-  buildMotionSceneStudioQa,
-  buildMotionStudioIntelligenceSnapshot,
-} from "@/lib/build-motion-studio-intelligence";
+import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 /**
@@ -44,16 +43,7 @@ export function mergeHandoffIntoWizardSlots(
       sceneId: scene.sceneId,
       text,
       image,
-      studioContext: {
-        ...scene.studioContext,
-        selectedSceneImageId: scene.selectedSceneImageId,
-        preferredSceneImageUrl: scene.selectedSceneImageUrl,
-        sceneImageReference: scene.sceneImageReference,
-        imageSource: scene.sceneImageReference ? ("studio" as const) : undefined,
-        selectedSceneImagePromptVersion: scene.selectedSceneImagePromptVersion,
-        selectedSceneImageGenerationVersion: scene.selectedSceneImageGenerationVersion,
-        studioQa: buildMotionSceneStudioQa(scene, payload),
-      },
+      studioContext: enrichStudioContextForMotion(scene, payload),
     };
   });
 }
@@ -81,16 +71,7 @@ export function mergeMotionHandoffRefresh(
       sceneId: scene.sceneId,
       text: nextText,
       image,
-      studioContext: {
-        ...scene.studioContext,
-        selectedSceneImageId: scene.selectedSceneImageId,
-        preferredSceneImageUrl: scene.selectedSceneImageUrl,
-        sceneImageReference: scene.sceneImageReference,
-        imageSource: scene.sceneImageReference ? ("studio" as const) : undefined,
-        selectedSceneImagePromptVersion: scene.selectedSceneImagePromptVersion,
-        selectedSceneImageGenerationVersion: scene.selectedSceneImageGenerationVersion,
-        studioQa: buildMotionSceneStudioQa(scene, payload),
-      },
+      studioContext: enrichStudioContextForMotion(scene, payload),
     };
   });
 
@@ -112,6 +93,10 @@ export function mergeMotionHandoffRefresh(
       handoffVersion: payload.version,
       importedAt: new Date().toISOString(),
       intelligence: buildMotionStudioIntelligenceSnapshot(payload),
+      executionReadiness: payload.executionReadiness,
+      executionWarnings: payload.executionWarnings,
+      executionPackage: payload.executionPackage,
+      storedHandoff: sanitizeMotionHandoffForStorage(payload),
     },
   };
 }

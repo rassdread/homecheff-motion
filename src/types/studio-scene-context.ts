@@ -44,4 +44,8 @@ export type StudioSceneContextMetadata = {
   selectedSceneImageGenerationVersion?: number | null;
   /** V18: Studio QA scores for Motion pre-render review (read-only). */
   studioQa?: MotionSceneStudioQa;
+  /** V30: structured execution package from handoff v11. */
+  sceneExecutionPackage?: import("@/types/studio-scene-execution").StudioSceneExecutionPackage;
+  /** V30: final execution prompt for Vidu (debug / preview). */
+  executionPrompt?: string;
 };

@@ -390,6 +390,8 @@ export type BuildInstantStoryModePromptInput = {
   bakedTextProtectionActive?: boolean;
   continuityStrength?: StoryContinuityStrength;
   projectActingIntensity?: SceneActingIntensity;
+  /** V30: Studio execution prompts per scene index (handoff v11). */
+  studioExecutionPrompts?: Array<string | null>;
 };
 
 export type BuildInstantStoryModePromptResult = {
@@ -515,6 +517,10 @@ export function buildInstantStoryModePromptDetailed(
     });
     if (emotionLine) {
       parts.push(`emotion & acting: ${emotionLine}`);
+    }
+    const studioExecution = input.studioExecutionPrompts?.[i]?.trim();
+    if (studioExecution) {
+      parts.push(`Studio execution (director, world, characters): ${studioExecution}`);
     }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";

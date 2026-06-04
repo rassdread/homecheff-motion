@@ -18,6 +18,8 @@ import {
   hasPerSceneDurations,
   resolveViduSegmentDurationsFromStoryboard,
 } from "@/lib/story-overlay-templates";
+import { resolveExecutionPromptsBySceneIndex } from "@/lib/studio-scene-execution";
+import { parseMotionHandoffPayloadForStorage } from "@/lib/studio-motion-handoff-storage";
 import {
   buildInstantStoryModePromptDetailed,
   buildStoryModeBudgetedViduPrompt,
@@ -300,6 +302,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       !posterMotionActive &&
       orderedProjectImages.some((img) => img.bakedTextProtectionStatus === "masked");
     const aspectRatio = resolveInstantPremiumAspect(transition.project.aspectRatio);
+    const storedHandoff = parseMotionHandoffPayloadForStorage(
+      transition.project.studioHandoffJson
+    );
+    const studioExecutionPrompts = storedHandoff
+      ? resolveExecutionPromptsBySceneIndex(storedHandoff, imageCount)
+      : undefined;
     const storyDetailed = buildInstantStoryModePromptDetailed({
       userIntent: instantStoredIntent.text || null,
       imageCount,
@@ -309,6 +317,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       bakedTextProtectionActive: storyBakedTextProtectionActive,
       aspectRatio,
       continuityStrength: parseStoredStoryContinuityStrength(transition.project.instantUserIntent),
+      studioExecutionPrompts,
     });
     const budgetedStory = buildStoryModeBudgetedViduPrompt({
       projectId: transition.projectId,

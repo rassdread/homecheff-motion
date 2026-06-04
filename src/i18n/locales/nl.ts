@@ -1054,6 +1054,19 @@ export const nl = {
   "motion.qa.importSummary.partial":
     "Sommige Studio QA-metadata ontbreekt (oudere handoff). Ververs vanuit Studio voor volledige personage-consistentie.",
   "motion.qa.importSummary.openStoryboard": "Open storyboard",
+  "motion.qa.importSummary.execution":
+    "Uitvoering · Wereld {world} · Regie {director} · Personages {characters} · Locaties {locations} · Props {props} · Gereedheid {readiness}",
+  "motion.qa.importSummary.executionLegacy": "legacy (ververs vanuit Studio voor V11-uitvoering)",
+  "motion.qa.importSummary.executionWarnings":
+    "{count} continuïteitswaarschuwing(en) bij uitvoering — controleer vóór render.",
+  "motion.execution.preview.title": "Uitvoeringsvoorbeeld — {scene}",
+  "motion.execution.preview.generatedPrompt": "Gegenereerde prompt",
+  "motion.execution.preview.director": "Regie-instructies",
+  "motion.execution.preview.characters": "Personageregels",
+  "motion.execution.preview.world": "Wereldregels",
+  "motion.execution.preview.continuity": "Continuïteitsregels",
+  "motion.execution.preview.aiDirector": "AI-regisseur notities",
+  "motion.execution.preview.finalPrompt": "Definitieve uitvoeringsprompt",
   "motion.qa.intelligence.title": "Studio-intelligentie",
   "motion.qa.source.title": "Studio-bron",
   "motion.qa.source.storyboard": "Storyboard",

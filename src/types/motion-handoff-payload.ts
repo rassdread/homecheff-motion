@@ -19,8 +19,14 @@ import type {
 } from "@/types/studio-correction";
 import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
 import type { StoryboardCharacterConsistencyReport } from "@/types/studio-character-consistency";
+import type {
+  StudioExecutionReadiness,
+  StudioExecutionWarning,
+  StudioSceneExecutionPackage,
+  StudioStoryExecutionPackage,
+} from "@/types/studio-scene-execution";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 10 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 11 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -52,6 +58,10 @@ export type MotionHandoffScene = SceneSnapshot & {
   selectedImageConsistencyScore: number | null;
   selectedImageImprovementScore: number | null;
   selectedImageRecommended: boolean;
+  /** V30: structured execution package (Motion / Vidu). */
+  sceneExecutionPackage?: StudioSceneExecutionPackage;
+  /** V30: final combined execution prompt for generation. */
+  executionPrompt?: string;
 };
 
 export type MotionHandoffPayload = {
@@ -90,5 +100,9 @@ export type MotionHandoffPayload = {
     order: number;
     characters: Array<{ characterId: string; name: string; score: number; status: string }>;
   }>;
+  /** V30: story-level execution summary. */
+  executionPackage?: StudioStoryExecutionPackage;
+  executionReadiness?: StudioExecutionReadiness;
+  executionWarnings?: StudioExecutionWarning[];
   scenes: MotionHandoffScene[];
 };
