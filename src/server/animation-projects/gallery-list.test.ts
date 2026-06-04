@@ -104,6 +104,31 @@ describe("gallery list rebuild metadata", () => {
     assert.ok(item.latestExport?.outputVideoUrl?.includes("v=2"));
   });
 
+  it("maps mid full rerender: stays in gallery with generating status and archived final", () => {
+    const item = mapPrismaRowToAnimationProjectListItem(
+      baseRow({
+        status: "generating",
+        instantPreviousFinalVideoUrl: "https://example.com/previous-final.mp4",
+        exports: [
+          {
+            status: "queued",
+            progress: 0,
+            outputVideoUrl: null,
+            errorMessage: null,
+          },
+        ],
+        transitions: [
+          { status: "queued", outputVideoUrl: null },
+          { status: "queued", outputVideoUrl: null },
+        ],
+      }),
+      { includeOwnerEmail: false }
+    );
+    assert.equal(item.status, "generating");
+    assert.equal(item.latestExport?.outputVideoUrl, null);
+    assert.ok(item.previousFinalVideoUrl?.includes("previous-final.mp4"));
+  });
+
   it("maps project actively rebuilding final video", () => {
     const item = mapPrismaRowToAnimationProjectListItem(
       baseRow({

@@ -541,7 +541,10 @@ function VideosPageContent() {
               ? listItemDurationLabel(item, dateLocale)
               : formatDurationSeconds(durationFromParts, dateLocale);
           const intentKey = intentLabelKey(item.intent);
-          const finalUrl = item.latestExport?.outputVideoUrl?.trim() || null;
+          const finalUrl =
+            item.latestExport?.outputVideoUrl?.trim() ||
+            item.previousFinalVideoUrl?.trim() ||
+            null;
           const fragmentUrl = item.firstTransitionVideoUrl?.trim() || null;
           const failed = isFailedState(item);
           const processing = isProcessingState(item);

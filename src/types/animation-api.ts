@@ -272,6 +272,8 @@ export type AnimationProjectListItem = {
   ownerEmail?: string;
   /** classic | instant_premium */
   projectType?: string | null;
+  /** Archived final URL during full rerender (export URL cleared). */
+  previousFinalVideoUrl?: string | null;
   /** Present when listing section=concepts. */
   fullRerenderDraft?: {
     updatedAt: string;

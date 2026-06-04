@@ -32,6 +32,7 @@ export type GalleryListPrismaRow = {
   }[];
   transitions: { status: string; outputVideoUrl: string | null }[];
   owner?: { email: string } | null;
+  instantPreviousFinalVideoUrl?: string | null;
   instantFinalRebuildCount?: number;
   instantFinalRebuiltAt?: Date | null;
   instantFinalRebuildStatus?: string | null;
@@ -80,6 +81,7 @@ function mapPrismaRowToAnimationProjectListItemInner(
   const thumb = row.images[0]?.previewUrl?.trim() || null;
 
   const latest = row.exports[0] ?? null;
+  const previousFinalUrl = row.instantPreviousFinalVideoUrl?.trim() ?? null;
   const transitions = row.transitions ?? [];
   const firstDone = transitions.find(
     (tr) => String(tr.status).toLowerCase() === "completed" && tr.outputVideoUrl?.trim()
@@ -93,10 +95,22 @@ function mapPrismaRowToAnimationProjectListItemInner(
         String(tr.status).toLowerCase() === "completed" && Boolean(tr.outputVideoUrl?.trim())
     );
 
-  const resolvedExportUrl = latest
+  const currentExportUrl = latest?.outputVideoUrl?.trim() || null;
+  const resolvedExportUrl = currentExportUrl
     ? resolvePublicFinalVideoUrl({
-        outputVideoUrl: latest.outputVideoUrl,
-        exportStatus: latest.status,
+        outputVideoUrl: currentExportUrl,
+        exportStatus: latest?.status ?? row.status,
+        projectStatus: row.status,
+        rebuildStatus: rebuildMeta.rebuildStatus,
+        rebuildCount: rebuildMeta.rebuildCount,
+        rebuiltAt: rebuildMeta.rebuiltAt,
+      })
+    : null;
+
+  const resolvedPreviousFinalUrl = previousFinalUrl
+    ? resolvePublicFinalVideoUrl({
+        outputVideoUrl: previousFinalUrl,
+        exportStatus: "completed",
         projectStatus: row.status,
         rebuildStatus: rebuildMeta.rebuildStatus,
         rebuildCount: rebuildMeta.rebuildCount,
@@ -107,7 +121,7 @@ function mapPrismaRowToAnimationProjectListItemInner(
   const displayStatus = resolveProjectDisplayStatus({
     projectStatus: row.status,
     exportStatus: latest?.status,
-    outputVideoUrl: resolvedExportUrl ?? latest?.outputVideoUrl,
+    outputVideoUrl: resolvedExportUrl ?? currentExportUrl,
   });
 
   return {
@@ -133,6 +147,7 @@ function mapPrismaRowToAnimationProjectListItemInner(
           errorMessage: latest.errorMessage,
         }
       : null,
+    previousFinalVideoUrl: resolvedPreviousFinalUrl,
     thumbnailUrl: thumb,
     thumbnailFallbackUrl: thumb,
     firstTransitionVideoUrl,

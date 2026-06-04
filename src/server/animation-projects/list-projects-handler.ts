@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
+import { buildCompletedGalleryWhere } from "@/server/animation-projects/gallery-completed-where";
 import { fetchGalleryProjectRows } from "@/server/animation-projects/fetch-gallery-projects";
 import {
   mapPrismaRowToAnimationProjectListItem,
@@ -47,7 +48,7 @@ export async function listAnimationProjectsForUser(params: {
     where.status = params.statusFilter;
   }
   if (section === "completed") {
-    where.exports = { some: { outputVideoUrl: { not: null } } };
+    Object.assign(where, buildCompletedGalleryWhere(where));
   }
 
   try {

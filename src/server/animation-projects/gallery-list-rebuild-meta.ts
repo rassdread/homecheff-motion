@@ -17,7 +17,10 @@ export function normalizeGalleryRebuildMeta(row: GalleryListPrismaRow): GalleryR
         ? row.instantFinalRebuildStatus
         : null,
     rebuiltAt: row.instantFinalRebuiltAt instanceof Date ? row.instantFinalRebuiltAt : null,
-    previousFinalVideoUrl: null,
+    previousFinalVideoUrl:
+      typeof row.instantPreviousFinalVideoUrl === "string"
+        ? row.instantPreviousFinalVideoUrl.trim() || null
+        : null,
   };
 }
 

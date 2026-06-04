@@ -44,6 +44,7 @@ export const galleryListProjectSelectLegacy = {
 
 export const galleryListProjectSelectWithRebuild = {
   ...galleryListProjectSelectLegacy,
+  instantPreviousFinalVideoUrl: true,
   instantFinalRebuildCount: true,
   instantFinalRebuiltAt: true,
   instantFinalRebuildStatus: true,
