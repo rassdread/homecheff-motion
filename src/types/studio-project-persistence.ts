@@ -100,6 +100,7 @@ export type StudioSelectedImageChange = {
 };
 
 export type StudioRefreshAuditEntry = {
+  type?: "studio_refresh";
   refreshedAt: string;
   refreshedBy: string;
   previousHandoffVersion: number | null;
@@ -110,8 +111,9 @@ export type StudioRefreshAuditEntry = {
 };
 
 export type StudioRefreshAuditJson = {
-  events: StudioRefreshAuditEntry[];
+  events: Array<StudioRefreshAuditEntry | import("@/types/studio-motion-sync").StudioSyncAuditEntry>;
   lastRefresh?: StudioRefreshAuditEntry;
+  lastSync?: import("@/types/studio-motion-sync").StudioSyncAuditEntry;
 };
 
 export type RefreshStudioIntelligenceOptions = {

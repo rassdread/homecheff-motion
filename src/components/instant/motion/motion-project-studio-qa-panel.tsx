@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
+import { StudioSyncFromStudioModal } from "@/components/instant/motion/studio-sync-from-studio-modal";
 import {
   fetchStudioIntelligenceStale,
   postRefreshStudioIntelligence,
@@ -16,6 +17,8 @@ type Props = {
   draftOnlyWarning?: boolean;
   compact?: boolean;
   onStudioQaUpdated?: (qa: ProjectStudioQaResponse) => void;
+  /** Disable sync while generating/rendering. */
+  syncDisabled?: boolean;
 };
 
 const STATUS_CLASS: Record<ProjectStudioQaResponse["status"], string> = {
@@ -30,9 +33,11 @@ export function MotionProjectStudioQaPanel({
   draftOnlyWarning = false,
   compact = false,
   onStudioQaUpdated,
+  syncDisabled = false,
 }: Props) {
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [staleCheckBusy, setStaleCheckBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -92,6 +97,13 @@ export function MotionProjectStudioQaPanel({
 
   return (
     <div className="space-y-2">
+      <StudioSyncFromStudioModal
+        projectId={projectId}
+        open={syncModalOpen}
+        onClose={() => setSyncModalOpen(false)}
+        onApplied={onStudioQaUpdated}
+        disabled={syncDisabled}
+      />
       {draftOnlyWarning ?
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
           {t("motion.qa.server.draftOnlyWarning")}
@@ -190,16 +202,26 @@ export function MotionProjectStudioQaPanel({
                 })}
               </p>
             : null}
-            {!storyboardOutdated ?
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={refreshBusy}
-                className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-950 disabled:opacity-60"
-                onClick={() => void runRefresh()}
+                disabled={syncDisabled}
+                className="rounded-lg border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-950 disabled:opacity-60"
+                onClick={() => setSyncModalOpen(true)}
               >
-                {refreshBusy ? t("motion.qa.refresh.refreshing") : t("motion.qa.refresh.refreshQa")}
+                {t("motion.qa.sync.openButton")}
               </button>
-            : null}
+              {!storyboardOutdated ?
+                <button
+                  type="button"
+                  disabled={refreshBusy}
+                  className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-950 disabled:opacity-60"
+                  onClick={() => void runRefresh()}
+                >
+                  {refreshBusy ? t("motion.qa.refresh.refreshing") : t("motion.qa.refresh.refreshQa")}
+                </button>
+              : null}
+            </div>
             <MotionStudioIntelligencePanel
               intelligence={studioQa.intelligence}
               readiness={studioQa.readiness}

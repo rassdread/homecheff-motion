@@ -389,6 +389,13 @@ export default function InstantPremiumProgressPage() {
                   projectId={effectiveProjectId}
                   studioQa={snapshot.studioQa}
                   compact
+                  syncDisabled={
+                    snapshot.status === "running" ||
+                    snapshot.status === "finalizing" ||
+                    snapshot.phase === "generating_clips" ||
+                    snapshot.phase === "merging_clips" ||
+                    snapshot.phase === "uploading_final"
+                  }
                   onStudioQaUpdated={(qa) => {
                     setSnapshot((prev) => (prev ? { ...prev, studioQa: qa } : prev));
                   }}

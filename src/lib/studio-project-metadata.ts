@@ -88,8 +88,45 @@ export function appendStudioRefreshAudit(
     existing && typeof existing === "object" && !Array.isArray(existing)
       ? (existing as StudioRefreshAuditJson)
       : { events: [] };
+  const events = Array.isArray(base.events) ? [...base.events, { ...entry, type: "studio_refresh" as const }] : [{ ...entry, type: "studio_refresh" as const }];
+  return { events, lastRefresh: { ...entry, type: "studio_refresh" } };
+}
+
+export function appendStudioSyncAudit(
+  existing: unknown,
+  entry: import("@/types/studio-motion-sync").StudioSyncAuditEntry
+): StudioRefreshAuditJson {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? (existing as StudioRefreshAuditJson)
+      : { events: [] };
   const events = Array.isArray(base.events) ? [...base.events, entry] : [entry];
-  return { events, lastRefresh: entry };
+  return { ...base, events, lastSync: entry };
+}
+
+/** Persist Studio handoff + intelligence after sync/refresh (V20/V21). */
+export function prismaStudioMetadataFromHandoff(
+  handoff: import("@/types/motion-handoff-payload").MotionHandoffPayload,
+  storyboardTitle: string | null
+): Pick<
+  Prisma.AnimationProjectUpdateInput,
+  | "studioHandoffJson"
+  | "studioIntelligenceJson"
+  | "studioSourceStoryboardTitle"
+  | "studioHandoffVersion"
+  | "studioIntelligenceStatus"
+  | "studioLastStaleReason"
+> {
+  const importInput = buildStudioProjectImportFromHandoff(handoff, storyboardTitle);
+  const fields = studioMetadataPrismaFields(importInput);
+  return {
+    studioHandoffJson: fields.studioHandoffJson,
+    studioIntelligenceJson: fields.studioIntelligenceJson,
+    studioSourceStoryboardTitle: fields.studioSourceStoryboardTitle,
+    studioHandoffVersion: fields.studioHandoffVersion,
+    studioIntelligenceStatus: "current",
+    studioLastStaleReason: null,
+  };
 }
 
 export function buildStudioProjectImportFromWizard(

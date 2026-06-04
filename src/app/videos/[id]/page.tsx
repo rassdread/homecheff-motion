@@ -714,8 +714,14 @@ export default function VideoDetailPage() {
           <MotionProjectStudioQaPanel
             projectId={detail.id}
             studioQa={detail.studioQa}
+            syncDisabled={
+              detail.status === "generating" || detail.status === "rendering"
+            }
             onStudioQaUpdated={(qa) => {
               setDetail((prev) => (prev ? { ...prev, studioQa: qa } : prev));
+              if (qa) {
+                void load({ silent: true });
+              }
             }}
           />
         </div>

@@ -5,6 +5,11 @@ import type {
   StudioIntelligenceStalenessResult,
   StudioRefreshAuditEntry,
 } from "@/types/studio-project-persistence";
+import type {
+  StudioMotionSyncApplyInput,
+  StudioMotionSyncPreview,
+  StudioSyncAuditEntry,
+} from "@/types/studio-motion-sync";
 
 export type RefreshStudioIntelligenceResponse =
   | {
@@ -49,5 +54,43 @@ export async function fetchStudioIntelligenceStale(
     sameOriginApiPath(
       `/api/instant-premium/projects/${encodeURIComponent(projectId)}/studio-intelligence-stale${qs}`
     )
+  );
+}
+
+export type StudioSyncPreviewResponse =
+  | { ok: true; preview: StudioMotionSyncPreview }
+  | { ok: false; code?: string; error: string };
+
+export type StudioSyncApplyResponse =
+  | {
+      ok: true;
+      projectId: string;
+      preview: StudioMotionSyncPreview;
+      audit: StudioSyncAuditEntry;
+      studioQa: ProjectStudioQaResponse | null;
+    }
+  | { ok: false; code?: string; error: string };
+
+export async function fetchStudioSyncPreview(projectId: string) {
+  return fetchSameOriginJson<StudioSyncPreviewResponse>(
+    sameOriginApiPath(
+      `/api/instant-premium/projects/${encodeURIComponent(projectId)}/studio-sync-preview`
+    )
+  );
+}
+
+export async function postSyncFromStudio(
+  projectId: string,
+  input: StudioMotionSyncApplyInput
+) {
+  return fetchSameOriginJson<StudioSyncApplyResponse>(
+    sameOriginApiPath(
+      `/api/instant-premium/projects/${encodeURIComponent(projectId)}/sync-from-studio`
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
   );
 }

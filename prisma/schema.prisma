@@ -199,6 +199,10 @@ model AnimationImage {
   instantTextPatches Json?
   /** Foreground segmentation layers for poster_motion_preserve (JSON PosterMotionLayersSnapshot). */
   posterMotionLayersJson Json?
+  /** Studio scene id at last sync (V21 selective sync). */
+  studioSceneId String?
+  /** Selected Studio scene image id at last sync. */
+  studioSceneImageId String?
   createdAt  DateTime         @default(now())
 
   @@index([projectId, order])
