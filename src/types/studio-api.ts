@@ -81,3 +81,49 @@ export type StudioPropListResponse = {
 export type StudioPropDetailResponse = {
   prop: StudioPropDetail;
 };
+
+export type StudioSceneDetail = {
+  id: string;
+  storyboardId: string;
+  order: number;
+  title: string;
+  description: string;
+  action: string;
+  emotion: string;
+  camera: string;
+  transitionToNext: string;
+  durationSeconds: number;
+  locationId: string | null;
+  location: StudioLocationListItem | null;
+  characters: StudioCharacterListItem[];
+  props: StudioPropListItem[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StudioStoryboardListItem = {
+  id: string;
+  ownerId: string;
+  title: string;
+  description: string;
+  sceneCount: number;
+  createdAt: string;
+  updatedAt: string;
+  ownerEmail?: string;
+};
+
+export type StudioStoryboardDetail = StudioStoryboardListItem & {
+  scenes: StudioSceneDetail[];
+};
+
+export type StudioStoryboardListResponse = {
+  storyboards: StudioStoryboardListItem[];
+};
+
+export type StudioStoryboardDetailResponse = {
+  storyboard: StudioStoryboardDetail;
+};
+
+export type StudioSceneDetailResponse = {
+  scene: StudioSceneDetail;
+};

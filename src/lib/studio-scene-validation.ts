@@ -1,0 +1,151 @@
+export const STUDIO_SCENE_TITLE_MAX = 120;
+export const STUDIO_SCENE_TEXT_MAX = 4000;
+export const STUDIO_SCENE_DURATION_MIN = 1;
+export const STUDIO_SCENE_DURATION_MAX = 120;
+
+export type StudioSceneCreateInput = {
+  title?: string;
+  description?: string;
+  action?: string;
+  emotion?: string;
+  camera?: string;
+  transitionToNext?: string;
+  durationSeconds?: number;
+  locationId?: string | null;
+  characterIds?: string[];
+  propIds?: string[];
+};
+
+export type StudioSceneUpdateInput = StudioSceneCreateInput;
+
+export type ValidationResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; code: string; message: string };
+
+function trimText(value: string | undefined, max: number): string {
+  return (value ?? "").trim().slice(0, max);
+}
+
+function trimField(value: string | undefined): string {
+  return trimText(value, STUDIO_SCENE_TEXT_MAX);
+}
+
+function validateDuration(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const n = Math.round(value);
+  if (n < STUDIO_SCENE_DURATION_MIN || n > STUDIO_SCENE_DURATION_MAX) {
+    return undefined;
+  }
+  return n;
+}
+
+function validateIdList(ids: string[] | undefined): string[] | undefined {
+  if (ids === undefined) {
+    return undefined;
+  }
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  return unique;
+}
+
+export function validateStudioSceneCreateInput(
+  raw: StudioSceneCreateInput
+): ValidationResult<{
+  title: string;
+  description: string;
+  action: string;
+  emotion: string;
+  camera: string;
+  transitionToNext: string;
+  durationSeconds: number;
+  locationId: string | null;
+  characterIds: string[];
+  propIds: string[];
+}> {
+  const duration = validateDuration(raw.durationSeconds);
+  if (raw.durationSeconds !== undefined && duration === undefined) {
+    return { ok: false, code: "INVALID_DURATION", message: "Invalid scene duration." };
+  }
+
+  return {
+    ok: true,
+    value: {
+      title: trimText(raw.title, STUDIO_SCENE_TITLE_MAX) || "Scene",
+      description: trimField(raw.description),
+      action: trimField(raw.action),
+      emotion: trimField(raw.emotion),
+      camera: trimField(raw.camera),
+      transitionToNext: trimField(raw.transitionToNext),
+      durationSeconds: duration ?? 5,
+      locationId: raw.locationId?.trim() || null,
+      characterIds: validateIdList(raw.characterIds) ?? [],
+      propIds: validateIdList(raw.propIds) ?? [],
+    },
+  };
+}
+
+export function validateStudioSceneUpdateInput(
+  raw: StudioSceneUpdateInput
+): ValidationResult<{
+  title?: string;
+  description?: string;
+  action?: string;
+  emotion?: string;
+  camera?: string;
+  transitionToNext?: string;
+  durationSeconds?: number;
+  locationId?: string | null;
+  characterIds?: string[];
+  propIds?: string[];
+}> {
+  const patch: {
+    title?: string;
+    description?: string;
+    action?: string;
+    emotion?: string;
+    camera?: string;
+    transitionToNext?: string;
+    durationSeconds?: number;
+    locationId?: string | null;
+    characterIds?: string[];
+    propIds?: string[];
+  } = {};
+
+  if (raw.title !== undefined) {
+    const title = trimText(raw.title, STUDIO_SCENE_TITLE_MAX);
+    if (!title) {
+      return { ok: false, code: "TITLE_REQUIRED", message: "Scene title is required." };
+    }
+    patch.title = title;
+  }
+  if (raw.description !== undefined) patch.description = trimField(raw.description);
+  if (raw.action !== undefined) patch.action = trimField(raw.action);
+  if (raw.emotion !== undefined) patch.emotion = trimField(raw.emotion);
+  if (raw.camera !== undefined) patch.camera = trimField(raw.camera);
+  if (raw.transitionToNext !== undefined) {
+    patch.transitionToNext = trimField(raw.transitionToNext);
+  }
+  if (raw.durationSeconds !== undefined) {
+    const duration = validateDuration(raw.durationSeconds);
+    if (duration === undefined) {
+      return { ok: false, code: "INVALID_DURATION", message: "Invalid scene duration." };
+    }
+    patch.durationSeconds = duration;
+  }
+  if (raw.locationId !== undefined) {
+    patch.locationId = raw.locationId?.trim() || null;
+  }
+  if (raw.characterIds !== undefined) {
+    patch.characterIds = validateIdList(raw.characterIds) ?? [];
+  }
+  if (raw.propIds !== undefined) {
+    patch.propIds = validateIdList(raw.propIds) ?? [];
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, code: "EMPTY_UPDATE", message: "No fields to update." };
+  }
+
+  return { ok: true, value: patch };
+}

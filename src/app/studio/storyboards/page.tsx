@@ -1,10 +1,5 @@
-import { StudioPlaceholderPage } from "@/components/studio/studio-placeholder-page";
+import { StudioStoryboardsLibrary } from "@/components/studio/studio-storyboards-library";
 
 export default function StudioStoryboardsPage() {
-  return (
-    <StudioPlaceholderPage
-      titleKey="studio.placeholder.storyboards.title"
-      descriptionKey="studio.placeholder.storyboards.description"
-    />
-  );
+  return <StudioStoryboardsLibrary />;
 }

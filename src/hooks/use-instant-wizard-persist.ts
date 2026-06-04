@@ -298,6 +298,7 @@ export function useInstantWizardPersist(params: {
 
   const buildPersistedState = useCallback((): Omit<PersistedWizardState, "version" | "savedAt"> => {
     const serializedSlots = serializeSceneSlotsForPersist(params.sceneSlots);
+    const existing = readPersistedWizardState();
     return {
       wizardFlowVersion: CREATOR_WIZARD_FLOW_VERSION,
       step: params.step,
@@ -316,6 +317,7 @@ export function useInstantWizardPersist(params: {
       sceneSlots: serializedSlots,
       sceneTexts: serializedSlots.map((slot) => slot.text),
       images: [],
+      ...(existing?.studioHandoff ? { studioHandoff: existing.studioHandoff } : {}),
     };
   }, [params]);
 

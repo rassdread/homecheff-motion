@@ -21,7 +21,7 @@ const ROADMAP_ITEMS: RoadmapItem[] = [
   { labelKey: "studio.roadmap.locations", badge: "alpha" },
   { labelKey: "studio.roadmap.props", badge: "alpha" },
   { labelKey: "studio.roadmap.storyboards", badge: "alpha" },
-  { labelKey: "studio.roadmap.scenes", badge: "planned" },
+  { labelKey: "studio.roadmap.scenes", badge: "alpha" },
   { labelKey: "studio.roadmap.transitions", badge: "planned" },
   { labelKey: "studio.roadmap.voice", badge: "planned" },
   { labelKey: "studio.roadmap.music", badge: "planned" },

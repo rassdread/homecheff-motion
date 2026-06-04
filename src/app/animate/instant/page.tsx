@@ -123,6 +123,8 @@ import {
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
+import { StudioMotionContextPanel } from "@/components/instant/studio-motion-context-panel";
+import { readPersistedWizardState } from "@/lib/instant-premium-wizard-storage";
 import { instantSceneTextsFromDrafts } from "@/lib/instant-scene-text-draft";
 import {
   assignImagesToSceneSlots,
@@ -295,6 +297,7 @@ export default function InstantPremiumPage() {
   const [resetBusy, setResetBusy] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [wizardReady, setWizardReady] = useState(false);
+  const [studioHandoffTitle, setStudioHandoffTitle] = useState<string | undefined>();
   const imagesRef = useRef<LocalImage[]>([]);
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const images = useMemo(() => listAttachedImages(sceneSlots), [sceneSlots]);
@@ -327,6 +330,17 @@ export default function InstantPremiumPage() {
 
   const maxImages = maxImagesForInstantMode(instantMode);
   const sceneCount = Math.max(sceneSlots.length, attachedImageCount);
+  const hasStudioImportedScenes = useMemo(
+    () => sceneSlots.some((slot) => slot.studioContext),
+    [sceneSlots]
+  );
+  const activeStudioContext = useMemo(
+    () => sceneSlots.find((slot) => slot.sceneId === expandedSceneId)?.studioContext ?? null,
+    [sceneSlots, expandedSceneId]
+  );
+  const showStoryboardComposer =
+    instantMode === "story" &&
+    (attachedImageCount >= MIN_IMAGES || hasStudioImportedScenes);
   const outputPlan = useMemo(
     () =>
       resolveInstantPremiumOutputPlan({
@@ -698,6 +712,8 @@ export default function InstantPremiumPage() {
     onHydrated: () => setWizardReady(true),
     onRestore: (saved) => {
       setSceneSlots(syncAutoEmotionsForSceneSlots(saved.sceneSlots, saved.instantMode));
+      const handoff = readPersistedWizardState()?.studioHandoff;
+      setStudioHandoffTitle(handoff?.storyboardTitle);
       setStep(saved.step);
       setStylePreset(saved.stylePreset);
       setMotionText(saved.motionText);
@@ -1537,10 +1553,16 @@ export default function InstantPremiumPage() {
                 {attachedImageCount >= MIN_IMAGES && attachedImageCount < maxImages ? (
                   <p className="mt-2 text-xs text-zinc-500">{t("instant.step1.extraTransitionHint")}</p>
                 ) : null}
-                {attachedImageCount >= MIN_IMAGES ? (
+                {showStoryboardComposer ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
+                    {hasStudioImportedScenes && studioHandoffTitle ? (
+                      <p className="mb-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2 text-xs text-[#0067B1]">
+                        {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
+                      </p>
+                    ) : null}
                     <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
                     <p className="mt-1 text-xs text-zinc-500">{t("instant.step2.description")}</p>
+                    {attachedImageCount >= MIN_IMAGES ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                       <SortableContext
                         items={images.map((i) => i.id)}
@@ -1561,23 +1583,34 @@ export default function InstantPremiumPage() {
                         </div>
                       </SortableContext>
                     </DndContext>
+                    ) : hasStudioImportedScenes ? (
+                      <p className="mt-3 text-xs text-zinc-500">{t("motion.handoff.uploadHint")}</p>
+                    ) : null}
                     {instantMode === "story" ?
-                      <StoryboardEditor
-                        sceneIds={sceneSlots.map((slot) => slot.sceneId)}
-                        images={sceneSlots.map((slot) =>
-                          slot.image ? toWizardPreviewInput(slot.image) : undefined
-                        )}
-                        imageCount={sceneCount}
-                        sceneTexts={sceneTexts}
-                        expandedSceneId={expandedSceneId}
-                        onExpandedSceneIdChange={setExpandedSceneSelection}
-                        onSceneChange={handleStoryboardSceneChange}
-                        onMoveScene={handleStoryboardMoveScene}
-                        onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
-                        onClearText={handleStoryboardClearText}
-                        onDeleteScene={handleStoryboardDeleteScene}
-                        textStyleEditorMode="optional"
-                      />
+                      <>
+                        <StoryboardEditor
+                          sceneIds={sceneSlots.map((slot) => slot.sceneId)}
+                          images={sceneSlots.map((slot) =>
+                            slot.image ? toWizardPreviewInput(slot.image) : undefined
+                          )}
+                          imageCount={sceneCount}
+                          sceneTexts={sceneTexts}
+                          expandedSceneId={expandedSceneId}
+                          onExpandedSceneIdChange={setExpandedSceneSelection}
+                          onSceneChange={handleStoryboardSceneChange}
+                          onMoveScene={handleStoryboardMoveScene}
+                          onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
+                          onClearText={handleStoryboardClearText}
+                          onDeleteScene={handleStoryboardDeleteScene}
+                          textStyleEditorMode="optional"
+                        />
+                        {activeStudioContext ? (
+                          <StudioMotionContextPanel
+                            context={activeStudioContext}
+                            storyboardTitle={studioHandoffTitle}
+                          />
+                        ) : null}
+                      </>
                     : null}
                   </div>
                 ) : null}

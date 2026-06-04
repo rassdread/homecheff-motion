@@ -64,11 +64,15 @@ export type PersistedSceneTextDraft = {
   overlayLayerStyles?: import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles;
 };
 
+/** Studio Scene Composer metadata on a wizard slot (Motion handoff). */
+export type PersistedStudioSceneContext = import("@/types/studio-scene-context").StudioSceneContextMetadata;
+
 /** Decoupled scene slot — text + optional image metadata. */
 export type PersistedWizardSceneSlot = {
   sceneId: string;
   text: PersistedSceneTextDraft;
   image: PersistedWizardImage | null;
+  studioContext?: PersistedStudioSceneContext;
 };
 
 export type PersistedWizardImage = {
@@ -132,6 +136,12 @@ export type PersistedWizardState = {
   sceneTexts?: PersistedSceneTextDraft[];
   /** v2: decoupled storyboard slots (text + optional image). */
   sceneSlots?: PersistedWizardSceneSlot[];
+  /** Set when wizard was prefilled from Studio storyboard import. */
+  studioHandoff?: {
+    storyboardId: string;
+    storyboardTitle: string;
+    importedAt: string;
+  };
 };
 
 function storageAvailable(): boolean {

@@ -63,10 +63,21 @@
  * Video
  * ```
  *
- * ## V5+ considerations
+ * ## V5 (Storyboards & Scene Composer)
  *
- * - Storyboards persistence (same service pattern)
- * - Link storyboard scenes to Motion wizard scene slots
+ * - `StudioStoryboard` + `StudioScene` + junction models (`@/server/studio/studio-storyboard-service`)
+ * - `StoryboardSnapshot` / `SceneSnapshot` for future Motion handoff
+ * - Scene Composer links Characters, Locations, Props per scene (no Vidu wiring)
+ *
+ * ## V6 (Motion handoff)
+ *
+ * - `MotionHandoffPayload` (`@/types/motion-handoff-payload`)
+ * - `createMotionHandoffPayload()` — Studio → import route → wizard localStorage
+ * - Per-slot `studioContext` on `PersistedWizardSceneSlot` (not sent to Vidu yet)
+ *
+ * ## V7+ considerations
+ *
+ * - Prompt Builder reads `studioContext` per scene
  * - Pass character reference images into Vidu multi-image prompts
  * - Render-version snapshots may store Studio asset IDs used per export
  * - System character seeds (`isSystemCharacter`) — see `docs/studio-characters-future.md`

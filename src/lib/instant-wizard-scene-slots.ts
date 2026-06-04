@@ -31,6 +31,7 @@ export type WizardSceneSlot = {
   sceneId: string;
   text: InstantSceneTextDraft;
   image: InstantWizardLocalImage | null;
+  studioContext?: import("@/types/studio-scene-context").StudioSceneContextMetadata;
 };
 
 const SCENE_TEMPLATES = new Set<SceneOverlayTemplate>([
@@ -345,6 +346,7 @@ export function serializeSceneSlotsForPersist(
           bakedText: { ...slot.image.bakedText },
         }
       : null,
+    ...(slot.studioContext ? { studioContext: slot.studioContext } : {}),
   }));
 }
 
@@ -359,6 +361,7 @@ export function restoreSceneSlotsFromPersisted(
       sceneId: slot.sceneId || createWizardSceneId(),
       text: restoreSceneTextDraft(slot.text, fallbackTransition),
       image: null,
+      studioContext: slot.studioContext,
     }));
   }
 
@@ -460,7 +463,9 @@ export function mergePersistedSceneSlotsWithImages(
         return slot;
       }
       const hydrated = hydrateImage(persisted.image);
-      return hydrated ? { ...slot, image: hydrated } : slot;
+      return hydrated
+        ? { ...slot, image: hydrated, studioContext: persisted.studioContext ?? slot.studioContext }
+        : { ...slot, studioContext: persisted.studioContext ?? slot.studioContext };
     });
   }
 

@@ -249,6 +249,7 @@ model User {
   studioCharacters  StudioCharacter[]
   studioLocations   StudioLocation[]
   studioProps       StudioProp[]
+  studioStoryboards StudioStoryboard[]
 }
 
 /** Reusable character identity for Studio → future Scene Composer → Motion. */
@@ -269,6 +270,7 @@ model StudioCharacter {
   isSystemCharacter   Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  sceneLinks          StudioSceneCharacter[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
@@ -290,6 +292,7 @@ model StudioLocation {
   isSystemLocation    Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  scenes              StudioScene[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
@@ -311,9 +314,66 @@ model StudioProp {
   isSystemProp        Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  sceneLinks          StudioSceneProp[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
+}
+
+/** Ordered scene sequence for Studio Scene Composer → future Motion. */
+model StudioStoryboard {
+  id          String        @id @default(cuid())
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  description String        @default("")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  scenes      StudioScene[]
+
+  @@index([ownerId])
+}
+
+/** Single composed scene within a storyboard. */
+model StudioScene {
+  id               String                 @id @default(cuid())
+  storyboardId     String
+  storyboard       StudioStoryboard       @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String                 @default("")
+  description      String                 @default("")
+  action           String                 @default("")
+  emotion          String                 @default("")
+  camera           String                 @default("")
+  transitionToNext String                 @default("")
+  durationSeconds  Int                    @default(5)
+  locationId       String?
+  location         StudioLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  characters       StudioSceneCharacter[]
+  props            StudioSceneProp[]
+
+  @@unique([storyboardId, order])
+  @@index([storyboardId, order])
+}
+
+model StudioSceneCharacter {
+  sceneId     String
+  characterId String
+  scene       StudioScene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character   StudioCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([sceneId, characterId])
+}
+
+model StudioSceneProp {
+  sceneId String
+  propId  String
+  scene   StudioScene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  prop    StudioProp  @relation(fields: [propId], references: [id], onDelete: Cascade)
+
+  @@id([sceneId, propId])
 }
 
 /** Stripe checkout payload before project creation (paid instant premium). */

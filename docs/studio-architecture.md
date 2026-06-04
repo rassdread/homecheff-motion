@@ -56,17 +56,36 @@ Video
 
 ## Studio foundation (V4)
 
-Characters · Locations · Props — ready for V5 Scene Composer.
+Characters · Locations · Props
 
-## Not in V4
+## V5 deliverables (Storyboards & Scene Composer)
 
-- Scene Composer
-- Vidu / Motion prompt wiring
-- Storyboards persistence
+- Prisma `StudioStoryboard`, `StudioScene`, junction tables + migration `20260607120000_studio_storyboard`
+- CRUD API: `/api/studio/storyboards` + nested scenes/reorder/duplicate
+- UI: library, create, editor (`/studio/storyboards/*`) with drag-and-drop scene order
+- `StoryboardSnapshot` / `SceneSnapshot` for future Motion (no Vidu wiring)
 
-## Before Studio V5
+## Studio foundation (V5)
 
-- Storyboards library + Scene Composer data model
+Characters · Locations · Props · Storyboards — ready for Motion handoff (V6+).
+
+## V6 deliverables (Motion handoff)
+
+- `MotionHandoffPayload` + `createMotionHandoffPayload()`
+- API `GET /api/studio/storyboards/[id]/handoff`
+- Studio **Open in Motion** → `/animate/instant/import?storyboardId=…`
+- Wizard prefill (scene slots + `studioContext` metadata)
+- Collapsible **Studio context** panel in Motion (read-only)
+
+## Not in V6
+
+- Vidu prompt wiring
+- Automatic image generation from Studio assets
+
+## Before Studio V7
+
+- Motion Prompt Builder consuming `studioContext`
+- Optional reference images from character/location/prop URLs
 - Auth / ownership rules for Studio assets
 - Upload pipeline for reference images
 - API routes and list/detail UI per pillar
