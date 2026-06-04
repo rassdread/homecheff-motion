@@ -53,7 +53,11 @@ export async function planStudioJobScenes(
     }));
   }
 
-  if (type === "analyze_consistency" || type === "analyze_vision") {
+  if (
+    type === "analyze_consistency" ||
+    type === "analyze_vision" ||
+    type === "analyze_character_consistency"
+  ) {
     return filterByIds(input.sceneIds)
       .filter(({ scene }) => {
         const pick =

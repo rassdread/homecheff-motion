@@ -307,7 +307,7 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
           ) : null}
 
           {dashboard ? (
-            <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-6 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-6 sm:grid-cols-2 lg:grid-cols-6">
               <div>
                 <p className="text-xs font-semibold uppercase text-zinc-500">{t("studio.movieBuilder.dashboard.scenes")}</p>
                 <p className="text-2xl font-bold text-zinc-900">{dashboard.sceneCount}</p>
@@ -325,6 +325,14 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
               <div>
                 <p className="text-xs font-semibold uppercase text-zinc-500">{t("studio.movieBuilder.dashboard.vision")}</p>
                 <p className="text-2xl font-bold text-zinc-900">{dashboard.averageVisionScore ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-zinc-500">
+                  {t("studio.movieBuilder.dashboard.characters")}
+                </p>
+                <p className="text-2xl font-bold text-zinc-900">
+                  {dashboard.readiness.averageCharacterIdentityScore ?? "—"}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase text-zinc-500">{t("studio.movieBuilder.dashboard.readiness")}</p>
@@ -455,6 +463,14 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
                       <button
                         type="button"
                         disabled={jobBusy}
+                        onClick={() => openJobConfirm("analyze_character_consistency")}
+                        className="rounded-full border border-violet-500/50 px-4 py-2 text-sm font-semibold text-violet-900 disabled:opacity-50"
+                      >
+                        {t("studio.movieBuilder.analyze.characters")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={jobBusy}
                         onClick={() => openJobConfirm("analyze_consistency")}
                         className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                       >
@@ -467,6 +483,9 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
                       {t("studio.movieBuilder.analyze.scores", {
                         consistency: String(dashboard.averageConsistencyScore ?? "—"),
                         vision: String(dashboard.averageVisionScore ?? "—"),
+                        characters: String(
+                          dashboard.readiness.averageCharacterIdentityScore ?? "—"
+                        ),
                         weak: String(dashboard.readiness.unresolvedWeakSceneCount),
                       })}
                     </p>

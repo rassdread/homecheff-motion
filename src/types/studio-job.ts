@@ -2,6 +2,7 @@ export const STUDIO_JOB_TYPES = [
   "generate_scene_images",
   "analyze_consistency",
   "analyze_vision",
+  "analyze_character_consistency",
   "improve_weak_scenes",
 ] as const;
 
@@ -61,6 +62,9 @@ export type StudioJobResult = StudioJobAuditTrail & {
   /** Present for analyze_vision */
   overallVisionScore?: number;
   visionWarnings?: string[];
+  /** Present for analyze_character_consistency (V17) */
+  overallCharacterConsistencyScore?: number;
+  characterDriftWarnings?: string[];
 };
 
 export type StudioJobListItem = {

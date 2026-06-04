@@ -17,8 +17,9 @@ import type {
   ImprovementScore,
 } from "@/types/studio-correction";
 import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
+import type { StoryboardCharacterConsistencyReport } from "@/types/studio-character-consistency";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 8 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 9 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -76,5 +77,14 @@ export type MotionHandoffPayload = {
   visionReport: StoryboardVisionReport | null;
   overallVisionScore: number;
   visionWarnings: string[];
+  /** V17: character identity across storyboard (metadata only). */
+  characterConsistencyReport: StoryboardCharacterConsistencyReport | null;
+  overallCharacterConsistencyScore: number;
+  characterDriftWarnings: string[];
+  perSceneCharacterIdentityScores: Array<{
+    sceneId: string;
+    order: number;
+    characters: Array<{ characterId: string; name: string; score: number; status: string }>;
+  }>;
   scenes: MotionHandoffScene[];
 };

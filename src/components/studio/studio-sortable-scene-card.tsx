@@ -11,6 +11,7 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
 } from "@/types/studio-api";
+import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 
 type StudioSortableSceneCardProps = {
@@ -26,6 +27,7 @@ type StudioSortableSceneCardProps = {
   busy: boolean;
   canModify: boolean;
   storyboardId: string;
+  characterDriftRecommendations?: CorrectionRecommendation[];
   autoSelectImprovedImage?: boolean;
   onSave: (sceneId: string, patch: StudioSceneUpdateInput) => Promise<void>;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
@@ -46,6 +48,7 @@ export function StudioSortableSceneCard({
   busy,
   canModify,
   storyboardId,
+  characterDriftRecommendations = [],
   autoSelectImprovedImage = true,
   onSave,
   onSceneUpdated,
@@ -125,6 +128,7 @@ export function StudioSortableSceneCard({
         <div className="border-t border-zinc-100 px-4 pb-4 pt-2">
           <StudioSceneComposer
             storyboardId={storyboardId}
+            characterDriftRecommendations={characterDriftRecommendations}
             scene={scene}
             locations={locations}
             characters={characters}

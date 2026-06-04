@@ -9,9 +9,12 @@ export function buildContinuityPrompt(options: {
   location: LocationSnapshot | null;
   props: PropSnapshot[];
   memoryBundle?: SceneMemoryBundle;
+  identityDriftLines?: string[];
 }): string {
   if (options.memoryBundle) {
-    return buildSceneMemoryContinuityPrompt(options.memoryBundle);
+    return buildSceneMemoryContinuityPrompt(options.memoryBundle, {
+      identityDriftLines: options.identityDriftLines,
+    });
   }
   const lines: string[] = [];
 
@@ -34,6 +37,10 @@ export function buildContinuityPrompt(options: {
 
   for (const prop of options.props) {
     lines.push(`Keep ${prop.name} visually consistent when visible.`);
+  }
+
+  if (options.identityDriftLines?.length) {
+    lines.push(...options.identityDriftLines);
   }
 
   if (lines.length === 0) {

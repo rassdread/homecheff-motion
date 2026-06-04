@@ -7,7 +7,12 @@ import {
   analyzeStoryboardConsistency,
 } from "@/server/studio/studio-consistency-service";
 import { studioStoryboardViewerCanModify } from "@/server/studio/studio-storyboard-access";
+import { buildCharacterDriftCorrectionRecommendationsForStoryboard } from "@/lib/studio-character-timeline";
 import { buildStoryboardCorrectionSummary } from "@/lib/studio-storyboard-correction-summary";
+import {
+  mapStudioStoryboardToDetail,
+  STUDIO_SCENE_DETAIL_INCLUDE,
+} from "@/server/studio/studio-storyboard-service";
 import type {
   SceneCorrectionPreviewResponse,
   StoryboardCorrectionSummary,
@@ -69,10 +74,23 @@ export async function previewSceneCorrections(
 
   const visionReport = parseVisionConsistencyReport(source.visionReport);
 
+  const boardRow = await prisma.studioStoryboard.findFirst({
+    where: { id: storyboardId },
+    include: {
+      scenes: { orderBy: { order: "asc" }, include: STUDIO_SCENE_DETAIL_INCLUDE },
+    },
+  });
+  const characterDriftRecommendations = boardRow
+    ? buildCharacterDriftCorrectionRecommendationsForStoryboard(
+        mapStudioStoryboardToDetail(boardRow)
+      )
+    : [];
+
   const bundle = buildSceneCorrectionBundle({
     basePrompt: source.generatedPrompt,
     consistencyReport: report,
     visionReport,
+    characterDriftRecommendations,
   });
 
   return {

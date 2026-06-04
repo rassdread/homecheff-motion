@@ -138,7 +138,10 @@ export function buildMovieBuilderDashboard(
     imagesReadyLabel: `${imagesReady}/${scenes.length}`,
     averageConsistencyScore: readiness.averageConsistencyScore,
     averageVisionScore: readiness.averageVisionScore,
-    warningCount: readiness.criticalWarningCount + readiness.unresolvedWeakSceneCount,
+    warningCount:
+      readiness.criticalWarningCount +
+      readiness.unresolvedWeakSceneCount +
+      readiness.characterDriftWarningCount,
     readiness,
   };
 }

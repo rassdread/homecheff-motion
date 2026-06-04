@@ -82,7 +82,8 @@ describe("studio job engine V15", () => {
   });
 
   it("exports expected job types and statuses", () => {
-    assert.equal(STUDIO_JOB_TYPES.length, 4);
+    assert.equal(STUDIO_JOB_TYPES.length, 5);
+    assert.equal(isStudioJobType("analyze_character_consistency"), true);
     assert.ok(STUDIO_JOB_STATUSES.includes("cancelled"));
   });
 });

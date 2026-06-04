@@ -9,6 +9,7 @@ import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-pro
 import { getSceneImageProvider, getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-image-blob";
 import { buildSceneCorrectionBundle } from "@/lib/build-scene-correction-bundle";
+import { buildCharacterIdentityDriftLinesForStoryboard } from "@/lib/studio-character-timeline";
 import { parseSceneConsistencyReport } from "@/lib/studio-consistency-report-parse";
 import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import {
@@ -29,6 +30,7 @@ import type { SceneCorrectionBundle } from "@/types/studio-correction";
 import type { RegenerateWithCorrectionsResponse } from "@/types/studio-correction";
 import {
   mapStudioSceneToDetail,
+  mapStudioStoryboardToDetail,
   STUDIO_SCENE_DETAIL_INCLUDE,
   toSceneSnapshot,
   type ServiceError,
@@ -135,7 +137,20 @@ async function runSceneImageGeneration(params: {
   const styleProfile = normalizeStudioPromptStyleProfile(params.scene.storyboard.promptStyleProfile);
   const snapshot = toSceneSnapshot(params.scene);
   const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile);
-  const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput);
+  const boardRow = await prisma.studioStoryboard.findFirst({
+    where: { id: params.scene.storyboardId },
+    include: {
+      scenes: { orderBy: { order: "asc" }, include: STUDIO_SCENE_DETAIL_INCLUDE },
+    },
+  });
+  const identityDriftLines = boardRow
+    ? buildCharacterIdentityDriftLinesForStoryboard(
+        mapStudioStoryboardToDetail(boardRow)
+      )
+    : [];
+  const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput, {
+    identityDriftLines,
+  });
   const fullPrompt = params.overrides?.fullPrompt ?? defaultFullPrompt;
   const generationVersion = await nextGenerationVersion(params.scene.id);
   const correction = params.overrides?.correction;

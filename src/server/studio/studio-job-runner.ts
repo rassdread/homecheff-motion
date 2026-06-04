@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
 import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
+import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-character-timeline";
 import { formatStudioJobStepLabel } from "@/lib/studio-job-progress";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import {
@@ -121,7 +122,9 @@ export async function runStudioJob(jobId: string): Promise<void> {
           ? "Analyzing consistency"
           : job.type === "analyze_vision"
             ? "Analyzing vision"
-            : "Improving scene";
+            : job.type === "analyze_character_consistency"
+              ? "Analyzing character identity"
+              : "Improving scene";
 
     const stepLabel = formatStudioJobStepLabel({
       sceneIndex: index,
@@ -224,6 +227,50 @@ export async function runStudioJob(jobId: string): Promise<void> {
             result.failedSceneCount += 1;
           }
         }
+      } else if (job.type === "analyze_character_consistency") {
+        const scene = await prisma.studioScene.findFirst({
+          where: { id: step.sceneId, storyboardId: job.storyboardId },
+          include: STUDIO_SCENE_DETAIL_INCLUDE,
+        });
+        const target = scene ? resolveImageForAnalysis(scene) : null;
+        if (!scene || !target) {
+          stepResult.error = "No completed scene image to analyze.";
+          result.skippedSceneCount += 1;
+        } else {
+          try {
+            const consistencyReport = analyzeSceneImageConsistency({
+              scene,
+              generatedPrompt: target.generatedPrompt,
+            });
+            await persistSceneImageConsistency(target.imageId, consistencyReport);
+            const vision = await analyzeAndPersistSceneImageVision(
+              job.storyboardId,
+              step.sceneId,
+              target.imageId,
+              viewer
+            );
+            if ("error" in vision) {
+              stepResult.error = vision.error.message;
+              result.errors.push({
+                sceneId: step.sceneId,
+                sceneTitle: step.sceneTitle,
+                message: vision.error.message,
+              });
+              result.failedSceneCount += 1;
+            } else {
+              stepResult.ok = true;
+              stepResult.imageId = vision.image.id;
+              stepResult.consistencyScoreAfter = vision.image.consistencyScore;
+              stepResult.visionScoreAfter = vision.image.visionScore;
+              result.completedSceneCount += 1;
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Character analysis failed.";
+            stepResult.error = message;
+            result.errors.push({ sceneId: step.sceneId, sceneTitle: step.sceneTitle, message });
+            result.failedSceneCount += 1;
+          }
+        }
       } else if (job.type === "improve_weak_scenes") {
         const improved = await improveSceneImageWithApproval(
           job.storyboardId,
@@ -302,6 +349,56 @@ export async function runStudioJob(jobId: string): Promise<void> {
       });
       result.overallConsistencyScore = report.overallScore;
       result.driftWarnings = report.driftWarnings;
+    }
+  }
+
+  if (job.type === "analyze_character_consistency" && result.completedSceneCount > 0) {
+    const board = await prisma.studioStoryboard.findUnique({
+      where: { id: job.storyboardId },
+      include: {
+        scenes: { orderBy: { order: "asc" }, include: STUDIO_SCENE_DETAIL_INCLUDE },
+      },
+    });
+    if (board) {
+      const report = buildStoryboardCharacterConsistencyReport({
+        storyboardId: job.storyboardId,
+        scenes: board.scenes.map((scene) => {
+          const pick =
+            (scene.selectedSceneImageId
+              ? scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId)
+              : null) ?? scene.sceneImages.find((img) => img.status === "completed");
+          return {
+            sceneId: scene.id,
+            sceneTitle: scene.title,
+            order: scene.order,
+            imageId: pick?.id ?? null,
+            characters: scene.characters.map((link) => ({
+              id: link.character.id,
+              name: link.character.name,
+              role: link.character.role,
+              description: link.character.description,
+              personality: link.character.personality,
+              referenceImageUrl: link.character.referenceImageUrl,
+              appearanceMemory: link.character.appearanceMemory,
+              personalityMemory: link.character.personalityMemory,
+              continuityNotes: link.character.continuityNotes,
+              defaultClothing: link.character.defaultClothing,
+              defaultAccessories: link.character.defaultAccessories,
+              visualKeywords: link.character.visualKeywords,
+              primaryReferenceImageId: link.character.primaryReferenceImageId,
+              referenceNotes: link.character.referenceNotes,
+              identityStrength: link.character.identityStrength,
+              continuityStrength: link.character.continuityStrength,
+              worldProfileId: link.character.worldProfileId,
+              worldProfile: link.character.worldProfile,
+            })),
+            consistencyReportJson: pick?.consistencyReport ?? null,
+            visionReportJson: pick?.visionReport ?? null,
+          };
+        }),
+      });
+      result.overallCharacterConsistencyScore = report.overallCharacterConsistencyScore;
+      result.characterDriftWarnings = report.driftWarnings;
     }
   }
 

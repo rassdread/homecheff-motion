@@ -38,7 +38,13 @@ import { StudioJobCostConfirmModal } from "@/components/studio/studio-job-cost-c
 import { StudioStoryboardImprovementPanel } from "@/components/studio/studio-storyboard-improvement-panel";
 import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-job-panel";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
+import {
+  buildCharacterDriftCorrectionRecommendationsForStoryboard,
+  buildCharacterReportFromStoryboardDetail,
+} from "@/lib/studio-character-timeline";
+import type { CorrectionRecommendation } from "@/types/studio-correction";
 import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
+import { StudioCharacterConsistencyPanel } from "@/components/studio/studio-character-consistency-panel";
 import {
   fetchStoryboardImprovementSummaryApi,
   generateStoryboardCorrectionsApi,
@@ -182,6 +188,18 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     [storyboard]
   );
 
+  const characterConsistencyReport = useMemo(
+    () => (storyboard ? buildCharacterReportFromStoryboardDetail(storyboard) : null),
+    [storyboard]
+  );
+
+  const characterDriftRecommendations = useMemo((): CorrectionRecommendation[] => {
+    if (!storyboard) {
+      return [];
+    }
+    return buildCharacterDriftCorrectionRecommendationsForStoryboard(storyboard);
+  }, [storyboard]);
+
   const canModify = Boolean(
     storyboard && session.user && storyboard.ownerId === session.user.id
   );
@@ -313,6 +331,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
         if (
           job.type === "analyze_consistency" ||
           job.type === "analyze_vision" ||
+          job.type === "analyze_character_consistency" ||
           job.type === "generate_scene_images" ||
           job.type === "improve_weak_scenes"
         ) {
@@ -529,6 +548,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </button>
                         <button
                           type="button"
+                          disabled={jobBusy || scenes.length === 0}
+                          onClick={() => openJobConfirm("analyze_character_consistency")}
+                          className="rounded-full border border-violet-500/50 px-4 py-2 text-sm font-semibold text-violet-900 disabled:opacity-50"
+                        >
+                          {jobBusy
+                            ? t("studio.jobs.running")
+                            : t("studio.characterConsistency.analyzeStoryboard")}
+                        </button>
+                        <button
+                          type="button"
                           disabled={jobBusy || generatingCorrections || scenes.length === 0}
                           onClick={() => void handleGenerateCorrections()}
                           className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
@@ -597,6 +626,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             saving={savingSceneId === scene.id}
                             busy={busySceneId === scene.id}
                             canModify={canModify}
+                            characterDriftRecommendations={characterDriftRecommendations}
                             onSave={handleSaveScene}
                             onSceneUpdated={handleSceneUpdated}
                             onDuplicate={handleDuplicateScene}
@@ -646,6 +676,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                 </div>
                 <StudioVisionTimelinePanel report={visionReport} />
                 <StudioConsistencyTimelinePanel report={consistencyReport} />
+                <StudioCharacterConsistencyPanel report={characterConsistencyReport} />
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
                     {t("studio.storyboards.timelineTitle")}

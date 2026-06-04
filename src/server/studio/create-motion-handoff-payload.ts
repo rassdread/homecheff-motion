@@ -24,6 +24,7 @@ import { buildCombinedCorrectionRecommendations } from "@/lib/build-combined-cor
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
 import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
+import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-character-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
@@ -246,6 +247,56 @@ export async function createMotionHandoffPayload(
     }),
   });
 
+  const characterConsistencyReport = buildStoryboardCharacterConsistencyReport({
+    storyboardId: storyboard.id,
+    scenes: scenes.map((scene) => {
+      const selected = scene.selectedSceneImageId
+        ? scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId)
+        : scene.sceneImages.find((img) => img.status === "completed");
+      return {
+        sceneId: scene.id,
+        sceneTitle: scene.title,
+        order: scene.order,
+        imageId: selected?.id ?? null,
+        characters: scene.characters.map((link) => ({
+          id: link.character.id,
+          name: link.character.name,
+          role: link.character.role,
+          description: link.character.description,
+          personality: link.character.personality,
+          referenceImageUrl: link.character.referenceImageUrl,
+          appearanceMemory: link.character.appearanceMemory,
+          personalityMemory: link.character.personalityMemory,
+          continuityNotes: link.character.continuityNotes,
+          defaultClothing: link.character.defaultClothing,
+          defaultAccessories: link.character.defaultAccessories,
+          visualKeywords: link.character.visualKeywords,
+          primaryReferenceImageId: link.character.primaryReferenceImageId,
+          referenceNotes: link.character.referenceNotes,
+          identityStrength: link.character.identityStrength,
+          continuityStrength: link.character.continuityStrength,
+          worldProfileId: link.character.worldProfileId,
+          worldProfile: link.character.worldProfile,
+        })),
+        consistencyReportJson: selected?.consistencyReport ?? null,
+        visionReportJson: selected?.visionReport ?? null,
+      };
+    }),
+  });
+
+  const perSceneCharacterIdentityScores = characterConsistencyReport.perSceneCharacterScores.map(
+    (row) => ({
+      sceneId: row.sceneId,
+      order: row.order,
+      characters: row.characters.map((c) => ({
+        characterId: c.characterId,
+        name: c.name,
+        score: c.score,
+        status: c.status,
+      })),
+    })
+  );
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
@@ -266,6 +317,10 @@ export async function createMotionHandoffPayload(
     visionReport,
     overallVisionScore: visionReport.overallVisionScore,
     visionWarnings: visionReport.visionWarnings,
+    characterConsistencyReport,
+    overallCharacterConsistencyScore: characterConsistencyReport.overallCharacterConsistencyScore,
+    characterDriftWarnings: characterConsistencyReport.driftWarnings,
+    perSceneCharacterIdentityScores,
     scenes: handoffScenes,
   };
 

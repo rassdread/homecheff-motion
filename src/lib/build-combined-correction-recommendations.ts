@@ -13,16 +13,18 @@ function dedupeKey(rec: CorrectionRecommendation): string {
 export function buildCombinedCorrectionRecommendations(params: {
   consistencyReport: SceneConsistencyReport;
   visionReport?: VisionConsistencyReport | null;
+  characterDriftRecommendations?: CorrectionRecommendation[];
 }): CorrectionRecommendation[] {
   const fromPrompt = buildCorrectionRecommendations(params.consistencyReport);
   const fromVision = params.visionReport
     ? buildVisionCorrectionRecommendations(params.visionReport)
     : [];
+  const fromCharacter = params.characterDriftRecommendations ?? [];
 
   const seen = new Set<string>();
   const merged: CorrectionRecommendation[] = [];
 
-  for (const rec of [...fromVision, ...fromPrompt]) {
+  for (const rec of [...fromCharacter, ...fromVision, ...fromPrompt]) {
     const key = dedupeKey(rec);
     if (seen.has(key)) {
       continue;

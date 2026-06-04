@@ -1,4 +1,5 @@
 import { buildStoryboardImprovementSummary } from "@/lib/build-storyboard-improvement-summary";
+import { buildCharacterReportFromStoryboardDetail } from "@/lib/studio-character-timeline";
 import { buildMoviePrepareChecklist } from "@/lib/studio-movie-prepare-checklist";
 import {
   resolveSceneDisplayImage,
@@ -20,6 +21,8 @@ function tierFromSignals(params: {
   selectedRatio: number;
   avgVision: number | null;
   avgConsistency: number | null;
+  avgCharacterIdentity: number | null;
+  characterDriftWarnings: number;
   criticalWarnings: number;
   weakScenes: number;
 }): MovieReadinessTier {
@@ -29,6 +32,8 @@ function tierFromSignals(params: {
   if (
     params.weakScenes > 0 ||
     params.criticalWarnings > 0 ||
+    params.characterDriftWarnings > 2 ||
+    (params.avgCharacterIdentity !== null && params.avgCharacterIdentity < 55) ||
     params.selectedRatio < 1 ||
     (params.avgVision !== null && params.avgVision < 65) ||
     (params.avgConsistency !== null && params.avgConsistency < 65)
@@ -111,6 +116,9 @@ export function computeMovieReadinessScore(
 
   const averageVisionScore = average(visionScores);
   const averageConsistencyScore = average(consistencyScores);
+  const characterReport = buildCharacterReportFromStoryboardDetail(storyboard);
+  const averageCharacterIdentityScore = characterReport.overallCharacterConsistencyScore;
+  const characterDriftWarningCount = characterReport.driftWarnings.length;
 
   const tier = tierFromSignals({
     prepareReady: prepare.ready,
@@ -118,18 +126,22 @@ export function computeMovieReadinessScore(
     selectedRatio: totalScenes === 0 ? 0 : scenesWithSelected / totalScenes,
     avgVision: averageVisionScore,
     avgConsistency: averageConsistencyScore,
+    avgCharacterIdentity: averageCharacterIdentityScore,
+    characterDriftWarnings: characterDriftWarningCount,
     criticalWarnings: criticalWarningCount,
     weakScenes: unresolvedWeakSceneCount,
   });
 
   const score = Math.round(
-    sceneCompletenessScore * 0.2 +
-      imageAvailabilityScore * 0.25 +
-      (totalScenes === 0 ? 0 : (scenesWithSelected / totalScenes) * 100) * 0.25 +
-      (averageVisionScore ?? 50) * 0.15 +
-      (averageConsistencyScore ?? 50) * 0.15 -
+    sceneCompletenessScore * 0.18 +
+      imageAvailabilityScore * 0.22 +
+      (totalScenes === 0 ? 0 : (scenesWithSelected / totalScenes) * 100) * 0.22 +
+      (averageVisionScore ?? 50) * 0.12 +
+      (averageConsistencyScore ?? 50) * 0.12 +
+      averageCharacterIdentityScore * 0.14 -
       criticalWarningCount * 5 -
-      unresolvedWeakSceneCount * 3
+      unresolvedWeakSceneCount * 3 -
+      characterDriftWarningCount * 2
   );
 
   return {
@@ -139,6 +151,8 @@ export function computeMovieReadinessScore(
     imageAvailabilityScore,
     averageVisionScore,
     averageConsistencyScore,
+    averageCharacterIdentityScore,
+    characterDriftWarningCount,
     selectedImagesCount: scenesWithSelected,
     scenesWithSelectedImage: scenesWithSelected,
     totalScenes,

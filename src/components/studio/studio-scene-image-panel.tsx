@@ -22,17 +22,20 @@ import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profile
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { StudioSceneConsistencyPanel } from "@/components/studio/studio-scene-consistency-panel";
+import { StudioSceneCharacterIdentityPanel } from "@/components/studio/studio-scene-character-identity-panel";
 import { StudioSceneVisionPanel } from "@/components/studio/studio-scene-vision-panel";
 import { StudioSceneCorrectionPanel } from "@/components/studio/studio-scene-correction-panel";
 import { StudioSceneImageHistoryPanel } from "@/components/studio/studio-scene-image-history-panel";
 import type { SceneCorrectionPreviewResponse } from "@/types/studio-correction";
 import type { CombinedImprovementScore } from "@/types/studio-improvement";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
+import type { CorrectionRecommendation } from "@/types/studio-correction";
 
 type StudioSceneImagePanelProps = {
   storyboardId: string;
   scene: StudioSceneDetail;
   styleProfile: StudioPromptStyleProfile;
+  characterDriftRecommendations?: CorrectionRecommendation[];
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   autoSelectImprovedImage?: boolean;
@@ -42,6 +45,7 @@ export function StudioSceneImagePanel({
   storyboardId,
   scene,
   styleProfile,
+  characterDriftRecommendations = [],
   canModify,
   onSceneUpdated,
   autoSelectImprovedImage = true,
@@ -91,8 +95,9 @@ export function StudioSceneImagePanel({
     return buildCombinedCorrectionRecommendations({
       consistencyReport: selected.consistencyReport,
       visionReport: selected.visionReport,
+      characterDriftRecommendations,
     });
-  }, [selected]);
+  }, [selected, characterDriftRecommendations]);
 
   const regenerationRec = useMemo(() => {
     if (!selected) {
@@ -379,6 +384,11 @@ export function StudioSceneImagePanel({
 
       {panelTab === "consistency" ? (
         <>
+          <StudioSceneCharacterIdentityPanel
+            sceneCharacters={scene.characters}
+            consistencyReport={consistencyReport}
+            visionReport={visionReport}
+          />
           <StudioSceneConsistencyPanel image={displayImage ?? latest} report={consistencyReport} />
           {canModify && displayImage?.status === "completed" ? (
             <button
@@ -395,6 +405,11 @@ export function StudioSceneImagePanel({
 
       {panelTab === "vision" ? (
         <>
+          <StudioSceneCharacterIdentityPanel
+            sceneCharacters={scene.characters}
+            consistencyReport={consistencyReport}
+            visionReport={visionReport}
+          />
           <StudioSceneVisionPanel image={displayImage ?? latest} report={visionReport} />
           {canModify && displayImage?.status === "completed" ? (
             <button

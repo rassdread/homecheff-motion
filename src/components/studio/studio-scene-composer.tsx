@@ -20,9 +20,11 @@ import type {
   StudioSceneDetail,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
+import type { CorrectionRecommendation } from "@/types/studio-correction";
 
 type StudioSceneComposerProps = {
   storyboardId: string;
+  characterDriftRecommendations?: CorrectionRecommendation[];
   scene: StudioSceneDetail;
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
@@ -39,6 +41,7 @@ type TabId = "compose" | "prompt" | "image";
 
 export function StudioSceneComposer({
   storyboardId,
+  characterDriftRecommendations = [],
   scene,
   locations,
   characters,
@@ -128,6 +131,7 @@ export function StudioSceneComposer({
           scene={draft}
           styleProfile={styleProfile}
           canModify={canModify}
+          characterDriftRecommendations={characterDriftRecommendations}
           autoSelectImprovedImage={autoSelectImprovedImage}
           onSceneUpdated={(updated) => {
             setDraft(updated);

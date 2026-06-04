@@ -107,12 +107,16 @@ export function buildWorldMemoryPromptLines(world: SceneMemoryBundle["world"]): 
   return [block.join(" ")];
 }
 
-export function buildSceneMemoryContinuityPrompt(bundle: SceneMemoryBundle): string {
+export function buildSceneMemoryContinuityPrompt(
+  bundle: SceneMemoryBundle,
+  options?: { identityDriftLines?: string[] }
+): string {
   const parts = [
     ...buildWorldMemoryPromptLines(bundle.world),
     ...buildCharacterMemoryPromptLines(bundle.characters),
     ...buildLocationMemoryPromptLines(bundle.location),
     ...buildPropMemoryPromptLines(bundle.props),
+    ...(options?.identityDriftLines ?? []),
     continuityStrengthPromptHint(bundle.continuityStrength),
   ];
   const joined = joinLines(parts);

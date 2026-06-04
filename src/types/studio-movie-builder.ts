@@ -57,6 +57,8 @@ export type MovieReadinessScore = {
   imageAvailabilityScore: number;
   averageVisionScore: number | null;
   averageConsistencyScore: number | null;
+  averageCharacterIdentityScore: number | null;
+  characterDriftWarningCount: number;
   selectedImagesCount: number;
   scenesWithSelectedImage: number;
   totalScenes: number;

@@ -50,13 +50,15 @@ function buildReferenceConsistencyLines(scene: SceneSnapshot): string[] {
  */
 export function buildSceneImageGenerationPrompt(
   scene: SceneSnapshot,
-  promptOutput: PromptBuilderOutput
+  promptOutput: PromptBuilderOutput,
+  options?: { identityDriftLines?: string[] }
 ): string {
   const referenceLines = buildReferenceConsistencyLines(scene);
   const continuity = buildContinuityPrompt({
     characters: scene.characters,
     location: scene.location,
     props: scene.props,
+    identityDriftLines: options?.identityDriftLines,
   });
 
   const parts = [
