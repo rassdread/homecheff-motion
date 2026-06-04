@@ -96,11 +96,23 @@ Characters · Locations · Props · Storyboards — ready for Motion handoff (V6
 - Vidu prompt injection from generated prompts
 - Prisma table for prompt version history
 
-## Before Studio V8
+## V8 deliverables (Scene Image Generator)
 
-- Image Generator step between Prompt Builder and Motion
-- Optional reference images from character/location/prop URLs in Vidu multi-image prompts
-- Per-scene prompt overrides in UI
-- Persist prompt versions on export / render-version snapshots
+- `StudioSceneImage` model + scene image service
+- `SceneImageProvider` (`openai` when `OPENAI_API_KEY` set, else `mock`)
+- Generate / regenerate / delete / bulk / **Use in Motion** (`selectedSceneImageId`)
+- Scene Composer **Generated Image** tab
+- Docs: `docs/studio-scene-image-future.md`, `docs/studio-character-engine-future.md`
 
-See also: `src/lib/studio-integration-architecture.ts`, `docs/studio-prompt-ai-future.md`.
+## Not in V8
+
+- Video or Vidu rendering from scene images
+- Motion wizard automatic image prefill (metadata only on handoff)
+
+## Before Studio V9
+
+- Motion import fills slot images from `preferredSceneImageUrl`
+- Async worker queue for bulk scene image generation
+- Multi-reference conditioned image APIs
+
+See also: `src/lib/studio-integration-architecture.ts`, `docs/studio-scene-image-future.md`.

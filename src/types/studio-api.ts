@@ -2,6 +2,7 @@ import type { StudioCharacterRole } from "@/lib/studio-character-roles";
 import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 import type { StudioPropCategory } from "@/lib/studio-prop-categories";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 export type StudioCharacterListItem = {
   id: string;
@@ -98,8 +99,27 @@ export type StudioSceneDetail = {
   location: StudioLocationListItem | null;
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
+  selectedSceneImageId: string | null;
+  sceneImages: StudioSceneImageListItem[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type StudioSceneImageListResponse = {
+  images: StudioSceneImageListItem[];
+};
+
+export type StudioSceneImageDetailResponse = {
+  image: StudioSceneImageListItem;
+};
+
+export type StudioBulkSceneImageResponse = {
+  results: Array<{
+    sceneId: string;
+    ok: boolean;
+    imageId?: string;
+    error?: string;
+  }>;
 };
 
 export type StudioStoryboardListItem = {

@@ -18,6 +18,7 @@ import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
+import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
@@ -40,6 +41,7 @@ const SCENE_INCLUDE = {
   location: true,
   characters: { include: { character: true } },
   props: { include: { prop: true } },
+  sceneImages: { orderBy: { createdAt: "desc" as const } },
 } satisfies Prisma.StudioSceneInclude;
 
 type SceneRow = Prisma.StudioSceneGetPayload<{ include: typeof SCENE_INCLUDE }>;
@@ -64,6 +66,8 @@ export function mapStudioSceneToDetail(row: SceneRow): StudioSceneDetail {
     location: row.location ? mapStudioLocationToListItem(row.location) : null,
     characters: row.characters.map((link) => mapStudioCharacterToListItem(link.character)),
     props: row.props.map((link) => mapStudioPropToListItem(link.prop)),
+    selectedSceneImageId: row.selectedSceneImageId,
+    sceneImages: row.sceneImages.map(mapStudioSceneImageToListItem),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -87,7 +91,22 @@ export function toSceneSnapshot(row: SceneRow): SceneSnapshot {
     transitionToNext: row.transitionToNext,
     durationSeconds: row.durationSeconds,
     notes: noteParts.length > 0 ? noteParts.join("\n") : undefined,
+    selectedSceneImageId: row.selectedSceneImageId,
+    preferredSceneImageUrl: resolvePreferredSceneImageUrl(row),
   };
+}
+
+function resolvePreferredSceneImageUrl(row: SceneRow): string | null {
+  if (row.selectedSceneImageId) {
+    const selected = row.sceneImages.find(
+      (img) => img.id === row.selectedSceneImageId && img.status === "completed" && img.imageUrl
+    );
+    if (selected?.imageUrl) {
+      return selected.imageUrl;
+    }
+  }
+  const latest = row.sceneImages.find((img) => img.status === "completed" && img.imageUrl);
+  return latest?.imageUrl ?? null;
 }
 
 export function toStoryboardSnapshot(

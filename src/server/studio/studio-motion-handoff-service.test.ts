@@ -17,6 +17,8 @@ describe("motion handoff snapshot mapping", () => {
       location: null,
       characters: [],
       props: [],
+      selectedSceneImageId: null,
+      sceneImages: [],
     });
     assert.equal(snap.notes, "Desc\nwalking");
   });

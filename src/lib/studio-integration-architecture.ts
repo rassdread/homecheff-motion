@@ -83,12 +83,19 @@
  * - Scene Composer Prompt Preview tab
  * - Future flow: `docs/studio-prompt-ai-future.md`
  *
- * ## V8+ considerations
+ * ## V8 (Scene Image Generator)
  *
- * - Image Generator between Prompt Builder and Motion
- * - Pass character reference images into Vidu multi-image prompts
- * - Render-version snapshots may store Studio asset IDs and prompt versions per export
- * - System character seeds (`isSystemCharacter`) — see `docs/studio-characters-future.md`
+ * - `StudioSceneImage` + `generateStudioSceneImage()` (`@/server/studio/studio-scene-image-service`)
+ * - `SceneImageProvider` registry (`@/server/scene-image-providers`) — OpenAI images or mock
+ * - `selectedSceneImageId` for Motion prep (handoff stores URL metadata, no Vidu yet)
+ * - Docs: `docs/studio-scene-image-future.md`, `docs/studio-character-engine-future.md`
+ *
+ * ## V9+ considerations
+ *
+ * - Motion wizard prefill from `preferredSceneImageUrl`
+ * - Pass reference images into Vidu multi-image prompts
+ * - Character memory / packs — see `docs/studio-character-engine-future.md`
+ * - Render-version snapshots may store scene image `generationVersion` per export
  */
 
 export const STUDIO_INTEGRATION_ARCHITECTURE_VERSION = "v1" as const;

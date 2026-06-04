@@ -338,26 +338,53 @@ model StudioStoryboard {
 
 /** Single composed scene within a storyboard. */
 model StudioScene {
-  id               String                 @id @default(cuid())
-  storyboardId     String
-  storyboard       StudioStoryboard       @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
-  order            Int
-  title            String                 @default("")
-  description      String                 @default("")
-  action           String                 @default("")
-  emotion          String                 @default("")
-  camera           String                 @default("")
-  transitionToNext String                 @default("")
-  durationSeconds  Int                    @default(5)
-  locationId       String?
-  location         StudioLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  characters       StudioSceneCharacter[]
-  props            StudioSceneProp[]
+  id                   String                 @id @default(cuid())
+  storyboardId         String
+  storyboard           StudioStoryboard       @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  order                Int
+  title                String                 @default("")
+  description          String                 @default("")
+  action               String                 @default("")
+  emotion              String                 @default("")
+  camera               String                 @default("")
+  transitionToNext     String                 @default("")
+  durationSeconds      Int                    @default(5)
+  locationId           String?
+  location             StudioLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  /** Preferred image for future Motion import (V8). */
+  selectedSceneImageId String?
+  selectedSceneImage   StudioSceneImage?      @relation("StudioSceneSelectedImage", fields: [selectedSceneImageId], references: [id], onDelete: SetNull)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  characters           StudioSceneCharacter[]
+  props                StudioSceneProp[]
+  sceneImages          StudioSceneImage[]     @relation("StudioSceneImages")
 
   @@unique([storyboardId, order])
   @@index([storyboardId, order])
+}
+
+/** AI-generated still for a composed scene (Studio V8). */
+model StudioSceneImage {
+  id                 String      @id @default(cuid())
+  sceneId            String
+  scene              StudioScene @relation("StudioSceneImages", fields: [sceneId], references: [id], onDelete: Cascade)
+  /** queued | generating | completed | failed */
+  status             String
+  promptVersion      Int
+  generationVersion  Int         @default(1)
+  generatedPrompt    String
+  imageUrl           String      @default("")
+  storageKey         String      @default("")
+  thumbnailUrl       String      @default("")
+  provider           String
+  seed               String?
+  generationSettings Json?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  selectedByScenes   StudioScene[] @relation("StudioSceneSelectedImage")
+
+  @@index([sceneId, createdAt])
 }
 
 model StudioSceneCharacter {

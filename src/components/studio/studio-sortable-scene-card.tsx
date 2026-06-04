@@ -25,7 +25,9 @@ type StudioSortableSceneCardProps = {
   saving: boolean;
   busy: boolean;
   canModify: boolean;
+  storyboardId: string;
   onSave: (sceneId: string, patch: StudioSceneUpdateInput) => Promise<void>;
+  onSceneUpdated: (scene: StudioSceneDetail) => void;
   onDuplicate: (sceneId: string) => void;
   onDelete: (sceneId: string) => void;
 };
@@ -42,7 +44,9 @@ export function StudioSortableSceneCard({
   saving,
   busy,
   canModify,
+  storyboardId,
   onSave,
+  onSceneUpdated,
   onDuplicate,
   onDelete,
 }: StudioSortableSceneCardProps) {
@@ -118,13 +122,16 @@ export function StudioSortableSceneCard({
       {expanded ? (
         <div className="border-t border-zinc-100 px-4 pb-4 pt-2">
           <StudioSceneComposer
+            storyboardId={storyboardId}
             scene={scene}
             locations={locations}
             characters={characters}
             props={props}
             styleProfile={styleProfile}
             saving={saving}
+            canModify={canModify}
             onSave={(patch) => onSave(scene.id, patch)}
+            onSceneUpdated={onSceneUpdated}
           />
         </div>
       ) : null}

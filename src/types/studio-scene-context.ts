@@ -27,4 +27,7 @@ export type StudioSceneContextMetadata = {
   stylePrompt?: string;
   continuityPrompt?: string;
   promptVersion?: import("@/types/studio-prompt-builder").PromptVersionMetadata;
+  /** V8 — selected generated scene image for future Motion slot prefill. */
+  selectedSceneImageId?: string | null;
+  preferredSceneImageUrl?: string | null;
 };

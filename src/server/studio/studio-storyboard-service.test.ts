@@ -49,7 +49,27 @@ describe("studio storyboard snapshots", () => {
         },
       ],
       props: [],
+      selectedSceneImageId: null,
+      sceneImages: [
+        {
+          id: "img-1",
+          sceneId: "scene-1",
+          status: "completed",
+          promptVersion: 1,
+          generationVersion: 1,
+          generatedPrompt: "prompt",
+          imageUrl: "https://example.com/scene.jpg",
+          storageKey: "studio/u1/.../main.png",
+          thumbnailUrl: "https://example.com/scene-thumb.jpg",
+          provider: "mock",
+          seed: null,
+          generationSettings: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
     });
+    assert.equal(snap.preferredSceneImageUrl, "https://example.com/scene.jpg");
     assert.equal(snap.title, "Chef cooking");
     assert.equal(snap.location?.name, "Rotterdam");
     assert.equal(snap.characters[0]?.name, "Chef");
@@ -57,7 +77,7 @@ describe("studio storyboard snapshots", () => {
 
   it("maps storyboard with ordered scenes", () => {
     const snap = toStoryboardSnapshot(
-      { id: "sb-1", title: "Promo", description: "Test" },
+      { id: "sb-1", title: "Promo", description: "Test", promptStyleProfile: "commercial" },
       []
     );
     assert.equal(snap.scenes.length, 0);

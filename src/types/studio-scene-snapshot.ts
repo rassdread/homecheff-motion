@@ -24,4 +24,7 @@ export type SceneSnapshot = {
   music?: string;
   /** Free-form planning notes (description + action). */
   notes?: string;
+  /** V8 — preferred generated still for Motion import (not used by Vidu yet). */
+  selectedSceneImageId?: string | null;
+  preferredSceneImageUrl?: string | null;
 };

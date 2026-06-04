@@ -37,6 +37,8 @@ function buildStudioContext(
     stylePrompt: prompt.stylePrompt,
     continuityPrompt: prompt.continuityPrompt,
     promptVersion: prompt.metadata,
+    selectedSceneImageId: scene.selectedSceneImageId,
+    preferredSceneImageUrl: scene.preferredSceneImageUrl,
   };
 }
 

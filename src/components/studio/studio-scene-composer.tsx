@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { StudioPresetField } from "@/components/studio/studio-preset-field";
 import { StudioScenePreview } from "@/components/studio/studio-scene-preview";
+import { StudioSceneImagePanel } from "@/components/studio/studio-scene-image-panel";
 import { StudioScenePromptPreview } from "@/components/studio/studio-scene-prompt-preview";
 import { useActiveTranslator } from "@/i18n/client";
 import {
@@ -20,25 +21,31 @@ import type {
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 
 type StudioSceneComposerProps = {
+  storyboardId: string;
   scene: StudioSceneDetail;
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
   styleProfile: StudioPromptStyleProfile;
   saving: boolean;
+  canModify: boolean;
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
+  onSceneUpdated: (scene: StudioSceneDetail) => void;
 };
 
-type TabId = "compose" | "prompt";
+type TabId = "compose" | "prompt" | "image";
 
 export function StudioSceneComposer({
+  storyboardId,
   scene,
   locations,
   characters,
   props,
   styleProfile,
   saving,
+  canModify,
   onSave,
+  onSceneUpdated,
 }: StudioSceneComposerProps) {
   const t = useActiveTranslator();
   const [tab, setTab] = useState<TabId>("compose");
@@ -97,10 +104,32 @@ export function StudioSceneComposer({
         >
           {t("studio.prompt.tab.preview")}
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("image")}
+          className={`px-3 py-2 text-sm font-semibold ${
+            tab === "image"
+              ? "border-b-2 border-[#006D52] text-[#006D52]"
+              : "text-zinc-500"
+          }`}
+        >
+          {t("studio.sceneImage.tab.generated")}
+        </button>
       </div>
 
       {tab === "prompt" ? (
         <StudioScenePromptPreview scene={draft} styleProfile={styleProfile} />
+      ) : tab === "image" ? (
+        <StudioSceneImagePanel
+          storyboardId={storyboardId}
+          scene={draft}
+          styleProfile={styleProfile}
+          canModify={canModify}
+          onSceneUpdated={(updated) => {
+            setDraft(updated);
+            onSceneUpdated(updated);
+          }}
+        />
       ) : (
         <div className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">

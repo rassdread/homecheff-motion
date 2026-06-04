@@ -31,6 +31,7 @@ import {
   normalizeStudioPromptStyleProfile,
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
+import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
 import {
   createStudioSceneApi,
   deleteStudioSceneApi,
@@ -65,6 +66,8 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
   const [busySceneId, setBusySceneId] = useState<string | null>(null);
   const [savingStyleProfile, setSavingStyleProfile] = useState(false);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -164,6 +167,41 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
       return;
     }
     setExpandedId(res.data.scene.id);
+    await load();
+  };
+
+  const handleSceneUpdated = (updated: StudioStoryboardDetail["scenes"][number]) => {
+    setStoryboard((prev) =>
+      prev
+        ? {
+            ...prev,
+            scenes: prev.scenes.map((s) => (s.id === updated.id ? updated : s)),
+          }
+        : prev
+    );
+  };
+
+  const handleBulkGenerateImages = async () => {
+    if (!storyboard || scenes.length === 0) {
+      return;
+    }
+    setBulkGenerating(true);
+    setBulkProgress(t("studio.sceneImage.bulkStarting"));
+    setError("");
+    const res = await bulkGenerateStudioSceneImagesApi(storyboardId);
+    setBulkGenerating(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.sceneImage.error.bulkFailed"));
+      setBulkProgress("");
+      return;
+    }
+    const okCount = res.data.results.filter((r) => r.ok).length;
+    setBulkProgress(
+      t("studio.sceneImage.bulkDone", {
+        ok: String(okCount),
+        total: String(res.data.results.length),
+      })
+    );
     await load();
   };
 
@@ -290,6 +328,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </Link>
                         <button
                           type="button"
+                          disabled={bulkGenerating}
+                          onClick={() => void handleBulkGenerateImages()}
+                          className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
+                        >
+                          {bulkGenerating
+                            ? t("studio.sceneImage.bulkGenerating")
+                            : t("studio.sceneImage.bulkGenerateAll")}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void handleAddScene()}
                           className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
                         >
@@ -309,6 +357,12 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
             </p>
           ) : null}
 
+          {bulkProgress ? (
+            <p className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-4 py-2 text-sm text-[#006D52]">
+              {bulkProgress}
+            </p>
+          ) : null}
+
           {storyboard && !loading ? (
             <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
               <div>
@@ -324,6 +378,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         {scenes.map((scene, index) => (
                           <StudioSortableSceneCard
                             key={scene.id}
+                            storyboardId={storyboardId}
                             scene={scene}
                             sceneIndex={index}
                             expanded={expandedId === scene.id}
@@ -338,6 +393,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             busy={busySceneId === scene.id}
                             canModify={canModify}
                             onSave={handleSaveScene}
+                            onSceneUpdated={handleSceneUpdated}
                             onDuplicate={handleDuplicateScene}
                             onDelete={handleDeleteScene}
                           />
