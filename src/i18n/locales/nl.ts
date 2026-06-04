@@ -742,6 +742,16 @@ export const nl = {
   "motion.qa.preRender.renderAnyway": "Toch renderen",
   "motion.qa.inspector.studioMetadata": "Studio-metadata",
   "motion.qa.inspector.corrections": "{count} correctie-aanbeveling(en) uit Studio",
+  "motion.qa.server.panelTitle": "Studio QA",
+  "motion.qa.server.status.current": "Actueel",
+  "motion.qa.server.status.stale": "Verouderd",
+  "motion.qa.server.status.missing": "Ontbreekt",
+  "motion.qa.server.staleWarning":
+    "Scène-afbeeldingen zijn gewijzigd sinds de Studio-import. QA-scores kunnen niet meer overeenkomen met de huidige volgorde.",
+  "motion.qa.server.draftOnlyWarning":
+    "Studio-metadata staat alleen in je browserdraft. Importeer opnieuw of rond checkout af om QA op dit project op te slaan.",
+  "motion.qa.server.persistOnCheckout":
+    "Studio QA wordt op het Motion-project opgeslagen zodra je checkout afrondt (beschikbaar op elk apparaat).",
 
   "videos.title": "Mijn video’s",
   "videos.emptyTitle": "Nog geen video’s",

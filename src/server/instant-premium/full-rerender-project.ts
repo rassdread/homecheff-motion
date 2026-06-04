@@ -16,6 +16,11 @@ import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mo
 import { isInstantVideoRepairInProgress } from "@/server/instant-premium/start-instant-video-repair";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
 import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
+import {
+  buildStudioRenderAuditMetadata,
+  imageChangesAffectStudioIntelligence,
+  resolveStudioIntelligenceStatus,
+} from "@/lib/studio-project-metadata";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 export const FULL_RERENDER_ALREADY_RUNNING = "FULL_RERENDER_ALREADY_RUNNING";
@@ -212,6 +217,21 @@ export async function fullRerenderInstantPremiumProject(params: {
     providerJobId: t.providerJobId?.trim() ?? null,
   }));
 
+  const hasStudioMetadata = Boolean(refreshed.studioSourceStoryboardId?.trim());
+  let studioIntelligenceStatus = resolveStudioIntelligenceStatus(refreshed);
+  if (
+    hasStudioMetadata &&
+    imageChangeAudit &&
+    imageChangesAffectStudioIntelligence(imageChangeAudit)
+  ) {
+    studioIntelligenceStatus = "stale";
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: { studioIntelligenceStatus: "stale" },
+    });
+  }
+  const studioAudit = hasStudioMetadata ? buildStudioRenderAuditMetadata(refreshed) : undefined;
+
   const startedAt = new Date().toISOString();
   const auditEntry: FullRerenderAuditEntry = {
     rebuildType: "full_rerender",
@@ -219,6 +239,8 @@ export async function fullRerenderInstantPremiumProject(params: {
     startedAt,
     rerenderSource: rerenderSource ?? (sceneTexts !== undefined ? "editor" : "quick"),
     imageChanges: imageChangeAudit ?? undefined,
+    studioIntelligenceStatus: hasStudioMetadata ? studioIntelligenceStatus : undefined,
+    studioAudit,
     versionNote: versionNote?.trim() || null,
     previousFinalVideoUrl,
     previousCleanFinalVideoUrl,

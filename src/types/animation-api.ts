@@ -1,5 +1,9 @@
 import type { AnimationPresetId } from "@/lib/animation-presets";
 import type { BakedTextProtectionPayload } from "@/lib/baked-text-detection";
+import type {
+  ProjectStudioExportMetadata,
+  ProjectStudioQaResponse,
+} from "@/types/studio-project-persistence";
 
 export type CreateAnimationProjectImageInput = {
   fileName: string;
@@ -393,6 +397,12 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   languageExports?: VideoLanguageExportSummary[];
   renderVersions?: ProjectRenderVersionSummary[];
   playback?: ProjectPlaybackDebugSummary;
+  /** Studio V19: server-persisted QA (read-only). */
+  studioQa?: ProjectStudioQaResponse | null;
+  studioSource?: ProjectStudioExportMetadata["studioSource"];
+  studioIntelligence?: ProjectStudioExportMetadata["studioIntelligence"];
+  studioReadiness?: ProjectStudioExportMetadata["studioReadiness"];
+  studioIntelligenceStatus?: ProjectStudioExportMetadata["studioIntelligenceStatus"];
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";
@@ -530,4 +540,6 @@ export type InstantPremiumStatusResponse = {
     updatedAt: string | null;
     startedAt: string | null;
   } | null;
+  /** Studio V19: summary during generation / after completion. */
+  studioQa?: ProjectStudioQaResponse | null;
 };

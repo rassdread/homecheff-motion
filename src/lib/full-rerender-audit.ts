@@ -5,6 +5,7 @@ export type FullRerenderTransitionArchive = {
 };
 
 import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
+import type { StudioIntelligenceStatus, StudioRenderAuditMetadata } from "@/types/studio-project-persistence";
 
 export type FullRerenderSource = "quick" | "editor";
 
@@ -16,6 +17,8 @@ export type FullRerenderAuditEntry = {
   /** How the user started the rerender (quick = no editor, editor = after adjustments). */
   rerenderSource?: FullRerenderSource;
   imageChanges?: FullRerenderImageChangeAudit;
+  studioIntelligenceStatus?: StudioIntelligenceStatus;
+  studioAudit?: StudioRenderAuditMetadata;
   versionNote?: string | null;
   previousFinalVideoUrl?: string | null;
   previousCleanFinalVideoUrl?: string | null;

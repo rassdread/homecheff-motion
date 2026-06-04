@@ -28,9 +28,14 @@ export function computeMotionRenderReadiness(params: {
 }): MotionRenderReadiness {
   const { intelligence, sceneSlots } = params;
   const studioSlots = sceneSlots.filter((s) => s.studioContext);
-  const totalScenes = studioSlots.length > 0 ? studioSlots.length : sceneSlots.length;
-  const withImage = sceneSlots.filter((s) => s.image?.remoteWorkingUrl || s.image?.remoteThumbnailUrl)
-    .length;
+  const totalScenes =
+    studioSlots.length > 0
+      ? studioSlots.length
+      : intelligence?.sceneCount ?? intelligence?.sceneBreakdowns.length ?? sceneSlots.length;
+  const withImage =
+    studioSlots.length > 0
+      ? sceneSlots.filter((s) => s.image?.remoteWorkingUrl || s.image?.remoteThumbnailUrl).length
+      : (intelligence?.sceneBreakdowns.filter((s) => s.hasSelectedImage).length ?? 0);
   const imageAvailabilityScore =
     totalScenes === 0 ? 0 : Math.round((withImage / totalScenes) * 100);
 

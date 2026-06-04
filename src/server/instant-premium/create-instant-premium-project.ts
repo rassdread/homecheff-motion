@@ -68,6 +68,11 @@ import { guardInstantPremiumVideoRendering } from "@/server/instant-premium/vide
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
 import { runViduPromptLengthPreflight } from "@/lib/vidu-prompt-preflight";
+import {
+  studioMetadataPrismaFields,
+  validateStudioProjectImport,
+} from "@/lib/studio-project-metadata";
+import type { StudioProjectImportInput } from "@/types/studio-project-persistence";
 
 const INSTANT_PRESET_ID: AnimationPresetId = "standard";
 const MAX_CHIPS = 3;
@@ -93,6 +98,8 @@ export type InstantPremiumCreatePayload = {
   posterMotionSettings?: import("@/lib/poster-motion-preserve").PosterMotionSettings;
   motionEnergy?: MotionEnergy;
   characterMotion?: import("@/lib/premium-motion-engine").CharacterMotionProfile;
+  /** Studio V19: persisted QA metadata when importing from Studio storyboard. */
+  studioImport?: StudioProjectImportInput;
 };
 
 export type InstantPremiumCreateResult =
@@ -304,6 +311,15 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
       posterMotionSettings.emotionalActingPreset ?? sceneIntelligence.resolvedEmotionalPreset,
   };
 
+  let studioImport: StudioProjectImportInput | undefined;
+  if (o.studioImport !== undefined && o.studioImport !== null) {
+    const studioValidated = validateStudioProjectImport(o.studioImport);
+    if (!studioValidated.ok) {
+      return { ok: false, error: studioValidated.error, status: 400 };
+    }
+    studioImport = studioValidated.data;
+  }
+
   const data: InstantPremiumCreatePayload = {
     images,
     instantMode,
@@ -322,6 +338,7 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     posterMotionSettings,
     ...(Object.keys(chipTextBySlot).length > 0 ? { chipTextBySlot } : {}),
     ...(userIntent !== undefined ? { userIntent } : {}),
+    ...(studioImport ? { studioImport } : {}),
   };
 
   return { ok: true, data };
@@ -545,6 +562,10 @@ export async function createInstantPremiumAnimationProject(
 
   const viduModel = preset.model;
   const viduResolution = preset.resolution;
+  const studioFields =
+    validated.data.studioImport ?
+      studioMetadataPrismaFields(validated.data.studioImport)
+    : {};
 
   try {
     const projectId = await prisma.$transaction(async (tx) => {
@@ -588,6 +609,7 @@ export async function createInstantPremiumAnimationProject(
           userPrompt: null,
           intent: normalizeAnimationIntent("cinematic"),
           globalPromptContext: DEFAULT_GLOBAL_ANIMATION_CONTEXT,
+          ...studioFields,
         },
       });
 

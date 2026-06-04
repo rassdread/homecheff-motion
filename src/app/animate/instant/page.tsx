@@ -77,6 +77,7 @@ import {
   hasUnfinishedWizardDraftContent,
   isInstantWizardProjectSnapshotComplete,
 } from "@/lib/project-display-status";
+import { buildStudioProjectImportFromWizard } from "@/lib/studio-project-metadata";
 import {
   getInstantWizardFormDefaults,
   INSTANT_WIZARD_DEFAULT_BAKED_TEXT,
@@ -1143,6 +1144,8 @@ export default function InstantPremiumPage() {
         transitionSeconds,
         sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       });
+      const wizardState = readPersistedWizardState();
+      const studioImport = wizardState ? buildStudioProjectImportFromWizard(wizardState) : null;
       const body = {
         images: uploaded,
         instantMode,
@@ -1161,6 +1164,7 @@ export default function InstantPremiumPage() {
         textRenderMode,
         hybridOverlayStyle,
         posterMotionSettings,
+        ...(studioImport ? { studioImport } : {}),
       };
 
       if (!fastRenderMode) {
@@ -1678,6 +1682,9 @@ export default function InstantPremiumPage() {
                           intelligence={studioIntelligence}
                           readiness={motionRenderReadiness}
                         />
+                        <p className="text-xs text-violet-800/90">
+                          {t("motion.qa.server.persistOnCheckout")}
+                        </p>
                       </div>
                     : hasStudioImportedScenes && studioHandoffTitle ?
                       <div className="mb-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">

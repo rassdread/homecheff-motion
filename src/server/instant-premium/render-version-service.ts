@@ -9,6 +9,7 @@ import {
   diffRenderSnapshots,
   type RenderVersionDiffLine,
 } from "@/lib/render-version-snapshots";
+import { buildStudioRenderAuditMetadata } from "@/lib/studio-project-metadata";
 import type { AnimationProjectWithMedia } from "@/server/animation-projects/queries";
 
 export type ProjectRenderVersionSummary = {
@@ -159,7 +160,10 @@ function buildRenderVersionCreateData(params: {
     createdFromRenderId: params.createdFromRenderId ?? null,
     versionNote: params.versionNote ?? null,
     isDefault: params.isDefault,
-    promptSnapshot: buildRenderPromptSnapshot(project) as object,
+    promptSnapshot: {
+      ...buildRenderPromptSnapshot(project),
+      studio: buildStudioRenderAuditMetadata(project),
+    } as object,
     storyboardSnapshot: buildRenderStoryboardSnapshot(project) as object,
     settingsSnapshot: buildRenderSettingsSnapshot(project) as object,
     segmentSnapshot: buildRenderSegmentSnapshot(project.transitions) as object,

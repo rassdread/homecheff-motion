@@ -59,6 +59,7 @@ import {
   useProjectStorageAudit,
   VideoVersionDownloadTrigger,
 } from "@/components/videos/project-storage-usage-card";
+import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -684,6 +685,12 @@ export default function VideoDetailPage() {
         createdAtIso={detail.createdAt}
         mode={projectMode}
       />
+
+      {detail.studioQa ?
+        <div className="mt-6">
+          <MotionProjectStudioQaPanel studioQa={detail.studioQa} />
+        </div>
+      : null}
 
       {showInstantProgress ? (
         <InstantFinalProgressPanel

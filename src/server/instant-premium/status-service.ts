@@ -26,6 +26,7 @@ import {
 import { resolveInstantPremiumProgress } from "@/lib/instant-premium-progress-stage";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
+import { buildProjectStudioQaResponse } from "@/lib/studio-project-metadata";
 import { refreshTransitionOutputsFromProvider } from "@/server/instant-premium/instant-premium-provider-sync";
 import { reconcilePlayableProjectCompletion } from "@/server/animation-projects/reconcile-project-completion";
 import { parseInstantSegmentErrorCode } from "@/lib/instant-segment-error-code";
@@ -620,5 +621,6 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     videoRepairUpdatedAt,
     videoRepairUserMessageKey,
     repairAdminDetail,
+    studioQa: buildProjectStudioQaResponse(projectState),
   };
 }

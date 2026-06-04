@@ -744,6 +744,16 @@ export const en: LocaleSchema = {
   "motion.qa.preRender.renderAnyway": "Render anyway",
   "motion.qa.inspector.studioMetadata": "Studio metadata",
   "motion.qa.inspector.corrections": "{count} correction recommendation(s) from Studio",
+  "motion.qa.server.panelTitle": "Studio QA",
+  "motion.qa.server.status.current": "Current",
+  "motion.qa.server.status.stale": "Stale",
+  "motion.qa.server.status.missing": "Missing",
+  "motion.qa.server.staleWarning":
+    "Scene images changed since Studio import. QA scores may no longer match the current sequence.",
+  "motion.qa.server.draftOnlyWarning":
+    "Studio metadata is available only in your browser draft. Re-import or complete checkout to persist QA on this project.",
+  "motion.qa.server.persistOnCheckout":
+    "Studio QA is saved on the Motion project when you complete checkout (available on any device).",
 
   "videos.title": "My videos",
   "videos.emptyTitle": "No videos yet",

@@ -81,6 +81,16 @@ model AnimationProject {
   intent               String?
   /** Shared continuity framing for every transition; null on legacy rows uses server default. */
   globalPromptContext  String?
+  /** Sanitized Studio → Motion handoff payload (metadata only, no binaries). */
+  studioHandoffJson            Json?
+  /** Studio QA intelligence snapshot + image lineage fingerprint. */
+  studioIntelligenceJson       Json?
+  studioSourceStoryboardId     String?
+  studioSourceStoryboardTitle  String?
+  studioHandoffVersion         Int?
+  studioImportedAt             DateTime?
+  /** current | stale | missing — Studio QA freshness vs project images. */
+  studioIntelligenceStatus     String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
   images      AnimationImage[]

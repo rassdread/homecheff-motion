@@ -30,6 +30,7 @@ import { FullRerenderEditorModal } from "@/components/instant/full-rerender-edit
 import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
 import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
+import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
@@ -357,6 +358,13 @@ export default function InstantPremiumProgressPage() {
           ) : null}
 
           {!showFatalMissing ? (
+            <>
+            {snapshot?.studioQa ?
+              <div className="mt-4">
+                <MotionProjectStudioQaPanel studioQa={snapshot.studioQa} compact />
+              </div>
+            : null}
+
             <InstantFinalProgressPanel
               className="mt-4"
               snapshot={snapshot}
@@ -388,6 +396,7 @@ export default function InstantPremiumProgressPage() {
               }
               onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
             />
+            </>
           ) : null}
 
           {showFatalMissing ? (

@@ -12,6 +12,10 @@ import {
 } from "@/lib/playback-url-resolution";
 import { getProjectPlaybackDebug } from "@/server/instant-premium/playback-debug";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+import {
+  buildProjectStudioExportMetadata,
+  buildProjectStudioQaResponse,
+} from "@/lib/studio-project-metadata";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -164,6 +168,16 @@ function mapToDetailResponse(
       previousFinalVideoUrlRaw: project.instantPreviousFinalVideoUrl?.trim() ?? null,
       cacheBust: buildPlaybackCacheKey(picked.url),
     },
+    studioQa: buildProjectStudioQaResponse(project),
+    ...(() => {
+      const exportMeta = buildProjectStudioExportMetadata(project);
+      return {
+        studioSource: exportMeta.studioSource,
+        studioIntelligence: exportMeta.studioIntelligence,
+        studioReadiness: exportMeta.studioReadiness,
+        studioIntelligenceStatus: exportMeta.studioIntelligenceStatus,
+      };
+    })(),
   };
 }
 
