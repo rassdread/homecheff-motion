@@ -8,7 +8,7 @@ import {
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 const samplePayload: MotionHandoffPayload = {
-  version: 4,
+  version: 5,
   storyboardId: "sb-1",
   title: "HomeCheff Promo",
   description: "Rotterdam + garden",
@@ -18,6 +18,9 @@ const samplePayload: MotionHandoffPayload = {
   propMemory: [],
   worldMemory: null,
   continuityStrength: "strong",
+  consistencyReport: null,
+  overallConsistencyScore: 82,
+  driftWarnings: [],
   scenes: [
     {
       sceneId: "scene-1",
@@ -48,6 +51,9 @@ const samplePayload: MotionHandoffPayload = {
       generatedPrompt: "Wide kitchen scene with proud energy.",
       stylePrompt: "Professional commercial quality.",
       continuityPrompt: "Maintain visual consistency across the storyboard sequence.",
+      sceneConsistencyScore: 82,
+      sceneConsistencyReport: null,
+      sceneConsistencyRecommendations: [],
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-06-08T12:00:00.000Z",

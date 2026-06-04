@@ -1,6 +1,8 @@
-# Studio — Future Consistency Engine (documentation only)
+# Studio — Consistency Engine
 
-V10 introduces **world memory** and **continuity strength** so Studio can think in identities and universes, not isolated scenes. The **Consistency Engine** is the planned post-generation layer between stills and motion.
+**V11** implements analysis, scoring, drift warnings and storyboard timelines. **V12+** will add automated correction (see `studio-correction-engine-future.md`).
+
+V10 introduces **world memory** and **continuity strength** so Studio can think in identities and universes, not isolated scenes.
 
 ## Planned pipeline
 

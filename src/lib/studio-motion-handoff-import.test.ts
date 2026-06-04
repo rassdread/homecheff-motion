@@ -23,6 +23,9 @@ const payload: MotionHandoffPayload = {
   propMemory: [],
   worldMemory: null,
   continuityStrength: "strong",
+  consistencyReport: null,
+  overallConsistencyScore: 0,
+  driftWarnings: [],
   scenes: [
     {
       sceneId: "scene-1",
@@ -66,6 +69,9 @@ const payload: MotionHandoffPayload = {
       generatedPrompt: "prompt",
       stylePrompt: "style",
       continuityPrompt: "cont",
+      sceneConsistencyScore: 88,
+      sceneConsistencyReport: null,
+      sceneConsistencyRecommendations: [],
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-01-01T00:00:00.000Z",

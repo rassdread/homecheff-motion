@@ -436,6 +436,13 @@ model StudioSceneImage {
   provider           String
   seed               String?
   generationSettings Json?
+  /** V11: prompt-memory consistency analysis (0–100). */
+  consistencyScore           Int?
+  /** excellent | good | needs_review | poor */
+  consistencyStatus          String?
+  consistencyReport          Json?
+  consistencyRecommendations Json?
+  consistencyAnalyzedAt      DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
   selectedByScenes   StudioScene[] @relation("StudioSceneSelectedImage")

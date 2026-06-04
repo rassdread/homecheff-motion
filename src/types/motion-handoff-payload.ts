@@ -10,8 +10,9 @@ import type {
   PropMemorySnapshot,
   WorldMemorySnapshot,
 } from "@/types/studio-memory-snapshots";
+import type { SceneConsistencyReport, StoryboardConsistencyReport } from "@/types/studio-consistency";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 4 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 5 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -28,6 +29,10 @@ export type MotionHandoffScene = SceneSnapshot & {
   selectedSceneImagePromptVersion: number | null;
   selectedSceneImageGenerationVersion: number | null;
   sceneImageReference: StudioSceneImageReference | null;
+  /** V11: consistency metadata for selected/l latest still (stored only). */
+  sceneConsistencyScore: number | null;
+  sceneConsistencyReport: SceneConsistencyReport | null;
+  sceneConsistencyRecommendations: string[];
 };
 
 export type MotionHandoffPayload = {
@@ -42,5 +47,9 @@ export type MotionHandoffPayload = {
   propMemory: PropMemorySnapshot[];
   worldMemory: WorldMemorySnapshot | null;
   continuityStrength: StudioContinuityStrength;
+  /** V11: storyboard-wide consistency (metadata only). */
+  consistencyReport: StoryboardConsistencyReport | null;
+  overallConsistencyScore: number;
+  driftWarnings: string[];
   scenes: MotionHandoffScene[];
 };

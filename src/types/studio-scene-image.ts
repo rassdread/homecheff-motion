@@ -1,4 +1,5 @@
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
+import type { SceneConsistencyReport, StudioConsistencyStatus } from "@/types/studio-consistency";
 
 export const STUDIO_SCENE_IMAGE_STATUSES = [
   "queued",
@@ -43,6 +44,11 @@ export type StudioSceneImageListItem = {
   provider: string;
   seed: string | null;
   generationSettings: StudioSceneImageGenerationSettings | null;
+  consistencyScore: number | null;
+  consistencyStatus: StudioConsistencyStatus | null;
+  consistencyReport: SceneConsistencyReport | null;
+  consistencyRecommendations: string[];
+  consistencyAnalyzedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

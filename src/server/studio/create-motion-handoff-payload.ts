@@ -8,6 +8,11 @@ import {
 import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { resolveStudioSceneImageHandoff } from "@/lib/studio-scene-image-handoff";
+import {
+  parseConsistencyRecommendations,
+  parseSceneConsistencyReport,
+} from "@/lib/studio-consistency-report-parse";
+import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
@@ -74,6 +79,13 @@ function toHandoffScene(
     })),
   });
 
+  const selectedImageRow = row.selectedSceneImageId
+    ? row.sceneImages.find((img) => img.id === row.selectedSceneImageId)
+    : row.sceneImages.find((img) => img.status === "completed");
+  const sceneConsistencyReport = selectedImageRow
+    ? parseSceneConsistencyReport(selectedImageRow.consistencyReport)
+    : null;
+
   return {
     ...snapshot,
     selectedSceneImageId: imageHandoff.selectedSceneImageId,
@@ -89,6 +101,11 @@ function toHandoffScene(
     stylePrompt: built.stylePrompt,
     continuityPrompt: built.continuityPrompt,
     promptVersion: built.metadata,
+    sceneConsistencyScore: selectedImageRow?.consistencyScore ?? null,
+    sceneConsistencyReport,
+    sceneConsistencyRecommendations: selectedImageRow
+      ? parseConsistencyRecommendations(selectedImageRow.consistencyRecommendations)
+      : [],
   };
 }
 
@@ -124,6 +141,24 @@ export async function createMotionHandoffPayload(
     continuityStrength: sceneBundles[0]?.continuityStrength ?? "strong",
   };
 
+  const handoffScenes = scenes.map((scene) => toHandoffScene(storyboard.id, scene, styleProfile));
+
+  const consistencyReport = buildStoryboardConsistencyReport({
+    storyboardId: storyboard.id,
+    scenes: scenes.map((scene) => {
+      const selected = scene.selectedSceneImageId
+        ? scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId)
+        : scene.sceneImages.find((img) => img.status === "completed");
+      return {
+        sceneId: scene.id,
+        sceneTitle: scene.title,
+        order: scene.order,
+        imageId: selected?.id ?? null,
+        report: selected ? parseSceneConsistencyReport(selected.consistencyReport) : null,
+      };
+    }),
+  });
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
@@ -135,7 +170,10 @@ export async function createMotionHandoffPayload(
     propMemory: storyboardMemory.props,
     worldMemory: storyboardMemory.world,
     continuityStrength: storyboardMemory.continuityStrength,
-    scenes: scenes.map((scene) => toHandoffScene(storyboard.id, scene, styleProfile)),
+    consistencyReport,
+    overallConsistencyScore: consistencyReport.overallScore,
+    driftWarnings: consistencyReport.driftWarnings,
+    scenes: handoffScenes,
   };
 
   return { payload };

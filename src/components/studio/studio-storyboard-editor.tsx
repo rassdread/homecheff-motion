@@ -31,7 +31,12 @@ import {
   normalizeStudioPromptStyleProfile,
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
-import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
+import { StudioConsistencyTimelinePanel } from "@/components/studio/studio-consistency-timeline-panel";
+import {
+  analyzeStudioStoryboardConsistencyApi,
+  bulkGenerateStudioSceneImagesApi,
+} from "@/lib/studio-scene-images-client";
+import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
 import {
   createStudioSceneApi,
   deleteStudioSceneApi,
@@ -68,6 +73,10 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [savingStyleProfile, setSavingStyleProfile] = useState(false);
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkProgress, setBulkProgress] = useState("");
+  const [analyzingConsistency, setAnalyzingConsistency] = useState(false);
+  const [consistencyReport, setConsistencyReport] = useState<StoryboardConsistencyReport | null>(
+    null
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -205,6 +214,21 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     await load();
   };
 
+  const handleAnalyzeConsistency = async () => {
+    setAnalyzingConsistency(true);
+    setError("");
+    const res = await analyzeStudioStoryboardConsistencyApi(storyboardId);
+    setAnalyzingConsistency(false);
+    if (!res.ok) {
+      setError(
+        (res.data as { error?: string }).error ?? t("studio.consistency.error.storyboardFailed")
+      );
+      return;
+    }
+    setConsistencyReport(res.data.report);
+    await load();
+  };
+
   const handleSaveScene = async (sceneId: string, patch: StudioSceneUpdateInput) => {
     setSavingSceneId(sceneId);
     const res = await updateStudioSceneApi(storyboardId, sceneId, patch);
@@ -338,6 +362,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </button>
                         <button
                           type="button"
+                          disabled={analyzingConsistency || scenes.length === 0}
+                          onClick={() => void handleAnalyzeConsistency()}
+                          className="rounded-full border border-amber-500/50 px-4 py-2 text-sm font-semibold text-amber-900 disabled:opacity-50"
+                        >
+                          {analyzingConsistency
+                            ? t("studio.consistency.analyzing")
+                            : t("studio.consistency.analyzeStoryboard")}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void handleAddScene()}
                           className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
                         >
@@ -403,12 +437,15 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                   </DndContext>
                 )}
               </div>
-              <aside>
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  {t("studio.storyboards.timelineTitle")}
-                </h2>
-                <div className="mt-4">
-                  <StudioStoryboardTimeline scenes={scenes} />
+              <aside className="space-y-8">
+                <StudioConsistencyTimelinePanel report={consistencyReport} />
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    {t("studio.storyboards.timelineTitle")}
+                  </h2>
+                  <div className="mt-4">
+                    <StudioStoryboardTimeline scenes={scenes} />
+                  </div>
                 </div>
               </aside>
             </div>

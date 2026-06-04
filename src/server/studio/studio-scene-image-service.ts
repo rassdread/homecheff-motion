@@ -10,6 +10,10 @@ import { getSceneImageProvider, getSelectedSceneImageProviderId } from "@/server
 import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-image-blob";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import {
+  analyzeSceneImageConsistency,
+  persistSceneImageConsistency,
+} from "@/server/studio/studio-consistency-service";
+import {
   mapStudioSceneToDetail,
   STUDIO_SCENE_DETAIL_INCLUDE,
   toSceneSnapshot,
@@ -170,7 +174,16 @@ async function runSceneImageGeneration(params: {
       },
     });
 
-    return { image: mapStudioSceneImageToListItem(completed) };
+    const consistencyReport = analyzeSceneImageConsistency({
+      scene: params.scene,
+      generatedPrompt: completed.generatedPrompt,
+    });
+    const withConsistency = await persistSceneImageConsistency(
+      completed.id,
+      consistencyReport
+    );
+
+    return { image: withConsistency };
   } catch (err) {
     await prisma.studioSceneImage.update({
       where: { id: params.imageRowId },

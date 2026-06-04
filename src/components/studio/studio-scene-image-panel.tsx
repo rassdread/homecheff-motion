@@ -13,6 +13,8 @@ import {
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneDetail } from "@/types/studio-api";
+import { StudioSceneConsistencyPanel } from "@/components/studio/studio-scene-consistency-panel";
+import { analyzeStudioSceneImageConsistencyApi } from "@/lib/studio-scene-images-client";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 type StudioSceneImagePanelProps = {
@@ -35,6 +37,7 @@ export function StudioSceneImagePanel({
   const [error, setError] = useState("");
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [panelTab, setPanelTab] = useState<"image" | "consistency">("image");
 
   const latest = scene.sceneImages[0] ?? null;
   const selected =
@@ -111,6 +114,31 @@ export function StudioSceneImagePanel({
   };
 
   const displayImage = selected?.status === "completed" ? selected : latest;
+  const consistencyReport =
+    displayImage?.consistencyReport ?? latest?.consistencyReport ?? null;
+
+  const handleReanalyzeConsistency = async () => {
+    const target = displayImage ?? latest;
+    if (!target || target.status !== "completed") {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const res = await analyzeStudioSceneImageConsistencyApi(storyboardId, scene.id, target.id);
+    setBusy(false);
+    if (!res.ok) {
+      setError(
+        (res.data as { error?: string }).error ?? t("studio.consistency.error.analyzeFailed")
+      );
+      return;
+    }
+    onSceneUpdated({
+      ...scene,
+      sceneImages: scene.sceneImages.map((img) =>
+        img.id === res.data.image.id ? res.data.image : img
+      ),
+    });
+  };
 
   const statusLabel = (status: string) => {
     switch (status) {
@@ -136,7 +164,49 @@ export function StudioSceneImagePanel({
         </span>
       </div>
 
-      {displayImage?.status === "completed" && displayImage.imageUrl ? (
+      <div className="flex gap-2 border-b border-zinc-200">
+        <button
+          type="button"
+          onClick={() => setPanelTab("image")}
+          className={`px-3 py-2 text-sm font-semibold ${
+            panelTab === "image"
+              ? "border-b-2 border-[#006D52] text-[#006D52]"
+              : "text-zinc-500"
+          }`}
+        >
+          {t("studio.sceneImage.tab.image")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPanelTab("consistency")}
+          className={`px-3 py-2 text-sm font-semibold ${
+            panelTab === "consistency"
+              ? "border-b-2 border-[#006D52] text-[#006D52]"
+              : "text-zinc-500"
+          }`}
+        >
+          {t("studio.consistency.tabTitle")}
+          {consistencyReport ? ` (${consistencyReport.overallScore})` : ""}
+        </button>
+      </div>
+
+      {panelTab === "consistency" ? (
+        <>
+          <StudioSceneConsistencyPanel image={displayImage ?? latest} report={consistencyReport} />
+          {canModify && displayImage?.status === "completed" ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleReanalyzeConsistency()}
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700"
+            >
+              {busy ? t("button.loading") : t("studio.consistency.reanalyze")}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+
+      {panelTab === "image" && displayImage?.status === "completed" && displayImage.imageUrl ? (
         <div className="relative aspect-video overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100">
           <Image
             src={displayImage.thumbnailUrl || displayImage.imageUrl}
@@ -152,15 +222,15 @@ export function StudioSceneImagePanel({
             </span>
           ) : null}
         </div>
-      ) : (
+      ) : panelTab === "image" ? (
         <div className="flex aspect-video items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 text-sm text-zinc-500">
           {latest && latest.status !== "completed"
             ? statusLabel(latest.status)
             : t("studio.sceneImage.noImageYet")}
         </div>
-      )}
+      ) : null}
 
-      {latest ? (
+      {panelTab === "image" && latest ? (
         <dl className="grid gap-2 text-xs text-zinc-600 sm:grid-cols-2">
           <div>
             <dt className="font-semibold text-zinc-500">{t("studio.sceneImage.meta.status")}</dt>
@@ -183,7 +253,7 @@ export function StudioSceneImagePanel({
         </dl>
       ) : null}
 
-      {showPrompt && latest?.generatedPrompt ? (
+      {panelTab === "image" && showPrompt && latest?.generatedPrompt ? (
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
           <p className="text-xs font-semibold uppercase text-zinc-500">{t("studio.sceneImage.generatedPrompt")}</p>
           <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-800">{latest.generatedPrompt}</p>
@@ -192,6 +262,7 @@ export function StudioSceneImagePanel({
 
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
+      {panelTab === "image" ? (
       <div className="flex flex-wrap gap-2">
         {canModify ? (
           <>
@@ -259,12 +330,15 @@ export function StudioSceneImagePanel({
           </>
         ) : null}
       </div>
+      ) : null}
 
+      {panelTab === "image" ? (
       <p className="text-xs text-zinc-500">
         {t("studio.sceneImage.promptStrengthHint", {
           score: String(promptPreview.metadata.qualityScore),
         })}
       </p>
+      ) : null}
 
       {fullscreenUrl ? (
         <div

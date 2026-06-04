@@ -5,6 +5,10 @@ import type {
   StudioSceneImageDetailResponse,
   StudioSceneImageListResponse,
 } from "@/types/studio-api";
+import type {
+  StudioSceneConsistencyAnalyzeResponse,
+  StudioStoryboardConsistencyAnalyzeResponse,
+} from "@/types/studio-consistency";
 
 export async function fetchStudioSceneImages(storyboardId: string, sceneId: string) {
   return fetchSameOriginJson<StudioSceneImageListResponse>(
@@ -53,6 +57,28 @@ export async function bulkGenerateStudioSceneImagesApi(storyboardId: string) {
   return fetchSameOriginJson<StudioBulkSceneImageResponse>(
     sameOriginApiPath(
       `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/generate-scene-images`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function analyzeStudioSceneImageConsistencyApi(
+  storyboardId: string,
+  sceneId: string,
+  imageId: string
+) {
+  return fetchSameOriginJson<StudioSceneConsistencyAnalyzeResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/scenes/${encodeURIComponent(sceneId)}/images/${encodeURIComponent(imageId)}/analyze-consistency`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function analyzeStudioStoryboardConsistencyApi(storyboardId: string) {
+  return fetchSameOriginJson<StudioStoryboardConsistencyAnalyzeResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/analyze-consistency`
     ),
     { method: "POST" }
   );

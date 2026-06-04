@@ -1,4 +1,9 @@
 import type { Prisma, StudioSceneImage } from "@prisma/client";
+import { normalizeStudioConsistencyStatus } from "@/lib/studio-consistency-status";
+import {
+  parseConsistencyRecommendations,
+  parseSceneConsistencyReport,
+} from "@/lib/studio-consistency-report-parse";
 import {
   STUDIO_SCENE_IMAGE_STATUSES,
   type StudioSceneImageGenerationSettings,
@@ -33,6 +38,13 @@ export function mapStudioSceneImageToListItem(row: StudioSceneImage): StudioScen
     provider: row.provider,
     seed: row.seed,
     generationSettings: parseGenerationSettings(row.generationSettings),
+    consistencyScore: row.consistencyScore,
+    consistencyStatus: normalizeStudioConsistencyStatus(row.consistencyStatus),
+    consistencyReport: parseSceneConsistencyReport(row.consistencyReport),
+    consistencyRecommendations: parseConsistencyRecommendations(
+      row.consistencyRecommendations
+    ),
+    consistencyAnalyzedAt: row.consistencyAnalyzedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
