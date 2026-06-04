@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { emptySceneTextDraft } from "@/components/instant/instant-mode-panel";
 import {
+  FULL_RERENDER_DRAFT_CODES,
+  isDraftStorageUnavailableResponse,
+} from "@/lib/full-rerender-draft-api-codes";
+import { planFullRerenderDraftBootstrap } from "@/lib/full-rerender-draft-bootstrap";
+import {
   buildFullRerenderRenderBodyFromDraft,
   draftPayloadToEditorSlots,
   parseFullRerenderDraftPayload,
@@ -131,6 +136,86 @@ describe("full-rerender-draft", () => {
     );
     assert.match(route, /export async function DELETE/);
     assert.match(route, /deleteFullRerenderDraft/);
+    assert.match(route, /fullRerenderDraftErrorResponse/);
+    assert.match(route, /logFullRerenderDraftError/);
+  });
+
+  it("planFullRerenderDraftBootstrap uses GET draft without POST when present", () => {
+    const payload = serializeFullRerenderDraftPayload({
+      slots: [],
+      versionNote: "",
+      userIntent: "",
+      transitionSeconds: 5,
+      instantMode: "transition",
+      expandedIndex: null,
+      initialImageIds: [],
+    });
+    const plan = planFullRerenderDraftBootstrap({
+      ok: true,
+      status: 200,
+      draft: payload,
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    assert.equal(plan.kind, "ready");
+    if (plan.kind === "ready") {
+      assert.equal(plan.source, "get");
+    }
+  });
+
+  it("planFullRerenderDraftBootstrap returns fallback on GET 500 without retry", () => {
+    const plan = planFullRerenderDraftBootstrap({
+      ok: false,
+      status: 500,
+      draft: null,
+      updatedAt: null,
+      code: FULL_RERENDER_DRAFT_CODES.FAILED,
+      error: "Server error",
+    });
+    assert.equal(plan.kind, "fallback");
+  });
+
+  it("planFullRerenderDraftBootstrap detects storage unavailable", () => {
+    assert.ok(
+      isDraftStorageUnavailableResponse(503, {
+        code: FULL_RERENDER_DRAFT_CODES.STORAGE_UNAVAILABLE,
+      })
+    );
+    const plan = planFullRerenderDraftBootstrap({
+      ok: false,
+      status: 503,
+      draft: null,
+      updatedAt: null,
+      code: FULL_RERENDER_DRAFT_CODES.STORAGE_UNAVAILABLE,
+    });
+    assert.equal(plan.kind, "storage_unavailable");
+  });
+
+  it("planFullRerenderDraftBootstrap creates via POST when GET is empty", () => {
+    const payload = serializeFullRerenderDraftPayload({
+      slots: [],
+      versionNote: "new",
+      userIntent: "",
+      transitionSeconds: 5,
+      instantMode: "transition",
+      expandedIndex: null,
+      initialImageIds: [],
+    });
+    const needs = planFullRerenderDraftBootstrap({
+      ok: true,
+      status: 200,
+      draft: null,
+      updatedAt: null,
+    });
+    assert.equal(needs.kind, "needs_create");
+    const ready = planFullRerenderDraftBootstrap(
+      { ok: true, status: 200, draft: null, updatedAt: null },
+      { ok: true, status: 200, draft: payload, updatedAt: "2026-01-02T00:00:00.000Z" }
+    );
+    assert.equal(ready.kind, "ready");
+    if (ready.kind === "ready") {
+      assert.equal(ready.source, "post");
+      assert.equal(ready.draft.versionNote, "new");
+    }
   });
 
   it("live preview shows all subtitle beats", () => {

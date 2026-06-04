@@ -985,6 +985,11 @@ export const en: LocaleSchema = {
     'Start "Create new version" on a completed video to save a draft concept here.',
   "projects.concepts.cardLabel": "Concept · {scenes} scenes",
   "projects.concept.loading": "Loading concept…",
+  "projects.concept.loadFailed": "Concept could not be loaded.",
+  "projects.concept.retryLoad": "Try again",
+  "projects.concept.startWithoutDraft": "Start without concept",
+  "projects.concept.storageUnavailable":
+    "Concept storage is not available on this server yet. Continue without a saved concept or try again later.",
   "projects.concept.save": "Save concept",
   "projects.concept.continueEditing": "Continue editing",
   "projects.concept.delete": "Delete concept",

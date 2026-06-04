@@ -985,6 +985,11 @@ export const nl = {
     "Start “Nieuwe versie maken” bij een afgeronde video om een concept op te slaan.",
   "projects.concepts.cardLabel": "Concept · {scenes} scènes",
   "projects.concept.loading": "Concept laden…",
+  "projects.concept.loadFailed": "Concept kon niet geladen worden",
+  "projects.concept.retryLoad": "Opnieuw proberen",
+  "projects.concept.startWithoutDraft": "Start zonder concept",
+  "projects.concept.storageUnavailable":
+    "Conceptopslag is op deze omgeving nog niet beschikbaar. Ga verder zonder opgeslagen concept of probeer het later opnieuw.",
   "projects.concept.save": "Concept opslaan",
   "projects.concept.continueEditing": "Verder bewerken",
   "projects.concept.delete": "Verwijder concept",

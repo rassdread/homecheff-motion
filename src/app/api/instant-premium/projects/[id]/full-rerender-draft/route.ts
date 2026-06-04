@@ -6,10 +6,14 @@ import {
   deleteFullRerenderDraft,
   ensureFullRerenderDraftForProject,
   getFullRerenderDraftForProject,
+  getFullRerenderDraftMeta,
   upsertFullRerenderDraft,
 } from "@/server/instant-premium/full-rerender-draft-service";
 import { parseFullRerenderDraftPayload } from "@/lib/full-rerender-draft";
-import { prisma } from "@/lib/prisma";
+import {
+  fullRerenderDraftErrorResponse,
+  logFullRerenderDraftError,
+} from "@/server/instant-premium/full-rerender-draft-route-utils";
 
 export const maxDuration = 30;
 
@@ -26,7 +30,10 @@ async function loadOwnedInstantProject(
     return { error: "Project not found.", status: 404 as const };
   }
   if (!isInstantLikeProject(project)) {
-    return { error: "Full rerender is only available for instant premium projects.", status: 409 as const };
+    return {
+      error: "Full rerender is only available for instant premium projects.",
+      status: 409 as const,
+    };
   }
   return { project };
 }
@@ -38,18 +45,22 @@ export async function GET(_request: Request, context: RouteContext) {
     return user;
   }
 
-  const loaded = await loadOwnedInstantProject(id, user);
-  if ("error" in loaded) {
-    return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+  try {
+    const loaded = await loadOwnedInstantProject(id, user);
+    if ("error" in loaded) {
+      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    }
+
+    const meta = await getFullRerenderDraftMeta(id);
+    return NextResponse.json({
+      ok: true,
+      draft: meta?.draft ?? null,
+      updatedAt: meta?.updatedAt ?? null,
+    });
+  } catch (error) {
+    logFullRerenderDraftError({ method: "GET", projectId: id, userId: user.id, error });
+    return fullRerenderDraftErrorResponse(error, "Could not load concept.");
   }
-
-  const draft = await getFullRerenderDraftForProject(id);
-  const row = await prisma.projectFullRerenderDraft.findUnique({ where: { projectId: id } });
-
-  return NextResponse.json({
-    draft,
-    updatedAt: row?.updatedAt.toISOString() ?? null,
-  });
 }
 
 export async function PUT(request: Request, context: RouteContext) {
@@ -59,29 +70,34 @@ export async function PUT(request: Request, context: RouteContext) {
     return user;
   }
 
-  const loaded = await loadOwnedInstantProject(id, user);
-  if ("error" in loaded) {
-    return NextResponse.json({ error: loaded.error }, { status: loaded.status });
-  }
-
-  let body: unknown = null;
   try {
-    body = await request.json();
-  } catch {
-    body = null;
-  }
+    const loaded = await loadOwnedInstantProject(id, user);
+    if ("error" in loaded) {
+      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    }
 
-  const payload = parseFullRerenderDraftPayload(
-    body && typeof body === "object" && "payload" in (body as object)
-      ? (body as { payload: unknown }).payload
-      : body
-  );
-  if (!payload) {
-    return NextResponse.json({ error: "Invalid draft payload." }, { status: 400 });
-  }
+    let body: unknown = null;
+    try {
+      body = await request.json();
+    } catch {
+      body = null;
+    }
 
-  const result = await upsertFullRerenderDraft(id, payload);
-  return NextResponse.json({ ok: true, updatedAt: result.updatedAt });
+    const payload = parseFullRerenderDraftPayload(
+      body && typeof body === "object" && "payload" in (body as object)
+        ? (body as { payload: unknown }).payload
+        : body
+    );
+    if (!payload) {
+      return NextResponse.json({ ok: false, error: "Invalid draft payload." }, { status: 400 });
+    }
+
+    const result = await upsertFullRerenderDraft(id, payload);
+    return NextResponse.json({ ok: true, updatedAt: result.updatedAt });
+  } catch (error) {
+    logFullRerenderDraftError({ method: "PUT", projectId: id, userId: user.id, error });
+    return fullRerenderDraftErrorResponse(error, "Could not save concept.");
+  }
 }
 
 export async function POST(_request: Request, context: RouteContext) {
@@ -91,18 +107,24 @@ export async function POST(_request: Request, context: RouteContext) {
     return user;
   }
 
-  const loaded = await loadOwnedInstantProject(id, user);
-  if ("error" in loaded) {
-    return NextResponse.json({ error: loaded.error }, { status: loaded.status });
+  try {
+    const loaded = await loadOwnedInstantProject(id, user);
+    if ("error" in loaded) {
+      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    }
+
+    const draft = await ensureFullRerenderDraftForProject(loaded.project);
+    const meta = await getFullRerenderDraftMeta(id);
+
+    return NextResponse.json({
+      ok: true,
+      draft,
+      updatedAt: meta?.updatedAt ?? null,
+    });
+  } catch (error) {
+    logFullRerenderDraftError({ method: "POST", projectId: id, userId: user.id, error });
+    return fullRerenderDraftErrorResponse(error, "Could not create concept.");
   }
-
-  const draft = await ensureFullRerenderDraftForProject(loaded.project);
-  const row = await prisma.projectFullRerenderDraft.findUnique({ where: { projectId: id } });
-
-  return NextResponse.json({
-    draft,
-    updatedAt: row?.updatedAt.toISOString() ?? null,
-  });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
@@ -112,11 +134,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return user;
   }
 
-  const loaded = await loadOwnedInstantProject(id, user);
-  if ("error" in loaded) {
-    return NextResponse.json({ error: loaded.error }, { status: loaded.status });
-  }
+  try {
+    const loaded = await loadOwnedInstantProject(id, user);
+    if ("error" in loaded) {
+      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    }
 
-  await deleteFullRerenderDraft(id);
-  return NextResponse.json({ ok: true });
+    await deleteFullRerenderDraft(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    logFullRerenderDraftError({ method: "DELETE", projectId: id, userId: user.id, error });
+    return fullRerenderDraftErrorResponse(error, "Could not delete concept.");
+  }
 }

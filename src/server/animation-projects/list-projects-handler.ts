@@ -7,6 +7,7 @@ import {
 } from "@/server/animation-projects/gallery-list";
 import { parseFullRerenderDraftPayload } from "@/lib/full-rerender-draft";
 import { prisma } from "@/lib/prisma";
+import { isPrismaDraftStorageError } from "@/server/animation-projects/prisma-schema-compat";
 import type { AnimationProjectListResponse } from "@/types/animation-api";
 
 export type ProjectListFailedBody = {
@@ -51,21 +52,46 @@ export async function listAnimationProjectsForUser(params: {
 
   try {
     if (section === "concepts") {
-      const draftWhere: Prisma.ProjectFullRerenderDraftWhereInput = {
-        project: params.ownerId ? { ownerId: params.ownerId } : {},
-      };
-      const [draftRows, total] = await Promise.all([
-        prisma.projectFullRerenderDraft.findMany({
-          where: draftWhere,
-          orderBy: { updatedAt: "desc" },
-          take: limit,
-          skip: offset,
-          include: {
-            project: true,
-          },
-        }),
-        prisma.projectFullRerenderDraft.count({ where: draftWhere }),
-      ]);
+      let draftRows: Awaited<
+        ReturnType<typeof prisma.projectFullRerenderDraft.findMany>
+      >;
+      let total: number;
+      try {
+        const draftWhere: Prisma.ProjectFullRerenderDraftWhereInput = {
+          project: params.ownerId ? { ownerId: params.ownerId } : {},
+        };
+        [draftRows, total] = await Promise.all([
+          prisma.projectFullRerenderDraft.findMany({
+            where: draftWhere,
+            orderBy: { updatedAt: "desc" },
+            take: limit,
+            skip: offset,
+            include: {
+              project: true,
+            },
+          }),
+          prisma.projectFullRerenderDraft.count({ where: draftWhere }),
+        ]);
+      } catch (draftListError) {
+        if (isPrismaDraftStorageError(draftListError)) {
+          console.error("[gallery-list]", {
+            phase: "conceptsDraftStorageUnavailable",
+            requestId,
+          });
+          return {
+            ok: true,
+            body: {
+              projects: [],
+              page,
+              limit,
+              total: 0,
+              hasMore: false,
+              gallerySection: section,
+            },
+          };
+        }
+        throw draftListError;
+      }
 
       const projectIds = draftRows.map((row) => row.projectId);
       const galleryRows =

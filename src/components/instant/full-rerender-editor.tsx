@@ -7,6 +7,7 @@ import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll"
 import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import { FullRerenderImageEditor } from "@/components/instant/full-rerender-image-editor";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import { useFullRerenderDraft } from "@/hooks/use-full-rerender-draft";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
 import {
@@ -89,6 +90,9 @@ export function FullRerenderEditor({
   const [transitionSeconds, setTransitionSeconds] = useState(instantTransitionSeconds);
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [bootstrapBusy, setBootstrapBusy] = useState(true);
+  const [draftLoadState, setDraftLoadState] = useState<
+    ReturnType<typeof useFullRerenderDraft>["loadState"]
+  >("loading");
 
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const modalHeaderRef = useRef<HTMLElement>(null);
@@ -98,7 +102,7 @@ export function FullRerenderEditor({
 
   const draft = useFullRerenderDraft({
     projectId,
-    enabled: true,
+    enabled: draftLoadState === "ready",
     slots,
     versionNote,
     userIntent,
@@ -106,44 +110,71 @@ export function FullRerenderEditor({
     instantMode,
     expandedIndex,
     initialImageIds,
-    ready: bootstrapReady && slots.length > 0,
+    ready: bootstrapReady && slots.length > 0 && draftLoadState === "ready",
   });
+
+  const bootstrapDraftRef = useRef(draft.bootstrapDraft);
+  useEffect(() => {
+    bootstrapDraftRef.current = draft.bootstrapDraft;
+  });
+
+  const applyProjectFallbackSlots = useCallback(() => {
+    const fallback = buildFullRerenderSlotsFromProject({
+      images: images.map((img) => ({
+        id: img.id,
+        previewUrl: img.previewUrl,
+        fileName: null,
+      })),
+      instantSceneTexts,
+      transitionSeconds: instantTransitionSeconds,
+    });
+    setSlots(fallback);
+    setUserIntent(instantUserIntent ?? "");
+    setTransitionSeconds(instantTransitionSeconds);
+  }, [images, instantSceneTexts, instantTransitionSeconds, instantUserIntent]);
+
+  const runDraftBootstrap = useCallback(async () => {
+    setBootstrapBusy(true);
+    const loaded = await bootstrapDraftRef.current();
+    if (loaded?.slots?.length) {
+      setSlots(loaded.slots);
+      setExpandedIndex(loaded.expandedIndex ?? 0);
+      setVersionNote(loaded.versionNote);
+      setUserIntent(loaded.userIntent);
+      setTransitionSeconds(loaded.transitionSeconds);
+    } else {
+      applyProjectFallbackSlots();
+    }
+    setDraftLoadState(loaded?.loadState ?? "error");
+    setBootstrapReady(true);
+    setBootstrapBusy(false);
+  }, [applyProjectFallbackSlots]);
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      setBootstrapBusy(true);
-      const loaded = await draft.bootstrapDraft();
-      if (cancelled) {
-        return;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) {
+        void runDraftBootstrap();
       }
-      if (loaded?.slots?.length) {
-        setSlots(loaded.slots);
-        setExpandedIndex(loaded.expandedIndex);
-        setVersionNote(loaded.versionNote);
-        setUserIntent(loaded.userIntent);
-        setTransitionSeconds(loaded.transitionSeconds);
-      } else {
-        const fallback = buildFullRerenderSlotsFromProject({
-          images: images.map((img) => ({
-            id: img.id,
-            previewUrl: img.previewUrl,
-            fileName: null,
-          })),
-          instantSceneTexts,
-          transitionSeconds: instantTransitionSeconds,
-        });
-        setSlots(fallback);
-        setUserIntent(instantUserIntent ?? "");
-        setTransitionSeconds(instantTransitionSeconds);
-      }
-      setBootstrapReady(true);
-      setBootstrapBusy(false);
-    })();
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once per project
   }, [projectId]);
+
+  const handleRetryDraftLoad = useCallback(() => {
+    void runDraftBootstrap();
+  }, [runDraftBootstrap]);
+
+  const handleStartWithoutConcept = useCallback(() => {
+    draft.skipDraftPersistence();
+    applyProjectFallbackSlots();
+    setDraftLoadState("skipped");
+    setBootstrapReady(true);
+    setBootstrapBusy(false);
+  }, [applyProjectFallbackSlots, draft]);
 
   useLayoutEffect(() => {
     const header = modalHeaderRef.current;
@@ -262,13 +293,20 @@ export function FullRerenderEditor({
       ? "flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:rounded-2xl"
       : "mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm";
 
-  if (bootstrapBusy || slots.length === 0) {
+  if (bootstrapBusy) {
     return (
       <div className={layout === "page" ? "py-12 text-center text-sm text-zinc-600" : shellClass}>
         <p>{t("projects.concept.loading")}</p>
       </div>
     );
   }
+
+  const showDraftLoadBanner =
+    draftLoadState === "error" || draftLoadState === "storage_unavailable";
+  const draftLoadBannerMessage =
+    draftLoadState === "storage_unavailable"
+      ? t("projects.concept.storageUnavailable" as TranslationKey)
+      : t("projects.concept.loadFailed" as TranslationKey);
 
   return (
     <div className={shellClass} role={layout === "modal" ? "dialog" : undefined} aria-modal={layout === "modal" ? true : undefined}>
@@ -294,12 +332,39 @@ export function FullRerenderEditor({
             </span>
           : null}
         </div>
-        {draft.loadError ?
-          <p className="mt-2 text-sm text-red-700">{draft.loadError}</p>
+        {showDraftLoadBanner ?
+          <div
+            className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950"
+            role="alert"
+          >
+            <p className="font-medium">{draftLoadBannerMessage}</p>
+            {draft.loadError && draftLoadState === "error" ?
+              <p className="mt-1 text-xs text-amber-900/90">{draft.loadError}</p>
+            : null}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleRetryDraftLoad}
+                className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
+              >
+                {t("projects.concept.retryLoad" as TranslationKey)}
+              </button>
+              <button
+                type="button"
+                onClick={handleStartWithoutConcept}
+                className="rounded-full bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {t("projects.concept.startWithoutDraft" as TranslationKey)}
+              </button>
+            </div>
+          </div>
         : null}
       </header>
 
       <div ref={modalBodyRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        {slots.length === 0 ?
+          <p className="mb-4 text-sm text-zinc-600">{t("instant.fullRerender.images.minWarning", { min: 2 })}</p>
+        : null}
         <FullRerenderImageEditor
           slots={slots}
           onSlotsChange={setSlots}

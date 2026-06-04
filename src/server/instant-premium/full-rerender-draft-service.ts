@@ -17,13 +17,24 @@ export type FullRerenderDraftSummary = {
 export async function getFullRerenderDraftForProject(
   projectId: string
 ): Promise<PersistedFullRerenderDraftPayload | null> {
+  const meta = await getFullRerenderDraftMeta(projectId);
+  return meta?.draft ?? null;
+}
+
+export async function getFullRerenderDraftMeta(
+  projectId: string
+): Promise<{ draft: PersistedFullRerenderDraftPayload; updatedAt: string } | null> {
   const row = await prisma.projectFullRerenderDraft.findUnique({
     where: { projectId },
   });
   if (!row) {
     return null;
   }
-  return parseFullRerenderDraftPayload(row.payload);
+  const draft = parseFullRerenderDraftPayload(row.payload);
+  if (!draft) {
+    return null;
+  }
+  return { draft, updatedAt: row.updatedAt.toISOString() };
 }
 
 export async function upsertFullRerenderDraft(
