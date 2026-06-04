@@ -59,6 +59,20 @@ Common causes:
 | `projectFullRerenderDraft` + undefined | Redeploy after `prisma generate` |
 | `renderVersions` / heavy include on project load | Fixed: draft routes use slim `verifyInstantProjectDraftAccess` + `getInstantProjectForDraftEnsure` |
 | Auth / 401 | Session cookie / `requireActiveUser` |
+| Browser: “access control checks” | Usually **not** Prisma — see below |
+
+## Browser: “Fetch … due to access control checks”
+
+Production `curl` (no cookie) returns **401 JSON**, not 302 and not HTML login.
+
+| Cause | How to tell | Fix |
+|-------|-------------|-----|
+| **D** Session missing | Network tab: **401**, JSON `AUTH_REQUIRED` | Log in on same host (`motion.homecheff.eu`); avoid preview `*.vercel.app` vs custom domain mismatch |
+| **B/C** Redirect to login | Status **302**, `Location: /login` | Should not happen on `/api/*` after middleware — report if seen |
+| **A/E** True CORS / mixed origin | Request URL host ≠ page host | Use relative `/api/...` only; middleware adds CORS for allowed origins |
+| **F** Safari network label | Status **(failed)**, no body | Retry; ensure session resolved before draft bootstrap |
+
+Logs: search `[auth-check]` for `pathname`, `sessionExists`, `userId`, `status`.
 
 ## Known production error (fixed)
 

@@ -137,7 +137,7 @@ export default function VideoDetailPage() {
     setError(null);
     try {
       const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
-        credentials: "same-origin",
+        credentials: "include",
         cache: "no-store",
         headers: { Accept: "application/json" },
       });

@@ -110,7 +110,7 @@ export function useInstantVideoRepair(options: UseInstantVideoRepairOptions) {
 
       const res = await fetch(url, {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include",
         cache: "no-store",
         headers: { Accept: "application/json" },
       });

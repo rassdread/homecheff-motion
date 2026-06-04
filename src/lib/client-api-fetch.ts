@@ -1,6 +1,9 @@
-/** Shared client fetch defaults for same-origin API routes (avoids cross-origin / CORS issues). */
+/**
+ * Shared client fetch defaults for same-origin API routes.
+ * `include` sends session cookies reliably in Safari and on schemeful-same-site subdomains.
+ */
 export const SAME_ORIGIN_JSON_FETCH_INIT: RequestInit = {
-  credentials: "same-origin",
+  credentials: "include",
   cache: "no-store",
   headers: { Accept: "application/json" },
 };
@@ -23,6 +26,7 @@ export type SameOriginJsonResult<T> = {
   data: T;
   networkError: boolean;
   aborted?: boolean;
+  accessControl?: boolean;
 };
 
 export function isAbortLikeError(error: unknown): boolean {
@@ -34,6 +38,12 @@ export function isAbortLikeError(error: unknown): boolean {
   }
   const message = error instanceof Error ? error.message : String(error);
   return /\babort(ed)?\b/i.test(message);
+}
+
+/** Safari/WebKit often labels CORS, offline, and TLS failures as "access control checks". */
+export function isAccessControlLikeError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /access control checks/i.test(message) || /Failed to fetch/i.test(message);
 }
 
 export async function fetchSameOriginJson<T>(
@@ -54,12 +64,18 @@ export async function fetchSameOriginJson<T>(
     return { ok: res.ok, status: res.status, data, networkError: false, aborted: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const aborted = isAbortLikeError(error);
+    const accessControl = isAccessControlLikeError(error);
+    const hint = accessControl
+      ? "Network or CORS blocked this request. Stay on the same site you logged in on and retry."
+      : message;
     return {
       ok: false,
       status: 0,
-      data: { error: message } as T,
+      data: { error: hint } as T,
       networkError: true,
-      aborted: isAbortLikeError(error),
+      aborted,
+      accessControl,
     };
   }
 }

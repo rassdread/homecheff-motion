@@ -18,7 +18,7 @@ test("useInstantVideoRepair sets starting feedback before fetch", () => {
   assert.match(src, /kind: "poll_failed"/);
   assert.match(src, /instant\.videoRepair\.pollFailed/);
   assert.match(src, /fetchInstantPremiumStatus/);
-  assert.match(src, /credentials: "same-origin"/);
+  assert.match(src, /credentials: "include"/);
 });
 
 test("InstantVideoRepairCard shows spinner while starting", () => {

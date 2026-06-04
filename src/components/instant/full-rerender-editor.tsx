@@ -169,18 +169,27 @@ export function FullRerenderEditor({
   }, [applyProjectFallbackSlots]);
 
   useEffect(() => {
+    if (!session.resolved) {
+      return;
+    }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      if (!cancelled) {
-        void runDraftBootstrap();
+      if (cancelled) {
+        return;
       }
+      if (!session.user) {
+        setBootstrapBusy(false);
+        setDraftLoadState("error");
+        setError(t("animate.auth.requiredTitle"));
+        return;
+      }
+      void runDraftBootstrap();
     }, 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once per project
-  }, [projectId]);
+  }, [projectId, session.resolved, session.user, runDraftBootstrap, t]);
 
   const handleRetryDraftLoad = useCallback(() => {
     void runDraftBootstrap();

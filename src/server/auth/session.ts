@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE = "hc_session";
@@ -35,6 +35,26 @@ function sessionCookieSecure(): boolean {
     return true;
   }
   return false;
+}
+
+async function sessionCookieDomain(): Promise<string | undefined> {
+  const explicit = process.env.COOKIE_DOMAIN?.trim();
+  if (explicit) {
+    return explicit || undefined;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return undefined;
+  }
+  try {
+    const h = await headers();
+    const host = h.get("host")?.split(":")[0]?.toLowerCase() ?? "";
+    if (host === "homecheff.eu" || host.endsWith(".homecheff.eu")) {
+      return ".homecheff.eu";
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 type SessionPayload = { userId: string; nonce: string };
@@ -90,12 +110,14 @@ export function verifyPassword(password: string, stored: string): boolean {
 export async function createSession(userId: string): Promise<void> {
   const value = encode({ userId, nonce: randomBytes(8).toString("hex") });
   const jar = await cookies();
+  const domain = await sessionCookieDomain();
   jar.set(SESSION_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
     secure: sessionCookieSecure(),
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
+    ...(domain ? { domain } : {}),
   });
 }
 

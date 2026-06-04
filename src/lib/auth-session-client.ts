@@ -61,7 +61,11 @@ export async function fetchAuthSessionJson(options?: {
     return inflight;
   }
   inflight = (async () => {
-    const res = await fetch("/api/auth/session", { credentials: "same-origin" });
+    const res = await fetch("/api/auth/session", {
+      credentials: "include",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
     let data: AuthSessionApiPayload;
     try {
       data = (await res.json()) as AuthSessionApiPayload;

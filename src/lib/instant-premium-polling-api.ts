@@ -1,4 +1,4 @@
-import { fetchSameOriginJson } from "@/lib/client-api-fetch";
+import { fetchSameOriginJson, type SameOriginJsonResult } from "@/lib/client-api-fetch";
 import { instantStatusFromProjectDetail } from "@/lib/instant-premium-status-fallback";
 import type {
   AnimationProjectDetailResponse,
@@ -60,6 +60,16 @@ export type ProjectDetailFetchResult =
   | { kind: "network"; error: string };
 
 /** Detail fallback — only when instant status is unavailable; same-origin relative URL. */
+export async function fetchAnimationProjectDetail(
+  projectId: string
+): Promise<
+  SameOriginJsonResult<AnimationProjectDetailResponse & { error?: string }>
+> {
+  return fetchSameOriginJson<AnimationProjectDetailResponse & { error?: string }>(
+    ANIMATION_PROJECT_DETAIL_PATH(projectId)
+  );
+}
+
 export async function fetchInstantStatusFromProjectDetail(
   projectId: string
 ): Promise<ProjectDetailFetchResult> {

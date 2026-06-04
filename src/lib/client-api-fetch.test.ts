@@ -9,16 +9,30 @@ import {
 } from "@/lib/instant-premium-polling-api";
 import {
   isAbortLikeError,
+  isAccessControlLikeError,
   sameOriginApiPath,
   SAME_ORIGIN_JSON_FETCH_INIT,
 } from "@/lib/client-api-fetch";
+import { isAllowedApiOrigin } from "@/lib/allowed-api-origins";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-test("SAME_ORIGIN_JSON_FETCH_INIT uses same-origin credentials and no-store cache", () => {
-  assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.credentials, "same-origin");
+test("SAME_ORIGIN_JSON_FETCH_INIT uses include credentials and no-store cache", () => {
+  assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.credentials, "include");
   assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.cache, "no-store");
   assert.deepEqual(SAME_ORIGIN_JSON_FETCH_INIT.headers, { Accept: "application/json" });
+});
+
+test("isAccessControlLikeError detects Safari CORS wording", () => {
+  assert.ok(
+    isAccessControlLikeError(new TypeError("Load failed due to access control checks."))
+  );
+  assert.equal(isAccessControlLikeError(new Error("timeout")), false);
+});
+
+test("production motion origin is allowed for API CORS", () => {
+  assert.ok(isAllowedApiOrigin("https://motion.homecheff.eu"));
+  assert.equal(isAllowedApiOrigin("https://evil.example"), false);
 });
 
 test("isAbortLikeError detects AbortError and aborted messages", () => {
@@ -53,8 +67,15 @@ test("polling hooks use shared same-origin fetch module", () => {
   assert.match(progress, /instant-premium-polling-api/);
   assert.match(status, /instant-premium-polling-api/);
   assert.match(repair, /fetchInstantPremiumStatus/);
-  assert.match(repair, /credentials: "same-origin"/);
+  assert.match(repair, /credentials: "include"/);
   assert.doesNotMatch(progress, /https:\/\/motion\.homecheff/);
+});
+
+test("API middleware never redirects and logs auth-check", () => {
+  const mw = readFileSync(join(__dirname, "../middleware.ts"), "utf8");
+  assert.match(mw, /logAuthCheck/);
+  assert.match(mw, /NextResponse\.next/);
+  assert.doesNotMatch(mw, /redirect\(/);
 });
 
 test("instant status route uses viewer access and JSON auth errors", () => {

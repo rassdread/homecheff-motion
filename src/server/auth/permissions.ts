@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type { AnimationPresetId } from "@/lib/animation-presets";
 import {
@@ -5,7 +6,17 @@ import {
   type AdvancedAnimationLimits,
 } from "@/lib/animation-advanced-settings";
 import { getUsageLimitsForRole } from "@/server/animations/usage-limits";
+import { logAuthCheck } from "@/server/auth/auth-check-log";
 import { getAuthenticatedUser, type SessionUser } from "@/server/auth/session";
+
+async function authCheckPathname(): Promise<string> {
+  try {
+    const h = await headers();
+    return h.get("x-hc-pathname") ?? h.get("x-invoke-path") ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 export const USER_ROLES = ["admin", "power", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
@@ -76,13 +87,26 @@ export function assertUserActive(
  * Use in API routes: `const gate = await requireUser(); if (gate instanceof NextResponse) return gate;`
  */
 export async function requireUser(): Promise<SessionUser | NextResponse> {
+  const pathname = await authCheckPathname();
   const user = await getAuthenticatedUser();
   if (!user) {
+    logAuthCheck({
+      pathname,
+      sessionExists: false,
+      userId: null,
+      status: "401",
+    });
     return NextResponse.json(
       { error: "Authentication required.", code: "AUTH_REQUIRED" },
       { status: 401 }
     );
   }
+  logAuthCheck({
+    pathname,
+    sessionExists: true,
+    userId: user.id,
+    status: "ok",
+  });
   return user;
 }
 

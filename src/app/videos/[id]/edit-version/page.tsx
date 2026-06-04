@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FullRerenderEditor } from "@/components/instant/full-rerender-editor";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { fetchAnimationProjectDetail } from "@/lib/instant-premium-polling-api";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
 export default function VideoEditVersionPage() {
@@ -25,22 +26,20 @@ export default function VideoEditVersionPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
-      const json: unknown = await res.json().catch(() => null);
-      if (!res.ok) {
+      const result = await fetchAnimationProjectDetail(id);
+      if (result.networkError) {
+        setError(result.data.error ?? t("videos.error"));
+        setDetail(null);
+        return;
+      }
+      if (!result.ok) {
         const msg =
-          json && typeof json === "object" && "error" in json && typeof (json as { error: unknown }).error === "string"
-            ? (json as { error: string }).error
-            : `HTTP ${res.status}`;
+          typeof result.data.error === "string" ? result.data.error : `HTTP ${result.status}`;
         setError(msg);
         setDetail(null);
         return;
       }
-      setDetail(json as AnimationProjectDetailResponse);
+      setDetail(result.data);
     } catch {
       setError(t("videos.error"));
       setDetail(null);
@@ -50,14 +49,19 @@ export default function VideoEditVersionPage() {
   }, [id, t]);
 
   useEffect(() => {
-    if (!session.resolved || !session.user) {
+    if (!session.resolved) {
       return;
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      if (!cancelled) {
-        void load();
+      if (cancelled) {
+        return;
       }
+      if (!session.user) {
+        setLoading(false);
+        return;
+      }
+      void load();
     }, 0);
     return () => {
       cancelled = true;
@@ -80,7 +84,11 @@ export default function VideoEditVersionPage() {
         {t("videos.backToProject")}
       </Link>
 
-      {loading ?
+      {!session.resolved ?
+        <p className="mt-8 text-sm text-zinc-600">{t("animate.auth.loading")}</p>
+      : !session.user ?
+        <p className="mt-8 text-sm text-zinc-600">{t("animate.auth.requiredTitle")}</p>
+      : loading ?
         <p className="mt-8 text-sm text-zinc-600">{t("projects.concept.loading")}</p>
       : error ?
         <p className="mt-8 text-sm text-red-700">{error}</p>
@@ -96,7 +104,7 @@ export default function VideoEditVersionPage() {
             instantMode={detail.instantMode}
             instantUserIntent={detail.instantUserIntent}
             instantTransitionSeconds={detail.instantTransitionSeconds ?? 5}
-            uploadRole={session.user?.role ?? "user"}
+            uploadRole={session.user.role}
             images={(detail.images ?? []).map((img) => ({
               id: img.id,
               previewUrl: img.previewUrl ?? "",
