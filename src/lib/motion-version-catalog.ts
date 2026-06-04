@@ -65,9 +65,10 @@ export type MotionLanguageExportRow = {
 function formatVersionDisplayLabel(
   versionNumber: number,
   versionNote: string | null,
-  locale: "en" | "nl" = "nl"
+  locale: "en" | "nl" = "nl",
+  createdAt?: string | null
 ): string {
-  return formatMotionVersionLabel(versionNumber, versionNote, locale);
+  return formatMotionVersionLabel(versionNumber, versionNote, locale, createdAt);
 }
 
 function sortSlots(slots: MotionVersionSlot[]): MotionVersionSlot[] {
@@ -123,7 +124,12 @@ export function buildMotionVersionCatalogForProject(input: {
         languageLabel: primaryLabel,
         versionNumber: row.renderVersionNumber,
         versionNote: row.versionNote,
-        displayLabel: formatVersionDisplayLabel(row.renderVersionNumber, row.versionNote, locale),
+        displayLabel: formatVersionDisplayLabel(
+          row.renderVersionNumber,
+          row.versionNote,
+          locale,
+          row.createdAt
+        ),
         status: row.status,
         finalVideoUrl: row.finalVideoUrl?.trim() ?? null,
         cleanVideoUrl: clean,
@@ -181,7 +187,12 @@ export function buildMotionVersionCatalogForProject(input: {
       languageLabel: label,
       versionNumber: row.version,
       versionNote: row.versionNote ?? null,
-      displayLabel: formatVersionDisplayLabel(row.version, row.versionNote ?? null, locale),
+      displayLabel: formatVersionDisplayLabel(
+        row.version,
+        row.versionNote ?? null,
+        locale,
+        row.createdAt
+      ),
       status: row.status,
       finalVideoUrl: row.outputVideoUrl?.trim() ?? null,
       cleanVideoUrl: row.sourceCleanVideoUrl?.trim() ?? null,
@@ -246,7 +257,12 @@ export function mergeMotionVersionCatalogs(
         existing.push({
           ...row,
           versionNumber: nextVersion,
-          displayLabel: formatVersionDisplayLabel(nextVersion, row.versionNote),
+          displayLabel: formatVersionDisplayLabel(
+            nextVersion,
+            row.versionNote,
+            undefined,
+            row.createdAt
+          ),
           selectionKey: `${row.projectId}:${lang.code}:${nextVersion}:${row.kind}:${row.renderVersionId ?? row.languageExportId ?? "base"}`,
         });
       }

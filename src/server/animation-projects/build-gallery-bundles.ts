@@ -12,6 +12,12 @@ import {
   type GalleryListPrismaRow,
 } from "@/server/animation-projects/gallery-list";
 import { fetchGalleryProjectRows } from "@/server/animation-projects/fetch-gallery-projects";
+import {
+  badgeContextForProject,
+  resolveBundleVersionBadges,
+  type BundleVersionBadge,
+} from "@/lib/bundle-version-badges";
+import { resolveBundleFolderId } from "@/lib/bundle-folder";
 
 const BUNDLE_GROUPING_CAP = 250;
 
@@ -156,6 +162,7 @@ export async function listGalleryProjectBundles(params: {
   }
 
   const titleById = new Map(indexRows.map((r) => [r.id, r.title]));
+  const bundleNameById = new Map(indexRows.map((r) => [r.id, r.bundleName]));
   const sourceById = new Map(indexRows.map((r) => [r.id, r.sourceProjectId]));
 
   const buildInputs: BuildBundleInput[] = [];
@@ -178,7 +185,72 @@ export async function listGalleryProjectBundles(params: {
     });
   }
 
-  const allBundles = groupProjectsIntoBundles(buildInputs, { locale: params.locale });
+  const renderCountByProject = new Map<string, number>();
+  for (const row of renderVersionRows) {
+    renderCountByProject.set(row.projectId, (renderCountByProject.get(row.projectId) ?? 0) + 1);
+  }
+  const langExportCountByProject = new Map<string, number>();
+  for (const row of languageExportRows) {
+    langExportCountByProject.set(
+      row.projectId,
+      (langExportCountByProject.get(row.projectId) ?? 0) + 1
+    );
+  }
+
+  let badgeRows: Array<{
+    id: string;
+    studioSourceStoryboardId: string | null;
+    studioHandoffJson: unknown;
+    instantMode: string | null;
+    status: string;
+    _count: { images: number };
+  }> = [];
+  try {
+    badgeRows = await prisma.animationProject.findMany({
+      where: { id: { in: allIds } },
+      select: {
+        id: true,
+        studioSourceStoryboardId: true,
+        studioHandoffJson: true,
+        instantMode: true,
+        status: true,
+        _count: { select: { images: true } },
+      },
+    });
+  } catch {
+    /* legacy DB */
+  }
+
+  const badgesByProjectId: Record<string, BundleVersionBadge[]> = {};
+  for (const row of badgeRows) {
+    const folderId = resolveBundleFolderId({
+      bundleName: bundleNameById.get(row.id) ?? null,
+      displayTitle: resolveProjectDisplayTitle(titleById.get(row.id), params.locale),
+    });
+    const ctx = badgeContextForProject({
+      id: row.id,
+      studioSourceStoryboardId: row.studioSourceStoryboardId,
+      studioHandoffJson: row.studioHandoffJson,
+      instantMode: row.instantMode,
+      imageCount: row._count.images,
+      status: row.status,
+      renderVersionCount: renderCountByProject.get(row.id) ?? 0,
+      languageExportCount: langExportCountByProject.get(row.id) ?? 0,
+      folderId,
+    });
+    badgesByProjectId[row.id] = resolveBundleVersionBadges(ctx, row.studioHandoffJson);
+  }
+
+  const allBundles = groupProjectsIntoBundles(buildInputs, { locale: params.locale }).map(
+    (bundle) => ({
+      ...bundle,
+      badgesByProjectId: Object.fromEntries(
+        bundle.memberProjectIds
+          .filter((pid) => badgesByProjectId[pid])
+          .map((pid) => [pid, badgesByProjectId[pid]!])
+      ),
+    })
+  );
   const paged = paginateBundles(allBundles, params.page, params.limit);
 
   return {

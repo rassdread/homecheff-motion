@@ -65,9 +65,9 @@ describe("motion-version-catalog", () => {
     assert.equal(catalog.languages.length, 2);
     assert.equal(catalog.slotsByLanguage.nl?.length, 2);
     assert.equal(catalog.slotsByLanguage.en?.length, 2);
-    assert.equal(catalog.slotsByLanguage.nl?.[0]?.displayLabel, "v1 — Eerste versie");
+    assert.equal(catalog.slotsByLanguage.nl?.[0]?.displayLabel, "V1 — Eerste versie");
     assert.equal(catalog.slotsByLanguage.nl?.[1]?.cleanVideoUrl, "https://cdn.example/clean-v2.mp4");
-    assert.equal(catalog.slotsByLanguage.en?.[1]?.displayLabel, "v2 — Updated copy");
+    assert.equal(catalog.slotsByLanguage.en?.[1]?.displayLabel, "V2 — Updated copy");
   });
 
   it("returns correct final and clean URLs for selected version", () => {

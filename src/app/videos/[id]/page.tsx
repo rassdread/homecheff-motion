@@ -14,9 +14,10 @@ import { InstantVideoRepairCard } from "@/components/instant/instant-video-repai
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
-import { ProjectDetailMotionVersions } from "@/components/videos/project-detail-motion-versions";
+import { ProjectDetailVersionToolbar } from "@/components/videos/project-detail-version-toolbar";
 import {
   buildMotionVersionCatalogForProject,
+  findMotionVersionSlot,
   isExplicitMotionUrlSelectionInvalid,
   resolveMotionSelectionFromUrl,
 } from "@/lib/motion-version-catalog";
@@ -923,12 +924,6 @@ export default function VideoDetailPage() {
         />
       ) : null}
 
-      {instantLikeProject && detail.renderVersions && detail.renderVersions.length > 0 ? (
-        <div className="mt-6">
-          <ProjectBundleOverviewPanel detail={detail} />
-        </div>
-      ) : null}
-
       {detail.studioQa && detail.id ?
         <div className="mt-6">
           <MotionProjectStudioQaPanel
@@ -1008,6 +1003,33 @@ export default function VideoDetailPage() {
 
       {originalPlaybackUrl ? (
         <div className="mt-6 space-y-3">
+          {motionCatalog &&
+          (motionCatalog.languages.length > 1 ||
+            Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 1)) ?
+            <ProjectDetailVersionToolbar
+              detail={detail}
+              catalog={motionCatalog}
+              selectedSlot={selectedMotionSlot}
+              selectedLanguageCode={
+                selectedMotionSlot?.languageCode ??
+                langFromUrl ??
+                motionCatalog.defaultLanguageCode
+              }
+              onLanguageChange={(code) => {
+                const slots = motionCatalog.slotsByLanguage[code] ?? [];
+                const latest = slots[slots.length - 1];
+                if (latest) {
+                  setMotionVersionSelection(code, latest.selectionKey, latest.versionNumber);
+                }
+              }}
+              onVersionChange={(key) => {
+                const slot = findMotionVersionSlot(motionCatalog, key);
+                if (slot) {
+                  setMotionVersionSelection(slot.languageCode, key, slot.versionNumber);
+                }
+              }}
+            />
+          : null}
           {invalidMotionDeepLink && motionCatalog ? (
             <MotionDeepLinkWarning
               catalog={motionCatalog}
@@ -1042,17 +1064,7 @@ export default function VideoDetailPage() {
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
-          {motionCatalog &&
-          (motionCatalog.languages.length > 1 ||
-            Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 1)) ? (
-            <ProjectDetailMotionVersions
-              detail={detail}
-              exportOutputUrl={finalVideoUrl}
-              langFromUrl={langFromUrl}
-              versionFromUrl={versionFromUrl}
-              onSelectionChange={setMotionVersionSelection}
-            />
-          ) : hasCompletedLanguageVersions ? (
+          {hasCompletedLanguageVersions ? (
             <LanguagePlaybackSelector
               originalPlaybackUrl={originalPlaybackUrl}
               languageExports={languageExports}
@@ -1133,6 +1145,12 @@ export default function VideoDetailPage() {
               },
             ]}
           />
+
+          {instantLikeProject && detail.renderVersions && detail.renderVersions.length > 0 ?
+            <div className="mt-4">
+              <ProjectBundleOverviewPanel detail={detail} />
+            </div>
+          : null}
 
           {showProjectStorage && id ?
             <ProjectStorageUsageCard

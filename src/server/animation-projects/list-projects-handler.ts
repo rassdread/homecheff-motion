@@ -234,6 +234,14 @@ export async function listAnimationProjectsForUser(params: {
         bundle.members[0]?.id ??
         bundle.memberProjectIds[0] ??
         "",
+      folderId: bundle.folderId,
+      versionCountSummary: {
+        languageLine: bundle.versionCountSummary.languageLine,
+        totalLine: bundle.versionCountSummary.totalLine,
+        totalVersions: bundle.versionCountSummary.totalVersions,
+        latestLabel: bundle.versionCountSummary.latestLabel,
+      },
+      badgesByProjectId: bundle.badgesByProjectId,
       catalog: {
         languages: bundle.catalog.languages,
         slotsByLanguage: Object.fromEntries(

@@ -57,7 +57,7 @@ describe("Motion V22.2 — bundle finalization", () => {
       locale: "en",
     });
     assert.equal(lineage?.nextVersionNumber, 4);
-    assert.equal(lineage?.nextVersionDisplay, "Version 4");
+    assert.equal(lineage?.nextVersionDisplay, "V4");
     assert.equal(lineage?.bundleDisplayName, "Affiliate Campaign");
   });
 

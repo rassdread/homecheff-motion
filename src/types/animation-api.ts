@@ -278,6 +278,18 @@ export type ProjectBundleListItemResponse = {
   sourceProjectId: string | null;
   /** Active member for card actions (newest by default). */
   activeProjectId: string;
+  /** V22.4 UI folder (derived from bundle name / title). */
+  folderId?: string;
+  versionCountSummary?: {
+    languageLine: string;
+    totalLine: string;
+    totalVersions: number;
+    latestLabel: string | null;
+  };
+  badgesByProjectId?: Record<
+    string,
+    import("@/lib/bundle-version-badges").BundleVersionBadge[]
+  >;
   catalog: {
     languages: Array<{ code: string; label: string }>;
     slotsByLanguage: Record<

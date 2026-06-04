@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { VideoPreview } from "@/components/ui/video-preview";
+import { BundleVersionBadges } from "@/components/videos/bundle-version-badges";
 import { MotionVersionSelectors } from "@/components/videos/motion-version-selectors";
 import { resolveBundleDisplayThumbnail } from "@/lib/bundle-thumbnail-cache";
 import { resolveSelectedBundleVersion } from "@/lib/bundle-selected-version";
@@ -72,9 +73,29 @@ export function ProjectBundleCard({
 
   const failed = displayStatus === "failed";
 
+  const folderLabelKey = bundle.folderId
+    ? (`videos.folder.${bundle.folderId}` as const)
+    : ("videos.folder.uncategorized" as const);
+
+  const versionSummary = bundle.versionCountSummary;
+
+  const badges = useMemo(() => {
+    const pid = selectedBundleVersion?.projectId;
+    if (!pid || !bundle.badgesByProjectId?.[pid]) {
+      return [];
+    }
+    return bundle.badgesByProjectId[pid]!;
+  }, [selectedBundleVersion?.projectId, bundle.badgesByProjectId]);
+
+  useEffect(() => {
+    if (expandedVideoKey && expandedVideoKey !== playKey) {
+      onTogglePlay(null);
+    }
+  }, [playKey, expandedVideoKey, onTogglePlay]);
+
   return (
     <li className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm">
-      <Link href={itemHref} prefetch={false} className="block shrink-0">
+      <div className="block shrink-0">
         <div className="relative aspect-video bg-zinc-100">
           {displayThumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -104,34 +125,42 @@ export function ProjectBundleCard({
             </span>
           : null}
         </div>
-      </Link>
+      </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("videos.bundle.folder")}: {t(folderLabelKey as never)}
+            </p>
             <Link href={itemHref} prefetch={false}>
               <p className="truncate text-sm font-semibold text-zinc-900">{bundle.displayTitle}</p>
             </Link>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              {t("videos.bundle.video")}
+            </p>
             <p className="mt-0.5 text-xs text-zinc-500">
               <ClientFormattedDateTime iso={bundle.createdAt} />
             </p>
+            {versionSummary ?
+              <>
+                <p className="mt-1 text-xs font-medium text-zinc-700">{versionSummary.languageLine}</p>
+                <p className="text-xs text-zinc-600">{versionSummary.totalLine}</p>
+                {versionSummary.latestLabel ?
+                  <p className="text-xs text-zinc-500">
+                    {t("videos.bundle.latestVersion", { label: versionSummary.latestLabel })}
+                  </p>
+                : null}
+              </>
+            : bundle.languagesLabel ?
+              <p className="mt-1 text-xs text-zinc-600">{bundle.languagesLabel}</p>
+            : null}
             {selectedBundleVersion?.durationSeconds ?
               <p className="mt-0.5 text-xs text-zinc-600">
                 {t("videos.bundle.duration", {
                   seconds: String(Math.round(selectedBundleVersion.durationSeconds)),
                 })}
               </p>
-            : null}
-            {bundle.catalog.languages.length > 0 ?
-              <ul className="mt-1 space-y-0.5">
-                {bundle.catalog.languages.map((lang) => (
-                  <li key={lang.code} className="text-xs text-zinc-600">
-                    {lang.label} ({bundle.catalog.slotsByLanguage[lang.code]?.length ?? 0})
-                  </li>
-                ))}
-              </ul>
-            : bundle.languagesLabel ?
-              <p className="mt-1 text-xs text-zinc-600">{bundle.languagesLabel}</p>
             : null}
           </div>
           {onRename ?
@@ -145,6 +174,8 @@ export function ProjectBundleCard({
             </button>
           : null}
         </div>
+
+        <BundleVersionBadges badges={badges} />
 
         <MotionVersionSelectors
           catalog={bundle.catalog}
@@ -162,6 +193,14 @@ export function ProjectBundleCard({
           languageSelectId={`lang-${bundle.bundleKey}`}
           versionSelectId={`ver-${bundle.bundleKey}`}
         />
+
+        {selectedBundleVersion?.slot.versionNote ?
+          <p className="text-xs text-zinc-600">
+            {t("videos.bundle.selectedVersionNote", {
+              note: selectedBundleVersion.slot.versionNote,
+            })}
+          </p>
+        : null}
 
         {playable && finalUrl && !failed ?
           <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">

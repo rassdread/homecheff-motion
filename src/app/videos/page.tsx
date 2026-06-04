@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
@@ -11,6 +11,11 @@ import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { ProjectBundleCard } from "@/components/videos/project-bundle-card";
+import {
+  BUNDLE_FOLDER_OPTIONS,
+  bundleMatchesFolder,
+  type BundleFolderId,
+} from "@/lib/bundle-folder";
 import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
 import { ProjectBundleSettingsDialog } from "@/components/videos/project-bundle-settings-dialog";
 import type {
@@ -146,6 +151,11 @@ function VideosPageContent() {
   const session = useAuthSession();
   const gallerySection: GallerySection =
     searchParams.get("section") === "concepts" ? "concepts" : "completed";
+  const folderParam = searchParams.get("folder");
+  const folderFilter: BundleFolderId =
+    BUNDLE_FOLDER_OPTIONS.some((f) => f.id === folderParam) ?
+      (folderParam as BundleFolderId)
+    : "all";
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
   const [projects, setProjects] = useState<AnimationProjectListItem[]>([]);
@@ -239,6 +249,29 @@ function VideosPageContent() {
     },
     [router, searchParams]
   );
+
+  const setFolderFilter = useCallback(
+    (folder: BundleFolderId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (folder === "all") {
+        params.delete("folder");
+      } else {
+        params.set("folder", folder);
+      }
+      const qs = params.toString();
+      router.replace(`/videos${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  const filteredBundles = useMemo(() => {
+    if (folderFilter === "all") {
+      return bundles;
+    }
+    return bundles.filter((b) =>
+      bundleMatchesFolder(folderFilter, (b.folderId as BundleFolderId) ?? "uncategorized")
+    );
+  }, [bundles, folderFilter]);
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
@@ -501,10 +534,30 @@ function VideosPageContent() {
         </div>
       </div>
 
+      {gallerySection === "completed" ?
+        <div className="mt-4 flex flex-wrap gap-2">
+          {BUNDLE_FOLDER_OPTIONS.map((folder) => (
+            <button
+              key={folder.id}
+              type="button"
+              onClick={() => setFolderFilter(folder.id)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                folderFilter === folder.id
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                  : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+              }`}
+            >
+              {t(folder.labelKey as never)}
+            </button>
+          ))}
+        </div>
+      : null}
+
       {totalCount > 0 ? (
         <p className="mt-1 text-sm text-zinc-500">
           {t("videos.showingCount", {
-            shown: gallerySection === "completed" ? bundles.length : projects.length,
+            shown:
+              gallerySection === "completed" ? filteredBundles.length : projects.length,
             total: totalCount,
           })}
         </p>
@@ -523,7 +576,7 @@ function VideosPageContent() {
       ) : null}
 
       {!loading &&
-      (gallerySection === "completed" ? bundles.length === 0 : projects.length === 0) &&
+      (gallerySection === "completed" ? filteredBundles.length === 0 : projects.length === 0) &&
       !error ? (
         <div className="mt-10 rounded-2xl border border-zinc-100 bg-zinc-50/80 px-6 py-12 text-center">
           <h2 className="text-lg font-semibold text-zinc-900">
@@ -546,7 +599,7 @@ function VideosPageContent() {
 
       <ul className="mt-8 grid list-none gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {gallerySection === "completed"
-          ? bundles.map((bundle) => (
+          ? filteredBundles.map((bundle) => (
               <ProjectBundleCard
                 key={bundle.bundleKey}
                 bundle={bundle}

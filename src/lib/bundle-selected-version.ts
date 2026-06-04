@@ -14,8 +14,13 @@ import {
   resolveProjectDisplayStatus,
 } from "@/lib/project-display-status";
 
+/** Alias for the catalog slot driving all card actions (V22.4). */
+export type SelectedCatalogSlot = MotionVersionSlot;
+
 export type SelectedBundleVersion = {
   selectionKey: string;
+  /** Single source of truth — thumbnail, URLs, badges derive from this slot. */
+  selectedCatalogSlot: SelectedCatalogSlot;
   slot: MotionVersionSlot;
   projectId: string;
   languageCode: string;
@@ -24,6 +29,7 @@ export type SelectedBundleVersion = {
   versionNumber: number;
   thumbnailUrl: string | null;
   finalVideoUrl: string | null;
+  cleanVideoUrl: string | null;
   durationSeconds: number | null;
   status: string;
   playable: boolean;
@@ -122,6 +128,7 @@ export function resolveSelectedBundleVersion(params: {
 
   return {
     selectionKey: slot.selectionKey,
+    selectedCatalogSlot: slot,
     slot,
     projectId: slot.projectId,
     languageCode: slot.languageCode,
@@ -130,6 +137,7 @@ export function resolveSelectedBundleVersion(params: {
     versionNumber: slot.versionNumber,
     thumbnailUrl: resolveThumbnailForSlot(slot, params.fallbackBundleThumbnail ?? null),
     finalVideoUrl: finalUrl,
+    cleanVideoUrl: slot.cleanVideoUrl?.trim() ?? null,
     durationSeconds: slot.durationSeconds,
     status: displayStatus,
     playable,

@@ -5,13 +5,35 @@
 export function formatMotionVersionLabel(
   versionNumber: number,
   versionNote: string | null | undefined,
-  locale: "en" | "nl" = "nl"
+  locale: "en" | "nl" = "nl",
+  createdAt?: string | null
 ): string {
   const note = versionNote?.trim();
   if (note) {
-    return `v${versionNumber} — ${note}`;
+    return `V${versionNumber} — ${note}`;
   }
-  return locale === "en" ? `Version ${versionNumber}` : `Versie ${versionNumber}`;
+  if (createdAt) {
+    const dateLabel = formatShortVersionDate(createdAt, locale);
+    if (dateLabel) {
+      return `V${versionNumber} — ${dateLabel}`;
+    }
+  }
+  return `V${versionNumber}`;
+}
+
+export function formatShortVersionDate(
+  iso: string,
+  locale: "en" | "nl" = "nl"
+): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return null;
+  }
+  return d.toLocaleDateString(locale === "nl" ? "nl-NL" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /** Parse ?ver=v3, ver=3, or a full selectionKey from the URL. */

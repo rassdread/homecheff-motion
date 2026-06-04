@@ -12,6 +12,11 @@ import {
   type MotionRenderVersionRow,
   type MotionVersionCatalog,
 } from "@/lib/motion-version-catalog";
+import { resolveBundleFolderId, type BundleFolderId } from "@/lib/bundle-folder";
+import {
+  summarizeBundleVersionCounts,
+  type BundleVersionCountSummary,
+} from "@/lib/bundle-version-summary";
 import {
   resolveBundleDisplayName,
   resolveProjectBundleGroupKey,
@@ -40,6 +45,12 @@ export type ProjectBundleListItem = {
   thumbnailUrl: string | null;
   status: string;
   sourceProjectId: string | null;
+  folderId: BundleFolderId;
+  versionCountSummary: BundleVersionCountSummary;
+  badgesByProjectId?: Record<
+    string,
+    import("@/lib/bundle-version-badges").BundleVersionBadge[]
+  >;
 };
 
 export type BuildBundleInput = ProjectBundleMemberSummary & {
@@ -135,6 +146,8 @@ export function buildProjectBundleFromMembers(
       (lead.thumbnailUrl?.trim() || lead.thumbnailFallbackUrl?.trim() || null),
     status: defaultSlot?.status ?? lead.status,
     sourceProjectId: lead.sourceProjectId ?? null,
+    folderId: resolveBundleFolderId({ bundleName, displayTitle, normalizedTitle }),
+    versionCountSummary: summarizeBundleVersionCounts(catalog, locale),
   };
 }
 
