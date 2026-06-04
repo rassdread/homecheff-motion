@@ -50,6 +50,11 @@ export async function GET(request: Request) {
   const pageParsed = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(pageParsed) && pageParsed > 0 ? pageParsed : 1;
   const statusFilter = searchParams.get("status")?.trim() || undefined;
+  const sectionRaw = searchParams.get("section")?.trim();
+  const gallerySection =
+    sectionRaw === "concepts" ? "concepts"
+    : sectionRaw === "completed" ? "completed"
+    : "completed";
 
   const result = await listAnimationProjectsForUser({
     ownerId: listAll ? undefined : user.id,
@@ -57,6 +62,7 @@ export async function GET(request: Request) {
     page,
     limit,
     statusFilter,
+    gallerySection,
   });
 
   if (!result.ok) {

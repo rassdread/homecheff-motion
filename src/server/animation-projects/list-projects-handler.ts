@@ -5,6 +5,7 @@ import {
   mapPrismaRowToAnimationProjectListItem,
   type GalleryListPrismaRow,
 } from "@/server/animation-projects/gallery-list";
+import { parseFullRerenderDraftPayload } from "@/lib/full-rerender-draft";
 import { prisma } from "@/lib/prisma";
 import type { AnimationProjectListResponse } from "@/types/animation-api";
 
@@ -18,12 +19,15 @@ export type ProjectListFailedBody = {
 
 const MAX_GALLERY_LIST_LIMIT = 50;
 
+export type GallerySection = "completed" | "concepts";
+
 export async function listAnimationProjectsForUser(params: {
   ownerId?: string;
   listAll: boolean;
   page: number;
   limit: number;
   statusFilter?: string;
+  gallerySection?: GallerySection;
 }): Promise<
   | { ok: true; body: AnimationProjectListResponse }
   | { ok: false; body: ProjectListFailedBody; status: number }
@@ -33,6 +37,7 @@ export async function listAnimationProjectsForUser(params: {
   const page = params.page > 0 ? params.page : 1;
   const offset = (page - 1) * limit;
 
+  const section = params.gallerySection ?? "completed";
   const where: Prisma.AnimationProjectWhereInput = {};
   if (params.ownerId) {
     where.ownerId = params.ownerId;
@@ -40,8 +45,90 @@ export async function listAnimationProjectsForUser(params: {
   if (params.statusFilter) {
     where.status = params.statusFilter;
   }
+  if (section === "completed") {
+    where.exports = { some: { outputVideoUrl: { not: null } } };
+  }
 
   try {
+    if (section === "concepts") {
+      const draftWhere: Prisma.ProjectFullRerenderDraftWhereInput = {
+        project: params.ownerId ? { ownerId: params.ownerId } : {},
+      };
+      const [draftRows, total] = await Promise.all([
+        prisma.projectFullRerenderDraft.findMany({
+          where: draftWhere,
+          orderBy: { updatedAt: "desc" },
+          take: limit,
+          skip: offset,
+          include: {
+            project: true,
+          },
+        }),
+        prisma.projectFullRerenderDraft.count({ where: draftWhere }),
+      ]);
+
+      const projectIds = draftRows.map((row) => row.projectId);
+      const galleryRows =
+        projectIds.length > 0
+          ? await fetchGalleryProjectRows({
+              where: { id: { in: projectIds } },
+              take: projectIds.length,
+              skip: 0,
+              listAll: params.listAll,
+            })
+          : [];
+      const galleryById = new Map(galleryRows.map((row) => [row.id, row]));
+
+      const projects = draftRows
+        .map((draftRow) => {
+          const galleryRow = galleryById.get(draftRow.projectId);
+          if (!galleryRow) {
+            return null;
+          }
+          try {
+            const item = mapPrismaRowToAnimationProjectListItem(galleryRow as GalleryListPrismaRow, {
+              includeOwnerEmail: params.listAll,
+            });
+            const payload = parseFullRerenderDraftPayload(draftRow.payload);
+            return {
+              ...item,
+              fullRerenderDraft: payload
+                ? {
+                    updatedAt: draftRow.updatedAt.toISOString(),
+                    sceneCount: payload.slots.filter((s) => s.image !== null).length,
+                    versionNote: payload.versionNote.trim() || null,
+                  }
+                : {
+                    updatedAt: draftRow.updatedAt.toISOString(),
+                    sceneCount: 0,
+                    versionNote: null,
+                  },
+            };
+          } catch (mapError) {
+            console.error("[gallery-list]", {
+              phase: "serializeConceptRowSkipped",
+              projectId: draftRow.projectId,
+              requestId,
+              message: mapError instanceof Error ? mapError.message : String(mapError),
+            });
+            return null;
+          }
+        })
+        .filter((p): p is NonNullable<typeof p> => p != null);
+
+      return {
+        ok: true,
+        body: {
+          projects,
+          page,
+          limit,
+          total,
+          hasMore: offset + draftRows.length < total,
+          gallerySection: section,
+        },
+      };
+    }
+
     const [rows, total] = await Promise.all([
       fetchGalleryProjectRows({
         where,
@@ -76,6 +163,7 @@ export async function listAnimationProjectsForUser(params: {
         limit,
         total,
         hasMore: offset + rows.length < total,
+        gallerySection: section,
       },
     };
   } catch (error) {

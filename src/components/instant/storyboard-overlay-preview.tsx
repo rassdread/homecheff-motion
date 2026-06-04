@@ -70,7 +70,9 @@ export function StoryboardOverlayPreview({
           {lines.map((line) => (
             <div key={line.id}>
               <p className="text-[10px] uppercase tracking-wide text-zinc-500">
-                {t(line.labelKey as never)}
+                {line.beatNumber != null
+                  ? t(line.labelKey as never, { n: line.beatNumber })
+                  : t(line.labelKey as never)}
               </p>
               <p
                 className={`whitespace-pre-wrap ${previewLineClass(line, isFinalFrame)}`}

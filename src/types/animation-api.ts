@@ -272,6 +272,12 @@ export type AnimationProjectListItem = {
   ownerEmail?: string;
   /** classic | instant_premium */
   projectType?: string | null;
+  /** Present when listing section=concepts. */
+  fullRerenderDraft?: {
+    updatedAt: string;
+    sceneCount: number;
+    versionNote: string | null;
+  };
 };
 
 export type AnimationProjectListResponse = {
@@ -280,6 +286,7 @@ export type AnimationProjectListResponse = {
   limit: number;
   total: number;
   hasMore: boolean;
+  gallerySection?: "completed" | "concepts";
 };
 
 /** GET /api/animations/projects/[id] — full snapshot for gallery detail. */

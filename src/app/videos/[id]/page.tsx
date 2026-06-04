@@ -804,7 +804,7 @@ export default function VideoDetailPage() {
               disabled={fullRerenderDisabled}
               quickBusy={fullRerenderBusy}
               onQuickRerender={() => void handleQuickFullRerender()}
-              onOpenEditor={() => setFullRerenderEditorOpen(true)}
+              onOpenEditor={() => router.push(`/videos/${encodeURIComponent(id)}/edit-version`)}
             />
           : null}
 

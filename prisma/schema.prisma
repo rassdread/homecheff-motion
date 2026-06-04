@@ -104,9 +104,22 @@ model AnimationProject {
   exports     AnimationExport[]
   languageExports VideoLanguageExport[]
   renderVersions ProjectRenderVersion[]
+  fullRerenderDraft ProjectFullRerenderDraft?
   usageLedger AnimationUsageLedger[]
 
   @@index([ownerId, createdAt])
+}
+
+/** In-progress “Nieuwe versie maken” editor state — survives refresh until render or delete. */
+model ProjectFullRerenderDraft {
+  id        String           @id @default(cuid())
+  projectId String           @unique
+  project   AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  payload   Json
+  updatedAt DateTime         @updatedAt
+  createdAt DateTime         @default(now())
+
+  @@index([updatedAt])
 }
 
 /** Full Vidu re-render generation — same project images, versioned outputs and snapshots. */

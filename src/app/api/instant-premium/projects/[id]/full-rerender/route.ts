@@ -7,8 +7,13 @@ import {
   FULL_RERENDER_WRONG_TYPE,
   fullRerenderInstantPremiumProjectWithStatus,
 } from "@/server/instant-premium/full-rerender-project";
+import { buildFullRerenderRenderBodyFromDraft } from "@/lib/full-rerender-draft";
 import { persistFullRerenderSettingsForProject } from "@/server/instant-premium/persist-full-rerender-settings";
 import { persistFullRerenderImagesForProject } from "@/server/instant-premium/persist-full-rerender-images";
+import {
+  deleteFullRerenderDraft,
+  getFullRerenderDraftForProject,
+} from "@/server/instant-premium/full-rerender-draft-service";
 
 export const maxDuration = 60;
 
@@ -51,14 +56,30 @@ export async function POST(request: Request, context: RouteContext) {
     body = null;
   }
 
+  let effectiveBody = body;
+  if (body?.rerenderSource === "editor") {
+    const draft = await getFullRerenderDraftForProject(id);
+    if (draft) {
+      const fromDraft = buildFullRerenderRenderBodyFromDraft(draft);
+      effectiveBody = {
+        ...body,
+        sceneTexts: fromDraft.sceneTexts,
+        instantUserIntent: fromDraft.instantUserIntent,
+        instantTransitionSeconds: fromDraft.instantTransitionSeconds,
+        versionNote: fromDraft.versionNote ?? body.versionNote,
+        imageChanges: fromDraft.imageChanges,
+      };
+    }
+  }
+
   const settingsBody =
-    body ?
+    effectiveBody ?
       {
-        sceneTexts: body.sceneTexts,
-        instantUserIntent: body.instantUserIntent,
-        instantTransitionSeconds: body.instantTransitionSeconds,
-        instantSelectedChips: body.instantSelectedChips,
-        versionNote: body.versionNote,
+        sceneTexts: effectiveBody.sceneTexts,
+        instantUserIntent: effectiveBody.instantUserIntent,
+        instantTransitionSeconds: effectiveBody.instantTransitionSeconds,
+        instantSelectedChips: effectiveBody.instantSelectedChips,
+        versionNote: effectiveBody.versionNote,
       }
     : null;
   const hasSettingsToPersist = Boolean(
@@ -71,11 +92,11 @@ export async function POST(request: Request, context: RouteContext) {
   );
 
   let imageChangeAudit = null;
-  const imageSequence = body?.imageChanges?.sequence;
+  const imageSequence = effectiveBody?.imageChanges?.sequence;
   if (imageSequence && imageSequence.length > 0) {
     const persistedImages = await persistFullRerenderImagesForProject(id, {
       sequence: imageSequence,
-      replacedImageIds: body?.imageChanges?.replacedImageIds,
+      replacedImageIds: effectiveBody?.imageChanges?.replacedImageIds,
     });
     if (!persistedImages.ok) {
       return NextResponse.json({ error: persistedImages.error }, { status: persistedImages.status });
@@ -95,11 +116,15 @@ export async function POST(request: Request, context: RouteContext) {
       projectId: id,
       userId: user.id,
       isAdmin: user.role === "admin",
-      sceneTexts: body?.sceneTexts,
-      versionNote: body?.versionNote?.trim() || undefined,
-      rerenderSource: body?.rerenderSource,
+      sceneTexts: effectiveBody?.sceneTexts,
+      versionNote: effectiveBody?.versionNote?.trim() || undefined,
+      rerenderSource: effectiveBody?.rerenderSource,
       imageChangeAudit,
     });
+
+    if (result.fullRerender.ok && effectiveBody?.rerenderSource === "editor") {
+      await deleteFullRerenderDraft(id);
+    }
     const httpStatus = result.fullRerender.ok
       ? 200
       : result.fullRerender.code === FULL_RERENDER_ALREADY_RUNNING

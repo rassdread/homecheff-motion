@@ -4,6 +4,7 @@
 
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
+import { resolveTextBeats } from "@/lib/story-text-beats";
 
 export type StoryboardOverlayPreviewLine = {
   id: string;
@@ -17,6 +18,8 @@ export type StoryboardOverlayPreviewLine = {
     | "footer";
   styleLayer: import("@/lib/story-overlay-layer-styles").StoryOverlayStyleLayer;
   labelKey: string;
+  /** 1-based beat index when labelKey ends with Beat */
+  beatNumber?: number;
   text: string;
 };
 
@@ -45,35 +48,69 @@ export function buildStoryboardOverlayPreviewLines(
   const lines: StoryboardOverlayPreviewLine[] = [];
   const isFinalFrame = options?.isFinalFrame ?? false;
 
-  if (showHeadline(scene.template) && scene.heroText.trim()) {
-    const styleLayer = scene.template === "hero" ? "hero" : "headline";
-    lines.push({
-      id: "headline",
-      kind: "headline",
-      styleLayer,
-      labelKey: "instant.storyboard.preview.headline",
-      text: scene.heroText.trim().toUpperCase(),
+  if (showHeadline(scene.template)) {
+    const headlineBeats = resolveTextBeats({
+      beats: scene.headlineBeats,
+      legacy: scene.heroText,
+      uppercase: true,
     });
+    for (const [index, text] of headlineBeats.entries()) {
+      if (!text.trim()) {
+        continue;
+      }
+      const styleLayer = scene.template === "hero" ? "hero" : "headline";
+      lines.push({
+        id: `headline-${index}`,
+        kind: "headline",
+        styleLayer,
+        labelKey:
+          index === 0 && headlineBeats.length === 1
+            ? "instant.storyboard.preview.headline"
+            : "instant.storyboard.preview.headlineBeat",
+        beatNumber: headlineBeats.length > 1 ? index + 1 : undefined,
+        text: text.trim(),
+      });
+    }
   }
 
-  if (showTitleSubtitle(scene.template) && scene.title.trim()) {
-    lines.push({
-      id: "title",
-      kind: "title",
-      styleLayer: "title",
-      labelKey: "instant.storyboard.preview.title",
-      text: scene.title.trim(),
-    });
+  if (showTitleSubtitle(scene.template)) {
+    const titleBeats = resolveTextBeats({ beats: scene.titleBeats, legacy: scene.title });
+    for (const [index, text] of titleBeats.entries()) {
+      if (!text.trim()) {
+        continue;
+      }
+      lines.push({
+        id: `title-${index}`,
+        kind: "title",
+        styleLayer: "title",
+        labelKey:
+          index === 0 && titleBeats.length === 1
+            ? "instant.storyboard.preview.title"
+            : "instant.storyboard.preview.titleBeat",
+        beatNumber: titleBeats.length > 1 ? index + 1 : undefined,
+        text: text.trim(),
+      });
+    }
   }
 
-  if (showTitleSubtitle(scene.template) && scene.subtitle.trim()) {
-    lines.push({
-      id: "subtitle",
-      kind: "subtitle",
-      styleLayer: "subtitle",
-      labelKey: "instant.storyboard.preview.subtitle",
-      text: scene.subtitle.trim(),
-    });
+  if (showTitleSubtitle(scene.template)) {
+    const subtitleBeats = resolveTextBeats({ beats: scene.subtitleBeats, legacy: scene.subtitle });
+    for (const [index, text] of subtitleBeats.entries()) {
+      if (!text.trim()) {
+        continue;
+      }
+      lines.push({
+        id: `subtitle-${index}`,
+        kind: "subtitle",
+        styleLayer: "subtitle",
+        labelKey:
+          index === 0 && subtitleBeats.length === 1
+            ? "instant.storyboard.preview.subtitle"
+            : "instant.storyboard.preview.subtitleBeat",
+        beatNumber: subtitleBeats.length > 1 ? index + 1 : undefined,
+        text: text.trim(),
+      });
+    }
   }
 
   for (const [index, line] of scene.extraLines.entries()) {

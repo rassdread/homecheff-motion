@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { getAnimationPreset, validateAnimationPresetId } from "@/lib/animation-presets";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
@@ -130,11 +131,17 @@ function isProcessingState(item: AnimationProjectListItem): boolean {
   return true;
 }
 
-export default function VideosPage() {
+type GallerySection = "completed" | "concepts";
+
+function VideosPageContent() {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const dateLocale = locale === "nl" ? "nl" : "en";
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const session = useAuthSession();
+  const gallerySection: GallerySection =
+    searchParams.get("section") === "concepts" ? "concepts" : "completed";
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
   const [projects, setProjects] = useState<AnimationProjectListItem[]>([]);
@@ -170,6 +177,7 @@ export default function VideosPage() {
         if (isAdmin && listAll) {
           params.set("all", "true");
         }
+        params.set("section", gallerySection);
         const res = await fetch(`/api/animations/projects?${params.toString()}`, {
           credentials: "include",
         });
@@ -200,7 +208,21 @@ export default function VideosPage() {
         }
       }
     },
-    [isAdmin, listAll]
+    [isAdmin, listAll, gallerySection]
+  );
+
+  const setSection = useCallback(
+    (section: GallerySection) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (section === "completed") {
+        params.delete("section");
+      } else {
+        params.set("section", section);
+      }
+      const qs = params.toString();
+      router.replace(`/videos${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, searchParams]
   );
 
   useEffect(() => {
@@ -217,7 +239,7 @@ export default function VideosPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [session.resolved, session.user, listAll, fetchList]);
+  }, [session.resolved, session.user, listAll, gallerySection, fetchList]);
 
   const projectsRef = useRef<AnimationProjectListItem[]>([]);
   const pageRef = useRef(1);
@@ -408,6 +430,31 @@ export default function VideosPage() {
     <main className="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{t("videos.title")}</h1>
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-full border border-zinc-200 bg-zinc-50 p-1 text-xs font-medium sm:text-sm">
+            <button
+              type="button"
+              onClick={() => setSection("completed")}
+              className={`rounded-full px-3 py-1.5 transition-colors ${
+                gallerySection === "completed"
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              {t("projects.tabs.completed")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSection("concepts")}
+              className={`rounded-full px-3 py-1.5 transition-colors ${
+                gallerySection === "concepts"
+                  ? "bg-white text-zinc-900 shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              {t("projects.tabs.concepts")}
+            </button>
+          </div>
         {isAdmin ? (
           <div className="flex rounded-full border border-zinc-200 bg-zinc-50 p-1 text-xs font-medium sm:text-sm">
             <button
@@ -436,6 +483,7 @@ export default function VideosPage() {
             </button>
           </div>
         ) : null}
+        </div>
       </div>
 
       {totalCount > 0 ? (
@@ -458,8 +506,14 @@ export default function VideosPage() {
 
       {!loading && projects.length === 0 && !error ? (
         <div className="mt-10 rounded-2xl border border-zinc-100 bg-zinc-50/80 px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold text-zinc-900">{t("videos.emptyTitle")}</h2>
-          <p className="mt-2 text-sm text-zinc-600">{t("videos.emptyDescription")}</p>
+          <h2 className="text-lg font-semibold text-zinc-900">
+            {gallerySection === "concepts" ? t("projects.concepts.emptyTitle") : t("videos.emptyTitle")}
+          </h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            {gallerySection === "concepts"
+              ? t("projects.concepts.emptyDescription")
+              : t("videos.emptyDescription")}
+          </p>
           <Link
             href="/animate/instant"
             prefetch={false}
@@ -497,13 +551,18 @@ export default function VideosPage() {
             isInstant && item.allTransitionsCompleted && !hasPlayableFinal(item);
           const exportProgress = item.latestExport?.progress ?? 0;
           const errSnippet = item.latestExport?.errorMessage?.trim() || null;
+          const itemHref =
+            gallerySection === "concepts"
+              ? `/videos/${encodeURIComponent(item.id)}/edit-version`
+              : `/videos/${encodeURIComponent(item.id)}`;
+          const conceptMeta = item.fullRerenderDraft;
 
           return (
             <li
               key={item.id}
               className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
             >
-              <Link href={`/videos/${item.id}`} prefetch={false} className="block shrink-0">
+              <Link href={itemHref} prefetch={false} className="block shrink-0">
                 <div className="relative aspect-video bg-zinc-100">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -527,12 +586,20 @@ export default function VideosPage() {
 
               <div className="flex flex-1 flex-col gap-2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link href={`/videos/${item.id}`} prefetch={false} className="min-w-0 flex-1">
+                  <Link href={itemHref} prefetch={false} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-zinc-900">
                       <ClientFormattedDateTime iso={item.createdAt} />
                     </p>
                   </Link>
                 </div>
+
+                {conceptMeta ?
+                  <p className="rounded-lg bg-[#0067B1]/10 px-2 py-1 text-xs font-medium text-[#0067B1]">
+                    {t("projects.concepts.cardLabel", {
+                      scenes: conceptMeta.sceneCount,
+                    })}
+                  </p>
+                : null}
 
                 {listAll && item.ownerEmail ? (
                   <p className="text-xs text-zinc-500">
@@ -752,11 +819,13 @@ export default function VideosPage() {
 
                 <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-xs">
                   <Link
-                    href={`/videos/${item.id}`}
+                    href={itemHref}
                     prefetch={false}
                     className="font-medium text-emerald-800 underline decoration-emerald-700/40 hover:text-emerald-950"
                   >
-                    {t("videos.open")}
+                    {gallerySection === "concepts"
+                      ? t("projects.concept.continueEditing")
+                      : t("videos.open")}
                   </Link>
                   <button
                     type="button"
@@ -795,5 +864,19 @@ export default function VideosPage() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+export default function VideosPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10 sm:py-10">
+          <p className="text-sm text-zinc-600">…</p>
+        </main>
+      }
+    >
+      <VideosPageContent />
+    </Suspense>
   );
 }

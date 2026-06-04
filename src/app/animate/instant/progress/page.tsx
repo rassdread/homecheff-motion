@@ -528,7 +528,11 @@ export default function InstantPremiumProgressPage() {
                   disabled={fullRerenderDisabled}
                   quickBusy={fullRerenderBusy}
                   onQuickRerender={() => void handleQuickFullRerender()}
-                  onOpenEditor={() => setFullRerenderEditorOpen(true)}
+                  onOpenEditor={() => {
+                    if (effectiveProjectId) {
+                      router.push(`/videos/${encodeURIComponent(effectiveProjectId)}/edit-version`);
+                    }
+                  }}
                 />
               : null}
               <p className="text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>

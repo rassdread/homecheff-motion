@@ -31,7 +31,7 @@ describe("storyboard frame scroll", () => {
 
   it("modals pass scroll container ref to storyboard editor", () => {
     const full = readFileSync(
-      join(process.cwd(), "src/components/instant/full-rerender-editor-modal.tsx"),
+      join(process.cwd(), "src/components/instant/full-rerender-editor.tsx"),
       "utf8"
     );
     const text = readFileSync(
