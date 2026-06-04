@@ -5,7 +5,7 @@
 import {
   emptySceneTextDraft,
   type InstantSceneTextDraft,
-} from "@/components/instant/instant-mode-panel";
+} from "@/lib/instant-scene-text-draft-model";
 import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import type { InstantWizardLocalImage } from "@/lib/instant-wizard-image-model";
 import type {

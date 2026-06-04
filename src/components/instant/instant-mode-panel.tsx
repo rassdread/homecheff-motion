@@ -4,83 +4,15 @@ import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premiu
 import { INSTANT_TRANSITION_SECONDS_OPTIONS } from "@/lib/instant-premium-mode-types";
 import { STORY_SCENE_DURATION_OPTIONS } from "@/lib/story-overlay-templates";
 import { useActiveTranslator } from "@/i18n/client";
-import type { SceneOverlayTemplate, StorySceneDurationSeconds } from "@/lib/story-overlay-templates";
-import type {
-  AnimationSceneEmotionId,
-  SceneActingIntensity,
-  SceneEmotionMode,
-} from "@/lib/animation-scene-emotions";
+import type { StorySceneDurationSeconds } from "@/lib/story-overlay-templates";
+
 import {
-  DEFAULT_SCENE_EMOTION_MODE,
-  DEFAULT_STORY_ACTING_INTENSITY,
-} from "@/lib/animation-scene-emotions";
+  emptySceneTextDraft,
+  storyDurationDefault,
+  type InstantSceneTextDraft,
+} from "@/lib/instant-scene-text-draft-model";
 
-export function storyDurationDefault(
-  transitionSeconds: number
-): StorySceneDurationSeconds {
-  if (transitionSeconds === 3) {
-    return 3;
-  }
-  if (transitionSeconds === 8) {
-    return 7;
-  }
-  return 5;
-}
-
-export type InstantSceneTextDraft = {
-  template: SceneOverlayTemplate;
-  /** Duration of transition into the next frame (ignored on last frame). */
-  transitionDurationSeconds: StorySceneDurationSeconds;
-  /** @deprecated Mirrored from transitionDurationSeconds for API compatibility. */
-  durationSeconds: StorySceneDurationSeconds;
-  heroText: string;
-  title: string;
-  subtitle: string;
-  headlineBeats: string[];
-  titleBeats: string[];
-  subtitleBeats: string[];
-  heroTextBeats: string[];
-  finaleTextBeats: string[];
-  extraLines: string[];
-  accentWords: string;
-  lines: string[];
-  heroFinale: boolean;
-  heroFinaleText: string;
-  finaleFooter: string;
-  emotionMode: SceneEmotionMode;
-  emotion?: AnimationSceneEmotionId;
-  autoEmotion?: AnimationSceneEmotionId;
-  actingIntensity: SceneActingIntensity;
-  overlayLayerStyles: import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles;
-};
-
-export function emptySceneTextDraft(
-  fallbackTransitionSeconds: InstantTransitionSeconds | number = 5
-): InstantSceneTextDraft {
-  const pace = storyDurationDefault(fallbackTransitionSeconds);
-  return {
-    template: "auto",
-    transitionDurationSeconds: pace,
-    durationSeconds: pace,
-    heroText: "",
-    title: "",
-    subtitle: "",
-    headlineBeats: [],
-    titleBeats: [],
-    subtitleBeats: [],
-    heroTextBeats: [],
-    finaleTextBeats: [],
-    extraLines: [],
-    accentWords: "",
-    lines: [],
-    heroFinale: true,
-    heroFinaleText: "",
-    finaleFooter: "",
-    emotionMode: DEFAULT_SCENE_EMOTION_MODE,
-    actingIntensity: DEFAULT_STORY_ACTING_INTENSITY,
-    overlayLayerStyles: {},
-  };
-}
+export { emptySceneTextDraft, storyDurationDefault, type InstantSceneTextDraft };
 
 type InstantModePanelProps = {
   instantMode: InstantMode;

@@ -2,7 +2,10 @@
  * Server-safe serialization for full-rerender editor drafts.
  */
 
-import { emptySceneTextDraft, type InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
+import {
+  emptySceneTextDraft,
+  type InstantSceneTextDraft,
+} from "@/lib/instant-scene-text-draft-model";
 import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import {
   buildFullRerenderImageSequencePayload,

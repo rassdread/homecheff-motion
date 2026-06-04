@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { emptySceneTextDraft } from "@/components/instant/instant-mode-panel";
+import { emptySceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 import {
   FULL_RERENDER_DRAFT_CODES,
   isDraftStorageUnavailableResponse,
@@ -10,6 +10,7 @@ import {
 import { planFullRerenderDraftBootstrap } from "@/lib/full-rerender-draft-bootstrap";
 import {
   buildFullRerenderRenderBodyFromDraft,
+  buildInitialFullRerenderDraftPayload,
   draftPayloadToEditorSlots,
   parseFullRerenderDraftPayload,
   serializeFullRerenderDraftPayload,
@@ -128,6 +129,30 @@ describe("full-rerender-draft", () => {
     assert.equal(beats?.[0], "First");
     assert.equal(beats?.[1], "Second");
     assert.equal(body.imageChanges.sequence.length, 2);
+  });
+
+  it("full-rerender-draft does not import client instant-mode-panel", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/lib/full-rerender-draft.ts"),
+      "utf8"
+    );
+    assert.doesNotMatch(src, /@\/components\/instant\/instant-mode-panel/);
+    assert.match(src, /instant-scene-text-draft-model/);
+  });
+
+  it("buildInitialFullRerenderDraftPayload runs on server without client imports", () => {
+    const payload = buildInitialFullRerenderDraftPayload({
+      images: [
+        { id: "img-1", previewUrl: "https://cdn.example.com/a.jpg", fileName: "a.jpg" },
+        { id: "img-2", previewUrl: "https://cdn.example.com/b.jpg", fileName: "b.jpg" },
+      ],
+      instantSceneTexts: null,
+      instantUserIntent: "Test",
+      instantTransitionSeconds: 5,
+      instantMode: "transition",
+    });
+    assert.equal(payload.slots.length, 2);
+    assert.ok(payload.slots[0]?.text);
   });
 
   it("DELETE draft API route exists for concept removal", () => {

@@ -60,6 +60,14 @@ Common causes:
 | `renderVersions` / heavy include on project load | Fixed: draft routes use slim `verifyInstantProjectDraftAccess` + `getInstantProjectForDraftEnsure` |
 | Auth / 401 | Session cookie / `requireActiveUser` |
 
+## Known production error (fixed)
+
+If logs show:
+
+`Attempted to call emptySceneTextDraft() from the server but emptySceneTextDraft is on the client`
+
+→ `full-rerender-draft.ts` must import from `@/lib/instant-scene-text-draft-model`, not `instant-mode-panel`.
+
 ## Bootstrap sequence (Network tab)
 
 1. **GET** `/full-rerender-draft` — should be first.

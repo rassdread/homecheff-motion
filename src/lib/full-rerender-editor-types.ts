@@ -1,4 +1,4 @@
-import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
+import type { InstantSceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 
 /** One scene row in the full-rerender editor (image + text move together). */
 export type FullRerenderEditorImage = {

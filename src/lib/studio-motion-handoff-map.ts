@@ -1,4 +1,4 @@
-import { emptySceneTextDraft } from "@/components/instant/instant-mode-panel";
+import { emptySceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 import { CREATOR_WIZARD_FLOW_VERSION } from "@/lib/creator-wizard-steps";
 import type { AnimationSceneEmotionId } from "@/lib/animation-scene-emotions";
 import {

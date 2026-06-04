@@ -1,4 +1,4 @@
-import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
+import type { InstantSceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 import {
   MAX_EXTRA_LINES,
   normalizeSceneText,
