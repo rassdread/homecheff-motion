@@ -11,11 +11,12 @@ import {
   resolveLatestExportPlaybackUrl,
 } from "@/lib/playback-url-resolution";
 import { getProjectPlaybackDebug } from "@/server/instant-premium/playback-debug";
-import { renameAnimationProject } from "@/server/animation-projects/rename-project";
+import { updateProjectBundleSettings } from "@/server/animation-projects/update-project-bundle-settings";
+import { buildDraftLineage } from "@/lib/draft-lineage";
 import type {
   AnimationProjectDetailResponse,
-  RenameAnimationProjectRequest,
-  RenameAnimationProjectResponse,
+  UpdateProjectBundleSettingsRequest,
+  UpdateProjectBundleSettingsResponse,
 } from "@/types/animation-api";
 import {
   buildProjectStudioExportMetadata,
@@ -88,7 +89,25 @@ function mapToDetailResponse(
     estimatedCredits: project.estimatedCredits,
     userPrompt: project.userPrompt,
     title: project.title,
+    bundleName: project.bundleName,
+    bundleKey: project.bundleKey,
     sourceProjectId: project.sourceProjectId,
+    sourceLanguage: project.sourceLanguage,
+    sourceVersion: project.sourceVersion,
+    draftCopiedAt: project.draftCopiedAt?.toISOString() ?? null,
+    draftLineage: (() => {
+      const source = project.sourceProject;
+      if (!project.sourceProjectId) {
+        return null;
+      }
+      return buildDraftLineage({
+        sourceProjectId: project.sourceProjectId,
+        sourceProjectTitle: source?.title ?? null,
+        sourceLanguage: project.sourceLanguage,
+        sourceVersion: project.sourceVersion,
+        copiedAt: project.draftCopiedAt,
+      });
+    })(),
     projectType: project.projectType,
     stylePreset: project.stylePreset,
     instantOutputDurationSeconds: project.instantOutputDurationSeconds,
@@ -265,25 +284,31 @@ export async function PATCH(request: Request, context: RouteContext) {
     return user;
   }
 
-  let body: RenameAnimationProjectRequest;
+  let body: UpdateProjectBundleSettingsRequest;
   try {
-    body = (await request.json()) as RenameAnimationProjectRequest;
+    body = (await request.json()) as UpdateProjectBundleSettingsRequest;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (typeof body.title !== "string") {
-    return NextResponse.json({ error: "title is required." }, { status: 400 });
+  if (
+    body.title === undefined &&
+    body.bundleName === undefined &&
+    body.bundleKey === undefined
+  ) {
+    return NextResponse.json({ error: "No settings to update." }, { status: 400 });
   }
 
   const localeHeader = request.headers.get("x-hc-locale")?.trim().toLowerCase();
   const locale = localeHeader === "en" ? "en" : "nl";
 
-  const result = await renameAnimationProject({
+  const result = await updateProjectBundleSettings({
     projectId: id,
     ownerId: user.id,
     isAdmin: user.role === "admin",
     title: body.title,
+    bundleName: body.bundleName,
+    bundleKey: body.bundleKey,
     locale,
   });
 
@@ -291,10 +316,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: result.message, code: result.code }, { status: 404 });
   }
 
-  const response: RenameAnimationProjectResponse = {
+  const response: UpdateProjectBundleSettingsResponse = {
     ok: true,
     id: result.id,
     title: result.title,
+    bundleName: result.bundleName,
+    bundleKey: result.bundleKey,
     displayTitle: result.displayTitle,
     bundlePreview: {
       willJoinExisting: result.bundlePreview.willJoinExisting,

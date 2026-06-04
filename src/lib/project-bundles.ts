@@ -11,8 +11,8 @@ import {
   type MotionVersionCatalog,
 } from "@/lib/motion-version-catalog";
 import {
-  normalizeProjectBundleName,
-  projectBundleGroupKey,
+  resolveBundleDisplayName,
+  resolveProjectBundleGroupKey,
   resolveProjectDisplayTitle,
 } from "@/lib/project-display-title";
 import type { AnimationProjectListItem } from "@/types/animation-api";
@@ -25,6 +25,7 @@ export type ProjectBundleMemberSummary = AnimationProjectListItem & {
 export type ProjectBundleListItem = {
   bundleKey: string;
   displayTitle: string;
+  bundleName: string | null;
   normalizedTitle: string;
   projectType: string;
   memberProjectIds: string[];
@@ -41,6 +42,8 @@ export type ProjectBundleListItem = {
 
 export type BuildBundleInput = ProjectBundleMemberSummary & {
   ownerId: string;
+  bundleName?: string | null;
+  bundleKey?: string | null;
   renderVersions?: MotionRenderVersionRow[];
   languageExports?: MotionLanguageExportRow[];
   instantCleanFinalVideoUrl?: string | null;
@@ -59,18 +62,20 @@ export function buildProjectBundleFromMembers(
   );
   const lead = sorted[0]!;
   const projectType = lead.projectType ?? "classic";
-  const displayTitle = resolveProjectDisplayTitle(
-    members.find((m) => m.title?.trim())?.title ?? lead.title,
+  const displayTitle = resolveBundleDisplayName(
+    members.map((m) => ({ title: m.title ?? null, bundleName: m.bundleName ?? null })),
     locale
   );
-  const normalizedTitle = normalizeProjectBundleName(
-    members.find((m) => m.title?.trim())?.title ?? lead.title
-  );
-  const bundleKey = projectBundleGroupKey({
+  const bundleName = members.find((m) => m.bundleName?.trim())?.bundleName?.trim() ?? null;
+  const groupLead = members.find((m) => m.bundleKey?.trim()) ?? lead;
+  const bundleKey = resolveProjectBundleGroupKey({
     ownerId: params.ownerId,
     projectType,
-    normalizedTitle,
+    title: groupLead.title ?? null,
+    bundleName: groupLead.bundleName ?? bundleName,
+    bundleKey: groupLead.bundleKey,
   });
+  const normalizedTitle = displayTitle.toLowerCase().replace(/\s+/g, " ");
 
   const catalogs = sorted.map((member) => ({
     memberCreatedAt: member.createdAt,
@@ -103,6 +108,7 @@ export function buildProjectBundleFromMembers(
   return {
     bundleKey,
     displayTitle,
+    bundleName,
     normalizedTitle,
     projectType,
     memberProjectIds: sorted.map((m) => m.id),
@@ -124,12 +130,12 @@ export function groupProjectsIntoBundles(
 ): ProjectBundleListItem[] {
   const groups = new Map<string, BuildBundleInput[]>();
   for (const project of projects) {
-    const projectType = project.projectType ?? "classic";
-    const normalized = normalizeProjectBundleName(project.title);
-    const key = projectBundleGroupKey({
+    const key = resolveProjectBundleGroupKey({
       ownerId: project.ownerId,
-      projectType,
-      normalizedTitle: normalized,
+      projectType: project.projectType ?? "classic",
+      title: project.title ?? null,
+      bundleName: project.bundleName,
+      bundleKey: project.bundleKey,
     });
     const list = groups.get(key) ?? [];
     list.push(project);

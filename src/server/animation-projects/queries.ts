@@ -1,7 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const projectInclude = {
+export const animationProjectWithMediaInclude = {
+  sourceProject: {
+    select: { id: true, title: true },
+  },
   images: {
     orderBy: { order: "asc" as const },
   },
@@ -20,13 +23,13 @@ const projectInclude = {
 };
 
 export type AnimationProjectWithMedia = Prisma.AnimationProjectGetPayload<{
-  include: typeof projectInclude;
+  include: typeof animationProjectWithMediaInclude;
 }>;
 
 export async function getAnimationProjectById(id: string): Promise<AnimationProjectWithMedia | null> {
   return prisma.animationProject.findUnique({
     where: { id },
-    include: projectInclude,
+    include: animationProjectWithMediaInclude,
   });
 }
 
@@ -36,7 +39,7 @@ export async function getAnimationProjectByIdForOwner(
 ): Promise<AnimationProjectWithMedia | null> {
   return prisma.animationProject.findFirst({
     where: { id, ownerId },
-    include: projectInclude,
+    include: animationProjectWithMediaInclude,
   });
 }
 
@@ -53,7 +56,7 @@ export async function getAnimationProjectByIdForViewer(
     return prisma.animationProject.findUnique({
       where: { id },
       include: {
-        ...projectInclude,
+        ...animationProjectWithMediaInclude,
         owner: { select: { email: true } },
       },
     });

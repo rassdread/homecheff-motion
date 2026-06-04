@@ -22,7 +22,15 @@ export type CopyProjectAsDraftResponse = {
   };
 };
 
-export async function postCopyProjectAsDraft(sourceProjectId: string): Promise<{
+export type CopyProjectAsDraftOptions = {
+  sourceLanguage?: string;
+  sourceVersion?: number;
+};
+
+export async function postCopyProjectAsDraft(
+  sourceProjectId: string,
+  options?: CopyProjectAsDraftOptions
+): Promise<{
   ok: boolean;
   status: number;
   data: CopyProjectAsDraftResponse;
@@ -30,7 +38,14 @@ export async function postCopyProjectAsDraft(sourceProjectId: string): Promise<{
 }> {
   const result = await fetchSameOriginJson<CopyProjectAsDraftResponse>(
     copyProjectAsDraftPath(sourceProjectId),
-    { method: "POST" }
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceLanguage: options?.sourceLanguage,
+        sourceVersion: options?.sourceVersion,
+      }),
+    }
   );
   return {
     ok: result.ok && result.data.ok === true,

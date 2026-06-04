@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
+import { formatMotionVersionLabel } from "@/lib/motion-version-display";
 import type { ProjectRenderVersionSummary } from "@/types/animation-api";
 
 type Props = {
@@ -20,6 +21,8 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
   const [diffBusy, setDiffBusy] = useState(false);
   const [restoreBusyId, setRestoreBusyId] = useState<string | null>(null);
   const [restoreFeedback, setRestoreFeedback] = useState<string | null>(null);
+  const [noteDraftById, setNoteDraftById] = useState<Record<string, string>>({});
+  const [noteBusyId, setNoteBusyId] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...versions].sort((a, b) => b.renderVersionNumber - a.renderVersionNumber),
@@ -66,6 +69,25 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
     }
   };
 
+  const saveVersionNote = async (versionId: string) => {
+    const note = noteDraftById[versionId] ?? "";
+    setNoteBusyId(versionId);
+    try {
+      const res = await fetch(`/api/animations/projects/${encodeURIComponent(projectId)}/version-note`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "render", targetId: versionId, versionNote: note }),
+      });
+      if (!res.ok) {
+        return;
+      }
+      onRestored?.();
+    } finally {
+      setNoteBusyId(null);
+    }
+  };
+
   const restoreVersion = async (versionId: string) => {
     setRestoreBusyId(versionId);
     setRestoreFeedback(null);
@@ -109,9 +131,7 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-zinc-900">
-                  {t("projectDetail.renderHistory.versionLabel", {
-                    number: String(row.renderVersionNumber),
-                  })}
+                  {formatMotionVersionLabel(row.renderVersionNumber, row.versionNote, dateLocale === "nl-NL" ? "nl" : "en")}
                   {row.isDefault ? (
                     <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
                       {t("projectDetail.renderHistory.current")}
@@ -122,9 +142,26 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
                   {kindLabel(row.kind)} · {t("projectDetail.renderHistory.created")}:{" "}
                   {formatDate(row.completedAt ?? row.createdAt)}
                 </p>
-                {row.versionNote ? (
-                  <p className="mt-0.5 text-xs text-zinc-600">{row.versionNote}</p>
-                ) : null}
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    maxLength={200}
+                    value={noteDraftById[row.id] ?? row.versionNote ?? ""}
+                    onChange={(e) =>
+                      setNoteDraftById((prev) => ({ ...prev, [row.id]: e.target.value }))
+                    }
+                    placeholder={t("projects.versionNote.placeholder")}
+                    className="min-w-[8rem] flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="button"
+                    disabled={noteBusyId === row.id}
+                    onClick={() => void saveVersionNote(row.id)}
+                    className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                  >
+                    {noteBusyId === row.id ? "…" : t("projects.versionNote.save")}
+                  </button>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">

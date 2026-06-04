@@ -38,6 +38,8 @@ export async function listGalleryProjectBundles(params: {
       id: true,
       ownerId: true,
       title: true,
+      bundleName: true,
+      bundleKey: true,
       projectType: true,
       sourceProjectId: true,
       updatedAt: true,
@@ -165,6 +167,8 @@ export async function listGalleryProjectBundles(params: {
     buildInputs.push({
       ...base,
       ownerId: index.ownerId,
+      bundleName: index.bundleName,
+      bundleKey: index.bundleKey,
       title: titleById.get(index.id) ?? null,
       displayTitle: resolveProjectDisplayTitle(titleById.get(index.id), params.locale),
       sourceProjectId: sourceById.get(index.id) ?? null,

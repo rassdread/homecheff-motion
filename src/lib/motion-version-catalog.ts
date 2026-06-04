@@ -3,6 +3,7 @@
  */
 
 import { isCleanUrlAlignedWithRenderVersion } from "@/lib/render-output-lineage";
+import { formatMotionVersionLabel, parseVersionQueryParam } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 
 export const MOTION_PRIMARY_LANGUAGE_CODE = "nl";
@@ -56,10 +57,12 @@ export type MotionLanguageExportRow = {
   createdAt: string;
 };
 
-function formatVersionDisplayLabel(versionNumber: number, versionNote: string | null): string {
-  const base = `v${versionNumber}`;
-  const note = versionNote?.trim();
-  return note ? `${base} — ${note}` : base;
+function formatVersionDisplayLabel(
+  versionNumber: number,
+  versionNote: string | null,
+  locale: "en" | "nl" = "nl"
+): string {
+  return formatMotionVersionLabel(versionNumber, versionNote, locale);
 }
 
 function sortSlots(slots: MotionVersionSlot[]): MotionVersionSlot[] {
@@ -78,6 +81,7 @@ export function buildMotionVersionCatalogForProject(input: {
   locale?: "en" | "nl";
 }): MotionVersionCatalog {
   const slotsByLanguage: Record<string, MotionVersionSlot[]> = {};
+  const locale = input.locale ?? "nl";
   const primaryCode = MOTION_PRIMARY_LANGUAGE_CODE;
   const primaryLabel = MOTION_PRIMARY_LANGUAGE_LABEL;
 
@@ -99,7 +103,7 @@ export function buildMotionVersionCatalogForProject(input: {
         languageLabel: primaryLabel,
         versionNumber: row.renderVersionNumber,
         versionNote: row.versionNote,
-        displayLabel: formatVersionDisplayLabel(row.renderVersionNumber, row.versionNote),
+        displayLabel: formatVersionDisplayLabel(row.renderVersionNumber, row.versionNote, locale),
         status: row.status,
         finalVideoUrl: row.finalVideoUrl?.trim() ?? null,
         cleanVideoUrl: clean,
@@ -125,7 +129,7 @@ export function buildMotionVersionCatalogForProject(input: {
         languageLabel: primaryLabel,
         versionNumber: 1,
         versionNote: null,
-        displayLabel: "v1",
+        displayLabel: formatVersionDisplayLabel(1, null, locale),
         status: input.exportStatus ?? input.projectStatus,
         finalVideoUrl: input.exportOutputUrl.trim(),
         cleanVideoUrl: clean,
@@ -155,7 +159,7 @@ export function buildMotionVersionCatalogForProject(input: {
       languageLabel: label,
       versionNumber: row.version,
       versionNote: row.versionNote ?? null,
-      displayLabel: formatVersionDisplayLabel(row.version, row.versionNote ?? null),
+      displayLabel: formatVersionDisplayLabel(row.version, row.versionNote ?? null, locale),
       status: row.status,
       finalVideoUrl: row.outputVideoUrl?.trim() ?? null,
       cleanVideoUrl: row.sourceCleanVideoUrl?.trim() ?? null,
@@ -254,6 +258,37 @@ export function mergeMotionVersionCatalogs(
     defaultLanguageCode,
     defaultSelectionKey: defaultSlot?.selectionKey ?? null,
   };
+}
+
+export function resolveMotionSelectionFromUrl(
+  catalog: MotionVersionCatalog,
+  langFromUrl: string | null | undefined,
+  verFromUrl: string | null | undefined
+): { languageCode: string; selectionKey: string; slot: MotionVersionSlot } | null {
+  const languageCode =
+    langFromUrl?.trim() && catalog.slotsByLanguage[langFromUrl.trim()]
+      ? langFromUrl.trim()
+      : catalog.defaultLanguageCode;
+  const slots = catalog.slotsByLanguage[languageCode] ?? [];
+  if (!slots.length) {
+    return null;
+  }
+  const parsed = parseVersionQueryParam(verFromUrl);
+  if (parsed.selectionKey) {
+    const slot = findMotionVersionSlot(catalog, parsed.selectionKey);
+    if (slot && slot.languageCode === languageCode) {
+      return { languageCode, selectionKey: slot.selectionKey, slot };
+    }
+  }
+  if (parsed.versionNumber != null) {
+    const slot = slots.find((s) => s.versionNumber === parsed.versionNumber);
+    if (slot) {
+      return { languageCode, selectionKey: slot.selectionKey, slot };
+    }
+  }
+  const fallback =
+    slots.find((s) => s.status === "completed" && s.finalVideoUrl) ?? slots[slots.length - 1]!;
+  return { languageCode, selectionKey: fallback.selectionKey, slot: fallback };
 }
 
 export function findMotionVersionSlot(

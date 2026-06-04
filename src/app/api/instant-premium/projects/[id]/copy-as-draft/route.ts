@@ -13,17 +13,32 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;
   }
 
+  let body: {
+    sourceLanguage?: string;
+    sourceVersion?: number;
+  } = {};
+  try {
+    const raw = await request.json();
+    if (raw && typeof raw === "object") {
+      body = raw as typeof body;
+    }
+  } catch {
+    /* empty body is fine */
+  }
+
   const result = await copyInstantPremiumProjectAsDraft({
     sourceProjectId: id,
     userId: user.id,
     isAdmin: user.role === "admin",
+    sourceLanguage: body.sourceLanguage,
+    sourceVersion: body.sourceVersion,
   });
 
   if (!result.ok) {

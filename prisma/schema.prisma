@@ -12,10 +12,22 @@ model AnimationProject {
   ownerId     String
   owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title       String?
+  /** Optional bundle label — projects with the same bundleName group together. */
+  bundleName  String?
+  /** Manual bundle grouping override (preferred over title/bundleName normalization). */
+  bundleKey   String?
   /** When set, this row is a draft copy created from another project (safe re-edit path). */
   sourceProjectId String?
   sourceProject   AnimationProject?  @relation("ProjectDraftCopy", fields: [sourceProjectId], references: [id], onDelete: SetNull)
   draftCopies     AnimationProject[] @relation("ProjectDraftCopy")
+  /** Language code copied when this draft was created (e.g. nl, en). */
+  sourceLanguage String?
+  /** Version number copied when this draft was created. */
+  sourceVersion  Int?
+  /** When the draft copy row was created from a source version. */
+  draftCopiedAt  DateTime?
+  /** Bundle / rename / version-note audit (JSON BundleAuditEntry[]). */
+  bundleAuditJson Json?
   status      String
   /** classic (default) | instant_premium */
   projectType String                @default("classic")
@@ -113,6 +125,8 @@ model AnimationProject {
 
   @@index([ownerId, createdAt])
   @@index([sourceProjectId])
+  @@index([ownerId, bundleKey])
+  @@index([ownerId, bundleName])
 }
 
 /** In-progress “Nieuwe versie maken” editor state — survives refresh until render or delete. */

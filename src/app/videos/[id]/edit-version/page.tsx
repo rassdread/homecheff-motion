@@ -14,6 +14,7 @@ import {
 import { traceConceptFlow } from "@/lib/concept-flow-trace";
 import { invalidateAuthSessionCache, fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { fetchAnimationProjectDetail } from "@/lib/instant-premium-polling-api";
+import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
 
 const PROJECT_FETCH_TIMEOUT_MS = 25_000;
@@ -189,7 +190,8 @@ export default function VideoEditVersionPage() {
       : !detail || !instantLike ?
         <p className="mt-8 text-sm text-zinc-600">{t("instant.fullRerender.failed")}</p>
       : (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
+          {detail.draftLineage ? <DraftLineageBanner lineage={detail.draftLineage} /> : null}
           <FullRerenderEditor
             projectId={id}
             layout="page"

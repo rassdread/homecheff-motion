@@ -14,7 +14,7 @@ type Props = {
   exportOutputUrl: string | null;
   langFromUrl: string | null;
   versionFromUrl: string | null;
-  onSelectionChange: (languageCode: string, selectionKey: string) => void;
+  onSelectionChange: (languageCode: string, selectionKey: string, versionNumber: number) => void;
 };
 
 export function useProjectMotionVersionSelection(params: Props): {
@@ -137,13 +137,13 @@ export function ProjectDetailMotionVersions({
         const slots = catalog.slotsByLanguage[code] ?? [];
         const latest = slots[slots.length - 1];
         if (latest) {
-          onSelectionChange(code, latest.selectionKey);
+          onSelectionChange(code, latest.selectionKey, latest.versionNumber);
         }
       }}
       onVersionChange={(key) => {
         const slot = findMotionVersionSlot(catalog, key);
         if (slot) {
-          onSelectionChange(slot.languageCode, key);
+          onSelectionChange(slot.languageCode, key, slot.versionNumber);
         }
       }}
       className="mt-1"

@@ -35,7 +35,55 @@ export function projectBundleGroupKey(params: {
   projectType: string;
   normalizedTitle: string;
 }): string {
-  return `${params.ownerId}:${params.projectType}:${params.normalizedTitle}`;
+  return `${params.ownerId}:${params.projectType}:title:${params.normalizedTitle}`;
+}
+
+export function sanitizeBundleKeyInput(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.slice(0, 80).toLowerCase().replace(/\s+/g, "-");
+}
+
+export function sanitizeBundleNameInput(value: string | null | undefined): string | null {
+  return sanitizeProjectTitleInput(value);
+}
+
+/** Grouping priority: manual bundleKey → bundleName → normalized project title. */
+export function resolveProjectBundleGroupKey(project: {
+  ownerId: string;
+  projectType: string;
+  title: string | null;
+  bundleKey?: string | null;
+  bundleName?: string | null;
+}): string {
+  const projectType = project.projectType ?? "classic";
+  const manualKey = sanitizeBundleKeyInput(project.bundleKey);
+  if (manualKey) {
+    return `${project.ownerId}:${projectType}:key:${manualKey}`;
+  }
+  const bundleNorm = normalizeProjectBundleName(project.bundleName);
+  if (bundleNorm) {
+    return `${project.ownerId}:${projectType}:bundle:${bundleNorm}`;
+  }
+  return projectBundleGroupKey({
+    ownerId: project.ownerId,
+    projectType,
+    normalizedTitle: normalizeProjectBundleName(project.title),
+  });
+}
+
+export function resolveBundleDisplayName(
+  members: Array<{ title: string | null; bundleName: string | null }>,
+  locale: "en" | "nl" = "nl"
+): string {
+  const named = members.find((m) => m.bundleName?.trim());
+  if (named?.bundleName?.trim()) {
+    return named.bundleName.trim();
+  }
+  const titled = members.find((m) => m.title?.trim());
+  return resolveProjectDisplayTitle(titled?.title ?? null, locale);
 }
 
 export type BundleMembershipPreview = {
@@ -50,31 +98,44 @@ export function previewBundleMembershipAfterRename(params: {
   projectType: string;
   projectId: string;
   newTitle: string | null;
-  peers: Array<{ id: string; title: string | null; projectType: string | null }>;
+  newBundleName?: string | null;
+  newBundleKey?: string | null;
+  peers: Array<{
+    id: string;
+    title: string | null;
+    bundleName?: string | null;
+    bundleKey?: string | null;
+    projectType: string | null;
+  }>;
   locale?: "en" | "nl";
 }): BundleMembershipPreview {
   const locale = params.locale ?? "nl";
-  const normalized = normalizeProjectBundleName(params.newTitle);
-  const key = projectBundleGroupKey({
+  const key = resolveProjectBundleGroupKey({
     ownerId: params.ownerId,
     projectType: params.projectType,
-    normalizedTitle: normalized,
+    title: params.newTitle,
+    bundleName: params.newBundleName,
+    bundleKey: params.newBundleKey,
   });
   const members = params.peers.filter((peer) => {
     if (peer.id === params.projectId) {
       return false;
     }
-    const peerType = peer.projectType ?? "classic";
-    const peerKey = projectBundleGroupKey({
+    const peerKey = resolveProjectBundleGroupKey({
       ownerId: params.ownerId,
-      projectType: peerType,
-      normalizedTitle: normalizeProjectBundleName(peer.title),
+      projectType: peer.projectType ?? "classic",
+      title: peer.title,
+      bundleName: peer.bundleName,
+      bundleKey: peer.bundleKey,
     });
     return peerKey === key;
   });
+  const displayTitle =
+    params.newBundleName?.trim() ||
+    resolveProjectDisplayTitle(params.newTitle, locale);
   return {
     willJoinExisting: members.length > 0,
-    bundleDisplayTitle: resolveProjectDisplayTitle(params.newTitle, locale),
+    bundleDisplayTitle: displayTitle,
     existingVersionCount: members.length,
     memberProjectIds: members.map((m) => m.id),
   };

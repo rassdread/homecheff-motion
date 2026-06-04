@@ -15,9 +15,15 @@ import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import { ProjectDetailMotionVersions } from "@/components/videos/project-detail-motion-versions";
-import { findMotionVersionSlot, buildMotionVersionCatalogForProject } from "@/lib/motion-version-catalog";
+import {
+  buildMotionVersionCatalogForProject,
+  resolveMotionSelectionFromUrl,
+} from "@/lib/motion-version-catalog";
+import { buildVersionQueryParam } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
-import { RenameProjectDialog } from "@/components/videos/rename-project-dialog";
+import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
+import { ProjectBundleOverviewPanel } from "@/components/videos/project-bundle-overview-panel";
+import { ProjectBundleSettingsDialog } from "@/components/videos/project-bundle-settings-dialog";
 import {
   filterCompletedLanguageExportsForPlayback,
   resolveActivePlaybackState,
@@ -192,26 +198,6 @@ export default function VideoDetailPage() {
         params.set("lang", languageCode);
       }
       params.delete("ver");
-      const qs = params.toString();
-      router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
-        scroll: false,
-      });
-    },
-    [id, router, searchParams]
-  );
-
-  const setMotionVersionSelection = useCallback(
-    (languageCode: string, selectionKey: string) => {
-      if (!id) {
-        return;
-      }
-      const params = new URLSearchParams(searchParams.toString());
-      if (languageCode === "nl") {
-        params.delete("lang");
-      } else {
-        params.set("lang", languageCode);
-      }
-      params.set("ver", selectionKey);
       const qs = params.toString();
       router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
         scroll: false,
@@ -418,39 +404,6 @@ export default function VideoDetailPage() {
     }
   }, [fullRerenderDisabled, id, router, t]);
 
-  const handleCopyAsConcept = useCallback(async () => {
-    if (!id || fullRerenderDisabled) {
-      return;
-    }
-    setFullRerenderBusy(true);
-    setFullRerenderError(null);
-    setFullRerenderInfo(null);
-    try {
-      const result = await postCopyProjectAsDraft(id);
-      if (result.networkError || !result.ok) {
-        setFullRerenderError(
-          result.data.error ??
-            result.data.copyAsDraft?.message ??
-            t("projects.concept.copyFailed")
-        );
-        return;
-      }
-      const path =
-        result.data.editVersionPath ??
-        (result.data.draftProjectId
-          ? `/videos/${encodeURIComponent(result.data.draftProjectId)}/edit-version`
-          : null);
-      if (!path) {
-        setFullRerenderError(t("projects.concept.copyFailed"));
-        return;
-      }
-      setFullRerenderInfo(t("projects.concept.copyStarted"));
-      router.push(path);
-    } finally {
-      setFullRerenderBusy(false);
-    }
-  }, [fullRerenderDisabled, id, router, t]);
-
   const panelPollingError =
     instantPollingError ??
     (videoRepair.feedback.kind === "poll_failed" && videoRepair.feedback.userMessageKey
@@ -558,21 +511,71 @@ export default function VideoDetailPage() {
     if (!motionCatalog) {
       return null;
     }
-    const fromUrl = findMotionVersionSlot(motionCatalog, versionFromUrl);
-    if (fromUrl) {
-      return fromUrl;
-    }
-    const code =
-      langFromUrl && motionCatalog.slotsByLanguage[langFromUrl]
-        ? langFromUrl
-        : motionCatalog.defaultLanguageCode;
-    const slots = motionCatalog.slotsByLanguage[code] ?? [];
-    return (
-      slots.find((s) => s.status === "completed" && s.finalVideoUrl) ??
-      slots[slots.length - 1] ??
-      null
-    );
+    return resolveMotionSelectionFromUrl(motionCatalog, langFromUrl, versionFromUrl)?.slot ?? null;
   }, [motionCatalog, langFromUrl, versionFromUrl]);
+
+  const setMotionVersionSelection = useCallback(
+    (languageCode: string, selectionKey: string, versionNumber: number) => {
+      if (!id) {
+        return;
+      }
+      const params = new URLSearchParams(searchParams.toString());
+      if (languageCode === "nl") {
+        params.delete("lang");
+      } else {
+        params.set("lang", languageCode);
+      }
+      params.set("ver", buildVersionQueryParam(versionNumber));
+      const qs = params.toString();
+      router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [id, router, searchParams]
+  );
+
+  const handleCopyAsConcept = useCallback(async () => {
+    if (!id || fullRerenderDisabled) {
+      return;
+    }
+    setFullRerenderBusy(true);
+    setFullRerenderError(null);
+    setFullRerenderInfo(null);
+    try {
+      const result = await postCopyProjectAsDraft(id, {
+        sourceLanguage: selectedMotionSlot?.languageCode,
+        sourceVersion: selectedMotionSlot?.versionNumber,
+      });
+      if (result.networkError || !result.ok) {
+        setFullRerenderError(
+          result.data.error ??
+            result.data.copyAsDraft?.message ??
+            t("projects.concept.copyFailed")
+        );
+        return;
+      }
+      const path =
+        result.data.editVersionPath ??
+        (result.data.draftProjectId
+          ? `/videos/${encodeURIComponent(result.data.draftProjectId)}/edit-version`
+          : null);
+      if (!path) {
+        setFullRerenderError(t("projects.concept.copyFailed"));
+        return;
+      }
+      setFullRerenderInfo(t("projects.concept.copyStarted"));
+      router.push(path);
+    } finally {
+      setFullRerenderBusy(false);
+    }
+  }, [
+    fullRerenderDisabled,
+    id,
+    router,
+    selectedMotionSlot?.languageCode,
+    selectedMotionSlot?.versionNumber,
+    t,
+  ]);
 
   const playbackState = useMemo(
     () =>
@@ -871,20 +874,43 @@ export default function VideoDetailPage() {
         onRename={() => setRenameOpen(true)}
       />
 
+      {detail.draftLineage ? (
+        <div className="mt-6">
+          <DraftLineageBanner lineage={detail.draftLineage} />
+        </div>
+      ) : null}
+
       {renameOpen && session.user ? (
-        <RenameProjectDialog
+        <ProjectBundleSettingsDialog
           open
           projectId={detail.id}
           ownerId={session.user.id}
           projectType={detail.projectType ?? "instant_premium"}
           initialTitle={detail.title ?? null}
+          initialBundleName={detail.bundleName ?? null}
+          initialBundleKey={detail.bundleKey ?? null}
           peers={[]}
           onClose={() => setRenameOpen(false)}
-          onRenamed={(result) => {
-            setDetail((prev) => (prev ? { ...prev, title: result.title } : prev));
+          onSaved={(result) => {
+            setDetail((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    title: result.title,
+                    bundleName: result.bundleName,
+                    bundleKey: result.bundleKey,
+                  }
+                : prev
+            );
             setRenameOpen(false);
           }}
         />
+      ) : null}
+
+      {instantLikeProject && detail.renderVersions && detail.renderVersions.length > 0 ? (
+        <div className="mt-6">
+          <ProjectBundleOverviewPanel detail={detail} />
+        </div>
       ) : null}
 
       {detail.studioQa && detail.id ?

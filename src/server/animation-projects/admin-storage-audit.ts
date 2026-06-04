@@ -3,6 +3,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { animationProjectWithMediaInclude } from "@/server/animation-projects/queries";
 import {
   aggregateAdminStorageAudit,
   auditProjectStorage,
@@ -48,13 +49,7 @@ export async function auditAdminVideoStorage(params?: {
         { transitions: { some: { outputVideoUrl: { not: null } } } },
       ],
     },
-    include: {
-      images: { orderBy: { order: "asc" } },
-      transitions: { orderBy: { order: "asc" } },
-      exports: { orderBy: { createdAt: "desc" } },
-      languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
-      renderVersions: { orderBy: { renderVersionNumber: "desc" } },
-    },
+    include: animationProjectWithMediaInclude,
     orderBy: { updatedAt: "desc" },
     take: limit,
   });

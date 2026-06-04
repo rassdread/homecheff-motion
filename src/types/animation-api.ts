@@ -249,9 +249,20 @@ export type AnimationProjectListItemLatestExport = {
   errorMessage: string | null;
 };
 
+export type DraftLineageResponse = {
+  sourceProjectId: string;
+  sourceProjectTitle: string;
+  sourceLanguage: string;
+  sourceLanguageLabel: string;
+  sourceVersion: number;
+  sourceVersionDisplay: string;
+  copiedAt: string | null;
+};
+
 export type ProjectBundleListItemResponse = {
   bundleKey: string;
   displayTitle: string;
+  bundleName: string | null;
   normalizedTitle: string;
   projectType: string;
   memberProjectIds: string[];
@@ -324,6 +335,7 @@ export type AnimationProjectListItem = {
   };
   /** Draft copy lineage when status=draft and copied from a completed project. */
   sourceProjectId?: string | null;
+  draftLineage?: DraftLineageResponse | null;
 };
 
 export type AnimationProjectListResponse = {
@@ -337,14 +349,18 @@ export type AnimationProjectListResponse = {
   gallerySection?: "completed" | "concepts";
 };
 
-export type RenameAnimationProjectRequest = {
-  title: string;
+export type UpdateProjectBundleSettingsRequest = {
+  title?: string;
+  bundleName?: string;
+  bundleKey?: string | null;
 };
 
-export type RenameAnimationProjectResponse = {
+export type UpdateProjectBundleSettingsResponse = {
   ok: true;
   id: string;
   title: string | null;
+  bundleName: string | null;
+  bundleKey: string | null;
   displayTitle: string;
   bundlePreview: {
     willJoinExisting: boolean;
@@ -352,6 +368,14 @@ export type RenameAnimationProjectResponse = {
     existingVersionCount: number;
   };
 };
+
+/** @deprecated Use UpdateProjectBundleSettingsRequest */
+export type RenameAnimationProjectRequest = UpdateProjectBundleSettingsRequest & {
+  title: string;
+};
+
+/** @deprecated Use UpdateProjectBundleSettingsResponse */
+export type RenameAnimationProjectResponse = UpdateProjectBundleSettingsResponse;
 
 /** GET /api/animations/projects/[id] — full snapshot for gallery detail. */
 export type VideoLanguageExportSummary = {
@@ -453,7 +477,13 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
   title?: string | null;
+  bundleName?: string | null;
+  bundleKey?: string | null;
   sourceProjectId?: string | null;
+  sourceLanguage?: string | null;
+  sourceVersion?: number | null;
+  draftCopiedAt?: string | null;
+  draftLineage?: DraftLineageResponse | null;
   advancedSettingsEnabled: boolean;
   instantCleanFinalVideoUrl?: string | null;
   instantSceneTexts?: unknown;

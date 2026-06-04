@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { appendBundleAuditEntry, parseBundleAuditJson } from "@/lib/bundle-audit";
+import { languageCodeToLabel } from "@/lib/draft-lineage";
 import { isProjectPlayablyComplete } from "@/lib/project-display-status";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
@@ -59,6 +61,8 @@ export async function copyInstantPremiumProjectAsDraft(params: {
   sourceProjectId: string;
   userId: string;
   isAdmin?: boolean;
+  sourceLanguage?: string | null;
+  sourceVersion?: number | null;
 }): Promise<CopyProjectAsDraftResult> {
   const source = await getAnimationProjectById(params.sourceProjectId);
   if (!source) {
@@ -100,6 +104,10 @@ export async function copyInstantPremiumProjectAsDraft(params: {
   }
 
   const title = buildDraftCopyTitle(source);
+  const sourceLanguage = params.sourceLanguage?.trim() || "nl";
+  const sourceVersion =
+    params.sourceVersion != null && params.sourceVersion > 0 ? params.sourceVersion : 1;
+  const copiedAt = new Date();
 
   const draftProjectId = await prisma.$transaction(async (tx) => {
     const draft = await tx.animationProject.create({
@@ -108,6 +116,17 @@ export async function copyInstantPremiumProjectAsDraft(params: {
         title,
         status: "draft",
         sourceProjectId: source.id,
+        sourceLanguage,
+        sourceVersion,
+        draftCopiedAt: copiedAt,
+        bundleName: source.bundleName,
+        bundleAuditJson: appendBundleAuditEntry(null, {
+          type: "draft_created",
+          userId: params.userId,
+          before: null,
+          after: `${languageCodeToLabel(sourceLanguage)} v${sourceVersion}`,
+          meta: { sourceProjectId: source.id, draftFrom: "copy_as_draft" },
+        }) as object,
         projectType: source.projectType,
         instantMode: source.instantMode,
         instantTransitionSeconds: source.instantTransitionSeconds,

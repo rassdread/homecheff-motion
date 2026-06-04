@@ -11,7 +11,8 @@ import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { ProjectBundleCard } from "@/components/videos/project-bundle-card";
-import { RenameProjectDialog } from "@/components/videos/rename-project-dialog";
+import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
+import { ProjectBundleSettingsDialog } from "@/components/videos/project-bundle-settings-dialog";
 import type {
   AnimationProjectListItem,
   AnimationProjectListResponse,
@@ -641,13 +642,14 @@ function VideosPageContent() {
                   </Link>
                 </div>
 
-                {conceptMeta ?
-                  <p className="rounded-lg bg-[#0067B1]/10 px-2 py-1 text-xs font-medium text-[#0067B1]">
-                    {t("projects.concepts.cardLabel", {
-                      scenes: conceptMeta.sceneCount,
-                    })}
-                  </p>
-                : null}
+                <p className="rounded-lg bg-[#0067B1]/10 px-2 py-1 text-xs font-medium text-[#0067B1]">
+                  {t("projects.concepts.cardLabel", {
+                    scenes: conceptMeta?.sceneCount ?? item.imageCount,
+                  })}
+                </p>
+                {item.draftLineage ? (
+                  <DraftLineageBanner lineage={item.draftLineage} variant="card" />
+                ) : null}
 
                 {listAll && item.ownerEmail ? (
                   <p className="text-xs text-zinc-500">
@@ -897,21 +899,25 @@ function VideosPageContent() {
       </ul>
 
       {renameTarget && session.user ? (
-        <RenameProjectDialog
+        <ProjectBundleSettingsDialog
           open
           projectId={renameTarget.projectId}
           ownerId={session.user.id}
           projectType={renameTarget.projectType}
           initialTitle={renameTarget.title}
+          initialBundleName={null}
+          initialBundleKey={null}
           peers={projects
             .filter((p) => p.id !== renameTarget.projectId)
             .map((p) => ({
               id: p.id,
               title: p.title ?? null,
+              bundleName: null,
+              bundleKey: null,
               projectType: p.projectType ?? "classic",
             }))}
           onClose={() => setRenameTarget(null)}
-          onRenamed={() => {
+          onSaved={() => {
             setRenameTarget(null);
             void fetchList(1, "replace");
           }}

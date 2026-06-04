@@ -8,6 +8,7 @@ import {
 } from "@/lib/project-video-versions";
 import { selectCleanupDryRunCandidates } from "@/lib/storage-retention-policy";
 import { prisma } from "@/lib/prisma";
+import { animationProjectWithMediaInclude } from "@/server/animation-projects/queries";
 
 export async function POST() {
   const admin = await requireAdmin();
@@ -23,13 +24,7 @@ export async function POST() {
         { languageExports: { some: {} } },
       ],
     },
-    include: {
-      images: { orderBy: { order: "asc" } },
-      transitions: { orderBy: { order: "asc" } },
-      exports: { orderBy: { createdAt: "desc" } },
-      languageExports: { orderBy: [{ languageCode: "asc" }, { version: "desc" }] },
-      renderVersions: { orderBy: { renderVersionNumber: "desc" } },
-    },
+    include: animationProjectWithMediaInclude,
     orderBy: { updatedAt: "desc" },
     take: 100,
   });

@@ -7,6 +7,7 @@ import {
   type GalleryListPrismaRow,
 } from "@/server/animation-projects/gallery-list";
 import { parseFullRerenderDraftPayload } from "@/lib/full-rerender-draft";
+import { buildDraftLineage } from "@/lib/draft-lineage";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 import { prisma } from "@/lib/prisma";
 import { listGalleryProjectBundles } from "@/server/animation-projects/build-gallery-bundles";
@@ -84,6 +85,9 @@ export async function listAnimationProjectsForUser(params: {
                 select: {
                   id: true,
                   sourceProjectId: true,
+                  sourceLanguage: true,
+                  sourceVersion: true,
+                  draftCopiedAt: true,
                   title: true,
                   updatedAt: true,
                   status: true,
@@ -91,8 +95,24 @@ export async function listAnimationProjectsForUser(params: {
               })
             : Promise.resolve([]),
         ]);
+        const sourceIds = [
+          ...new Set(
+            conceptMetaRows
+              .map((r) => r.sourceProjectId)
+              .filter((id): id is string => Boolean(id?.trim()))
+          ),
+        ];
+        const sourceTitleRows =
+          sourceIds.length > 0
+            ? await prisma.animationProject.findMany({
+                where: { id: { in: sourceIds } },
+                select: { id: true, title: true },
+              })
+            : [];
+        const sourceTitleById = new Map(sourceTitleRows.map((r) => [r.id, r.title]));
         const draftByProject = new Map(draftPayloadRows.map((row) => [row.projectId, row]));
         const metaByProject = new Map(conceptMetaRows.map((row) => [row.id, row]));
+        const locale = params.locale ?? "nl";
 
         const projects = rows
           .map((galleryRow) => {
@@ -107,12 +127,24 @@ export async function listAnimationProjectsForUser(params: {
               const sceneCount =
                 payload?.slots.filter((s) => s.image !== null).length ??
                 galleryRow._count.images;
+              const draftLineage =
+                meta?.sourceProjectId
+                  ? buildDraftLineage({
+                      sourceProjectId: meta.sourceProjectId,
+                      sourceProjectTitle: sourceTitleById.get(meta.sourceProjectId) ?? null,
+                      sourceLanguage: meta.sourceLanguage,
+                      sourceVersion: meta.sourceVersion,
+                      copiedAt: meta.draftCopiedAt,
+                      locale,
+                    })
+                  : null;
               return {
                 ...item,
                 title: meta?.title?.trim() || item.title || null,
-                displayTitle: resolveProjectDisplayTitle(meta?.title ?? item.title, params.locale ?? "nl"),
+                displayTitle: resolveProjectDisplayTitle(meta?.title ?? item.title, locale),
                 status: meta?.status ?? item.status,
                 sourceProjectId: meta?.sourceProjectId ?? null,
+                draftLineage: draftLineage ?? undefined,
                 fullRerenderDraft: {
                   updatedAt: (draftRow?.updatedAt ?? meta?.updatedAt ?? new Date()).toISOString(),
                   sceneCount,
@@ -176,6 +208,7 @@ export async function listAnimationProjectsForUser(params: {
     const bundles = bundleResult.bundles.map((bundle) => ({
       bundleKey: bundle.bundleKey,
       displayTitle: bundle.displayTitle,
+      bundleName: bundle.bundleName,
       normalizedTitle: bundle.normalizedTitle,
       projectType: bundle.projectType,
       memberProjectIds: bundle.memberProjectIds,
