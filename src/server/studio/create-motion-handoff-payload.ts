@@ -12,6 +12,10 @@ import {
   parseConsistencyRecommendations,
   parseSceneConsistencyReport,
 } from "@/lib/studio-consistency-report-parse";
+import { parseCorrectionRecommendations } from "@/lib/studio-correction-report-parse";
+import { buildConsistencyHistoryFromImages } from "@/lib/studio-storyboard-correction-summary";
+import { computeImprovementScore } from "@/lib/studio-improvement-score";
+import { buildCorrectionRecommendations } from "@/lib/build-correction-recommendations";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
@@ -106,6 +110,13 @@ function toHandoffScene(
     sceneConsistencyRecommendations: selectedImageRow
       ? parseConsistencyRecommendations(selectedImageRow.consistencyRecommendations)
       : [],
+    sceneCorrectionRecommendations: selectedImageRow
+      ? parseCorrectionRecommendations(selectedImageRow.correctionRecommendations).length > 0
+        ? parseCorrectionRecommendations(selectedImageRow.correctionRecommendations)
+        : sceneConsistencyReport
+          ? buildCorrectionRecommendations(sceneConsistencyReport)
+          : []
+      : [],
   };
 }
 
@@ -159,6 +170,32 @@ export async function createMotionHandoffPayload(
     }),
   });
 
+  const allImages = scenes.flatMap((scene) =>
+    scene.sceneImages.map((img) => ({
+      id: img.id,
+      generationVersion: img.generationVersion,
+      consistencyScore: img.consistencyScore,
+      consistencyStatus: img.consistencyStatus,
+      improvementScore: img.improvementScore,
+      previousConsistencyScore: img.previousConsistencyScore,
+      correctionRecommendations: img.correctionRecommendations,
+      createdAt: img.createdAt.toISOString(),
+    }))
+  );
+  const consistencyHistory = buildConsistencyHistoryFromImages(allImages);
+
+  const correctionRecommendations = handoffScenes.flatMap((s) => s.sceneCorrectionRecommendations);
+
+  const latestRegen = [...allImages]
+    .filter((img) => img.improvementScore !== null)
+    .sort((a, b) => b.generationVersion - a.generationVersion)[0];
+  const latestImprovementScore = latestRegen
+    ? computeImprovementScore(
+        latestRegen.previousConsistencyScore,
+        latestRegen.consistencyScore ?? 0
+      )
+    : null;
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
@@ -173,6 +210,9 @@ export async function createMotionHandoffPayload(
     consistencyReport,
     overallConsistencyScore: consistencyReport.overallScore,
     driftWarnings: consistencyReport.driftWarnings,
+    correctionRecommendations,
+    consistencyHistory,
+    latestImprovementScore,
     scenes: handoffScenes,
   };
 

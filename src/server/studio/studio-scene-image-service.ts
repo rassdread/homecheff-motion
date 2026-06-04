@@ -8,11 +8,17 @@ import {
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { getSceneImageProvider, getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-image-blob";
+import { buildSceneCorrectionBundle } from "@/lib/build-scene-correction-bundle";
+import { parseSceneConsistencyReport } from "@/lib/studio-consistency-report-parse";
+import { computeImprovementScore } from "@/lib/studio-improvement-score";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import {
+  analyzeAndPersistSceneImage,
   analyzeSceneImageConsistency,
   persistSceneImageConsistency,
 } from "@/server/studio/studio-consistency-service";
+import type { SceneCorrectionBundle } from "@/types/studio-correction";
+import type { RegenerateWithCorrectionsResponse } from "@/types/studio-correction";
 import {
   mapStudioSceneToDetail,
   STUDIO_SCENE_DETAIL_INCLUDE,
@@ -104,15 +110,26 @@ async function nextGenerationVersion(sceneId: string): Promise<number> {
   return (max._max.generationVersion ?? 0) + 1;
 }
 
+type SceneImageGenerationOverrides = {
+  fullPrompt: string;
+  correctedPrompt?: string;
+  correction?: SceneCorrectionBundle;
+  regeneratedFromImageId?: string;
+  previousConsistencyScore?: number | null;
+};
+
 async function runSceneImageGeneration(params: {
   imageRowId: string;
   scene: SceneForImageRow;
+  overrides?: SceneImageGenerationOverrides;
 }): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   const styleProfile = normalizeStudioPromptStyleProfile(params.scene.storyboard.promptStyleProfile);
   const snapshot = toSceneSnapshot(params.scene);
   const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile);
-  const fullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput);
+  const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput);
+  const fullPrompt = params.overrides?.fullPrompt ?? defaultFullPrompt;
   const generationVersion = await nextGenerationVersion(params.scene.id);
+  const correction = params.overrides?.correction;
 
   const settings: StudioSceneImageGenerationSettings = {
     styleProfile,
@@ -126,10 +143,19 @@ async function runSceneImageGeneration(params: {
     data: {
       status: "generating",
       generatedPrompt: fullPrompt,
+      correctedPrompt: params.overrides?.correctedPrompt ?? correction?.correctedPrompt ?? "",
       promptVersion: PROMPT_BUILDER_VERSION,
       generationVersion,
       generationSettings: settings as unknown as Prisma.InputJsonValue,
       provider: getSelectedSceneImageProviderId(),
+      regeneratedFromImageId: params.overrides?.regeneratedFromImageId ?? null,
+      previousConsistencyScore: params.overrides?.previousConsistencyScore ?? null,
+      correctionRecommendations: correction
+        ? (correction.recommendations as unknown as Prisma.InputJsonValue)
+        : undefined,
+      promptPatches: correction
+        ? (correction.patches as unknown as Prisma.InputJsonValue)
+        : undefined,
     },
   });
 
@@ -183,6 +209,19 @@ async function runSceneImageGeneration(params: {
       consistencyReport
     );
 
+    const previousScore = params.overrides?.previousConsistencyScore;
+    if (previousScore !== undefined && previousScore !== null) {
+      const improvement = computeImprovementScore(
+        previousScore,
+        consistencyReport.overallScore
+      );
+      const improved = await prisma.studioSceneImage.update({
+        where: { id: completed.id },
+        data: { improvementScore: improvement.delta },
+      });
+      return { image: mapStudioSceneImageToListItem(improved) };
+    }
+
     return { image: withConsistency };
   } catch (err) {
     await prisma.studioSceneImage.update({
@@ -226,6 +265,102 @@ export async function regenerateStudioSceneImage(
   viewer: Pick<SessionUser, "id" | "role">
 ): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   return generateStudioSceneImage(storyboardId, sceneId, viewer);
+}
+
+export async function regenerateStudioSceneImageWithCorrections(
+  storyboardId: string,
+  sceneId: string,
+  sourceImageId: string | undefined,
+  viewer: Pick<SessionUser, "id" | "role">
+): Promise<RegenerateWithCorrectionsResponse | { error: ServiceError }> {
+  const loaded = await loadSceneForImage(storyboardId, sceneId, viewer);
+  if ("error" in loaded) {
+    return loaded;
+  }
+
+  const source =
+    (sourceImageId
+      ? loaded.scene.sceneImages.find((img) => img.id === sourceImageId)
+      : null) ??
+    loaded.scene.sceneImages.find((img) => img.id === loaded.scene.selectedSceneImageId) ??
+    loaded.scene.sceneImages.find((img) => img.status === "completed");
+
+  if (!source || source.status !== "completed" || !source.generatedPrompt.trim()) {
+    return {
+      error: serviceError(
+        "NO_SOURCE_IMAGE",
+        "Select a completed scene image to regenerate with corrections.",
+        400
+      ),
+    };
+  }
+
+  let report = parseSceneConsistencyReport(source.consistencyReport);
+  if (!report) {
+    const analyzed = await analyzeAndPersistSceneImage(
+      storyboardId,
+      sceneId,
+      source.id,
+      viewer
+    );
+    if ("error" in analyzed) {
+      return analyzed;
+    }
+    report = analyzed.report;
+  }
+
+  const bundle = buildSceneCorrectionBundle({
+    basePrompt: source.generatedPrompt,
+    consistencyReport: report,
+  });
+
+  const queued = await prisma.studioSceneImage.create({
+    data: {
+      sceneId,
+      status: "queued",
+      promptVersion: PROMPT_BUILDER_VERSION,
+      generationVersion: 0,
+      generatedPrompt: "",
+      correctedPrompt: bundle.correctedPrompt,
+      provider: getSelectedSceneImageProviderId(),
+      regeneratedFromImageId: source.id,
+      previousConsistencyScore: source.consistencyScore,
+      correctionRecommendations: bundle.recommendations as unknown as Prisma.InputJsonValue,
+      promptPatches: bundle.patches as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  const gen = await runSceneImageGeneration({
+    imageRowId: queued.id,
+    scene: loaded.scene,
+    overrides: {
+      fullPrompt: bundle.correctedPrompt,
+      correctedPrompt: bundle.correctedPrompt,
+      correction: bundle,
+      regeneratedFromImageId: source.id,
+      previousConsistencyScore: source.consistencyScore,
+    },
+  });
+
+  if ("error" in gen) {
+    return gen;
+  }
+
+  const finalReport =
+    parseSceneConsistencyReport(
+      (await prisma.studioSceneImage.findUnique({ where: { id: gen.image.id } }))
+        ?.consistencyReport ?? null
+    ) ?? report;
+
+  return {
+    image: gen.image,
+    correction: bundle,
+    improvement: computeImprovementScore(
+      source.consistencyScore,
+      gen.image.consistencyScore ?? finalReport.overallScore
+    ),
+    consistencyReport: finalReport,
+  };
 }
 
 export async function listStudioSceneImages(

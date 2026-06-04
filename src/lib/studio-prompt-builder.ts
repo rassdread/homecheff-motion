@@ -10,6 +10,10 @@ import {
   buildStyleProfilePrompt,
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
+import {
+  buildCorrectedPrompt,
+  recommendationsToPromptPatches,
+} from "@/lib/build-corrected-prompt";
 import { sceneSnapshotToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import {
@@ -79,7 +83,14 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
     sections.qualityInstructions,
   ];
 
-  const prompt = joinParagraphs(bodyParts);
+  let prompt = joinParagraphs(bodyParts);
+  const corrections = input.correctionRecommendations ?? [];
+  if (corrections.length > 0) {
+    prompt = buildCorrectedPrompt(
+      prompt,
+      recommendationsToPromptPatches(corrections)
+    );
+  }
   const generatedAt = new Date().toISOString();
 
   return {

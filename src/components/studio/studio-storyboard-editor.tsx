@@ -32,11 +32,14 @@ import {
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
 import { StudioConsistencyTimelinePanel } from "@/components/studio/studio-consistency-timeline-panel";
+import { StudioStoryboardCorrectionPanel } from "@/components/studio/studio-storyboard-correction-panel";
 import {
   analyzeStudioStoryboardConsistencyApi,
   bulkGenerateStudioSceneImagesApi,
+  generateStoryboardCorrectionsApi,
 } from "@/lib/studio-scene-images-client";
 import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
+import type { StoryboardCorrectionSummary } from "@/types/studio-correction";
 import {
   createStudioSceneApi,
   deleteStudioSceneApi,
@@ -77,6 +80,10 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [consistencyReport, setConsistencyReport] = useState<StoryboardConsistencyReport | null>(
     null
   );
+  const [correctionSummary, setCorrectionSummary] = useState<StoryboardCorrectionSummary | null>(
+    null
+  );
+  const [generatingCorrections, setGeneratingCorrections] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -229,6 +236,22 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     await load();
   };
 
+  const handleGenerateCorrections = async () => {
+    setGeneratingCorrections(true);
+    setError("");
+    const res = await generateStoryboardCorrectionsApi(storyboardId);
+    setGeneratingCorrections(false);
+    if (!res.ok) {
+      setError(
+        (res.data as { error?: string }).error ?? t("studio.correction.error.storyboardFailed")
+      );
+      return;
+    }
+    setCorrectionSummary(res.data.summary);
+    setConsistencyReport(res.data.summary.consistencyReport);
+    await load();
+  };
+
   const handleSaveScene = async (sceneId: string, patch: StudioSceneUpdateInput) => {
     setSavingSceneId(sceneId);
     const res = await updateStudioSceneApi(storyboardId, sceneId, patch);
@@ -372,6 +395,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </button>
                         <button
                           type="button"
+                          disabled={generatingCorrections || scenes.length === 0}
+                          onClick={() => void handleGenerateCorrections()}
+                          className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
+                        >
+                          {generatingCorrections
+                            ? t("studio.correction.generatingStoryboard")
+                            : t("studio.correction.generateStoryboard")}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void handleAddScene()}
                           className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
                         >
@@ -438,6 +471,17 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                 )}
               </div>
               <aside className="space-y-8">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    {t("studio.correction.summaryTitle")}
+                  </h2>
+                  <div className="mt-4">
+                    <StudioStoryboardCorrectionPanel
+                      summary={correctionSummary}
+                      loading={generatingCorrections}
+                    />
+                  </div>
+                </div>
                 <StudioConsistencyTimelinePanel report={consistencyReport} />
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">

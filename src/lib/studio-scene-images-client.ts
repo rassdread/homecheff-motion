@@ -9,6 +9,11 @@ import type {
   StudioSceneConsistencyAnalyzeResponse,
   StudioStoryboardConsistencyAnalyzeResponse,
 } from "@/types/studio-consistency";
+import type {
+  RegenerateWithCorrectionsResponse,
+  SceneCorrectionPreviewResponse,
+  StoryboardGenerateCorrectionsResponse,
+} from "@/types/studio-correction";
 
 export async function fetchStudioSceneImages(storyboardId: string, sceneId: string) {
   return fetchSameOriginJson<StudioSceneImageListResponse>(
@@ -79,6 +84,43 @@ export async function analyzeStudioStoryboardConsistencyApi(storyboardId: string
   return fetchSameOriginJson<StudioStoryboardConsistencyAnalyzeResponse>(
     sameOriginApiPath(
       `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/analyze-consistency`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function previewStudioSceneCorrectionsApi(
+  storyboardId: string,
+  sceneId: string,
+  sourceImageId?: string
+) {
+  const qs = sourceImageId
+    ? `?sourceImageId=${encodeURIComponent(sourceImageId)}`
+    : "";
+  return fetchSameOriginJson<{ preview: SceneCorrectionPreviewResponse }>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/scenes/${encodeURIComponent(sceneId)}/corrections-preview${qs}`
+    )
+  );
+}
+
+export async function regenerateStudioSceneImageWithCorrectionsApi(
+  storyboardId: string,
+  sceneId: string,
+  sourceImageId: string
+) {
+  return fetchSameOriginJson<RegenerateWithCorrectionsResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/scenes/${encodeURIComponent(sceneId)}/images/${encodeURIComponent(sourceImageId)}/regenerate-with-corrections`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function generateStoryboardCorrectionsApi(storyboardId: string) {
+  return fetchSameOriginJson<StoryboardGenerateCorrectionsResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/generate-corrections`
     ),
     { method: "POST" }
   );

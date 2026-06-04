@@ -3,6 +3,7 @@ import type { LocationSnapshot } from "@/types/studio-location-snapshot";
 import type { PropSnapshot } from "@/types/studio-prop-snapshot";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
+import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 
 export const PROMPT_BUILDER_VERSION = 2 as const;
@@ -21,6 +22,8 @@ export type PromptBuilderInput = {
   styleProfile: StudioPromptStyleProfile;
   /** V10: character, location, prop and world memory for continuity prompts. */
   memoryBundle?: SceneMemoryBundle;
+  /** V12: structured corrections from consistency analysis (applied as prompt layer). */
+  correctionRecommendations?: CorrectionRecommendation[];
 };
 
 export type PromptBuilderSections = {

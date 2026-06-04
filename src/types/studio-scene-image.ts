@@ -1,5 +1,10 @@
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
 import type { SceneConsistencyReport, StudioConsistencyStatus } from "@/types/studio-consistency";
+import type {
+  CorrectionRecommendation,
+  ConsistencyHistoryEntry,
+  PromptPatch,
+} from "@/types/studio-correction";
 
 export const STUDIO_SCENE_IMAGE_STATUSES = [
   "queued",
@@ -49,9 +54,17 @@ export type StudioSceneImageListItem = {
   consistencyReport: SceneConsistencyReport | null;
   consistencyRecommendations: string[];
   consistencyAnalyzedAt: string | null;
+  correctionRecommendations: CorrectionRecommendation[];
+  promptPatches: PromptPatch[];
+  correctedPrompt: string;
+  regeneratedFromImageId: string | null;
+  previousConsistencyScore: number | null;
+  improvementScore: number | null;
   createdAt: string;
   updatedAt: string;
 };
+
+export type { ConsistencyHistoryEntry };
 
 export type StudioSceneImageDetail = StudioSceneImageListItem;
 

@@ -443,11 +443,23 @@ model StudioSceneImage {
   consistencyReport          Json?
   consistencyRecommendations Json?
   consistencyAnalyzedAt      DateTime?
+  /** V12: structured correction recommendations from consistency report */
+  correctionRecommendations Json?
+  promptPatches               Json?
+  /** Prompt sent to image provider when regenerated with corrections */
+  correctedPrompt             String   @default("")
+  regeneratedFromImageId      String?
+  previousConsistencyScore    Int?
+  /** newScore - previousScore after correction regeneration */
+  improvementScore            Int?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
   selectedByScenes   StudioScene[] @relation("StudioSceneSelectedImage")
+  regeneratedFrom    StudioSceneImage?  @relation("StudioSceneImageRegeneration", fields: [regeneratedFromImageId], references: [id], onDelete: SetNull)
+  regenerations      StudioSceneImage[] @relation("StudioSceneImageRegeneration")
 
   @@index([sceneId, createdAt])
+  @@index([regeneratedFromImageId])
 }
 
 model StudioSceneCharacter {

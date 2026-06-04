@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 
 describe("motion handoff payload shape", () => {
-  it("uses version 3 with scene image fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 5);
+  it("uses version 6 with correction metadata fields", () => {
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 6);
   });
 });

@@ -5,6 +5,10 @@ import {
   parseSceneConsistencyReport,
 } from "@/lib/studio-consistency-report-parse";
 import {
+  parseCorrectionRecommendations,
+  parsePromptPatches,
+} from "@/lib/studio-correction-report-parse";
+import {
   STUDIO_SCENE_IMAGE_STATUSES,
   type StudioSceneImageGenerationSettings,
   type StudioSceneImageListItem,
@@ -45,6 +49,12 @@ export function mapStudioSceneImageToListItem(row: StudioSceneImage): StudioScen
       row.consistencyRecommendations
     ),
     consistencyAnalyzedAt: row.consistencyAnalyzedAt?.toISOString() ?? null,
+    correctionRecommendations: parseCorrectionRecommendations(row.correctionRecommendations),
+    promptPatches: parsePromptPatches(row.promptPatches),
+    correctedPrompt: row.correctedPrompt,
+    regeneratedFromImageId: row.regeneratedFromImageId,
+    previousConsistencyScore: row.previousConsistencyScore,
+    improvementScore: row.improvementScore,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

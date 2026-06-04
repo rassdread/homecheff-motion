@@ -8,7 +8,7 @@ import {
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 const samplePayload: MotionHandoffPayload = {
-  version: 5,
+  version: 6,
   storyboardId: "sb-1",
   title: "HomeCheff Promo",
   description: "Rotterdam + garden",
@@ -21,6 +21,9 @@ const samplePayload: MotionHandoffPayload = {
   consistencyReport: null,
   overallConsistencyScore: 82,
   driftWarnings: [],
+  correctionRecommendations: [],
+  consistencyHistory: [],
+  latestImprovementScore: null,
   scenes: [
     {
       sceneId: "scene-1",
@@ -54,6 +57,7 @@ const samplePayload: MotionHandoffPayload = {
       sceneConsistencyScore: 82,
       sceneConsistencyReport: null,
       sceneConsistencyRecommendations: [],
+      sceneCorrectionRecommendations: [],
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-06-08T12:00:00.000Z",

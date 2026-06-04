@@ -11,8 +11,13 @@ import type {
   WorldMemorySnapshot,
 } from "@/types/studio-memory-snapshots";
 import type { SceneConsistencyReport, StoryboardConsistencyReport } from "@/types/studio-consistency";
+import type {
+  ConsistencyHistoryEntry,
+  CorrectionRecommendation,
+  ImprovementScore,
+} from "@/types/studio-correction";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 5 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 6 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -33,6 +38,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneConsistencyScore: number | null;
   sceneConsistencyReport: SceneConsistencyReport | null;
   sceneConsistencyRecommendations: string[];
+  /** V12: structured correction recommendations for selected still (metadata only). */
+  sceneCorrectionRecommendations: CorrectionRecommendation[];
 };
 
 export type MotionHandoffPayload = {
@@ -51,5 +58,9 @@ export type MotionHandoffPayload = {
   consistencyReport: StoryboardConsistencyReport | null;
   overallConsistencyScore: number;
   driftWarnings: string[];
+  /** V12: aggregated correction recommendations (metadata only). */
+  correctionRecommendations: CorrectionRecommendation[];
+  consistencyHistory: ConsistencyHistoryEntry[];
+  latestImprovementScore: ImprovementScore | null;
   scenes: MotionHandoffScene[];
 };
