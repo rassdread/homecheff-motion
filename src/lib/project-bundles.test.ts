@@ -59,6 +59,28 @@ describe("project-bundles", () => {
     assert.deepEqual(promo!.memberProjectIds.sort(), ["p1", "p2"]);
   });
 
+  it("does not group same title across owners", () => {
+    const bundles = groupProjectsIntoBundles(
+      [
+        baseProject({ id: "a", ownerId: "owner-a", title: "HomeCheff Promo" }),
+        baseProject({ id: "b", ownerId: "owner-b", title: "HomeCheff Promo" }),
+      ],
+      {}
+    );
+    assert.equal(bundles.length, 2);
+  });
+
+  it("splits same title when bundleKey differs", () => {
+    const bundles = groupProjectsIntoBundles(
+      [
+        baseProject({ id: "a", bundleKey: "key-a", title: "Same" }),
+        baseProject({ id: "b", bundleKey: "key-b", title: "Same" }),
+      ],
+      {}
+    );
+    assert.equal(bundles.length, 2);
+  });
+
   it("keeps separate project IDs inside a bundle", () => {
     const bundles = groupProjectsIntoBundles(
       [baseProject({ id: "a" }), baseProject({ id: "b", title: "HomeCheff Promo" })],

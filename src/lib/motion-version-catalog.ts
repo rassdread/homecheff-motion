@@ -265,9 +265,15 @@ export function resolveMotionSelectionFromUrl(
   langFromUrl: string | null | undefined,
   verFromUrl: string | null | undefined
 ): { languageCode: string; selectionKey: string; slot: MotionVersionSlot } | null {
+  const explicitVer = Boolean(verFromUrl?.trim());
+  const explicitLang = Boolean(langFromUrl?.trim());
+  const langKey = langFromUrl?.trim() ?? "";
+  if (explicitLang && !catalog.slotsByLanguage[langKey]?.length) {
+    return null;
+  }
   const languageCode =
-    langFromUrl?.trim() && catalog.slotsByLanguage[langFromUrl.trim()]
-      ? langFromUrl.trim()
+    explicitLang && catalog.slotsByLanguage[langKey]
+      ? langKey
       : catalog.defaultLanguageCode;
   const slots = catalog.slotsByLanguage[languageCode] ?? [];
   if (!slots.length) {
@@ -279,16 +285,40 @@ export function resolveMotionSelectionFromUrl(
     if (slot && slot.languageCode === languageCode) {
       return { languageCode, selectionKey: slot.selectionKey, slot };
     }
+    if (explicitVer) {
+      return null;
+    }
   }
   if (parsed.versionNumber != null) {
     const slot = slots.find((s) => s.versionNumber === parsed.versionNumber);
     if (slot) {
       return { languageCode, selectionKey: slot.selectionKey, slot };
     }
+    if (explicitVer) {
+      return null;
+    }
   }
   const fallback =
-    slots.find((s) => s.status === "completed" && s.finalVideoUrl) ?? slots[slots.length - 1]!;
+    pickLatestMotionVersionSlot(catalog, languageCode) ?? slots[slots.length - 1]!;
   return { languageCode, selectionKey: fallback.selectionKey, slot: fallback };
+}
+
+/** Per-language version counts for bundle validation (tests / diagnostics). */
+export function summarizeMotionCatalogStats(catalog: MotionVersionCatalog): {
+  languageCounts: Record<string, number>;
+  totalSlots: number;
+  latestByLanguage: Record<string, MotionVersionSlot | null>;
+} {
+  const languageCounts: Record<string, number> = {};
+  const latestByLanguage: Record<string, MotionVersionSlot | null> = {};
+  let totalSlots = 0;
+  for (const lang of catalog.languages) {
+    const slots = catalog.slotsByLanguage[lang.code] ?? [];
+    languageCounts[lang.code] = slots.length;
+    totalSlots += slots.length;
+    latestByLanguage[lang.code] = pickLatestMotionVersionSlot(catalog, lang.code);
+  }
+  return { languageCounts, totalSlots, latestByLanguage };
 }
 
 export function findMotionVersionSlot(

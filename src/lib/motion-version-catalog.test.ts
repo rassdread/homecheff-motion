@@ -4,6 +4,7 @@ import {
   buildMotionVersionCatalogForProject,
   findMotionVersionSlot,
   mergeMotionVersionCatalogs,
+  resolveMotionSelectionFromUrl,
 } from "@/lib/motion-version-catalog";
 
 describe("motion-version-catalog", () => {
@@ -123,5 +124,31 @@ describe("motion-version-catalog", () => {
     assert.equal(merged.slotsByLanguage.nl?.[1]?.projectId, "p-b");
     assert.equal(merged.slotsByLanguage.nl?.[0]?.versionNumber, 1);
     assert.equal(merged.slotsByLanguage.nl?.[1]?.versionNumber, 2);
+  });
+
+  it("rejects invalid explicit ?ver= without falling back to another version", () => {
+    const catalog = buildMotionVersionCatalogForProject({
+      projectId: "p1",
+      exportOutputUrl: null,
+      exportStatus: null,
+      projectStatus: "completed",
+      projectCleanUrl: null,
+      renderVersions: [
+        {
+          id: "rv1",
+          renderVersionNumber: 1,
+          status: "completed",
+          isDefault: true,
+          versionNote: null,
+          finalVideoUrl: "https://cdn.example/v1.mp4",
+          cleanVideoUrl: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      languageExports: [],
+    });
+    assert.equal(resolveMotionSelectionFromUrl(catalog, "nl", "v9"), null);
+    const ok = resolveMotionSelectionFromUrl(catalog, "nl", "v1");
+    assert.equal(ok?.slot.finalVideoUrl, "https://cdn.example/v1.mp4");
   });
 });
