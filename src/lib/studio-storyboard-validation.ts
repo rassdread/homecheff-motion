@@ -1,3 +1,4 @@
+import { isAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
 import { isStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 
@@ -16,6 +17,8 @@ export type StudioStoryboardUpdateInput = {
   description?: string;
   promptStyleProfile?: string;
   directorProfile?: string;
+  aiDirectorPrompt?: string;
+  aiDirectorStyleStrength?: string;
   autoSelectImprovedImage?: boolean;
 };
 
@@ -68,6 +71,8 @@ export function validateStudioStoryboardUpdateInput(
   description?: string;
   promptStyleProfile?: string;
   directorProfile?: string;
+  aiDirectorPrompt?: string;
+  aiDirectorStyleStrength?: string;
   autoSelectImprovedImage?: boolean;
 }> {
   const patch: {
@@ -75,6 +80,8 @@ export function validateStudioStoryboardUpdateInput(
     description?: string;
     promptStyleProfile?: string;
     directorProfile?: string;
+    aiDirectorPrompt?: string;
+    aiDirectorStyleStrength?: string;
     autoSelectImprovedImage?: boolean;
   } = {};
 
@@ -107,6 +114,22 @@ export function validateStudioStoryboardUpdateInput(
       return { ok: false, code: "INVALID_DIRECTOR_PROFILE", message: "Invalid director profile." };
     }
     patch.directorProfile = director;
+  }
+
+  if (raw.aiDirectorPrompt !== undefined) {
+    patch.aiDirectorPrompt = trimText(raw.aiDirectorPrompt, STUDIO_STORYBOARD_TEXT_MAX);
+  }
+
+  if (raw.aiDirectorStyleStrength !== undefined) {
+    const strength = raw.aiDirectorStyleStrength.trim().toLowerCase();
+    if (!isAiDirectorStyleStrength(strength)) {
+      return {
+        ok: false,
+        code: "INVALID_AI_DIRECTOR_STRENGTH",
+        message: "Invalid AI director style strength.",
+      };
+    }
+    patch.aiDirectorStyleStrength = strength;
   }
 
   if (raw.autoSelectImprovedImage !== undefined) {

@@ -421,6 +421,10 @@ model StudioStoryboard {
   promptStyleProfile String @default("commercial")
   /** V23: commercial | documentary | cinematic | social_media | storytelling | educational */
   directorProfile String @default("commercial")
+  /** V26: natural-language directing brief ("How should this story feel?"). */
+  aiDirectorPrompt String @default("")
+  /** V26: subtle | balanced | strong — how aggressively AI direction is applied. */
+  aiDirectorStyleStrength String @default("balanced")
   /** V14: after approved regeneration, auto-select image if combined score improves */
   autoSelectImprovedImage Boolean @default(true)
   createdAt   DateTime      @default(now())

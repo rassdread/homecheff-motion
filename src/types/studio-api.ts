@@ -191,6 +191,8 @@ export type StudioStoryboardListItem = {
   description: string;
   promptStyleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
+  aiDirectorPrompt: string;
+  aiDirectorStyleStrength: string;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

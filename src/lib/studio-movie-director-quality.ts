@@ -1,3 +1,9 @@
+import { interpretAiDirectorPrompt } from "@/lib/studio-ai-director-interpreter";
+import {
+  computeDirectorQualityScore,
+  computeStyleConsistencyScore,
+} from "@/lib/studio-ai-director-direction";
+import { buildAutoShotPlan } from "@/lib/studio-auto-shot-planner";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
 import { analyzeStoryFlow, type StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
@@ -9,6 +15,8 @@ export type DirectorQualityReport = {
   tier: DirectorQualityTier;
   shotDiversityScore: number;
   storyHealthScore: number;
+  styleConsistencyScore: number;
+  directorQualityScore: number;
   warningCount: number;
   scenesMissingShot: number;
   recommendationKeys: string[];
@@ -49,6 +57,16 @@ export function buildDirectorQualityReport(
   const analysis = analyzeStoryFlow(scenes);
   const directorProfile = normalizeStudioDirectorProfile(storyboard.directorProfile);
   const intelligence = analyzeStoryIntelligence(scenes, directorProfile);
+  const aiPrompt = storyboard.aiDirectorPrompt?.trim() ?? "";
+  const interpretation = interpretAiDirectorPrompt(aiPrompt || directorProfile);
+  const aiPlan = buildAutoShotPlan(scenes, interpretation.directorProfile);
+  const styleConsistencyScore = computeStyleConsistencyScore(aiPlan, interpretation);
+  const directorQualityScore = computeDirectorQualityScore({
+    shotDiversityScore: analysis.shotDiversityScore,
+    storyHealthScore: intelligence.storyHealthScore,
+    styleConsistencyScore,
+    energyFlowScore: intelligence.healthFactors.energyFlow,
+  });
   const missingShot = scenes.filter((s) => !s.shotType && !s.camera?.trim()).length;
   const missingRatio = scenes.length === 0 ? 1 : missingShot / scenes.length;
 
@@ -62,18 +80,19 @@ export function buildDirectorQualityReport(
   if (intelligence.storyHealthScore < 50) {
     recommendationKeys.push("studio.intelligence.movie.recommend.health");
   }
+  if (styleConsistencyScore < 45 && aiPrompt) {
+    recommendationKeys.push("studio.aiDirector.recommend.style");
+  }
   for (const warning of intelligence.warnings.slice(0, 6)) {
     recommendationKeys.push(warning.messageKey);
   }
 
-  const tierScore = Math.round(
-    (analysis.shotDiversityScore + intelligence.storyHealthScore) / 2
-  );
-
   return {
-    tier: tierFromScore(tierScore, intelligence.warnings.length, missingRatio),
+    tier: tierFromScore(directorQualityScore, intelligence.warnings.length, missingRatio),
     shotDiversityScore: analysis.shotDiversityScore,
     storyHealthScore: intelligence.storyHealthScore,
+    styleConsistencyScore,
+    directorQualityScore,
     warningCount: intelligence.warnings.length,
     scenesMissingShot: missingShot,
     recommendationKeys: [...new Set(recommendationKeys)],

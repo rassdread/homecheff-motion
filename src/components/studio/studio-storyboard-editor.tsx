@@ -26,6 +26,7 @@ import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
+import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-panel";
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import {
   STUDIO_DIRECTOR_PROFILES,
@@ -656,7 +657,18 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
             <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
               <div>
                 {scenes.length > 0 ?
-                  <div className="mb-6">
+                  <div className="mb-6 space-y-0">
+                    <StudioAiDirectorPanel
+                      storyboard={storyboard}
+                      canModify={canModify}
+                      onStoryboardUpdated={(sb) => setStoryboard(sb)}
+                      onScenesUpdated={async () => {
+                        const res = await fetchStudioStoryboard(storyboardId);
+                        if (res.ok && res.data.storyboard) {
+                          setStoryboard(res.data.storyboard);
+                        }
+                      }}
+                    />
                     <StudioStoryIntelligencePanel
                       storyboard={storyboard}
                       directorProfile={directorProfile}

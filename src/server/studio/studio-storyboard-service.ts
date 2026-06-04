@@ -16,6 +16,7 @@ import { mapStudioCharacterToListItem, toCharacterSnapshot } from "@/server/stud
 import { mapStudioLocationToListItem, toLocationSnapshot } from "@/server/studio/studio-location-service";
 import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-prop-service";
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
+import { normalizeAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -186,6 +187,8 @@ export function mapStudioStoryboardToListItem(
     description: row.description,
     promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
     directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
+    aiDirectorPrompt: row.aiDirectorPrompt ?? "",
+    aiDirectorStyleStrength: normalizeAiDirectorStyleStrength(row.aiDirectorStyleStrength),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: row._count.scenes,
     createdAt: row.createdAt.toISOString(),
@@ -206,6 +209,8 @@ export function mapStudioStoryboardToDetail(
     description: row.description,
     promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
     directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
+    aiDirectorPrompt: row.aiDirectorPrompt ?? "",
+    aiDirectorStyleStrength: normalizeAiDirectorStyleStrength(row.aiDirectorStyleStrength),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: scenes.length,
     scenes: scenes.map(mapStudioSceneToDetail),
@@ -395,19 +400,7 @@ export async function createStudioStoryboard(
   });
 
   return {
-    storyboard: {
-      id: row.id,
-      ownerId: row.ownerId,
-      title: row.title,
-      description: row.description,
-      promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
-      directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
-      sceneCount: 0,
-      scenes: [],
-      autoSelectImprovedImage: row.autoSelectImprovedImage,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    },
+    storyboard: mapStudioStoryboardToDetail({ ...row, scenes: [] }),
   };
 }
 

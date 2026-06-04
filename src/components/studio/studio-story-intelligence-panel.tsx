@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { interpretAiDirectorPrompt } from "@/lib/studio-ai-director-interpreter";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
 import {
   shortMovementLabel,
@@ -58,6 +59,10 @@ export function StudioStoryIntelligencePanel({
   const report = useMemo(
     () => analyzeStoryIntelligence(scenes, profile),
     [scenes, profile]
+  );
+  const moodKeywords = useMemo(
+    () => interpretAiDirectorPrompt(storyboard.aiDirectorPrompt ?? "").moodKeywords,
+    [storyboard.aiDirectorPrompt]
   );
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<ShotPlanRecommendation[]>([]);
@@ -193,6 +198,23 @@ export function StudioStoryIntelligencePanel({
         </div>
 
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          {moodKeywords.length > 0 ?
+            <div className="mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.aiDirector.moodTitle")}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {moodKeywords.map((mood) => (
+                  <span
+                    key={mood}
+                    className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-900"
+                  >
+                    {t(`studio.aiDirector.mood.${mood}` as TranslationKey)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          : null}
           <p className="text-sm font-semibold text-zinc-900">
             {t("studio.director.timeline.title")}
           </p>

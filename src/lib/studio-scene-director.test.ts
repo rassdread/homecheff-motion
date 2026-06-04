@@ -137,5 +137,7 @@ describe("studio scene director V23", () => {
     const report = buildDirectorQualityReport(storyboard);
     assert.ok(typeof report.storyHealthScore === "number");
     assert.ok(report.storyHealthScore >= 0);
+    assert.ok(typeof report.directorQualityScore === "number");
+    assert.ok(typeof report.styleConsistencyScore === "number");
   });
 });
