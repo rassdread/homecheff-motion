@@ -1,6 +1,10 @@
 import { isAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
 import { isStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import {
+  isStudioNarrationMode,
+  isStudioVoiceProfileId,
+} from "@/lib/studio-voice-profiles";
 
 export const STUDIO_STORYBOARD_TITLE_MAX = 160;
 export const STUDIO_STORYBOARD_TEXT_MAX = 4000;
@@ -19,6 +23,12 @@ export type StudioStoryboardUpdateInput = {
   directorProfile?: string;
   aiDirectorPrompt?: string;
   aiDirectorStyleStrength?: string;
+  voiceEnabled?: boolean;
+  voiceLanguage?: string;
+  voiceStyle?: string;
+  voiceProfile?: string;
+  narrationMode?: string;
+  voiceNarrationScript?: string;
   autoSelectImprovedImage?: boolean;
 };
 
@@ -73,6 +83,12 @@ export function validateStudioStoryboardUpdateInput(
   directorProfile?: string;
   aiDirectorPrompt?: string;
   aiDirectorStyleStrength?: string;
+  voiceEnabled?: boolean;
+  voiceLanguage?: string;
+  voiceStyle?: string;
+  voiceProfile?: string;
+  narrationMode?: string;
+  voiceNarrationScript?: string;
   autoSelectImprovedImage?: boolean;
 }> {
   const patch: {
@@ -82,6 +98,12 @@ export function validateStudioStoryboardUpdateInput(
     directorProfile?: string;
     aiDirectorPrompt?: string;
     aiDirectorStyleStrength?: string;
+    voiceEnabled?: boolean;
+    voiceLanguage?: string;
+    voiceStyle?: string;
+    voiceProfile?: string;
+    narrationMode?: string;
+    voiceNarrationScript?: string;
     autoSelectImprovedImage?: boolean;
   } = {};
 
@@ -130,6 +152,42 @@ export function validateStudioStoryboardUpdateInput(
       };
     }
     patch.aiDirectorStyleStrength = strength;
+  }
+
+  if (raw.voiceEnabled !== undefined) {
+    patch.voiceEnabled = Boolean(raw.voiceEnabled);
+  }
+
+  if (raw.voiceLanguage !== undefined) {
+    const lang = raw.voiceLanguage.trim().toLowerCase().slice(0, 8);
+    if (!lang) {
+      return { ok: false, code: "INVALID_VOICE_LANGUAGE", message: "Invalid voice language." };
+    }
+    patch.voiceLanguage = lang;
+  }
+
+  if (raw.voiceStyle !== undefined) {
+    patch.voiceStyle = trimText(raw.voiceStyle, 64);
+  }
+
+  if (raw.voiceProfile !== undefined) {
+    const profile = raw.voiceProfile.trim().toLowerCase();
+    if (!isStudioVoiceProfileId(profile)) {
+      return { ok: false, code: "INVALID_VOICE_PROFILE", message: "Invalid voice profile." };
+    }
+    patch.voiceProfile = profile;
+  }
+
+  if (raw.narrationMode !== undefined) {
+    const mode = raw.narrationMode.trim().toLowerCase();
+    if (!isStudioNarrationMode(mode)) {
+      return { ok: false, code: "INVALID_NARRATION_MODE", message: "Invalid narration mode." };
+    }
+    patch.narrationMode = mode;
+  }
+
+  if (raw.voiceNarrationScript !== undefined) {
+    patch.voiceNarrationScript = trimText(raw.voiceNarrationScript, 12_000);
   }
 
   if (raw.autoSelectImprovedImage !== undefined) {

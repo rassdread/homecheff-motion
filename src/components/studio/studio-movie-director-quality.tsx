@@ -1,6 +1,7 @@
 "use client";
 
 import { buildDirectorQualityReport } from "@/lib/studio-movie-director-quality";
+import { buildProductionScoreReport } from "@/lib/studio-production-score";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
@@ -12,6 +13,7 @@ type Props = {
 export function StudioMovieDirectorQuality({ storyboard }: Props) {
   const t = useActiveTranslator();
   const report = buildDirectorQualityReport(storyboard);
+  const production = buildProductionScoreReport(storyboard);
 
   const tierClass =
     report.tier === "strong" ? "text-emerald-800 bg-emerald-50 border-emerald-200"
@@ -27,6 +29,11 @@ export function StudioMovieDirectorQuality({ storyboard }: Props) {
         {t("studio.aiDirector.directorQuality", { score: report.directorQualityScore })} ·{" "}
         {t("studio.director.diversityScore", { score: report.shotDiversityScore })} ·{" "}
         {t("studio.intelligence.healthScore", { score: report.storyHealthScore })}
+        {production.voiceEnabled ?
+          <> · {t("studio.voice.score", { score: production.voiceScore })}</>
+        : null}
+        {" "}
+        · {t("studio.production.overallScore", { score: production.overallProductionScore })}
       </p>
       {report.recommendationKeys.length > 0 ?
         <ul className="mt-2 list-inside list-disc text-xs">

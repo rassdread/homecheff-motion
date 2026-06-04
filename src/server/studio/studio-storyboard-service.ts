@@ -17,6 +17,11 @@ import { mapStudioLocationToListItem, toLocationSnapshot } from "@/server/studio
 import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-prop-service";
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
 import { normalizeAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
+import {
+  normalizeStudioNarrationMode,
+  normalizeStudioVoiceProfileId,
+  voiceStyleFromProfile,
+} from "@/lib/studio-voice-profiles";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -189,6 +194,12 @@ export function mapStudioStoryboardToListItem(
     directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
     aiDirectorPrompt: row.aiDirectorPrompt ?? "",
     aiDirectorStyleStrength: normalizeAiDirectorStyleStrength(row.aiDirectorStyleStrength),
+    voiceEnabled: row.voiceEnabled ?? false,
+    voiceLanguage: row.voiceLanguage ?? "en",
+    voiceStyle: row.voiceStyle ?? "warm",
+    voiceProfile: normalizeStudioVoiceProfileId(row.voiceProfile),
+    narrationMode: normalizeStudioNarrationMode(row.narrationMode),
+    voiceNarrationScript: row.voiceNarrationScript ?? "",
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: row._count.scenes,
     createdAt: row.createdAt.toISOString(),
@@ -211,6 +222,12 @@ export function mapStudioStoryboardToDetail(
     directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
     aiDirectorPrompt: row.aiDirectorPrompt ?? "",
     aiDirectorStyleStrength: normalizeAiDirectorStyleStrength(row.aiDirectorStyleStrength),
+    voiceEnabled: row.voiceEnabled ?? false,
+    voiceLanguage: row.voiceLanguage ?? "en",
+    voiceStyle: row.voiceStyle ?? voiceStyleFromProfile(normalizeStudioVoiceProfileId(row.voiceProfile)),
+    voiceProfile: normalizeStudioVoiceProfileId(row.voiceProfile),
+    narrationMode: normalizeStudioNarrationMode(row.narrationMode),
+    voiceNarrationScript: row.voiceNarrationScript ?? "",
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: scenes.length,
     scenes: scenes.map(mapStudioSceneToDetail),

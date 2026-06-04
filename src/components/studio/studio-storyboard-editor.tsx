@@ -29,6 +29,7 @@ import { fetchStudioProps } from "@/lib/studio-props-client";
 import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-panel";
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import { StudioSceneImagePlannerPanel } from "@/components/studio/studio-scene-image-planner-panel";
+import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
 import {
   STUDIO_DIRECTOR_PROFILES,
   normalizeStudioDirectorProfile,
@@ -685,6 +686,11 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                       storyboard={storyboard}
                       styleProfile={styleProfile}
                       directorProfile={directorProfile}
+                    />
+                    <StudioVoiceDirectorPanel
+                      storyboard={storyboard}
+                      canModify={canModify}
+                      onStoryboardUpdated={(sb) => setStoryboard(sb)}
                     />
                   </div>
                 : null}

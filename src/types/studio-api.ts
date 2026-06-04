@@ -193,6 +193,12 @@ export type StudioStoryboardListItem = {
   directorProfile: StudioDirectorProfile;
   aiDirectorPrompt: string;
   aiDirectorStyleStrength: string;
+  voiceEnabled: boolean;
+  voiceLanguage: string;
+  voiceStyle: string;
+  voiceProfile: string;
+  narrationMode: string;
+  voiceNarrationScript: string;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;
