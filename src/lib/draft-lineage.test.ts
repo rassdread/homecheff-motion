@@ -23,6 +23,7 @@ describe("draft-lineage", () => {
     assert.equal(lineage!.sourceProjectTitle, "HomeCheff Affiliate");
     assert.equal(lineage!.sourceLanguageLabel, "NL");
     assert.equal(lineage!.sourceVersion, 2);
+    assert.equal(lineage!.nextVersionNumber, 3);
     assert.match(formatDraftLineageShort(lineage!, "en"), /Based on: NL v2/);
   });
 });

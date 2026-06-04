@@ -303,6 +303,28 @@ export function resolveMotionSelectionFromUrl(
   return { languageCode, selectionKey: fallback.selectionKey, slot: fallback };
 }
 
+/** Gallery label: `NL (3) · EN (2)` */
+export function formatBundleLanguagesLabel(catalog: MotionVersionCatalog): string {
+  const stats = summarizeMotionCatalogStats(catalog);
+  return catalog.languages
+    .map((lang) => `${lang.label} (${stats.languageCounts[lang.code] ?? 0})`)
+    .join(" · ");
+}
+
+/** True when URL has explicit lang/ver that does not resolve (no silent fallback). */
+export function isExplicitMotionUrlSelectionInvalid(
+  catalog: MotionVersionCatalog,
+  langFromUrl: string | null | undefined,
+  verFromUrl: string | null | undefined
+): boolean {
+  const explicitVer = Boolean(verFromUrl?.trim());
+  const explicitLang = Boolean(langFromUrl?.trim());
+  if (!explicitVer && !explicitLang) {
+    return false;
+  }
+  return resolveMotionSelectionFromUrl(catalog, langFromUrl, verFromUrl) === null;
+}
+
 /** Per-language version counts for bundle validation (tests / diagnostics). */
 export function summarizeMotionCatalogStats(catalog: MotionVersionCatalog): {
   languageCounts: Record<string, number>;

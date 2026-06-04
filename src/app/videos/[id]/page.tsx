@@ -17,8 +17,10 @@ import { LanguagePlaybackSelector } from "@/components/instant/language-playback
 import { ProjectDetailMotionVersions } from "@/components/videos/project-detail-motion-versions";
 import {
   buildMotionVersionCatalogForProject,
+  isExplicitMotionUrlSelectionInvalid,
   resolveMotionSelectionFromUrl,
 } from "@/lib/motion-version-catalog";
+import { MotionDeepLinkWarning } from "@/components/videos/motion-deep-link-warning";
 import { buildVersionQueryParam } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
@@ -507,12 +509,20 @@ export default function VideoDetailPage() {
     });
   }, [detail, finalVideoUrl, latestExport?.status]);
 
+  const invalidMotionDeepLink = useMemo(
+    () =>
+      motionCatalog
+        ? isExplicitMotionUrlSelectionInvalid(motionCatalog, langFromUrl, versionFromUrl)
+        : false,
+    [motionCatalog, langFromUrl, versionFromUrl]
+  );
+
   const selectedMotionSlot = useMemo(() => {
-    if (!motionCatalog) {
+    if (!motionCatalog || invalidMotionDeepLink) {
       return null;
     }
     return resolveMotionSelectionFromUrl(motionCatalog, langFromUrl, versionFromUrl)?.slot ?? null;
-  }, [motionCatalog, langFromUrl, versionFromUrl]);
+  }, [motionCatalog, invalidMotionDeepLink, langFromUrl, versionFromUrl]);
 
   const setMotionVersionSelection = useCallback(
     (languageCode: string, selectionKey: string, versionNumber: number) => {
@@ -587,13 +597,15 @@ export default function VideoDetailPage() {
     [langFromUrl, originalPlaybackUrl, languageExports]
   );
 
-  const activeFinalVideoUrl =
-    selectedMotionSlot?.finalVideoUrl?.trim() ??
-    playbackState.activePlaybackUrl ??
-    originalPlaybackUrl;
+  const activeFinalVideoUrl = invalidMotionDeepLink
+    ? null
+    : selectedMotionSlot?.finalVideoUrl?.trim() ??
+      playbackState.activePlaybackUrl ??
+      originalPlaybackUrl;
 
-  const activeCleanVideoUrl =
-    selectedMotionSlot?.cleanVideoUrl?.trim() ?? videoDisplay.cleanUrl;
+  const activeCleanVideoUrl = invalidMotionDeepLink
+    ? null
+    : selectedMotionSlot?.cleanVideoUrl?.trim() ?? videoDisplay.cleanUrl;
 
   const playbackCacheKey = buildPlaybackCacheKey(
     activeFinalVideoUrl ?? originalPlaybackUrl
@@ -876,7 +888,10 @@ export default function VideoDetailPage() {
 
       {detail.draftLineage ? (
         <div className="mt-6">
-          <DraftLineageBanner lineage={detail.draftLineage} />
+          <DraftLineageBanner
+            lineage={detail.draftLineage}
+            variant={detail.status === "draft" ? "full" : "banner"}
+          />
         </div>
       ) : null}
 
@@ -975,11 +990,21 @@ export default function VideoDetailPage() {
 
       {originalPlaybackUrl ? (
         <div className="mt-6 space-y-3">
-          {videoDisplay.finalIsArchivedFallback ? (
+          {invalidMotionDeepLink && motionCatalog ? (
+            <MotionDeepLinkWarning
+              catalog={motionCatalog}
+              langFromUrl={langFromUrl}
+              verFromUrl={versionFromUrl}
+              defaultLanguageCode={motionCatalog.defaultLanguageCode}
+              onSelectLatest={setMotionVersionSelection}
+            />
+          ) : null}
+          {videoDisplay.finalIsArchivedFallback && !invalidMotionDeepLink ? (
             <p className="text-xs font-medium text-amber-900">
               {t("projectDetail.versions.finalArchivedFallback")}
             </p>
           ) : null}
+          {!invalidMotionDeepLink && (activeFinalVideoUrl ?? originalPlaybackUrl) ? (
           <VideoPreview
             key={playbackCacheKey}
             variant="main"
@@ -995,6 +1020,7 @@ export default function VideoDetailPage() {
               type="video/mp4"
             />
           </VideoPreview>
+          ) : null}
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}

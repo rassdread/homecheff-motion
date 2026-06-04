@@ -98,7 +98,15 @@ export function ProjectBundleCard({
             <p className="mt-0.5 text-xs text-zinc-500">
               <ClientFormattedDateTime iso={bundle.createdAt} />
             </p>
-            {bundle.languagesLabel ? (
+            {bundle.catalog.languages.length > 0 ? (
+              <ul className="mt-1 space-y-0.5">
+                {bundle.catalog.languages.map((lang) => (
+                  <li key={lang.code} className="text-xs text-zinc-600">
+                    {lang.label} ({bundle.catalog.slotsByLanguage[lang.code]?.length ?? 0})
+                  </li>
+                ))}
+              </ul>
+            ) : bundle.languagesLabel ? (
               <p className="mt-1 text-xs text-zinc-600">{bundle.languagesLabel}</p>
             ) : null}
             {bundle.latestVersionLabel ? (

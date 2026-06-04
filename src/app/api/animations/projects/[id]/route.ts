@@ -105,6 +105,7 @@ function mapToDetailResponse(
         sourceProjectTitle: source?.title ?? null,
         sourceLanguage: project.sourceLanguage,
         sourceVersion: project.sourceVersion,
+        bundleDisplayName: project.bundleName ?? source?.title ?? null,
         copiedAt: project.draftCopiedAt,
       });
     })(),

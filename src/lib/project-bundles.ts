@@ -4,6 +4,7 @@
 
 import {
   buildMotionVersionCatalogForProject,
+  formatBundleLanguagesLabel,
   formatBundleLatestVersionLabel,
   mergeMotionVersionCatalogs,
   type MotionLanguageExportRow,
@@ -97,7 +98,7 @@ export function buildProjectBundleFromMembers(
       ? catalogs[0]!.catalog
       : mergeMotionVersionCatalogs(catalogs);
 
-  const languagesLabel = catalog.languages.map((l) => l.label).join(" · ");
+  const languagesLabel = formatBundleLanguagesLabel(catalog);
   const latestVersionLabel = formatBundleLatestVersionLabel(catalog, locale);
 
   const createdAt = sorted.reduce(

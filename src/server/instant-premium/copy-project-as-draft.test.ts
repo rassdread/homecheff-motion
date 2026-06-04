@@ -12,6 +12,8 @@ describe("copy project as draft", () => {
     const src = readFileSync(join(__dirname, "copy-project-as-draft.ts"), "utf8");
     assert.match(src, /status: "draft"/);
     assert.match(src, /sourceProjectId: source\.id/);
+    assert.match(src, /bundleKey: source\.bundleKey/);
+    assert.match(src, /bundleName: source\.bundleName/);
     assert.doesNotMatch(src, /instantPreviousFinalVideoUrl/);
     assert.doesNotMatch(src, /outputVideoUrl: null/);
     assert.doesNotMatch(src, /fullRerenderInstantPremiumProject/);

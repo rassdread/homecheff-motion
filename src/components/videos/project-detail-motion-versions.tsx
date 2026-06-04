@@ -5,6 +5,8 @@ import { MotionVersionSelectors } from "@/components/videos/motion-version-selec
 import {
   buildMotionVersionCatalogForProject,
   findMotionVersionSlot,
+  isExplicitMotionUrlSelectionInvalid,
+  resolveMotionSelectionFromUrl,
   type MotionVersionSlot,
 } from "@/lib/motion-version-catalog";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
@@ -21,6 +23,7 @@ export function useProjectMotionVersionSelection(params: Props): {
   catalog: ReturnType<typeof buildMotionVersionCatalogForProject>;
   selectedSlot: MotionVersionSlot | null;
   showSelectors: boolean;
+  invalidDeepLink: boolean;
 } {
   const catalog = useMemo(
     () =>
@@ -57,23 +60,34 @@ export function useProjectMotionVersionSelection(params: Props): {
     [params.detail, params.exportOutputUrl]
   );
 
-  const languageCode =
-    params.langFromUrl && catalog.slotsByLanguage[params.langFromUrl]
-      ? params.langFromUrl
-      : catalog.defaultLanguageCode;
+  const invalidDeepLink = useMemo(
+    () =>
+      isExplicitMotionUrlSelectionInvalid(
+        catalog,
+        params.langFromUrl,
+        params.versionFromUrl
+      ),
+    [catalog, params.langFromUrl, params.versionFromUrl]
+  );
 
   const selectedSlot = useMemo(() => {
-    const fromUrl = findMotionVersionSlot(catalog, params.versionFromUrl);
-    if (fromUrl && fromUrl.languageCode === languageCode) {
-      return fromUrl;
+    if (invalidDeepLink) {
+      return null;
     }
-    const slots = catalog.slotsByLanguage[languageCode] ?? [];
     return (
-      slots.find((s) => s.status === "completed" && s.finalVideoUrl) ??
-      slots[slots.length - 1] ??
-      null
+      resolveMotionSelectionFromUrl(
+        catalog,
+        params.langFromUrl,
+        params.versionFromUrl
+      )?.slot ?? null
     );
-  }, [catalog, languageCode, params.versionFromUrl]);
+  }, [catalog, invalidDeepLink, params.langFromUrl, params.versionFromUrl]);
+
+  const languageCode =
+    selectedSlot?.languageCode ??
+    (params.langFromUrl && catalog.slotsByLanguage[params.langFromUrl]
+      ? params.langFromUrl
+      : catalog.defaultLanguageCode);
 
   const versionCount = catalog.languages.reduce(
     (sum, lang) => sum + (catalog.slotsByLanguage[lang.code]?.length ?? 0),
@@ -81,7 +95,7 @@ export function useProjectMotionVersionSelection(params: Props): {
   );
   const showSelectors = catalog.languages.length > 1 || versionCount > 1;
 
-  return { catalog, selectedSlot, showSelectors };
+  return { catalog, selectedSlot, showSelectors, invalidDeepLink };
 }
 
 export function ProjectDetailMotionVersions({

@@ -120,6 +120,7 @@ export async function copyInstantPremiumProjectAsDraft(params: {
         sourceVersion,
         draftCopiedAt: copiedAt,
         bundleName: source.bundleName,
+        bundleKey: source.bundleKey,
         bundleAuditJson: appendBundleAuditEntry(null, {
           type: "draft_created",
           userId: params.userId,

@@ -256,6 +256,9 @@ export type DraftLineageResponse = {
   sourceLanguageLabel: string;
   sourceVersion: number;
   sourceVersionDisplay: string;
+  nextVersionNumber: number;
+  nextVersionDisplay: string;
+  bundleDisplayName: string | null;
   copiedAt: string | null;
 };
 

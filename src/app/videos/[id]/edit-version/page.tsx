@@ -191,8 +191,11 @@ export default function VideoEditVersionPage() {
         <p className="mt-8 text-sm text-zinc-600">{t("instant.fullRerender.failed")}</p>
       : (
         <div className="mt-6 space-y-4">
-          {detail.draftLineage ? <DraftLineageBanner lineage={detail.draftLineage} /> : null}
+          {detail.draftLineage ? (
+            <DraftLineageBanner lineage={detail.draftLineage} variant="full" />
+          ) : null}
           <FullRerenderEditor
+            draftLineage={detail.draftLineage ?? null}
             projectId={id}
             layout="page"
             backHref={

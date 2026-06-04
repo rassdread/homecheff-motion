@@ -89,6 +89,7 @@ export async function listAnimationProjectsForUser(params: {
                   sourceVersion: true,
                   draftCopiedAt: true,
                   title: true,
+                  bundleName: true,
                   updatedAt: true,
                   status: true,
                 },
@@ -106,10 +107,11 @@ export async function listAnimationProjectsForUser(params: {
           sourceIds.length > 0
             ? await prisma.animationProject.findMany({
                 where: { id: { in: sourceIds } },
-                select: { id: true, title: true },
+                select: { id: true, title: true, bundleName: true },
               })
             : [];
         const sourceTitleById = new Map(sourceTitleRows.map((r) => [r.id, r.title]));
+        const sourceBundleNameById = new Map(sourceTitleRows.map((r) => [r.id, r.bundleName]));
         const draftByProject = new Map(draftPayloadRows.map((row) => [row.projectId, row]));
         const metaByProject = new Map(conceptMetaRows.map((row) => [row.id, row]));
         const locale = params.locale ?? "nl";
@@ -134,6 +136,10 @@ export async function listAnimationProjectsForUser(params: {
                       sourceProjectTitle: sourceTitleById.get(meta.sourceProjectId) ?? null,
                       sourceLanguage: meta.sourceLanguage,
                       sourceVersion: meta.sourceVersion,
+                      bundleDisplayName:
+                        meta.bundleName ??
+                        sourceBundleNameById.get(meta.sourceProjectId) ??
+                        null,
                       copiedAt: meta.draftCopiedAt,
                       locale,
                     })

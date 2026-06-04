@@ -12,6 +12,10 @@ export type DraftLineage = {
   sourceLanguageLabel: string;
   sourceVersion: number;
   sourceVersionDisplay: string;
+  /** Display version number after this draft is rendered into the bundle. */
+  nextVersionNumber: number;
+  nextVersionDisplay: string;
+  bundleDisplayName: string | null;
   copiedAt: string | null;
 };
 
@@ -35,6 +39,7 @@ export function buildDraftLineage(params: {
   sourceLanguage: string | null;
   sourceVersion: number | null;
   sourceVersionNote?: string | null;
+  bundleDisplayName?: string | null;
   copiedAt: Date | string | null;
   locale?: "en" | "nl";
 }): DraftLineage | null {
@@ -44,6 +49,10 @@ export function buildDraftLineage(params: {
   const language = params.sourceLanguage?.trim() || "nl";
   const version = params.sourceVersion != null && params.sourceVersion > 0 ? params.sourceVersion : 1;
   const locale = params.locale ?? "nl";
+  const nextVersion = version + 1;
+  const bundleDisplayName =
+    params.bundleDisplayName?.trim() ||
+    resolveProjectDisplayTitle(params.sourceProjectTitle, locale);
   return {
     sourceProjectId: params.sourceProjectId,
     sourceProjectTitle: resolveProjectDisplayTitle(params.sourceProjectTitle, locale),
@@ -51,6 +60,9 @@ export function buildDraftLineage(params: {
     sourceLanguageLabel: languageCodeToLabel(language),
     sourceVersion: version,
     sourceVersionDisplay: formatMotionVersionLabel(version, params.sourceVersionNote, locale),
+    nextVersionNumber: nextVersion,
+    nextVersionDisplay: formatMotionVersionLabel(nextVersion, null, locale),
+    bundleDisplayName,
     copiedAt:
       params.copiedAt instanceof Date
         ? params.copiedAt.toISOString()
@@ -68,4 +80,9 @@ export function formatDraftLineageShort(lineage: DraftLineage, locale: "en" | "n
 export function formatDraftLineageBanner(lineage: DraftLineage, locale: "en" | "nl" = "nl"): string {
   const prefix = locale === "en" ? "Draft created from:" : "Concept gemaakt van:";
   return `${prefix} ${lineage.sourceProjectTitle} → ${lineage.sourceVersionDisplay}`;
+}
+
+export function formatDraftWillCreateLabel(lineage: DraftLineage, locale: "en" | "nl" = "nl"): string {
+  const prefix = locale === "en" ? "This draft will create:" : "Dit concept wordt:";
+  return `${prefix} ${lineage.sourceLanguageLabel} ${lineage.nextVersionDisplay}`;
 }

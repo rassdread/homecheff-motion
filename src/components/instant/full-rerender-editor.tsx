@@ -33,7 +33,8 @@ import {
   postFullRerenderInstantProject,
 } from "@/lib/instant-export-client";
 import { isInstantPremiumTestMode } from "@/lib/quick-full-rerender";
-import type { FullRerenderResponse } from "@/types/animation-api";
+import { DraftVersionPreview } from "@/components/videos/draft-version-preview";
+import type { DraftLineageResponse, FullRerenderResponse } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
 
@@ -61,6 +62,8 @@ export type FullRerenderEditorProps = {
     slotsCount?: number;
     lastError?: string | null;
   }) => void;
+  /** When set, show version-creation preview and clarify NL v3 → NL v4 in render confirm. */
+  draftLineage?: DraftLineageResponse | null;
 };
 
 const DRAFT_BOOTSTRAP_TIMEOUT_MS = 30_000;
@@ -97,6 +100,7 @@ export function FullRerenderEditor({
   onDraftDeleted,
   onMounted,
   onFlowDebug,
+  draftLineage = null,
 }: FullRerenderEditorProps) {
   const t = useActiveTranslator();
   const router = useRouter();
@@ -355,9 +359,16 @@ export function FullRerenderEditor({
 
     await draft.persistNow();
 
-    const confirmMessage = isInstantPremiumTestMode()
-      ? t("instant.fullRerender.confirmPromptTestMode")
-      : t("instant.fullRerender.confirmPrompt");
+    const confirmMessage =
+      draftLineage ?
+        t("projects.renderPreview.confirm", {
+          current: `${draftLineage.sourceLanguageLabel} ${draftLineage.sourceVersionDisplay}`,
+          result: `${draftLineage.sourceLanguageLabel} ${draftLineage.nextVersionDisplay}`,
+          bundle: draftLineage.bundleDisplayName ?? "",
+        })
+      : isInstantPremiumTestMode()
+        ? t("instant.fullRerender.confirmPromptTestMode")
+        : t("instant.fullRerender.confirmPrompt");
     if (!window.confirm(confirmMessage)) {
       return;
     }
@@ -402,7 +413,19 @@ export function FullRerenderEditor({
     } finally {
       setBusy(false);
     }
-  }, [slots, instantMode, projectId, draft, onRenderStart, onSuccess, onClose, onError, router, t]);
+  }, [
+    slots,
+    instantMode,
+    projectId,
+    draft,
+    draftLineage,
+    onRenderStart,
+    onSuccess,
+    onClose,
+    onError,
+    router,
+    t,
+  ]);
 
   const handleSaveConcept = useCallback(async () => {
     const ok = await draft.persistNow();
@@ -667,6 +690,12 @@ export function FullRerenderEditor({
           }
         />
       </div>
+
+      {draftLineage ? (
+        <div className="border-t border-zinc-100 px-4 py-3 sm:px-6">
+          <DraftVersionPreview lineage={draftLineage} variant="render" />
+        </div>
+      ) : null}
 
       <footer className="flex flex-wrap gap-2 border-t border-zinc-100 px-4 py-3 sm:px-6">
         {layout === "page" ?
