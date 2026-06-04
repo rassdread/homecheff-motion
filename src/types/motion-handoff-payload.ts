@@ -16,8 +16,9 @@ import type {
   CorrectionRecommendation,
   ImprovementScore,
 } from "@/types/studio-correction";
+import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 6 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 7 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -40,6 +41,9 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneConsistencyRecommendations: string[];
   /** V12: structured correction recommendations for selected still (metadata only). */
   sceneCorrectionRecommendations: CorrectionRecommendation[];
+  /** V13: visual QA for selected still (metadata only). */
+  sceneVisionScore: number | null;
+  sceneVisionReport: VisionConsistencyReport | null;
 };
 
 export type MotionHandoffPayload = {
@@ -62,5 +66,9 @@ export type MotionHandoffPayload = {
   correctionRecommendations: CorrectionRecommendation[];
   consistencyHistory: ConsistencyHistoryEntry[];
   latestImprovementScore: ImprovementScore | null;
+  /** V13: storyboard-wide vision QA (metadata only). */
+  visionReport: StoryboardVisionReport | null;
+  overallVisionScore: number;
+  visionWarnings: string[];
   scenes: MotionHandoffScene[];
 };

@@ -14,6 +14,10 @@ import type {
   SceneCorrectionPreviewResponse,
   StoryboardGenerateCorrectionsResponse,
 } from "@/types/studio-correction";
+import type {
+  StudioSceneVisionAnalyzeResponse,
+  StudioStoryboardVisionAnalyzeResponse,
+} from "@/types/studio-vision-consistency";
 
 export async function fetchStudioSceneImages(storyboardId: string, sceneId: string) {
   return fetchSameOriginJson<StudioSceneImageListResponse>(
@@ -121,6 +125,28 @@ export async function generateStoryboardCorrectionsApi(storyboardId: string) {
   return fetchSameOriginJson<StoryboardGenerateCorrectionsResponse>(
     sameOriginApiPath(
       `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/generate-corrections`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function analyzeStudioSceneImageVisionApi(
+  storyboardId: string,
+  sceneId: string,
+  imageId: string
+) {
+  return fetchSameOriginJson<StudioSceneVisionAnalyzeResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/scenes/${encodeURIComponent(sceneId)}/images/${encodeURIComponent(imageId)}/analyze-vision`
+    ),
+    { method: "POST" }
+  );
+}
+
+export async function analyzeStudioStoryboardVisionApi(storyboardId: string) {
+  return fetchSameOriginJson<StudioStoryboardVisionAnalyzeResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/analyze-vision`
     ),
     { method: "POST" }
   );

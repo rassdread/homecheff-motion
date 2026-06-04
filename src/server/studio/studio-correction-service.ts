@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { buildSceneCorrectionBundle } from "@/lib/build-scene-correction-bundle";
 import { parseSceneConsistencyReport } from "@/lib/studio-consistency-report-parse";
+import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import {
   analyzeAndPersistSceneImage,
   analyzeStoryboardConsistency,
@@ -66,9 +67,12 @@ export async function previewSceneCorrections(
     report = analyzed.report;
   }
 
+  const visionReport = parseVisionConsistencyReport(source.visionReport);
+
   const bundle = buildSceneCorrectionBundle({
     basePrompt: source.generatedPrompt,
     consistencyReport: report,
+    visionReport,
   });
 
   return {

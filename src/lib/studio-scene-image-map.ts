@@ -1,5 +1,6 @@
 import type { Prisma, StudioSceneImage } from "@prisma/client";
 import { normalizeStudioConsistencyStatus } from "@/lib/studio-consistency-status";
+import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import {
   parseConsistencyRecommendations,
   parseSceneConsistencyReport,
@@ -55,6 +56,10 @@ export function mapStudioSceneImageToListItem(row: StudioSceneImage): StudioScen
     regeneratedFromImageId: row.regeneratedFromImageId,
     previousConsistencyScore: row.previousConsistencyScore,
     improvementScore: row.improvementScore,
+    visionScore: row.visionScore,
+    visionStatus: normalizeStudioConsistencyStatus(row.visionStatus),
+    visionReport: parseVisionConsistencyReport(row.visionReport),
+    visionAnalyzedAt: row.visionAnalyzedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

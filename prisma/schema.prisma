@@ -452,6 +452,12 @@ model StudioSceneImage {
   previousConsistencyScore    Int?
   /** newScore - previousScore after correction regeneration */
   improvementScore            Int?
+  /** V13: visual QA scores from vision provider (0–100). */
+  visionScore                   Int?
+  /** excellent | good | needs_review | poor */
+  visionStatus                  String?
+  visionReport                  Json?
+  visionAnalyzedAt              DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
   selectedByScenes   StudioScene[] @relation("StudioSceneSelectedImage")

@@ -1,5 +1,6 @@
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
 import type { SceneConsistencyReport, StudioConsistencyStatus } from "@/types/studio-consistency";
+import type { VisionConsistencyReport, StudioVisionStatus } from "@/types/studio-vision-consistency";
 import type {
   CorrectionRecommendation,
   ConsistencyHistoryEntry,
@@ -60,6 +61,10 @@ export type StudioSceneImageListItem = {
   regeneratedFromImageId: string | null;
   previousConsistencyScore: number | null;
   improvementScore: number | null;
+  visionScore: number | null;
+  visionStatus: StudioVisionStatus | null;
+  visionReport: VisionConsistencyReport | null;
+  visionAnalyzedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

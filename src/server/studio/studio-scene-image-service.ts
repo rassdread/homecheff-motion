@@ -10,6 +10,7 @@ import { getSceneImageProvider, getSelectedSceneImageProviderId } from "@/server
 import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-image-blob";
 import { buildSceneCorrectionBundle } from "@/lib/build-scene-correction-bundle";
 import { parseSceneConsistencyReport } from "@/lib/studio-consistency-report-parse";
+import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import { computeImprovementScore } from "@/lib/studio-improvement-score";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import {
@@ -17,6 +18,10 @@ import {
   analyzeSceneImageConsistency,
   persistSceneImageConsistency,
 } from "@/server/studio/studio-consistency-service";
+import {
+  analyzeSceneImageVision,
+  persistSceneImageVision,
+} from "@/server/studio/studio-vision-service";
 import type { SceneCorrectionBundle } from "@/types/studio-correction";
 import type { RegenerateWithCorrectionsResponse } from "@/types/studio-correction";
 import {
@@ -209,6 +214,18 @@ async function runSceneImageGeneration(params: {
       consistencyReport
     );
 
+    try {
+      const visionReport = await analyzeSceneImageVision({
+        scene: params.scene,
+        imageUrl: completed.imageUrl,
+        thumbnailUrl: completed.thumbnailUrl,
+        generatedPrompt: completed.generatedPrompt,
+      });
+      await persistSceneImageVision(completed.id, visionReport);
+    } catch {
+      // Vision is best-effort after generation; prompt consistency still persisted.
+    }
+
     const previousScore = params.overrides?.previousConsistencyScore;
     if (previousScore !== undefined && previousScore !== null) {
       const improvement = computeImprovementScore(
@@ -219,10 +236,18 @@ async function runSceneImageGeneration(params: {
         where: { id: completed.id },
         data: { improvementScore: improvement.delta },
       });
-      return { image: mapStudioSceneImageToListItem(improved) };
+      const withVision = await prisma.studioSceneImage.findUnique({
+        where: { id: completed.id },
+      });
+      return {
+        image: mapStudioSceneImageToListItem(withVision ?? improved),
+      };
     }
 
-    return { image: withConsistency };
+    const finalRow = await prisma.studioSceneImage.findUnique({
+      where: { id: completed.id },
+    });
+    return { image: finalRow ? mapStudioSceneImageToListItem(finalRow) : withConsistency };
   } catch (err) {
     await prisma.studioSceneImage.update({
       where: { id: params.imageRowId },
@@ -312,6 +337,7 @@ export async function regenerateStudioSceneImageWithCorrections(
   const bundle = buildSceneCorrectionBundle({
     basePrompt: source.generatedPrompt,
     consistencyReport: report,
+    visionReport: parseVisionConsistencyReport(source.visionReport),
   });
 
   const queued = await prisma.studioSceneImage.create({

@@ -8,6 +8,7 @@ import { scoreSceneImageHealth } from "@/lib/studio-scene-image-health";
 import { studioSceneDetailToPromptInput, studioSceneDetailToSnapshot } from "@/lib/studio-scene-to-prompt-input";
 import {
   analyzeStudioSceneImageConsistencyApi,
+  analyzeStudioSceneImageVisionApi,
   deleteStudioSceneImageApi,
   generateStudioSceneImageApi,
   previewStudioSceneCorrectionsApi,
@@ -18,6 +19,7 @@ import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profile
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { StudioSceneConsistencyPanel } from "@/components/studio/studio-scene-consistency-panel";
+import { StudioSceneVisionPanel } from "@/components/studio/studio-scene-vision-panel";
 import { StudioSceneCorrectionPanel } from "@/components/studio/studio-scene-correction-panel";
 import { StudioSceneImageHistoryPanel } from "@/components/studio/studio-scene-image-history-panel";
 import type { SceneCorrectionPreviewResponse } from "@/types/studio-correction";
@@ -44,7 +46,9 @@ export function StudioSceneImagePanel({
   const [error, setError] = useState("");
   const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [panelTab, setPanelTab] = useState<"image" | "consistency" | "corrections">("image");
+  const [panelTab, setPanelTab] = useState<
+    "image" | "consistency" | "vision" | "corrections"
+  >("image");
   const [correctionPreview, setCorrectionPreview] =
     useState<SceneCorrectionPreviewResponse | null>(null);
   const [correctionLoading, setCorrectionLoading] = useState(false);
@@ -197,6 +201,28 @@ export function StudioSceneImagePanel({
   const displayImage = selected?.status === "completed" ? selected : latest;
   const consistencyReport =
     displayImage?.consistencyReport ?? latest?.consistencyReport ?? null;
+  const visionReport = displayImage?.visionReport ?? latest?.visionReport ?? null;
+
+  const handleReanalyzeVision = async () => {
+    const target = displayImage ?? latest;
+    if (!target || target.status !== "completed") {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const res = await analyzeStudioSceneImageVisionApi(storyboardId, scene.id, target.id);
+    setBusy(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.vision.error.analyzeFailed"));
+      return;
+    }
+    onSceneUpdated({
+      ...scene,
+      sceneImages: scene.sceneImages.map((img) =>
+        img.id === res.data.image.id ? res.data.image : img
+      ),
+    });
+  };
 
   const handleReanalyzeConsistency = async () => {
     const target = displayImage ?? latest;
@@ -276,6 +302,18 @@ export function StudioSceneImagePanel({
         </button>
         <button
           type="button"
+          onClick={() => setPanelTab("vision")}
+          className={`px-3 py-2 text-sm font-semibold ${
+            panelTab === "vision"
+              ? "border-b-2 border-[#0067B1] text-[#0067B1]"
+              : "text-zinc-500"
+          }`}
+        >
+          {t("studio.vision.tabTitle")}
+          {visionReport ? ` (${visionReport.overallVisionScore})` : ""}
+        </button>
+        <button
+          type="button"
           onClick={openCorrectionsTab}
           className={`px-3 py-2 text-sm font-semibold ${
             panelTab === "corrections"
@@ -299,6 +337,22 @@ export function StudioSceneImagePanel({
               className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700"
             >
               {busy ? t("button.loading") : t("studio.consistency.reanalyze")}
+            </button>
+          ) : null}
+        </>
+      ) : null}
+
+      {panelTab === "vision" ? (
+        <>
+          <StudioSceneVisionPanel image={displayImage ?? latest} report={visionReport} />
+          {canModify && displayImage?.status === "completed" ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleReanalyzeVision()}
+              className="rounded-full border border-[#0067B1]/40 px-4 py-2 text-sm font-semibold text-[#0067B1]"
+            >
+              {busy ? t("button.loading") : t("studio.vision.reanalyze")}
             </button>
           ) : null}
         </>

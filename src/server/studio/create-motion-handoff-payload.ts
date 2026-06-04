@@ -15,8 +15,10 @@ import {
 import { parseCorrectionRecommendations } from "@/lib/studio-correction-report-parse";
 import { buildConsistencyHistoryFromImages } from "@/lib/studio-storyboard-correction-summary";
 import { computeImprovementScore } from "@/lib/studio-improvement-score";
-import { buildCorrectionRecommendations } from "@/lib/build-correction-recommendations";
+import { buildCombinedCorrectionRecommendations } from "@/lib/build-combined-correction-recommendations";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
+import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
+import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
@@ -89,6 +91,9 @@ function toHandoffScene(
   const sceneConsistencyReport = selectedImageRow
     ? parseSceneConsistencyReport(selectedImageRow.consistencyReport)
     : null;
+  const sceneVisionReport = selectedImageRow
+    ? parseVisionConsistencyReport(selectedImageRow.visionReport)
+    : null;
 
   return {
     ...snapshot,
@@ -114,9 +119,14 @@ function toHandoffScene(
       ? parseCorrectionRecommendations(selectedImageRow.correctionRecommendations).length > 0
         ? parseCorrectionRecommendations(selectedImageRow.correctionRecommendations)
         : sceneConsistencyReport
-          ? buildCorrectionRecommendations(sceneConsistencyReport)
+          ? buildCombinedCorrectionRecommendations({
+              consistencyReport: sceneConsistencyReport,
+              visionReport: sceneVisionReport,
+            })
           : []
       : [],
+    sceneVisionScore: selectedImageRow?.visionScore ?? null,
+    sceneVisionReport,
   };
 }
 
@@ -196,6 +206,22 @@ export async function createMotionHandoffPayload(
       )
     : null;
 
+  const visionReport = buildStoryboardVisionReport({
+    storyboardId: storyboard.id,
+    scenes: scenes.map((scene) => {
+      const selected = scene.selectedSceneImageId
+        ? scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId)
+        : scene.sceneImages.find((img) => img.status === "completed");
+      return {
+        sceneId: scene.id,
+        sceneTitle: scene.title,
+        order: scene.order,
+        imageId: selected?.id ?? null,
+        report: selected ? parseVisionConsistencyReport(selected.visionReport) : null,
+      };
+    }),
+  });
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
@@ -213,6 +239,9 @@ export async function createMotionHandoffPayload(
     correctionRecommendations,
     consistencyHistory,
     latestImprovementScore,
+    visionReport,
+    overallVisionScore: visionReport.overallVisionScore,
+    visionWarnings: visionReport.visionWarnings,
     scenes: handoffScenes,
   };
 

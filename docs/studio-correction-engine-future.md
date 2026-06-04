@@ -50,7 +50,11 @@ Motion handoff v6 (metadata only)
 
 `PromptBuilderInput.correctionRecommendations` applies the same correction layer on top of memory + continuity output. Memory rows are never mutated.
 
-### Motion handoff v6 (metadata only)
+### V13 vision → correction (shipped)
+
+Vision recommendations merge into `buildCombinedCorrectionRecommendations` before prompt patches. See `docs/studio-vision-consistency-future.md`.
+
+### Motion handoff v7 (metadata only)
 
 - `correctionRecommendations`, `consistencyHistory`, `latestImprovementScore`
 - Per-scene `sceneCorrectionRecommendations`

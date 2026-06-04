@@ -26,6 +26,12 @@ const payload: MotionHandoffPayload = {
   consistencyReport: null,
   overallConsistencyScore: 0,
   driftWarnings: [],
+  correctionRecommendations: [],
+  consistencyHistory: [],
+  latestImprovementScore: null,
+  visionReport: null,
+  overallVisionScore: 0,
+  visionWarnings: [],
   scenes: [
     {
       sceneId: "scene-1",
@@ -72,6 +78,9 @@ const payload: MotionHandoffPayload = {
       sceneConsistencyScore: 88,
       sceneConsistencyReport: null,
       sceneConsistencyRecommendations: [],
+      sceneCorrectionRecommendations: [],
+      sceneVisionScore: null,
+      sceneVisionReport: null,
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-01-01T00:00:00.000Z",

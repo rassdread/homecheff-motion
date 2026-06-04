@@ -32,13 +32,16 @@ import {
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
 import { StudioConsistencyTimelinePanel } from "@/components/studio/studio-consistency-timeline-panel";
+import { StudioVisionTimelinePanel } from "@/components/studio/studio-vision-timeline-panel";
 import { StudioStoryboardCorrectionPanel } from "@/components/studio/studio-storyboard-correction-panel";
 import {
   analyzeStudioStoryboardConsistencyApi,
+  analyzeStudioStoryboardVisionApi,
   bulkGenerateStudioSceneImagesApi,
   generateStoryboardCorrectionsApi,
 } from "@/lib/studio-scene-images-client";
 import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
+import type { StoryboardVisionReport } from "@/types/studio-vision-consistency";
 import type { StoryboardCorrectionSummary } from "@/types/studio-correction";
 import {
   createStudioSceneApi,
@@ -77,6 +80,8 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkProgress, setBulkProgress] = useState("");
   const [analyzingConsistency, setAnalyzingConsistency] = useState(false);
+  const [analyzingVision, setAnalyzingVision] = useState(false);
+  const [visionReport, setVisionReport] = useState<StoryboardVisionReport | null>(null);
   const [consistencyReport, setConsistencyReport] = useState<StoryboardConsistencyReport | null>(
     null
   );
@@ -233,6 +238,21 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
       return;
     }
     setConsistencyReport(res.data.report);
+    await load();
+  };
+
+  const handleAnalyzeVision = async () => {
+    setAnalyzingVision(true);
+    setError("");
+    const res = await analyzeStudioStoryboardVisionApi(storyboardId);
+    setAnalyzingVision(false);
+    if (!res.ok) {
+      setError(
+        (res.data as { error?: string }).error ?? t("studio.vision.error.storyboardFailed")
+      );
+      return;
+    }
+    setVisionReport(res.data.report);
     await load();
   };
 
@@ -395,6 +415,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </button>
                         <button
                           type="button"
+                          disabled={analyzingVision || scenes.length === 0}
+                          onClick={() => void handleAnalyzeVision()}
+                          className="rounded-full border border-[#0067B1]/40 px-4 py-2 text-sm font-semibold text-[#0067B1] disabled:opacity-50"
+                        >
+                          {analyzingVision
+                            ? t("studio.vision.analyzing")
+                            : t("studio.vision.analyzeStoryboard")}
+                        </button>
+                        <button
+                          type="button"
                           disabled={generatingCorrections || scenes.length === 0}
                           onClick={() => void handleGenerateCorrections()}
                           className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
@@ -482,6 +512,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                     />
                   </div>
                 </div>
+                <StudioVisionTimelinePanel report={visionReport} />
                 <StudioConsistencyTimelinePanel report={consistencyReport} />
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
