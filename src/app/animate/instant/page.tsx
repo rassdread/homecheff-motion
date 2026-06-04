@@ -1690,6 +1690,13 @@ export default function InstantPremiumPage() {
                         <MotionImportSummaryBanner
                           intelligence={studioIntelligence}
                           storyboardId={studioHandoffStoryboardId}
+                          characterVoiceAssignments={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | { characterVoiceAssignments?: import("@/types/studio-character-voice").CharacterVoiceAssignment[] }
+                                | undefined
+                            )?.characterVoiceAssignments ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

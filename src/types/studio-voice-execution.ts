@@ -20,6 +20,10 @@ export type TimedVoiceSegment = {
   endSeconds: number;
   durationSeconds: number;
   text: string;
+  /** V33: speaker label when multi-character voice is used. */
+  speaker?: string;
+  characterId?: string | null;
+  voiceProfile?: string;
 };
 
 export type SubtitleTrackEntry = {
@@ -62,6 +66,9 @@ export type MotionVoiceSegmentHandoff = {
   endSeconds: number;
   durationSeconds: number;
   text: string;
+  speaker?: string;
+  characterId?: string | null;
+  voiceProfile?: string;
 };
 
 export type MotionSubtitleTrackHandoff = {

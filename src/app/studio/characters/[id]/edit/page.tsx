@@ -60,6 +60,15 @@ export default function StudioCharacterEditPage() {
       role: values.role,
       description: values.description,
       personality: values.personality,
+      voiceEnabled: values.voice.voiceEnabled,
+      voiceProvider: values.voice.voiceProvider,
+      voiceProfile: values.voice.voiceProfile,
+      voiceLanguage: values.voice.voiceLanguage,
+      voiceGender: values.voice.voiceGender,
+      voiceDescription: values.voice.voiceDescription,
+      voiceNotes: values.voice.voiceNotes,
+      voiceLock: values.voice.voiceLock,
+      voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
       ...(values.referenceImageUrl !== character?.referenceImageUrl
         ? {
             referenceImageUrl: values.referenceImageUrl,

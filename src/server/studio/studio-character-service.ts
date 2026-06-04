@@ -21,6 +21,8 @@ import {
 } from "@/server/studio/studio-character-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
 import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
+import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
+import { appendCharacterVoiceHistoryIfChanged } from "@/server/studio/studio-character-voice-history";
 
 const CHARACTER_INCLUDE = {
   worldProfile: { select: { id: true, name: true } },
@@ -66,6 +68,15 @@ export function mapStudioCharacterToListItem(
     continuityStrength: normalizeStudioContinuityStrength(row.continuityStrength),
     worldProfileId: row.worldProfileId,
     worldProfile,
+    voiceEnabled: row.voiceEnabled,
+    voiceProvider: row.voiceProvider,
+    voiceProfile: row.voiceProfile,
+    voiceLanguage: row.voiceLanguage,
+    voiceGender: row.voiceGender,
+    voiceDescription: row.voiceDescription,
+    voiceNotes: row.voiceNotes,
+    voiceLock: row.voiceLock,
+    voiceProfilesByLanguage: parseCharacterVoiceProfilesJson(row.voiceProfilesJson),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ownerEmail: options?.ownerEmail,
@@ -198,6 +209,15 @@ export async function createStudioCharacter(
       identityStrength: validated.value.identityStrength,
       continuityStrength: validated.value.continuityStrength,
       worldProfileId: validated.value.worldProfileId,
+      voiceEnabled: validated.value.voiceEnabled,
+      voiceProvider: validated.value.voiceProvider,
+      voiceProfile: validated.value.voiceProfile,
+      voiceLanguage: validated.value.voiceLanguage,
+      voiceGender: validated.value.voiceGender,
+      voiceDescription: validated.value.voiceDescription,
+      voiceNotes: validated.value.voiceNotes,
+      voiceLock: validated.value.voiceLock,
+      voiceProfilesJson: validated.value.voiceProfilesJson ?? undefined,
       isMascot: roleSetsMascotFlag(validated.value.role),
       isSystemCharacter: false,
     },
@@ -242,15 +262,42 @@ export async function updateStudioCharacter(
   }
 
   const previousReferenceUrl = existing.referenceImageUrl;
+  const { voiceProfilesJson, worldProfileId, ...restPatch } = patch;
+  const data: Prisma.StudioCharacterUncheckedUpdateInput = {
+    ...restPatch,
+    slug,
+    isMascot: patch.role ? roleSetsMascotFlag(patch.role) : undefined,
+  };
+  if (worldProfileId !== undefined) {
+    data.worldProfileId = worldProfileId;
+  }
+  if (voiceProfilesJson !== undefined) {
+    data.voiceProfilesJson =
+      voiceProfilesJson === null
+        ? undefined
+        : (voiceProfilesJson as Prisma.InputJsonValue);
+  }
+
   const row = await prisma.studioCharacter.update({
     where: { id },
-    data: {
-      ...patch,
-      slug,
-      isMascot: patch.role ? roleSetsMascotFlag(patch.role) : undefined,
-    },
+    data,
     include: CHARACTER_INCLUDE,
   });
+
+  if (
+    patch.voiceEnabled !== undefined ||
+    patch.voiceProfile !== undefined ||
+    patch.voiceLock !== undefined
+  ) {
+    await appendCharacterVoiceHistoryIfChanged(
+      id,
+      existing,
+      row,
+      patch.voiceLock !== undefined && patch.voiceLock !== existing.voiceLock
+        ? "voice_lock_changed"
+        : "voice_profile_updated"
+    );
+  }
 
   if (
     patch.referenceImageUrl &&

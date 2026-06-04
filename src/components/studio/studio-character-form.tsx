@@ -15,6 +15,11 @@ import {
 } from "@/lib/image-preprocess";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
 import { StudioCharacterRoleBadge } from "@/components/studio/studio-character-role-badge";
+import {
+  StudioCharacterVoiceProfilePanel,
+  characterVoiceStateFromDetail,
+  type CharacterVoiceFormState,
+} from "@/components/studio/studio-character-voice-profile-panel";
 import type { StudioCharacterDetail } from "@/types/studio-api";
 
 export type StudioCharacterFormValues = {
@@ -24,6 +29,7 @@ export type StudioCharacterFormValues = {
   personality: string;
   referenceImageUrl: string;
   referenceStorageKey: string;
+  voice: CharacterVoiceFormState;
 };
 
 type StudioCharacterFormProps = {
@@ -34,6 +40,20 @@ type StudioCharacterFormProps = {
   backHref: string;
 };
 
+function emptyVoiceState(): CharacterVoiceFormState {
+  return {
+    voiceEnabled: false,
+    voiceProvider: "elevenlabs",
+    voiceProfile: "warm_narrator",
+    voiceLanguage: "en",
+    voiceGender: "",
+    voiceDescription: "",
+    voiceNotes: "",
+    voiceLock: false,
+    voiceProfilesByLanguage: {},
+  };
+}
+
 function emptyValues(): StudioCharacterFormValues {
   return {
     name: "",
@@ -42,6 +62,7 @@ function emptyValues(): StudioCharacterFormValues {
     personality: "",
     referenceImageUrl: "",
     referenceStorageKey: "",
+    voice: emptyVoiceState(),
   };
 }
 
@@ -53,6 +74,7 @@ function fromDetail(d: StudioCharacterDetail): StudioCharacterFormValues {
     personality: d.personality,
     referenceImageUrl: d.referenceImageUrl,
     referenceStorageKey: d.referenceStorageKey,
+    voice: characterVoiceStateFromDetail(d),
   };
 }
 
@@ -236,6 +258,13 @@ export function StudioCharacterForm({
           />
         </div>
       </AppCard>
+
+      <StudioCharacterVoiceProfilePanel
+        characterId={initial?.id ?? null}
+        characterName={values.name || t("studio.characters.createTitle")}
+        value={values.voice}
+        onChange={(voice) => setValues((v) => ({ ...v, voice }))}
+      />
 
       {error ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">

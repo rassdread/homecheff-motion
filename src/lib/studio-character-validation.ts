@@ -1,5 +1,8 @@
 import { isStudioCharacterRole, type StudioCharacterRole } from "@/lib/studio-character-roles";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
+import type { CharacterVoiceProfilesByLanguage } from "@/types/studio-character-voice";
 import {
   parseContinuityStrengthField,
   parseIdentityStrengthField,
@@ -11,6 +14,18 @@ import {
 
 export const STUDIO_CHARACTER_NAME_MAX = 120;
 export const STUDIO_CHARACTER_TEXT_MAX = 4000;
+
+export type StudioCharacterVoiceInput = {
+  voiceEnabled?: boolean;
+  voiceProvider?: string;
+  voiceProfile?: string;
+  voiceLanguage?: string;
+  voiceGender?: string;
+  voiceDescription?: string;
+  voiceNotes?: string;
+  voiceLock?: boolean;
+  voiceProfilesByLanguage?: CharacterVoiceProfilesByLanguage;
+};
 
 export type StudioCharacterMemoryInput = {
   appearanceMemory?: string;
@@ -26,7 +41,8 @@ export type StudioCharacterMemoryInput = {
   worldProfileId?: string | null;
 };
 
-export type StudioCharacterCreateInput = StudioCharacterMemoryInput & {
+export type StudioCharacterCreateInput = StudioCharacterMemoryInput &
+  StudioCharacterVoiceInput & {
   name: string;
   role: string;
   description?: string;
@@ -35,7 +51,8 @@ export type StudioCharacterCreateInput = StudioCharacterMemoryInput & {
   referenceStorageKey: string;
 };
 
-export type StudioCharacterUpdateInput = StudioCharacterMemoryInput & {
+export type StudioCharacterUpdateInput = StudioCharacterMemoryInput &
+  StudioCharacterVoiceInput & {
   name?: string;
   role?: string;
   description?: string;
@@ -43,6 +60,26 @@ export type StudioCharacterUpdateInput = StudioCharacterMemoryInput & {
   referenceImageUrl?: string;
   referenceStorageKey?: string;
 };
+
+function parseCharacterVoiceFields(raw: StudioCharacterVoiceInput) {
+  const voiceProfilesByLanguage = raw.voiceProfilesByLanguage
+    ? parseCharacterVoiceProfilesJson(raw.voiceProfilesByLanguage)
+    : {};
+  return {
+    voiceEnabled: Boolean(raw.voiceEnabled),
+    voiceProvider: (raw.voiceProvider ?? "").trim().slice(0, 40),
+    voiceProfile: raw.voiceProfile
+      ? normalizeStudioVoiceProfileId(raw.voiceProfile)
+      : "",
+    voiceLanguage: (raw.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2) || "en",
+    voiceGender: trimText(raw.voiceGender, 40),
+    voiceDescription: trimText(raw.voiceDescription, 500),
+    voiceNotes: trimText(raw.voiceNotes, STUDIO_CHARACTER_TEXT_MAX),
+    voiceLock: Boolean(raw.voiceLock),
+    voiceProfilesJson:
+      Object.keys(voiceProfilesByLanguage).length > 0 ? voiceProfilesByLanguage : null,
+  };
+}
 
 function parseCharacterMemoryFields(raw: StudioCharacterMemoryInput) {
   return {
@@ -87,6 +124,15 @@ export function validateStudioCharacterCreateInput(
   referenceNotes: string;
   identityStrength: string;
   continuityStrength: string;
+  voiceEnabled: boolean;
+  voiceProvider: string;
+  voiceProfile: string;
+  voiceLanguage: string;
+  voiceGender: string;
+  voiceDescription: string;
+  voiceNotes: string;
+  voiceLock: boolean;
+  voiceProfilesJson: CharacterVoiceProfilesByLanguage | null;
   worldProfileId: string | null;
 }> {
   const name = raw.name?.trim() ?? "";
@@ -112,6 +158,7 @@ export function validateStudioCharacterCreateInput(
     return { ok: false, code: "INVALID_REFERENCE_URL", message: "Invalid reference image URL." };
   }
   const memory = parseCharacterMemoryFields(raw);
+  const voice = parseCharacterVoiceFields(raw);
   return {
     ok: true,
     value: {
@@ -121,6 +168,7 @@ export function validateStudioCharacterCreateInput(
       personality: trimText(raw.personality, STUDIO_CHARACTER_TEXT_MAX),
       referenceImageUrl,
       referenceStorageKey,
+      ...voice,
       appearanceMemory: memory.appearanceMemory,
       personalityMemory: memory.personalityMemory,
       continuityNotes: memory.continuityNotes,
@@ -156,6 +204,15 @@ export function validateStudioCharacterUpdateInput(
   identityStrength?: string;
   continuityStrength?: string;
   worldProfileId?: string | null;
+  voiceEnabled?: boolean;
+  voiceProvider?: string;
+  voiceProfile?: string;
+  voiceLanguage?: string;
+  voiceGender?: string;
+  voiceDescription?: string;
+  voiceNotes?: string;
+  voiceLock?: boolean;
+  voiceProfilesJson?: CharacterVoiceProfilesByLanguage | null;
 }> {
   const patch: {
     name?: string;
@@ -175,6 +232,15 @@ export function validateStudioCharacterUpdateInput(
     identityStrength?: string;
     continuityStrength?: string;
     worldProfileId?: string | null;
+    voiceEnabled?: boolean;
+    voiceProvider?: string;
+    voiceProfile?: string;
+    voiceLanguage?: string;
+    voiceGender?: string;
+    voiceDescription?: string;
+    voiceNotes?: string;
+    voiceLock?: boolean;
+    voiceProfilesJson?: CharacterVoiceProfilesByLanguage | null;
   } = {};
 
   if (raw.name !== undefined) {
@@ -261,6 +327,21 @@ export function validateStudioCharacterUpdateInput(
   }
   if (raw.worldProfileId !== undefined) {
     patch.worldProfileId = memory.worldProfileId ?? null;
+  }
+
+  const hasVoicePatch =
+    raw.voiceEnabled !== undefined ||
+    raw.voiceProvider !== undefined ||
+    raw.voiceProfile !== undefined ||
+    raw.voiceLanguage !== undefined ||
+    raw.voiceGender !== undefined ||
+    raw.voiceDescription !== undefined ||
+    raw.voiceNotes !== undefined ||
+    raw.voiceLock !== undefined ||
+    raw.voiceProfilesByLanguage !== undefined;
+  if (hasVoicePatch) {
+    const voice = parseCharacterVoiceFields(raw);
+    Object.assign(patch, voice);
   }
 
   if (Object.keys(patch).length === 0) {

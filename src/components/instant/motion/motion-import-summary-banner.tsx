@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
+import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
 import type { MotionVoiceMetadata } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
   storyboardId: string | null;
   voiceMetadata?: MotionVoiceMetadata | null;
   subtitleAvailability?: boolean;
+  characterVoiceAssignments?: CharacterVoiceAssignment[] | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -19,6 +21,7 @@ export function MotionImportSummaryBanner({
   storyboardId,
   voiceMetadata,
   subtitleAvailability,
+  characterVoiceAssignments,
   onRefresh,
   refreshing,
 }: Props) {
@@ -90,6 +93,15 @@ export function MotionImportSummaryBanner({
               </p>
             );
           })()}
+          {characterVoiceAssignments && characterVoiceAssignments.length > 0 ?
+            <ul className="mt-2 space-y-0.5 text-xs text-zinc-700">
+              {characterVoiceAssignments.map((row) => (
+                <li key={row.characterId}>
+                  {row.characterName}: {t(row.presetLabelKey as never)}
+                </li>
+              ))}
+            </ul>
+          : null}
           {intelligence.partialData || intelligence.legacyHandoff ?
             <p className="mt-1 text-xs text-amber-800">{t("motion.qa.importSummary.partial")}</p>
           : null}

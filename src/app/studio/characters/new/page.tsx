@@ -23,6 +23,15 @@ export default function StudioCharacterNewPage() {
       personality: values.personality,
       referenceImageUrl: values.referenceImageUrl,
       referenceStorageKey: values.referenceStorageKey,
+      voiceEnabled: values.voice.voiceEnabled,
+      voiceProvider: values.voice.voiceProvider,
+      voiceProfile: values.voice.voiceProfile,
+      voiceLanguage: values.voice.voiceLanguage,
+      voiceGender: values.voice.voiceGender,
+      voiceDescription: values.voice.voiceDescription,
+      voiceNotes: values.voice.voiceNotes,
+      voiceLock: values.voice.voiceLock,
+      voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
     });
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));

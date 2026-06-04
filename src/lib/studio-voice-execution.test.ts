@@ -127,7 +127,7 @@ describe("studio-voice-execution V31", () => {
     assert.match(srt, /Hello world/);
   });
 
-  it("attachVoiceToHandoffPayload adds v12 voice fields", () => {
+  it("attachVoiceToHandoffPayload adds v13 voice fields", () => {
     const payload = attachVoiceToHandoffPayload(minimalHandoff(), {
       storyboard: minimalStoryboard(),
       voice: {
@@ -145,7 +145,7 @@ describe("studio-voice-execution V31", () => {
         entriesJson: [{ start: 0, end: 3, text: "Hello", sceneId: "scene-1" }],
       },
     });
-    assert.equal(payload.version, 12);
+    assert.equal(payload.version, 13);
     assert.ok(payload.voiceMetadata?.ready);
     assert.equal(payload.subtitleAvailability, true);
     assert.ok(payload.subtitleTrack?.srt.includes("Hello"));

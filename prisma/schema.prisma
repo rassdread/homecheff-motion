@@ -359,13 +359,38 @@ model StudioCharacter {
   isMascot                Boolean             @default(false)
   /** Reserved for globally seeded HomeCheff mascots (Chef, Garden, …). */
   isSystemCharacter       Boolean             @default(false)
+  /** V33: default voice identity for this character. */
+  voiceEnabled            Boolean             @default(false)
+  voiceProvider           String              @default("")
+  voiceProfile            String              @default("")
+  voiceLanguage           String              @default("en")
+  voiceGender             String              @default("")
+  voiceDescription        String              @default("")
+  voiceNotes              String              @default("")
+  /** When true, storyboard cannot override character voice without explicit flag. */
+  voiceLock               Boolean             @default(false)
+  /** Per-language overrides: { "nl": { voiceProfile, voiceProvider, ... } }. */
+  voiceProfilesJson       Json?
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
   sceneLinks              StudioSceneCharacter[]
+  voiceHistory            StudioCharacterVoiceHistory[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
   @@index([worldProfileId])
+}
+
+/** V33: audit trail for character voice profile changes. */
+model StudioCharacterVoiceHistory {
+  id           String          @id @default(cuid())
+  characterId  String
+  character    StudioCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  eventType    String
+  snapshotJson Json
+  createdAt    DateTime        @default(now())
+
+  @@index([characterId, createdAt])
 }
 
 /** Reusable environment / world for Studio → future Scene Composer → Motion. */

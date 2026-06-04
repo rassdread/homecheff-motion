@@ -60,6 +60,15 @@ export type StudioCharacterListItem = {
   continuityStrength: StudioContinuityStrength;
   worldProfileId: string | null;
   worldProfile: StudioWorldProfileSummary | null;
+  voiceEnabled: boolean;
+  voiceProvider: string;
+  voiceProfile: string;
+  voiceLanguage: string;
+  voiceGender: string;
+  voiceDescription: string;
+  voiceNotes: string;
+  voiceLock: boolean;
+  voiceProfilesByLanguage: import("@/types/studio-character-voice").CharacterVoiceProfilesByLanguage;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;

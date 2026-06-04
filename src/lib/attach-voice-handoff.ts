@@ -9,6 +9,10 @@ import type {
   MotionVoiceSegmentHandoff,
   SubtitleTrackEntry,
 } from "@/types/studio-voice-execution";
+import {
+  buildCharacterVoiceAssignments,
+  resolveActiveSpeakerForScene,
+} from "@/lib/studio-character-voice";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 
 export type StoryboardVoiceRow = {
@@ -71,6 +75,9 @@ export function buildMotionVoiceSegmentsForHandoff(params: {
     endSeconds: s.endSeconds,
     durationSeconds: s.durationSeconds,
     text: s.text,
+    speaker: s.speaker,
+    characterId: s.characterId,
+    voiceProfile: s.voiceProfile,
   }));
 }
 
@@ -112,10 +119,25 @@ export function attachVoiceToHandoffPayload(
   const subtitleTrack = buildMotionSubtitleHandoff(options.subtitle);
   const subtitleAvailability = Boolean(subtitleTrack?.available && subtitleTrack.entries.length > 0);
 
-  const scenes: MotionHandoffScene[] = payload.scenes.map((scene) => ({
-    ...scene,
-    voiceSegment: segmentByScene.get(scene.sceneId) ?? undefined,
-  }));
+  const language = voiceMetadata.language;
+  const characterVoiceAssignments = buildCharacterVoiceAssignments(
+    options.storyboard,
+    language
+  );
+  const characterVoiceProfiles = characterVoiceAssignments;
+
+  const scenes: MotionHandoffScene[] = payload.scenes.map((scene) => {
+    const storyboardScene = options.storyboard.scenes.find((s) => s.id === scene.sceneId);
+    const speaker = storyboardScene
+      ? resolveActiveSpeakerForScene(storyboardScene, language)
+      : null;
+    return {
+      ...scene,
+      voiceSegment: segmentByScene.get(scene.sceneId) ?? undefined,
+      activeSpeaker: speaker?.speakerName ?? null,
+      speakerVoiceProfile: speaker?.voiceProfile ?? null,
+    };
+  });
 
   return {
     ...payload,
@@ -123,6 +145,9 @@ export function attachVoiceToHandoffPayload(
     voiceDuration: voiceMetadata.durationSeconds,
     subtitleTrack: subtitleTrack ?? undefined,
     subtitleAvailability,
+    characterVoiceProfiles,
+    characterVoiceAssignments,
+    voiceSegments: segmentList,
     scenes,
   };
 }

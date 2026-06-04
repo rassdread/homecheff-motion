@@ -25,13 +25,14 @@ import type {
   StudioSceneExecutionPackage,
   StudioStoryExecutionPackage,
 } from "@/types/studio-scene-execution";
+import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
 import type {
   MotionSubtitleTrackHandoff,
   MotionVoiceMetadata,
   MotionVoiceSegmentHandoff,
 } from "@/types/studio-voice-execution";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 12 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 13 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -69,6 +70,9 @@ export type MotionHandoffScene = SceneSnapshot & {
   executionPrompt?: string;
   /** V31: timed voice segment for this scene (metadata for Motion export). */
   voiceSegment?: MotionVoiceSegmentHandoff;
+  /** V33: primary speaker on this scene. */
+  activeSpeaker?: string | null;
+  speakerVoiceProfile?: string | null;
 };
 
 export type MotionHandoffPayload = {
@@ -116,5 +120,9 @@ export type MotionHandoffPayload = {
   voiceDuration?: number;
   subtitleTrack?: MotionSubtitleTrackHandoff;
   subtitleAvailability?: boolean;
+  /** V33: per-character voice assignments for Motion preview. */
+  characterVoiceProfiles?: CharacterVoiceAssignment[];
+  characterVoiceAssignments?: CharacterVoiceAssignment[];
+  voiceSegments?: MotionVoiceSegmentHandoff[];
   scenes: MotionHandoffScene[];
 };
