@@ -32,6 +32,13 @@ export default function StudioCharacterNewPage() {
       voiceNotes: values.voice.voiceNotes,
       voiceLock: values.voice.voiceLock,
       voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
+      performanceEnabled: values.performance.performanceEnabled,
+      defaultSmileStrength: values.performance.defaultSmileStrength,
+      defaultBlinkRate: values.performance.defaultBlinkRate,
+      defaultHeadMovement: values.performance.defaultHeadMovement,
+      defaultMouthIntensity: values.performance.defaultMouthIntensity,
+      idleAnimationStyle: values.performance.idleAnimationStyle,
+      performanceNotes: values.performance.performanceNotes,
     });
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));

@@ -2,6 +2,11 @@ import { isStudioCharacterRole, type StudioCharacterRole } from "@/lib/studio-ch
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 import { normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
 import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
+import {
+  clampSmileStrength,
+  normalizeIdleAnimationStyle,
+  normalizePerformanceLevel,
+} from "@/lib/studio-character-performance";
 import type { CharacterVoiceProfilesByLanguage } from "@/types/studio-character-voice";
 import {
   parseContinuityStrengthField,
@@ -27,6 +32,16 @@ export type StudioCharacterVoiceInput = {
   voiceProfilesByLanguage?: CharacterVoiceProfilesByLanguage;
 };
 
+export type StudioCharacterPerformanceInput = {
+  performanceEnabled?: boolean;
+  defaultSmileStrength?: number;
+  defaultBlinkRate?: string;
+  defaultHeadMovement?: string;
+  defaultMouthIntensity?: string;
+  idleAnimationStyle?: string;
+  performanceNotes?: string;
+};
+
 export type StudioCharacterMemoryInput = {
   appearanceMemory?: string;
   personalityMemory?: string;
@@ -41,8 +56,22 @@ export type StudioCharacterMemoryInput = {
   worldProfileId?: string | null;
 };
 
+function parseCharacterPerformanceFields(raw: StudioCharacterPerformanceInput) {
+  const smileRaw = Number(raw.defaultSmileStrength ?? 70);
+  return {
+    performanceEnabled: Boolean(raw.performanceEnabled),
+    defaultSmileStrength: clampSmileStrength(Number.isFinite(smileRaw) ? smileRaw : 70),
+    defaultBlinkRate: normalizePerformanceLevel(raw.defaultBlinkRate),
+    defaultHeadMovement: normalizePerformanceLevel(raw.defaultHeadMovement),
+    defaultMouthIntensity: normalizePerformanceLevel(raw.defaultMouthIntensity),
+    idleAnimationStyle: normalizeIdleAnimationStyle(raw.idleAnimationStyle),
+    performanceNotes: trimText(raw.performanceNotes, STUDIO_CHARACTER_TEXT_MAX),
+  };
+}
+
 export type StudioCharacterCreateInput = StudioCharacterMemoryInput &
-  StudioCharacterVoiceInput & {
+  StudioCharacterVoiceInput &
+  StudioCharacterPerformanceInput & {
   name: string;
   role: string;
   description?: string;
@@ -52,7 +81,8 @@ export type StudioCharacterCreateInput = StudioCharacterMemoryInput &
 };
 
 export type StudioCharacterUpdateInput = StudioCharacterMemoryInput &
-  StudioCharacterVoiceInput & {
+  StudioCharacterVoiceInput &
+  StudioCharacterPerformanceInput & {
   name?: string;
   role?: string;
   description?: string;
@@ -133,6 +163,13 @@ export function validateStudioCharacterCreateInput(
   voiceNotes: string;
   voiceLock: boolean;
   voiceProfilesJson: CharacterVoiceProfilesByLanguage | null;
+  performanceEnabled: boolean;
+  defaultSmileStrength: number;
+  defaultBlinkRate: string;
+  defaultHeadMovement: string;
+  defaultMouthIntensity: string;
+  idleAnimationStyle: string;
+  performanceNotes: string;
   worldProfileId: string | null;
 }> {
   const name = raw.name?.trim() ?? "";
@@ -159,6 +196,7 @@ export function validateStudioCharacterCreateInput(
   }
   const memory = parseCharacterMemoryFields(raw);
   const voice = parseCharacterVoiceFields(raw);
+  const performance = parseCharacterPerformanceFields(raw);
   return {
     ok: true,
     value: {
@@ -169,6 +207,7 @@ export function validateStudioCharacterCreateInput(
       referenceImageUrl,
       referenceStorageKey,
       ...voice,
+      ...performance,
       appearanceMemory: memory.appearanceMemory,
       personalityMemory: memory.personalityMemory,
       continuityNotes: memory.continuityNotes,
@@ -213,6 +252,13 @@ export function validateStudioCharacterUpdateInput(
   voiceNotes?: string;
   voiceLock?: boolean;
   voiceProfilesJson?: CharacterVoiceProfilesByLanguage | null;
+  performanceEnabled?: boolean;
+  defaultSmileStrength?: number;
+  defaultBlinkRate?: string;
+  defaultHeadMovement?: string;
+  defaultMouthIntensity?: string;
+  idleAnimationStyle?: string;
+  performanceNotes?: string;
 }> {
   const patch: {
     name?: string;
@@ -241,6 +287,13 @@ export function validateStudioCharacterUpdateInput(
     voiceNotes?: string;
     voiceLock?: boolean;
     voiceProfilesJson?: CharacterVoiceProfilesByLanguage | null;
+    performanceEnabled?: boolean;
+    defaultSmileStrength?: number;
+    defaultBlinkRate?: string;
+    defaultHeadMovement?: string;
+    defaultMouthIntensity?: string;
+    idleAnimationStyle?: string;
+    performanceNotes?: string;
   } = {};
 
   if (raw.name !== undefined) {
@@ -342,6 +395,19 @@ export function validateStudioCharacterUpdateInput(
   if (hasVoicePatch) {
     const voice = parseCharacterVoiceFields(raw);
     Object.assign(patch, voice);
+  }
+
+  const hasPerformancePatch =
+    raw.performanceEnabled !== undefined ||
+    raw.defaultSmileStrength !== undefined ||
+    raw.defaultBlinkRate !== undefined ||
+    raw.defaultHeadMovement !== undefined ||
+    raw.defaultMouthIntensity !== undefined ||
+    raw.idleAnimationStyle !== undefined ||
+    raw.performanceNotes !== undefined;
+  if (hasPerformancePatch) {
+    const performance = parseCharacterPerformanceFields(raw);
+    Object.assign(patch, performance);
   }
 
   if (Object.keys(patch).length === 0) {

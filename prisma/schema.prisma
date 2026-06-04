@@ -371,6 +371,18 @@ model StudioCharacter {
   voiceLock               Boolean             @default(false)
   /** Per-language overrides: { "nl": { voiceProfile, voiceProvider, ... } }. */
   voiceProfilesJson       Json?
+  /** V34: lightweight character performance defaults (no AI lip sync). */
+  performanceEnabled      Boolean             @default(false)
+  defaultSmileStrength    Int                 @default(70)
+  /** low | medium | high */
+  defaultBlinkRate        String              @default("medium")
+  /** low | medium | high */
+  defaultHeadMovement     String              @default("medium")
+  /** low | medium | high — baseline mouth openness scale */
+  defaultMouthIntensity   String              @default("medium")
+  /** subtle | natural | lively */
+  idleAnimationStyle      String              @default("subtle")
+  performanceNotes        String              @default("")
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
   sceneLinks              StudioSceneCharacter[]

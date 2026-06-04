@@ -20,6 +20,11 @@ import {
   characterVoiceStateFromDetail,
   type CharacterVoiceFormState,
 } from "@/components/studio/studio-character-voice-profile-panel";
+import {
+  StudioCharacterPerformanceProfilePanel,
+  characterPerformanceStateFromDetail,
+  type CharacterPerformanceFormState,
+} from "@/components/studio/studio-character-performance-profile-panel";
 import type { StudioCharacterDetail } from "@/types/studio-api";
 
 export type StudioCharacterFormValues = {
@@ -30,6 +35,7 @@ export type StudioCharacterFormValues = {
   referenceImageUrl: string;
   referenceStorageKey: string;
   voice: CharacterVoiceFormState;
+  performance: CharacterPerformanceFormState;
 };
 
 type StudioCharacterFormProps = {
@@ -39,6 +45,18 @@ type StudioCharacterFormProps = {
   onSubmit: (values: StudioCharacterFormValues) => Promise<void>;
   backHref: string;
 };
+
+function emptyPerformanceState(): CharacterPerformanceFormState {
+  return {
+    performanceEnabled: false,
+    defaultSmileStrength: 70,
+    defaultBlinkRate: "medium",
+    defaultHeadMovement: "medium",
+    defaultMouthIntensity: "medium",
+    idleAnimationStyle: "subtle",
+    performanceNotes: "",
+  };
+}
 
 function emptyVoiceState(): CharacterVoiceFormState {
   return {
@@ -63,6 +81,7 @@ function emptyValues(): StudioCharacterFormValues {
     referenceImageUrl: "",
     referenceStorageKey: "",
     voice: emptyVoiceState(),
+    performance: emptyPerformanceState(),
   };
 }
 
@@ -75,6 +94,7 @@ function fromDetail(d: StudioCharacterDetail): StudioCharacterFormValues {
     referenceImageUrl: d.referenceImageUrl,
     referenceStorageKey: d.referenceStorageKey,
     voice: characterVoiceStateFromDetail(d),
+    performance: characterPerformanceStateFromDetail(d),
   };
 }
 
@@ -265,6 +285,19 @@ export function StudioCharacterForm({
         value={values.voice}
         onChange={(voice) => setValues((v) => ({ ...v, voice }))}
       />
+
+      <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+        <h2 className="text-sm font-semibold text-amber-950">
+          {t("studio.characterPerformance.title")}
+        </h2>
+        <p className="mt-1 text-xs text-amber-800">{t("studio.characterPerformance.hint")}</p>
+        <div className="mt-3">
+          <StudioCharacterPerformanceProfilePanel
+            value={values.performance}
+            onChange={(performance) => setValues((v) => ({ ...v, performance }))}
+          />
+        </div>
+      </section>
 
       {error ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">

@@ -69,6 +69,13 @@ export type StudioCharacterListItem = {
   voiceNotes: string;
   voiceLock: boolean;
   voiceProfilesByLanguage: import("@/types/studio-character-voice").CharacterVoiceProfilesByLanguage;
+  performanceEnabled: boolean;
+  defaultSmileStrength: number;
+  defaultBlinkRate: string;
+  defaultHeadMovement: string;
+  defaultMouthIntensity: string;
+  idleAnimationStyle: string;
+  performanceNotes: string;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;

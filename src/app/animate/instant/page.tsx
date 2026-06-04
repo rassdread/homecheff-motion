@@ -1697,6 +1697,15 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.characterVoiceAssignments ?? null
                           }
+                          characterPerformanceProfiles={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | {
+                                    characterPerformanceProfiles?: import("@/types/studio-character-performance").CharacterPerformanceAssignment[];
+                                  }
+                                | undefined
+                            )?.characterPerformanceProfiles ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

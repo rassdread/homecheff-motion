@@ -30,6 +30,7 @@ import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-pa
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import { StudioSceneImagePlannerPanel } from "@/components/studio/studio-scene-image-planner-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
+import { StudioPerformanceSimulator } from "@/components/studio/studio-performance-simulator";
 import { StudioProductionCenter } from "@/components/studio/studio-production-center";
 import {
   STUDIO_DIRECTOR_PROFILES,
@@ -701,6 +702,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                       canModify={canModify}
                       onStoryboardUpdated={(sb) => setStoryboard(sb)}
                     />
+                    <StudioPerformanceSimulator scenes={storyboard.scenes} />
                     <StudioProductionCenter
                       storyboard={storyboard}
                       storyboardId={storyboardId}

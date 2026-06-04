@@ -69,6 +69,13 @@ export default function StudioCharacterEditPage() {
       voiceNotes: values.voice.voiceNotes,
       voiceLock: values.voice.voiceLock,
       voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
+      performanceEnabled: values.performance.performanceEnabled,
+      defaultSmileStrength: values.performance.defaultSmileStrength,
+      defaultBlinkRate: values.performance.defaultBlinkRate,
+      defaultHeadMovement: values.performance.defaultHeadMovement,
+      defaultMouthIntensity: values.performance.defaultMouthIntensity,
+      idleAnimationStyle: values.performance.idleAnimationStyle,
+      performanceNotes: values.performance.performanceNotes,
       ...(values.referenceImageUrl !== character?.referenceImageUrl
         ? {
             referenceImageUrl: values.referenceImageUrl,

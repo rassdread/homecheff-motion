@@ -128,6 +128,11 @@ export function sanitizeMotionHandoffForStorage(
     characterVoiceProfiles: raw.characterVoiceProfiles,
     characterVoiceAssignments: raw.characterVoiceAssignments,
     voiceSegments: raw.voiceSegments,
+    characterPerformanceProfiles: raw.characterPerformanceProfiles,
+    performanceStates: raw.performanceStates,
+    activeSpeakerData: raw.activeSpeakerData,
+    emotionModifiers: raw.emotionModifiers,
+    energyModifiers: raw.energyModifiers,
     motionAudioExport: stripLargeStrings(raw.motionAudioExport),
     scenes: scenes.map((scene) =>
       isPlainObject(scene) ? sanitizeScene(scene) : scene

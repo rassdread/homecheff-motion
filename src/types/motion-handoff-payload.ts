@@ -27,12 +27,19 @@ import type {
 } from "@/types/studio-scene-execution";
 import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
 import type {
+  ActiveSpeakerPerformanceData,
+  CharacterPerformanceAssignment,
+  CharacterPerformanceState,
+  PerformanceEmotionModifier,
+  PerformanceEnergyModifier,
+} from "@/types/studio-character-performance";
+import type {
   MotionSubtitleTrackHandoff,
   MotionVoiceMetadata,
   MotionVoiceSegmentHandoff,
 } from "@/types/studio-voice-execution";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 13 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 14 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -73,6 +80,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   /** V33: primary speaker on this scene. */
   activeSpeaker?: string | null;
   speakerVoiceProfile?: string | null;
+  /** V34: computed performance state for scene primary speaker. */
+  speakerPerformance?: CharacterPerformanceState | null;
 };
 
 export type MotionHandoffPayload = {
@@ -124,5 +133,11 @@ export type MotionHandoffPayload = {
   characterVoiceProfiles?: CharacterVoiceAssignment[];
   characterVoiceAssignments?: CharacterVoiceAssignment[];
   voiceSegments?: MotionVoiceSegmentHandoff[];
+  /** V34: per-character performance profiles. */
+  characterPerformanceProfiles?: CharacterPerformanceAssignment[];
+  performanceStates?: CharacterPerformanceState[];
+  activeSpeakerData?: ActiveSpeakerPerformanceData[];
+  emotionModifiers?: Record<string, PerformanceEmotionModifier>;
+  energyModifiers?: PerformanceEnergyModifier[];
   scenes: MotionHandoffScene[];
 };

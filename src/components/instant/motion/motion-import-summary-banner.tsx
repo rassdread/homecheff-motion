@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
+import type { CharacterPerformanceAssignment } from "@/types/studio-character-performance";
 import type { MotionVoiceMetadata } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -12,6 +13,7 @@ type Props = {
   voiceMetadata?: MotionVoiceMetadata | null;
   subtitleAvailability?: boolean;
   characterVoiceAssignments?: CharacterVoiceAssignment[] | null;
+  characterPerformanceProfiles?: CharacterPerformanceAssignment[] | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -22,6 +24,7 @@ export function MotionImportSummaryBanner({
   voiceMetadata,
   subtitleAvailability,
   characterVoiceAssignments,
+  characterPerformanceProfiles,
   onRefresh,
   refreshing,
 }: Props) {
@@ -100,6 +103,20 @@ export function MotionImportSummaryBanner({
                   {row.characterName}: {t(row.presetLabelKey as never)}
                 </li>
               ))}
+            </ul>
+          : null}
+          {characterPerformanceProfiles && characterPerformanceProfiles.length > 0 ?
+            <ul className="mt-2 space-y-0.5 text-xs text-zinc-700">
+              {characterPerformanceProfiles
+                .filter((p) => p.performanceEnabled)
+                .map((row) => (
+                  <li key={`perf-${row.characterId}`}>
+                    {t("motion.qa.importSummary.performanceLine", {
+                      name: row.characterName,
+                      style: row.styleLabel,
+                    })}
+                  </li>
+                ))}
             </ul>
           : null}
           {intelligence.partialData || intelligence.legacyHandoff ?
