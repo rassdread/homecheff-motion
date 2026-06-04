@@ -26,9 +26,13 @@ Final video
 - Scene Composer tab: **Generated Image**
 - Handoff metadata: `selectedSceneImageId`, `preferredSceneImageUrl` (stored, not wired to Vidu)
 
-## V9+ recommendations
+## V9 (Motion image import)
 
-1. **Motion import** — prefill wizard slot `image` from `preferredSceneImageUrl`
+- Handoff v3 + wizard slot prefill — see `docs/studio-motion-image-import-future.md`
+
+## V10+ recommendations
+
+1. **Render linkage** — bind exports to `sceneImageReference.generationVersion`
 2. **Reference-conditioned generation** — pass character/location/prop reference URLs to multi-image APIs
 3. **Async job queue** — bulk generation via worker instead of sequential HTTP
 4. **Render-version linkage** — bind export to `generationVersion` + `promptVersion`

@@ -90,9 +90,14 @@
  * - `selectedSceneImageId` for Motion prep (handoff stores URL metadata, no Vidu yet)
  * - Docs: `docs/studio-scene-image-future.md`, `docs/studio-character-engine-future.md`
  *
- * ## V9+ considerations
+ * ## V9 (Motion image import)
  *
- * - Motion wizard prefill from `preferredSceneImageUrl`
+ * - Handoff v3 pre-fills Motion wizard images (`imageSource: studio`)
+ * - Refresh from Studio, metadata on `PersistedWizardImage`
+ * - Docs: `docs/studio-motion-image-import-future.md`
+ *
+ * ## V10+ considerations
+ *
  * - Pass reference images into Vidu multi-image prompts
  * - Character memory / packs — see `docs/studio-character-engine-future.md`
  * - Render-version snapshots may store scene image `generationVersion` per export

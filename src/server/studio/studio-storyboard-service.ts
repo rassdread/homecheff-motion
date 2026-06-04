@@ -644,3 +644,37 @@ export async function getStoryboardSnapshotById(
   }
   return toStoryboardSnapshot(row, row.scenes);
 }
+
+/** Loads storyboard scenes with images for Motion handoff v3. */
+export async function getStoryboardSceneRowsForHandoff(
+  id: string,
+  viewer: Pick<SessionUser, "id" | "role">
+): Promise<
+  | {
+      storyboard: Pick<
+        StudioStoryboard,
+        "id" | "title" | "description" | "promptStyleProfile"
+      >;
+      scenes: SceneRow[];
+    }
+  | null
+> {
+  const row = await prisma.studioStoryboard.findUnique({
+    where: { id },
+    include: {
+      scenes: { include: SCENE_INCLUDE, orderBy: { order: "asc" } },
+    },
+  });
+  if (!row || !studioStoryboardViewerCanView(viewer, row)) {
+    return null;
+  }
+  return {
+    storyboard: {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
+    },
+    scenes: row.scenes,
+  };
+}

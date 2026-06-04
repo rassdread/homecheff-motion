@@ -82,6 +82,9 @@ function hydratePersistedImageMeta(pi: PersistedWizardImage): InstantWizardLocal
     remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
     remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
     remoteStorageKey: pi.remoteStorageKey,
+    imageSource: pi.imageSource,
+    studioSceneImageId: pi.studioSceneImageId,
+    studioImageReference: pi.studioImageReference,
     bakedText: baked,
     previewUnavailable: false,
   };
@@ -115,6 +118,9 @@ async function hydratePersistedImageWithBlobs(
       remoteWorkingUrl: remoteUrl,
       remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
       remoteStorageKey: pi.remoteStorageKey,
+      imageSource: pi.imageSource,
+      studioSceneImageId: pi.studioSceneImageId,
+      studioImageReference: pi.studioImageReference,
       bakedText: baked,
       previewUnavailable: false,
     };
@@ -131,6 +137,9 @@ async function hydratePersistedImageWithBlobs(
       remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
       remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
       remoteStorageKey: pi.remoteStorageKey,
+      imageSource: pi.imageSource,
+      studioSceneImageId: pi.studioSceneImageId,
+      studioImageReference: pi.studioImageReference,
       bakedText: baked,
       previewUnavailable: true,
     };
@@ -147,6 +156,9 @@ async function hydratePersistedImageWithBlobs(
     remoteWorkingUrl: isValidHttpUrl(remoteUrl) ? remoteUrl : undefined,
     remoteThumbnailUrl: isValidHttpUrl(pi.remoteThumbnailUrl) ? pi.remoteThumbnailUrl : undefined,
     remoteStorageKey: pi.remoteStorageKey,
+    imageSource: pi.imageSource,
+    studioSceneImageId: pi.studioSceneImageId,
+    studioImageReference: pi.studioImageReference,
     bakedText: baked,
     previewUnavailable: previewRegistered === null,
   };
@@ -345,6 +357,9 @@ export function useInstantWizardPersist(params: {
             ? img.remoteThumbnailUrl
             : undefined,
           remoteStorageKey: img.remoteStorageKey,
+          imageSource: img.imageSource,
+          studioSceneImageId: img.studioSceneImageId,
+          studioImageReference: img.studioImageReference,
           bakedText: serializeBakedText(img.bakedText),
         });
       }

@@ -247,7 +247,7 @@ export function trimScenesToCount(slots: WizardSceneSlot[], maxCount: number): W
   return slots.slice(0, maxCount);
 }
 
-function restoreSceneTextDraft(
+export function restoreSceneTextDraft(
   raw: PersistedSceneTextDraft | undefined,
   fallbackTransition: InstantTransitionSeconds
 ): InstantSceneTextDraft {
@@ -343,6 +343,9 @@ export function serializeSceneSlotsForPersist(
           remoteWorkingUrl: slot.image.remoteWorkingUrl,
           remoteThumbnailUrl: slot.image.remoteThumbnailUrl,
           remoteStorageKey: slot.image.remoteStorageKey,
+          imageSource: slot.image.imageSource,
+          studioSceneImageId: slot.image.studioSceneImageId,
+          studioImageReference: slot.image.studioImageReference,
           bakedText: { ...slot.image.bakedText },
         }
       : null,

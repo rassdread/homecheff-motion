@@ -152,6 +152,6 @@ describe("instant wizard upload reorder preview flow", () => {
       resolvePreviewSrc(toWizardPreviewInput(b)),
       b.remoteWorkingUrl
     );
-    assert.equal(hasValidWizardImageSourceFromLocal(b), false);
+    assert.equal(hasValidWizardImageSourceFromLocal(b), true);
   });
 });

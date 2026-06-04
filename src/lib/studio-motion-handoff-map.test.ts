@@ -8,7 +8,7 @@ import {
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 const samplePayload: MotionHandoffPayload = {
-  version: 2,
+  version: 3,
   storyboardId: "sb-1",
   title: "HomeCheff Promo",
   description: "Rotterdam + garden",
@@ -27,6 +27,19 @@ const samplePayload: MotionHandoffPayload = {
       camera: "wide_shot",
       transitionToNext: "",
       durationSeconds: 8,
+      selectedSceneImageId: "img-1",
+      selectedSceneImageUrl: "https://example.com/kitchen.jpg",
+      selectedSceneImagePromptVersion: 1,
+      selectedSceneImageGenerationVersion: 1,
+      sceneImageReference: {
+        sceneImageId: "img-1",
+        sceneId: "scene-1",
+        storyboardId: "sb-1",
+        promptVersion: 1,
+        generationVersion: 1,
+        imageUrl: "https://example.com/kitchen.jpg",
+        thumbnailUrl: "https://example.com/kitchen.jpg",
+      },
       generatedPrompt: "Wide kitchen scene with proud energy.",
       stylePrompt: "Professional commercial quality.",
       continuityPrompt: "Maintain visual consistency across the storyboard sequence.",
@@ -91,5 +104,7 @@ describe("studio motion handoff map", () => {
     assert.equal(state.studioHandoff?.promptStyleProfile, "commercial");
     assert.equal(state.sceneSlots?.[0]?.studioContext?.sceneId, "scene-1");
     assert.equal(state.sceneSlots?.[0]?.studioContext?.generatedPrompt, samplePayload.scenes[0]!.generatedPrompt);
+    assert.equal(state.sceneSlots?.[0]?.image?.imageSource, "studio");
+    assert.equal(state.sceneSlots?.[0]?.image?.remoteWorkingUrl, "https://example.com/kitchen.jpg");
   });
 });

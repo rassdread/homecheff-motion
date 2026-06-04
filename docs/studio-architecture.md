@@ -104,14 +104,19 @@ Characters · Locations · Props · Storyboards — ready for Motion handoff (V6
 - Scene Composer **Generated Image** tab
 - Docs: `docs/studio-scene-image-future.md`, `docs/studio-character-engine-future.md`
 
-## Not in V8
+## V9 deliverables (Motion image import)
 
-- Video or Vidu rendering from scene images
-- Motion wizard automatic image prefill (metadata only on handoff)
+- `MotionHandoffPayload` v3 with resolved scene image URLs
+- Motion wizard auto-loads Studio images (`imageSource: studio`)
+- Refresh from Studio, Studio Image badge, context panel image fields
+- Docs: `docs/studio-motion-image-import-future.md`
 
-## Before Studio V9
+## Not in V9
 
-- Motion import fills slot images from `preferredSceneImageUrl`
+- Vidu or render pipeline changes
+- Automatic sync when Studio storyboard edits without user refresh
+
+## Before Studio V10
 - Async worker queue for bulk scene image generation
 - Multi-reference conditioned image APIs
 

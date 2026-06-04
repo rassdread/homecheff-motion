@@ -18,6 +18,9 @@ export type InstantWizardLocalImage = {
   remoteStorageKey?: string;
   /** True when preview cannot be resolved (missing blob + no remote). */
   previewUnavailable?: boolean;
+  imageSource?: import("@/types/studio-scene-image-reference").WizardImageSource;
+  studioSceneImageId?: string;
+  studioImageReference?: import("@/types/studio-scene-image-reference").StudioSceneImageReference;
 };
 
 export const EMPTY_WIZARD_IMAGE_BLOB = new Blob([], { type: "image/jpeg" });

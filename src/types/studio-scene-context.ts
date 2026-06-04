@@ -1,6 +1,8 @@
 import type { CharacterSnapshot } from "@/types/studio-character-snapshot";
 import type { LocationSnapshot } from "@/types/studio-location-snapshot";
 import type { PropSnapshot } from "@/types/studio-prop-snapshot";
+import type { StudioSceneImageReference } from "@/types/studio-scene-image-reference";
+import type { WizardImageSource } from "@/types/studio-scene-image-reference";
 
 /**
  * Studio metadata preserved on a Motion wizard scene (not used by Vidu yet).
@@ -27,7 +29,11 @@ export type StudioSceneContextMetadata = {
   stylePrompt?: string;
   continuityPrompt?: string;
   promptVersion?: import("@/types/studio-prompt-builder").PromptVersionMetadata;
-  /** V8 — selected generated scene image for future Motion slot prefill. */
+  /** V8+ — selected generated scene image for Motion import. */
   selectedSceneImageId?: string | null;
   preferredSceneImageUrl?: string | null;
+  sceneImageReference?: StudioSceneImageReference | null;
+  imageSource?: WizardImageSource;
+  selectedSceneImagePromptVersion?: number | null;
+  selectedSceneImageGenerationVersion?: number | null;
 };

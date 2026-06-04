@@ -221,6 +221,10 @@ export function hasValidWizardImageSourceFromLocal(image: InstantWizardLocalImag
   if (image.previewUnavailable) {
     return false;
   }
+  const remote = image.remoteWorkingUrl ?? image.remoteThumbnailUrl;
+  if (isValidHttpUrl(remote)) {
+    return true;
+  }
   if (!hasWizardImageBlobPayload(image)) {
     return false;
   }

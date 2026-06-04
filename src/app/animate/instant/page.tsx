@@ -124,6 +124,11 @@ import {
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import { StudioMotionContextPanel } from "@/components/instant/studio-motion-context-panel";
+import { fetchMotionHandoffPayload } from "@/lib/studio-motion-handoff-client";
+import {
+  mergeHandoffIntoWizardSlots,
+  refreshPersistedWizardFromHandoff,
+} from "@/lib/refresh-motion-handoff-in-wizard";
 import { readPersistedWizardState } from "@/lib/instant-premium-wizard-storage";
 import { instantSceneTextsFromDrafts } from "@/lib/instant-scene-text-draft";
 import {
@@ -191,8 +196,14 @@ function sceneSlotsHaveValidImageSources(slots: WizardSceneSlot[]): boolean {
   if (slots.length < MIN_IMAGES) {
     return false;
   }
-  return slots.every(
+  const validCount = slots.filter(
     (slot) => slot.image !== null && hasValidWizardImageSourceFromLocal(slot.image)
+  ).length;
+  if (validCount < MIN_IMAGES) {
+    return false;
+  }
+  return slots.every(
+    (slot) => slot.image === null || hasValidWizardImageSourceFromLocal(slot.image)
   );
 }
 
@@ -205,11 +216,13 @@ function SortableThumb({
   index,
   roleLabel,
   dragLabel,
+  studioBadgeLabel,
 }: {
   item: LocalImage;
   index: number;
   roleLabel: string;
   dragLabel: string;
+  studioBadgeLabel: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -228,6 +241,11 @@ function SortableThumb({
     >
       <div className="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm">
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-100">
+          {item.imageSource === "studio" ? (
+            <span className="absolute left-1 top-1 z-10 rounded bg-[#0067B1] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+              {studioBadgeLabel}
+            </span>
+          ) : null}
           <SafePreviewImage
             image={toWizardPreviewInput(item)}
             alt=""
@@ -298,6 +316,10 @@ export default function InstantPremiumPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [wizardReady, setWizardReady] = useState(false);
   const [studioHandoffTitle, setStudioHandoffTitle] = useState<string | undefined>();
+  const [studioHandoffStoryboardId, setStudioHandoffStoryboardId] = useState<string | null>(
+    null
+  );
+  const [refreshingStudioHandoff, setRefreshingStudioHandoff] = useState(false);
   const imagesRef = useRef<LocalImage[]>([]);
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const images = useMemo(() => listAttachedImages(sceneSlots), [sceneSlots]);
@@ -338,6 +360,10 @@ export default function InstantPremiumPage() {
     () => sceneSlots.find((slot) => slot.sceneId === expandedSceneId)?.studioContext ?? null,
     [sceneSlots, expandedSceneId]
   );
+  const activeStudioSlotMissingImage = useMemo(() => {
+    const slot = sceneSlots.find((s) => s.sceneId === expandedSceneId);
+    return Boolean(slot?.studioContext && !slot.image);
+  }, [sceneSlots, expandedSceneId]);
   const showStoryboardComposer =
     instantMode === "story" &&
     (attachedImageCount >= MIN_IMAGES || hasStudioImportedScenes);
@@ -503,6 +529,41 @@ export default function InstantPremiumPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const handleRefreshFromStudio = useCallback(async () => {
+    if (!studioHandoffStoryboardId) {
+      return;
+    }
+    if (
+      !window.confirm(t("motion.handoff.refreshConfirm"))
+    ) {
+      return;
+    }
+    setRefreshingStudioHandoff(true);
+    setError("");
+    const res = await fetchMotionHandoffPayload(studioHandoffStoryboardId);
+    if (!res.ok) {
+      setRefreshingStudioHandoff(false);
+      setError((res.data as { error?: string }).error ?? t("motion.handoff.error.loadFailed"));
+      return;
+    }
+    try {
+      refreshPersistedWizardFromHandoff(res.data.payload);
+      setSceneSlots((prev) =>
+        syncAutoEmotionsForSceneSlots(
+          mergeHandoffIntoWizardSlots(prev, res.data.payload, transitionSeconds),
+          instantMode
+        )
+      );
+      setMotionText(res.data.payload.description.trim() || res.data.payload.title.trim());
+      setStudioHandoffTitle(res.data.payload.title);
+      setToastMessage(t("motion.handoff.refreshDone"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("motion.handoff.error.importFailed"));
+    } finally {
+      setRefreshingStudioHandoff(false);
+    }
+  }, [studioHandoffStoryboardId, t, transitionSeconds, instantMode]);
+
   const onDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) {
@@ -551,6 +612,7 @@ export default function InstantPremiumPage() {
               sizeBytes: p.optimizedBlob.size,
               bakedText: { ...INSTANT_WIZARD_DEFAULT_BAKED_TEXT },
               previewUnavailable: registered === null,
+              imageSource: "manual",
             } satisfies LocalImage;
           })
         );
@@ -714,6 +776,7 @@ export default function InstantPremiumPage() {
       setSceneSlots(syncAutoEmotionsForSceneSlots(saved.sceneSlots, saved.instantMode));
       const handoff = readPersistedWizardState()?.studioHandoff;
       setStudioHandoffTitle(handoff?.storyboardTitle);
+      setStudioHandoffStoryboardId(handoff?.storyboardId ?? null);
       setStep(saved.step);
       setStylePreset(saved.stylePreset);
       setMotionText(saved.motionText);
@@ -1556,9 +1619,23 @@ export default function InstantPremiumPage() {
                 {showStoryboardComposer ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
                     {hasStudioImportedScenes && studioHandoffTitle ? (
-                      <p className="mb-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2 text-xs text-[#0067B1]">
-                        {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
-                      </p>
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">
+                        <p className="text-xs text-[#0067B1]">
+                          {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
+                        </p>
+                        {studioHandoffStoryboardId ? (
+                          <button
+                            type="button"
+                            disabled={refreshingStudioHandoff}
+                            onClick={() => void handleRefreshFromStudio()}
+                            className="rounded-full border border-[#0067B1]/40 px-3 py-1 text-xs font-semibold text-[#0067B1] disabled:opacity-50"
+                          >
+                            {refreshingStudioHandoff
+                              ? t("motion.handoff.refreshing")
+                              : t("motion.handoff.refreshFromStudio")}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                     <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
                     <p className="mt-1 text-xs text-zinc-500">{t("instant.step2.description")}</p>
@@ -1578,6 +1655,7 @@ export default function InstantPremiumPage() {
                                 `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
                               )}
                               dragLabel={t("instant.step2.drag")}
+                              studioBadgeLabel={t("motion.handoff.studioImageBadge")}
                             />
                           ))}
                         </div>
@@ -1604,6 +1682,11 @@ export default function InstantPremiumPage() {
                           onDeleteScene={handleStoryboardDeleteScene}
                           textStyleEditorMode="optional"
                         />
+                        {activeStudioSlotMissingImage ? (
+                          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                            {t("motion.handoff.noStudioImage")}
+                          </p>
+                        ) : null}
                         {activeStudioContext ? (
                           <StudioMotionContextPanel
                             context={activeStudioContext}

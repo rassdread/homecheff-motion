@@ -17,6 +17,13 @@ export function StudioMotionContextPanel({
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
 
+  const imageSourceLabel =
+    context.imageSource === "studio"
+      ? t("motion.handoff.context.imageSourceStudio")
+      : context.imageSource === "manual"
+        ? t("motion.handoff.context.imageSourceManual")
+        : "—";
+
   const rows: Array<{ label: string; value: string }> = [
     {
       label: t("motion.handoff.context.location"),
@@ -41,6 +48,34 @@ export function StudioMotionContextPanel({
     {
       label: t("motion.handoff.context.camera"),
       value: studioScenePresetLabel(t, "camera", context.camera),
+    },
+    {
+      label: t("motion.handoff.context.selectedSceneImage"),
+      value: context.sceneImageReference?.imageUrl
+        ? context.sceneImageReference.imageUrl
+        : context.preferredSceneImageUrl ?? "—",
+    },
+    {
+      label: t("motion.handoff.context.promptVersion"),
+      value:
+        context.selectedSceneImagePromptVersion != null
+          ? `v${context.selectedSceneImagePromptVersion}`
+          : context.promptVersion
+            ? `v${context.promptVersion.promptVersion}`
+            : "—",
+    },
+    {
+      label: t("motion.handoff.context.generationVersion"),
+      value:
+        context.selectedSceneImageGenerationVersion != null
+          ? String(context.selectedSceneImageGenerationVersion)
+          : context.sceneImageReference
+            ? String(context.sceneImageReference.generationVersion)
+            : "—",
+    },
+    {
+      label: t("motion.handoff.context.imageSource"),
+      value: imageSourceLabel,
     },
   ];
 
@@ -67,7 +102,7 @@ export function StudioMotionContextPanel({
               <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {row.label}
               </dt>
-              <dd className="mt-0.5 text-zinc-800">{row.value}</dd>
+              <dd className="mt-0.5 break-all text-zinc-800">{row.value}</dd>
             </div>
           ))}
         </dl>

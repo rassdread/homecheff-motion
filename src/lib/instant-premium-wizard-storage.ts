@@ -84,6 +84,10 @@ export type PersistedWizardImage = {
   remoteThumbnailUrl?: string;
   remoteStorageKey?: string;
   bakedText: SerializedBakedText;
+  /** studio = imported from Studio handoff; manual = user upload/replace. */
+  imageSource?: import("@/types/studio-scene-image-reference").WizardImageSource;
+  studioSceneImageId?: string;
+  studioImageReference?: import("@/types/studio-scene-image-reference").StudioSceneImageReference;
 };
 
 export type SerializedBakedText = {
@@ -141,6 +145,7 @@ export type PersistedWizardState = {
     storyboardId: string;
     storyboardTitle: string;
     promptStyleProfile?: string;
+    handoffVersion?: number;
     importedAt: string;
   };
 };
