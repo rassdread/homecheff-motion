@@ -1213,6 +1213,7 @@ export const en: LocaleSchema = {
   "videos.untitledProject": "Untitled video",
   "videos.bundle.language": "Language",
   "videos.bundle.version": "Version",
+  "videos.bundle.duration": "~{seconds}s",
   "videos.bundle.latest": "Latest: {label}",
   "videos.bundle.languages": "{labels}",
   "videos.rename.action": "Rename project",

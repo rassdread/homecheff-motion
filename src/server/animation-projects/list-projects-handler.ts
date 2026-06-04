@@ -225,7 +225,15 @@ export async function listAnimationProjectsForUser(params: {
       thumbnailUrl: bundle.thumbnailUrl,
       status: bundle.status,
       sourceProjectId: bundle.sourceProjectId,
-      activeProjectId: bundle.members[0]?.id ?? bundle.memberProjectIds[0] ?? "",
+      activeProjectId:
+        (bundle.catalog.defaultSelectionKey
+          ? bundle.catalog.slotsByLanguage[bundle.catalog.defaultLanguageCode]?.find(
+              (s) => s.selectionKey === bundle.catalog.defaultSelectionKey
+            )?.projectId
+          : null) ??
+        bundle.members[0]?.id ??
+        bundle.memberProjectIds[0] ??
+        "",
       catalog: {
         languages: bundle.catalog.languages,
         slotsByLanguage: Object.fromEntries(
@@ -242,7 +250,13 @@ export async function listAnimationProjectsForUser(params: {
               status: slot.status,
               finalVideoUrl: slot.finalVideoUrl,
               cleanVideoUrl: slot.cleanVideoUrl,
+              thumbnailUrl: slot.thumbnailUrl,
+              thumbnailFallbackUrl: slot.thumbnailFallbackUrl,
+              durationSeconds: slot.durationSeconds,
               kind: slot.kind,
+              createdAt: slot.createdAt,
+              renderVersionId: slot.renderVersionId,
+              languageExportId: slot.languageExportId,
             })),
           ])
         ),

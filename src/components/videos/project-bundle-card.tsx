@@ -5,11 +5,8 @@ import { useMemo, useState } from "react";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { VideoPreview } from "@/components/ui/video-preview";
 import { MotionVersionSelectors } from "@/components/videos/motion-version-selectors";
-import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
-import {
-  isProjectPlayablyComplete,
-  resolveProjectDisplayStatus,
-} from "@/lib/project-display-status";
+import { resolveBundleDisplayThumbnail } from "@/lib/bundle-thumbnail-cache";
+import { resolveSelectedBundleVersion } from "@/lib/bundle-selected-version";
 import { useActiveTranslator } from "@/i18n/client";
 import type { ProjectBundleListItemResponse } from "@/types/animation-api";
 
@@ -33,6 +30,7 @@ export function ProjectBundleCard({
   onPlaybackOk,
 }: Props) {
   const t = useActiveTranslator();
+
   const [languageCode, setLanguageCode] = useState(bundle.catalog.defaultLanguageCode);
   const [selectionKey, setSelectionKey] = useState(
     bundle.catalog.defaultSelectionKey ??
@@ -40,40 +38,54 @@ export function ProjectBundleCard({
       null
   );
 
-  const selectedSlot = useMemo(() => {
-    const slots = bundle.catalog.slotsByLanguage[languageCode] ?? [];
-    return slots.find((s) => s.selectionKey === selectionKey) ?? slots[slots.length - 1] ?? null;
-  }, [bundle.catalog.slotsByLanguage, languageCode, selectionKey]);
+  const selectedBundleVersion = useMemo(
+    () =>
+      resolveSelectedBundleVersion({
+        bundleKey: bundle.bundleKey,
+        catalog: bundle.catalog,
+        languageCode,
+        selectionKey,
+        fallbackBundleThumbnail: bundle.thumbnailUrl,
+      }),
+    [bundle.bundleKey, bundle.catalog, bundle.thumbnailUrl, languageCode, selectionKey]
+  );
 
-  const activeProjectId = selectedSlot?.projectId ?? bundle.activeProjectId;
-  const finalUrl = selectedSlot?.finalVideoUrl?.trim() ?? null;
-  const thumb = bundle.thumbnailUrl;
-  const playKey = `${bundle.bundleKey}:${selectionKey ?? "none"}`;
+  const displayThumbnail = useMemo(() => {
+    if (!selectedBundleVersion) {
+      return bundle.thumbnailUrl;
+    }
+    return resolveBundleDisplayThumbnail({
+      selectionKey: selectedBundleVersion.selectionKey,
+      thumbnailUrl: selectedBundleVersion.thumbnailUrl,
+      fallbackBundleThumbnail: bundle.thumbnailUrl,
+    });
+  }, [selectedBundleVersion, bundle.thumbnailUrl]);
 
-  const displayStatus = selectedSlot
-    ? resolveProjectDisplayStatus({
-        projectStatus: selectedSlot.status,
-        exportStatus: selectedSlot.status,
-        outputVideoUrl: finalUrl,
-      })
-    : bundle.status;
-
-  const playable = isProjectPlayablyComplete({
-    projectStatus: displayStatus,
-    exportStatus: displayStatus,
-    outputVideoUrl: finalUrl,
-  });
+  const displayStatus = selectedBundleVersion?.status ?? bundle.status;
+  const finalUrl = selectedBundleVersion?.finalVideoUrl ?? null;
+  const playable = selectedBundleVersion?.playable ?? false;
+  const playKey = selectedBundleVersion?.playKey ?? `${bundle.bundleKey}:none`;
+  const itemHref = selectedBundleVersion?.openHref ?? `/videos/${encodeURIComponent(bundle.activeProjectId)}`;
+  const downloadUrl =
+    selectedBundleVersion?.downloadUrl ??
+    `/api/animations/projects/${encodeURIComponent(bundle.activeProjectId)}/download`;
 
   const failed = displayStatus === "failed";
-  const itemHref = `/videos/${encodeURIComponent(activeProjectId)}`;
 
   return (
     <li className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm">
       <Link href={itemHref} prefetch={false} className="block shrink-0">
         <div className="relative aspect-video bg-zinc-100">
-          {thumb ? (
+          {displayThumbnail ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+            <img
+              key={displayThumbnail}
+              src={displayThumbnail}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-zinc-400">
               {t("videos.title")}
@@ -86,6 +98,11 @@ export function ProjectBundleCard({
                 ? t("videos.status.failed")
                 : t("videos.status.generating")}
           </span>
+          {selectedBundleVersion ?
+            <span className="absolute bottom-2 right-2 rounded-full border border-white/80 bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white">
+              {selectedBundleVersion.languageLabel} · {selectedBundleVersion.versionLabel}
+            </span>
+          : null}
         </div>
       </Link>
 
@@ -98,7 +115,14 @@ export function ProjectBundleCard({
             <p className="mt-0.5 text-xs text-zinc-500">
               <ClientFormattedDateTime iso={bundle.createdAt} />
             </p>
-            {bundle.catalog.languages.length > 0 ? (
+            {selectedBundleVersion?.durationSeconds ?
+              <p className="mt-0.5 text-xs text-zinc-600">
+                {t("videos.bundle.duration", {
+                  seconds: String(Math.round(selectedBundleVersion.durationSeconds)),
+                })}
+              </p>
+            : null}
+            {bundle.catalog.languages.length > 0 ?
               <ul className="mt-1 space-y-0.5">
                 {bundle.catalog.languages.map((lang) => (
                   <li key={lang.code} className="text-xs text-zinc-600">
@@ -106,16 +130,11 @@ export function ProjectBundleCard({
                   </li>
                 ))}
               </ul>
-            ) : bundle.languagesLabel ? (
+            : bundle.languagesLabel ?
               <p className="mt-1 text-xs text-zinc-600">{bundle.languagesLabel}</p>
-            ) : null}
-            {bundle.latestVersionLabel ? (
-              <p className="text-xs font-medium text-emerald-900">
-                {t("videos.bundle.latest", { label: bundle.latestVersionLabel })}
-              </p>
-            ) : null}
+            : null}
           </div>
-          {onRename ? (
+          {onRename ?
             <button
               type="button"
               onClick={onRename}
@@ -124,7 +143,7 @@ export function ProjectBundleCard({
             >
               ⋯
             </button>
-          ) : null}
+          : null}
         </div>
 
         <MotionVersionSelectors
@@ -144,25 +163,25 @@ export function ProjectBundleCard({
           versionSelectId={`ver-${bundle.bundleKey}`}
         />
 
-        {playable && finalUrl && !failed ? (
+        {playable && finalUrl && !failed ?
           <div className="mt-2 space-y-2 border-t border-zinc-100 pt-3">
-            {expandedVideoKey === playKey ? (
+            {expandedVideoKey === playKey ?
               <VideoPreview
-                key={finalUrl}
+                key={`${playKey}:${finalUrl}`}
                 variant="version"
                 frameClassName="mt-0"
                 controls
                 playsInline
                 preload="none"
-                poster={thumb ?? undefined}
+                poster={displayThumbnail ?? undefined}
                 onError={() => onPlaybackError(playKey)}
                 onLoadedData={() => onPlaybackOk(playKey)}
                 src={finalUrl}
               />
-            ) : null}
-            {playbackErrorKey === playKey ? (
+            : null}
+            {playbackErrorKey === playKey ?
               <p className="text-xs text-red-700">{t("videos.playbackError")}</p>
-            ) : null}
+            : null}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -172,7 +191,7 @@ export function ProjectBundleCard({
                 {expandedVideoKey === playKey ? t("videos.closePlayer") : t("videos.play")}
               </button>
               <a
-                href={animationProjectDownloadUrl(activeProjectId)}
+                href={downloadUrl}
                 download
                 className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100"
               >
@@ -187,9 +206,9 @@ export function ProjectBundleCard({
               </Link>
             </div>
           </div>
-        ) : failed ? (
+        : failed ?
           <p className="text-xs font-medium text-red-700">{t("videos.status.failed")}</p>
-        ) : null}
+        : null}
 
         <div className="mt-auto border-t border-zinc-100 pt-3 text-xs">
           <Link href={itemHref} prefetch={false} className="font-medium text-emerald-800 underline">

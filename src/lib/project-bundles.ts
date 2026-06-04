@@ -4,6 +4,7 @@
 
 import {
   buildMotionVersionCatalogForProject,
+  findMotionVersionSlot,
   formatBundleLanguagesLabel,
   formatBundleLatestVersionLabel,
   mergeMotionVersionCatalogs,
@@ -87,6 +88,9 @@ export function buildProjectBundleFromMembers(
       exportStatus: member.latestExport?.status ?? null,
       projectStatus: member.status,
       projectCleanUrl: member.instantCleanFinalVideoUrl ?? null,
+      thumbnailUrl: member.thumbnailUrl,
+      thumbnailFallbackUrl: member.thumbnailFallbackUrl,
+      durationSeconds: member.estimatedTotalDurationSeconds,
       renderVersions: member.renderVersions ?? [],
       languageExports: member.languageExports ?? [],
       locale,
@@ -106,6 +110,13 @@ export function buildProjectBundleFromMembers(
     sorted[0]!.createdAt
   );
 
+  const defaultSlot = catalog.defaultSelectionKey
+    ? findMotionVersionSlot(catalog, catalog.defaultSelectionKey)
+    : null;
+  const defaultThumb = defaultSlot
+    ? defaultSlot.thumbnailUrl?.trim() || defaultSlot.thumbnailFallbackUrl?.trim() || null
+    : null;
+
   return {
     bundleKey,
     displayTitle,
@@ -119,8 +130,10 @@ export function buildProjectBundleFromMembers(
     latestVersionLabel,
     createdAt,
     updatedAt: lead.updatedAt,
-    thumbnailUrl: lead.thumbnailUrl?.trim() || lead.thumbnailFallbackUrl?.trim() || null,
-    status: lead.status,
+    thumbnailUrl:
+      defaultThumb ??
+      (lead.thumbnailUrl?.trim() || lead.thumbnailFallbackUrl?.trim() || null),
+    status: defaultSlot?.status ?? lead.status,
     sourceProjectId: lead.sourceProjectId ?? null,
   };
 }

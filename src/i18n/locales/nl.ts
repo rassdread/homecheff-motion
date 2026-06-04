@@ -1213,6 +1213,7 @@ export const nl = {
   "videos.untitledProject": "Naamloze video",
   "videos.bundle.language": "Taal",
   "videos.bundle.version": "Versie",
+  "videos.bundle.duration": "~{seconds}s",
   "videos.bundle.latest": "Laatste: {label}",
   "videos.bundle.languages": "{labels}",
   "videos.rename.action": "Hernoem project",

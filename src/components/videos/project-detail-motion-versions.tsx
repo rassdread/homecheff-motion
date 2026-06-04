@@ -138,7 +138,13 @@ export function ProjectDetailMotionVersions({
               status: slot.status,
               finalVideoUrl: slot.finalVideoUrl,
               cleanVideoUrl: slot.cleanVideoUrl,
+              thumbnailUrl: slot.thumbnailUrl,
+              thumbnailFallbackUrl: slot.thumbnailFallbackUrl,
+              durationSeconds: slot.durationSeconds,
               kind: slot.kind,
+              createdAt: slot.createdAt,
+              renderVersionId: slot.renderVersionId,
+              languageExportId: slot.languageExportId,
             })),
           ])
         ),

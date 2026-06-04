@@ -293,7 +293,13 @@ export type ProjectBundleListItemResponse = {
         status: string;
         finalVideoUrl: string | null;
         cleanVideoUrl: string | null;
-        kind: string;
+        thumbnailUrl: string | null;
+        thumbnailFallbackUrl: string | null;
+        durationSeconds: number | null;
+        kind: "render" | "language_export" | "baseline";
+        createdAt: string | null;
+        renderVersionId?: string;
+        languageExportId?: string;
       }>
     >;
     defaultLanguageCode: string;

@@ -20,6 +20,11 @@ export type MotionVersionSlot = {
   status: string;
   finalVideoUrl: string | null;
   cleanVideoUrl: string | null;
+  /** Gallery card preview for this slot (member project thumbnail). */
+  thumbnailUrl: string | null;
+  thumbnailFallbackUrl: string | null;
+  /** Estimated output duration when known (seconds). */
+  durationSeconds: number | null;
   createdAt: string | null;
   kind: "render" | "language_export" | "baseline";
   renderVersionId?: string;
@@ -76,10 +81,25 @@ export function buildMotionVersionCatalogForProject(input: {
   exportStatus: string | null;
   projectStatus: string;
   projectCleanUrl: string | null;
+  thumbnailUrl?: string | null;
+  thumbnailFallbackUrl?: string | null;
+  durationSeconds?: number | null;
   renderVersions: MotionRenderVersionRow[];
   languageExports: MotionLanguageExportRow[];
   locale?: "en" | "nl";
 }): MotionVersionCatalog {
+  const thumb =
+    input.thumbnailUrl?.trim() || input.thumbnailFallbackUrl?.trim() || null;
+  const thumbFallback = input.thumbnailFallbackUrl?.trim() || null;
+  const duration =
+    typeof input.durationSeconds === "number" && Number.isFinite(input.durationSeconds)
+      ? input.durationSeconds
+      : null;
+  const slotMedia = {
+    thumbnailUrl: thumb,
+    thumbnailFallbackUrl: thumbFallback,
+    durationSeconds: duration,
+  };
   const slotsByLanguage: Record<string, MotionVersionSlot[]> = {};
   const locale = input.locale ?? "nl";
   const primaryCode = MOTION_PRIMARY_LANGUAGE_CODE;
@@ -107,6 +127,7 @@ export function buildMotionVersionCatalogForProject(input: {
         status: row.status,
         finalVideoUrl: row.finalVideoUrl?.trim() ?? null,
         cleanVideoUrl: clean,
+        ...slotMedia,
         createdAt: row.createdAt,
         kind: "render",
         renderVersionId: row.id,
@@ -133,6 +154,7 @@ export function buildMotionVersionCatalogForProject(input: {
         status: input.exportStatus ?? input.projectStatus,
         finalVideoUrl: input.exportOutputUrl.trim(),
         cleanVideoUrl: clean,
+        ...slotMedia,
         createdAt: null,
         kind: "baseline",
       },
@@ -163,6 +185,7 @@ export function buildMotionVersionCatalogForProject(input: {
       status: row.status,
       finalVideoUrl: row.outputVideoUrl?.trim() ?? null,
       cleanVideoUrl: row.sourceCleanVideoUrl?.trim() ?? null,
+      ...slotMedia,
       createdAt: row.createdAt,
       kind: "language_export",
       languageExportId: row.id,
