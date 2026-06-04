@@ -44,6 +44,36 @@ describe("full-rerender-audit", () => {
     );
   });
 
+  it("stores imageChanges on audit entry", () => {
+    const merged = mergeFullRerenderAudit(null, {
+      rebuildType: "full_rerender",
+      status: "running",
+      startedAt: "2026-06-03T12:00:00.000Z",
+      rerenderSource: "editor",
+      imageChanges: {
+        beforeImageCount: 3,
+        afterImageCount: 4,
+        reordered: false,
+        addedCount: 1,
+        removedCount: 0,
+        replacedCount: 1,
+      },
+      newProviderJobsCreated: true,
+    });
+    assert.equal(readFullRerenderAudit(merged)?.imageChanges?.afterImageCount, 4);
+  });
+
+  it("stores rerenderSource on audit entry", () => {
+    const merged = mergeFullRerenderAudit(null, {
+      rebuildType: "full_rerender",
+      status: "running",
+      startedAt: "2026-06-03T12:00:00.000Z",
+      rerenderSource: "quick",
+      newProviderJobsCreated: true,
+    });
+    assert.equal(readFullRerenderAudit(merged)?.rerenderSource, "quick");
+  });
+
   it("marks failed rerender and clears running state", () => {
     const running = mergeFullRerenderAudit(null, {
       rebuildType: "full_rerender",

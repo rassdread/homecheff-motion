@@ -179,6 +179,20 @@ export async function postFullRerenderInstantProject(
     instantTransitionSeconds?: number;
     instantSelectedChips?: unknown;
     versionNote?: string;
+    rerenderSource?: "quick" | "editor";
+    imageChanges?: {
+      sequence: Array<{
+        imageId?: string;
+        fileName: string;
+        previewUrl: string;
+        workingImageUrl: string;
+        workingStorageKey?: string;
+        thumbnailUrl?: string;
+        mimeType?: string;
+        sizeBytes?: number;
+      }>;
+      replacedImageIds?: string[];
+    };
   }
 ): Promise<{
   ok: boolean;
@@ -191,7 +205,10 @@ export async function postFullRerenderInstantProject(
     Boolean(options?.sceneTexts) ||
     Boolean(options?.instantUserIntent?.trim()) ||
     typeof options?.instantTransitionSeconds === "number" ||
-    Boolean(options?.versionNote?.trim());
+    Boolean(options?.versionNote?.trim()) ||
+    options?.rerenderSource === "quick" ||
+    options?.rerenderSource === "editor" ||
+    Boolean(options?.imageChanges?.sequence?.length);
 
   const result = await fetchSameOriginJson<FullRerenderResponse & { error?: string }>(
     fullRerenderPath(projectId),
@@ -205,6 +222,8 @@ export async function postFullRerenderInstantProject(
             instantTransitionSeconds: options?.instantTransitionSeconds,
             instantSelectedChips: options?.instantSelectedChips,
             versionNote: options?.versionNote?.trim() || undefined,
+            rerenderSource: options?.rerenderSource,
+            imageChanges: options?.imageChanges,
           })
         : undefined,
     }

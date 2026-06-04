@@ -3,14 +3,26 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
+import { FullRerenderImageEditor } from "@/components/instant/full-rerender-image-editor";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { useActiveTranslator } from "@/i18n/client";
-import { buildSceneTextDraftsFromProject } from "@/lib/instant-scene-text-editor";
+import { parseInstantMode, type InstantMode } from "@/lib/instant-premium-mode-types";
 import { instantSceneTextFromDraft } from "@/lib/instant-scene-text-draft";
+import {
+  buildFullRerenderImageSequencePayload,
+  buildFullRerenderSlotsFromProject,
+  countFullRerenderAttachedImages,
+  fullRerenderSlotsToStoryboardImages,
+  moveFullRerenderSlotAt,
+  patchFullRerenderSceneTextAt,
+  validateFullRerenderSlotsForRender,
+} from "@/lib/full-rerender-editor-slots";
+import type { FullRerenderEditorSlot } from "@/lib/full-rerender-editor-types";
 import {
   instantExportUserErrorMessage,
   postFullRerenderInstantProject,
 } from "@/lib/instant-export-client";
+import { isInstantPremiumTestMode } from "@/lib/quick-full-rerender";
 import type { FullRerenderResponse } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
@@ -22,19 +34,14 @@ type Props = {
   instantSceneTexts: unknown;
   instantUserIntent?: string | null;
   instantTransitionSeconds?: number;
+  instantMode?: string | null;
   images?: StoryboardImage[];
   imageCount?: number;
+  uploadRole?: string;
   onSuccess?: (response: FullRerenderResponse) => void;
   onError?: (message: string) => void;
   onRenderStart?: () => void;
 };
-
-function isInstantPremiumTestMode(): boolean {
-  if (typeof document === "undefined") {
-    return false;
-  }
-  return document.body.dataset.instantPremiumMode === "test";
-}
 
 function FullRerenderEditorModalContent({
   onClose,
@@ -42,16 +49,28 @@ function FullRerenderEditorModalContent({
   instantSceneTexts,
   instantUserIntent,
   instantTransitionSeconds = 5,
+  instantMode: instantModeRaw,
   images = [],
-  frameCount,
+  uploadRole = "user",
   onSuccess,
   onError,
   onRenderStart,
-}: Omit<Props, "open"> & { frameCount: number }) {
+}: Omit<Props, "open" | "imageCount">) {
   const t = useActiveTranslator();
   const router = useRouter();
-  const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>(() =>
-    buildSceneTextDraftsFromProject(instantSceneTexts, frameCount)
+  const instantMode = parseInstantMode(instantModeRaw);
+  const initialImageIds = useMemo(() => images.map((img) => img.id), [images]);
+
+  const [slots, setSlots] = useState<FullRerenderEditorSlot[]>(() =>
+    buildFullRerenderSlotsFromProject({
+      images: images.map((img) => ({
+        id: img.id,
+        previewUrl: img.previewUrl,
+        fileName: null,
+      })),
+      instantSceneTexts,
+      transitionSeconds: instantTransitionSeconds,
+    })
   );
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
   const [busy, setBusy] = useState(false);
@@ -60,13 +79,29 @@ function FullRerenderEditorModalContent({
   const [userIntent, setUserIntent] = useState(instantUserIntent ?? "");
   const [transitionSeconds, setTransitionSeconds] = useState(instantTransitionSeconds);
 
-  const editorImages = useMemo((): StoryboardImage[] => {
-    return Array.from({ length: frameCount }, (_, index) =>
-      images[index] ?? { id: `full-rerender-frame-${index}`, previewUrl: "" }
-    );
-  }, [frameCount, images]);
+  const sceneCount = Math.max(countFullRerenderAttachedImages(slots), slots.length, 1);
+  const editorImages = useMemo(
+    () => fullRerenderSlotsToStoryboardImages(slots),
+    [slots]
+  );
+  const sceneTexts = useMemo(() => slots.map((slot) => slot.text), [slots]);
+
+  const replacedImageIds = useMemo(
+    () =>
+      slots.flatMap((slot) =>
+        slot.image?.isReplaced && slot.image.id && !slot.image.isNew ? [slot.image.id] : []
+      ),
+    [slots]
+  );
 
   const handleRender = useCallback(async () => {
+    const validationError = validateFullRerenderSlotsForRender({ slots, instantMode });
+    if (validationError) {
+      setError(validationError);
+      onError?.(validationError);
+      return;
+    }
+
     const confirmMessage = isInstantPremiumTestMode()
       ? t("instant.fullRerender.confirmPromptTestMode")
       : t("instant.fullRerender.confirmPrompt");
@@ -78,14 +113,20 @@ function FullRerenderEditorModalContent({
     setError("");
     onRenderStart?.();
     try {
-      const payload = sceneTexts.map((scene, index) =>
-        instantSceneTextFromDraft(scene, index, sceneTexts.length)
+      const payload = slots.map((scene, index) =>
+        instantSceneTextFromDraft(scene.text, index, slots.length)
       );
+      const imageChanges = buildFullRerenderImageSequencePayload(slots);
       const result = await postFullRerenderInstantProject(projectId, {
         sceneTexts: payload,
         instantUserIntent: userIntent,
         instantTransitionSeconds: transitionSeconds,
         versionNote: versionNote.trim() || undefined,
+        rerenderSource: "editor",
+        imageChanges: {
+          sequence: imageChanges.sequence,
+          replacedImageIds,
+        },
       });
       if (result.networkError) {
         const msg = instantExportUserErrorMessage({
@@ -121,11 +162,13 @@ function FullRerenderEditorModalContent({
       setBusy(false);
     }
   }, [
-    sceneTexts,
+    slots,
+    instantMode,
     projectId,
     versionNote,
     userIntent,
     transitionSeconds,
+    replacedImageIds,
     onRenderStart,
     onSuccess,
     onClose,
@@ -144,12 +187,23 @@ function FullRerenderEditorModalContent({
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:rounded-2xl">
         <header className="border-b border-zinc-100 px-4 py-3 sm:px-6">
           <h2 id="full-rerender-title" className="text-lg font-semibold text-zinc-900">
-            {t("instant.fullRerender.title")}
+            {t("instant.fullRerender.editorTitle")}
           </h2>
-          <p className="mt-1 text-sm text-zinc-600">{t("instant.fullRerender.subtitle")}</p>
+          <p className="mt-1 text-sm text-zinc-600">{t("instant.fullRerender.editorSubtitle")}</p>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          <FullRerenderImageEditor
+            slots={slots}
+            onSlotsChange={setSlots}
+            initialImageIds={initialImageIds}
+            initialPreviewUrls={images.map((img) => img.previewUrl)}
+            instantMode={instantMode}
+            transitionSeconds={transitionSeconds}
+            uploadRole={uploadRole}
+            disabled={busy}
+          />
+
           <label className="mb-4 block text-sm text-zinc-700">
             <span className="font-medium">{t("instant.fullRerender.versionNoteLabel")}</span>
             <input
@@ -191,39 +245,38 @@ function FullRerenderEditorModalContent({
           : null}
 
           <StoryboardEditorLegacy
-            sceneIds={sceneTexts.map((_, index) => `full-rerender-${index}`)}
+            sceneIds={slots.map((slot) => slot.sceneId)}
             images={editorImages}
-            imageCount={frameCount}
+            imageCount={sceneCount}
             sceneTexts={sceneTexts}
             expandedIndex={expandedIndex}
             onExpandedIndexChange={setExpandedIndex}
             textStyleEditorMode="always"
             onSceneChange={(index, patch) =>
-              setSceneTexts((prev) =>
-                prev.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row))
-              )
+              setSlots((prev) => patchFullRerenderSceneTextAt(prev, index, patch))
             }
-            onMoveScene={() => undefined}
+            onMoveScene={(index, direction) => {
+              const target = direction === "up" ? index - 1 : index + 1;
+              setSlots((prev) => moveFullRerenderSlotAt(prev, index, direction));
+              if (target >= 0) {
+                setExpandedIndex(target);
+              }
+            }}
             onDeleteScene={() => undefined}
             onDuplicateTextFromPrevious={() => undefined}
             onClearText={(index) =>
-              setSceneTexts((prev) =>
-                prev.map((row, rowIndex) =>
-                  rowIndex === index ?
-                    {
-                      ...row,
-                      heroText: "",
-                      title: "",
-                      subtitle: "",
-                      extraLines: [],
-                      accentWords: "",
-                      lines: [],
-                      heroFinaleText: "",
-                      finaleFooter: "",
-                      overlayLayerStyles: {},
-                    }
-                  : row
-                )
+              setSlots((prev) =>
+                patchFullRerenderSceneTextAt(prev, index, {
+                  heroText: "",
+                  title: "",
+                  subtitle: "",
+                  extraLines: [],
+                  accentWords: "",
+                  lines: [],
+                  heroFinaleText: "",
+                  finaleFooter: "",
+                  overlayLayerStyles: {},
+                })
               )
             }
           />
@@ -242,9 +295,9 @@ function FullRerenderEditorModalContent({
             type="button"
             onClick={() => void handleRender()}
             disabled={busy}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="rounded-lg bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {busy ? t("instant.fullRerender.busy") : t("instant.fullRerender.confirm")}
+            {busy ? t("instant.fullRerender.busy") : t("projectDetail.rerenderChoices.newVersion.cta")}
           </button>
         </footer>
       </div>
@@ -253,9 +306,8 @@ function FullRerenderEditorModalContent({
 }
 
 export function FullRerenderEditorModal(props: Props) {
-  const frameCount = Math.max(props.imageCount ?? props.images?.length ?? 0, 1);
   if (!props.open) {
     return null;
   }
-  return <FullRerenderEditorModalContent {...props} frameCount={frameCount} />;
+  return <FullRerenderEditorModalContent {...props} />;
 }

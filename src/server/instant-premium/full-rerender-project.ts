@@ -4,6 +4,7 @@ import {
   markFullRerenderAuditFailed,
   mergeFullRerenderAudit,
   type FullRerenderAuditEntry,
+  type FullRerenderSource,
   type FullRerenderTransitionArchive,
 } from "@/lib/full-rerender-audit";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
@@ -14,6 +15,7 @@ import { persistInstantSceneTextsForProject } from "@/server/instant-premium/per
 import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
 import { isInstantVideoRepairInProgress } from "@/server/instant-premium/start-instant-video-repair";
 import { getInstantPremiumStatus } from "@/server/instant-premium/status-service";
+import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 export const FULL_RERENDER_ALREADY_RUNNING = "FULL_RERENDER_ALREADY_RUNNING";
@@ -103,8 +105,11 @@ export async function fullRerenderInstantPremiumProject(params: {
   isAdmin?: boolean;
   sceneTexts?: unknown;
   versionNote?: string;
+  rerenderSource?: FullRerenderSource;
+  imageChangeAudit?: FullRerenderImageChangeAudit | null;
 }): Promise<FullRerenderProjectResult> {
-  const { projectId, userId, isAdmin = false, sceneTexts, versionNote } = params;
+  const { projectId, userId, isAdmin = false, sceneTexts, versionNote, rerenderSource, imageChangeAudit } =
+    params;
 
   const project = await getAnimationProjectById(projectId);
   if (!project) {
@@ -212,6 +217,8 @@ export async function fullRerenderInstantPremiumProject(params: {
     rebuildType: "full_rerender",
     status: "running",
     startedAt,
+    rerenderSource: rerenderSource ?? (sceneTexts !== undefined ? "editor" : "quick"),
+    imageChanges: imageChangeAudit ?? undefined,
     versionNote: versionNote?.trim() || null,
     previousFinalVideoUrl,
     previousCleanFinalVideoUrl,
@@ -299,6 +306,8 @@ export async function fullRerenderInstantPremiumProjectWithStatus(params: {
   isAdmin?: boolean;
   sceneTexts?: unknown;
   versionNote?: string;
+  rerenderSource?: FullRerenderSource;
+  imageChangeAudit?: FullRerenderImageChangeAudit | null;
 }): Promise<{
   fullRerender: FullRerenderProjectResult;
   status: InstantPremiumStatusResponse;

@@ -8,6 +8,7 @@ import {
   fullRerenderInstantPremiumProjectWithStatus,
 } from "@/server/instant-premium/full-rerender-project";
 import { persistFullRerenderSettingsForProject } from "@/server/instant-premium/persist-full-rerender-settings";
+import { persistFullRerenderImagesForProject } from "@/server/instant-premium/persist-full-rerender-images";
 
 export const maxDuration = 60;
 
@@ -28,6 +29,20 @@ export async function POST(request: Request, context: RouteContext) {
     instantTransitionSeconds?: number;
     instantSelectedChips?: unknown;
     versionNote?: string;
+    rerenderSource?: "quick" | "editor";
+    imageChanges?: {
+      sequence?: Array<{
+        imageId?: string;
+        fileName: string;
+        previewUrl: string;
+        workingImageUrl: string;
+        workingStorageKey?: string;
+        thumbnailUrl?: string;
+        mimeType?: string;
+        sizeBytes?: number;
+      }>;
+      replacedImageIds?: string[];
+    };
   };
   let body: FullRerenderBody | null = null;
   try {
@@ -36,8 +51,40 @@ export async function POST(request: Request, context: RouteContext) {
     body = null;
   }
 
-  if (body) {
-    const persisted = await persistFullRerenderSettingsForProject(id, body);
+  const settingsBody =
+    body ?
+      {
+        sceneTexts: body.sceneTexts,
+        instantUserIntent: body.instantUserIntent,
+        instantTransitionSeconds: body.instantTransitionSeconds,
+        instantSelectedChips: body.instantSelectedChips,
+        versionNote: body.versionNote,
+      }
+    : null;
+  const hasSettingsToPersist = Boolean(
+    settingsBody &&
+      (settingsBody.sceneTexts !== undefined ||
+        typeof settingsBody.instantUserIntent === "string" ||
+        typeof settingsBody.instantTransitionSeconds === "number" ||
+        settingsBody.instantSelectedChips !== undefined ||
+        Boolean(settingsBody.versionNote?.trim()))
+  );
+
+  let imageChangeAudit = null;
+  const imageSequence = body?.imageChanges?.sequence;
+  if (imageSequence && imageSequence.length > 0) {
+    const persistedImages = await persistFullRerenderImagesForProject(id, {
+      sequence: imageSequence,
+      replacedImageIds: body?.imageChanges?.replacedImageIds,
+    });
+    if (!persistedImages.ok) {
+      return NextResponse.json({ error: persistedImages.error }, { status: persistedImages.status });
+    }
+    imageChangeAudit = persistedImages.imageChangeAudit;
+  }
+
+  if (hasSettingsToPersist && settingsBody) {
+    const persisted = await persistFullRerenderSettingsForProject(id, settingsBody);
     if (!persisted.ok) {
       return NextResponse.json({ error: persisted.error }, { status: persisted.status });
     }
@@ -50,6 +97,8 @@ export async function POST(request: Request, context: RouteContext) {
       isAdmin: user.role === "admin",
       sceneTexts: body?.sceneTexts,
       versionNote: body?.versionNote?.trim() || undefined,
+      rerenderSource: body?.rerenderSource,
+      imageChangeAudit,
     });
     const httpStatus = result.fullRerender.ok
       ? 200

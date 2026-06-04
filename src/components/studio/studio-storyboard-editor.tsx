@@ -468,6 +468,14 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                   <div className="flex flex-wrap gap-2">
                     {scenes.length > 0 ? (
                       <Link
+                        href={`/studio/storyboards/${storyboardId}/movie-builder`}
+                        className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                      >
+                        {t("studio.movieBuilder.entryButton")}
+                      </Link>
+                    ) : null}
+                    {scenes.length > 0 ? (
+                      <Link
                         href={`/animate/instant/import?storyboardId=${encodeURIComponent(storyboardId)}`}
                         className="rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                       >

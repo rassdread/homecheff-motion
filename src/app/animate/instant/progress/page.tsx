@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
@@ -26,6 +27,8 @@ import {
 } from "@/lib/instant-export-client";
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
+import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
+import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
@@ -65,6 +68,7 @@ function transientBannerKey(message: string | null): string | null {
 
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
+  const router = useRouter();
   const session = useAuthSession();
   const isAdmin = session.resolved && session.user?.role === "admin";
   const completionSyncedRef = useRef(false);
@@ -96,6 +100,8 @@ export default function InstantPremiumProgressPage() {
     cleanVideoUrl: string | null;
     instantSceneTexts: unknown;
     usesStoryOverlay: boolean;
+    instantMode?: string;
+    instantTransitionSeconds?: number;
   } | null>(null);
 
   const isCompleted = snapshot?.status === "completed" || Boolean(snapshot?.finalVideoUrl);
@@ -125,6 +131,8 @@ export default function InstantPremiumProgressPage() {
         cleanVideoUrl?: string | null;
         instantSceneTexts?: unknown;
         usesStoryOverlay?: boolean;
+        instantMode?: string;
+        instantTransitionSeconds?: number;
       } | null;
       if (cancelled || !json) {
         return;
@@ -134,6 +142,8 @@ export default function InstantPremiumProgressPage() {
         cleanVideoUrl: json.cleanVideoUrl ?? null,
         instantSceneTexts: json.instantSceneTexts,
         usesStoryOverlay: json.usesStoryOverlay ?? false,
+        instantMode: json.instantMode,
+        instantTransitionSeconds: json.instantTransitionSeconds,
       });
     })();
     return () => {
@@ -166,6 +176,34 @@ export default function InstantPremiumProgressPage() {
       snapshot?.phase === "merging_clips" ||
       snapshot?.phase === "uploading_final"
   );
+
+  const handleQuickFullRerender = useCallback(async () => {
+    if (!effectiveProjectId || fullRerenderDisabled) {
+      return;
+    }
+    setFullRerenderBusy(true);
+    setActionError(null);
+    try {
+      const result = await runQuickFullRerender({
+        projectId: effectiveProjectId,
+        confirmMessage: t("instant.fullRerender.confirmPromptQuick"),
+        confirmMessageTestMode: t("instant.fullRerender.confirmPromptQuickTestMode"),
+        abortedMessage: t("instant.fullRerender.aborted"),
+        networkMessage: t("instant.fullRerender.failed"),
+        failedMessage: t("instant.fullRerender.failed"),
+      });
+      if (!result.ok) {
+        if (!result.cancelled) {
+          setActionError(result.message);
+        }
+        return;
+      }
+      invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+      router.push(result.progressRoute);
+    } finally {
+      setFullRerenderBusy(false);
+    }
+  }, [effectiveProjectId, fullRerenderDisabled, router, t]);
 
   const panelPollingError =
     pollingError ??
@@ -438,22 +476,13 @@ export default function InstantPremiumProgressPage() {
                 onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
                 buttonClassName="rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
               />
-              {canShowFullRerender ?
-                <button
-                  type="button"
+              {canShowFullRerender && isCompleted ?
+                <ProjectRerenderChoices
                   disabled={fullRerenderDisabled}
-                  onClick={() => setFullRerenderEditorOpen(true)}
-                  className="flex w-full flex-col gap-1 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left transition hover:bg-emerald-50 disabled:opacity-60"
-                >
-                  <span className="text-sm font-semibold text-emerald-950">
-                    {fullRerenderBusy ?
-                      t("instant.fullRerender.busy")
-                    : t("projectDetail.renderAgain.label")}
-                  </span>
-                  <span className="text-xs leading-relaxed text-emerald-900/80">
-                    {t("projectDetail.renderAgain.hint")}
-                  </span>
-                </button>
+                  quickBusy={fullRerenderBusy}
+                  onQuickRerender={() => void handleQuickFullRerender()}
+                  onOpenEditor={() => setFullRerenderEditorOpen(true)}
+                />
               : null}
               <p className="text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>
             </div>
@@ -646,6 +675,9 @@ export default function InstantPremiumProgressPage() {
           onClose={() => setFullRerenderEditorOpen(false)}
           projectId={effectiveProjectId}
           instantSceneTexts={versionMeta?.instantSceneTexts ?? snapshot?.segments?.map(() => ({}))}
+          instantMode={versionMeta?.instantMode}
+          instantTransitionSeconds={versionMeta?.instantTransitionSeconds ?? 5}
+          uploadRole={session.user?.role ?? "user"}
           imageCount={Math.max(
             snapshot?.segmentCount ?? snapshot?.segments?.length ?? 0,
             parseSceneTextsJson(versionMeta?.instantSceneTexts).length,

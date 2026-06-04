@@ -52,6 +52,8 @@ import {
   type ProjectDetailModeKind,
 } from "@/components/videos/project-detail-header";
 import { ProjectDetailQuickActions } from "@/components/videos/project-detail-quick-actions";
+import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
+import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import {
   ProjectStorageUsageCard,
   useProjectStorageAudit,
@@ -332,6 +334,35 @@ export default function VideoDetailPage() {
       detail?.status === "rendering" ||
       instantSnapshot?.isRebuildingFinalVideo
   );
+
+  const handleQuickFullRerender = useCallback(async () => {
+    if (!id || fullRerenderDisabled) {
+      return;
+    }
+    setFullRerenderBusy(true);
+    setFullRerenderError(null);
+    setFullRerenderInfo(null);
+    try {
+      const result = await runQuickFullRerender({
+        projectId: id,
+        confirmMessage: t("instant.fullRerender.confirmPromptQuick"),
+        confirmMessageTestMode: t("instant.fullRerender.confirmPromptQuickTestMode"),
+        abortedMessage: t("instant.fullRerender.aborted"),
+        networkMessage: t("instant.fullRerender.failed"),
+        failedMessage: t("instant.fullRerender.failed"),
+      });
+      if (!result.ok) {
+        if (!result.cancelled) {
+          setFullRerenderError(result.message);
+        }
+        return;
+      }
+      setFullRerenderInfo(t("instant.fullRerender.busy"));
+      router.push(result.progressRoute);
+    } finally {
+      setFullRerenderBusy(false);
+    }
+  }, [fullRerenderDisabled, id, router, t]);
 
   const panelPollingError =
     instantPollingError ??
@@ -726,48 +757,28 @@ export default function VideoDetailPage() {
             />
           ) : null}
 
+          {hasCompletedInstantFinal && canFullRerenderInstant ?
+            <ProjectRerenderChoices
+              disabled={fullRerenderDisabled}
+              quickBusy={fullRerenderBusy}
+              onQuickRerender={() => void handleQuickFullRerender()}
+              onOpenEditor={() => setFullRerenderEditorOpen(true)}
+            />
+          : null}
+
           <ProjectDetailQuickActions
             leadingSlot={
               id ?
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <VideoVersionDownloadTrigger
-                    projectId={id}
-                    originalVideoUrl={originalPlaybackUrl}
-                    cleanVideoUrl={cleanVideoUrl}
-                    languageExports={languageExports}
-                    storageAudit={projectStorageAudit}
-                  />
-                  {hasCompletedInstantFinal && canFullRerenderInstant ?
-                    <button
-                      type="button"
-                      onClick={() => setFullRerenderEditorOpen(true)}
-                      disabled={fullRerenderDisabled}
-                      className="flex w-full flex-col gap-1 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left transition hover:bg-emerald-50 disabled:opacity-60"
-                    >
-                      <span className="text-sm font-semibold text-emerald-950">
-                        {fullRerenderBusy ?
-                          t("instant.fullRerender.busy")
-                        : t("projectDetail.renderAgain.label")}
-                      </span>
-                      <span className="text-xs leading-relaxed text-emerald-900/80">
-                        {t("projectDetail.renderAgain.hint")}
-                      </span>
-                    </button>
-                  : null}
-                </div>
+                <VideoVersionDownloadTrigger
+                  projectId={id}
+                  originalVideoUrl={originalPlaybackUrl}
+                  cleanVideoUrl={cleanVideoUrl}
+                  languageExports={languageExports}
+                  storageAudit={projectStorageAudit}
+                />
               : null
             }
             actions={[
-              {
-                id: "full-rerender",
-                labelKey: "projectDetail.quickActions.fullRerender.label",
-                hintKey: "projectDetail.quickActions.fullRerender.hint",
-                onClick: () => setFullRerenderEditorOpen(true),
-                disabled: fullRerenderDisabled || !canFullRerenderInstant,
-                busy: fullRerenderBusy,
-                busyLabelKey: "instant.fullRerender.busy",
-                visible: Boolean(canFullRerenderInstant),
-              },
               {
                 id: "text-rerender",
                 labelKey: "projectDetail.quickActions.textOnlyRerender.label",
@@ -1121,6 +1132,10 @@ export default function VideoDetailPage() {
           onClose={() => setFullRerenderEditorOpen(false)}
           projectId={id}
           instantSceneTexts={detail.instantSceneTexts}
+          instantMode={detail.instantMode}
+          instantUserIntent={detail.instantUserIntent}
+          instantTransitionSeconds={detail.instantTransitionSeconds ?? 5}
+          uploadRole={session.user?.role ?? "user"}
           images={(detail.images ?? []).map((img) => ({
             id: img.id,
             previewUrl: img.previewUrl ?? "",

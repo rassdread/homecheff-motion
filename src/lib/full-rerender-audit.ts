@@ -4,11 +4,18 @@ export type FullRerenderTransitionArchive = {
   providerJobId: string | null;
 };
 
+import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
+
+export type FullRerenderSource = "quick" | "editor";
+
 export type FullRerenderAuditEntry = {
   rebuildType: "full_rerender";
   status: "running" | "completed" | "failed";
   startedAt: string;
   completedAt?: string;
+  /** How the user started the rerender (quick = no editor, editor = after adjustments). */
+  rerenderSource?: FullRerenderSource;
+  imageChanges?: FullRerenderImageChangeAudit;
   versionNote?: string | null;
   previousFinalVideoUrl?: string | null;
   previousCleanFinalVideoUrl?: string | null;

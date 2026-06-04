@@ -67,6 +67,7 @@ export async function GET(_request: Request, context: RouteContext) {
     cleanVideoUrl: project.instantCleanFinalVideoUrl?.trim() || null,
     finalVideoUrl: latestExport?.outputVideoUrl?.trim() || null,
     instantMode: parseInstantMode(project.instantMode),
+    instantTransitionSeconds: project.instantTransitionSeconds ?? 5,
     usesStoryOverlay: projectUsesStoryOverlay(project),
     instantSceneTexts: project.instantSceneTexts ?? null,
     exports: exports.map(mapExportRow),
