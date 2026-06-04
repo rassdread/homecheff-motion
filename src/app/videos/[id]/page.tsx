@@ -36,6 +36,7 @@ import { EXPORT_CANCELLED_BY_USER_MESSAGE } from "@/lib/animation-export-message
 import { exportRecordIsCancellable } from "@/lib/animation-export-cancellable";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { projectUsesStoryOverlay } from "@/lib/story-language-export";
+import { traceConceptFlow } from "@/lib/concept-flow-trace";
 import { hcExportRetryLog } from "@/lib/hc-export-retry-debug";
 import { postProjectExportRetry } from "@/lib/post-project-export-retry";
 import {
@@ -804,7 +805,11 @@ export default function VideoDetailPage() {
               disabled={fullRerenderDisabled}
               quickBusy={fullRerenderBusy}
               onQuickRerender={() => void handleQuickFullRerender()}
-              onOpenEditor={() => router.push(`/videos/${encodeURIComponent(id)}/edit-version`)}
+              onOpenEditor={() => {
+                const target = `/videos/${encodeURIComponent(id)}/edit-version`;
+                traceConceptFlow("click.newVersion", { projectId: id, target });
+                router.push(target);
+              }}
             />
           : null}
 

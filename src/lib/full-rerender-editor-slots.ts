@@ -33,6 +33,15 @@ export function buildFullRerenderSlotsFromProject(params: {
 }): FullRerenderEditorSlot[] {
   const count = Math.max(params.images.length, 1);
   const texts = buildSceneTextDraftsFromProject(params.instantSceneTexts, count);
+  if (params.images.length === 0) {
+    return [
+      {
+        sceneId: createWizardSceneId(),
+        image: null,
+        text: texts[0] ?? emptySceneTextDraft(params.transitionSeconds),
+      },
+    ];
+  }
   return params.images.map((image, index) => ({
     sceneId: createWizardSceneId(),
     image: {

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { traceConceptFlow } from "@/lib/concept-flow-trace";
 import { FullRerenderEditor } from "@/components/instant/full-rerender-editor";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -16,7 +17,7 @@ export default function VideoEditVersionPage() {
   const session = useAuthSession();
   const [detail, setDetail] = useState<AnimationProjectDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -49,6 +50,10 @@ export default function VideoEditVersionPage() {
   }, [id, t]);
 
   useEffect(() => {
+    traceConceptFlow("edit-version.mount", { projectId: id });
+  }, [id]);
+
+  useEffect(() => {
     if (!session.resolved) {
       return;
     }
@@ -61,13 +66,25 @@ export default function VideoEditVersionPage() {
         setLoading(false);
         return;
       }
-      void load();
+      traceConceptFlow("edit-version.fetchProject.start", { projectId: id });
+      void load().then(() => {
+        traceConceptFlow("edit-version.fetchProject.done", { projectId: id });
+      });
     }, 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [session.resolved, session.user, load]);
+  }, [session.resolved, session.user, load, id]);
+
+  const editorImages = useMemo(
+    () =>
+      (detail?.images ?? []).map((img) => ({
+        id: img.id,
+        previewUrl: img.previewUrl ?? "",
+      })),
+    [detail?.images]
+  );
 
   const instantLike =
     detail?.projectType === "instant_premium" ||
@@ -105,10 +122,7 @@ export default function VideoEditVersionPage() {
             instantUserIntent={detail.instantUserIntent}
             instantTransitionSeconds={detail.instantTransitionSeconds ?? 5}
             uploadRole={session.user.role}
-            images={(detail.images ?? []).map((img) => ({
-              id: img.id,
-              previewUrl: img.previewUrl ?? "",
-            }))}
+            images={editorImages}
           />
         </div>
       )}

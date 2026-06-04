@@ -3,17 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstantMode } from "@/lib/instant-premium-mode-types";
 import {
-  draftPayloadToEditorSlots,
   serializeFullRerenderDraftPayload,
   type PersistedFullRerenderDraftPayload,
 } from "@/lib/full-rerender-draft";
-import { planFullRerenderDraftBootstrap } from "@/lib/full-rerender-draft-bootstrap";
 import {
-  deleteFullRerenderDraftClient,
   ensureFullRerenderDraft,
   fetchFullRerenderDraft,
   saveFullRerenderDraft,
+  deleteFullRerenderDraftClient,
 } from "@/lib/full-rerender-draft-client";
+import { runFullRerenderConceptBootstrap } from "@/lib/full-rerender-concept-bootstrap";
 import type { FullRerenderEditorSlot } from "@/lib/full-rerender-editor-types";
 import type { FullRerenderDraftBootstrapDiagnostics } from "@/lib/full-rerender-draft-diagnostics";
 
@@ -40,6 +39,7 @@ export function useFullRerenderDraft(params: {
   expandedIndex: number | null;
   initialImageIds: string[];
   ready: boolean;
+  buildLocalDraft: () => PersistedFullRerenderDraftPayload;
 }) {
   const [saveStatus, setSaveStatus] = useState<FullRerenderDraftSaveStatus>("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -131,104 +131,82 @@ export function useFullRerenderDraft(params: {
 
   const bootstrapDraft = useCallback(async (): Promise<{
     payload: PersistedFullRerenderDraftPayload | null;
-    slots: FullRerenderEditorSlot[] | null;
+    slots: FullRerenderEditorSlot[];
     expandedIndex: number | null;
     versionNote: string;
     userIntent: string;
     transitionSeconds: number;
     loadState: FullRerenderDraftLoadState;
+    draftPersisted: boolean;
     diagnostics: FullRerenderDraftBootstrapDiagnostics;
   } | null> => {
     const attempt = ++bootstrapAttemptRef.current;
     setLoadState("loading");
     setLoadError(null);
 
-    const get = await fetchFullRerenderDraft(params.projectId);
+    const result = await runFullRerenderConceptBootstrap({
+      projectId: params.projectId,
+      buildLocalDraft: params.buildLocalDraft,
+      fetchGet: fetchFullRerenderDraft,
+      fetchPost: ensureFullRerenderDraft,
+    });
+
     if (attempt !== bootstrapAttemptRef.current) {
       return null;
     }
 
-    let postStatus: number | null = null;
-    let postOk: boolean | null = null;
-    let postCode: string | undefined;
+    setBootstrapDiagnostics(result.diagnostics);
 
-    let plan = planFullRerenderDraftBootstrap(get);
-    if (plan.kind === "needs_create") {
-      const post = await ensureFullRerenderDraft(params.projectId);
-      postStatus = post.status;
-      postOk = post.ok;
-      postCode = post.code;
-      if (attempt !== bootstrapAttemptRef.current) {
-        return null;
-      }
-      plan = planFullRerenderDraftBootstrap(get, post);
-    }
-
-    const diagnostics: FullRerenderDraftBootstrapDiagnostics = {
-      getStatus: get.status,
-      getOk: get.ok,
-      getCode: get.code,
-      postStatus,
-      postOk,
-      postCode,
-    };
-    setBootstrapDiagnostics(diagnostics);
-
-    if (plan.kind === "storage_unavailable") {
+    if (result.status === "storage_unavailable") {
       setLoadState("storage_unavailable");
-      setLoadError(null);
       setDraftLoaded(false);
       return {
         loadState: "storage_unavailable",
         payload: null,
-        slots: null,
+        slots: [],
         expandedIndex: null,
         versionNote: "",
         userIntent: "",
         transitionSeconds: params.transitionSeconds,
-        diagnostics,
+        draftPersisted: false,
+        diagnostics: result.diagnostics,
       };
     }
 
-    if (plan.kind === "ready") {
-      lastSavedJsonRef.current = JSON.stringify(plan.draft);
-      setServerUpdatedAt(plan.updatedAt);
+    if (result.status === "ready") {
+      lastSavedJsonRef.current = JSON.stringify(result.draft);
+      setServerUpdatedAt(null);
       setDraftLoaded(true);
       setLoadState("ready");
       setSaveStatus("saved");
       return {
         loadState: "ready",
-        payload: plan.draft,
-        slots: draftPayloadToEditorSlots(plan.draft),
-        expandedIndex: plan.draft.expandedIndex,
-        versionNote: plan.draft.versionNote,
-        userIntent: plan.draft.userIntent,
-        transitionSeconds: plan.draft.transitionSeconds,
-        diagnostics,
-      };
-    }
-
-    if (plan.kind === "fallback") {
-      setLoadState("error");
-      setLoadError(plan.error ?? "Draft load failed.");
-      setDraftLoaded(false);
-      return {
-        loadState: "error",
-        payload: null,
-        slots: null,
-        expandedIndex: null,
-        versionNote: "",
-        userIntent: "",
-        transitionSeconds: params.transitionSeconds,
-        diagnostics,
+        payload: result.draft,
+        slots: result.slots,
+        expandedIndex: result.expandedIndex,
+        versionNote: result.versionNote,
+        userIntent: result.userIntent,
+        transitionSeconds: result.transitionSeconds,
+        draftPersisted: result.draftPersisted,
+        diagnostics: result.diagnostics,
       };
     }
 
     setLoadState("error");
-    setLoadError("Draft load failed.");
+    setLoadError(result.error);
     setDraftLoaded(false);
-    return null;
-  }, [params.projectId, params.transitionSeconds]);
+    return {
+      loadState: "error",
+      payload: null,
+      slots: result.slots,
+      expandedIndex: result.expandedIndex,
+      versionNote: result.versionNote,
+      userIntent: result.userIntent,
+      transitionSeconds: result.transitionSeconds,
+      draftPersisted: false,
+      diagnostics: result.diagnostics,
+    };
+  }, [params.buildLocalDraft, params.projectId, params.transitionSeconds]);
 
   const skipDraftPersistence = useCallback(() => {
     bootstrapAttemptRef.current += 1;

@@ -1149,7 +1149,11 @@ export const nl = {
   "projects.concept.loading": "Concept laden…",
   "projects.concept.loadFailed": "Concept kon niet geladen worden",
   "projects.concept.retryLoad": "Opnieuw proberen",
-  "projects.concept.startWithoutDraft": "Start zonder concept",
+  "projects.concept.startWithoutDraft": "Zonder concept verder",
+  "projects.concept.backToProject": "Terug naar project",
+  "projects.concept.emptyProject":
+    "Dit project heeft nog geen afbeeldingen. Upload scènes in de editor of ga terug naar het project.",
+  "projects.concept.debugTitle": "Concept bootstrap (admin)",
   "projects.concept.storageUnavailable":
     "Conceptopslag is op deze omgeving nog niet beschikbaar. Ga verder zonder opgeslagen concept of probeer het later opnieuw.",
   "projects.concept.save": "Concept opslaan",

@@ -1149,7 +1149,11 @@ export const en: LocaleSchema = {
   "projects.concept.loading": "Loading concept…",
   "projects.concept.loadFailed": "Concept could not be loaded.",
   "projects.concept.retryLoad": "Try again",
-  "projects.concept.startWithoutDraft": "Start without concept",
+  "projects.concept.startWithoutDraft": "Continue without concept",
+  "projects.concept.backToProject": "Back to project",
+  "projects.concept.emptyProject":
+    "This project has no images yet. Upload scenes in the editor or go back to the project.",
+  "projects.concept.debugTitle": "Concept bootstrap (admin)",
   "projects.concept.storageUnavailable":
     "Concept storage is not available on this server yet. Continue without a saved concept or try again later.",
   "projects.concept.save": "Save concept",
