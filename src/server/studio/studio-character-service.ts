@@ -16,7 +16,7 @@ import {
   studioCharacterViewerCanModify,
   studioCharacterViewerCanView,
 } from "@/server/studio/studio-character-access";
-import { deleteStudioCharacterReferenceBlob } from "@/server/studio/studio-character-blob";
+import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
 
 export type ServiceError = {
   code: string;
@@ -195,7 +195,7 @@ export async function updateStudioCharacter(
     patch.referenceImageUrl &&
     patch.referenceImageUrl !== previousReferenceUrl
   ) {
-    await deleteStudioCharacterReferenceBlob(previousReferenceUrl);
+    await deleteStudioReferenceBlob(previousReferenceUrl);
   }
 
   return { character: mapStudioCharacterToDetail(row) };
@@ -214,7 +214,7 @@ export async function deleteStudioCharacter(
   }
 
   await prisma.studioCharacter.delete({ where: { id } });
-  await deleteStudioCharacterReferenceBlob(existing.referenceImageUrl);
+  await deleteStudioReferenceBlob(existing.referenceImageUrl);
 
   return { ok: true };
 }

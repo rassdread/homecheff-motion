@@ -1,10 +1,5 @@
-import { StudioPlaceholderPage } from "@/components/studio/studio-placeholder-page";
+import { StudioPropsLibrary } from "@/components/studio/studio-props-library";
 
 export default function StudioPropsPage() {
-  return (
-    <StudioPlaceholderPage
-      titleKey="studio.placeholder.props.title"
-      descriptionKey="studio.placeholder.props.description"
-    />
-  );
+  return <StudioPropsLibrary />;
 }

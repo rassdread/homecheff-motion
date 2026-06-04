@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StudioCharacterCard } from "@/components/studio/studio-character-card";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { filterStudioAssetsBySearch } from "@/lib/studio-asset-search";
 import {
   deleteStudioCharacterApi,
   fetchStudioCharacters,
@@ -46,16 +47,11 @@ export function StudioCharactersLibrary() {
     });
   }, [session.resolved, session.user, load]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) {
-      return characters;
-    }
-    return characters.filter((c) => {
-      const hay = `${c.name} ${c.description} ${c.personality} ${c.role}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [characters, search]);
+  const filtered = filterStudioAssetsBySearch(
+    characters,
+    search,
+    (c) => `${c.personality} ${c.role}`
+  );
 
   const userId = session.user?.id;
 

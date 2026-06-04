@@ -1,20 +1,17 @@
-import type { StudioLocation } from "@prisma/client";
+import type { StudioProp } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { nextSlugCandidate, slugifyLocationName } from "@/lib/studio-location-slug";
+import { nextSlugCandidate, slugifyPropName } from "@/lib/studio-prop-slug";
 import {
-  validateStudioLocationCreateInput,
-  validateStudioLocationUpdateInput,
-  type StudioLocationCreateInput,
-  type StudioLocationUpdateInput,
-} from "@/lib/studio-location-validation";
-import type { LocationSnapshot } from "@/types/studio-location-snapshot";
-import type { StudioLocationDetail, StudioLocationListItem } from "@/types/studio-api";
+  validateStudioPropCreateInput,
+  validateStudioPropUpdateInput,
+  type StudioPropCreateInput,
+  type StudioPropUpdateInput,
+} from "@/lib/studio-prop-validation";
+import type { PropSnapshot } from "@/types/studio-prop-snapshot";
+import type { StudioPropDetail, StudioPropListItem } from "@/types/studio-api";
 import type { SessionUser } from "@/server/auth/session";
 import { canAccessAdmin } from "@/server/auth/permissions";
-import {
-  studioLocationViewerCanModify,
-  studioLocationViewerCanView,
-} from "@/server/studio/studio-location-access";
+import { studioPropViewerCanModify, studioPropViewerCanView } from "@/server/studio/studio-prop-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
 
 export type ServiceError = {
@@ -27,16 +24,16 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
   return { code, message, httpStatus };
 }
 
-export function mapStudioLocationToListItem(
-  row: StudioLocation,
+export function mapStudioPropToListItem(
+  row: StudioProp,
   options?: { ownerEmail?: string }
-): StudioLocationListItem {
+): StudioPropListItem {
   return {
     id: row.id,
     ownerId: row.ownerId,
     name: row.name,
     slug: row.slug,
-    category: row.category as StudioLocationListItem["category"],
+    category: row.category as StudioPropListItem["category"],
     description: row.description,
     referenceImageUrl: row.referenceImageUrl,
     createdAt: row.createdAt.toISOString(),
@@ -45,20 +42,20 @@ export function mapStudioLocationToListItem(
   };
 }
 
-export function mapStudioLocationToDetail(
-  row: StudioLocation,
+export function mapStudioPropToDetail(
+  row: StudioProp,
   options?: { ownerEmail?: string }
-): StudioLocationDetail {
+): StudioPropDetail {
   return {
-    ...mapStudioLocationToListItem(row, options),
+    ...mapStudioPropToListItem(row, options),
     referenceStorageKey: row.referenceStorageKey,
-    isSystemLocation: row.isSystemLocation,
+    isSystemProp: row.isSystemProp,
   };
 }
 
-export function toLocationSnapshot(
-  row: Pick<StudioLocation, "id" | "name" | "category" | "description" | "referenceImageUrl">
-): LocationSnapshot {
+export function toPropSnapshot(
+  row: Pick<StudioProp, "id" | "name" | "category" | "description" | "referenceImageUrl">
+): PropSnapshot {
   return {
     id: row.id,
     name: row.name,
@@ -69,10 +66,10 @@ export function toLocationSnapshot(
 }
 
 async function resolveUniqueSlug(ownerId: string, name: string): Promise<string> {
-  const base = slugifyLocationName(name);
+  const base = slugifyPropName(name);
   for (let attempt = 0; attempt < 50; attempt++) {
     const slug = nextSlugCandidate(base, attempt);
-    const existing = await prisma.studioLocation.findUnique({
+    const existing = await prisma.studioProp.findUnique({
       where: { ownerId_slug: { ownerId, slug } },
       select: { id: true },
     });
@@ -83,10 +80,10 @@ async function resolveUniqueSlug(ownerId: string, name: string): Promise<string>
   throw new Error("Could not allocate a unique slug.");
 }
 
-export async function listStudioLocations(
+export async function listStudioProps(
   viewer: Pick<SessionUser, "id" | "role">
-): Promise<StudioLocationListItem[]> {
-  const rows = await prisma.studioLocation.findMany({
+): Promise<StudioPropListItem[]> {
+  const rows = await prisma.studioProp.findMany({
     where: canAccessAdmin(viewer) ? undefined : { ownerId: viewer.id },
     orderBy: { createdAt: "desc" },
     include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
@@ -97,42 +94,42 @@ export async function listStudioLocations(
       "owner" in row && row.owner && typeof row.owner === "object" && "email" in row.owner
         ? (row.owner as { email: string }).email
         : undefined;
-    return mapStudioLocationToListItem(row, { ownerEmail });
+    return mapStudioPropToListItem(row, { ownerEmail });
   });
 }
 
-export async function getStudioLocationById(
+export async function getStudioPropById(
   id: string,
   viewer: Pick<SessionUser, "id" | "role">
-): Promise<StudioLocationDetail | null> {
-  const row = await prisma.studioLocation.findUnique({
+): Promise<StudioPropDetail | null> {
+  const row = await prisma.studioProp.findUnique({
     where: { id },
     include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
   });
   if (!row) {
     return null;
   }
-  if (!studioLocationViewerCanView(viewer, row)) {
+  if (!studioPropViewerCanView(viewer, row)) {
     return null;
   }
   const ownerEmail =
     "owner" in row && row.owner && typeof row.owner === "object" && "email" in row.owner
       ? (row.owner as { email: string }).email
       : undefined;
-  return mapStudioLocationToDetail(row, { ownerEmail });
+  return mapStudioPropToDetail(row, { ownerEmail });
 }
 
-export async function createStudioLocation(
+export async function createStudioProp(
   ownerId: string,
-  raw: StudioLocationCreateInput
-): Promise<{ location: StudioLocationDetail } | { error: ServiceError }> {
-  const validated = validateStudioLocationCreateInput(raw);
+  raw: StudioPropCreateInput
+): Promise<{ prop: StudioPropDetail } | { error: ServiceError }> {
+  const validated = validateStudioPropCreateInput(raw);
   if (!validated.ok) {
     return { error: serviceError(validated.code, validated.message, 400) };
   }
 
   const slug = await resolveUniqueSlug(ownerId, validated.value.name);
-  const row = await prisma.studioLocation.create({
+  const row = await prisma.studioProp.create({
     data: {
       ownerId,
       name: validated.value.name,
@@ -141,27 +138,27 @@ export async function createStudioLocation(
       description: validated.value.description,
       referenceImageUrl: validated.value.referenceImageUrl,
       referenceStorageKey: validated.value.referenceStorageKey,
-      isSystemLocation: false,
+      isSystemProp: false,
     },
   });
 
-  return { location: mapStudioLocationToDetail(row) };
+  return { prop: mapStudioPropToDetail(row) };
 }
 
-export async function updateStudioLocation(
+export async function updateStudioProp(
   id: string,
   viewer: Pick<SessionUser, "id" | "role">,
-  raw: StudioLocationUpdateInput
-): Promise<{ location: StudioLocationDetail } | { error: ServiceError }> {
-  const existing = await prisma.studioLocation.findUnique({ where: { id } });
+  raw: StudioPropUpdateInput
+): Promise<{ prop: StudioPropDetail } | { error: ServiceError }> {
+  const existing = await prisma.studioProp.findUnique({ where: { id } });
   if (!existing) {
-    return { error: serviceError("NOT_FOUND", "Location not found.", 404) };
+    return { error: serviceError("NOT_FOUND", "Prop not found.", 404) };
   }
-  if (!studioLocationViewerCanModify(viewer, existing)) {
+  if (!studioPropViewerCanModify(viewer, existing)) {
     return { error: serviceError("FORBIDDEN", "Forbidden.", 403) };
   }
 
-  const validated = validateStudioLocationUpdateInput(raw);
+  const validated = validateStudioPropUpdateInput(raw);
   if (!validated.ok) {
     return { error: serviceError(validated.code, validated.message, 400) };
   }
@@ -173,7 +170,7 @@ export async function updateStudioLocation(
   }
 
   const previousReferenceUrl = existing.referenceImageUrl;
-  const row = await prisma.studioLocation.update({
+  const row = await prisma.studioProp.update({
     where: { id },
     data: { ...patch, slug },
   });
@@ -182,22 +179,22 @@ export async function updateStudioLocation(
     await deleteStudioReferenceBlob(previousReferenceUrl);
   }
 
-  return { location: mapStudioLocationToDetail(row) };
+  return { prop: mapStudioPropToDetail(row) };
 }
 
-export async function deleteStudioLocation(
+export async function deleteStudioProp(
   id: string,
   viewer: Pick<SessionUser, "id" | "role">
 ): Promise<{ ok: true } | { error: ServiceError }> {
-  const existing = await prisma.studioLocation.findUnique({ where: { id } });
+  const existing = await prisma.studioProp.findUnique({ where: { id } });
   if (!existing) {
-    return { error: serviceError("NOT_FOUND", "Location not found.", 404) };
+    return { error: serviceError("NOT_FOUND", "Prop not found.", 404) };
   }
-  if (!studioLocationViewerCanModify(viewer, existing)) {
+  if (!studioPropViewerCanModify(viewer, existing)) {
     return { error: serviceError("FORBIDDEN", "Forbidden.", 403) };
   }
 
-  await prisma.studioLocation.delete({ where: { id } });
+  await prisma.studioProp.delete({ where: { id } });
   await deleteStudioReferenceBlob(existing.referenceImageUrl);
 
   return { ok: true };

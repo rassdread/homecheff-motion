@@ -47,15 +47,26 @@ Video
 - UI: library, create, detail, edit (`/studio/locations/*`)
 - `LocationSnapshot` for future Motion integration (no Vidu wiring)
 
-## Not in V3
+## V4 deliverables (Props)
+
+- Prisma `StudioProp` + migration `20260606120000_studio_prop`
+- CRUD API: `/api/studio/props`
+- UI: library, create, detail, edit (`/studio/props/*`)
+- `PropSnapshot` + shared Studio helpers (blob, slug, search)
+
+## Studio foundation (V4)
+
+Characters · Locations · Props — ready for V5 Scene Composer.
+
+## Not in V4
 
 - Scene Composer
 - Vidu / Motion prompt wiring
-- Props, storyboards persistence
+- Storyboards persistence
 
-## Before Studio V4
+## Before Studio V5
 
-- Prisma models for props, storyboards
+- Storyboards library + Scene Composer data model
 - Auth / ownership rules for Studio assets
 - Upload pipeline for reference images
 - API routes and list/detail UI per pillar

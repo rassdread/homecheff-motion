@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { StudioLocationCategoryBadge } from "@/components/studio/studio-location-category-badge";
 import { AppCard } from "@/components/ui/app-card";
+import { truncateStudioText } from "@/lib/studio-asset-text";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioLocationListItem } from "@/types/studio-api";
 
@@ -12,14 +13,6 @@ type StudioLocationCardProps = {
   deleteBusyId: string | null;
   canModify: boolean;
 };
-
-function truncate(text: string, max: number): string {
-  const t = text.trim();
-  if (t.length <= max) {
-    return t;
-  }
-  return `${t.slice(0, max - 1)}…`;
-}
 
 export function StudioLocationCard({
   location,
@@ -46,7 +39,7 @@ export function StudioLocationCard({
           <StudioLocationCategoryBadge category={location.category} />
         </div>
         <p className="mt-2 flex-1 text-sm leading-relaxed text-zinc-600">
-          {truncate(location.description, 140)}
+          {truncateStudioText(location.description, 140)}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link

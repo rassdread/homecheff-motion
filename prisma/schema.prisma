@@ -248,6 +248,7 @@ model User {
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
   studioCharacters  StudioCharacter[]
   studioLocations   StudioLocation[]
+  studioProps       StudioProp[]
 }
 
 /** Reusable character identity for Studio → future Scene Composer → Motion. */
@@ -287,6 +288,27 @@ model StudioLocation {
   referenceStorageKey String
   /** Reserved for globally seeded HomeCheff locations (Rotterdam, Community Garden, …). */
   isSystemLocation    Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, createdAt])
+}
+
+/** Reusable object / prop for Studio → future Scene Composer → Motion. */
+model StudioProp {
+  id                  String   @id @default(cuid())
+  ownerId             String
+  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                String
+  slug                String
+  description         String   @default("")
+  /** phone | laptop | food | drink | plant | vehicle | furniture | screen | clothing | packaging | tool | brand_asset | other */
+  category            String
+  referenceImageUrl   String
+  referenceStorageKey String
+  /** Reserved for globally seeded HomeCheff props (Mug, Delivery Bag, …). */
+  isSystemProp        Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

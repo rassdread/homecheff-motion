@@ -43,6 +43,12 @@
  * - `StudioLocation` Prisma model + CRUD service (`@/server/studio/studio-location-service`)
  * - `LocationSnapshot` for future Motion handoff (`@/types/studio-location-snapshot`)
  *
+ * ## V4 (Props Library)
+ *
+ * - `StudioProp` Prisma model + CRUD service (`@/server/studio/studio-prop-service`)
+ * - `PropSnapshot` for future Motion handoff (`@/types/studio-prop-snapshot`)
+ * - Shared helpers: `studio-reference-blob`, `studio-asset-slug`, `studio-asset-search`
+ *
  * ## Planned Motion handoff (not wired yet)
  *
  * ```
@@ -57,9 +63,9 @@
  * Video
  * ```
  *
- * ## V4+ considerations
+ * ## V5+ considerations
  *
- * - Props, storyboards persistence (same service pattern)
+ * - Storyboards persistence (same service pattern)
  * - Link storyboard scenes to Motion wizard scene slots
  * - Pass character reference images into Vidu multi-image prompts
  * - Render-version snapshots may store Studio asset IDs used per export
