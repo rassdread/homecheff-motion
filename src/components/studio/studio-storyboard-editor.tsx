@@ -26,7 +26,7 @@ import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
-import { StudioDirectorTimeline } from "@/components/studio/studio-director-timeline";
+import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import {
   STUDIO_DIRECTOR_PROFILES,
   normalizeStudioDirectorProfile,
@@ -657,7 +657,17 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
               <div>
                 {scenes.length > 0 ?
                   <div className="mb-6">
-                    <StudioDirectorTimeline storyboard={storyboard} />
+                    <StudioStoryIntelligencePanel
+                      storyboard={storyboard}
+                      directorProfile={directorProfile}
+                      canModify={canModify}
+                      onScenesUpdated={async () => {
+                        const res = await fetchStudioStoryboard(storyboardId);
+                        if (res.ok && res.data.storyboard) {
+                          setStoryboard(res.data.storyboard);
+                        }
+                      }}
+                    />
                   </div>
                 : null}
                 <h2 className="text-lg font-semibold text-zinc-900">

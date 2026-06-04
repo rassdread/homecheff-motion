@@ -124,4 +124,18 @@ describe("studio scene director V23", () => {
     ]);
     assert.ok(varied > flat);
   });
+
+  it("movie quality includes V25 story health score", () => {
+    const storyboard = {
+      directorProfile: "commercial",
+      scenes: [
+        { id: "1", order: 0, title: "S1", shotType: "wide", cameraMovement: "push_in", sceneEnergy: "calm", camera: "" },
+        { id: "2", order: 1, title: "S2", shotType: "medium", cameraMovement: "tracking", sceneEnergy: "neutral", camera: "" },
+        { id: "3", order: 2, title: "S3", shotType: "close_up", cameraMovement: "crane", sceneEnergy: "intense", camera: "" },
+      ],
+    } as unknown as StudioStoryboardDetail;
+    const report = buildDirectorQualityReport(storyboard);
+    assert.ok(typeof report.storyHealthScore === "number");
+    assert.ok(report.storyHealthScore >= 0);
+  });
 });

@@ -1,3 +1,5 @@
+import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
+import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
 import { analyzeStoryFlow, type StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 
@@ -6,6 +8,7 @@ export type DirectorQualityTier = "weak" | "fair" | "good" | "strong";
 export type DirectorQualityReport = {
   tier: DirectorQualityTier;
   shotDiversityScore: number;
+  storyHealthScore: number;
   warningCount: number;
   scenesMissingShot: number;
   recommendationKeys: string[];
@@ -44,6 +47,8 @@ export function buildDirectorQualityReport(
 ): DirectorQualityReport {
   const scenes = storyboardToFlowInput(storyboard);
   const analysis = analyzeStoryFlow(scenes);
+  const directorProfile = normalizeStudioDirectorProfile(storyboard.directorProfile);
+  const intelligence = analyzeStoryIntelligence(scenes, directorProfile);
   const missingShot = scenes.filter((s) => !s.shotType && !s.camera?.trim()).length;
   const missingRatio = scenes.length === 0 ? 1 : missingShot / scenes.length;
 
@@ -54,14 +59,22 @@ export function buildDirectorQualityReport(
   if (analysis.shotDiversityScore < 50) {
     recommendationKeys.push("studio.director.movie.recommend.diversify");
   }
-  for (const warning of analysis.warnings) {
+  if (intelligence.storyHealthScore < 50) {
+    recommendationKeys.push("studio.intelligence.movie.recommend.health");
+  }
+  for (const warning of intelligence.warnings.slice(0, 6)) {
     recommendationKeys.push(warning.messageKey);
   }
 
+  const tierScore = Math.round(
+    (analysis.shotDiversityScore + intelligence.storyHealthScore) / 2
+  );
+
   return {
-    tier: tierFromScore(analysis.shotDiversityScore, analysis.warnings.length, missingRatio),
+    tier: tierFromScore(tierScore, intelligence.warnings.length, missingRatio),
     shotDiversityScore: analysis.shotDiversityScore,
-    warningCount: analysis.warnings.length,
+    storyHealthScore: intelligence.storyHealthScore,
+    warningCount: intelligence.warnings.length,
     scenesMissingShot: missingShot,
     recommendationKeys: [...new Set(recommendationKeys)],
   };

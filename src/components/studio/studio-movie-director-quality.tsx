@@ -24,7 +24,8 @@ export function StudioMovieDirectorQuality({ storyboard }: Props) {
       <p className="text-sm font-semibold">{t("studio.director.movie.title")}</p>
       <p className="mt-1 text-xs opacity-90">
         {t(`studio.director.movie.tier.${report.tier}` as TranslationKey)} ·{" "}
-        {t("studio.director.diversityScore", { score: report.shotDiversityScore })}
+        {t("studio.director.diversityScore", { score: report.shotDiversityScore })} ·{" "}
+        {t("studio.intelligence.healthScore", { score: report.storyHealthScore })}
       </p>
       {report.recommendationKeys.length > 0 ?
         <ul className="mt-2 list-inside list-disc text-xs">
