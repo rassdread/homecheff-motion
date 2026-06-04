@@ -34,15 +34,20 @@ import {
 import { StudioConsistencyTimelinePanel } from "@/components/studio/studio-consistency-timeline-panel";
 import { StudioVisionTimelinePanel } from "@/components/studio/studio-vision-timeline-panel";
 import { StudioStoryboardCorrectionPanel } from "@/components/studio/studio-storyboard-correction-panel";
+import { StudioJobCostConfirmModal } from "@/components/studio/studio-job-cost-confirm-modal";
 import { StudioStoryboardImprovementPanel } from "@/components/studio/studio-storyboard-improvement-panel";
+import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-job-panel";
+import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
+import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
 import {
-  analyzeStudioStoryboardConsistencyApi,
-  analyzeStudioStoryboardVisionApi,
-  bulkGenerateStudioSceneImagesApi,
-  bulkImproveStudioScenesApi,
   fetchStoryboardImprovementSummaryApi,
   generateStoryboardCorrectionsApi,
 } from "@/lib/studio-scene-images-client";
+import {
+  createStudioJobApi,
+  isStudioJobActive,
+  listStudioJobsApi,
+} from "@/lib/studio-jobs-client";
 import type { StoryboardImprovementSummary } from "@/types/studio-improvement";
 import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
 import type { StoryboardVisionReport } from "@/types/studio-vision-consistency";
@@ -63,6 +68,7 @@ import type {
   StudioStoryboardDetail,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
+import type { StudioJobCreateInput, StudioJobDetail, StudioJobListItem, StudioJobType } from "@/types/studio-job";
 
 type StudioStoryboardEditorProps = {
   storyboardId: string;
@@ -81,10 +87,14 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
   const [busySceneId, setBusySceneId] = useState<string | null>(null);
   const [savingStyleProfile, setSavingStyleProfile] = useState(false);
-  const [bulkGenerating, setBulkGenerating] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState("");
-  const [analyzingConsistency, setAnalyzingConsistency] = useState(false);
-  const [analyzingVision, setAnalyzingVision] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [recentJobs, setRecentJobs] = useState<StudioJobListItem[]>([]);
+  const [startingJob, setStartingJob] = useState(false);
+  const [jobConfirm, setJobConfirm] = useState<{
+    open: boolean;
+    type: StudioJobType;
+    input?: StudioJobCreateInput;
+  } | null>(null);
   const [visionReport, setVisionReport] = useState<StoryboardVisionReport | null>(null);
   const [consistencyReport, setConsistencyReport] = useState<StoryboardConsistencyReport | null>(
     null
@@ -97,8 +107,6 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     null
   );
   const [loadingImprovements, setLoadingImprovements] = useState(false);
-  const [bulkImproving, setBulkImproving] = useState(false);
-  const [bulkImproveProgress, setBulkImproveProgress] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -126,6 +134,14 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
+    const jobsRes = await listStudioJobsApi(storyboardId);
+    if (jobsRes.ok) {
+      setRecentJobs(jobsRes.data.jobs);
+      const running = jobsRes.data.jobs.find((j) => isStudioJobActive(j.status));
+      if (running) {
+        setActiveJobId(running.id);
+      }
+    }
     setLoading(false);
   }, [storyboardId, t]);
 
@@ -212,58 +228,101 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     );
   };
 
-  const handleBulkGenerateImages = async () => {
-    if (!storyboard || scenes.length === 0) {
+  const loadRecentJobs = useCallback(async () => {
+    const res = await listStudioJobsApi(storyboardId);
+    if (res.ok) {
+      setRecentJobs(res.data.jobs);
+      const running = res.data.jobs.find((j) => isStudioJobActive(j.status));
+      if (running) {
+        setActiveJobId(running.id);
+      }
+    }
+  }, [storyboardId]);
+
+  const jobBusy = useMemo(
+    () => recentJobs.some((j) => isStudioJobActive(j.status)) || Boolean(activeJobId),
+    [recentJobs, activeJobId]
+  );
+
+  const openJobConfirm = (type: StudioJobType, input?: StudioJobCreateInput) => {
+    setJobConfirm({ open: true, type, input });
+  };
+
+  const startStudioJob = async () => {
+    if (!jobConfirm) {
       return;
     }
-    setBulkGenerating(true);
-    setBulkProgress(t("studio.sceneImage.bulkStarting"));
+    setStartingJob(true);
     setError("");
-    const res = await bulkGenerateStudioSceneImagesApi(storyboardId);
-    setBulkGenerating(false);
+    const res = await createStudioJobApi(storyboardId, jobConfirm.type, jobConfirm.input);
+    setStartingJob(false);
+    setJobConfirm(null);
     if (!res.ok) {
-      setError((res.data as { error?: string }).error ?? t("studio.sceneImage.error.bulkFailed"));
-      setBulkProgress("");
+      setError((res.data as { error?: string }).error ?? t("studio.jobs.error.startFailed"));
       return;
     }
-    const okCount = res.data.results.filter((r) => r.ok).length;
-    setBulkProgress(
-      t("studio.sceneImage.bulkDone", {
-        ok: String(okCount),
-        total: String(res.data.results.length),
+    setActiveJobId(res.data.job.id);
+    await loadRecentJobs();
+  };
+
+  const applyReportsFromStoryboard = (sb: StudioStoryboardDetail) => {
+    setConsistencyReport(
+      buildStoryboardConsistencyReport({
+        storyboardId: sb.id,
+        scenes: sb.scenes.map((scene) => {
+          const pick =
+            scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId) ??
+            scene.sceneImages.find((img) => img.status === "completed");
+          return {
+            sceneId: scene.id,
+            sceneTitle: scene.title,
+            order: scene.order,
+            imageId: pick?.id ?? null,
+            report: pick?.consistencyReport ?? null,
+          };
+        }),
       })
     );
-    await load();
+    setVisionReport(
+      buildStoryboardVisionReport({
+        storyboardId: sb.id,
+        scenes: sb.scenes.map((scene) => {
+          const pick =
+            scene.sceneImages.find((img) => img.id === scene.selectedSceneImageId) ??
+            scene.sceneImages.find((img) => img.status === "completed");
+          return {
+            sceneId: scene.id,
+            sceneTitle: scene.title,
+            order: scene.order,
+            imageId: pick?.id ?? null,
+            report: pick?.visionReport ?? null,
+          };
+        }),
+      })
+    );
   };
 
-  const handleAnalyzeConsistency = async () => {
-    setAnalyzingConsistency(true);
-    setError("");
-    const res = await analyzeStudioStoryboardConsistencyApi(storyboardId);
-    setAnalyzingConsistency(false);
-    if (!res.ok) {
-      setError(
-        (res.data as { error?: string }).error ?? t("studio.consistency.error.storyboardFailed")
-      );
-      return;
-    }
-    setConsistencyReport(res.data.report);
+  const handleJobFinished = async (job: StudioJobDetail) => {
+    setActiveJobId(null);
     await load();
-  };
-
-  const handleAnalyzeVision = async () => {
-    setAnalyzingVision(true);
-    setError("");
-    const res = await analyzeStudioStoryboardVisionApi(storyboardId);
-    setAnalyzingVision(false);
-    if (!res.ok) {
-      setError(
-        (res.data as { error?: string }).error ?? t("studio.vision.error.storyboardFailed")
-      );
-      return;
+    await loadRecentJobs();
+    if (storyboard) {
+      const sbRes = await fetchStudioStoryboard(storyboardId);
+      if (sbRes.ok) {
+        setStoryboard(sbRes.data.storyboard);
+        if (
+          job.type === "analyze_consistency" ||
+          job.type === "analyze_vision" ||
+          job.type === "generate_scene_images" ||
+          job.type === "improve_weak_scenes"
+        ) {
+          applyReportsFromStoryboard(sbRes.data.storyboard);
+        }
+      }
     }
-    setVisionReport(res.data.report);
-    await load();
+    if (job.type === "improve_weak_scenes") {
+      await loadImprovementSummary();
+    }
   };
 
   const loadImprovementSummary = useCallback(async () => {
@@ -291,35 +350,6 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
       return;
     }
     setStoryboard(res.data.storyboard);
-  };
-
-  const handleBulkImproveScenes = async (sceneIds: string[]) => {
-    if (!storyboard || sceneIds.length === 0) {
-      return;
-    }
-    setBulkImproving(true);
-    setBulkImproveProgress(t("studio.improve.bulkStarting"));
-    setError("");
-    const res = await bulkImproveStudioScenesApi(
-      storyboardId,
-      sceneIds,
-      storyboard.autoSelectImprovedImage
-    );
-    setBulkImproving(false);
-    if (!res.ok) {
-      setError((res.data as { error?: string }).error ?? t("studio.improve.error.failed"));
-      setBulkImproveProgress("");
-      return;
-    }
-    const okCount = res.data.results.filter((r) => r.ok).length;
-    setBulkImproveProgress(
-      t("studio.improve.bulkDone", {
-        ok: String(okCount),
-        total: String(res.data.total),
-      })
-    );
-    await load();
-    await loadImprovementSummary();
   };
 
   const handleGenerateCorrections = async () => {
@@ -461,37 +491,37 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </Link>
                         <button
                           type="button"
-                          disabled={bulkGenerating}
-                          onClick={() => void handleBulkGenerateImages()}
+                          disabled={jobBusy || scenes.length === 0}
+                          onClick={() => openJobConfirm("generate_scene_images")}
                           className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
                         >
-                          {bulkGenerating
-                            ? t("studio.sceneImage.bulkGenerating")
+                          {jobBusy
+                            ? t("studio.jobs.running")
                             : t("studio.sceneImage.bulkGenerateAll")}
                         </button>
                         <button
                           type="button"
-                          disabled={analyzingConsistency || scenes.length === 0}
-                          onClick={() => void handleAnalyzeConsistency()}
+                          disabled={jobBusy || scenes.length === 0}
+                          onClick={() => openJobConfirm("analyze_consistency")}
                           className="rounded-full border border-amber-500/50 px-4 py-2 text-sm font-semibold text-amber-900 disabled:opacity-50"
                         >
-                          {analyzingConsistency
-                            ? t("studio.consistency.analyzing")
+                          {jobBusy
+                            ? t("studio.jobs.running")
                             : t("studio.consistency.analyzeStoryboard")}
                         </button>
                         <button
                           type="button"
-                          disabled={analyzingVision || scenes.length === 0}
-                          onClick={() => void handleAnalyzeVision()}
+                          disabled={jobBusy || scenes.length === 0}
+                          onClick={() => openJobConfirm("analyze_vision")}
                           className="rounded-full border border-[#0067B1]/40 px-4 py-2 text-sm font-semibold text-[#0067B1] disabled:opacity-50"
                         >
-                          {analyzingVision
-                            ? t("studio.vision.analyzing")
+                          {jobBusy
+                            ? t("studio.jobs.running")
                             : t("studio.vision.analyzeStoryboard")}
                         </button>
                         <button
                           type="button"
-                          disabled={generatingCorrections || scenes.length === 0}
+                          disabled={jobBusy || generatingCorrections || scenes.length === 0}
                           onClick={() => void handleGenerateCorrections()}
                           className="rounded-full border border-[#006D52]/40 px-4 py-2 text-sm font-semibold text-[#006D52] disabled:opacity-50"
                         >
@@ -527,12 +557,6 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
           {error ? (
             <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
               {error}
-            </p>
-          ) : null}
-
-          {bulkProgress ? (
-            <p className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-4 py-2 text-sm text-[#006D52]">
-              {bulkProgress}
             </p>
           ) : null}
 
@@ -578,14 +602,28 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                 )}
               </div>
               <aside className="space-y-8">
+                <StudioStoryboardJobPanel
+                  storyboardId={storyboardId}
+                  activeJobId={activeJobId}
+                  recentJobs={recentJobs}
+                  canModify={canModify}
+                  onJobUpdated={() => {}}
+                  onJobFinished={(job) => void handleJobFinished(job)}
+                  onRefreshJobs={() => void loadRecentJobs()}
+                />
                 <StudioStoryboardImprovementPanel
                   summary={improvementSummary}
                   loading={loadingImprovements}
                   autoSelectImprovedImage={storyboard.autoSelectImprovedImage}
                   onAutoSelectChange={(value) => void handleAutoSelectChange(value)}
-                  onRegenerateSelected={(ids) => void handleBulkImproveScenes(ids)}
-                  bulkBusy={bulkImproving}
-                  bulkProgress={bulkImproveProgress}
+                  onRegenerateSelected={(ids) =>
+                    openJobConfirm("improve_weak_scenes", {
+                      sceneIds: ids,
+                      options: { autoSelect: storyboard.autoSelectImprovedImage },
+                    })
+                  }
+                  bulkBusy={jobBusy}
+                  bulkProgress={jobBusy ? t("studio.jobs.running") : ""}
                 />
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
@@ -613,6 +651,13 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
           ) : null}
         </section>
       </main>
+      <StudioJobCostConfirmModal
+        open={Boolean(jobConfirm?.open)}
+        jobType={jobConfirm?.type ?? null}
+        onCancel={() => setJobConfirm(null)}
+        onConfirm={() => void startStudioJob()}
+        busy={startingJob}
+      />
     </StudioAuthGate>
   );
 }

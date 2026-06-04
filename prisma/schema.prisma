@@ -251,6 +251,7 @@ model User {
   studioProps          StudioProp[]
   studioWorldProfiles  StudioWorldProfile[]
   studioStoryboards    StudioStoryboard[]
+  studioJobs           StudioJob[]
 }
 
 /** Shared visual universe for characters, locations and props (Studio V10). */
@@ -390,8 +391,39 @@ model StudioStoryboard {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   scenes      StudioScene[]
+  jobs        StudioJob[]
 
   @@index([ownerId])
+}
+
+/** Background bulk work for Studio storyboards (V15). */
+model StudioJob {
+  id           String           @id @default(cuid())
+  ownerId      String
+  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  storyboardId String
+  storyboard   StudioStoryboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  /** generate_scene_images | analyze_consistency | analyze_vision | improve_weak_scenes */
+  type         String
+  /** queued | running | completed | failed | cancelled */
+  status       String           @default("queued")
+  progress     Int              @default(0)
+  currentStep  String           @default("")
+  totalSteps   Int              @default(0)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  failedAt     DateTime?
+  errorMessage String           @default("")
+  inputJson    Json
+  resultJson   Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([ownerId])
+  @@index([storyboardId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([storyboardId, status])
 }
 
 /** Single composed scene within a storyboard. */
