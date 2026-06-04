@@ -51,6 +51,11 @@ describe("full rerender project", () => {
     assert.match(src, /previousFinalVideoUrl/);
   });
 
+  it("clears stale clean URL when a full rerender starts", () => {
+    const src = readFileSync(join(__dirname, "full-rerender-project.ts"), "utf8");
+    assert.match(src, /instantCleanFinalVideoUrl: null/);
+  });
+
   it("archives previous transition URLs in audit JSON", () => {
     const audit = mergeFullRerenderAudit(null, {
       rebuildType: "full_rerender",

@@ -18,12 +18,40 @@ test("repair API route returns quickly without awaiting full FFmpeg", () => {
   assert.match(route, /\?\s*202/);
 });
 
-test("start repair uses worker dispatch without blocking awaitWorker", () => {
+test("start repair dispatches worker in background with local fallback", () => {
   const src = readFileSync(join(__dirname, "start-instant-video-repair.ts"), "utf8");
   assert.match(src, /syncFinalVideoArtifactsFromBlob/);
-  assert.match(src, /after\s*\(/);
-  assert.match(src, /awaitWorker:\s*false/);
+  assert.match(src, /dispatchInstantPremiumWorkerMerge/);
+  assert.match(src, /worker_dispatch_fallback_local/);
+  assert.match(src, /executeInstantVideoRepairBackground/);
   assert.doesNotMatch(src, /from ["']@\/server\/video-providers\/vidu/);
+});
+
+test("repair in progress follows videoRepair audit status", () => {
+  const stale = new Date(Date.now() - 10 * 60 * 1000);
+  const inProgress = isInstantVideoRepairInProgress({
+    instantFinalRebuildAuditJson: {
+      videoRepair: {
+        status: "running",
+        stage: "started",
+        startedAt: stale.toISOString(),
+        updatedAt: stale.toISOString(),
+      },
+    },
+    instantWorkerJobStatus: "queued",
+    instantWorkerJobStartedAt: stale,
+    status: "failed",
+    transitions: [{ status: "completed", outputVideoUrl: "https://blob/seg.mp4" }],
+    exports: [
+      {
+        status: "rendering",
+        progress: 10,
+        outputVideoUrl: null,
+        updatedAt: stale,
+      },
+    ],
+  });
+  assert.equal(inProgress, true);
 });
 
 test("duplicate repair click is blocked while merge in progress", () => {

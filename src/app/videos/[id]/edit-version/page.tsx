@@ -146,10 +146,16 @@ export default function VideoEditVersionPage() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       <Link
-        href={`/videos/${encodeURIComponent(id)}`}
+        href={
+          detail?.sourceProjectId
+            ? `/videos/${encodeURIComponent(detail.sourceProjectId)}`
+            : `/videos?section=concepts`
+        }
         className="text-sm font-medium text-zinc-600 underline"
       >
-        {t("videos.backToProject")}
+        {detail?.sourceProjectId
+          ? t("projects.concept.backToSource")
+          : t("projects.concept.backToConcepts")}
       </Link>
 
       <ConceptEditVersionDebugPanel isAdmin={isAdmin} />
@@ -187,7 +193,11 @@ export default function VideoEditVersionPage() {
           <FullRerenderEditor
             projectId={id}
             layout="page"
-            backHref={`/videos/${encodeURIComponent(id)}`}
+            backHref={
+              detail.sourceProjectId
+                ? `/videos/${encodeURIComponent(detail.sourceProjectId)}`
+                : `/videos?section=concepts`
+            }
             instantSceneTexts={detail.instantSceneTexts}
             instantMode={detail.instantMode}
             instantUserIntent={detail.instantUserIntent}

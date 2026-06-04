@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
-import { triggerWorkerInstantPremiumProcess } from "@/lib/video-worker-client";
+import { requestWorkerInstantPremiumProcess } from "@/lib/video-worker-client";
 import {
   executeInstantPremiumMerge,
 } from "@/server/instant-premium/merge-instant-project";
@@ -12,6 +12,8 @@ import {
 } from "@/server/instant-premium/story-mode-transitions";
 
 export const FINALIZATION_STUCK_MS = 5 * 60 * 1000;
+/** Repair/worker dispatch left in queued with no running worker. */
+export const REPAIR_WORKER_DISPATCH_STALE_MS = 90 * 1000;
 /** Restart merge from segment download — avoids leaving UI stuck at 55–70%. */
 export const REPAIR_MERGE_START_PROGRESS = 10;
 
@@ -177,11 +179,66 @@ export function isWorkerJobStuck(project: {
   return ageMs(project.instantWorkerJobStartedAt) >= FINALIZATION_STUCK_MS;
 }
 
+export async function dispatchInstantPremiumWorkerMerge(
+  projectId: string,
+  options?: { force?: boolean }
+): Promise<{ ok: boolean; status: string; message?: string }> {
+  if (!isVideoRenderWorkerMode()) {
+    return { ok: false, status: "local_mode", message: "Worker mode is not enabled." };
+  }
+
+  await prisma.animationProject.update({
+    where: { id: projectId },
+    data: {
+      instantWorkerJobStatus: "running",
+      instantWorkerJobStartedAt: new Date(),
+      status: "rendering",
+      failureReason: null,
+      lastOverlayError: null,
+    },
+  });
+
+  try {
+    const result = await requestWorkerInstantPremiumProcess(projectId, {
+      force: Boolean(options?.force),
+    });
+    return {
+      ok: result.ok || result.status === "completed" || result.status === "running",
+      status: result.status,
+      message: result.message,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.info("[hc-instant-premium]", {
+      projectId,
+      phase: "worker_dispatch_failed",
+      error: message,
+    });
+    return { ok: false, status: "dispatch_failed", message };
+  }
+}
+
+/** Fire-and-forget worker merge; logs failures (legacy callers). */
+export function triggerInstantPremiumWorkerMerge(
+  projectId: string,
+  options?: { force?: boolean }
+): void {
+  void dispatchInstantPremiumWorkerMerge(projectId, options).catch(() => undefined);
+}
+
 export async function orchestrateFinalMerge(
   projectId: string,
   options?: { force?: boolean; awaitWorker?: boolean }
 ): Promise<void> {
   if (isVideoRenderWorkerMode()) {
+    if (options?.awaitWorker) {
+      const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, options);
+      if (!dispatched.ok) {
+        await runFinalExportToCompletion(projectId, { force: Boolean(options?.force) });
+      }
+      return;
+    }
+
     await prisma.animationProject
       .update({
         where: { id: projectId },
@@ -193,11 +250,7 @@ export async function orchestrateFinalMerge(
       })
       .catch(() => undefined);
 
-    if (options?.awaitWorker) {
-      await runFinalExportToCompletion(projectId, { force: Boolean(options?.force) });
-    } else {
-      triggerWorkerInstantPremiumProcess(projectId, options);
-    }
+    triggerInstantPremiumWorkerMerge(projectId, options);
     return;
   }
   if (options?.awaitWorker) {

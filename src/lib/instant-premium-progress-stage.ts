@@ -8,6 +8,8 @@ import type { InstantPremiumFailureReason } from "@/types/animation-api";
 
 export const INSTANT_EXPORT_STUCK_MS = 90_000;
 export const REBUILD_PROGRESS_FLOOR = 70;
+/** Repair merge restarts at ~10% — show at least merge band while restoring. */
+export const REPAIR_PROGRESS_FLOOR = 10;
 
 export type InstantPremiumProgressStage =
   | "segment_rendering"
@@ -62,6 +64,14 @@ export function resolveInstantPremiumProgress(
     );
   }
 
+  if (input.isRestoringFinalVideo) {
+    return resolveFinalizingProgress(
+      Math.max(REPAIR_PROGRESS_FLOOR, progress),
+      posterMode,
+      "repair"
+    );
+  }
+
   const exportFailed =
     input.exportFailure?.isExportFailure ||
     input.exportFailure?.finalRebuildFailed ||
@@ -97,10 +107,6 @@ export function resolveInstantPremiumProgress(
 
   if (input.status === "completed" || input.phase === "completed") {
     return { stage: "completed", activeOperation: "idle", displayPercent: 100 };
-  }
-
-  if (input.isRestoringFinalVideo) {
-    return resolveFinalizingProgress(progress, posterMode, "repair");
   }
 
   if (input.phase === "uploading_final" || progress >= 85) {

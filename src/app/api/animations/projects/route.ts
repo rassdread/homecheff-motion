@@ -26,6 +26,7 @@ import {
 import { listAnimationProjectsForUser } from "@/server/animation-projects/list-projects-handler";
 import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { DEFAULT_GLOBAL_ANIMATION_CONTEXT } from "@/lib/animation-global-prompt-context";
+import { sanitizeProjectTitleInput } from "@/lib/project-display-title";
 import type {
   CreatedAnimationTransition,
   CreateAnimationProjectErrorBody,
@@ -56,6 +57,9 @@ export async function GET(request: Request) {
     : sectionRaw === "completed" ? "completed"
     : "completed";
 
+  const localeParam = searchParams.get("locale")?.trim().toLowerCase();
+  const locale = localeParam === "en" ? "en" : "nl";
+
   const result = await listAnimationProjectsForUser({
     ownerId: listAll ? undefined : user.id,
     listAll,
@@ -63,6 +67,7 @@ export async function GET(request: Request) {
     limit,
     statusFilter,
     gallerySection,
+    locale,
   });
 
   if (!result.ok) {
@@ -362,6 +367,7 @@ export async function POST(request: Request) {
     const project = await tx.animationProject.create({
       data: {
         ownerId: user.id,
+        title: sanitizeProjectTitleInput(payload.title),
         status: "generating",
         stylePreset: payload.stylePreset,
         aspectRatio: payload.aspectRatio,

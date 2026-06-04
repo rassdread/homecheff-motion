@@ -14,6 +14,10 @@ import { InstantVideoRepairCard } from "@/components/instant/instant-video-repai
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
+import { ProjectDetailMotionVersions } from "@/components/videos/project-detail-motion-versions";
+import { findMotionVersionSlot, buildMotionVersionCatalogForProject } from "@/lib/motion-version-catalog";
+import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
+import { RenameProjectDialog } from "@/components/videos/rename-project-dialog";
 import {
   filterCompletedLanguageExportsForPlayback,
   resolveActivePlaybackState,
@@ -23,6 +27,8 @@ import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import { PlaybackDebugPanel } from "@/components/instant/playback-debug-panel";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
 import { buildPlaybackCacheKey, pickPlaybackUrl } from "@/lib/playback-url-resolution";
+import { resolveProjectVideoDisplayState } from "@/lib/render-output-lineage";
+import { isFullRerenderInProgress } from "@/lib/full-rerender-audit";
 import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
@@ -54,6 +60,7 @@ import {
 } from "@/components/videos/project-detail-header";
 import { ProjectDetailQuickActions } from "@/components/videos/project-detail-quick-actions";
 import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
+import { postCopyProjectAsDraft } from "@/lib/copy-project-as-draft-client";
 import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import {
   ProjectStorageUsageCard,
@@ -125,6 +132,7 @@ export default function VideoDetailPage() {
   const [fullRerenderBusy, setFullRerenderBusy] = useState(false);
   const [fullRerenderError, setFullRerenderError] = useState<string | null>(null);
   const [fullRerenderInfo, setFullRerenderInfo] = useState<string | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [rebuildInfo, setRebuildInfo] = useState<string | null>(null);
   const load = useCallback(async (options?: { silent?: boolean }) => {
@@ -183,6 +191,27 @@ export default function VideoDetailPage() {
       } else {
         params.set("lang", languageCode);
       }
+      params.delete("ver");
+      const qs = params.toString();
+      router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [id, router, searchParams]
+  );
+
+  const setMotionVersionSelection = useCallback(
+    (languageCode: string, selectionKey: string) => {
+      if (!id) {
+        return;
+      }
+      const params = new URLSearchParams(searchParams.toString());
+      if (languageCode === "nl") {
+        params.delete("lang");
+      } else {
+        params.set("lang", languageCode);
+      }
+      params.set("ver", selectionKey);
       const qs = params.toString();
       router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
         scroll: false,
@@ -389,6 +418,39 @@ export default function VideoDetailPage() {
     }
   }, [fullRerenderDisabled, id, router, t]);
 
+  const handleCopyAsConcept = useCallback(async () => {
+    if (!id || fullRerenderDisabled) {
+      return;
+    }
+    setFullRerenderBusy(true);
+    setFullRerenderError(null);
+    setFullRerenderInfo(null);
+    try {
+      const result = await postCopyProjectAsDraft(id);
+      if (result.networkError || !result.ok) {
+        setFullRerenderError(
+          result.data.error ??
+            result.data.copyAsDraft?.message ??
+            t("projects.concept.copyFailed")
+        );
+        return;
+      }
+      const path =
+        result.data.editVersionPath ??
+        (result.data.draftProjectId
+          ? `/videos/${encodeURIComponent(result.data.draftProjectId)}/edit-version`
+          : null);
+      if (!path) {
+        setFullRerenderError(t("projects.concept.copyFailed"));
+        return;
+      }
+      setFullRerenderInfo(t("projects.concept.copyStarted"));
+      router.push(path);
+    } finally {
+      setFullRerenderBusy(false);
+    }
+  }, [fullRerenderDisabled, id, router, t]);
+
   const panelPollingError =
     instantPollingError ??
     (videoRepair.feedback.kind === "poll_failed" && videoRepair.feedback.userMessageKey
@@ -398,17 +460,54 @@ export default function VideoDetailPage() {
         }
       : null);
 
+  const videoDisplay = useMemo(() => {
+    if (!detail) {
+      return {
+        primaryFinalUrl: null,
+        finalIsArchivedFallback: false,
+        cleanUrl: null,
+        cleanIsStale: false,
+        cleanIsLatestBareOnly: false,
+      };
+    }
+    return resolveProjectVideoDisplayState({
+      projectCleanUrl: detail.instantCleanFinalVideoUrl ?? null,
+      exportOutputUrl: finalVideoUrl,
+      previousFinalVideoUrl: detail.instantPreviousFinalVideoUrl ?? null,
+      projectStatus: detail.status,
+      exportStatus: latestExport?.status ?? null,
+      renderVersions: detail.renderVersions?.map((row) => ({
+        renderVersionNumber: row.renderVersionNumber,
+        status: row.status,
+        isDefault: row.isDefault,
+        finalVideoUrl: row.finalVideoUrl,
+        cleanVideoUrl: row.cleanVideoUrl,
+      })),
+      auditJson: detail.instantFinalRebuildAuditJson,
+      rerenderInProgress: isFullRerenderInProgress(detail.instantFinalRebuildAuditJson),
+    });
+  }, [detail, finalVideoUrl, latestExport?.status]);
+
   const originalPlaybackUrl = useMemo(() => {
+    const exportForPick =
+      videoDisplay.finalIsArchivedFallback && videoDisplay.primaryFinalUrl
+        ? videoDisplay.primaryFinalUrl
+        : finalVideoUrl;
     const picked = pickPlaybackUrl({
-      detailExportUrl: finalVideoUrl,
+      detailExportUrl: exportForPick,
       statusSnapshotUrl: instantSnapshot?.finalVideoUrl,
       previousFinalVideoUrl: detail?.instantPreviousFinalVideoUrl,
     });
-    return picked.url;
+    return (
+      picked.url ??
+      (videoDisplay.finalIsArchivedFallback ? videoDisplay.primaryFinalUrl : null)
+    );
   }, [
     finalVideoUrl,
     instantSnapshot?.finalVideoUrl,
     detail?.instantPreviousFinalVideoUrl,
+    videoDisplay.finalIsArchivedFallback,
+    videoDisplay.primaryFinalUrl,
   ]);
 
   const languageExports = useMemo(
@@ -417,6 +516,63 @@ export default function VideoDetailPage() {
   );
 
   const langFromUrl = searchParams.get("lang");
+  const versionFromUrl = searchParams.get("ver");
+
+  const motionCatalog = useMemo(() => {
+    if (!detail) {
+      return null;
+    }
+    return buildMotionVersionCatalogForProject({
+      projectId: detail.id,
+      title: detail.title,
+      exportOutputUrl: finalVideoUrl,
+      exportStatus: latestExport?.status ?? null,
+      projectStatus: detail.status,
+      projectCleanUrl: detail.instantCleanFinalVideoUrl ?? null,
+      renderVersions: (detail.renderVersions ?? []).map((row) => ({
+        id: row.id,
+        renderVersionNumber: row.renderVersionNumber,
+        status: row.status,
+        isDefault: row.isDefault,
+        versionNote: row.versionNote,
+        finalVideoUrl: row.finalVideoUrl,
+        cleanVideoUrl: row.cleanVideoUrl,
+        createdAt: row.createdAt,
+      })),
+      languageExports: (detail.languageExports ?? []).map((row) => ({
+        id: row.id,
+        languageCode: row.languageCode,
+        languageLabel: row.languageLabel,
+        status: row.status,
+        outputVideoUrl: row.outputVideoUrl,
+        sourceCleanVideoUrl: row.sourceCleanVideoUrl,
+        version: row.version,
+        isDefault: row.isDefault,
+        versionNote: row.versionNote,
+        createdAt: row.createdAt,
+      })),
+    });
+  }, [detail, finalVideoUrl, latestExport?.status]);
+
+  const selectedMotionSlot = useMemo(() => {
+    if (!motionCatalog) {
+      return null;
+    }
+    const fromUrl = findMotionVersionSlot(motionCatalog, versionFromUrl);
+    if (fromUrl) {
+      return fromUrl;
+    }
+    const code =
+      langFromUrl && motionCatalog.slotsByLanguage[langFromUrl]
+        ? langFromUrl
+        : motionCatalog.defaultLanguageCode;
+    const slots = motionCatalog.slotsByLanguage[code] ?? [];
+    return (
+      slots.find((s) => s.status === "completed" && s.finalVideoUrl) ??
+      slots[slots.length - 1] ??
+      null
+    );
+  }, [motionCatalog, langFromUrl, versionFromUrl]);
 
   const playbackState = useMemo(
     () =>
@@ -429,7 +585,12 @@ export default function VideoDetailPage() {
   );
 
   const activeFinalVideoUrl =
-    playbackState.activePlaybackUrl ?? originalPlaybackUrl;
+    selectedMotionSlot?.finalVideoUrl?.trim() ??
+    playbackState.activePlaybackUrl ??
+    originalPlaybackUrl;
+
+  const activeCleanVideoUrl =
+    selectedMotionSlot?.cleanVideoUrl?.trim() ?? videoDisplay.cleanUrl;
 
   const playbackCacheKey = buildPlaybackCacheKey(
     activeFinalVideoUrl ?? originalPlaybackUrl
@@ -675,8 +836,7 @@ export default function VideoDetailPage() {
     latestExport?.status === "failed" &&
     latestExport?.errorMessage?.trim() === EXPORT_CANCELLED_BY_USER_MESSAGE;
 
-  const projectTitle =
-    detail.userPrompt?.trim().slice(0, 80) || t("videos.finalVideo");
+  const projectTitle = resolveProjectDisplayTitle(detail.title, dateLocale);
   const projectMode: ProjectDetailModeKind =
     detail.instantMode === "story" ? "story"
     : instantLikeProject ? "transition"
@@ -692,7 +852,7 @@ export default function VideoDetailPage() {
     instantMode: detail.instantMode ?? "transition",
     instantSceneTexts: detail.instantSceneTexts,
   });
-  const cleanVideoUrl = detail.instantCleanFinalVideoUrl?.trim() || null;
+  const cleanVideoUrl = activeCleanVideoUrl;
   const showStandaloneRepair =
     !showInstantProgress && videoRepair.showRepairCard && !originalPlaybackUrl;
   const showRepairQuickAction = videoRepair.showRepairCard && !hasCompletedInstantFinal;
@@ -708,7 +868,24 @@ export default function VideoDetailPage() {
         statusLabelKey={displayStatusKey}
         createdAtIso={detail.createdAt}
         mode={projectMode}
+        onRename={() => setRenameOpen(true)}
       />
+
+      {renameOpen && session.user ? (
+        <RenameProjectDialog
+          open
+          projectId={detail.id}
+          ownerId={session.user.id}
+          projectType={detail.projectType ?? "instant_premium"}
+          initialTitle={detail.title ?? null}
+          peers={[]}
+          onClose={() => setRenameOpen(false)}
+          onRenamed={(result) => {
+            setDetail((prev) => (prev ? { ...prev, title: result.title } : prev));
+            setRenameOpen(false);
+          }}
+        />
+      ) : null}
 
       {detail.studioQa && detail.id ?
         <div className="mt-6">
@@ -772,6 +949,11 @@ export default function VideoDetailPage() {
 
       {originalPlaybackUrl ? (
         <div className="mt-6 space-y-3">
+          {videoDisplay.finalIsArchivedFallback ? (
+            <p className="text-xs font-medium text-amber-900">
+              {t("projectDetail.versions.finalArchivedFallback")}
+            </p>
+          ) : null}
           <VideoPreview
             key={playbackCacheKey}
             variant="main"
@@ -790,7 +972,17 @@ export default function VideoDetailPage() {
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
-          {hasCompletedLanguageVersions ? (
+          {motionCatalog &&
+          (motionCatalog.languages.length > 1 ||
+            Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 1)) ? (
+            <ProjectDetailMotionVersions
+              detail={detail}
+              exportOutputUrl={finalVideoUrl}
+              langFromUrl={langFromUrl}
+              versionFromUrl={versionFromUrl}
+              onSelectionChange={setMotionVersionSelection}
+            />
+          ) : hasCompletedLanguageVersions ? (
             <LanguagePlaybackSelector
               originalPlaybackUrl={originalPlaybackUrl}
               languageExports={languageExports}
@@ -804,11 +996,12 @@ export default function VideoDetailPage() {
             <ProjectRerenderChoices
               disabled={fullRerenderDisabled}
               quickBusy={fullRerenderBusy}
+              copyBusy={fullRerenderBusy}
               onQuickRerender={() => void handleQuickFullRerender()}
-              onOpenEditor={() => {
-                const target = `/videos/${encodeURIComponent(id)}/edit-version`;
-                traceConceptFlow("click.newVersion", { projectId: id, target });
-                router.push(target);
+              onCopyAsConcept={() => void handleCopyAsConcept()}
+              onTextOnlyAdjust={() => {
+                setTextRerenderEditorOpen(true);
+                scrollToSection("version-original");
               }}
             />
           : null}
@@ -838,9 +1031,10 @@ export default function VideoDetailPage() {
               },
               {
                 id: "duplicate-project",
-                labelKey: "projectDetail.quickActions.duplicateProject.label",
-                hintKey: "projectDetail.quickActions.duplicateProject.hint",
-                href: `/animate/instant?duplicateFrom=${encodeURIComponent(id)}`,
+                labelKey: "projectDetail.quickActions.copyAsConcept.label",
+                hintKey: "projectDetail.quickActions.copyAsConcept.hint",
+                onClick: () => void handleCopyAsConcept(),
+                busy: fullRerenderBusy,
                 visible: Boolean(instantLikeProject && usesStoryOverlay),
               },
               {
@@ -900,6 +1094,8 @@ export default function VideoDetailPage() {
               projectId={id}
               cleanVideoUrl={cleanVideoUrl}
               finalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
+              finalIsArchivedFallback={videoDisplay.finalIsArchivedFallback}
+              cleanIsLatestBareOnly={videoDisplay.cleanIsLatestBareOnly}
               hideOriginalVideoPlayer
               usesStoryOverlay={usesStoryOverlay}
               instantSceneTexts={detail.instantSceneTexts}

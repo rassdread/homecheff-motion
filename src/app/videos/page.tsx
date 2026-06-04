@@ -10,9 +10,12 @@ import { VideoPreview } from "@/components/ui/video-preview";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { ProjectBundleCard } from "@/components/videos/project-bundle-card";
+import { RenameProjectDialog } from "@/components/videos/rename-project-dialog";
 import type {
   AnimationProjectListItem,
   AnimationProjectListResponse,
+  ProjectBundleListItemResponse,
 } from "@/types/animation-api";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
@@ -145,6 +148,12 @@ function VideosPageContent() {
   const [listAll, setListAll] = useState(false);
   const [page, setPage] = useState(1);
   const [projects, setProjects] = useState<AnimationProjectListItem[]>([]);
+  const [bundles, setBundles] = useState<ProjectBundleListItemResponse[]>([]);
+  const [renameTarget, setRenameTarget] = useState<{
+    projectId: string;
+    projectType: string;
+    title: string | null;
+  } | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -178,6 +187,7 @@ function VideosPageContent() {
           params.set("all", "true");
         }
         params.set("section", gallerySection);
+        params.set("locale", dateLocale);
         const res = await fetch(`/api/animations/projects?${params.toString()}`, {
           credentials: "include",
         });
@@ -193,12 +203,16 @@ function VideosPageContent() {
         setHasMore(body.hasMore);
         setTotalCount(body.total);
         setProjects((prev) => (mode === "append" ? [...prev, ...body.projects] : body.projects));
+        setBundles((prev) =>
+          mode === "append" ? [...prev, ...(body.bundles ?? [])] : (body.bundles ?? [])
+        );
         setPage(nextPage);
       } catch (e) {
         if (!background) {
           setError(e instanceof Error ? e.message : t("videos.error"));
           if (mode === "replace") {
             setProjects([]);
+            setBundles([]);
             setHasMore(false);
           }
         }
@@ -208,7 +222,7 @@ function VideosPageContent() {
         }
       }
     },
-    [isAdmin, listAll, gallerySection]
+    [isAdmin, listAll, gallerySection, dateLocale]
   );
 
   const setSection = useCallback(
@@ -488,7 +502,10 @@ function VideosPageContent() {
 
       {totalCount > 0 ? (
         <p className="mt-1 text-sm text-zinc-500">
-          {t("videos.showingCount", { shown: projects.length, total: totalCount })}
+          {t("videos.showingCount", {
+            shown: gallerySection === "completed" ? bundles.length : projects.length,
+            total: totalCount,
+          })}
         </p>
       ) : null}
 
@@ -504,7 +521,9 @@ function VideosPageContent() {
         </p>
       ) : null}
 
-      {!loading && projects.length === 0 && !error ? (
+      {!loading &&
+      (gallerySection === "completed" ? bundles.length === 0 : projects.length === 0) &&
+      !error ? (
         <div className="mt-10 rounded-2xl border border-zinc-100 bg-zinc-50/80 px-6 py-12 text-center">
           <h2 className="text-lg font-semibold text-zinc-900">
             {gallerySection === "concepts" ? t("projects.concepts.emptyTitle") : t("videos.emptyTitle")}
@@ -525,7 +544,30 @@ function VideosPageContent() {
       ) : null}
 
       <ul className="mt-8 grid list-none gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((item) => {
+        {gallerySection === "completed"
+          ? bundles.map((bundle) => (
+              <ProjectBundleCard
+                key={bundle.bundleKey}
+                bundle={bundle}
+                expandedVideoKey={expandedVideoId}
+                onTogglePlay={setExpandedVideoId}
+                playbackErrorKey={playbackErrorProjectId}
+                onPlaybackError={setPlaybackErrorProjectId}
+                onPlaybackOk={(key) =>
+                  setPlaybackErrorProjectId((eid) => (eid === key ? null : eid))
+                }
+                onRename={() =>
+                  setRenameTarget({
+                    projectId: bundle.activeProjectId,
+                    projectType: bundle.projectType,
+                    title: bundle.displayTitle,
+                  })
+                }
+              />
+            ))
+          : null}
+        {gallerySection === "concepts"
+          ? projects.map((item) => {
           const thumb = item.thumbnailUrl?.trim() || item.thumbnailFallbackUrl?.trim() || null;
           const presetId = validateAnimationPresetId(item.presetId) ? item.presetId : "standard";
           const preset = getAnimationPreset(presetId);
@@ -591,6 +633,9 @@ function VideosPageContent() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link href={itemHref} prefetch={false} className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-zinc-900">
+                      {item.displayTitle ?? t("videos.untitledProject")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
                       <ClientFormattedDateTime iso={item.createdAt} />
                     </p>
                   </Link>
@@ -847,8 +892,31 @@ function VideosPageContent() {
               </div>
             </li>
           );
-        })}
+        })
+          : null}
       </ul>
+
+      {renameTarget && session.user ? (
+        <RenameProjectDialog
+          open
+          projectId={renameTarget.projectId}
+          ownerId={session.user.id}
+          projectType={renameTarget.projectType}
+          initialTitle={renameTarget.title}
+          peers={projects
+            .filter((p) => p.id !== renameTarget.projectId)
+            .map((p) => ({
+              id: p.id,
+              title: p.title ?? null,
+              projectType: p.projectType ?? "classic",
+            }))}
+          onClose={() => setRenameTarget(null)}
+          onRenamed={() => {
+            setRenameTarget(null);
+            void fetchList(1, "replace");
+          }}
+        />
+      ) : null}
 
       {loading && projects.length === 0 ? (
         <p className="mt-8 text-sm text-zinc-500">{t("videos.processing")}</p>

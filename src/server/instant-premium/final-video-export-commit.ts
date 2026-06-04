@@ -42,6 +42,8 @@ export async function commitInstantPremiumFinalVideoExport(params: {
   projectId: string;
   exportId: string;
   finalUrl: string;
+  /** Bare concat URL from the same merge pass (avoids stale DB reload). */
+  cleanVideoUrl?: string | null;
   lockedLayers: LockedTextLayer[];
   isRebuild: boolean;
   previousFinalUrl: string | null;
@@ -55,6 +57,7 @@ export async function commitInstantPremiumFinalVideoExport(params: {
     projectId,
     exportId,
     finalUrl,
+    cleanVideoUrl: committedCleanVideoUrl = null,
     lockedLayers,
     isRebuild,
     previousFinalUrl,
@@ -259,7 +262,9 @@ export async function commitInstantPremiumFinalVideoExport(params: {
         projectId,
         renderVersionId: pending.renderVersionId,
         finalVideoUrl: finalUrl,
-        cleanVideoUrl: projectForVersion.instantCleanFinalVideoUrl,
+        cleanVideoUrl:
+          committedCleanVideoUrl?.trim() ||
+          projectForVersion.instantCleanFinalVideoUrl,
         exportId,
       });
       const auditBase =
@@ -288,7 +293,9 @@ export async function commitInstantPremiumFinalVideoExport(params: {
       await ensureInitialRenderVersion({
         project: projectForVersion,
         finalVideoUrl: finalUrl,
-        cleanVideoUrl: projectForVersion.instantCleanFinalVideoUrl,
+        cleanVideoUrl:
+          committedCleanVideoUrl?.trim() ||
+          projectForVersion.instantCleanFinalVideoUrl,
         exportId,
       });
     }

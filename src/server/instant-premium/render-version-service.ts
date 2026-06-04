@@ -5,6 +5,7 @@ import {
   isFullRerenderInProgress,
   type FullRerenderAuditEntry,
 } from "@/lib/full-rerender-audit";
+import { isCleanUrlAlignedWithRenderVersion } from "@/lib/render-output-lineage";
 import { urlsReferToSameAsset } from "@/lib/playback-url-resolution";
 import { prisma } from "@/lib/prisma";
 import {
@@ -344,6 +345,21 @@ export async function loadVersionHistoryUrlSource(
   };
 }
 
+/** Persist bare concat on a pending/failed render version (overlay/upload failed after clean upload). */
+export async function attachCleanVideoToPendingRenderVersion(params: {
+  renderVersionId: string;
+  cleanVideoUrl: string;
+}): Promise<void> {
+  const clean = params.cleanVideoUrl.trim();
+  if (!clean) {
+    return;
+  }
+  await prisma.projectRenderVersion.update({
+    where: { id: params.renderVersionId },
+    data: { cleanVideoUrl: clean },
+  });
+}
+
 export async function completePendingFullRerenderVersion(params: {
   projectId: string;
   renderVersionId: string;
@@ -425,6 +441,7 @@ export async function handleFullRerenderFailure(
   let restoreClean = project.instantCleanFinalVideoUrl?.trim() ?? null;
 
   if (pending) {
+    const partialClean = restoreClean;
     const fromVersion = await failPendingFullRerenderVersion({
       projectId,
       renderVersionId: pending.renderVersionId,
@@ -432,6 +449,17 @@ export async function handleFullRerenderFailure(
     });
     if (fromVersion) {
       restoreUrl = fromVersion;
+    }
+    if (
+      partialClean &&
+      isCleanUrlAlignedWithRenderVersion(partialClean, pending.renderVersionNumber)
+    ) {
+      await attachCleanVideoToPendingRenderVersion({
+        renderVersionId: pending.renderVersionId,
+        cleanVideoUrl: partialClean,
+      });
+      restoreClean = partialClean;
+    } else {
       const defaultRow = await prisma.projectRenderVersion.findFirst({
         where: { projectId, isDefault: true, status: "completed" },
         select: { cleanVideoUrl: true },

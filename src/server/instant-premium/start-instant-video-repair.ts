@@ -9,9 +9,11 @@ import {
 import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
 import { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 import { pollProjectJobs } from "@/server/animation-jobs/service";
+import { reconcileVideoRepairState } from "@/server/instant-premium/reconcile-video-repair";
 import {
   detectFinalizationStuck,
   clipsReadyForFinalizeRepair,
+  dispatchInstantPremiumWorkerMerge,
   orchestrateFinalMerge,
   resetInstantRepairExportState,
   type RepairFinalVideoResult,
@@ -26,6 +28,9 @@ import {
   retryUploadLocalMergedFinalVideo,
 } from "@/server/instant-premium/merge-instant-project";
 import { getFinalExportStage } from "@/server/instant-premium/final-export-stage";
+import { assessRepairOutputAlignment } from "@/lib/render-output-lineage";
+import type { RenderSegmentSnapshotEntry } from "@/lib/render-version-snapshots";
+import { readPendingFullRerender } from "@/server/instant-premium/render-version-service";
 
 export type StartInstantVideoRepairResult = {
   ok: boolean;
@@ -57,8 +62,8 @@ export function isInstantVideoRepairInProgress(project: {
   }>;
 }): boolean {
   const audit = readVideoRepairAudit(project.instantFinalRebuildAuditJson);
-  if (audit?.status !== "running") {
-    return false;
+  if (audit?.status === "running") {
+    return true;
   }
   const stuck = detectFinalizationStuck(project);
   if (stuck.shouldAutoRepair) {
@@ -103,7 +108,85 @@ async function markRepairFailed(projectId: string, message: string, errorCode?: 
   });
 }
 
+async function reconcileRepairAfterWorker(projectId: string, source: string): Promise<void> {
+  await reconcileVideoRepairState(projectId);
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: { exports: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  const exportRow = project?.exports[0];
+  const done = isInstantPremiumExportCompleted(
+    project?.status ?? "",
+    exportRow?.status,
+    exportRow?.outputVideoUrl
+  );
+  if (done) {
+    await markRepairCompleted(projectId);
+    logRepair("worker_background_completed", { projectId, source });
+    return;
+  }
+  const stage = getFinalExportStage(projectId)?.stage ?? null;
+  await writeRepairAudit(projectId, {
+    status: "running",
+    stage: stage === "upload" || stage === "finalize" ? "uploading_final" : "reapplying_texts",
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function canMarkVideoRepairCompleted(projectId: string): Promise<boolean> {
+  const project = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: {
+      transitions: { orderBy: { order: "asc" } },
+      exports: { orderBy: { createdAt: "desc" }, take: 1 },
+      renderVersions: {
+        where: { isDefault: true },
+        orderBy: { renderVersionNumber: "desc" },
+        take: 1,
+        select: {
+          renderVersionNumber: true,
+          segmentSnapshot: true,
+        },
+      },
+    },
+  });
+  if (!project) {
+    return false;
+  }
+  const exportRow = project.exports[0];
+  const pending = readPendingFullRerender(project.instantFinalRebuildAuditJson);
+  const defaultVersion = project.renderVersions[0];
+  const snapshot = defaultVersion?.segmentSnapshot as RenderSegmentSnapshotEntry[] | null;
+  const alignment = assessRepairOutputAlignment({
+    projectStatus: project.status,
+    exportStatus: exportRow?.status ?? null,
+    exportOutputUrl: exportRow?.outputVideoUrl ?? null,
+    previousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+    projectCleanUrl: project.instantCleanFinalVideoUrl,
+    transitions: project.transitions.map((row) => ({
+      order: row.order,
+      id: row.id,
+      status: row.status,
+      outputVideoUrl: row.outputVideoUrl,
+    })),
+    pendingRenderVersionNumber:
+      pending?.renderVersionNumber ?? defaultVersion?.renderVersionNumber ?? null,
+    pendingSegmentSnapshot: snapshot,
+    auditJson: project.instantFinalRebuildAuditJson,
+  });
+  return alignment.aligned;
+}
+
 async function markRepairCompleted(projectId: string): Promise<void> {
+  if (!(await canMarkVideoRepairCompleted(projectId))) {
+    await markRepairFailed(
+      projectId,
+      "Repair finished but final/clean outputs do not match the latest segment clips.",
+      "repair_output_mismatch"
+    );
+    logRepair("completion_rejected_output_mismatch", { projectId });
+    return;
+  }
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
     select: { instantFinalRebuildAuditJson: true },
@@ -129,6 +212,11 @@ export async function executeInstantVideoRepairBackground(
   logRepair("background_start", { projectId, source });
 
   try {
+    await writeRepairAudit(projectId, {
+      status: "running",
+      stage: "checking_source",
+      updatedAt: new Date().toISOString(),
+    });
     await orchestrateFinalMerge(projectId, {
       force: Boolean(options?.force),
       awaitWorker: true,
@@ -192,11 +280,9 @@ export async function startInstantVideoRepair(
   const workerMode = isVideoRenderWorkerMode();
   logRepair("start", { projectId, source, force: Boolean(options?.force), workerMode });
 
-  await refreshTransitionOutputsFromProvider(projectId).catch(() => undefined);
-  await pollProjectJobs(projectId).catch(() => undefined);
   await ensureStoryModeTransitionRows(projectId).catch(() => undefined);
 
-  const project = await prisma.animationProject.findUnique({
+  let project = await prisma.animationProject.findUnique({
     where: { id: projectId },
     include: {
       transitions: { orderBy: { order: "asc" } },
@@ -218,6 +304,23 @@ export async function startInstantVideoRepair(
     };
   }
 
+  let clipsReady = clipsReadyForFinalizeRepair(project.instantMode, project.transitions);
+  await refreshTransitionOutputsFromProvider(projectId).catch(() => undefined);
+  if (!clipsReady) {
+    await pollProjectJobs(projectId).catch(() => undefined);
+    const refreshedForClips = await prisma.animationProject.findUnique({
+      where: { id: projectId },
+      include: {
+        transitions: { orderBy: { order: "asc" } },
+        exports: { orderBy: { createdAt: "desc" } },
+      },
+    });
+    if (refreshedForClips) {
+      project = refreshedForClips;
+      clipsReady = clipsReadyForFinalizeRepair(project.instantMode, project.transitions);
+    }
+  }
+
   if (
     !options?.force &&
     isInstantVideoRepairInProgress({
@@ -236,13 +339,12 @@ export async function startInstantVideoRepair(
       completedImmediately: false,
       syncedFromBlob: false,
       projectId,
-      clipsReady: clipsReadyForFinalizeRepair(project.instantMode, project.transitions),
+      clipsReady,
       workerTriggered: true,
       message: "Repair is already in progress.",
     };
   }
 
-  const clipsReady = clipsReadyForFinalizeRepair(project.instantMode, project.transitions);
   if (!clipsReady) {
     return {
       ok: false,
@@ -312,7 +414,33 @@ export async function startInstantVideoRepair(
 
   const scheduleBackground = options?.scheduleBackground !== false;
   if (workerMode) {
-    await orchestrateFinalMerge(projectId, { force, awaitWorker: false });
+    if (scheduleBackground) {
+      after(async () => {
+        await writeRepairAudit(projectId, {
+          status: "running",
+          stage: "checking_source",
+          updatedAt: new Date().toISOString(),
+        });
+        const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, { force });
+        if (dispatched.ok) {
+          await reconcileRepairAfterWorker(projectId, source);
+          return;
+        }
+        logRepair("worker_dispatch_fallback_local", {
+          projectId,
+          source,
+          message: dispatched.message,
+        });
+        await executeInstantVideoRepairBackground(projectId, { force, source });
+      });
+    } else {
+      const dispatched = await dispatchInstantPremiumWorkerMerge(projectId, { force });
+      if (!dispatched.ok) {
+        await executeInstantVideoRepairBackground(projectId, { force, source });
+      } else {
+        await reconcileRepairAfterWorker(projectId, source);
+      }
+    }
   } else {
     await prisma.animationProject.update({
       where: { id: projectId },

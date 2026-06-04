@@ -294,6 +294,7 @@ export default function InstantPremiumPage() {
   const [preflightNotice, setPreflightNotice] = useState("");
   const [stylePreset, setStylePreset] = useState<InstantPremiumStylePreset>("food_promo");
   const [motionText, setMotionText] = useState("");
+  const [projectTitle, setProjectTitle] = useState("");
   const [continuityStrength, setContinuityStrength] =
     useState<InstantPremiumContinuityStrength>("balanced");
   const [chips, setChips] = useState<(InstantPremiumChipId | TextImplyingChipId)[]>([]);
@@ -1158,6 +1159,7 @@ export default function InstantPremiumPage() {
         aspectRatio,
         uiLanguage: locale,
         userIntent: motionText.trim() || null,
+        ...(projectTitle.trim() ? { title: projectTitle.trim() } : {}),
         selectedChips: isAdmin ? chips : [],
         continuityStrength,
         lockedTextMode,
@@ -1810,6 +1812,21 @@ export default function InstantPremiumPage() {
                     {t("instant.creatorStep.generate")}
                   </h2>
                   <p className="mt-2 text-sm text-zinc-600">{t("instant.creatorGenerate.intro")}</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-800" htmlFor="instant-project-title">
+                    {t("instant.projectName.label")}
+                  </label>
+                  <input
+                    id="instant-project-title"
+                    type="text"
+                    maxLength={120}
+                    value={projectTitle}
+                    onChange={(e) => setProjectTitle(e.target.value)}
+                    placeholder={t("instant.projectName.placeholder")}
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm"
+                  />
+                  <p className="text-xs text-zinc-500">{t("instant.projectName.hint")}</p>
                 </div>
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                   <p className="text-sm font-semibold text-emerald-950">

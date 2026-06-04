@@ -28,6 +28,7 @@ import {
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
 import { ProjectRerenderChoices } from "@/components/videos/project-rerender-choices";
+import { postCopyProjectAsDraft } from "@/lib/copy-project-as-draft-client";
 import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
@@ -225,6 +226,33 @@ export default function InstantPremiumProgressPage() {
       }
       invalidateCachedInstantProgressSnapshot(effectiveProjectId);
       router.push(result.progressRoute);
+    } finally {
+      setFullRerenderBusy(false);
+    }
+  }, [effectiveProjectId, fullRerenderDisabled, router, t]);
+
+  const handleCopyAsConcept = useCallback(async () => {
+    if (!effectiveProjectId || fullRerenderDisabled) {
+      return;
+    }
+    setFullRerenderBusy(true);
+    setActionError(null);
+    try {
+      const result = await postCopyProjectAsDraft(effectiveProjectId);
+      if (result.networkError || !result.ok) {
+        setActionError(result.data.error ?? t("projects.concept.copyFailed"));
+        return;
+      }
+      const path =
+        result.data.editVersionPath ??
+        (result.data.draftProjectId
+          ? `/videos/${encodeURIComponent(result.data.draftProjectId)}/edit-version`
+          : null);
+      if (!path) {
+        setActionError(t("projects.concept.copyFailed"));
+        return;
+      }
+      router.push(path);
     } finally {
       setFullRerenderBusy(false);
     }
@@ -527,12 +555,10 @@ export default function InstantPremiumProgressPage() {
                 <ProjectRerenderChoices
                   disabled={fullRerenderDisabled}
                   quickBusy={fullRerenderBusy}
+                  copyBusy={fullRerenderBusy}
                   onQuickRerender={() => void handleQuickFullRerender()}
-                  onOpenEditor={() => {
-                    if (effectiveProjectId) {
-                      router.push(`/videos/${encodeURIComponent(effectiveProjectId)}/edit-version`);
-                    }
-                  }}
+                  onCopyAsConcept={() => void handleCopyAsConcept()}
+                  onTextOnlyAdjust={() => setTextRerenderEditorOpen(true)}
                 />
               : null}
               <p className="text-xs text-zinc-500">{t("instant.progress.savedToGallery")}</p>

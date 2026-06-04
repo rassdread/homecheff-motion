@@ -28,6 +28,8 @@ export type CreateAnimationProjectAdvancedPayload = {
 
 export type CreateAnimationProjectRequest = {
   images: CreateAnimationProjectImageInput[];
+  /** User-facing project name (Motion gallery bundle title). */
+  title?: string | null;
   /** When omitted, server uses `standard`. */
   presetId?: AnimationPresetId;
   /** morph | cinematic | product | dynamic — combined with preset prompt server-side. */
@@ -247,8 +249,48 @@ export type AnimationProjectListItemLatestExport = {
   errorMessage: string | null;
 };
 
+export type ProjectBundleListItemResponse = {
+  bundleKey: string;
+  displayTitle: string;
+  normalizedTitle: string;
+  projectType: string;
+  memberProjectIds: string[];
+  languagesLabel: string;
+  latestVersionLabel: string | null;
+  createdAt: string;
+  updatedAt: string;
+  thumbnailUrl: string | null;
+  status: string;
+  sourceProjectId: string | null;
+  /** Active member for card actions (newest by default). */
+  activeProjectId: string;
+  catalog: {
+    languages: Array<{ code: string; label: string }>;
+    slotsByLanguage: Record<
+      string,
+      Array<{
+        selectionKey: string;
+        projectId: string;
+        languageCode: string;
+        languageLabel: string;
+        versionNumber: number;
+        versionNote: string | null;
+        displayLabel: string;
+        status: string;
+        finalVideoUrl: string | null;
+        cleanVideoUrl: string | null;
+        kind: string;
+      }>
+    >;
+    defaultLanguageCode: string;
+    defaultSelectionKey: string | null;
+  };
+};
+
 export type AnimationProjectListItem = {
   id: string;
+  title?: string | null;
+  displayTitle?: string;
   createdAt: string;
   updatedAt: string;
   status: string;
@@ -280,15 +322,35 @@ export type AnimationProjectListItem = {
     sceneCount: number;
     versionNote: string | null;
   };
+  /** Draft copy lineage when status=draft and copied from a completed project. */
+  sourceProjectId?: string | null;
 };
 
 export type AnimationProjectListResponse = {
   projects: AnimationProjectListItem[];
+  /** Present when gallerySection=completed — grouped by normalized project name. */
+  bundles?: ProjectBundleListItemResponse[];
   page: number;
   limit: number;
   total: number;
   hasMore: boolean;
   gallerySection?: "completed" | "concepts";
+};
+
+export type RenameAnimationProjectRequest = {
+  title: string;
+};
+
+export type RenameAnimationProjectResponse = {
+  ok: true;
+  id: string;
+  title: string | null;
+  displayTitle: string;
+  bundlePreview: {
+    willJoinExisting: boolean;
+    bundleDisplayTitle: string;
+    existingVersionCount: number;
+  };
 };
 
 /** GET /api/animations/projects/[id] — full snapshot for gallery detail. */
@@ -390,6 +452,8 @@ export type FullRerenderResponse = {
 export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   createdAt: string;
   updatedAt: string;
+  title?: string | null;
+  sourceProjectId?: string | null;
   advancedSettingsEnabled: boolean;
   instantCleanFinalVideoUrl?: string | null;
   instantSceneTexts?: unknown;
@@ -398,6 +462,7 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   instantFinalRebuildCount?: number;
   instantFinalRebuiltAt?: string | null;
   instantPreviousFinalVideoUrl?: string | null;
+  instantFinalRebuildAuditJson?: unknown;
   instantTextVersionNotesJson?: unknown;
   latestExportId?: string | null;
   latestExportUpdatedAt?: string | null;

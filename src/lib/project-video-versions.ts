@@ -56,6 +56,8 @@ export type BuildVersionCatalogInput = {
   projectId: string;
   originalVideoUrl: string | null;
   cleanVideoUrl: string | null;
+  /** When true, clean row is latest bare concat while final export is archived/missing. */
+  cleanIsLatestBareOnly?: boolean;
   languageExports: LanguageExportVersionRow[];
   renderVersions?: RenderVersionCatalogRow[];
   previousFinalVideoUrl?: string | null;
@@ -246,7 +248,9 @@ export function buildProjectVideoVersionCatalog(
       completedAt: null,
       downloadHref: animationProjectDownloadUrl(input.projectId, { variant: "clean" }),
       filename: `homecheff-motion-${input.projectId}-clean.mp4`,
-      labelKey: "projectDetail.downloadPicker.cleanLabel",
+      labelKey: input.cleanIsLatestBareOnly
+        ? "projectDetail.versions.cleanLatestBareOnly"
+        : "projectDetail.downloadPicker.cleanLabel",
       section: "primary",
     });
   }

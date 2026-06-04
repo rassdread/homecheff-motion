@@ -304,6 +304,7 @@ export async function fullRerenderInstantPremiumProject(params: {
         instantWorkerJobStatus: "queued",
         instantWorkerJobStartedAt: startedAt,
         instantPreviousFinalVideoUrl: previousFinalVideoUrl,
+        instantCleanFinalVideoUrl: null,
         instantFinalRebuildAuditJson: auditJson as object,
       },
     }),

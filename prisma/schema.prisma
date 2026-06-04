@@ -12,6 +12,10 @@ model AnimationProject {
   ownerId     String
   owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title       String?
+  /** When set, this row is a draft copy created from another project (safe re-edit path). */
+  sourceProjectId String?
+  sourceProject   AnimationProject?  @relation("ProjectDraftCopy", fields: [sourceProjectId], references: [id], onDelete: SetNull)
+  draftCopies     AnimationProject[] @relation("ProjectDraftCopy")
   status      String
   /** classic (default) | instant_premium */
   projectType String                @default("classic")
@@ -108,6 +112,7 @@ model AnimationProject {
   usageLedger AnimationUsageLedger[]
 
   @@index([ownerId, createdAt])
+  @@index([sourceProjectId])
 }
 
 /** In-progress “Nieuwe versie maken” editor state — survives refresh until render or delete. */

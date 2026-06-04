@@ -107,6 +107,7 @@ import {
 } from "@/server/instant-premium/final-video-export-commit";
 import { markFullRerenderFailedIfRunning } from "@/server/instant-premium/full-rerender-project";
 import {
+  attachCleanVideoToPendingRenderVersion,
   readPendingFullRerender,
   resolveFinalBlobVersionForUpload,
 } from "@/server/instant-premium/render-version-service";
@@ -962,7 +963,7 @@ export async function executeInstantPremiumMerge(
         isMergeOnlyTextRebuild: isTextRebuild,
         nextTextRebuildCount: project.instantFinalRebuildCount + 1,
       });
-      await persistCleanFinalVideoUrl(projectId, mergedPath, finalBlobVersion);
+      const cleanUrl = await persistCleanFinalVideoUrl(projectId, mergedPath, finalBlobVersion);
 
       const storyMode = parseInstantMode(project.instantMode) === "story";
       const storySceneTexts = parseInstantSceneTexts(project.instantSceneTexts);
@@ -1004,6 +1005,12 @@ export async function executeInstantPremiumMerge(
           const safeMessage = sanitizeOverlayError(
             overlayError instanceof Error ? overlayError.message : "Story text overlay failed."
           );
+          if (pendingRender?.renderVersionId) {
+            await attachCleanVideoToPendingRenderVersion({
+              renderVersionId: pendingRender.renderVersionId,
+              cleanVideoUrl: cleanUrl,
+            }).catch(() => undefined);
+          }
           await prisma.animationExport.update({
             where: { id: exportRow.id },
             data: {
@@ -1077,6 +1084,12 @@ export async function executeInstantPremiumMerge(
           const safeMessage = sanitizeOverlayError(
             overlayError instanceof Error ? overlayError.message : "Locked text overlay failed."
           );
+          if (pendingRender?.renderVersionId) {
+            await attachCleanVideoToPendingRenderVersion({
+              renderVersionId: pendingRender.renderVersionId,
+              cleanVideoUrl: cleanUrl,
+            }).catch(() => undefined);
+          }
           await prisma.animationExport.update({
             where: { id: exportRow.id },
             data: {
@@ -1158,6 +1171,7 @@ export async function executeInstantPremiumMerge(
         projectId,
         exportId: exportRow.id,
         finalUrl,
+        cleanVideoUrl: cleanUrl,
         lockedLayers,
         isRebuild,
         previousFinalUrl,

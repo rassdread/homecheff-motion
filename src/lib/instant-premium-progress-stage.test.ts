@@ -71,6 +71,28 @@ describe("instant premium progress stage", () => {
     assert.equal(view.activeOperation, "idle");
   });
 
+  it("shows repair activeOperation even when export status is failed", () => {
+    const view = resolveInstantPremiumProgress({
+      status: "failed",
+      phase: "failed",
+      progressPercent: 12,
+      isRestoringFinalVideo: true,
+      exportFailure: {
+        exportId: "e1",
+        exportStatus: "failed",
+        exportFailureReason: "merge_failed",
+        exportLastError: "upload failed",
+        workerError: null,
+        failedAtStage: "merge_clips",
+        displayProgress: 70,
+        isExportFailure: true,
+        finalRebuildFailed: false,
+      },
+    });
+    assert.equal(view.activeOperation, "repair");
+    assert.ok(view.displayPercent >= 10);
+  });
+
   it("prioritizes rebuild over failed snapshot", () => {
     const view = resolveInstantPremiumProgress({
       status: "failed",

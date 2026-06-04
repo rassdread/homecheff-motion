@@ -4,10 +4,13 @@ import { getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import { resolvePublicFinalVideoUrl } from "@/lib/final-video-storage";
 import { normalizeGalleryRebuildMeta } from "@/server/animation-projects/gallery-list-rebuild-meta";
 import { resolveProjectDisplayStatus } from "@/lib/project-display-status";
+import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 import type { AnimationProjectListItem } from "@/types/animation-api";
 
 export type GalleryListPrismaRow = {
   id: string;
+  title?: string | null;
+  sourceProjectId?: string | null;
   createdAt: Date;
   updatedAt: Date;
   status: string;
@@ -126,6 +129,9 @@ function mapPrismaRowToAnimationProjectListItemInner(
 
   return {
     id: row.id,
+    title: row.title?.trim() || null,
+    displayTitle: resolveProjectDisplayTitle(row.title),
+    sourceProjectId: row.sourceProjectId ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     status: displayStatus,

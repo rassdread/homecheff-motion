@@ -11,7 +11,12 @@ import {
   resolveLatestExportPlaybackUrl,
 } from "@/lib/playback-url-resolution";
 import { getProjectPlaybackDebug } from "@/server/instant-premium/playback-debug";
-import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+import { renameAnimationProject } from "@/server/animation-projects/rename-project";
+import type {
+  AnimationProjectDetailResponse,
+  RenameAnimationProjectRequest,
+  RenameAnimationProjectResponse,
+} from "@/types/animation-api";
 import {
   buildProjectStudioExportMetadata,
   buildProjectStudioQaResponse,
@@ -82,6 +87,8 @@ function mapToDetailResponse(
     viduDurationSeconds: project.viduDurationSeconds,
     estimatedCredits: project.estimatedCredits,
     userPrompt: project.userPrompt,
+    title: project.title,
+    sourceProjectId: project.sourceProjectId,
     projectType: project.projectType,
     stylePreset: project.stylePreset,
     instantOutputDurationSeconds: project.instantOutputDurationSeconds,
@@ -95,6 +102,7 @@ function mapToDetailResponse(
     instantFinalRebuildCount: project.instantFinalRebuildCount,
     instantFinalRebuiltAt: project.instantFinalRebuiltAt?.toISOString() ?? null,
     instantPreviousFinalVideoUrl: project.instantPreviousFinalVideoUrl,
+    instantFinalRebuildAuditJson: project.instantFinalRebuildAuditJson,
     instantTextVersionNotesJson: project.instantTextVersionNotesJson,
     latestExportId: latestExportRow?.id ?? null,
     latestExportUpdatedAt: latestExportRow?.updatedAt.toISOString() ?? null,
@@ -248,6 +256,54 @@ export async function GET(_: Request, context: RouteContext) {
     }
   }
   return NextResponse.json(body, { status: 200 });
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
+  }
+
+  let body: RenameAnimationProjectRequest;
+  try {
+    body = (await request.json()) as RenameAnimationProjectRequest;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  if (typeof body.title !== "string") {
+    return NextResponse.json({ error: "title is required." }, { status: 400 });
+  }
+
+  const localeHeader = request.headers.get("x-hc-locale")?.trim().toLowerCase();
+  const locale = localeHeader === "en" ? "en" : "nl";
+
+  const result = await renameAnimationProject({
+    projectId: id,
+    ownerId: user.id,
+    isAdmin: user.role === "admin",
+    title: body.title,
+    locale,
+  });
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.message, code: result.code }, { status: 404 });
+  }
+
+  const response: RenameAnimationProjectResponse = {
+    ok: true,
+    id: result.id,
+    title: result.title,
+    displayTitle: result.displayTitle,
+    bundlePreview: {
+      willJoinExisting: result.bundlePreview.willJoinExisting,
+      bundleDisplayTitle: result.bundlePreview.bundleDisplayTitle,
+      existingVersionCount: result.bundlePreview.existingVersionCount,
+    },
+  };
+
+  return NextResponse.json(response, { status: 200 });
 }
 
 export async function DELETE(_: Request, context: RouteContext) {

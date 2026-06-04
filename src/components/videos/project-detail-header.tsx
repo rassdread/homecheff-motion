@@ -12,6 +12,7 @@ type ProjectDetailHeaderProps = {
   createdAtIso: string;
   mode: ProjectDetailModeKind;
   backHref?: string;
+  onRename?: () => void;
 };
 
 export function projectDetailModeLabelKey(mode: ProjectDetailModeKind): TranslationKey {
@@ -30,6 +31,7 @@ export function ProjectDetailHeader({
   createdAtIso,
   mode,
   backHref = "/videos",
+  onRename,
 }: ProjectDetailHeaderProps) {
   const t = useActiveTranslator();
 
@@ -40,7 +42,18 @@ export function ProjectDetailHeader({
       </a>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold leading-snug text-zinc-900 sm:text-2xl">{title}</h1>
+          <div className="flex flex-wrap items-start gap-2">
+            <h1 className="text-xl font-semibold leading-snug text-zinc-900 sm:text-2xl">{title}</h1>
+            {onRename ? (
+              <button
+                type="button"
+                onClick={onRename}
+                className="text-xs font-medium text-emerald-800 underline decoration-emerald-700/40 hover:text-emerald-950"
+              >
+                {t("videos.rename.action")}
+              </button>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-zinc-600">
             <ClientFormattedDateTime iso={createdAtIso} />
           </p>

@@ -44,6 +44,7 @@ import {
   isInstantPremiumStylePreset,
   type InstantPremiumDurationSeconds,
 } from "@/lib/instant-premium-prompt";
+import { sanitizeProjectTitleInput } from "@/lib/project-display-title";
 import type { CreateAnimationProjectImageInput } from "@/types/animation-api";
 import {
   DEFAULT_OVERLAY_STYLE,
@@ -80,6 +81,8 @@ const MAX_INTENT_LENGTH = 500;
 
 export type InstantPremiumCreatePayload = {
   images: CreateAnimationProjectImageInput[];
+  /** User-facing Motion project name. */
+  title?: string | null;
   instantMode?: InstantMode;
   instantTransitionSeconds?: InstantTransitionSeconds;
   instantSceneTexts?: InstantSceneText[];
@@ -320,8 +323,12 @@ export function validateInstantPremiumCreatePayload(raw: unknown): ValidateInsta
     studioImport = studioValidated.data;
   }
 
+  const title =
+    typeof o.title === "string" ? sanitizeProjectTitleInput(o.title) : null;
+
   const data: InstantPremiumCreatePayload = {
     images,
+    ...(title ? { title } : {}),
     instantMode,
     instantTransitionSeconds,
     instantSceneTexts,
@@ -572,6 +579,7 @@ export async function createInstantPremiumAnimationProject(
       const project = await tx.animationProject.create({
         data: {
           ownerId,
+          title: sanitizeProjectTitleInput(validated.data.title),
           status: "generating",
           projectType: "instant_premium",
           stylePreset,

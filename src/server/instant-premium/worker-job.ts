@@ -102,6 +102,17 @@ export async function runInstantPremiumWorkerProcess(
     };
   }
 
+  await prisma.animationProject.update({
+    where: { id: projectId },
+    data: {
+      instantWorkerJobStatus: "running",
+      instantWorkerJobStartedAt: new Date(),
+      status: "rendering",
+      failureReason: null,
+      lastOverlayError: null,
+    },
+  });
+
   await executeInstantPremiumMerge(projectId, { force: options?.force });
 
   const final = await loadProject(projectId);

@@ -14,6 +14,8 @@ import {
   deleteFullRerenderDraft,
   getFullRerenderDraftForProject,
 } from "@/server/instant-premium/full-rerender-draft-service";
+import { startDraftInstantPremiumProjectRender } from "@/server/instant-premium/start-draft-project-render";
+import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 60;
 
@@ -54,6 +56,73 @@ export async function POST(request: Request, context: RouteContext) {
     body = (await request.json().catch(() => null)) as FullRerenderBody | null;
   } catch {
     body = null;
+  }
+
+  const projectRow = await prisma.animationProject.findUnique({
+    where: { id },
+    select: { status: true, ownerId: true },
+  });
+  if (!projectRow) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+  if (user.role !== "admin" && projectRow.ownerId !== user.id) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  if (projectRow.status === "draft") {
+    let effectiveBody = body;
+    if (body?.rerenderSource === "editor") {
+      const draft = await getFullRerenderDraftForProject(id);
+      if (draft) {
+        const fromDraft = buildFullRerenderRenderBodyFromDraft(draft);
+        effectiveBody = {
+          ...body,
+          sceneTexts: fromDraft.sceneTexts,
+          instantUserIntent: fromDraft.instantUserIntent,
+          instantTransitionSeconds: fromDraft.instantTransitionSeconds,
+          versionNote: fromDraft.versionNote ?? body.versionNote,
+          imageChanges: fromDraft.imageChanges,
+        };
+      }
+    }
+    if (effectiveBody?.sceneTexts !== undefined || effectiveBody?.imageChanges?.sequence?.length) {
+      if (effectiveBody.imageChanges?.sequence?.length) {
+        const persistedImages = await persistFullRerenderImagesForProject(id, {
+          sequence: effectiveBody.imageChanges.sequence,
+          replacedImageIds: effectiveBody.imageChanges.replacedImageIds,
+        });
+        if (!persistedImages.ok) {
+          return NextResponse.json({ error: persistedImages.error }, { status: persistedImages.status });
+        }
+      }
+      const settingsBody = {
+        sceneTexts: effectiveBody.sceneTexts,
+        instantUserIntent: effectiveBody.instantUserIntent,
+        instantTransitionSeconds: effectiveBody.instantTransitionSeconds,
+        versionNote: effectiveBody.versionNote,
+      };
+      const hasSettings =
+        settingsBody.sceneTexts !== undefined ||
+        typeof settingsBody.instantUserIntent === "string" ||
+        typeof settingsBody.instantTransitionSeconds === "number";
+      if (hasSettings) {
+        const persisted = await persistFullRerenderSettingsForProject(id, settingsBody);
+        if (!persisted.ok) {
+          return NextResponse.json({ error: persisted.error }, { status: persisted.status });
+        }
+      }
+    }
+
+    const draftRender = await startDraftInstantPremiumProjectRender({
+      projectId: id,
+      userId: user.id,
+      isAdmin: user.role === "admin",
+    });
+    const httpStatus = draftRender.ok ? 200 : 400;
+    return NextResponse.json(
+      { fullRerender: draftRender, draftRender },
+      { status: httpStatus }
+    );
   }
 
   let effectiveBody = body;

@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 /** Fields always present on AnimationProject (safe for pre-rebuild-meta DBs). */
 export const galleryListProjectSelectLegacy = {
   id: true,
+  title: true,
+  sourceProjectId: true,
   createdAt: true,
   updatedAt: true,
   status: true,

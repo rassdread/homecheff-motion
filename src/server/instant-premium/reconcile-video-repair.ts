@@ -5,6 +5,13 @@ import {
   mergeVideoRepairAudit,
   readVideoRepairAudit,
 } from "@/lib/instant-video-repair";
+import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
+import {
+  clipsReadyForFinalizeRepair,
+  dispatchInstantPremiumWorkerMerge,
+  REPAIR_WORKER_DISPATCH_STALE_MS,
+} from "@/server/instant-premium/finalize-repair";
+import { canMarkVideoRepairCompleted } from "@/server/instant-premium/start-instant-video-repair";
 
 /** Keep videoRepair audit aligned with export completion while repair runs in background. */
 export async function reconcileVideoRepairState(projectId: string): Promise<void> {
@@ -14,6 +21,7 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
       status: true,
       instantFinalRebuildAuditJson: true,
       failureReason: true,
+      instantWorkerJobStatus: true,
       exports: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -35,6 +43,11 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
     return;
   }
 
+  const repairStartedMs = Date.parse(audit.startedAt);
+  const repairStale =
+    Number.isFinite(repairStartedMs) &&
+    Date.now() - repairStartedMs >= REPAIR_WORKER_DISPATCH_STALE_MS;
+
   const exportRow = project.exports[0];
   const exportCompleted = isInstantPremiumExportCompleted(
     project.status,
@@ -43,15 +56,34 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
   );
 
   if (exportCompleted) {
-    await prisma.animationProject.update({
-      where: { id: projectId },
-      data: {
-        instantFinalRebuildAuditJson:
-          clearVideoRepairAudit(project.instantFinalRebuildAuditJson) as object | undefined,
-        instantWorkerJobStatus: "completed",
-        failureReason: null,
-      },
-    });
+    const outputsAligned = await canMarkVideoRepairCompleted(projectId);
+    if (outputsAligned) {
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: {
+          instantFinalRebuildAuditJson:
+            clearVideoRepairAudit(project.instantFinalRebuildAuditJson) as object | undefined,
+          instantWorkerJobStatus: "completed",
+          failureReason: null,
+        },
+      });
+    } else {
+      await prisma.animationProject.update({
+        where: { id: projectId },
+        data: {
+          instantFinalRebuildAuditJson: mergeVideoRepairAudit(project.instantFinalRebuildAuditJson, {
+            status: "failed",
+            stage: "failed",
+            errorCode: "repair_output_mismatch",
+            errorMessage:
+              "Repair finished but final/clean outputs do not match the latest segment clips.",
+            updatedAt: new Date().toISOString(),
+          }) as object,
+          instantWorkerJobStatus: "failed",
+          failureReason: "merge_failed",
+        },
+      });
+    }
     return;
   }
 
@@ -76,5 +108,28 @@ export async function reconcileVideoRepairState(projectId: string): Promise<void
         instantWorkerJobStatus: "failed",
       },
     });
+    return;
+  }
+
+  const fullProject = await prisma.animationProject.findUnique({
+    where: { id: projectId },
+    include: { transitions: { orderBy: { order: "asc" } } },
+  });
+  const clipsReady = fullProject
+    ? clipsReadyForFinalizeRepair(fullProject.instantMode, fullProject.transitions)
+    : false;
+
+  if (
+    repairStale &&
+    clipsReady &&
+    project.instantWorkerJobStatus === "queued" &&
+    isVideoRenderWorkerMode()
+  ) {
+    console.info("[instant-video-repair]", {
+      phase: "stale_queued_redispatch",
+      projectId,
+      repairStartedAt: audit.startedAt,
+    });
+    void dispatchInstantPremiumWorkerMerge(projectId, { force: true });
   }
 }

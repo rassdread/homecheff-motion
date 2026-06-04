@@ -75,6 +75,10 @@ type Props = {
   rebuildCount?: number;
   previousFinalVideoUrl?: string | null;
   textVersionNotesJson?: unknown;
+  /** Hero/export points at an older final while a newer attempt failed or is pending. */
+  finalIsArchivedFallback?: boolean;
+  /** Bare concat from latest clips; final overlay/upload did not complete. */
+  cleanIsLatestBareOnly?: boolean;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -184,6 +188,8 @@ export function VideoVersionsPanel({
   rebuildCount = 0,
   previousFinalVideoUrl = null,
   textVersionNotesJson,
+  finalIsArchivedFallback = false,
+  cleanIsLatestBareOnly = false,
 }: Props) {
   const t = useActiveTranslator();
   const [createOpen, setCreateOpen] = useState(false);
@@ -525,7 +531,7 @@ export function VideoVersionsPanel({
           ? formatTextVersionTitle(rebuildCount)
           : originalTitle
       }
-      lifecycleBadge="current"
+      lifecycleBadge={finalIsArchivedFallback ? "archived" : "current"}
       videoUrl={finalVideoUrl}
       versionNote={currentTextVersionNote}
       showVideoPlayer={!hideOriginalVideoPlayer}
@@ -560,8 +566,15 @@ export function VideoVersionsPanel({
   const cleanCard = (
     <VideoCard
       title={cleanTitle}
+      lifecycleBadge={cleanVideoUrl ? "current" : null}
       videoUrl={cleanVideoUrl}
-      summary={isDetailLayout ? t("projectDetail.versions.cleanDesc") : undefined}
+      summary={
+        cleanIsLatestBareOnly
+          ? t("projectDetail.versions.cleanLatestBareOnly")
+          : isDetailLayout
+            ? t("projectDetail.versions.cleanDesc")
+            : undefined
+      }
       downloadHref={
         cleanVideoUrl ? animationProjectDownloadUrl(projectId, { variant: "clean" }) : undefined
       }

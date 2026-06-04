@@ -5,8 +5,12 @@ import { useActiveTranslator } from "@/i18n/client";
 type ProjectRerenderChoicesProps = {
   disabled?: boolean;
   quickBusy?: boolean;
+  copyBusy?: boolean;
   onQuickRerender: () => void;
-  onOpenEditor: () => void;
+  /** Creates a new draft project (original unchanged) and opens the editor. */
+  onCopyAsConcept: () => void;
+  /** Text-only rebuild on the same clips (no new Vidu). */
+  onTextOnlyAdjust?: () => void;
 };
 
 function CheckIcon() {
@@ -70,11 +74,21 @@ function WhenList({ titleKey, itemKeys }: { titleKey: string; itemKeys: string[]
   );
 }
 
+function TextIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h10M4 17h14" />
+    </svg>
+  );
+}
+
 export function ProjectRerenderChoices({
   disabled,
   quickBusy,
+  copyBusy = false,
   onQuickRerender,
-  onOpenEditor,
+  onCopyAsConcept,
+  onTextOnlyAdjust,
 }: ProjectRerenderChoicesProps) {
   const t = useActiveTranslator();
 
@@ -155,6 +169,9 @@ export function ProjectRerenderChoices({
           <p className="mt-3 text-sm leading-relaxed text-zinc-700">
             {t("projectDetail.rerenderChoices.newVersion.description")}
           </p>
+          <p className="mt-2 text-xs font-medium text-[#0067B1]">
+            {t("projectDetail.rerenderChoices.newVersion.safeHint")}
+          </p>
           <WhenList
             titleKey="projectDetail.rerenderChoices.whenTitle"
             itemKeys={[
@@ -175,14 +192,42 @@ export function ProjectRerenderChoices({
           />
           <button
             type="button"
-            onClick={onOpenEditor}
-            disabled={disabled}
+            onClick={onCopyAsConcept}
+            disabled={disabled || copyBusy}
             className="mt-4 w-full rounded-xl bg-[#0067B1] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#005592] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {t("projectDetail.rerenderChoices.newVersion.cta")}
+            {copyBusy
+              ? t("projects.concept.copyBusy")
+              : t("projectDetail.rerenderChoices.newVersion.cta")}
           </button>
         </article>
       </div>
+
+      {onTextOnlyAdjust ?
+        <article className="mt-3 flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+              <TextIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">
+                {t("projectDetail.rerenderChoices.textOnly.title")}
+              </h3>
+              <p className="mt-1 text-sm text-zinc-600">
+                {t("projectDetail.rerenderChoices.textOnly.description")}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onTextOnlyAdjust}
+            disabled={disabled}
+            className="mt-3 w-full shrink-0 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-60 sm:mt-0 sm:w-auto"
+          >
+            {t("projectDetail.rerenderChoices.textOnly.cta")}
+          </button>
+        </article>
+      : null}
     </section>
   );
 }
