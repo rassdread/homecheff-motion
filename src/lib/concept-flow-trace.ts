@@ -1,11 +1,20 @@
-/** Dev/admin console tracing for Nieuwe versie → edit-version → draft bootstrap. */
+import { patchConceptFlowDebug } from "@/lib/concept-flow-debug-state";
+
+/** Console + debug snapshot for Nieuwe versie → edit-version → draft bootstrap. */
 export function traceConceptFlow(
   phase: string,
   detail?: Record<string, unknown>
 ): void {
-  if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_ENABLE_DEBUG_UI !== "true") {
-    return;
-  }
   const payload = detail ? ` ${JSON.stringify(detail)}` : "";
   console.info(`[concept-flow] ${phase}${payload}`);
+  const err =
+    detail?.error && typeof detail.error === "string"
+      ? detail.error
+      : detail?.lastError && typeof detail.lastError === "string"
+        ? detail.lastError
+        : null;
+  patchConceptFlowDebug({
+    lastStep: phase,
+    ...(err ? { lastError: err } : {}),
+  });
 }

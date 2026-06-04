@@ -140,7 +140,7 @@ export function useFullRerenderDraft(params: {
     draftPersisted: boolean;
     diagnostics: FullRerenderDraftBootstrapDiagnostics;
   } | null> => {
-    const attempt = ++bootstrapAttemptRef.current;
+    ++bootstrapAttemptRef.current;
     setLoadState("loading");
     setLoadError(null);
 
@@ -150,10 +150,6 @@ export function useFullRerenderDraft(params: {
       fetchGet: fetchFullRerenderDraft,
       fetchPost: ensureFullRerenderDraft,
     });
-
-    if (attempt !== bootstrapAttemptRef.current) {
-      return null;
-    }
 
     setBootstrapDiagnostics(result.diagnostics);
 

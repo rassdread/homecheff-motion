@@ -82,14 +82,21 @@ export async function runFullRerenderConceptBootstrap(
 ): Promise<ConceptBootstrapResult> {
   const { projectId, buildLocalDraft, fetchGet, fetchPost } = deps;
 
-  traceConceptFlow("bootstrap.get.start", { projectId });
+  traceConceptFlow("GET draft start", { projectId });
   const get = await fetchGet(projectId);
-  traceConceptFlow("bootstrap.get.done", {
-    projectId,
-    status: get.status,
-    ok: get.ok,
-    hasDraft: Boolean(get.draft),
-  });
+  if (get.ok) {
+    traceConceptFlow("GET draft success", {
+      projectId,
+      status: get.status,
+      hasDraft: Boolean(get.draft),
+    });
+  } else {
+    traceConceptFlow("GET draft fail", {
+      projectId,
+      status: get.status,
+      error: get.error ?? `HTTP ${get.status}`,
+    });
+  }
 
   let postStatus: number | null = null;
   let postOk: boolean | null = null;
@@ -98,17 +105,24 @@ export async function runFullRerenderConceptBootstrap(
   let plan = planFullRerenderDraftBootstrap(get);
 
   if (plan.kind === "needs_create") {
-    traceConceptFlow("bootstrap.post.start", { projectId });
+    traceConceptFlow("POST draft start", { projectId });
     const post = await fetchPost(projectId);
     postStatus = post.status;
     postOk = post.ok;
     postCode = post.code;
-    traceConceptFlow("bootstrap.post.done", {
-      projectId,
-      status: post.status,
-      ok: post.ok,
-      hasDraft: Boolean(post.draft),
-    });
+    if (post.ok) {
+      traceConceptFlow("POST draft success", {
+        projectId,
+        status: post.status,
+        hasDraft: Boolean(post.draft),
+      });
+    } else {
+      traceConceptFlow("POST draft fail", {
+        projectId,
+        status: post.status,
+        error: post.error ?? `HTTP ${post.status}`,
+      });
+    }
     plan = planFullRerenderDraftBootstrap(get, post);
 
     if (plan.kind === "fallback" && get.ok && !get.draft) {
@@ -139,7 +153,7 @@ export async function runFullRerenderConceptBootstrap(
   }
 
   if (plan.kind === "ready") {
-    traceConceptFlow("bootstrap.ready", {
+    traceConceptFlow("ready", {
       projectId,
       source: plan.source,
       slotsCount: plan.draft.slots.length,

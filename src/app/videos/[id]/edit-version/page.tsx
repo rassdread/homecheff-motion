@@ -2,13 +2,21 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { traceConceptFlow } from "@/lib/concept-flow-trace";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConceptEditVersionDebugPanel } from "@/components/instant/concept-edit-version-debug-panel";
 import { FullRerenderEditor } from "@/components/instant/full-rerender-editor";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import {
+  patchConceptFlowDebug,
+  resetConceptFlowDebug,
+} from "@/lib/concept-flow-debug-state";
+import { traceConceptFlow } from "@/lib/concept-flow-trace";
+import { invalidateAuthSessionCache, fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { fetchAnimationProjectDetail } from "@/lib/instant-premium-polling-api";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
+
+const PROJECT_FETCH_TIMEOUT_MS = 25_000;
 
 export default function VideoEditVersionPage() {
   const t = useActiveTranslator();
@@ -17,65 +25,92 @@ export default function VideoEditVersionPage() {
   const session = useAuthSession();
   const [detail, setDetail] = useState<AnimationProjectDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [projectFetchPending, setProjectFetchPending] = useState(false);
+  const projectFetchStartedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const isAdmin = session.user?.role === "admin";
+
+  useEffect(() => {
+    resetConceptFlowDebug(id);
+    traceConceptFlow("edit-version page mounted", { projectId: id });
+    invalidateAuthSessionCache();
+    void fetchAuthSessionJson({ force: true }).catch(() => undefined);
+  }, [id]);
+
+  useEffect(() => {
+    patchConceptFlowDebug({
+      projectId: id,
+      sessionResolved: session.resolved,
+      sessionUser: Boolean(session.user),
+    });
+  }, [id, session.resolved, session.user]);
+
+  const loadProject = useCallback(async () => {
     if (!id) {
-      setLoading(false);
       return;
     }
-    setLoading(true);
+    setProjectFetchPending(true);
+    patchConceptFlowDebug({ projectFetchPending: true });
     setError(null);
+    traceConceptFlow("project fetch start", { projectId: id });
+
+    const timeout = window.setTimeout(() => {
+      const msg = "Project fetch timed out.";
+      traceConceptFlow("project fetch fail", { projectId: id, error: msg });
+      setError(msg);
+      setProjectFetchPending(false);
+      patchConceptFlowDebug({ projectFetchPending: false, lastError: msg });
+    }, PROJECT_FETCH_TIMEOUT_MS);
+
     try {
       const result = await fetchAnimationProjectDetail(id);
+      window.clearTimeout(timeout);
       if (result.networkError) {
-        setError(result.data.error ?? t("videos.error"));
+        const msg = result.data.error ?? "Network error.";
+        traceConceptFlow("project fetch fail", { projectId: id, error: msg });
+        setError(msg);
         setDetail(null);
         return;
       }
       if (!result.ok) {
         const msg =
           typeof result.data.error === "string" ? result.data.error : `HTTP ${result.status}`;
+        traceConceptFlow("project fetch fail", { projectId: id, error: msg });
         setError(msg);
         setDetail(null);
         return;
       }
+      traceConceptFlow("project fetch success", {
+        projectId: id,
+        imagesCount: result.data.images?.length ?? 0,
+      });
       setDetail(result.data);
-    } catch {
-      setError(t("videos.error"));
+      patchConceptFlowDebug({
+        projectLoaded: true,
+        imagesCount: result.data.images?.length ?? 0,
+      });
+    } catch (e) {
+      window.clearTimeout(timeout);
+      const msg = e instanceof Error ? e.message : "Project fetch failed.";
+      traceConceptFlow("project fetch fail", { projectId: id, error: msg });
+      setError(msg);
       setDetail(null);
     } finally {
-      setLoading(false);
+      setProjectFetchPending(false);
+      patchConceptFlowDebug({ projectFetchPending: false });
     }
-  }, [id, t]);
-
-  useEffect(() => {
-    traceConceptFlow("edit-version.mount", { projectId: id });
   }, [id]);
 
   useEffect(() => {
-    if (!session.resolved) {
+    if (!session.resolved || !session.user || !id) {
       return;
     }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled) {
-        return;
-      }
-      if (!session.user) {
-        setLoading(false);
-        return;
-      }
-      traceConceptFlow("edit-version.fetchProject.start", { projectId: id });
-      void load().then(() => {
-        traceConceptFlow("edit-version.fetchProject.done", { projectId: id });
-      });
-    }, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [session.resolved, session.user, load, id]);
+    if (projectFetchStartedRef.current) {
+      return;
+    }
+    projectFetchStartedRef.current = true;
+    void loadProject();
+  }, [session.resolved, session.user, id, loadProject]);
 
   const editorImages = useMemo(
     () =>
@@ -92,6 +127,22 @@ export default function VideoEditVersionPage() {
     detail?.stylePreset === "clean_business" ||
     detail?.stylePreset === "social_boost";
 
+  const showProjectSpinner = session.resolved && Boolean(session.user) && projectFetchPending;
+
+  const handleEditorFlowPatch = useCallback(
+    (patch: {
+      bootstrapStarted?: boolean;
+      bootstrapFinished?: boolean;
+      draftFetchPending?: boolean;
+      loadState?: string;
+      slotsCount?: number;
+      lastError?: string | null;
+    }) => {
+      patchConceptFlowDebug(patch);
+    },
+    []
+  );
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
       <Link
@@ -101,14 +152,34 @@ export default function VideoEditVersionPage() {
         {t("videos.backToProject")}
       </Link>
 
+      <ConceptEditVersionDebugPanel isAdmin={isAdmin} />
+
       {!session.resolved ?
         <p className="mt-8 text-sm text-zinc-600">{t("animate.auth.loading")}</p>
       : !session.user ?
         <p className="mt-8 text-sm text-zinc-600">{t("animate.auth.requiredTitle")}</p>
-      : loading ?
-        <p className="mt-8 text-sm text-zinc-600">{t("projects.concept.loading")}</p>
+      : showProjectSpinner ?
+        <p className="mt-8 text-sm text-zinc-600">{t("projects.concept.projectLoading")}</p>
       : error ?
-        <p className="mt-8 text-sm text-red-700">{error}</p>
+        <div className="mt-8 space-y-3">
+          <p className="text-sm text-red-700">{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              projectFetchStartedRef.current = false;
+              void loadProject();
+            }}
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium"
+          >
+            {t("projects.concept.retryLoad")}
+          </button>
+          <Link
+            href={`/videos/${encodeURIComponent(id)}`}
+            className="ml-2 inline-block text-sm font-medium text-zinc-700 underline"
+          >
+            {t("projects.concept.backToProject")}
+          </Link>
+        </div>
       : !detail || !instantLike ?
         <p className="mt-8 text-sm text-zinc-600">{t("instant.fullRerender.failed")}</p>
       : (
@@ -123,6 +194,11 @@ export default function VideoEditVersionPage() {
             instantTransitionSeconds={detail.instantTransitionSeconds ?? 5}
             uploadRole={session.user.role}
             images={editorImages}
+            onMounted={() => {
+              patchConceptFlowDebug({ editorMounted: true });
+              traceConceptFlow("editor mounted", { projectId: id });
+            }}
+            onFlowDebug={handleEditorFlowPatch}
           />
         </div>
       )}

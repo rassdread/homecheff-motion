@@ -1147,6 +1147,7 @@ export const nl = {
     "Start “Nieuwe versie maken” bij een afgeronde video om een concept op te slaan.",
   "projects.concepts.cardLabel": "Concept · {scenes} scènes",
   "projects.concept.loading": "Concept laden…",
+  "projects.concept.projectLoading": "Project laden…",
   "projects.concept.loadFailed": "Concept kon niet geladen worden",
   "projects.concept.retryLoad": "Opnieuw proberen",
   "projects.concept.startWithoutDraft": "Zonder concept verder",

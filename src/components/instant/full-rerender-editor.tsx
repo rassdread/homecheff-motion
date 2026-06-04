@@ -15,6 +15,7 @@ import {
   shouldShowFullRerenderDraftDiagnostics,
 } from "@/lib/full-rerender-draft-diagnostics";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
+import { patchConceptFlowDebug } from "@/lib/concept-flow-debug-state";
 import { traceConceptFlow } from "@/lib/concept-flow-trace";
 import { hasUsableConceptSlots } from "@/lib/full-rerender-concept-bootstrap";
 import { buildInitialFullRerenderDraftPayload } from "@/lib/full-rerender-draft";
@@ -51,7 +52,18 @@ export type FullRerenderEditorProps = {
   onError?: (message: string) => void;
   onRenderStart?: () => void;
   onDraftDeleted?: () => void;
+  onMounted?: () => void;
+  onFlowDebug?: (patch: {
+    bootstrapStarted?: boolean;
+    bootstrapFinished?: boolean;
+    draftFetchPending?: boolean;
+    loadState?: string;
+    slotsCount?: number;
+    lastError?: string | null;
+  }) => void;
 };
+
+const DRAFT_BOOTSTRAP_TIMEOUT_MS = 30_000;
 
 function saveStatusLabelKey(
   status: ReturnType<typeof useFullRerenderDraft>["saveStatus"]
@@ -83,6 +95,8 @@ export function FullRerenderEditor({
   onError,
   onRenderStart,
   onDraftDeleted,
+  onMounted,
+  onFlowDebug,
 }: FullRerenderEditorProps) {
   const t = useActiveTranslator();
   const router = useRouter();
@@ -108,8 +122,20 @@ export function FullRerenderEditor({
   const [draftBootstrapDiagnostics, setDraftBootstrapDiagnostics] = useState<
     ReturnType<typeof useFullRerenderDraft>["bootstrapDiagnostics"]
   >(null);
-  const bootstrapStartedRef = useRef<string | null>(null);
   const queuePersistAfterBootstrapRef = useRef(false);
+  const bootstrapFinishedRef = useRef(false);
+
+  const syncFlowDebug = useCallback(
+    (patch: Parameters<NonNullable<FullRerenderEditorProps["onFlowDebug"]>>[0]) => {
+      onFlowDebug?.(patch);
+      patchConceptFlowDebug({ projectId, ...patch });
+    },
+    [onFlowDebug, projectId]
+  );
+
+  useEffect(() => {
+    onMounted?.();
+  }, [onMounted]);
 
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const modalHeaderRef = useRef<HTMLElement>(null);
@@ -187,10 +213,20 @@ export function FullRerenderEditor({
       }
       setDraftLoadState(loaded.loadState);
       setBootstrapReady(true);
+      bootstrapFinishedRef.current = true;
       queuePersistAfterBootstrapRef.current =
         loaded.loadState === "ready" && !loaded.draftPersisted;
+      syncFlowDebug({
+        bootstrapFinished: true,
+        draftFetchPending: false,
+        loadState: loaded.loadState,
+        slotsCount: loaded.slots.length,
+      });
+      if (loaded.loadState === "ready") {
+        traceConceptFlow("ready", { projectId, slotsCount: loaded.slots.length });
+      }
     },
-    [applyProjectFallbackSlots]
+    [applyProjectFallbackSlots, projectId, syncFlowDebug]
   );
 
   useEffect(() => {
@@ -203,36 +239,81 @@ export function FullRerenderEditor({
 
   const runDraftBootstrap = useCallback(async () => {
     setDraftFetchPending(true);
-    traceConceptFlow("editor.bootstrap.start", { projectId });
-    try {
-      const loaded = await bootstrapDraftRef.current();
-      if (!loaded) {
-        traceConceptFlow("editor.bootstrap.cancelled", { projectId });
+    bootstrapFinishedRef.current = false;
+    syncFlowDebug({ bootstrapStarted: true, bootstrapFinished: false, draftFetchPending: true });
+    traceConceptFlow("bootstrap start", { projectId });
+    const timeout = window.setTimeout(() => {
+      if (bootstrapFinishedRef.current) {
         return;
       }
-      traceConceptFlow("editor.bootstrap.done", {
-        projectId,
-        loadState: loaded.loadState,
-        slotsCount: loaded.slots.length,
-        draftPersisted: loaded.draftPersisted,
+      const msg = "Concept bootstrap timed out.";
+      traceConceptFlow("bootstrap fail", { projectId, error: msg });
+      applyProjectFallbackSlots();
+      setDraftLoadState("error");
+      setError(msg);
+      setBootstrapReady(true);
+      bootstrapFinishedRef.current = true;
+      setDraftFetchPending(false);
+      syncFlowDebug({
+        bootstrapFinished: true,
+        draftFetchPending: false,
+        loadState: "error",
+        lastError: msg,
+        slotsCount: slots.length,
       });
+    }, DRAFT_BOOTSTRAP_TIMEOUT_MS);
+    try {
+      const loaded = await bootstrapDraftRef.current();
+      window.clearTimeout(timeout);
+      if (!loaded) {
+        traceConceptFlow("bootstrap fail", { projectId, error: "No bootstrap result." });
+        applyProjectFallbackSlots();
+        setDraftLoadState("error");
+        setError(t("projects.concept.loadFailed" as TranslationKey));
+        setBootstrapReady(true);
+        bootstrapFinishedRef.current = true;
+        syncFlowDebug({
+          bootstrapFinished: true,
+          draftFetchPending: false,
+          loadState: "error",
+          lastError: "No bootstrap result.",
+        });
+        return;
+      }
       applyBootstrapResult(loaded);
+    } catch (e) {
+      window.clearTimeout(timeout);
+      const msg = e instanceof Error ? e.message : "Bootstrap failed.";
+      traceConceptFlow("bootstrap fail", { projectId, error: msg });
+      applyProjectFallbackSlots();
+      setDraftLoadState("error");
+      setError(msg);
+      setBootstrapReady(true);
+      bootstrapFinishedRef.current = true;
+      syncFlowDebug({
+        bootstrapFinished: true,
+        draftFetchPending: false,
+        loadState: "error",
+        lastError: msg,
+      });
     } finally {
       setDraftFetchPending(false);
+      syncFlowDebug({ draftFetchPending: false });
     }
-  }, [applyBootstrapResult, projectId]);
+  }, [applyBootstrapResult, applyProjectFallbackSlots, projectId, slots.length, syncFlowDebug, t]);
 
+  const bootstrappedForProjectRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!projectId || bootstrapStartedRef.current === projectId) {
+    if (!projectId || bootstrappedForProjectRef.current === projectId) {
       return;
     }
-    bootstrapStartedRef.current = projectId;
-    traceConceptFlow("editor.mount", { projectId, imageCount: images.length });
+    bootstrappedForProjectRef.current = projectId;
     void runDraftBootstrap();
-  }, [projectId, images.length, runDraftBootstrap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once per projectId
+  }, [projectId]);
 
   const handleRetryDraftLoad = useCallback(() => {
-    bootstrapStartedRef.current = null;
+    bootstrappedForProjectRef.current = null;
     void runDraftBootstrap();
   }, [runDraftBootstrap]);
 

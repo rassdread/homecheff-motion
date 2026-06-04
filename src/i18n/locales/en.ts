@@ -1147,6 +1147,7 @@ export const en: LocaleSchema = {
     'Start "Create new version" on a completed video to save a draft concept here.',
   "projects.concepts.cardLabel": "Concept · {scenes} scenes",
   "projects.concept.loading": "Loading concept…",
+  "projects.concept.projectLoading": "Loading project…",
   "projects.concept.loadFailed": "Concept could not be loaded.",
   "projects.concept.retryLoad": "Try again",
   "projects.concept.startWithoutDraft": "Continue without concept",
