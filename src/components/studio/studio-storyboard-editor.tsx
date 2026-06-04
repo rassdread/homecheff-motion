@@ -28,6 +28,7 @@ import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-panel";
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
+import { StudioSceneImagePlannerPanel } from "@/components/studio/studio-scene-image-planner-panel";
 import {
   STUDIO_DIRECTOR_PROFILES,
   normalizeStudioDirectorProfile,
@@ -679,6 +680,11 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                           setStoryboard(res.data.storyboard);
                         }
                       }}
+                    />
+                    <StudioSceneImagePlannerPanel
+                      storyboard={storyboard}
+                      styleProfile={styleProfile}
+                      directorProfile={directorProfile}
                     />
                   </div>
                 : null}

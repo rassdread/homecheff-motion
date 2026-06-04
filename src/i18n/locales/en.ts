@@ -717,6 +717,56 @@ export const en: LocaleSchema = {
   "studio.intelligence.warning.flatPacing": "Flat pacing — energy stays on one level too long.",
   "studio.intelligence.warning.noBuildUp": "No emotional build-up before the peak.",
   "studio.intelligence.warning.repetitiveEnergy": "Repetitive scene energy — vary pacing.",
+  "studio.imagePlanner.title": "Scene image planner",
+  "studio.imagePlanner.hint":
+    "Describe, validate, and export image requirements for every scene before generation.",
+  "studio.imagePlanner.consistencyScore": "Visual consistency {score}/100",
+  "studio.imagePlanner.factor.characters": "Characters {score}",
+  "studio.imagePlanner.factor.locations": "Locations {score}",
+  "studio.imagePlanner.factor.props": "Props {score}",
+  "studio.imagePlanner.factor.transitions": "Transitions {score}",
+  "studio.imagePlanner.readiness.ready": "Ready for image generation",
+  "studio.imagePlanner.readiness.needsAttention": "Needs attention",
+  "studio.imagePlanner.readiness.notReady": "Not ready",
+  "studio.imagePlanner.registry.characters": "Character registry",
+  "studio.imagePlanner.registry.locations": "Location registry",
+  "studio.imagePlanner.registry.props": "Object registry",
+  "studio.imagePlanner.registry.empty": "None linked yet",
+  "studio.imagePlanner.scenesTitle": "Scene requirements",
+  "studio.imagePlanner.sceneLabel": "Scene {index}",
+  "studio.imagePlanner.req.characters": "Characters",
+  "studio.imagePlanner.req.location": "Location",
+  "studio.imagePlanner.req.objects": "Objects",
+  "studio.imagePlanner.req.mood": "Mood",
+  "studio.imagePlanner.req.time": "Time of day",
+  "studio.imagePlanner.req.shot": "Shot",
+  "studio.imagePlanner.req.none": "—",
+  "studio.imagePlanner.aiDescription": "AI scene description",
+  "studio.imagePlanner.export.image": "Image generation prompt",
+  "studio.imagePlanner.export.vidu": "Vidu context prompt",
+  "studio.imagePlanner.export.visual": "Storyboard visual prompt",
+  "studio.imagePlanner.export.copy": "Copy",
+  "studio.imagePlanner.export.copied": "Copied",
+  "studio.imagePlanner.warning.characterDisappears":
+    "{character} disappears between scene {sceneA} and {sceneB}.",
+  "studio.imagePlanner.warning.mascotDisappears":
+    "{character} mascot disappears between scene {sceneA} and {sceneB}.",
+  "studio.imagePlanner.warning.clothingShift":
+    "{character} clothing changes unexpectedly between scene {sceneA} and {sceneB}.",
+  "studio.imagePlanner.warning.locationJump":
+    "Location jumps from {locationA} to {locationB} between scene {sceneA} and {sceneB}.",
+  "studio.imagePlanner.warning.propDrops":
+    "{prop} is missing between scene {sceneA} and {sceneB}.",
+  "studio.imagePlanner.warning.characterNotIntroduced":
+    "{character} is first introduced late in scene {scene}.",
+  "studio.imagePlanner.warning.locationUnassigned":
+    "Scene {scene} has no location assigned despite a detailed description.",
+  "studio.imagePlanner.warning.sceneMissingCharacters":
+    "Scene {scene} has no characters linked.",
+  "studio.imagePlanner.warning.locationRarelyShown":
+    "{location} appears only once — consider establishing it earlier.",
+  "studio.imagePlanner.warning.climaxMissingCast":
+    "Climax scene {scene} has no characters — main cast may be missing.",
   "studio.intelligence.movie.recommend.health": "Improve story health with shot plan or pacing changes.",
   "studio.intelligence.plan.rationale.opening": "Wide establishing with slow push-in.",
   "studio.intelligence.plan.rationale.discovery": "Medium wide with tracking for exploration.",

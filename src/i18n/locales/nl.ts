@@ -715,6 +715,56 @@ export const nl = {
   "studio.intelligence.warning.flatPacing": "Vlak tempo — energie blijft te lang op één niveau.",
   "studio.intelligence.warning.noBuildUp": "Geen emotionele opbouw vóór het hoogtepunt.",
   "studio.intelligence.warning.repetitiveEnergy": "Herhalende scène-energie — varieer het tempo.",
+  "studio.imagePlanner.title": "Scene image planner",
+  "studio.imagePlanner.hint":
+    "Beschrijf, valideer en exporteer beeldvereisten per scène vóór generatie.",
+  "studio.imagePlanner.consistencyScore": "Visuele consistentie {score}/100",
+  "studio.imagePlanner.factor.characters": "Personages {score}",
+  "studio.imagePlanner.factor.locations": "Locaties {score}",
+  "studio.imagePlanner.factor.props": "Props {score}",
+  "studio.imagePlanner.factor.transitions": "Overgangen {score}",
+  "studio.imagePlanner.readiness.ready": "Klaar voor beeldgeneratie",
+  "studio.imagePlanner.readiness.needsAttention": "Aandacht nodig",
+  "studio.imagePlanner.readiness.notReady": "Niet klaar",
+  "studio.imagePlanner.registry.characters": "Personageregister",
+  "studio.imagePlanner.registry.locations": "Locatieregister",
+  "studio.imagePlanner.registry.props": "Objectregister",
+  "studio.imagePlanner.registry.empty": "Nog niet gekoppeld",
+  "studio.imagePlanner.scenesTitle": "Scènevereisten",
+  "studio.imagePlanner.sceneLabel": "Scène {index}",
+  "studio.imagePlanner.req.characters": "Personages",
+  "studio.imagePlanner.req.location": "Locatie",
+  "studio.imagePlanner.req.objects": "Objecten",
+  "studio.imagePlanner.req.mood": "Sfeer",
+  "studio.imagePlanner.req.time": "Tijd van de dag",
+  "studio.imagePlanner.req.shot": "Shot",
+  "studio.imagePlanner.req.none": "—",
+  "studio.imagePlanner.aiDescription": "AI-scènebeschrijving",
+  "studio.imagePlanner.export.image": "Beeldgeneratie-prompt",
+  "studio.imagePlanner.export.vidu": "Vidu-contextprompt",
+  "studio.imagePlanner.export.visual": "Storyboard-visuele prompt",
+  "studio.imagePlanner.export.copy": "Kopiëren",
+  "studio.imagePlanner.export.copied": "Gekopieerd",
+  "studio.imagePlanner.warning.characterDisappears":
+    "{character} verdwijnt tussen scène {sceneA} en {sceneB}.",
+  "studio.imagePlanner.warning.mascotDisappears":
+    "Mascotte {character} verdwijnt tussen scène {sceneA} en {sceneB}.",
+  "studio.imagePlanner.warning.clothingShift":
+    "Kleding van {character} wijzigt onverwacht tussen scène {sceneA} en {sceneB}.",
+  "studio.imagePlanner.warning.locationJump":
+    "Locatie springt van {locationA} naar {locationB} tussen scène {sceneA} en {sceneB}.",
+  "studio.imagePlanner.warning.propDrops":
+    "{prop} ontbreekt tussen scène {sceneA} en {sceneB}.",
+  "studio.imagePlanner.warning.characterNotIntroduced":
+    "{character} wordt pas laat geïntroduceerd in scène {scene}.",
+  "studio.imagePlanner.warning.locationUnassigned":
+    "Scène {scene} heeft geen locatie terwijl de beschrijving uitgebreid is.",
+  "studio.imagePlanner.warning.sceneMissingCharacters":
+    "Scène {scene} heeft geen gekoppelde personages.",
+  "studio.imagePlanner.warning.locationRarelyShown":
+    "{location} komt maar één keer voor — overweeg eerder te introduceren.",
+  "studio.imagePlanner.warning.climaxMissingCast":
+    "Climax-scène {scene} heeft geen personages — hoofdcast ontbreekt mogelijk.",
   "studio.intelligence.movie.recommend.health": "Verbeter story health met shotplan of tempowijzigingen.",
   "studio.intelligence.plan.rationale.opening": "Brede establishing met langzame push-in.",
   "studio.intelligence.plan.rationale.discovery": "Medium wide met tracking voor verkenning.",
