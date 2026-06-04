@@ -457,8 +457,53 @@ model StudioStoryboard {
   updatedAt   DateTime      @updatedAt
   scenes      StudioScene[]
   jobs        StudioJob[]
+  /** V31: generated voice-over assets (one per language). */
+  voices      StudioStoryboardVoice[]
+  subtitleTracks StudioStoryboardSubtitleTrack[]
 
   @@index([ownerId])
+}
+
+/** V31: generated narration audio per storyboard + language. */
+model StudioStoryboardVoice {
+  id               String           @id @default(cuid())
+  storyboardId     String
+  storyboard       StudioStoryboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  language         String
+  provider         String
+  voiceProfile     String
+  voiceStyle       String           @default("")
+  audioUrl         String           @default("")
+  storageKey       String           @default("")
+  durationSeconds  Float            @default(0)
+  /** queued | generating | completed | failed */
+  status           String           @default("queued")
+  providerVoiceId  String           @default("")
+  providerModelId  String           @default("")
+  providerMetadata Json?
+  errorMessage     String           @default("")
+  generatedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([storyboardId, language])
+  @@index([storyboardId])
+}
+
+/** V31: timed subtitle track per storyboard + language. */
+model StudioStoryboardSubtitleTrack {
+  id           String           @id @default(cuid())
+  storyboardId String
+  storyboard   StudioStoryboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+  language     String
+  /** draft | ready */
+  status       String           @default("draft")
+  entriesJson  Json             @default("[]")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([storyboardId, language])
+  @@index([storyboardId])
 }
 
 /** Background bulk work for Studio storyboards (V15). */

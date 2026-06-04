@@ -121,6 +121,10 @@ export function sanitizeMotionHandoffForStorage(
     executionPackage: raw.executionPackage,
     executionReadiness: raw.executionReadiness,
     executionWarnings: raw.executionWarnings,
+    voiceMetadata: raw.voiceMetadata,
+    voiceDuration: raw.voiceDuration,
+    subtitleTrack: raw.subtitleTrack,
+    subtitleAvailability: raw.subtitleAvailability,
     scenes: scenes.map((scene) =>
       isPlainObject(scene) ? sanitizeScene(scene) : scene
     ),

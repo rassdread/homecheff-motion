@@ -70,6 +70,81 @@ export function estimateVoiceCredits(characterCount: number): {
   return { estimatedCredits, characters: chars };
 }
 
+/** Default ElevenLabs voice IDs per Studio profile (override via ELEVENLABS_VOICE_ID). */
+const PROFILE_VOICE_IDS: Record<string, string> = {
+  warm_narrator: "21m00Tcm4TlvDq8ikWAM",
+  documentary: "ErXwobaYiN019PkySvjV",
+  commercial: "EXAVITQu4vr4xnSDxMaL",
+  inspirational_founder: "pNInz6obpgDQGcFmaJgB",
+  premium_brand: "onwK4e9ZLuTAKqWW03F9",
+  educational: "VR6AewLTigWG4xSOukaG",
+};
+
+export function resolveElevenLabsVoiceId(voiceProfile: string): string {
+  const envDefault = process.env.ELEVENLABS_VOICE_ID?.trim();
+  if (envDefault) {
+    return envDefault;
+  }
+  const profile = normalizeStudioVoiceProfileId(voiceProfile);
+  return PROFILE_VOICE_IDS[profile] ?? PROFILE_VOICE_IDS.warm_narrator;
+}
+
+export function estimateMp3DurationSeconds(buffer: Buffer, bitrateKbps = 128): number {
+  if (buffer.length <= 0) {
+    return 0;
+  }
+  const bytesPerSecond = (bitrateKbps * 1000) / 8;
+  return Math.max(0.5, buffer.length / bytesPerSecond);
+}
+
+export type ElevenLabsSynthesisResult = {
+  audioBuffer: Buffer;
+  durationSeconds: number;
+  providerVoiceId: string;
+  providerModelId: string;
+  characterCount: number;
+};
+
+export async function synthesizeElevenLabsSpeech(params: {
+  request: ElevenLabsVoiceRequest;
+  voiceProfile: string;
+}): Promise<ElevenLabsSynthesisResult> {
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("ELEVENLABS_API_KEY is not configured.");
+  }
+  const voiceId = resolveElevenLabsVoiceId(params.voiceProfile);
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "xi-api-key": apiKey,
+      "Content-Type": "application/json",
+      Accept: "audio/mpeg",
+    },
+    body: JSON.stringify({
+      text: params.request.text,
+      model_id: params.request.model_id,
+      voice_settings: params.request.voice_settings,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `ElevenLabs TTS failed (${res.status}): ${detail.slice(0, 200) || res.statusText}`
+    );
+  }
+  const arrayBuffer = await res.arrayBuffer();
+  const audioBuffer = Buffer.from(arrayBuffer);
+  return {
+    audioBuffer,
+    durationSeconds: estimateMp3DurationSeconds(audioBuffer),
+    providerVoiceId: voiceId,
+    providerModelId: params.request.model_id,
+    characterCount: params.request.metadata.estimatedCharacters,
+  };
+}
+
 export function buildVoiceRequest(params: {
   script: string;
   voiceProfile: string;

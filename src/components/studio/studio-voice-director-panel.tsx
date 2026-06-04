@@ -18,6 +18,8 @@ import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { StudioSubtitlePreviewPanel } from "@/components/studio/studio-subtitle-preview-panel";
+import { StudioVoicePreviewPanel } from "@/components/studio/studio-voice-preview-panel";
 import { updateStudioStoryboardApi } from "@/lib/studio-storyboards-client";
 
 type Props = {
@@ -26,7 +28,7 @@ type Props = {
   onStoryboardUpdated?: (storyboard: StudioStoryboardDetail) => void;
 };
 
-const VOICE_LANGUAGES = ["en", "nl", "de", "fr"] as const;
+const VOICE_LANGUAGES = ["en", "nl", "es", "fr"] as const;
 
 export function StudioVoiceDirectorPanel({
   storyboard,
@@ -264,6 +266,20 @@ export function StudioVoiceDirectorPanel({
               </button>
             : null}
           </div>
+
+          <StudioVoicePreviewPanel
+            storyboardId={storyboard.id}
+            enabled={enabled}
+            language={language}
+            voiceProfile={voiceProfile}
+            canModify={canModify}
+          />
+          <StudioSubtitlePreviewPanel
+            storyboardId={storyboard.id}
+            enabled={enabled}
+            language={language}
+            canModify={canModify}
+          />
         </>
       : null}
     </div>

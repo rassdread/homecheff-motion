@@ -99,4 +99,11 @@ export type MotionStudioIntelligenceSnapshot = {
   /** V30: execution readiness from handoff v11. */
   executionReadiness?: import("@/types/studio-scene-execution").StudioExecutionReadiness;
   executionWarningCount?: number;
+  /** V31: voice handoff summary (metadata only). */
+  voiceSummary?: {
+    ready: boolean;
+    language: string;
+    durationSeconds: number;
+    subtitleAvailable: boolean;
+  };
 };

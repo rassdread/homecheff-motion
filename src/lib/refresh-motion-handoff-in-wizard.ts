@@ -96,6 +96,8 @@ export function mergeMotionHandoffRefresh(
       executionReadiness: payload.executionReadiness,
       executionWarnings: payload.executionWarnings,
       executionPackage: payload.executionPackage,
+      voiceMetadata: payload.voiceMetadata,
+      subtitleAvailability: payload.subtitleAvailability,
       storedHandoff: sanitizeMotionHandoffForStorage(payload),
     },
   };

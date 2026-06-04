@@ -153,6 +153,9 @@ export type PersistedWizardState = {
     executionReadiness?: import("@/types/studio-scene-execution").StudioExecutionReadiness;
     executionWarnings?: import("@/types/studio-scene-execution").StudioExecutionWarning[];
     executionPackage?: import("@/types/studio-scene-execution").StudioStoryExecutionPackage;
+    /** V31: voice metadata from handoff v12. */
+    voiceMetadata?: import("@/types/studio-voice-execution").MotionVoiceMetadata;
+    subtitleAvailability?: boolean;
     /** Sanitized handoff persisted for project create (includes execution prompts). */
     storedHandoff?: Record<string, unknown>;
   };

@@ -29,7 +29,10 @@ import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
 import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-character-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
+import { attachVoiceToHandoffPayload } from "@/lib/attach-voice-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
+import { prisma } from "@/lib/prisma";
+import { getStudioStoryboardById } from "@/server/studio/studio-storyboard-service";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -356,9 +359,43 @@ export async function createMotionHandoffPayload(
     scenes: handoffScenes,
   };
 
-  const payload = attachExecutionToHandoffPayload(basePayload, {
+  let payload = attachExecutionToHandoffPayload(basePayload, {
     aiDirectorNotes: storyboard.aiDirectorPrompt?.trim() ?? "",
   });
+
+  const detail = await getStudioStoryboardById(storyboardId, viewer);
+  if (detail) {
+    const lang = (detail.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2);
+    const [voice, subtitle] = await Promise.all([
+      prisma.studioStoryboardVoice.findUnique({
+        where: { storyboardId_language: { storyboardId, language: lang } },
+      }),
+      prisma.studioStoryboardSubtitleTrack.findUnique({
+        where: { storyboardId_language: { storyboardId, language: lang } },
+      }),
+    ]);
+    payload = attachVoiceToHandoffPayload(payload, {
+      storyboard: detail,
+      voice: voice
+        ? {
+            language: voice.language,
+            provider: voice.provider,
+            voiceProfile: voice.voiceProfile,
+            voiceStyle: voice.voiceStyle,
+            audioUrl: voice.audioUrl,
+            durationSeconds: voice.durationSeconds,
+            status: voice.status,
+          }
+        : null,
+      subtitle: subtitle
+        ? {
+            language: subtitle.language,
+            status: subtitle.status,
+            entriesJson: subtitle.entriesJson,
+          }
+        : null,
+    });
+  }
 
   return { payload };
 }

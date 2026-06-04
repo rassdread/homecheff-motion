@@ -231,5 +231,13 @@ export function buildMotionStudioIntelligenceSnapshot(
     partialData,
     executionReadiness: payload.executionReadiness,
     executionWarningCount: payload.executionWarnings?.length ?? 0,
+    voiceSummary: payload.voiceMetadata
+      ? {
+          ready: payload.voiceMetadata.ready,
+          language: payload.voiceMetadata.language,
+          durationSeconds: payload.voiceDuration ?? payload.voiceMetadata.durationSeconds,
+          subtitleAvailable: Boolean(payload.subtitleAvailability),
+        }
+      : undefined,
   };
 }

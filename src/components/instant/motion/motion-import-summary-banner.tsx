@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
+import type { MotionVoiceMetadata } from "@/types/studio-voice-execution";
 
 type Props = {
   intelligence: MotionStudioIntelligenceSnapshot;
   storyboardId: string | null;
+  voiceMetadata?: MotionVoiceMetadata | null;
+  subtitleAvailability?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -14,6 +17,8 @@ type Props = {
 export function MotionImportSummaryBanner({
   intelligence,
   storyboardId,
+  voiceMetadata,
+  subtitleAvailability,
   onRefresh,
   refreshing,
 }: Props) {
@@ -57,6 +62,34 @@ export function MotionImportSummaryBanner({
               })}
             </p>
           : null}
+          {(() => {
+            const voice = voiceMetadata ?? null;
+            const summary = intelligence.voiceSummary;
+            if (!voice && !summary) {
+              return null;
+            }
+            const ready = voice?.ready ?? summary?.ready ?? false;
+            const lang = (voice?.language ?? summary?.language ?? "—").toUpperCase();
+            const duration = Math.round(
+              voice?.durationSeconds ?? summary?.durationSeconds ?? 0
+            );
+            const subs =
+              subtitleAvailability ?? summary?.subtitleAvailable ?? false;
+            return (
+              <p className="mt-2 text-xs text-zinc-700">
+                {t("motion.qa.importSummary.voice", {
+                  ready: ready
+                    ? t("motion.qa.importSummary.voiceReady")
+                    : t("motion.qa.importSummary.voiceNotReady"),
+                  language: lang,
+                  duration: String(duration),
+                  subtitles: subs
+                    ? t("motion.qa.importSummary.subtitlesAvailable")
+                    : t("motion.qa.importSummary.subtitlesNone"),
+                })}
+              </p>
+            );
+          })()}
           {intelligence.partialData || intelligence.legacyHandoff ?
             <p className="mt-1 text-xs text-amber-800">{t("motion.qa.importSummary.partial")}</p>
           : null}

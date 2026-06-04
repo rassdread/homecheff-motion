@@ -25,8 +25,13 @@ import type {
   StudioSceneExecutionPackage,
   StudioStoryExecutionPackage,
 } from "@/types/studio-scene-execution";
+import type {
+  MotionSubtitleTrackHandoff,
+  MotionVoiceMetadata,
+  MotionVoiceSegmentHandoff,
+} from "@/types/studio-voice-execution";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 11 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 12 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -62,6 +67,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneExecutionPackage?: StudioSceneExecutionPackage;
   /** V30: final combined execution prompt for generation. */
   executionPrompt?: string;
+  /** V31: timed voice segment for this scene (metadata for Motion export). */
+  voiceSegment?: MotionVoiceSegmentHandoff;
 };
 
 export type MotionHandoffPayload = {
@@ -104,5 +111,10 @@ export type MotionHandoffPayload = {
   executionPackage?: StudioStoryExecutionPackage;
   executionReadiness?: StudioExecutionReadiness;
   executionWarnings?: StudioExecutionWarning[];
+  /** V31: voice-over metadata (no Vidu wiring). */
+  voiceMetadata?: MotionVoiceMetadata;
+  voiceDuration?: number;
+  subtitleTrack?: MotionSubtitleTrackHandoff;
+  subtitleAvailability?: boolean;
   scenes: MotionHandoffScene[];
 };
