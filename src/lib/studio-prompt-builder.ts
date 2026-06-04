@@ -1,11 +1,14 @@
 import { buildActionPrompt } from "@/lib/studio-prompt-action-builder";
+import { buildDirectorProfilePrompt } from "@/lib/studio-director-profiles";
 import { buildCameraPrompt } from "@/lib/studio-prompt-camera-builder";
+import { buildDirectorCameraPrompt } from "@/lib/studio-scene-director";
 import { buildCharactersPrompt } from "@/lib/studio-prompt-character-builder";
 import { buildContinuityPrompt } from "@/lib/studio-prompt-continuity-builder";
 import { buildEmotionPrompt } from "@/lib/studio-prompt-emotion-builder";
 import { buildLocationPrompt } from "@/lib/studio-prompt-location-builder";
 import { buildPropsPrompt } from "@/lib/studio-prompt-prop-builder";
 import { scorePromptQuality } from "@/lib/studio-prompt-quality";
+import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import {
   buildStyleProfilePrompt,
   type StudioPromptStyleProfile,
@@ -59,7 +62,14 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     props: buildPropsPrompt(input.props),
     action: buildActionPrompt(input.scene.action),
     emotion: buildEmotionPrompt(input.scene.emotion),
-    camera: buildCameraPrompt(input.scene.camera),
+    camera:
+      buildDirectorCameraPrompt({
+        shotType: input.shotType,
+        cameraMovement: input.cameraMovement,
+        sceneEnergy: input.sceneEnergy,
+        legacyCamera: input.scene.camera,
+      }) || buildCameraPrompt(input.scene.camera),
+    director: buildDirectorProfilePrompt(normalizeStudioDirectorProfile(input.directorProfile)),
     visualStyle: stylePrompt,
     qualityInstructions: QUALITY_INSTRUCTIONS,
     continuity,
@@ -78,6 +88,7 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
         ? `Props:\n${sections.props}`
         : "",
     [sections.action, sections.emotion].filter(Boolean).join(" "),
+    sections.director,
     sections.camera,
     sections.visualStyle,
     sections.qualityInstructions,
@@ -110,13 +121,29 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
   };
 }
 
+export type ScenePromptDirectorOptions = {
+  directorProfile?: string;
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
+};
+
 export function buildScenePrompt(
   scene: SceneSnapshot,
   styleProfile?: StudioPromptStyleProfile | string,
-  memoryBundle?: SceneMemoryBundle
+  memoryBundle?: SceneMemoryBundle,
+  director?: ScenePromptDirectorOptions
 ): PromptBuilderOutput {
-  const input = sceneSnapshotToPromptInput(scene, styleProfile);
-  return buildScenePromptFromInput(
-    memoryBundle ? { ...input, memoryBundle } : input
-  );
+  const input = sceneSnapshotToPromptInput(scene, styleProfile, director?.directorProfile);
+  const withDirector = {
+    ...input,
+    shotType: director?.shotType ?? scene.shotType,
+    cameraMovement: director?.cameraMovement ?? scene.cameraMovement,
+    sceneEnergy: director?.sceneEnergy ?? scene.sceneEnergy,
+    directorProfile: director?.directorProfile
+      ? normalizeStudioDirectorProfile(director.directorProfile)
+      : input.directorProfile,
+    ...(memoryBundle ? { memoryBundle } : {}),
+  };
+  return buildScenePromptFromInput(withDirector);
 }

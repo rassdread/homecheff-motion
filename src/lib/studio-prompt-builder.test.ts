@@ -112,7 +112,8 @@ describe("studio prompt builders", () => {
     assert.match(output.prompt, /Chef|Sergio/i);
     assert.match(output.prompt, /Laptop/i);
     assert.match(output.prompt, /commercial/i);
-    assert.match(output.prompt, /medium/i);
+    assert.match(output.prompt, /medium|Balanced neutral scene energy/i);
+    assert.match(output.sections.director, /Commercial direction/i);
     assert.equal(output.metadata.sceneId, "scene-rotterdam");
     assert.equal(output.metadata.promptVersion, PROMPT_BUILDER_VERSION);
     assert.ok(output.metadata.generatedPrompt.length > 0);

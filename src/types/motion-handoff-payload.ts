@@ -2,6 +2,7 @@ import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength"
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioSceneImageReference } from "@/types/studio-scene-image-reference";
 import type {
@@ -19,7 +20,7 @@ import type {
 import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
 import type { StoryboardCharacterConsistencyReport } from "@/types/studio-character-consistency";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 9 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 10 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -59,6 +60,9 @@ export type MotionHandoffPayload = {
   title: string;
   description: string;
   promptStyleProfile: StudioPromptStyleProfile;
+  /** V23: director profile + shot metadata (read-only for Motion). */
+  directorProfile: StudioDirectorProfile;
+  shotDiversityScore: number;
   /** V10: stored for future Motion continuity; not used in rendering yet. */
   characterMemory: CharacterMemorySnapshot[];
   locationMemory: LocationMemorySnapshot | null;

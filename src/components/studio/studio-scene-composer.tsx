@@ -7,11 +7,18 @@ import { StudioSceneImagePanel } from "@/components/studio/studio-scene-image-pa
 import { StudioSceneContinuityPreview } from "@/components/studio/studio-scene-continuity-preview";
 import { StudioScenePromptPreview } from "@/components/studio/studio-scene-prompt-preview";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioDirectorSelect } from "@/components/studio/studio-director-select";
 import {
   STUDIO_SCENE_ACTION_PRESETS,
   STUDIO_SCENE_CAMERA_PRESETS,
   STUDIO_SCENE_EMOTION_PRESETS,
 } from "@/lib/studio-scene-presets";
+import {
+  STUDIO_CAMERA_MOVEMENTS,
+  STUDIO_SCENE_ENERGIES,
+  STUDIO_SHOT_TYPES,
+} from "@/lib/studio-scene-director";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type {
   StudioCharacterListItem,
@@ -30,6 +37,7 @@ type StudioSceneComposerProps = {
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
   styleProfile: StudioPromptStyleProfile;
+  directorProfile: StudioDirectorProfile;
   saving: boolean;
   canModify: boolean;
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
@@ -47,6 +55,7 @@ export function StudioSceneComposer({
   characters,
   props,
   styleProfile,
+  directorProfile,
   saving,
   canModify,
   onSave,
@@ -74,6 +83,9 @@ export function StudioSceneComposer({
         action: draft.action,
         emotion: draft.emotion,
         camera: draft.camera,
+        shotType: draft.shotType,
+        cameraMovement: draft.cameraMovement,
+        sceneEnergy: draft.sceneEnergy,
         transitionToNext: draft.transitionToNext,
         durationSeconds: draft.durationSeconds,
         locationId: draft.locationId,
@@ -124,7 +136,11 @@ export function StudioSceneComposer({
       </div>
 
       {tab === "prompt" ? (
-        <StudioScenePromptPreview scene={draft} styleProfile={styleProfile} />
+        <StudioScenePromptPreview
+          scene={draft}
+          styleProfile={styleProfile}
+          directorProfile={directorProfile}
+        />
       ) : tab === "image" ? (
         <StudioSceneImagePanel
           storyboardId={storyboardId}
@@ -285,7 +301,33 @@ export function StudioSceneComposer({
             />
           </div>
 
-          <StudioScenePreview scene={draft} />
+          <p className="text-sm font-semibold text-zinc-800">{t("studio.director.sectionTitle")}</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StudioDirectorSelect
+              label={t("studio.storyboards.field.shotType")}
+              group="shot"
+              options={STUDIO_SHOT_TYPES}
+              value={draft.shotType}
+              onChange={(shotType) => patch("shotType", shotType)}
+            />
+            <StudioDirectorSelect
+              label={t("studio.storyboards.field.cameraMovement")}
+              group="movement"
+              options={STUDIO_CAMERA_MOVEMENTS}
+              value={draft.cameraMovement}
+              onChange={(cameraMovement) => patch("cameraMovement", cameraMovement)}
+            />
+            <StudioDirectorSelect
+              label={t("studio.storyboards.field.sceneEnergy")}
+              group="energy"
+              options={STUDIO_SCENE_ENERGIES}
+              value={draft.sceneEnergy}
+              onChange={(sceneEnergy) => patch("sceneEnergy", sceneEnergy as StudioSceneDetail["sceneEnergy"])}
+              allowEmpty={false}
+            />
+          </div>
+
+          <StudioScenePreview scene={draft} directorProfile={directorProfile} />
 
           <StudioSceneContinuityPreview scene={draft} styleProfile={styleProfile} />
 

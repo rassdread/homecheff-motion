@@ -14,7 +14,8 @@ export { buildScenePrompt, buildScenePromptFromInput };
 
 export function buildScenePromptFromSceneRow(
   row: StudioStoryboardSceneRow,
-  styleProfile?: StudioPromptStyleProfile | string
+  styleProfile?: StudioPromptStyleProfile | string,
+  directorProfile?: string
 ): PromptBuilderOutput {
   const snapshot = toSceneSnapshot(row);
   const memoryBundle = buildSceneMemoryBundleFromSceneRow({
@@ -22,7 +23,12 @@ export function buildScenePromptFromSceneRow(
     location: row.location,
     props: row.props,
   });
-  return buildScenePrompt(snapshot, styleProfile, memoryBundle);
+  return buildScenePrompt(snapshot, styleProfile, memoryBundle, {
+    directorProfile,
+    shotType: row.shotType,
+    cameraMovement: row.cameraMovement,
+    sceneEnergy: row.sceneEnergy,
+  });
 }
 
 export function buildScenePromptForDetail(

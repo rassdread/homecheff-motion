@@ -4,6 +4,6 @@ import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 
 describe("motion handoff payload shape", () => {
   it("uses version 8 with vision and improvement metadata fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 9);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 10);
   });
 });

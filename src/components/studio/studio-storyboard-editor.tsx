@@ -26,6 +26,12 @@ import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
+import { StudioDirectorTimeline } from "@/components/studio/studio-director-timeline";
+import {
+  STUDIO_DIRECTOR_PROFILES,
+  normalizeStudioDirectorProfile,
+  type StudioDirectorProfile,
+} from "@/lib/studio-director-profiles";
 import {
   STUDIO_PROMPT_STYLE_PROFILES,
   normalizeStudioPromptStyleProfile,
@@ -167,6 +173,31 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
         : ("commercial" as StudioPromptStyleProfile),
     [storyboard]
   );
+
+  const directorProfile = useMemo(
+    () =>
+      storyboard
+        ? normalizeStudioDirectorProfile(storyboard.directorProfile)
+        : ("commercial" as StudioDirectorProfile),
+    [storyboard]
+  );
+
+  const [savingDirectorProfile, setSavingDirectorProfile] = useState(false);
+
+  const handleDirectorProfileChange = async (next: StudioDirectorProfile) => {
+    if (!storyboard || next === directorProfile) {
+      return;
+    }
+    setSavingDirectorProfile(true);
+    setError("");
+    const res = await updateStudioStoryboardApi(storyboardId, { directorProfile: next });
+    setSavingDirectorProfile(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed"));
+      return;
+    }
+    setStoryboard(res.data.storyboard);
+  };
 
   const handleStyleProfileChange = async (next: StudioPromptStyleProfile) => {
     if (!storyboard || next === styleProfile) {
@@ -483,6 +514,30 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         {t("studio.prompt.styleProfileHint")}
                       </p>
                     </div>
+                    <div className="mt-4 max-w-md">
+                      <label className="text-sm font-medium text-zinc-700">
+                        {t("studio.director.profileLabel")}
+                      </label>
+                      <select
+                        value={directorProfile}
+                        disabled={!canModify || savingDirectorProfile}
+                        onChange={(e) =>
+                          void handleDirectorProfileChange(
+                            normalizeStudioDirectorProfile(e.target.value)
+                          )
+                        }
+                        className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        {STUDIO_DIRECTOR_PROFILES.map((profile) => (
+                          <option key={profile} value={profile}>
+                            {t(`studio.director.director.${profile}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {t("studio.director.profileHint")}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {scenes.length > 0 ? (
@@ -600,6 +655,11 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
           {storyboard && !loading ? (
             <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
               <div>
+                {scenes.length > 0 ?
+                  <div className="mb-6">
+                    <StudioDirectorTimeline storyboard={storyboard} />
+                  </div>
+                : null}
                 <h2 className="text-lg font-semibold text-zinc-900">
                   {t("studio.storyboards.scenesTitle")}
                 </h2>
@@ -623,6 +683,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             characters={characters}
                             props={props}
                             styleProfile={styleProfile}
+                            directorProfile={directorProfile}
                             saving={savingSceneId === scene.id}
                             busy={busySceneId === scene.id}
                             canModify={canModify}

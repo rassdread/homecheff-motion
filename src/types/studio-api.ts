@@ -3,7 +3,9 @@ import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength"
 import type { StudioIdentityStrength } from "@/lib/studio-memory-validation";
 import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 import type { StudioPropCategory } from "@/lib/studio-prop-categories";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import type { StudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 export type StudioWorldProfileSummary = {
@@ -150,6 +152,9 @@ export type StudioSceneDetail = {
   action: string;
   emotion: string;
   camera: string;
+  shotType: string;
+  cameraMovement: string;
+  sceneEnergy: StudioSceneEnergy;
   transitionToNext: string;
   durationSeconds: number;
   locationId: string | null;
@@ -185,6 +190,7 @@ export type StudioStoryboardListItem = {
   title: string;
   description: string;
   promptStyleProfile: StudioPromptStyleProfile;
+  directorProfile: StudioDirectorProfile;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

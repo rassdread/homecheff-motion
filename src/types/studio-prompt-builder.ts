@@ -4,9 +4,10 @@ import type { PropSnapshot } from "@/types/studio-prop-snapshot";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 
-export const PROMPT_BUILDER_VERSION = 2 as const;
+export const PROMPT_BUILDER_VERSION = 3 as const;
 
 /**
  * Normalized input for the Studio Prompt Builder engine.
@@ -20,6 +21,11 @@ export type PromptBuilderInput = {
   characters: CharacterSnapshot[];
   props: PropSnapshot[];
   styleProfile: StudioPromptStyleProfile;
+  /** V23: director profile and per-scene camera language. */
+  directorProfile?: StudioDirectorProfile;
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
   /** V10: character, location, prop and world memory for continuity prompts. */
   memoryBundle?: SceneMemoryBundle;
   /** V12: structured corrections from consistency analysis (applied as prompt layer). */
@@ -34,6 +40,7 @@ export type PromptBuilderSections = {
   action: string;
   emotion: string;
   camera: string;
+  director: string;
   visualStyle: string;
   qualityInstructions: string;
   continuity: string;

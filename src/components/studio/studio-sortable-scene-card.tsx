@@ -3,7 +3,9 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StudioSceneComposer } from "@/components/studio/studio-scene-composer";
+import { buildDirectorScenePreviewText } from "@/lib/studio-scene-director-preview";
 import { useActiveTranslator } from "@/i18n/client";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type {
   StudioCharacterListItem,
@@ -23,6 +25,7 @@ type StudioSortableSceneCardProps = {
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
   styleProfile: StudioPromptStyleProfile;
+  directorProfile: StudioDirectorProfile;
   saving: boolean;
   busy: boolean;
   canModify: boolean;
@@ -44,6 +47,7 @@ export function StudioSortableSceneCard({
   characters,
   props,
   styleProfile,
+  directorProfile,
   saving,
   busy,
   canModify,
@@ -66,7 +70,9 @@ export function StudioSortableSceneCard({
     transition,
   };
 
+  const directorSummary = buildDirectorScenePreviewText(scene, directorProfile);
   const summary =
+    directorSummary ||
     scene.description.trim() ||
     scene.action.trim() ||
     scene.title ||
@@ -134,6 +140,7 @@ export function StudioSortableSceneCard({
             characters={characters}
             props={props}
             styleProfile={styleProfile}
+            directorProfile={directorProfile}
             saving={saving}
             canModify={canModify}
             autoSelectImprovedImage={autoSelectImprovedImage}

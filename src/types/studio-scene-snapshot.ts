@@ -16,6 +16,10 @@ export type SceneSnapshot = {
   action: string;
   emotion: string;
   camera: string;
+  /** V23 — structured shot framing. */
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
   transitionToNext: string;
   durationSeconds: number;
   /** Reserved for future voice assignment. */

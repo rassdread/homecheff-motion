@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioJobCostConfirmModal } from "@/components/studio/studio-job-cost-confirm-modal";
 import { StudioSceneImageHistoryPanel } from "@/components/studio/studio-scene-image-history-panel";
+import { StudioMovieDirectorQuality } from "@/components/studio/studio-movie-director-quality";
 import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-job-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -305,6 +306,10 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
           {error ? (
             <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
           ) : null}
+
+          {storyboard && dashboard ?
+            <StudioMovieDirectorQuality storyboard={storyboard} />
+          : null}
 
           {dashboard ? (
             <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-6 sm:grid-cols-2 lg:grid-cols-6">

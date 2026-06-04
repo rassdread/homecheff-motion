@@ -1,3 +1,4 @@
+import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import {
   DEFAULT_STUDIO_PROMPT_STYLE_PROFILE,
   normalizeStudioPromptStyleProfile,
@@ -59,6 +60,9 @@ export function studioSceneDetailToSnapshot(scene: StudioSceneDetail): SceneSnap
     action: scene.action,
     emotion: scene.emotion,
     camera: scene.camera,
+    shotType: scene.shotType || undefined,
+    cameraMovement: scene.cameraMovement || undefined,
+    sceneEnergy: scene.sceneEnergy,
     transitionToNext: scene.transitionToNext,
     durationSeconds: scene.durationSeconds,
     notes: noteParts.length > 0 ? noteParts.join("\n") : undefined,
@@ -151,16 +155,25 @@ function sceneDetailToMemoryBundle(scene: StudioSceneDetail) {
 
 export function studioSceneDetailToPromptInput(
   scene: StudioSceneDetail,
-  styleProfile?: StudioPromptStyleProfile | string
+  styleProfile?: StudioPromptStyleProfile | string,
+  directorProfile?: string
 ): PromptBuilderInput {
   const snap = studioSceneDetailToSnapshot(scene);
-  const input = sceneSnapshotToPromptInput(snap, styleProfile);
-  return { ...input, memoryBundle: sceneDetailToMemoryBundle(scene) };
+  const input = sceneSnapshotToPromptInput(snap, styleProfile, directorProfile);
+  return {
+    ...input,
+    shotType: scene.shotType,
+    cameraMovement: scene.cameraMovement,
+    sceneEnergy: scene.sceneEnergy,
+    directorProfile: normalizeStudioDirectorProfile(directorProfile),
+    memoryBundle: sceneDetailToMemoryBundle(scene),
+  };
 }
 
 export function sceneSnapshotToPromptInput(
   scene: SceneSnapshot,
-  styleProfile?: StudioPromptStyleProfile | string
+  styleProfile?: StudioPromptStyleProfile | string,
+  directorProfile?: string
 ): PromptBuilderInput {
   return {
     scene: {
@@ -177,5 +190,9 @@ export function sceneSnapshotToPromptInput(
     styleProfile: styleProfile
       ? normalizeStudioPromptStyleProfile(styleProfile)
       : DEFAULT_STUDIO_PROMPT_STYLE_PROFILE,
+    directorProfile: normalizeStudioDirectorProfile(directorProfile),
+    shotType: scene.shotType,
+    cameraMovement: scene.cameraMovement,
+    sceneEnergy: scene.sceneEnergy,
   };
 }

@@ -15,6 +15,11 @@ export type StudioSceneContextMetadata = {
   action: string;
   emotion: string;
   camera: string;
+  /** V23 — director metadata (read-only on Motion). */
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
+  directorProfile?: import("@/lib/studio-director-profiles").StudioDirectorProfile;
   transitionToNext: string;
   location: LocationSnapshot | null;
   characters: CharacterSnapshot[];

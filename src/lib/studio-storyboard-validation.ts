@@ -1,3 +1,4 @@
+import { isStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 
 export const STUDIO_STORYBOARD_TITLE_MAX = 160;
@@ -7,12 +8,14 @@ export type StudioStoryboardCreateInput = {
   title: string;
   description?: string;
   promptStyleProfile?: string;
+  directorProfile?: string;
 };
 
 export type StudioStoryboardUpdateInput = {
   title?: string;
   description?: string;
   promptStyleProfile?: string;
+  directorProfile?: string;
   autoSelectImprovedImage?: boolean;
 };
 
@@ -26,7 +29,12 @@ function trimText(value: string | undefined, max: number): string {
 
 export function validateStudioStoryboardCreateInput(
   raw: StudioStoryboardCreateInput
-): ValidationResult<{ title: string; description: string; promptStyleProfile: string }> {
+): ValidationResult<{
+  title: string;
+  description: string;
+  promptStyleProfile: string;
+  directorProfile: string;
+}> {
   const title = raw.title?.trim() ?? "";
   if (!title) {
     return { ok: false, code: "TITLE_REQUIRED", message: "Title is required." };
@@ -38,12 +46,17 @@ export function validateStudioStoryboardCreateInput(
   if (!isStudioPromptStyleProfile(profile)) {
     return { ok: false, code: "INVALID_STYLE_PROFILE", message: "Invalid prompt style profile." };
   }
+  const director = raw.directorProfile?.trim() ?? profile;
+  if (!isStudioDirectorProfile(director)) {
+    return { ok: false, code: "INVALID_DIRECTOR_PROFILE", message: "Invalid director profile." };
+  }
   return {
     ok: true,
     value: {
       title,
       description: trimText(raw.description, STUDIO_STORYBOARD_TEXT_MAX),
       promptStyleProfile: profile,
+      directorProfile: director,
     },
   };
 }
@@ -54,12 +67,14 @@ export function validateStudioStoryboardUpdateInput(
   title?: string;
   description?: string;
   promptStyleProfile?: string;
+  directorProfile?: string;
   autoSelectImprovedImage?: boolean;
 }> {
   const patch: {
     title?: string;
     description?: string;
     promptStyleProfile?: string;
+    directorProfile?: string;
     autoSelectImprovedImage?: boolean;
   } = {};
 
@@ -84,6 +99,14 @@ export function validateStudioStoryboardUpdateInput(
       return { ok: false, code: "INVALID_STYLE_PROFILE", message: "Invalid prompt style profile." };
     }
     patch.promptStyleProfile = profile;
+  }
+
+  if (raw.directorProfile !== undefined) {
+    const director = raw.directorProfile.trim();
+    if (!isStudioDirectorProfile(director)) {
+      return { ok: false, code: "INVALID_DIRECTOR_PROFILE", message: "Invalid director profile." };
+    }
+    patch.directorProfile = director;
   }
 
   if (raw.autoSelectImprovedImage !== undefined) {

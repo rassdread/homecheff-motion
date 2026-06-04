@@ -6,6 +6,8 @@ import {
   type StudioStoryboardSceneRow,
 } from "@/server/studio/studio-storyboard-service";
 import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
+import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
+import { computeShotDiversityScore } from "@/lib/studio-story-flow-analyzer";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { resolveStudioSceneImageHandoff } from "@/lib/studio-scene-image-handoff";
 import {
@@ -40,7 +42,8 @@ function buildStudioContext(
   storyboardId: string,
   scene: SceneSnapshot,
   prompt: PromptBuilderOutput,
-  imageHandoff: ReturnType<typeof resolveStudioSceneImageHandoff>
+  imageHandoff: ReturnType<typeof resolveStudioSceneImageHandoff>,
+  directorProfile: string
 ): StudioSceneContextMetadata {
   const noteParts = [scene.description.trim(), scene.action.trim()].filter(Boolean);
   return {
@@ -50,6 +53,10 @@ function buildStudioContext(
     action: scene.action,
     emotion: scene.emotion,
     camera: scene.camera,
+    shotType: scene.shotType,
+    cameraMovement: scene.cameraMovement,
+    sceneEnergy: scene.sceneEnergy,
+    directorProfile: normalizeStudioDirectorProfile(directorProfile),
     transitionToNext: scene.transitionToNext,
     location: scene.location,
     characters: scene.characters,
@@ -73,10 +80,11 @@ function buildStudioContext(
 function toHandoffScene(
   storyboardId: string,
   row: StudioStoryboardSceneRow,
-  styleProfile: string
+  styleProfile: string,
+  directorProfile: string
 ): MotionHandoffScene {
   const snapshot = toSceneSnapshot(row);
-  const built = buildScenePromptFromSceneRow(row, styleProfile);
+  const built = buildScenePromptFromSceneRow(row, styleProfile, directorProfile);
   const imageHandoff = resolveStudioSceneImageHandoff({
     storyboardId,
     sceneId: row.id,
@@ -122,7 +130,13 @@ function toHandoffScene(
     notes:
       snapshot.notes ??
       [snapshot.description.trim(), snapshot.action.trim()].filter(Boolean).join("\n"),
-    studioContext: buildStudioContext(storyboardId, snapshot, built, imageHandoff),
+    studioContext: buildStudioContext(
+      storyboardId,
+      snapshot,
+      built,
+      imageHandoff,
+      directorProfile
+    ),
     generatedPrompt: built.metadata.generatedPrompt,
     stylePrompt: built.stylePrompt,
     continuityPrompt: built.continuityPrompt,
@@ -177,6 +191,7 @@ export async function createMotionHandoffPayload(
   }
 
   const styleProfile = normalizeStudioPromptStyleProfile(storyboard.promptStyleProfile);
+  const directorProfile = normalizeStudioDirectorProfile(storyboard.directorProfile);
 
   const sceneBundles = scenes.map((scene) => buildSceneMemoryBundleFromSceneRow(scene));
   const storyboardMemory: SceneMemoryBundle = {
@@ -187,7 +202,21 @@ export async function createMotionHandoffPayload(
     continuityStrength: sceneBundles[0]?.continuityStrength ?? "strong",
   };
 
-  const handoffScenes = scenes.map((scene) => toHandoffScene(storyboard.id, scene, styleProfile));
+  const handoffScenes = scenes.map((scene) =>
+    toHandoffScene(storyboard.id, scene, styleProfile, directorProfile)
+  );
+
+  const shotDiversityScore = computeShotDiversityScore(
+    scenes.map((scene) => ({
+      sceneId: scene.id,
+      order: scene.order,
+      title: scene.title,
+      shotType: scene.shotType,
+      cameraMovement: scene.cameraMovement,
+      sceneEnergy: scene.sceneEnergy,
+      camera: scene.camera,
+    }))
+  );
 
   const consistencyReport = buildStoryboardConsistencyReport({
     storyboardId: storyboard.id,
@@ -303,6 +332,8 @@ export async function createMotionHandoffPayload(
     title: storyboard.title,
     description: storyboard.description,
     promptStyleProfile: styleProfile,
+    directorProfile,
+    shotDiversityScore,
     characterMemory: storyboardMemory.characters,
     locationMemory: storyboardMemory.location,
     propMemory: storyboardMemory.props,

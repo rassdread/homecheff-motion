@@ -12,6 +12,9 @@ describe("studio storyboard snapshots", () => {
       action: "cooking",
       emotion: "proud",
       camera: "wide_shot",
+      shotType: "wide",
+      cameraMovement: "static",
+      sceneEnergy: "neutral",
       transitionToNext: "",
       durationSeconds: 8,
       location: {
@@ -77,7 +80,13 @@ describe("studio storyboard snapshots", () => {
 
   it("maps storyboard with ordered scenes", () => {
     const snap = toStoryboardSnapshot(
-      { id: "sb-1", title: "Promo", description: "Test", promptStyleProfile: "commercial" },
+      {
+        id: "sb-1",
+        title: "Promo",
+        description: "Test",
+        promptStyleProfile: "commercial",
+        directorProfile: "cinematic",
+      },
       []
     );
     assert.equal(snap.scenes.length, 0);

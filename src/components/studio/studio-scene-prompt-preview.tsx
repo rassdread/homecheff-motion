@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { buildScenePromptFromInput } from "@/lib/studio-prompt-builder";
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneDetail } from "@/types/studio-api";
@@ -10,6 +11,7 @@ import type { StudioSceneDetail } from "@/types/studio-api";
 type StudioScenePromptPreviewProps = {
   scene: StudioSceneDetail;
   styleProfile: StudioPromptStyleProfile;
+  directorProfile?: StudioDirectorProfile;
 };
 
 function PromptBlock({ label, body }: { label: string; body: string }) {
@@ -24,11 +26,18 @@ function PromptBlock({ label, body }: { label: string; body: string }) {
   );
 }
 
-export function StudioScenePromptPreview({ scene, styleProfile }: StudioScenePromptPreviewProps) {
+export function StudioScenePromptPreview({
+  scene,
+  styleProfile,
+  directorProfile,
+}: StudioScenePromptPreviewProps) {
   const t = useActiveTranslator();
   const output = useMemo(
-    () => buildScenePromptFromInput(studioSceneDetailToPromptInput(scene, styleProfile)),
-    [scene, styleProfile]
+    () =>
+      buildScenePromptFromInput(
+        studioSceneDetailToPromptInput(scene, styleProfile, directorProfile)
+      ),
+    [scene, styleProfile, directorProfile]
   );
 
   const tierLabel =
@@ -62,6 +71,7 @@ export function StudioScenePromptPreview({ scene, styleProfile }: StudioScenePro
         <PromptBlock label={t("studio.prompt.section.props")} body={output.sections.props} />
         <PromptBlock label={t("studio.prompt.section.action")} body={output.sections.action} />
         <PromptBlock label={t("studio.prompt.section.emotion")} body={output.sections.emotion} />
+        <PromptBlock label={t("studio.prompt.section.director")} body={output.sections.director} />
         <PromptBlock label={t("studio.prompt.section.camera")} body={output.sections.camera} />
         <PromptBlock label={t("studio.prompt.section.visualStyle")} body={output.sections.visualStyle} />
         <PromptBlock

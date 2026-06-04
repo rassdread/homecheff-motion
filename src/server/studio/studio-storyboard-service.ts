@@ -16,6 +16,8 @@ import { mapStudioCharacterToListItem, toCharacterSnapshot } from "@/server/stud
 import { mapStudioLocationToListItem, toLocationSnapshot } from "@/server/studio/studio-location-service";
 import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-prop-service";
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
+import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
+import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
@@ -101,6 +103,9 @@ export function mapStudioSceneToDetail(row: SceneRow): StudioSceneDetail {
     action: row.action,
     emotion: row.emotion,
     camera: row.camera,
+    shotType: row.shotType,
+    cameraMovement: row.cameraMovement,
+    sceneEnergy: normalizeStudioSceneEnergy(row.sceneEnergy),
     transitionToNext: row.transitionToNext,
     durationSeconds: row.durationSeconds,
     locationId: row.locationId,
@@ -129,6 +134,9 @@ export function toSceneSnapshot(row: SceneRow): SceneSnapshot {
     action,
     emotion: row.emotion,
     camera: row.camera,
+    shotType: row.shotType,
+    cameraMovement: row.cameraMovement,
+    sceneEnergy: normalizeStudioSceneEnergy(row.sceneEnergy),
     transitionToNext: row.transitionToNext,
     durationSeconds: row.durationSeconds,
     notes: noteParts.length > 0 ? noteParts.join("\n") : undefined,
@@ -151,7 +159,10 @@ function resolvePreferredSceneImageUrl(row: SceneRow): string | null {
 }
 
 export function toStoryboardSnapshot(
-  storyboard: Pick<StudioStoryboard, "id" | "title" | "description" | "promptStyleProfile">,
+  storyboard: Pick<
+    StudioStoryboard,
+    "id" | "title" | "description" | "promptStyleProfile" | "directorProfile"
+  >,
   scenes: SceneRow[]
 ): StoryboardSnapshot {
   return {
@@ -159,6 +170,7 @@ export function toStoryboardSnapshot(
     title: storyboard.title,
     description: storyboard.description,
     promptStyleProfile: normalizeStudioPromptStyleProfile(storyboard.promptStyleProfile),
+    directorProfile: normalizeStudioDirectorProfile(storyboard.directorProfile),
     scenes: scenes.map(toSceneSnapshot),
   };
 }
@@ -173,6 +185,7 @@ export function mapStudioStoryboardToListItem(
     title: row.title,
     description: row.description,
     promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
+    directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: row._count.scenes,
     createdAt: row.createdAt.toISOString(),
@@ -192,6 +205,7 @@ export function mapStudioStoryboardToDetail(
     title: row.title,
     description: row.description,
     promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
+    directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: scenes.length,
     scenes: scenes.map(mapStudioSceneToDetail),
@@ -376,6 +390,7 @@ export async function createStudioStoryboard(
       title: validated.value.title,
       description: validated.value.description,
       promptStyleProfile: validated.value.promptStyleProfile,
+      directorProfile: validated.value.directorProfile,
     },
   });
 
@@ -386,6 +401,7 @@ export async function createStudioStoryboard(
       title: row.title,
       description: row.description,
       promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
+      directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
       sceneCount: 0,
       scenes: [],
       autoSelectImprovedImage: row.autoSelectImprovedImage,
@@ -475,6 +491,9 @@ export async function createStudioScene(
       action: validated.value.action,
       emotion: validated.value.emotion,
       camera: validated.value.camera,
+      shotType: validated.value.shotType,
+      cameraMovement: validated.value.cameraMovement,
+      sceneEnergy: validated.value.sceneEnergy,
       transitionToNext: validated.value.transitionToNext,
       durationSeconds: validated.value.durationSeconds,
       locationId: validated.value.locationId,
@@ -609,6 +628,9 @@ export async function duplicateStudioScene(
         action: source.action,
         emotion: source.emotion,
         camera: source.camera,
+        shotType: source.shotType,
+        cameraMovement: source.cameraMovement,
+        sceneEnergy: source.sceneEnergy,
         transitionToNext: source.transitionToNext,
         durationSeconds: source.durationSeconds,
         locationId: source.locationId,
@@ -697,7 +719,7 @@ export async function getStoryboardSceneRowsForHandoff(
   | {
       storyboard: Pick<
         StudioStoryboard,
-        "id" | "title" | "description" | "promptStyleProfile"
+        "id" | "title" | "description" | "promptStyleProfile" | "directorProfile"
       >;
       scenes: SceneRow[];
     }
@@ -718,6 +740,7 @@ export async function getStoryboardSceneRowsForHandoff(
       title: row.title,
       description: row.description,
       promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
+      directorProfile: normalizeStudioDirectorProfile(row.directorProfile),
     },
     scenes: row.scenes,
   };

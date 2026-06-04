@@ -1,3 +1,5 @@
+import { normalizeSceneDirectorFields } from "@/lib/studio-scene-director";
+
 export const STUDIO_SCENE_TITLE_MAX = 120;
 export const STUDIO_SCENE_TEXT_MAX = 4000;
 export const STUDIO_SCENE_DURATION_MIN = 1;
@@ -9,6 +11,9 @@ export type StudioSceneCreateInput = {
   action?: string;
   emotion?: string;
   camera?: string;
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
   transitionToNext?: string;
   durationSeconds?: number;
   locationId?: string | null;
@@ -57,6 +62,9 @@ export function validateStudioSceneCreateInput(
   action: string;
   emotion: string;
   camera: string;
+  shotType: string;
+  cameraMovement: string;
+  sceneEnergy: string;
   transitionToNext: string;
   durationSeconds: number;
   locationId: string | null;
@@ -68,6 +76,13 @@ export function validateStudioSceneCreateInput(
     return { ok: false, code: "INVALID_DURATION", message: "Invalid scene duration." };
   }
 
+  const director = normalizeSceneDirectorFields({
+    shotType: raw.shotType ?? "",
+    cameraMovement: raw.cameraMovement ?? "",
+    sceneEnergy: raw.sceneEnergy,
+    camera: raw.camera,
+  });
+
   return {
     ok: true,
     value: {
@@ -75,7 +90,10 @@ export function validateStudioSceneCreateInput(
       description: trimField(raw.description),
       action: trimField(raw.action),
       emotion: trimField(raw.emotion),
-      camera: trimField(raw.camera),
+      camera: director.camera,
+      shotType: director.shotType,
+      cameraMovement: director.cameraMovement,
+      sceneEnergy: director.sceneEnergy,
       transitionToNext: trimField(raw.transitionToNext),
       durationSeconds: duration ?? 5,
       locationId: raw.locationId?.trim() || null,
@@ -93,6 +111,9 @@ export function validateStudioSceneUpdateInput(
   action?: string;
   emotion?: string;
   camera?: string;
+  shotType?: string;
+  cameraMovement?: string;
+  sceneEnergy?: string;
   transitionToNext?: string;
   durationSeconds?: number;
   locationId?: string | null;
@@ -105,6 +126,9 @@ export function validateStudioSceneUpdateInput(
     action?: string;
     emotion?: string;
     camera?: string;
+    shotType?: string;
+    cameraMovement?: string;
+    sceneEnergy?: string;
     transitionToNext?: string;
     durationSeconds?: number;
     locationId?: string | null;
@@ -122,7 +146,32 @@ export function validateStudioSceneUpdateInput(
   if (raw.description !== undefined) patch.description = trimField(raw.description);
   if (raw.action !== undefined) patch.action = trimField(raw.action);
   if (raw.emotion !== undefined) patch.emotion = trimField(raw.emotion);
-  if (raw.camera !== undefined) patch.camera = trimField(raw.camera);
+  if (
+    raw.camera !== undefined ||
+    raw.shotType !== undefined ||
+    raw.cameraMovement !== undefined ||
+    raw.sceneEnergy !== undefined
+  ) {
+    const director = normalizeSceneDirectorFields({
+      shotType: raw.shotType ?? "",
+      cameraMovement: raw.cameraMovement ?? "",
+      sceneEnergy: raw.sceneEnergy,
+      camera: raw.camera,
+    });
+    if (raw.camera !== undefined || raw.shotType !== undefined) {
+      patch.camera = director.camera;
+      patch.shotType = director.shotType;
+    }
+    if (raw.shotType !== undefined) {
+      patch.shotType = director.shotType;
+    }
+    if (raw.cameraMovement !== undefined) {
+      patch.cameraMovement = director.cameraMovement;
+    }
+    if (raw.sceneEnergy !== undefined) {
+      patch.sceneEnergy = director.sceneEnergy;
+    }
+  }
   if (raw.transitionToNext !== undefined) {
     patch.transitionToNext = trimField(raw.transitionToNext);
   }

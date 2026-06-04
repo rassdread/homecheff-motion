@@ -406,6 +406,8 @@ model StudioStoryboard {
   description String        @default("")
   /** commercial | cinematic | children_story | documentary | social_media | corporate */
   promptStyleProfile String @default("commercial")
+  /** V23: commercial | documentary | cinematic | social_media | storytelling | educational */
+  directorProfile String @default("commercial")
   /** V14: after approved regeneration, auto-select image if combined score improves */
   autoSelectImprovedImage Boolean @default(true)
   createdAt   DateTime      @default(now())
@@ -457,6 +459,12 @@ model StudioScene {
   action               String                 @default("")
   emotion              String                 @default("")
   camera               String                 @default("")
+  /** V23: extreme_wide | wide | medium | close_up | … */
+  shotType             String                 @default("")
+  /** V23: static | push_in | pan_left | … */
+  cameraMovement       String                 @default("")
+  /** V23: calm | neutral | dynamic | intense */
+  sceneEnergy          String                 @default("neutral")
   transitionToNext     String                 @default("")
   durationSeconds      Int                    @default(5)
   locationId           String?
