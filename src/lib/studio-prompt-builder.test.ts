@@ -164,4 +164,39 @@ describe("studio prompt builders", () => {
     assert.match(cinematic.stylePrompt, /Cinematic/i);
     assert.equal(cinematic.metadata.styleProfile, "cinematic");
   });
+
+  it("injects character memory into continuity prompt", () => {
+    const input = sceneSnapshotToPromptInput(rotterdamScene, "commercial");
+    const output = buildScenePromptFromInput({
+      ...input,
+      memoryBundle: {
+        characters: [
+          {
+            id: "chef",
+            name: "Chef",
+            role: "mascot",
+            appearanceMemory: "White chef hat and green apron",
+            personalityMemory: "Friendly",
+            continuityNotes: "",
+            defaultClothing: "",
+            defaultAccessories: "",
+            visualKeywords: "",
+            referenceImageUrl: "",
+            primaryReferenceImageId: "chef",
+            referenceNotes: "",
+            identityStrength: "strong",
+            continuityStrength: "strong",
+            worldProfileId: null,
+            worldProfileName: null,
+          },
+        ],
+        location: null,
+        props: [],
+        world: null,
+        continuityStrength: "strong",
+      },
+    });
+    assert.match(output.continuityPrompt, /Chef mascot identity/i);
+    assert.match(output.continuityPrompt, /chef hat/i);
+  });
 });

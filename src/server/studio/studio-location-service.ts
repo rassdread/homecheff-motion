@@ -1,5 +1,7 @@
-import type { StudioLocation } from "@prisma/client";
+import type { Prisma, StudioLocation } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
 import { nextSlugCandidate, slugifyLocationName } from "@/lib/studio-location-slug";
 import {
   validateStudioLocationCreateInput,
@@ -16,6 +18,13 @@ import {
   studioLocationViewerCanView,
 } from "@/server/studio/studio-location-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
+import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
+
+const LOCATION_INCLUDE = {
+  worldProfile: { select: { id: true, name: true } },
+} satisfies Prisma.StudioLocationInclude;
+
+type LocationRow = Prisma.StudioLocationGetPayload<{ include: typeof LOCATION_INCLUDE }>;
 
 export type ServiceError = {
   code: string;
@@ -28,9 +37,11 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
 }
 
 export function mapStudioLocationToListItem(
-  row: StudioLocation,
+  row: LocationRow | StudioLocation,
   options?: { ownerEmail?: string }
 ): StudioLocationListItem {
+  const worldProfile =
+    "worldProfile" in row ? mapStudioWorldProfileSummary(row.worldProfile) : null;
   return {
     id: row.id,
     ownerId: row.ownerId,
@@ -39,6 +50,13 @@ export function mapStudioLocationToListItem(
     category: row.category as StudioLocationListItem["category"],
     description: row.description,
     referenceImageUrl: row.referenceImageUrl,
+    worldMemory: row.worldMemory,
+    visualIdentity: row.visualIdentity,
+    environmentKeywords: row.environmentKeywords,
+    continuityNotes: row.continuityNotes,
+    continuityStrength: normalizeStudioContinuityStrength(row.continuityStrength),
+    worldProfileId: row.worldProfileId,
+    worldProfile,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ownerEmail: options?.ownerEmail,
@@ -89,7 +107,10 @@ export async function listStudioLocations(
   const rows = await prisma.studioLocation.findMany({
     where: canAccessAdmin(viewer) ? undefined : { ownerId: viewer.id },
     orderBy: { createdAt: "desc" },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...LOCATION_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
 
   return rows.map((row) => {
@@ -107,7 +128,10 @@ export async function getStudioLocationById(
 ): Promise<StudioLocationDetail | null> {
   const row = await prisma.studioLocation.findUnique({
     where: { id },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...LOCATION_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
   if (!row) {
     return null;
@@ -131,18 +155,30 @@ export async function createStudioLocation(
     return { error: serviceError(validated.code, validated.message, 400) };
   }
 
+  const worldErr = await assertWorldProfileOwnedByViewer(
+    validated.value.worldProfileId,
+    ownerId
+  );
+  if (worldErr) {
+    return { error: worldErr };
+  }
+
   const slug = await resolveUniqueSlug(ownerId, validated.value.name);
+  const { name, category, referenceImageUrl, referenceStorageKey, description, ...memoryData } =
+    validated.value;
   const row = await prisma.studioLocation.create({
     data: {
       ownerId,
-      name: validated.value.name,
+      name,
       slug,
-      category: validated.value.category,
-      description: validated.value.description,
-      referenceImageUrl: validated.value.referenceImageUrl,
-      referenceStorageKey: validated.value.referenceStorageKey,
+      category,
+      description,
+      referenceImageUrl,
+      referenceStorageKey,
+      ...memoryData,
       isSystemLocation: false,
     },
+    include: LOCATION_INCLUDE,
   });
 
   return { location: mapStudioLocationToDetail(row) };
@@ -167,6 +203,16 @@ export async function updateStudioLocation(
   }
 
   const patch = validated.value;
+  if (patch.worldProfileId !== undefined) {
+    const worldErr = await assertWorldProfileOwnedByViewer(
+      patch.worldProfileId,
+      existing.ownerId
+    );
+    if (worldErr) {
+      return { error: worldErr };
+    }
+  }
+
   let slug = existing.slug;
   if (patch.name && patch.name !== existing.name) {
     slug = await resolveUniqueSlug(existing.ownerId, patch.name);
@@ -176,6 +222,7 @@ export async function updateStudioLocation(
   const row = await prisma.studioLocation.update({
     where: { id },
     data: { ...patch, slug },
+    include: LOCATION_INCLUDE,
   });
 
   if (patch.referenceImageUrl && patch.referenceImageUrl !== previousReferenceUrl) {

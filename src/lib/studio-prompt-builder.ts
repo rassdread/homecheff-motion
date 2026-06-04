@@ -11,6 +11,7 @@ import {
   type StudioPromptStyleProfile,
 } from "@/lib/studio-prompt-style-profiles";
 import { sceneSnapshotToPromptInput } from "@/lib/studio-scene-to-prompt-input";
+import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import {
   PROMPT_BUILDER_VERSION,
   type PromptBuilderInput,
@@ -44,6 +45,7 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     characters: input.characters,
     location: input.location,
     props: input.props,
+    memoryBundle: input.memoryBundle,
   });
 
   return {
@@ -99,7 +101,11 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
 
 export function buildScenePrompt(
   scene: SceneSnapshot,
-  styleProfile?: StudioPromptStyleProfile | string
+  styleProfile?: StudioPromptStyleProfile | string,
+  memoryBundle?: SceneMemoryBundle
 ): PromptBuilderOutput {
-  return buildScenePromptFromInput(sceneSnapshotToPromptInput(scene, styleProfile));
+  const input = sceneSnapshotToPromptInput(scene, styleProfile);
+  return buildScenePromptFromInput(
+    memoryBundle ? { ...input, memoryBundle } : input
+  );
 }

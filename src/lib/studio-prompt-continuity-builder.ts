@@ -1,12 +1,18 @@
+import { buildSceneMemoryContinuityPrompt } from "@/lib/studio-memory-prompt";
 import type { CharacterSnapshot } from "@/types/studio-character-snapshot";
 import type { LocationSnapshot } from "@/types/studio-location-snapshot";
 import type { PropSnapshot } from "@/types/studio-prop-snapshot";
+import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
 export function buildContinuityPrompt(options: {
   characters: CharacterSnapshot[];
   location: LocationSnapshot | null;
   props: PropSnapshot[];
+  memoryBundle?: SceneMemoryBundle;
 }): string {
+  if (options.memoryBundle) {
+    return buildSceneMemoryContinuityPrompt(options.memoryBundle);
+  }
   const lines: string[] = [];
 
   for (const character of options.characters) {

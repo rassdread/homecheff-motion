@@ -1,5 +1,8 @@
-import type { StudioCharacter } from "@prisma/client";
+import type { Prisma, StudioCharacter } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import { normalizeStudioIdentityStrength } from "@/lib/studio-memory-validation";
+import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
 import { nextSlugCandidate, slugifyCharacterName } from "@/lib/studio-character-slug";
 import { roleSetsMascotFlag } from "@/lib/studio-character-roles";
 import {
@@ -17,6 +20,13 @@ import {
   studioCharacterViewerCanView,
 } from "@/server/studio/studio-character-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
+import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
+
+const CHARACTER_INCLUDE = {
+  worldProfile: { select: { id: true, name: true } },
+} satisfies Prisma.StudioCharacterInclude;
+
+type CharacterRow = Prisma.StudioCharacterGetPayload<{ include: typeof CHARACTER_INCLUDE }>;
 
 export type ServiceError = {
   code: string;
@@ -29,9 +39,11 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
 }
 
 export function mapStudioCharacterToListItem(
-  row: StudioCharacter,
+  row: CharacterRow | StudioCharacter,
   options?: { ownerEmail?: string }
 ): StudioCharacterListItem {
+  const worldProfile =
+    "worldProfile" in row ? mapStudioWorldProfileSummary(row.worldProfile) : null;
   return {
     id: row.id,
     ownerId: row.ownerId,
@@ -42,6 +54,18 @@ export function mapStudioCharacterToListItem(
     personality: row.personality,
     referenceImageUrl: row.referenceImageUrl,
     isMascot: row.isMascot,
+    appearanceMemory: row.appearanceMemory,
+    personalityMemory: row.personalityMemory,
+    continuityNotes: row.continuityNotes,
+    defaultClothing: row.defaultClothing,
+    defaultAccessories: row.defaultAccessories,
+    visualKeywords: row.visualKeywords,
+    primaryReferenceImageId: row.primaryReferenceImageId,
+    referenceNotes: row.referenceNotes,
+    identityStrength: normalizeStudioIdentityStrength(row.identityStrength),
+    continuityStrength: normalizeStudioContinuityStrength(row.continuityStrength),
+    worldProfileId: row.worldProfileId,
+    worldProfile,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ownerEmail: options?.ownerEmail,
@@ -94,7 +118,10 @@ export async function listStudioCharacters(
   const rows = await prisma.studioCharacter.findMany({
     where: canAccessAdmin(viewer) ? undefined : { ownerId: viewer.id },
     orderBy: { createdAt: "desc" },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...CHARACTER_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
 
   return rows.map((row) => {
@@ -112,7 +139,10 @@ export async function getStudioCharacterByIdForViewer(
 ): Promise<StudioCharacterDetail | null> {
   const row = await prisma.studioCharacter.findUnique({
     where: { id },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...CHARACTER_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
   if (!row) {
     return null;
@@ -138,6 +168,14 @@ export async function createStudioCharacter(
     };
   }
 
+  const worldErr = await assertWorldProfileOwnedByViewer(
+    validated.value.worldProfileId,
+    ownerId
+  );
+  if (worldErr) {
+    return { error: worldErr };
+  }
+
   const slug = await resolveUniqueSlug(ownerId, validated.value.name);
   const row = await prisma.studioCharacter.create({
     data: {
@@ -145,13 +183,25 @@ export async function createStudioCharacter(
       name: validated.value.name,
       slug,
       role: validated.value.role,
-      description: validated.value.description,
-      personality: validated.value.personality,
       referenceImageUrl: validated.value.referenceImageUrl,
       referenceStorageKey: validated.value.referenceStorageKey,
+      description: validated.value.description,
+      personality: validated.value.personality,
+      appearanceMemory: validated.value.appearanceMemory,
+      personalityMemory: validated.value.personalityMemory,
+      continuityNotes: validated.value.continuityNotes,
+      defaultClothing: validated.value.defaultClothing,
+      defaultAccessories: validated.value.defaultAccessories,
+      visualKeywords: validated.value.visualKeywords,
+      primaryReferenceImageId: validated.value.primaryReferenceImageId,
+      referenceNotes: validated.value.referenceNotes,
+      identityStrength: validated.value.identityStrength,
+      continuityStrength: validated.value.continuityStrength,
+      worldProfileId: validated.value.worldProfileId,
       isMascot: roleSetsMascotFlag(validated.value.role),
       isSystemCharacter: false,
     },
+    include: CHARACTER_INCLUDE,
   });
 
   return { character: mapStudioCharacterToDetail(row) };
@@ -176,6 +226,16 @@ export async function updateStudioCharacter(
   }
 
   const patch = validated.value;
+  if (patch.worldProfileId !== undefined) {
+    const worldErr = await assertWorldProfileOwnedByViewer(
+      patch.worldProfileId,
+      existing.ownerId
+    );
+    if (worldErr) {
+      return { error: worldErr };
+    }
+  }
+
   let slug = existing.slug;
   if (patch.name && patch.name !== existing.name) {
     slug = await resolveUniqueSlug(existing.ownerId, patch.name);
@@ -189,6 +249,7 @@ export async function updateStudioCharacter(
       slug,
       isMascot: patch.role ? roleSetsMascotFlag(patch.role) : undefined,
     },
+    include: CHARACTER_INCLUDE,
   });
 
   if (

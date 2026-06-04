@@ -1,8 +1,40 @@
 import type { StudioCharacterRole } from "@/lib/studio-character-roles";
+import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import type { StudioIdentityStrength } from "@/lib/studio-memory-validation";
 import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 import type { StudioPropCategory } from "@/lib/studio-prop-categories";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
+
+export type StudioWorldProfileSummary = {
+  id: string;
+  name: string;
+};
+
+export type StudioWorldProfileListItem = {
+  id: string;
+  ownerId: string;
+  name: string;
+  slug: string;
+  description: string;
+  visualStyle: string;
+  tone: string;
+  continuityRules: string;
+  continuityStrength: StudioContinuityStrength;
+  createdAt: string;
+  updatedAt: string;
+  ownerEmail?: string;
+};
+
+export type StudioWorldProfileDetail = StudioWorldProfileListItem;
+
+export type StudioWorldProfileListResponse = {
+  worlds: StudioWorldProfileListItem[];
+};
+
+export type StudioWorldProfileDetailResponse = {
+  world: StudioWorldProfileDetail;
+};
 
 export type StudioCharacterListItem = {
   id: string;
@@ -14,6 +46,18 @@ export type StudioCharacterListItem = {
   personality: string;
   referenceImageUrl: string;
   isMascot: boolean;
+  appearanceMemory: string;
+  personalityMemory: string;
+  continuityNotes: string;
+  defaultClothing: string;
+  defaultAccessories: string;
+  visualKeywords: string;
+  primaryReferenceImageId: string | null;
+  referenceNotes: string;
+  identityStrength: StudioIdentityStrength;
+  continuityStrength: StudioContinuityStrength;
+  worldProfileId: string | null;
+  worldProfile: StudioWorldProfileSummary | null;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;
@@ -40,6 +84,13 @@ export type StudioLocationListItem = {
   category: StudioLocationCategory;
   description: string;
   referenceImageUrl: string;
+  worldMemory: string;
+  visualIdentity: string;
+  environmentKeywords: string;
+  continuityNotes: string;
+  continuityStrength: StudioContinuityStrength;
+  worldProfileId: string | null;
+  worldProfile: StudioWorldProfileSummary | null;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;
@@ -66,6 +117,12 @@ export type StudioPropListItem = {
   category: StudioPropCategory;
   description: string;
   referenceImageUrl: string;
+  appearanceMemory: string;
+  brandingRules: string;
+  continuityNotes: string;
+  continuityStrength: StudioContinuityStrength;
+  worldProfileId: string | null;
+  worldProfile: StudioWorldProfileSummary | null;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;

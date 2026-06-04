@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ClientFormattedDateTime } from "@/components/ui/client-formatted-datetime";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { StudioAssetMemoryTab } from "@/components/studio/studio-asset-memory-tab";
 import { StudioCharacterRoleBadge } from "@/components/studio/studio-character-role-badge";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
@@ -28,6 +29,7 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [tab, setTab] = useState<"overview" | "memory">("overview");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,6 +118,62 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
                 </div>
               </div>
 
+              <div className="mt-6 flex gap-2">
+                {(["overview", "memory"] as const).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTab(id)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+                      tab === id ? "bg-[#006D52] text-white" : "border bg-white text-zinc-700"
+                    }`}
+                  >
+                    {t(id === "memory" ? "studio.memory.tabTitle" : "studio.characters.tab.overview")}
+                  </button>
+                ))}
+              </div>
+
+              {tab === "memory" ? (
+                <StudioAssetMemoryTab
+                  kind="character"
+                  worldName={character.worldProfile?.name}
+                  continuityStrength={character.continuityStrength}
+                  identityStrength={character.identityStrength}
+                  fields={[
+                    {
+                      label: t("studio.memory.field.appearance"),
+                      value: character.appearanceMemory,
+                    },
+                    {
+                      label: t("studio.memory.field.personality"),
+                      value: character.personalityMemory,
+                    },
+                    {
+                      label: t("studio.memory.field.defaultClothing"),
+                      value: character.defaultClothing,
+                    },
+                    {
+                      label: t("studio.memory.field.defaultAccessories"),
+                      value: character.defaultAccessories,
+                    },
+                    {
+                      label: t("studio.memory.field.visualKeywords"),
+                      value: character.visualKeywords,
+                    },
+                    {
+                      label: t("studio.memory.field.referenceNotes"),
+                      value: character.referenceNotes,
+                    },
+                    {
+                      label: t("studio.memory.field.continuityNotes"),
+                      value: character.continuityNotes,
+                    },
+                  ]}
+                />
+              ) : null}
+
+              {tab === "overview" ? (
+              <>
               <AppCard className="mt-8 overflow-hidden p-0">
                 <div className="aspect-video w-full bg-zinc-100">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -164,6 +222,8 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
                   </p>
                 ) : null}
               </AppCard>
+              </>
+              ) : null}
             </>
           ) : null}
         </section>

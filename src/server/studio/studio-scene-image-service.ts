@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { buildScenePrompt } from "@/lib/studio-prompt-builder";
+import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
 import {
   buildSceneImageGenerationPrompt,
   buildSceneImageReferenceAssets,
@@ -11,6 +11,7 @@ import { uploadStudioSceneImageBuffers } from "@/server/studio/studio-scene-imag
 import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import {
   mapStudioSceneToDetail,
+  STUDIO_SCENE_DETAIL_INCLUDE,
   toSceneSnapshot,
   type ServiceError,
 } from "@/server/studio/studio-storyboard-service";
@@ -25,9 +26,45 @@ import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob
 
 const SCENE_FOR_IMAGE_INCLUDE = {
   storyboard: true,
-  location: true,
-  characters: { include: { character: true } },
-  props: { include: { prop: true } },
+  location: { include: { worldProfile: { select: { id: true, name: true, description: true, visualStyle: true, tone: true, continuityRules: true, continuityStrength: true } } } },
+  characters: {
+    include: {
+      character: {
+        include: {
+          worldProfile: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              visualStyle: true,
+              tone: true,
+              continuityRules: true,
+              continuityStrength: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  props: {
+    include: {
+      prop: {
+        include: {
+          worldProfile: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              visualStyle: true,
+              tone: true,
+              continuityRules: true,
+              continuityStrength: true,
+            },
+          },
+        },
+      },
+    },
+  },
   sceneImages: { orderBy: { createdAt: "desc" as const } },
 } satisfies Prisma.StudioSceneInclude;
 
@@ -69,7 +106,7 @@ async function runSceneImageGeneration(params: {
 }): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   const styleProfile = normalizeStudioPromptStyleProfile(params.scene.storyboard.promptStyleProfile);
   const snapshot = toSceneSnapshot(params.scene);
-  const promptOutput = buildScenePrompt(snapshot, styleProfile);
+  const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile);
   const fullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput);
   const generationVersion = await nextGenerationVersion(params.scene.id);
 
@@ -260,12 +297,7 @@ export async function setPreferredStudioSceneImage(
   const updated = await prisma.studioScene.update({
     where: { id: sceneId },
     data: { selectedSceneImageId: imageId },
-    include: {
-      location: true,
-      characters: { include: { character: true } },
-      props: { include: { prop: true } },
-      sceneImages: { orderBy: { createdAt: "desc" } },
-    },
+    include: STUDIO_SCENE_DETAIL_INCLUDE,
   });
 
   return { scene: mapStudioSceneToDetail(updated) };

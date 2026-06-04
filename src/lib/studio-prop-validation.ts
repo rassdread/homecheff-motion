@@ -1,10 +1,11 @@
 import { isStudioPropCategory, type StudioPropCategory } from "@/lib/studio-prop-categories";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { parsePropMemoryFields, type StudioPropMemoryInput } from "@/lib/studio-prop-memory-fields";
 
 export const STUDIO_PROP_NAME_MAX = 120;
 export const STUDIO_PROP_TEXT_MAX = 4000;
 
-export type StudioPropCreateInput = {
+export type StudioPropCreateInput = StudioPropMemoryInput & {
   name: string;
   category: string;
   description?: string;
@@ -12,7 +13,7 @@ export type StudioPropCreateInput = {
   referenceStorageKey: string;
 };
 
-export type StudioPropUpdateInput = {
+export type StudioPropUpdateInput = StudioPropMemoryInput & {
   name?: string;
   category?: string;
   description?: string;
@@ -36,6 +37,11 @@ export function validateStudioPropCreateInput(
   description: string;
   referenceImageUrl: string;
   referenceStorageKey: string;
+  appearanceMemory: string;
+  brandingRules: string;
+  continuityNotes: string;
+  continuityStrength: string;
+  worldProfileId: string | null;
 }> {
   const name = raw.name?.trim() ?? "";
   if (!name) {
@@ -59,6 +65,7 @@ export function validateStudioPropCreateInput(
   if (!isValidHttpUrl(referenceImageUrl)) {
     return { ok: false, code: "INVALID_REFERENCE_URL", message: "Invalid reference image URL." };
   }
+  const memory = parsePropMemoryFields(raw);
   return {
     ok: true,
     value: {
@@ -67,6 +74,11 @@ export function validateStudioPropCreateInput(
       description: trimText(raw.description, STUDIO_PROP_TEXT_MAX),
       referenceImageUrl,
       referenceStorageKey,
+      appearanceMemory: memory.appearanceMemory,
+      brandingRules: memory.brandingRules,
+      continuityNotes: memory.continuityNotes,
+      continuityStrength: memory.continuityStrength ?? "strong",
+      worldProfileId: memory.worldProfileId ?? null,
     },
   };
 }
@@ -79,6 +91,11 @@ export function validateStudioPropUpdateInput(
   description?: string;
   referenceImageUrl?: string;
   referenceStorageKey?: string;
+  appearanceMemory?: string;
+  brandingRules?: string;
+  continuityNotes?: string;
+  continuityStrength?: string;
+  worldProfileId?: string | null;
 }> {
   const patch: {
     name?: string;
@@ -86,6 +103,11 @@ export function validateStudioPropUpdateInput(
     description?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    appearanceMemory?: string;
+    brandingRules?: string;
+    continuityNotes?: string;
+    continuityStrength?: string;
+    worldProfileId?: string | null;
   } = {};
 
   if (raw.name !== undefined) {
@@ -134,6 +156,17 @@ export function validateStudioPropUpdateInput(
     }
     patch.referenceImageUrl = referenceImageUrl;
     patch.referenceStorageKey = referenceStorageKey;
+  }
+
+  const memory = parsePropMemoryFields(raw);
+  if (raw.appearanceMemory !== undefined) patch.appearanceMemory = memory.appearanceMemory;
+  if (raw.brandingRules !== undefined) patch.brandingRules = memory.brandingRules;
+  if (raw.continuityNotes !== undefined) patch.continuityNotes = memory.continuityNotes;
+  if (raw.continuityStrength !== undefined && memory.continuityStrength) {
+    patch.continuityStrength = memory.continuityStrength;
+  }
+  if (raw.worldProfileId !== undefined) {
+    patch.worldProfileId = memory.worldProfileId ?? null;
   }
 
   if (Object.keys(patch).length === 0) {

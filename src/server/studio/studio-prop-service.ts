@@ -1,5 +1,7 @@
-import type { StudioProp } from "@prisma/client";
+import type { Prisma, StudioProp } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
 import { nextSlugCandidate, slugifyPropName } from "@/lib/studio-prop-slug";
 import {
   validateStudioPropCreateInput,
@@ -13,6 +15,13 @@ import type { SessionUser } from "@/server/auth/session";
 import { canAccessAdmin } from "@/server/auth/permissions";
 import { studioPropViewerCanModify, studioPropViewerCanView } from "@/server/studio/studio-prop-access";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
+import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
+
+const PROP_INCLUDE = {
+  worldProfile: { select: { id: true, name: true } },
+} satisfies Prisma.StudioPropInclude;
+
+type PropRow = Prisma.StudioPropGetPayload<{ include: typeof PROP_INCLUDE }>;
 
 export type ServiceError = {
   code: string;
@@ -25,9 +34,11 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
 }
 
 export function mapStudioPropToListItem(
-  row: StudioProp,
+  row: PropRow | StudioProp,
   options?: { ownerEmail?: string }
 ): StudioPropListItem {
+  const worldProfile =
+    "worldProfile" in row ? mapStudioWorldProfileSummary(row.worldProfile) : null;
   return {
     id: row.id,
     ownerId: row.ownerId,
@@ -36,6 +47,12 @@ export function mapStudioPropToListItem(
     category: row.category as StudioPropListItem["category"],
     description: row.description,
     referenceImageUrl: row.referenceImageUrl,
+    appearanceMemory: row.appearanceMemory,
+    brandingRules: row.brandingRules,
+    continuityNotes: row.continuityNotes,
+    continuityStrength: normalizeStudioContinuityStrength(row.continuityStrength),
+    worldProfileId: row.worldProfileId,
+    worldProfile,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ownerEmail: options?.ownerEmail,
@@ -86,7 +103,10 @@ export async function listStudioProps(
   const rows = await prisma.studioProp.findMany({
     where: canAccessAdmin(viewer) ? undefined : { ownerId: viewer.id },
     orderBy: { createdAt: "desc" },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...PROP_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
 
   return rows.map((row) => {
@@ -104,7 +124,10 @@ export async function getStudioPropById(
 ): Promise<StudioPropDetail | null> {
   const row = await prisma.studioProp.findUnique({
     where: { id },
-    include: canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : undefined,
+    include: {
+      ...PROP_INCLUDE,
+      ...(canAccessAdmin(viewer) ? { owner: { select: { email: true } } } : {}),
+    },
   });
   if (!row) {
     return null;
@@ -128,18 +151,30 @@ export async function createStudioProp(
     return { error: serviceError(validated.code, validated.message, 400) };
   }
 
+  const worldErr = await assertWorldProfileOwnedByViewer(
+    validated.value.worldProfileId,
+    ownerId
+  );
+  if (worldErr) {
+    return { error: worldErr };
+  }
+
   const slug = await resolveUniqueSlug(ownerId, validated.value.name);
+  const { name, category, referenceImageUrl, referenceStorageKey, description, ...memoryData } =
+    validated.value;
   const row = await prisma.studioProp.create({
     data: {
       ownerId,
-      name: validated.value.name,
+      name,
       slug,
-      category: validated.value.category,
-      description: validated.value.description,
-      referenceImageUrl: validated.value.referenceImageUrl,
-      referenceStorageKey: validated.value.referenceStorageKey,
+      category,
+      description,
+      referenceImageUrl,
+      referenceStorageKey,
+      ...memoryData,
       isSystemProp: false,
     },
+    include: PROP_INCLUDE,
   });
 
   return { prop: mapStudioPropToDetail(row) };
@@ -164,6 +199,16 @@ export async function updateStudioProp(
   }
 
   const patch = validated.value;
+  if (patch.worldProfileId !== undefined) {
+    const worldErr = await assertWorldProfileOwnedByViewer(
+      patch.worldProfileId,
+      existing.ownerId
+    );
+    if (worldErr) {
+      return { error: worldErr };
+    }
+  }
+
   let slug = existing.slug;
   if (patch.name && patch.name !== existing.name) {
     slug = await resolveUniqueSlug(existing.ownerId, patch.name);
@@ -173,6 +218,7 @@ export async function updateStudioProp(
   const row = await prisma.studioProp.update({
     where: { id },
     data: { ...patch, slug },
+    include: PROP_INCLUDE,
   });
 
   if (patch.referenceImageUrl && patch.referenceImageUrl !== previousReferenceUrl) {

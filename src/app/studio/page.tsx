@@ -24,6 +24,11 @@ const FEATURE_CARDS = [
     href: "/studio/props",
   },
   {
+    titleKey: "studio.feature.worlds.title" as const,
+    descriptionKey: "studio.feature.worlds.description" as const,
+    href: "/studio/worlds",
+  },
+  {
     titleKey: "studio.feature.storyboards.title" as const,
     descriptionKey: "studio.feature.storyboards.description" as const,
     href: "/studio/storyboards",

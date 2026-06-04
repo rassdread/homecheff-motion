@@ -37,14 +37,55 @@ export type ServiceError = {
   httpStatus: number;
 };
 
-const SCENE_INCLUDE = {
-  location: true,
-  characters: { include: { character: true } },
-  props: { include: { prop: true } },
+export const STUDIO_SCENE_DETAIL_INCLUDE = {
+  location: { include: { worldProfile: { select: { id: true, name: true, description: true, visualStyle: true, tone: true, continuityRules: true, continuityStrength: true } } } },
+  characters: {
+    include: {
+      character: {
+        include: {
+          worldProfile: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              visualStyle: true,
+              tone: true,
+              continuityRules: true,
+              continuityStrength: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  props: {
+    include: {
+      prop: {
+        include: {
+          worldProfile: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              visualStyle: true,
+              tone: true,
+              continuityRules: true,
+              continuityStrength: true,
+            },
+          },
+        },
+      },
+    },
+  },
   sceneImages: { orderBy: { createdAt: "desc" as const } },
 } satisfies Prisma.StudioSceneInclude;
 
-type SceneRow = Prisma.StudioSceneGetPayload<{ include: typeof SCENE_INCLUDE }>;
+const SCENE_INCLUDE = STUDIO_SCENE_DETAIL_INCLUDE;
+
+export type StudioStoryboardSceneRow = Prisma.StudioSceneGetPayload<{
+  include: typeof STUDIO_SCENE_DETAIL_INCLUDE;
+}>;
+type SceneRow = StudioStoryboardSceneRow;
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };

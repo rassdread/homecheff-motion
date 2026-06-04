@@ -6,11 +6,17 @@ import { useActiveTranslator } from "@/i18n/client";
 import { StudioStatusBadge } from "@/components/studio/studio-status-badge";
 
 type StudioFeatureCardProps = {
-  titleKey: "studio.feature.characters.title" | "studio.feature.locations.title" | "studio.feature.props.title" | "studio.feature.storyboards.title";
+  titleKey:
+    | "studio.feature.characters.title"
+    | "studio.feature.locations.title"
+    | "studio.feature.props.title"
+    | "studio.feature.worlds.title"
+    | "studio.feature.storyboards.title";
   descriptionKey:
     | "studio.feature.characters.description"
     | "studio.feature.locations.description"
     | "studio.feature.props.description"
+    | "studio.feature.worlds.description"
     | "studio.feature.storyboards.description";
   href: string;
 };

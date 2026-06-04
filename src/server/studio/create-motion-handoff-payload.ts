@@ -3,25 +3,18 @@ import {
   getStoryboardSceneRowsForHandoff,
   toSceneSnapshot,
   type ServiceError,
+  type StudioStoryboardSceneRow,
 } from "@/server/studio/studio-storyboard-service";
-import { buildScenePrompt } from "@/lib/studio-prompt-builder";
+import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { resolveStudioSceneImageHandoff } from "@/lib/studio-scene-image-handoff";
+import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
+import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
+import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
-import type { Prisma } from "@prisma/client";
-
-type SceneRow = Prisma.StudioSceneGetPayload<{
-  include: {
-    location: true;
-    characters: { include: { character: true } };
-    props: { include: { prop: true } };
-    sceneImages: true;
-  };
-}>;
-
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
 }
@@ -29,7 +22,7 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
 function buildStudioContext(
   storyboardId: string,
   scene: SceneSnapshot,
-  prompt: ReturnType<typeof buildScenePrompt>,
+  prompt: PromptBuilderOutput,
   imageHandoff: ReturnType<typeof resolveStudioSceneImageHandoff>
 ): StudioSceneContextMetadata {
   const noteParts = [scene.description.trim(), scene.action.trim()].filter(Boolean);
@@ -62,11 +55,11 @@ function buildStudioContext(
 
 function toHandoffScene(
   storyboardId: string,
-  row: SceneRow,
+  row: StudioStoryboardSceneRow,
   styleProfile: string
 ): MotionHandoffScene {
   const snapshot = toSceneSnapshot(row);
-  const built = buildScenePrompt(snapshot, styleProfile);
+  const built = buildScenePromptFromSceneRow(row, styleProfile);
   const imageHandoff = resolveStudioSceneImageHandoff({
     storyboardId,
     sceneId: row.id,
@@ -122,12 +115,26 @@ export async function createMotionHandoffPayload(
 
   const styleProfile = normalizeStudioPromptStyleProfile(storyboard.promptStyleProfile);
 
+  const sceneBundles = scenes.map((scene) => buildSceneMemoryBundleFromSceneRow(scene));
+  const storyboardMemory: SceneMemoryBundle = {
+    characters: sceneBundles.flatMap((b) => b.characters),
+    location: sceneBundles.find((b) => b.location)?.location ?? null,
+    props: sceneBundles.flatMap((b) => b.props),
+    world: sceneBundles.find((b) => b.world)?.world ?? null,
+    continuityStrength: sceneBundles[0]?.continuityStrength ?? "strong",
+  };
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: storyboard.id,
     title: storyboard.title,
     description: storyboard.description,
     promptStyleProfile: styleProfile,
+    characterMemory: storyboardMemory.characters,
+    locationMemory: storyboardMemory.location,
+    propMemory: storyboardMemory.props,
+    worldMemory: storyboardMemory.world,
+    continuityStrength: storyboardMemory.continuityStrength,
     scenes: scenes.map((scene) => toHandoffScene(storyboard.id, scene, styleProfile)),
   };
 

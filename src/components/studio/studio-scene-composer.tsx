@@ -4,6 +4,7 @@ import { useState } from "react";
 import { StudioPresetField } from "@/components/studio/studio-preset-field";
 import { StudioScenePreview } from "@/components/studio/studio-scene-preview";
 import { StudioSceneImagePanel } from "@/components/studio/studio-scene-image-panel";
+import { StudioSceneContinuityPreview } from "@/components/studio/studio-scene-continuity-preview";
 import { StudioScenePromptPreview } from "@/components/studio/studio-scene-prompt-preview";
 import { useActiveTranslator } from "@/i18n/client";
 import {
@@ -278,6 +279,8 @@ export function StudioSceneComposer({
           </div>
 
           <StudioScenePreview scene={draft} />
+
+          <StudioSceneContinuityPreview scene={draft} styleProfile={styleProfile} />
 
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
 

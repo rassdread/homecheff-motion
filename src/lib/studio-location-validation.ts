@@ -1,10 +1,14 @@
 import { isStudioLocationCategory, type StudioLocationCategory } from "@/lib/studio-location-categories";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import {
+  parseLocationMemoryFields,
+  type StudioLocationMemoryInput,
+} from "@/lib/studio-location-memory-fields";
 
 export const STUDIO_LOCATION_NAME_MAX = 120;
 export const STUDIO_LOCATION_TEXT_MAX = 4000;
 
-export type StudioLocationCreateInput = {
+export type StudioLocationCreateInput = StudioLocationMemoryInput & {
   name: string;
   category: string;
   description?: string;
@@ -12,7 +16,7 @@ export type StudioLocationCreateInput = {
   referenceStorageKey: string;
 };
 
-export type StudioLocationUpdateInput = {
+export type StudioLocationUpdateInput = StudioLocationMemoryInput & {
   name?: string;
   category?: string;
   description?: string;
@@ -36,6 +40,12 @@ export function validateStudioLocationCreateInput(
   description: string;
   referenceImageUrl: string;
   referenceStorageKey: string;
+  worldMemory: string;
+  visualIdentity: string;
+  environmentKeywords: string;
+  continuityNotes: string;
+  continuityStrength: string;
+  worldProfileId: string | null;
 }> {
   const name = raw.name?.trim() ?? "";
   if (!name) {
@@ -59,6 +69,7 @@ export function validateStudioLocationCreateInput(
   if (!isValidHttpUrl(referenceImageUrl)) {
     return { ok: false, code: "INVALID_REFERENCE_URL", message: "Invalid reference image URL." };
   }
+  const memory = parseLocationMemoryFields(raw);
   return {
     ok: true,
     value: {
@@ -67,6 +78,12 @@ export function validateStudioLocationCreateInput(
       description: trimText(raw.description, STUDIO_LOCATION_TEXT_MAX),
       referenceImageUrl,
       referenceStorageKey,
+      worldMemory: memory.worldMemory,
+      visualIdentity: memory.visualIdentity,
+      environmentKeywords: memory.environmentKeywords,
+      continuityNotes: memory.continuityNotes,
+      continuityStrength: memory.continuityStrength ?? "strong",
+      worldProfileId: memory.worldProfileId ?? null,
     },
   };
 }
@@ -79,6 +96,12 @@ export function validateStudioLocationUpdateInput(
   description?: string;
   referenceImageUrl?: string;
   referenceStorageKey?: string;
+  worldMemory?: string;
+  visualIdentity?: string;
+  environmentKeywords?: string;
+  continuityNotes?: string;
+  continuityStrength?: string;
+  worldProfileId?: string | null;
 }> {
   const patch: {
     name?: string;
@@ -86,6 +109,12 @@ export function validateStudioLocationUpdateInput(
     description?: string;
     referenceImageUrl?: string;
     referenceStorageKey?: string;
+    worldMemory?: string;
+    visualIdentity?: string;
+    environmentKeywords?: string;
+    continuityNotes?: string;
+    continuityStrength?: string;
+    worldProfileId?: string | null;
   } = {};
 
   if (raw.name !== undefined) {
@@ -134,6 +163,20 @@ export function validateStudioLocationUpdateInput(
     }
     patch.referenceImageUrl = referenceImageUrl;
     patch.referenceStorageKey = referenceStorageKey;
+  }
+
+  const memory = parseLocationMemoryFields(raw);
+  if (raw.worldMemory !== undefined) patch.worldMemory = memory.worldMemory;
+  if (raw.visualIdentity !== undefined) patch.visualIdentity = memory.visualIdentity;
+  if (raw.environmentKeywords !== undefined) {
+    patch.environmentKeywords = memory.environmentKeywords;
+  }
+  if (raw.continuityNotes !== undefined) patch.continuityNotes = memory.continuityNotes;
+  if (raw.continuityStrength !== undefined && memory.continuityStrength) {
+    patch.continuityStrength = memory.continuityStrength;
+  }
+  if (raw.worldProfileId !== undefined) {
+    patch.worldProfileId = memory.worldProfileId ?? null;
   }
 
   if (Object.keys(patch).length === 0) {

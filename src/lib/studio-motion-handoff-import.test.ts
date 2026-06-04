@@ -18,6 +18,11 @@ const payload: MotionHandoffPayload = {
   title: "Promo",
   description: "Test",
   promptStyleProfile: "commercial",
+  characterMemory: [],
+  locationMemory: null,
+  propMemory: [],
+  worldMemory: null,
+  continuityStrength: "strong",
   scenes: [
     {
       sceneId: "scene-1",

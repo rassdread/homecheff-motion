@@ -1,10 +1,17 @@
+import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioSceneImageReference } from "@/types/studio-scene-image-reference";
+import type {
+  CharacterMemorySnapshot,
+  LocationMemorySnapshot,
+  PropMemorySnapshot,
+  WorldMemorySnapshot,
+} from "@/types/studio-memory-snapshots";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 3 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 4 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -29,5 +36,11 @@ export type MotionHandoffPayload = {
   title: string;
   description: string;
   promptStyleProfile: StudioPromptStyleProfile;
+  /** V10: stored for future Motion continuity; not used in rendering yet. */
+  characterMemory: CharacterMemorySnapshot[];
+  locationMemory: LocationMemorySnapshot | null;
+  propMemory: PropMemorySnapshot[];
+  worldMemory: WorldMemorySnapshot | null;
+  continuityStrength: StudioContinuityStrength;
   scenes: MotionHandoffScene[];
 };

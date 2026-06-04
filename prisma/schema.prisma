@@ -246,78 +246,134 @@ model User {
   invitesCreated    AnimationInvite[] @relation("InviteCreator")
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
-  studioCharacters  StudioCharacter[]
-  studioLocations   StudioLocation[]
-  studioProps       StudioProp[]
-  studioStoryboards StudioStoryboard[]
+  studioCharacters     StudioCharacter[]
+  studioLocations      StudioLocation[]
+  studioProps          StudioProp[]
+  studioWorldProfiles  StudioWorldProfile[]
+  studioStoryboards    StudioStoryboard[]
+}
+
+/** Shared visual universe for characters, locations and props (Studio V10). */
+model StudioWorldProfile {
+  id                 String   @id @default(cuid())
+  ownerId            String
+  owner              User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String
+  description        String   @default("")
+  visualStyle        String   @default("")
+  tone               String   @default("")
+  continuityRules    String   @default("")
+  /** loose | normal | strong | strict */
+  continuityStrength String   @default("strong")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  characters         StudioCharacter[]
+  locations          StudioLocation[]
+  props              StudioProp[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, createdAt])
 }
 
 /** Reusable character identity for Studio → future Scene Composer → Motion. */
 model StudioCharacter {
-  id                  String   @id @default(cuid())
-  ownerId             String
-  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name                String
-  slug                String
+  id                      String              @id @default(cuid())
+  ownerId                 String
+  owner                   User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                    String
+  slug                    String
   /** human | mascot | animal | object | other */
-  role                String
-  description         String   @default("")
-  personality         String   @default("")
-  referenceImageUrl   String
-  referenceStorageKey String
-  isMascot            Boolean  @default(false)
+  role                    String
+  description             String              @default("")
+  personality             String              @default("")
+  referenceImageUrl       String
+  referenceStorageKey     String
+  appearanceMemory        String              @default("")
+  personalityMemory       String              @default("")
+  continuityNotes         String              @default("")
+  defaultClothing         String              @default("")
+  defaultAccessories      String              @default("")
+  visualKeywords          String              @default("")
+  primaryReferenceImageId String?
+  referenceNotes          String              @default("")
+  /** low | normal | strong | strict — how aggressively identity is preserved in prompts */
+  identityStrength        String              @default("strong")
+  /** loose | normal | strong | strict */
+  continuityStrength      String              @default("strong")
+  worldProfileId          String?
+  worldProfile            StudioWorldProfile? @relation(fields: [worldProfileId], references: [id], onDelete: SetNull)
+  isMascot                Boolean             @default(false)
   /** Reserved for globally seeded HomeCheff mascots (Chef, Garden, …). */
-  isSystemCharacter   Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  sceneLinks          StudioSceneCharacter[]
+  isSystemCharacter       Boolean             @default(false)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  sceneLinks              StudioSceneCharacter[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
+  @@index([worldProfileId])
 }
 
 /** Reusable environment / world for Studio → future Scene Composer → Motion. */
 model StudioLocation {
-  id                  String   @id @default(cuid())
+  id                  String              @id @default(cuid())
   ownerId             String
-  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner               User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name                String
   slug                String
-  description         String   @default("")
+  description         String              @default("")
   /** city | restaurant | garden | market | street | home | office | nature | fantasy | other */
   category            String
   referenceImageUrl   String
   referenceStorageKey String
+  worldMemory         String              @default("")
+  visualIdentity      String              @default("")
+  environmentKeywords String              @default("")
+  continuityNotes     String              @default("")
+  /** loose | normal | strong | strict */
+  continuityStrength  String              @default("strong")
+  worldProfileId      String?
+  worldProfile        StudioWorldProfile? @relation(fields: [worldProfileId], references: [id], onDelete: SetNull)
   /** Reserved for globally seeded HomeCheff locations (Rotterdam, Community Garden, …). */
-  isSystemLocation    Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  isSystemLocation    Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   scenes              StudioScene[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
+  @@index([worldProfileId])
 }
 
 /** Reusable object / prop for Studio → future Scene Composer → Motion. */
 model StudioProp {
-  id                  String   @id @default(cuid())
+  id                  String              @id @default(cuid())
   ownerId             String
-  owner               User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner               User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name                String
   slug                String
-  description         String   @default("")
+  description         String              @default("")
   /** phone | laptop | food | drink | plant | vehicle | furniture | screen | clothing | packaging | tool | brand_asset | other */
   category            String
   referenceImageUrl   String
   referenceStorageKey String
+  appearanceMemory    String              @default("")
+  brandingRules       String              @default("")
+  continuityNotes     String              @default("")
+  /** loose | normal | strong | strict */
+  continuityStrength  String              @default("strong")
+  worldProfileId      String?
+  worldProfile        StudioWorldProfile? @relation(fields: [worldProfileId], references: [id], onDelete: SetNull)
   /** Reserved for globally seeded HomeCheff props (Mug, Delivery Bag, …). */
-  isSystemProp        Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  isSystemProp        Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   sceneLinks          StudioSceneProp[]
 
   @@unique([ownerId, slug])
   @@index([ownerId, createdAt])
+  @@index([worldProfileId])
 }
 
 /** Ordered scene sequence for Studio Scene Composer → future Motion. */

@@ -8,11 +8,16 @@ import {
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 const samplePayload: MotionHandoffPayload = {
-  version: 3,
+  version: 4,
   storyboardId: "sb-1",
   title: "HomeCheff Promo",
   description: "Rotterdam + garden",
   promptStyleProfile: "commercial",
+  characterMemory: [],
+  locationMemory: null,
+  propMemory: [],
+  worldMemory: null,
+  continuityStrength: "strong",
   scenes: [
     {
       sceneId: "scene-1",
