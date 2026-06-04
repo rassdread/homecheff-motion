@@ -18,7 +18,7 @@ import type {
 } from "@/types/studio-correction";
 import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 7 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 8 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -44,6 +44,12 @@ export type MotionHandoffScene = SceneSnapshot & {
   /** V13: visual QA for selected still (metadata only). */
   sceneVisionScore: number | null;
   sceneVisionReport: VisionConsistencyReport | null;
+  /** V14: selected still scoring for Motion import (metadata only). */
+  selectedImageScore: number | null;
+  selectedImageVisionScore: number | null;
+  selectedImageConsistencyScore: number | null;
+  selectedImageImprovementScore: number | null;
+  selectedImageRecommended: boolean;
 };
 
 export type MotionHandoffPayload = {

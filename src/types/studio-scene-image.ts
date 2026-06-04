@@ -61,6 +61,9 @@ export type StudioSceneImageListItem = {
   regeneratedFromImageId: string | null;
   previousConsistencyScore: number | null;
   improvementScore: number | null;
+  previousVisionScore: number | null;
+  visionImprovementScore: number | null;
+  overallImprovementScore: number | null;
   visionScore: number | null;
   visionStatus: StudioVisionStatus | null;
   visionReport: VisionConsistencyReport | null;

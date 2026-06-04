@@ -18,6 +18,11 @@ import type {
   StudioSceneVisionAnalyzeResponse,
   StudioStoryboardVisionAnalyzeResponse,
 } from "@/types/studio-vision-consistency";
+import type {
+  BulkImproveScenesResponse,
+  ImproveSceneImageResponse,
+  StoryboardImprovementSummary,
+} from "@/types/studio-improvement";
 
 export async function fetchStudioSceneImages(storyboardId: string, sceneId: string) {
   return fetchSameOriginJson<StudioSceneImageListResponse>(
@@ -149,5 +154,39 @@ export async function analyzeStudioStoryboardVisionApi(storyboardId: string) {
       `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/analyze-vision`
     ),
     { method: "POST" }
+  );
+}
+
+export async function improveStudioSceneImageApi(
+  storyboardId: string,
+  sceneId: string,
+  body?: { sourceImageId?: string; autoSelect?: boolean }
+) {
+  return fetchSameOriginJson<ImproveSceneImageResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/scenes/${encodeURIComponent(sceneId)}/improve-image`
+    ),
+    { method: "POST", body: JSON.stringify(body ?? {}) }
+  );
+}
+
+export async function fetchStoryboardImprovementSummaryApi(storyboardId: string) {
+  return fetchSameOriginJson<{ summary: StoryboardImprovementSummary }>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/review-improvements`
+    )
+  );
+}
+
+export async function bulkImproveStudioScenesApi(
+  storyboardId: string,
+  sceneIds: string[],
+  autoSelect?: boolean
+) {
+  return fetchSameOriginJson<BulkImproveScenesResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/bulk-improve-scenes`
+    ),
+    { method: "POST", body: JSON.stringify({ sceneIds, autoSelect }) }
   );
 }

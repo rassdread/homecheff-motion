@@ -15,6 +15,11 @@ import {
 import { parseCorrectionRecommendations } from "@/lib/studio-correction-report-parse";
 import { buildConsistencyHistoryFromImages } from "@/lib/studio-storyboard-correction-summary";
 import { computeImprovementScore } from "@/lib/studio-improvement-score";
+import {
+  computeCombinedImageScore,
+  isRecommendedSceneImage,
+} from "@/lib/studio-combined-image-score";
+import { mapStudioSceneImageToListItem } from "@/lib/studio-scene-image-map";
 import { buildCombinedCorrectionRecommendations } from "@/lib/build-combined-correction-recommendations";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
 import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
@@ -95,6 +100,17 @@ function toHandoffScene(
     ? parseVisionConsistencyReport(selectedImageRow.visionReport)
     : null;
 
+  const mappedSceneImages = row.sceneImages.map(mapStudioSceneImageToListItem);
+  const selectedListItem = selectedImageRow
+    ? mappedSceneImages.find((img) => img.id === selectedImageRow.id) ?? null
+    : null;
+  const selectedImageScore = selectedListItem
+    ? computeCombinedImageScore({
+        visionScore: selectedListItem.visionScore,
+        consistencyScore: selectedListItem.consistencyScore,
+      })
+    : null;
+
   return {
     ...snapshot,
     selectedSceneImageId: imageHandoff.selectedSceneImageId,
@@ -127,6 +143,14 @@ function toHandoffScene(
       : [],
     sceneVisionScore: selectedImageRow?.visionScore ?? null,
     sceneVisionReport,
+    selectedImageScore,
+    selectedImageVisionScore: selectedImageRow?.visionScore ?? null,
+    selectedImageConsistencyScore: selectedImageRow?.consistencyScore ?? null,
+    selectedImageImprovementScore:
+      selectedImageRow?.overallImprovementScore ?? selectedImageRow?.improvementScore ?? null,
+    selectedImageRecommended: selectedListItem
+      ? isRecommendedSceneImage(selectedListItem, mappedSceneImages)
+      : false,
   };
 }
 

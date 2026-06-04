@@ -385,6 +385,8 @@ model StudioStoryboard {
   description String        @default("")
   /** commercial | cinematic | children_story | documentary | social_media | corporate */
   promptStyleProfile String @default("commercial")
+  /** V14: after approved regeneration, auto-select image if combined score improves */
+  autoSelectImprovedImage Boolean @default(true)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   scenes      StudioScene[]
@@ -450,8 +452,12 @@ model StudioSceneImage {
   correctedPrompt             String   @default("")
   regeneratedFromImageId      String?
   previousConsistencyScore    Int?
-  /** newScore - previousScore after correction regeneration */
+  /** Consistency delta after correction regeneration */
   improvementScore            Int?
+  previousVisionScore         Int?
+  visionImprovementScore      Int?
+  /** Average of consistency + vision improvement deltas */
+  overallImprovementScore     Int?
   /** V13: visual QA scores from vision provider (0–100). */
   visionScore                   Int?
   /** excellent | good | needs_review | poor */

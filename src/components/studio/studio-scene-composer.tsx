@@ -32,6 +32,7 @@ type StudioSceneComposerProps = {
   canModify: boolean;
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
+  autoSelectImprovedImage?: boolean;
 };
 
 type TabId = "compose" | "prompt" | "image";
@@ -47,6 +48,7 @@ export function StudioSceneComposer({
   canModify,
   onSave,
   onSceneUpdated,
+  autoSelectImprovedImage = true,
 }: StudioSceneComposerProps) {
   const t = useActiveTranslator();
   const [tab, setTab] = useState<TabId>("compose");
@@ -126,6 +128,7 @@ export function StudioSceneComposer({
           scene={draft}
           styleProfile={styleProfile}
           canModify={canModify}
+          autoSelectImprovedImage={autoSelectImprovedImage}
           onSceneUpdated={(updated) => {
             setDraft(updated);
             onSceneUpdated(updated);

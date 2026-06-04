@@ -13,6 +13,7 @@ export type StudioStoryboardUpdateInput = {
   title?: string;
   description?: string;
   promptStyleProfile?: string;
+  autoSelectImprovedImage?: boolean;
 };
 
 export type ValidationResult<T> =
@@ -49,8 +50,18 @@ export function validateStudioStoryboardCreateInput(
 
 export function validateStudioStoryboardUpdateInput(
   raw: StudioStoryboardUpdateInput
-): ValidationResult<{ title?: string; description?: string; promptStyleProfile?: string }> {
-  const patch: { title?: string; description?: string; promptStyleProfile?: string } = {};
+): ValidationResult<{
+  title?: string;
+  description?: string;
+  promptStyleProfile?: string;
+  autoSelectImprovedImage?: boolean;
+}> {
+  const patch: {
+    title?: string;
+    description?: string;
+    promptStyleProfile?: string;
+    autoSelectImprovedImage?: boolean;
+  } = {};
 
   if (raw.title !== undefined) {
     const title = raw.title.trim();
@@ -73,6 +84,10 @@ export function validateStudioStoryboardUpdateInput(
       return { ok: false, code: "INVALID_STYLE_PROFILE", message: "Invalid prompt style profile." };
     }
     patch.promptStyleProfile = profile;
+  }
+
+  if (raw.autoSelectImprovedImage !== undefined) {
+    patch.autoSelectImprovedImage = Boolean(raw.autoSelectImprovedImage);
   }
 
   if (Object.keys(patch).length === 0) {

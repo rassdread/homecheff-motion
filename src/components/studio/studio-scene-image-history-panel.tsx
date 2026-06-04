@@ -1,94 +1,130 @@
 "use client";
 
-import { buildConsistencyHistoryFromImages } from "@/lib/studio-storyboard-correction-summary";
+import Image from "next/image";
+import { buildSceneImageHistoryEntries } from "@/lib/studio-scene-image-history";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 type StudioSceneImageHistoryPanelProps = {
   images: StudioSceneImageListItem[];
   selectedImageId: string | null;
+  canModify?: boolean;
   onSelectImage?: (imageId: string) => void;
+  onViewPrompt?: (image: StudioSceneImageListItem) => void;
+  onViewCorrections?: (imageId: string) => void;
 };
 
 export function StudioSceneImageHistoryPanel({
   images,
   selectedImageId,
+  canModify,
   onSelectImage,
+  onViewPrompt,
+  onViewCorrections,
 }: StudioSceneImageHistoryPanelProps) {
   const t = useActiveTranslator();
-  const history = buildConsistencyHistoryFromImages(
-    images.map((img) => ({
-      id: img.id,
-      generationVersion: img.generationVersion,
-      consistencyScore: img.consistencyScore,
-      consistencyStatus: img.consistencyStatus,
-      improvementScore: img.improvementScore,
-      correctionRecommendations: img.correctionRecommendations,
-      createdAt: img.createdAt,
-    }))
-  );
+  const history = buildSceneImageHistoryEntries({
+    images,
+    selectedImageId,
+  });
 
   if (history.length === 0) {
-    return <p className="text-sm text-zinc-500">{t("studio.correction.historyEmpty")}</p>;
+    return <p className="text-sm text-zinc-500">{t("studio.improve.historyEmpty")}</p>;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[480px] text-left text-xs">
-        <thead>
-          <tr className="border-b border-zinc-200 text-zinc-500">
-            <th className="py-2 pr-3 font-semibold">{t("studio.correction.history.generation")}</th>
-            <th className="py-2 pr-3 font-semibold">{t("studio.correction.history.consistency")}</th>
-            <th className="py-2 pr-3 font-semibold">{t("studio.correction.history.promptVersion")}</th>
-            <th className="py-2 pr-3 font-semibold">{t("studio.correction.history.corrections")}</th>
-            <th className="py-2 font-semibold">{t("studio.correction.history.date")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history.map((entry) => {
-            const img = images.find((i) => i.id === entry.imageId);
-            const isSelected = entry.imageId === selectedImageId;
-            return (
-              <tr
-                key={entry.imageId}
-                className={`border-b border-zinc-100 ${isSelected ? "bg-[#006D52]/5" : ""}`}
-              >
-                <td className="py-2 pr-3 font-medium text-zinc-800">
-                  {onSelectImage ? (
-                    <button
-                      type="button"
-                      className="text-left text-[#006D52] hover:underline"
-                      onClick={() => onSelectImage(entry.imageId)}
-                    >
-                      {t("studio.correction.history.genLabel", {
-                        version: String(entry.generationVersion),
-                      })}
-                    </button>
-                  ) : (
-                    t("studio.correction.history.genLabel", {
-                      version: String(entry.generationVersion),
-                    })
-                  )}
-                </td>
-                <td className="py-2 pr-3">
-                  {entry.consistencyScore ?? "—"}
-                  {entry.improvementScore !== null ? (
-                    <span className="ml-1 text-emerald-700">
-                      ({entry.improvementScore > 0 ? "+" : ""}
-                      {entry.improvementScore})
-                    </span>
-                  ) : null}
-                </td>
-                <td className="py-2 pr-3">v{img?.promptVersion ?? "—"}</td>
-                <td className="py-2 pr-3">{entry.correctionCount}</td>
-                <td className="py-2 text-zinc-600">
-                  {new Date(entry.createdAt).toLocaleString()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <ul className="space-y-3">
+      {[...history].reverse().map((entry) => {
+        const img = images.find((i) => i.id === entry.imageId);
+        if (!img || entry.status !== "completed") {
+          return null;
+        }
+        return (
+          <li
+            key={entry.imageId}
+            className={`flex gap-3 rounded-xl border p-3 ${
+              entry.isSelected ? "border-[#006D52] bg-[#006D52]/5" : "border-zinc-200"
+            }`}
+          >
+            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+              {entry.thumbnailUrl ? (
+                <Image
+                  src={entry.thumbnailUrl}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-zinc-900">
+                  {t("studio.improve.historyGen", {
+                    version: String(entry.generationVersion),
+                  })}
+                </span>
+                {entry.isRecommended ? (
+                  <span className="rounded-full bg-[#0067B1]/10 px-2 py-0.5 text-xs font-semibold text-[#0067B1]">
+                    {t("studio.improve.recommended")}
+                  </span>
+                ) : null}
+                {entry.isSelected ? (
+                  <span className="rounded-full bg-[#006D52]/10 px-2 py-0.5 text-xs font-semibold text-[#006D52]">
+                    {t("studio.improve.selected")}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-zinc-600">
+                {t("studio.improve.historyScores", {
+                  consistency: String(entry.consistencyScore ?? "—"),
+                  vision: String(entry.visionScore ?? "—"),
+                  combined: String(entry.combinedScore ?? "—"),
+                })}
+              </p>
+              {entry.overallImprovementScore !== null ? (
+                <p className="text-xs font-semibold text-emerald-700">
+                  {t("studio.improve.historyOverallDelta", {
+                    delta: `${entry.overallImprovementScore > 0 ? "+" : ""}${entry.overallImprovementScore}`,
+                  })}
+                </p>
+              ) : null}
+              <p className="text-xs text-zinc-500">
+                {new Date(entry.createdAt).toLocaleString()}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {canModify && onSelectImage ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectImage(entry.imageId)}
+                    className="text-xs font-semibold text-[#006D52] hover:underline"
+                  >
+                    {t("studio.improve.historySelect")}
+                  </button>
+                ) : null}
+                {onViewPrompt ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewPrompt(img)}
+                    className="text-xs font-semibold text-zinc-600 hover:underline"
+                  >
+                    {t("studio.improve.historyViewPrompt")}
+                  </button>
+                ) : null}
+                {onViewCorrections && img.correctionRecommendations.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => onViewCorrections(entry.imageId)}
+                    className="text-xs font-semibold text-zinc-600 hover:underline"
+                  >
+                    {t("studio.improve.historyViewCorrections")}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

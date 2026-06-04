@@ -34,12 +34,16 @@ import {
 import { StudioConsistencyTimelinePanel } from "@/components/studio/studio-consistency-timeline-panel";
 import { StudioVisionTimelinePanel } from "@/components/studio/studio-vision-timeline-panel";
 import { StudioStoryboardCorrectionPanel } from "@/components/studio/studio-storyboard-correction-panel";
+import { StudioStoryboardImprovementPanel } from "@/components/studio/studio-storyboard-improvement-panel";
 import {
   analyzeStudioStoryboardConsistencyApi,
   analyzeStudioStoryboardVisionApi,
   bulkGenerateStudioSceneImagesApi,
+  bulkImproveStudioScenesApi,
+  fetchStoryboardImprovementSummaryApi,
   generateStoryboardCorrectionsApi,
 } from "@/lib/studio-scene-images-client";
+import type { StoryboardImprovementSummary } from "@/types/studio-improvement";
 import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
 import type { StoryboardVisionReport } from "@/types/studio-vision-consistency";
 import type { StoryboardCorrectionSummary } from "@/types/studio-correction";
@@ -89,6 +93,12 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     null
   );
   const [generatingCorrections, setGeneratingCorrections] = useState(false);
+  const [improvementSummary, setImprovementSummary] = useState<StoryboardImprovementSummary | null>(
+    null
+  );
+  const [loadingImprovements, setLoadingImprovements] = useState(false);
+  const [bulkImproving, setBulkImproving] = useState(false);
+  const [bulkImproveProgress, setBulkImproveProgress] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -254,6 +264,62 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     }
     setVisionReport(res.data.report);
     await load();
+  };
+
+  const loadImprovementSummary = useCallback(async () => {
+    setLoadingImprovements(true);
+    setError("");
+    const res = await fetchStoryboardImprovementSummaryApi(storyboardId);
+    setLoadingImprovements(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.improve.error.failed"));
+      return;
+    }
+    setImprovementSummary(res.data.summary);
+  }, [storyboardId, t]);
+
+  const handleAutoSelectChange = async (value: boolean) => {
+    if (!storyboard) {
+      return;
+    }
+    setError("");
+    const res = await updateStudioStoryboardApi(storyboardId, {
+      autoSelectImprovedImage: value,
+    });
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed"));
+      return;
+    }
+    setStoryboard(res.data.storyboard);
+  };
+
+  const handleBulkImproveScenes = async (sceneIds: string[]) => {
+    if (!storyboard || sceneIds.length === 0) {
+      return;
+    }
+    setBulkImproving(true);
+    setBulkImproveProgress(t("studio.improve.bulkStarting"));
+    setError("");
+    const res = await bulkImproveStudioScenesApi(
+      storyboardId,
+      sceneIds,
+      storyboard.autoSelectImprovedImage
+    );
+    setBulkImproving(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.improve.error.failed"));
+      setBulkImproveProgress("");
+      return;
+    }
+    const okCount = res.data.results.filter((r) => r.ok).length;
+    setBulkImproveProgress(
+      t("studio.improve.bulkDone", {
+        ok: String(okCount),
+        total: String(res.data.total),
+      })
+    );
+    await load();
+    await loadImprovementSummary();
   };
 
   const handleGenerateCorrections = async () => {
@@ -435,6 +501,16 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         </button>
                         <button
                           type="button"
+                          disabled={loadingImprovements || scenes.length === 0}
+                          onClick={() => void loadImprovementSummary()}
+                          className="rounded-full border border-amber-600/40 px-4 py-2 text-sm font-semibold text-amber-900 disabled:opacity-50"
+                        >
+                          {loadingImprovements
+                            ? t("studio.improve.loading")
+                            : t("studio.improve.reviewImprovements")}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void handleAddScene()}
                           className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white"
                         >
@@ -493,6 +569,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             onSceneUpdated={handleSceneUpdated}
                             onDuplicate={handleDuplicateScene}
                             onDelete={handleDeleteScene}
+                            autoSelectImprovedImage={storyboard.autoSelectImprovedImage}
                           />
                         ))}
                       </div>
@@ -501,6 +578,15 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                 )}
               </div>
               <aside className="space-y-8">
+                <StudioStoryboardImprovementPanel
+                  summary={improvementSummary}
+                  loading={loadingImprovements}
+                  autoSelectImprovedImage={storyboard.autoSelectImprovedImage}
+                  onAutoSelectChange={(value) => void handleAutoSelectChange(value)}
+                  onRegenerateSelected={(ids) => void handleBulkImproveScenes(ids)}
+                  bulkBusy={bulkImproving}
+                  bulkProgress={bulkImproveProgress}
+                />
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
                     {t("studio.correction.summaryTitle")}

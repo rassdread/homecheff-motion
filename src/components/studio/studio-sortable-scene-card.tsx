@@ -26,6 +26,7 @@ type StudioSortableSceneCardProps = {
   busy: boolean;
   canModify: boolean;
   storyboardId: string;
+  autoSelectImprovedImage?: boolean;
   onSave: (sceneId: string, patch: StudioSceneUpdateInput) => Promise<void>;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onDuplicate: (sceneId: string) => void;
@@ -45,6 +46,7 @@ export function StudioSortableSceneCard({
   busy,
   canModify,
   storyboardId,
+  autoSelectImprovedImage = true,
   onSave,
   onSceneUpdated,
   onDuplicate,
@@ -130,6 +132,7 @@ export function StudioSortableSceneCard({
             styleProfile={styleProfile}
             saving={saving}
             canModify={canModify}
+            autoSelectImprovedImage={autoSelectImprovedImage}
             onSave={(patch) => onSave(scene.id, patch)}
             onSceneUpdated={onSceneUpdated}
           />

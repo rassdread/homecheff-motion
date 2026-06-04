@@ -3,14 +3,14 @@
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { SceneCorrectionPreviewResponse } from "@/types/studio-correction";
-import type { ImprovementScore } from "@/types/studio-correction";
+import type { CombinedImprovementScore } from "@/types/studio-improvement";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 type StudioSceneCorrectionPanelProps = {
   preview: SceneCorrectionPreviewResponse | null;
   loading: boolean;
   image: StudioSceneImageListItem | null;
-  improvement?: ImprovementScore | null;
+  improvement?: CombinedImprovementScore | null;
 };
 
 function severityClass(severity: string): string {
@@ -53,32 +53,41 @@ export function StudioSceneCorrectionPanel({
 
   return (
     <div className="space-y-4">
-      {improvement && improvement.previousScore !== null ? (
+      {improvement ? (
         <AppCard className="border-[#006D52]/30 bg-[#006D52]/5 p-4">
           <p className="text-sm font-semibold text-[#006D52]">
-            {t("studio.correction.improvementTitle")}
+            {t("studio.improve.comparisonTitle")}
           </p>
-          <p className="mt-1 text-lg font-bold text-zinc-900">
-            {improvement.previousScore} → {improvement.newScore}
-            <span className={improvement.improved ? " text-emerald-700" : " text-zinc-600"}>
-              {" "}
-              ({improvement.delta > 0 ? "+" : ""}
-              {improvement.delta})
-            </span>
+          {improvement.consistency.previousScore !== null ? (
+            <p className="mt-2 text-sm text-zinc-800">
+              {t("studio.improve.consistencyDelta", {
+                from: String(improvement.consistency.previousScore),
+                to: String(improvement.consistency.newScore),
+                delta: `${improvement.consistency.delta > 0 ? "+" : ""}${improvement.consistency.delta}`,
+              })}
+            </p>
+          ) : null}
+          {improvement.vision.previousScore !== null ? (
+            <p className="text-sm text-zinc-800">
+              {t("studio.improve.visionDelta", {
+                from: String(improvement.vision.previousScore),
+                to: String(improvement.vision.newScore),
+                delta: `${improvement.vision.delta > 0 ? "+" : ""}${improvement.vision.delta}`,
+              })}
+            </p>
+          ) : null}
+          <p className="mt-2 text-lg font-bold text-zinc-900">
+            {t("studio.improve.overallDelta", {
+              delta: `${improvement.overallDelta > 0 ? "+" : ""}${improvement.overallDelta}`,
+            })}
           </p>
         </AppCard>
-      ) : image.improvementScore !== null && image.previousConsistencyScore !== null ? (
+      ) : image.overallImprovementScore !== null ? (
         <AppCard className="border-[#006D52]/30 bg-[#006D52]/5 p-4">
           <p className="text-sm font-semibold text-[#006D52]">
-            {t("studio.correction.improvementTitle")}
-          </p>
-          <p className="mt-1 text-lg font-bold text-zinc-900">
-            {image.previousConsistencyScore} → {image.consistencyScore ?? "—"}
-            <span className={image.improvementScore > 0 ? " text-emerald-700" : " text-zinc-600"}>
-              {" "}
-              ({image.improvementScore > 0 ? "+" : ""}
-              {image.improvementScore})
-            </span>
+            {t("studio.improve.overallDelta", {
+              delta: `${image.overallImprovementScore > 0 ? "+" : ""}${image.overallImprovementScore}`,
+            })}
           </p>
         </AppCard>
       ) : null}

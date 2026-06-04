@@ -69,8 +69,9 @@ export type SceneCorrectionPreviewResponse = {
 export type RegenerateWithCorrectionsResponse = {
   image: import("@/types/studio-scene-image").StudioSceneImageListItem;
   correction: SceneCorrectionBundle;
-  improvement: ImprovementScore;
+  improvement: import("@/types/studio-improvement").CombinedImprovementScore;
   consistencyReport: SceneConsistencyReport;
+  visionReport: import("@/types/studio-vision-consistency").VisionConsistencyReport | null;
 };
 
 export type StoryboardSceneCorrectionSuggestion = {

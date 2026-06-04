@@ -2,7 +2,9 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
-import { buildCorrectionRecommendations } from "@/lib/build-correction-recommendations";
+import { buildCombinedCorrectionRecommendations } from "@/lib/build-combined-correction-recommendations";
+import { buildRegenerationRecommendation } from "@/lib/build-regeneration-recommendation";
+import { isRecommendedSceneImage } from "@/lib/studio-combined-image-score";
 import { buildScenePromptFromInput } from "@/lib/studio-prompt-builder";
 import { scoreSceneImageHealth } from "@/lib/studio-scene-image-health";
 import { studioSceneDetailToPromptInput, studioSceneDetailToSnapshot } from "@/lib/studio-scene-to-prompt-input";
@@ -12,9 +14,10 @@ import {
   deleteStudioSceneImageApi,
   generateStudioSceneImageApi,
   previewStudioSceneCorrectionsApi,
-  regenerateStudioSceneImageWithCorrectionsApi,
+  improveStudioSceneImageApi,
   selectStudioSceneImageApi,
 } from "@/lib/studio-scene-images-client";
+import { StudioImproveImageConfirmModal } from "@/components/studio/studio-improve-image-confirm-modal";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneDetail } from "@/types/studio-api";
@@ -23,7 +26,7 @@ import { StudioSceneVisionPanel } from "@/components/studio/studio-scene-vision-
 import { StudioSceneCorrectionPanel } from "@/components/studio/studio-scene-correction-panel";
 import { StudioSceneImageHistoryPanel } from "@/components/studio/studio-scene-image-history-panel";
 import type { SceneCorrectionPreviewResponse } from "@/types/studio-correction";
-import type { ImprovementScore } from "@/types/studio-correction";
+import type { CombinedImprovementScore } from "@/types/studio-improvement";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 type StudioSceneImagePanelProps = {
@@ -32,6 +35,7 @@ type StudioSceneImagePanelProps = {
   styleProfile: StudioPromptStyleProfile;
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
+  autoSelectImprovedImage?: boolean;
 };
 
 export function StudioSceneImagePanel({
@@ -40,6 +44,7 @@ export function StudioSceneImagePanel({
   styleProfile,
   canModify,
   onSceneUpdated,
+  autoSelectImprovedImage = true,
 }: StudioSceneImagePanelProps) {
   const t = useActiveTranslator();
   const [busy, setBusy] = useState(false);
@@ -52,8 +57,9 @@ export function StudioSceneImagePanel({
   const [correctionPreview, setCorrectionPreview] =
     useState<SceneCorrectionPreviewResponse | null>(null);
   const [correctionLoading, setCorrectionLoading] = useState(false);
-  const [lastImprovement, setLastImprovement] = useState<ImprovementScore | null>(null);
+  const [lastImprovement, setLastImprovement] = useState<CombinedImprovementScore | null>(null);
   const [historyFocusId, setHistoryFocusId] = useState<string | null>(null);
+  const [improveModalOpen, setImproveModalOpen] = useState(false);
 
   const latest = scene.sceneImages[0] ?? null;
   const focusId = historyFocusId ?? scene.selectedSceneImageId ?? latest?.id ?? null;
@@ -79,9 +85,26 @@ export function StudioSceneImagePanel({
         : t("studio.prompt.quality.weak");
 
   const correctionRecs = useMemo(() => {
-    const report = selected?.consistencyReport;
-    return report ? buildCorrectionRecommendations(report) : [];
-  }, [selected?.consistencyReport]);
+    if (!selected?.consistencyReport) {
+      return [];
+    }
+    return buildCombinedCorrectionRecommendations({
+      consistencyReport: selected.consistencyReport,
+      visionReport: selected.visionReport,
+    });
+  }, [selected]);
+
+  const regenerationRec = useMemo(() => {
+    if (!selected) {
+      return null;
+    }
+    return buildRegenerationRecommendation({
+      image: selected,
+      consistencyReport: selected.consistencyReport,
+      visionReport: selected.visionReport,
+      recommendations: correctionRecs,
+    });
+  }, [selected, correctionRecs]);
 
   const promptPreview = useMemo(() => {
     const input = studioSceneDetailToPromptInput(scene, styleProfile);
@@ -130,23 +153,21 @@ export function StudioSceneImagePanel({
     });
   };
 
-  const handleRegenerateWithCorrections = async () => {
+  const handleConfirmImprove = async () => {
     const target = selected;
     if (!target || target.status !== "completed") {
       return;
     }
     setBusy(true);
     setError("");
-    const res = await regenerateStudioSceneImageWithCorrectionsApi(
-      storyboardId,
-      scene.id,
-      target.id
-    );
+    setImproveModalOpen(false);
+    const res = await improveStudioSceneImageApi(storyboardId, scene.id, {
+      sourceImageId: target.id,
+      autoSelect: autoSelectImprovedImage,
+    });
     setBusy(false);
     if (!res.ok) {
-      setError(
-        (res.data as { error?: string }).error ?? t("studio.correction.error.regenerateFailed")
-      );
+      setError((res.data as { error?: string }).error ?? t("studio.improve.error.failed"));
       return;
     }
     setLastImprovement(res.data.improvement);
@@ -158,10 +179,20 @@ export function StudioSceneImagePanel({
       patches: res.data.correction.patches,
       consistencyReport: res.data.consistencyReport,
     });
-    onSceneUpdated({
-      ...scene,
-      sceneImages: [res.data.image, ...scene.sceneImages],
-    });
+    onSceneUpdated(res.data.scene);
+    setPanelTab("corrections");
+  };
+
+  const handleSelectHistoryImage = async (imageId: string) => {
+    setHistoryFocusId(imageId);
+    setBusy(true);
+    const res = await selectStudioSceneImageApi(storyboardId, scene.id, imageId);
+    setBusy(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.sceneImage.error.selectFailed"));
+      return;
+    }
+    onSceneUpdated(res.data.scene);
   };
 
   const handleRegenerate = () => void handleGenerate();
@@ -326,6 +357,26 @@ export function StudioSceneImagePanel({
         </button>
       </div>
 
+      {panelTab === "image" &&
+      regenerationRec &&
+      regenerationRec.action !== "ok" &&
+      displayImage?.status === "completed" ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-semibold">{t("studio.improve.recommendationHint")}</p>
+          <p className="mt-1">{regenerationRec.reason}</p>
+          {canModify ? (
+            <button
+              type="button"
+              disabled={busy || correctionLoading}
+              onClick={() => setImproveModalOpen(true)}
+              className="mt-3 rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {t("studio.improve.regenerateWithImprovements")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {panelTab === "consistency" ? (
         <>
           <StudioSceneConsistencyPanel image={displayImage ?? latest} report={consistencyReport} />
@@ -367,26 +418,16 @@ export function StudioSceneImagePanel({
             improvement={lastImprovement}
           />
           <p className="text-xs text-zinc-500">{t("studio.correction.methodHint")}</p>
-          {canModify && displayImage?.status === "completed" ? (
+          {canModify && displayImage?.status === "completed" && regenerationRec?.action !== "ok" ? (
             <button
               type="button"
               disabled={busy || correctionLoading}
-              onClick={() => void handleRegenerateWithCorrections()}
+              onClick={() => setImproveModalOpen(true)}
               className="rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {busy ? t("studio.correction.regenerating") : t("studio.correction.regenerateWithCorrections")}
+              {t("studio.improve.improveImage")}
             </button>
           ) : null}
-          <div>
-            <p className="text-sm font-semibold text-zinc-800">{t("studio.correction.historyTitle")}</p>
-            <div className="mt-2">
-              <StudioSceneImageHistoryPanel
-                images={scene.sceneImages}
-                selectedImageId={focusId}
-                onSelectImage={setHistoryFocusId}
-              />
-            </div>
-          </div>
         </>
       ) : null}
 
@@ -403,6 +444,11 @@ export function StudioSceneImagePanel({
           {scene.selectedSceneImageId === displayImage.id ? (
             <span className="absolute left-3 top-3 rounded-full bg-[#006D52] px-2 py-1 text-xs font-semibold text-white">
               {t("studio.sceneImage.selectedBadge")}
+            </span>
+          ) : null}
+          {displayImage && isRecommendedSceneImage(displayImage, scene.sceneImages) ? (
+            <span className="absolute right-3 top-3 rounded-full bg-[#0067B1] px-2 py-1 text-xs font-semibold text-white">
+              {t("studio.improve.recommended")}
             </span>
           ) : null}
         </div>
@@ -490,6 +536,18 @@ export function StudioSceneImagePanel({
                     {t("studio.sceneImage.useInMotion")}
                   </button>
                 ) : null}
+                {displayImage?.status === "completed" &&
+                regenerationRec &&
+                regenerationRec.action !== "ok" ? (
+                  <button
+                    type="button"
+                    disabled={busy || correctionLoading}
+                    onClick={() => setImproveModalOpen(true)}
+                    className="rounded-full bg-amber-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {t("studio.improve.improveImage")}
+                  </button>
+                ) : null}
                 {latest ? (
                   <button
                     type="button"
@@ -523,6 +581,36 @@ export function StudioSceneImagePanel({
         })}
       </p>
       ) : null}
+
+      {panelTab === "image" ? (
+        <div>
+          <p className="text-sm font-semibold text-zinc-800">{t("studio.improve.historyTitle")}</p>
+          <div className="mt-2">
+            <StudioSceneImageHistoryPanel
+              images={scene.sceneImages}
+              selectedImageId={scene.selectedSceneImageId ?? focusId}
+              canModify={canModify}
+              onSelectImage={(id) => void handleSelectHistoryImage(id)}
+              onViewPrompt={(img) => {
+                setShowPrompt(true);
+                setHistoryFocusId(img.id);
+              }}
+              onViewCorrections={(id) => {
+                setHistoryFocusId(id);
+                openCorrectionsTab();
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <StudioImproveImageConfirmModal
+        open={improveModalOpen}
+        recommendation={regenerationRec}
+        onCancel={() => setImproveModalOpen(false)}
+        onConfirm={() => void handleConfirmImprove()}
+        busy={busy}
+      />
 
       {fullscreenUrl ? (
         <div
