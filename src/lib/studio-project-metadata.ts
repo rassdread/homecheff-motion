@@ -8,13 +8,18 @@ import {
 import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
 import type { PersistedWizardState } from "@/lib/instant-premium-wizard-storage";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
+import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
+import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import type {
   ProjectStudioExportMetadata,
   ProjectStudioQaResponse,
   StoredStudioIntelligence,
   StudioImageLineageEntry,
   StudioIntelligenceStatus,
+  StudioIntelligenceStalenessResult,
   StudioProjectImportInput,
+  StudioRefreshAuditJson,
+  StudioRefreshAuditEntry,
   StudioRenderAuditMetadata,
 } from "@/types/studio-project-persistence";
 
@@ -44,6 +49,47 @@ export function buildStudioImageLineageFromWizard(
       slot.image?.remoteThumbnailUrl?.trim() ||
       null,
   }));
+}
+
+export function buildStudioImageLineageFromHandoff(
+  payload: MotionHandoffPayload
+): StudioImageLineageEntry[] {
+  return [...payload.scenes]
+    .sort((a, b) => a.order - b.order)
+    .map((scene, order) => ({
+      order: scene.order ?? order,
+      sceneId: scene.sceneId,
+      studioSceneImageId: scene.selectedSceneImageId,
+      previewUrl: scene.selectedSceneImageUrl?.trim() || null,
+    }));
+}
+
+export function buildStudioProjectImportFromHandoff(
+  payload: MotionHandoffPayload,
+  storyboardTitle?: string | null
+): StudioProjectImportInput {
+  const intelligence = buildMotionStudioIntelligenceSnapshot(payload);
+  return {
+    storyboardId: payload.storyboardId,
+    storyboardTitle: storyboardTitle?.trim() || payload.title,
+    handoffVersion: payload.version,
+    importedAt: new Date().toISOString(),
+    intelligence,
+    handoff: payload,
+    imageLineage: buildStudioImageLineageFromHandoff(payload),
+  };
+}
+
+export function appendStudioRefreshAudit(
+  existing: unknown,
+  entry: StudioRefreshAuditEntry
+): StudioRefreshAuditJson {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? (existing as StudioRefreshAuditJson)
+      : { events: [] };
+  const events = Array.isArray(base.events) ? [...base.events, entry] : [entry];
+  return { events, lastRefresh: entry };
 }
 
 export function buildStudioProjectImportFromWizard(
@@ -235,8 +281,11 @@ export function buildProjectStudioQaResponse(project: {
   studioSourceStoryboardTitle: string | null;
   studioHandoffVersion: number | null;
   studioImportedAt: Date | null;
+  studioRefreshedAt?: Date | null;
   studioIntelligenceJson: unknown;
   studioIntelligenceStatus: string | null;
+  studioLastStaleReason?: string | null;
+  storyboardStale?: StudioIntelligenceStalenessResult | null;
 }): ProjectStudioQaResponse | null {
   const stored = parseStoredIntelligence(project.studioIntelligenceJson);
   if (!stored || !project.studioSourceStoryboardId?.trim()) {
@@ -258,6 +307,11 @@ export function buildProjectStudioQaResponse(project: {
     readiness.scenesMissingImages = Math.max(0, totalFromIntel - withImage);
   }
 
+  const storyboardOutdated =
+    status === "stale" ||
+    Boolean(project.studioLastStaleReason?.trim()) ||
+    Boolean(project.storyboardStale?.isStale);
+
   return {
     status,
     source: {
@@ -266,9 +320,14 @@ export function buildProjectStudioQaResponse(project: {
       handoffVersion: project.studioHandoffVersion ?? intelligence.handoffVersion,
       importedAt:
         project.studioImportedAt?.toISOString() ?? intelligence.importedAt,
+      ...(project.studioRefreshedAt
+        ? { refreshedAt: project.studioRefreshedAt.toISOString() }
+        : {}),
     },
     intelligence,
     readiness,
+    ...(project.storyboardStale ? { storyboardStale: project.storyboardStale } : {}),
+    ...(storyboardOutdated ? { storyboardOutdated: true as const } : {}),
   };
 }
 

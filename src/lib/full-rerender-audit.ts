@@ -19,6 +19,8 @@ export type FullRerenderAuditEntry = {
   imageChanges?: FullRerenderImageChangeAudit;
   studioIntelligenceStatus?: StudioIntelligenceStatus;
   studioAudit?: StudioRenderAuditMetadata;
+  /** Advisory only — user may refresh Studio QA before rerender. */
+  suggestStudioRefresh?: boolean;
   versionNote?: string | null;
   previousFinalVideoUrl?: string | null;
   previousCleanFinalVideoUrl?: string | null;

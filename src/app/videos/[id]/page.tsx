@@ -60,6 +60,7 @@ import {
   VideoVersionDownloadTrigger,
 } from "@/components/videos/project-storage-usage-card";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
+import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function presetTitleKey(presetId: string): TranslationKey {
   const map: Record<string, TranslationKey> = {
@@ -204,6 +205,28 @@ export default function VideoDetailPage() {
       window.clearTimeout(timer);
     };
   }, [session.resolved, session.user, load]);
+
+  const studioStaleCheckDone = useRef(false);
+  useEffect(() => {
+    if (!id || !detail?.studioQa?.source.storyboardId || studioStaleCheckDone.current) {
+      return;
+    }
+    studioStaleCheckDone.current = true;
+    let cancelled = false;
+    void (async () => {
+      const res = await fetchStudioIntelligenceStale(id, true);
+      if (cancelled || !res.ok || !res.data.ok) {
+        return;
+      }
+      const qa = res.data.studioQa;
+      if (qa) {
+        setDetail((prev) => (prev ? { ...prev, studioQa: qa } : prev));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, detail?.studioQa?.source.storyboardId]);
 
   useEffect(() => {
     const ex = detail?.exports?.[0];
@@ -686,9 +709,15 @@ export default function VideoDetailPage() {
         mode={projectMode}
       />
 
-      {detail.studioQa ?
+      {detail.studioQa && detail.id ?
         <div className="mt-6">
-          <MotionProjectStudioQaPanel studioQa={detail.studioQa} />
+          <MotionProjectStudioQaPanel
+            projectId={detail.id}
+            studioQa={detail.studioQa}
+            onStudioQaUpdated={(qa) => {
+              setDetail((prev) => (prev ? { ...prev, studioQa: qa } : prev));
+            }}
+          />
         </div>
       : null}
 

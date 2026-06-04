@@ -31,6 +31,7 @@ import { ProjectRerenderChoices } from "@/components/videos/project-rerender-cho
 import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
+import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
@@ -94,6 +95,7 @@ export default function InstantPremiumProgressPage() {
   const [fullRerenderBusy, setFullRerenderBusy] = useState(false);
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
+  const studioStaleCheckDone = useRef(false);
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
 
   const [languageExports, setLanguageExports] = useState<VideoLanguageExportSummary[]>([]);
@@ -151,6 +153,28 @@ export default function InstantPremiumProgressPage() {
       cancelled = true;
     };
   }, [isCompleted, effectiveProjectId]);
+
+  useEffect(() => {
+    if (!effectiveProjectId || !snapshot?.studioQa?.source.storyboardId || studioStaleCheckDone.current) {
+      return;
+    }
+    studioStaleCheckDone.current = true;
+    let cancelled = false;
+    void (async () => {
+      const res = await fetchStudioIntelligenceStale(effectiveProjectId, true);
+      if (cancelled || !res.ok || !res.data.ok) {
+        return;
+      }
+      const qa = res.data.studioQa;
+      if (!qa) {
+        return;
+      }
+      setSnapshot((prev) => (prev ? { ...prev, studioQa: qa } : prev));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveProjectId, snapshot?.studioQa?.source.storyboardId, setSnapshot]);
 
   const videoRepair = useInstantVideoRepair({
     projectId: effectiveProjectId,
@@ -359,9 +383,16 @@ export default function InstantPremiumProgressPage() {
 
           {!showFatalMissing ? (
             <>
-            {snapshot?.studioQa ?
+            {snapshot?.studioQa && effectiveProjectId ?
               <div className="mt-4">
-                <MotionProjectStudioQaPanel studioQa={snapshot.studioQa} compact />
+                <MotionProjectStudioQaPanel
+                  projectId={effectiveProjectId}
+                  studioQa={snapshot.studioQa}
+                  compact
+                  onStudioQaUpdated={(qa) => {
+                    setSnapshot((prev) => (prev ? { ...prev, studioQa: qa } : prev));
+                  }}
+                />
               </div>
             : null}
 

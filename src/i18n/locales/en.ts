@@ -754,6 +754,16 @@ export const en: LocaleSchema = {
     "Studio metadata is available only in your browser draft. Re-import or complete checkout to persist QA on this project.",
   "motion.qa.server.persistOnCheckout":
     "Studio QA is saved on the Motion project when you complete checkout (available on any device).",
+  "motion.qa.refresh.outdatedTitle": "Studio metadata is outdated",
+  "motion.qa.refresh.outdatedBody":
+    "The Studio storyboard has changed since this Motion project was created or last refreshed.",
+  "motion.qa.refresh.outdatedBadge": "Outdated",
+  "motion.qa.refresh.refreshQa": "Refresh Studio QA",
+  "motion.qa.refresh.refreshing": "Refreshing…",
+  "motion.qa.refresh.checking": "Checking…",
+  "motion.qa.refresh.recheck": "Check again",
+  "motion.qa.refresh.lastRefreshed": "Last refreshed: {date}",
+  "motion.qa.refresh.errorGeneric": "Could not refresh Studio metadata. Try again.",
 
   "videos.title": "My videos",
   "videos.emptyTitle": "No videos yet",

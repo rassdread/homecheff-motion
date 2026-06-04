@@ -231,6 +231,10 @@ export async function fullRerenderInstantPremiumProject(params: {
     });
   }
   const studioAudit = hasStudioMetadata ? buildStudioRenderAuditMetadata(refreshed) : undefined;
+  const suggestStudioRefresh =
+    hasStudioMetadata &&
+    (studioIntelligenceStatus === "stale" ||
+      Boolean(refreshed.studioLastStaleReason?.trim()));
 
   const startedAt = new Date().toISOString();
   const auditEntry: FullRerenderAuditEntry = {
@@ -240,7 +244,10 @@ export async function fullRerenderInstantPremiumProject(params: {
     rerenderSource: rerenderSource ?? (sceneTexts !== undefined ? "editor" : "quick"),
     imageChanges: imageChangeAudit ?? undefined,
     studioIntelligenceStatus: hasStudioMetadata ? studioIntelligenceStatus : undefined,
-    studioAudit,
+    studioAudit: studioAudit
+      ? { ...studioAudit, suggestStudioRefresh: suggestStudioRefresh || undefined }
+      : undefined,
+    suggestStudioRefresh: suggestStudioRefresh || undefined,
     versionNote: versionNote?.trim() || null,
     previousFinalVideoUrl,
     previousCleanFinalVideoUrl,

@@ -91,6 +91,12 @@ model AnimationProject {
   studioImportedAt             DateTime?
   /** current | stale | missing — Studio QA freshness vs project images. */
   studioIntelligenceStatus     String?
+  /** Last successful Studio metadata refresh (re-sync from storyboard). */
+  studioRefreshedAt            DateTime?
+  /** Refresh audit events (JSON array). */
+  studioRefreshAuditJson       Json?
+  /** Short summary when storyboard drift detected (lightweight hint). */
+  studioLastStaleReason        String?
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
   images      AnimationImage[]

@@ -621,6 +621,25 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     videoRepairUpdatedAt,
     videoRepairUserMessageKey,
     repairAdminDetail,
-    studioQa: buildProjectStudioQaResponse(projectState),
+    studioQa: buildProjectStudioQaResponse({
+      ...projectState,
+      ...(projectState.studioLastStaleReason?.trim()
+        ? {
+            storyboardStale: {
+              isStale: true,
+              severity: "medium" as const,
+              reasons: [
+                {
+                  code: "cached_stale_hint",
+                  message: projectState.studioLastStaleReason,
+                  severity: "medium" as const,
+                },
+              ],
+              storedFingerprint: null,
+              latestFingerprint: null,
+            },
+          }
+        : {}),
+    }),
   };
 }

@@ -752,6 +752,16 @@ export const nl = {
     "Studio-metadata staat alleen in je browserdraft. Importeer opnieuw of rond checkout af om QA op dit project op te slaan.",
   "motion.qa.server.persistOnCheckout":
     "Studio QA wordt op het Motion-project opgeslagen zodra je checkout afrondt (beschikbaar op elk apparaat).",
+  "motion.qa.refresh.outdatedTitle": "Studio-metadata is verouderd",
+  "motion.qa.refresh.outdatedBody":
+    "Het Studio-storyboard is gewijzigd sinds dit Motion-project is aangemaakt of voor het laatst is ververst.",
+  "motion.qa.refresh.outdatedBadge": "Verouderd",
+  "motion.qa.refresh.refreshQa": "Studio QA verversen",
+  "motion.qa.refresh.refreshing": "Bezig met verversen…",
+  "motion.qa.refresh.checking": "Controleren…",
+  "motion.qa.refresh.recheck": "Opnieuw controleren",
+  "motion.qa.refresh.lastRefreshed": "Laatst ververst: {date}",
+  "motion.qa.refresh.errorGeneric": "Studio-metadata verversen mislukt. Probeer het opnieuw.",
 
   "videos.title": "Mijn video’s",
   "videos.emptyTitle": "Nog geen video’s",

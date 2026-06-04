@@ -168,7 +168,24 @@ function mapToDetailResponse(
       previousFinalVideoUrlRaw: project.instantPreviousFinalVideoUrl?.trim() ?? null,
       cacheBust: buildPlaybackCacheKey(picked.url),
     },
-    studioQa: buildProjectStudioQaResponse(project),
+    studioQa: buildProjectStudioQaResponse({
+      ...project,
+      storyboardStale: project.studioLastStaleReason
+        ? {
+            isStale: true,
+            severity: "medium",
+            reasons: [
+              {
+                code: "cached_stale_hint",
+                message: project.studioLastStaleReason,
+                severity: "medium",
+              },
+            ],
+            storedFingerprint: null,
+            latestFingerprint: null,
+          }
+        : null,
+    }),
     ...(() => {
       const exportMeta = buildProjectStudioExportMetadata(project);
       return {
