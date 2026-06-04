@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StudioSceneComposer } from "@/components/studio/studio-scene-composer";
 import { useActiveTranslator } from "@/i18n/client";
+import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -20,6 +21,7 @@ type StudioSortableSceneCardProps = {
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
+  styleProfile: StudioPromptStyleProfile;
   saving: boolean;
   busy: boolean;
   canModify: boolean;
@@ -36,6 +38,7 @@ export function StudioSortableSceneCard({
   locations,
   characters,
   props,
+  styleProfile,
   saving,
   busy,
   canModify,
@@ -119,6 +122,7 @@ export function StudioSortableSceneCard({
             locations={locations}
             characters={characters}
             props={props}
+            styleProfile={styleProfile}
             saving={saving}
             onSave={(patch) => onSave(scene.id, patch)}
           />

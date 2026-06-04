@@ -82,13 +82,25 @@ Characters · Locations · Props · Storyboards — ready for Motion handoff (V6
 - Vidu prompt wiring
 - Automatic image generation from Studio assets
 
-## Before Studio V7
+## V7 deliverables (Prompt Builder)
 
-- Motion Prompt Builder consuming `studioContext`
-- Optional reference images from character/location/prop URLs
-- Auth / ownership rules for Studio assets
-- Upload pipeline for reference images
-- API routes and list/detail UI per pillar
-- Design Scene Composer data model and its handoff to Motion scene slots
+- `buildScenePrompt()` and section builders (`src/lib/studio-prompt-builder.ts`)
+- Style profiles per storyboard (`promptStyleProfile`, default commercial)
+- Scene Composer **Prompt Preview** tab
+- `MotionHandoffPayload` v2 with `generatedPrompt` + lightweight `promptVersion` metadata
+- Future pipeline doc: `docs/studio-prompt-ai-future.md`
 
-See also: `src/lib/studio-integration-architecture.ts`.
+## Not in V7
+
+- Image generation from Studio assets
+- Vidu prompt injection from generated prompts
+- Prisma table for prompt version history
+
+## Before Studio V8
+
+- Image Generator step between Prompt Builder and Motion
+- Optional reference images from character/location/prop URLs in Vidu multi-image prompts
+- Per-scene prompt overrides in UI
+- Persist prompt versions on export / render-version snapshots
+
+See also: `src/lib/studio-integration-architecture.ts`, `docs/studio-prompt-ai-future.md`.

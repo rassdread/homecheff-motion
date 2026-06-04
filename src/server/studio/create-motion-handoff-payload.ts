@@ -3,6 +3,7 @@ import {
   getStoryboardSnapshotById,
   type ServiceError,
 } from "@/server/studio/studio-storyboard-service";
+import { buildScenePrompt } from "@/lib/studio-prompt-builder";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
@@ -14,7 +15,8 @@ function serviceError(code: string, message: string, httpStatus: number): Servic
 
 function buildStudioContext(
   storyboardId: string,
-  scene: SceneSnapshot
+  scene: SceneSnapshot,
+  prompt: ReturnType<typeof buildScenePrompt>
 ): StudioSceneContextMetadata {
   const noteParts = [scene.description.trim(), scene.action.trim()].filter(Boolean);
   return {
@@ -31,14 +33,27 @@ function buildStudioContext(
     notes: noteParts.join("\n"),
     voice: scene.voice,
     music: scene.music,
+    generatedPrompt: prompt.metadata.generatedPrompt,
+    stylePrompt: prompt.stylePrompt,
+    continuityPrompt: prompt.continuityPrompt,
+    promptVersion: prompt.metadata,
   };
 }
 
-function toHandoffScene(storyboardId: string, scene: SceneSnapshot): MotionHandoffScene {
+function toHandoffScene(
+  storyboardId: string,
+  scene: SceneSnapshot,
+  styleProfile: string
+): MotionHandoffScene {
+  const built = buildScenePrompt(scene, styleProfile);
   return {
     ...scene,
     notes: scene.notes ?? [scene.description.trim(), scene.action.trim()].filter(Boolean).join("\n"),
-    studioContext: buildStudioContext(storyboardId, scene),
+    studioContext: buildStudioContext(storyboardId, scene, built),
+    generatedPrompt: built.metadata.generatedPrompt,
+    stylePrompt: built.stylePrompt,
+    continuityPrompt: built.continuityPrompt,
+    promptVersion: built.metadata,
   };
 }
 
@@ -61,12 +76,15 @@ export async function createMotionHandoffPayload(
     };
   }
 
+  const styleProfile = snapshot.promptStyleProfile;
+
   const payload: MotionHandoffPayload = {
     version: MOTION_HANDOFF_PAYLOAD_VERSION,
     storyboardId: snapshot.id,
     title: snapshot.title,
     description: snapshot.description,
-    scenes: snapshot.scenes.map((scene) => toHandoffScene(snapshot.id, scene)),
+    promptStyleProfile: styleProfile,
+    scenes: snapshot.scenes.map((scene) => toHandoffScene(snapshot.id, scene, styleProfile)),
   };
 
   return { payload };

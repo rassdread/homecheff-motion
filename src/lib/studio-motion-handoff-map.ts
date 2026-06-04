@@ -92,6 +92,7 @@ export function mapHandoffToPersistedWizardState(
     studioHandoff: {
       storyboardId: payload.storyboardId,
       storyboardTitle: payload.title,
+      promptStyleProfile: payload.promptStyleProfile,
       importedAt: new Date().toISOString(),
     },
   };

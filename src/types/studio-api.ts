@@ -1,6 +1,7 @@
 import type { StudioCharacterRole } from "@/lib/studio-character-roles";
 import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 import type { StudioPropCategory } from "@/lib/studio-prop-categories";
+import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 
 export type StudioCharacterListItem = {
   id: string;
@@ -106,6 +107,7 @@ export type StudioStoryboardListItem = {
   ownerId: string;
   title: string;
   description: string;
+  promptStyleProfile: StudioPromptStyleProfile;
   sceneCount: number;
   createdAt: string;
   updatedAt: string;

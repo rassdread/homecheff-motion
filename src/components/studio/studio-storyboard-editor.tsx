@@ -27,12 +27,18 @@ import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import {
+  STUDIO_PROMPT_STYLE_PROFILES,
+  normalizeStudioPromptStyleProfile,
+  type StudioPromptStyleProfile,
+} from "@/lib/studio-prompt-style-profiles";
+import {
   createStudioSceneApi,
   deleteStudioSceneApi,
   duplicateStudioSceneApi,
   fetchStudioStoryboard,
   reorderStudioScenesApi,
   updateStudioSceneApi,
+  updateStudioStoryboardApi,
 } from "@/lib/studio-storyboards-client";
 import type {
   StudioCharacterListItem,
@@ -58,6 +64,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
   const [busySceneId, setBusySceneId] = useState<string | null>(null);
+  const [savingStyleProfile, setSavingStyleProfile] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -96,6 +103,29 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
       void load();
     });
   }, [session.resolved, session.user, load]);
+
+  const styleProfile = useMemo(
+    () =>
+      storyboard
+        ? normalizeStudioPromptStyleProfile(storyboard.promptStyleProfile)
+        : ("commercial" as StudioPromptStyleProfile),
+    [storyboard]
+  );
+
+  const handleStyleProfileChange = async (next: StudioPromptStyleProfile) => {
+    if (!storyboard || next === styleProfile) {
+      return;
+    }
+    setSavingStyleProfile(true);
+    setError("");
+    const res = await updateStudioStoryboardApi(storyboardId, { promptStyleProfile: next });
+    setSavingStyleProfile(false);
+    if (!res.ok) {
+      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed"));
+      return;
+    }
+    setStoryboard(res.data.storyboard);
+  };
 
   const scenes = useMemo(
     () => (storyboard ? [...storyboard.scenes].sort((a, b) => a.order - b.order) : []),
@@ -209,6 +239,30 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                     {storyboard.description ? (
                       <p className="mt-2 max-w-2xl text-sm text-zinc-600">{storyboard.description}</p>
                     ) : null}
+                    <div className="mt-4 max-w-md">
+                      <label className="text-sm font-medium text-zinc-700">
+                        {t("studio.prompt.styleProfileLabel")}
+                      </label>
+                      <select
+                        value={styleProfile}
+                        disabled={!canModify || savingStyleProfile}
+                        onChange={(e) =>
+                          void handleStyleProfileChange(
+                            normalizeStudioPromptStyleProfile(e.target.value)
+                          )
+                        }
+                        className="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm disabled:opacity-50"
+                      >
+                        {STUDIO_PROMPT_STYLE_PROFILES.map((profile) => (
+                          <option key={profile} value={profile}>
+                            {t(`studio.prompt.styleProfile.${profile}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {t("studio.prompt.styleProfileHint")}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {scenes.length > 0 ? (
@@ -279,6 +333,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             locations={locations}
                             characters={characters}
                             props={props}
+                            styleProfile={styleProfile}
                             saving={savingSceneId === scene.id}
                             busy={busySceneId === scene.id}
                             canModify={canModify}

@@ -1,14 +1,18 @@
+import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+
 export const STUDIO_STORYBOARD_TITLE_MAX = 160;
 export const STUDIO_STORYBOARD_TEXT_MAX = 4000;
 
 export type StudioStoryboardCreateInput = {
   title: string;
   description?: string;
+  promptStyleProfile?: string;
 };
 
 export type StudioStoryboardUpdateInput = {
   title?: string;
   description?: string;
+  promptStyleProfile?: string;
 };
 
 export type ValidationResult<T> =
@@ -21,7 +25,7 @@ function trimText(value: string | undefined, max: number): string {
 
 export function validateStudioStoryboardCreateInput(
   raw: StudioStoryboardCreateInput
-): ValidationResult<{ title: string; description: string }> {
+): ValidationResult<{ title: string; description: string; promptStyleProfile: string }> {
   const title = raw.title?.trim() ?? "";
   if (!title) {
     return { ok: false, code: "TITLE_REQUIRED", message: "Title is required." };
@@ -29,19 +33,24 @@ export function validateStudioStoryboardCreateInput(
   if (title.length > STUDIO_STORYBOARD_TITLE_MAX) {
     return { ok: false, code: "TITLE_TOO_LONG", message: "Title is too long." };
   }
+  const profile = raw.promptStyleProfile?.trim() ?? "commercial";
+  if (!isStudioPromptStyleProfile(profile)) {
+    return { ok: false, code: "INVALID_STYLE_PROFILE", message: "Invalid prompt style profile." };
+  }
   return {
     ok: true,
     value: {
       title,
       description: trimText(raw.description, STUDIO_STORYBOARD_TEXT_MAX),
+      promptStyleProfile: profile,
     },
   };
 }
 
 export function validateStudioStoryboardUpdateInput(
   raw: StudioStoryboardUpdateInput
-): ValidationResult<{ title?: string; description?: string }> {
-  const patch: { title?: string; description?: string } = {};
+): ValidationResult<{ title?: string; description?: string; promptStyleProfile?: string }> {
+  const patch: { title?: string; description?: string; promptStyleProfile?: string } = {};
 
   if (raw.title !== undefined) {
     const title = raw.title.trim();
@@ -56,6 +65,14 @@ export function validateStudioStoryboardUpdateInput(
 
   if (raw.description !== undefined) {
     patch.description = trimText(raw.description, STUDIO_STORYBOARD_TEXT_MAX);
+  }
+
+  if (raw.promptStyleProfile !== undefined) {
+    const profile = raw.promptStyleProfile.trim();
+    if (!isStudioPromptStyleProfile(profile)) {
+      return { ok: false, code: "INVALID_STYLE_PROFILE", message: "Invalid prompt style profile." };
+    }
+    patch.promptStyleProfile = profile;
   }
 
   if (Object.keys(patch).length === 0) {

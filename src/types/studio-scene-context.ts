@@ -22,4 +22,9 @@ export type StudioSceneContextMetadata = {
   voice?: string;
   /** Reserved — music assignment per scene. */
   music?: string;
+  /** V7 — Motion-ready prompt (not sent to Vidu yet). */
+  generatedPrompt?: string;
+  stylePrompt?: string;
+  continuityPrompt?: string;
+  promptVersion?: import("@/types/studio-prompt-builder").PromptVersionMetadata;
 };

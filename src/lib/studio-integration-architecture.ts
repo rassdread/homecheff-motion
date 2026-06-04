@@ -75,11 +75,19 @@
  * - `createMotionHandoffPayload()` — Studio → import route → wizard localStorage
  * - Per-slot `studioContext` on `PersistedWizardSceneSlot` (not sent to Vidu yet)
  *
- * ## V7+ considerations
+ * ## V7 (Prompt Builder)
  *
- * - Prompt Builder reads `studioContext` per scene
+ * - `buildScenePrompt()` from `SceneSnapshot` + style profile (`@/lib/studio-prompt-builder`)
+ * - Storyboard `promptStyleProfile` (commercial default)
+ * - `MotionHandoffPayload` v2 stores `generatedPrompt` / continuity (not sent to Vidu yet)
+ * - Scene Composer Prompt Preview tab
+ * - Future flow: `docs/studio-prompt-ai-future.md`
+ *
+ * ## V8+ considerations
+ *
+ * - Image Generator between Prompt Builder and Motion
  * - Pass character reference images into Vidu multi-image prompts
- * - Render-version snapshots may store Studio asset IDs used per export
+ * - Render-version snapshots may store Studio asset IDs and prompt versions per export
  * - System character seeds (`isSystemCharacter`) — see `docs/studio-characters-future.md`
  */
 

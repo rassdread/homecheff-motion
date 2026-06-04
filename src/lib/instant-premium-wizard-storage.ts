@@ -140,6 +140,7 @@ export type PersistedWizardState = {
   studioHandoff?: {
     storyboardId: string;
     storyboardTitle: string;
+    promptStyleProfile?: string;
     importedAt: string;
   };
 };

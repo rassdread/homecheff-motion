@@ -327,6 +327,8 @@ model StudioStoryboard {
   owner       User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   title       String
   description String        @default("")
+  /** commercial | cinematic | children_story | documentary | social_media | corporate */
+  promptStyleProfile String @default("commercial")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   scenes      StudioScene[]

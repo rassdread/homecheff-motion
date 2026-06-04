@@ -16,6 +16,7 @@ import { mapStudioCharacterToListItem, toCharacterSnapshot } from "@/server/stud
 import { mapStudioLocationToListItem, toLocationSnapshot } from "@/server/studio/studio-location-service";
 import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-prop-service";
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
+import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type {
   StudioSceneDetail,
@@ -90,13 +91,14 @@ export function toSceneSnapshot(row: SceneRow): SceneSnapshot {
 }
 
 export function toStoryboardSnapshot(
-  storyboard: Pick<StudioStoryboard, "id" | "title" | "description">,
+  storyboard: Pick<StudioStoryboard, "id" | "title" | "description" | "promptStyleProfile">,
   scenes: SceneRow[]
 ): StoryboardSnapshot {
   return {
     id: storyboard.id,
     title: storyboard.title,
     description: storyboard.description,
+    promptStyleProfile: normalizeStudioPromptStyleProfile(storyboard.promptStyleProfile),
     scenes: scenes.map(toSceneSnapshot),
   };
 }
@@ -110,6 +112,7 @@ export function mapStudioStoryboardToListItem(
     ownerId: row.ownerId,
     title: row.title,
     description: row.description,
+    promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
     sceneCount: row._count.scenes,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -127,6 +130,7 @@ export function mapStudioStoryboardToDetail(
     ownerId: row.ownerId,
     title: row.title,
     description: row.description,
+    promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
     sceneCount: scenes.length,
     scenes: scenes.map(mapStudioSceneToDetail),
     createdAt: row.createdAt.toISOString(),
@@ -309,6 +313,7 @@ export async function createStudioStoryboard(
       ownerId,
       title: validated.value.title,
       description: validated.value.description,
+      promptStyleProfile: validated.value.promptStyleProfile,
     },
   });
 
@@ -318,6 +323,7 @@ export async function createStudioStoryboard(
       ownerId: row.ownerId,
       title: row.title,
       description: row.description,
+      promptStyleProfile: normalizeStudioPromptStyleProfile(row.promptStyleProfile),
       sceneCount: 0,
       scenes: [],
       createdAt: row.createdAt.toISOString(),
