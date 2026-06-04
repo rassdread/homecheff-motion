@@ -8,12 +8,22 @@ export function logFullRerenderDraftError(params: {
   userId: string;
   error: unknown;
 }) {
-  const message = params.error instanceof Error ? params.error.message : String(params.error);
+  const err = params.error;
+  const message = err instanceof Error ? err.message : String(err);
+  const stack =
+    err instanceof Error && err.stack ? err.stack.slice(0, 4000) : undefined;
+  const prismaCode =
+    err && typeof err === "object" && "code" in err && typeof (err as { code: unknown }).code === "string"
+      ? (err as { code: string }).code
+      : undefined;
   console.error("[full-rerender-draft]", {
     method: params.method,
     projectId: params.projectId,
     userId: params.userId,
+    errorName: err instanceof Error ? err.name : typeof err,
+    prismaCode,
     message: message.slice(0, 500),
+    stack,
   });
 }
 

@@ -16,6 +16,7 @@ import {
 } from "@/lib/full-rerender-draft";
 import { buildStoryboardOverlayPreviewLines } from "@/lib/storyboard-overlay-preview";
 import { createWizardSceneId } from "@/lib/instant-wizard-scene-slots";
+import { isPrismaDraftStorageError } from "@/server/animation-projects/prisma-schema-compat";
 
 describe("full-rerender-draft", () => {
   it("persists multiple subtitle beats through serialize and parse", () => {
@@ -138,6 +139,11 @@ describe("full-rerender-draft", () => {
     assert.match(route, /deleteFullRerenderDraft/);
     assert.match(route, /fullRerenderDraftErrorResponse/);
     assert.match(route, /logFullRerenderDraftError/);
+    const utils = readFileSync(
+      join(process.cwd(), "src/server/instant-premium/full-rerender-draft-route-utils.ts"),
+      "utf8"
+    );
+    assert.match(utils, /stack/);
   });
 
   it("planFullRerenderDraftBootstrap uses GET draft without POST when present", () => {
@@ -216,6 +222,16 @@ describe("full-rerender-draft", () => {
       assert.equal(ready.source, "post");
       assert.equal(ready.draft.versionNote, "new");
     }
+  });
+
+  it("isPrismaDraftStorageError detects stale Prisma client delegate", () => {
+    assert.ok(
+      isPrismaDraftStorageError(
+        new Error(
+          "Invalid `prisma.projectFullRerenderDraft.findUnique()` invocation: undefined"
+        )
+      )
+    );
   });
 
   it("live preview shows all subtitle beats", () => {

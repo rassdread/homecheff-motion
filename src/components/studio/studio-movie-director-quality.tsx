@@ -33,6 +33,8 @@ export function StudioMovieDirectorQuality({ storyboard }: Props) {
           <> · {t("studio.voice.score", { score: production.voiceScore })}</>
         : null}
         {" "}
+        · {t("studio.production.readinessScore", { score: production.readinessScore })}
+        {" "}
         · {t("studio.production.overallScore", { score: production.overallProductionScore })}
       </p>
       {report.recommendationKeys.length > 0 ?

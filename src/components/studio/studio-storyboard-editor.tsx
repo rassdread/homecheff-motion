@@ -30,6 +30,7 @@ import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-pa
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import { StudioSceneImagePlannerPanel } from "@/components/studio/studio-scene-image-planner-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
+import { StudioProductionCenter } from "@/components/studio/studio-production-center";
 import {
   STUDIO_DIRECTOR_PROFILES,
   normalizeStudioDirectorProfile,
@@ -543,6 +544,14 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {scenes.length > 0 ?
+                      <Link
+                        href={`/studio/storyboards/${storyboardId}/production`}
+                        className="rounded-full border border-[#0067B1]/40 bg-[#0067B1]/10 px-4 py-2 text-sm font-semibold text-[#0067B1] hover:opacity-90"
+                      >
+                        {t("studio.production.entryButton")}
+                      </Link>
+                    : null}
                     {scenes.length > 0 ? (
                       <Link
                         href={`/studio/storyboards/${storyboardId}/movie-builder`}
@@ -691,6 +700,11 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                       storyboard={storyboard}
                       canModify={canModify}
                       onStoryboardUpdated={(sb) => setStoryboard(sb)}
+                    />
+                    <StudioProductionCenter
+                      storyboard={storyboard}
+                      storyboardId={storyboardId}
+                      layout="embedded"
                     />
                   </div>
                 : null}

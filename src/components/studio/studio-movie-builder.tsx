@@ -7,6 +7,7 @@ import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioJobCostConfirmModal } from "@/components/studio/studio-job-cost-confirm-modal";
 import { StudioSceneImageHistoryPanel } from "@/components/studio/studio-scene-image-history-panel";
 import { StudioMovieDirectorQuality } from "@/components/studio/studio-movie-director-quality";
+import { StudioProductionCenter } from "@/components/studio/studio-production-center";
 import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-job-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -309,6 +310,14 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
 
           {storyboard && dashboard ?
             <StudioMovieDirectorQuality storyboard={storyboard} />
+          : null}
+
+          {storyboard ?
+            <StudioProductionCenter
+              storyboard={storyboard}
+              storyboardId={storyboardId}
+              layout="embedded"
+            />
           : null}
 
           {dashboard ? (

@@ -33,6 +33,23 @@ export function isPrismaMissingTableError(error: unknown): boolean {
   );
 }
 
+function isPrismaStaleClientDraftDelegateError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("projectfullrerenderdraft") &&
+    (lower.includes("undefined") ||
+      lower.includes("is not a function") ||
+      lower.includes("unknown arg") ||
+      lower.includes("invalid") ||
+      lower.includes("invocation"))
+  );
+}
+
 export function isPrismaDraftStorageError(error: unknown): boolean {
-  return isPrismaMissingTableError(error) || isPrismaMissingColumnError(error);
+  return (
+    isPrismaMissingTableError(error) ||
+    isPrismaMissingColumnError(error) ||
+    isPrismaStaleClientDraftDelegateError(error)
+  );
 }

@@ -5,7 +5,6 @@ import { isInstantLikeProject } from "@/server/instant-premium/instant-project-u
 import {
   deleteFullRerenderDraft,
   ensureFullRerenderDraftForProject,
-  getFullRerenderDraftForProject,
   getFullRerenderDraftMeta,
   upsertFullRerenderDraft,
 } from "@/server/instant-premium/full-rerender-draft-service";
@@ -39,13 +38,17 @@ async function loadOwnedInstantProject(
 }
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { id } = await context.params;
-  const user = await requireActiveUser();
-  if (user instanceof NextResponse) {
-    return user;
-  }
-
+  let projectId = "";
+  let userId = "anonymous";
   try {
+    const { id } = await context.params;
+    projectId = id;
+    const user = await requireActiveUser();
+    if (user instanceof NextResponse) {
+      return user;
+    }
+    userId = user.id;
+
     const loaded = await loadOwnedInstantProject(id, user);
     if ("error" in loaded) {
       return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
@@ -58,19 +61,23 @@ export async function GET(_request: Request, context: RouteContext) {
       updatedAt: meta?.updatedAt ?? null,
     });
   } catch (error) {
-    logFullRerenderDraftError({ method: "GET", projectId: id, userId: user.id, error });
+    logFullRerenderDraftError({ method: "GET", projectId, userId, error });
     return fullRerenderDraftErrorResponse(error, "Could not load concept.");
   }
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const { id } = await context.params;
-  const user = await requireActiveUser();
-  if (user instanceof NextResponse) {
-    return user;
-  }
-
+  let projectId = "";
+  let userId = "anonymous";
   try {
+    const { id } = await context.params;
+    projectId = id;
+    const user = await requireActiveUser();
+    if (user instanceof NextResponse) {
+      return user;
+    }
+    userId = user.id;
+
     const loaded = await loadOwnedInstantProject(id, user);
     if ("error" in loaded) {
       return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
@@ -95,19 +102,23 @@ export async function PUT(request: Request, context: RouteContext) {
     const result = await upsertFullRerenderDraft(id, payload);
     return NextResponse.json({ ok: true, updatedAt: result.updatedAt });
   } catch (error) {
-    logFullRerenderDraftError({ method: "PUT", projectId: id, userId: user.id, error });
+    logFullRerenderDraftError({ method: "PUT", projectId, userId, error });
     return fullRerenderDraftErrorResponse(error, "Could not save concept.");
   }
 }
 
 export async function POST(_request: Request, context: RouteContext) {
-  const { id } = await context.params;
-  const user = await requireActiveUser();
-  if (user instanceof NextResponse) {
-    return user;
-  }
-
+  let projectId = "";
+  let userId = "anonymous";
   try {
+    const { id } = await context.params;
+    projectId = id;
+    const user = await requireActiveUser();
+    if (user instanceof NextResponse) {
+      return user;
+    }
+    userId = user.id;
+
     const loaded = await loadOwnedInstantProject(id, user);
     if ("error" in loaded) {
       return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
@@ -122,19 +133,23 @@ export async function POST(_request: Request, context: RouteContext) {
       updatedAt: meta?.updatedAt ?? null,
     });
   } catch (error) {
-    logFullRerenderDraftError({ method: "POST", projectId: id, userId: user.id, error });
+    logFullRerenderDraftError({ method: "POST", projectId, userId, error });
     return fullRerenderDraftErrorResponse(error, "Could not create concept.");
   }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { id } = await context.params;
-  const user = await requireActiveUser();
-  if (user instanceof NextResponse) {
-    return user;
-  }
-
+  let projectId = "";
+  let userId = "anonymous";
   try {
+    const { id } = await context.params;
+    projectId = id;
+    const user = await requireActiveUser();
+    if (user instanceof NextResponse) {
+      return user;
+    }
+    userId = user.id;
+
     const loaded = await loadOwnedInstantProject(id, user);
     if ("error" in loaded) {
       return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
@@ -143,7 +158,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     await deleteFullRerenderDraft(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    logFullRerenderDraftError({ method: "DELETE", projectId: id, userId: user.id, error });
+    logFullRerenderDraftError({ method: "DELETE", projectId, userId, error });
     return fullRerenderDraftErrorResponse(error, "Could not delete concept.");
   }
 }
