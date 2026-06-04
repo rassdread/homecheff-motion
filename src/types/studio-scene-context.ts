@@ -3,6 +3,7 @@ import type { LocationSnapshot } from "@/types/studio-location-snapshot";
 import type { PropSnapshot } from "@/types/studio-prop-snapshot";
 import type { StudioSceneImageReference } from "@/types/studio-scene-image-reference";
 import type { WizardImageSource } from "@/types/studio-scene-image-reference";
+import type { MotionSceneStudioQa } from "@/types/motion-studio-intelligence";
 
 /**
  * Studio metadata preserved on a Motion wizard scene (not used by Vidu yet).
@@ -36,4 +37,6 @@ export type StudioSceneContextMetadata = {
   imageSource?: WizardImageSource;
   selectedSceneImagePromptVersion?: number | null;
   selectedSceneImageGenerationVersion?: number | null;
+  /** V18: Studio QA scores for Motion pre-render review (read-only). */
+  studioQa?: MotionSceneStudioQa;
 };

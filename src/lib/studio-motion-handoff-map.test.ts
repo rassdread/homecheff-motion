@@ -27,6 +27,10 @@ const samplePayload: MotionHandoffPayload = {
   visionReport: null,
   overallVisionScore: 0,
   visionWarnings: [],
+  characterConsistencyReport: null,
+  overallCharacterConsistencyScore: 0,
+  characterDriftWarnings: [],
+  perSceneCharacterIdentityScores: [],
   scenes: [
     {
       sceneId: "scene-1",
@@ -63,6 +67,11 @@ const samplePayload: MotionHandoffPayload = {
       sceneCorrectionRecommendations: [],
       sceneVisionScore: null,
       sceneVisionReport: null,
+      selectedImageScore: null,
+      selectedImageVisionScore: null,
+      selectedImageConsistencyScore: null,
+      selectedImageImprovementScore: null,
+      selectedImageRecommended: false,
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-06-08T12:00:00.000Z",

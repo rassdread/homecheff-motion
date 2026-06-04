@@ -147,6 +147,8 @@ export type PersistedWizardState = {
     promptStyleProfile?: string;
     handoffVersion?: number;
     importedAt: string;
+    /** V18: Studio continuity / character QA snapshot (read-only). */
+    intelligence?: import("@/types/motion-studio-intelligence").MotionStudioIntelligenceSnapshot;
   };
 };
 

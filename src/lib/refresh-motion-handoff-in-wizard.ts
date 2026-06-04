@@ -11,6 +11,10 @@ import {
   restoreSceneTextDraft,
   type WizardSceneSlot,
 } from "@/lib/instant-wizard-scene-slots";
+import {
+  buildMotionSceneStudioQa,
+  buildMotionStudioIntelligenceSnapshot,
+} from "@/lib/build-motion-studio-intelligence";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 /**
@@ -48,6 +52,7 @@ export function mergeHandoffIntoWizardSlots(
         imageSource: scene.sceneImageReference ? ("studio" as const) : undefined,
         selectedSceneImagePromptVersion: scene.selectedSceneImagePromptVersion,
         selectedSceneImageGenerationVersion: scene.selectedSceneImageGenerationVersion,
+        studioQa: buildMotionSceneStudioQa(scene, payload),
       },
     };
   });
@@ -84,6 +89,7 @@ export function mergeMotionHandoffRefresh(
         imageSource: scene.sceneImageReference ? ("studio" as const) : undefined,
         selectedSceneImagePromptVersion: scene.selectedSceneImagePromptVersion,
         selectedSceneImageGenerationVersion: scene.selectedSceneImageGenerationVersion,
+        studioQa: buildMotionSceneStudioQa(scene, payload),
       },
     };
   });
@@ -105,6 +111,7 @@ export function mergeMotionHandoffRefresh(
       promptStyleProfile: payload.promptStyleProfile,
       handoffVersion: payload.version,
       importedAt: new Date().toISOString(),
+      intelligence: buildMotionStudioIntelligenceSnapshot(payload),
     },
   };
 }

@@ -16,6 +16,10 @@ import { INSTANT_WIZARD_DEFAULT_BAKED_TEXT } from "@/lib/reset-instant-premium-w
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 import { normalizeStorySceneDurationSeconds } from "@/lib/story-overlay-templates";
+import {
+  buildMotionSceneStudioQa,
+  buildMotionStudioIntelligenceSnapshot,
+} from "@/lib/build-motion-studio-intelligence";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
@@ -136,11 +140,12 @@ export function mapHandoffToPersistedWizardState(
   options?: { transitionSeconds?: InstantTransitionSeconds }
 ): PersistedWizardState {
   const transitionSeconds = options?.transitionSeconds ?? 5;
+  const intelligence = buildMotionStudioIntelligenceSnapshot(payload);
   const sceneSlots: PersistedWizardSceneSlot[] = payload.scenes.map((scene) => ({
     sceneId: scene.sceneId,
     text: mapHandoffSceneToPersistedText(scene, transitionSeconds),
     image: mapHandoffSceneToPersistedImage(scene),
-    studioContext: enrichStudioContextForMotion(scene),
+    studioContext: enrichStudioContextForMotion(scene, payload),
   }));
 
   const images = sceneSlots
@@ -173,12 +178,14 @@ export function mapHandoffToPersistedWizardState(
       promptStyleProfile: payload.promptStyleProfile,
       handoffVersion: payload.version,
       importedAt: new Date().toISOString(),
+      intelligence,
     },
   };
 }
 
-function enrichStudioContextForMotion(
-  scene: MotionHandoffPayload["scenes"][number]
+export function enrichStudioContextForMotion(
+  scene: MotionHandoffPayload["scenes"][number],
+  payload?: MotionHandoffPayload
 ): StudioSceneContextMetadata {
   const ref = scene.sceneImageReference;
   return {
@@ -189,6 +196,7 @@ function enrichStudioContextForMotion(
     imageSource: ref ? ("studio" as WizardImageSource) : undefined,
     selectedSceneImagePromptVersion: scene.selectedSceneImagePromptVersion,
     selectedSceneImageGenerationVersion: scene.selectedSceneImageGenerationVersion,
+    studioQa: payload ? buildMotionSceneStudioQa(scene, payload) : undefined,
   };
 }
 

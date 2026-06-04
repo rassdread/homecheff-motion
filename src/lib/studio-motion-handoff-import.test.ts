@@ -32,6 +32,10 @@ const payload: MotionHandoffPayload = {
   visionReport: null,
   overallVisionScore: 0,
   visionWarnings: [],
+  characterConsistencyReport: null,
+  overallCharacterConsistencyScore: 0,
+  characterDriftWarnings: [],
+  perSceneCharacterIdentityScores: [],
   scenes: [
     {
       sceneId: "scene-1",
@@ -81,6 +85,11 @@ const payload: MotionHandoffPayload = {
       sceneCorrectionRecommendations: [],
       sceneVisionScore: null,
       sceneVisionReport: null,
+      selectedImageScore: null,
+      selectedImageVisionScore: null,
+      selectedImageConsistencyScore: null,
+      selectedImageImprovementScore: null,
+      selectedImageRecommended: false,
       promptVersion: {
         promptVersion: 1,
         generatedAt: "2026-01-01T00:00:00.000Z",
@@ -109,6 +118,8 @@ describe("studio motion handoff import", () => {
     assert.equal(state.studioHandoff?.handoffVersion, MOTION_HANDOFF_PAYLOAD_VERSION);
     assert.equal(state.sceneSlots?.[0]?.image?.imageSource, "studio");
     assert.equal(state.images.length, 1);
+    assert.ok(state.studioHandoff?.intelligence);
+    assert.equal(state.sceneSlots?.[0]?.studioContext?.studioQa?.consistencyScore, 88);
   });
 
   it("mergeHandoffIntoWizardSlots preserves manual replacements", () => {

@@ -123,13 +123,21 @@ import {
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
-import { StudioMotionContextPanel } from "@/components/instant/studio-motion-context-panel";
+import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
+import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
+import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
+import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
 import { fetchMotionHandoffPayload } from "@/lib/studio-motion-handoff-client";
 import {
   mergeHandoffIntoWizardSlots,
   refreshPersistedWizardFromHandoff,
 } from "@/lib/refresh-motion-handoff-in-wizard";
 import { readPersistedWizardState } from "@/lib/instant-premium-wizard-storage";
+import {
+  computeMotionRenderReadiness,
+  motionReadinessShouldWarn,
+} from "@/lib/compute-motion-render-readiness";
+import { resolveMotionStudioIntelligence } from "@/lib/resolve-motion-studio-intelligence";
 import { instantSceneTextsFromDrafts } from "@/lib/instant-scene-text-draft";
 import {
   assignImagesToSceneSlots,
@@ -320,6 +328,8 @@ export default function InstantPremiumPage() {
     null
   );
   const [refreshingStudioHandoff, setRefreshingStudioHandoff] = useState(false);
+  const [preRenderQaOpen, setPreRenderQaOpen] = useState(false);
+  const [studioIntelligenceRevision, setStudioIntelligenceRevision] = useState(0);
   const imagesRef = useRef<LocalImage[]>([]);
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const images = useMemo(() => listAttachedImages(sceneSlots), [sceneSlots]);
@@ -364,6 +374,20 @@ export default function InstantPremiumPage() {
     const slot = sceneSlots.find((s) => s.sceneId === expandedSceneId);
     return Boolean(slot?.studioContext && !slot.image);
   }, [sceneSlots, expandedSceneId]);
+
+  const studioIntelligence = useMemo(() => {
+    void studioIntelligenceRevision;
+    return resolveMotionStudioIntelligence(readPersistedWizardState(), sceneSlots);
+  }, [sceneSlots, studioIntelligenceRevision]);
+
+  const motionRenderReadiness = useMemo(
+    () =>
+      computeMotionRenderReadiness({
+        intelligence: studioIntelligence,
+        sceneSlots,
+      }),
+    [studioIntelligence, sceneSlots]
+  );
   const showStoryboardComposer =
     instantMode === "story" &&
     (attachedImageCount >= MIN_IMAGES || hasStudioImportedScenes);
@@ -557,6 +581,7 @@ export default function InstantPremiumPage() {
       setMotionText(res.data.payload.description.trim() || res.data.payload.title.trim());
       setStudioHandoffTitle(res.data.payload.title);
       setToastMessage(t("motion.handoff.refreshDone"));
+      setStudioIntelligenceRevision((n) => n + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("motion.handoff.error.importFailed"));
     } finally {
@@ -1029,6 +1054,7 @@ export default function InstantPremiumPage() {
 
   const runCheckout = useCallback(
     async (skipPendingScans: boolean) => {
+    setPreRenderQaOpen(false);
     if (images.length < MIN_IMAGES) {
       setError(t("instant.errors.minImages", { min: MIN_IMAGES }));
       return;
@@ -1285,9 +1311,17 @@ export default function InstantPremiumPage() {
     ]
   );
 
-  const startCheckout = useCallback(() => {
+  const startCheckoutFlow = useCallback(() => {
     void runCheckout(false);
   }, [runCheckout]);
+
+  const startCheckoutWithQa = useCallback(() => {
+    if (hasStudioImportedScenes && motionReadinessShouldWarn(motionRenderReadiness)) {
+      setPreRenderQaOpen(true);
+      return;
+    }
+    startCheckoutFlow();
+  }, [hasStudioImportedScenes, motionRenderReadiness, startCheckoutFlow]);
 
   const handleCheckoutProceedWithoutScans = useCallback(() => {
     setCheckoutGateOpen(false);
@@ -1361,7 +1395,7 @@ export default function InstantPremiumPage() {
         return {
           showBack: true,
           onBack: () => setStep(4),
-          onPrimary: () => void startCheckout(),
+          onPrimary: () => startCheckoutWithQa(),
           primaryLabel: generateLabel,
           primaryDisabled: checkoutBusy || !imagesHaveValidSources,
           stackButtons: true,
@@ -1376,7 +1410,17 @@ export default function InstantPremiumPage() {
           stackButtons: false,
         };
     }
-  }, [checkoutBusy, estimatedPriceLabel, sceneCount, imagesHaveValidSources, isAdmin, startCheckout, step, t, usesFreeGeneration]);
+  }, [
+    checkoutBusy,
+    estimatedPriceLabel,
+    sceneCount,
+    imagesHaveValidSources,
+    isAdmin,
+    startCheckoutWithQa,
+    step,
+    t,
+    usesFreeGeneration,
+  ]);
 
   if (!session.resolved) {
     return (
@@ -1618,25 +1662,30 @@ export default function InstantPremiumPage() {
                 ) : null}
                 {showStoryboardComposer ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
-                    {hasStudioImportedScenes && studioHandoffTitle ? (
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">
+                    {hasStudioImportedScenes && studioIntelligence ?
+                      <div className="mb-4 space-y-3">
+                        <MotionImportSummaryBanner
+                          intelligence={studioIntelligence}
+                          storyboardId={studioHandoffStoryboardId}
+                          onRefresh={
+                            studioHandoffStoryboardId
+                              ? () => void handleRefreshFromStudio()
+                              : undefined
+                          }
+                          refreshing={refreshingStudioHandoff}
+                        />
+                        <MotionStudioIntelligencePanel
+                          intelligence={studioIntelligence}
+                          readiness={motionRenderReadiness}
+                        />
+                      </div>
+                    : hasStudioImportedScenes && studioHandoffTitle ?
+                      <div className="mb-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">
                         <p className="text-xs text-[#0067B1]">
                           {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
                         </p>
-                        {studioHandoffStoryboardId ? (
-                          <button
-                            type="button"
-                            disabled={refreshingStudioHandoff}
-                            onClick={() => void handleRefreshFromStudio()}
-                            className="rounded-full border border-[#0067B1]/40 px-3 py-1 text-xs font-semibold text-[#0067B1] disabled:opacity-50"
-                          >
-                            {refreshingStudioHandoff
-                              ? t("motion.handoff.refreshing")
-                              : t("motion.handoff.refreshFromStudio")}
-                          </button>
-                        ) : null}
                       </div>
-                    ) : null}
+                    : null}
                     <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
                     <p className="mt-1 text-xs text-zinc-500">{t("instant.step2.description")}</p>
                     {attachedImageCount >= MIN_IMAGES ? (
@@ -1688,7 +1737,7 @@ export default function InstantPremiumPage() {
                           </p>
                         ) : null}
                         {activeStudioContext ? (
-                          <StudioMotionContextPanel
+                          <MotionSceneStudioInspector
                             context={activeStudioContext}
                             storyboardTitle={studioHandoffTitle}
                           />
@@ -1864,6 +1913,18 @@ export default function InstantPremiumPage() {
         busy={resetBusy}
         onCancel={() => setResetDialogOpen(false)}
         onConfirm={() => void performWizardReset()}
+      />
+
+      <MotionPreRenderQaModal
+        open={preRenderQaOpen}
+        readiness={motionRenderReadiness}
+        onClose={() => setPreRenderQaOpen(false)}
+        onReviewScenes={() => {
+          setPreRenderQaOpen(false);
+          setStep(1);
+          setExpandedSceneSelection("auto");
+        }}
+        onRenderAnyway={() => startCheckoutFlow()}
       />
 
       <InstantWizardToast message={toastMessage} />
