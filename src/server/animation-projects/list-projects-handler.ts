@@ -94,15 +94,35 @@ export async function listAnimationProjectsForUser(params: {
       }
 
       const projectIds = draftRows.map((row) => row.projectId);
-      const galleryRows =
-        projectIds.length > 0
-          ? await fetchGalleryProjectRows({
-              where: { id: { in: projectIds } },
-              take: projectIds.length,
-              skip: 0,
-              listAll: params.listAll,
-            })
-          : [];
+      let galleryRows: Awaited<ReturnType<typeof fetchGalleryProjectRows>> = [];
+      if (projectIds.length > 0) {
+        try {
+          galleryRows = await fetchGalleryProjectRows({
+            where: { id: { in: projectIds } },
+            take: projectIds.length,
+            skip: 0,
+            listAll: params.listAll,
+          });
+        } catch (galleryError) {
+          console.error("[gallery-list]", {
+            phase: "conceptsGalleryFetchFailed",
+            requestId,
+            message:
+              galleryError instanceof Error ? galleryError.message.slice(0, 500) : String(galleryError),
+          });
+          return {
+            ok: true,
+            body: {
+              projects: [],
+              page,
+              limit,
+              total: 0,
+              hasMore: false,
+              gallerySection: section,
+            },
+          };
+        }
+      }
       const galleryById = new Map(galleryRows.map((row) => [row.id, row]));
 
       const projects = draftRows

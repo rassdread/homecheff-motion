@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
-import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import {
+  getInstantProjectForDraftEnsure,
+  verifyInstantProjectDraftAccess,
+} from "@/server/instant-premium/full-rerender-draft-access";
 import {
   deleteFullRerenderDraft,
   ensureFullRerenderDraftForProject,
@@ -20,23 +22,6 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-async function loadOwnedInstantProject(
-  projectId: string,
-  viewer: { id: string; role: string }
-) {
-  const project = await getAnimationProjectByIdForViewer(projectId, viewer);
-  if (!project) {
-    return { error: "Project not found.", status: 404 as const };
-  }
-  if (!isInstantLikeProject(project)) {
-    return {
-      error: "Full rerender is only available for instant premium projects.",
-      status: 409 as const,
-    };
-  }
-  return { project };
-}
-
 export async function GET(_request: Request, context: RouteContext) {
   let projectId = "";
   let userId = "anonymous";
@@ -49,9 +34,9 @@ export async function GET(_request: Request, context: RouteContext) {
     }
     userId = user.id;
 
-    const loaded = await loadOwnedInstantProject(id, user);
-    if ("error" in loaded) {
-      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    const access = await verifyInstantProjectDraftAccess(id, user);
+    if (!("ok" in access)) {
+      return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
     }
 
     const meta = await getFullRerenderDraftMeta(id);
@@ -78,9 +63,9 @@ export async function PUT(request: Request, context: RouteContext) {
     }
     userId = user.id;
 
-    const loaded = await loadOwnedInstantProject(id, user);
-    if ("error" in loaded) {
-      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    const access = await verifyInstantProjectDraftAccess(id, user);
+    if (!("ok" in access)) {
+      return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
     }
 
     let body: unknown = null;
@@ -119,12 +104,12 @@ export async function POST(_request: Request, context: RouteContext) {
     }
     userId = user.id;
 
-    const loaded = await loadOwnedInstantProject(id, user);
-    if ("error" in loaded) {
-      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    const project = await getInstantProjectForDraftEnsure(id, user);
+    if (!project) {
+      return NextResponse.json({ ok: false, error: "Project not found." }, { status: 404 });
     }
 
-    const draft = await ensureFullRerenderDraftForProject(loaded.project);
+    const draft = await ensureFullRerenderDraftForProject(project);
     const meta = await getFullRerenderDraftMeta(id);
 
     return NextResponse.json({
@@ -150,9 +135,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
     userId = user.id;
 
-    const loaded = await loadOwnedInstantProject(id, user);
-    if ("error" in loaded) {
-      return NextResponse.json({ ok: false, error: loaded.error }, { status: loaded.status });
+    const access = await verifyInstantProjectDraftAccess(id, user);
+    if (!("ok" in access)) {
+      return NextResponse.json({ ok: false, error: access.error }, { status: access.status });
     }
 
     await deleteFullRerenderDraft(id);

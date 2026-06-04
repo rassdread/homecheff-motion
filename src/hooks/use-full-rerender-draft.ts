@@ -15,6 +15,7 @@ import {
   saveFullRerenderDraft,
 } from "@/lib/full-rerender-draft-client";
 import type { FullRerenderEditorSlot } from "@/lib/full-rerender-editor-types";
+import type { FullRerenderDraftBootstrapDiagnostics } from "@/lib/full-rerender-draft-diagnostics";
 
 export type FullRerenderDraftSaveStatus = "idle" | "saving" | "saved" | "dirty" | "error";
 
@@ -45,6 +46,8 @@ export function useFullRerenderDraft(params: {
   const [loadState, setLoadState] = useState<FullRerenderDraftLoadState>("idle");
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [serverUpdatedAt, setServerUpdatedAt] = useState<string | null>(null);
+  const [bootstrapDiagnostics, setBootstrapDiagnostics] =
+    useState<FullRerenderDraftBootstrapDiagnostics | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const lastSavedJsonRef = useRef<string | null>(null);
@@ -134,6 +137,7 @@ export function useFullRerenderDraft(params: {
     userIntent: string;
     transitionSeconds: number;
     loadState: FullRerenderDraftLoadState;
+    diagnostics: FullRerenderDraftBootstrapDiagnostics;
   } | null> => {
     const attempt = ++bootstrapAttemptRef.current;
     setLoadState("loading");
@@ -144,20 +148,46 @@ export function useFullRerenderDraft(params: {
       return null;
     }
 
+    let postStatus: number | null = null;
+    let postOk: boolean | null = null;
+    let postCode: string | undefined;
+
     let plan = planFullRerenderDraftBootstrap(get);
     if (plan.kind === "needs_create") {
       const post = await ensureFullRerenderDraft(params.projectId);
+      postStatus = post.status;
+      postOk = post.ok;
+      postCode = post.code;
       if (attempt !== bootstrapAttemptRef.current) {
         return null;
       }
       plan = planFullRerenderDraftBootstrap(get, post);
     }
 
+    const diagnostics: FullRerenderDraftBootstrapDiagnostics = {
+      getStatus: get.status,
+      getOk: get.ok,
+      getCode: get.code,
+      postStatus,
+      postOk,
+      postCode,
+    };
+    setBootstrapDiagnostics(diagnostics);
+
     if (plan.kind === "storage_unavailable") {
       setLoadState("storage_unavailable");
       setLoadError(null);
       setDraftLoaded(false);
-      return { loadState: "storage_unavailable", payload: null, slots: null, expandedIndex: null, versionNote: "", userIntent: "", transitionSeconds: params.transitionSeconds };
+      return {
+        loadState: "storage_unavailable",
+        payload: null,
+        slots: null,
+        expandedIndex: null,
+        versionNote: "",
+        userIntent: "",
+        transitionSeconds: params.transitionSeconds,
+        diagnostics,
+      };
     }
 
     if (plan.kind === "ready") {
@@ -174,6 +204,7 @@ export function useFullRerenderDraft(params: {
         versionNote: plan.draft.versionNote,
         userIntent: plan.draft.userIntent,
         transitionSeconds: plan.draft.transitionSeconds,
+        diagnostics,
       };
     }
 
@@ -189,6 +220,7 @@ export function useFullRerenderDraft(params: {
         versionNote: "",
         userIntent: "",
         transitionSeconds: params.transitionSeconds,
+        diagnostics,
       };
     }
 
@@ -232,6 +264,7 @@ export function useFullRerenderDraft(params: {
     draftLoaded,
     serverUpdatedAt,
     bootstrapDraft,
+    bootstrapDiagnostics,
     skipDraftPersistence,
     persistNow,
     deleteDraft,

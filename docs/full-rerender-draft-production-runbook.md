@@ -57,7 +57,16 @@ Common causes:
 |----------|--------|
 | `P2021` / relation does not exist | Run `migrate deploy` |
 | `projectFullRerenderDraft` + undefined | Redeploy after `prisma generate` |
+| `renderVersions` / heavy include on project load | Fixed: draft routes use slim `verifyInstantProjectDraftAccess` + `getInstantProjectForDraftEnsure` |
 | Auth / 401 | Session cookie / `requireActiveUser` |
+
+## Bootstrap sequence (Network tab)
+
+1. **GET** `/full-rerender-draft` — should be first.
+2. If `200` + `draft: null` → one **POST** to create.
+3. No further GET/POST loop. PUT only after editor is ready (autosave).
+
+Admin/dev editor shows diagnostic lines (`Draft GET failed`, `Status: …`) when `NEXT_PUBLIC_ENABLE_DEBUG_UI` or admin or development.
 
 ## Manual smoke test
 

@@ -4,7 +4,19 @@ import {
   parseFullRerenderDraftPayload,
   type PersistedFullRerenderDraftPayload,
 } from "@/lib/full-rerender-draft";
-import type { AnimationProjectWithMedia } from "@/server/animation-projects/queries";
+export type FullRerenderDraftProject = {
+  id: string;
+  instantSceneTexts: unknown;
+  instantUserIntent: string | null;
+  instantTransitionSeconds: number;
+  instantMode: string;
+  images: Array<{
+    id: string;
+    previewUrl: string | null;
+    viduInputUrl: string | null;
+    fileName: string | null;
+  }>;
+};
 
 export type FullRerenderDraftSummary = {
   projectId: string;
@@ -54,7 +66,7 @@ export async function deleteFullRerenderDraft(projectId: string): Promise<void> 
 }
 
 export async function ensureFullRerenderDraftForProject(
-  project: AnimationProjectWithMedia
+  project: FullRerenderDraftProject
 ): Promise<PersistedFullRerenderDraftPayload> {
   const existing = await getFullRerenderDraftForProject(project.id);
   if (existing) {

@@ -139,6 +139,7 @@ describe("full-rerender-draft", () => {
     assert.match(route, /deleteFullRerenderDraft/);
     assert.match(route, /fullRerenderDraftErrorResponse/);
     assert.match(route, /logFullRerenderDraftError/);
+    assert.match(route, /verifyInstantProjectDraftAccess/);
     const utils = readFileSync(
       join(process.cwd(), "src/server/instant-premium/full-rerender-draft-route-utils.ts"),
       "utf8"

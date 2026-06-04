@@ -8,7 +8,12 @@ import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import { FullRerenderImageEditor } from "@/components/instant/full-rerender-image-editor";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { useFullRerenderDraft } from "@/hooks/use-full-rerender-draft";
+import {
+  formatDraftBootstrapDiagnostics,
+  shouldShowFullRerenderDraftDiagnostics,
+} from "@/lib/full-rerender-draft-diagnostics";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
 import {
   buildFullRerenderSlotsFromProject,
@@ -78,6 +83,10 @@ export function FullRerenderEditor({
 }: FullRerenderEditorProps) {
   const t = useActiveTranslator();
   const router = useRouter();
+  const session = useAuthSession();
+  const showDraftDiagnostics = shouldShowFullRerenderDraftDiagnostics(
+    session.user?.role === "admin"
+  );
   const instantMode = parseInstantMode(instantModeRaw);
   const initialImageIds = useMemo(() => images.map((img) => img.id), [images]);
 
@@ -93,6 +102,9 @@ export function FullRerenderEditor({
   const [draftLoadState, setDraftLoadState] = useState<
     ReturnType<typeof useFullRerenderDraft>["loadState"]
   >("loading");
+  const [draftBootstrapDiagnostics, setDraftBootstrapDiagnostics] = useState<
+    ReturnType<typeof useFullRerenderDraft>["bootstrapDiagnostics"]
+  >(null);
 
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const modalHeaderRef = useRef<HTMLElement>(null);
@@ -135,19 +147,25 @@ export function FullRerenderEditor({
 
   const runDraftBootstrap = useCallback(async () => {
     setBootstrapBusy(true);
-    const loaded = await bootstrapDraftRef.current();
-    if (loaded?.slots?.length) {
-      setSlots(loaded.slots);
-      setExpandedIndex(loaded.expandedIndex ?? 0);
-      setVersionNote(loaded.versionNote);
-      setUserIntent(loaded.userIntent);
-      setTransitionSeconds(loaded.transitionSeconds);
-    } else {
-      applyProjectFallbackSlots();
+    try {
+      const loaded = await bootstrapDraftRef.current();
+      if (loaded?.diagnostics) {
+        setDraftBootstrapDiagnostics(loaded.diagnostics);
+      }
+      if (loaded?.slots?.length) {
+        setSlots(loaded.slots);
+        setExpandedIndex(loaded.expandedIndex ?? 0);
+        setVersionNote(loaded.versionNote);
+        setUserIntent(loaded.userIntent);
+        setTransitionSeconds(loaded.transitionSeconds);
+      } else {
+        applyProjectFallbackSlots();
+      }
+      setDraftLoadState(loaded?.loadState ?? "error");
+      setBootstrapReady(true);
+    } finally {
+      setBootstrapBusy(false);
     }
-    setDraftLoadState(loaded?.loadState ?? "error");
-    setBootstrapReady(true);
-    setBootstrapBusy(false);
   }, [applyProjectFallbackSlots]);
 
   useEffect(() => {
@@ -340,6 +358,13 @@ export function FullRerenderEditor({
             <p className="font-medium">{draftLoadBannerMessage}</p>
             {draft.loadError && draftLoadState === "error" ?
               <p className="mt-1 text-xs text-amber-900/90">{draft.loadError}</p>
+            : null}
+            {showDraftDiagnostics && (draftBootstrapDiagnostics ?? draft.bootstrapDiagnostics) ?
+              <pre className="mt-2 overflow-x-auto rounded-lg bg-white/80 p-2 font-mono text-[10px] text-amber-950">
+                {formatDraftBootstrapDiagnostics(
+                  draftBootstrapDiagnostics ?? draft.bootstrapDiagnostics!
+                ).join("\n")}
+              </pre>
             : null}
             <div className="mt-3 flex flex-wrap gap-2">
               <button
