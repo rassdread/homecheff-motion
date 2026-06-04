@@ -76,6 +76,7 @@ import {
   VideoVersionDownloadTrigger,
 } from "@/components/videos/project-storage-usage-card";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
+import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function presetTitleKey(presetId: string): TranslationKey {
@@ -941,6 +942,23 @@ export default function VideoDetailPage() {
               if (qa) {
                 void load({ silent: true });
               }
+            }}
+          />
+        </div>
+      : null}
+
+      {detail.studioAudioExport && detail.id ?
+        <div className="mt-6">
+          <MotionVoiceSubtitlePanel
+            projectId={detail.id}
+            audioExport={detail.studioAudioExport}
+            storyboardId={detail.studioSource?.storyboardId ?? null}
+            voiceMuxWarning={detail.studioAudioExport.lastMux?.error ?? null}
+            showRenderControls={detail.status !== "generating" && detail.status !== "rendering"}
+            onSettingsChange={(next) => {
+              setDetail((prev) =>
+                prev ? { ...prev, studioAudioExport: { ...next, hasStudioVoice: next.hasStudioVoice, hasSubtitleTrack: next.hasSubtitleTrack, studioStoryboardId: prev.studioAudioExport?.studioStoryboardId ?? null } } : prev
+              );
             }}
           />
         </div>

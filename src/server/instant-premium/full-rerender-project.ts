@@ -21,6 +21,10 @@ import {
 } from "@/server/instant-premium/render-version-service";
 import type { FullRerenderImageChangeAudit } from "@/lib/full-rerender-editor-types";
 import {
+  fullRerenderMayInvalidateSubtitleTiming,
+  readMotionAudioExportFromHandoffJson,
+} from "@/lib/motion-voice-export";
+import {
   buildStudioRenderAuditMetadata,
   imageChangesAffectStudioIntelligence,
   resolveStudioIntelligenceStatus,
@@ -344,13 +348,23 @@ export async function fullRerenderInstantPremiumProject(params: {
 
   const { startedCount } = await startProjectJobs(projectId);
 
+  const voiceExport = readMotionAudioExportFromHandoffJson(refreshed.studioHandoffJson);
+  const subtitleTimingWarning =
+    voiceExport?.subtitleTrack?.entries?.length &&
+    imageChangeAudit &&
+    fullRerenderMayInvalidateSubtitleTiming(
+      imageChangesAffectStudioIntelligence(imageChangeAudit)
+    )
+      ? " Subtitle timing may need refresh from Studio after scene timing changes."
+      : "";
+
   return {
     ok: true,
     projectId,
     status: "started",
     progressRoute: instantPremiumProgressRoute(projectId),
     startedSegmentCount: startedCount,
-    message: "Full rerender started using existing images.",
+    message: `Full rerender started using existing images.${subtitleTimingWarning}`,
   };
 }
 

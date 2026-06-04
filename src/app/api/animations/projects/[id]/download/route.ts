@@ -57,6 +57,17 @@ export async function GET(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Video not available for download." }, { status: 404 });
   }
 
+  if (resolved.inlineBody != null) {
+    return new NextResponse(resolved.inlineBody, {
+      status: 200,
+      headers: {
+        "Content-Type": resolved.contentType ?? "text/plain; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${resolved.filename}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(resolved.sourceUrl, {

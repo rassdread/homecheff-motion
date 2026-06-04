@@ -5,7 +5,7 @@ export function animationProjectDownloadUrl(
     segmentOrder?: number;
     languageCode?: string;
     languageExportId?: string;
-    variant?: "clean" | "previous_final";
+    variant?: "clean" | "previous_final" | "without_voice" | "voice_audio" | "subtitles_srt";
   }
 ): string {
   const params = new URLSearchParams();
@@ -23,6 +23,13 @@ export function animationProjectDownloadUrl(
   }
   if (options?.variant === "previous_final") {
     params.set("variant", "previous_final");
+  }
+  if (
+    options?.variant === "without_voice" ||
+    options?.variant === "voice_audio" ||
+    options?.variant === "subtitles_srt"
+  ) {
+    params.set("variant", options.variant);
   }
   const query = params.toString();
   const base = `/api/animations/projects/${encodeURIComponent(projectId)}/download`;

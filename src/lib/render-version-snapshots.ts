@@ -4,6 +4,10 @@
 
 import type { AnimationProject, AnimationImage, AnimationTransition } from "@prisma/client";
 import { parseInstantSceneTexts } from "@/lib/story-overlay-templates";
+import {
+  buildVoiceExportRenderSnapshot,
+  resolveMotionStudioAudioExport,
+} from "@/lib/motion-voice-export";
 
 export type RenderPromptSnapshot = {
   userPrompt: string | null;
@@ -34,6 +38,8 @@ export type RenderSettingsSnapshot = {
   instantTextRenderMode: string;
   instantHybridOverlayStyle: string;
   languageTextLayersJson: unknown;
+  /** V32: Studio voice/subtitle export snapshot when present. */
+  studioVoiceExport?: unknown;
 };
 
 export type RenderSegmentSnapshotEntry = {
@@ -101,8 +107,12 @@ export function buildRenderSettingsSnapshot(
     | "instantTextRenderMode"
     | "instantHybridOverlayStyle"
     | "languageTextLayersJson"
+    | "studioHandoffJson"
   >
 ): RenderSettingsSnapshot {
+  const voiceExport = buildVoiceExportRenderSnapshot(
+    resolveMotionStudioAudioExport({ studioHandoffJson: project.studioHandoffJson })
+  );
   return {
     instantMode: project.instantMode,
     instantTransitionSeconds: project.instantTransitionSeconds,
@@ -115,6 +125,7 @@ export function buildRenderSettingsSnapshot(
     instantTextRenderMode: project.instantTextRenderMode,
     instantHybridOverlayStyle: project.instantHybridOverlayStyle,
     languageTextLayersJson: project.languageTextLayersJson,
+    ...(voiceExport ? { studioVoiceExport: voiceExport } : {}),
   };
 }
 

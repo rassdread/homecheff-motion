@@ -125,6 +125,8 @@ import {
   SegmentTrimTooAggressiveError,
 } from "@/server/instant-premium/final-assembly-invariants";
 import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
+import { applyStudioVoiceExportToMergedVideo } from "@/server/instant-premium/apply-studio-voice-export";
+import { readMotionAudioExportFromHandoffJson } from "@/lib/motion-voice-export";
 
 const MERGE_CHAIN = new Map<string, Promise<unknown>>();
 const FINAL_BLOB_PROVIDER = "instant-final-merge";
@@ -1120,6 +1122,35 @@ export async function executeInstantPremiumMerge(
           return;
         }
       }
+      const voiceExportSettings = readMotionAudioExportFromHandoffJson(project.studioHandoffJson);
+      if (voiceExportSettings) {
+        setFinalExportStage(projectId, "overlay", { exportId: exportRow.id });
+        const probedForVoice = await probeVideoSegment(mergedPath);
+        const voiceDims = resolveInstantVideoDimensions(project.aspectRatio, project.viduResolution);
+        const voiceResult = await applyStudioVoiceExportToMergedVideo({
+          projectId,
+          mergedVideoPath: mergedPath,
+          workDir,
+          studioHandoffJson: project.studioHandoffJson,
+          width: probedForVoice?.width ?? voiceDims.width,
+          height: probedForVoice?.height ?? voiceDims.height,
+        });
+        mergedPath = voiceResult.outputVideoPath;
+        if (voiceResult.warning) {
+          await prisma.animationProject.update({
+            where: { id: projectId },
+            data: { lastOverlayError: sanitizeOverlayError(voiceResult.warning) },
+          });
+          console.warn("[hc-instant-premium]", {
+            projectId,
+            phase: "studioVoiceExportPartial",
+            warning: voiceResult.warning,
+            audioMuxed: voiceResult.audioMuxed,
+            subtitleBurned: voiceResult.subtitleBurned,
+          });
+        }
+      }
+
       const stat = await fs.stat(mergedPath).catch(() => null);
       if (!stat || stat.size <= 0) {
         throw new Error("Final merged video is empty.");

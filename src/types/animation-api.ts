@@ -516,6 +516,8 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   studioIntelligence?: ProjectStudioExportMetadata["studioIntelligence"];
   studioReadiness?: ProjectStudioExportMetadata["studioReadiness"];
   studioIntelligenceStatus?: ProjectStudioExportMetadata["studioIntelligenceStatus"];
+  /** V32: Studio voice + subtitle export settings (when imported from Studio). */
+  studioAudioExport?: import("@/types/motion-voice-export").MotionStudioAudioExportResponse | null;
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";

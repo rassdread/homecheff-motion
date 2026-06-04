@@ -19,6 +19,10 @@ import type {
   UpdateProjectBundleSettingsResponse,
 } from "@/types/animation-api";
 import {
+  buildMotionStudioAudioExportResponse,
+  resolveMotionStudioAudioExport,
+} from "@/lib/motion-voice-export";
+import {
   buildProjectStudioExportMetadata,
   buildProjectStudioQaResponse,
 } from "@/lib/studio-project-metadata";
@@ -223,6 +227,12 @@ function mapToDetailResponse(
         studioIntelligenceStatus: exportMeta.studioIntelligenceStatus,
       };
     })(),
+    studioAudioExport: buildMotionStudioAudioExportResponse({
+      exportSettings: resolveMotionStudioAudioExport({
+        studioHandoffJson: project.studioHandoffJson,
+      }),
+      studioSourceStoryboardId: project.studioSourceStoryboardId,
+    }),
   };
 }
 

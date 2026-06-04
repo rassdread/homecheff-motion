@@ -125,7 +125,10 @@ import {
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
+import { MotionAudioExportWizardSettings } from "@/components/instant/motion/motion-audio-export-wizard-settings";
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
+import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-export";
+import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
 import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
 import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
 import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
@@ -334,6 +337,9 @@ export default function InstantPremiumPage() {
   const [refreshingStudioHandoff, setRefreshingStudioHandoff] = useState(false);
   const [preRenderQaOpen, setPreRenderQaOpen] = useState(false);
   const [studioIntelligenceRevision, setStudioIntelligenceRevision] = useState(0);
+  const [wizardAudioExport, setWizardAudioExport] = useState<MotionStudioAudioExportJson | null>(
+    null
+  );
   const imagesRef = useRef<LocalImage[]>([]);
   const autoScanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const images = useMemo(() => listAttachedImages(sceneSlots), [sceneSlots]);
@@ -1148,7 +1154,16 @@ export default function InstantPremiumPage() {
         sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
       });
       const wizardState = readPersistedWizardState();
-      const studioImport = wizardState ? buildStudioProjectImportFromWizard(wizardState) : null;
+      let studioImport = wizardState ? buildStudioProjectImportFromWizard(wizardState) : null;
+      if (studioImport?.handoff && wizardAudioExport) {
+        studioImport = {
+          ...studioImport,
+          handoff: mergeMotionAudioExportIntoHandoffStorage(
+            studioImport.handoff as Record<string, unknown>,
+            wizardAudioExport
+          ),
+        };
+      }
       const body = {
         images: uploaded,
         instantMode,
@@ -1685,6 +1700,11 @@ export default function InstantPremiumPage() {
                         <MotionStudioIntelligencePanel
                           intelligence={studioIntelligence}
                           readiness={motionRenderReadiness}
+                        />
+                        <MotionAudioExportWizardSettings
+                          storedHandoff={readPersistedWizardState()?.studioHandoff?.storedHandoff}
+                          value={wizardAudioExport}
+                          onChange={setWizardAudioExport}
                         />
                         <p className="text-xs text-violet-800/90">
                           {t("motion.qa.server.persistOnCheckout")}

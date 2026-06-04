@@ -1,4 +1,5 @@
 import { isLanguageExportCode } from "@/lib/video-language-export";
+import { readMotionAudioExportFromHandoffJson } from "@/lib/motion-voice-export";
 import { rawExportUrlForDownload } from "@/server/instant-premium/playback-debug";
 import type { AnimationProjectWithMedia } from "@/server/animation-projects/queries";
 
@@ -7,6 +8,8 @@ export type ProjectWithMedia = AnimationProjectWithMedia;
 export type ResolvedVideoDownload = {
   sourceUrl: string;
   filename: string;
+  contentType?: string;
+  inlineBody?: string;
 };
 
 /**
@@ -58,6 +61,52 @@ export function resolveProjectVideoDownload(
     return {
       sourceUrl: cleanUrl,
       filename: `homecheff-motion-${project.id}-clean.mp4`,
+    };
+  }
+
+  const variantNorm = variant?.trim().toLowerCase();
+  const audioExport = readMotionAudioExportFromHandoffJson(project.studioHandoffJson);
+
+  if (variantNorm === "without_voice") {
+    const preVoice = audioExport?.preVoiceFinalVideoUrl?.trim();
+    if (preVoice) {
+      return {
+        sourceUrl: preVoice,
+        filename: `homecheff-motion-${project.id}-without-voice.mp4`,
+      };
+    }
+    const cleanUrl = project.instantCleanFinalVideoUrl?.trim();
+    if (cleanUrl) {
+      return {
+        sourceUrl: cleanUrl,
+        filename: `homecheff-motion-${project.id}-clean.mp4`,
+      };
+    }
+    return null;
+  }
+
+  if (variantNorm === "voice_audio") {
+    const voiceUrl = audioExport?.voiceAudioUrl?.trim();
+    if (!voiceUrl) {
+      return null;
+    }
+    const ext = voiceUrl.includes(".mp3") ? "mp3" : "m4a";
+    return {
+      sourceUrl: voiceUrl,
+      filename: `homecheff-motion-${project.id}-voice.${ext}`,
+    };
+  }
+
+  if (variantNorm === "subtitles_srt") {
+    const srt = audioExport?.subtitleTrack?.srt?.trim();
+    if (!srt) {
+      return null;
+    }
+    return {
+      sourceUrl: "",
+      filename: `homecheff-motion-${project.id}-subtitles.srt`,
+      contentType: "application/x-subrip",
+      inlineBody: srt,
     };
   }
 

@@ -10,6 +10,10 @@ import type { PersistedWizardState } from "@/lib/instant-premium-wizard-storage"
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import {
+  buildMotionStudioAudioExportFromHandoff,
+  mergeMotionAudioExportIntoHandoffStorage,
+} from "@/lib/motion-voice-export";
 import type {
   ProjectStudioExportMetadata,
   ProjectStudioQaResponse,
@@ -139,14 +143,23 @@ export function buildStudioProjectImportFromWizard(
   }
   let handoffPayload: unknown;
   if (handoff.storedHandoff && typeof handoff.storedHandoff === "object") {
-    handoffPayload = sanitizeMotionHandoffForStorage(handoff.storedHandoff);
+    let sanitized = sanitizeMotionHandoffForStorage(handoff.storedHandoff);
+    const payload = sanitized as MotionHandoffPayload;
+    if (payload.voiceMetadata || payload.subtitleTrack) {
+      sanitized = mergeMotionAudioExportIntoHandoffStorage(
+        sanitized,
+        buildMotionStudioAudioExportFromHandoff(payload)
+      );
+    }
     const handoffSize = assertStudioJsonWithinSizeLimit(
       "studioHandoff",
-      handoffPayload,
+      sanitized,
       STUDIO_HANDOFF_JSON_MAX_BYTES
     );
     if (!handoffSize.ok) {
       handoffPayload = undefined;
+    } else {
+      handoffPayload = sanitized;
     }
   }
   return {
@@ -309,10 +322,22 @@ export function studioMetadataPrismaFields(
     input.intelligence,
     input.imageLineage ?? []
   );
-  const handoffJson =
-    input.handoff !== undefined
-      ? (sanitizeMotionHandoffForStorage(input.handoff as Record<string, unknown>) as Prisma.InputJsonValue)
-      : undefined;
+  let handoffJson: Prisma.InputJsonValue | undefined;
+  if (input.handoff !== undefined) {
+    const sanitized = sanitizeMotionHandoffForStorage(
+      input.handoff as Record<string, unknown>
+    ) as Record<string, unknown>;
+    const handoffPayload = input.handoff as MotionHandoffPayload;
+    if (handoffPayload.voiceMetadata || handoffPayload.subtitleTrack) {
+      const audioExport = buildMotionStudioAudioExportFromHandoff(handoffPayload);
+      handoffJson = mergeMotionAudioExportIntoHandoffStorage(
+        sanitized,
+        audioExport
+      ) as Prisma.InputJsonValue;
+    } else {
+      handoffJson = sanitized as Prisma.InputJsonValue;
+    }
+  }
   const importedAt = input.importedAt ? new Date(input.importedAt) : new Date();
 
   return {
