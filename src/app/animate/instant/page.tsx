@@ -124,6 +124,7 @@ import {
   type InstantSceneTextDraft,
 } from "@/components/instant/instant-mode-panel";
 import { StoryboardEditor } from "@/components/instant/storyboard-editor";
+import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
 import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
 import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
@@ -286,6 +287,7 @@ export default function InstantPremiumPage() {
   const session = useAuthSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wizardShellRef = useRef<HTMLDivElement>(null);
+  const wizardContentRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
   const [sceneSlots, setSceneSlots] = useState<WizardSceneSlot[]>([]);
   const [error, setError] = useState("");
@@ -1562,7 +1564,7 @@ export default function InstantPremiumPage() {
         />
 
         <InstantWizardShell shellRef={wizardShellRef}>
-          <InstantWizardContent>
+          <InstantWizardContent contentRef={wizardContentRef}>
             {step === 1 ? (
               <>
                 <InstantModePanel
@@ -1731,6 +1733,8 @@ export default function InstantPremiumPage() {
                           sceneTexts={sceneTexts}
                           expandedSceneId={expandedSceneId}
                           onExpandedSceneIdChange={setExpandedSceneSelection}
+                          scrollContainerRef={wizardContentRef}
+                          scrollInsetTopPx={STORYBOARD_FRAME_SCROLL_INSET_PX}
                           onSceneChange={handleStoryboardSceneChange}
                           onMoveScene={handleStoryboardMoveScene}
                           onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}

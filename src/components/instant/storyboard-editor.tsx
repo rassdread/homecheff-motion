@@ -1,6 +1,15 @@
 "use client";
 
-import { memo, useCallback, useDeferredValue, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useLayoutEffect,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import {
   MAX_EXTRA_LINES,
   MAX_FINALE_FOOTER_CHARS,
@@ -27,9 +36,14 @@ import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-pa
 import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint";
 import { TextBeatsEditor } from "@/components/instant/text-beats-editor";
 import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
-import { TextStyleEditorForScene, OptionalTextStyleSection } from "@/components/instant/text-style-editor-panel";
+import { OptionalTextStyleSection } from "@/components/instant/text-style-editor-panel";
+import { hasCustomOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import type { WizardPreviewImageInput } from "@/lib/instant-wizard-preview-src";
+import {
+  STORYBOARD_FRAME_ROW_ATTR,
+  scrollFrameRowIntoView,
+} from "@/lib/storyboard-frame-scroll";
 
 export type StoryboardImage = WizardPreviewImageInput;
 
@@ -46,8 +60,16 @@ type StoryboardEditorProps = {
   onDuplicateTextFromPrevious: (index: number) => void;
   onClearText: (index: number) => void;
   onDeleteScene?: (index: number) => void;
-  /** `always` — rerender modals; `optional` — collapsed first-render wizard section. */
+  /**
+   * `optional` — collapsed text style editor (wizard + rerender).
+   * `always` — deprecated alias for `optional` (same UX).
+   */
   textStyleEditorMode?: "always" | "optional";
+  textStyleEditorContext?: "rerender" | "firstRender";
+  /** Modal body or wizard content — scroll this element, not the window. */
+  scrollContainerRef?: RefObject<HTMLElement | null>;
+  /** Sticky header height + inset (px). Defaults to 16 when unset. */
+  scrollInsetTopPx?: number;
 };
 
 /** @deprecated Use expandedSceneId — kept for callers migrating from index. */
@@ -111,6 +133,9 @@ type StoryboardSceneRowProps = {
   onClearText: (index: number) => void;
   onDeleteScene?: (index: number) => void;
   textStyleEditorMode?: "always" | "optional";
+  textStyleEditorContext?: "rerender" | "firstRender";
+  registerRowRef?: (sceneId: string, el: HTMLDivElement | null) => void;
+  onUserToggleExpanded?: (sceneId: string, currentlyExpanded: boolean) => void;
 };
 
 const StoryboardSceneRow = memo(function StoryboardSceneRow({
@@ -128,6 +153,9 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
   onClearText,
   onDeleteScene,
   textStyleEditorMode,
+  textStyleEditorContext,
+  registerRowRef,
+  onUserToggleExpanded,
 }: StoryboardSceneRowProps) {
   const t = useActiveTranslator();
   const previewScene = useDeferredValue(scene);
@@ -160,13 +188,21 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
 
   return (
     <div
+      ref={(el) => registerRowRef?.(sceneId, el)}
       data-scene-id={sceneId}
-      className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm"
+      {...{ [STORYBOARD_FRAME_ROW_ATTR]: "" }}
+      className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm [overflow-anchor:none]"
     >
       <button
         type="button"
         className="flex w-full items-center gap-3 px-3 py-3 text-left"
-        onClick={onToggleExpanded}
+        onClick={() => {
+          if (onUserToggleExpanded) {
+            onUserToggleExpanded(sceneId, expanded);
+            return;
+          }
+          onToggleExpanded();
+        }}
         aria-expanded={expanded}
       >
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
@@ -189,12 +225,19 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
             {t("instant.storyboard.frameLabel", { index: index + 1 })}
           </p>
           <p className="truncate text-sm font-medium text-zinc-900">{headerLabel}</p>
+          {textStyleEditorMode ?
+            <p className="mt-0.5 text-[11px] text-zinc-500">
+              {hasCustomOverlayLayerStyles(scene.overlayLayerStyles) ?
+                t("instant.textStyle.sceneStatus.custom")
+              : t("instant.textStyle.sceneStatus.automatic")}
+            </p>
+          : null}
         </div>
         <span className="text-xs text-zinc-400">{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded ?
-        <div className="space-y-3 border-t border-zinc-50 px-3 pb-3 pt-2">
+        <div className="space-y-3 border-t border-zinc-50 px-3 pb-3 pt-2 [overflow-anchor:none]">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -544,10 +587,15 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
             className="mt-1 min-h-[4.5rem]"
           />
 
-          {textStyleEditorMode === "always" ?
-            <TextStyleEditorForScene scene={scene} onSceneChange={(partial) => patch(partial)} />
-          : textStyleEditorMode === "optional" ?
-            <OptionalTextStyleSection scene={scene} onSceneChange={(partial) => patch(partial)} />
+          {textStyleEditorMode === "always" || textStyleEditorMode === "optional" ?
+            <OptionalTextStyleSection
+              scene={scene}
+              onSceneChange={(partial) => patch(partial)}
+              context={
+                textStyleEditorContext ??
+                (textStyleEditorMode === "always" ? "rerender" : "firstRender")
+              }
+            />
           : null}
 
           <label className="block text-xs text-zinc-500">
@@ -652,8 +700,58 @@ export function StoryboardEditor({
   onClearText,
   onDeleteScene,
   textStyleEditorMode,
+  textStyleEditorContext,
+  scrollContainerRef,
+  scrollInsetTopPx,
 }: StoryboardEditorProps) {
   const t = useActiveTranslator();
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const pendingUserScrollSceneId = useRef<string | null>(null);
+
+  const registerRowRef = useCallback((sceneId: string, el: HTMLDivElement | null) => {
+    if (el) {
+      rowRefs.current.set(sceneId, el);
+      return;
+    }
+    rowRefs.current.delete(sceneId);
+  }, []);
+
+  const handleUserToggleExpanded = useCallback(
+    (sceneId: string, currentlyExpanded: boolean) => {
+      if (!currentlyExpanded) {
+        pendingUserScrollSceneId.current = sceneId;
+      } else {
+        pendingUserScrollSceneId.current = null;
+      }
+      onExpandedSceneIdChange(currentlyExpanded ? null : sceneId);
+    },
+    [onExpandedSceneIdChange]
+  );
+
+  useLayoutEffect(() => {
+    const targetId = pendingUserScrollSceneId.current;
+    if (!targetId || expandedSceneId !== targetId) {
+      return;
+    }
+    pendingUserScrollSceneId.current = null;
+    const row = rowRefs.current.get(targetId);
+    if (!row) {
+      return;
+    }
+    const scrollRoot = scrollContainerRef?.current ?? null;
+    const stickyOffsetPx = scrollInsetTopPx;
+    const runScroll = () => {
+      scrollFrameRowIntoView({
+        row,
+        scrollRoot,
+        stickyOffsetPx,
+        behavior: "smooth",
+      });
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(runScroll);
+    });
+  }, [expandedSceneId, scrollContainerRef, scrollInsetTopPx]);
 
   if (images.length === 0 && imageCount <= 0) {
     return null;
@@ -687,12 +785,15 @@ export function StoryboardEditor({
             onToggleExpanded={() =>
               onExpandedSceneIdChange(expanded ? null : sceneId)
             }
+            registerRowRef={registerRowRef}
+            onUserToggleExpanded={handleUserToggleExpanded}
             onSceneChange={onSceneChange}
             onMoveScene={onMoveScene}
             onDuplicateTextFromPrevious={onDuplicateTextFromPrevious}
             onClearText={onClearText}
             onDeleteScene={onDeleteScene}
             textStyleEditorMode={textStyleEditorMode}
+            textStyleEditorContext={textStyleEditorContext}
           />
         );
       })}

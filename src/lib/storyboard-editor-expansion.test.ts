@@ -22,4 +22,14 @@ describe("storyboard editor expansion stability", () => {
     assert.ok(source.includes('key={sceneId}'));
     assert.equal(source.includes("image?.id ?? index"), false);
   });
+
+  it("scrolls on user expand only via pending scroll intent", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/components/instant/storyboard-editor.tsx"),
+      "utf8"
+    );
+    assert.ok(source.includes("pendingUserScrollSceneId"));
+    assert.ok(source.includes("onUserToggleExpanded"));
+    assert.ok(source.includes("scrollFrameRowIntoView"));
+  });
 });

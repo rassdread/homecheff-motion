@@ -81,6 +81,27 @@ export function hasCustomOverlayLayerStyles(styles: StoryOverlayLayerStyles | un
   );
 }
 
+/** Merge or clear a single layer override (client editors). */
+export function patchOverlayLayerStyles(
+  styles: StoryOverlayLayerStyles,
+  layer: StoryOverlayStyleLayer,
+  patch: Partial<StoryOverlayLayerStyleOverride> | null
+): StoryOverlayLayerStyles {
+  const next = { ...styles };
+  if (!patch) {
+    delete next[layer];
+    return next;
+  }
+  const merged = { ...next[layer], ...patch };
+  delete merged.useAuto;
+  next[layer] = merged;
+  return next;
+}
+
+export function clearOverlayLayerStyles(): StoryOverlayLayerStyles {
+  return {};
+}
+
 export function sanitizeOverlayLayerStyles(
   raw: StoryOverlayLayerStyles | undefined | null
 ): StoryOverlayLayerStyles {

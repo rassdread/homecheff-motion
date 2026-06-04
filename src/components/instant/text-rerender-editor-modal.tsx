@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
 import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
 import { useActiveTranslator } from "@/i18n/client";
@@ -50,6 +51,25 @@ function TextRerenderEditorModalContent({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [versionNote, setVersionNote] = useState("");
+  const modalBodyRef = useRef<HTMLDivElement>(null);
+  const modalHeaderRef = useRef<HTMLDivElement>(null);
+  const [scrollInsetTopPx, setScrollInsetTopPx] = useState(
+    STORYBOARD_FRAME_SCROLL_INSET_PX + 88
+  );
+
+  useLayoutEffect(() => {
+    const header = modalHeaderRef.current;
+    if (!header) {
+      return;
+    }
+    const update = () => {
+      setScrollInsetTopPx(header.offsetHeight + STORYBOARD_FRAME_SCROLL_INSET_PX);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const editorImages = useMemo((): StoryboardImage[] => {
     return Array.from({ length: frameCount }, (_, index) =>
@@ -125,7 +145,7 @@ function TextRerenderEditorModalContent({
       aria-labelledby="text-rerender-editor-title"
     >
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:rounded-2xl">
-        <div className="border-b border-zinc-100 px-4 py-4 sm:px-6">
+        <div ref={modalHeaderRef} className="border-b border-zinc-100 px-4 py-4 sm:px-6">
           <h2 id="text-rerender-editor-title" className="text-lg font-semibold text-zinc-900">
             {t("instant.textRerender.editorTitle")}
           </h2>
@@ -135,7 +155,7 @@ function TextRerenderEditorModalContent({
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div ref={modalBodyRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {error ?
             <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {error}
@@ -151,7 +171,10 @@ function TextRerenderEditorModalContent({
             sceneTexts={sceneTexts}
             expandedIndex={expandedIndex}
             onExpandedIndexChange={setExpandedIndex}
-            textStyleEditorMode="always"
+            textStyleEditorMode="optional"
+            textStyleEditorContext="rerender"
+            scrollContainerRef={modalBodyRef}
+            scrollInsetTopPx={scrollInsetTopPx}
             onSceneChange={(index, patch) =>
               setSceneTexts((prev) =>
                 prev.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row))

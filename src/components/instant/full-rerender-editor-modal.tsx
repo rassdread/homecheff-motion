@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
 import { StoryboardEditorLegacy } from "@/components/instant/storyboard-editor";
 import { FullRerenderImageEditor } from "@/components/instant/full-rerender-image-editor";
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
@@ -78,6 +79,25 @@ function FullRerenderEditorModalContent({
   const [versionNote, setVersionNote] = useState("");
   const [userIntent, setUserIntent] = useState(instantUserIntent ?? "");
   const [transitionSeconds, setTransitionSeconds] = useState(instantTransitionSeconds);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
+  const modalHeaderRef = useRef<HTMLElement>(null);
+  const [scrollInsetTopPx, setScrollInsetTopPx] = useState(
+    STORYBOARD_FRAME_SCROLL_INSET_PX + 72
+  );
+
+  useLayoutEffect(() => {
+    const header = modalHeaderRef.current;
+    if (!header) {
+      return;
+    }
+    const update = () => {
+      setScrollInsetTopPx(header.offsetHeight + STORYBOARD_FRAME_SCROLL_INSET_PX);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const sceneCount = Math.max(countFullRerenderAttachedImages(slots), slots.length, 1);
   const editorImages = useMemo(
@@ -185,14 +205,14 @@ function FullRerenderEditorModalContent({
       aria-labelledby="full-rerender-title"
     >
       <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:rounded-2xl">
-        <header className="border-b border-zinc-100 px-4 py-3 sm:px-6">
+        <header ref={modalHeaderRef} className="border-b border-zinc-100 px-4 py-3 sm:px-6">
           <h2 id="full-rerender-title" className="text-lg font-semibold text-zinc-900">
             {t("instant.fullRerender.editorTitle")}
           </h2>
           <p className="mt-1 text-sm text-zinc-600">{t("instant.fullRerender.editorSubtitle")}</p>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        <div ref={modalBodyRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <FullRerenderImageEditor
             slots={slots}
             onSlotsChange={setSlots}
@@ -251,7 +271,10 @@ function FullRerenderEditorModalContent({
             sceneTexts={sceneTexts}
             expandedIndex={expandedIndex}
             onExpandedIndexChange={setExpandedIndex}
-            textStyleEditorMode="always"
+            textStyleEditorMode="optional"
+            textStyleEditorContext="rerender"
+            scrollContainerRef={modalBodyRef}
+            scrollInsetTopPx={scrollInsetTopPx}
             onSceneChange={(index, patch) =>
               setSlots((prev) => patchFullRerenderSceneTextAt(prev, index, patch))
             }
