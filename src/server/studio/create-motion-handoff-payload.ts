@@ -32,6 +32,7 @@ import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import { attachVoiceToHandoffPayload } from "@/lib/attach-voice-handoff";
 import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
 import { attachSoundToHandoffPayload } from "@/lib/attach-sound-handoff";
+import { attachAudioProductionToHandoffPayload } from "@/lib/attach-audio-production-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
 import { prisma } from "@/lib/prisma";
@@ -401,6 +402,7 @@ export async function createMotionHandoffPayload(
     payload = attachPerformanceToHandoffPayload(payload, { storyboard: detail });
     payload = attachMusicToHandoffPayload(payload, { storyboard: detail });
     payload = attachSoundToHandoffPayload(payload, { storyboard: detail });
+    payload = attachAudioProductionToHandoffPayload(payload, { storyboard: detail });
   }
 
   return { payload };

@@ -16,6 +16,11 @@ import {
   SOUND_OBJECT_IDS,
   SOUND_TRANSITION_IDS,
 } from "@/types/studio-sound-director";
+import {
+  isAudioDuckingMode,
+  isAudioFocusType,
+} from "@/lib/studio-audio-production-validation";
+import { clampMixLevel } from "@/lib/studio-audio-production-validation";
 
 export const STUDIO_SCENE_TITLE_MAX = 120;
 export const STUDIO_SCENE_TEXT_MAX = 4000;
@@ -46,6 +51,11 @@ export type StudioSceneCreateInput = {
   soundPropOverride?: string;
   soundTransitionOverride?: string;
   soundAmbientOverride?: string;
+  voicePriority?: string;
+  musicPriority?: string;
+  soundPriority?: string;
+  audioFocus?: string;
+  duckingMode?: string;
 };
 
 export type StudioSceneUpdateInput = StudioSceneCreateInput;
@@ -156,6 +166,11 @@ export function validateStudioSceneUpdateInput(
   soundPropOverride?: string;
   soundTransitionOverride?: string;
   soundAmbientOverride?: string;
+  voicePriority?: string;
+  musicPriority?: string;
+  soundPriority?: string;
+  audioFocus?: string;
+  duckingMode?: string;
 }> {
   const patch: {
     title?: string;
@@ -181,6 +196,11 @@ export function validateStudioSceneUpdateInput(
     soundPropOverride?: string;
     soundTransitionOverride?: string;
     soundAmbientOverride?: string;
+    voicePriority?: string;
+    musicPriority?: string;
+    soundPriority?: string;
+    audioFocus?: string;
+    duckingMode?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -302,6 +322,39 @@ export function validateStudioSceneUpdateInput(
       trimField(raw.soundAmbientOverride),
       SOUND_AMBIENT_IDS
     );
+  }
+  if (raw.audioFocus !== undefined) {
+    const v = trimField(raw.audioFocus);
+    if (v && !isAudioFocusType(v)) {
+      return { ok: false, code: "INVALID_AUDIO_FOCUS", message: "Invalid audio focus." };
+    }
+    patch.audioFocus = v;
+  }
+  if (raw.duckingMode !== undefined) {
+    const v = trimField(raw.duckingMode);
+    if (v && !isAudioDuckingMode(v)) {
+      return { ok: false, code: "INVALID_DUCKING_MODE", message: "Invalid ducking mode." };
+    }
+    patch.duckingMode = v;
+  }
+  for (const field of ["voicePriority", "musicPriority", "soundPriority"] as const) {
+    if (raw[field] === undefined) {
+      continue;
+    }
+    const v = trimField(raw[field]);
+    if (!v) {
+      patch[field] = "";
+      continue;
+    }
+    const n = Number.parseInt(v, 10);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return {
+        ok: false,
+        code: "INVALID_MIX_PRIORITY",
+        message: "Mix priority must be 0–100.",
+      };
+    }
+    patch[field] = String(clampMixLevel(n));
   }
 
   if (Object.keys(patch).length === 0) {

@@ -5,6 +5,10 @@ import { isStudioMusicProfileId } from "@/lib/studio-music-profiles";
 import { normalizeMusicIntensity } from "@/lib/studio-music-validation";
 import { isStudioSoundProfileId, normalizeSoundDensity } from "@/lib/studio-sound-profiles";
 import {
+  AUDIO_PRIORITY_STRATEGIES,
+  isStudioAudioStyleId,
+} from "@/lib/studio-audio-production-profiles";
+import {
   isStudioNarrationMode,
   isStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
@@ -42,6 +46,10 @@ export type StudioStoryboardUpdateInput = {
   soundStyle?: string;
   soundDensity?: string;
   soundNotes?: string;
+  audioProductionEnabled?: boolean;
+  audioStyle?: string;
+  audioPriorityStrategy?: string;
+  audioNotes?: string;
 };
 
 export type ValidationResult<T> =
@@ -111,6 +119,10 @@ export function validateStudioStoryboardUpdateInput(
   soundStyle?: string;
   soundDensity?: string;
   soundNotes?: string;
+  audioProductionEnabled?: boolean;
+  audioStyle?: string;
+  audioPriorityStrategy?: string;
+  audioNotes?: string;
 }> {
   const patch: {
     title?: string;
@@ -135,6 +147,10 @@ export function validateStudioStoryboardUpdateInput(
     soundStyle?: string;
     soundDensity?: string;
     soundNotes?: string;
+    audioProductionEnabled?: boolean;
+    audioStyle?: string;
+    audioPriorityStrategy?: string;
+    audioNotes?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -259,6 +275,34 @@ export function validateStudioStoryboardUpdateInput(
   }
   if (raw.soundNotes !== undefined) {
     patch.soundNotes = trimText(raw.soundNotes, STUDIO_STORYBOARD_TEXT_MAX);
+  }
+
+  if (raw.audioProductionEnabled !== undefined) {
+    patch.audioProductionEnabled = Boolean(raw.audioProductionEnabled);
+  }
+  if (raw.audioStyle !== undefined) {
+    const style = raw.audioStyle.trim().toLowerCase();
+    if (style && !isStudioAudioStyleId(style)) {
+      return { ok: false, code: "INVALID_AUDIO_STYLE", message: "Invalid audio style." };
+    }
+    patch.audioStyle = style;
+  }
+  if (raw.audioPriorityStrategy !== undefined) {
+    const strategy = raw.audioPriorityStrategy.trim().toLowerCase();
+    if (
+      strategy &&
+      !(AUDIO_PRIORITY_STRATEGIES as readonly string[]).includes(strategy)
+    ) {
+      return {
+        ok: false,
+        code: "INVALID_AUDIO_STRATEGY",
+        message: "Invalid audio priority strategy.",
+      };
+    }
+    patch.audioPriorityStrategy = strategy || "balanced";
+  }
+  if (raw.audioNotes !== undefined) {
+    patch.audioNotes = trimText(raw.audioNotes, STUDIO_STORYBOARD_TEXT_MAX);
   }
 
   if (Object.keys(patch).length === 0) {

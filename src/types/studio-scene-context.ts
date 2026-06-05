@@ -32,6 +32,8 @@ export type StudioSceneContextMetadata = {
   music?: string;
   /** V36 — sound effects plan summary per scene. */
   sfx?: string;
+  /** V37 — audio production focus per scene. */
+  audioFocus?: string;
   /** V7 — Motion-ready prompt (not sent to Vidu yet). */
   generatedPrompt?: string;
   stylePrompt?: string;

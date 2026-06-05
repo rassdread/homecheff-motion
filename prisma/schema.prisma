@@ -507,6 +507,12 @@ model StudioStoryboard {
   soundDensity          String  @default("balanced")
   soundNotes            String  @default("")
   soundMetadataJson     Json?
+  /** V37: Audio Production Director planning (no audio generation in Studio yet). */
+  audioProductionEnabled   Boolean @default(true)
+  audioStyle               String  @default("")
+  audioPriorityStrategy    String  @default("balanced")
+  audioNotes               String  @default("")
+  audioMetadataJson        Json?
   /** V14: after approved regeneration, auto-select image if combined score improves */
   autoSelectImprovedImage Boolean @default(true)
   createdAt   DateTime      @default(now())
@@ -622,6 +628,12 @@ model StudioScene {
   soundPropOverride        String             @default("")
   soundTransitionOverride  String             @default("")
   soundAmbientOverride     String             @default("")
+  /** V37: per-scene audio production overrides (planning only). */
+  voicePriority            String             @default("")
+  musicPriority            String             @default("")
+  soundPriority            String             @default("")
+  audioFocus               String             @default("")
+  duckingMode              String             @default("")
   durationSeconds      Int                    @default(5)
   locationId           String?
   location             StudioLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)

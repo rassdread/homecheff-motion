@@ -1728,6 +1728,15 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.soundPlan ?? null
                           }
+                          audioProductionPlan={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | {
+                                    audioProductionPlan?: import("@/types/studio-audio-production-director").MotionAudioProductionHandoffPlan;
+                                  }
+                                | undefined
+                            )?.audioProductionPlan ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

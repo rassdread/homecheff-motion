@@ -8,6 +8,7 @@ import { MotionCharacterPerformancePreview } from "@/components/instant/motion/m
 import type { CharacterPerformanceAssignment } from "@/types/studio-character-performance";
 import type { MotionMusicHandoffPlan } from "@/types/studio-music-director";
 import type { MotionSoundHandoffPlan } from "@/types/studio-sound-director";
+import type { MotionAudioProductionHandoffPlan } from "@/types/studio-audio-production-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
   voiceSegments?: MotionVoiceSegmentHandoff[] | null;
   musicPlan?: MotionMusicHandoffPlan | null;
   soundPlan?: MotionSoundHandoffPlan | null;
+  audioProductionPlan?: MotionAudioProductionHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -36,6 +38,7 @@ export function MotionImportSummaryBanner({
   voiceSegments,
   musicPlan,
   soundPlan,
+  audioProductionPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -152,6 +155,27 @@ export function MotionImportSummaryBanner({
                     </li>
                   );
                 })}
+              </ul>
+            </div>
+          : null}
+          {audioProductionPlan?.enabled && audioProductionPlan.sceneCues.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.audioTitle")}: {audioProductionPlan.audioFocusSummary}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {audioProductionPlan.sceneCues.map((cue) => (
+                  <li key={cue.sceneId}>
+                    {t("motion.qa.importSummary.audioSceneLine", {
+                      order: String(cue.order + 1),
+                      title: cue.title || t("motion.qa.importSummary.audioScene"),
+                      focus: t(`studio.audio.focus.${cue.audioFocus}` as never),
+                      voice: String(cue.voicePriority),
+                      music: String(cue.musicPriority),
+                      sound: String(cue.soundPriority),
+                    })}
+                  </li>
+                ))}
               </ul>
             </div>
           : null}

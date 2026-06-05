@@ -31,6 +31,7 @@ import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-i
 import { StudioSceneImagePlannerPanel } from "@/components/studio/studio-scene-image-planner-panel";
 import { StudioMusicDirectorPanel } from "@/components/studio/studio-music-director-panel";
 import { StudioSoundDirectorPanel } from "@/components/studio/studio-sound-director-panel";
+import { StudioAudioProductionDirectorPanel } from "@/components/studio/studio-audio-production-director-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
 import { StudioPerformanceSimulator } from "@/components/studio/studio-performance-simulator";
 import { StudioProductionCenter } from "@/components/studio/studio-production-center";
@@ -709,6 +710,10 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                       onUpdated={(sb) => setStoryboard(sb)}
                     />
                     <StudioSoundDirectorPanel
+                      storyboard={storyboard}
+                      onUpdated={(sb) => setStoryboard(sb)}
+                    />
+                    <StudioAudioProductionDirectorPanel
                       storyboard={storyboard}
                       onUpdated={(sb) => setStoryboard(sb)}
                     />
