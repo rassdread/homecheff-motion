@@ -88,6 +88,7 @@ export function RenderAnalyticsDashboard({
     { section: "render-jobs", label: t("admin.renderAnalytics.exportRenderJobs") },
     { section: "cost-events", label: t("admin.renderAnalytics.exportCostEvents") },
     { section: "video-costs", label: t("admin.renderAnalytics.exportVideoCosts") },
+    { section: "customer-billing", label: t("admin.renderAnalytics.exportCustomerBilling") },
     { section: "provider-costs", label: t("admin.renderAnalytics.exportProviderCosts") },
     { section: "project-usage", label: t("admin.renderAnalytics.exportProjectUsage") },
     { section: "user-usage", label: t("admin.renderAnalytics.exportUserUsage") },
@@ -119,6 +120,7 @@ export function RenderAnalyticsDashboard({
   const fin = report.financial;
   const credits = report.credits;
   const videoCosts = report.videoCosts;
+  const billing = report.billing;
 
   function accuracyLabel(accuracy: string): string {
     if (accuracy === "exact") {
@@ -358,6 +360,32 @@ export function RenderAnalyticsDashboard({
             f.label.slice(0, 16),
             formatStorageBytes(f.bytes, locale),
           ])}
+          emptyLabel={emptyLabel}
+        />
+      </AppCard>
+
+      <AppCard>
+        <h2 className="text-lg font-semibold">{t("admin.renderAnalytics.revenueOverview")}</h2>
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric label={t("admin.renderAnalytics.grossRevenueToday")} value={`€${billing.today.grossRevenueEur}`} hint={`${t("admin.renderAnalytics.internalCost")}: $${billing.today.internalCostUsd.toFixed(2)}`} />
+          <Metric label={t("admin.renderAnalytics.grossRevenue30d")} value={`€${billing.last30Days.grossRevenueEur}`} />
+          <Metric label={t("admin.renderAnalytics.grossMargin30d")} value={`€${billing.last30Days.grossMarginEur}`} hint={`${billing.last30Days.grossMarginPercent}%`} />
+          <Metric label={t("admin.renderAnalytics.adminFreeEvents")} value={String(billing.allTime.adminFreeCount)} />
+        </dl>
+      </AppCard>
+
+      <AppCard>
+        <h2 className="text-lg font-semibold">{t("admin.renderAnalytics.pricingTableV1")}</h2>
+        <DataTable
+          headers={[t("admin.renderAnalytics.pricingRule"), t("admin.renderAnalytics.credits"), t("admin.renderAnalytics.salePriceEur")]}
+          rows={[
+            ...billing.pricingRules.creditTiers.map((r) => [
+              r.label,
+              r.maxCredits != null ? `${r.minCredits}–${r.maxCredits}` : `${r.minCredits}+`,
+              `€${r.basePriceEur}`,
+            ]),
+            ...billing.pricingRules.flatRules.map((r) => [r.label, "—", `€${r.basePriceEur}`]),
+          ]}
           emptyLabel={emptyLabel}
         />
       </AppCard>

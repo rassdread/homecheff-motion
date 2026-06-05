@@ -9,30 +9,51 @@ import {
 } from "@/lib/instant-premium-pricing";
 
 describe("instant-premium-pricing", () => {
-  it("maps image tiers to EUR prices", () => {
-    assert.equal(estimateInstantPremiumPriceEur(2), 0.49);
-    assert.equal(estimateInstantPremiumPriceEur(3), 0.99);
-    assert.equal(estimateInstantPremiumPriceEur(4), 1.49);
-    assert.equal(estimateInstantPremiumPriceEur(5), 1.99);
-    assert.equal(estimateInstantPremiumPriceEur(6), 2.49);
+  it("uses V1 credit-tier prices for transition mode", () => {
+    assert.equal(
+      estimateInstantPremiumPriceEur(2, { instantMode: "transition" }),
+      0.99
+    );
+    assert.equal(
+      estimateInstantPremiumPriceEur(3, { instantMode: "transition" }),
+      2.99
+    );
+    assert.equal(
+      estimateInstantPremiumPriceEur(4, { instantMode: "transition" }),
+      4.99
+    );
   });
 
   it("converts to cents for Stripe", () => {
-    assert.equal(estimateInstantPremiumPriceCents(2), 49);
-    assert.equal(estimateInstantPremiumPriceCents(3), 99);
+    assert.equal(
+      estimateInstantPremiumPriceCents(2, { instantMode: "transition" }),
+      99
+    );
+    assert.equal(
+      estimateInstantPremiumPriceCents(3, { instantMode: "transition" }),
+      299
+    );
   });
 
   it("formats nl price labels", () => {
-    assert.equal(formatInstantPremiumPriceEur(2, "nl"), "€0,49");
-    assert.equal(formatInstantPremiumPriceEur(3, "en"), "€0.99");
+    assert.equal(
+      formatInstantPremiumPriceEur(2, "nl", { instantMode: "transition" }),
+      "€0,99"
+    );
+    assert.equal(
+      formatInstantPremiumPriceEur(3, "en", { instantMode: "transition" }),
+      "€2.99"
+    );
   });
 
-  it("scales price by provider duration not storyboard duration", () => {
-    const baseline = estimateInstantPremiumPriceEur(9, { providerDurationSeconds: 40 });
-    const shorter = estimateInstantPremiumPriceEur(9, { providerDurationSeconds: 42 });
-    const storyboardInflated = estimateInstantPremiumPriceEur(9, { durationSeconds: 49 });
-    assert.ok(shorter > baseline);
-    assert.ok(storyboardInflated > shorter);
+  it("admin users get free price", () => {
+    assert.equal(estimateInstantPremiumPriceEur(5, { userRole: "admin" }), 0);
+  });
+
+  it("story mode uses higher tier prices", () => {
+    const transition = estimateInstantPremiumPriceEur(4, { instantMode: "transition" });
+    const story = estimateInstantPremiumPriceEur(4, { instantMode: "story" });
+    assert.ok(story >= transition);
   });
 
   it("detects when pacing presets share the same EUR price", () => {
@@ -54,19 +75,14 @@ describe("instant-premium-pricing", () => {
     assert.equal(varied, false);
   });
 
-  it("resolveInstantPremiumPricingSummary scales price with provider seconds", () => {
-    const fast = resolveInstantPremiumPricingSummary(4, {
-      imageCount: 4,
-      instantMode: "transition",
-      transitionSeconds: 3,
-    });
-    const standard = resolveInstantPremiumPricingSummary(4, {
+  it("resolveInstantPremiumPricingSummary includes pricing metadata", () => {
+    const summary = resolveInstantPremiumPricingSummary(4, {
       imageCount: 4,
       instantMode: "transition",
       transitionSeconds: 5,
     });
-    assert.ok(fast.providerDurationSeconds < standard.providerDurationSeconds);
-    assert.ok(fast.priceEur < standard.priceEur);
-    assert.equal(fast.pacingOptionsShareSamePrice, false);
+    assert.ok(summary.priceEur > 0);
+    assert.ok(summary.pricingRuleLabel.length > 0);
+    assert.equal(summary.priceIsEstimate, true);
   });
 });

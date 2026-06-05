@@ -502,7 +502,13 @@ function VideosPageContent() {
     <main className="mx-auto w-full max-w-6xl px-6 py-8 sm:px-10 sm:py-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{t("videos.title")}</h1>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/mijn-verbruik"
+            className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 sm:text-sm"
+          >
+            {t("usage.title")}
+          </Link>
           <div className="flex rounded-full border border-zinc-200 bg-zinc-50 p-1 text-xs font-medium sm:text-sm">
             <button
               type="button"

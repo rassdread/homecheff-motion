@@ -19,8 +19,12 @@ export const COST_UNIT = {
   CREDITS: "credits",
   USD: "usd",
   TOKENS: "tokens",
+  SECONDS: "seconds",
+  GB: "gb",
   BYTES: "bytes",
-  API_CALLS: "api_calls",
+  REQUEST: "request",
+  API_CALLS: "request",
+  UNKNOWN: "unknown",
 } as const;
 
 export type CostUnitType = (typeof COST_UNIT)[keyof typeof COST_UNIT];

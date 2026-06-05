@@ -8,6 +8,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getViduCreditBalance } from "@/server/video-providers/vidu-credits";
 import { maybeCaptureDailyBalanceSnapshot } from "@/server/provider-usage/provider-usage-log";
+import { syncCustomerBillingFromCostEvent } from "@/server/billing/sync-billing-from-cost";
 import {
   COST_ACTION,
   COST_UNIT,
@@ -178,7 +179,8 @@ export async function completeCostEvent(input: CompleteCostEventInput): Promise<
     estimateReason = estimateReason ?? "usage_from_estimate";
   }
 
-  const totalCostUsd = unitsUsed != null ? unitsToTotalCostUsd(unitsUsed, unitCost) : null;
+  const internalCostUsd =
+    unitsUsed != null ? unitsToTotalCostUsd(unitsUsed, unitCost) : null;
 
   await prisma.providerCostEvent.update({
     where: { id: existing.id },
@@ -187,7 +189,12 @@ export async function completeCostEvent(input: CompleteCostEventInput): Promise<
       balanceAfter,
       unitsUsed,
       unitCostUsd: unitCost,
-      totalCostUsd,
+      internalCostUsd,
+      totalCostUsd: internalCostUsd,
+      providerJobId:
+        input.provider === "vidu" && input.relatedJobId?.trim() ?
+          input.relatedJobId.trim()
+        : undefined,
       isEstimated,
       needsReview,
       estimateReason,
@@ -204,6 +211,10 @@ export async function completeCostEvent(input: CompleteCostEventInput): Promise<
   if (balanceAfter != null) {
     await maybeCaptureDailyBalanceSnapshot(input.provider, balanceAfter);
   }
+
+  await syncCustomerBillingFromCostEvent(existing.id).catch((err) => {
+    console.error("[billing] syncCustomerBillingFromCostEvent", err);
+  });
 }
 
 export type RecordCostEventInput = {
@@ -225,10 +236,10 @@ export type RecordCostEventInput = {
 
 /** One-shot cost event (no balance delta — e.g. OCR, storage, internal merge). */
 export async function recordCostEvent(input: RecordCostEventInput): Promise<void> {
-  const totalCostUsd = unitsToTotalCostUsd(input.unitsUsed, input.unitCostUsd);
+  const internalCostUsd = unitsToTotalCostUsd(input.unitsUsed, input.unitCostUsd);
   const status = normalizeStatus(input.status);
 
-  await prisma.providerCostEvent.create({
+  const row = await prisma.providerCostEvent.create({
     data: {
       provider: input.provider,
       actionType: input.actionType,
@@ -236,10 +247,15 @@ export async function recordCostEvent(input: RecordCostEventInput): Promise<void
       userId: input.userId ?? null,
       relatedJobId: input.relatedJobId?.trim() || null,
       relatedExportId: input.relatedExportId?.trim() || null,
+      providerJobId:
+        input.provider === "vidu" && input.relatedJobId?.trim() ?
+          input.relatedJobId.trim()
+        : null,
       unitsUsed: input.unitsUsed,
       unitType: input.unitType,
       unitCostUsd: input.unitCostUsd,
-      totalCostUsd,
+      internalCostUsd,
+      totalCostUsd: internalCostUsd,
       status,
       isEstimated: input.isEstimated ?? true,
       needsReview: input.needsReview ?? false,
@@ -248,6 +264,10 @@ export async function recordCostEvent(input: RecordCostEventInput): Promise<void
       startedAt: new Date(),
       completedAt: new Date(),
     },
+  });
+
+  await syncCustomerBillingFromCostEvent(row.id).catch((err) => {
+    console.error("[billing] syncCustomerBillingFromCostEvent", err);
   });
 }
 
@@ -302,7 +322,7 @@ export async function recordOpenAiOcrCostEvent(input: {
     userId: input.userId,
     relatedJobId: input.scanRequestId,
     status: input.status,
-    unitType: COST_UNIT.API_CALLS,
+    unitType: COST_UNIT.REQUEST,
     unitsUsed: 1,
     unitCostUsd: UNIT_COST_USD.openai_ocr_call,
     isEstimated: true,

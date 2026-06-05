@@ -300,6 +300,56 @@ export type VideoCostAnalytics = {
   costEvents: CostEventRow[];
 };
 
+export type RevenuePeriodTotals = {
+  grossRevenueEur: number;
+  netRevenueEur: number;
+  internalCostUsd: number;
+  internalCostEur: number;
+  grossMarginEur: number;
+  grossMarginPercent: number;
+  eventCount: number;
+  adminFreeCount: number;
+};
+
+export type BillingAnalytics = {
+  today: RevenuePeriodTotals;
+  last7Days: RevenuePeriodTotals;
+  last30Days: RevenuePeriodTotals;
+  allTime: RevenuePeriodTotals;
+  pricingRules: {
+    plan: string;
+    creditTiers: {
+      actionType: string;
+      renderType: string;
+      minCredits: number;
+      maxCredits: number | null;
+      basePriceEur: number;
+      label: string;
+    }[];
+    flatRules: {
+      actionType: string;
+      renderType: string;
+      basePriceEur: number;
+      label: string;
+    }[];
+  };
+  topUsersByRevenue: {
+    userId: string;
+    email: string;
+    grossRevenueEur: number;
+    internalCostUsd: number;
+    marginEur: number;
+    isAdmin: boolean;
+  }[];
+  topProjectsByRevenue: {
+    projectId: string;
+    projectTitle: string | null;
+    grossRevenueEur: number;
+    internalCostUsd: number;
+    marginEur: number;
+  }[];
+};
+
 export type FinancialSummary = {
   today: PeriodCostSummary;
   last7Days: PeriodCostSummary;
@@ -347,6 +397,21 @@ export type RenderAnalyticsReport = {
   };
   sqlQueriesUsed: string[];
   videoCosts: VideoCostAnalytics;
+  billing: BillingAnalytics;
+  customerBillingRows: {
+    createdAt: string;
+    userId: string;
+    projectId: string | null;
+    actionType: string;
+    renderType: string;
+    customerUnits: number;
+    grossPriceEur: number;
+    netPriceEur: number;
+    status: string;
+    pricingRuleLabel: string | null;
+    isAdminFree: boolean;
+    isEstimated: boolean;
+  }[];
 };
 
 export type RenderAnalyticsCsvSection =
@@ -356,4 +421,5 @@ export type RenderAnalyticsCsvSection =
   | "video-costs"
   | "provider-costs"
   | "project-usage"
-  | "user-usage";
+  | "user-usage"
+  | "customer-billing";

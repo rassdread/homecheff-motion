@@ -124,6 +124,7 @@ model AnimationProject {
   usageLedger AnimationUsageLedger[]
   providerUsageLogs ProviderUsageLog[]
   providerCostEvents ProviderCostEvent[]
+  customerBillingEvents CustomerBillingEvent[]
 
   @@index([ownerId, createdAt])
   @@index([sourceProjectId])
@@ -299,6 +300,7 @@ model User {
   animationUsage    AnimationUsageLedger[]
   providerUsageLogs ProviderUsageLog[]
   providerCostEvents ProviderCostEvent[]
+  customerBillingEvents CustomerBillingEvent[]
   invitesCreated    AnimationInvite[] @relation("InviteCreator")
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
@@ -828,15 +830,18 @@ model ProviderCostEvent {
   user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   relatedJobId    String?
   relatedExportId String?
+  providerJobId   String?
   balanceBefore   Float?
   balanceAfter    Float?
   unitsUsed       Float?
-  /** credits | usd | tokens | bytes | api_calls */
+  /** credits | tokens | seconds | gb | request | unknown */
   unitType        String
   unitCostUsd     Float
+  internalCostUsd Float?
+  /** @deprecated Use internalCostUsd — kept for migration compatibility */
   totalCostUsd    Float?
   currency        String            @default("USD")
-  /** pending | completed | failed | cancelled */
+  /** pending | running | completed | failed | cancelled */
   status          String            @default("pending")
   isEstimated     Boolean           @default(false)
   needsReview     Boolean           @default(false)
@@ -846,21 +851,62 @@ model ProviderCostEvent {
   completedAt     DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  billingEvents   CustomerBillingEvent[]
 
   @@index([projectId, createdAt])
   @@index([userId, createdAt])
   @@index([provider, actionType, createdAt])
   @@index([relatedJobId])
   @@index([relatedExportId])
+  @@index([providerJobId])
+  @@index([status, createdAt])
+}
+
+/** Commercial user-facing price per action (gross/net — no internal cost exposed to users). */
+model CustomerBillingEvent {
+  id                  String             @id @default(cuid())
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId           String?
+  project             AnimationProject?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  providerCostEventId String?
+  providerCostEvent   ProviderCostEvent? @relation(fields: [providerCostEventId], references: [id], onDelete: SetNull)
+  actionType          String
+  renderType          String
+  customerUnits       Float              @default(1)
+  unitType            String             @default("action")
+  unitPriceEur        Float
+  grossPriceEur       Float
+  discountEur         Float              @default(0)
+  netPriceEur         Float
+  currency            String             @default("EUR")
+  pricingPlan         String             @default("v1")
+  pricingRuleLabel    String?
+  marginMode          String             @default("tiered")
+  /** pending | completed | failed | cancelled | refunded */
+  status              String             @default("pending")
+  isTestMode          Boolean            @default(false)
+  isAdminFree         Boolean            @default(false)
+  isEstimated         Boolean            @default(false)
+  metadataJson        Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([providerCostEventId])
+  @@index([actionType, createdAt])
   @@index([status, createdAt])
 }
 
 /** Daily (or on-demand) provider credit balance snapshots for audit. */
 model ProviderCreditBalanceSnapshot {
-  id         String   @id @default(cuid())
-  provider   String
-  balance    Int
-  capturedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  provider     String
+  balance      Int
+  unitType     String   @default("credits")
+  capturedAt   DateTime @default(now())
+  metadataJson Json?
 
   @@index([provider, capturedAt])
 }

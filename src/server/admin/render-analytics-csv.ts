@@ -20,6 +20,7 @@ export const RENDER_ANALYTICS_CSV_SECTIONS: RenderAnalyticsCsvSection[] = [
   "provider-costs",
   "project-usage",
   "user-usage",
+  "customer-billing",
 ];
 
 export function buildRenderAnalyticsCsv(
@@ -325,6 +326,44 @@ export function buildRenderAnalyticsCsv(
             p.storageBytes,
             p.estimatedStorageCostUsd,
             p.totalVideoSeconds,
+          ])
+        ),
+      ].join("\n"),
+    };
+  }
+
+  if (section === "customer-billing") {
+    return {
+      filename: "customer-billing.csv",
+      csv: [
+        csvRow([
+          "date",
+          "userId",
+          "projectId",
+          "actionType",
+          "renderType",
+          "customerUnits",
+          "grossPriceEur",
+          "netPriceEur",
+          "status",
+          "pricingRuleLabel",
+          "isAdminFree",
+          "isEstimated",
+        ]),
+        ...report.customerBillingRows.map((e) =>
+          csvRow([
+            e.createdAt,
+            e.userId,
+            e.projectId,
+            e.actionType,
+            e.renderType,
+            e.customerUnits,
+            e.grossPriceEur,
+            e.netPriceEur,
+            e.status,
+            e.pricingRuleLabel,
+            e.isAdminFree,
+            e.isEstimated,
           ])
         ),
       ].join("\n"),

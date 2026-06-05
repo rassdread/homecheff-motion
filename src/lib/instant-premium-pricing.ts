@@ -11,6 +11,7 @@ import {
   type ResolveInstantPremiumOutputPlanInput,
 } from "@/lib/instant-premium-output-plan";
 import { getAnimationPreset } from "@/lib/animation-presets";
+import { formatPriceEur, quoteVideoPrice } from "@/server/billing/video-pricing";
 
 export {
   INSTANT_TRANSITION_SECONDS_OPTIONS,
@@ -55,26 +56,36 @@ export type InstantPremiumPriceOptions = {
   transitionSeconds?: InstantTransitionSeconds;
 };
 
-/** EUR estimate scaled by provider output duration vs legacy baseline for the same image count. */
+/** EUR estimate from V1 credit-tier pricing (central billing service). */
 export function estimateInstantPremiumPriceEur(
   imageCount: number,
-  options?: InstantPremiumPriceOptions
+  options?: InstantPremiumPriceOptions & {
+    instantMode?: "transition" | "story";
+    userRole?: string;
+    locale?: "nl" | "en";
+  }
 ): number {
   if (imageCount < MIN_INSTANT_PREMIUM_IMAGES) {
     return 0;
   }
-  const tier = legacyTierPriceEur(imageCount);
-  const baselineDuration = standardPacingDurationSeconds(imageCount);
   const transitionSeconds = options?.transitionSeconds ?? 5;
   const durationSeconds =
     options?.providerDurationSeconds ??
     options?.durationSeconds ??
     getInstantOutputDurationSeconds(imageCount, transitionSeconds);
-  if (baselineDuration <= 0 || durationSeconds <= 0) {
-    return tier;
-  }
-  const scaled = tier * (durationSeconds / baselineDuration);
-  return Math.round(scaled * 100) / 100;
+  const preset = getAnimationPreset("standard");
+  const transitionCount = Math.max(1, imageCount - 1);
+  const estimatedCredits = Math.round(
+    transitionCount * durationSeconds * preset.estimatedCreditsPerSecond
+  );
+  const renderType = options?.instantMode === "story" ? "story_mode" : "transition_mode";
+  const quote = quoteVideoPrice({
+    renderType,
+    creditsUsed: estimatedCredits,
+    user: options?.userRole ? { role: options.userRole } : undefined,
+    locale: options?.locale,
+  });
+  return quote.netPriceEur;
 }
 
 export function estimateInstantPremiumPriceCents(
@@ -88,11 +99,13 @@ export function estimateInstantPremiumPriceCents(
 export function formatInstantPremiumPriceEur(
   imageCount: number,
   locale: "nl" | "en" = "nl",
-  options?: InstantPremiumPriceOptions
+  options?: InstantPremiumPriceOptions & {
+    instantMode?: "transition" | "story";
+    userRole?: string;
+  }
 ): string {
-  const value = estimateInstantPremiumPriceEur(imageCount, options);
-  const formatted = value.toFixed(2).replace(".", locale === "nl" ? "," : ".");
-  return `€${formatted}`;
+  const value = estimateInstantPremiumPriceEur(imageCount, { ...options, locale });
+  return formatPriceEur(value, locale);
 }
 
 export type InstantPremiumPricingSummary = {
@@ -105,6 +118,10 @@ export type InstantPremiumPricingSummary = {
   estimatedCredits: number;
   /** True when Fast / Standard / Cinematic yield the same EUR estimate. */
   pacingOptionsShareSamePrice: boolean;
+  pricingRuleLabel: string;
+  isAdminFree: boolean;
+  /** Final price may differ when actual credit usage is known. */
+  priceIsEstimate: boolean;
 };
 
 function pricingOptionsFromPlan(
@@ -139,27 +156,43 @@ export function instantPremiumPacingOptionsShareSamePrice(
 export function resolveInstantPremiumPricingSummary(
   imageCount: number,
   input: ResolveInstantPremiumOutputPlanInput,
-  locale: "nl" | "en" = "nl"
+  locale: "nl" | "en" = "nl",
+  userRole?: string
 ): InstantPremiumPricingSummary {
   const safeCount = Math.max(MIN_INSTANT_PREMIUM_IMAGES, imageCount);
   const plan = resolveInstantPremiumOutputPlan({ ...input, imageCount: safeCount });
-  const priceOptions = pricingOptionsFromPlan(plan);
-  const priceEur = estimateInstantPremiumPriceEur(safeCount, priceOptions);
+  const priceOptions = {
+    ...pricingOptionsFromPlan(plan),
+    instantMode: input.instantMode,
+    userRole,
+    locale,
+  };
   const preset = getAnimationPreset("standard");
+  const estimatedCredits = estimateInstantPremiumCreditsForPlan(
+    plan,
+    preset.estimatedCreditsPerSecond
+  );
+  const renderType = input.instantMode === "story" ? "story_mode" : "transition_mode";
+  const quote = quoteVideoPrice({
+    renderType,
+    creditsUsed: estimatedCredits,
+    user: userRole ? { role: userRole } : undefined,
+    locale,
+  });
   return {
-    priceEur,
-    priceLabel: formatInstantPremiumPriceEur(safeCount, locale, priceOptions),
+    priceEur: quote.netPriceEur,
+    priceLabel: formatPriceEur(quote.netPriceEur, locale),
     providerDurationSeconds: plan.providerDurationSeconds,
     storyboardDurationSeconds: plan.storyboardDurationSeconds,
     transitionCount: plan.transitionCount,
     perTransitionProviderSeconds: plan.viduSegmentDurationSeconds,
-    estimatedCredits: estimateInstantPremiumCreditsForPlan(
-      plan,
-      preset.estimatedCreditsPerSecond
-    ),
+    estimatedCredits,
     pacingOptionsShareSamePrice: instantPremiumPacingOptionsShareSamePrice(safeCount, {
       instantMode: input.instantMode,
       sceneTexts: input.sceneTexts,
     }),
+    pricingRuleLabel: quote.pricingRuleLabel,
+    isAdminFree: quote.isAdminFree,
+    priceIsEstimate: true,
   };
 }

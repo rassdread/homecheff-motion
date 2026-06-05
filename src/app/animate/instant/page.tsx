@@ -421,9 +421,10 @@ export default function InstantPremiumPage() {
           transitionSeconds,
           sceneTexts: serializeSceneTextDrafts(sceneTexts, sceneCount),
         },
-        locale === "nl" ? "nl" : "en"
+        locale === "nl" ? "nl" : "en",
+        session.user?.role?.trim()
       ),
-    [attachedImageCount, instantMode, locale, sceneCount, transitionSeconds, sceneTexts]
+    [attachedImageCount, instantMode, locale, sceneCount, session.user?.role, transitionSeconds, sceneTexts]
   );
   const estimatedPriceLabel = pricingSummary.priceLabel;
 
@@ -1955,16 +1956,19 @@ export default function InstantPremiumPage() {
                   <p className="mt-1 text-sm text-emerald-900/90">
                     {t("instant.pricing.estimated", { price: estimatedPriceLabel })}
                   </p>
+                  <p className="mt-1 text-xs text-emerald-900/75">
+                    {t("instant.pricing.creditsBasedNote")}
+                  </p>
+                  {pricingSummary.isAdminFree || isAdmin ?
+                    <p className="mt-1 text-xs font-medium text-amber-900">
+                      {t("instant.pricing.adminTestMode")}
+                    </p>
+                  : null}
                   {pricingSummary.pacingOptionsShareSamePrice ?
                     <p className="mt-2 text-xs text-emerald-900/80">
                       {t("instant.pricing.samePricePacingOnly")}
                     </p>
                   : null}
-                  {isAdmin ? (
-                    <p className="mt-2 text-xs font-medium text-amber-900">
-                      {t("instant.pricing.adminTestMode")}
-                    </p>
-                  ) : null}
                 </div>
                 <ul className="space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 text-sm text-zinc-700">
                   <li>

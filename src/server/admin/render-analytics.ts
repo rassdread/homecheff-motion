@@ -22,6 +22,7 @@ import {
   prorateInfraCost,
 } from "@/server/admin/render-analytics-cost";
 import { CREDIT_UNIT_COST_USD } from "@/server/provider-usage/credit-cost";
+import { buildBillingAnalytics } from "@/server/admin/billing-analytics";
 import { buildVideoCostAnalytics } from "@/server/admin/video-cost-analytics";
 import type {
   BalanceSnapshotRow,
@@ -308,10 +309,33 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     (p) => p.instantDetectedTextMetadata != null
   ).length;
 
-  const [creditRows, videoCosts] = await Promise.all([
+  const [creditRows, videoCosts, billing, customerBillingDb] = await Promise.all([
     loadRenderCreditDataset(),
     buildVideoCostAnalytics(),
+    buildBillingAnalytics(),
+    prisma.customerBillingEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5000,
+      select: {
+        createdAt: true,
+        userId: true,
+        projectId: true,
+        actionType: true,
+        renderType: true,
+        customerUnits: true,
+        grossPriceEur: true,
+        netPriceEur: true,
+        status: true,
+        pricingRuleLabel: true,
+        isAdminFree: true,
+        isEstimated: true,
+      },
+    }),
   ]);
+  const customerBillingRows = customerBillingDb.map((e) => ({
+    ...e,
+    createdAt: e.createdAt.toISOString(),
+  }));
   const creditAnalytics = aggregateCreditAnalytics(creditRows, now);
   const projectCreditMap = creditsByProject(creditRows);
   const userCreditMap = creditsByUser(creditRows);
@@ -1044,5 +1068,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     },
     sqlQueriesUsed: SQL_QUERIES,
     videoCosts,
+    billing,
+    customerBillingRows,
   };
 }
