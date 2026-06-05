@@ -148,9 +148,9 @@ describe("studio-production-center", () => {
     assert.ok(warnings.some((w) => w.code === "missing_narration"));
   });
 
-  it("buildAssetReadiness returns nine readiness categories including audio assets", () => {
+  it("buildAssetReadiness returns readiness categories including composition", () => {
     const assets = buildAssetReadiness(storyboard([scene(0), scene(1)]));
-    assert.equal(assets.length, 12);
+    assert.equal(assets.length, 13);
     assert.ok(assets.some((a) => a.id === "story"));
     assert.ok(assets.some((a) => a.id === "voice"));
     assert.ok(assets.some((a) => a.id === "music"));
@@ -176,9 +176,9 @@ describe("studio-production-center", () => {
     assert.equal(label.label, "production_ready");
   });
 
-  it("buildProductionChecklist includes ten checklist items including audio asset assignment", () => {
+  it("buildProductionChecklist includes checklist items including scene composition", () => {
     const checklist = buildProductionChecklist(storyboard([scene(0), scene(1)]));
-    assert.equal(checklist.length, 13);
+    assert.equal(checklist.length, 14);
     assert.ok(checklist.some((c) => c.id === "shot_plan"));
     assert.ok(checklist.some((c) => c.id === "music_plan"));
     assert.ok(checklist.some((c) => c.id === "sound_plan"));

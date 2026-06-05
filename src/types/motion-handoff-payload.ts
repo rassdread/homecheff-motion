@@ -79,8 +79,17 @@ import type {
   ProviderExecutionWarning,
   ProviderFallbackPlan,
 } from "@/types/studio-provider-execution";
+import type {
+  BrandPlacementPlan,
+  CharacterPlacementPlan,
+  CompositionWarning,
+  LocationCompositionPlan,
+  MotionSceneCompositionHandoffPlan,
+  PropPlacementPlan,
+  SceneComposition,
+} from "@/types/studio-scene-composition";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 21 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 22 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -133,6 +142,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneAudioAssetPackage?: MotionSceneAudioAssetHandoff;
   /** V39: resolved voice identity for scene primary speaker. */
   resolvedVoiceProfile?: string | null;
+  /** V42: per-scene visual composition (planning only). */
+  sceneComposition?: SceneComposition;
 };
 
 export type MotionHandoffPayload = {
@@ -229,5 +240,13 @@ export type MotionHandoffPayload = {
   providerCapabilities?: ProviderCapability[];
   providerWarnings?: ProviderExecutionWarning[];
   providerCostEstimate?: ProviderCostEstimate[];
+  /** V42: Scene Composition Director plan (planning only — no rendering). */
+  sceneCompositionPlan?: MotionSceneCompositionHandoffPlan;
+  characterPlacementPlans?: CharacterPlacementPlan[];
+  propPlacementPlans?: PropPlacementPlan[];
+  brandPlacementPlans?: BrandPlacementPlan[];
+  locationCompositionPlans?: LocationCompositionPlan[];
+  visualFocusSummary?: string;
+  compositionWarnings?: CompositionWarning[];
   scenes: MotionHandoffScene[];
 };

@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StudioSceneComposer } from "@/components/studio/studio-scene-composer";
 import { buildDirectorScenePreviewText } from "@/lib/studio-scene-director-preview";
+import { buildSceneCompositionForScene } from "@/lib/studio-scene-composition-director";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -71,6 +72,13 @@ export function StudioSortableSceneCard({
   };
 
   const directorSummary = buildDirectorScenePreviewText(scene, directorProfile);
+  const composition = buildSceneCompositionForScene(scene);
+  const compositionStatus =
+    composition.compositionWarnings.some((w) => w.severity === "warning") ?
+      "attention"
+    : composition.visualFocus.kind === "none" ?
+      "incomplete"
+    : "ready";
   const summary =
     directorSummary ||
     scene.description.trim() ||
@@ -106,7 +114,29 @@ export function StudioSortableSceneCard({
           </p>
           <p className="mt-1 text-lg font-semibold text-zinc-900">{scene.title || summary}</p>
           {!expanded ? (
-            <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{summary}</p>
+            <>
+              <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{summary}</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                  {t(`studio.composition.type.${composition.compositionType}` as never)}
+                </span>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-700">
+                  {composition.visualFocus.entityName ??
+                    t(composition.visualFocus.labelKey as never)}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    compositionStatus === "ready"
+                      ? "bg-emerald-50 text-emerald-800"
+                      : compositionStatus === "attention"
+                        ? "bg-amber-50 text-amber-900"
+                        : "bg-zinc-100 text-zinc-600"
+                  }`}
+                >
+                  {t(`studio.composition.status.${compositionStatus}` as never)}
+                </span>
+              </div>
+            </>
           ) : null}
         </button>
         {canModify ? (

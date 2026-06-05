@@ -29,6 +29,10 @@ import {
   isMediaAssetPlanReady,
 } from "@/lib/studio-media-asset-director";
 import {
+  buildSceneCompositionDirector,
+  isSceneCompositionPlanReady,
+} from "@/lib/studio-scene-composition-director";
+import {
   buildProviderExecutionPlan,
   isProviderExecutionPlanReady,
 } from "@/lib/studio-provider-execution-director";
@@ -56,6 +60,7 @@ export type AssetReadinessItem = {
     | "voice_identity"
     | "asset_library"
     | "providers"
+    | "composition"
     | "video";
   labelKey: string;
   level: AssetReadinessLevel;
@@ -102,6 +107,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const voiceIdentityPlan = buildVoiceIdentityPlan(storyboard);
   const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
   const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
+  const compositionPlan = buildSceneCompositionDirector(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -316,6 +322,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
           : isProviderExecutionPlanReady(providerExecutionPlan)
             ? null
             : "studio.production.asset.providers.planIncomplete",
+    },
+    {
+      id: "composition",
+      labelKey: "studio.production.asset.composition",
+      level:
+        !compositionPlan.enabled
+          ? "attention"
+          : isSceneCompositionPlanReady(compositionPlan)
+            ? "ready"
+            : compositionPlan.sceneCompositions.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !compositionPlan.enabled
+          ? "studio.production.asset.composition.disabled"
+          : isSceneCompositionPlanReady(compositionPlan)
+            ? null
+            : "studio.production.asset.composition.planIncomplete",
     },
     {
       id: "video",

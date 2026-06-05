@@ -436,6 +436,6 @@ describe("studio character consistency engine V17", () => {
   });
 
   it("motion handoff payload version is 9 with character fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 21);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
   });
 });
