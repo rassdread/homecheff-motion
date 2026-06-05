@@ -76,6 +76,11 @@ export default function StudioCharacterEditPage() {
       defaultMouthIntensity: values.performance.defaultMouthIntensity,
       idleAnimationStyle: values.performance.idleAnimationStyle,
       performanceNotes: values.performance.performanceNotes,
+      mouthAnimationEnabled: values.performance.mouthAnimationEnabled,
+      mouthClosedAssetUrl: values.performance.mouthClosedAssetUrl,
+      mouthSmallAssetUrl: values.performance.mouthSmallAssetUrl,
+      mouthMediumAssetUrl: values.performance.mouthMediumAssetUrl,
+      mouthWideAssetUrl: values.performance.mouthWideAssetUrl,
       ...(values.referenceImageUrl !== character?.referenceImageUrl
         ? {
             referenceImageUrl: values.referenceImageUrl,

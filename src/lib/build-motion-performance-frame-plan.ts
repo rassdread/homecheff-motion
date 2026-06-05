@@ -9,10 +9,7 @@ import {
 } from "@/lib/studio-character-performance";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import { validateMotionPerformanceExport } from "@/lib/studio-performance-export-validation";
-import {
-  analyzeVoiceSegmentAmplitude,
-  dominantMouthStateFromSamples,
-} from "@/lib/voice-amplitude-analyzer";
+import { speakingMouthStateAtTime } from "@/lib/speaking-mouth-cycle";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type {
@@ -23,6 +20,7 @@ import type {
 import type {
   CharacterPerformanceProfile,
   CharacterPerformanceState,
+  MouthMovementState,
 } from "@/types/studio-character-performance";
 import type { CharacterSnapshot } from "@/types/studio-character-snapshot";
 import type { MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
@@ -31,22 +29,17 @@ const DEFAULT_SAMPLE_INTERVAL = 0.25;
 
 export function mouthStateAtSegmentTime(
   segment: Pick<MotionVoiceSegmentHandoff, "text" | "startSeconds" | "endSeconds">,
-  absoluteTimeSeconds: number
-): ReturnType<typeof dominantMouthStateFromSamples> {
-  const samples = analyzeVoiceSegmentAmplitude(segment);
-  const offset = Math.max(0, absoluteTimeSeconds - segment.startSeconds);
-  let best = samples[0];
-  let bestDist = Infinity;
-  for (const sample of samples) {
-    const dist = Math.abs(sample.offsetSeconds - absoluteTimeSeconds);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = sample;
-    } else if (sample.offsetSeconds - segment.startSeconds > offset + 0.5) {
-      break;
-    }
-  }
-  return best?.mouthState ?? dominantMouthStateFromSamples(samples);
+  absoluteTimeSeconds: number,
+  emotion: string,
+  sceneEnergy: string
+): MouthMovementState {
+  return speakingMouthStateAtTime({
+    segmentStartSeconds: segment.startSeconds,
+    segmentEndSeconds: segment.endSeconds,
+    absoluteTimeSeconds,
+    emotion,
+    sceneEnergy,
+  });
 }
 
 function sceneIndexForTime(
@@ -165,7 +158,12 @@ function buildFrameForCharacter(params: {
 
   let mouthState = baseState.mouthState;
   if (params.activeSpeaker && params.segment) {
-    mouthState = mouthStateAtSegmentTime(params.segment, params.time);
+    mouthState = mouthStateAtSegmentTime(
+      params.segment,
+      params.time,
+      params.emotion,
+      params.sceneEnergy
+    );
   } else if (!params.activeSpeaker) {
     mouthState = "closed";
   }
@@ -239,14 +237,30 @@ export function buildMotionPerformanceFramePlan(params: {
     const sceneIndex = sceneIndexForTime(scenes, time, voiceSegments, duration);
     const ctx = sceneContextAtTime(scenes, sceneIndex, voiceSegments);
 
-    const activeProfileId =
-      ctx.segment?.speaker?.trim() ?
-        matchSnapshotBySpeaker(String(ctx.segment.speaker), ctx.scene?.characters ?? [])?.id ??
-        null
-      : null;
+    const inVoiceWindow = Boolean(
+      ctx.segment &&
+        time >= ctx.segment.startSeconds &&
+        time < ctx.segment.endSeconds
+    );
+
+    let activeProfileId: string | null = null;
+    if (ctx.segment && inVoiceWindow) {
+      if (ctx.segment.speaker?.trim()) {
+        activeProfileId =
+          matchSnapshotBySpeaker(String(ctx.segment.speaker), ctx.scene?.characters ?? [])
+            ?.id ?? null;
+      }
+      if (!activeProfileId && ctx.scene?.speakerPerformance?.characterId) {
+        activeProfileId = ctx.scene.speakerPerformance.characterId;
+      }
+      if (!activeProfileId && ctx.scene?.characters?.[0]?.id) {
+        activeProfileId = ctx.scene.characters[0].id;
+      }
+    }
 
     for (const profile of profiles) {
-      const activeSpeaker = activeProfileId ? profile.characterId === activeProfileId : false;
+      const activeSpeaker =
+        inVoiceWindow && activeProfileId ? profile.characterId === activeProfileId : false;
 
       frames.push(
         buildFrameForCharacter({

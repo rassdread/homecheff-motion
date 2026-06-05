@@ -63,6 +63,11 @@ const chef: StudioCharacterListItem = {
   defaultMouthIntensity: "medium",
   idleAnimationStyle: "natural",
   performanceNotes: "",
+  mouthAnimationEnabled: false,
+  mouthClosedAssetUrl: "",
+  mouthSmallAssetUrl: "",
+  mouthMediumAssetUrl: "",
+  mouthWideAssetUrl: "",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

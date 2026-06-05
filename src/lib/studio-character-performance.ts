@@ -23,6 +23,14 @@ import type {
 import { matchCharacterBySpeakerName } from "@/lib/studio-character-voice";
 
 export const STUDIO_PERFORMANCE_LEVELS = ["low", "medium", "high"] as const;
+
+export const DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS = {
+  mouthAnimationEnabled: false,
+  mouthClosedAssetUrl: "",
+  mouthSmallAssetUrl: "",
+  mouthMediumAssetUrl: "",
+  mouthWideAssetUrl: "",
+} as const;
 export const STUDIO_IDLE_ANIMATION_STYLES = ["subtle", "natural", "lively"] as const;
 
 export const SCENE_ENERGY_MULTIPLIERS: Record<StudioSceneEnergy, number> = {
@@ -218,6 +226,12 @@ export function characterPerformanceProfileFromCharacter(
     idleAnimationStyle: normalizeIdleAnimationStyle(character.idleAnimationStyle),
     performanceNotes: (character.performanceNotes ?? "").trim(),
     styleLabel: inferCharacterPerformanceStyleLabel(character),
+    ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
+    mouthAnimationEnabled: character.mouthAnimationEnabled ?? false,
+    mouthClosedAssetUrl: (character.mouthClosedAssetUrl ?? "").trim(),
+    mouthSmallAssetUrl: (character.mouthSmallAssetUrl ?? "").trim(),
+    mouthMediumAssetUrl: (character.mouthMediumAssetUrl ?? "").trim(),
+    mouthWideAssetUrl: (character.mouthWideAssetUrl ?? "").trim(),
   };
 }
 
@@ -263,6 +277,8 @@ export function buildCharacterPerformanceState(params: {
       text: params.voiceSegment.text,
       startSeconds: params.voiceSegment.startSeconds,
       endSeconds: params.voiceSegment.endSeconds,
+      emotion: params.emotion,
+      sceneEnergy: params.sceneEnergy,
     });
     mouthState = dominantMouthStateFromSamples(samples);
     const duration = Math.max(

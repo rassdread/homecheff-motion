@@ -11,6 +11,8 @@ import {
   resolveMotionHandoffForPerformance,
   shouldApplyStudioPerformanceOverlay,
 } from "@/lib/motion-performance-export";
+import { characterHasMouthAssetsForOverlay } from "@/lib/studio-character-mouth-assets";
+import { burnStudioMouthAssetOverlay } from "@/lib/studio-mouth-asset-overlay";
 import { burnStudioPerformanceOverlay } from "@/lib/studio-performance-ffmpeg";
 import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
@@ -43,7 +45,7 @@ async function persistPerformanceResult(params: {
       applied: params.performanceApplied,
       at: new Date().toISOString(),
       error: params.error,
-      overlayMode: "debug_indicator",
+      overlayMode: "debug_indicator" as const,
     },
   };
   const next = mergeMotionPerformanceExportIntoHandoffStorage(
@@ -99,24 +101,61 @@ export async function applyStudioCharacterPerformanceExportToMergedVideo(params:
     };
   }
 
+  const profiles = handoff?.characterPerformanceProfiles ?? [];
+  const useMouthAssets = profiles.some((p) => characterHasMouthAssetsForOverlay(p));
   const withPerfPath = path.join(params.workDir, "final-with-studio-performance.mp4");
-  const burn = await burnStudioPerformanceOverlay({
-    inputVideoPath: params.mergedVideoPath,
-    outputVideoPath: withPerfPath,
-    frames: plan.frames,
-    width,
-    height,
-    workDir: params.workDir,
-  });
+  let overlayMode: "mouth_assets" | "debug_indicator" = "debug_indicator";
+  let burnOk = false;
+  let burnMessage: string | null = null;
 
-  if (!burn.ok) {
+  if (useMouthAssets) {
+    const mouthBurn = await burnStudioMouthAssetOverlay({
+      inputVideoPath: params.mergedVideoPath,
+      outputVideoPath: withPerfPath,
+      frames: plan.frames,
+      profiles,
+      width,
+      height,
+      workDir: params.workDir,
+    });
+    if (mouthBurn.ok) {
+      burnOk = true;
+      overlayMode = "mouth_assets";
+    } else {
+      burnMessage = mouthBurn.message;
+    }
+  }
+
+  if (!burnOk) {
+    const debugBurn = await burnStudioPerformanceOverlay({
+      inputVideoPath: params.mergedVideoPath,
+      outputVideoPath: withPerfPath,
+      frames: plan.frames,
+      width,
+      height,
+      workDir: params.workDir,
+    });
+    burnOk = debugBurn.ok;
+    overlayMode = "debug_indicator";
+    if (!debugBurn.ok) {
+      burnMessage = burnMessage ?? debugBurn.message;
+    }
+  }
+
+  if (!burnOk) {
     const warning = sanitizeOverlayError(
-      `Video rendered, but character performance overlay failed: ${burn.message}`
+      `Video rendered, but character performance overlay failed: ${burnMessage ?? "unknown"}`
     );
     await persistPerformanceResult({
       projectId: params.projectId,
       studioHandoffJson: params.studioHandoffJson,
-      exportMeta: { ...exportMeta, warnings: [...exportMeta.warnings, { code: "overlay_failed", message: burn.message }] },
+      exportMeta: {
+        ...exportMeta,
+        warnings: [
+          ...exportMeta.warnings,
+          { code: "overlay_failed", message: burnMessage ?? "overlay failed" },
+        ],
+      },
       performanceApplied: false,
       error: warning,
     });
@@ -132,6 +171,12 @@ export async function applyStudioCharacterPerformanceExportToMergedVideo(params:
     performanceApplied: true,
     frameSampleCount: plan.frames.length,
     warnings: plan.warnings,
+    lastOverlay: {
+      applied: true,
+      at: new Date().toISOString(),
+      error: null,
+      overlayMode,
+    },
   };
 
   await persistPerformanceResult({

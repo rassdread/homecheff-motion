@@ -13,6 +13,7 @@ import {
   shouldApplyStudioPerformanceOverlay,
 } from "@/lib/motion-performance-export";
 import {
+  DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
   getPerformanceEmotionModifier,
   SCENE_ENERGY_MULTIPLIERS,
 } from "@/lib/studio-character-performance";
@@ -70,6 +71,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           idleAnimationStyle: "natural",
           performanceNotes: "",
           styleLabel: "Friendly",
+          ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
         },
         {
           characterId: "c2",
@@ -82,6 +84,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           idleAnimationStyle: "subtle",
           performanceNotes: "",
           styleLabel: "Calm",
+          ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
         },
       ],
       performanceStates: [],
@@ -168,6 +171,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           idleAnimationStyle: "natural",
           performanceNotes: "",
           styleLabel: "Friendly",
+          ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
         },
       ],
       performanceStates: [],
@@ -226,6 +230,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           idleAnimationStyle: "natural",
           performanceNotes: "",
           styleLabel: "Friendly",
+          ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
         },
       ],
       scenes: [],
@@ -293,6 +298,7 @@ describe("Studio V34.5 — performance runtime export", () => {
             idleAnimationStyle: "natural",
             performanceNotes: "",
             styleLabel: "Friendly",
+            ...DEFAULT_MOUTH_ANIMATION_PROFILE_FIELDS,
           },
         ],
         scenes: [],

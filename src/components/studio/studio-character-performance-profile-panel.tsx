@@ -15,6 +15,11 @@ export type CharacterPerformanceFormState = {
   defaultMouthIntensity: string;
   idleAnimationStyle: string;
   performanceNotes: string;
+  mouthAnimationEnabled: boolean;
+  mouthClosedAssetUrl: string;
+  mouthSmallAssetUrl: string;
+  mouthMediumAssetUrl: string;
+  mouthWideAssetUrl: string;
 };
 
 export function characterPerformanceStateFromDetail(
@@ -28,6 +33,11 @@ export function characterPerformanceStateFromDetail(
     defaultMouthIntensity: character.defaultMouthIntensity || "medium",
     idleAnimationStyle: character.idleAnimationStyle || "subtle",
     performanceNotes: character.performanceNotes || "",
+    mouthAnimationEnabled: character.mouthAnimationEnabled ?? false,
+    mouthClosedAssetUrl: character.mouthClosedAssetUrl || "",
+    mouthSmallAssetUrl: character.mouthSmallAssetUrl || "",
+    mouthMediumAssetUrl: character.mouthMediumAssetUrl || "",
+    mouthWideAssetUrl: character.mouthWideAssetUrl || "",
   };
 }
 

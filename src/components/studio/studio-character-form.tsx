@@ -20,6 +20,7 @@ import {
   characterVoiceStateFromDetail,
   type CharacterVoiceFormState,
 } from "@/components/studio/studio-character-voice-profile-panel";
+import { StudioCharacterMouthAnimationPanel } from "@/components/studio/studio-character-mouth-animation-panel";
 import {
   StudioCharacterPerformanceProfilePanel,
   characterPerformanceStateFromDetail,
@@ -55,6 +56,11 @@ function emptyPerformanceState(): CharacterPerformanceFormState {
     defaultMouthIntensity: "medium",
     idleAnimationStyle: "subtle",
     performanceNotes: "",
+    mouthAnimationEnabled: false,
+    mouthClosedAssetUrl: "",
+    mouthSmallAssetUrl: "",
+    mouthMediumAssetUrl: "",
+    mouthWideAssetUrl: "",
   };
 }
 
@@ -296,6 +302,18 @@ export function StudioCharacterForm({
             value={values.performance}
             onChange={(performance) => setValues((v) => ({ ...v, performance }))}
           />
+        </div>
+        <div className="mt-6 border-t border-amber-100 pt-4">
+          <h3 className="text-sm font-semibold text-amber-950">
+            {t("studio.mouthAnimation.title")}
+          </h3>
+          <div className="mt-3">
+            <StudioCharacterMouthAnimationPanel
+              characterName={values.name || t("studio.characters.createTitle")}
+              value={values.performance}
+              onChange={(performance) => setValues((v) => ({ ...v, performance }))}
+            />
+          </div>
         </div>
       </section>
 

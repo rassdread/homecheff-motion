@@ -20,6 +20,12 @@ export type CharacterPerformanceProfile = {
   performanceNotes: string;
   /** Human-readable style label for Motion preview (e.g. Friendly, Calm). */
   styleLabel: string;
+  /** V34.6 — predefined mouth cycle image overlay during speech. */
+  mouthAnimationEnabled: boolean;
+  mouthClosedAssetUrl: string;
+  mouthSmallAssetUrl: string;
+  mouthMediumAssetUrl: string;
+  mouthWideAssetUrl: string;
 };
 
 /** Runtime state passed to Motion per speaker / scene. */

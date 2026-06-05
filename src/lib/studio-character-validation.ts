@@ -40,6 +40,11 @@ export type StudioCharacterPerformanceInput = {
   defaultMouthIntensity?: string;
   idleAnimationStyle?: string;
   performanceNotes?: string;
+  mouthAnimationEnabled?: boolean;
+  mouthClosedAssetUrl?: string;
+  mouthSmallAssetUrl?: string;
+  mouthMediumAssetUrl?: string;
+  mouthWideAssetUrl?: string;
 };
 
 export type StudioCharacterMemoryInput = {
@@ -66,6 +71,11 @@ function parseCharacterPerformanceFields(raw: StudioCharacterPerformanceInput) {
     defaultMouthIntensity: normalizePerformanceLevel(raw.defaultMouthIntensity),
     idleAnimationStyle: normalizeIdleAnimationStyle(raw.idleAnimationStyle),
     performanceNotes: trimText(raw.performanceNotes, STUDIO_CHARACTER_TEXT_MAX),
+    mouthAnimationEnabled: Boolean(raw.mouthAnimationEnabled),
+    mouthClosedAssetUrl: trimText(raw.mouthClosedAssetUrl, 2048),
+    mouthSmallAssetUrl: trimText(raw.mouthSmallAssetUrl, 2048),
+    mouthMediumAssetUrl: trimText(raw.mouthMediumAssetUrl, 2048),
+    mouthWideAssetUrl: trimText(raw.mouthWideAssetUrl, 2048),
   };
 }
 
@@ -404,7 +414,12 @@ export function validateStudioCharacterUpdateInput(
     raw.defaultHeadMovement !== undefined ||
     raw.defaultMouthIntensity !== undefined ||
     raw.idleAnimationStyle !== undefined ||
-    raw.performanceNotes !== undefined;
+    raw.performanceNotes !== undefined ||
+    raw.mouthAnimationEnabled !== undefined ||
+    raw.mouthClosedAssetUrl !== undefined ||
+    raw.mouthSmallAssetUrl !== undefined ||
+    raw.mouthMediumAssetUrl !== undefined ||
+    raw.mouthWideAssetUrl !== undefined;
   if (hasPerformancePatch) {
     const performance = parseCharacterPerformanceFields(raw);
     Object.assign(patch, performance);

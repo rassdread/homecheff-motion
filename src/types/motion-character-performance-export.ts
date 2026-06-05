@@ -1,7 +1,7 @@
 import type { MouthMovementState } from "@/types/studio-character-performance";
 
 export const MOTION_PERFORMANCE_EXPORT_JSON_VERSION = 1 as const;
-export const MOTION_PERFORMANCE_RUNTIME_VERSION = "v34.5" as const;
+export const MOTION_PERFORMANCE_RUNTIME_VERSION = "v34.6" as const;
 
 export type MotionPerformanceBlinkState = "open" | "closed";
 
@@ -42,7 +42,7 @@ export type MotionStudioPerformanceExportJson = {
     applied: boolean;
     at: string;
     error?: string | null;
-    overlayMode: "debug_indicator";
+    overlayMode: "mouth_assets" | "debug_indicator";
   };
 };
 

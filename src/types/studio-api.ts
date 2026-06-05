@@ -76,6 +76,11 @@ export type StudioCharacterListItem = {
   defaultMouthIntensity: string;
   idleAnimationStyle: string;
   performanceNotes: string;
+  mouthAnimationEnabled: boolean;
+  mouthClosedAssetUrl: string;
+  mouthSmallAssetUrl: string;
+  mouthMediumAssetUrl: string;
+  mouthWideAssetUrl: string;
   createdAt: string;
   updatedAt: string;
   ownerEmail?: string;

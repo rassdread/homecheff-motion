@@ -383,6 +383,12 @@ model StudioCharacter {
   /** subtle | natural | lively */
   idleAnimationStyle      String              @default("subtle")
   performanceNotes        String              @default("")
+  /** V34.6 — predefined speaking mouth cycle image overlay. */
+  mouthAnimationEnabled   Boolean             @default(false)
+  mouthClosedAssetUrl     String              @default("")
+  mouthSmallAssetUrl      String              @default("")
+  mouthMediumAssetUrl     String              @default("")
+  mouthWideAssetUrl       String              @default("")
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
   sceneLinks              StudioSceneCharacter[]
