@@ -1,9 +1,11 @@
 ---
-description: "Riedel — pull, prisma, lint/build/test, verify, git add → commit → push"
+description: "Riedel — pull, prisma, lint/build/test, verify, git add → commit → push (sync met ~/.cursor/rules/riedel.mdc)"
 alwaysApply: true
 ---
 
 # Riedel (standaard vóór commit / push)
+
+> Systeem-breed: `~/.cursor/rules/riedel.mdc` (`alwaysApply`). Deze repo-kopie is gelijk getrokken voor team/versiebeheer.
 
 Gebruik dit wanneer de gebruiker **riedel**, **doe riedel**, **add commit build push**, of werk afrondt vóór version control. **Geen** Vercel CLI-deploy (daarvoor: **BCPD** in het project, als dat bestaat).
 

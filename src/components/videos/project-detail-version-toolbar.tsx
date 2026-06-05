@@ -2,8 +2,10 @@
 
 import { useMemo } from "react";
 import { MotionVersionSelectors } from "@/components/videos/motion-version-selectors";
-import { BundleVersionBadges } from "@/components/videos/bundle-version-badges";
-import { useActiveTranslator } from "@/i18n/client";
+import { BundleSelectedVersionBar } from "@/components/videos/bundle-selected-version-bar";
+import { summarizeBundleRichStats } from "@/lib/bundle-rich-summary";
+import { BundleCountLines } from "@/components/videos/bundle-count-lines";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import {
   badgeContextForProject,
   resolveBundleVersionBadges,
@@ -31,6 +33,8 @@ export function ProjectDetailVersionToolbar({
   onVersionChange,
 }: Props) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
+  const dateLocale = locale === "nl" ? "nl" : "en";
 
   const folderId = useMemo(
     () =>
@@ -79,12 +83,35 @@ export function ProjectDetailVersionToolbar({
 
   const folderLabelKey = `videos.folder.${folderId}` as const;
 
+  const bundleRich = useMemo(
+    () =>
+      summarizeBundleRichStats({
+        catalog,
+        locale: dateLocale,
+      }),
+    [catalog, dateLocale]
+  );
+
+  const displayStatus = selectedSlot?.status ?? detail.status;
+
   return (
     <div className="space-y-3 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
-      <div className="text-xs text-zinc-600">
-        <span className="font-medium text-zinc-800">{t("videos.bundle.folder")}:</span>{" "}
-        {t(folderLabelKey as never)}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          {t("videos.bundle.folder")}: {t(folderLabelKey as never)}
+        </p>
+        <p className="text-lg font-semibold text-zinc-900">
+          {detail.bundleName?.trim() || detail.title?.trim() || t("videos.untitledProject")}
+        </p>
       </div>
+      <BundleCountLines
+        lines={[
+          bundleRich.languageLine,
+          bundleRich.totalLine,
+          bundleRich.sourceLine,
+          bundleRich.modeLine,
+        ]}
+      />
       <MotionVersionSelectors
         catalog={{
           languages: catalog.languages,
@@ -122,12 +149,15 @@ export function ProjectDetailVersionToolbar({
         languageSelectId="detail-motion-language"
         versionSelectId="detail-motion-version"
       />
-      {selectedSlot?.versionNote ?
-        <p className="text-xs text-zinc-600">
-          {t("videos.bundle.selectedVersionNote", { note: selectedSlot.versionNote })}
-        </p>
+      {selectedSlot ?
+        <BundleSelectedVersionBar
+          languageLabel={selectedSlot.languageLabel}
+          versionLabel={selectedSlot.displayLabel}
+          durationSeconds={selectedSlot.durationSeconds}
+          status={displayStatus}
+          badges={badges}
+        />
       : null}
-      <BundleVersionBadges badges={badges} />
     </div>
   );
 }

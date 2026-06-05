@@ -16,6 +16,12 @@ import {
   bundleMatchesFolder,
   type BundleFolderId,
 } from "@/lib/bundle-folder";
+import {
+  countBundlesPerFolder,
+  summarizeFolderLibraryView,
+} from "@/lib/bundle-rich-summary";
+import { FolderLibraryHeader } from "@/components/videos/folder-library-header";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
 import { ProjectBundleSettingsDialog } from "@/components/videos/project-bundle-settings-dialog";
 import type {
@@ -272,6 +278,24 @@ function VideosPageContent() {
       bundleMatchesFolder(folderFilter, (b.folderId as BundleFolderId) ?? "uncategorized")
     );
   }, [bundles, folderFilter]);
+
+  /** Counts reflect bundles loaded on this page (client-side; not full account totals when paginated). */
+  const folderBundleCounts = useMemo(() => countBundlesPerFolder(bundles), [bundles]);
+
+  const folderLibrarySummary = useMemo(() => {
+    if (folderFilter === "all") {
+      return null;
+    }
+    return summarizeFolderLibraryView(
+      bundles.map((b) => ({
+        folderId: b.folderId,
+        catalog: b.catalog as unknown as MotionVersionCatalog,
+        badgesByProjectId: b.badgesByProjectId,
+      })),
+      folderFilter,
+      dateLocale
+    );
+  }, [bundles, folderFilter, dateLocale]);
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
@@ -547,10 +571,14 @@ function VideosPageContent() {
                   : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
               }`}
             >
-              {t(folder.labelKey as never)}
+              {t(folder.labelKey as never)} ({folderBundleCounts[folder.id] ?? 0})
             </button>
           ))}
         </div>
+      : null}
+
+      {gallerySection === "completed" && folderLibrarySummary ?
+        <FolderLibraryHeader folderId={folderFilter} summary={folderLibrarySummary} />
       : null}
 
       {totalCount > 0 ? (

@@ -284,7 +284,12 @@ export type ProjectBundleListItemResponse = {
     languageLine: string;
     totalLine: string;
     totalVersions: number;
+    totalLanguages: number;
     latestLabel: string | null;
+    sourceLine: string;
+    modeLine: string;
+    featureLine: string;
+    statusLine: string;
   };
   badgesByProjectId?: Record<
     string,

@@ -1004,8 +1004,8 @@ export default function VideoDetailPage() {
       {originalPlaybackUrl ? (
         <div className="mt-6 space-y-3">
           {motionCatalog &&
-          (motionCatalog.languages.length > 1 ||
-            Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 1)) ?
+          motionCatalog.languages.length > 0 &&
+          Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 0) ?
             <ProjectDetailVersionToolbar
               detail={detail}
               catalog={motionCatalog}
@@ -1146,12 +1146,6 @@ export default function VideoDetailPage() {
             ]}
           />
 
-          {instantLikeProject && detail.renderVersions && detail.renderVersions.length > 0 ?
-            <div className="mt-4">
-              <ProjectBundleOverviewPanel detail={detail} />
-            </div>
-          : null}
-
           {showProjectStorage && id ?
             <ProjectStorageUsageCard
               projectId={id}
@@ -1167,6 +1161,18 @@ export default function VideoDetailPage() {
           {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
           {fullRerenderInfo ? <p className="text-sm text-emerald-800">{fullRerenderInfo}</p> : null}
           {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
+
+          {instantLikeProject &&
+          motionCatalog &&
+          Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 0) ?
+            <div className="mt-6">
+              <ProjectBundleOverviewPanel
+                detail={detail}
+                catalog={motionCatalog}
+                selectedSlot={selectedMotionSlot}
+              />
+            </div>
+          : null}
 
           {instantLikeProject && (detail.renderVersions?.length ?? 0) > 0 ?
             <RenderHistoryPanel

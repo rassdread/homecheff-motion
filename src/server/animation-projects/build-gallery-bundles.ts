@@ -18,6 +18,7 @@ import {
   type BundleVersionBadge,
 } from "@/lib/bundle-version-badges";
 import { resolveBundleFolderId } from "@/lib/bundle-folder";
+import { summarizeBundleRichStats } from "@/lib/bundle-rich-summary";
 
 const BUNDLE_GROUPING_CAP = 250;
 
@@ -242,14 +243,22 @@ export async function listGalleryProjectBundles(params: {
   }
 
   const allBundles = groupProjectsIntoBundles(buildInputs, { locale: params.locale }).map(
-    (bundle) => ({
-      ...bundle,
-      badgesByProjectId: Object.fromEntries(
+    (bundle) => {
+      const bundleBadges = Object.fromEntries(
         bundle.memberProjectIds
           .filter((pid) => badgesByProjectId[pid])
           .map((pid) => [pid, badgesByProjectId[pid]!])
-      ),
-    })
+      );
+      return {
+        ...bundle,
+        badgesByProjectId: bundleBadges,
+        versionCountSummary: summarizeBundleRichStats({
+          catalog: bundle.catalog,
+          badgesByProjectId: bundleBadges,
+          locale: params.locale,
+        }),
+      };
+    }
   );
   const paged = paginateBundles(allBundles, params.page, params.limit);
 

@@ -14,9 +14,9 @@ import {
 } from "@/lib/motion-version-catalog";
 import { resolveBundleFolderId, type BundleFolderId } from "@/lib/bundle-folder";
 import {
-  summarizeBundleVersionCounts,
-  type BundleVersionCountSummary,
-} from "@/lib/bundle-version-summary";
+  summarizeBundleRichStats,
+  type BundleRichSummary,
+} from "@/lib/bundle-rich-summary";
 import {
   resolveBundleDisplayName,
   resolveProjectBundleGroupKey,
@@ -46,7 +46,7 @@ export type ProjectBundleListItem = {
   status: string;
   sourceProjectId: string | null;
   folderId: BundleFolderId;
-  versionCountSummary: BundleVersionCountSummary;
+  versionCountSummary: BundleRichSummary;
   badgesByProjectId?: Record<
     string,
     import("@/lib/bundle-version-badges").BundleVersionBadge[]
@@ -147,7 +147,10 @@ export function buildProjectBundleFromMembers(
     status: defaultSlot?.status ?? lead.status,
     sourceProjectId: lead.sourceProjectId ?? null,
     folderId: resolveBundleFolderId({ bundleName, displayTitle, normalizedTitle }),
-    versionCountSummary: summarizeBundleVersionCounts(catalog, locale),
+    versionCountSummary: summarizeBundleRichStats({
+      catalog,
+      locale,
+    }),
   };
 }
 
