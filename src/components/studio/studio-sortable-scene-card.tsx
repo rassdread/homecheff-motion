@@ -18,10 +18,18 @@ import type {
 } from "@/types/studio-api";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
+import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 
 type StudioSortableSceneCardProps = {
   scene: StudioSceneDetail;
   sceneIndex: number;
+  sceneCount: number;
+  flowScenes: StoryFlowSceneInput[];
+  storyboardTitle: string;
+  storyboardDescription: string;
+  aiDirectorPrompt: string;
+  aiDirectorStyleStrength: string;
+  onStoryboardNotesUpdated?: (notes: string) => void;
   expanded: boolean;
   onToggle: () => void;
   locations: StudioLocationListItem[];
@@ -44,6 +52,13 @@ type StudioSortableSceneCardProps = {
 export function StudioSortableSceneCard({
   scene,
   sceneIndex,
+  sceneCount,
+  flowScenes,
+  storyboardTitle,
+  storyboardDescription,
+  aiDirectorPrompt,
+  aiDirectorStyleStrength,
+  onStoryboardNotesUpdated,
   expanded,
   onToggle,
   locations,
@@ -212,6 +227,14 @@ export function StudioSortableSceneCard({
             storyboardId={storyboardId}
             characterDriftRecommendations={characterDriftRecommendations}
             scene={scene}
+            sceneIndex={sceneIndex}
+            sceneCount={sceneCount}
+            flowScenes={flowScenes}
+            storyboardTitle={storyboardTitle}
+            storyboardDescription={storyboardDescription}
+            aiDirectorPrompt={aiDirectorPrompt}
+            aiDirectorStyleStrength={aiDirectorStyleStrength}
+            onStoryboardNotesUpdated={onStoryboardNotesUpdated}
             locations={locations}
             characters={characters}
             props={props}

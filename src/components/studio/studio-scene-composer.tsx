@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioPresetField } from "@/components/studio/studio-preset-field";
 import { StudioSceneCompositionPanel } from "@/components/studio/studio-scene-composition-panel";
 import { StudioAssetPlacementPanel } from "@/components/studio/studio-asset-placement-panel";
@@ -31,11 +32,21 @@ import type {
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
+import { isStudioDirectorV2Enabled } from "@/lib/studio-director-v2-flag";
+import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 
 type StudioSceneComposerProps = {
   storyboardId: string;
   characterDriftRecommendations?: CorrectionRecommendation[];
   scene: StudioSceneDetail;
+  sceneIndex?: number;
+  sceneCount?: number;
+  flowScenes?: StoryFlowSceneInput[];
+  storyboardTitle?: string;
+  storyboardDescription?: string;
+  aiDirectorPrompt?: string;
+  aiDirectorStyleStrength?: string;
+  onStoryboardNotesUpdated?: (notes: string) => void;
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
@@ -54,6 +65,14 @@ export function StudioSceneComposer({
   storyboardId,
   characterDriftRecommendations = [],
   scene,
+  sceneIndex = 0,
+  sceneCount = 1,
+  flowScenes = [],
+  storyboardTitle = "",
+  storyboardDescription = "",
+  aiDirectorPrompt = "",
+  aiDirectorStyleStrength = "balanced",
+  onStoryboardNotesUpdated,
   locations,
   characters,
   props,
@@ -66,6 +85,7 @@ export function StudioSceneComposer({
   autoSelectImprovedImage = true,
 }: StudioSceneComposerProps) {
   const t = useActiveTranslator();
+  const directorV2Enabled = isStudioDirectorV2Enabled();
   const [tab, setTab] = useState<TabId>("compose");
   const [draft, setDraft] = useState(scene);
   const [error, setError] = useState("");
@@ -160,6 +180,28 @@ export function StudioSceneComposer({
             setDraft(updated);
             onSceneUpdated(updated);
           }}
+        />
+      ) : directorV2Enabled ? (
+        <StudioDirectorPanelV2
+          storyboardId={storyboardId}
+          scene={draft}
+          sceneIndex={sceneIndex}
+          sceneCount={sceneCount}
+          flowScenes={flowScenes}
+          storyboardTitle={storyboardTitle}
+          storyboardDescription={storyboardDescription}
+          aiDirectorPrompt={aiDirectorPrompt}
+          aiDirectorStyleStrength={aiDirectorStyleStrength}
+          directorProfile={directorProfile}
+          characters={characters}
+          canModify={canModify}
+          saving={saving}
+          onSave={onSave}
+          onSceneDraftChange={(updated) => {
+            setDraft(updated);
+            onSceneUpdated(updated);
+          }}
+          onStoryboardNotesUpdated={onStoryboardNotesUpdated}
         />
       ) : (
         <div className="space-y-5">

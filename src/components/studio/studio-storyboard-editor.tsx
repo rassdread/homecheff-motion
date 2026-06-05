@@ -60,6 +60,7 @@ import { StudioJobCostConfirmModal } from "@/components/studio/studio-job-cost-c
 import { StudioStoryboardImprovementPanel } from "@/components/studio/studio-storyboard-improvement-panel";
 import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-job-panel";
 import { buildStoryboardConsistencyReport } from "@/lib/studio-consistency-timeline";
+import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
 import {
   buildCharacterDriftCorrectionRecommendationsForStoryboard,
   buildCharacterReportFromStoryboardDetail,
@@ -235,6 +236,11 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     [storyboard]
   );
 
+  const flowScenes = useMemo(
+    () => (storyboard ? storyboardToFlowInput(storyboard) : []),
+    [storyboard]
+  );
+
   const characterConsistencyReport = useMemo(
     () => (storyboard ? buildCharacterReportFromStoryboardDetail(storyboard) : null),
     [storyboard]
@@ -291,6 +297,10 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
           }
         : prev
     );
+  };
+
+  const handleStoryboardNotesUpdated = (notes: string) => {
+    setStoryboard((prev) => (prev ? { ...prev, aiDirectorPrompt: notes } : prev));
   };
 
   const loadRecentJobs = useCallback(async () => {
@@ -759,6 +769,13 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             storyboardId={storyboardId}
                             scene={scene}
                             sceneIndex={index}
+                            sceneCount={scenes.length}
+                            flowScenes={flowScenes}
+                            storyboardTitle={storyboard.title}
+                            storyboardDescription={storyboard.description}
+                            aiDirectorPrompt={storyboard.aiDirectorPrompt}
+                            aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
+                            onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
                             expanded={expandedId === scene.id}
                             onToggle={() =>
                               setExpandedId((id) => (id === scene.id ? null : scene.id))
