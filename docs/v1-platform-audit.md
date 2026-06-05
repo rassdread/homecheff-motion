@@ -18,7 +18,10 @@ HomeCheff is a **production-focused AI motion studio** (Motion + Studio) with ad
 | 4 | `8e20c60` | Director V2 voice/music/sound/text/advanced |
 | 5 | `36cd109` | Version Center `/videos/[id]/versions` |
 | 6 | `a5c0099` | Render recovery (prior) |
-| 7–8 | pending | Billing UX + admin usage link |
+| 7–8 | latest | Billing UX + usage nav link (admin tables already linked) |
+| 9 | — | No safe deletions (legacy routes still referenced) |
+| 10 | latest | Mobile nav min touch targets |
+| 11 | latest | lint 0 errors, build + tests green; typecheck pre-existing |
 
 ### Typecheck (pre-existing)
 
