@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { toSceneSnapshot, toStoryboardSnapshot } from "@/server/studio/studio-storyboard-service";
+import {
+  toSceneSnapshot,
+  toStoryboardSnapshot,
+  type StudioStoryboardSceneRow,
+} from "@/server/studio/studio-storyboard-service";
 
 describe("studio storyboard snapshots", () => {
   it("maps scene to SceneSnapshot", () => {
@@ -46,6 +50,7 @@ describe("studio storyboard snapshots", () => {
             referenceStorageKey: "k",
             isMascot: false,
             isSystemCharacter: false,
+            worldProfile: null,
             createdAt: new Date(),
             updatedAt: new Date(),
           },
@@ -71,7 +76,7 @@ describe("studio storyboard snapshots", () => {
           updatedAt: new Date(),
         },
       ],
-    });
+    } as unknown as StudioStoryboardSceneRow);
     assert.equal(snap.preferredSceneImageUrl, "https://example.com/scene.jpg");
     assert.equal(snap.title, "Chef cooking");
     assert.equal(snap.location?.name, "Rotterdam");
