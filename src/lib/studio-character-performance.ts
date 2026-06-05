@@ -68,6 +68,13 @@ const EMOTION_MODIFIERS: Record<string, PerformanceEmotionModifier> = {
     headMultiplier: 0.85,
     mouthSpeedMultiplier: 0.9,
   },
+  angry: {
+    smileMultiplier: 0.75,
+    blinkMultiplier: 1.05,
+    mouthMultiplier: 1.2,
+    headMultiplier: 1.15,
+    mouthSpeedMultiplier: 1.15,
+  },
   neutral: {
     smileMultiplier: 1,
     blinkMultiplier: 1,

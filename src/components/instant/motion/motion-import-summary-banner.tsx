@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
+import { MotionCharacterPerformancePreview } from "@/components/instant/motion/motion-character-performance-preview";
 import type { CharacterPerformanceAssignment } from "@/types/studio-character-performance";
-import type { MotionVoiceMetadata } from "@/types/studio-voice-execution";
+import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 
 type Props = {
   intelligence: MotionStudioIntelligenceSnapshot;
@@ -14,6 +15,8 @@ type Props = {
   subtitleAvailability?: boolean;
   characterVoiceAssignments?: CharacterVoiceAssignment[] | null;
   characterPerformanceProfiles?: CharacterPerformanceAssignment[] | null;
+  storedHandoff?: unknown;
+  voiceSegments?: MotionVoiceSegmentHandoff[] | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -25,6 +28,8 @@ export function MotionImportSummaryBanner({
   subtitleAvailability,
   characterVoiceAssignments,
   characterPerformanceProfiles,
+  storedHandoff,
+  voiceSegments,
   onRefresh,
   refreshing,
 }: Props) {
@@ -119,6 +124,11 @@ export function MotionImportSummaryBanner({
                 ))}
             </ul>
           : null}
+          <MotionCharacterPerformancePreview
+            storedHandoff={storedHandoff}
+            characterPerformanceProfiles={characterPerformanceProfiles}
+            voiceSegments={voiceSegments}
+          />
           {intelligence.partialData || intelligence.legacyHandoff ?
             <p className="mt-1 text-xs text-amber-800">{t("motion.qa.importSummary.partial")}</p>
           : null}

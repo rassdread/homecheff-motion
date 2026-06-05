@@ -1073,6 +1073,14 @@ export const en: LocaleSchema = {
   "studio.characterPerformance.previewMouthState": "Mouth state",
   "studio.characterPerformance.previewIdle": "Idle style",
   "motion.qa.importSummary.performanceLine": "{name}: Performance {style}",
+  "motion.qa.performancePreview.title": "Character performance runtime (preview)",
+  "motion.qa.performancePreview.subtitle":
+    "Lightweight audio-driven mouth-state overlay — not AI lip sync. Debug indicators burn into export when enabled.",
+  "motion.qa.performancePreview.profileLine": "Performance {style}",
+  "motion.qa.performancePreview.tickLine":
+    "t={time}s scene {scene} · {name} · mouth {mouth} · smile {smile}%",
+  "motion.qa.performancePreview.overlayApplied": "Last export: performance overlay applied.",
+  "motion.qa.performancePreview.overlayPending": "Last export: performance overlay not applied.",
 
   "motion.voice.panelTitle": "Studio voice & subtitles",
   "motion.voice.available": "Voice available",

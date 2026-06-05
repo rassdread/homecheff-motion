@@ -1071,6 +1071,14 @@ export const nl = {
   "studio.characterPerformance.previewMouthState": "Mondstatus",
   "studio.characterPerformance.previewIdle": "Idle-stijl",
   "motion.qa.importSummary.performanceLine": "{name}: Performance {style}",
+  "motion.qa.performancePreview.title": "Character performance runtime (preview)",
+  "motion.qa.performancePreview.subtitle":
+    "Lichtgewicht audio-gestuurde mondstatus-overlay — geen AI lip-sync. Debug-indicatoren worden in export gebrand bij ingeschakelde profielen.",
+  "motion.qa.performancePreview.profileLine": "Performance {style}",
+  "motion.qa.performancePreview.tickLine":
+    "t={time}s scène {scene} · {name} · mond {mouth} · glimlach {smile}%",
+  "motion.qa.performancePreview.overlayApplied": "Laatste export: performance-overlay toegepast.",
+  "motion.qa.performancePreview.overlayPending": "Laatste export: performance-overlay niet toegepast.",
 
   "motion.voice.panelTitle": "Studio stem & ondertitels",
   "motion.voice.available": "Stem beschikbaar",

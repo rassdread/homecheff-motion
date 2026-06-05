@@ -125,6 +125,7 @@ import {
   SegmentTrimTooAggressiveError,
 } from "@/server/instant-premium/final-assembly-invariants";
 import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
+import { applyStudioCharacterPerformanceExportToMergedVideo } from "@/server/instant-premium/apply-studio-performance-export";
 import { applyStudioVoiceExportToMergedVideo } from "@/server/instant-premium/apply-studio-voice-export";
 import { readMotionAudioExportFromHandoffJson } from "@/lib/motion-voice-export";
 
@@ -1122,18 +1123,18 @@ export async function executeInstantPremiumMerge(
           return;
         }
       }
+      const probedMerged = await probeVideoSegment(mergedPath);
+      const mergedDims = resolveInstantVideoDimensions(project.aspectRatio, project.viduResolution);
       const voiceExportSettings = readMotionAudioExportFromHandoffJson(project.studioHandoffJson);
       if (voiceExportSettings) {
         setFinalExportStage(projectId, "overlay", { exportId: exportRow.id });
-        const probedForVoice = await probeVideoSegment(mergedPath);
-        const voiceDims = resolveInstantVideoDimensions(project.aspectRatio, project.viduResolution);
         const voiceResult = await applyStudioVoiceExportToMergedVideo({
           projectId,
           mergedVideoPath: mergedPath,
           workDir,
           studioHandoffJson: project.studioHandoffJson,
-          width: probedForVoice?.width ?? voiceDims.width,
-          height: probedForVoice?.height ?? voiceDims.height,
+          width: probedMerged?.width ?? mergedDims.width,
+          height: probedMerged?.height ?? mergedDims.height,
         });
         mergedPath = voiceResult.outputVideoPath;
         if (voiceResult.warning) {
@@ -1149,6 +1150,29 @@ export async function executeInstantPremiumMerge(
             subtitleBurned: voiceResult.subtitleBurned,
           });
         }
+      }
+
+      const perfResult = await applyStudioCharacterPerformanceExportToMergedVideo({
+        projectId,
+        mergedVideoPath: mergedPath,
+        workDir,
+        studioHandoffJson: project.studioHandoffJson,
+        width: probedMerged?.width ?? mergedDims.width,
+        height: probedMerged?.height ?? mergedDims.height,
+      });
+      mergedPath = perfResult.outputVideoPath;
+      if (perfResult.warning) {
+        const perfWarning = sanitizeOverlayError(perfResult.warning);
+        await prisma.animationProject.update({
+          where: { id: projectId },
+          data: { lastOverlayError: perfWarning },
+        });
+        console.warn("[hc-instant-premium]", {
+          projectId,
+          phase: "studioPerformanceExportPartial",
+          warning: perfResult.warning,
+          performanceApplied: perfResult.performanceApplied,
+        });
       }
 
       const stat = await fs.stat(mergedPath).catch(() => null);

@@ -1706,6 +1706,14 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.characterPerformanceProfiles ?? null
                           }
+                          storedHandoff={readPersistedWizardState()?.studioHandoff?.storedHandoff}
+                          voiceSegments={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | { voiceSegments?: import("@/types/studio-voice-execution").MotionVoiceSegmentHandoff[] }
+                                | undefined
+                            )?.voiceSegments ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()
