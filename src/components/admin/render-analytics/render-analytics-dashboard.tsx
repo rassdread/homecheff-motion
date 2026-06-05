@@ -10,7 +10,12 @@ import type {
 } from "@/types/render-analytics";
 import { DataTable } from "@/components/admin/render-analytics/data-table";
 import { Metric } from "@/components/admin/render-analytics/metric";
-import { projectLabel, usd } from "@/components/admin/render-analytics/format";
+import {
+  creditRenderTableRow,
+  ProjectLinkedTable,
+  projectUsageTableRow,
+} from "@/components/admin/render-analytics/project-linked-table";
+import { usd } from "@/components/admin/render-analytics/format";
 
 type RenderAnalyticsDashboardProps = {
   initialReport: RenderAnalyticsReport | null;
@@ -256,47 +261,61 @@ export function RenderAnalyticsDashboard({
         </dl>
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topProjectsByCredits")}</h3>
-        <DataTable
-          headers={[t("admin.renderAnalytics.project"), t("admin.renderAnalytics.credits"), t("admin.renderAnalytics.costUsd")]}
-          rows={report.projects.topByCredits.map((p) => [
-            projectLabel(p.projectTitle, p.projectId),
-            `${p.totalCredits} (${p.exactCredits} exact / ${p.estimatedCredits} est.)`,
-            usd(p.totalCostUsd),
-          ])}
+        <ProjectLinkedTable
+          headers={[t("admin.renderAnalytics.credits"), t("admin.renderAnalytics.costUsd")]}
+          rows={report.projects.topByCredits.map((p) =>
+            projectUsageTableRow(p, [
+              `${p.totalCredits} (${p.exactCredits} exact / ${p.estimatedCredits} est.)`,
+              usd(p.totalCostUsd),
+            ])
+          )}
+          emptyLabel={emptyLabel}
+        />
+
+        <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topProjectsByCost")}</h3>
+        <ProjectLinkedTable
+          headers={[t("admin.renderAnalytics.credits"), t("admin.renderAnalytics.costUsd")]}
+          rows={report.projects.topByCost.map((p) =>
+            projectUsageTableRow(p, [
+              `${p.totalCredits} (${p.exactCredits} exact / ${p.estimatedCredits} est.)`,
+              usd(p.totalCostUsd),
+            ])
+          )}
           emptyLabel={emptyLabel}
         />
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topExpensiveRenders")}</h3>
-        <DataTable
-          headers={[t("admin.renderAnalytics.project"), t("admin.renderAnalytics.credits"), t("admin.renderAnalytics.accuracy"), t("admin.renderAnalytics.costUsd")]}
-          rows={report.vidu.topExpensiveRenders.slice(0, 20).map((r) => [
-            projectLabel(r.projectTitle, r.projectId),
-            r.creditsUsed,
-            accuracyLabel(r.creditAccuracy),
-            usd(r.totalCostUsd),
-          ])}
+        <ProjectLinkedTable
+          headers={[
+            t("admin.renderAnalytics.credits"),
+            t("admin.renderAnalytics.accuracy"),
+            t("admin.renderAnalytics.costUsd"),
+          ]}
+          rows={report.vidu.topExpensiveRenders.slice(0, 20).map((r) =>
+            creditRenderTableRow(r, [
+              r.creditsUsed,
+              accuracyLabel(r.creditAccuracy),
+              usd(r.totalCostUsd),
+            ])
+          )}
           emptyLabel={emptyLabel}
         />
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topProjectsByRenders")}</h3>
-        <DataTable
-          headers={[t("admin.renderAnalytics.project"), t("admin.renderAnalytics.renders"), t("admin.renderAnalytics.versions")]}
-          rows={report.projects.topByRenders.map((p) => [
-            projectLabel(p.projectTitle, p.projectId),
-            p.renderCount,
-            p.versionCount,
-          ])}
+        <ProjectLinkedTable
+          headers={[t("admin.renderAnalytics.renders"), t("admin.renderAnalytics.versions")]}
+          rows={report.projects.topByRenders.map((p) =>
+            projectUsageTableRow(p, [p.renderCount, p.versionCount])
+          )}
           emptyLabel={emptyLabel}
         />
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topLongestVideos")}</h3>
-        <DataTable
-          headers={[t("admin.renderAnalytics.project"), t("admin.renderAnalytics.videoSeconds"), t("admin.renderAnalytics.email")]}
-          rows={report.projects.topByLongestVideos.map((p) => [
-            projectLabel(p.projectTitle, p.projectId),
-            p.totalVideoSeconds,
-            p.ownerEmail,
-          ])}
+        <ProjectLinkedTable
+          headers={[t("admin.renderAnalytics.videoSeconds"), t("admin.renderAnalytics.email")]}
+          rows={report.projects.topByLongestVideos.map((p) =>
+            projectUsageTableRow(p, [p.totalVideoSeconds, p.ownerEmail])
+          )}
           emptyLabel={emptyLabel}
         />
       </AppCard>
@@ -343,13 +362,17 @@ export function RenderAnalyticsDashboard({
         </dl>
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topProjectsByStorage")}</h3>
-        <DataTable
-          headers={[t("admin.renderAnalytics.project"), t("admin.renderAnalytics.storage"), `${t("admin.renderAnalytics.costUsd")} (${estLabel})`]}
-          rows={report.storage.topProjectsByStorage.map((p) => [
-            projectLabel(p.projectTitle, p.projectId),
-            formatStorageBytes(p.storageBytes, locale),
-            usd(p.estimatedStorageCostUsd),
-          ])}
+        <ProjectLinkedTable
+          headers={[
+            t("admin.renderAnalytics.storage"),
+            `${t("admin.renderAnalytics.costUsd")} (${estLabel})`,
+          ]}
+          rows={report.storage.topProjectsByStorage.map((p) =>
+            projectUsageTableRow(p, [
+              formatStorageBytes(p.storageBytes, locale),
+              usd(p.estimatedStorageCostUsd),
+            ])
+          )}
           emptyLabel={emptyLabel}
         />
 
@@ -360,6 +383,31 @@ export function RenderAnalyticsDashboard({
             f.label.slice(0, 16),
             formatStorageBytes(f.bytes, locale),
           ])}
+          emptyLabel={emptyLabel}
+        />
+      </AppCard>
+
+      <AppCard>
+        <h2 className="text-lg font-semibold">{t("admin.renderAnalytics.customerBillingEvents")}</h2>
+        <ProjectLinkedTable
+          headers={[
+            t("admin.renderAnalytics.email"),
+            t("admin.renderAnalytics.renderType"),
+            t("admin.renderAnalytics.salePriceEur"),
+            t("admin.renderAnalytics.status"),
+            t("admin.renderAnalytics.date"),
+          ]}
+          rows={report.customerBillingRows.slice(0, 30).map((e, i) => ({
+            key: `${e.createdAt}-${e.userId}-${i}`,
+            project: e.projectDisplay,
+            cells: [
+              e.ownerEmail,
+              e.renderType,
+              `€${e.netPriceEur.toFixed(2)}`,
+              e.status,
+              new Date(e.createdAt).toLocaleString(locale === "nl" ? "nl-NL" : "en-US"),
+            ],
+          }))}
           emptyLabel={emptyLabel}
         />
       </AppCard>
@@ -442,36 +490,57 @@ export function RenderAnalyticsDashboard({
         />
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topExpensiveVideos")}</h3>
-        <DataTable
+        <ProjectLinkedTable
           headers={[
-            t("admin.renderAnalytics.project"),
             t("admin.renderAnalytics.netCostUsd"),
             t("admin.renderAnalytics.exactCostUsd"),
             t("admin.renderAnalytics.estimatedCostUsd"),
             t("admin.renderAnalytics.breakEvenPrice"),
           ]}
-          rows={videoCosts.topExpensiveVideos.map((v) => [
-            projectLabel(v.projectTitle, v.projectId),
-            usd(v.netCostUsd),
-            usd(v.exactCostUsd),
-            usd(v.estimatedCostUsd),
-            `€${v.breakEvenPriceEur}`,
-          ])}
+          rows={videoCosts.topExpensiveVideos.map((v) =>
+            projectUsageTableRow(v, [
+              usd(v.netCostUsd),
+              usd(v.exactCostUsd),
+              usd(v.estimatedCostUsd),
+              `€${v.breakEvenPriceEur}`,
+            ])
+          )}
           emptyLabel={emptyLabel}
         />
 
         <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.topLossMakingVideos")}</h3>
-        <DataTable
+        <ProjectLinkedTable
           headers={[
-            t("admin.renderAnalytics.project"),
             t("admin.renderAnalytics.netCostUsd"),
             t("admin.renderAnalytics.marginAtReference"),
           ]}
-          rows={videoCosts.topLossMakingVideos.map((v) => [
-            projectLabel(v.projectTitle, v.projectId),
-            usd(v.netCostUsd),
-            usd(v.marginAtReference.marginUsd),
-          ])}
+          rows={videoCosts.topLossMakingVideos.map((v) =>
+            projectUsageTableRow(v, [
+              usd(v.netCostUsd),
+              usd(v.marginAtReference.marginUsd),
+            ])
+          )}
+          emptyLabel={emptyLabel}
+        />
+
+        <h3 className="mt-5 text-sm font-semibold">{t("admin.renderAnalytics.recentCostEvents")}</h3>
+        <ProjectLinkedTable
+          headers={[
+            t("admin.renderAnalytics.provider"),
+            t("admin.renderAnalytics.renderType"),
+            t("admin.renderAnalytics.netCostUsd"),
+            t("admin.renderAnalytics.date"),
+          ]}
+          rows={videoCosts.costEvents.slice(0, 30).map((e) => ({
+            key: e.id,
+            project: e.projectDisplay,
+            cells: [
+              e.provider,
+              e.actionType,
+              usd(e.totalCostUsd),
+              new Date(e.createdAt).toLocaleString(locale === "nl" ? "nl-NL" : "en-US"),
+            ],
+          }))}
           emptyLabel={emptyLabel}
         />
 

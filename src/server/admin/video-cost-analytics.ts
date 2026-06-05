@@ -20,12 +20,15 @@ import {
 } from "@/server/provider-cost/margin-simulation";
 import { loadRenderCreditDataset } from "@/server/admin/render-analytics-credits";
 
+import type { AdminProjectDisplay } from "@/types/admin-project-display";
+
 export type CostEventRow = {
   id: string;
   provider: string;
   actionType: string;
   projectId: string | null;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   userId: string | null;
   ownerEmail: string | null;
   relatedJobId: string | null;
@@ -49,6 +52,7 @@ export type CostEventRow = {
 export type VideoCostRow = {
   projectId: string;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   ownerEmail: string;
   userId: string;
   status: string;
@@ -126,6 +130,7 @@ function eventToRow(
     actionType: e.actionType,
     projectId: e.projectId,
     projectTitle: e.project?.title ?? null,
+    projectDisplay: null,
     userId: e.userId,
     ownerEmail: e.project?.owner.email ?? e.user?.email ?? null,
     relatedJobId: e.relatedJobId,
@@ -169,6 +174,7 @@ async function loadSupplementalCostEvents(): Promise<CostEventRow[]> {
       actionType: "vidu_render",
       projectId: r.projectId,
       projectTitle: r.projectTitle,
+      projectDisplay: null,
       userId: r.userId,
       ownerEmail: r.ownerEmail,
       relatedJobId: r.providerJobId,
@@ -259,6 +265,7 @@ function aggregateVideoCosts(
     rows.push({
       projectId: p.id,
       projectTitle: p.title,
+      projectDisplay: null,
       ownerEmail: p.ownerEmail,
       userId: p.ownerId,
       status: p.status,

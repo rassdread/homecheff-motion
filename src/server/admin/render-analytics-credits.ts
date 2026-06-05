@@ -12,6 +12,7 @@ import {
 } from "@/server/provider-usage/credit-cost";
 import { estimateCreditsForTransition } from "@/server/provider-usage/estimate-transition-credits";
 import { resolveRenderTypeForProject } from "@/server/provider-usage/provider-usage-log";
+import type { AdminProjectDisplay } from "@/types/admin-project-display";
 
 export type RenderCreditRow = {
   id: string;
@@ -19,6 +20,7 @@ export type RenderCreditRow = {
   providerJobId: string | null;
   projectId: string;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   userId: string;
   ownerEmail: string;
   renderType: string;
@@ -135,6 +137,7 @@ function logRowToCreditRow(
     providerJobId: log.providerJobId,
     projectId: log.projectId,
     projectTitle: log.project.title,
+    projectDisplay: null,
     userId: log.userId,
     ownerEmail: log.project.owner.email,
     renderType: log.renderType,
@@ -219,6 +222,7 @@ export async function loadRenderCreditDataset(): Promise<RenderCreditRow[]> {
       providerJobId: tr.providerJobId,
       projectId: tr.projectId,
       projectTitle: p.title,
+      projectDisplay: null,
       userId: p.ownerId,
       ownerEmail: p.owner.email,
       renderType: resolveRenderTypeForProject(p),

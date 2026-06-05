@@ -22,6 +22,10 @@ import {
   prorateInfraCost,
 } from "@/server/admin/render-analytics-cost";
 import { CREDIT_UNIT_COST_USD } from "@/server/provider-usage/credit-cost";
+import {
+  buildAdminProjectDisplayMap,
+  resolveAdminProjectDisplay,
+} from "@/server/admin/admin-project-display";
 import { buildBillingAnalytics } from "@/server/admin/billing-analytics";
 import { buildVideoCostAnalytics } from "@/server/admin/video-cost-analytics";
 import type {
@@ -189,6 +193,8 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
         projectType: true,
         instantMode: true,
         sourceProjectId: true,
+        studioSourceStoryboardId: true,
+        instantPreviousFinalVideoUrl: true,
         presetId: true,
         estimatedCredits: true,
         viduDurationSeconds: true,
@@ -197,6 +203,12 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
         instantDetectedTextMetadata: true,
         createdAt: true,
         owner: { select: { email: true } },
+        images: {
+          orderBy: { order: "asc" },
+          take: 1,
+          select: { previewUrl: true },
+        },
+        fullRerenderDraft: { select: { projectId: true } },
         _count: {
           select: { images: true, transitions: true, renderVersions: true },
         },
@@ -329,12 +341,33 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
         pricingRuleLabel: true,
         isAdminFree: true,
         isEstimated: true,
+        user: { select: { email: true } },
       },
     }),
   ]);
+
+  const projectDisplayById = buildAdminProjectDisplayMap(allProjectsLite);
+
   const customerBillingRows = customerBillingDb.map((e) => ({
-    ...e,
     createdAt: e.createdAt.toISOString(),
+    userId: e.userId,
+    ownerEmail: e.user.email,
+    projectId: e.projectId,
+    projectDisplay: resolveAdminProjectDisplay(projectDisplayById, {
+      projectId: e.projectId,
+      renderType: e.renderType,
+      ownerEmail: e.user.email,
+      createdAt: e.createdAt.toISOString(),
+    }),
+    actionType: e.actionType,
+    renderType: e.renderType,
+    customerUnits: e.customerUnits,
+    grossPriceEur: e.grossPriceEur,
+    netPriceEur: e.netPriceEur,
+    status: e.status,
+    pricingRuleLabel: e.pricingRuleLabel,
+    isAdminFree: e.isAdminFree,
+    isEstimated: e.isEstimated,
   }));
   const creditAnalytics = aggregateCreditAnalytics(creditRows, now);
   const projectCreditMap = creditsByProject(creditRows);
@@ -642,9 +675,11 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
 
   const projectUsageRows: ProjectUsageRow[] = allProjectsLite.map((p) => {
     const credits = projectCreditMap.get(p.id);
+    const projectDisplay = projectDisplayById.get(p.id) ?? null;
     return {
       projectId: p.id,
       projectTitle: p.title,
+      projectDisplay,
       ownerEmail: p.owner.email,
       renderCount: credits?.renderCount ?? projectRenderCountMap.get(p.id) ?? 0,
       versionCount: p._count.renderVersions,
@@ -965,6 +1000,62 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     : []),
   ];
 
+  function withProjectDisplay(row: RenderCreditRow): RenderCreditRow {
+    return {
+      ...row,
+      projectDisplay: resolveAdminProjectDisplay(projectDisplayById, {
+        projectId: row.projectId,
+        projectTitle: row.projectTitle,
+        ownerEmail: row.ownerEmail,
+        status: row.status,
+        renderType: row.renderType,
+        createdAt: row.createdAt,
+      }),
+    };
+  }
+
+  const enrichedCreditRows = creditRows.map(withProjectDisplay);
+  const enrichedTopExpensiveRenders = topExpensiveRenders.map(withProjectDisplay);
+  const enrichedTopLongestRenders = topLongestRenders.map(withProjectDisplay);
+  const enrichedVideoCosts = {
+    ...videoCosts,
+    topExpensiveVideos: videoCosts.topExpensiveVideos.map((v) => ({
+      ...v,
+      projectDisplay:
+        v.projectDisplay ??
+        resolveAdminProjectDisplay(projectDisplayById, {
+          projectId: v.projectId,
+          projectTitle: v.projectTitle,
+          ownerEmail: v.ownerEmail,
+          status: v.status,
+          createdAt: v.completedAt,
+        }),
+    })),
+    topLossMakingVideos: videoCosts.topLossMakingVideos.map((v) => ({
+      ...v,
+      projectDisplay:
+        v.projectDisplay ??
+        resolveAdminProjectDisplay(projectDisplayById, {
+          projectId: v.projectId,
+          projectTitle: v.projectTitle,
+          ownerEmail: v.ownerEmail,
+          status: v.status,
+          createdAt: v.completedAt,
+        }),
+    })),
+    costEvents: videoCosts.costEvents.slice(0, 50).map((e) => ({
+      ...e,
+      projectDisplay: resolveAdminProjectDisplay(projectDisplayById, {
+        projectId: e.projectId,
+        projectTitle: e.projectTitle,
+        ownerEmail: e.ownerEmail,
+        status: e.status,
+        renderType: e.actionType,
+        createdAt: e.createdAt,
+      }),
+    })),
+  };
+
   return {
     generatedAt: now.toISOString(),
     dataGaps,
@@ -975,7 +1066,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
       note: "InstantPremiumPendingOrder counts only — Stripe paid amounts not persisted on order rows.",
     },
     credits: creditAnalytics,
-    creditRows,
+    creditRows: enrichedCreditRows,
     balanceSnapshots,
     financial,
     renders: {
@@ -1009,8 +1100,8 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
           ) / 10000
         : 0,
       costPerCreditUsd: CREDIT_UNIT_COST_USD,
-      topExpensiveRenders,
-      topLongestRenders,
+      topExpensiveRenders: enrichedTopExpensiveRenders,
+      topLongestRenders: enrichedTopLongestRenders,
       topProjectsByCredits: topProjectsByUsage,
     },
     storage: {
@@ -1067,7 +1158,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
       error: viduBalance.error,
     },
     sqlQueriesUsed: SQL_QUERIES,
-    videoCosts,
+    videoCosts: enrichedVideoCosts,
     billing,
     customerBillingRows,
   };

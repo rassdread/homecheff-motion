@@ -1,5 +1,6 @@
 /** Admin render / cost analytics — credit-based: totalCostUsd = creditsUsed × 0.005 */
 
+import type { AdminProjectDisplay } from "@/types/admin-project-display";
 import type { CreditAccuracy } from "@/server/provider-usage/credit-cost";
 
 export type CostEstimateMeta = {
@@ -34,6 +35,7 @@ export type RenderCreditRow = {
   providerJobId: string | null;
   projectId: string;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   userId: string;
   ownerEmail: string;
   renderType: string;
@@ -119,6 +121,7 @@ export type ViduAnalytics = {
 export type ProjectUsageRow = {
   projectId: string;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   ownerEmail: string;
   renderCount: number;
   versionCount: number;
@@ -225,6 +228,7 @@ export type MarginSimulationRow = {
 export type VideoCostRow = {
   projectId: string;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   ownerEmail: string;
   userId: string;
   status: string;
@@ -247,6 +251,7 @@ export type CostEventRow = {
   actionType: string;
   projectId: string | null;
   projectTitle: string | null;
+  projectDisplay: AdminProjectDisplay | null;
   userId: string | null;
   ownerEmail: string | null;
   relatedJobId: string | null;
@@ -398,20 +403,24 @@ export type RenderAnalyticsReport = {
   sqlQueriesUsed: string[];
   videoCosts: VideoCostAnalytics;
   billing: BillingAnalytics;
-  customerBillingRows: {
-    createdAt: string;
-    userId: string;
-    projectId: string | null;
-    actionType: string;
-    renderType: string;
-    customerUnits: number;
-    grossPriceEur: number;
-    netPriceEur: number;
-    status: string;
-    pricingRuleLabel: string | null;
-    isAdminFree: boolean;
-    isEstimated: boolean;
-  }[];
+  customerBillingRows: CustomerBillingEventRow[];
+};
+
+export type CustomerBillingEventRow = {
+  createdAt: string;
+  userId: string;
+  ownerEmail: string;
+  projectId: string | null;
+  projectDisplay: AdminProjectDisplay | null;
+  actionType: string;
+  renderType: string;
+  customerUnits: number;
+  grossPriceEur: number;
+  netPriceEur: number;
+  status: string;
+  pricingRuleLabel: string | null;
+  isAdminFree: boolean;
+  isEstimated: boolean;
 };
 
 export type RenderAnalyticsCsvSection =
