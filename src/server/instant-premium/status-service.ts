@@ -24,6 +24,9 @@ import {
   userSafeExportFailureKey,
 } from "@/lib/instant-premium-export-failure";
 import { resolveInstantPremiumProgress } from "@/lib/instant-premium-progress-stage";
+import { buildMotionRenderPipelineContext } from "@/lib/motion-render-pipeline-progress";
+import { parseInstantMode } from "@/lib/instant-premium-mode-types";
+import { readMotionAudioExportFromHandoffJson } from "@/lib/motion-voice-export";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
 import { buildProjectStudioQaResponse } from "@/lib/studio-project-metadata";
@@ -523,6 +526,27 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   }
 
   const finalExportStage = getFinalExportStage(projectId)?.stage ?? null;
+  const motionAudioExport = readMotionAudioExportFromHandoffJson(projectState.studioHandoffJson);
+  const hasStudioImport = Boolean(
+    projectState.studioHandoffJson ||
+      projectState.studioSourceStoryboardId?.trim() ||
+      projectState.studioImportedAt
+  );
+  const usesStoryOverlay =
+    parseInstantMode(projectState.instantMode) === "story" &&
+    Array.isArray(projectState.instantSceneTexts) &&
+    projectState.instantSceneTexts.length > 0;
+  const renderPipelineContext = buildMotionRenderPipelineContext({
+    instantMode: projectState.instantMode,
+    hasStudioImport,
+    voiceEnabled: motionAudioExport?.voiceEnabled ?? false,
+    subtitlesEnabled:
+      Boolean(motionAudioExport?.subtitlesEnabled) &&
+      motionAudioExport?.subtitleMode !== "off",
+    lockedTextLayerCount: lockedLayers.length,
+    instantTextRenderMode: projectState.instantTextRenderMode,
+    usesStoryOverlay,
+  });
   const videoRepairStage =
     resolveVideoRepairStageFromExport({
       repairRunning: repairInProgress,
@@ -610,7 +634,12 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     isRestoringFinalVideo,
     canRebuildFinalVideo,
     isRebuildingFinalVideo,
-    finalExportStage: isRebuildingFinalVideo ? finalExportStage : null,
+    finalExportStage:
+      isRebuildingFinalVideo ||
+      status === "finalizing" ||
+      projectState.status === "rendering"
+        ? finalExportStage
+        : null,
     retryState,
     retryingSegmentIndex,
     segmentsMergeFailed,
@@ -621,6 +650,13 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
     videoRepairUpdatedAt,
     videoRepairUserMessageKey,
     repairAdminDetail,
+    renderPipelineContext: {
+      instantMode: renderPipelineContext.instantMode,
+      hasStudioImport: renderPipelineContext.hasStudioImport,
+      voiceEnabled: renderPipelineContext.voiceEnabled,
+      subtitlesEnabled: renderPipelineContext.subtitlesEnabled,
+      hasStoryOverlay: renderPipelineContext.hasStoryOverlay,
+    },
     studioQa: buildProjectStudioQaResponse({
       ...projectState,
       ...(projectState.studioLastStaleReason?.trim()

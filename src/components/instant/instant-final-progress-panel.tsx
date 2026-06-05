@@ -9,6 +9,7 @@ import {
 } from "@/lib/instant-premium-progress-stage";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
 import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
+import { MotionRenderPipelinePanel } from "@/components/instant/motion-render-pipeline-panel";
 import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
 import type { InstantVideoRepairFeedback } from "@/hooks/use-instant-video-repair";
 import type { InstantRepairUiView } from "@/lib/instant-repair-ui-state";
@@ -262,7 +263,9 @@ export function InstantFinalProgressPanel({
 
       {showTextRerenderProgress ? (
         <TextLanguageRenderProgressPanel progress={textRerenderProgress} className="mt-3" />
-      ) : null}
+      ) : (
+        <MotionRenderPipelinePanel snapshot={snapshot} className="mt-3" />
+      )}
 
       <div className={`mt-3 h-3 w-full overflow-hidden rounded-full ${tone.track}`}>
         <div

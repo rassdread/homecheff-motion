@@ -615,6 +615,14 @@ export type InstantPremiumFailureReason =
   | "merge_failed"
   | "export_upload_auth_failed";
 
+export type MotionRenderPipelineContextResponse = {
+  instantMode: "story" | "transition";
+  hasStudioImport: boolean;
+  voiceEnabled: boolean;
+  subtitlesEnabled: boolean;
+  hasStoryOverlay: boolean;
+};
+
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";
@@ -692,4 +700,6 @@ export type InstantPremiumStatusResponse = {
   } | null;
   /** Studio V19: summary during generation / after completion. */
   studioQa?: ProjectStudioQaResponse | null;
+  /** Motion UX: which pipeline checklist steps apply to this render. */
+  renderPipelineContext?: MotionRenderPipelineContextResponse;
 };

@@ -42,3 +42,11 @@ test("InstantFinalProgressPanel shows text rerender step progress", () => {
   assert.match(src, /resolveTextRerenderProgress/);
   assert.match(src, /showTextRerenderProgress/);
 });
+
+test("InstantFinalProgressPanel shows motion render pipeline checklist", () => {
+  const src = readFileSync(
+    join(__dirname, "instant-final-progress-panel.tsx"),
+    "utf8"
+  );
+  assert.match(src, /MotionRenderPipelinePanel/);
+});

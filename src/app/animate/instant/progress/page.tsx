@@ -14,6 +14,10 @@ import { useInstantPremiumProgressPolling } from "@/hooks/use-instant-premium-pr
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { invalidateCachedInstantProgressSnapshot } from "@/lib/instant-premium-progress-cache";
+import {
+  MOTION_RENDER_PIPELINE_STEP_I18N,
+  resolveMotionRenderPipelineProgress,
+} from "@/lib/motion-render-pipeline-progress";
 import { buildPlaybackCacheKey } from "@/lib/playback-url-resolution";
 import { brand } from "@/lib/brand";
 import { syncActiveAnimationProjects } from "@/lib/sync-active-animation-projects";
@@ -38,23 +42,18 @@ function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
   if (!snapshot) {
     return "instant.progress.preparingProject";
   }
+  const pipeline = resolveMotionRenderPipelineProgress({ snapshot });
+  if (pipeline.phase === "running" && pipeline.activeStepId) {
+    return MOTION_RENDER_PIPELINE_STEP_I18N[pipeline.activeStepId];
+  }
+  if (pipeline.phase === "failed" && pipeline.failedStepId) {
+    return MOTION_RENDER_PIPELINE_STEP_I18N[pipeline.failedStepId];
+  }
   if (snapshot.phase === "failed") {
     return "instant.progress.failed";
   }
   if (snapshot.phase === "completed" || snapshot.status === "completed") {
     return "instant.progress.completed";
-  }
-  if (snapshot.phase === "uploading_final") {
-    return "instant.progress.uploadingFinal";
-  }
-  if (snapshot.phase === "merging_clips") {
-    return "instant.progress.mergingClips";
-  }
-  if (snapshot.phase === "generating_clips") {
-    if (snapshot.progressPercent < 10) {
-      return "instant.progress.preparingImages";
-    }
-    return "instant.progress.generatingVideo";
   }
   return "instant.progress.preparingProject";
 }
