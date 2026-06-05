@@ -8,6 +8,11 @@ import { StudioDirectorSectionCamera } from "@/components/studio/director-v2/sec
 import { StudioDirectorSectionCharacters } from "@/components/studio/director-v2/sections/characters-section";
 import { StudioDirectorSectionDirector } from "@/components/studio/director-v2/sections/director-section";
 import { StudioDirectorSectionEmotion } from "@/components/studio/director-v2/sections/emotion-section";
+import { StudioDirectorSectionVoice } from "@/components/studio/director-v2/sections/voice-section";
+import { StudioDirectorSectionMusic } from "@/components/studio/director-v2/sections/music-section";
+import { StudioDirectorSectionSound } from "@/components/studio/director-v2/sections/sound-section";
+import { StudioDirectorSectionText } from "@/components/studio/director-v2/sections/text-section";
+import { StudioDirectorSectionAdvanced } from "@/components/studio/director-v2/sections/advanced-section";
 import {
   readStudioDirectorV2Mode,
   writeStudioDirectorV2Mode,
@@ -70,6 +75,11 @@ export function StudioDirectorPanelV2({
     characters: true,
     camera: true,
     emotion: true,
+    text: true,
+    voice: false,
+    music: false,
+    sound: false,
+    advanced: false,
   });
 
   const patchDraft = useCallback(
@@ -110,6 +120,16 @@ export function StudioDirectorPanelV2({
         locationId: scene.locationId,
         characterIds: scene.characters.map((c) => c.id),
         propIds: scene.props.map((p) => p.id),
+        musicCueType: scene.musicCueType,
+        musicEnergyTarget: scene.musicEnergyTarget,
+        musicTransitionType: scene.musicTransitionType,
+        musicStartBehavior: scene.musicStartBehavior,
+        musicEndBehavior: scene.musicEndBehavior,
+        soundEnvironmentOverride: scene.soundEnvironmentOverride,
+        soundCharacterOverride: scene.soundCharacterOverride,
+        soundPropOverride: scene.soundPropOverride,
+        soundTransitionOverride: scene.soundTransitionOverride,
+        soundAmbientOverride: scene.soundAmbientOverride,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : t("studio.storyboards.error.saveSceneFailed"));
@@ -245,12 +265,69 @@ export function StudioDirectorPanelV2({
             />
           </StudioDirectorAccordionSection>
 
-          {mode === "expert" ?
-            <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 px-4 py-3 text-sm text-zinc-600">
-              <p className="font-semibold text-zinc-800">{t("studio.directorV2.expert.comingSoon")}</p>
-              <p className="mt-1 text-xs">{t("studio.directorV2.expert.hint")}</p>
-            </div>
-          : null}
+          <StudioDirectorAccordionSection
+            title={t("studio.directorV2.section.text")}
+            infoKey="studio.directorV2.info.text"
+            open={openSections.text}
+            onToggle={() => toggleSection("text")}
+          >
+            <StudioDirectorSectionText
+              scene={scene}
+              sceneIndex={sceneIndex}
+              sceneCount={sceneCount}
+              storyboardTitle={storyboardTitle}
+              storyboardDescription={storyboardDescription}
+              aiDirectorNotes={directorNotes}
+            />
+          </StudioDirectorAccordionSection>
+
+          {mode === "expert" ? (
+            <>
+              <StudioDirectorAccordionSection
+                title={t("studio.directorV2.section.voice")}
+                infoKey="studio.directorV2.info.voice"
+                open={openSections.voice}
+                onToggle={() => toggleSection("voice")}
+              >
+                <StudioDirectorSectionVoice scene={scene} allCharacters={characters} />
+              </StudioDirectorAccordionSection>
+
+              <StudioDirectorAccordionSection
+                title={t("studio.directorV2.section.music")}
+                infoKey="studio.directorV2.info.music"
+                open={openSections.music}
+                onToggle={() => toggleSection("music")}
+              >
+                <StudioDirectorSectionMusic
+                  scene={scene}
+                  canModify={canModify}
+                  onPatch={(patch) => patchDraft(patch)}
+                />
+              </StudioDirectorAccordionSection>
+
+              <StudioDirectorAccordionSection
+                title={t("studio.directorV2.section.sound")}
+                infoKey="studio.directorV2.info.sound"
+                open={openSections.sound}
+                onToggle={() => toggleSection("sound")}
+              >
+                <StudioDirectorSectionSound
+                  scene={scene}
+                  canModify={canModify}
+                  onPatch={(patch) => patchDraft(patch)}
+                />
+              </StudioDirectorAccordionSection>
+
+              <StudioDirectorAccordionSection
+                title={t("studio.directorV2.section.advanced")}
+                infoKey="studio.directorV2.info.advanced"
+                open={openSections.advanced}
+                onToggle={() => toggleSection("advanced")}
+              >
+                <StudioDirectorSectionAdvanced scene={scene} />
+              </StudioDirectorAccordionSection>
+            </>
+          ) : null}
         </div>
 
         <StudioDirectorInspectorColumn
