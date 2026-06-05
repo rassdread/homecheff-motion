@@ -1640,6 +1640,7 @@ export const en: LocaleSchema = {
   "projects.concept.debugTitle": "Concept bootstrap (admin)",
   "projects.concept.storageUnavailable":
     "Concept storage is not available on this server yet. Continue without a saved concept or try again later.",
+  "projects.concept.renderNewVersion": "Render new version",
   "projects.concept.save": "Save concept",
   "projects.concept.continueEditing": "Continue editing",
   "projects.concept.delete": "Delete concept",

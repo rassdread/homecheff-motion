@@ -746,7 +746,7 @@ export function FullRerenderEditor({
           disabled={busy}
           className="ml-auto rounded-lg bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {busy ? t("instant.fullRerender.busy") : t("projectDetail.rerenderChoices.newVersion.cta")}
+          {busy ? t("instant.fullRerender.busy") : t("projects.concept.renderNewVersion")}
         </button>
       </footer>
     </div>

@@ -1640,6 +1640,7 @@ export const nl = {
   "projects.concept.debugTitle": "Concept bootstrap (admin)",
   "projects.concept.storageUnavailable":
     "Conceptopslag is op deze omgeving nog niet beschikbaar. Ga verder zonder opgeslagen concept of probeer het later opnieuw.",
+  "projects.concept.renderNewVersion": "Nieuwe versie renderen",
   "projects.concept.save": "Concept opslaan",
   "projects.concept.continueEditing": "Verder bewerken",
   "projects.concept.delete": "Verwijder concept",
