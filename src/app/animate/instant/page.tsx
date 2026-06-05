@@ -1755,6 +1755,15 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.voiceIdentityPlan ?? null
                           }
+                          mediaAssetPlan={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | {
+                                    mediaAssetPlan?: import("@/types/studio-media-asset").MotionMediaAssetHandoffPlan;
+                                  }
+                                | undefined
+                            )?.mediaAssetPlan ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

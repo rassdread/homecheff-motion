@@ -30,6 +30,10 @@ import {
   buildVoiceIdentityPlan,
   isVoiceIdentityPlanReady,
 } from "@/lib/studio-voice-identity-director";
+import {
+  buildMediaAssetDirectorPlan,
+  isMediaAssetPlanReady,
+} from "@/lib/studio-media-asset-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
@@ -87,6 +91,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const audioPlan = buildAudioProductionDirectorPlan(storyboard);
   const assetPlan = buildAudioAssetDirectorPlan(storyboard);
   const voiceIdentityPlan = buildVoiceIdentityPlan(storyboard);
+  const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -115,6 +120,10 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     voiceIdentityPlan.enabled &&
     isVoiceIdentityPlanReady(voiceIdentityPlan) &&
     voiceIdentityPlan.lockedAssignments.length > 0;
+  const assetValidationReady =
+    mediaAssetPlan.enabled &&
+    isMediaAssetPlanReady(mediaAssetPlan) &&
+    mediaAssetPlan.characterBundles.length > 0;
 
   return [
     {
@@ -166,6 +175,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "voice_identity_validation",
       labelKey: "studio.production.checklist.voiceIdentityValidation",
       passed: voiceIdentityValidationReady,
+    },
+    {
+      id: "asset_validation",
+      labelKey: "studio.production.checklist.assetValidation",
+      passed: assetValidationReady,
     },
     {
       id: "video_config",

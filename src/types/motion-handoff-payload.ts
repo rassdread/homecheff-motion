@@ -67,8 +67,12 @@ import type {
   ResolvedCharacterVoiceIdentity,
   VoiceIdentityWarning,
 } from "@/types/studio-voice-identity";
+import type {
+  MotionMediaAssetHandoffPlan,
+  StudioAssetCollection,
+} from "@/types/studio-media-asset";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 19 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 20 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -205,5 +209,10 @@ export type MotionHandoffPayload = {
   resolvedVoiceProfiles?: ResolvedCharacterVoiceIdentity[];
   voiceIdentityWarnings?: VoiceIdentityWarning[];
   characterResolvedVoices?: MotionCharacterResolvedVoiceHandoff[];
+  /** V40: Media Asset Manager plan (metadata only). */
+  mediaAssetPlan?: MotionMediaAssetHandoffPlan;
+  assetReferences?: MotionMediaAssetHandoffPlan["assetReferences"];
+  assetCollections?: StudioAssetCollection[];
+  assetUsageSummary?: string;
   scenes: MotionHandoffScene[];
 };

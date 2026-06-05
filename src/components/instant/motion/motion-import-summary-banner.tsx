@@ -12,6 +12,7 @@ import type { MotionAudioProductionHandoffPlan } from "@/types/studio-audio-prod
 import type { MotionAudioAssetHandoffPlan } from "@/types/studio-audio-asset-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 import type { MotionVoiceIdentityHandoffPlan } from "@/types/studio-voice-identity";
+import type { MotionMediaAssetHandoffPlan } from "@/types/studio-media-asset";
 import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
 
 type Props = {
@@ -28,6 +29,7 @@ type Props = {
   audioProductionPlan?: MotionAudioProductionHandoffPlan | null;
   audioAssetPlan?: MotionAudioAssetHandoffPlan | null;
   voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan | null;
+  mediaAssetPlan?: MotionMediaAssetHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -46,6 +48,7 @@ export function MotionImportSummaryBanner({
   audioProductionPlan,
   audioAssetPlan,
   voiceIdentityPlan,
+  mediaAssetPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -258,6 +261,27 @@ export function MotionImportSummaryBanner({
                     </li>
                   );
                 })}
+              </ul>
+            </div>
+          : null}
+          {mediaAssetPlan?.enabled && mediaAssetPlan.assetReferences.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.mediaAssetTitle")}: {mediaAssetPlan.registrySummary}
+              </p>
+              {mediaAssetPlan.assetUsageSummary ?
+                <p className="mt-0.5">{mediaAssetPlan.assetUsageSummary}</p>
+              : null}
+              <ul className="mt-1 space-y-0.5">
+                {mediaAssetPlan.characterBundles.slice(0, 4).map((bundle) => (
+                  <li key={bundle.characterId}>
+                    {bundle.characterName}:{" "}
+                    {t("motion.qa.importSummary.mediaAssetCharacterLine", {
+                      refs: String(bundle.referenceImages.length),
+                      voices: String(bundle.voiceAssets.length),
+                    })}
+                  </li>
+                ))}
               </ul>
             </div>
           : null}
