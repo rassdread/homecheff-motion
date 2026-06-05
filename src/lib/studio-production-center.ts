@@ -16,6 +16,7 @@ import {
 } from "@/lib/studio-production-readiness";
 import type { ProductionProviderReport } from "@/lib/studio-production-providers";
 import { buildProductionScoreReport, type ProductionScoreReport } from "@/lib/studio-production-score";
+import { buildMusicDirectorPlan, isMusicPlanReady } from "@/lib/studio-music-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
@@ -68,6 +69,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const intelligence = analyzeStoryIntelligence(storyboardToFlowInput(storyboard), directorProfile);
   const imagePlan = analyzeSceneImagePlanner({ storyboard, directorProfile });
   const voiceReport = analyzeVoiceDirector(storyboard);
+  const musicPlan = buildMusicDirectorPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -80,6 +82,8 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     !storyboard.voiceEnabled ||
     (voiceReport.settingsValid && voiceReport.script.fullNarration.trim().length > 20);
   const videoConfigReady = scenes.length >= 2 && scenes.every((s) => s.durationSeconds > 0);
+  const musicPlanReady =
+    musicPlan.enabled && isMusicPlanReady(musicPlan) && musicPlan.sceneCues.length > 0;
 
   return [
     {
@@ -106,6 +110,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "voice_plan",
       labelKey: "studio.production.checklist.voicePlan",
       passed: voicePlanReady,
+    },
+    {
+      id: "music_plan",
+      labelKey: "studio.production.checklist.musicPlan",
+      passed: musicPlanReady,
     },
     {
       id: "video_config",

@@ -1,6 +1,8 @@
 import { isAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
 import { isStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import { isStudioMusicProfileId } from "@/lib/studio-music-profiles";
+import { normalizeMusicIntensity } from "@/lib/studio-music-validation";
 import {
   isStudioNarrationMode,
   isStudioVoiceProfileId,
@@ -30,6 +32,11 @@ export type StudioStoryboardUpdateInput = {
   narrationMode?: string;
   voiceNarrationScript?: string;
   autoSelectImprovedImage?: boolean;
+  musicEnabled?: boolean;
+  musicStyle?: string;
+  musicIntensity?: string;
+  musicNarrativeRole?: string;
+  musicNotes?: string;
 };
 
 export type ValidationResult<T> =
@@ -90,6 +97,11 @@ export function validateStudioStoryboardUpdateInput(
   narrationMode?: string;
   voiceNarrationScript?: string;
   autoSelectImprovedImage?: boolean;
+  musicEnabled?: boolean;
+  musicStyle?: string;
+  musicIntensity?: string;
+  musicNarrativeRole?: string;
+  musicNotes?: string;
 }> {
   const patch: {
     title?: string;
@@ -105,6 +117,11 @@ export function validateStudioStoryboardUpdateInput(
     narrationMode?: string;
     voiceNarrationScript?: string;
     autoSelectImprovedImage?: boolean;
+    musicEnabled?: boolean;
+    musicStyle?: string;
+    musicIntensity?: string;
+    musicNarrativeRole?: string;
+    musicNotes?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -192,6 +209,26 @@ export function validateStudioStoryboardUpdateInput(
 
   if (raw.autoSelectImprovedImage !== undefined) {
     patch.autoSelectImprovedImage = Boolean(raw.autoSelectImprovedImage);
+  }
+
+  if (raw.musicEnabled !== undefined) {
+    patch.musicEnabled = Boolean(raw.musicEnabled);
+  }
+  if (raw.musicStyle !== undefined) {
+    const style = raw.musicStyle.trim().toLowerCase();
+    if (style && !isStudioMusicProfileId(style)) {
+      return { ok: false, code: "INVALID_MUSIC_STYLE", message: "Invalid music profile." };
+    }
+    patch.musicStyle = style;
+  }
+  if (raw.musicIntensity !== undefined) {
+    patch.musicIntensity = normalizeMusicIntensity(raw.musicIntensity);
+  }
+  if (raw.musicNarrativeRole !== undefined) {
+    patch.musicNarrativeRole = trimText(raw.musicNarrativeRole, 120);
+  }
+  if (raw.musicNotes !== undefined) {
+    patch.musicNotes = trimText(raw.musicNotes, STUDIO_STORYBOARD_TEXT_MAX);
   }
 
   if (Object.keys(patch).length === 0) {

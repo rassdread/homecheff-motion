@@ -494,6 +494,13 @@ model StudioStoryboard {
   voiceProfile        String  @default("warm_narrator")
   narrationMode       String  @default("narrator")
   voiceNarrationScript String @default("")
+  /** V35: Music Director planning (no audio generation in Studio yet). */
+  musicEnabled          Boolean @default(false)
+  musicStyle            String  @default("")
+  musicIntensity        String  @default("balanced")
+  musicNarrativeRole    String  @default("support_narrative")
+  musicNotes            String  @default("")
+  musicMetadataJson     Json?
   /** V14: after approved regeneration, auto-select image if combined score improves */
   autoSelectImprovedImage Boolean @default(true)
   createdAt   DateTime      @default(now())
@@ -597,6 +604,12 @@ model StudioScene {
   /** V23: calm | neutral | dynamic | intense */
   sceneEnergy          String                 @default("neutral")
   transitionToNext     String                 @default("")
+  /** V35: per-scene music cue overrides (planning only). */
+  musicCueType         String                 @default("")
+  musicEnergyTarget    String                 @default("")
+  musicTransitionType  String                 @default("")
+  musicStartBehavior   String                 @default("")
+  musicEndBehavior     String                 @default("")
   durationSeconds      Int                    @default(5)
   locationId           String?
   location             StudioLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)

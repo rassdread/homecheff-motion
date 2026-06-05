@@ -38,8 +38,14 @@ import type {
   MotionVoiceMetadata,
   MotionVoiceSegmentHandoff,
 } from "@/types/studio-voice-execution";
+import type {
+  MotionMusicHandoffPlan,
+  MotionSceneMusicCueHandoff,
+  MusicDirectorWarning,
+  SceneMusicCue,
+} from "@/types/studio-music-director";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 14 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 15 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -82,6 +88,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   speakerVoiceProfile?: string | null;
   /** V34: computed performance state for scene primary speaker. */
   speakerPerformance?: CharacterPerformanceState | null;
+  /** V35: scene music cue plan (planning only — no audio). */
+  musicCue?: MotionSceneMusicCueHandoff;
 };
 
 export type MotionHandoffPayload = {
@@ -139,5 +147,11 @@ export type MotionHandoffPayload = {
   activeSpeakerData?: ActiveSpeakerPerformanceData[];
   emotionModifiers?: Record<string, PerformanceEmotionModifier>;
   energyModifiers?: PerformanceEnergyModifier[];
+  /** V35: Music Director plan (no generated audio). */
+  musicPlan?: MotionMusicHandoffPlan;
+  musicProfile?: string;
+  sceneMusicCues?: SceneMusicCue[];
+  musicNarrativeSummary?: string;
+  musicWarnings?: MusicDirectorWarning[];
   scenes: MotionHandoffScene[];
 };

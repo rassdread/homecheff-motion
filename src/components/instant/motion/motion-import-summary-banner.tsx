@@ -6,6 +6,7 @@ import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-int
 import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
 import { MotionCharacterPerformancePreview } from "@/components/instant/motion/motion-character-performance-preview";
 import type { CharacterPerformanceAssignment } from "@/types/studio-character-performance";
+import type { MotionMusicHandoffPlan } from "@/types/studio-music-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   characterPerformanceProfiles?: CharacterPerformanceAssignment[] | null;
   storedHandoff?: unknown;
   voiceSegments?: MotionVoiceSegmentHandoff[] | null;
+  musicPlan?: MotionMusicHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -30,6 +32,7 @@ export function MotionImportSummaryBanner({
   characterPerformanceProfiles,
   storedHandoff,
   voiceSegments,
+  musicPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -109,6 +112,22 @@ export function MotionImportSummaryBanner({
                 </li>
               ))}
             </ul>
+          : null}
+          {musicPlan?.enabled && musicPlan.sceneMusicCues.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.musicTitle")}:{" "}
+                {t(musicPlan.profileLabelKey as never)}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {musicPlan.sceneMusicCues.map((cue) => (
+                  <li key={cue.sceneId}>
+                    {cue.order + 1}. {cue.title || t("motion.qa.importSummary.musicScene")} —{" "}
+                    <span className="capitalize">{cue.narrativeLabel}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           : null}
           {characterPerformanceProfiles && characterPerformanceProfiles.length > 0 ?
             <ul className="mt-2 space-y-0.5 text-xs text-zinc-700">

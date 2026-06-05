@@ -30,6 +30,7 @@ import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-characte
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import { attachVoiceToHandoffPayload } from "@/lib/attach-voice-handoff";
+import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
 import { prisma } from "@/lib/prisma";
@@ -397,6 +398,7 @@ export async function createMotionHandoffPayload(
         : null,
     });
     payload = attachPerformanceToHandoffPayload(payload, { storyboard: detail });
+    payload = attachMusicToHandoffPayload(payload, { storyboard: detail });
   }
 
   return { payload };

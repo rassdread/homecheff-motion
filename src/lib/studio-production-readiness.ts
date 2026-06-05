@@ -10,6 +10,7 @@ import { scorePromptQuality } from "@/lib/studio-prompt-quality";
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
 import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
+import { buildMusicDirectorPlan, isMusicPlanReady } from "@/lib/studio-music-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -22,7 +23,7 @@ import type { StudioStoryboardDetail } from "@/types/studio-api";
 export type AssetReadinessLevel = "ready" | "attention" | "not_ready";
 
 export type AssetReadinessItem = {
-  id: "story" | "director" | "image" | "voice" | "video";
+  id: "story" | "director" | "image" | "voice" | "music" | "video";
   labelKey: string;
   level: AssetReadinessLevel;
   detailKey: string | null;
@@ -61,6 +62,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const intelligence = analyzeStoryIntelligence(storyboardToFlowInput(storyboard), directorProfile);
   const imagePlan = analyzeSceneImagePlanner({ storyboard, directorProfile });
   const voiceReport = analyzeVoiceDirector(storyboard);
+  const musicPlan = buildMusicDirectorPlan(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -149,6 +151,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
       labelKey: "studio.production.asset.voice",
       level: voiceLevel,
       detailKey: voiceDetail,
+    },
+    {
+      id: "music",
+      labelKey: "studio.production.asset.music",
+      level:
+        !musicPlan.enabled
+          ? "attention"
+          : isMusicPlanReady(musicPlan)
+            ? "ready"
+            : musicPlan.sceneCues.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !musicPlan.enabled
+          ? "studio.production.asset.music.disabled"
+          : isMusicPlanReady(musicPlan)
+            ? null
+            : "studio.production.asset.music.planIncomplete",
     },
     {
       id: "video",

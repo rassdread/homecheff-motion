@@ -1714,6 +1714,13 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.voiceSegments ?? null
                           }
+                          musicPlan={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | { musicPlan?: import("@/types/studio-music-director").MotionMusicHandoffPlan }
+                                | undefined
+                            )?.musicPlan ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

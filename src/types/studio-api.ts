@@ -177,6 +177,11 @@ export type StudioSceneDetail = {
   cameraMovement: string;
   sceneEnergy: StudioSceneEnergy;
   transitionToNext: string;
+  musicCueType: string;
+  musicEnergyTarget: string;
+  musicTransitionType: string;
+  musicStartBehavior: string;
+  musicEndBehavior: string;
   durationSeconds: number;
   locationId: string | null;
   location: StudioLocationListItem | null;
@@ -220,6 +225,11 @@ export type StudioStoryboardListItem = {
   voiceProfile: string;
   narrationMode: string;
   voiceNarrationScript: string;
+  musicEnabled: boolean;
+  musicStyle: string;
+  musicIntensity: string;
+  musicNarrativeRole: string;
+  musicNotes: string;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

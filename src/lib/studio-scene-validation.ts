@@ -1,4 +1,11 @@
 import { normalizeSceneDirectorFields } from "@/lib/studio-scene-director";
+import {
+  isMusicCueType,
+  isMusicEndBehavior,
+  isMusicEnergyTarget,
+  isMusicStartBehavior,
+  isMusicTransitionType,
+} from "@/lib/studio-music-validation";
 
 export const STUDIO_SCENE_TITLE_MAX = 120;
 export const STUDIO_SCENE_TEXT_MAX = 4000;
@@ -19,6 +26,11 @@ export type StudioSceneCreateInput = {
   locationId?: string | null;
   characterIds?: string[];
   propIds?: string[];
+  musicCueType?: string;
+  musicEnergyTarget?: string;
+  musicTransitionType?: string;
+  musicStartBehavior?: string;
+  musicEndBehavior?: string;
 };
 
 export type StudioSceneUpdateInput = StudioSceneCreateInput;
@@ -119,6 +131,11 @@ export function validateStudioSceneUpdateInput(
   locationId?: string | null;
   characterIds?: string[];
   propIds?: string[];
+  musicCueType?: string;
+  musicEnergyTarget?: string;
+  musicTransitionType?: string;
+  musicStartBehavior?: string;
+  musicEndBehavior?: string;
 }> {
   const patch: {
     title?: string;
@@ -134,6 +151,11 @@ export function validateStudioSceneUpdateInput(
     locationId?: string | null;
     characterIds?: string[];
     propIds?: string[];
+    musicCueType?: string;
+    musicEnergyTarget?: string;
+    musicTransitionType?: string;
+    musicStartBehavior?: string;
+    musicEndBehavior?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -190,6 +212,41 @@ export function validateStudioSceneUpdateInput(
   }
   if (raw.propIds !== undefined) {
     patch.propIds = validateIdList(raw.propIds) ?? [];
+  }
+  if (raw.musicCueType !== undefined) {
+    const v = trimField(raw.musicCueType);
+    if (v && !isMusicCueType(v)) {
+      return { ok: false, code: "INVALID_MUSIC_CUE", message: "Invalid music cue type." };
+    }
+    patch.musicCueType = v;
+  }
+  if (raw.musicEnergyTarget !== undefined) {
+    const v = trimField(raw.musicEnergyTarget);
+    if (v && !isMusicEnergyTarget(v)) {
+      return { ok: false, code: "INVALID_MUSIC_ENERGY", message: "Invalid music energy target." };
+    }
+    patch.musicEnergyTarget = v;
+  }
+  if (raw.musicTransitionType !== undefined) {
+    const v = trimField(raw.musicTransitionType);
+    if (v && !isMusicTransitionType(v)) {
+      return { ok: false, code: "INVALID_MUSIC_TRANSITION", message: "Invalid music transition." };
+    }
+    patch.musicTransitionType = v;
+  }
+  if (raw.musicStartBehavior !== undefined) {
+    const v = trimField(raw.musicStartBehavior);
+    if (v && !isMusicStartBehavior(v)) {
+      return { ok: false, code: "INVALID_MUSIC_START", message: "Invalid music start behavior." };
+    }
+    patch.musicStartBehavior = v;
+  }
+  if (raw.musicEndBehavior !== undefined) {
+    const v = trimField(raw.musicEndBehavior);
+    if (v && !isMusicEndBehavior(v)) {
+      return { ok: false, code: "INVALID_MUSIC_END", message: "Invalid music end behavior." };
+    }
+    patch.musicEndBehavior = v;
   }
 
   if (Object.keys(patch).length === 0) {
