@@ -7,8 +7,13 @@ import {
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
-import type { CharacterVoiceProfilesByLanguage } from "@/types/studio-character-voice";
+import type {
+  CharacterVoiceLanguageProfile,
+  CharacterVoiceProfilesByLanguage,
+} from "@/types/studio-character-voice";
 import type { StudioCharacterDetail } from "@/types/studio-api";
+import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
+import type { StudioVoiceExecutionLanguage } from "@/types/studio-voice-execution";
 
 export type CharacterVoiceFormState = {
   voiceEnabled: boolean;
@@ -142,6 +147,8 @@ export function StudioCharacterVoiceProfilePanel({
             <option value="nl">NL</option>
             <option value="es">ES</option>
             <option value="fr">FR</option>
+            <option value="de">DE</option>
+            <option value="pt">PT</option>
           </select>
         </label>
         <label className="block text-xs font-medium text-violet-900 sm:col-span-2">
@@ -190,6 +197,92 @@ export function StudioCharacterVoiceProfilePanel({
             onChange={(e) => onChange({ ...value, voiceNotes: e.target.value })}
           />
         </label>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+          {t("studio.characterVoice.languageProfilesTitle")}
+        </h3>
+        <p className="mt-1 text-xs text-violet-800">{t("studio.characterVoice.languageProfilesHint")}</p>
+        <div className="mt-3 space-y-3">
+          {VOICE_IDENTITY_LANGUAGES.map((lang) => {
+            const row: CharacterVoiceLanguageProfile =
+              value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
+            const updateLang = (patch: Partial<CharacterVoiceLanguageProfile>) => {
+              onChange({
+                ...value,
+                voiceProfilesByLanguage: {
+                  ...value.voiceProfilesByLanguage,
+                  [lang]: { ...row, ...patch },
+                },
+              });
+            };
+            return (
+              <div
+                key={lang}
+                className="rounded-xl border border-violet-100 bg-white/70 p-3"
+              >
+                <p className="text-xs font-semibold text-violet-950">{lang.toUpperCase()}</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <label className="block text-xs text-violet-900">
+                    {t("studio.characterVoice.profile")}
+                    <select
+                      className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-sm"
+                      value={row.voiceProfile ?? ""}
+                      onChange={(e) =>
+                        updateLang({
+                          voiceProfile: e.target.value
+                            ? normalizeStudioVoiceProfileId(e.target.value)
+                            : undefined,
+                        })
+                      }
+                    >
+                      <option value="">{t("studio.characterVoice.languageProfileInherit")}</option>
+                      {STUDIO_VOICE_PROFILE_IDS.map((id) => (
+                        <option key={id} value={id}>
+                          {t(getVoiceProfilePreset(id).labelKey as never)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs text-violet-900">
+                    {t("studio.characterVoice.provider")}
+                    <select
+                      className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-sm"
+                      value={row.voiceProvider ?? ""}
+                      onChange={(e) =>
+                        updateLang({ voiceProvider: e.target.value || undefined })
+                      }
+                    >
+                      <option value="">{t("studio.characterVoice.languageProfileInherit")}</option>
+                      <option value="elevenlabs">ElevenLabs</option>
+                      <option value="mock">Mock</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs text-violet-900">
+                    {t("studio.characterVoice.gender")}
+                    <input
+                      className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-sm"
+                      value={row.voiceGender ?? ""}
+                      onChange={(e) => updateLang({ voiceGender: e.target.value || undefined })}
+                      placeholder={t("studio.characterVoice.genderPlaceholder")}
+                    />
+                  </label>
+                  <label className="block text-xs text-violet-900 sm:col-span-2">
+                    {t("studio.characterVoice.description")}
+                    <input
+                      className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-sm"
+                      value={row.voiceDescription ?? ""}
+                      onChange={(e) =>
+                        updateLang({ voiceDescription: e.target.value || undefined })
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {characterId ?

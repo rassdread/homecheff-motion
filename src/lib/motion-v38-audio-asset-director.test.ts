@@ -214,7 +214,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V38 — Audio Asset Director", () => {
   it("handoff payload version is 18", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 18);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 19);
   });
 
   it("selectMusicAssetForCue maps community intro", () => {
@@ -363,10 +363,10 @@ describe("Studio V38 — Audio Asset Director", () => {
   it("production readiness includes audio assets", () => {
     const sb = storyboard([scene(0), scene(1)]);
     const assets = buildAssetReadiness(sb);
-    assert.equal(assets.length, 9);
+    assert.equal(assets.length, 10);
     assert.ok(assets.some((a) => a.id === "audio_assets"));
     const checklist = buildProductionChecklist(sb);
-    assert.equal(checklist.length, 10);
+    assert.equal(checklist.length, 11);
     assert.ok(checklist.some((c) => c.id === "audio_asset_assignment"));
   });
 
@@ -375,12 +375,12 @@ describe("Studio V38 — Audio Asset Director", () => {
     assert.equal(isAudioAssetPlanReady(plan), true);
   });
 
-  it("legacy handoff v17 has no audio asset plan", () => {
+  it("legacy handoff v18 has no audio asset plan", () => {
     const legacy = {
       ...minimalHandoff(["sc-0"]),
-      version: 17 as typeof MOTION_HANDOFF_PAYLOAD_VERSION,
+      version: 18 as typeof MOTION_HANDOFF_PAYLOAD_VERSION,
     };
-    assert.equal(legacy.version, 17);
+    assert.equal(legacy.version, 18);
     assert.equal(legacy.audioAssetPlan, undefined);
     assert.equal(legacy.scenes[0]?.sceneAudioAssetPackage, undefined);
   });

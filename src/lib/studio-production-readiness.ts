@@ -20,6 +20,10 @@ import {
   buildAudioAssetDirectorPlan,
   isAudioAssetPlanReady,
 } from "@/lib/studio-audio-asset-director";
+import {
+  buildVoiceIdentityPlan,
+  isVoiceIdentityPlanReady,
+} from "@/lib/studio-voice-identity-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -41,6 +45,7 @@ export type AssetReadinessItem = {
     | "sound"
     | "audio_production"
     | "audio_assets"
+    | "voice_identity"
     | "video";
   labelKey: string;
   level: AssetReadinessLevel;
@@ -84,6 +89,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const soundPlan = buildSoundDirectorPlan(storyboard);
   const audioPlan = buildAudioProductionDirectorPlan(storyboard);
   const assetPlan = buildAudioAssetDirectorPlan(storyboard);
+  const voiceIdentityPlan = buildVoiceIdentityPlan(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -244,6 +250,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
           : isAudioAssetPlanReady(assetPlan)
             ? null
             : "studio.production.asset.audioAssets.planIncomplete",
+    },
+    {
+      id: "voice_identity",
+      labelKey: "studio.production.asset.voiceIdentity",
+      level:
+        !voiceIdentityPlan.enabled
+          ? "attention"
+          : isVoiceIdentityPlanReady(voiceIdentityPlan)
+            ? "ready"
+            : voiceIdentityPlan.lockedAssignments.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !voiceIdentityPlan.enabled
+          ? "studio.production.asset.voiceIdentity.disabled"
+          : isVoiceIdentityPlanReady(voiceIdentityPlan)
+            ? null
+            : "studio.production.asset.voiceIdentity.planIncomplete",
     },
     {
       id: "video",

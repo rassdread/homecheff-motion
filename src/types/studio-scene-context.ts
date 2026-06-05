@@ -36,6 +36,8 @@ export type StudioSceneContextMetadata = {
   audioFocus?: string;
   /** V38 — assigned audio asset summary per scene. */
   audioAssets?: string;
+  /** V39 — resolved character voice identity label per scene. */
+  voiceIdentity?: string;
   /** V7 — Motion-ready prompt (not sent to Vidu yet). */
   generatedPrompt?: string;
   stylePrompt?: string;

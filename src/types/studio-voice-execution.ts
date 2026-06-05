@@ -1,6 +1,6 @@
 /** Studio V31 — voice execution + Motion handoff types. */
 
-export const STUDIO_VOICE_EXECUTION_LANGUAGES = ["en", "nl", "es", "fr"] as const;
+export const STUDIO_VOICE_EXECUTION_LANGUAGES = ["en", "nl", "es", "fr", "de", "pt"] as const;
 export type StudioVoiceExecutionLanguage = (typeof STUDIO_VOICE_EXECUTION_LANGUAGES)[number];
 
 export function isStudioVoiceExecutionLanguage(

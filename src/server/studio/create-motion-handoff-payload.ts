@@ -34,6 +34,7 @@ import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
 import { attachSoundToHandoffPayload } from "@/lib/attach-sound-handoff";
 import { attachAudioProductionToHandoffPayload } from "@/lib/attach-audio-production-handoff";
 import { attachAudioAssetToHandoffPayload } from "@/lib/attach-audio-asset-handoff";
+import { attachVoiceIdentityToHandoffPayload } from "@/lib/attach-voice-identity-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
 import { prisma } from "@/lib/prisma";
@@ -405,6 +406,7 @@ export async function createMotionHandoffPayload(
     payload = attachSoundToHandoffPayload(payload, { storyboard: detail });
     payload = attachAudioProductionToHandoffPayload(payload, { storyboard: detail });
     payload = attachAudioAssetToHandoffPayload(payload, { storyboard: detail });
+    payload = attachVoiceIdentityToHandoffPayload(payload, { storyboard: detail });
   }
 
   return { payload };

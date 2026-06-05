@@ -6,6 +6,7 @@ import {
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
+import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type {
   CharacterVoiceAssignment,
   CharacterVoiceConsistencyWarning,
@@ -92,35 +93,26 @@ export function resolveCharacterVoiceForLanguage(
 
 export function buildCharacterVoiceAssignment(
   character: StudioCharacterListItem,
-  language: string
+  language: string,
+  options?: { attemptedOverrideProfile?: string | null }
 ): CharacterVoiceAssignment {
-  const snap = resolveCharacterVoiceForLanguage(
-    characterVoiceSnapshotFromRow({
-      voiceEnabled: character.voiceEnabled ?? false,
-      voiceProvider: character.voiceProvider ?? "",
-      voiceProfile: character.voiceProfile ?? "",
-      voiceLanguage: character.voiceLanguage ?? "en",
-      voiceGender: character.voiceGender ?? "",
-      voiceDescription: character.voiceDescription ?? "",
-      voiceNotes: character.voiceNotes ?? "",
-      voiceLock: character.voiceLock ?? false,
-      voiceProfilesJson: character.voiceProfilesByLanguage ?? null,
-    }),
-    language
-  );
-  const preset = getVoiceProfilePreset(snap.voiceProfile);
+  const identity = resolveCharacterVoiceIdentity({
+    character,
+    language,
+    attemptedOverrideProfile: options?.attemptedOverrideProfile ?? null,
+  });
   return {
-    characterId: character.id,
-    characterName: character.name,
+    characterId: identity.characterId,
+    characterName: identity.characterName,
     characterSlug: character.slug,
-    voiceEnabled: snap.voiceEnabled,
-    voiceProvider: snap.voiceProvider || "elevenlabs",
-    voiceProfile: snap.voiceProfile,
-    voiceLanguage: snap.voiceLanguage,
-    voiceGender: snap.voiceGender,
-    voiceDescription: snap.voiceDescription,
-    voiceLock: snap.voiceLock,
-    presetLabelKey: preset.labelKey,
+    voiceEnabled: identity.voiceEnabled,
+    voiceProvider: identity.voiceProvider,
+    voiceProfile: identity.voiceProfile,
+    voiceLanguage: identity.language,
+    voiceGender: identity.voiceGender,
+    voiceDescription: identity.voiceDescription,
+    voiceLock: identity.voiceLock,
+    presetLabelKey: identity.presetLabelKey,
   };
 }
 
@@ -142,9 +134,14 @@ export function buildCharacterVoiceAssignments(
   storyboard: StudioStoryboardDetail,
   language: string
 ): CharacterVoiceAssignment[] {
+  const storyboardOverride = storyboard.voiceProfile?.trim() || null;
   return collectStoryboardCharacters(storyboard)
     .filter((c) => c.voiceEnabled || Boolean(c.voiceProfile?.trim()))
-    .map((c) => buildCharacterVoiceAssignment(c, language));
+    .map((c) =>
+      buildCharacterVoiceAssignment(c, language, {
+        attemptedOverrideProfile: c.voiceLock ? storyboardOverride : null,
+      })
+    );
 }
 
 export function matchCharacterBySpeakerName(

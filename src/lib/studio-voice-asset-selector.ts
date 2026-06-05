@@ -48,7 +48,9 @@ export function selectVoiceAssetsForScene(params: {
 
   if (primaryCharacter) {
     const assignment = params.characterAssignments.find((a) => a.characterId === primaryCharacter.id);
-    if (assignment?.voiceEnabled && assignment.voiceProfile) {
+    if (assignment?.voiceLock) {
+      profile = assignment.voiceProfile;
+    } else if (assignment?.voiceEnabled && assignment.voiceProfile) {
       profile = assignment.voiceProfile;
     }
   }

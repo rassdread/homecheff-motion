@@ -11,6 +11,8 @@ import type { MotionSoundHandoffPlan } from "@/types/studio-sound-director";
 import type { MotionAudioProductionHandoffPlan } from "@/types/studio-audio-production-director";
 import type { MotionAudioAssetHandoffPlan } from "@/types/studio-audio-asset-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
+import type { MotionVoiceIdentityHandoffPlan } from "@/types/studio-voice-identity";
+import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
 
 type Props = {
   intelligence: MotionStudioIntelligenceSnapshot;
@@ -25,6 +27,7 @@ type Props = {
   soundPlan?: MotionSoundHandoffPlan | null;
   audioProductionPlan?: MotionAudioProductionHandoffPlan | null;
   audioAssetPlan?: MotionAudioAssetHandoffPlan | null;
+  voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -42,6 +45,7 @@ export function MotionImportSummaryBanner({
   soundPlan,
   audioProductionPlan,
   audioAssetPlan,
+  voiceIdentityPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -201,6 +205,59 @@ export function MotionImportSummaryBanner({
                     })}
                   </li>
                 ))}
+              </ul>
+            </div>
+          : null}
+          {voiceIdentityPlan?.enabled && voiceIdentityPlan.resolvedVoiceProfiles.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.voiceIdentityTitle")}: {voiceIdentityPlan.identitySummary}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {[...new Map(
+                  voiceIdentityPlan.resolvedVoiceProfiles.map((p) => [p.characterId, p])
+                ).values()].map((profile) => {
+                  const locked = voiceIdentityPlan.lockedVoiceAssignments.find(
+                    (a) => a.characterId === profile.characterId
+                  )?.voiceLock;
+                  return (
+                    <li key={profile.characterId}>
+                      <span className="font-medium">{profile.characterName}</span>
+                      {locked ?
+                        <span className="ml-1 text-indigo-700">
+                          ({t("motion.qa.importSummary.voiceIdentityLocked")})
+                        </span>
+                      : null}
+                      <ul className="ml-3 mt-0.5 space-y-0.5">
+                        {VOICE_IDENTITY_LANGUAGES.filter((lang) => {
+                          const row = voiceIdentityPlan.resolvedVoiceProfiles.find(
+                            (r) => r.characterId === profile.characterId && r.language === lang
+                          );
+                          return row?.voiceEnabled || row?.voiceProfile;
+                        }).map((lang) => {
+                          const row = voiceIdentityPlan.resolvedVoiceProfiles.find(
+                            (r) => r.characterId === profile.characterId && r.language === lang
+                          );
+                          return (
+                            <li key={`${profile.characterId}-${lang}`}>
+                              {lang.toUpperCase()}: {row?.displayLabel ?? "—"}
+                            </li>
+                          );
+                        })}
+                        {VOICE_IDENTITY_LANGUAGES.every((lang) => {
+                          const row = voiceIdentityPlan.resolvedVoiceProfiles.find(
+                            (r) => r.characterId === profile.characterId && r.language === lang
+                          );
+                          return !row?.voiceEnabled && !row?.voiceProfile;
+                        }) ?
+                          <li>
+                            {profile.language.toUpperCase()}: {profile.displayLabel}
+                          </li>
+                        : null}
+                      </ul>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           : null}

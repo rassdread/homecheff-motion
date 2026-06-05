@@ -61,8 +61,14 @@ import type {
   MotionSceneAudioAssetHandoff,
   StudioAudioAsset,
 } from "@/types/studio-audio-asset-director";
+import type {
+  MotionCharacterResolvedVoiceHandoff,
+  MotionVoiceIdentityHandoffPlan,
+  ResolvedCharacterVoiceIdentity,
+  VoiceIdentityWarning,
+} from "@/types/studio-voice-identity";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 18 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 19 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -113,6 +119,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   audioProduction?: MotionSceneAudioProductionHandoff;
   /** V38: scene audio asset assignments (planning only — no audio). */
   sceneAudioAssetPackage?: MotionSceneAudioAssetHandoff;
+  /** V39: resolved voice identity for scene primary speaker. */
+  resolvedVoiceProfile?: string | null;
 };
 
 export type MotionHandoffPayload = {
@@ -191,5 +199,11 @@ export type MotionHandoffPayload = {
   assignedMusicAssets?: StudioAudioAsset[];
   assignedSoundAssets?: StudioAudioAsset[];
   assetWarnings?: AudioAssetWarning[];
+  /** V39: Voice Identity plan (lock enforcement, multi-language). */
+  voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan;
+  lockedVoiceAssignments?: CharacterVoiceAssignment[];
+  resolvedVoiceProfiles?: ResolvedCharacterVoiceIdentity[];
+  voiceIdentityWarnings?: VoiceIdentityWarning[];
+  characterResolvedVoices?: MotionCharacterResolvedVoiceHandoff[];
   scenes: MotionHandoffScene[];
 };
