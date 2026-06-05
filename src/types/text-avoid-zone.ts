@@ -69,6 +69,7 @@ export type TextSubjectSafetyDebugEntry = {
   chosenBox: { left: number; right: number; top: number; bottom: number };
   rejected: Array<{ reason: string; band?: string; score: number }>;
   action: string;
+  tightSpaceWarning?: string;
   placedReservations?: Array<{
     layerId: string;
     left: number;

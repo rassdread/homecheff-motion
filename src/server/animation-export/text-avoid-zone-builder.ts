@@ -1,4 +1,5 @@
 import type { AvoidBox } from "@/server/animation-export/local-vision/types";
+import { NOGO_PADDING_HEIGHT_FRACTION } from "@/server/animation-export/text-placement-spec";
 import type { TextAvoidZone, TextAvoidZonePlan } from "@/types/text-avoid-zone";
 import {
   applyMascotHeuristicBoost,
@@ -119,6 +120,28 @@ export function zoneOverlapFraction(
   return areaA > 0 ? inter / areaA : 0;
 }
 
+/** Expand mascot/logo zones with 12–16% height padding (no-go comfort margin). */
+export function expandNoGoAvoidZones(zones: TextAvoidZone[]): TextAvoidZone[] {
+  return zones.map((zone) => {
+    if (zone.type !== "mascot" && zone.type !== "logo") {
+      return zone;
+    }
+    const padY = zone.height * NOGO_PADDING_HEIGHT_FRACTION;
+    const padX = zone.width * NOGO_PADDING_HEIGHT_FRACTION * 0.5;
+    const x = Math.max(0, zone.x - padX);
+    const y = Math.max(0, zone.y - padY);
+    const right = Math.min(1, zone.x + zone.width + padX);
+    const bottom = Math.min(1, zone.y + zone.height + padY);
+    return {
+      ...zone,
+      x,
+      y,
+      width: right - x,
+      height: bottom - y,
+    };
+  });
+}
+
 export function textBoxOverlapWithZones(
   box: { left: number; right: number; top: number; bottom: number },
   zones: TextAvoidZone[]
@@ -174,6 +197,7 @@ export function buildTextAvoidZonePlan(input: {
     projectTitle: input.projectTitle,
   });
   zones = unionTextAvoidZones(mascot.zones);
+  zones = expandNoGoAvoidZones(zones);
 
   return {
     zones,

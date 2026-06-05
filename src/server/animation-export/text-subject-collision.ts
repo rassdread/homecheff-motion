@@ -4,6 +4,11 @@ import {
   zoneOverlapFraction,
 } from "@/server/animation-export/text-avoid-zone-builder";
 import {
+  SPEC_RELOCATION_BANDS,
+  TEXT_SAFE_AREA_MARGIN,
+  lineHeightNormalized,
+} from "@/server/animation-export/text-placement-spec";
+import {
   resolveTextPlacementTwoPass,
   type PlacedTextBox,
 } from "@/server/animation-export/text-placement-reservation";
@@ -53,19 +58,21 @@ export function subjectOverlapPenalty(
   return penalty;
 }
 
-/** Relocation bands for story dialogue (normalized y anchors). */
+/** Relocation bands — top → mid → bottom per video text rendering spec. */
 export const RELOCATION_BANDS: Array<{
   id: string;
   y: number;
   alignment: number;
   priority: number;
 }> = [
-  { id: "bottom_safe", y: 0.88, alignment: 2, priority: 1 },
-  { id: "top_safe", y: 0.1, alignment: 8, priority: 2 },
-  { id: "lower_third", y: 0.72, alignment: 2, priority: 3 },
-  { id: "upper_third", y: 0.22, alignment: 8, priority: 4 },
-  { id: "left_edge", y: 0.5, alignment: 1, priority: 5 },
-  { id: "right_edge", y: 0.5, alignment: 3, priority: 6 },
+  ...SPEC_RELOCATION_BANDS.map((band) => ({
+    id: band.id,
+    y: band.y,
+    alignment: band.alignment,
+    priority: band.priority,
+  })),
+  { id: "left_edge", y: 0.5, alignment: 1, priority: 7 },
+  { id: "right_edge", y: 0.5, alignment: 3, priority: 8 },
 ];
 
 export function estimateTextBoxNormalized(input: {
@@ -78,10 +85,11 @@ export function estimateTextBoxNormalized(input: {
   alignment: number;
 }): NormalizedTextBox {
   const charW = (input.fontSize * 0.55) / input.frameW;
-  const lineH = (input.fontSize * 1.25) / input.frameH;
+  const lineH = lineHeightNormalized(input.fontSize, input.frameH);
   const maxLen = Math.max(...input.lines.map((l) => l.length), 1);
-  const boxW = Math.min(0.92, maxLen * charW + 0.04);
-  const boxH = Math.min(0.4, input.lines.length * lineH + 0.02);
+  const margin = TEXT_SAFE_AREA_MARGIN;
+  const boxW = Math.min(1 - 2 * margin, maxLen * charW + 0.04);
+  const boxH = Math.min(0.4, input.lines.length * lineH + 0.01);
 
   let left = input.x / input.frameW - boxW / 2;
   if (input.alignment === 1) {
@@ -99,8 +107,8 @@ export function estimateTextBoxNormalized(input: {
     top = input.y / input.frameH - boxH / 2;
   }
 
-  left = Math.max(0.02, Math.min(0.98 - boxW, left));
-  top = Math.max(0.02, Math.min(0.98 - boxH, top));
+  left = Math.max(margin, Math.min(1 - margin - boxW, left));
+  top = Math.max(margin, Math.min(1 - margin - boxH, top));
 
   return {
     left,
@@ -176,9 +184,9 @@ export function relocateAwayFromSubjectZones(input: {
       const candidateY = Math.round(band.y * input.frameH);
       const candidateX =
         band.alignment === 1
-          ? Math.round(0.06 * input.frameW)
+          ? Math.round(TEXT_SAFE_AREA_MARGIN * input.frameW)
           : band.alignment === 3
-            ? Math.round(0.94 * input.frameW)
+            ? Math.round((1 - TEXT_SAFE_AREA_MARGIN) * input.frameW)
             : Math.round(0.5 * input.frameW);
 
       const box = estimateTextBoxNormalized({
@@ -222,7 +230,7 @@ export function relocateAwayFromSubjectZones(input: {
     y: fallbackY,
     fontSize: fallbackFont,
     alignment: fallbackBand.alignment,
-    action: "fallback_bottom_shrink",
+    action: "fallback_top_shrink",
     box: fallbackBox,
   };
 }

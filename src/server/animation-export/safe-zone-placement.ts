@@ -4,6 +4,7 @@
 
 import path from "node:path";
 import type { AdaptiveOverlayTheme } from "@/server/animation-export/adaptive-overlay-style";
+import { TEXT_SAFE_AREA_MARGIN } from "@/server/animation-export/text-placement-spec";
 
 export const SAFE_ZONE_IDS = [
   "TOP_LEFT",
@@ -103,9 +104,9 @@ export type SafeZoneDebugInfo = {
   adminVisionNote?: string;
 };
 
-/** TikTok / Reels safe margins (fraction of frame). */
-export const SAFE_AREA_MARGIN_H = 0.06;
-export const SAFE_AREA_MARGIN_V = 0.05;
+/** TikTok / Reels safe margins (fraction of frame) — 8–10% per text rendering spec. */
+export const SAFE_AREA_MARGIN_H = TEXT_SAFE_AREA_MARGIN;
+export const SAFE_AREA_MARGIN_V = TEXT_SAFE_AREA_MARGIN;
 
 const TOP_ZONES: SafeZoneId[] = ["TOP_LEFT", "TOP_CENTER", "TOP_RIGHT"];
 const CENTER_ZONES: SafeZoneId[] = ["CENTER_LEFT", "CENTER", "CENTER_RIGHT"];
@@ -194,8 +195,8 @@ function scoreZoneMetrics(params: {
   const edgePenalty = edgeDensity * 1.15;
   const clutterPenalty = colorVariance * 0.55;
   const openSpaceBonus = contrast < 25 ? 12 : contrast < 40 ? 6 : 0;
-  const verticalBonus = rowIndex === 0 ? 10 : rowIndex === 1 ? 5 : -8;
-  const lowerThirdPenalty = rowIndex === 2 ? edgeDensity * 0.35 + colorVariance * 0.12 : 0;
+  const verticalBonus = rowIndex === 0 ? 14 : rowIndex === 1 ? 8 : -14;
+  const lowerThirdPenalty = rowIndex === 2 ? edgeDensity * 0.5 + colorVariance * 0.2 + 6 : 0;
   const score = clamp(
     quietBonus + openSpaceBonus + verticalBonus - edgePenalty - clutterPenalty - lowerThirdPenalty,
     0,

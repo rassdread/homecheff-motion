@@ -104,6 +104,7 @@ export function applySubjectSafetyToLockedLayers(input: {
       chosenBox: resolved.box,
       rejected: resolved.rejected,
       action: resolved.action,
+      tightSpaceWarning: resolved.tightSpaceWarning,
       placedReservations: placedReservations.map((r) => ({
         layerId: r.layerId,
         left: r.left,

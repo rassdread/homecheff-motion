@@ -1,5 +1,10 @@
 import type { TextAvoidZone, TextPlacementCandidate } from "@/types/text-avoid-zone";
 import {
+  BOTTOM_NOGO_BAND_TOP,
+  TEXT_BLOCK_VERTICAL_GAP,
+  TEXT_SAFE_AREA_MARGIN,
+} from "@/server/animation-export/text-placement-spec";
+import {
   estimateTextBoxNormalized,
   isTextBoxUnsafeForZones,
   RELOCATION_BANDS,
@@ -18,7 +23,7 @@ export type PlacedTextBox = NormalizedTextBox & {
 };
 
 export const TEXT_OVERLAP_REJECT_THRESHOLD = 0.05;
-const STACK_GAP_NORM = 0.03;
+const STACK_GAP_NORM = TEXT_BLOCK_VERTICAL_GAP;
 
 export function textBoxOverlapFraction(
   a: NormalizedTextBox,
@@ -59,6 +64,55 @@ export function isPlacementValid(input: {
   return { valid: true };
 }
 
+function buildAboveBelowObjectCandidates(input: {
+  frameW: number;
+  frameH: number;
+  fontSize: number;
+  lines: string[];
+  zones: TextAvoidZone[];
+}): TextPlacementCandidate[] {
+  const candidates: TextPlacementCandidate[] = [];
+  const objectZones = input.zones.filter(
+    (zone) =>
+      zone.type === "mascot" ||
+      zone.type === "logo" ||
+      zone.type === "face" ||
+      zone.type === "primary_subject"
+  );
+
+  for (const zone of objectZones) {
+    const centerX = Math.round((zone.x + zone.width / 2) * input.frameW);
+    const aboveY = Math.round(
+      Math.max(TEXT_SAFE_AREA_MARGIN, zone.y - TEXT_BLOCK_VERTICAL_GAP) * input.frameH
+    );
+    const belowY = Math.round(
+      Math.min(
+        BOTTOM_NOGO_BAND_TOP - TEXT_BLOCK_VERTICAL_GAP,
+        zone.y + zone.height + TEXT_BLOCK_VERTICAL_GAP
+      ) * input.frameH
+    );
+
+    candidates.push({
+      x: centerX,
+      y: aboveY,
+      fontSize: input.fontSize,
+      alignment: 8,
+      lines: input.lines,
+      band: `above_${zone.type}`,
+    });
+    candidates.push({
+      x: centerX,
+      y: belowY,
+      fontSize: input.fontSize,
+      alignment: 2,
+      lines: input.lines,
+      band: `below_${zone.type}`,
+    });
+  }
+
+  return candidates;
+}
+
 function buildStackCandidates(input: {
   frameW: number;
   frameH: number;
@@ -68,7 +122,7 @@ function buildStackCandidates(input: {
   placed: PlacedTextBox[];
 }): TextPlacementCandidate[] {
   const candidates: TextPlacementCandidate[] = [];
-  const baseSlots = [0.88, 0.82, 0.76, 0.7, 0.64, 0.58];
+  const baseSlots = [0.28, 0.38, 0.48, 0.58, 0.68, 0.76];
 
   for (const slot of baseSlots) {
     candidates.push({
@@ -106,6 +160,7 @@ export function buildPlacementCandidates(input: {
   frameW: number;
   frameH: number;
   placed: PlacedTextBox[];
+  zones?: TextAvoidZone[];
   shrinkSteps?: number[];
 }): TextPlacementCandidate[] {
   const shrinkSteps = input.shrinkSteps ?? [1, 0.92, 0.85, 0.78, 0.72];
@@ -123,13 +178,25 @@ export function buildPlacementCandidates(input: {
       band: "original",
     });
 
+    if (input.zones && input.zones.length > 0) {
+      candidates.push(
+        ...buildAboveBelowObjectCandidates({
+          frameW: input.frameW,
+          frameH: input.frameH,
+          fontSize,
+          lines: input.lines,
+          zones: input.zones,
+        })
+      );
+    }
+
     for (const band of RELOCATION_BANDS) {
       const candidateY = Math.round(band.y * input.frameH);
       const candidateX =
         band.alignment === 1
-          ? Math.round(0.06 * input.frameW)
+          ? Math.round(TEXT_SAFE_AREA_MARGIN * input.frameW)
           : band.alignment === 3
-            ? Math.round(0.94 * input.frameW)
+            ? Math.round((1 - TEXT_SAFE_AREA_MARGIN) * input.frameW)
             : Math.round(0.5 * input.frameW);
 
       candidates.push({
@@ -165,7 +232,30 @@ export type TextPlacementResolution = {
   action: string;
   box: NormalizedTextBox;
   rejected: Array<{ reason: string; band?: string; score: number }>;
+  /** Set when layout was tight and shrink/relocation/fallback was required. */
+  tightSpaceWarning?: string;
 };
+
+function resolveTightSpaceWarning(input: {
+  action: string;
+  fontSize: number;
+  originalFontSize: number;
+  rejectedCount: number;
+}): string | undefined {
+  const shrunk = input.fontSize < input.originalFontSize * 0.92;
+  const relocated =
+    input.action.includes("fallback") ||
+    input.action.includes("shrink") ||
+    input.action.includes("relocated") ||
+    input.action.includes("two_pass_");
+  if (input.rejectedCount >= 4 || (shrunk && input.action.includes("fallback"))) {
+    return "tight_space_layout";
+  }
+  if (input.rejectedCount >= 2 && (shrunk || relocated)) {
+    return "tight_space_font_shrink";
+  }
+  return undefined;
+}
 
 /**
  * Two-pass placement: Pass 1 subject-safe, Pass 2 text-safe against reservations.
@@ -221,6 +311,7 @@ export function resolveTextPlacementTwoPass(input: {
     frameW: input.frameW,
     frameH: input.frameH,
     placed: input.placedReservations,
+    zones: input.zones,
     shrinkSteps: input.shrinkSteps,
   });
 
@@ -292,14 +383,21 @@ export function resolveTextPlacementTwoPass(input: {
         lines: best.candidate.lines,
         alignment: best.candidate.alignment,
       });
+      const action = `two_pass_${best.candidate.band ?? "scored"}`;
       return {
         x: best.candidate.x,
         y: best.candidate.y,
         fontSize: best.candidate.fontSize,
         alignment: best.candidate.alignment,
-        action: `two_pass_${best.candidate.band ?? "scored"}`,
+        action,
         box,
         rejected,
+        tightSpaceWarning: resolveTightSpaceWarning({
+          action,
+          fontSize: best.candidate.fontSize,
+          originalFontSize: input.fontSize,
+          rejectedCount: rejected.length,
+        }),
       };
     }
   }
@@ -307,7 +405,7 @@ export function resolveTextPlacementTwoPass(input: {
   const shrinkSteps = input.shrinkSteps ?? [0.78, 0.72, 0.66];
   for (const shrink of shrinkSteps) {
     const fontSize = Math.round(input.fontSize * shrink);
-    let stackY = Math.round(0.88 * input.frameH);
+    let stackY = Math.round(0.76 * input.frameH);
     for (const reserved of input.placedReservations) {
       stackY = Math.max(stackY, Math.round((reserved.bottom + STACK_GAP_NORM) * input.frameH));
     }
@@ -326,14 +424,21 @@ export function resolveTextPlacementTwoPass(input: {
       placed: input.placedReservations,
     });
     if (check.valid) {
+      const action = `fallback_stagger_shrink_${shrink}`;
       return {
         x: Math.round(0.5 * input.frameW),
         y: stackY,
         fontSize,
         alignment: 2,
-        action: `fallback_stagger_shrink_${shrink}`,
+        action,
         box,
         rejected,
+        tightSpaceWarning: resolveTightSpaceWarning({
+          action,
+          fontSize,
+          originalFontSize: input.fontSize,
+          rejectedCount: rejected.length,
+        }),
       };
     }
     rejected.push({
@@ -343,7 +448,7 @@ export function resolveTextPlacementTwoPass(input: {
     });
   }
 
-  const fallbackY = Math.round(0.88 * input.frameH);
+  const fallbackY = Math.round(0.86 * input.frameH);
   const fallbackFont = Math.round(input.fontSize * 0.72);
   const fallbackBox = estimateTextBoxNormalized({
     x: Math.round(0.5 * input.frameW),
@@ -354,15 +459,22 @@ export function resolveTextPlacementTwoPass(input: {
     lines: input.lines,
     alignment: 2,
   });
+  const action = "fallback_bottom_forced";
 
   return {
     x: Math.round(0.5 * input.frameW),
     y: fallbackY,
     fontSize: fallbackFont,
     alignment: 2,
-    action: "fallback_bottom_forced",
+    action,
     box: fallbackBox,
     rejected,
+    tightSpaceWarning: resolveTightSpaceWarning({
+      action,
+      fontSize: fallbackFont,
+      originalFontSize: input.fontSize,
+      rejectedCount: rejected.length,
+    }) ?? "tight_space_layout",
   };
 }
 

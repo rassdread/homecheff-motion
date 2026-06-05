@@ -68,7 +68,23 @@ describe("Motion Text Placement V1", () => {
     assert.ok(textBoxOverlapWithZones(box, zones) >= SUBJECT_OVERLAP_REJECT_THRESHOLD);
   });
 
-  it("keeps text in bottom safe area away from center subject", () => {
+  it("relocates short copy to top when top zone is free", () => {
+    const zones = buildPortraitSubjectHeuristicZones("9:16");
+    const relocated = relocateAwayFromSubjectZones({
+      x: 540,
+      y: 700,
+      fontSize: 48,
+      alignment: 2,
+      lines: ["Hi"],
+      frameW: FRAME_W,
+      frameH: FRAME_H,
+      zones,
+    });
+    assert.ok(relocated.action.includes("top_safe"));
+    assert.ok(relocated.y <= FRAME_H * 0.12);
+  });
+
+  it("relocates long copy to bottom when top and mid are blocked", () => {
     const zones = buildPortraitSubjectHeuristicZones("9:16");
     const relocated = relocateAwayFromSubjectZones({
       x: 540,
@@ -81,7 +97,8 @@ describe("Motion Text Placement V1", () => {
       zones,
     });
     assert.notEqual(relocated.action, "kept");
-    assert.ok(relocated.y > FRAME_H * 0.6);
+    assert.ok(relocated.action.includes("bottom_safe"));
+    assert.ok(relocated.y > FRAME_H * 0.75);
   });
 
   it("applies mascot heuristic boost for food_promo preset", () => {

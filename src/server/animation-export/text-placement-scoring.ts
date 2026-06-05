@@ -4,6 +4,11 @@ import type {
   TextPlacementScoreBreakdown,
 } from "@/types/text-avoid-zone";
 import {
+  BOTTOM_NOGO_BAND_TOP,
+  SPEC_RELOCATION_BANDS,
+  TEXT_SAFE_AREA_MARGIN,
+} from "@/server/animation-export/text-placement-spec";
+import {
   estimateTextBoxNormalized,
   subjectOverlapPenalty,
   type NormalizedTextBox,
@@ -37,14 +42,19 @@ export function scoreTextPlacementCandidate(input: {
   const textCollision = textVsTextPenalty(box, input.placedBoxes);
   const edgeCrowding = edgeCrowdingPenalty(box);
 
+  const zonePriority = bandPriorityBonus(input.candidate.band);
+  const bottomBandPenalty = bottomNoGoBandPenalty(box);
+
   const total =
     readability +
     contrast +
-    marginSafety -
+    marginSafety +
+    zonePriority -
     avoidZoneOverlap -
     subjectOverlap -
     textCollision -
-    edgeCrowding;
+    edgeCrowding -
+    bottomBandPenalty;
 
   return {
     readability,
@@ -65,12 +75,34 @@ function edgeMarginScore(box: NormalizedTextBox): number {
 }
 
 function edgeCrowdingPenalty(box: NormalizedTextBox): number {
+  const margin = TEXT_SAFE_AREA_MARGIN;
   let penalty = 0;
-  if (box.left < 0.03) penalty += 8;
-  if (box.top < 0.03) penalty += 6;
-  if (box.right > 0.97) penalty += 8;
-  if (box.bottom > 0.97) penalty += 6;
+  if (box.left < margin) penalty += 12;
+  if (box.top < margin) penalty += 10;
+  if (box.right > 1 - margin) penalty += 12;
+  if (box.bottom > 1 - margin) penalty += 10;
   return penalty;
+}
+
+function bandPriorityBonus(band?: string): number {
+  if (!band) return 0;
+  const spec = SPEC_RELOCATION_BANDS.find((entry) => entry.id === band);
+  if (spec) {
+    return (7 - spec.priority) * 3;
+  }
+  if (band.startsWith("above_")) return 16;
+  if (band.startsWith("below_")) return 10;
+  return 0;
+}
+
+function bottomNoGoBandPenalty(box: NormalizedTextBox): number {
+  if (box.top >= BOTTOM_NOGO_BAND_TOP) {
+    return 18;
+  }
+  if (box.bottom >= BOTTOM_NOGO_BAND_TOP) {
+    return 10;
+  }
+  return 0;
 }
 
 function textVsTextPenalty(
