@@ -1,25 +1,71 @@
 ---
-description: "Riedel — Prisma, lint/build, daarna git add → commit → push (juiste volgorde, alle sessies)"
+description: "Riedel — pull, prisma, lint/build/test, verify, git add → commit → push"
 alwaysApply: true
 ---
 
-# Riedel (standaard volgorde vóór commit / push)
+# Riedel (standaard vóór commit / push)
 
-Gebruik dit in **elk** project wanneer je wijzigingen afrondt of de gebruiker om migratie/build/push vraagt.
+Gebruik dit wanneer de gebruiker **riedel**, **doe riedel**, **add commit build push**, of werk afrondt vóór version control. **Geen** Vercel CLI-deploy (daarvoor: **BCPD** in het project, als dat bestaat).
 
-## Volgorde (logisch)
+## Volgorde
 
-1. **`git pull`** — alleen als je op een gedeelde branch werkt en dat past bij de taak (voorkomt conflicten).
-2. **Prisma / database** (alleen als `schema.prisma` of migraties wijzigen):
-   - **Lokaal nieuwe migratie:** `prisma migrate dev` (of het npm-script van het project).
-   - **Alleen controleren:** `npx prisma validate` en `npx prisma migrate status`.
-   - **Productie / CI na merge:** `npx prisma migrate deploy` — niet hetzelfde als je dagelijkse lokale commit; deploy hoort bij de omgeving die de DB bijwerkt.
-3. **`npx prisma generate`** — als het project Prisma gebruikt en generate nog niet in postinstall zit of na schema-wijziging nodig is.
-4. **Kwaliteit:** `npm run lint` en **`npm run build`** (of de projectequivalenten) **slagen laten vóór commit**.
-5. **Git — altijd in deze volgorde:** **`git add`** → **`git commit`** → **`git push`**  
-   Niet: eerst `commit` en dan pas `add`.
+### 1. Git pull
+
+```bash
+git pull
+```
+
+(op gedeelde branch, bijv. `main`, vóór commit/push)
+
+### 2. Prisma
+
+```bash
+npx prisma validate
+npx prisma generate
+```
+
+- **Migratie alleen** als `schema.prisma` of `prisma/migrations/` gewijzigd zijn: `npx prisma migrate dev` (lokaal) of `npx prisma migrate status` / `deploy` volgens omgeving.
+- Geen schema-wijziging → geen nieuwe migratie.
+
+### 3. Quality
+
+```bash
+npm run lint
+npm run build
+npm run test
+```
+
+Alles moet slagen vóór commit (tenzij de gebruiker expliciet anders wil).
+
+### 4. Verify
+
+- Alle tests pass (rapporteer actueel aantal, bijv. `1119/1119` — niet een vast oude telling aannemen).
+- `git status`: geen onbedoelde `schema.prisma` / migratie-wijzigingen tenzij bedoeld.
+- Bevestig dat de bedoelde feature-bestanden in de commit zitten (of al op `HEAD`/remote staan).
+
+### 5. Git
+
+```bash
+git status
+git add .
+git commit -m "<bericht van de taak>"
+git push
+```
+
+Altijd: **add → commit → push** (nooit committen vóór add).
+
+### 6. Return
+
+Rapporteer aan de gebruiker:
+
+- commit hash
+- files changed (kort)
+- build status
+- test status (aantal pass/total)
+- push status
 
 ## Fouten vermijden
 
-- Geen push van een commit die bewust niet buildt, tenzij de gebruiker dat expliciet wil.
-- Voer checks zelf uit in de shell waar de gebruiker dat toestaat; geef geen alleen-instructies als om uitvoering wordt gevraagd.
+- Geen push van code die bewust niet buildt.
+- Voer stappen zelf uit in de shell; geen alleen-instructies als uitvoering gevraagd is.
+- Gebruik het commit-bericht van de **huidige taak**, niet van een eerdere release tenzij de gebruiker dat expliciet vraagt.

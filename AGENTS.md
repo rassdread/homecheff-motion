@@ -6,10 +6,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Releasevolgorde “Riedel” (projectconventie)
 
-Vóór werk als af te ronden te beschouwen en te pushen, **in deze volgorde**:
+Vóór commit/push, **in deze volgorde**:
 
-1. **Migraties** – schema gewijzigd: Prisma-migraties aanmaken/draaien (`npx prisma migrate dev` lokaal, deploy-stappen volgens omgeving).
-2. **Build** – `npm run build` (en bij voorkeur eerst `npm run lint`).
-3. **Git** – **altijd** `git add` → `git commit` → `git push` (nooit committen vóór staged changes).
+1. **`git pull`**
+2. **Prisma** — `npx prisma validate` → `npx prisma generate` (migratie alleen bij schema/migratie-wijziging)
+3. **Quality** — `npm run lint` → `npm run build` → `npm run test`
+4. **Verify** — tests groen; geen onbedoelde schema/migratie pending; bedoelde bestanden in commit
+5. **Git** — `git status` → `git add .` → `git commit` → `git push`
+6. **Return** — commit hash, files changed, build/test/push status
 
-De eigenaar noemt deze volgorde kort **“riedel”**: migraties → build → daarna netjes version control tot en met push.
+Zie `.cursor/rules/riedel.mdc` voor details.

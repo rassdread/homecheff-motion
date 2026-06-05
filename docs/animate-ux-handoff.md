@@ -58,9 +58,12 @@ Voor upload van ≥2 beelden toonde de UI “0 overgangen / 0 seconden / 0 credi
 
 | Fase        | Handelingen |
 |------------|----------------|
-| Data-model | migratie → `migrate status` / `validate` |
-| Kwaliteit  | `lint` → `build` |
-| Versiebeheer | `add` → `commit` → `push` |
+| Pull | `git pull` |
+| Prisma | `npx prisma validate` → `npx prisma generate` (migratie alleen bij schema-wijziging) |
+| Kwaliteit | `npm run lint` → `npm run build` → `npm run test` |
+| Verify | tests groen; geen pending migratie; juiste bestanden in commit |
+| Versiebeheer | `git status` → `git add .` → `git commit` → `git push` |
+| Return | commit hash, files changed, build/test/push status |
 
 ### Cursor: regel voor alle projecten (“Riedel”)
 
