@@ -9,8 +9,12 @@ import {
 } from "@/lib/resolve-copy-as-draft-source";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
+import { suggestDefaultVersionName } from "@/lib/smart-version-naming";
+import { buildDetailBundleCatalog } from "@/server/animation-projects/build-detail-bundle-catalog";
 import {
   ensureFullRerenderDraftForProject,
+  getFullRerenderDraftForProject,
+  upsertFullRerenderDraft,
   type FullRerenderDraftProject,
 } from "@/server/instant-premium/full-rerender-draft-service";
 
@@ -222,6 +226,30 @@ export async function copyInstantPremiumProjectAsDraft(params: {
   }
 
   await ensureFullRerenderDraftForProject(projectRowToDraftEnsureShape(draftProject));
+
+  const existingDraft = await getFullRerenderDraftForProject(draftProjectId);
+  if (existingDraft) {
+    const bundle = await buildDetailBundleCatalog({
+      project: {
+        id: source.id,
+        ownerId: source.ownerId,
+        title: source.title,
+        bundleName: source.bundleName,
+        bundleKey: source.bundleKey,
+        projectType: source.projectType,
+      },
+      locale: "nl",
+    });
+    const suggestedName = suggestDefaultVersionName({
+      languageCode: sourceLanguage,
+      catalog: bundle.catalog,
+    });
+    await upsertFullRerenderDraft(draftProjectId, {
+      ...existingDraft,
+      versionNote: existingDraft.versionNote.trim() || suggestedName,
+      targetLanguage: existingDraft.targetLanguage.trim() || sourceLanguage,
+    });
+  }
 
   return {
     ok: true,

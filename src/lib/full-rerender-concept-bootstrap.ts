@@ -17,6 +17,7 @@ export type ConceptBootstrapResult =
       slots: FullRerenderEditorSlot[];
       expandedIndex: number | null;
       versionNote: string;
+      targetLanguage: string;
       userIntent: string;
       transitionSeconds: number;
       draftPersisted: boolean;
@@ -28,6 +29,7 @@ export type ConceptBootstrapResult =
       slots: FullRerenderEditorSlot[];
       expandedIndex: number | null;
       versionNote: string;
+      targetLanguage: string;
       userIntent: string;
       transitionSeconds: number;
       diagnostics: FullRerenderDraftBootstrapDiagnostics;
@@ -56,6 +58,7 @@ function outcomeFromDraft(
     slots,
     expandedIndex: draft.expandedIndex,
     versionNote: draft.versionNote,
+    targetLanguage: draft.targetLanguage,
     userIntent: draft.userIntent,
     transitionSeconds: draft.transitionSeconds,
     draftPersisted,
@@ -175,6 +178,7 @@ export async function runFullRerenderConceptBootstrap(
       slots,
       expandedIndex: local.expandedIndex,
       versionNote: local.versionNote,
+      targetLanguage: local.targetLanguage,
       userIntent: local.userIntent,
       transitionSeconds: local.transitionSeconds,
       diagnostics,
@@ -188,6 +192,7 @@ export async function runFullRerenderConceptBootstrap(
     slots: draftPayloadToEditorSlots(local),
     expandedIndex: local.expandedIndex,
     versionNote: local.versionNote,
+    targetLanguage: local.targetLanguage,
     userIntent: local.userIntent,
     transitionSeconds: local.transitionSeconds,
     diagnostics,

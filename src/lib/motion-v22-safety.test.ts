@@ -175,7 +175,8 @@ describe("Motion V22.1 — draft → version safety", () => {
   it("draft first render runs on draft project only", () => {
     const start = readSrc("src/server/instant-premium/start-draft-project-render.ts");
     assert.match(start, /Does not touch sourceProjectId/);
-    assert.doesNotMatch(start, /createPendingFullRerenderVersion/);
+    assert.match(start, /createPendingFullRerenderVersion/);
+    assert.match(start, /explicit: true/);
     assert.doesNotMatch(start, /sealDefaultRenderVersion/);
   });
 

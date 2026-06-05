@@ -1795,6 +1795,8 @@ export const en: LocaleSchema = {
   "projects.versionName.hint": "e.g. NL V4, Director Cut, Summer Promo — or leave the suggested default.",
   "projects.versionName.duplicateWarning": "Version name already exists.",
   "projects.versionName.duplicateSuggestion": "Try: {suggestion}",
+  "projects.versionIdentity.targetLanguage": "New language",
+  "projects.versionIdentity.suggestionHint": "Suggested automatically from your bundle.",
   "projects.draft.basedOn": "Draft based on",
   "projects.draft.isConcept": "You are editing a draft copy — not a live published version.",
   "projects.deepLink.versionNotFound": "Version not found for this link.",

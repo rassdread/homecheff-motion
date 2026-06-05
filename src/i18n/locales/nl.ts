@@ -1795,6 +1795,8 @@ export const nl = {
   "projects.versionName.hint": "bijv. NL V4, Director Cut, Zomerpromo — of laat de voorgestelde standaard staan.",
   "projects.versionName.duplicateWarning": "Deze versienaam bestaat al.",
   "projects.versionName.duplicateSuggestion": "Probeer: {suggestion}",
+  "projects.versionIdentity.targetLanguage": "Nieuwe taal",
+  "projects.versionIdentity.suggestionHint": "Automatisch gegenereerd op basis van de bundel.",
   "projects.draft.basedOn": "Concept gebaseerd op",
   "projects.draft.isConcept": "Je bewerkt een conceptkopie — geen live gepubliceerde versie.",
   "projects.deepLink.versionNotFound": "Versie niet gevonden voor deze link.",

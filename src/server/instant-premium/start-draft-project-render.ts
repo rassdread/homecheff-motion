@@ -12,6 +12,8 @@ import { persistFullRerenderImagesForProject } from "@/server/instant-premium/pe
 import { persistFullRerenderSettingsForProject } from "@/server/instant-premium/persist-full-rerender-settings";
 import { ensureStoryModeTransitionRows } from "@/server/instant-premium/story-mode-transitions";
 import type { FullRerenderProjectResult } from "@/server/instant-premium/full-rerender-project";
+import { createPendingFullRerenderVersion } from "@/server/instant-premium/render-version-service";
+import { resolveVersionNameAgainstBundle } from "@/server/instant-premium/resolve-bundle-version-name";
 
 export const DRAFT_RENDER_WRONG_TYPE = "DRAFT_RENDER_WRONG_TYPE";
 export const DRAFT_RENDER_NOT_DRAFT = "DRAFT_RENDER_NOT_DRAFT";
@@ -29,8 +31,13 @@ export async function startDraftInstantPremiumProjectRender(params: {
   projectId: string;
   userId: string;
   isAdmin?: boolean;
+  versionIdentity?: {
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    versionName?: string;
+  };
 }): Promise<FullRerenderProjectResult> {
-  const { projectId, userId, isAdmin = false } = params;
+  const { projectId, userId, isAdmin = false, versionIdentity } = params;
 
   const project = await getAnimationProjectById(projectId);
   if (!project) {
@@ -69,7 +76,14 @@ export async function startDraftInstantPremiumProjectRender(params: {
     };
   }
 
-  const fromDraft = buildFullRerenderRenderBodyFromDraft(draft);
+  const fromDraft = buildFullRerenderRenderBodyFromDraft(draft, {
+    sourceLanguage: project.sourceLanguage ?? versionIdentity?.sourceLanguage,
+  });
+  const chosenVersionName =
+    versionIdentity?.versionName?.trim() ||
+    fromDraft.versionName?.trim() ||
+    fromDraft.versionNote?.trim() ||
+    "";
   if (!fromDraft.imageChanges.sequence.length) {
     return {
       ok: false,
@@ -109,6 +123,25 @@ export async function startDraftInstantPremiumProjectRender(params: {
 
   if (parseInstantMode(project.instantMode) === "story") {
     await ensureStoryModeTransitionRows(projectId);
+  }
+
+  const explicitVersionName = chosenVersionName
+    ? await resolveVersionNameAgainstBundle({
+        anchorProjectId: projectId,
+        sourceProjectId: project.sourceProjectId,
+        versionNote: chosenVersionName,
+        explicit: true,
+      })
+    : null;
+
+  if (explicitVersionName) {
+    const refreshed = await getAnimationProjectById(projectId);
+    if (refreshed) {
+      await createPendingFullRerenderVersion({
+        project: refreshed,
+        versionNote: explicitVersionName,
+      });
+    }
   }
 
   const startedAt = new Date();

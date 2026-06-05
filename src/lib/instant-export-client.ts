@@ -179,6 +179,9 @@ export async function postFullRerenderInstantProject(
     instantTransitionSeconds?: number;
     instantSelectedChips?: unknown;
     versionNote?: string;
+    versionName?: string;
+    sourceLanguage?: string;
+    targetLanguage?: string;
     rerenderSource?: "quick" | "editor";
     imageChanges?: {
       sequence: Array<{
@@ -206,6 +209,9 @@ export async function postFullRerenderInstantProject(
     Boolean(options?.instantUserIntent?.trim()) ||
     typeof options?.instantTransitionSeconds === "number" ||
     Boolean(options?.versionNote?.trim()) ||
+    Boolean(options?.versionName?.trim()) ||
+    Boolean(options?.sourceLanguage?.trim()) ||
+    Boolean(options?.targetLanguage?.trim()) ||
     options?.rerenderSource === "quick" ||
     options?.rerenderSource === "editor" ||
     Boolean(options?.imageChanges?.sequence?.length);
@@ -221,7 +227,10 @@ export async function postFullRerenderInstantProject(
             instantUserIntent: options?.instantUserIntent?.trim() || undefined,
             instantTransitionSeconds: options?.instantTransitionSeconds,
             instantSelectedChips: options?.instantSelectedChips,
-            versionNote: options?.versionNote?.trim() || undefined,
+            versionNote: options?.versionName?.trim() || options?.versionNote?.trim() || undefined,
+            versionName: options?.versionName?.trim() || options?.versionNote?.trim() || undefined,
+            sourceLanguage: options?.sourceLanguage?.trim() || undefined,
+            targetLanguage: options?.targetLanguage?.trim() || undefined,
             rerenderSource: options?.rerenderSource,
             imageChanges: options?.imageChanges,
           })

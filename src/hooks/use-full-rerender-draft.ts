@@ -33,6 +33,7 @@ export function useFullRerenderDraft(params: {
   enabled: boolean;
   slots: FullRerenderEditorSlot[];
   versionNote: string;
+  targetLanguage: string;
   userIntent: string;
   transitionSeconds: number;
   instantMode: InstantMode;
@@ -57,6 +58,7 @@ export function useFullRerenderDraft(params: {
     return serializeFullRerenderDraftPayload({
       slots: params.slots,
       versionNote: params.versionNote,
+      targetLanguage: params.targetLanguage,
       userIntent: params.userIntent,
       transitionSeconds: params.transitionSeconds,
       instantMode: params.instantMode,
@@ -66,6 +68,7 @@ export function useFullRerenderDraft(params: {
   }, [
     params.slots,
     params.versionNote,
+    params.targetLanguage,
     params.userIntent,
     params.transitionSeconds,
     params.instantMode,
@@ -134,6 +137,7 @@ export function useFullRerenderDraft(params: {
     slots: FullRerenderEditorSlot[];
     expandedIndex: number | null;
     versionNote: string;
+    targetLanguage: string;
     userIntent: string;
     transitionSeconds: number;
     loadState: FullRerenderDraftLoadState;
@@ -162,6 +166,7 @@ export function useFullRerenderDraft(params: {
         slots: [],
         expandedIndex: null,
         versionNote: "",
+        targetLanguage: "",
         userIntent: "",
         transitionSeconds: params.transitionSeconds,
         draftPersisted: false,
@@ -181,6 +186,7 @@ export function useFullRerenderDraft(params: {
         slots: result.slots,
         expandedIndex: result.expandedIndex,
         versionNote: result.versionNote,
+        targetLanguage: result.targetLanguage,
         userIntent: result.userIntent,
         transitionSeconds: result.transitionSeconds,
         draftPersisted: result.draftPersisted,
@@ -197,6 +203,7 @@ export function useFullRerenderDraft(params: {
       slots: result.slots,
       expandedIndex: result.expandedIndex,
       versionNote: result.versionNote,
+      targetLanguage: result.targetLanguage,
       userIntent: result.userIntent,
       transitionSeconds: result.transitionSeconds,
       draftPersisted: false,

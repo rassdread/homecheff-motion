@@ -36,6 +36,9 @@ export async function POST(request: Request, context: RouteContext) {
     instantTransitionSeconds?: number;
     instantSelectedChips?: unknown;
     versionNote?: string;
+    versionName?: string;
+    sourceLanguage?: string;
+    targetLanguage?: string;
     rerenderSource?: "quick" | "editor";
     imageChanges?: {
       sequence?: Array<{
@@ -70,17 +73,36 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   if (projectRow.status === "draft") {
+    const draftProjectMeta = await prisma.animationProject.findUnique({
+      where: { id },
+      select: { sourceLanguage: true },
+    });
     let effectiveBody = body;
     if (body?.rerenderSource === "editor") {
       const draft = await getFullRerenderDraftForProject(id);
       if (draft) {
-        const fromDraft = buildFullRerenderRenderBodyFromDraft(draft);
+        const fromDraft = buildFullRerenderRenderBodyFromDraft(draft, {
+          sourceLanguage: draftProjectMeta?.sourceLanguage ?? undefined,
+        });
+        const resolvedVersionName =
+          body.versionName?.trim() ||
+          body.versionNote?.trim() ||
+          fromDraft.versionName ||
+          fromDraft.versionNote;
         effectiveBody = {
           ...body,
           sceneTexts: fromDraft.sceneTexts,
           instantUserIntent: fromDraft.instantUserIntent,
           instantTransitionSeconds: fromDraft.instantTransitionSeconds,
-          versionNote: fromDraft.versionNote ?? body.versionNote,
+          versionNote: resolvedVersionName,
+          versionName: resolvedVersionName,
+          sourceLanguage:
+            body.sourceLanguage?.trim() ||
+            fromDraft.sourceLanguage ||
+            draftProjectMeta?.sourceLanguage ||
+            undefined,
+          targetLanguage:
+            body.targetLanguage?.trim() || fromDraft.targetLanguage || undefined,
           imageChanges: fromDraft.imageChanges,
         };
       }
@@ -117,6 +139,11 @@ export async function POST(request: Request, context: RouteContext) {
       projectId: id,
       userId: user.id,
       isAdmin: user.role === "admin",
+      versionIdentity: {
+        sourceLanguage: effectiveBody?.sourceLanguage,
+        targetLanguage: effectiveBody?.targetLanguage,
+        versionName: effectiveBody?.versionName ?? effectiveBody?.versionNote,
+      },
     });
     const httpStatus = draftRender.ok ? 200 : 400;
     return NextResponse.json(

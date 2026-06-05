@@ -33,9 +33,14 @@ import {
   postFullRerenderInstantProject,
 } from "@/lib/instant-export-client";
 import { isInstantPremiumTestMode } from "@/lib/quick-full-rerender";
-import { DraftVersionPreview } from "@/components/videos/draft-version-preview";
-import { VersionNameField } from "@/components/videos/version-name-field";
+import { ConceptVersionIdentitySection } from "@/components/videos/concept-version-identity-section";
 import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
+import {
+  formatVersionIdentityResultLabel,
+  resolveTargetLanguageCode,
+  suggestVersionNameForLanguage,
+  type VersionIdentityLanguageCode,
+} from "@/lib/version-identity";
 import type { DraftLineageResponse, FullRerenderResponse } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
@@ -122,6 +127,10 @@ export function FullRerenderEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [versionNote, setVersionNote] = useState("");
+  const [targetLanguage, setTargetLanguage] = useState<VersionIdentityLanguageCode>(() =>
+    resolveTargetLanguageCode(null, draftLineage?.sourceLanguage ?? defaultLanguageCode)
+  );
+  const [versionNameAuto, setVersionNameAuto] = useState(true);
   const [userIntent, setUserIntent] = useState(instantUserIntent ?? "");
   const [transitionSeconds, setTransitionSeconds] = useState(instantTransitionSeconds);
   const [bootstrapReady, setBootstrapReady] = useState(false);
@@ -180,6 +189,7 @@ export function FullRerenderEditor({
     enabled: draftLoadState === "ready",
     slots,
     versionNote,
+    targetLanguage,
     userIntent,
     transitionSeconds,
     instantMode,
@@ -215,7 +225,27 @@ export function FullRerenderEditor({
       if (loaded.slots.length > 0) {
         setSlots(loaded.slots);
         setExpandedIndex(loaded.expandedIndex ?? 0);
-        setVersionNote(loaded.versionNote);
+        const resolvedLang = resolveTargetLanguageCode(
+          loaded.targetLanguage,
+          draftLineage?.sourceLanguage ?? defaultLanguageCode
+        );
+        setTargetLanguage(resolvedLang);
+        const loadedNote = loaded.versionNote.trim();
+        if (loadedNote) {
+          setVersionNote(loadedNote);
+          setVersionNameAuto(false);
+        } else if (draftLineage) {
+          setVersionNote(
+            suggestVersionNameForLanguage({
+              languageCode: resolvedLang,
+              catalog: bundleCatalog,
+            })
+          );
+          setVersionNameAuto(true);
+        } else {
+          setVersionNote("");
+          setVersionNameAuto(true);
+        }
         setUserIntent(loaded.userIntent);
         setTransitionSeconds(loaded.transitionSeconds);
       } else {
@@ -236,7 +266,14 @@ export function FullRerenderEditor({
         traceConceptFlow("ready", { projectId, slotsCount: loaded.slots.length });
       }
     },
-    [applyProjectFallbackSlots, projectId, syncFlowDebug]
+    [
+      applyProjectFallbackSlots,
+      bundleCatalog,
+      defaultLanguageCode,
+      draftLineage,
+      projectId,
+      syncFlowDebug,
+    ]
   );
 
   useEffect(() => {
@@ -365,11 +402,22 @@ export function FullRerenderEditor({
 
     await draft.persistNow();
 
+    const resultPreview =
+      draftLineage
+        ? formatVersionIdentityResultLabel(
+            targetLanguage,
+            versionNote.trim() ||
+              suggestVersionNameForLanguage({
+                languageCode: targetLanguage,
+                catalog: bundleCatalog,
+              })
+          )
+        : "";
     const confirmMessage =
       draftLineage ?
         t("projects.renderPreview.confirm", {
           current: `${draftLineage.sourceLanguageLabel} ${draftLineage.sourceVersionDisplay}`,
-          result: `${draftLineage.sourceLanguageLabel} ${draftLineage.nextVersionDisplay}`,
+          result: resultPreview,
           bundle: draftLineage.bundleDisplayName ?? "",
         })
       : isInstantPremiumTestMode()
@@ -385,6 +433,9 @@ export function FullRerenderEditor({
     try {
       const result = await postFullRerenderInstantProject(projectId, {
         rerenderSource: "editor",
+        sourceLanguage: draftLineage?.sourceLanguage ?? defaultLanguageCode,
+        targetLanguage,
+        versionName: versionNote.trim() || undefined,
       });
       if (result.networkError) {
         const msg = instantExportUserErrorMessage({
@@ -425,6 +476,10 @@ export function FullRerenderEditor({
     projectId,
     draft,
     draftLineage,
+    targetLanguage,
+    versionNote,
+    bundleCatalog,
+    defaultLanguageCode,
     onRenderStart,
     onSuccess,
     onClose,
@@ -594,6 +649,32 @@ export function FullRerenderEditor({
       </header>
 
       <div ref={modalBodyRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        {draftLineage ?
+          <ConceptVersionIdentitySection
+            lineage={draftLineage}
+            targetLanguage={targetLanguage}
+            onTargetLanguageChange={(code) => {
+              setTargetLanguage(code);
+              if (versionNameAuto || !versionNote.trim()) {
+                setVersionNote(
+                  suggestVersionNameForLanguage({
+                    languageCode: code,
+                    catalog: bundleCatalog,
+                  })
+                );
+                setVersionNameAuto(true);
+              }
+            }}
+            versionName={versionNote}
+            onVersionNameChange={(value) => {
+              setVersionNameAuto(false);
+              setVersionNote(value);
+            }}
+            bundleCatalog={bundleCatalog}
+            disabled={busy}
+            showSourceLink={layout !== "page"}
+          />
+        : null}
         {showEmptyProjectState ?
           <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-700">
             {t("projects.concept.emptyProject" as TranslationKey)}
@@ -611,14 +692,6 @@ export function FullRerenderEditor({
           transitionSeconds={transitionSeconds}
           uploadRole={uploadRole}
           disabled={busy}
-        />
-
-        <VersionNameField
-          className="mb-4"
-          value={versionNote}
-          onChange={setVersionNote}
-          languageCode={draftLineage?.sourceLanguage ?? defaultLanguageCode}
-          bundleCatalog={bundleCatalog}
         />
 
         <label className="mb-4 block text-sm text-zinc-700">
@@ -694,12 +767,6 @@ export function FullRerenderEditor({
           }
         />
       </div>
-
-      {draftLineage ? (
-        <div className="border-t border-zinc-100 px-4 py-3 sm:px-6">
-          <DraftVersionPreview lineage={draftLineage} variant="render" />
-        </div>
-      ) : null}
 
       <footer className="flex flex-wrap gap-2 border-t border-zinc-100 px-4 py-3 sm:px-6">
         {layout === "page" ?

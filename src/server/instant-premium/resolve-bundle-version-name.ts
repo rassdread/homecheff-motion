@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import {
   collectVersionNamesFromCatalog,
+  MAX_VERSION_NAME_LENGTH,
+  normalizeVersionName,
   resolveVersionNameForPersist,
 } from "@/lib/smart-version-naming";
 import { buildDetailBundleCatalog } from "@/server/animation-projects/build-detail-bundle-catalog";
@@ -14,10 +16,16 @@ export async function resolveVersionNameAgainstBundle(params: {
   sourceProjectId?: string | null;
   versionNote: string | undefined;
   locale?: "en" | "nl";
+  /** When true, keep the user-entered name (concept editor explicit choice). */
+  explicit?: boolean;
 }): Promise<string | undefined> {
   const trimmed = params.versionNote?.trim();
   if (!trimmed) {
     return undefined;
+  }
+
+  if (params.explicit) {
+    return normalizeVersionName(trimmed).slice(0, MAX_VERSION_NAME_LENGTH);
   }
 
   const catalogProjectId = params.sourceProjectId?.trim() || params.anchorProjectId;

@@ -29,6 +29,8 @@ export type PersistedFullRerenderDraftPayload = {
   savedAt: string;
   slots: PersistedFullRerenderDraftSlot[];
   versionNote: string;
+  /** Target bundle language for the version created by this concept. */
+  targetLanguage: string;
   userIntent: string;
   transitionSeconds: InstantTransitionSeconds | number;
   instantMode: InstantMode;
@@ -41,6 +43,9 @@ export type FullRerenderDraftRenderBody = {
   instantUserIntent: string;
   instantTransitionSeconds: number;
   versionNote?: string;
+  versionName?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
   imageChanges: {
     sequence: ReturnType<typeof buildFullRerenderImageSequencePayload>["sequence"];
     replacedImageIds: string[];
@@ -81,6 +86,7 @@ function normalizeDraftImage(raw: unknown): FullRerenderEditorImage | null {
 export function serializeFullRerenderDraftPayload(params: {
   slots: FullRerenderEditorSlot[];
   versionNote: string;
+  targetLanguage?: string;
   userIntent: string;
   transitionSeconds: InstantTransitionSeconds | number;
   instantMode: InstantMode;
@@ -101,6 +107,7 @@ export function serializeFullRerenderDraftPayload(params: {
       text: { ...slot.text },
     })),
     versionNote: params.versionNote,
+    targetLanguage: params.targetLanguage?.trim() || "",
     userIntent: params.userIntent,
     transitionSeconds: params.transitionSeconds,
     instantMode: params.instantMode,
@@ -150,6 +157,7 @@ export function parseFullRerenderDraftPayload(raw: unknown): PersistedFullRerend
     savedAt: typeof raw.savedAt === "string" ? raw.savedAt : new Date().toISOString(),
     slots,
     versionNote: typeof raw.versionNote === "string" ? raw.versionNote : "",
+    targetLanguage: typeof raw.targetLanguage === "string" ? raw.targetLanguage : "",
     userIntent: typeof raw.userIntent === "string" ? raw.userIntent : "",
     transitionSeconds,
     instantMode,
@@ -191,6 +199,7 @@ export function buildInitialFullRerenderDraftPayload(params: {
   return serializeFullRerenderDraftPayload({
     slots,
     versionNote: "",
+    targetLanguage: "",
     userIntent: params.instantUserIntent?.trim() ?? "",
     transitionSeconds,
     instantMode,
@@ -200,7 +209,8 @@ export function buildInitialFullRerenderDraftPayload(params: {
 }
 
 export function buildFullRerenderRenderBodyFromDraft(
-  payload: PersistedFullRerenderDraftPayload
+  payload: PersistedFullRerenderDraftPayload,
+  options?: { sourceLanguage?: string }
 ): FullRerenderDraftRenderBody {
   const slots = draftPayloadToEditorSlots(payload);
   const sceneTexts = slots.map((scene, index) =>
@@ -208,11 +218,16 @@ export function buildFullRerenderRenderBodyFromDraft(
   );
   const imagePayload = buildFullRerenderImageSequencePayload(slots);
   const audit = computeImageChangeAuditFromSlots(payload.initialImageIds, slots);
+  const versionName = payload.versionNote.trim() || undefined;
+  const targetLanguage = payload.targetLanguage.trim() || undefined;
   return {
     sceneTexts,
     instantUserIntent: payload.userIntent.trim(),
     instantTransitionSeconds: payload.transitionSeconds,
-    versionNote: payload.versionNote.trim() || undefined,
+    versionNote: versionName,
+    versionName,
+    sourceLanguage: options?.sourceLanguage?.trim() || undefined,
+    targetLanguage,
     imageChanges: {
       sequence: imagePayload.sequence,
       replacedImageIds: audit.replacedImageIds ?? [],
