@@ -1,14 +1,19 @@
 export const nl = {
   "nav.motion": "Motion",
   "nav.studio": "Studio",
+  "nav.discover": "Ontdekken",
+  "nav.create": "Maken",
+  "nav.pricing": "Prijzen",
+  "nav.about": "Over",
   "nav.login": "Inloggen",
   "nav.signup": "Account maken",
+  "nav.getStarted": "Aan de slag",
   "nav.logout": "Uitloggen",
   "nav.admin": "Beheer",
   "nav.role.admin": "Admin",
   "nav.role.power": "Power",
   "nav.role.user": "Gebruiker",
-  "nav.myVideos": "Mijn projecten",
+  "nav.myVideos": "Video's",
   "nav.premium": "Premium",
 
   "studio.label": "HomeCheff Studio",
@@ -2123,6 +2128,128 @@ export const nl = {
     "Upload beelden en maak één doorlopende AI-transformatie in HomeCheff-stijl (limieten per niveau).",
   "landing.cta": "Animatie maken",
   "landing.mascotPlaceholder": "HomeCheff mascotte/logo placeholder",
+
+  "landing.hero.headline": "Het HomeCheff AI-productie-ecosysteem",
+  "landing.hero.subtext":
+    "Plan verhalen in Studio, render motion in seconden en beheer afgeronde video's — één creatorplatform voor professionele AI-filmproductie.",
+  "landing.hero.ctaPrimary": "Begin met maken",
+  "landing.hero.ctaSecondary": "Ontdekken verkennen",
+
+  "landing.ecosystem.homecheff.name": "HomeCheff",
+  "landing.ecosystem.homecheff.tagline": "Creatorplatform & productiesuite",
+  "landing.ecosystem.homegarden.name": "HomeGarden",
+  "landing.ecosystem.homegarden.tagline": "Buitenleven & tuininspiratie",
+  "landing.ecosystem.homedesigner.name": "HomeDesigner",
+  "landing.ecosystem.homedesigner.tagline": "Interieurdesign & stylingtools",
+  "landing.ecosystem.motion.name": "HomeCheff Motion",
+  "landing.ecosystem.motion.tagline": "AI-motionwizard & videorenders",
+  "landing.ecosystem.studio.name": "HomeCheff Studio",
+  "landing.ecosystem.studio.tagline": "Storyboards, personages & directors",
+  "landing.ecosystem.comingSoon": "Binnenkort",
+  "landing.ecosystem.explore": "Verkennen",
+
+  "landing.showcase.title": "Gemaakt voor creators en productieteams",
+  "landing.showcase.subtext":
+    "Motion voor snelheid, Studio voor vakmanschap — verbonden workflows in plaats van losse schermen.",
+  "landing.showcase.motion.title": "Motion-showcase",
+  "landing.showcase.motion.body":
+    "Upload foto's, vorm het storyboard, voeg tekstbeats toe en render een gepolijste AI-video in minuten.",
+  "landing.showcase.motion.cta": "Open Motion-wizard",
+  "landing.showcase.studio.title": "Studio-showcase",
+  "landing.showcase.studio.body":
+    "Personages, locaties, scènebeelden en directorcontrols — herbruikbare assets voor elke productie.",
+  "landing.showcase.studio.cta": "Open Studio",
+  "landing.showcase.creator.title": "Creatorbibliotheek",
+  "landing.showcase.creator.body":
+    "Volg renders, versies, taalexports en full rerenders vanuit één projecthub.",
+  "landing.showcase.creator.cta": "Bekijk je video's",
+
+  "landing.flow.label": "Productieflow",
+  "landing.flow.title": "Van idee tot afgeronde film",
+  "landing.flow.body":
+    "HomeCheff verbindt planning en rendering zodat je minder tijd kwijt bent aan tools wisselen en meer aan creëren.",
+  "landing.flow.step1": "Bouw personages, locaties en storyboards in Studio",
+  "landing.flow.step2": "Stuur scènes naar Motion met tekstbeats en directorinstellingen",
+  "landing.flow.step3": "Render, volg voortgang en herstel vastgelopen jobs",
+  "landing.flow.step4": "Publiceer, versioneer en itereer vanuit je videobibliotheek",
+  "landing.flow.ctaStudio": "Plannen in Studio",
+  "landing.flow.ctaMotion": "Renderen in Motion",
+  "landing.flow.highlightTitle": "Waarom teams voor HomeCheff kiezen",
+  "landing.flow.highlight1": "Consistente personages en werelden over scènes",
+  "landing.flow.highlight2": "Director-grade voice, muziek en tekstcontrols",
+  "landing.flow.highlight3": "Transparant verbruik en render-analytics",
+
+  "landing.bottomCta.title": "Klaar om je volgende AI-film te produceren?",
+  "landing.bottomCta.subtext": "Maak een gratis account en begin vandaag met Motion of Studio.",
+  "landing.bottomCta.pricingLink": "Bekijk prijzen & verbruik",
+
+  "create.label": "Maken",
+  "create.title": "Kies je productieroute",
+  "create.subtitle": "Start snel met Motion of plan diep in Studio — beide delen hetzelfde HomeCheff-ecosysteem.",
+  "create.motion.label": "Motion",
+  "create.motion.title": "Snelle AI-videowizard",
+  "create.motion.body":
+    "Upload beelden, configureer het storyboard, voeg tekst toe en render. Ideaal als je snel een afgeronde video wilt.",
+  "create.motion.cta": "Open Motion",
+  "create.studio.label": "Studio",
+  "create.studio.title": "Storyboard- & assetstudio",
+  "create.studio.body":
+    "Definieer personages, scènes en directorintentie — en geef door aan Motion wanneer je klaar bent om te renderen.",
+  "create.studio.cta": "Nieuw storyboard",
+  "create.handoffHint": "Heb je al assets?",
+  "create.handoffLink": "Blader door Studio-bibliotheek",
+
+  "discover.label": "Ontdekken",
+  "discover.title": "Verken het HomeCheff-ecosysteem",
+  "discover.subtitle":
+    "Een creator-marktplaats staat op de roadmap. Vandaag kun je maken met Motion en Studio en projecten beheren in je videobibliotheek.",
+  "discover.marketplace.badge": "Roadmap",
+  "discover.marketplace.title": "Creator-marktplaats & feeds",
+  "discover.marketplace.body":
+    "Publieke profielen, categorie-feeds en ontdekbaar creatorwerk zijn gepland. Begin nu met maken en bouw je bibliotheek op.",
+  "discover.now.motion.title": "Motion — live vandaag",
+  "discover.now.motion.body": "Foto-naar-video AI-wizard met voortgangsmonitoring en versiebeheer.",
+  "discover.now.motion.link": "Probeer Motion",
+  "discover.now.studio.title": "Studio — live vandaag",
+  "discover.now.studio.body": "Volledige storyboard-editor met personages, locaties en scènegeneratie.",
+  "discover.now.studio.link": "Bekijk storyboards",
+  "discover.cta": "Begin met maken",
+
+  "pricing.label": "Prijzen",
+  "pricing.title": "Gebruiksgebaseerde productiecredits",
+  "pricing.subtitle":
+    "HomeCheff factureert per render en providergebruik. Bekijk je eigen kosten na inloggen — admins zien volledige marge-analytics.",
+  "pricing.credits.title": "Credits & verbruik",
+  "pricing.credits.body":
+    "Elke render verbruikt credits op basis van providerkosten, duur en modelinstellingen. Je saldo wordt bijgewerkt na elke voltooide of geannuleerde job.",
+  "pricing.motion.title": "Motion-renders",
+  "pricing.motion.body":
+    "Instant premium-renders omvatten segmentgeneratie en finale merge. Mislukte of geannuleerde jobs kunnen nog steeds gedeeltelijke providerkosten hebben.",
+  "pricing.studio.title": "Studio-generatie",
+  "pricing.studio.body":
+    "Scènebeelden en assetgeneratie gebruiken aparte providercalls. Studio-planning zelf is inbegrepen; generatiekosten verschijnen in je verbruiksrapport.",
+  "pricing.usageLink": "Bekijk mijn verbruik",
+  "pricing.createLink": "Start een project",
+
+  "about.label": "Over",
+  "about.title": "Het HomeCheff-ecosysteem",
+  "about.subtitle":
+    "HomeCheff is een professionele AI-motionstudio en creatorplatform — niet alleen één animatietool.",
+  "about.vision.title": "Onze visie",
+  "about.vision.body":
+    "We verbinden planning, rendering en publicatie zodat creators consistente AI-films op studiokwaliteit kunnen produceren — van eerste storyboard tot final cut.",
+  "about.products.homecheff.name": "HomeCheff",
+  "about.products.homecheff.body": "Het paraplu-creatorplatform dat Motion, Studio en toekomstige lifestyleproducten verbindt.",
+  "about.products.homegarden.name": "HomeGarden",
+  "about.products.homegarden.body": "Buitenleven-inspiratie — gepland als complementair merk in het ecosysteem.",
+  "about.products.homedesigner.name": "HomeDesigner",
+  "about.products.homedesigner.body": "Interieurdesigntooling — gepland om assets en stijl te delen met Studio-producties.",
+  "about.products.motion.name": "HomeCheff Motion",
+  "about.products.motion.body": "AI-motionwizard, renderpipelines, voortgangsherstel en videoversionering.",
+  "about.products.studio.name": "HomeCheff Studio",
+  "about.products.studio.body": "Storyboards, personages, directors en scènebeelden voor herhaalbare productiekwaliteit.",
+  "about.products.explore": "Verkennen",
+  "about.cta": "Begin met maken",
 
   "animate.mode.admin": "Admin modus — geavanceerde instellingen actief",
   "animate.mode.user": "Gebruikersmodus — beperkte instellingen",

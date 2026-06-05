@@ -75,9 +75,9 @@ export function AppShellUserBar() {
         <Link
           href="/signup"
           prefetch={false}
-          className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:px-4 sm:py-2 sm:text-sm"
+          className="rounded-full border border-[#006D52]/30 bg-gradient-to-r from-[#006D52] to-[#0067B1] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
         >
-          {t("nav.signup")}
+          {t("nav.getStarted")}
         </Link>
       </div>
     );

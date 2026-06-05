@@ -5,14 +5,19 @@ type LocaleSchema = Record<keyof typeof nl, string>;
 export const en: LocaleSchema = {
   "nav.motion": "Motion",
   "nav.studio": "Studio",
+  "nav.discover": "Discover",
+  "nav.create": "Create",
+  "nav.pricing": "Pricing",
+  "nav.about": "About",
   "nav.login": "Log in",
   "nav.signup": "Create account",
+  "nav.getStarted": "Get started",
   "nav.logout": "Logout",
   "nav.admin": "Admin panel",
   "nav.role.admin": "Admin",
   "nav.role.power": "Power",
   "nav.role.user": "User",
-  "nav.myVideos": "My projects",
+  "nav.myVideos": "Videos",
   "nav.premium": "Premium",
 
   "studio.label": "HomeCheff Studio",
@@ -2123,6 +2128,128 @@ export const en: LocaleSchema = {
     "Upload images and create one continuous AI transformation in the HomeCheff style (limits per tier).",
   "landing.cta": "Create animation",
   "landing.mascotPlaceholder": "HomeCheff mascot/logo placeholder area",
+
+  "landing.hero.headline": "The HomeCheff AI production ecosystem",
+  "landing.hero.subtext":
+    "Plan stories in Studio, render motion in seconds, and manage finished videos — one creator platform for professional AI film production.",
+  "landing.hero.ctaPrimary": "Start creating",
+  "landing.hero.ctaSecondary": "Explore discover",
+
+  "landing.ecosystem.homecheff.name": "HomeCheff",
+  "landing.ecosystem.homecheff.tagline": "Creator platform & production suite",
+  "landing.ecosystem.homegarden.name": "HomeGarden",
+  "landing.ecosystem.homegarden.tagline": "Outdoor living & garden inspiration",
+  "landing.ecosystem.homedesigner.name": "HomeDesigner",
+  "landing.ecosystem.homedesigner.tagline": "Interior design & styling tools",
+  "landing.ecosystem.motion.name": "HomeCheff Motion",
+  "landing.ecosystem.motion.tagline": "AI motion wizard & video renders",
+  "landing.ecosystem.studio.name": "HomeCheff Studio",
+  "landing.ecosystem.studio.tagline": "Storyboards, characters & directors",
+  "landing.ecosystem.comingSoon": "Coming soon",
+  "landing.ecosystem.explore": "Explore",
+
+  "landing.showcase.title": "Built for creators and production teams",
+  "landing.showcase.subtext":
+    "Motion for speed, Studio for craft — connected workflows instead of disconnected tools.",
+  "landing.showcase.motion.title": "Motion showcase",
+  "landing.showcase.motion.body":
+    "Upload photos, shape the storyboard, add text beats, and render a polished AI video in minutes.",
+  "landing.showcase.motion.cta": "Open Motion wizard",
+  "landing.showcase.studio.title": "Studio showcase",
+  "landing.showcase.studio.body":
+    "Characters, locations, scene images, and director controls — reusable assets for every production.",
+  "landing.showcase.studio.cta": "Open Studio",
+  "landing.showcase.creator.title": "Creator library",
+  "landing.showcase.creator.body":
+    "Track renders, versions, language exports, and full rerenders from one project hub.",
+  "landing.showcase.creator.cta": "View your videos",
+
+  "landing.flow.label": "Production flow",
+  "landing.flow.title": "From idea to finished film",
+  "landing.flow.body":
+    "HomeCheff connects planning and rendering so you spend less time switching tools and more time creating.",
+  "landing.flow.step1": "Build characters, locations and storyboards in Studio",
+  "landing.flow.step2": "Send scenes to Motion with text beats and director settings",
+  "landing.flow.step3": "Render, monitor progress, and recover stuck jobs",
+  "landing.flow.step4": "Publish, version, and iterate from your video library",
+  "landing.flow.ctaStudio": "Plan in Studio",
+  "landing.flow.ctaMotion": "Render in Motion",
+  "landing.flow.highlightTitle": "Why teams choose HomeCheff",
+  "landing.flow.highlight1": "Consistent characters and worlds across scenes",
+  "landing.flow.highlight2": "Director-grade voice, music, and text controls",
+  "landing.flow.highlight3": "Transparent usage and render analytics",
+
+  "landing.bottomCta.title": "Ready to produce your next AI film?",
+  "landing.bottomCta.subtext": "Create a free account and start with Motion or Studio today.",
+  "landing.bottomCta.pricingLink": "View pricing & usage",
+
+  "create.label": "Create",
+  "create.title": "Choose your production path",
+  "create.subtitle": "Start fast with Motion or plan deeply in Studio — both share the same HomeCheff ecosystem.",
+  "create.motion.label": "Motion",
+  "create.motion.title": "Fast AI video wizard",
+  "create.motion.body":
+    "Upload images, configure the storyboard, add text, and render. Best when you want a finished video quickly.",
+  "create.motion.cta": "Open Motion",
+  "create.studio.label": "Studio",
+  "create.studio.title": "Storyboard & asset studio",
+  "create.studio.body":
+    "Define characters, scenes, and director intent — then hand off to Motion when you are ready to render.",
+  "create.studio.cta": "New storyboard",
+  "create.handoffHint": "Already have assets?",
+  "create.handoffLink": "Browse Studio library",
+
+  "discover.label": "Discover",
+  "discover.title": "Explore the HomeCheff ecosystem",
+  "discover.subtitle":
+    "A creator marketplace is on the roadmap. Today you can create with Motion and Studio and manage projects in your video library.",
+  "discover.marketplace.badge": "Roadmap",
+  "discover.marketplace.title": "Creator marketplace & feeds",
+  "discover.marketplace.body":
+    "Public profiles, category feeds, and discoverable creator work are planned. For now, start creating and building your library.",
+  "discover.now.motion.title": "Motion — live today",
+  "discover.now.motion.body": "Photo-to-video AI wizard with progress tracking and version management.",
+  "discover.now.motion.link": "Try Motion",
+  "discover.now.studio.title": "Studio — live today",
+  "discover.now.studio.body": "Full storyboard editor with characters, locations, and scene generation.",
+  "discover.now.studio.link": "Browse storyboards",
+  "discover.cta": "Start creating",
+
+  "pricing.label": "Pricing",
+  "pricing.title": "Usage-based production credits",
+  "pricing.subtitle":
+    "HomeCheff bills per render and provider usage. See your own costs after signing in — admins see full margin analytics.",
+  "pricing.credits.title": "Credits & usage",
+  "pricing.credits.body":
+    "Each render consumes credits based on provider cost, duration, and model settings. Your balance updates after each completed or cancelled job.",
+  "pricing.motion.title": "Motion renders",
+  "pricing.motion.body":
+    "Instant premium renders include segment generation and final merge. Failed or cancelled jobs may still incur partial provider cost.",
+  "pricing.studio.title": "Studio generation",
+  "pricing.studio.body":
+    "Scene images and asset generation use separate provider calls. Studio planning itself is included; generation costs appear in your usage report.",
+  "pricing.usageLink": "View my usage",
+  "pricing.createLink": "Start a project",
+
+  "about.label": "About",
+  "about.title": "The HomeCheff ecosystem",
+  "about.subtitle":
+    "HomeCheff is a professional AI motion studio and creator platform — not just a single animation tool.",
+  "about.vision.title": "Our vision",
+  "about.vision.body":
+    "We connect planning, rendering, and publishing so creators can produce consistent AI films at studio quality — from first storyboard to final cut.",
+  "about.products.homecheff.name": "HomeCheff",
+  "about.products.homecheff.body": "The umbrella creator platform tying Motion, Studio, and future lifestyle products together.",
+  "about.products.homegarden.name": "HomeGarden",
+  "about.products.homegarden.body": "Outdoor living inspiration — planned as a complementary brand in the ecosystem.",
+  "about.products.homedesigner.name": "HomeDesigner",
+  "about.products.homedesigner.body": "Interior design tooling — planned to share assets and style with Studio productions.",
+  "about.products.motion.name": "HomeCheff Motion",
+  "about.products.motion.body": "AI motion wizard, render pipelines, progress recovery, and video versioning.",
+  "about.products.studio.name": "HomeCheff Studio",
+  "about.products.studio.body": "Storyboards, characters, directors, and scene images for repeatable production quality.",
+  "about.products.explore": "Explore",
+  "about.cta": "Start creating",
 
   "animate.mode.admin": "Admin mode — advanced settings enabled",
   "animate.mode.user": "User mode — limited settings",

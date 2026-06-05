@@ -17,8 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HomeCheff Motion",
-  description: "Turn photos into flowing AI animations in HomeCheff style.",
+  title: "HomeCheff — AI Motion Studio & Creator Platform",
+  description:
+    "Plan in Studio, render with Motion, and manage AI films — the HomeCheff production ecosystem.",
 };
 
 export default function RootLayout({
