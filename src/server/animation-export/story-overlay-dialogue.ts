@@ -219,8 +219,8 @@ export function resolveSceneDialogueCollisions(params: {
 
     const hasAvoidZones = (params.avoidZones?.length ?? 0) > 0;
     const placedReservations = reservationsFromPlaced(placed, params.frameWidth, params.frameHeight);
-    const needsTwoPass =
-      hasAvoidZones || overlapsPlacedPixels(working, placed);
+    // Two-pass relocation is for subject/no-go zones only; text-on-text uses band shifts below.
+    const needsTwoPass = hasAvoidZones;
 
     if (needsTwoPass) {
       const twoPass = resolveTextPlacementTwoPass({
@@ -319,7 +319,7 @@ export function resolveSceneDialogueCollisions(params: {
         continue;
       }
 
-      if (hit && (hasAvoidZones || overlapsPlacedPixels(working, placed))) {
+      if (hit && hasAvoidZones) {
         const retry = resolveTextPlacementTwoPass({
           layerId: draft.id,
           x: working.x,
@@ -427,7 +427,7 @@ export function resolveSceneDialogueCollisions(params: {
 
     if (!working.hidden) {
       const stillOverlaps = overlapsPlacedPixels(working, placed);
-      if (stillOverlaps) {
+      if (stillOverlaps && hasAvoidZones) {
         const finalRetry = resolveTextPlacementTwoPass({
           layerId: draft.id,
           x: working.x,

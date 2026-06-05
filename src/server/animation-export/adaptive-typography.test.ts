@@ -34,7 +34,7 @@ describe("adaptive typography V1", () => {
       frameHeight: H,
       selectedZone: "TOP_CENTER",
       safeZoneScore: 82,
-      textWidthFraction: 0.9,
+      textWidthFraction: 1,
     });
     assert.equal(result.lines.length, 1);
     assert.ok(result.lines[0]!.includes("HIDDEN"));
