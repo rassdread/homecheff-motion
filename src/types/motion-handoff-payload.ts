@@ -107,8 +107,9 @@ import type {
   MotionCharacterBlockingHandoffPlan,
   SceneCharacterBlocking,
 } from "@/types/studio-character-blocking";
+import type { MotionSceneTextBeatsHandoff } from "@/types/studio-text-beats-handoff";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 24 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 25 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -167,6 +168,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   assetPlacement?: SceneAssetPlacement;
   /** V44: per-scene character blocking (planning only). */
   characterBlocking?: SceneCharacterBlocking;
+  /** V46: Studio-generated text beats for Motion overlay defaults. */
+  studioTextBeats?: MotionSceneTextBeatsHandoff;
 };
 
 export type MotionHandoffPayload = {

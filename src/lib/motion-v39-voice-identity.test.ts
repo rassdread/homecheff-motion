@@ -241,7 +241,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V39 — Voice Identity", () => {
   it("handoff payload version is 20", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 25);
   });
 
   it("supports six voice identity languages including de and pt", () => {

@@ -198,8 +198,8 @@ function minimalHandoff(version = MOTION_HANDOFF_PAYLOAD_VERSION): MotionHandoff
 }
 
 describe("Studio V44 character blocking", () => {
-  it("handoff payload version is 24", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
+  it("handoff payload version is 25", () => {
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 25);
   });
 
   it("active speaker receives TALKING action", () => {
@@ -474,7 +474,7 @@ describe("Studio V44 character blocking", () => {
     assert.equal(attached.characterActions?.length, 2);
     assert.equal(attached.characterPoses?.length, 2);
     assert.ok(attached.attentionTargets && attached.attentionTargets.length >= 2);
-    assert.equal(attached.version, 24);
+    assert.equal(attached.version, 25);
   });
 
   it("blocking attaches after placement and before provider execution", () => {

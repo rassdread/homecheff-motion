@@ -230,7 +230,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V37 — Audio Production Director", () => {
   it("handoff payload version is 17", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 25);
   });
 
   it("voice focus when narration exists", () => {

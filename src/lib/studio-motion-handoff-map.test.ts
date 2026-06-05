@@ -123,6 +123,8 @@ describe("studio motion handoff map", () => {
     const text = mapHandoffSceneToPersistedText(samplePayload.scenes[0]!, 5);
     assert.equal(text.title, "Chef cooking");
     assert.equal(text.subtitle, "Kitchen scene");
+    assert.equal(text.heroText, "Action: cooking");
+    assert.equal(text.headlineBeats?.length ?? 0, 0);
   });
 
   it("builds persisted wizard with story slots and studio metadata", () => {

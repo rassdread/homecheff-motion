@@ -58,4 +58,6 @@ export type StudioSceneContextMetadata = {
   executionPrompt?: string;
   /** V45: compact motion direction sent to Vidu story prompts. */
   studioMotionInstructions?: import("@/lib/build-studio-scene-motion-instructions").StudioSceneMotionInstructions;
+  /** V46: auto-generated text beats from Studio storytelling fields. */
+  studioTextBeats?: import("@/types/studio-text-beats-handoff").MotionSceneTextBeatsHandoff;
 };

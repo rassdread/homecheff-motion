@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   mapHandoffSceneToPersistedImage,
+  mapHandoffSceneToPersistedText,
   mapHandoffToPersistedWizardState,
 } from "@/lib/studio-motion-handoff-map";
 import { mergeHandoffIntoWizardSlots } from "@/lib/refresh-motion-handoff-in-wizard";
@@ -162,5 +163,43 @@ describe("studio motion handoff import", () => {
     };
     const img = mapHandoffSceneToPersistedImage(noImagePayload.scenes[0]!);
     assert.equal(img, null);
+  });
+
+  it("imports studio text beats into wizard scene text when present", () => {
+    const withBeats: MotionHandoffPayload = {
+      ...payload,
+      scenes: [
+        {
+          ...payload.scenes[0]!,
+          studioTextBeats: {
+            headlineBeats: ["CHEF"],
+            titleBeats: ["Chef"],
+            subtitleBeats: ["Kitchen prep"],
+            heroTextBeats: ["cooking"],
+            finaleTextBeats: [],
+            beatLines: ["cooking"],
+            heroText: "cooking",
+            heroFinaleText: "",
+            template: "scene",
+            source: "studio_auto",
+            usedFields: ["title", "description", "action"],
+            ignoredFields: ["musicCue"],
+          },
+        },
+      ],
+    };
+    const mapped = mapHandoffSceneToPersistedText(withBeats.scenes[0]!, 5);
+    assert.deepEqual(mapped.headlineBeats, ["CHEF"]);
+    assert.equal(mapped.subtitle, "Kitchen prep");
+    assert.equal(mapped.heroText, "cooking");
+
+    const state = mapHandoffToPersistedWizardState(withBeats);
+    assert.equal(state.sceneSlots?.[0]?.studioContext?.studioTextBeats?.source, "studio_auto");
+  });
+
+  it("keeps legacy text mapping when studioTextBeats absent", () => {
+    const mapped = mapHandoffSceneToPersistedText(payload.scenes[0]!, 5);
+    assert.equal(mapped.heroText, "Action: cooking");
+    assert.equal(mapped.subtitle, "Kitchen");
   });
 });

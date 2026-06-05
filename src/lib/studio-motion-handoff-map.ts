@@ -1,3 +1,4 @@
+import { syncLegacyFieldFromBeats } from "@/lib/story-text-beats";
 import { emptySceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 import { CREATOR_WIZARD_FLOW_VERSION } from "@/lib/creator-wizard-steps";
 import type { AnimationSceneEmotionId } from "@/lib/animation-scene-emotions";
@@ -23,7 +24,6 @@ import {
 import { buildStudioSceneMotionInstructions } from "@/lib/build-studio-scene-motion-instructions";
 import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
-import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 import type { StudioSceneImageReference } from "@/types/studio-scene-image-reference";
 import type { WizardImageSource } from "@/types/studio-scene-image-reference";
@@ -49,9 +49,9 @@ export function mapStudioEmotionToMotion(
   return { emotionMode: "auto" };
 }
 
-export function mapHandoffSceneToPersistedText(
+function legacyMapHandoffSceneToPersistedText(
   scene: MotionHandoffPayload["scenes"][number],
-  fallbackTransition: InstantTransitionSeconds = 5
+  fallbackTransition: InstantTransitionSeconds
 ): PersistedSceneTextDraft {
   const base = emptySceneTextDraft(fallbackTransition);
   const duration = normalizeStorySceneDurationSeconds(
@@ -69,6 +69,57 @@ export function mapHandoffSceneToPersistedText(
     subtitle: scene.description.trim(),
     heroText: scene.action.trim() ? `Action: ${scene.action.trim()}` : "",
     extraLines: scene.notes?.trim() ? [scene.notes.trim()] : [],
+    ...emotionPatch,
+  };
+}
+
+export function mapHandoffSceneToPersistedText(
+  scene: MotionHandoffPayload["scenes"][number],
+  fallbackTransition: InstantTransitionSeconds = 5
+): PersistedSceneTextDraft {
+  const beats = scene.studioTextBeats;
+  if (!beats) {
+    return legacyMapHandoffSceneToPersistedText(scene, fallbackTransition);
+  }
+
+  const base = emptySceneTextDraft(fallbackTransition);
+  const duration = normalizeStorySceneDurationSeconds(
+    scene.durationSeconds,
+    fallbackTransition
+  );
+  const emotionPatch = mapStudioEmotionToMotion(scene.emotion);
+
+  const title = syncLegacyFieldFromBeats(beats.titleBeats) || scene.title.trim();
+  const subtitle =
+    syncLegacyFieldFromBeats(beats.subtitleBeats) || scene.description.trim();
+  const heroText =
+    beats.heroText.trim() ||
+    syncLegacyFieldFromBeats(beats.heroTextBeats) ||
+    (scene.action.trim() ? scene.action.trim() : "");
+
+  const extraLines =
+    beats.beatLines.length > 0
+      ? beats.beatLines
+      : scene.notes?.trim()
+        ? [scene.notes.trim()]
+        : [];
+
+  return {
+    ...base,
+    template: beats.template,
+    transitionDurationSeconds: duration,
+    durationSeconds: duration,
+    title,
+    subtitle,
+    heroText,
+    headlineBeats: beats.headlineBeats,
+    titleBeats: beats.titleBeats,
+    subtitleBeats: beats.subtitleBeats,
+    heroTextBeats: beats.heroTextBeats,
+    finaleTextBeats: beats.finaleTextBeats,
+    heroFinaleText: beats.heroFinaleText,
+    heroFinale: beats.finaleTextBeats.length > 0 || Boolean(beats.heroFinaleText.trim()),
+    extraLines,
     ...emotionPatch,
   };
 }
@@ -214,6 +265,7 @@ export function enrichStudioContextForMotion(
     sceneExecutionPackage: scene.sceneExecutionPackage,
     executionPrompt: scene.executionPrompt,
     studioMotionInstructions: motionInstructions?.text.trim() ? motionInstructions : undefined,
+    studioTextBeats: scene.studioTextBeats,
     selectedSceneImageId: scene.selectedSceneImageId,
     preferredSceneImageUrl: scene.selectedSceneImageUrl,
     sceneImageReference: ref,

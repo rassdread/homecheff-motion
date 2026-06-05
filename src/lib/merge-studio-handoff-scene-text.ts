@@ -28,6 +28,26 @@ export function mergeStudioHandoffIntoSceneText(params: {
       subtitle: mapped.subtitle.trim() || next.subtitle,
       heroText: mapped.heroText.trim() || next.heroText,
       extraLines: mapped.extraLines.length > 0 ? mapped.extraLines : next.extraLines,
+      headlineBeats:
+        mapped.headlineBeats && mapped.headlineBeats.length > 0
+          ? mapped.headlineBeats
+          : next.headlineBeats,
+      titleBeats:
+        mapped.titleBeats && mapped.titleBeats.length > 0 ? mapped.titleBeats : next.titleBeats,
+      subtitleBeats:
+        mapped.subtitleBeats && mapped.subtitleBeats.length > 0
+          ? mapped.subtitleBeats
+          : next.subtitleBeats,
+      heroTextBeats:
+        mapped.heroTextBeats && mapped.heroTextBeats.length > 0
+          ? mapped.heroTextBeats
+          : next.heroTextBeats,
+      finaleTextBeats:
+        mapped.finaleTextBeats && mapped.finaleTextBeats.length > 0
+          ? mapped.finaleTextBeats
+          : next.finaleTextBeats,
+      heroFinaleText: mapped.heroFinaleText?.trim() || next.heroFinaleText,
+      heroFinale: mapped.heroFinale ?? next.heroFinale,
     };
   }
 

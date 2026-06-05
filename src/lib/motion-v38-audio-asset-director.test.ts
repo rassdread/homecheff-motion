@@ -214,7 +214,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V38 — Audio Asset Director", () => {
   it("handoff payload version is 18", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 25);
   });
 
   it("selectMusicAssetForCue maps community intro", () => {
