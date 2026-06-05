@@ -5,6 +5,7 @@
 import { resolveSlotFromStableSelectionParam } from "@/lib/bundle-slot-identity";
 import { isCleanUrlAlignedWithRenderVersion } from "@/lib/render-output-lineage";
 import { formatMotionVersionLabel, parseVersionQueryParam } from "@/lib/motion-version-display";
+import { formatLanguageVersionName } from "@/lib/smart-version-naming";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 
 export const MOTION_PRIMARY_LANGUAGE_CODE = "nl";
@@ -111,8 +112,15 @@ function formatVersionDisplayLabel(
   versionNumber: number,
   versionNote: string | null,
   locale: "en" | "nl" = "nl",
-  createdAt?: string | null
+  createdAt?: string | null,
+  languageLabel?: string
 ): string {
+  if (versionNote?.trim()) {
+    return formatMotionVersionLabel(versionNumber, versionNote, locale, createdAt);
+  }
+  if (languageLabel) {
+    return formatLanguageVersionName(languageLabel, versionNumber);
+  }
   return formatMotionVersionLabel(versionNumber, versionNote, locale, createdAt);
 }
 
@@ -166,7 +174,8 @@ export function buildMotionVersionCatalogForProject(input: {
         row.renderVersionNumber,
         row.versionNote,
         locale,
-        row.createdAt
+        row.createdAt,
+        primaryLabel
       );
       const slot = attachMotionSlotIdentity({
         selectionKey: `render:${row.id}`,
@@ -204,7 +213,7 @@ export function buildMotionVersionCatalogForProject(input: {
         languageLabel: primaryLabel,
         versionNumber: 1,
         versionNote: null,
-        displayLabel: formatVersionDisplayLabel(1, null, locale),
+        displayLabel: formatVersionDisplayLabel(1, null, locale, null, primaryLabel),
         status: input.exportStatus ?? input.projectStatus,
         finalVideoUrl: input.exportOutputUrl.trim(),
         cleanVideoUrl: clean,
@@ -235,7 +244,8 @@ export function buildMotionVersionCatalogForProject(input: {
         row.version,
         row.versionNote ?? null,
         locale,
-        row.createdAt
+        row.createdAt,
+        label
       );
       return attachMotionSlotIdentity({
         selectionKey: `lang:${row.id}`,

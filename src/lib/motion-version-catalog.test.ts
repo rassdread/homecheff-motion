@@ -46,6 +46,7 @@ describe("motion-version-catalog", () => {
           outputVideoUrl: "https://cdn.example/en-v1.mp4",
           version: 1,
           isDefault: false,
+          versionNote: null,
           createdAt: "2026-01-03T00:00:00.000Z",
         },
         {
@@ -65,9 +66,11 @@ describe("motion-version-catalog", () => {
     assert.equal(catalog.languages.length, 2);
     assert.equal(catalog.slotsByLanguage.nl?.length, 2);
     assert.equal(catalog.slotsByLanguage.en?.length, 2);
-    assert.equal(catalog.slotsByLanguage.nl?.[0]?.displayLabel, "V1 — Eerste versie");
+    assert.equal(catalog.slotsByLanguage.nl?.[0]?.displayLabel, "Eerste versie");
     assert.equal(catalog.slotsByLanguage.nl?.[1]?.cleanVideoUrl, "https://cdn.example/clean-v2.mp4");
-    assert.equal(catalog.slotsByLanguage.en?.[1]?.displayLabel, "V2 — Updated copy");
+    assert.equal(catalog.slotsByLanguage.nl?.[1]?.displayLabel, "Nieuwe intro");
+    assert.equal(catalog.slotsByLanguage.en?.[0]?.displayLabel, "EN V1");
+    assert.equal(catalog.slotsByLanguage.en?.[1]?.displayLabel, "Updated copy");
   });
 
   it("returns correct final and clean URLs for selected version", () => {

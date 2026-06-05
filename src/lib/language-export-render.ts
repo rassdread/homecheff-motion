@@ -58,17 +58,20 @@ export function buildLanguageExportRenderRequest(params: {
   languageCode: string;
   layers: LanguageTextLayerRecord[];
   exportId?: string | null;
+  versionNote?: string;
 }): {
   action: "render";
   languageCode: string;
   layers: LanguageTextLayerRecord[];
   exportId?: string;
+  versionNote?: string;
 } {
   const body: {
     action: "render";
     languageCode: string;
     layers: LanguageTextLayerRecord[];
     exportId?: string;
+    versionNote?: string;
   } = {
     action: "render",
     languageCode: params.languageCode,
@@ -76,6 +79,10 @@ export function buildLanguageExportRenderRequest(params: {
   };
   if (params.exportId?.trim()) {
     body.exportId = params.exportId.trim();
+  }
+  const note = params.versionNote?.trim();
+  if (note) {
+    body.versionNote = note;
   }
   return body;
 }

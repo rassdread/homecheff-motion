@@ -10,7 +10,7 @@ export function formatMotionVersionLabel(
 ): string {
   const note = versionNote?.trim();
   if (note) {
-    return `V${versionNumber} — ${note}`;
+    return note;
   }
   if (createdAt) {
     const dateLabel = formatShortVersionDate(createdAt, locale);

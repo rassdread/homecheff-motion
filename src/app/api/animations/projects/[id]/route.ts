@@ -274,6 +274,28 @@ export async function GET(request: Request, context: RouteContext) {
   body.bundleDisplayTitle = bundlePayload.bundleDisplayTitle;
   body.bundleMemberProjectIds = bundlePayload.memberProjectIds;
   body.bundlePeers = bundlePayload.peers;
+  if (body.draftLineage && project.sourceProjectId) {
+    const sourceLang = (project.sourceLanguage?.trim() || "nl").toLowerCase();
+    const sourceSlot = bundlePayload.catalog.slotsByLanguage[sourceLang]?.find(
+      (slot) =>
+        slot.projectId === project.sourceProjectId &&
+        slot.catalogVersionNumber === (project.sourceVersion != null && project.sourceVersion > 0 ? project.sourceVersion : 1)
+    );
+    const enriched = buildDraftLineage({
+      sourceProjectId: project.sourceProjectId,
+      sourceProjectTitle: project.sourceProject?.title ?? null,
+      sourceLanguage: project.sourceLanguage,
+      sourceVersion: project.sourceVersion,
+      sourceVersionNote: sourceSlot?.versionNote ?? null,
+      bundleDisplayName: project.bundleName ?? project.sourceProject?.title ?? null,
+      bundleCatalog: bundlePayload.catalog,
+      copiedAt: project.draftCopiedAt,
+      locale,
+    });
+    if (enriched) {
+      body.draftLineage = enriched;
+    }
+  }
   if (user.role === "admin") {
     const debug = await getProjectPlaybackDebug(id);
     if (debug) {

@@ -34,6 +34,8 @@ import {
 } from "@/lib/instant-export-client";
 import { isInstantPremiumTestMode } from "@/lib/quick-full-rerender";
 import { DraftVersionPreview } from "@/components/videos/draft-version-preview";
+import { VersionNameField } from "@/components/videos/version-name-field";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 import type { DraftLineageResponse, FullRerenderResponse } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
@@ -64,6 +66,8 @@ export type FullRerenderEditorProps = {
   }) => void;
   /** When set, show version-creation preview and clarify NL v3 → NL v4 in render confirm. */
   draftLineage?: DraftLineageResponse | null;
+  bundleCatalog?: MotionVersionCatalog | null;
+  defaultLanguageCode?: string;
 };
 
 const DRAFT_BOOTSTRAP_TIMEOUT_MS = 30_000;
@@ -101,6 +105,8 @@ export function FullRerenderEditor({
   onMounted,
   onFlowDebug,
   draftLineage = null,
+  bundleCatalog = null,
+  defaultLanguageCode = "nl",
 }: FullRerenderEditorProps) {
   const t = useActiveTranslator();
   const router = useRouter();
@@ -607,16 +613,13 @@ export function FullRerenderEditor({
           disabled={busy}
         />
 
-        <label className="mb-4 block text-sm text-zinc-700">
-          <span className="font-medium">{t("instant.fullRerender.versionNoteLabel")}</span>
-          <input
-            type="text"
-            value={versionNote}
-            onChange={(e) => setVersionNote(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2"
-            placeholder={t("instant.fullRerender.versionNotePlaceholder")}
-          />
-        </label>
+        <VersionNameField
+          className="mb-4"
+          value={versionNote}
+          onChange={setVersionNote}
+          languageCode={draftLineage?.sourceLanguage ?? defaultLanguageCode}
+          bundleCatalog={bundleCatalog}
+        />
 
         <label className="mb-4 block text-sm text-zinc-700">
           <span className="font-medium">{t("instant.fullRerender.userIntentLabel")}</span>

@@ -219,7 +219,7 @@ describe("Motion V22.1 — draft → version safety", () => {
       locale: "en",
     });
     assert.equal(lineage?.sourceVersion, 3);
-    assert.equal(lineage?.sourceVersionDisplay, "V3 — Third");
+    assert.equal(lineage?.sourceVersionDisplay, "Third");
   });
 });
 

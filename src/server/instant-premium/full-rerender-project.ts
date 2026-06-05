@@ -30,6 +30,7 @@ import {
   resolveStudioIntelligenceStatus,
 } from "@/lib/studio-project-metadata";
 import type { InstantPremiumStatusResponse } from "@/types/animation-api";
+import { resolveVersionNameAgainstBundle } from "@/server/instant-premium/resolve-bundle-version-name";
 
 export const FULL_RERENDER_ALREADY_RUNNING = "FULL_RERENDER_ALREADY_RUNNING";
 export const FULL_RERENDER_NOT_READY = "FULL_RERENDER_NOT_READY";
@@ -244,6 +245,12 @@ export async function fullRerenderInstantPremiumProject(params: {
     (studioIntelligenceStatus === "stale" ||
       Boolean(refreshed.studioLastStaleReason?.trim()));
 
+  const resolvedVersionNote = await resolveVersionNameAgainstBundle({
+    anchorProjectId: projectId,
+    sourceProjectId: refreshed.sourceProjectId,
+    versionNote,
+  });
+
   const startedAt = new Date().toISOString();
   const auditEntry: FullRerenderAuditEntry = {
     rebuildType: "full_rerender",
@@ -256,7 +263,7 @@ export async function fullRerenderInstantPremiumProject(params: {
       ? { ...studioAudit, suggestStudioRefresh: suggestStudioRefresh || undefined }
       : undefined,
     suggestStudioRefresh: suggestStudioRefresh || undefined,
-    versionNote: versionNote?.trim() || null,
+    versionNote: resolvedVersionNote ?? null,
     previousFinalVideoUrl,
     previousCleanFinalVideoUrl,
     previousTransitions,
@@ -272,7 +279,7 @@ export async function fullRerenderInstantPremiumProject(params: {
 
   const pendingVersion = await createPendingFullRerenderVersion({
     project: refreshed,
-    versionNote: versionNote?.trim() || null,
+    versionNote: resolvedVersionNote ?? null,
   });
 
   const auditJson = mergeAuditWithPendingFullRerender(

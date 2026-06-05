@@ -6,6 +6,8 @@ import {
   LANGUAGE_EXPORT_POLL_INTERVAL_MS,
   LANGUAGE_EXPORT_POLL_MAX_MS,
 } from "@/lib/language-export-playback";
+import { VersionNameField } from "@/components/videos/version-name-field";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 import {
   applyLanguageExportPrepareResponse,
@@ -53,6 +55,7 @@ type Props = {
   onLanguageExportsChange: (exports: VideoLanguageExportSummary[]) => void;
   onRenderCompleted?: (languageCode: string, exportId: string) => void;
   showAdminDebug?: boolean;
+  bundleCatalog?: MotionVersionCatalog | null;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -64,6 +67,7 @@ export function LanguageExportPanel({
   onLanguageExportsChange,
   onRenderCompleted,
   showAdminDebug = false,
+  bundleCatalog = null,
 }: Props) {
   const t = useActiveTranslator();
   const [targetLang, setTargetLang] = useState<LanguageExportCode>(() => {
@@ -99,6 +103,8 @@ export function LanguageExportPanel({
   const translatePhaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [renderStartedAtMs, setRenderStartedAtMs] = useState<number | null>(null);
   const [progressTick, setProgressTick] = useState(0);
+  const [versionNote, setVersionNote] = useState("");
+  const [versionNameTouched, setVersionNameTouched] = useState(false);
 
   const renderMessages = useMemo(
     () => ({
@@ -340,6 +346,7 @@ export function LanguageExportPanel({
           languageCode: targetLang,
           layers: textLayers,
           exportId: activeExportId,
+          versionNote: versionNote.trim() || undefined,
         })
       );
       if (response.networkError) {
@@ -520,6 +527,8 @@ export function LanguageExportPanel({
           onChange={(e) => {
             setTargetLang(e.target.value as LanguageExportCode);
             setPreparePhase("idle");
+            setVersionNameTouched(false);
+            setVersionNote("");
           }}
           disabled={prepareLoading || renderLoading}
           className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
@@ -549,6 +558,17 @@ export function LanguageExportPanel({
             : t("instant.languageExport.renderButton")}
         </button>
       </div>
+
+      <VersionNameField
+        value={versionNote}
+        onChange={(next) => {
+          setVersionNameTouched(true);
+          setVersionNote(next);
+        }}
+        languageCode={targetLang}
+        bundleCatalog={bundleCatalog}
+        autoSuggest={!versionNameTouched}
+      />
 
       {languageExportProgress.phase !== "idle" ? (
         <TextLanguageRenderProgressPanel progress={languageExportProgress} />

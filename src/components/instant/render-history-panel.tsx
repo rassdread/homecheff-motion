@@ -150,7 +150,7 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
                     onChange={(e) =>
                       setNoteDraftById((prev) => ({ ...prev, [row.id]: e.target.value }))
                     }
-                    placeholder={t("projects.versionNote.placeholder")}
+                    placeholder={t("projects.versionName.label")}
                     className="min-w-[8rem] flex-1 rounded-lg border border-zinc-200 px-2 py-1 text-xs"
                   />
                   <button

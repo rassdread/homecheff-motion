@@ -51,6 +51,7 @@ import {
   postLanguageExportAction,
   type InstantExportClientErrorKind,
 } from "@/lib/instant-export-client";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 import type { VideoLanguageExportSummary } from "@/types/animation-api";
 
 type StoryboardImage = { id: string; previewUrl: string };
@@ -79,6 +80,7 @@ type Props = {
   finalIsArchivedFallback?: boolean;
   /** Bare concat from latest clips; final overlay/upload did not complete. */
   cleanIsLatestBareOnly?: boolean;
+  bundleCatalog?: MotionVersionCatalog | null;
 };
 
 const TARGET_CODES = LANGUAGE_EXPORT_CODES.filter((c) => c !== "original") as LanguageExportCode[];
@@ -190,6 +192,7 @@ export function VideoVersionsPanel({
   textVersionNotesJson,
   finalIsArchivedFallback = false,
   cleanIsLatestBareOnly = false,
+  bundleCatalog = null,
 }: Props) {
   const t = useActiveTranslator();
   const [createOpen, setCreateOpen] = useState(false);
@@ -712,6 +715,7 @@ export function VideoVersionsPanel({
       hasCompletedFinal={Boolean(finalVideoUrl)}
       languageExports={languageExports}
       onLanguageExportsChange={onLanguageExportsChange}
+      bundleCatalog={bundleCatalog}
     />
   );
 
@@ -939,6 +943,7 @@ export function VideoVersionsPanel({
         instantSceneTexts={instantSceneTexts}
         images={images}
         imageCount={Math.max(images.length, parseSceneTextsJson(instantSceneTexts).length, 1)}
+        bundleCatalog={bundleCatalog}
         onSuccess={() => {
           setInfo(t("instant.progress.rebuildFinalSuccess"));
           onTextsRerendered?.();

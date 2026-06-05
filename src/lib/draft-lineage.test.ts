@@ -65,7 +65,7 @@ describe("bundle grouping", () => {
 describe("version display and deep links", () => {
   it("shows VN when no note exists", () => {
     assert.equal(formatMotionVersionLabel(3, null, "en"), "V3");
-    assert.equal(formatMotionVersionLabel(3, "Better intro", "en"), "V3 — Better intro");
+    assert.equal(formatMotionVersionLabel(3, "Better intro", "en"), "Better intro");
   });
 
   it("parses ver=v3 from URL params", () => {

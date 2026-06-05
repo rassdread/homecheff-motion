@@ -159,8 +159,8 @@ describe("Motion V22.4 — library UX", () => {
     assert.notEqual(selected.finalVideoUrl, latest.finalVideoUrl);
   });
 
-  it("version labels use notes with V prefix", () => {
-    assert.equal(formatMotionVersionLabel(1, "Eerste versie", "nl"), "V1 — Eerste versie");
+  it("version labels use custom names as-is", () => {
+    assert.equal(formatMotionVersionLabel(1, "Eerste versie", "nl"), "Eerste versie");
     const dated = formatMotionVersionLabel(2, null, "nl", "2026-06-04T10:00:00.000Z");
     assert.match(dated, /^V2 — /);
   });

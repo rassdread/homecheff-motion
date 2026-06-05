@@ -14,6 +14,8 @@ import {
 } from "@/lib/instant-export-client";
 import { TextLanguageRenderProgressPanel } from "@/components/instant/text-language-render-progress-panel";
 import { resolveTextRerenderProgress } from "@/lib/text-language-render-progress";
+import { VersionNameField } from "@/components/videos/version-name-field";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 
 type StoryboardImage = { id: string; previewUrl: string };
 
@@ -27,6 +29,8 @@ type Props = {
   onSuccess?: (response: RebuildFinalVideoResponse) => void;
   onError?: (message: string) => void;
   onRenderStart?: () => void;
+  bundleCatalog?: MotionVersionCatalog | null;
+  defaultLanguageCode?: string;
 };
 
 type ContentProps = Omit<Props, "open"> & {
@@ -42,6 +46,8 @@ function TextRerenderEditorModalContent({
   onSuccess,
   onError,
   onRenderStart,
+  bundleCatalog = null,
+  defaultLanguageCode = "nl",
 }: ContentProps) {
   const t = useActiveTranslator();
   const [sceneTexts, setSceneTexts] = useState<InstantSceneTextDraft[]>(() =>
@@ -232,17 +238,13 @@ function TextRerenderEditorModalContent({
               );
             }}
           />
-          <label className="mt-4 block text-xs text-zinc-600">
-            {t("projectDetail.versions.noteLabel")}
-            <textarea
-              value={versionNote}
-              onChange={(e) => setVersionNote(e.target.value)}
-              rows={2}
-              maxLength={240}
-              className="mt-1 w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-              placeholder={t("projectDetail.versions.notePlaceholder")}
-            />
-          </label>
+          <VersionNameField
+            className="mt-4"
+            value={versionNote}
+            onChange={setVersionNote}
+            languageCode={defaultLanguageCode}
+            bundleCatalog={bundleCatalog}
+          />
         </div>
 
         <div className="flex flex-wrap gap-2 border-t border-zinc-100 px-4 py-4 sm:px-6">

@@ -4,6 +4,11 @@
 
 import { formatMotionVersionLabel } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
+import {
+  formatLanguageVersionName,
+  suggestDefaultVersionName,
+} from "@/lib/smart-version-naming";
+import type { MotionVersionCatalog } from "@/lib/motion-version-catalog";
 
 export type DraftLineage = {
   sourceProjectId: string;
@@ -40,6 +45,7 @@ export function buildDraftLineage(params: {
   sourceVersion: number | null;
   sourceVersionNote?: string | null;
   bundleDisplayName?: string | null;
+  bundleCatalog?: MotionVersionCatalog | null;
   copiedAt: Date | string | null;
   locale?: "en" | "nl";
 }): DraftLineage | null {
@@ -50,6 +56,13 @@ export function buildDraftLineage(params: {
   const version = params.sourceVersion != null && params.sourceVersion > 0 ? params.sourceVersion : 1;
   const locale = params.locale ?? "nl";
   const nextVersion = version + 1;
+  const nextVersionDisplay =
+    params.bundleCatalog
+      ? suggestDefaultVersionName({
+          languageCode: language,
+          catalog: params.bundleCatalog,
+        })
+      : formatLanguageVersionName(languageCodeToLabel(language), version + 1);
   const bundleDisplayName =
     params.bundleDisplayName?.trim() ||
     resolveProjectDisplayTitle(params.sourceProjectTitle, locale);
@@ -61,7 +74,7 @@ export function buildDraftLineage(params: {
     sourceVersion: version,
     sourceVersionDisplay: formatMotionVersionLabel(version, params.sourceVersionNote, locale),
     nextVersionNumber: nextVersion,
-    nextVersionDisplay: formatMotionVersionLabel(nextVersion, null, locale),
+    nextVersionDisplay,
     bundleDisplayName,
     copiedAt:
       params.copiedAt instanceof Date

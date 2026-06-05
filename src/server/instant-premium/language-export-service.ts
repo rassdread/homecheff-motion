@@ -13,6 +13,7 @@ import { syncProjectLanguageTextLayers } from "@/server/instant-premium/persist-
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
 import { DEFAULT_TYPOGRAPHY_RENDER_QUALITY } from "@/lib/typography-style-profile";
 import { getAnimationProjectByIdForViewer } from "@/server/animation-projects/queries";
+import { resolveVersionNameAgainstBundle } from "@/server/instant-premium/resolve-bundle-version-name";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-status";
 import { LANGUAGE_EXPORT_NO_LAYERS } from "@/lib/language-export-prepare";
@@ -658,7 +659,12 @@ export async function createAndRenderLanguageExport(params: {
     .filter((r) => r.languageCode === languageCode)
     .reduce((max, r) => Math.max(max, r.version), 0);
   const version = maxVersion + 1;
-  const versionNote = params.versionNote?.trim() || null;
+  const resolvedNote = await resolveVersionNameAgainstBundle({
+    anchorProjectId: params.projectId,
+    sourceProjectId: project.sourceProjectId,
+    versionNote: params.versionNote,
+  });
+  const versionNote = resolvedNote ?? null;
 
   const useStoryOverlay =
     projectUsesStoryOverlay(project) || (params.sceneTextOverrides?.length ?? 0) > 0;

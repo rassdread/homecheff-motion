@@ -196,6 +196,8 @@ export default function VideoEditVersionPage() {
           ) : null}
           <FullRerenderEditor
             draftLineage={detail.draftLineage ?? null}
+            bundleCatalog={detail.bundleCatalog ?? null}
+            defaultLanguageCode={detail.sourceLanguage ?? detail.draftLineage?.sourceLanguage ?? "nl"}
             projectId={id}
             layout="page"
             backHref={

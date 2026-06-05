@@ -1262,6 +1262,7 @@ export default function VideoDetailPage() {
             <VideoVersionsPanel
               layout="detail"
               projectId={id}
+              bundleCatalog={motionCatalog}
               cleanVideoUrl={cleanVideoUrl}
               finalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
               finalIsArchivedFallback={videoDisplay.finalIsArchivedFallback}

@@ -140,15 +140,14 @@ describe("Motion V22.5 — folder library & rich bundle cards", () => {
       selectionKey: slotKey,
     });
     assert.ok(selected);
-    assert.match(selected.versionLabel, /V2/);
-    assert.match(selected.versionLabel, /Extra tekstblok/);
+    assert.equal(selected.versionLabel, "Extra tekstblok");
     assert.match(selected.openHref, /sel=render%3A/);
     assert.equal(selected.finalVideoUrl, "https://cdn.example/final-v2.mp4");
   });
 
   it("formats version dropdown labels with note", () => {
     const label = formatMotionVersionLabel(2, "Nieuwe intro", "nl", "2026-06-04T10:00:00.000Z");
-    assert.match(label, /^V2 — Nieuwe intro$/);
+    assert.equal(label, "Nieuwe intro");
     const fallback = formatMotionVersionLabel(1, null, "nl", "2026-06-04T10:00:00.000Z");
     assert.match(fallback, /^V1 — /);
   });
@@ -156,10 +155,10 @@ describe("Motion V22.5 — folder library & rich bundle cards", () => {
   it("formats selected version summary label", () => {
     const label = formatSelectedVersionLabel({
       languageLabel: "NL",
-      versionLabel: "V2 — Extra tekstblok",
+      versionLabel: "Extra tekstblok",
       locale: "nl",
     });
-    assert.equal(label, "NL V2 — Extra tekstblok");
+    assert.equal(label, "NL Extra tekstblok");
   });
 
   it("summarizes folder library view for a single folder", () => {
