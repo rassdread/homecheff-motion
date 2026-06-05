@@ -132,8 +132,8 @@ describe("Motion V22.4 — library UX", () => {
     assert.equal(sel1.selectedCatalogSlot.selectionKey, v1.selectionKey);
     assert.equal(sel1.finalVideoUrl, "https://cdn.example/final-v1.mp4");
     assert.notEqual(sel1.openHref, sel2.openHref);
-    assert.match(sel2.openHref, /ver=v2/);
-    assert.match(sel1.openHref, /ver=v1/);
+    assert.match(sel2.openHref, /sel=render%3Arv2/);
+    assert.match(sel1.openHref, /sel=render%3Arv1/);
     assert.equal(sel1.playKey, `bk:${v1.selectionKey}`);
     assert.notEqual(sel1.playKey, sel2.playKey);
   });
@@ -230,7 +230,7 @@ describe("Motion V22.4 — library UX", () => {
     const resolved = resolveMotionSelectionFromUrl(catalog, "nl", "v2");
     assert.ok(resolved);
     assert.equal(resolved!.slot.versionNumber, 2);
-    assert.match(buildBundleSlotOpenHref(resolved!.slot), /ver=v2/);
+    assert.match(buildBundleSlotOpenHref(resolved!.slot), /sel=render%3Arv2/);
   });
 
   it("invalid deep link is detected", () => {

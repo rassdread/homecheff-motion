@@ -22,7 +22,8 @@ export function resolveProjectVideoDownload(
   segmentOrder?: number,
   languageCode?: string,
   variant?: string,
-  languageExportId?: string
+  languageExportId?: string,
+  renderVersionId?: string
 ): ResolvedVideoDownload | null {
   if (segmentOrder !== undefined) {
     if (!Number.isInteger(segmentOrder) || segmentOrder < 0) {
@@ -108,6 +109,20 @@ export function resolveProjectVideoDownload(
       contentType: "application/x-subrip",
       inlineBody: srt,
     };
+  }
+
+  const renderId = renderVersionId?.trim();
+  if (renderId) {
+    const renderRow = (project.renderVersions ?? []).find(
+      (row) => row.id === renderId && row.finalVideoUrl?.trim()
+    );
+    if (renderRow?.finalVideoUrl?.trim()) {
+      return {
+        sourceUrl: renderRow.finalVideoUrl.trim(),
+        filename: `homecheff-motion-${project.id}-v${renderRow.renderVersionNumber}.mp4`,
+      };
+    }
+    return null;
   }
 
   if (exportId) {

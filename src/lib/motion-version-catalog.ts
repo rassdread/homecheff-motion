@@ -2,6 +2,7 @@
  * Unified language + version catalog for Motion projects (render versions + language exports).
  */
 
+import { resolveSlotFromStableSelectionParam } from "@/lib/bundle-slot-identity";
 import { isCleanUrlAlignedWithRenderVersion } from "@/lib/render-output-lineage";
 import { formatMotionVersionLabel, parseVersionQueryParam } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
@@ -14,22 +15,66 @@ export type MotionVersionSlot = {
   projectId: string;
   languageCode: string;
   languageLabel: string;
+  /** @deprecated Prefer catalogVersionNumber — kept equal for API compat. */
   versionNumber: number;
   versionNote: string | null;
   displayLabel: string;
   status: string;
   finalVideoUrl: string | null;
   cleanVideoUrl: string | null;
-  /** Gallery card preview for this slot (member project thumbnail). */
   thumbnailUrl: string | null;
   thumbnailFallbackUrl: string | null;
-  /** Estimated output duration when known (seconds). */
   durationSeconds: number | null;
   createdAt: string | null;
   kind: "render" | "language_export" | "baseline";
   renderVersionId?: string;
   languageExportId?: string;
+  /** V22.6 — stable source identity for deep links and downloads. */
+  sourceProjectId: string;
+  /** Merged bundle display ordinal (V1, V2, …). */
+  catalogVersionNumber: number;
+  /** ProjectRenderVersion.renderVersionNumber (render/baseline). */
+  sourceRenderVersionNumber?: number;
+  /** VideoLanguageExport.version (language_export). */
+  sourceLanguageExportVersion?: number;
+  displayVersionLabel: string;
 };
+
+export function attachMotionSlotIdentity(
+  slot: Omit<
+    MotionVersionSlot,
+    | "sourceProjectId"
+    | "catalogVersionNumber"
+    | "displayVersionLabel"
+    | "sourceRenderVersionNumber"
+    | "sourceLanguageExportVersion"
+  > & {
+    sourceProjectId?: string;
+    catalogVersionNumber?: number;
+    displayVersionLabel?: string;
+    sourceRenderVersionNumber?: number;
+    sourceLanguageExportVersion?: number;
+  }
+): MotionVersionSlot {
+  const catalogVersionNumber = slot.catalogVersionNumber ?? slot.versionNumber;
+  const displayVersionLabel = slot.displayVersionLabel ?? slot.displayLabel;
+  return {
+    ...slot,
+    sourceProjectId: slot.sourceProjectId ?? slot.projectId,
+    catalogVersionNumber,
+    versionNumber: catalogVersionNumber,
+    displayVersionLabel,
+    displayLabel: displayVersionLabel,
+    sourceRenderVersionNumber:
+      slot.sourceRenderVersionNumber ??
+      (slot.kind === "render" || slot.kind === "baseline"
+        ? catalogVersionNumber
+        : undefined),
+    sourceLanguageExportVersion:
+      slot.sourceLanguageExportVersion ??
+      (slot.kind === "language_export" ? catalogVersionNumber : undefined),
+  };
+}
 
 export type MotionVersionCatalog = {
   languages: Array<{ code: string; label: string }>;
@@ -117,19 +162,20 @@ export function buildMotionVersionCatalogForProject(input: {
         isCleanUrlAlignedWithRenderVersion(row.cleanVideoUrl, row.renderVersionNumber)
           ? row.cleanVideoUrl.trim()
           : null;
-      const slot: MotionVersionSlot = {
+      const displayLabel = formatVersionDisplayLabel(
+        row.renderVersionNumber,
+        row.versionNote,
+        locale,
+        row.createdAt
+      );
+      const slot = attachMotionSlotIdentity({
         selectionKey: `render:${row.id}`,
         projectId: input.projectId,
         languageCode: primaryCode,
         languageLabel: primaryLabel,
         versionNumber: row.renderVersionNumber,
         versionNote: row.versionNote,
-        displayLabel: formatVersionDisplayLabel(
-          row.renderVersionNumber,
-          row.versionNote,
-          locale,
-          row.createdAt
-        ),
+        displayLabel,
         status: row.status,
         finalVideoUrl: row.finalVideoUrl?.trim() ?? null,
         cleanVideoUrl: clean,
@@ -137,7 +183,9 @@ export function buildMotionVersionCatalogForProject(input: {
         createdAt: row.createdAt,
         kind: "render",
         renderVersionId: row.id,
-      };
+        catalogVersionNumber: row.renderVersionNumber,
+        sourceRenderVersionNumber: row.renderVersionNumber,
+      });
       const list = slotsByLanguage[primaryCode] ?? [];
       list.push(slot);
       slotsByLanguage[primaryCode] = list;
@@ -149,7 +197,7 @@ export function buildMotionVersionCatalogForProject(input: {
         ? input.projectCleanUrl.trim()
         : input.projectCleanUrl?.trim() ?? null;
     slotsByLanguage[primaryCode] = [
-      {
+      attachMotionSlotIdentity({
         selectionKey: `baseline:${input.projectId}:${primaryCode}:1`,
         projectId: input.projectId,
         languageCode: primaryCode,
@@ -163,7 +211,9 @@ export function buildMotionVersionCatalogForProject(input: {
         ...slotMedia,
         createdAt: null,
         kind: "baseline",
-      },
+        catalogVersionNumber: 1,
+        sourceRenderVersionNumber: 1,
+      }),
     ];
   }
 
@@ -180,27 +230,32 @@ export function buildMotionVersionCatalogForProject(input: {
   for (const [code, rows] of exportsByCode) {
     const sorted = [...rows].sort((a, b) => a.version - b.version);
     const label = sorted[0]?.languageLabel ?? code.toUpperCase();
-    slotsByLanguage[code] = sorted.map((row) => ({
-      selectionKey: `lang:${row.id}`,
-      projectId: input.projectId,
-      languageCode: code,
-      languageLabel: label,
-      versionNumber: row.version,
-      versionNote: row.versionNote ?? null,
-      displayLabel: formatVersionDisplayLabel(
+    slotsByLanguage[code] = sorted.map((row) => {
+      const displayLabel = formatVersionDisplayLabel(
         row.version,
         row.versionNote ?? null,
         locale,
         row.createdAt
-      ),
-      status: row.status,
-      finalVideoUrl: row.outputVideoUrl?.trim() ?? null,
-      cleanVideoUrl: row.sourceCleanVideoUrl?.trim() ?? null,
-      ...slotMedia,
-      createdAt: row.createdAt,
-      kind: "language_export",
-      languageExportId: row.id,
-    }));
+      );
+      return attachMotionSlotIdentity({
+        selectionKey: `lang:${row.id}`,
+        projectId: input.projectId,
+        languageCode: code,
+        languageLabel: label,
+        versionNumber: row.version,
+        versionNote: row.versionNote ?? null,
+        displayLabel,
+        status: row.status,
+        finalVideoUrl: row.outputVideoUrl?.trim() ?? null,
+        cleanVideoUrl: row.sourceCleanVideoUrl?.trim() ?? null,
+        ...slotMedia,
+        createdAt: row.createdAt,
+        kind: "language_export",
+        languageExportId: row.id,
+        catalogVersionNumber: row.version,
+        sourceLanguageExportVersion: row.version,
+      });
+    });
   }
 
   for (const code of Object.keys(slotsByLanguage)) {
@@ -254,17 +309,21 @@ export function mergeMotionVersionCatalogs(
       for (const row of rows) {
         const nextVersion = (counters.get(lang.code) ?? 0) + 1;
         counters.set(lang.code, nextVersion);
-        existing.push({
-          ...row,
-          versionNumber: nextVersion,
-          displayLabel: formatVersionDisplayLabel(
-            nextVersion,
-            row.versionNote,
-            undefined,
-            row.createdAt
-          ),
-          selectionKey: `${row.projectId}:${lang.code}:${nextVersion}:${row.kind}:${row.renderVersionId ?? row.languageExportId ?? "base"}`,
-        });
+        const mergedDisplay = formatVersionDisplayLabel(
+          nextVersion,
+          row.versionNote,
+          undefined,
+          row.createdAt
+        );
+        existing.push(
+          attachMotionSlotIdentity({
+            ...row,
+            catalogVersionNumber: nextVersion,
+            versionNumber: nextVersion,
+            displayLabel: mergedDisplay,
+            selectionKey: `${row.projectId}:${lang.code}:${nextVersion}:${row.kind}:${row.renderVersionId ?? row.languageExportId ?? "base"}`,
+          })
+        );
       }
       slotsByLanguage[lang.code] = existing;
     }
@@ -302,10 +361,25 @@ export function mergeMotionVersionCatalogs(
 export function resolveMotionSelectionFromUrl(
   catalog: MotionVersionCatalog,
   langFromUrl: string | null | undefined,
-  verFromUrl: string | null | undefined
+  verFromUrl: string | null | undefined,
+  selFromUrl?: string | null | undefined
 ): { languageCode: string; selectionKey: string; slot: MotionVersionSlot } | null {
+  const explicitSel = Boolean(selFromUrl?.trim());
   const explicitVer = Boolean(verFromUrl?.trim());
   const explicitLang = Boolean(langFromUrl?.trim());
+
+  if (explicitSel) {
+    const slot = resolveSlotFromStableSelectionParam(catalog, selFromUrl!.trim());
+    if (!slot) {
+      return null;
+    }
+    return {
+      languageCode: slot.languageCode,
+      selectionKey: slot.selectionKey,
+      slot,
+    };
+  }
+
   const langKey = langFromUrl?.trim() ?? "";
   if (explicitLang && !catalog.slotsByLanguage[langKey]?.length) {
     return null;
@@ -329,7 +403,7 @@ export function resolveMotionSelectionFromUrl(
     }
   }
   if (parsed.versionNumber != null) {
-    const slot = slots.find((s) => s.versionNumber === parsed.versionNumber);
+    const slot = slots.find((s) => slotMatchesSourceVersionNumber(s, parsed.versionNumber!));
     if (slot) {
       return { languageCode, selectionKey: slot.selectionKey, slot };
     }
@@ -340,6 +414,13 @@ export function resolveMotionSelectionFromUrl(
   const fallback =
     pickLatestMotionVersionSlot(catalog, languageCode) ?? slots[slots.length - 1]!;
   return { languageCode, selectionKey: fallback.selectionKey, slot: fallback };
+}
+
+function slotMatchesSourceVersionNumber(slot: MotionVersionSlot, versionNumber: number): boolean {
+  if (slot.kind === "language_export") {
+    return (slot.sourceLanguageExportVersion ?? slot.catalogVersionNumber) === versionNumber;
+  }
+  return (slot.sourceRenderVersionNumber ?? slot.catalogVersionNumber) === versionNumber;
 }
 
 /** Gallery label: `NL (3) · EN (2)` */
@@ -354,14 +435,16 @@ export function formatBundleLanguagesLabel(catalog: MotionVersionCatalog): strin
 export function isExplicitMotionUrlSelectionInvalid(
   catalog: MotionVersionCatalog,
   langFromUrl: string | null | undefined,
-  verFromUrl: string | null | undefined
+  verFromUrl: string | null | undefined,
+  selFromUrl?: string | null | undefined
 ): boolean {
+  const explicitSel = Boolean(selFromUrl?.trim());
   const explicitVer = Boolean(verFromUrl?.trim());
   const explicitLang = Boolean(langFromUrl?.trim());
-  if (!explicitVer && !explicitLang) {
+  if (!explicitSel && !explicitVer && !explicitLang) {
     return false;
   }
-  return resolveMotionSelectionFromUrl(catalog, langFromUrl, verFromUrl) === null;
+  return resolveMotionSelectionFromUrl(catalog, langFromUrl, verFromUrl, selFromUrl) === null;
 }
 
 /** Per-language version counts for bundle validation (tests / diagnostics). */

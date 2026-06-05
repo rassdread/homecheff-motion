@@ -270,6 +270,11 @@ export async function listAnimationProjectsForUser(params: {
               createdAt: slot.createdAt,
               renderVersionId: slot.renderVersionId,
               languageExportId: slot.languageExportId,
+              sourceProjectId: slot.sourceProjectId,
+              catalogVersionNumber: slot.catalogVersionNumber,
+              sourceRenderVersionNumber: slot.sourceRenderVersionNumber,
+              sourceLanguageExportVersion: slot.sourceLanguageExportVersion,
+              displayVersionLabel: slot.displayVersionLabel,
             })),
           ])
         ),

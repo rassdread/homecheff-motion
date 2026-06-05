@@ -1289,6 +1289,7 @@ export const nl = {
   "videos.bundle.latestVersion": "Laatste: {label}",
   "videos.bundle.selectedVersionNote": "Notitie: {note}",
   "videos.bundle.noThumbnail": "Geen preview",
+  "videos.bundle.noPlayableFinal": "Deze versie heeft nog geen afspeelbare definitieve video.",
   "videos.folderLibrary.summary": "{videos} video's · {versions} versies",
   "projects.bundle.currentVersion": "Huidige selectie",
   "videos.folder.all": "Alle mappen",

@@ -12,6 +12,7 @@ describe("resolveProjectVideoDownload", () => {
     instantPreviousFinalVideoUrl: null,
     transitions: [{ order: 0, outputVideoUrl: "/seg0.mp4" }],
     exports: [{ outputVideoUrl: "https://cdn.example/final.mp4", status: "completed" }],
+    renderVersions: [],
     languageExports: [
       {
         languageCode: "nl",
@@ -43,5 +44,30 @@ describe("resolveProjectVideoDownload", () => {
   it("ignores non-completed language exports", () => {
     const resolved = resolveProjectVideoDownload(baseProject, undefined, "en");
     assert.equal(resolved, null);
+  });
+
+  it("prefers renderVersionId over failed export row", () => {
+    const project = {
+      ...baseProject,
+      status: "failed",
+      exports: [{ outputVideoUrl: null, status: "failed" }],
+      renderVersions: [
+        {
+          id: "rv1",
+          renderVersionNumber: 1,
+          status: "completed",
+          finalVideoUrl: "https://cdn.example/render-v1.mp4",
+        },
+      ],
+    } as Parameters<typeof resolveProjectVideoDownload>[0];
+    const resolved = resolveProjectVideoDownload(
+      project,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "rv1"
+    );
+    assert.equal(resolved?.sourceUrl, "https://cdn.example/render-v1.mp4");
   });
 });

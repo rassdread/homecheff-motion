@@ -76,7 +76,7 @@ export function ProjectBundleCard({
     selectedBundleVersion?.downloadUrl ??
     `/api/animations/projects/${encodeURIComponent(bundle.activeProjectId)}/download`;
 
-  const failed = displayStatus === "failed";
+  const hasPlayableFinal = playable && Boolean(finalUrl);
   const folderLabelKey = bundle.folderId
     ? (`videos.folder.${bundle.folderId}` as const)
     : ("videos.folder.uncategorized" as const);
@@ -224,26 +224,29 @@ export function ProjectBundleCard({
           />
         : null}
 
-        {playable && finalUrl && !failed ?
-          <div className="space-y-2 border-t border-zinc-100 pt-3">
-            {expandedVideoKey === playKey ?
-              <VideoPreview
-                key={`${playKey}:${finalUrl}`}
-                variant="version"
-                frameClassName="mt-0"
-                controls
-                playsInline
-                preload="none"
-                poster={displayThumbnail ?? undefined}
-                onError={() => onPlaybackError(playKey)}
-                onLoadedData={() => onPlaybackOk(playKey)}
-                src={finalUrl}
-              />
-            : null}
-            {playbackErrorKey === playKey ?
-              <p className="text-xs text-red-700">{t("videos.playbackError")}</p>
-            : null}
-            <div className="flex flex-wrap gap-2">
+        <div className="space-y-2 border-t border-zinc-100 pt-3">
+          {hasPlayableFinal && expandedVideoKey === playKey ?
+            <VideoPreview
+              key={`${playKey}:${finalUrl}`}
+              variant="version"
+              frameClassName="mt-0"
+              controls
+              playsInline
+              preload="none"
+              poster={displayThumbnail ?? undefined}
+              onError={() => onPlaybackError(playKey)}
+              onLoadedData={() => onPlaybackOk(playKey)}
+              src={finalUrl!}
+            />
+          : null}
+          {hasPlayableFinal && playbackErrorKey === playKey ?
+            <p className="text-xs text-red-700">{t("videos.playbackError")}</p>
+          : null}
+          {!hasPlayableFinal && !finalUrl ?
+            <p className="text-xs text-zinc-600">{t("videos.bundle.noPlayableFinal")}</p>
+          : null}
+          <div className="flex flex-wrap gap-2">
+            {hasPlayableFinal ?
               <button
                 type="button"
                 onClick={() => onTogglePlay(expandedVideoKey === playKey ? null : playKey)}
@@ -251,6 +254,15 @@ export function ProjectBundleCard({
               >
                 {expandedVideoKey === playKey ? t("videos.closePlayer") : t("videos.play")}
               </button>
+            : (
+              <span
+                className="cursor-not-allowed rounded-full border border-zinc-100 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-400"
+                title={t("videos.bundle.noPlayableFinal")}
+              >
+                {t("videos.play")}
+              </span>
+            )}
+            {hasPlayableFinal ?
               <a
                 href={downloadUrl}
                 download
@@ -258,19 +270,14 @@ export function ProjectBundleCard({
               >
                 {t("videos.download")}
               </a>
-              <Link
-                href={itemHref}
-                prefetch={false}
-                className="inline-flex rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
+            : (
+              <span
+                className="inline-flex cursor-not-allowed rounded-full border border-emerald-100 bg-emerald-50/50 px-3 py-1.5 text-xs font-medium text-emerald-700/40"
+                title={t("videos.bundle.noPlayableFinal")}
               >
-                {t("videos.open")}
-              </Link>
-            </div>
-          </div>
-        : failed ?
-          <p className="text-xs font-medium text-red-700">{t("videos.status.failed")}</p>
-        : (
-          <div className="flex flex-wrap gap-2 border-t border-zinc-100 pt-3">
+                {t("videos.download")}
+              </span>
+            )}
             <Link
               href={itemHref}
               prefetch={false}
@@ -279,7 +286,7 @@ export function ProjectBundleCard({
               {t("videos.open")}
             </Link>
           </div>
-        )}
+        </div>
       </div>
     </li>
   );

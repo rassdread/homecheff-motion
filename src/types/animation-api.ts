@@ -317,6 +317,11 @@ export type ProjectBundleListItemResponse = {
         createdAt: string | null;
         renderVersionId?: string;
         languageExportId?: string;
+        sourceProjectId: string;
+        catalogVersionNumber: number;
+        sourceRenderVersionNumber?: number;
+        sourceLanguageExportVersion?: number;
+        displayVersionLabel: string;
       }>
     >;
     defaultLanguageCode: string;

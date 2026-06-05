@@ -3,6 +3,8 @@
  */
 
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
+import { isBundleSlotPlayable } from "@/lib/bundle-slot-actions";
+import { stableSelectionKeyFromSlot } from "@/lib/bundle-slot-identity";
 import {
   findMotionVersionSlot,
   MOTION_PRIMARY_LANGUAGE_CODE,
@@ -10,7 +12,7 @@ import {
   type MotionVersionSlot,
 } from "@/lib/motion-version-catalog";
 import {
-  isProjectPlayablyComplete,
+  isCompletedStatusToken,
   resolveProjectDisplayStatus,
 } from "@/lib/project-display-status";
 
@@ -61,18 +63,30 @@ export function resolveBundleSlot(
 }
 
 export function buildBundleSlotOpenHref(slot: MotionVersionSlot): string {
+  const projectId = slot.sourceProjectId ?? slot.projectId;
   const params = new URLSearchParams();
+  if (slot.renderVersionId || slot.languageExportId) {
+    params.set("sel", stableSelectionKeyFromSlot(slot));
+    if (slot.languageCode !== MOTION_PRIMARY_LANGUAGE_CODE) {
+      params.set("lang", slot.languageCode);
+    }
+    const qs = params.toString();
+    return `/videos/${encodeURIComponent(projectId)}${qs ? `?${qs}` : ""}`;
+  }
   params.set("lang", slot.languageCode);
-  params.set("ver", `v${slot.versionNumber}`);
-  return `/videos/${encodeURIComponent(slot.projectId)}?${params.toString()}`;
+  const sourceVer = slot.sourceRenderVersionNumber ?? slot.catalogVersionNumber;
+  params.set("ver", `v${sourceVer}`);
+  return `/videos/${encodeURIComponent(projectId)}?${params.toString()}`;
 }
 
 export function buildBundleSlotDownloadUrl(slot: MotionVersionSlot): string {
   const isPrimaryLang = slot.languageCode === MOTION_PRIMARY_LANGUAGE_CODE;
-  return animationProjectDownloadUrl(slot.projectId, {
+  return animationProjectDownloadUrl(slot.sourceProjectId ?? slot.projectId, {
     languageCode: isPrimaryLang ? undefined : slot.languageCode,
     languageExportId:
       slot.kind === "language_export" ? slot.languageExportId : undefined,
+    renderVersionId:
+      slot.kind === "render" && slot.renderVersionId ? slot.renderVersionId : undefined,
   });
 }
 
@@ -115,22 +129,21 @@ export function resolveSelectedBundleVersion(params: {
   }
 
   const finalUrl = slot.finalVideoUrl?.trim() ?? null;
-  const displayStatus = resolveProjectDisplayStatus({
-    projectStatus: slot.status,
-    exportStatus: slot.status,
-    outputVideoUrl: finalUrl,
-  });
-  const playable = isProjectPlayablyComplete({
-    projectStatus: displayStatus,
-    exportStatus: displayStatus,
-    outputVideoUrl: finalUrl,
-  });
+  const playable = isBundleSlotPlayable(slot);
+  const displayStatus =
+    playable && isCompletedStatusToken(slot.status)
+      ? "completed"
+      : resolveProjectDisplayStatus({
+          projectStatus: slot.status,
+          exportStatus: slot.status,
+          outputVideoUrl: finalUrl,
+        });
 
   return {
     selectionKey: slot.selectionKey,
     selectedCatalogSlot: slot,
     slot,
-    projectId: slot.projectId,
+    projectId: slot.sourceProjectId ?? slot.projectId,
     languageCode: slot.languageCode,
     languageLabel: slot.languageLabel,
     versionLabel: slot.displayLabel,

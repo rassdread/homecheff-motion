@@ -16,6 +16,7 @@ type Props = {
   exportOutputUrl: string | null;
   langFromUrl: string | null;
   versionFromUrl: string | null;
+  selFromUrl?: string | null;
   onSelectionChange: (languageCode: string, selectionKey: string, versionNumber: number) => void;
 };
 
@@ -65,9 +66,10 @@ export function useProjectMotionVersionSelection(params: Props): {
       isExplicitMotionUrlSelectionInvalid(
         catalog,
         params.langFromUrl,
-        params.versionFromUrl
+        params.versionFromUrl,
+        params.selFromUrl
       ),
-    [catalog, params.langFromUrl, params.versionFromUrl]
+    [catalog, params.langFromUrl, params.versionFromUrl, params.selFromUrl]
   );
 
   const selectedSlot = useMemo(() => {
@@ -78,10 +80,11 @@ export function useProjectMotionVersionSelection(params: Props): {
       resolveMotionSelectionFromUrl(
         catalog,
         params.langFromUrl,
-        params.versionFromUrl
+        params.versionFromUrl,
+        params.selFromUrl
       )?.slot ?? null
     );
-  }, [catalog, invalidDeepLink, params.langFromUrl, params.versionFromUrl]);
+  }, [catalog, invalidDeepLink, params.langFromUrl, params.versionFromUrl, params.selFromUrl]);
 
   const languageCode =
     selectedSlot?.languageCode ??
@@ -145,6 +148,11 @@ export function ProjectDetailMotionVersions({
               createdAt: slot.createdAt,
               renderVersionId: slot.renderVersionId,
               languageExportId: slot.languageExportId,
+              sourceProjectId: slot.sourceProjectId,
+              catalogVersionNumber: slot.catalogVersionNumber,
+              sourceRenderVersionNumber: slot.sourceRenderVersionNumber,
+              sourceLanguageExportVersion: slot.sourceLanguageExportVersion,
+              displayVersionLabel: slot.displayVersionLabel,
             })),
           ])
         ),

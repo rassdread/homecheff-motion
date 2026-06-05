@@ -1289,6 +1289,7 @@ export const en: LocaleSchema = {
   "videos.bundle.latestVersion": "Latest: {label}",
   "videos.bundle.selectedVersionNote": "Note: {note}",
   "videos.bundle.noThumbnail": "No preview",
+  "videos.bundle.noPlayableFinal": "This version has no playable final video yet.",
   "videos.folderLibrary.summary": "{videos} videos · {versions} versions",
   "projects.bundle.currentVersion": "Current selection",
   "videos.folder.all": "All folders",

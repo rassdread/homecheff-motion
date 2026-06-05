@@ -5,6 +5,7 @@ export function animationProjectDownloadUrl(
     segmentOrder?: number;
     languageCode?: string;
     languageExportId?: string;
+    renderVersionId?: string;
     variant?: "clean" | "previous_final" | "without_voice" | "voice_audio" | "subtitles_srt";
   }
 ): string {
@@ -17,6 +18,9 @@ export function animationProjectDownloadUrl(
   }
   if (options?.languageExportId?.trim()) {
     params.set("exportId", options.languageExportId.trim());
+  }
+  if (options?.renderVersionId?.trim()) {
+    params.set("renderVersionId", options.renderVersionId.trim());
   }
   if (options?.variant === "clean") {
     params.set("variant", "clean");

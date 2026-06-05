@@ -474,6 +474,7 @@ export default function VideoDetailPage() {
 
   const langFromUrl = searchParams.get("lang");
   const versionFromUrl = searchParams.get("ver");
+  const selFromUrl = searchParams.get("sel");
 
   const motionCatalog = useMemo(() => {
     if (!detail) {
@@ -514,17 +515,29 @@ export default function VideoDetailPage() {
   const invalidMotionDeepLink = useMemo(
     () =>
       motionCatalog
-        ? isExplicitMotionUrlSelectionInvalid(motionCatalog, langFromUrl, versionFromUrl)
+        ? isExplicitMotionUrlSelectionInvalid(
+            motionCatalog,
+            langFromUrl,
+            versionFromUrl,
+            selFromUrl
+          )
         : false,
-    [motionCatalog, langFromUrl, versionFromUrl]
+    [motionCatalog, langFromUrl, versionFromUrl, selFromUrl]
   );
 
   const selectedMotionSlot = useMemo(() => {
     if (!motionCatalog || invalidMotionDeepLink) {
       return null;
     }
-    return resolveMotionSelectionFromUrl(motionCatalog, langFromUrl, versionFromUrl)?.slot ?? null;
-  }, [motionCatalog, invalidMotionDeepLink, langFromUrl, versionFromUrl]);
+    return (
+      resolveMotionSelectionFromUrl(
+        motionCatalog,
+        langFromUrl,
+        versionFromUrl,
+        selFromUrl
+      )?.slot ?? null
+    );
+  }, [motionCatalog, invalidMotionDeepLink, langFromUrl, versionFromUrl, selFromUrl]);
 
   const setMotionVersionSelection = useCallback(
     (languageCode: string, selectionKey: string, versionNumber: number) => {
@@ -537,13 +550,31 @@ export default function VideoDetailPage() {
       } else {
         params.set("lang", languageCode);
       }
-      params.set("ver", buildVersionQueryParam(versionNumber));
+      const slot = motionCatalog
+        ? findMotionVersionSlot(motionCatalog, selectionKey)
+        : null;
+      if (slot?.renderVersionId || slot?.languageExportId) {
+        const stableSel =
+          slot.renderVersionId
+            ? `render:${slot.renderVersionId}`
+            : slot.languageExportId
+              ? `lang:${slot.languageExportId}`
+              : selectionKey;
+        params.set("sel", stableSel);
+        params.delete("ver");
+      } else {
+        params.delete("sel");
+        params.set(
+          "ver",
+          buildVersionQueryParam(slot?.sourceRenderVersionNumber ?? versionNumber)
+        );
+      }
       const qs = params.toString();
       router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
         scroll: false,
       });
     },
-    [id, router, searchParams]
+    [id, motionCatalog, router, searchParams]
   );
 
   const handleCopyAsConcept = useCallback(async () => {
@@ -556,7 +587,10 @@ export default function VideoDetailPage() {
     try {
       const result = await postCopyProjectAsDraft(id, {
         sourceLanguage: selectedMotionSlot?.languageCode,
-        sourceVersion: selectedMotionSlot?.versionNumber,
+        sourceVersion:
+          selectedMotionSlot?.sourceRenderVersionNumber ??
+          selectedMotionSlot?.sourceLanguageExportVersion ??
+          selectedMotionSlot?.catalogVersionNumber,
       });
       if (result.networkError || !result.ok) {
         setFullRerenderError(

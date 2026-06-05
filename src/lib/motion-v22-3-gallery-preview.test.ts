@@ -76,8 +76,7 @@ describe("Motion V22.3 — version-aware gallery preview", () => {
     assert.ok(selected);
     assert.equal(selected!.finalVideoUrl, "https://cdn.example/final-v1.mp4");
     assert.equal(selected!.thumbnailUrl, "https://cdn.example/thumb.jpg");
-    assert.match(selected!.openHref, /lang=nl/);
-    assert.match(selected!.openHref, /ver=v1/);
+    assert.match(selected!.openHref, /sel=render%3Arv1/);
     assert.equal(buildBundleSlotOpenHref(v1), selected!.openHref);
     assert.equal(buildBundleSlotDownloadUrl(v1), selected!.downloadUrl);
     assert.equal(

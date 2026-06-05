@@ -51,7 +51,8 @@ export async function GET(request: Request, context: RouteContext) {
     segmentOrder,
     languageCode,
     variant,
-    searchParams.get("exportId")?.trim() || undefined
+    searchParams.get("exportId")?.trim() || undefined,
+    searchParams.get("renderVersionId")?.trim() || undefined
   );
   if (!resolved) {
     return NextResponse.json({ error: "Video not available for download." }, { status: 404 });

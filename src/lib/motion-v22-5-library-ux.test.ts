@@ -142,7 +142,7 @@ describe("Motion V22.5 — folder library & rich bundle cards", () => {
     assert.ok(selected);
     assert.match(selected.versionLabel, /V2/);
     assert.match(selected.versionLabel, /Extra tekstblok/);
-    assert.match(selected.openHref, /ver=v2/);
+    assert.match(selected.openHref, /sel=render%3A/);
     assert.equal(selected.finalVideoUrl, "https://cdn.example/final-v2.mp4");
   });
 
