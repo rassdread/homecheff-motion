@@ -34,6 +34,8 @@ export type StudioSceneContextMetadata = {
   sfx?: string;
   /** V37 — audio production focus per scene. */
   audioFocus?: string;
+  /** V38 — assigned audio asset summary per scene. */
+  audioAssets?: string;
   /** V7 — Motion-ready prompt (not sent to Vidu yet). */
   generatedPrompt?: string;
   stylePrompt?: string;

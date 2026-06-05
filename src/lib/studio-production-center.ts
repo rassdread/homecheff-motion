@@ -22,6 +22,10 @@ import {
   buildAudioProductionDirectorPlan,
   isAudioProductionPlanReady,
 } from "@/lib/studio-audio-production-director";
+import {
+  buildAudioAssetDirectorPlan,
+  isAudioAssetPlanReady,
+} from "@/lib/studio-audio-asset-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
@@ -77,6 +81,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const musicPlan = buildMusicDirectorPlan(storyboard);
   const soundPlan = buildSoundDirectorPlan(storyboard);
   const audioPlan = buildAudioProductionDirectorPlan(storyboard);
+  const assetPlan = buildAudioAssetDirectorPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -97,6 +102,10 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     audioPlan.enabled &&
     isAudioProductionPlanReady(audioPlan) &&
     audioPlan.sceneCues.length > 0;
+  const audioAssetAssignmentReady =
+    assetPlan.enabled &&
+    isAudioAssetPlanReady(assetPlan) &&
+    assetPlan.scenePackages.length > 0;
 
   return [
     {
@@ -138,6 +147,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "audio_mix_plan",
       labelKey: "studio.production.checklist.audioMixPlan",
       passed: audioMixPlanReady,
+    },
+    {
+      id: "audio_asset_assignment",
+      labelKey: "studio.production.checklist.audioAssetAssignment",
+      passed: audioAssetAssignmentReady,
     },
     {
       id: "video_config",

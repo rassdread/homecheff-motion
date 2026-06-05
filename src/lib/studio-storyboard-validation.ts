@@ -50,6 +50,8 @@ export type StudioStoryboardUpdateInput = {
   audioStyle?: string;
   audioPriorityStrategy?: string;
   audioNotes?: string;
+  audioAssetsEnabled?: boolean;
+  audioAssetNotes?: string;
 };
 
 export type ValidationResult<T> =
@@ -123,6 +125,8 @@ export function validateStudioStoryboardUpdateInput(
   audioStyle?: string;
   audioPriorityStrategy?: string;
   audioNotes?: string;
+  audioAssetsEnabled?: boolean;
+  audioAssetNotes?: string;
 }> {
   const patch: {
     title?: string;
@@ -151,6 +155,8 @@ export function validateStudioStoryboardUpdateInput(
     audioStyle?: string;
     audioPriorityStrategy?: string;
     audioNotes?: string;
+    audioAssetsEnabled?: boolean;
+    audioAssetNotes?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -303,6 +309,13 @@ export function validateStudioStoryboardUpdateInput(
   }
   if (raw.audioNotes !== undefined) {
     patch.audioNotes = trimText(raw.audioNotes, STUDIO_STORYBOARD_TEXT_MAX);
+  }
+
+  if (raw.audioAssetsEnabled !== undefined) {
+    patch.audioAssetsEnabled = Boolean(raw.audioAssetsEnabled);
+  }
+  if (raw.audioAssetNotes !== undefined) {
+    patch.audioAssetNotes = trimText(raw.audioAssetNotes, STUDIO_STORYBOARD_TEXT_MAX);
   }
 
   if (Object.keys(patch).length === 0) {

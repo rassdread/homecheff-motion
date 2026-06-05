@@ -148,14 +148,15 @@ describe("studio-production-center", () => {
     assert.ok(warnings.some((w) => w.code === "missing_narration"));
   });
 
-  it("buildAssetReadiness returns eight readiness categories including audio production", () => {
+  it("buildAssetReadiness returns nine readiness categories including audio assets", () => {
     const assets = buildAssetReadiness(storyboard([scene(0), scene(1)]));
-    assert.equal(assets.length, 8);
+    assert.equal(assets.length, 9);
     assert.ok(assets.some((a) => a.id === "story"));
     assert.ok(assets.some((a) => a.id === "voice"));
     assert.ok(assets.some((a) => a.id === "music"));
     assert.ok(assets.some((a) => a.id === "sound"));
     assert.ok(assets.some((a) => a.id === "audio_production"));
+    assert.ok(assets.some((a) => a.id === "audio_assets"));
   });
 
   it("computeOverallProductionScore blends five score dimensions", () => {
@@ -175,13 +176,14 @@ describe("studio-production-center", () => {
     assert.equal(label.label, "production_ready");
   });
 
-  it("buildProductionChecklist includes nine checklist items including audio mix plan", () => {
+  it("buildProductionChecklist includes ten checklist items including audio asset assignment", () => {
     const checklist = buildProductionChecklist(storyboard([scene(0), scene(1)]));
-    assert.equal(checklist.length, 9);
+    assert.equal(checklist.length, 10);
     assert.ok(checklist.some((c) => c.id === "shot_plan"));
     assert.ok(checklist.some((c) => c.id === "music_plan"));
     assert.ok(checklist.some((c) => c.id === "sound_plan"));
     assert.ok(checklist.some((c) => c.id === "audio_mix_plan"));
+    assert.ok(checklist.some((c) => c.id === "audio_asset_assignment"));
   });
 
   it("buildProductionCenterReport produces exportable summary", () => {

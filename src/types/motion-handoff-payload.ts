@@ -55,8 +55,14 @@ import type {
   MotionAudioProductionHandoffPlan,
   MotionSceneAudioProductionHandoff,
 } from "@/types/studio-audio-production-director";
+import type {
+  AudioAssetWarning,
+  MotionAudioAssetHandoffPlan,
+  MotionSceneAudioAssetHandoff,
+  StudioAudioAsset,
+} from "@/types/studio-audio-asset-director";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 17 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 18 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -105,6 +111,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   soundCue?: MotionSceneSoundCueHandoff;
   /** V37: scene audio production mix plan (planning only — no audio). */
   audioProduction?: MotionSceneAudioProductionHandoff;
+  /** V38: scene audio asset assignments (planning only — no audio). */
+  sceneAudioAssetPackage?: MotionSceneAudioAssetHandoff;
 };
 
 export type MotionHandoffPayload = {
@@ -177,5 +185,11 @@ export type MotionHandoffPayload = {
   audioProductionPlan?: MotionAudioProductionHandoffPlan;
   audioFocusSummary?: string;
   audioWarnings?: AudioProductionWarning[];
+  /** V38: Audio Asset Director plan (no rendered audio). */
+  audioAssetPlan?: MotionAudioAssetHandoffPlan;
+  assignedVoiceAssets?: StudioAudioAsset[];
+  assignedMusicAssets?: StudioAudioAsset[];
+  assignedSoundAssets?: StudioAudioAsset[];
+  assetWarnings?: AudioAssetWarning[];
   scenes: MotionHandoffScene[];
 };

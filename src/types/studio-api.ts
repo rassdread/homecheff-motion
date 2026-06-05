@@ -192,6 +192,10 @@ export type StudioSceneDetail = {
   soundPriority: string;
   audioFocus: string;
   duckingMode: string;
+  voiceAssetOverride: string;
+  musicAssetOverride: string;
+  ambienceAssetOverride: string;
+  sfxAssetOverride: string;
   durationSeconds: number;
   locationId: string | null;
   location: StudioLocationListItem | null;
@@ -248,6 +252,8 @@ export type StudioStoryboardListItem = {
   audioStyle: string;
   audioPriorityStrategy: string;
   audioNotes: string;
+  audioAssetsEnabled: boolean;
+  audioAssetNotes: string;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

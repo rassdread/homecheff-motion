@@ -296,7 +296,11 @@ function detectAudioConflicts(params: {
     const soundCue = soundPlan.sceneCues.find((s) => s.sceneId === cue.sceneId);
     const hasNarration = cue.audioFocus === "voice" || cue.voicePriority >= 80;
 
-    if (hasNarration && voiceEnabled && musicCue?.energyTarget === "high") {
+    if (
+      hasNarration &&
+      voiceEnabled &&
+      (musicCue?.energyTarget === "high" || params.musicPlan.intensity === "bold")
+    ) {
       warnings.push({
         code: "narration_loud_music",
         severity: "warning",

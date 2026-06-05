@@ -1737,6 +1737,15 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.audioProductionPlan ?? null
                           }
+                          audioAssetPlan={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | {
+                                    audioAssetPlan?: import("@/types/studio-audio-asset-director").MotionAudioAssetHandoffPlan;
+                                  }
+                                | undefined
+                            )?.audioAssetPlan ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

@@ -21,6 +21,7 @@ import {
   isAudioFocusType,
 } from "@/lib/studio-audio-production-validation";
 import { clampMixLevel } from "@/lib/studio-audio-production-validation";
+import { normalizeAssetOverrideList } from "@/lib/studio-audio-asset-validation";
 
 export const STUDIO_SCENE_TITLE_MAX = 120;
 export const STUDIO_SCENE_TEXT_MAX = 4000;
@@ -56,6 +57,10 @@ export type StudioSceneCreateInput = {
   soundPriority?: string;
   audioFocus?: string;
   duckingMode?: string;
+  voiceAssetOverride?: string;
+  musicAssetOverride?: string;
+  ambienceAssetOverride?: string;
+  sfxAssetOverride?: string;
 };
 
 export type StudioSceneUpdateInput = StudioSceneCreateInput;
@@ -171,6 +176,10 @@ export function validateStudioSceneUpdateInput(
   soundPriority?: string;
   audioFocus?: string;
   duckingMode?: string;
+  voiceAssetOverride?: string;
+  musicAssetOverride?: string;
+  ambienceAssetOverride?: string;
+  sfxAssetOverride?: string;
 }> {
   const patch: {
     title?: string;
@@ -201,6 +210,10 @@ export function validateStudioSceneUpdateInput(
     soundPriority?: string;
     audioFocus?: string;
     duckingMode?: string;
+    voiceAssetOverride?: string;
+    musicAssetOverride?: string;
+    ambienceAssetOverride?: string;
+    sfxAssetOverride?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -337,6 +350,22 @@ export function validateStudioSceneUpdateInput(
     }
     patch.duckingMode = v;
   }
+  if (raw.voiceAssetOverride !== undefined) {
+    patch.voiceAssetOverride = normalizeAssetOverrideList(trimField(raw.voiceAssetOverride), "voice");
+  }
+  if (raw.musicAssetOverride !== undefined) {
+    patch.musicAssetOverride = normalizeAssetOverrideList(trimField(raw.musicAssetOverride), "music");
+  }
+  if (raw.ambienceAssetOverride !== undefined) {
+    patch.ambienceAssetOverride = normalizeAssetOverrideList(
+      trimField(raw.ambienceAssetOverride),
+      "ambience"
+    );
+  }
+  if (raw.sfxAssetOverride !== undefined) {
+    patch.sfxAssetOverride = normalizeAssetOverrideList(trimField(raw.sfxAssetOverride), "sfx");
+  }
+
   for (const field of ["voicePriority", "musicPriority", "soundPriority"] as const) {
     if (raw[field] === undefined) {
       continue;

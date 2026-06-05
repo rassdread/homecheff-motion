@@ -9,6 +9,7 @@ import type { CharacterPerformanceAssignment } from "@/types/studio-character-pe
 import type { MotionMusicHandoffPlan } from "@/types/studio-music-director";
 import type { MotionSoundHandoffPlan } from "@/types/studio-sound-director";
 import type { MotionAudioProductionHandoffPlan } from "@/types/studio-audio-production-director";
+import type { MotionAudioAssetHandoffPlan } from "@/types/studio-audio-asset-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -23,6 +24,7 @@ type Props = {
   musicPlan?: MotionMusicHandoffPlan | null;
   soundPlan?: MotionSoundHandoffPlan | null;
   audioProductionPlan?: MotionAudioProductionHandoffPlan | null;
+  audioAssetPlan?: MotionAudioAssetHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -39,6 +41,7 @@ export function MotionImportSummaryBanner({
   musicPlan,
   soundPlan,
   audioProductionPlan,
+  audioAssetPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -173,6 +176,28 @@ export function MotionImportSummaryBanner({
                       voice: String(cue.voicePriority),
                       music: String(cue.musicPriority),
                       sound: String(cue.soundPriority),
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          : null}
+          {audioAssetPlan?.enabled && audioAssetPlan.scenePackages.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.audioAssetTitle")}: {audioAssetPlan.assetSummary}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {audioAssetPlan.scenePackages.map((pkg) => (
+                  <li key={pkg.sceneId}>
+                    {t("motion.qa.importSummary.audioAssetSceneLine", {
+                      order: String(pkg.order + 1),
+                      title: pkg.title || t("motion.qa.importSummary.audioAssetScene"),
+                      voice: pkg.voiceAssets.map((a) => a.assetName).join(", ") || "—",
+                      music: pkg.musicAssets.map((a) => a.assetName).join(", ") || "—",
+                      sfx: [...pkg.ambienceAssets, ...pkg.sfxAssets]
+                        .map((a) => a.assetName)
+                        .join(", ") || "—",
                     })}
                   </li>
                 ))}
