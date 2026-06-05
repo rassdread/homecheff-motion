@@ -50,6 +50,12 @@ import { prisma } from "@/lib/prisma";
 import { markFullRerenderFailedIfRunning } from "@/server/instant-premium/full-rerender-project";
 import { getSelectedAnimationProviderId, getVideoProvider } from "@/server/video-providers";
 import { ensureTransitionOutputInBlob } from "@/server/animation-projects/ensure-transition-blob";
+import {
+  beginProviderUsageLog,
+  completeProviderUsageLog,
+  logFailedProviderStart,
+  resolveRenderTypeForProject,
+} from "@/server/provider-usage/provider-usage-log";
 
 const ACTIVE_TRANSITION_STATUSES = ["queued", "generating", "processing", "rendering"] as const;
 const TERMINAL_TRANSITION_STATUSES = ["completed", "failed"] as const;
@@ -518,14 +524,33 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Video provider create failed.";
+    const failedProvider = getSelectedAnimationProviderId();
+    const failedJobSettings = resolveProviderJobSettings(transition.project);
     await prisma.animationTransition.update({
       where: { id: transition.id },
       data: {
         status: "failed",
         errorMessage: message,
-        provider: getSelectedAnimationProviderId(),
+        provider: failedProvider,
       },
     });
+    if (failedProvider !== "mock") {
+      await logFailedProviderStart({
+        provider: failedProvider,
+        projectId: transition.projectId,
+        userId: transition.project.ownerId,
+        renderType: resolveRenderTypeForProject(transition.project),
+        durationSeconds: failedJobSettings.providerDurationSeconds,
+        presetId: transition.project.presetId,
+        estimatedCredits: transition.project.estimatedCredits,
+        transitionCount: transition.project._count.transitions,
+        viduDurationSeconds: transition.project.viduDurationSeconds,
+        instantTransitionSeconds: transition.project.instantTransitionSeconds,
+        errorMessage: message,
+      }).catch((logErr) => {
+        console.error("[provider-usage] logFailedProviderStart", logErr);
+      });
+    }
     console.info("[hc-instant-premium]", {
       action: "provider_start_failed",
       projectId: transition.projectId,
@@ -549,13 +574,42 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     },
   });
 
+  if (providerSlug !== "mock" && providerResult.providerJobId?.trim()) {
+    const startJobSettings = resolveProviderJobSettings(transition.project);
+    await beginProviderUsageLog({
+      provider: providerSlug,
+      providerJobId: providerResult.providerJobId,
+      projectId: transition.projectId,
+      userId: transition.project.ownerId,
+      renderType: resolveRenderTypeForProject(transition.project),
+      durationSeconds: startJobSettings.providerDurationSeconds,
+    }).catch((logErr) => {
+      console.error("[provider-usage] beginProviderUsageLog", logErr);
+    });
+  }
+
   return updatedTransition;
 }
 
 export async function pollTransitionJob(transitionId: string): Promise<AnimationTransition> {
   const transition = await prisma.animationTransition.findUnique({
     where: { id: transitionId },
-    include: { project: { select: { instantMode: true, projectType: true } } },
+    include: {
+      project: {
+        select: {
+          instantMode: true,
+          projectType: true,
+          sourceProjectId: true,
+          presetId: true,
+          estimatedCredits: true,
+          viduModel: true,
+          viduResolution: true,
+          viduDurationSeconds: true,
+          instantTransitionSeconds: true,
+          _count: { select: { transitions: true } },
+        },
+      },
+    },
   });
 
   if (!transition) {
@@ -578,6 +632,9 @@ export async function pollTransitionJob(transitionId: string): Promise<Animation
     return transition;
   }
 
+  const wasTerminal = isTerminalStatus(transition.status);
+  const isNowTerminal = isTerminalStatus(providerStatus.status);
+
   const updatedTransition = await prisma.animationTransition.update({
     where: { id: transition.id },
     data: {
@@ -587,6 +644,28 @@ export async function pollTransitionJob(transitionId: string): Promise<Animation
       errorMessage: providerStatus.errorMessage ?? null,
     },
   });
+
+  if (
+    !wasTerminal &&
+    isNowTerminal &&
+    transition.providerJobId?.trim() &&
+    (transition.provider ?? "vidu") !== "mock"
+  ) {
+    const pollJobSettings = resolveProviderJobSettings(transition.project);
+    await completeProviderUsageLog({
+      provider: transition.provider ?? "vidu",
+      providerJobId: transition.providerJobId,
+      status: providerStatus.status,
+      durationSeconds: pollJobSettings.providerDurationSeconds,
+      presetId: transition.project.presetId,
+      viduDurationSeconds: transition.project.viduDurationSeconds,
+      instantTransitionSeconds: transition.project.instantTransitionSeconds,
+      estimatedCredits: transition.project.estimatedCredits,
+      transitionCount: transition.project._count.transitions,
+    }).catch((logErr) => {
+      console.error("[provider-usage] completeProviderUsageLog", logErr);
+    });
+  }
 
   if (
     providerStatus.status === "completed" &&

@@ -24,13 +24,20 @@ import { downloadLanguageExportVideoToFile } from "@/server/instant-premium/lang
 import { applyStorySceneTextOverlay } from "@/server/animation-export/story-text-overlay";
 import { parseInstantSceneTexts } from "@/lib/story-overlay-templates";
 import { resolveInstantVideoDimensions } from "@/lib/locked-text-layer";
+import { recordLanguageExportCostEvent } from "@/server/provider-cost/provider-cost-event";
 
 export async function executeLanguageExportRender(exportId: string): Promise<void> {
   const row = await prisma.videoLanguageExport.findUnique({
     where: { id: exportId },
     include: {
       project: {
-        include: { exports: { orderBy: { createdAt: "desc" }, take: 1 } },
+        select: {
+          ownerId: true,
+          aspectRatio: true,
+          viduResolution: true,
+          instantOutputDurationSeconds: true,
+          exports: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
       },
     },
   });
@@ -159,6 +166,17 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
       }),
     ]);
 
+    await recordLanguageExportCostEvent({
+      exportId,
+      projectId: row.projectId,
+      userId: row.project.ownerId,
+      languageCode: row.languageCode,
+      status: "completed",
+      outputBytes: buffer.length,
+    }).catch((err) => {
+      console.error("[provider-cost] recordLanguageExportCostEvent", err);
+    });
+
     console.info("[language-export]", {
       phase: "completed",
       exportId,
@@ -183,6 +201,17 @@ export async function executeLanguageExportRender(exportId: string): Promise<voi
         updatedAt: new Date(),
       },
     });
+    if (row?.project) {
+      await recordLanguageExportCostEvent({
+        exportId,
+        projectId: row.projectId,
+        userId: row.project.ownerId,
+        languageCode: row.languageCode,
+        status: "failed",
+      }).catch((err) => {
+        console.error("[provider-cost] recordLanguageExportCostEvent failed", err);
+      });
+    }
     throw error;
   } finally {
     await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);

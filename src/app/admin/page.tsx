@@ -42,6 +42,16 @@ export default function AdminDashboardPage() {
             {t("admin.nav.users")} →
           </Link>
         </AppCard>
+        <AppCard>
+          <h2 className="text-lg font-semibold">{t("admin.nav.renderAnalytics")}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{t("admin.renderAnalytics.intro")}</p>
+          <Link
+            href="/admin/render-analytics"
+            className="mt-4 inline-block text-sm font-medium text-emerald-700 underline"
+          >
+            {t("admin.nav.renderAnalytics")} →
+          </Link>
+        </AppCard>
       </div>
     </main>
   );

@@ -34,6 +34,7 @@ import {
   logPlaybackUrlUpdated,
   resolveLatestExportPlaybackUrl,
 } from "@/lib/playback-url-resolution";
+import { recordTextRerenderCostEvent } from "@/server/provider-cost/provider-cost-event";
 
 export function logFinalVideoRebuildAudit(event: FinalVideoRebuildAuditEvent): void {
   console.info("[final-video-rebuild-audit]", event);
@@ -299,6 +300,16 @@ export async function commitInstantPremiumFinalVideoExport(params: {
           } as object,
         },
       });
+      if (pendingRow?.kind === "text_rerender") {
+        await recordTextRerenderCostEvent({
+          projectId,
+          userId: projectForVersion.ownerId,
+          renderVersionId: pending.renderVersionId,
+          status: "completed",
+        }).catch((err) => {
+          console.error("[provider-cost] recordTextRerenderCostEvent", err);
+        });
+      }
     } else if (!isRebuild) {
       await ensureInitialRenderVersion({
         project: projectForVersion,

@@ -17,6 +17,7 @@ import {
   detectTextBlocksFromImageUrlWithTimeout,
   OcrDetectTimeoutError,
 } from "@/server/image-text-detection/detect-with-timeout";
+import { recordOpenAiOcrCostEvent } from "@/server/provider-cost/provider-cost-event";
 
 type RouteContext = {
   params: Promise<{ imageId: string }>;
@@ -96,6 +97,20 @@ export async function POST(request: Request, context: RouteContext) {
     const blockCount = blocks.filter((b) => b.kept !== false).length;
     const averageConfidence = averageBlockConfidence(blocks);
 
+    if (dbImage) {
+      await recordOpenAiOcrCostEvent({
+        projectId: dbImage.projectId,
+        userId: dbImage.project.ownerId,
+        imageId,
+        scanRequestId,
+        mode,
+        status: "completed",
+        blockCount,
+      }).catch((err) => {
+        console.error("[provider-cost] recordOpenAiOcrCostEvent", err);
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       scanRequestId,
@@ -113,6 +128,19 @@ export async function POST(request: Request, context: RouteContext) {
     });
   } catch (error) {
     const durationMs = Date.now() - startedAt;
+
+    if (dbImage) {
+      await recordOpenAiOcrCostEvent({
+        projectId: dbImage.projectId,
+        userId: dbImage.project.ownerId,
+        imageId,
+        scanRequestId,
+        mode,
+        status: "failed",
+      }).catch((err) => {
+        console.error("[provider-cost] recordOpenAiOcrCostEvent failed", err);
+      });
+    }
 
     if (error instanceof OcrDetectTimeoutError) {
       const payload = buildOcrErrorPayload({

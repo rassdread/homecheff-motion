@@ -24,6 +24,7 @@ import {
 } from "@/lib/media-export-constants";
 import { getResolvedFfmpegPathSync } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { getVideoProvider } from "@/server/video-providers";
+import { recordVideoExportCostEvent } from "@/server/provider-cost/provider-cost-event";
 
 const EXPORT_CHAIN = new Map<string, Promise<unknown>>();
 const EXTERNAL_EXPORT_PROVIDER = "external-ffmpeg";
@@ -450,6 +451,15 @@ async function runExternalExportStart(projectId: string, options?: { fromRetry?:
         where: { id: projectId },
         data: { status: "completed" },
       });
+      await recordVideoExportCostEvent({
+        exportId: exportRecordId,
+        projectId,
+        userId: project.ownerId,
+        status: "completed",
+        provider: EXTERNAL_EXPORT_PROVIDER,
+      }).catch((err) => {
+        console.error("[provider-cost] recordVideoExportCostEvent", err);
+      });
       await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
     } else if (remote.status.toLowerCase() === "failed") {
       await prisma.animationProject.update({
@@ -856,6 +866,14 @@ async function runLocalProjectExportMerge(projectId: string) {
     await prisma.animationProject.update({
       where: { id: projectId },
       data: { status: "completed" },
+    });
+    await recordVideoExportCostEvent({
+      exportId: exportRecordId,
+      projectId,
+      userId: project.ownerId,
+      status: "completed",
+    }).catch((err) => {
+      console.error("[provider-cost] recordVideoExportCostEvent", err);
     });
     console.info("[hc-animation-export]", {
       projectId,

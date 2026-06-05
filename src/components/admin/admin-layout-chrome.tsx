@@ -36,6 +36,9 @@ export function AdminLayoutChrome({ forbidden = false, children }: AdminLayoutCh
         <Link href="/admin/users" className="hover:text-emerald-800">
           {t("admin.nav.users")}
         </Link>
+        <Link href="/admin/render-analytics" className="hover:text-emerald-800">
+          {t("admin.nav.renderAnalytics")}
+        </Link>
       </nav>
       {children}
     </div>

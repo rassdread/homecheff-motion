@@ -122,6 +122,8 @@ model AnimationProject {
   renderVersions ProjectRenderVersion[]
   fullRerenderDraft ProjectFullRerenderDraft?
   usageLedger AnimationUsageLedger[]
+  providerUsageLogs ProviderUsageLog[]
+  providerCostEvents ProviderCostEvent[]
 
   @@index([ownerId, createdAt])
   @@index([sourceProjectId])
@@ -295,6 +297,8 @@ model User {
 
   animationProjects AnimationProject[]
   animationUsage    AnimationUsageLedger[]
+  providerUsageLogs ProviderUsageLog[]
+  providerCostEvents ProviderCostEvent[]
   invitesCreated    AnimationInvite[] @relation("InviteCreator")
   invitesConsumed   AnimationInvite[] @relation("InviteConsumer")
   instantPremiumPendingOrders InstantPremiumPendingOrder[]
@@ -776,4 +780,87 @@ model AnimationUsageLedger {
 
   @@index([userId, createdAt])
   @@index([userId, presetId, createdAt])
+}
+
+/** Per provider render/job credit usage — balance delta or estimated fallback. */
+model ProviderUsageLog {
+  id                String           @id @default(cuid())
+  provider          String
+  providerJobId     String?
+  projectId         String
+  project           AnimationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** animation_transition | full_rerender | classic | etc. */
+  renderType        String
+  /** pending | generating | completed | failed | cancelled */
+  status            String           @default("pending")
+  durationSeconds   Int?
+  creditsBefore     Int?
+  creditsAfter      Int?
+  creditsUsed       Int?
+  creditUnitCostUsd Float            @default(0.005)
+  totalCostUsd      Float?
+  isEstimated       Boolean          @default(false)
+  needsReview       Boolean          @default(false)
+  estimateReason    String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([provider, providerJobId])
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+  @@index([provider, createdAt])
+  @@index([status, createdAt])
+}
+
+/** Generic per-action provider cost ledger — balance delta or usage-based. */
+model ProviderCostEvent {
+  id              String            @id @default(cuid())
+  provider        String
+  /** vidu_render | openai_ocr | text_rerender | language_export | video_export | storage_upload | internal_merge */
+  actionType      String
+  projectId       String?
+  project         AnimationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId          String?
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  relatedJobId    String?
+  relatedExportId String?
+  balanceBefore   Float?
+  balanceAfter    Float?
+  unitsUsed       Float?
+  /** credits | usd | tokens | bytes | api_calls */
+  unitType        String
+  unitCostUsd     Float
+  totalCostUsd    Float?
+  currency        String            @default("USD")
+  /** pending | completed | failed | cancelled */
+  status          String            @default("pending")
+  isEstimated     Boolean           @default(false)
+  needsReview     Boolean           @default(false)
+  estimateReason  String?
+  metadataJson    Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+  @@index([provider, actionType, createdAt])
+  @@index([relatedJobId])
+  @@index([relatedExportId])
+  @@index([status, createdAt])
+}
+
+/** Daily (or on-demand) provider credit balance snapshots for audit. */
+model ProviderCreditBalanceSnapshot {
+  id         String   @id @default(cuid())
+  provider   String
+  balance    Int
+  capturedAt DateTime @default(now())
+
+  @@index([provider, capturedAt])
 }
