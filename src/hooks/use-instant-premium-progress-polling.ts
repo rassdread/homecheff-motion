@@ -51,6 +51,7 @@ function isTerminalSnapshot(snapshot: InstantPremiumStatusResponse | null): bool
   return (
     snapshot.status === "completed" ||
     snapshot.status === "failed" ||
+    snapshot.status === "cancelled" ||
     Boolean(snapshot.finalVideoUrl)
   );
 }

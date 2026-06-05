@@ -36,6 +36,7 @@ import { postCopyProjectAsDraft } from "@/lib/copy-project-as-draft-client";
 import { runQuickFullRerender } from "@/lib/quick-full-rerender";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
+import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function stageKey(snapshot: InstantPremiumStatusResponse | null): string {
@@ -96,6 +97,7 @@ export default function InstantPremiumProgressPage() {
   const [startBusy, setStartBusy] = useState(false);
   const queuedSinceMsRef = useRef<number | null>(null);
   const studioStaleCheckDone = useRef(false);
+  const [activityStartedMs] = useState(() => Date.now());
   const [waitingForStartTooLong, setWaitingForStartTooLong] = useState(false);
 
   const [languageExports, setLanguageExports] = useState<VideoLanguageExportSummary[]>([]);
@@ -428,6 +430,35 @@ export default function InstantPremiumProgressPage() {
                   }}
                 />
               </div>
+            : null}
+
+            {effectiveProjectId && snapshot && !isCompleted ?
+              <RenderActivityStatusCard
+                className="mt-4"
+                projectId={effectiveProjectId}
+                projectStatus={
+                  snapshot.status === "running" ? "generating"
+                  : snapshot.status === "finalizing" ? "rendering"
+                  : snapshot.status === "cancelled" ? "cancelled"
+                  : snapshot.status === "failed" ? "failed"
+                  : "queued"
+                }
+                outputVideoUrl={snapshot.finalVideoUrl}
+                startedAtMs={activityStartedMs}
+                lastUpdatedAtMs={lastPolledAtMs}
+                lastProgressAtMs={lastProgressChangeAtMs}
+                providerJobIds={(snapshot.segments ?? [])
+                  .map((seg) => seg.providerTaskId?.trim())
+                  .filter((x): x is string => Boolean(x))}
+                isAdmin={Boolean(isAdmin)}
+                onActionComplete={({ status }) => {
+                  if (status) {
+                    setSnapshot(status);
+                  } else {
+                    void refreshSnapshot();
+                  }
+                }}
+              />
             : null}
 
             <InstantFinalProgressPanel

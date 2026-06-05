@@ -43,7 +43,7 @@ export type { InstantPremiumStatusResponse } from "@/types/animation-api";
 
 function mapTransitionStatus(status: string): InstantSegmentStatus {
   if (status === "completed") return "completed";
-  if (status === "failed") return "failed";
+  if (status === "failed" || status === "cancelled") return "failed";
   if (status === "generating" || status === "rendering" || status === "processing") {
     return "generating";
   }
@@ -226,13 +226,15 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   }
 
   const anyNonTerminalTransition = project.transitions.some(
-    (t) => t.status !== "completed" && t.status !== "failed"
+    (t) =>
+      t.status !== "completed" && t.status !== "failed" && t.status !== "cancelled"
   );
   const needsPoll =
-    anyNonTerminalTransition ||
-    project.status === "queued" ||
-    project.status === "generating" ||
-    project.status === "rendering";
+    project.status !== "cancelled" &&
+    (anyNonTerminalTransition ||
+      project.status === "queued" ||
+      project.status === "generating" ||
+      project.status === "rendering");
 
   if (needsPoll) {
     await refreshTransitionOutputsFromProvider(project.id).catch(() => undefined);
@@ -373,7 +375,7 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
   });
   const exportFailed = Boolean(exportFailureDiagnostics?.isExportFailure);
   let phase: InstantPremiumStatusResponse["phase"] =
-    exportFailed || overlayFailed || projectState.status === "failed"
+    projectState.status === "cancelled" || exportFailed || overlayFailed || projectState.status === "failed"
       ? "failed"
       : projectState.status === "completed" && !finalRebuildFailed
         ? "completed"
@@ -383,13 +385,15 @@ export async function getInstantPremiumStatus(projectId: string): Promise<Instan
             : "merging_clips"
           : "generating_clips";
   let status: InstantPremiumStatusResponse["status"] =
-    exportFailed || overlayFailed || projectState.status === "failed"
-      ? "failed"
-      : projectState.status === "completed" && !finalRebuildFailed
-        ? "completed"
-        : projectState.status === "rendering"
-          ? "finalizing"
-          : "running";
+    projectState.status === "cancelled" ?
+      "cancelled"
+    : exportFailed || overlayFailed || projectState.status === "failed" ?
+      "failed"
+    : projectState.status === "completed" && !finalRebuildFailed ?
+      "completed"
+    : projectState.status === "rendering" ?
+      "finalizing"
+    : "running";
 
   const finalVideoUrl = resolveLatestExportPlaybackUrl(projectState, latestExport);
   const lockedLayers = parseLockedTextLayersJson(projectState.instantLockedTextLayers);

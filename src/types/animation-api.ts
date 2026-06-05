@@ -626,7 +626,7 @@ export type MotionRenderPipelineContextResponse = {
 export type InstantPremiumStatusResponse = {
   projectId: string;
   projectType: "instant_premium";
-  status: "queued" | "running" | "finalizing" | "completed" | "failed";
+  status: "queued" | "running" | "finalizing" | "completed" | "failed" | "cancelled";
   phase: "generating_clips" | "merging_clips" | "uploading_final" | "completed" | "failed";
   progressPercent: number;
   currentStage?: InstantPremiumProgressStage;

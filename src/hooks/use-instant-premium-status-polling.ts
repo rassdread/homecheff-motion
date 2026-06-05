@@ -21,7 +21,12 @@ function isTerminal(snapshot: InstantPremiumStatusResponse | null): boolean {
   if (!snapshot) {
     return false;
   }
-  return snapshot.status === "completed" || snapshot.status === "failed" || Boolean(snapshot.finalVideoUrl);
+  return (
+    snapshot.status === "completed" ||
+    snapshot.status === "failed" ||
+    snapshot.status === "cancelled" ||
+    Boolean(snapshot.finalVideoUrl)
+  );
 }
 
 function formatPollAdminDetail(parts: {

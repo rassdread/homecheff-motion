@@ -84,6 +84,7 @@ import {
 } from "@/components/videos/project-storage-usage-card";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
+import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function presetTitleKey(presetId: string): TranslationKey {
@@ -354,6 +355,24 @@ export default function VideoDetailPage() {
     pollNow,
     pollingError: instantPollingError,
   } = useInstantPremiumStatusPolling(id, showInstantProgress);
+
+  const renderActivityProviderJobIds = useMemo(
+    () =>
+      instantSnapshot?.segments
+        ?.map((seg) => seg.providerTaskId?.trim())
+        .filter((x): x is string => Boolean(x)) ?? [],
+    [instantSnapshot?.segments]
+  );
+
+  const showRenderActivityCard = Boolean(
+    detail &&
+      (showInstantProgress ||
+        detail.status === "cancelled" ||
+        detail.status === "generating" ||
+        detail.status === "rendering" ||
+        detail.status === "queued" ||
+        detail.status === "processing")
+  );
 
   const isAdmin = session.resolved && session.user?.role === "admin";
 
@@ -1018,6 +1037,31 @@ export default function VideoDetailPage() {
             }}
           />
         </div>
+      : null}
+
+      {showRenderActivityCard && detail ?
+        <RenderActivityStatusCard
+          className="mt-6"
+          projectId={id}
+          projectStatus={detail.status}
+          exportStatus={latestExport?.status}
+          outputVideoUrl={finalVideoUrl}
+          startedAtMs={detail.createdAt ? Date.parse(detail.createdAt) : null}
+          lastUpdatedAtMs={instantLastPolledAtMs}
+          lastProgressAtMs={instantLastProgressChangeAtMs}
+          providerJobIds={renderActivityProviderJobIds}
+          isAdmin={isAdmin}
+          onActionComplete={({ status, projectStatus }) => {
+            if (status) {
+              setInstantSnapshot(status);
+            }
+            if (projectStatus === "cancelled" || projectStatus === "failed") {
+              invalidateCachedInstantProgressSnapshot(id);
+            }
+            void load();
+            void pollNow();
+          }}
+        />
       : null}
 
       {showInstantProgress ? (
