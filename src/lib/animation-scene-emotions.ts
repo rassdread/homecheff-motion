@@ -30,6 +30,7 @@ export type SceneEmotionTextSignals = {
   subtitle?: string;
   heroFinaleText?: string;
   finaleFooter?: string;
+  footerLines?: string[];
   extraLines?: string[];
   lines?: string[];
 };
@@ -240,6 +241,7 @@ export function sceneEmotionTextBlob(signals: SceneEmotionTextSignals): string {
     signals.subtitle,
     signals.heroFinaleText,
     signals.finaleFooter,
+    ...(signals.footerLines ?? []),
     ...(signals.extraLines ?? []),
     ...(signals.lines ?? []),
   ]

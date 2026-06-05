@@ -684,6 +684,7 @@ export function FullRerenderEditor({
                 lines: [],
                 heroFinaleText: "",
                 finaleFooter: "",
+                footerLines: [""],
                 overlayLayerStyles: {},
               })
             )

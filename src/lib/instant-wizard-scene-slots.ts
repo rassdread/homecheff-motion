@@ -87,7 +87,7 @@ export function sceneHasUserText(text: InstantSceneTextDraft): boolean {
   if (text.lines.some((line) => line.trim())) {
     return true;
   }
-  if (text.heroFinaleText.trim() || text.finaleFooter.trim()) {
+  if (text.heroFinaleText.trim() || text.footerLines.some((line) => line.trim()) || text.finaleFooter.trim()) {
     return true;
   }
   return false;
@@ -293,6 +293,11 @@ export function restoreSceneTextDraft(
     heroFinale: typeof raw.heroFinale === "boolean" ? raw.heroFinale : true,
     heroFinaleText: typeof raw.heroFinaleText === "string" ? raw.heroFinaleText : "",
     finaleFooter: typeof raw.finaleFooter === "string" ? raw.finaleFooter : "",
+    footerLines: Array.isArray(raw.footerLines)
+      ? raw.footerLines.filter((line): line is string => typeof line === "string")
+      : typeof raw.finaleFooter === "string" && raw.finaleFooter.trim()
+        ? [raw.finaleFooter]
+        : [""],
     ...normalizeSceneEmotionFields({
       emotionMode: raw.emotionMode,
       emotion: raw.emotion,
@@ -326,6 +331,7 @@ export function serializeSceneSlotsForPersist(
       heroFinale: slot.text.heroFinale,
       heroFinaleText: slot.text.heroFinaleText,
       finaleFooter: slot.text.finaleFooter,
+      footerLines: [...slot.text.footerLines],
       emotionMode: slot.text.emotionMode,
       emotion: slot.text.emotion,
       autoEmotion: slot.text.autoEmotion,

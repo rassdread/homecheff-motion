@@ -2,6 +2,7 @@
  * Story overlay collision detection — ASS text bounding boxes.
  */
 
+import { hasFooterContent } from "@/lib/footer-lines";
 import { assTextBounds, STORY_HEADLINE_ASS_ALIGNMENT, STORY_SUBTITLE_ASS_ALIGNMENT, STORY_TITLE_ASS_ALIGNMENT } from "@/server/animation-export/story-layer-placement";
 
 export type OverlayCollisionLayerKind =
@@ -183,11 +184,12 @@ export function resolveOverlayCollisions(params: {
 
 export function chooseFinaleChannel(scene: {
   heroFinaleText: string;
-  finaleFooter: string;
+  finaleFooter?: string;
+  footerLines?: string[];
   template: string;
 }): "hero_finale" | "finale_footer" | "none" | "both_separate" {
   const hasHero = scene.heroFinaleText.trim().length > 0;
-  const hasFooter = scene.finaleFooter.trim().length > 0;
+  const hasFooter = hasFooterContent(scene);
   if (!hasHero && !hasFooter) {
     return "none";
   }

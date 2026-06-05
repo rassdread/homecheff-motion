@@ -8,6 +8,7 @@ import {
   type StorySceneDurationSeconds,
 } from "@/lib/story-overlay-templates";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
+import { footerLinesForEditor, parseFooterLinesFromScene } from "@/lib/footer-lines";
 import { beatsForEditor } from "@/lib/story-text-beats";
 import { sanitizeOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
 
@@ -67,7 +68,8 @@ export function sceneTextToDraft(
     lines: Array.isArray(scene.lines) ? scene.lines.map(String) : [],
     heroFinale: scene.heroFinale !== false,
     heroFinaleText: scene.heroFinaleText ?? "",
-    finaleFooter: scene.finaleFooter ?? "",
+    footerLines: footerLinesForEditor(scene),
+    finaleFooter: parseFooterLinesFromScene(scene)[0] ?? "",
     overlayLayerStyles: sanitizeOverlayLayerStyles(
       (scene as { overlayLayerStyles?: unknown }).overlayLayerStyles as
         | import("@/lib/story-overlay-layer-styles").StoryOverlayLayerStyles

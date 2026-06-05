@@ -3,6 +3,7 @@
  */
 
 import type { LanguageExportCode } from "@/lib/video-language-export";
+import { parseFooterLinesFromScene, syncFooterPersistence } from "@/lib/footer-lines";
 import type { InstantSceneText } from "@/lib/story-overlay-templates";
 import { normalizeSceneText, parseInstantSceneTexts } from "@/lib/story-overlay-templates";
 
@@ -41,6 +42,7 @@ type TranslatableField = {
     | "finaleTextBeat"
     | "heroFinaleText"
     | "finaleFooter"
+    | "footerLine"
     | "line"
     | "accentWord"
     | "extraLine";
@@ -48,6 +50,7 @@ type TranslatableField = {
   extraIndex?: number;
   accentIndex?: number;
   beatIndex?: number;
+  footerIndex?: number;
   text: string;
 };
 
@@ -104,8 +107,13 @@ export function collectTranslatableFields(scenes: InstantSceneText[]): Translata
         }
       });
     }
-    if (scene.finaleFooter.trim()) {
-      out.push({ sceneIndex, field: "finaleFooter", text: scene.finaleFooter });
+    const footerLines = parseFooterLinesFromScene(scene);
+    if (footerLines.length > 1) {
+      footerLines.forEach((text, footerIndex) => {
+        out.push({ sceneIndex, field: "footerLine", footerIndex, text });
+      });
+    } else if (footerLines.length === 1) {
+      out.push({ sceneIndex, field: "finaleFooter", text: footerLines[0]! });
     }
     scene.lines.forEach((line, lineIndex) => {
       if (line.text.trim()) {
@@ -181,6 +189,7 @@ export function applySceneTextTranslations(params: {
       heroFinale: normalized.heroFinale,
       heroFinaleText: normalized.heroFinaleText,
       finaleFooter: normalized.finaleFooter,
+      footerLines: [...normalized.footerLines],
       accentWords: normalized.accentWords,
       lines: normalized.lines.map((l) => l.text),
       transitionDurationSeconds: normalized.transitionDurationSeconds,
@@ -272,7 +281,18 @@ export function applySceneTextTranslations(params: {
       scene.finaleTextBeats = beats.filter((line) => line.trim().length > 0);
       scene.heroFinaleText = beats.join(" ");
     } else if (field.field === "finaleFooter") {
-      scene.finaleFooter = text;
+      const synced = syncFooterPersistence([text]);
+      scene.finaleFooter = synced.finaleFooter;
+      scene.footerLines = synced.footerLines;
+    } else if (field.field === "footerLine" && field.footerIndex != null) {
+      const lines = [...parseFooterLinesFromScene(scene)];
+      while (lines.length <= field.footerIndex) {
+        lines.push("");
+      }
+      lines[field.footerIndex] = text;
+      const synced = syncFooterPersistence(lines);
+      scene.footerLines = synced.footerLines;
+      scene.finaleFooter = synced.finaleFooter;
     } else if (field.field === "line" && field.lineIndex != null) {
       const lines = Array.isArray(scene.lines) ? [...scene.lines] : [];
       while (lines.length <= field.lineIndex) {
@@ -399,6 +419,7 @@ export function parseSceneTextsJson(raw: unknown): InstantSceneText[] {
     heroFinale: scene.heroFinale,
     heroFinaleText: scene.heroFinaleText || undefined,
     finaleFooter: scene.finaleFooter || undefined,
+    footerLines: scene.footerLines.length > 0 ? scene.footerLines : undefined,
     accentWords: scene.accentWords,
     lines: scene.lines.map((l) => l.text),
     transitionDurationSeconds: scene.transitionDurationSeconds,

@@ -135,16 +135,19 @@ describe("story overlay v3 finale footer", () => {
     assert.equal(prepared.sceneTexts[0]?.finaleFooter, "homecheff.eu");
   });
 
-  it("language export payload includes finaleFooter", () => {
+  it("language export payload includes finaleFooter and footerLines", () => {
     const draft = {
       ...emptySceneTextDraft(5),
       template: "scene" as const,
       finaleFooter: "homecheff.eu",
+      footerLines: ["homecheff.eu", "Join the movement."],
     };
     const payload = instantSceneTextFromDraft(draft, 2, 3);
     assert.equal(payload.finaleFooter, "homecheff.eu");
+    assert.deepEqual(payload.footerLines, ["homecheff.eu", "Join the movement."]);
     const parsed = parseSceneTextsJson([payload]);
     assert.equal(parsed[0]?.finaleFooter, "homecheff.eu");
+    assert.deepEqual(parsed[0]?.footerLines, ["homecheff.eu", "Join the movement."]);
   });
 
   it("legacy sceneTexts without finaleFooter still render", () => {

@@ -2681,6 +2681,7 @@ export const nl = {
   "instant.storyboard.preview.sequenceLine": "Sequentieregel",
   "instant.storyboard.preview.heroFinale": "Hero finale",
   "instant.storyboard.preview.footer": "Footer CTA",
+  "instant.storyboard.preview.footerLine": "Footerregel {n}",
   "instant.storyboard.durationLabel": "Duur",
   "instant.storyboard.durationHint":
     "Gebruik langere scènes voor finales of emotionele momenten.",
@@ -2776,9 +2777,14 @@ export const nl = {
   "instant.storyboard.hint.extraLines":
     "Losse tekstlagen die apart geplaatst mogen worden.",
   "instant.storyboard.finaleFooterLabel": "Footer CTA",
+  "instant.storyboard.footerLinesLabel": "Footer CTA-regels",
+  "instant.storyboard.footerLineLabel": "Footerregel {index}",
+  "instant.storyboard.addFooterLine": "+ Footerregel toevoegen",
+  "instant.storyboard.moveFooterLineUp": "Footerregel omhoog",
+  "instant.storyboard.moveFooterLineDown": "Footerregel omlaag",
   "instant.storyboard.finaleFooterPlaceholder": "homecheff.eu",
   "instant.storyboard.hint.finaleFooter":
-    "Optionele website of call-to-action onderaan de laatste scène.",
+    "Optionele website- of call-to-actionregels onderaan de laatste scène.",
   "instant.storyboard.hint.accentWords":
     "Woorden die extra nadruk krijgen, bijvoorbeeld met kleur of grotere aandacht. Gebruik komma's: Talent, Money, Community.",
   "instant.storyboard.hint.sequenceLines":

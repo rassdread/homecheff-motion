@@ -142,16 +142,19 @@ describe("finale footer render fix", () => {
 });
 
 describe("language editor draft round-trip", () => {
-  it("sceneTextToDraft preserves user-reviewed footer text", () => {
+  it("sceneTextToDraft preserves user-reviewed footer text and lines", () => {
     const draft = sceneTextToDraft(
       normalizeSceneText({
         template: "scene",
         title: "TITLE",
         finaleFooter: "homecheff.eu",
+        footerLines: ["homecheff.eu", "Join the movement."],
       })
     );
     assert.equal(draft.finaleFooter, "homecheff.eu");
+    assert.deepEqual(draft.footerLines, ["homecheff.eu", "Join the movement."]);
     const payload = instantSceneTextFromDraft(draft, 0, 1);
     assert.equal(payload.finaleFooter, "homecheff.eu");
+    assert.deepEqual(payload.footerLines, ["homecheff.eu", "Join the movement."]);
   });
 });

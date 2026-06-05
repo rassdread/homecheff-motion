@@ -57,6 +57,7 @@ export type PersistedSceneTextDraft = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  footerLines: string[];
   emotionMode?: string;
   emotion?: string;
   autoEmotion?: string;

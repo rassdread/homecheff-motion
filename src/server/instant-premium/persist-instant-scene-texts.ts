@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { syncFooterPersistence } from "@/lib/footer-lines";
 import { prisma } from "@/lib/prisma";
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
 import {
@@ -41,10 +42,19 @@ function sanitizeInstantSceneTexts(
         .filter(Boolean)
         .slice(0, MAX_EXTRA_LINES),
       heroFinaleText: sanitizeSceneTextField(scene.heroFinaleText, MAX_HERO_FINALE_TEXT_CHARS),
-      finaleFooter:
-        isLast ?
-          sanitizeSceneTextField(scene.finaleFooter, MAX_FINALE_FOOTER_CHARS)
-        : "",
+      ...(isLast ?
+        (() => {
+          const footer = syncFooterPersistence(
+            scene.footerLines.map((line) =>
+              sanitizeSceneTextField(line, MAX_FINALE_FOOTER_CHARS)
+            )
+          );
+          return {
+            footerLines: footer.footerLines,
+            finaleFooter: footer.finaleFooter,
+          };
+        })()
+      : { footerLines: [] as string[], finaleFooter: "" }),
       lines: scene.lines.slice(0, MAX_SEQUENCE_LINES).map((line) => ({
         ...line,
         text: sanitizeSceneTextField(line.text, MAX_SCENE_LINE_CHARS),

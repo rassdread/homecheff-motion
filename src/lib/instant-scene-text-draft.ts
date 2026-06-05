@@ -5,6 +5,7 @@ import {
   type InstantSceneText,
 } from "@/lib/story-overlay-templates";
 import { hasCustomOverlayLayerStyles, sanitizeOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
+import { syncFooterPersistence } from "@/lib/footer-lines";
 import { pickBeatArraysForApi, trimBeats } from "@/lib/story-text-beats";
 import { resolveSceneEmotionId } from "@/lib/animation-scene-emotions";
 
@@ -18,6 +19,7 @@ export function instantSceneTextFromDraft(
   const transitionSeconds = scene.transitionDurationSeconds ?? scene.durationSeconds;
   const extraLines = scene.extraLines.map((line) => line.trim()).filter(Boolean).slice(0, MAX_EXTRA_LINES);
   const lines = scene.lines.map((line) => line.trim()).filter(Boolean);
+  const footer = syncFooterPersistence(isLast ? scene.footerLines : []);
   const resolvedEmotion = resolveSceneEmotionId({
     emotionMode: scene.emotionMode,
     emotion: scene.emotion,
@@ -29,7 +31,8 @@ export function instantSceneTextFromDraft(
       title: scene.title,
       subtitle: scene.subtitle,
       heroFinaleText: scene.heroFinaleText,
-      finaleFooter: scene.finaleFooter,
+      finaleFooter: footer.finaleFooter,
+      footerLines: footer.footerLines,
       extraLines: scene.extraLines,
       lines: scene.lines,
     },
@@ -73,8 +76,10 @@ export function instantSceneTextFromDraft(
       scene.template === "sequence" && scene.heroFinaleText.trim() ?
         scene.heroFinaleText.trim()
       : undefined,
+    footerLines:
+      isLast && footer.footerLines.length > 0 ? footer.footerLines : undefined,
     finaleFooter:
-      isLast && scene.finaleFooter.trim() ? scene.finaleFooter.trim() : undefined,
+      isLast && footer.finaleFooter ? footer.finaleFooter : undefined,
     emotionMode: scene.emotionMode,
     emotion: scene.emotionMode === "manual" ? scene.emotion : undefined,
     autoEmotion: scene.emotionMode === "auto" ? (scene.autoEmotion ?? resolvedEmotion) : undefined,

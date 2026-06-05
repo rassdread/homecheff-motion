@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import { hasFooterContent, parseFooterLinesFromScene } from "@/lib/footer-lines";
 import {
   chooseTemplate,
   detectAccentWords,
@@ -318,9 +319,9 @@ function buildOverlayTextBlockSummary(
       blocks.push({ kind: "hero_finale", text: scene.heroFinaleText });
     }
   }
-  if (scene.finaleFooter.trim()) {
-    blocks.push({ kind: "finale_footer", text: scene.finaleFooter });
-  }
+  parseFooterLinesFromScene(scene).forEach((line) => {
+    blocks.push({ kind: "finale_footer", text: line });
+  });
   return blocks;
 }
 
@@ -729,12 +730,13 @@ function collectFinaleFooterDraft(
     revealStart?: number;
   }
 ): StoryDialogueDraft | null {
-  const finaleFooterRaw = params.scene.finaleFooter.trim();
-  if (!finaleFooterRaw) {
+  const footerLineTexts = parseFooterLinesFromScene(params.scene);
+  if (!footerLineTexts.length) {
     return null;
   }
+  const lineCount = footerLineTexts.length;
   const layerStyles = params.scene.overlayLayerStyles;
-  const footerFontSize = Math.max(
+  let footerFontSize = Math.max(
     28,
     Math.round(
       applyLayerFontSize(
@@ -746,11 +748,23 @@ function collectFinaleFooterDraft(
       )
     )
   );
-  const footerY = yForPositionPreference(
+  if (lineCount >= 3) {
+    footerFontSize = Math.max(24, Math.round(footerFontSize * 0.9));
+  }
+  const lineStep = Math.round(footerFontSize * (lineCount >= 3 ? 0.95 : 1.1));
+  const blockHeight = lineCount * lineStep;
+  const baseFooterY = yForPositionPreference(
     layerStyles?.footer?.position,
     Math.round(params.height * (1 - SAFE_AREA_MARGIN_V) - footerFontSize * 0.35),
     params.height
   );
+  const footerY =
+    lineCount > 1 ?
+      Math.max(
+        Math.round(params.height * SAFE_AREA_MARGIN_V) + lineStep / 2,
+        baseFooterY - Math.round((blockHeight - lineStep) / 2)
+      )
+    : baseFooterY;
   const footerAlignment = assAlignmentForLayer(
     "footer",
     layerStyles?.footer?.alignment,
@@ -760,19 +774,20 @@ function collectFinaleFooterDraft(
     x: Math.round(params.width / 2),
     y: footerY,
     alignment: footerAlignment,
-    lines: [finaleFooterRaw],
+    lines: footerLineTexts,
     fontSize: footerFontSize,
     frameWidth: params.width,
     frameHeight: params.height,
   });
   const revealStart = params.revealStart ?? params.start;
+  const assText = footerLineTexts.map((line) => escapeAssText(line)).join("\\N");
   return makeDialogueDraft({
     id: `s${params.sceneIndex}-footer`,
     kind: "finale_footer",
     sceneIndex: params.sceneIndex,
     styleName: params.styleName,
-    assText: escapeAssText(finaleFooterRaw),
-    lines: [finaleFooterRaw],
+    assText,
+    lines: footerLineTexts,
     x: footerClamped.clampedX,
     y: footerClamped.clampedY,
     alignment: footerAlignment,
@@ -936,7 +951,7 @@ function collectHeroDialogueDrafts(
     finaleFooter: scene.finaleFooter,
     template: "hero",
   });
-  if (finaleHold && finaleChannel === "finale_footer" && scene.finaleFooter.trim()) {
+  if (finaleHold && finaleChannel === "finale_footer" && hasFooterContent(scene)) {
     const sizes = defaultSceneFontSizes(width, height);
     const footer = collectFinaleFooterDraft({
       scene,
@@ -1017,7 +1032,7 @@ function collectSequenceDialogueDrafts(
   if (
     finaleHold &&
     finaleChannel === "both_separate" &&
-    scene.finaleFooter.trim()
+    hasFooterContent(scene)
   ) {
     const sizes = defaultSceneFontSizes(width, height);
     const footer = collectFinaleFooterDraft({
@@ -1064,7 +1079,7 @@ function collectSceneDialogueDrafts(
   const drafts: StoryDialogueDraft[] = [];
   const visibleEnd = options?.visibleEnd ?? end;
   const finaleHold = options?.isFinalScene ?? false;
-  const finaleFooterRaw = scene.finaleFooter.trim();
+  const hasFinaleFooterContent = hasFooterContent(scene);
   const headlineBeats = scene.headlineBeats;
   const titleBeats = scene.titleBeats;
   const subtitleBeats = scene.subtitleBeats;
@@ -1074,7 +1089,7 @@ function collectSceneDialogueDrafts(
     titleBeats.length === 0 &&
     subtitleBeats.length === 0 &&
     extraLineTexts.length === 0 &&
-    !(finaleHold && finaleFooterRaw)
+    !(finaleHold && hasFinaleFooterContent)
   ) {
     return drafts;
   }
@@ -1267,11 +1282,11 @@ function collectSceneDialogueDrafts(
     title: titleBeats.length > 0,
     subtitle: subtitleBeats.length > 0,
     extraLineCount: extraLineTexts.length,
-    finaleFooter: finaleHold && Boolean(finaleFooterRaw),
+    finaleFooter: finaleHold && hasFinaleFooterContent,
   });
 
   const occupiedZones: SafeZoneId[] = [];
-  if (finaleHold && finaleFooterRaw) {
+  if (finaleHold && hasFinaleFooterContent) {
     occupiedZones.push("BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT");
   }
   if (layerPositions?.headline?.zoneId) {
@@ -1436,7 +1451,7 @@ function collectSceneDialogueDrafts(
   if (
     finaleHold &&
     (finaleChannel === "finale_footer" || finaleChannel === "both_separate") &&
-    finaleFooterRaw
+    hasFinaleFooterContent
   ) {
     const footer = collectFinaleFooterDraft({
       scene,
@@ -1604,7 +1619,7 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
     const extraLineCount =
       resolved === "scene" ? scene.extraLines.filter((line) => line.trim()).length : 0;
     const isFinalScene = index === normalized.length - 1;
-    const hasFinaleFooter = isFinalScene && Boolean(scene.finaleFooter.trim());
+    const hasFinaleFooter = isFinalScene && hasFooterContent(scene);
     const names = registerSceneStyles(
       styleLines,
       index,

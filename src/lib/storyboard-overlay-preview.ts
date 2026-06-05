@@ -3,6 +3,7 @@
  */
 
 import type { InstantSceneTextDraft } from "@/components/instant/instant-mode-panel";
+import { parseFooterLinesFromScene } from "@/lib/footer-lines";
 import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
 import { resolveTextBeats } from "@/lib/story-text-beats";
 
@@ -150,13 +151,20 @@ export function buildStoryboardOverlayPreviewLines(
     }
   }
 
-  if (isFinalFrame && scene.finaleFooter.trim()) {
-    lines.push({
-      id: "footer",
-      kind: "footer",
-      styleLayer: "footer",
-      labelKey: "instant.storyboard.preview.footer",
-      text: scene.finaleFooter.trim(),
+  if (isFinalFrame) {
+    const footerLines = parseFooterLinesFromScene(scene);
+    footerLines.forEach((line, index) => {
+      lines.push({
+        id: `footer-${index}`,
+        kind: "footer",
+        styleLayer: "footer",
+        labelKey:
+          footerLines.length > 1 ?
+            "instant.storyboard.preview.footerLine"
+          : "instant.storyboard.preview.footer",
+        beatNumber: footerLines.length > 1 ? index + 1 : undefined,
+        text: line,
+      });
     });
   }
 

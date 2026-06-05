@@ -37,6 +37,11 @@ import { StoryboardFieldHint } from "@/components/instant/storyboard-field-hint"
 import { TextBeatsEditor } from "@/components/instant/text-beats-editor";
 import { StoryboardOverlayPreview } from "@/components/instant/storyboard-overlay-preview";
 import { OptionalTextStyleSection } from "@/components/instant/text-style-editor-panel";
+import {
+  MAX_FOOTER_LINES,
+  moveFooterLine,
+  syncFooterPersistence,
+} from "@/lib/footer-lines";
 import { hasCustomOverlayLayerStyles } from "@/lib/story-overlay-layer-styles";
 import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import type { WizardPreviewImageInput } from "@/lib/instant-wizard-preview-src";
@@ -562,22 +567,91 @@ const StoryboardSceneRow = memo(function StoryboardSceneRow({
           : null}
 
           {index >= frameCount - 1 ?
-            <label className="block text-xs text-zinc-500">
+            <div className="space-y-2">
               <StoryboardFieldHint
-                label={t("instant.storyboard.finaleFooterLabel")}
+                label={t("instant.storyboard.footerLinesLabel")}
                 hint={t("instant.storyboard.hint.finaleFooter")}
               />
-              <input
-                type="text"
-                value={scene.finaleFooter}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  patch({ finaleFooter: e.target.value })
-                }
-                maxLength={MAX_FINALE_FOOTER_CHARS}
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
-                placeholder={t("instant.storyboard.finaleFooterPlaceholder")}
-              />
-            </label>
+              {scene.footerLines.map((line, lineIndex) => (
+                <div key={`${sceneId}-footer-${lineIndex}`} className="flex gap-2">
+                  <label className="block min-w-0 flex-1 text-xs text-zinc-500">
+                    {t("instant.storyboard.footerLineLabel", { index: lineIndex + 1 })}
+                    <input
+                      type="text"
+                      value={line}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                        const next = [...scene.footerLines];
+                        next[lineIndex] = e.target.value;
+                        const synced = syncFooterPersistence(next);
+                        patch({
+                          footerLines: next,
+                          finaleFooter: synced.finaleFooter,
+                        });
+                      }}
+                      maxLength={MAX_FINALE_FOOTER_CHARS}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+                      placeholder={t("instant.storyboard.finaleFooterPlaceholder")}
+                    />
+                  </label>
+                  <div className="mt-5 flex shrink-0 flex-col gap-1">
+                    {lineIndex > 0 ?
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = moveFooterLine(scene.footerLines, lineIndex, lineIndex - 1);
+                          const synced = syncFooterPersistence(next);
+                          patch({ footerLines: next, finaleFooter: synced.finaleFooter });
+                        }}
+                        className="text-xs text-zinc-400 hover:text-zinc-700"
+                        aria-label={t("instant.storyboard.moveFooterLineUp")}
+                      >
+                        ↑
+                      </button>
+                    : null}
+                    {lineIndex < scene.footerLines.length - 1 ?
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = moveFooterLine(scene.footerLines, lineIndex, lineIndex + 1);
+                          const synced = syncFooterPersistence(next);
+                          patch({ footerLines: next, finaleFooter: synced.finaleFooter });
+                        }}
+                        className="text-xs text-zinc-400 hover:text-zinc-700"
+                        aria-label={t("instant.storyboard.moveFooterLineDown")}
+                      >
+                        ↓
+                      </button>
+                    : null}
+                    {scene.footerLines.length > 1 ?
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = scene.footerLines.filter((_, i) => i !== lineIndex);
+                          const synced = syncFooterPersistence(next.length > 0 ? next : [""]);
+                          patch({
+                            footerLines: next.length > 0 ? next : [""],
+                            finaleFooter: synced.finaleFooter,
+                          });
+                        }}
+                        className="text-xs text-zinc-400 hover:text-red-600"
+                        aria-label={t("instant.storyboard.removeLine")}
+                      >
+                        ✕
+                      </button>
+                    : null}
+                  </div>
+                </div>
+              ))}
+              {scene.footerLines.length < MAX_FOOTER_LINES ?
+                <button
+                  type="button"
+                  onClick={() => patch({ footerLines: [...scene.footerLines, ""] })}
+                  className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                >
+                  {t("instant.storyboard.addFooterLine")}
+                </button>
+              : null}
+            </div>
           : null}
 
           <StoryboardOverlayPreview

@@ -224,6 +224,7 @@ function TextRerenderEditorModalContent({
                       lines: [],
                       heroFinaleText: "",
                       finaleFooter: "",
+                      footerLines: [""],
                       overlayLayerStyles: {},
                     }
                   : row

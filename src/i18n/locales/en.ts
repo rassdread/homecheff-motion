@@ -2769,9 +2769,15 @@ export const en: LocaleSchema = {
   "instant.storyboard.hint.extraLines":
     "Separate text layers that may be placed independently.",
   "instant.storyboard.finaleFooterLabel": "Footer CTA",
+  "instant.storyboard.footerLinesLabel": "Footer CTA lines",
+  "instant.storyboard.footerLineLabel": "Footer line {index}",
+  "instant.storyboard.addFooterLine": "+ Add footer line",
+  "instant.storyboard.moveFooterLineUp": "Move footer line up",
+  "instant.storyboard.moveFooterLineDown": "Move footer line down",
   "instant.storyboard.finaleFooterPlaceholder": "homecheff.eu",
   "instant.storyboard.hint.finaleFooter":
-    "Optional website or call-to-action shown at the bottom of the final scene.",
+    "Optional website or call-to-action lines shown at the bottom of the final scene.",
+  "instant.storyboard.preview.footerLine": "Footer line {n}",
   "instant.storyboard.hint.accentWords":
     "Words that get extra emphasis (color or weight). Use commas: Talent, Money, Community.",
   "instant.storyboard.hint.sequenceLines":

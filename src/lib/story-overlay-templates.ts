@@ -1,4 +1,5 @@
 import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import { parseFooterLinesFromScene } from "@/lib/footer-lines";
 import {
   MAX_LAYER_BEATS,
   parseTextBeats,
@@ -57,8 +58,10 @@ export type InstantSceneText = {
   heroFinale?: boolean;
   /** Optional finale message shown in the last portion of a sequence scene. */
   heroFinaleText?: string;
-  /** Optional CTA / website footer on the final scene only. */
+  /** Optional CTA / website footer on the final scene only (legacy — first line). */
   finaleFooter?: string;
+  /** Multi-line footer CTA on the final scene (source of truth for new projects). */
+  footerLines?: string[];
   /** Sequential punchlines per text layer (same style/band, staggered timing). */
   headlineBeats?: string[];
   titleBeats?: string[];
@@ -96,6 +99,7 @@ export type NormalizedSceneText = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  footerLines: string[];
   headlineBeats: string[];
   titleBeats: string[];
   subtitleBeats: string[];
@@ -316,11 +320,8 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
   : heroFinaleRaw ?
     heroFinaleRaw.slice(0, MAX_HERO_FINALE_TEXT_CHARS)
   : "";
-  const finaleFooterRaw =
-    typeof scene?.finaleFooter === "string" ? scene.finaleFooter.trim() : "";
-  const finaleFooter = finaleFooterRaw ?
-    finaleFooterRaw.slice(0, MAX_FINALE_FOOTER_CHARS)
-  : "";
+  const footerLines = parseFooterLinesFromScene(scene ?? {});
+  const finaleFooter = footerLines[0] ?? "";
   const transitionRaw = scene?.transitionDurationSeconds;
   const durationRaw = scene?.durationSeconds;
   const transitionDurationSeconds =
@@ -348,6 +349,7 @@ export function normalizeSceneText(scene: InstantSceneText | null | undefined): 
     heroFinale,
     heroFinaleText,
     finaleFooter,
+    footerLines,
     headlineBeats,
     titleBeats,
     subtitleBeats,

@@ -47,6 +47,7 @@ export type InstantSceneTextDraft = {
   heroFinale: boolean;
   heroFinaleText: string;
   finaleFooter: string;
+  footerLines: string[];
   emotionMode: SceneEmotionMode;
   emotion?: AnimationSceneEmotionId;
   autoEmotion?: AnimationSceneEmotionId;
@@ -76,6 +77,7 @@ export function emptySceneTextDraft(
     heroFinale: true,
     heroFinaleText: "",
     finaleFooter: "",
+    footerLines: [""],
     emotionMode: DEFAULT_SCENE_EMOTION_MODE,
     actingIntensity: DEFAULT_STORY_ACTING_INTENSITY,
     overlayLayerStyles: {},
