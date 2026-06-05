@@ -230,7 +230,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V37 — Audio Production Director", () => {
   it("handoff payload version is 17", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 20);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 21);
   });
 
   it("voice focus when narration exists", () => {
@@ -381,10 +381,10 @@ describe("Studio V37 — Audio Production Director", () => {
       soundEnabled: true,
     });
     const assets = buildAssetReadiness(sb);
-    assert.equal(assets.length, 11);
+    assert.equal(assets.length, 12);
     assert.ok(assets.some((a) => a.id === "audio_production"));
     const checklist = buildProductionChecklist(sb);
-    assert.equal(checklist.length, 12);
+    assert.equal(checklist.length, 13);
     assert.ok(checklist.some((c) => c.id === "audio_mix_plan"));
   });
 

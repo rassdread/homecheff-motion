@@ -71,8 +71,16 @@ import type {
   MotionMediaAssetHandoffPlan,
   StudioAssetCollection,
 } from "@/types/studio-media-asset";
+import type {
+  MotionProviderExecutionHandoffPlan,
+  ProviderAssignment,
+  ProviderCapability,
+  ProviderCostEstimate,
+  ProviderExecutionWarning,
+  ProviderFallbackPlan,
+} from "@/types/studio-provider-execution";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 20 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 21 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -214,5 +222,12 @@ export type MotionHandoffPayload = {
   assetReferences?: MotionMediaAssetHandoffPlan["assetReferences"];
   assetCollections?: StudioAssetCollection[];
   assetUsageSummary?: string;
+  /** V41: Provider Execution Framework (planning only — no provider calls). */
+  providerExecutionPlan?: MotionProviderExecutionHandoffPlan;
+  providerAssignments?: ProviderAssignment[];
+  providerFallbackPlan?: ProviderFallbackPlan;
+  providerCapabilities?: ProviderCapability[];
+  providerWarnings?: ProviderExecutionWarning[];
+  providerCostEstimate?: ProviderCostEstimate[];
   scenes: MotionHandoffScene[];
 };

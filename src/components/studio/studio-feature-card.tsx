@@ -12,14 +12,16 @@ type StudioFeatureCardProps = {
     | "studio.feature.props.title"
     | "studio.feature.worlds.title"
     | "studio.feature.storyboards.title"
-    | "studio.feature.assets.title";
+    | "studio.feature.assets.title"
+    | "studio.feature.providers.title";
   descriptionKey:
     | "studio.feature.characters.description"
     | "studio.feature.locations.description"
     | "studio.feature.props.description"
     | "studio.feature.worlds.description"
     | "studio.feature.storyboards.description"
-    | "studio.feature.assets.description";
+    | "studio.feature.assets.description"
+    | "studio.feature.providers.description";
   href: string;
 };
 

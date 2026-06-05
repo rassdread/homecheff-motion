@@ -34,6 +34,10 @@ import {
   buildMediaAssetDirectorPlan,
   isMediaAssetPlanReady,
 } from "@/lib/studio-media-asset-director";
+import {
+  buildProviderExecutionPlan,
+  isProviderExecutionPlanReady,
+} from "@/lib/studio-provider-execution-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
@@ -92,6 +96,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const assetPlan = buildAudioAssetDirectorPlan(storyboard);
   const voiceIdentityPlan = buildVoiceIdentityPlan(storyboard);
   const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
+  const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -124,6 +129,8 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     mediaAssetPlan.enabled &&
     isMediaAssetPlanReady(mediaAssetPlan) &&
     mediaAssetPlan.characterBundles.length > 0;
+  const providerExecutionReady =
+    providerExecutionPlan.enabled && isProviderExecutionPlanReady(providerExecutionPlan);
 
   return [
     {
@@ -180,6 +187,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "asset_validation",
       labelKey: "studio.production.checklist.assetValidation",
       passed: assetValidationReady,
+    },
+    {
+      id: "provider_execution",
+      labelKey: "studio.production.checklist.providerExecution",
+      passed: providerExecutionReady,
     },
     {
       id: "video_config",

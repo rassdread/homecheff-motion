@@ -38,6 +38,11 @@ const FEATURE_CARDS = [
     descriptionKey: "studio.feature.assets.description" as const,
     href: "/studio/assets",
   },
+  {
+    titleKey: "studio.feature.providers.title" as const,
+    descriptionKey: "studio.feature.providers.description" as const,
+    href: "/studio/providers",
+  },
 ] as const;
 
 export default function StudioPage() {

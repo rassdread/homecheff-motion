@@ -241,7 +241,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V39 — Voice Identity", () => {
   it("handoff payload version is 20", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 20);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 21);
   });
 
   it("supports six voice identity languages including de and pt", () => {
@@ -329,14 +329,14 @@ describe("Studio V39 — Voice Identity", () => {
     const sb = storyboard([scene(0, [chefCharacter()])]);
     const assets = buildAssetReadiness(sb);
     assert.ok(assets.some((a) => a.id === "voice_identity"));
-    assert.equal(assets.length, 11);
+    assert.equal(assets.length, 12);
   });
 
   it("production checklist includes voice identity validation", () => {
     const sb = storyboard([scene(0, [chefCharacter()])]);
     const checklist = buildProductionChecklist(sb);
     assert.ok(checklist.some((c) => c.id === "voice_identity_validation"));
-    assert.equal(checklist.length, 12);
+    assert.equal(checklist.length, 13);
     const ready = isVoiceIdentityPlanReady(buildVoiceIdentityPlan(sb));
     assert.equal(ready, true);
   });

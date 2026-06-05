@@ -28,6 +28,10 @@ import {
   buildMediaAssetDirectorPlan,
   isMediaAssetPlanReady,
 } from "@/lib/studio-media-asset-director";
+import {
+  buildProviderExecutionPlan,
+  isProviderExecutionPlanReady,
+} from "@/lib/studio-provider-execution-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -51,6 +55,7 @@ export type AssetReadinessItem = {
     | "audio_assets"
     | "voice_identity"
     | "asset_library"
+    | "providers"
     | "video";
   labelKey: string;
   level: AssetReadinessLevel;
@@ -96,6 +101,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const assetPlan = buildAudioAssetDirectorPlan(storyboard);
   const voiceIdentityPlan = buildVoiceIdentityPlan(storyboard);
   const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
+  const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -292,6 +298,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
           : isMediaAssetPlanReady(mediaAssetPlan)
             ? null
             : "studio.production.asset.assetLibrary.planIncomplete",
+    },
+    {
+      id: "providers",
+      labelKey: "studio.production.asset.providers",
+      level:
+        !providerExecutionPlan.enabled
+          ? "attention"
+          : isProviderExecutionPlanReady(providerExecutionPlan)
+            ? "ready"
+            : providerExecutionPlan.assignments.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !providerExecutionPlan.enabled
+          ? "studio.production.asset.providers.disabled"
+          : isProviderExecutionPlanReady(providerExecutionPlan)
+            ? null
+            : "studio.production.asset.providers.planIncomplete",
     },
     {
       id: "video",

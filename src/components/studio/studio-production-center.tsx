@@ -10,6 +10,8 @@ import { formatCostEur } from "@/lib/studio-production-costs";
 import type { ProductionProviderReport } from "@/lib/studio-production-providers";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { StudioExecutionPlanPanel } from "@/components/studio/studio-execution-plan-panel";
+import { StudioProviderManagerPanel } from "@/components/studio/studio-provider-manager-panel";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 
 type Props = {
@@ -240,6 +242,9 @@ export function StudioProductionCenter({
           </ul>
         </div>
       </div>
+
+      <StudioExecutionPlanPanel storyboard={storyboard} />
+      <StudioProviderManagerPanel />
 
       {report.warnings.length > 0 ?
         <div>
