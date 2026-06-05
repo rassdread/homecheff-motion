@@ -480,7 +480,7 @@ export type ProjectPlaybackDebugSummary = {
 export type ProjectRenderVersionSummary = {
   id: string;
   renderVersionNumber: number;
-  kind: "initial" | "full_rerender";
+  kind: "initial" | "full_rerender" | "text_rerender";
   status: string;
   isDefault: boolean;
   versionNote: string | null;

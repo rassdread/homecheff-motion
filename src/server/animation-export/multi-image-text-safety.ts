@@ -3,10 +3,15 @@ import type { TextAvoidZone, TextAvoidZonePlan } from "@/types/text-avoid-zone";
 import {
   estimateTextBoxNormalized,
   isTextBoxUnsafeForZones,
-  relocateAwayFromSubjectZones,
 } from "@/server/animation-export/text-subject-collision";
 import { buildTextAvoidZonePlan } from "@/server/animation-export/text-avoid-zone-builder";
 import { logTextSubjectSafetyDebug } from "@/server/animation-export/text-avoid-zone-debug";
+import {
+  isTextBoxOverlappingPlaced,
+  reservePlacedTextBox,
+  resolveTextPlacementTwoPass,
+  type PlacedTextBox,
+} from "@/server/animation-export/text-placement-reservation";
 
 export function normalizeLockedLayerCoords(
   layer: LockedTextLayer,
@@ -24,6 +29,22 @@ export function normalizeLockedLayerCoords(
   return { x, y };
 }
 
+function lockedLayerAlignment(layer: LockedTextLayer): number {
+  return layer.textAlign === "left" ? 1 : layer.textAlign === "right" ? 3 : 2;
+}
+
+function alignmentToTextAlign(alignment: number): LockedTextLayer["textAlign"] {
+  return alignment === 1 ? "left" : alignment === 3 ? "right" : "center";
+}
+
+/** Priority: earlier start, then higher on screen (lower y). */
+function lockedLayerPlacementOrder(a: LockedTextLayer, b: LockedTextLayer): number {
+  if (a.startMs !== b.startMs) {
+    return a.startMs - b.startMs;
+  }
+  return a.y - b.y;
+}
+
 export function applySubjectSafetyToLockedLayers(input: {
   layers: LockedTextLayer[];
   frameW: number;
@@ -31,23 +52,16 @@ export function applySubjectSafetyToLockedLayers(input: {
   avoidPlan: TextAvoidZonePlan;
 }): LockedTextLayer[] {
   const zones = input.avoidPlan.zones;
-  const placedBoxes: Array<{
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  }> = [];
+  const active = input.layers.filter((l) => l.locked && l.text.trim());
+  const sorted = [...active].sort(lockedLayerPlacementOrder);
+  const placedReservations: PlacedTextBox[] = [];
+  const updatedById = new Map<string, LockedTextLayer>();
 
-  return input.layers.map((layer) => {
-    if (!layer.locked || !layer.text.trim()) {
-      return layer;
-    }
-
+  for (const layer of sorted) {
     const { x, y } = normalizeLockedLayerCoords(layer, input.frameW, input.frameH);
     const fontSize = layer.fontSize ?? Math.round(input.frameH * 0.045);
     const lines = layer.text.split("\n").filter(Boolean);
-    const alignment =
-      layer.textAlign === "left" ? 1 : layer.textAlign === "right" ? 3 : 2;
+    const alignment = lockedLayerAlignment(layer);
 
     const proposed = estimateTextBoxNormalized({
       x,
@@ -59,12 +73,19 @@ export function applySubjectSafetyToLockedLayers(input: {
       alignment,
     });
 
-    if (!isTextBoxUnsafeForZones(proposed, zones)) {
-      placedBoxes.push(proposed);
-      return layer;
+    const needsSubjectMove = isTextBoxUnsafeForZones(proposed, zones);
+    const needsTextMove = isTextBoxOverlappingPlaced(proposed, placedReservations);
+
+    if (!needsSubjectMove && !needsTextMove) {
+      placedReservations.push(
+        reservePlacedTextBox({ layerId: layer.id, box: proposed })
+      );
+      updatedById.set(layer.id, layer);
+      continue;
     }
 
-    const relocated = relocateAwayFromSubjectZones({
+    const resolved = resolveTextPlacementTwoPass({
+      layerId: layer.id,
       x,
       y,
       fontSize,
@@ -73,32 +94,39 @@ export function applySubjectSafetyToLockedLayers(input: {
       frameW: input.frameW,
       frameH: input.frameH,
       zones,
+      placedReservations,
     });
 
     logTextSubjectSafetyDebug({
-      layerId: layer.id ?? layer.text.slice(0, 24),
+      layerId: layer.id,
       avoidZones: zones,
       proposedBox: proposed,
-      chosenBox: relocated.box,
-      rejected: [{ reason: "subject_overlap", score: 0 }],
-      action: relocated.action,
+      chosenBox: resolved.box,
+      rejected: resolved.rejected,
+      action: resolved.action,
+      placedReservations: placedReservations.map((r) => ({
+        layerId: r.layerId,
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom,
+      })),
     });
 
-    placedBoxes.push(relocated.box);
+    placedReservations.push(
+      reservePlacedTextBox({ layerId: layer.id, box: resolved.box })
+    );
 
-    const textAlign =
-      relocated.alignment === 1 ? "left"
-      : relocated.alignment === 3 ? "right"
-      : "center";
-
-    return {
+    updatedById.set(layer.id, {
       ...layer,
-      x: relocated.x / input.frameW,
-      y: relocated.y / input.frameH,
-      fontSize: relocated.fontSize,
-      textAlign,
-    };
-  });
+      x: resolved.x / input.frameW,
+      y: resolved.y / input.frameH,
+      fontSize: resolved.fontSize,
+      textAlign: alignmentToTextAlign(resolved.alignment),
+    });
+  }
+
+  return input.layers.map((layer) => updatedById.get(layer.id) ?? layer);
 }
 
 export function buildMultiImageAvoidPlan(input: {

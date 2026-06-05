@@ -74,7 +74,10 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const rebuild = await rebuildInstantPremiumFinalVideo(id);
+    const rebuild = await rebuildInstantPremiumFinalVideo(id, {
+      versionNote: versionNote || undefined,
+      locale: "nl",
+    });
     if (rebuild.ok && versionNote) {
       const notesProject = await prisma.animationProject.findUnique({
         where: { id },

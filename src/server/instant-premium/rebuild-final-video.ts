@@ -43,6 +43,12 @@ import {
   resolveLatestExportPlaybackUrl,
   STALE_PLAYBACK_URL,
 } from "@/lib/playback-url-resolution";
+import { getAnimationProjectById } from "@/server/animation-projects/queries";
+import {
+  createPendingTextRerenderVersion,
+  sealDefaultRenderVersion,
+} from "@/server/instant-premium/render-version-service";
+import { resolveVersionNameAgainstBundle } from "@/server/instant-premium/resolve-bundle-version-name";
 
 export const REBUILD_FINAL_EXPORT_PROGRESS = 70;
 export const REBUILD_SEGMENTS_MISSING = "REBUILD_SEGMENTS_MISSING";
@@ -87,8 +93,14 @@ function logRebuildFinalVideo(data: Record<string, unknown>): void {
  * Re-merge existing segment videos and re-run compositor/overlays/upload.
  * Does not call Vidu or refresh provider jobs.
  */
+export type RebuildFinalVideoOptions = {
+  versionNote?: string;
+  locale?: "en" | "nl";
+};
+
 export async function rebuildInstantPremiumFinalVideo(
-  projectId: string
+  projectId: string,
+  options?: RebuildFinalVideoOptions
 ): Promise<RebuildFinalVideoResult> {
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
@@ -221,6 +233,56 @@ export async function rebuildInstantPremiumFinalVideo(
   });
   logFinalVideoRebuildAudit(startedAudit);
 
+  const fullProject = await getAnimationProjectById(projectId);
+  let auditJson = appendFinalVideoRebuildAudit(
+    project.instantFinalRebuildAuditJson,
+    startedAudit
+  ) as object;
+
+  if (fullProject) {
+    const resolvedVersionNote = options?.versionNote?.trim()
+      ? await resolveVersionNameAgainstBundle({
+          anchorProjectId: projectId,
+          versionNote: options.versionNote,
+          locale: options.locale ?? "nl",
+        })
+      : undefined;
+
+    await sealDefaultRenderVersion({
+      project: fullProject,
+      finalVideoUrl: previousFinalUrl,
+      cleanVideoUrl: fullProject.instantCleanFinalVideoUrl,
+      exportId: latestExport?.id ?? null,
+    });
+
+    const pendingVersion = await createPendingTextRerenderVersion({
+      project: fullProject,
+      versionNote: resolvedVersionNote ?? null,
+      sourceCleanVideoUrl: fullProject.instantCleanFinalVideoUrl,
+    });
+
+    const auditBase =
+      typeof auditJson === "object" && auditJson && !Array.isArray(auditJson)
+        ? (auditJson as Record<string, unknown>)
+        : {};
+    auditJson = {
+      ...auditBase,
+      pendingFullRerender: {
+        renderVersionId: pendingVersion.id,
+        renderVersionNumber: pendingVersion.renderVersionNumber,
+        startedAt: startedAt.toISOString(),
+      },
+    } as object;
+
+    console.info("[text-rerender-version]", {
+      projectId,
+      renderVersionId: pendingVersion.id,
+      renderVersionNumber: pendingVersion.renderVersionNumber,
+      versionNote: resolvedVersionNote ?? null,
+      previousFinalUrl,
+    });
+  }
+
   if (latestExport) {
     await prisma.animationExport.update({
       where: { id: latestExport.id },
@@ -251,10 +313,7 @@ export async function rebuildInstantPremiumFinalVideo(
       instantWorkerJobStartedAt: startedAt,
       instantFinalRebuildStatus: "running",
       instantPreviousFinalVideoUrl: previousFinalUrl,
-      instantFinalRebuildAuditJson: appendFinalVideoRebuildAudit(
-        project.instantFinalRebuildAuditJson,
-        startedAudit
-      ) as object,
+      instantFinalRebuildAuditJson: auditJson,
     },
   });
 

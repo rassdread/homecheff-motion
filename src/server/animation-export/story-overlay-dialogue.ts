@@ -21,9 +21,14 @@ import { isStoryModeDebugEnabled } from "@/lib/story-mode-debug";
 import type { TextAvoidZone } from "@/types/text-avoid-zone";
 import {
   isTextBoxUnsafeForZones,
-  relocateAwayFromSubjectZones,
 } from "@/server/animation-export/text-subject-collision";
 import { logTextSubjectSafetyDebug } from "@/server/animation-export/text-avoid-zone-debug";
+import {
+  isTextBoxOverlappingPlaced,
+  reservePlacedTextBox,
+  resolveTextPlacementTwoPass,
+  type PlacedTextBox,
+} from "@/server/animation-export/text-placement-reservation";
 
 export type StoryDialogueDraft = OverlayCollisionCandidate & {
   sceneIndex: number;
@@ -148,6 +153,43 @@ function normalizedBoxFromCandidate(
   };
 }
 
+function reservationsFromPlaced(
+  placed: OverlayCollisionCandidate[],
+  frameWidth: number,
+  frameHeight: number
+): PlacedTextBox[] {
+  return placed
+    .filter((p) => !p.hidden)
+    .map((p) =>
+      reservePlacedTextBox({
+        layerId: p.id,
+        kind: p.kind,
+        box: normalizedBoxFromCandidate(p, frameWidth, frameHeight),
+      })
+    );
+}
+
+function overlapsPlacedPixels(
+  working: OverlayCollisionCandidate,
+  placed: OverlayCollisionCandidate[],
+  paddingPx = 12
+): boolean {
+  const box = boundsForCandidate(working);
+  for (const other of placed) {
+    if (other.hidden) {
+      continue;
+    }
+    const timeOverlap = working.start < other.end && other.start < working.end;
+    if (!timeOverlap) {
+      continue;
+    }
+    if (boxesOverlap(box, boundsForCandidate(other), paddingPx)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function resolveSceneDialogueCollisions(params: {
   drafts: StoryDialogueDraft[];
   frameWidth: number;
@@ -175,8 +217,14 @@ export function resolveSceneDialogueCollisions(params: {
       inferLayoutBand(working.y, params.frameHeight),
     ]);
 
-    if (params.avoidZones && params.avoidZones.length > 0) {
-      const subjectRelocated = relocateAwayFromSubjectZones({
+    const hasAvoidZones = (params.avoidZones?.length ?? 0) > 0;
+    const placedReservations = reservationsFromPlaced(placed, params.frameWidth, params.frameHeight);
+    const needsTwoPass =
+      hasAvoidZones || overlapsPlacedPixels(working, placed);
+
+    if (needsTwoPass) {
+      const twoPass = resolveTextPlacementTwoPass({
+        layerId: draft.id,
         x: working.x,
         y: working.y,
         fontSize: working.fontSize,
@@ -184,25 +232,35 @@ export function resolveSceneDialogueCollisions(params: {
         lines: working.lines,
         frameW: params.frameWidth,
         frameH: params.frameHeight,
-        zones: params.avoidZones,
+        zones: params.avoidZones ?? [],
+        placedReservations,
       });
-      if (subjectRelocated.action !== "kept") {
+      if (twoPass.action !== "kept") {
         working = {
           ...working,
-          x: subjectRelocated.x,
-          y: subjectRelocated.y,
-          fontSize: subjectRelocated.fontSize,
-          alignment: subjectRelocated.alignment,
+          x: twoPass.x,
+          y: twoPass.y,
+          fontSize: twoPass.fontSize,
+          alignment: twoPass.alignment,
         };
         action = "moved";
-        reason = `subject_safe_${subjectRelocated.action}`;
+        reason = `two_pass_${twoPass.action}`;
+      }
+      if (twoPass.rejected.length > 0 || twoPass.action !== "kept") {
         logTextSubjectSafetyDebug({
           layerId: draft.id,
-          avoidZones: params.avoidZones,
+          avoidZones: params.avoidZones ?? [],
           proposedBox: normalizedBoxFromCandidate(candidateFromDraft(draft), params.frameWidth, params.frameHeight),
-          chosenBox: subjectRelocated.box,
-          rejected: [{ reason: "subject_overlap", score: 0 }],
-          action: subjectRelocated.action,
+          chosenBox: twoPass.box,
+          rejected: twoPass.rejected,
+          action: twoPass.action,
+          placedReservations: placedReservations.map((r) => ({
+            layerId: r.layerId,
+            left: r.left,
+            right: r.right,
+            top: r.top,
+            bottom: r.bottom,
+          })),
         });
       }
     }
@@ -236,8 +294,9 @@ export function resolveSceneDialogueCollisions(params: {
         break;
       }
 
-      if (!hit && subjectUnsafe) {
-        const subjectRelocated = relocateAwayFromSubjectZones({
+      if (!hit && subjectUnsafe && hasAvoidZones) {
+        const retry = resolveTextPlacementTwoPass({
+          layerId: draft.id,
           x: working.x,
           y: working.y,
           fontSize: working.fontSize,
@@ -246,17 +305,59 @@ export function resolveSceneDialogueCollisions(params: {
           frameW: params.frameWidth,
           frameH: params.frameHeight,
           zones: params.avoidZones!,
+          placedReservations: reservationsFromPlaced(placed, params.frameWidth, params.frameHeight),
         });
-        if (subjectRelocated.action !== "kept") {
+        working = {
+          ...working,
+          x: retry.x,
+          y: retry.y,
+          fontSize: retry.fontSize,
+          alignment: retry.alignment,
+        };
+        action = "moved";
+        reason = `two_pass_retry_${retry.action}`;
+        continue;
+      }
+
+      if (hit && (hasAvoidZones || overlapsPlacedPixels(working, placed))) {
+        const retry = resolveTextPlacementTwoPass({
+          layerId: draft.id,
+          x: working.x,
+          y: working.y,
+          fontSize: working.fontSize,
+          alignment: working.alignment,
+          lines: working.lines,
+          frameW: params.frameWidth,
+          frameH: params.frameHeight,
+          zones: params.avoidZones ?? [],
+          placedReservations: reservationsFromPlaced(placed, params.frameWidth, params.frameHeight),
+        });
+        const retryNorm = retry.box;
+        if (
+          !isTextBoxOverlappingPlaced(
+            retryNorm,
+            reservationsFromPlaced(placed, params.frameWidth, params.frameHeight)
+          ) &&
+          !overlapsPlacedPixels(
+            {
+              ...working,
+              x: retry.x,
+              y: retry.y,
+              fontSize: retry.fontSize,
+              alignment: retry.alignment,
+            },
+            placed
+          )
+        ) {
           working = {
             ...working,
-            x: subjectRelocated.x,
-            y: subjectRelocated.y,
-            fontSize: subjectRelocated.fontSize,
-            alignment: subjectRelocated.alignment,
+            x: retry.x,
+            y: retry.y,
+            fontSize: retry.fontSize,
+            alignment: retry.alignment,
           };
           action = "moved";
-          reason = `subject_relocate_${subjectRelocated.action}`;
+          reason = `two_pass_text_safe_${retry.action}`;
           continue;
         }
       }
@@ -325,6 +426,30 @@ export function resolveSceneDialogueCollisions(params: {
     }
 
     if (!working.hidden) {
+      const stillOverlaps = overlapsPlacedPixels(working, placed);
+      if (stillOverlaps) {
+        const finalRetry = resolveTextPlacementTwoPass({
+          layerId: draft.id,
+          x: working.x,
+          y: working.y,
+          fontSize: working.fontSize,
+          alignment: working.alignment,
+          lines: working.lines,
+          frameW: params.frameWidth,
+          frameH: params.frameHeight,
+          zones: params.avoidZones ?? [],
+          placedReservations: reservationsFromPlaced(placed, params.frameWidth, params.frameHeight),
+        });
+        working = {
+          ...working,
+          x: finalRetry.x,
+          y: finalRetry.y,
+          fontSize: finalRetry.fontSize,
+          alignment: finalRetry.alignment,
+        };
+        action = "moved";
+        reason = `final_two_pass_${finalRetry.action}`;
+      }
       placed.push(working);
     }
 

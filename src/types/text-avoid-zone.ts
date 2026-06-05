@@ -67,6 +67,13 @@ export type TextSubjectSafetyDebugEntry = {
   avoidZones: TextAvoidZone[];
   proposedBox: { left: number; right: number; top: number; bottom: number };
   chosenBox: { left: number; right: number; top: number; bottom: number };
-  rejected: Array<{ reason: string; score: number }>;
+  rejected: Array<{ reason: string; band?: string; score: number }>;
   action: string;
+  placedReservations?: Array<{
+    layerId: string;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }>;
 };

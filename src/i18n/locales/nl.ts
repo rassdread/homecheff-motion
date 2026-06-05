@@ -2496,6 +2496,7 @@ export const nl = {
   "projectDetail.renderHistory.compareAction": "Toon verschillen",
   "projectDetail.renderHistory.kindInitial": "Eerste render",
   "projectDetail.renderHistory.kindFullRerender": "Volledige rerender",
+  "projectDetail.renderHistory.kindTextRerender": "Tekstversie",
   "projectDetail.renderHistory.preview": "Voorbeeld",
   "projectDetail.renderHistory.restore": "Herstellen",
   "projectDetail.renderHistory.restoreDone": "Deze versie is nu de actieve video.",

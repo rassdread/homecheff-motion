@@ -3,6 +3,10 @@ import {
   textBoxOverlapWithZones,
   zoneOverlapFraction,
 } from "@/server/animation-export/text-avoid-zone-builder";
+import {
+  resolveTextPlacementTwoPass,
+  type PlacedTextBox,
+} from "@/server/animation-export/text-placement-reservation";
 
 export const SUBJECT_OVERLAP_REJECT_THRESHOLD = 0.08;
 export const SUBJECT_OVERLAP_SOFT_THRESHOLD = 0.04;
@@ -116,6 +120,8 @@ export function relocateAwayFromSubjectZones(input: {
   frameH: number;
   zones: TextAvoidZone[];
   shrinkSteps?: number[];
+  layerId?: string;
+  placedReservations?: PlacedTextBox[];
 }): {
   x: number;
   y: number;
@@ -124,6 +130,30 @@ export function relocateAwayFromSubjectZones(input: {
   action: string;
   box: NormalizedTextBox;
 } {
+  if (input.placedReservations) {
+    const resolved = resolveTextPlacementTwoPass({
+      layerId: input.layerId ?? "layer",
+      x: input.x,
+      y: input.y,
+      fontSize: input.fontSize,
+      alignment: input.alignment,
+      lines: input.lines,
+      frameW: input.frameW,
+      frameH: input.frameH,
+      zones: input.zones,
+      placedReservations: input.placedReservations,
+      shrinkSteps: input.shrinkSteps,
+    });
+    return {
+      x: resolved.x,
+      y: resolved.y,
+      fontSize: resolved.fontSize,
+      alignment: resolved.alignment,
+      action: resolved.action,
+      box: resolved.box,
+    };
+  }
+
   const shrinkSteps = input.shrinkSteps ?? [1, 0.92, 0.85, 0.78];
   const currentBox = estimateTextBoxNormalized(input);
 

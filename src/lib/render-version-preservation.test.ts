@@ -206,7 +206,8 @@ describe("full rerender wiring (static audit)", () => {
   });
 
   it("merge-only rebuild failure restores export outputVideoUrl to previous final", () => {
-    assert.match(commitSrc, /outputVideoUrl: previousFinalUrl/);
+    assert.match(commitSrc, /outputVideoUrl: restoreFinalUrl/);
+    assert.match(commitSrc, /failPendingFullRerenderVersion/);
     assert.match(commitSrc, /status: "completed"/);
   });
 });

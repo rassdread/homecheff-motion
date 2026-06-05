@@ -50,7 +50,9 @@ export function RenderHistoryPanel({ versions, projectId, onRestored }: Props) {
   const kindLabel = (kind: ProjectRenderVersionSummary["kind"]) =>
     kind === "full_rerender"
       ? t("projectDetail.renderHistory.kindFullRerender")
-      : t("projectDetail.renderHistory.kindInitial");
+      : kind === "text_rerender"
+        ? t("projectDetail.renderHistory.kindTextRerender")
+        : t("projectDetail.renderHistory.kindInitial");
 
   const loadDiff = async () => {
     if (!compareA || !compareB || compareA === compareB) {

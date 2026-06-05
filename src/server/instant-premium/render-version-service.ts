@@ -28,10 +28,12 @@ import {
   type AnimationProjectWithMedia,
 } from "@/server/animation-projects/queries";
 
+export type ProjectRenderVersionKind = "initial" | "full_rerender" | "text_rerender";
+
 export type ProjectRenderVersionSummary = {
   id: string;
   renderVersionNumber: number;
-  kind: "initial" | "full_rerender";
+  kind: ProjectRenderVersionKind;
   status: string;
   isDefault: boolean;
   versionNote: string | null;
@@ -104,7 +106,12 @@ function mapRenderVersionRow(row: {
   return {
     id: row.id,
     renderVersionNumber: row.renderVersionNumber,
-    kind: row.kind === "full_rerender" ? "full_rerender" : "initial",
+    kind:
+      row.kind === "full_rerender"
+        ? "full_rerender"
+        : row.kind === "text_rerender"
+          ? "text_rerender"
+          : "initial",
     status: row.status,
     isDefault: row.isDefault,
     versionNote: row.versionNote,
@@ -183,7 +190,7 @@ export async function ensureInitialRenderVersion(params: {
 function buildRenderVersionCreateData(params: {
   project: AnimationProjectWithMedia;
   renderVersionNumber: number;
-  kind: "initial" | "full_rerender";
+  kind: ProjectRenderVersionKind;
   status: string;
   isDefault: boolean;
   finalVideoUrl?: string | null;
@@ -289,6 +296,45 @@ export async function sealDefaultRenderVersion(params: {
     where: { projectId: params.project.id, isDefault: true },
     data: { isDefault: false },
   });
+}
+
+export async function createPendingTextRerenderVersion(params: {
+  project: AnimationProjectWithMedia;
+  versionNote?: string | null;
+  createdFromRenderId?: string | null;
+  sourceCleanVideoUrl?: string | null;
+}): Promise<{ id: string; renderVersionNumber: number }> {
+  const renderVersionNumber = await getNextRenderVersionNumber(params.project.id);
+  const previousDefault = await prisma.projectRenderVersion.findFirst({
+    where: { projectId: params.project.id, isDefault: true },
+    orderBy: { renderVersionNumber: "desc" },
+  });
+
+  await prisma.projectRenderVersion.updateMany({
+    where: { projectId: params.project.id, isDefault: true },
+    data: { isDefault: false },
+  });
+
+  const cleanSource =
+    params.sourceCleanVideoUrl?.trim() ||
+    previousDefault?.cleanVideoUrl?.trim() ||
+    params.project.instantCleanFinalVideoUrl?.trim() ||
+    null;
+
+  const row = await prisma.projectRenderVersion.create({
+    data: buildRenderVersionCreateData({
+      project: params.project,
+      renderVersionNumber,
+      kind: "text_rerender",
+      status: "generating",
+      isDefault: true,
+      versionNote: params.versionNote ?? null,
+      createdFromRenderId: params.createdFromRenderId ?? previousDefault?.id ?? null,
+      cleanVideoUrl: cleanSource,
+    }),
+  });
+
+  return { id: row.id, renderVersionNumber: row.renderVersionNumber };
 }
 
 export async function createPendingFullRerenderVersion(params: {

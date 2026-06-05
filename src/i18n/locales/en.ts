@@ -2490,6 +2490,7 @@ export const en: LocaleSchema = {
   "projectDetail.renderHistory.compareAction": "Show differences",
   "projectDetail.renderHistory.kindInitial": "Initial render",
   "projectDetail.renderHistory.kindFullRerender": "Full rerender",
+  "projectDetail.renderHistory.kindTextRerender": "Text version",
   "projectDetail.renderHistory.preview": "Preview",
   "projectDetail.renderHistory.restore": "Restore",
   "projectDetail.renderHistory.restoreDone": "This version is now the active video.",

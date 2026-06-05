@@ -19,6 +19,7 @@ import { markLanguageExportsNeedsRefresh } from "@/server/instant-premium/langua
 import {
   completePendingFullRerenderVersion,
   ensureInitialRenderVersion,
+  failPendingFullRerenderVersion,
   loadVersionHistoryUrlSource,
   readPendingFullRerender,
 } from "@/server/instant-premium/render-version-service";
@@ -258,13 +259,19 @@ export async function commitInstantPremiumFinalVideoExport(params: {
 
     const pending = readPendingFullRerender(projectForVersion.instantFinalRebuildAuditJson);
     if (pending) {
+      const pendingRow = await prisma.projectRenderVersion.findUnique({
+        where: { id: pending.renderVersionId },
+        select: { kind: true, cleanVideoUrl: true },
+      });
+      const cleanForVersion =
+        committedCleanVideoUrl?.trim() ||
+        pendingRow?.cleanVideoUrl?.trim() ||
+        projectForVersion.instantCleanFinalVideoUrl;
       await completePendingFullRerenderVersion({
         projectId,
         renderVersionId: pending.renderVersionId,
         finalVideoUrl: finalUrl,
-        cleanVideoUrl:
-          committedCleanVideoUrl?.trim() ||
-          projectForVersion.instantCleanFinalVideoUrl,
+        cleanVideoUrl: cleanForVersion,
         exportId,
       });
       const auditBase =
@@ -273,18 +280,21 @@ export async function commitInstantPremiumFinalVideoExport(params: {
         !Array.isArray(projectForVersion.instantFinalRebuildAuditJson)
           ? (projectForVersion.instantFinalRebuildAuditJson as Record<string, unknown>)
           : {};
+      const lastVersionKey =
+        pendingRow?.kind === "text_rerender" ? "lastTextRerender" : "lastFullRerender";
       await prisma.animationProject.update({
         where: { id: projectId },
         data: {
           instantFinalRebuildAuditJson: {
             ...auditBase,
             pendingFullRerender: null,
-            lastFullRerender: {
+            [lastVersionKey]: {
               renderVersionId: pending.renderVersionId,
               renderVersionNumber: pending.renderVersionNumber,
               completedAt: rebuiltAt.toISOString(),
               status: "completed",
               finalVideoUrl: finalUrl,
+              kind: pendingRow?.kind ?? "full_rerender",
             },
           } as object,
         },
@@ -318,7 +328,6 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
   const {
     projectId,
     exportId,
-    previousFinalUrl,
     segmentCount,
     rebuildCount,
     message,
@@ -328,10 +337,37 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     rebuildCandidateUrl = null,
     validationErrors = [],
   } = params;
+  let restoreFinalUrl = params.previousFinalUrl;
   const project = await prisma.animationProject.findUnique({
     where: { id: projectId },
     select: { instantFinalRebuildAuditJson: true },
   });
+  const pending = readPendingFullRerender(project?.instantFinalRebuildAuditJson);
+  if (pending) {
+    const restoredFromVersion = await failPendingFullRerenderVersion({
+      projectId,
+      renderVersionId: pending.renderVersionId,
+      errorMessage: message.slice(0, 500),
+    });
+    if (restoredFromVersion) {
+      restoreFinalUrl = restoredFromVersion;
+    }
+    const auditBase =
+      project?.instantFinalRebuildAuditJson &&
+      typeof project.instantFinalRebuildAuditJson === "object" &&
+      !Array.isArray(project.instantFinalRebuildAuditJson)
+        ? (project.instantFinalRebuildAuditJson as Record<string, unknown>)
+        : {};
+    await prisma.animationProject.update({
+      where: { id: projectId },
+      data: {
+        instantFinalRebuildAuditJson: {
+          ...auditBase,
+          pendingFullRerender: null,
+        } as object,
+      },
+    });
+  }
   const failedAt = new Date();
   const auditEvent: FinalVideoRebuildAuditEvent = {
     type: "final_video_rebuild",
@@ -346,7 +382,7 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     projectId,
     segmentCount,
     rebuildCount,
-    previousFinalVideoUrl: previousFinalUrl,
+    previousFinalVideoUrl: restoreFinalUrl,
     newFinalVideoUrl: null,
     recordedAt: failedAt.toISOString(),
     status: "failed",
@@ -360,7 +396,7 @@ export async function markInstantPremiumFinalRebuildFailed(params: {
     data: {
       status: "completed",
       progress: 100,
-      outputVideoUrl: previousFinalUrl,
+      outputVideoUrl: restoreFinalUrl,
       errorMessage: message.slice(0, 500),
     },
   });
