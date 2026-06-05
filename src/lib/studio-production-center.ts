@@ -43,6 +43,10 @@ import {
   isAssetPlacementPlanReady,
 } from "@/lib/studio-asset-placement-director";
 import {
+  buildCharacterBlockingPlan,
+  isCharacterBlockingPlanReady,
+} from "@/lib/studio-character-blocking-director";
+import {
   buildProviderExecutionPlan,
   isProviderExecutionPlanReady,
 } from "@/lib/studio-provider-execution-director";
@@ -107,6 +111,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
   const compositionPlan = buildSceneCompositionDirector(storyboard);
   const placementPlan = buildAssetPlacementPlan(storyboard);
+  const blockingPlan = buildCharacterBlockingPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -145,6 +150,8 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     compositionPlan.enabled && isSceneCompositionPlanReady(compositionPlan);
   const placementReady =
     placementPlan.enabled && isAssetPlacementPlanReady(placementPlan);
+  const blockingReady =
+    blockingPlan.enabled && isCharacterBlockingPlanReady(blockingPlan);
 
   return [
     {
@@ -216,6 +223,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "asset_placement_plan",
       labelKey: "studio.production.checklist.assetPlacementPlan",
       passed: placementReady,
+    },
+    {
+      id: "character_blocking_plan",
+      labelKey: "studio.production.checklist.characterBlockingPlan",
+      passed: blockingReady,
     },
     {
       id: "video_config",

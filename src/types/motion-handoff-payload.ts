@@ -98,8 +98,17 @@ import type {
   SceneAssetPlacement,
   VisualHierarchySummary,
 } from "@/types/studio-asset-placement";
+import type {
+  AttentionTargetPlan,
+  BlockingWarning,
+  CharacterActionPlan,
+  CharacterInteractionPlan,
+  CharacterPosePlan,
+  MotionCharacterBlockingHandoffPlan,
+  SceneCharacterBlocking,
+} from "@/types/studio-character-blocking";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 23 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 24 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -156,6 +165,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   sceneComposition?: SceneComposition;
   /** V43: per-scene semantic asset placement (planning only). */
   assetPlacement?: SceneAssetPlacement;
+  /** V44: per-scene character blocking (planning only). */
+  characterBlocking?: SceneCharacterBlocking;
 };
 
 export type MotionHandoffPayload = {
@@ -268,5 +279,12 @@ export type MotionHandoffPayload = {
   locationPlacements?: LocationPlacement[];
   visualHierarchySummary?: VisualHierarchySummary;
   placementWarnings?: PlacementWarning[];
+  /** V44: Character Blocking Director plan (planning only — no animation). */
+  characterBlockingPlan?: MotionCharacterBlockingHandoffPlan;
+  characterActions?: CharacterActionPlan[];
+  characterPoses?: CharacterPosePlan[];
+  characterInteractions?: CharacterInteractionPlan[];
+  attentionTargets?: AttentionTargetPlan[];
+  blockingWarnings?: BlockingWarning[];
   scenes: MotionHandoffScene[];
 };

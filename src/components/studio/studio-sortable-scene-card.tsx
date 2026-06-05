@@ -6,6 +6,7 @@ import { StudioSceneComposer } from "@/components/studio/studio-scene-composer";
 import { buildDirectorScenePreviewText } from "@/lib/studio-scene-director-preview";
 import { buildSceneCompositionForScene } from "@/lib/studio-scene-composition-director";
 import { buildAssetPlacementForSceneDetail } from "@/lib/studio-asset-placement-director";
+import { buildCharacterBlockingForSceneDetail } from "@/lib/studio-character-blocking-director";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -75,6 +76,7 @@ export function StudioSortableSceneCard({
   const directorSummary = buildDirectorScenePreviewText(scene, directorProfile);
   const composition = buildSceneCompositionForScene(scene);
   const assetPlacement = buildAssetPlacementForSceneDetail(scene);
+  const characterBlocking = buildCharacterBlockingForSceneDetail(scene);
   const heroLine = assetPlacement.characterPlacements.find(
     (c) => c.scale === "HERO" || c.placementPriority >= 85
   );
@@ -145,6 +147,16 @@ export function StudioSortableSceneCard({
                   {t(`studio.composition.status.${compositionStatus}` as never)}
                 </span>
               </div>
+              {characterBlocking.characterActions.length > 0 ?
+                <p className="mt-2 text-[11px] text-amber-900">
+                  {characterBlocking.characterActions.slice(0, 3).map((row, i) => (
+                    <span key={row.characterId}>
+                      {i > 0 ? " · " : ""}
+                      {row.characterName}: {t(`studio.blocking.action.${row.action}` as never)}
+                    </span>
+                  ))}
+                </p>
+              : null}
               {(heroLine || supportLine || brandLine) ?
                 <p className="mt-2 text-[11px] text-teal-900">
                   {heroLine ?

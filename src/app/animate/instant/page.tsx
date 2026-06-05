@@ -1773,6 +1773,15 @@ export default function InstantPremiumPage() {
                                 | undefined
                             )?.assetPlacementPlan ?? null
                           }
+                          characterBlockingPlan={
+                            (
+                              readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                                | {
+                                    characterBlockingPlan?: import("@/types/studio-character-blocking").MotionCharacterBlockingHandoffPlan;
+                                  }
+                                | undefined
+                            )?.characterBlockingPlan ?? null
+                          }
                           onRefresh={
                             studioHandoffStoryboardId
                               ? () => void handleRefreshFromStudio()

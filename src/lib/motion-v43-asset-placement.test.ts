@@ -213,8 +213,8 @@ function minimalHandoff(): MotionHandoffPayload {
 }
 
 describe("Studio V43 asset placement", () => {
-  it("handoff payload version is 23", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
+  it("handoff payload version is 24", () => {
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
   });
 
   it("hero placement uses center foreground hero scale", () => {
@@ -373,7 +373,7 @@ describe("Studio V43 asset placement", () => {
     assert.ok(attached.assetPlacementPlan?.enabled);
     assert.equal(attached.characterPlacements?.length, 1);
     assert.ok(attached.visualHierarchySummary?.primarySubject === "Chef");
-    assert.equal(attached.version, 23);
+    assert.equal(attached.version, 24);
   });
 
   it("placement attaches after composition and before provider execution", () => {
@@ -408,7 +408,7 @@ describe("Studio V43 asset placement", () => {
     assert.ok(assets.some((a) => a.id === "asset_placement"));
     const placement = assets.find((a) => a.id === "asset_placement");
     assert.equal(placement?.level, "ready");
-    assert.equal(assets.length, 14);
+    assert.equal(assets.length, 15);
   });
 
   it("production checklist includes asset placement plan", () => {
@@ -418,7 +418,7 @@ describe("Studio V43 asset placement", () => {
     ]);
     const checklist = buildProductionChecklist(sb);
     assert.ok(checklist.some((item) => item.id === "asset_placement_plan" && item.passed));
-    assert.equal(checklist.length, 15);
+    assert.equal(checklist.length, 16);
   });
 
   it("isAssetPlacementPlanReady rejects empty composition scenes", () => {

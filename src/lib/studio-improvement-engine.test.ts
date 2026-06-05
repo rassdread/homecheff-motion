@@ -236,6 +236,6 @@ describe("studio improvement engine V14", () => {
   });
 
   it("motion handoff payload version includes V16 sound director plan", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
   });
 });

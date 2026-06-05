@@ -37,6 +37,10 @@ import {
   isAssetPlacementPlanReady,
 } from "@/lib/studio-asset-placement-director";
 import {
+  buildCharacterBlockingPlan,
+  isCharacterBlockingPlanReady,
+} from "@/lib/studio-character-blocking-director";
+import {
   buildProviderExecutionPlan,
   isProviderExecutionPlanReady,
 } from "@/lib/studio-provider-execution-director";
@@ -66,6 +70,7 @@ export type AssetReadinessItem = {
     | "providers"
     | "composition"
     | "asset_placement"
+    | "character_blocking"
     | "video";
   labelKey: string;
   level: AssetReadinessLevel;
@@ -114,6 +119,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
   const compositionPlan = buildSceneCompositionDirector(storyboard);
   const placementPlan = buildAssetPlacementPlan(storyboard);
+  const blockingPlan = buildCharacterBlockingPlan(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -364,6 +370,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
           : isAssetPlacementPlanReady(placementPlan)
             ? null
             : "studio.production.asset.assetPlacement.planIncomplete",
+    },
+    {
+      id: "character_blocking",
+      labelKey: "studio.production.asset.characterBlocking",
+      level:
+        !blockingPlan.enabled
+          ? "attention"
+          : isCharacterBlockingPlanReady(blockingPlan)
+            ? "ready"
+            : blockingPlan.sceneBlockings.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !blockingPlan.enabled
+          ? "studio.production.asset.characterBlocking.disabled"
+          : isCharacterBlockingPlanReady(blockingPlan)
+            ? null
+            : "studio.production.asset.characterBlocking.planIncomplete",
     },
     {
       id: "video",

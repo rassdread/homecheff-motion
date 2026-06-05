@@ -14,6 +14,7 @@ import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/stu
 import type { MotionVoiceIdentityHandoffPlan } from "@/types/studio-voice-identity";
 import type { MotionMediaAssetHandoffPlan } from "@/types/studio-media-asset";
 import type { MotionAssetPlacementHandoffPlan } from "@/types/studio-asset-placement";
+import type { MotionCharacterBlockingHandoffPlan } from "@/types/studio-character-blocking";
 import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
 
 type Props = {
@@ -32,6 +33,7 @@ type Props = {
   voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan | null;
   mediaAssetPlan?: MotionMediaAssetHandoffPlan | null;
   assetPlacementPlan?: MotionAssetPlacementHandoffPlan | null;
+  characterBlockingPlan?: MotionCharacterBlockingHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -52,6 +54,7 @@ export function MotionImportSummaryBanner({
   voiceIdentityPlan,
   mediaAssetPlan,
   assetPlacementPlan,
+  characterBlockingPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -314,6 +317,48 @@ export function MotionImportSummaryBanner({
                             })}
                           </li>
                         ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          : null}
+          {characterBlockingPlan?.enabled && characterBlockingPlan.sceneBlockings.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.characterBlockingTitle")}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {characterBlockingPlan.sceneBlockings.slice(0, 4).map((sceneBlocking) => (
+                  <li key={sceneBlocking.sceneId}>
+                    <span className="font-medium">
+                      {sceneBlocking.order + 1}.{" "}
+                      {sceneBlocking.blockingSummary ||
+                        t("motion.qa.importSummary.characterBlockingScene")}
+                    </span>
+                    <ul className="ml-3 mt-0.5 space-y-0.5">
+                      {sceneBlocking.characterActions.slice(0, 3).map((row) => {
+                        const pose = sceneBlocking.characterPoses.find(
+                          (p) => p.characterId === row.characterId
+                        );
+                        return (
+                          <li key={`${sceneBlocking.sceneId}-${row.characterId}`}>
+                            {t("motion.qa.importSummary.characterBlockingActionLine", {
+                              name: row.characterName,
+                              action: row.action,
+                              pose: pose?.pose ?? "NEUTRAL",
+                            })}
+                          </li>
+                        );
+                      })}
+                      {sceneBlocking.interaction.interactionType !== "NONE" ?
+                        <li>
+                          {t("motion.qa.importSummary.characterBlockingInteractionLine", {
+                            type: sceneBlocking.interaction.interactionType,
+                            participants: sceneBlocking.interaction.participantNames.join(", "),
+                          })}
+                        </li>
+                      : null}
                     </ul>
                   </li>
                 ))}

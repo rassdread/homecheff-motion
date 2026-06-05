@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 
 describe("motion handoff payload shape", () => {
-  it("uses version 16 with sound director handoff fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
+  it("uses version 24 with character blocking handoff fields", () => {
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
   });
 });

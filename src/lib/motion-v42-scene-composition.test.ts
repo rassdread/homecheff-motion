@@ -204,7 +204,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V42 scene composition", () => {
   it("handoff payload version is 23", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 24);
   });
 
   it("composition model assigns character placement roles", () => {

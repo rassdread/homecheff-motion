@@ -38,6 +38,7 @@ import { attachVoiceIdentityToHandoffPayload } from "@/lib/attach-voice-identity
 import { attachMediaAssetToHandoffPayload } from "@/lib/attach-media-asset-handoff";
 import { attachSceneCompositionToHandoffPayload } from "@/lib/attach-scene-composition-handoff";
 import { attachAssetPlacementToHandoffPayload } from "@/lib/attach-asset-placement-handoff";
+import { attachCharacterBlockingToHandoffPayload } from "@/lib/attach-character-blocking-handoff";
 import { attachProviderExecutionToHandoffPayload } from "@/lib/attach-provider-execution-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
@@ -414,6 +415,7 @@ export async function createMotionHandoffPayload(
     payload = attachMediaAssetToHandoffPayload(payload, { storyboard: detail });
     payload = attachSceneCompositionToHandoffPayload(payload, { storyboard: detail });
     payload = attachAssetPlacementToHandoffPayload(payload, { storyboard: detail });
+    payload = attachCharacterBlockingToHandoffPayload(payload, { storyboard: detail });
     payload = attachProviderExecutionToHandoffPayload(payload, { storyboard: detail });
     const compositionByScene = new Map(
       (payload.sceneCompositionPlan?.sceneCompositions ?? []).map((c) => [c.sceneId, c])
@@ -421,12 +423,16 @@ export async function createMotionHandoffPayload(
     const placementByScene = new Map(
       (payload.assetPlacementPlan?.scenePlacements ?? []).map((p) => [p.sceneId, p])
     );
+    const blockingByScene = new Map(
+      (payload.characterBlockingPlan?.sceneBlockings ?? []).map((b) => [b.sceneId, b])
+    );
     payload = {
       ...payload,
       scenes: payload.scenes.map((scene) => ({
         ...scene,
         sceneComposition: compositionByScene.get(scene.sceneId),
         assetPlacement: placementByScene.get(scene.sceneId),
+        characterBlocking: blockingByScene.get(scene.sceneId),
       })),
     };
   }
