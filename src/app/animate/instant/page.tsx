@@ -61,10 +61,19 @@ import {
   applyMoodToPosterSettings,
   normalizeAnimationMoodId,
 } from "@/lib/animation-mood-presets";
+import { InstantWizardModeToggle } from "@/components/instant/instant-wizard-mode-toggle";
+import { InstantWizardPricingStrip } from "@/components/instant/instant-wizard-pricing-strip";
 import {
-  CREATOR_WIZARD_STEP_COUNT,
-  creatorWizardStepTitleKey,
-} from "@/lib/creator-wizard-steps";
+  clampWizardStep,
+  resolveWizardView,
+  wizardStepCount,
+  wizardStepTitleKey,
+} from "@/lib/instant-wizard-flow";
+import {
+  readInstantWizardMode,
+  writeInstantWizardMode,
+  type InstantWizardMode,
+} from "@/lib/instant-wizard-mode";
 import {
   DEFAULT_OVERLAY_STYLE,
   DEFAULT_TEXT_RENDER_MODE,
@@ -292,6 +301,9 @@ export default function InstantPremiumPage() {
   const wizardShellRef = useRef<HTMLDivElement>(null);
   const wizardContentRef = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(1);
+  const [wizardMode, setWizardMode] = useState<InstantWizardMode>(() =>
+    typeof window !== "undefined" ? readInstantWizardMode() : "beginner"
+  );
   const [sceneSlots, setSceneSlots] = useState<WizardSceneSlot[]>([]);
   const [error, setError] = useState("");
   const [preflightNotice, setPreflightNotice] = useState("");
@@ -361,6 +373,16 @@ export default function InstantPremiumPage() {
   useEffect(() => {
     wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
+
+  const handleWizardModeChange = useCallback((mode: InstantWizardMode) => {
+    writeInstantWizardMode(mode);
+    setWizardMode(mode);
+    setStep((current) => clampWizardStep(mode, current));
+  }, []);
+
+  const wizardView = useMemo(() => resolveWizardView(wizardMode, step), [wizardMode, step]);
+  const activeWizardStepCount = wizardStepCount(wizardMode);
+  const showStoryboardInUploadStep = wizardMode === "expert";
   const mounted = useMounted();
   const premiumMode = useMemo<"test" | "paid">(() => {
     if (!mounted || typeof document === "undefined") {
@@ -401,6 +423,11 @@ export default function InstantPremiumPage() {
   const showStoryboardComposer =
     instantMode === "story" &&
     (attachedImageCount >= MIN_IMAGES || hasStudioImportedScenes);
+  const showStoryboardStep =
+    showStoryboardComposer &&
+    (wizardView === "storyboard" || (wizardView === "upload" && showStoryboardInUploadStep));
+  const showFrameReorder =
+    attachedImageCount >= MIN_IMAGES || hasStudioImportedScenes;
   const outputPlan = useMemo(
     () =>
       resolveInstantPremiumOutputPlan({
@@ -1378,72 +1405,52 @@ export default function InstantPremiumPage() {
           ? t("instant.step7.ctaAdminTest")
           : t("instant.step7.ctaTest")
         : t("instant.step7.ctaPaid", { price: estimatedPriceLabel });
-    switch (step) {
-      case 1:
-        return {
-          showBack: false,
-          backPlaceholder: true,
-          onPrimary: () => setStep(2),
-          primaryLabel: continueLabel,
-          primaryDisabled: sceneCount < MIN_IMAGES || !imagesHaveValidSources,
-          stackButtons: false,
-        };
-      case 2:
-        return {
-          showBack: true,
-          onBack: () => setStep(1),
-          onPrimary: () => setStep(3),
-          primaryLabel: continueLabel,
-          primaryDisabled: false,
-          stackButtons: false,
-        };
-      case 3:
-        return {
-          showBack: true,
-          onBack: () => setStep(2),
-          onPrimary: () => setStep(4),
-          primaryLabel: continueLabel,
-          primaryDisabled: false,
-          stackButtons: false,
-        };
-      case 4:
-        return {
-          showBack: true,
-          onBack: () => setStep(3),
-          onPrimary: () => setStep(5),
-          primaryLabel: continueLabel,
-          primaryDisabled: false,
-          stackButtons: false,
-        };
-      case 5:
-        return {
-          showBack: true,
-          onBack: () => setStep(4),
-          onPrimary: () => startCheckoutWithQa(),
-          primaryLabel: generateLabel,
-          primaryDisabled: checkoutBusy || !imagesHaveValidSources,
-          stackButtons: true,
-        };
-      default:
-        return {
-          showBack: false,
-          backPlaceholder: true,
-          onPrimary: () => setStep(2),
-          primaryLabel: continueLabel,
-          primaryDisabled: true,
-          stackButtons: false,
-        };
+    const clamped = clampWizardStep(wizardMode, step);
+    const maxStep = wizardStepCount(wizardMode);
+    const canContinueFromUpload = sceneCount >= MIN_IMAGES && imagesHaveValidSources;
+
+    if (wizardView === "generate") {
+      return {
+        showBack: true,
+        onBack: () => setStep(clamped - 1),
+        onPrimary: startCheckoutWithQa,
+        primaryLabel: generateLabel,
+        primaryDisabled: checkoutBusy || !imagesHaveValidSources,
+        stackButtons: true,
+      };
     }
+
+    if (clamped === 1) {
+      return {
+        showBack: false,
+        backPlaceholder: true,
+        onPrimary: () => setStep(2),
+        primaryLabel: continueLabel,
+        primaryDisabled: !canContinueFromUpload,
+        stackButtons: false,
+      };
+    }
+
+    return {
+      showBack: true,
+      onBack: () => setStep(clamped - 1),
+      onPrimary: () => setStep(Math.min(maxStep, clamped + 1)),
+      primaryLabel: continueLabel,
+      primaryDisabled: false,
+      stackButtons: false,
+    };
   }, [
     checkoutBusy,
     estimatedPriceLabel,
-    sceneCount,
     imagesHaveValidSources,
     isAdmin,
+    sceneCount,
     startCheckoutWithQa,
     step,
     t,
     usesFreeGeneration,
+    wizardMode,
+    wizardView,
   ]);
 
   if (!session.resolved) {
@@ -1479,15 +1486,21 @@ export default function InstantPremiumPage() {
 
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
-      <div className="mx-auto w-full max-w-lg px-4 py-8 sm:px-6">
-        <div className="mb-6 flex items-start justify-between gap-3">
+      <div className="mx-auto w-full max-w-xl px-4 py-8 sm:max-w-2xl sm:px-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
               {brand.productName}
             </p>
             <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
+            <p className="mt-1 text-xs text-zinc-500">{t(`instant.wizardStep.${wizardView}` as never)}</p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+            <InstantWizardModeToggle
+              mode={wizardMode}
+              onChange={handleWizardModeChange}
+              disabled={checkoutBusy || resetBusy}
+            />
             {showWizardSecondaryAction ? (
               <button
                 type="button"
@@ -1509,16 +1522,26 @@ export default function InstantPremiumPage() {
         </div>
 
         <div className="mb-4 flex gap-1">
-          {Array.from({ length: CREATOR_WIZARD_STEP_COUNT }, (_, i) => (
+          {Array.from({ length: activeWizardStepCount }, (_, i) => (
             <div
               key={i}
-              className={`h-1 flex-1 rounded-full ${
+              className={`h-1.5 flex-1 rounded-full ${
                 mounted && i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
               }`}
-              title={t(creatorWizardStepTitleKey(i + 1) as never)}
+              title={t(wizardStepTitleKey(wizardMode, i + 1) as never)}
             />
           ))}
         </div>
+
+        <InstantWizardPricingStrip
+          estimatedPriceLabel={estimatedPriceLabel}
+          imageCount={images.length}
+          transitionCount={outputPlan.transitionCount}
+          durationSeconds={pricingSummary.providerDurationSeconds}
+          isAdminFree={pricingSummary.isAdminFree}
+          isAdmin={isAdmin}
+          usesFreeGeneration={usesFreeGeneration}
+        />
 
         {images.some(
           (im) =>
@@ -1583,7 +1606,7 @@ export default function InstantPremiumPage() {
 
         <InstantWizardShell shellRef={wizardShellRef}>
           <InstantWizardContent contentRef={wizardContentRef}>
-            {step === 1 ? (
+            {wizardView === "upload" ? (
               <>
                 <InstantModePanel
                   instantMode={instantMode}
@@ -1684,7 +1707,7 @@ export default function InstantPremiumPage() {
                 {attachedImageCount >= MIN_IMAGES && attachedImageCount < maxImages ? (
                   <p className="mt-2 text-xs text-zinc-500">{t("instant.step1.extraTransitionHint")}</p>
                 ) : null}
-                {showStoryboardComposer ? (
+                {showStoryboardInUploadStep && showStoryboardStep ? (
                   <div className="mt-8 border-t border-zinc-100 pt-6">
                     {hasStudioImportedScenes && studioIntelligence ?
                       <div className="mb-4 space-y-3">
@@ -1875,7 +1898,217 @@ export default function InstantPremiumPage() {
               </>
             ) : null}
 
-            {step === 2 ? (
+            {wizardView === "storyboard" ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight">{t("instant.wizardStep.storyboard")}</h2>
+                  <p className="mt-2 text-sm text-zinc-600">{t("instant.wizardStep.storyboardHint")}</p>
+                </div>
+                {hasStudioImportedScenes && studioIntelligence ? (
+                  <MotionImportSummaryBanner
+                    intelligence={studioIntelligence}
+                    storyboardId={studioHandoffStoryboardId}
+                    characterVoiceAssignments={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | { characterVoiceAssignments?: import("@/types/studio-character-voice").CharacterVoiceAssignment[] }
+                          | undefined
+                      )?.characterVoiceAssignments ?? null
+                    }
+                    characterPerformanceProfiles={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              characterPerformanceProfiles?: import("@/types/studio-character-performance").CharacterPerformanceAssignment[];
+                            }
+                          | undefined
+                      )?.characterPerformanceProfiles ?? null
+                    }
+                    storedHandoff={readPersistedWizardState()?.studioHandoff?.storedHandoff}
+                    voiceSegments={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | { voiceSegments?: import("@/types/studio-voice-execution").MotionVoiceSegmentHandoff[] }
+                          | undefined
+                      )?.voiceSegments ?? null
+                    }
+                    musicPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | { musicPlan?: import("@/types/studio-music-director").MotionMusicHandoffPlan }
+                          | undefined
+                      )?.musicPlan ?? null
+                    }
+                    soundPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | { soundPlan?: import("@/types/studio-sound-director").MotionSoundHandoffPlan }
+                          | undefined
+                      )?.soundPlan ?? null
+                    }
+                    audioProductionPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              audioProductionPlan?: import("@/types/studio-audio-production-director").MotionAudioProductionHandoffPlan;
+                            }
+                          | undefined
+                      )?.audioProductionPlan ?? null
+                    }
+                    audioAssetPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              audioAssetPlan?: import("@/types/studio-audio-asset-director").MotionAudioAssetHandoffPlan;
+                            }
+                          | undefined
+                      )?.audioAssetPlan ?? null
+                    }
+                    voiceIdentityPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              voiceIdentityPlan?: import("@/types/studio-voice-identity").MotionVoiceIdentityHandoffPlan;
+                            }
+                          | undefined
+                      )?.voiceIdentityPlan ?? null
+                    }
+                    mediaAssetPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              mediaAssetPlan?: import("@/types/studio-media-asset").MotionMediaAssetHandoffPlan;
+                            }
+                          | undefined
+                      )?.mediaAssetPlan ?? null
+                    }
+                    assetPlacementPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              assetPlacementPlan?: import("@/types/studio-asset-placement").MotionAssetPlacementHandoffPlan;
+                            }
+                          | undefined
+                      )?.assetPlacementPlan ?? null
+                    }
+                    characterBlockingPlan={
+                      (
+                        readPersistedWizardState()?.studioHandoff?.storedHandoff as
+                          | {
+                              characterBlockingPlan?: import("@/types/studio-character-blocking").MotionCharacterBlockingHandoffPlan;
+                            }
+                          | undefined
+                      )?.characterBlockingPlan ?? null
+                    }
+                    onRefresh={
+                      studioHandoffStoryboardId ? () => void handleRefreshFromStudio() : undefined
+                    }
+                    refreshing={refreshingStudioHandoff}
+                  />
+                ) : null}
+                {showFrameReorder && attachedImageCount >= MIN_IMAGES ? (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                    <SortableContext
+                      items={images.map((i) => i.id)}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                        {images.map((im, idx) => (
+                          <SortableThumb
+                            key={im.id}
+                            item={im}
+                            index={idx}
+                            roleLabel={t(
+                              `instant.orderRole.${ORDER_ROLE_KEY_SUFFIXES[Math.min(idx, ORDER_ROLE_KEY_SUFFIXES.length - 1)]}` as never
+                            )}
+                            dragLabel={t("instant.step2.drag")}
+                            studioBadgeLabel={t("motion.handoff.studioImageBadge")}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                ) : hasStudioImportedScenes ? (
+                  <p className="text-xs text-zinc-500">{t("motion.handoff.uploadHint")}</p>
+                ) : null}
+                {showStoryboardStep && instantMode === "story" ? (
+                  <>
+                    <StoryboardEditor
+                      sceneIds={sceneSlots.map((slot) => slot.sceneId)}
+                      images={sceneSlots.map((slot) =>
+                        slot.image ? toWizardPreviewInput(slot.image) : undefined
+                      )}
+                      imageCount={sceneCount}
+                      sceneTexts={sceneTexts}
+                      expandedSceneId={expandedSceneId}
+                      onExpandedSceneIdChange={setExpandedSceneSelection}
+                      scrollContainerRef={wizardContentRef}
+                      scrollInsetTopPx={STORYBOARD_FRAME_SCROLL_INSET_PX}
+                      onSceneChange={handleStoryboardSceneChange}
+                      onMoveScene={handleStoryboardMoveScene}
+                      onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
+                      onClearText={handleStoryboardClearText}
+                      onDeleteScene={handleStoryboardDeleteScene}
+                      textStyleEditorMode="optional"
+                    />
+                    {activeStudioSlotMissingImage ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+                        {t("motion.handoff.noStudioImage")}
+                      </p>
+                    ) : null}
+                    {activeStudioContext ? (
+                      <MotionSceneStudioInspector
+                        context={activeStudioContext}
+                        storyboardTitle={studioHandoffTitle}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+
+            {wizardView === "text" ? (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight">{t("instant.wizardStep.text")}</h2>
+                  <p className="mt-2 text-sm text-zinc-600">{t("instant.wizardStep.textHint")}</p>
+                </div>
+                {instantMode === "story" && showStoryboardComposer ? (
+                  <StoryboardEditor
+                    sceneIds={sceneSlots.map((slot) => slot.sceneId)}
+                    images={sceneSlots.map((slot) =>
+                      slot.image ? toWizardPreviewInput(slot.image) : undefined
+                    )}
+                    imageCount={sceneCount}
+                    sceneTexts={sceneTexts}
+                    expandedSceneId={expandedSceneId}
+                    onExpandedSceneIdChange={setExpandedSceneSelection}
+                    scrollContainerRef={wizardContentRef}
+                    scrollInsetTopPx={STORYBOARD_FRAME_SCROLL_INSET_PX}
+                    onSceneChange={handleStoryboardSceneChange}
+                    onMoveScene={handleStoryboardMoveScene}
+                    onDuplicateTextFromPrevious={handleStoryboardDuplicateFromPrevious}
+                    onClearText={handleStoryboardClearText}
+                    onDeleteScene={handleStoryboardDeleteScene}
+                    textStyleEditorMode="optional"
+                  />
+                ) : null}
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-800">{t("instant.creatorStep.prompt")}</h3>
+                  <p className="mt-1 text-xs text-zinc-500">{t("instant.creatorPrompt.intro")}</p>
+                  <textarea
+                    value={motionText}
+                    onChange={(e) => setMotionText(e.target.value)}
+                    rows={4}
+                    maxLength={500}
+                    placeholder={t("instant.creatorPrompt.placeholder")}
+                    className="mt-3 w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {wizardView === "style" ? (
               <AnimationStylePanel
                 settings={posterMotionSettings}
                 imageCount={images.length}
@@ -1887,7 +2120,7 @@ export default function InstantPremiumPage() {
               />
             ) : null}
 
-            {step === 3 ? (
+            {wizardView === "mood" ? (
               <AnimationMoodPanel
                 value={animationMood}
                 onChange={(mood) =>
@@ -1896,7 +2129,7 @@ export default function InstantPremiumPage() {
               />
             ) : null}
 
-            {step === 4 ? (
+            {wizardView === "prompt" ? (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
@@ -1918,7 +2151,7 @@ export default function InstantPremiumPage() {
               </div>
             ) : null}
 
-            {step === 5 ? (
+            {wizardView === "generate" ? (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight text-zinc-900">
@@ -2047,7 +2280,7 @@ export default function InstantPremiumPage() {
         onProceedWithout={handleCheckoutProceedWithoutScans}
         onBackToReview={() => {
           setCheckoutGateOpen(false);
-          setStep(2);
+          setStep(wizardMode === "beginner" ? 1 : 2);
         }}
       />
 
@@ -2065,7 +2298,7 @@ export default function InstantPremiumPage() {
         onClose={() => setPreRenderQaOpen(false)}
         onReviewScenes={() => {
           setPreRenderQaOpen(false);
-          setStep(1);
+          setStep(wizardMode === "beginner" ? 2 : 1);
           setExpandedSceneSelection("auto");
         }}
         onRenderAnyway={() => startCheckoutFlow()}
