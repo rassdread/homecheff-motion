@@ -1217,6 +1217,13 @@ export default function VideoDetailPage() {
             }
             actions={[
               {
+                id: "version-center",
+                labelKey: "projectDetail.quickActions.versionCenter.label",
+                hintKey: "projectDetail.quickActions.versionCenter.hint",
+                href: `/videos/${id}/versions`,
+                visible: Boolean(instantLikeProject),
+              },
+              {
                 id: "text-rerender",
                 labelKey: "projectDetail.quickActions.textOnlyRerender.label",
                 hintKey: "projectDetail.quickActions.textOnlyRerender.hint",
