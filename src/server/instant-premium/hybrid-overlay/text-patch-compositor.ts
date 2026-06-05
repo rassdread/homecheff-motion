@@ -15,6 +15,9 @@ import {
 import { applyHybridMotionOverlay } from "@/server/instant-premium/hybrid-overlay/motion-overlay-compositor";
 import { applyLockedTextOverlay } from "@/server/instant-premium/locked-text-overlay";
 import type { LockedTextLayer } from "@/lib/locked-text-layer";
+import { buildMultiSampleAvoidZonePlan } from "@/server/animation-export/multi-sample-avoid-zones";
+import { isPatchBboxUnsafe } from "@/server/animation-export/multi-image-text-safety";
+import type { TextAvoidZonePlan } from "@/types/text-avoid-zone";
 import { estimateVideoMotionProfile } from "@/server/instant-premium/hybrid-overlay/tracking-engine";
 import { trackPatchAffineAtTime } from "@/server/instant-premium/hybrid-overlay/text-patch-track";
 
@@ -189,6 +192,46 @@ export async function applyPixelPreservedTextMotion(
   const workDir = path.join(path.dirname(input.inputVideoPath), "text-patches-work");
   await fs.mkdir(workDir, { recursive: true });
 
+  let subjectAvoidPlan: TextAvoidZonePlan | undefined;
+  try {
+    subjectAvoidPlan = await buildMultiSampleAvoidZonePlan({
+      videoPath: input.inputVideoPath,
+      durationSec,
+      aspectRatio: input.aspectRatio,
+      enableVision: true,
+    });
+  } catch {
+    subjectAvoidPlan = await buildMultiSampleAvoidZonePlan({
+      videoPath: input.inputVideoPath,
+      durationSec,
+      aspectRatio: input.aspectRatio,
+      enableVision: false,
+    });
+  }
+
+  const unsafePatch = subjectAvoidPlan
+    ? patches.some((p) => isPatchBboxUnsafe(p.bbox, subjectAvoidPlan!.zones))
+    : false;
+
+  if (unsafePatch) {
+    logTextFallback({
+      projectId: input.projectId,
+      reason: "patch_bbox_subject_unsafe",
+      fallback: "locked_drawtext_subject_safe",
+    });
+    await applyLockedTextOverlay({
+      inputVideoPath: input.inputVideoPath,
+      outputVideoPath: input.outputVideoPath,
+      layers: input.lockedLayers,
+      aspectRatio: input.aspectRatio,
+      viduResolution: input.viduResolution,
+      totalDurationMs: input.totalDurationMs,
+      subjectAvoidPlan,
+    });
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+    return { trackingMode: "static", fallbackReason: "patch_subject_unsafe" };
+  }
+
   logTextComposite("start", {
     projectId: input.projectId,
     patchCount: patches.length,
@@ -266,6 +309,7 @@ export async function applyPixelPreservedTextMotion(
           aspectRatio: input.aspectRatio,
           viduResolution: input.viduResolution,
           totalDurationMs: input.totalDurationMs,
+          subjectAvoidPlan,
         });
       },
     },
@@ -372,6 +416,18 @@ export async function applyBestTextOverlayForProject(params: {
     return { method: "hybrid_drawtext" };
   }
 
+  let subjectAvoidPlan: TextAvoidZonePlan | undefined;
+  try {
+    subjectAvoidPlan = await buildMultiSampleAvoidZonePlan({
+      videoPath: params.inputVideoPath,
+      durationSec: params.totalDurationMs / 1000,
+      aspectRatio: params.aspectRatio,
+      enableVision: true,
+    });
+  } catch {
+    subjectAvoidPlan = undefined;
+  }
+
   await applyLockedTextOverlay({
     inputVideoPath: params.inputVideoPath,
     outputVideoPath: params.outputVideoPath,
@@ -379,6 +435,7 @@ export async function applyBestTextOverlayForProject(params: {
     aspectRatio: params.aspectRatio,
     viduResolution: params.viduResolution,
     totalDurationMs: params.totalDurationMs,
+    subjectAvoidPlan,
   });
   return { method: "locked_drawtext" };
 }

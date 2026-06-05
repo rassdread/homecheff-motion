@@ -18,6 +18,12 @@ import {
   type StoryLayoutBand,
 } from "@/server/animation-export/story-overlay-layout-bands";
 import { isStoryModeDebugEnabled } from "@/lib/story-mode-debug";
+import type { TextAvoidZone } from "@/types/text-avoid-zone";
+import {
+  isTextBoxUnsafeForZones,
+  relocateAwayFromSubjectZones,
+} from "@/server/animation-export/text-subject-collision";
+import { logTextSubjectSafetyDebug } from "@/server/animation-export/text-avoid-zone-debug";
 
 export type StoryDialogueDraft = OverlayCollisionCandidate & {
   sceneIndex: number;
@@ -128,11 +134,26 @@ function occupiedBands(
 /**
  * Resolve collisions with reposition (band) → shift → resize → shorten timing → hide.
  */
+function normalizedBoxFromCandidate(
+  candidate: OverlayCollisionCandidate,
+  frameWidth: number,
+  frameHeight: number
+): { left: number; right: number; top: number; bottom: number } {
+  const box = boundsForCandidate(candidate);
+  return {
+    left: box.left / frameWidth,
+    top: box.top / frameHeight,
+    right: box.right / frameWidth,
+    bottom: box.bottom / frameHeight,
+  };
+}
+
 export function resolveSceneDialogueCollisions(params: {
   drafts: StoryDialogueDraft[];
   frameWidth: number;
   frameHeight: number;
   minVerticalGapPx?: number;
+  avoidZones?: TextAvoidZone[];
 }): FinalizeSceneDialoguesResult {
   const sorted = [...params.drafts].sort(
     (a, b) => overlayLayerPriority(b.kind) - overlayLayerPriority(a.kind)
@@ -154,6 +175,38 @@ export function resolveSceneDialogueCollisions(params: {
       inferLayoutBand(working.y, params.frameHeight),
     ]);
 
+    if (params.avoidZones && params.avoidZones.length > 0) {
+      const subjectRelocated = relocateAwayFromSubjectZones({
+        x: working.x,
+        y: working.y,
+        fontSize: working.fontSize,
+        alignment: working.alignment,
+        lines: working.lines,
+        frameW: params.frameWidth,
+        frameH: params.frameHeight,
+        zones: params.avoidZones,
+      });
+      if (subjectRelocated.action !== "kept") {
+        working = {
+          ...working,
+          x: subjectRelocated.x,
+          y: subjectRelocated.y,
+          fontSize: subjectRelocated.fontSize,
+          alignment: subjectRelocated.alignment,
+        };
+        action = "moved";
+        reason = `subject_safe_${subjectRelocated.action}`;
+        logTextSubjectSafetyDebug({
+          layerId: draft.id,
+          avoidZones: params.avoidZones,
+          proposedBox: normalizedBoxFromCandidate(candidateFromDraft(draft), params.frameWidth, params.frameHeight),
+          chosenBox: subjectRelocated.box,
+          rejected: [{ reason: "subject_overlap", score: 0 }],
+          action: subjectRelocated.action,
+        });
+      }
+    }
+
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const box = boundsForCandidate(working);
       let hit: OverlayCollisionCandidate | null = null;
@@ -170,6 +223,44 @@ export function resolveSceneDialogueCollisions(params: {
           break;
         }
       }
+
+      const subjectUnsafe =
+        params.avoidZones &&
+        params.avoidZones.length > 0 &&
+        isTextBoxUnsafeForZones(
+          normalizedBoxFromCandidate(working, params.frameWidth, params.frameHeight),
+          params.avoidZones
+        );
+
+      if (!hit && !subjectUnsafe) {
+        break;
+      }
+
+      if (!hit && subjectUnsafe) {
+        const subjectRelocated = relocateAwayFromSubjectZones({
+          x: working.x,
+          y: working.y,
+          fontSize: working.fontSize,
+          alignment: working.alignment,
+          lines: working.lines,
+          frameW: params.frameWidth,
+          frameH: params.frameHeight,
+          zones: params.avoidZones!,
+        });
+        if (subjectRelocated.action !== "kept") {
+          working = {
+            ...working,
+            x: subjectRelocated.x,
+            y: subjectRelocated.y,
+            fontSize: subjectRelocated.fontSize,
+            alignment: subjectRelocated.alignment,
+          };
+          action = "moved";
+          reason = `subject_relocate_${subjectRelocated.action}`;
+          continue;
+        }
+      }
+
       if (!hit) {
         break;
       }

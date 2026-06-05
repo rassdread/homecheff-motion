@@ -7,6 +7,11 @@ import {
   resolveFfmpegForTextOverlay,
   runFfmpegCapture,
 } from "@/lib/video-ffmpeg-capability";
+import {
+  applySubjectSafetyToLockedLayers,
+  buildMultiImageAvoidPlan,
+} from "@/server/animation-export/multi-image-text-safety";
+import type { TextAvoidZonePlan } from "@/types/text-avoid-zone";
 
 function escapeDrawtext(text: string): string {
   return text
@@ -186,6 +191,9 @@ export type ApplyLockedTextOverlayInput = {
   aspectRatio: string | null | undefined;
   viduResolution: string | null | undefined;
   totalDurationMs: number;
+  /** Subject-aware avoid zones; heuristics used when omitted. */
+  subjectAvoidPlan?: TextAvoidZonePlan;
+  stylePreset?: string | null;
 };
 
 /** Burn locked text layers onto a merged MP4 using ffmpeg drawtext. */
@@ -197,7 +205,19 @@ export async function applyLockedTextOverlay(input: ApplyLockedTextOverlayInput)
   }
 
   const { width, height } = resolveInstantVideoDimensions(input.aspectRatio, input.viduResolution);
-  const filter = buildDrawtextFilters(active, width, height);
+  const avoidPlan =
+    input.subjectAvoidPlan ??
+    buildMultiImageAvoidPlan({
+      aspectRatio: input.aspectRatio,
+      stylePreset: input.stylePreset,
+    });
+  const safeLayers = applySubjectSafetyToLockedLayers({
+    layers: active,
+    frameW: width,
+    frameH: height,
+    avoidPlan,
+  });
+  const filter = buildDrawtextFilters(safeLayers, width, height);
   if (!filter) {
     await fs.copyFile(input.inputVideoPath, input.outputVideoPath);
     return;

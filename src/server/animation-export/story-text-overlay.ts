@@ -120,8 +120,12 @@ import {
 } from "@/server/animation-export/story-overlay-dialogue";
 import {
   collectOcrAvoidBoxesForScene,
+  parseImageBakedTextAvoidBoxes,
   storyFailSafeAvoidBoxes,
 } from "@/server/animation-export/story-overlay-avoid-zones";
+import { buildMultiSampleAvoidZonePlan } from "@/server/animation-export/multi-sample-avoid-zones";
+import type { TextAvoidZonePlan } from "@/types/text-avoid-zone";
+import { logAvoidZonePlan } from "@/server/animation-export/text-avoid-zone-debug";
 import {
   createEmptyStoryModeDebugReport,
   isStoryModeDebugEnabled,
@@ -1483,6 +1487,7 @@ export type BuildStoryOverlayAssInput = {
   height: number;
   themeByIndex?: Map<number, AdaptiveOverlayTheme | null>;
   safeZoneByIndex?: Map<number, SafeZoneInput>;
+  avoidZoneByIndex?: Map<number, TextAvoidZonePlan>;
   /** Receives per-scene collision resolution (for debug reports). */
   onSceneCollision?: (
     sceneIndex: number,
@@ -1580,8 +1585,16 @@ function resolveSceneFontSizes(params: {
 }
 
 export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
-  const { sceneTexts, durationSeconds, width, height, themeByIndex, safeZoneByIndex, onSceneCollision } =
-    input;
+  const {
+    sceneTexts,
+    durationSeconds,
+    width,
+    height,
+    themeByIndex,
+    safeZoneByIndex,
+    avoidZoneByIndex,
+    onSceneCollision,
+  } = input;
   const normalized = sceneTexts.map((s) => normalizeSceneText(s));
   const styleLines: string[] = [];
   const events: string[] = [];
@@ -1721,10 +1734,12 @@ export function buildStoryOverlayAss(input: BuildStoryOverlayAssInput): string {
           { visibleEnd, isFinalScene }
         );
 
+    const avoidPlan = avoidZoneByIndex?.get(index);
     const finalized = resolveSceneDialogueCollisions({
       drafts: rawDrafts,
       frameWidth: width,
       frameHeight: height,
+      avoidZones: avoidPlan?.zones,
     });
     onSceneCollision?.(index, finalized);
     events.push(...finalized.events);
@@ -1840,54 +1855,103 @@ export async function applyStorySceneTextOverlay(
   const normalized = params.sceneTexts.map((s) => normalizeSceneText(s));
   let themeByIndex: Map<number, AdaptiveOverlayTheme | null> | undefined;
   let safeZoneByIndex: Map<number, SafeZoneInput> | undefined;
+  let avoidZoneByIndex: Map<number, TextAvoidZonePlan> | undefined;
+  const windows = collectSceneOverlayWindows(normalized, params.durationSeconds);
 
-  if (params.adaptiveOverlay !== false) {
-    const windows = collectSceneOverlayWindows(normalized, params.durationSeconds);
-    if (windows.length > 0) {
-      try {
-        const contexts = await buildAdaptiveOverlayContextsForScenes({
-          inputVideoPath: params.inputVideoPath,
-          sceneWindows: windows,
-          workDir: params.workDir,
-        });
-        themeByIndex = new Map();
-        safeZoneByIndex = new Map();
-        for (const [index, ctx] of contexts) {
-          themeByIndex.set(index, ctx?.theme ?? null);
-          if (ctx?.detection) {
-            const sceneForZone = normalized[index] ?? emptyNormalizedSceneText();
-            const imageRow = params.imageMeta?.[index];
-            const ocrAvoid = collectOcrAvoidBoxesForScene({
-              sceneIndex: index,
-              imageId: imageRow?.imageId,
-              imageBakedTextJson: imageRow?.bakedTextBlocksJson,
-              projectDetectedTextMetadata: params.projectDetectedTextMetadata,
-            });
-            const sceneSafeZone = buildSceneSafeZoneContext({
-              detection: ctx.detection,
-              sceneText: sceneTextForSafeZone(sceneForZone),
-              width: params.width,
-              height: params.height,
-              accentWords: sceneForZone.accentWords,
-              extraAvoidBoxes: ocrAvoid,
-              aspectRatio: params.aspectRatio,
-            });
-            safeZoneByIndex.set(index, sceneSafeZone);
-            if (isSafeZoneDebugEnabled()) {
-              console.info("[hc-safe-zone-enhanced]", buildEnhancedSafeZoneDebugInfo(index, sceneSafeZone));
-            }
-          } else {
-            safeZoneByIndex.set(index, ctx?.safeZone ?? null);
+  if (params.adaptiveOverlay !== false && windows.length > 0) {
+    try {
+      const contexts = await buildAdaptiveOverlayContextsForScenes({
+        inputVideoPath: params.inputVideoPath,
+        sceneWindows: windows,
+        workDir: params.workDir,
+      });
+      themeByIndex = new Map();
+      safeZoneByIndex = new Map();
+      for (const [index, ctx] of contexts) {
+        themeByIndex.set(index, ctx?.theme ?? null);
+        if (ctx?.detection) {
+          const sceneForZone = normalized[index] ?? emptyNormalizedSceneText();
+          const imageRow = params.imageMeta?.[index];
+          const ocrAvoid = collectOcrAvoidBoxesForScene({
+            sceneIndex: index,
+            imageId: imageRow?.imageId,
+            imageBakedTextJson: imageRow?.bakedTextBlocksJson,
+            projectDetectedTextMetadata: params.projectDetectedTextMetadata,
+          });
+          const sceneSafeZone = buildSceneSafeZoneContext({
+            detection: ctx.detection,
+            sceneText: sceneTextForSafeZone(sceneForZone),
+            width: params.width,
+            height: params.height,
+            accentWords: sceneForZone.accentWords,
+            extraAvoidBoxes: ocrAvoid,
+            aspectRatio: params.aspectRatio,
+          });
+          safeZoneByIndex.set(index, sceneSafeZone);
+          if (isSafeZoneDebugEnabled()) {
+            console.info("[hc-safe-zone-enhanced]", buildEnhancedSafeZoneDebugInfo(index, sceneSafeZone));
           }
+        } else {
+          safeZoneByIndex.set(index, ctx?.safeZone ?? null);
         }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn("[hc-adaptive-overlay]", {
+        warning: "Adaptive theme batch failed; using V2 defaults.",
+        error: message,
+      });
+      themeByIndex = undefined;
+      safeZoneByIndex = undefined;
+    }
+  }
+
+  if (windows.length > 0) {
+    avoidZoneByIndex = new Map();
+    for (const window of windows) {
+      const index = window.sceneIndex;
+      const imageRow = params.imageMeta?.[index];
+      const ocrAvoid = collectOcrAvoidBoxesForScene({
+        sceneIndex: index,
+        imageId: imageRow?.imageId,
+        imageBakedTextJson: imageRow?.bakedTextBlocksJson,
+        projectDetectedTextMetadata: params.projectDetectedTextMetadata,
+      });
+      const bakedAvoid = parseImageBakedTextAvoidBoxes(imageRow?.bakedTextBlocksJson);
+      const failSafe = storyFailSafeAvoidBoxes(params.aspectRatio);
+      try {
+        const plan = await buildMultiSampleAvoidZonePlan({
+          videoPath: params.inputVideoPath,
+          windowStartSec: window.start,
+          windowEndSec: window.end,
+          aspectRatio: params.aspectRatio,
+          ocrAvoidBoxes: [...ocrAvoid, ...failSafe],
+          bakedAvoidBoxes: bakedAvoid,
+          enableVision: true,
+        });
+        avoidZoneByIndex.set(index, plan);
+        logAvoidZonePlan(`scene-${index}`, plan.zones, {
+          sampleTimesSec: plan.sampleTimesSec,
+          heuristicOnly: plan.heuristicOnly,
+          mascotBoostApplied: plan.mascotBoostApplied,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn("[hc-adaptive-overlay]", {
-          warning: "Adaptive theme batch failed; using V2 defaults.",
+        console.warn("[hc-text-placement-v1]", {
+          sceneIndex: index,
+          warning: "Multi-sample avoid zones failed; heuristics only.",
           error: message,
         });
-        themeByIndex = undefined;
-        safeZoneByIndex = undefined;
+        const fallback = await buildMultiSampleAvoidZonePlan({
+          videoPath: params.inputVideoPath,
+          windowStartSec: window.start,
+          windowEndSec: window.end,
+          aspectRatio: params.aspectRatio,
+          ocrAvoidBoxes: [...ocrAvoid, ...failSafe],
+          bakedAvoidBoxes: bakedAvoid,
+          enableVision: false,
+        });
+        avoidZoneByIndex.set(index, fallback);
       }
     }
   }
@@ -1904,6 +1968,7 @@ export async function applyStorySceneTextOverlay(
     height: params.height,
     themeByIndex,
     safeZoneByIndex,
+    avoidZoneByIndex,
     onSceneCollision: (sceneIndex, result) => {
       collisionByScene.set(sceneIndex, result);
     },
