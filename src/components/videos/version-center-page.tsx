@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VideoPreview } from "@/components/ui/video-preview";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
@@ -26,32 +26,39 @@ export function VersionCenterPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<VersionCenterTab>("original");
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!id) {
       return;
     }
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
-        credentials: "include",
-      });
-      const json = (await res.json().catch(() => null)) as AnimationProjectDetailResponse | null;
-      if (!res.ok || !json) {
-        throw new Error(t("versions.center.loadError"));
+    let cancelled = false;
+    void (async () => {
+      setError("");
+      try {
+        const res = await fetch(`/api/animations/projects/${encodeURIComponent(id)}`, {
+          credentials: "include",
+        });
+        const json = (await res.json().catch(() => null)) as AnimationProjectDetailResponse | null;
+        if (!res.ok || !json) {
+          throw new Error(t("versions.center.loadError"));
+        }
+        if (!cancelled) {
+          setDetail(json);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : t("versions.center.loadError"));
+          setDetail(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-      setDetail(json);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("versions.center.loadError"));
-      setDetail(null);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id, t]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const rows = useMemo(() => (detail ? buildVersionCenterRows(detail) : []), [detail]);
   const counts = useMemo(() => tabCounts(rows), [rows]);

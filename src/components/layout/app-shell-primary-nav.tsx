@@ -7,7 +7,7 @@ import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 
 function navLinkClass(active: boolean): string {
-  return `shrink-0 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 sm:py-2 sm:text-xs lg:px-4 lg:text-sm ${
+  return `inline-flex min-h-11 shrink-0 items-center rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:min-h-0 sm:px-3 sm:py-2 sm:text-xs lg:px-4 lg:text-sm ${
     active
       ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
       : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"

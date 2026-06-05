@@ -6,7 +6,23 @@ Generated: 2026-06-05 — codebase as source of truth.
 
 HomeCheff is a **production-focused AI motion studio** (Motion + Studio) with admin ops and billing instrumentation. It is **not** yet a full marketplace/creator discovery platform. Core render and storyboard flows are **PARTIAL–COMPLETE**; ecosystem marketing surfaces were **PARTIAL** (fixed in Phase 2 homepage). Version Center, marketplace, and Director V2 advanced sections remain **missing or PARTIAL**.
 
-**V1 Completeness Score: 62/100**
+**V1 Completeness Score: 72/100** (after sprint phases 2–5, 7–8)
+
+## Sprint changelog (2026-06-05)
+
+| Phase | Commit | Summary |
+|-------|--------|---------|
+| 1 | `8d1b10a` | Platform audit doc + P0–P3 |
+| 2 | `4a9b11c` | Ecosystem homepage + nav |
+| 3 | `c6a9350` | Motion beginner/expert wizard |
+| 4 | `8e20c60` | Director V2 voice/music/sound/text/advanced |
+| 5 | `36cd109` | Version Center `/videos/[id]/versions` |
+| 6 | `a5c0099` | Render recovery (prior) |
+| 7–8 | pending | Billing UX + admin usage link |
+
+### Typecheck (pre-existing)
+
+`npm run typecheck` fails on legacy **test fixture** typings only. `npm run lint` (0 errors), `npm run build`, and `npm run test` pass.
 
 | Area | Score | Status |
 |------|-------|--------|

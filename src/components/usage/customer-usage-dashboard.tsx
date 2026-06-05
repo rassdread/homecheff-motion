@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
@@ -119,27 +120,70 @@ export function CustomerUsageDashboard({
                   <th className="py-2 pr-3">{t("usage.type")}</th>
                   <th className="py-2 pr-3">{t("usage.status")}</th>
                   <th className="py-2 pr-3">{t("usage.credits")}</th>
-                  <th className="py-2">{t("usage.price")}</th>
+                  <th className="py-2 pr-3">{t("usage.price")}</th>
+                  <th className="py-2">{t("usage.action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {report.rows.map((row) => (
                   <tr key={row.id} className="border-b border-zinc-100">
-                    <td className="py-2 pr-3">
-                      {new Date(row.createdAt).toLocaleDateString("nl-NL")}
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      {new Date(row.createdAt).toLocaleString("nl-NL", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
                     </td>
-                    <td className="py-2 pr-3">
-                      {row.projectTitle ?? row.projectId?.slice(0, 8) ?? "—"}
+                    <td className="max-w-[12rem] py-2 pr-3">
+                      {row.projectId ? (
+                        <Link
+                          href={`/videos/${row.projectId}`}
+                          prefetch={false}
+                          className="font-medium text-[#0067B1] hover:underline"
+                        >
+                          {row.projectTitle ?? row.projectId.slice(0, 8)}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="py-2 pr-3">{row.renderType}</td>
-                    <td className="py-2 pr-3">{row.status}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          row.status === "completed"
+                            ? "bg-emerald-50 text-emerald-800"
+                            : row.status === "failed"
+                              ? "bg-red-50 text-red-800"
+                              : "bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
                     <td className="py-2 pr-3">
                       {row.creditsUsed}
-                      {row.isEstimated ?
-                        <span className="ml-1 text-amber-700">*</span>
-                      : null}
+                      {row.isEstimated ? (
+                        <span className="ml-1 text-amber-700" title={t("usage.estimatedNote")}>
+                          *
+                        </span>
+                      ) : null}
                     </td>
-                    <td className="py-2">{formatPriceEur(row.netPriceEur, "nl")}</td>
+                    <td className="py-2 pr-3 font-medium">
+                      {formatPriceEur(row.netPriceEur, "nl")}
+                    </td>
+                    <td className="py-2">
+                      {row.projectId ? (
+                        <Link
+                          href={`/videos/${row.projectId}/versions`}
+                          prefetch={false}
+                          className="text-[#006D52] hover:underline"
+                        >
+                          {t("usage.viewVersions")}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

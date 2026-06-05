@@ -89,6 +89,13 @@ export function AppShellUserBar() {
   return (
     <div className="flex max-w-[min(100%,22rem)] flex-shrink-0 flex-col items-end gap-1.5 sm:max-w-none sm:flex-row sm:items-center sm:gap-2">
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+        <Link
+          href="/mijn-verbruik"
+          prefetch={false}
+          className="hidden shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:inline-flex sm:px-3 sm:py-1.5 sm:text-xs"
+        >
+          {t("nav.usage")}
+        </Link>
         <span
           className={`truncate text-xs text-zinc-700 sm:text-sm ${!isActive ? "opacity-60" : ""}`}
           title={email}
