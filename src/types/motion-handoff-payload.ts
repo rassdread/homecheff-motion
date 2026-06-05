@@ -44,8 +44,14 @@ import type {
   MusicDirectorWarning,
   SceneMusicCue,
 } from "@/types/studio-music-director";
+import type {
+  MotionSceneSoundCueHandoff,
+  MotionSoundHandoffPlan,
+  SceneSoundCue,
+  SoundDirectorWarning,
+} from "@/types/studio-sound-director";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 15 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 16 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -90,6 +96,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   speakerPerformance?: CharacterPerformanceState | null;
   /** V35: scene music cue plan (planning only — no audio). */
   musicCue?: MotionSceneMusicCueHandoff;
+  /** V36: scene sound effects cue plan (planning only — no audio). */
+  soundCue?: MotionSceneSoundCueHandoff;
 };
 
 export type MotionHandoffPayload = {
@@ -153,5 +161,10 @@ export type MotionHandoffPayload = {
   sceneMusicCues?: SceneMusicCue[];
   musicNarrativeSummary?: string;
   musicWarnings?: MusicDirectorWarning[];
+  /** V36: Sound Effects Director plan (no generated audio). */
+  soundPlan?: MotionSoundHandoffPlan;
+  soundProfile?: string;
+  sceneSoundCues?: SceneSoundCue[];
+  soundWarnings?: SoundDirectorWarning[];
   scenes: MotionHandoffScene[];
 };

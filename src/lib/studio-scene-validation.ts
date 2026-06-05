@@ -6,6 +6,16 @@ import {
   isMusicStartBehavior,
   isMusicTransitionType,
 } from "@/lib/studio-music-validation";
+import {
+  normalizeSoundOverrideList,
+} from "@/lib/studio-sound-validation";
+import {
+  SOUND_AMBIENT_IDS,
+  SOUND_CHARACTER_IDS,
+  SOUND_ENVIRONMENT_IDS,
+  SOUND_OBJECT_IDS,
+  SOUND_TRANSITION_IDS,
+} from "@/types/studio-sound-director";
 
 export const STUDIO_SCENE_TITLE_MAX = 120;
 export const STUDIO_SCENE_TEXT_MAX = 4000;
@@ -31,6 +41,11 @@ export type StudioSceneCreateInput = {
   musicTransitionType?: string;
   musicStartBehavior?: string;
   musicEndBehavior?: string;
+  soundEnvironmentOverride?: string;
+  soundCharacterOverride?: string;
+  soundPropOverride?: string;
+  soundTransitionOverride?: string;
+  soundAmbientOverride?: string;
 };
 
 export type StudioSceneUpdateInput = StudioSceneCreateInput;
@@ -136,6 +151,11 @@ export function validateStudioSceneUpdateInput(
   musicTransitionType?: string;
   musicStartBehavior?: string;
   musicEndBehavior?: string;
+  soundEnvironmentOverride?: string;
+  soundCharacterOverride?: string;
+  soundPropOverride?: string;
+  soundTransitionOverride?: string;
+  soundAmbientOverride?: string;
 }> {
   const patch: {
     title?: string;
@@ -156,6 +176,11 @@ export function validateStudioSceneUpdateInput(
     musicTransitionType?: string;
     musicStartBehavior?: string;
     musicEndBehavior?: string;
+    soundEnvironmentOverride?: string;
+    soundCharacterOverride?: string;
+    soundPropOverride?: string;
+    soundTransitionOverride?: string;
+    soundAmbientOverride?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -247,6 +272,36 @@ export function validateStudioSceneUpdateInput(
       return { ok: false, code: "INVALID_MUSIC_END", message: "Invalid music end behavior." };
     }
     patch.musicEndBehavior = v;
+  }
+  if (raw.soundEnvironmentOverride !== undefined) {
+    patch.soundEnvironmentOverride = normalizeSoundOverrideList(
+      trimField(raw.soundEnvironmentOverride),
+      SOUND_ENVIRONMENT_IDS
+    );
+  }
+  if (raw.soundCharacterOverride !== undefined) {
+    patch.soundCharacterOverride = normalizeSoundOverrideList(
+      trimField(raw.soundCharacterOverride),
+      SOUND_CHARACTER_IDS
+    );
+  }
+  if (raw.soundPropOverride !== undefined) {
+    patch.soundPropOverride = normalizeSoundOverrideList(
+      trimField(raw.soundPropOverride),
+      SOUND_OBJECT_IDS
+    );
+  }
+  if (raw.soundTransitionOverride !== undefined) {
+    patch.soundTransitionOverride = normalizeSoundOverrideList(
+      trimField(raw.soundTransitionOverride),
+      SOUND_TRANSITION_IDS
+    );
+  }
+  if (raw.soundAmbientOverride !== undefined) {
+    patch.soundAmbientOverride = normalizeSoundOverrideList(
+      trimField(raw.soundAmbientOverride),
+      SOUND_AMBIENT_IDS
+    );
   }
 
   if (Object.keys(patch).length === 0) {

@@ -7,6 +7,7 @@ import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
 import { MotionCharacterPerformancePreview } from "@/components/instant/motion/motion-character-performance-preview";
 import type { CharacterPerformanceAssignment } from "@/types/studio-character-performance";
 import type { MotionMusicHandoffPlan } from "@/types/studio-music-director";
+import type { MotionSoundHandoffPlan } from "@/types/studio-sound-director";
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
   storedHandoff?: unknown;
   voiceSegments?: MotionVoiceSegmentHandoff[] | null;
   musicPlan?: MotionMusicHandoffPlan | null;
+  soundPlan?: MotionSoundHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -33,6 +35,7 @@ export function MotionImportSummaryBanner({
   storedHandoff,
   voiceSegments,
   musicPlan,
+  soundPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -126,6 +129,29 @@ export function MotionImportSummaryBanner({
                     <span className="capitalize">{cue.narrativeLabel}</span>
                   </li>
                 ))}
+              </ul>
+            </div>
+          : null}
+          {soundPlan?.enabled && soundPlan.sceneSoundCues.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.soundTitle")}:{" "}
+                {t(soundPlan.profileLabelKey as never)}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {soundPlan.sceneSoundCues.map((cue) => {
+                  const labels = [
+                    ...cue.environmentSounds.slice(0, 2),
+                    ...cue.characterSounds.slice(0, 1),
+                    ...cue.transitionSounds.filter((s) => s !== "none").slice(0, 1),
+                  ].map((id) => t(`studio.sound.id.${id}` as never));
+                  return (
+                    <li key={cue.sceneId}>
+                      {cue.order + 1}. {cue.title || t("motion.qa.importSummary.soundScene")}:{" "}
+                      {labels.join(" · ") || "—"}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           : null}

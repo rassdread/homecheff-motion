@@ -3,6 +3,7 @@ import { isStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { isStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { isStudioMusicProfileId } from "@/lib/studio-music-profiles";
 import { normalizeMusicIntensity } from "@/lib/studio-music-validation";
+import { isStudioSoundProfileId, normalizeSoundDensity } from "@/lib/studio-sound-profiles";
 import {
   isStudioNarrationMode,
   isStudioVoiceProfileId,
@@ -37,6 +38,10 @@ export type StudioStoryboardUpdateInput = {
   musicIntensity?: string;
   musicNarrativeRole?: string;
   musicNotes?: string;
+  soundEnabled?: boolean;
+  soundStyle?: string;
+  soundDensity?: string;
+  soundNotes?: string;
 };
 
 export type ValidationResult<T> =
@@ -102,6 +107,10 @@ export function validateStudioStoryboardUpdateInput(
   musicIntensity?: string;
   musicNarrativeRole?: string;
   musicNotes?: string;
+  soundEnabled?: boolean;
+  soundStyle?: string;
+  soundDensity?: string;
+  soundNotes?: string;
 }> {
   const patch: {
     title?: string;
@@ -122,6 +131,10 @@ export function validateStudioStoryboardUpdateInput(
     musicIntensity?: string;
     musicNarrativeRole?: string;
     musicNotes?: string;
+    soundEnabled?: boolean;
+    soundStyle?: string;
+    soundDensity?: string;
+    soundNotes?: string;
   } = {};
 
   if (raw.title !== undefined) {
@@ -229,6 +242,23 @@ export function validateStudioStoryboardUpdateInput(
   }
   if (raw.musicNotes !== undefined) {
     patch.musicNotes = trimText(raw.musicNotes, STUDIO_STORYBOARD_TEXT_MAX);
+  }
+
+  if (raw.soundEnabled !== undefined) {
+    patch.soundEnabled = Boolean(raw.soundEnabled);
+  }
+  if (raw.soundStyle !== undefined) {
+    const style = raw.soundStyle.trim().toLowerCase();
+    if (style && !isStudioSoundProfileId(style)) {
+      return { ok: false, code: "INVALID_SOUND_STYLE", message: "Invalid sound profile." };
+    }
+    patch.soundStyle = style;
+  }
+  if (raw.soundDensity !== undefined) {
+    patch.soundDensity = normalizeSoundDensity(raw.soundDensity);
+  }
+  if (raw.soundNotes !== undefined) {
+    patch.soundNotes = trimText(raw.soundNotes, STUDIO_STORYBOARD_TEXT_MAX);
   }
 
   if (Object.keys(patch).length === 0) {

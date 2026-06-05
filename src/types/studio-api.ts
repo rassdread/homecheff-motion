@@ -182,6 +182,11 @@ export type StudioSceneDetail = {
   musicTransitionType: string;
   musicStartBehavior: string;
   musicEndBehavior: string;
+  soundEnvironmentOverride: string;
+  soundCharacterOverride: string;
+  soundPropOverride: string;
+  soundTransitionOverride: string;
+  soundAmbientOverride: string;
   durationSeconds: number;
   locationId: string | null;
   location: StudioLocationListItem | null;
@@ -230,6 +235,10 @@ export type StudioStoryboardListItem = {
   musicIntensity: string;
   musicNarrativeRole: string;
   musicNotes: string;
+  soundEnabled: boolean;
+  soundStyle: string;
+  soundDensity: string;
+  soundNotes: string;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

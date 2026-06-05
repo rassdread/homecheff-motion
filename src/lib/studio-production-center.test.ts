@@ -148,12 +148,13 @@ describe("studio-production-center", () => {
     assert.ok(warnings.some((w) => w.code === "missing_narration"));
   });
 
-  it("buildAssetReadiness returns six readiness categories including music", () => {
+  it("buildAssetReadiness returns seven readiness categories including sound", () => {
     const assets = buildAssetReadiness(storyboard([scene(0), scene(1)]));
-    assert.equal(assets.length, 6);
+    assert.equal(assets.length, 7);
     assert.ok(assets.some((a) => a.id === "story"));
     assert.ok(assets.some((a) => a.id === "voice"));
     assert.ok(assets.some((a) => a.id === "music"));
+    assert.ok(assets.some((a) => a.id === "sound"));
   });
 
   it("computeOverallProductionScore blends five score dimensions", () => {
@@ -173,11 +174,12 @@ describe("studio-production-center", () => {
     assert.equal(label.label, "production_ready");
   });
 
-  it("buildProductionChecklist includes seven checklist items including music plan", () => {
+  it("buildProductionChecklist includes eight checklist items including sound plan", () => {
     const checklist = buildProductionChecklist(storyboard([scene(0), scene(1)]));
-    assert.equal(checklist.length, 7);
+    assert.equal(checklist.length, 8);
     assert.ok(checklist.some((c) => c.id === "shot_plan"));
     assert.ok(checklist.some((c) => c.id === "music_plan"));
+    assert.ok(checklist.some((c) => c.id === "sound_plan"));
   });
 
   it("buildProductionCenterReport produces exportable summary", () => {
