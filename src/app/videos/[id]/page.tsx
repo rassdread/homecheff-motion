@@ -18,11 +18,17 @@ import { ProjectDetailVersionToolbar } from "@/components/videos/project-detail-
 import {
   buildMotionVersionCatalogForProject,
   findMotionVersionSlot,
-  isExplicitMotionUrlSelectionInvalid,
-  resolveMotionSelectionFromUrl,
+  type MotionVersionCatalog,
 } from "@/lib/motion-version-catalog";
+import { isBundleSlotPlayable } from "@/lib/bundle-slot-actions";
+import {
+  applyDetailVersionSelection,
+  isFailedParentWithCompletedRender,
+  resolveDetailCatalogSelection,
+  resolveDetailSlotCleanVideoUrl,
+  resolveDetailSlotDownloadUrl,
+} from "@/lib/project-detail-bundle-selection";
 import { MotionDeepLinkWarning } from "@/components/videos/motion-deep-link-warning";
-import { buildVersionQueryParam } from "@/lib/motion-version-display";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
 import { ProjectBundleOverviewPanel } from "@/components/videos/project-bundle-overview-panel";
@@ -476,9 +482,12 @@ export default function VideoDetailPage() {
   const versionFromUrl = searchParams.get("ver");
   const selFromUrl = searchParams.get("sel");
 
-  const motionCatalog = useMemo(() => {
+  const motionCatalog = useMemo((): MotionVersionCatalog | null => {
     if (!detail) {
       return null;
+    }
+    if (detail.bundleCatalog && detail.bundleCatalog.languages.length > 0) {
+      return detail.bundleCatalog as MotionVersionCatalog;
     }
     return buildMotionVersionCatalogForProject({
       projectId: detail.id,
@@ -487,6 +496,7 @@ export default function VideoDetailPage() {
       exportStatus: latestExport?.status ?? null,
       projectStatus: detail.status,
       projectCleanUrl: detail.instantCleanFinalVideoUrl ?? null,
+      durationSeconds: detail.instantOutputDurationSeconds ?? null,
       renderVersions: (detail.renderVersions ?? []).map((row) => ({
         id: row.id,
         renderVersionNumber: row.renderVersionNumber,
@@ -512,88 +522,73 @@ export default function VideoDetailPage() {
     });
   }, [detail, finalVideoUrl, latestExport?.status]);
 
-  const invalidMotionDeepLink = useMemo(
+  const catalogSelection = useMemo(
     () =>
       motionCatalog
-        ? isExplicitMotionUrlSelectionInvalid(
-            motionCatalog,
+        ? resolveDetailCatalogSelection({
+            catalog: motionCatalog,
             langFromUrl,
             versionFromUrl,
-            selFromUrl
-          )
-        : false,
+            selFromUrl,
+          })
+        : {
+            invalidDeepLink: false,
+            selectedCatalogSlot: null,
+            selectedLanguageCode: "nl",
+            selectionKey: null,
+          },
     [motionCatalog, langFromUrl, versionFromUrl, selFromUrl]
   );
 
-  const selectedMotionSlot = useMemo(() => {
-    if (!motionCatalog || invalidMotionDeepLink) {
-      return null;
-    }
-    return (
-      resolveMotionSelectionFromUrl(
-        motionCatalog,
-        langFromUrl,
-        versionFromUrl,
-        selFromUrl
-      )?.slot ?? null
-    );
-  }, [motionCatalog, invalidMotionDeepLink, langFromUrl, versionFromUrl, selFromUrl]);
+  const invalidMotionDeepLink = catalogSelection.invalidDeepLink;
+  const selectedCatalogSlot = catalogSelection.selectedCatalogSlot;
 
   const setMotionVersionSelection = useCallback(
-    (languageCode: string, selectionKey: string, versionNumber: number) => {
-      if (!id) {
+    (_languageCode: string, selectionKey: string, _versionNumber: number) => {
+      if (!motionCatalog) {
         return;
       }
-      const params = new URLSearchParams(searchParams.toString());
-      if (languageCode === "nl") {
-        params.delete("lang");
-      } else {
-        params.set("lang", languageCode);
+      const slot = findMotionVersionSlot(motionCatalog, selectionKey);
+      if (!slot) {
+        return;
       }
-      const slot = motionCatalog
-        ? findMotionVersionSlot(motionCatalog, selectionKey)
-        : null;
-      if (slot?.renderVersionId || slot?.languageExportId) {
-        const stableSel =
-          slot.renderVersionId
-            ? `render:${slot.renderVersionId}`
-            : slot.languageExportId
-              ? `lang:${slot.languageExportId}`
-              : selectionKey;
-        params.set("sel", stableSel);
-        params.delete("ver");
-      } else {
-        params.delete("sel");
-        params.set(
-          "ver",
-          buildVersionQueryParam(slot?.sourceRenderVersionNumber ?? versionNumber)
-        );
-      }
-      const qs = params.toString();
-      router.replace(`/videos/${encodeURIComponent(id)}${qs ? `?${qs}` : ""}`, {
-        scroll: false,
+      applyDetailVersionSelection(slot, (href) => {
+        router.replace(href, { scroll: false });
       });
     },
-    [id, motionCatalog, router, searchParams]
+    [motionCatalog, router]
+  );
+
+  const showFailedParentCompletedBadge = useMemo(
+    () =>
+      Boolean(
+        detail &&
+          isFailedParentWithCompletedRender({
+            parentProjectStatus: detail.status,
+            selectedSlot: selectedCatalogSlot,
+          })
+      ),
+    [detail, selectedCatalogSlot]
   );
 
   const handleCopyAsConcept = useCallback(async () => {
-    if (!id || fullRerenderDisabled) {
+    const sourceProjectId = selectedCatalogSlot?.sourceProjectId ?? id;
+    if (!sourceProjectId || fullRerenderDisabled) {
       return;
     }
     setFullRerenderBusy(true);
     setFullRerenderError(null);
     setFullRerenderInfo(null);
     try {
-      const result = await postCopyProjectAsDraft(id, {
-        sourceLanguage: selectedMotionSlot?.languageCode,
+      const result = await postCopyProjectAsDraft(sourceProjectId, {
+        sourceLanguage: selectedCatalogSlot?.languageCode,
         sourceVersion:
-          selectedMotionSlot?.sourceRenderVersionNumber ??
-          selectedMotionSlot?.sourceLanguageExportVersion ??
+          selectedCatalogSlot?.sourceRenderVersionNumber ??
+          selectedCatalogSlot?.sourceLanguageExportVersion ??
           undefined,
-        renderVersionId: selectedMotionSlot?.renderVersionId,
-        languageExportId: selectedMotionSlot?.languageExportId,
-        selectionKey: selectedMotionSlot?.selectionKey,
+        renderVersionId: selectedCatalogSlot?.renderVersionId,
+        languageExportId: selectedCatalogSlot?.languageExportId,
+        selectionKey: selectedCatalogSlot?.selectionKey,
       });
       if (result.networkError || !result.ok) {
         setFullRerenderError(
@@ -622,12 +617,13 @@ export default function VideoDetailPage() {
     fullRerenderDisabled,
     id,
     router,
-    selectedMotionSlot?.languageCode,
-    selectedMotionSlot?.languageExportId,
-    selectedMotionSlot?.renderVersionId,
-    selectedMotionSlot?.selectionKey,
-    selectedMotionSlot?.sourceLanguageExportVersion,
-    selectedMotionSlot?.sourceRenderVersionNumber,
+    selectedCatalogSlot?.languageCode,
+    selectedCatalogSlot?.languageExportId,
+    selectedCatalogSlot?.renderVersionId,
+    selectedCatalogSlot?.selectionKey,
+    selectedCatalogSlot?.sourceLanguageExportVersion,
+    selectedCatalogSlot?.sourceProjectId,
+    selectedCatalogSlot?.sourceRenderVersionNumber,
     t,
   ]);
 
@@ -643,13 +639,28 @@ export default function VideoDetailPage() {
 
   const activeFinalVideoUrl = invalidMotionDeepLink
     ? null
-    : selectedMotionSlot?.finalVideoUrl?.trim() ??
+    : selectedCatalogSlot?.finalVideoUrl?.trim() ??
       playbackState.activePlaybackUrl ??
       originalPlaybackUrl;
 
   const activeCleanVideoUrl = invalidMotionDeepLink
     ? null
-    : selectedMotionSlot?.cleanVideoUrl?.trim() ?? videoDisplay.cleanUrl;
+    : resolveDetailSlotCleanVideoUrl(selectedCatalogSlot);
+
+  const slotDownloadHref = resolveDetailSlotDownloadUrl(selectedCatalogSlot);
+
+  const hasMotionVersionCatalog = Boolean(
+    motionCatalog &&
+      Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 0)
+  );
+
+  const showBundlePlayback = Boolean(
+    originalPlaybackUrl ||
+      (hasMotionVersionCatalog &&
+        !invalidMotionDeepLink &&
+        selectedCatalogSlot &&
+        isBundleSlotPlayable(selectedCatalogSlot))
+  );
 
   const playbackCacheKey = buildPlaybackCacheKey(
     activeFinalVideoUrl ?? originalPlaybackUrl
@@ -895,7 +906,9 @@ export default function VideoDetailPage() {
     latestExport?.status === "failed" &&
     latestExport?.errorMessage?.trim() === EXPORT_CANCELLED_BY_USER_MESSAGE;
 
-  const projectTitle = resolveProjectDisplayTitle(detail.title, dateLocale);
+  const projectTitle =
+    detail.bundleDisplayTitle?.trim() ||
+    resolveProjectDisplayTitle(detail.title, dateLocale);
   const projectMode: ProjectDetailModeKind =
     detail.instantMode === "story" ? "story"
     : instantLikeProject ? "transition"
@@ -948,7 +961,13 @@ export default function VideoDetailPage() {
           initialTitle={detail.title ?? null}
           initialBundleName={detail.bundleName ?? null}
           initialBundleKey={detail.bundleKey ?? null}
-          peers={[]}
+          peers={(detail.bundlePeers ?? []).map((peer) => ({
+            id: peer.id,
+            title: peer.title,
+            bundleName: peer.bundleName,
+            bundleKey: peer.bundleKey,
+            projectType: peer.projectType,
+          }))}
           onClose={() => setRenameOpen(false)}
           onSaved={(result) => {
             setDetail((prev) =>
@@ -1043,18 +1062,18 @@ export default function VideoDetailPage() {
         />
       ) : null}
 
-      {originalPlaybackUrl ? (
+      {showBundlePlayback ? (
         <div className="mt-6 space-y-3">
-          {motionCatalog &&
-          motionCatalog.languages.length > 0 &&
-          Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 0) ?
+          {hasMotionVersionCatalog && motionCatalog ?
             <ProjectDetailVersionToolbar
               detail={detail}
               catalog={motionCatalog}
-              selectedSlot={selectedMotionSlot}
+              selectedSlot={selectedCatalogSlot}
+              bundleDisplayTitle={detail.bundleDisplayTitle}
+              showFailedParentCompletedBadge={showFailedParentCompletedBadge}
               selectedLanguageCode={
-                selectedMotionSlot?.languageCode ??
-                langFromUrl ??
+                selectedCatalogSlot?.languageCode ??
+                catalogSelection.selectedLanguageCode ??
                 motionCatalog.defaultLanguageCode
               }
               onLanguageChange={(code) => {
@@ -1106,7 +1125,7 @@ export default function VideoDetailPage() {
           {finalVideoPlaybackError ? (
             <p className="text-sm text-red-700">{t("videos.playbackError")}</p>
           ) : null}
-          {hasCompletedLanguageVersions ? (
+          {!hasMotionVersionCatalog && hasCompletedLanguageVersions ?
             <LanguagePlaybackSelector
               originalPlaybackUrl={originalPlaybackUrl}
               languageExports={languageExports}
@@ -1114,7 +1133,7 @@ export default function VideoDetailPage() {
               onSelectedLanguageChange={setPlaybackLanguage}
               showAdminDebug={false}
             />
-          ) : null}
+          : null}
 
           {hasCompletedInstantFinal && canFullRerenderInstant ?
             <ProjectRerenderChoices
@@ -1134,10 +1153,20 @@ export default function VideoDetailPage() {
             leadingSlot={
               id ?
                 <VideoVersionDownloadTrigger
-                  projectId={id}
-                  originalVideoUrl={originalPlaybackUrl}
+                  projectId={selectedCatalogSlot?.sourceProjectId ?? id}
+                  originalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
                   cleanVideoUrl={cleanVideoUrl}
-                  languageExports={languageExports}
+                  languageExports={
+                    selectedCatalogSlot?.kind === "language_export" &&
+                    selectedCatalogSlot.languageExportId
+                      ? languageExports.filter(
+                          (row) => row.id === selectedCatalogSlot.languageExportId
+                        )
+                      : hasMotionVersionCatalog
+                        ? []
+                        : languageExports
+                  }
+                  slotDownloadHref={slotDownloadHref}
                   storageAudit={projectStorageAudit}
                 />
               : null
@@ -1164,9 +1193,13 @@ export default function VideoDetailPage() {
               {
                 id: "view-clean",
                 labelKey: "projectDetail.quickActions.viewClean.label",
-                hintKey: "projectDetail.quickActions.viewClean.hint",
+                hintKey:
+                  hasMotionVersionCatalog && !cleanVideoUrl
+                    ? "projectDetail.versions.noCleanForVersion"
+                    : "projectDetail.quickActions.viewClean.hint",
                 onClick: () => scrollToSection("version-clean"),
-                visible: Boolean(cleanVideoUrl),
+                visible: Boolean(cleanVideoUrl || hasMotionVersionCatalog),
+                disabled: hasMotionVersionCatalog && !cleanVideoUrl,
               },
               {
                 id: "new-language",
@@ -1188,32 +1221,33 @@ export default function VideoDetailPage() {
             ]}
           />
 
+          {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
+          {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
+          {fullRerenderInfo ? <p className="text-sm text-emerald-800">{fullRerenderInfo}</p> : null}
+          {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
+
+          {instantLikeProject && hasMotionVersionCatalog && motionCatalog ?
+            <div className="mt-6">
+              <ProjectBundleOverviewPanel
+                detail={detail}
+                catalog={motionCatalog}
+                selectedSlot={selectedCatalogSlot}
+                onSlotSelect={(slot) => {
+                  setMotionVersionSelection(slot.languageCode, slot.selectionKey, slot.versionNumber);
+                }}
+              />
+            </div>
+          : null}
+
           {showProjectStorage && id ?
             <ProjectStorageUsageCard
-              projectId={id}
+              projectId={selectedCatalogSlot?.sourceProjectId ?? id}
               isAdmin={isAdmin}
               audit={projectStorageAudit}
               loading={projectStorageLoading}
               error={projectStorageError}
               onRefresh={refreshProjectStorage}
             />
-          : null}
-
-          {rebuildInfo ? <p className="text-sm text-emerald-800">{rebuildInfo}</p> : null}
-          {rebuildError ? <p className="text-sm text-red-700">{rebuildError}</p> : null}
-          {fullRerenderInfo ? <p className="text-sm text-emerald-800">{fullRerenderInfo}</p> : null}
-          {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
-
-          {instantLikeProject &&
-          motionCatalog &&
-          Object.values(motionCatalog.slotsByLanguage).some((s) => (s?.length ?? 0) > 0) ?
-            <div className="mt-6">
-              <ProjectBundleOverviewPanel
-                detail={detail}
-                catalog={motionCatalog}
-                selectedSlot={selectedMotionSlot}
-              />
-            </div>
           : null}
 
           {instantLikeProject && (detail.renderVersions?.length ?? 0) > 0 ?

@@ -22,6 +22,8 @@ type Props = {
   selectedLanguageCode: string;
   onLanguageChange: (code: string) => void;
   onVersionChange: (key: string) => void;
+  bundleDisplayTitle?: string | null;
+  showFailedParentCompletedBadge?: boolean;
 };
 
 export function ProjectDetailVersionToolbar({
@@ -31,6 +33,8 @@ export function ProjectDetailVersionToolbar({
   selectedLanguageCode,
   onLanguageChange,
   onVersionChange,
+  bundleDisplayTitle,
+  showFailedParentCompletedBadge = false,
 }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
@@ -101,9 +105,19 @@ export function ProjectDetailVersionToolbar({
           {t("videos.bundle.folder")}: {t(folderLabelKey as never)}
         </p>
         <p className="text-lg font-semibold text-zinc-900">
-          {detail.bundleName?.trim() || detail.title?.trim() || t("videos.untitledProject")}
+          {bundleDisplayTitle?.trim() ||
+            detail.bundleName?.trim() ||
+            detail.title?.trim() ||
+            t("videos.untitledProject")}
         </p>
       </div>
+      {showFailedParentCompletedBadge ?
+        <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
+          <span className="font-semibold">{t("projectDetail.versions.parentFailed")}</span>
+          {" · "}
+          <span>{t("projectDetail.versions.selectedRenderCompleted")}</span>
+        </p>
+      : null}
       <BundleCountLines
         lines={[
           bundleRich.languageLine,

@@ -2311,6 +2311,9 @@ export const en: LocaleSchema = {
     "Latest bare video from the newest clips. Final overlay or upload did not complete yet.",
   "projectDetail.versions.finalArchivedFallback":
     "Showing the previous final video. The latest render attempt did not finish successfully.",
+  "projectDetail.versions.parentFailed": "Project failed",
+  "projectDetail.versions.selectedRenderCompleted": "Selected render completed",
+  "projectDetail.versions.noCleanForVersion": "No clean video available for this version.",
   "projectDetail.versions.languagesTitle": "Language versions",
   "projectDetail.versions.languagesDesc": "Translated text layers on the same footage.",
   "projectDetail.versions.historyTitle": "History",

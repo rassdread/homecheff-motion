@@ -28,6 +28,7 @@ type Props = {
   }>;
   selectedSlot?: MotionVersionSlot | null;
   catalog?: MotionVersionCatalog;
+  onSlotSelect?: (slot: MotionVersionSlot) => void;
 };
 
 function slotBadges(detail: AnimationProjectDetailResponse, slot: MotionVersionSlot) {
@@ -53,7 +54,8 @@ function languageSection(
   code: string,
   selectedSelectionKey: string | null,
   detail: AnimationProjectDetailResponse,
-  t: ReturnType<typeof useActiveTranslator>
+  t: ReturnType<typeof useActiveTranslator>,
+  onSlotSelect?: (slot: MotionVersionSlot) => void
 ) {
   const slots = catalog.slotsByLanguage[code] ?? [];
   if (!slots.length) {
@@ -84,12 +86,21 @@ function languageSection(
                 <span className="text-xs text-zinc-500">({slot.status})</span>
               </div>
               <BundleVersionBadges badges={slotBadges(detail, slot)} className="mt-1" />
-              <Link
-                href={href}
-                className="mt-1 inline-block text-xs font-medium text-emerald-800 underline"
-              >
-                {active ? t("projects.bundle.currentVersion") : t("projects.bundle.openVersion")}
-              </Link>
+              {onSlotSelect ?
+                <button
+                  type="button"
+                  onClick={() => onSlotSelect(slot)}
+                  className="mt-1 inline-block text-xs font-medium text-emerald-800 underline"
+                >
+                  {active ? t("projects.bundle.currentVersion") : t("projects.bundle.openVersion")}
+                </button>
+              : <Link
+                  href={href}
+                  className="mt-1 inline-block text-xs font-medium text-emerald-800 underline"
+                >
+                  {active ? t("projects.bundle.currentVersion") : t("projects.bundle.openVersion")}
+                </Link>
+              }
             </li>
           );
         })}
@@ -103,6 +114,7 @@ export function ProjectBundleOverviewPanel({
   draftConcepts = [],
   selectedSlot = null,
   catalog: catalogProp,
+  onSlotSelect,
 }: Props) {
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
@@ -168,7 +180,7 @@ export function ProjectBundleOverviewPanel({
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {catalog.languages.map((lang) =>
-              languageSection(catalog, lang.code, selectedKey, detail, t)
+              languageSection(catalog, lang.code, selectedKey, detail, t, onSlotSelect)
             )}
           </div>
           {draftConcepts.length > 0 ?

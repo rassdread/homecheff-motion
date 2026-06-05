@@ -540,6 +540,19 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
   studioIntelligenceStatus?: ProjectStudioExportMetadata["studioIntelligenceStatus"];
   /** V32: Studio voice + subtitle export settings (when imported from Studio). */
   studioAudioExport?: import("@/types/motion-voice-export").MotionStudioAudioExportResponse | null;
+  /** V22.7 — merged bundle catalog (all members, same grouping as My Projects). */
+  bundleCatalog?: ProjectBundleListItemResponse["catalog"];
+  bundleKeyResolved?: string;
+  bundleDisplayTitle?: string;
+  bundleMemberProjectIds?: string[];
+  bundlePeers?: Array<{
+    id: string;
+    title: string | null;
+    bundleName: string | null;
+    bundleKey: string | null;
+    projectType: string;
+    status: string;
+  }>;
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";

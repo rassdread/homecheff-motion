@@ -2318,6 +2318,9 @@ export const nl = {
     "Nieuwste kale video van de nieuwste clips. De finale overlay of upload is nog niet gelukt.",
   "projectDetail.versions.finalArchivedFallback":
     "Je ziet de vorige finale video. De nieuwste renderpoging is niet succesvol afgerond.",
+  "projectDetail.versions.parentFailed": "Project mislukt",
+  "projectDetail.versions.selectedRenderCompleted": "Geselecteerde render voltooid",
+  "projectDetail.versions.noCleanForVersion": "Geen schone video beschikbaar voor deze versie.",
   "projectDetail.versions.languagesTitle": "Taalversies",
   "projectDetail.versions.languagesDesc": "Vertaalde tekstlagen op dezelfde beelden.",
   "projectDetail.versions.historyTitle": "Geschiedenis",

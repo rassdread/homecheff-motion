@@ -26,6 +26,7 @@ import {
   buildProjectStudioExportMetadata,
   buildProjectStudioQaResponse,
 } from "@/lib/studio-project-metadata";
+import { buildDetailBundleCatalog } from "@/server/animation-projects/build-detail-bundle-catalog";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -236,7 +237,7 @@ function mapToDetailResponse(
   };
 }
 
-export async function GET(_: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
@@ -253,7 +254,26 @@ export async function GET(_: Request, context: RouteContext) {
     project = (await getAnimationProjectByIdForViewer(id, user)) ?? project;
   }
 
+  const localeHeader = request.headers.get("x-hc-locale")?.trim().toLowerCase();
+  const locale = localeHeader === "en" ? "en" : "nl";
+
   const body = mapToDetailResponse(project, user.role);
+  const bundlePayload = await buildDetailBundleCatalog({
+    project: {
+      id: project.id,
+      ownerId: project.ownerId,
+      title: project.title,
+      bundleName: project.bundleName,
+      bundleKey: project.bundleKey,
+      projectType: project.projectType,
+    },
+    locale,
+  });
+  body.bundleCatalog = bundlePayload.catalog as AnimationProjectDetailResponse["bundleCatalog"];
+  body.bundleKeyResolved = bundlePayload.bundleKey;
+  body.bundleDisplayTitle = bundlePayload.bundleDisplayTitle;
+  body.bundleMemberProjectIds = bundlePayload.memberProjectIds;
+  body.bundlePeers = bundlePayload.peers;
   if (user.role === "admin") {
     const debug = await getProjectPlaybackDebug(id);
     if (debug) {

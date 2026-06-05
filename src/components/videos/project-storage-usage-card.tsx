@@ -21,6 +21,8 @@ type Props = {
   languageExports: VideoLanguageExportSummary[];
   className?: string;
   storageAudit?: ProjectStorageAudit | null;
+  /** V22.7 — when set, download targets the selected catalog slot only. */
+  slotDownloadHref?: string | null;
 };
 
 export function VideoVersionDownloadTrigger({
@@ -30,6 +32,7 @@ export function VideoVersionDownloadTrigger({
   languageExports,
   className = "",
   storageAudit = null,
+  slotDownloadHref = null,
 }: Props) {
   const t = useActiveTranslator();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -39,25 +42,38 @@ export function VideoVersionDownloadTrigger({
     [storageAudit]
   );
 
-  const options = useMemo(
-    (): VideoDownloadOption[] =>
-      buildProjectDownloadOptions({
-        projectId,
-        originalVideoUrl,
-        cleanVideoUrl,
-        languageExports,
-        sizeByUrl,
-        includeNonDownloadable: pickerOpen,
-      }),
-    [
+  const options = useMemo((): VideoDownloadOption[] => {
+    if (slotDownloadHref?.trim()) {
+      return [
+        {
+          id: "selected-slot",
+          kind: "original",
+          descriptionKey: "projectDetail.downloadPicker.originalDescription",
+          badgeKey: "projectDetail.downloadPicker.withTextBadge",
+          href: slotDownloadHref.trim(),
+          filename: `homecheff-motion-${projectId}.mp4`,
+          downloadable: true,
+          section: "primary",
+        },
+      ];
+    }
+    return buildProjectDownloadOptions({
+      projectId,
+      originalVideoUrl,
       cleanVideoUrl,
       languageExports,
-      originalVideoUrl,
-      pickerOpen,
-      projectId,
       sizeByUrl,
-    ]
-  );
+      includeNonDownloadable: pickerOpen,
+    });
+  }, [
+    cleanVideoUrl,
+    languageExports,
+    originalVideoUrl,
+    pickerOpen,
+    projectId,
+    sizeByUrl,
+    slotDownloadHref,
+  ]);
 
   const downloadable = useMemo(() => pickDownloadableOptions(options), [options]);
   const directDownload = useMemo(() => resolveDirectDownloadOption(options), [options]);
