@@ -241,7 +241,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V36 — Sound Effects Director", () => {
   it("handoff payload version is 16 with sound plan fields", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("detects market location environment sounds", () => {

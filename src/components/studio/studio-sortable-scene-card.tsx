@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { StudioSceneComposer } from "@/components/studio/studio-scene-composer";
 import { buildDirectorScenePreviewText } from "@/lib/studio-scene-director-preview";
 import { buildSceneCompositionForScene } from "@/lib/studio-scene-composition-director";
+import { buildAssetPlacementForSceneDetail } from "@/lib/studio-asset-placement-director";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -73,6 +74,14 @@ export function StudioSortableSceneCard({
 
   const directorSummary = buildDirectorScenePreviewText(scene, directorProfile);
   const composition = buildSceneCompositionForScene(scene);
+  const assetPlacement = buildAssetPlacementForSceneDetail(scene);
+  const heroLine = assetPlacement.characterPlacements.find(
+    (c) => c.scale === "HERO" || c.placementPriority >= 85
+  );
+  const supportLine = assetPlacement.characterPlacements.find(
+    (c) => c.characterId !== heroLine?.characterId && c.depth === "MIDGROUND"
+  );
+  const brandLine = assetPlacement.brandPlacements.find((b) => b.placementKind === "logo");
   const compositionStatus =
     composition.compositionWarnings.some((w) => w.severity === "warning") ?
       "attention"
@@ -136,6 +145,31 @@ export function StudioSortableSceneCard({
                   {t(`studio.composition.status.${compositionStatus}` as never)}
                 </span>
               </div>
+              {(heroLine || supportLine || brandLine) ?
+                <p className="mt-2 text-[11px] text-teal-900">
+                  {heroLine ?
+                    <span>
+                      {t("studio.placement.card.hero")}: {heroLine.characterName}{" "}
+                      {t(`studio.placement.zone.${heroLine.zone}` as never)}{" "}
+                      {t(`studio.placement.depth.${heroLine.depth}` as never)}{" "}
+                      {t(`studio.placement.scale.${heroLine.scale}` as never)}
+                    </span>
+                  : null}
+                  {supportLine ?
+                    <span className={heroLine ? " · " : ""}>
+                      {t("studio.placement.card.support")}: {supportLine.characterName}{" "}
+                      {t(`studio.placement.zone.${supportLine.zone}` as never)}{" "}
+                      {t(`studio.placement.depth.${supportLine.depth}` as never)}
+                    </span>
+                  : null}
+                  {brandLine ?
+                    <span className={heroLine || supportLine ? " · " : ""}>
+                      {t("studio.placement.card.brand")}: {brandLine.brandName}{" "}
+                      {t(`studio.placement.zone.${brandLine.zone}` as never)}
+                    </span>
+                  : null}
+                </p>
+              : null}
             </>
           ) : null}
         </button>

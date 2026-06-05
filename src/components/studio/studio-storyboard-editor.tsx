@@ -37,6 +37,7 @@ import { StudioStoryboardVoiceIdentityPanel } from "@/components/studio/studio-s
 import { StudioStoryboardMediaAssetPanel } from "@/components/studio/studio-storyboard-media-asset-panel";
 import { StudioExecutionPlanPanel } from "@/components/studio/studio-execution-plan-panel";
 import { StudioSceneCompositionPanel } from "@/components/studio/studio-scene-composition-panel";
+import { StudioAssetPlacementPanel } from "@/components/studio/studio-asset-placement-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
 import { StudioPerformanceSimulator } from "@/components/studio/studio-performance-simulator";
 import { StudioProductionCenter } from "@/components/studio/studio-production-center";
@@ -729,6 +730,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                     <StudioStoryboardVoiceIdentityPanel storyboard={storyboard} />
                     <StudioStoryboardMediaAssetPanel storyboard={storyboard} />
                     <StudioSceneCompositionPanel storyboard={storyboard} />
+                    <StudioAssetPlacementPanel storyboard={storyboard} />
                     <StudioExecutionPlanPanel storyboard={storyboard} />
                     <StudioPerformanceSimulator scenes={storyboard.scenes} />
                     <StudioProductionCenter

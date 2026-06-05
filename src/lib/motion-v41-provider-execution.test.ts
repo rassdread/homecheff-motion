@@ -143,7 +143,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V41 — Provider Execution Framework", () => {
   it("handoff payload version is 21", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("provider registry lists voice, music, sound, image, and video providers", () => {
@@ -243,13 +243,13 @@ describe("Studio V41 — Provider Execution Framework", () => {
   it("production readiness includes provider layer", () => {
     const assets = buildAssetReadiness(storyboard());
     assert.ok(assets.some((a) => a.id === "providers"));
-    assert.equal(assets.length, 13);
+    assert.equal(assets.length, 14);
   });
 
   it("production checklist includes provider execution plan", () => {
     const checklist = buildProductionChecklist(storyboard());
     assert.ok(checklist.some((c) => c.id === "provider_execution"));
-    assert.equal(checklist.length, 14);
+    assert.equal(checklist.length, 15);
     assert.equal(isProviderExecutionPlanReady(buildProviderExecutionPlan(storyboard())), true);
   });
 });

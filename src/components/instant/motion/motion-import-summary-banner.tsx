@@ -13,6 +13,7 @@ import type { MotionAudioAssetHandoffPlan } from "@/types/studio-audio-asset-dir
 import type { MotionVoiceMetadata, MotionVoiceSegmentHandoff } from "@/types/studio-voice-execution";
 import type { MotionVoiceIdentityHandoffPlan } from "@/types/studio-voice-identity";
 import type { MotionMediaAssetHandoffPlan } from "@/types/studio-media-asset";
+import type { MotionAssetPlacementHandoffPlan } from "@/types/studio-asset-placement";
 import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
 
 type Props = {
@@ -30,6 +31,7 @@ type Props = {
   audioAssetPlan?: MotionAudioAssetHandoffPlan | null;
   voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan | null;
   mediaAssetPlan?: MotionMediaAssetHandoffPlan | null;
+  assetPlacementPlan?: MotionAssetPlacementHandoffPlan | null;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -49,6 +51,7 @@ export function MotionImportSummaryBanner({
   audioAssetPlan,
   voiceIdentityPlan,
   mediaAssetPlan,
+  assetPlacementPlan,
   onRefresh,
   refreshing,
 }: Props) {
@@ -261,6 +264,59 @@ export function MotionImportSummaryBanner({
                     </li>
                   );
                 })}
+              </ul>
+            </div>
+          : null}
+          {assetPlacementPlan?.enabled && assetPlacementPlan.scenePlacements.length > 0 ?
+            <div className="mt-2 text-xs text-zinc-700">
+              <p className="font-medium text-zinc-800">
+                {t("motion.qa.importSummary.assetPlacementTitle")}
+                {assetPlacementPlan.visualHierarchySummary.primarySubject ?
+                  `: ${assetPlacementPlan.visualHierarchySummary.primarySubject}`
+                : null}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {assetPlacementPlan.scenePlacements.slice(0, 4).map((scenePlacement) => (
+                  <li key={scenePlacement.sceneId}>
+                    <span className="font-medium">
+                      {scenePlacement.order + 1}.{" "}
+                      {scenePlacement.primarySubject ||
+                        t("motion.qa.importSummary.assetPlacementScene")}
+                    </span>
+                    <ul className="ml-3 mt-0.5 space-y-0.5">
+                      {scenePlacement.characterPlacements.slice(0, 2).map((row) => (
+                        <li key={`${scenePlacement.sceneId}-${row.characterId}`}>
+                          {t("motion.qa.importSummary.assetPlacementCharacterLine", {
+                            name: row.characterName,
+                            zone: row.zone,
+                            depth: row.depth,
+                            scale: row.scale,
+                          })}
+                        </li>
+                      ))}
+                      {scenePlacement.propPlacements.slice(0, 1).map((row) => (
+                        <li key={`${scenePlacement.sceneId}-${row.propId}`}>
+                          {t("motion.qa.importSummary.assetPlacementPropLine", {
+                            name: row.propName,
+                            zone: row.zone,
+                            depth: row.depth,
+                          })}
+                        </li>
+                      ))}
+                      {scenePlacement.brandPlacements
+                        .filter((b) => b.placementKind === "logo")
+                        .slice(0, 1)
+                        .map((row) => (
+                          <li key={`${scenePlacement.sceneId}-${row.brandId}`}>
+                            {t("motion.qa.importSummary.assetPlacementBrandLine", {
+                              name: row.brandName,
+                              zone: row.zone,
+                            })}
+                          </li>
+                        ))}
+                    </ul>
+                  </li>
+                ))}
               </ul>
             </div>
           : null}

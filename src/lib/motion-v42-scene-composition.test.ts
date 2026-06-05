@@ -203,8 +203,8 @@ function minimalHandoff(): MotionHandoffPayload {
 }
 
 describe("Studio V42 scene composition", () => {
-  it("handoff payload version is 22", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+  it("handoff payload version is 23", () => {
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("composition model assigns character placement roles", () => {
@@ -280,7 +280,7 @@ describe("Studio V42 scene composition", () => {
     assert.equal(isSceneCompositionPlanReady(buildSceneCompositionDirector(storyboard([scene()]))), false);
   });
 
-  it("attachSceneCompositionToHandoffPayload adds V22 fields", () => {
+  it("attachSceneCompositionToHandoffPayload adds composition fields", () => {
     const sb = storyboard([
       scene({
         characters: [character("c1", "Chef")],

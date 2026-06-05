@@ -39,6 +39,10 @@ import {
   isSceneCompositionPlanReady,
 } from "@/lib/studio-scene-composition-director";
 import {
+  buildAssetPlacementPlan,
+  isAssetPlacementPlanReady,
+} from "@/lib/studio-asset-placement-director";
+import {
   buildProviderExecutionPlan,
   isProviderExecutionPlanReady,
 } from "@/lib/studio-provider-execution-director";
@@ -102,6 +106,7 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
   const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
   const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
   const compositionPlan = buildSceneCompositionDirector(storyboard);
+  const placementPlan = buildAssetPlacementPlan(storyboard);
 
   const hasStructure = scenes.length >= 2 && intelligence.storyHealthScore >= 45;
   const hasShotPlan = intelligence.plan.length === scenes.length && scenes.length > 0;
@@ -138,6 +143,8 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
     providerExecutionPlan.enabled && isProviderExecutionPlanReady(providerExecutionPlan);
   const compositionReady =
     compositionPlan.enabled && isSceneCompositionPlanReady(compositionPlan);
+  const placementReady =
+    placementPlan.enabled && isAssetPlacementPlanReady(placementPlan);
 
   return [
     {
@@ -204,6 +211,11 @@ export function buildProductionChecklist(storyboard: StudioStoryboardDetail): Pr
       id: "scene_composition",
       labelKey: "studio.production.checklist.sceneComposition",
       passed: compositionReady,
+    },
+    {
+      id: "asset_placement_plan",
+      labelKey: "studio.production.checklist.assetPlacementPlan",
+      passed: placementReady,
     },
     {
       id: "video_config",

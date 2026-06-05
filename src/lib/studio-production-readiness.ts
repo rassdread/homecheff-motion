@@ -33,6 +33,10 @@ import {
   isSceneCompositionPlanReady,
 } from "@/lib/studio-scene-composition-director";
 import {
+  buildAssetPlacementPlan,
+  isAssetPlacementPlanReady,
+} from "@/lib/studio-asset-placement-director";
+import {
   buildProviderExecutionPlan,
   isProviderExecutionPlanReady,
 } from "@/lib/studio-provider-execution-director";
@@ -61,6 +65,7 @@ export type AssetReadinessItem = {
     | "asset_library"
     | "providers"
     | "composition"
+    | "asset_placement"
     | "video";
   labelKey: string;
   level: AssetReadinessLevel;
@@ -108,6 +113,7 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
   const mediaAssetPlan = buildMediaAssetDirectorPlan(storyboard);
   const providerExecutionPlan = buildProviderExecutionPlan(storyboard);
   const compositionPlan = buildSceneCompositionDirector(storyboard);
+  const placementPlan = buildAssetPlacementPlan(storyboard);
   const directorReport = buildDirectorQualityReport(storyboard);
 
   const storyLevel: AssetReadinessLevel =
@@ -340,6 +346,24 @@ export function buildAssetReadiness(storyboard: StudioStoryboardDetail): AssetRe
           : isSceneCompositionPlanReady(compositionPlan)
             ? null
             : "studio.production.asset.composition.planIncomplete",
+    },
+    {
+      id: "asset_placement",
+      labelKey: "studio.production.asset.assetPlacement",
+      level:
+        !placementPlan.enabled
+          ? "attention"
+          : isAssetPlacementPlanReady(placementPlan)
+            ? "ready"
+            : placementPlan.scenePlacements.length > 0
+              ? "attention"
+              : "not_ready",
+      detailKey:
+        !placementPlan.enabled
+          ? "studio.production.asset.assetPlacement.disabled"
+          : isAssetPlacementPlanReady(placementPlan)
+            ? null
+            : "studio.production.asset.assetPlacement.planIncomplete",
     },
     {
       id: "video",

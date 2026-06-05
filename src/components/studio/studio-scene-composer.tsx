@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { StudioPresetField } from "@/components/studio/studio-preset-field";
 import { StudioSceneCompositionPanel } from "@/components/studio/studio-scene-composition-panel";
+import { StudioAssetPlacementPanel } from "@/components/studio/studio-asset-placement-panel";
 import { StudioScenePreview } from "@/components/studio/studio-scene-preview";
 import { StudioSceneImagePanel } from "@/components/studio/studio-scene-image-panel";
 import { StudioSceneContinuityPreview } from "@/components/studio/studio-scene-continuity-preview";
@@ -162,6 +163,7 @@ export function StudioSceneComposer({
       ) : (
         <div className="space-y-5">
           <StudioSceneCompositionPanel storyboard={storyboardSlice} scene={draft} />
+          <StudioAssetPlacementPanel storyboard={storyboardSlice} scene={draft} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="text-sm font-medium text-zinc-700">

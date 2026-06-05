@@ -150,7 +150,7 @@ describe("studio-production-center", () => {
 
   it("buildAssetReadiness returns readiness categories including composition", () => {
     const assets = buildAssetReadiness(storyboard([scene(0), scene(1)]));
-    assert.equal(assets.length, 13);
+    assert.equal(assets.length, 14);
     assert.ok(assets.some((a) => a.id === "story"));
     assert.ok(assets.some((a) => a.id === "voice"));
     assert.ok(assets.some((a) => a.id === "music"));
@@ -178,7 +178,7 @@ describe("studio-production-center", () => {
 
   it("buildProductionChecklist includes checklist items including scene composition", () => {
     const checklist = buildProductionChecklist(storyboard([scene(0), scene(1)]));
-    assert.equal(checklist.length, 14);
+    assert.equal(checklist.length, 15);
     assert.ok(checklist.some((c) => c.id === "shot_plan"));
     assert.ok(checklist.some((c) => c.id === "music_plan"));
     assert.ok(checklist.some((c) => c.id === "sound_plan"));

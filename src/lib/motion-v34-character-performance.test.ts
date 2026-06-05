@@ -121,7 +121,7 @@ function minimalStoryboard(): StudioStoryboardDetail {
 
 describe("Motion V34 — character performance engine", () => {
   it("handoff version is 16", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("infers identity style from personality (not mascot hardcode)", () => {

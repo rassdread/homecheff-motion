@@ -214,7 +214,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V38 — Audio Asset Director", () => {
   it("handoff payload version is 18", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("selectMusicAssetForCue maps community intro", () => {
@@ -363,10 +363,10 @@ describe("Studio V38 — Audio Asset Director", () => {
   it("production readiness includes audio assets", () => {
     const sb = storyboard([scene(0), scene(1)]);
     const assets = buildAssetReadiness(sb);
-    assert.equal(assets.length, 13);
+    assert.equal(assets.length, 14);
     assert.ok(assets.some((a) => a.id === "audio_assets"));
     const checklist = buildProductionChecklist(sb);
-    assert.equal(checklist.length, 14);
+    assert.equal(checklist.length, 15);
     assert.ok(checklist.some((c) => c.id === "audio_asset_assignment"));
   });
 

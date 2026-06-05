@@ -183,7 +183,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
 
 describe("Studio V35 — Music Director", () => {
   it("handoff payload version is 16 (music plan included since v15)", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("resolves music profile from director profile", () => {

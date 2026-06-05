@@ -88,8 +88,18 @@ import type {
   PropPlacementPlan,
   SceneComposition,
 } from "@/types/studio-scene-composition";
+import type {
+  BrandPlacement,
+  CharacterPlacement,
+  LocationPlacement,
+  MotionAssetPlacementHandoffPlan,
+  PlacementWarning,
+  PropPlacement,
+  SceneAssetPlacement,
+  VisualHierarchySummary,
+} from "@/types/studio-asset-placement";
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 22 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 23 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -144,6 +154,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   resolvedVoiceProfile?: string | null;
   /** V42: per-scene visual composition (planning only). */
   sceneComposition?: SceneComposition;
+  /** V43: per-scene semantic asset placement (planning only). */
+  assetPlacement?: SceneAssetPlacement;
 };
 
 export type MotionHandoffPayload = {
@@ -248,5 +260,13 @@ export type MotionHandoffPayload = {
   locationCompositionPlans?: LocationCompositionPlan[];
   visualFocusSummary?: string;
   compositionWarnings?: CompositionWarning[];
+  /** V43: Asset Placement Engine plan (planning only — no rendering). */
+  assetPlacementPlan?: MotionAssetPlacementHandoffPlan;
+  characterPlacements?: CharacterPlacement[];
+  propPlacements?: PropPlacement[];
+  brandPlacements?: BrandPlacement[];
+  locationPlacements?: LocationPlacement[];
+  visualHierarchySummary?: VisualHierarchySummary;
+  placementWarnings?: PlacementWarning[];
   scenes: MotionHandoffScene[];
 };

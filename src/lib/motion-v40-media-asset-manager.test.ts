@@ -184,7 +184,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V40 — Media Asset Manager", () => {
   it("handoff payload version is 21", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 22);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 23);
   });
 
   it("buildStudioAssetRegistry indexes system and user assets", () => {
@@ -252,13 +252,13 @@ describe("Studio V40 — Media Asset Manager", () => {
   it("production readiness includes asset library", () => {
     const assets = buildAssetReadiness(storyboard([scene([chef()])]));
     assert.ok(assets.some((a) => a.id === "asset_library"));
-    assert.equal(assets.length, 13);
+    assert.equal(assets.length, 14);
   });
 
   it("production checklist includes asset validation", () => {
     const checklist = buildProductionChecklist(storyboard([scene([chef()])]));
     assert.ok(checklist.some((c) => c.id === "asset_validation"));
-    assert.equal(checklist.length, 14);
+    assert.equal(checklist.length, 15);
     assert.equal(isMediaAssetPlanReady(buildMediaAssetDirectorPlan(storyboard([scene([chef()])]))), true);
   });
 });
