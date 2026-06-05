@@ -1,6 +1,22 @@
 import type { MotionVersionSlot } from "@/lib/motion-version-catalog";
 
 /** Stable `render:{id}` / `lang:{id}` keys work on per-project and merged catalogs. */
+export function parseSelectionKeyIds(selectionKey: string | null | undefined): {
+  renderVersionId?: string;
+  languageExportId?: string;
+} {
+  const trimmed = selectionKey?.trim() ?? "";
+  const renderMatch = /^render:(.+)$/i.exec(trimmed);
+  if (renderMatch?.[1]) {
+    return { renderVersionId: renderMatch[1] };
+  }
+  const langMatch = /^lang:(.+)$/i.exec(trimmed);
+  if (langMatch?.[1]) {
+    return { languageExportId: langMatch[1] };
+  }
+  return {};
+}
+
 export function stableSelectionKeyFromSlot(slot: Pick<
   MotionVersionSlot,
   "selectionKey" | "kind" | "renderVersionId" | "languageExportId"

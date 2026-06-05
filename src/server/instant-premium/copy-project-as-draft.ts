@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { appendBundleAuditEntry, parseBundleAuditJson } from "@/lib/bundle-audit";
+import { appendBundleAuditEntry } from "@/lib/bundle-audit";
 import { languageCodeToLabel } from "@/lib/draft-lineage";
-import { isProjectPlayablyComplete } from "@/lib/project-display-status";
+import {
+  COPY_SOURCE_NOT_FOUND,
+  type CopyAsDraftRequest,
+  isCopyAsDraftSourceReady,
+  resolveCopyAsDraftSource,
+} from "@/lib/resolve-copy-as-draft-source";
 import { getAnimationProjectById } from "@/server/animation-projects/queries";
 import { isInstantLikeProject } from "@/server/instant-premium/instant-project-utils";
 import {
@@ -61,9 +66,7 @@ export async function copyInstantPremiumProjectAsDraft(params: {
   sourceProjectId: string;
   userId: string;
   isAdmin?: boolean;
-  sourceLanguage?: string | null;
-  sourceVersion?: number | null;
-}): Promise<CopyProjectAsDraftResult> {
+} & CopyAsDraftRequest): Promise<CopyProjectAsDraftResult> {
   const source = await getAnimationProjectById(params.sourceProjectId);
   if (!source) {
     return { ok: false, code: COPY_AS_DRAFT_FORBIDDEN, message: "Project not found." };
@@ -89,24 +92,23 @@ export async function copyInstantPremiumProjectAsDraft(params: {
     };
   }
 
-  const latestExport = source.exports[0] ?? null;
-  const hasPlayableFinal = isProjectPlayablyComplete({
-    projectStatus: source.status,
-    exportStatus: latestExport?.status ?? null,
-    outputVideoUrl: latestExport?.outputVideoUrl,
-  });
-  if (!hasPlayableFinal || source.images.length < 2) {
+  const resolved = resolveCopyAsDraftSource(source, params);
+  if (!resolved || !isCopyAsDraftSourceReady({ project: source, resolved })) {
     return {
       ok: false,
-      code: COPY_AS_DRAFT_NOT_READY,
-      message: "Complete the source video before creating a new concept.",
+      code: COPY_SOURCE_NOT_FOUND,
+      message: "Selected version could not be copied.",
     };
   }
 
-  const title = buildDraftCopyTitle(source);
-  const sourceLanguage = params.sourceLanguage?.trim() || "nl";
-  const sourceVersion =
-    params.sourceVersion != null && params.sourceVersion > 0 ? params.sourceVersion : 1;
+  const overrides = resolved.overrides;
+  const title = buildDraftCopyTitle({
+    title: source.title,
+    userPrompt: overrides.userPrompt ?? source.userPrompt,
+    instantUserIntent: overrides.instantUserIntent ?? source.instantUserIntent,
+  });
+  const sourceLanguage = resolved.sourceLanguage;
+  const sourceVersion = resolved.sourceVersion;
   const copiedAt = new Date();
 
   const draftProjectId = await prisma.$transaction(async (tx) => {
@@ -126,34 +128,49 @@ export async function copyInstantPremiumProjectAsDraft(params: {
           userId: params.userId,
           before: null,
           after: `${languageCodeToLabel(sourceLanguage)} v${sourceVersion}`,
-          meta: { sourceProjectId: source.id, draftFrom: "copy_as_draft" },
+          meta: {
+            sourceProjectId: source.id,
+            draftFrom: "copy_as_draft",
+            renderVersionId: resolved.renderVersion?.id ?? null,
+            languageExportId: resolved.languageExport?.id ?? null,
+          },
         }) as object,
         projectType: source.projectType,
-        instantMode: source.instantMode,
-        instantTransitionSeconds: source.instantTransitionSeconds,
-        instantSceneTexts: source.instantSceneTexts ?? undefined,
-        instantSelectedChips: source.instantSelectedChips ?? undefined,
-        instantUserIntent: source.instantUserIntent,
+        instantMode: overrides.instantMode ?? source.instantMode,
+        instantTransitionSeconds:
+          overrides.instantTransitionSeconds ?? source.instantTransitionSeconds,
+        instantSceneTexts:
+          overrides.instantSceneTexts ?? source.instantSceneTexts ?? undefined,
+        instantSelectedChips:
+          overrides.instantSelectedChips ?? source.instantSelectedChips ?? undefined,
+        instantUserIntent: overrides.instantUserIntent ?? source.instantUserIntent,
         instantLockedTextLayers: source.instantLockedTextLayers ?? undefined,
-        languageTextLayersJson: source.languageTextLayersJson ?? undefined,
-        instantLockedTextMode: source.instantLockedTextMode,
-        instantTextRenderMode: source.instantTextRenderMode,
-        instantHybridOverlayStyle: source.instantHybridOverlayStyle,
+        languageTextLayersJson:
+          overrides.languageTextLayersJson ?? source.languageTextLayersJson ?? undefined,
+        instantLockedTextMode:
+          overrides.instantLockedTextMode ?? source.instantLockedTextMode,
+        instantTextRenderMode:
+          overrides.instantTextRenderMode ?? source.instantTextRenderMode,
+        instantHybridOverlayStyle:
+          overrides.instantHybridOverlayStyle ?? source.instantHybridOverlayStyle,
         instantPosterMotionSettings: source.instantPosterMotionSettings ?? undefined,
         instantDetectedTextMetadata: source.instantDetectedTextMetadata ?? undefined,
-        instantOutputDurationSeconds: source.instantOutputDurationSeconds,
-        instantStoryboardDurationSeconds: source.instantStoryboardDurationSeconds,
-        stylePreset: source.stylePreset,
-        aspectRatio: source.aspectRatio,
-        presetId: source.presetId,
+        instantOutputDurationSeconds:
+          overrides.instantOutputDurationSeconds ?? source.instantOutputDurationSeconds,
+        instantStoryboardDurationSeconds:
+          overrides.instantStoryboardDurationSeconds ??
+          source.instantStoryboardDurationSeconds,
+        stylePreset: overrides.stylePreset ?? source.stylePreset,
+        aspectRatio: overrides.aspectRatio ?? source.aspectRatio,
+        presetId: overrides.presetId ?? source.presetId,
         viduModel: source.viduModel,
         viduResolution: source.viduResolution,
         viduDurationSeconds: source.viduDurationSeconds,
         estimatedCredits: source.estimatedCredits,
         advancedSettingsEnabled: source.advancedSettingsEnabled,
-        userPrompt: source.userPrompt,
-        intent: source.intent,
-        globalPromptContext: source.globalPromptContext,
+        userPrompt: overrides.userPrompt ?? source.userPrompt,
+        intent: overrides.intent ?? source.intent,
+        globalPromptContext: overrides.globalPromptContext ?? source.globalPromptContext,
         studioHandoffJson: source.studioHandoffJson ?? undefined,
         studioIntelligenceJson: source.studioIntelligenceJson ?? undefined,
         studioSourceStoryboardId: source.studioSourceStoryboardId ?? undefined,

@@ -15,9 +15,9 @@ describe("copy project as draft", () => {
     assert.match(src, /bundleKey: source\.bundleKey/);
     assert.match(src, /bundleName: source\.bundleName/);
     assert.doesNotMatch(src, /instantPreviousFinalVideoUrl/);
-    assert.doesNotMatch(src, /outputVideoUrl: null/);
     assert.doesNotMatch(src, /fullRerenderInstantPremiumProject/);
     assert.match(src, /ensureFullRerenderDraftForProject/);
+    assert.match(src, /resolveCopyAsDraftSource/);
   });
 
   it("copies images in order with scene metadata fields", () => {

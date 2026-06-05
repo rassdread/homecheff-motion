@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { COPY_SOURCE_NOT_FOUND } from "@/lib/resolve-copy-as-draft-source";
 import {
   COPY_AS_DRAFT_FORBIDDEN,
   COPY_AS_DRAFT_NOT_READY,
@@ -23,6 +24,9 @@ export async function POST(request: Request, context: RouteContext) {
   let body: {
     sourceLanguage?: string;
     sourceVersion?: number;
+    renderVersionId?: string;
+    languageExportId?: string;
+    selectionKey?: string;
   } = {};
   try {
     const raw = await request.json();
@@ -39,6 +43,9 @@ export async function POST(request: Request, context: RouteContext) {
     isAdmin: user.role === "admin",
     sourceLanguage: body.sourceLanguage,
     sourceVersion: body.sourceVersion,
+    renderVersionId: body.renderVersionId,
+    languageExportId: body.languageExportId,
+    selectionKey: body.selectionKey,
   });
 
   if (!result.ok) {
@@ -47,11 +54,15 @@ export async function POST(request: Request, context: RouteContext) {
         ? 403
         : result.code === COPY_AS_DRAFT_WRONG_TYPE
           ? 409
-          : result.code === COPY_AS_DRAFT_NOT_READY
-            ? 400
-            : 400;
+          : 400;
     return NextResponse.json(
-      { ok: false, code: result.code, error: result.message, copyAsDraft: result },
+      {
+        ok: false,
+        code: result.code,
+        error: result.code === COPY_SOURCE_NOT_FOUND ? "COPY_SOURCE_NOT_FOUND" : result.message,
+        message: result.message,
+        copyAsDraft: result,
+      },
       { status }
     );
   }

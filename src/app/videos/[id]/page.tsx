@@ -590,12 +590,16 @@ export default function VideoDetailPage() {
         sourceVersion:
           selectedMotionSlot?.sourceRenderVersionNumber ??
           selectedMotionSlot?.sourceLanguageExportVersion ??
-          selectedMotionSlot?.catalogVersionNumber,
+          undefined,
+        renderVersionId: selectedMotionSlot?.renderVersionId,
+        languageExportId: selectedMotionSlot?.languageExportId,
+        selectionKey: selectedMotionSlot?.selectionKey,
       });
       if (result.networkError || !result.ok) {
         setFullRerenderError(
-          result.data.error ??
+          result.data.message ??
             result.data.copyAsDraft?.message ??
+            result.data.error ??
             t("projects.concept.copyFailed")
         );
         return;
@@ -619,7 +623,11 @@ export default function VideoDetailPage() {
     id,
     router,
     selectedMotionSlot?.languageCode,
-    selectedMotionSlot?.versionNumber,
+    selectedMotionSlot?.languageExportId,
+    selectedMotionSlot?.renderVersionId,
+    selectedMotionSlot?.selectionKey,
+    selectedMotionSlot?.sourceLanguageExportVersion,
+    selectedMotionSlot?.sourceRenderVersionNumber,
     t,
   ]);
 

@@ -9,6 +9,7 @@ export function copyProjectAsDraftPath(sourceProjectId: string): string {
 export type CopyProjectAsDraftResponse = {
   ok: boolean;
   error?: string;
+  message?: string;
   code?: string;
   draftProjectId?: string;
   sourceProjectId?: string;
@@ -25,6 +26,9 @@ export type CopyProjectAsDraftResponse = {
 export type CopyProjectAsDraftOptions = {
   sourceLanguage?: string;
   sourceVersion?: number;
+  renderVersionId?: string;
+  languageExportId?: string;
+  selectionKey?: string;
 };
 
 export async function postCopyProjectAsDraft(
@@ -44,6 +48,9 @@ export async function postCopyProjectAsDraft(
       body: JSON.stringify({
         sourceLanguage: options?.sourceLanguage,
         sourceVersion: options?.sourceVersion,
+        renderVersionId: options?.renderVersionId,
+        languageExportId: options?.languageExportId,
+        selectionKey: options?.selectionKey,
       }),
     }
   );
