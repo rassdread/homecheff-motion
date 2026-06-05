@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useActiveTranslator } from "@/i18n/client";
-import { studioScenePresetLabel } from "@/lib/studio-scene-preset-label";
 import { MotionExecutionPreview } from "@/components/instant/motion/motion-execution-preview";
 import { MotionScoreBadge } from "@/components/instant/motion/motion-score-badge";
+import { studioScenePresetLabel } from "@/lib/studio-scene-preset-label";
+import { useActiveTranslator } from "@/i18n/client";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
+import { useState } from "react";
 
 type Props = {
   context: StudioSceneContextMetadata;
@@ -15,7 +15,9 @@ type Props = {
 export function MotionSceneStudioInspector({ context, storyboardTitle }: Props) {
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
+  const [motionOpen, setMotionOpen] = useState(true);
   const qa = context.studioQa;
+  const motion = context.studioMotionInstructions;
 
   const imageSourceLabel =
     context.imageSource === "studio"
@@ -34,6 +36,38 @@ export function MotionSceneStudioInspector({ context, storyboardTitle }: Props) 
           executionPackage={context.sceneExecutionPackage}
           executionPrompt={context.executionPrompt}
         />
+      : null}
+      {motion ?
+        <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-3">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => setMotionOpen((v) => !v)}
+            aria-expanded={motionOpen}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900">
+              {t("motion.handoff.motionInstructions.title")}
+            </p>
+            <span className="text-xs text-zinc-500">{motionOpen ? "▲" : "▼"}</span>
+          </button>
+          {motionOpen ?
+            <div className="mt-2 space-y-2">
+              <pre className="whitespace-pre-wrap rounded-lg bg-white/80 p-2 font-mono text-[11px] leading-relaxed text-zinc-800">
+                {motion.text}
+              </pre>
+              {motion.usedFields.length > 0 ?
+                <p className="text-[10px] text-emerald-800">
+                  {t("motion.handoff.motionInstructions.used")}: {motion.usedFields.join(", ")}
+                </p>
+              : null}
+              {motion.ignoredFields.length > 0 ?
+                <p className="text-[10px] text-zinc-500">
+                  {t("motion.handoff.motionInstructions.ignored")}: {motion.ignoredFields.join(", ")}
+                </p>
+              : null}
+            </div>
+          : null}
+        </div>
       : null}
       {qa ?
         <div className="rounded-xl border border-violet-200/70 bg-violet-50/50 p-3">

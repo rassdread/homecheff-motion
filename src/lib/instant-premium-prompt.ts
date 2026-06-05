@@ -392,6 +392,8 @@ export type BuildInstantStoryModePromptInput = {
   projectActingIntensity?: SceneActingIntensity;
   /** V30: Studio execution prompts per scene index (handoff v11). */
   studioExecutionPrompts?: Array<string | null>;
+  /** V45: Studio motion direction lines per scene (blocking, composition, arc). */
+  studioMotionInstructions?: Array<string | null>;
 };
 
 export type BuildInstantStoryModePromptResult = {
@@ -521,6 +523,10 @@ export function buildInstantStoryModePromptDetailed(
     const studioExecution = input.studioExecutionPrompts?.[i]?.trim();
     if (studioExecution) {
       parts.push(`Studio execution (director, world, characters): ${studioExecution}`);
+    }
+    const studioMotion = input.studioMotionInstructions?.[i]?.trim();
+    if (studioMotion) {
+      parts.push(`Studio motion direction: ${studioMotion.replace(/\n/g, "; ")}`);
     }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";

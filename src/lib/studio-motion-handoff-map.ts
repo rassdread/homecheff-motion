@@ -20,6 +20,7 @@ import {
   buildMotionSceneStudioQa,
   buildMotionStudioIntelligenceSnapshot,
 } from "@/lib/build-motion-studio-intelligence";
+import { buildStudioSceneMotionInstructions } from "@/lib/build-studio-scene-motion-instructions";
 import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
@@ -195,10 +196,24 @@ export function enrichStudioContextForMotion(
   payload?: MotionHandoffPayload
 ): StudioSceneContextMetadata {
   const ref = scene.sceneImageReference;
+  const sceneIndex =
+    payload ?
+      [...payload.scenes].sort((a, b) => a.order - b.order).findIndex((s) => s.sceneId === scene.sceneId)
+    : -1;
+  const motionInstructions =
+    payload && sceneIndex >= 0
+      ? buildStudioSceneMotionInstructions({
+          scene,
+          sceneIndex,
+          sceneCount: payload.scenes.length,
+          aiDirectorNotes: payload.executionPackage?.aiDirectorNotes,
+        })
+      : undefined;
   return {
     ...scene.studioContext,
     sceneExecutionPackage: scene.sceneExecutionPackage,
     executionPrompt: scene.executionPrompt,
+    studioMotionInstructions: motionInstructions?.text.trim() ? motionInstructions : undefined,
     selectedSceneImageId: scene.selectedSceneImageId,
     preferredSceneImageUrl: scene.selectedSceneImageUrl,
     sceneImageReference: ref,

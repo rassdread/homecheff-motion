@@ -56,4 +56,6 @@ export type StudioSceneContextMetadata = {
   sceneExecutionPackage?: import("@/types/studio-scene-execution").StudioSceneExecutionPackage;
   /** V30: final execution prompt for Vidu (debug / preview). */
   executionPrompt?: string;
+  /** V45: compact motion direction sent to Vidu story prompts. */
+  studioMotionInstructions?: import("@/lib/build-studio-scene-motion-instructions").StudioSceneMotionInstructions;
 };
