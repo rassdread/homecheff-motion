@@ -22,6 +22,14 @@ describe("instant wizard flow", () => {
     assert.equal(resolveWizardView("expert", 5), "generate");
   });
 
+  it("expert studio handoff skips style and mood", () => {
+    const opts = { studioHandoff: true };
+    assert.equal(wizardStepCount("expert", opts), 3);
+    assert.equal(resolveWizardView("expert", 1, opts), "upload");
+    assert.equal(resolveWizardView("expert", 2, opts), "prompt");
+    assert.equal(resolveWizardView("expert", 3, opts), "generate");
+  });
+
   it("clamps out-of-range steps", () => {
     assert.equal(clampWizardStep("beginner", 9), 4);
     assert.equal(clampWizardStep("expert", 0), 1);

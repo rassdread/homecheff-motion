@@ -12,17 +12,52 @@ export type InstantWizardView =
 
 export const BEGINNER_WIZARD_STEP_COUNT = 4;
 export const EXPERT_WIZARD_STEP_COUNT = 5;
+export const EXPERT_STUDIO_HANDOFF_STEP_COUNT = 3;
 
-export function wizardStepCount(mode: InstantWizardMode): number {
-  return mode === "beginner" ? BEGINNER_WIZARD_STEP_COUNT : EXPERT_WIZARD_STEP_COUNT;
+export type InstantWizardFlowOptions = {
+  /** When true, expert mode skips style/mood (already set in Studio). */
+  studioHandoff?: boolean;
+};
+
+export function wizardStepCount(
+  mode: InstantWizardMode,
+  options?: InstantWizardFlowOptions
+): number {
+  if (mode === "beginner") {
+    return BEGINNER_WIZARD_STEP_COUNT;
+  }
+  if (options?.studioHandoff) {
+    return EXPERT_STUDIO_HANDOFF_STEP_COUNT;
+  }
+  return EXPERT_WIZARD_STEP_COUNT;
 }
 
-export function clampWizardStep(mode: InstantWizardMode, step: number): number {
-  return Math.min(wizardStepCount(mode), Math.max(1, step));
+export function clampWizardStep(
+  mode: InstantWizardMode,
+  step: number,
+  options?: InstantWizardFlowOptions
+): number {
+  return Math.min(wizardStepCount(mode, options), Math.max(1, step));
 }
 
-export function resolveWizardView(mode: InstantWizardMode, step: number): InstantWizardView {
-  const clamped = clampWizardStep(mode, step);
+export function resolveWizardView(
+  mode: InstantWizardMode,
+  step: number,
+  options?: InstantWizardFlowOptions
+): InstantWizardView {
+  const clamped = clampWizardStep(mode, step, options);
+  if (mode === "expert" && options?.studioHandoff) {
+    switch (clamped) {
+      case 1:
+        return "upload";
+      case 2:
+        return "prompt";
+      case 3:
+        return "generate";
+      default:
+        return "upload";
+    }
+  }
   if (mode === "beginner") {
     switch (clamped) {
       case 1:
@@ -56,9 +91,10 @@ export function resolveWizardView(mode: InstantWizardMode, step: number): Instan
 export function wizardStepTitleKey(
   mode: InstantWizardMode,
   step: number,
-  instantMode?: InstantMode
+  instantMode?: InstantMode,
+  options?: InstantWizardFlowOptions
 ): string {
-  const view = resolveWizardView(mode, step);
+  const view = resolveWizardView(mode, step, options);
   switch (view) {
     case "upload":
       return "instant.creatorStep.upload";
@@ -84,9 +120,10 @@ export function wizardStepTitleKey(
 export function wizardStepHintKey(
   mode: InstantWizardMode,
   step: number,
-  instantMode?: InstantMode
+  instantMode?: InstantMode,
+  options?: InstantWizardFlowOptions
 ): string | null {
-  const view = resolveWizardView(mode, step);
+  const view = resolveWizardView(mode, step, options);
   switch (view) {
     case "storyboard":
       return mode === "beginner" && instantMode === "transition"
@@ -116,10 +153,12 @@ export function buildWizardNavHandlers(
     startCheckoutWithQa: () => void;
     canContinueFromUpload: boolean;
     checkoutBusy: boolean;
+    flowOptions?: InstantWizardFlowOptions;
   }
 ): Omit<WizardNavConfig, "primaryLabel"> & { nextStep: number | null } {
-  const max = wizardStepCount(mode);
-  const clamped = clampWizardStep(mode, step);
+  const flowOptions = options.flowOptions;
+  const max = wizardStepCount(mode, flowOptions);
+  const clamped = clampWizardStep(mode, step, flowOptions);
 
   if (clamped >= max) {
     return {

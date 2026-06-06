@@ -17,6 +17,7 @@ import type { MotionMediaAssetHandoffPlan } from "@/types/studio-media-asset";
 import type { MotionAssetPlacementHandoffPlan } from "@/types/studio-asset-placement";
 import type { MotionCharacterBlockingHandoffPlan } from "@/types/studio-character-blocking";
 import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
+import { MotionStudioHandoffChecklist } from "@/components/instant/motion/motion-studio-handoff-checklist";
 
 type Props = {
   intelligence: MotionStudioIntelligenceSnapshot;
@@ -68,7 +69,16 @@ export function MotionImportSummaryBanner({
           <p className="text-sm font-semibold text-[#0067B1]">
             {t("motion.qa.importSummary.title")}
           </p>
-          <p className="mt-1 text-xs text-zinc-600">
+          <div className="mt-3">
+            <MotionStudioHandoffChecklist
+              intelligence={intelligence}
+              voiceMetadata={voiceMetadata}
+              musicPlan={musicPlan}
+              soundPlan={soundPlan}
+              hasTextBeats={intelligence.sceneCount > 0}
+            />
+          </div>
+          <p className="mt-3 text-xs text-zinc-600">
             {t("motion.qa.importSummary.body", {
               title: intelligence.storyboardTitle,
               scenes: String(intelligence.sceneCount),

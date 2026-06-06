@@ -67,6 +67,7 @@ import {
   clampWizardStep,
   resolveWizardView,
   wizardStepCount,
+  type InstantWizardFlowOptions,
   wizardStepHintKey,
   wizardStepTitleKey,
 } from "@/lib/instant-wizard-flow";
@@ -377,14 +378,6 @@ export default function InstantPremiumPage() {
     wizardShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
 
-  const handleWizardModeChange = useCallback((mode: InstantWizardMode) => {
-    writeInstantWizardMode(mode);
-    setWizardMode(mode);
-    setStep((current) => clampWizardStep(mode, current));
-  }, []);
-
-  const wizardView = useMemo(() => resolveWizardView(wizardMode, step), [wizardMode, step]);
-  const activeWizardStepCount = wizardStepCount(wizardMode);
   const showStoryboardInUploadStep = wizardMode === "expert";
   const mounted = useMounted();
   const premiumMode = useMemo<"test" | "paid">(() => {
@@ -401,6 +394,30 @@ export default function InstantPremiumPage() {
     () => sceneSlots.some((slot) => slot.studioContext),
     [sceneSlots]
   );
+
+  const wizardFlowOptions = useMemo((): InstantWizardFlowOptions => {
+    return {
+      studioHandoff: hasStudioImportedScenes && wizardMode === "expert",
+    };
+  }, [hasStudioImportedScenes, wizardMode]);
+
+  const handleWizardModeChange = useCallback(
+    (mode: InstantWizardMode) => {
+      writeInstantWizardMode(mode);
+      setWizardMode(mode);
+      const flowOptions: InstantWizardFlowOptions = {
+        studioHandoff: hasStudioImportedScenes && mode === "expert",
+      };
+      setStep((current) => clampWizardStep(mode, current, flowOptions));
+    },
+    [hasStudioImportedScenes]
+  );
+
+  const wizardView = useMemo(
+    () => resolveWizardView(wizardMode, step, wizardFlowOptions),
+    [wizardMode, step, wizardFlowOptions]
+  );
+  const activeWizardStepCount = wizardStepCount(wizardMode, wizardFlowOptions);
   const activeStudioContext = useMemo(
     () => sceneSlots.find((slot) => slot.sceneId === expandedSceneId)?.studioContext ?? null,
     [sceneSlots, expandedSceneId]
@@ -1412,8 +1429,8 @@ export default function InstantPremiumPage() {
           ? t("instant.step7.ctaAdminTest")
           : t("instant.step7.ctaTest")
         : t("instant.step7.ctaPaid", { price: estimatedPriceLabel });
-    const clamped = clampWizardStep(wizardMode, step);
-    const maxStep = wizardStepCount(wizardMode);
+    const clamped = clampWizardStep(wizardMode, step, wizardFlowOptions);
+    const maxStep = wizardStepCount(wizardMode, wizardFlowOptions);
     const canContinueFromUpload = sceneCount >= MIN_IMAGES && imagesHaveValidSources;
 
     if (wizardView === "generate") {
@@ -1456,6 +1473,7 @@ export default function InstantPremiumPage() {
     step,
     t,
     usesFreeGeneration,
+    wizardFlowOptions,
     wizardMode,
     wizardView,
   ]);
@@ -1535,7 +1553,7 @@ export default function InstantPremiumPage() {
               className={`h-1.5 flex-1 rounded-full ${
                 mounted && i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
               }`}
-              title={t(wizardStepTitleKey(wizardMode, i + 1, instantMode) as never)}
+              title={t(wizardStepTitleKey(wizardMode, i + 1, instantMode, wizardFlowOptions) as never)}
             />
           ))}
         </div>
@@ -1912,11 +1930,11 @@ export default function InstantPremiumPage() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight">
-                    {t(wizardStepTitleKey(wizardMode, step, instantMode) as never)}
+                    {t(wizardStepTitleKey(wizardMode, step, instantMode, wizardFlowOptions) as never)}
                   </h2>
-                  {wizardStepHintKey(wizardMode, step, instantMode) ?
+                  {wizardStepHintKey(wizardMode, step, instantMode, wizardFlowOptions) ?
                     <p className="mt-2 text-sm text-zinc-600">
-                      {t(wizardStepHintKey(wizardMode, step, instantMode) as never)}
+                      {t(wizardStepHintKey(wizardMode, step, instantMode, wizardFlowOptions) as never)}
                     </p>
                   : null}
                 </div>
