@@ -3,6 +3,7 @@
  */
 
 import { tokenizeForAssetMatch } from "@/lib/studio-director-proposal-builder";
+import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import { getAssetUsageStats } from "@/lib/studio-project-memory-utils";
 import type {
   StudioAssetUsageStats,
@@ -41,6 +42,31 @@ function usageBoost(stats: StudioAssetUsageStats): number {
   return Math.min(stats.storyboardCount * 4 + stats.renderCount * 2, 20);
 }
 
+function scoreTokensAgainstHaystackText(tokens: string[], haystackText: string): number {
+  let score = 0;
+  for (const token of tokens) {
+    if (haystackText.includes(token)) {
+      score += token.length >= 5 ? 3 : 2;
+    }
+  }
+  return score;
+}
+
+function scoreIdeaTokensAgainstCharacter(tokens: string[], character: StudioCharacterListItem): number {
+  const haystackText = toSearchHaystack(toIdentitySpec(character)).fullText.toLowerCase();
+  return scoreTokensAgainstHaystackText(tokens, haystackText);
+}
+
+function scoreIdeaTokensAgainstLocation(tokens: string[], location: StudioLocationListItem): number {
+  const haystackText = toSearchHaystack(toIdentitySpec(location)).fullText.toLowerCase();
+  return scoreTokensAgainstHaystackText(tokens, haystackText);
+}
+
+function scoreIdeaTokensAgainstWorld(tokens: string[], world: StudioWorldProfileListItem): number {
+  const haystackText = toSearchHaystack(toIdentitySpec(world)).fullText.toLowerCase();
+  return scoreTokensAgainstHaystackText(tokens, haystackText);
+}
+
 export function detectRecurringCharacter(params: {
   idea: string;
   characters: StudioCharacterListItem[];
@@ -53,18 +79,12 @@ export function detectRecurringCharacter(params: {
 
   for (const character of params.characters) {
     const reasons: string[] = [];
-    let score = 0;
-    const haystack = `${character.name} ${character.description} ${character.personality}`.toLowerCase();
+    const tokenScore = scoreIdeaTokensAgainstCharacter(tokens, character);
+    let score = tokenScore;
 
     if (params.candidateName && namesMatch(character.name, params.candidateName)) {
       reasons.push("studio.continuity.match.sameName");
       score += 10;
-    }
-
-    for (const token of tokens) {
-      if (haystack.includes(token)) {
-        score += token.length >= 5 ? 3 : 2;
-      }
     }
 
     if (character.voiceProfile?.trim() && character.voiceEnabled) {
@@ -116,18 +136,12 @@ export function detectRecurringLocation(params: {
 
   for (const location of params.locations) {
     const reasons: string[] = [];
-    let score = 0;
-    const haystack = `${location.name} ${location.description} ${location.category}`.toLowerCase();
+    const tokenScore = scoreIdeaTokensAgainstLocation(tokens, location);
+    let score = tokenScore;
 
     if (params.candidateName && namesMatch(location.name, params.candidateName)) {
       reasons.push("studio.continuity.match.sameName");
       score += 10;
-    }
-
-    for (const token of tokens) {
-      if (haystack.includes(token)) {
-        score += token.length >= 5 ? 3 : 2;
-      }
     }
 
     if (location.worldProfile?.id) {
@@ -172,14 +186,8 @@ export function detectRecurringWorld(params: {
 
   for (const world of params.worlds) {
     const reasons: string[] = [];
-    let score = 0;
-    const haystack = `${world.name} ${world.description} ${world.visualStyle}`.toLowerCase();
-
-    for (const token of tokens) {
-      if (haystack.includes(token)) {
-        score += token.length >= 5 ? 3 : 2;
-      }
-    }
+    const tokenScore = scoreIdeaTokensAgainstWorld(tokens, world);
+    let score = tokenScore;
 
     if (params.memory) {
       const usage = getAssetUsageStats(params.memory, "worlds", world.id);

@@ -20,6 +20,7 @@ import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
 import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-readiness";
 import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
 import { buildDirectorMemorySuggestions, memoryBoostForAsset } from "@/lib/studio-director-proposal-memory";
+import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
   detectRecurringLocation,
@@ -161,12 +162,13 @@ export function scoreAssetMatch(
 }
 
 function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: string[]): number {
+  const haystack = toSearchHaystack(toIdentitySpec(character));
   let score = scoreAssetMatch(
-    character.name,
-    character.description,
-    character.role,
+    haystack.name,
+    haystack.description,
+    haystack.category,
     promptTokens,
-    [character.personality, character.visualKeywords, character.continuityNotes]
+    haystack.extraFields
   );
   if (character.isMascot && promptTokens.some((t) => /mascot|chef|character|personage/.test(t))) {
     score += 2;
@@ -175,22 +177,24 @@ function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: s
 }
 
 function scoreLocationMatch(location: StudioLocationListItem, promptTokens: string[]): number {
+  const haystack = toSearchHaystack(toIdentitySpec(location));
   return scoreAssetMatch(
-    location.name,
-    location.description,
-    location.category,
+    haystack.name,
+    haystack.description,
+    haystack.category,
     promptTokens,
-    [location.continuityNotes ?? ""]
+    haystack.extraFields
   );
 }
 
 function scorePropMatch(prop: StudioPropListItem, promptTokens: string[]): number {
+  const haystack = toSearchHaystack(toIdentitySpec(prop));
   return scoreAssetMatch(
-    prop.name,
-    prop.description,
-    prop.category,
+    haystack.name,
+    haystack.description,
+    haystack.category,
     promptTokens,
-    [prop.brandingRules ?? "", prop.appearanceMemory ?? ""]
+    haystack.extraFields
   );
 }
 
@@ -308,9 +312,16 @@ function resolveWorldRef(params: {
       return { existingId: location.worldProfile.id, name: location.worldProfile.name };
     }
   }
-  const matchedWorld = pickBestAsset(params.worlds, (w) =>
-    scoreAssetMatch(w.name, w.description, w.visualStyle, [])
-  );
+  const matchedWorld = pickBestAsset(params.worlds, (w) => {
+    const haystack = toSearchHaystack(toIdentitySpec(w));
+    return scoreAssetMatch(
+      haystack.name,
+      haystack.description,
+      haystack.category,
+      [],
+      haystack.extraFields
+    );
+  });
   return matchedWorld ? toAssetRef(matchedWorld) : null;
 }
 
