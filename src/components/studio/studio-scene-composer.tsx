@@ -29,6 +29,7 @@ import type {
   StudioLocationListItem,
   StudioPropListItem,
   StudioSceneDetail,
+  StudioStoryboardDetail,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
@@ -37,6 +38,7 @@ import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 
 type StudioSceneComposerProps = {
   storyboardId: string;
+  storyboard: StudioStoryboardDetail;
   characterDriftRecommendations?: CorrectionRecommendation[];
   scene: StudioSceneDetail;
   sceneIndex?: number;
@@ -63,6 +65,7 @@ type TabId = "compose" | "prompt" | "image";
 
 export function StudioSceneComposer({
   storyboardId,
+  storyboard,
   characterDriftRecommendations = [],
   scene,
   sceneIndex = 0,
@@ -184,6 +187,7 @@ export function StudioSceneComposer({
       ) : directorV2Enabled ? (
         <StudioDirectorPanelV2
           storyboardId={storyboardId}
+          storyboard={storyboard}
           scene={draft}
           sceneIndex={sceneIndex}
           sceneCount={sceneCount}
@@ -193,6 +197,7 @@ export function StudioSceneComposer({
           aiDirectorPrompt={aiDirectorPrompt}
           aiDirectorStyleStrength={aiDirectorStyleStrength}
           directorProfile={directorProfile}
+          styleProfile={styleProfile}
           characters={characters}
           canModify={canModify}
           saving={saving}

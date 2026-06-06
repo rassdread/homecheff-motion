@@ -15,12 +15,14 @@ import type {
   StudioLocationListItem,
   StudioPropListItem,
   StudioSceneDetail,
+  StudioStoryboardDetail,
 } from "@/types/studio-api";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 
 type StudioSortableSceneCardProps = {
+  storyboard: StudioStoryboardDetail;
   scene: StudioSceneDetail;
   sceneIndex: number;
   sceneCount: number;
@@ -70,6 +72,7 @@ export function StudioSortableSceneCard({
   busy,
   canModify,
   storyboardId,
+  storyboard,
   characterDriftRecommendations = [],
   autoSelectImprovedImage = true,
   onSave,
@@ -225,6 +228,7 @@ export function StudioSortableSceneCard({
         <div className="border-t border-zinc-100 px-4 pb-4 pt-2">
           <StudioSceneComposer
             storyboardId={storyboardId}
+            storyboard={storyboard}
             characterDriftRecommendations={characterDriftRecommendations}
             scene={scene}
             sceneIndex={sceneIndex}

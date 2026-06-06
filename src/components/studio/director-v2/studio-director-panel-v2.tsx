@@ -24,12 +24,15 @@ import { useActiveTranslator } from "@/i18n/client";
 import type {
   StudioCharacterListItem,
   StudioSceneDetail,
+  StudioStoryboardDetail,
 } from "@/types/studio-api";
+import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import { updateStudioStoryboardApi } from "@/lib/studio-storyboards-client";
 
 type Props = {
   storyboardId: string;
+  storyboard: StudioStoryboardDetail;
   scene: StudioSceneDetail;
   sceneIndex: number;
   sceneCount: number;
@@ -39,6 +42,7 @@ type Props = {
   aiDirectorPrompt: string;
   aiDirectorStyleStrength: string;
   directorProfile: StudioDirectorProfile;
+  styleProfile: StudioPromptStyleProfile;
   characters: StudioCharacterListItem[];
   canModify: boolean;
   saving: boolean;
@@ -49,6 +53,7 @@ type Props = {
 
 export function StudioDirectorPanelV2({
   storyboardId,
+  storyboard,
   scene,
   sceneIndex,
   sceneCount,
@@ -58,6 +63,7 @@ export function StudioDirectorPanelV2({
   aiDirectorPrompt,
   aiDirectorStyleStrength,
   directorProfile,
+  styleProfile,
   characters,
   canModify,
   saving,
@@ -300,6 +306,7 @@ export function StudioDirectorPanelV2({
               >
                 <StudioDirectorSectionMusic
                   scene={scene}
+                  storyboard={storyboard}
                   canModify={canModify}
                   onPatch={(patch) => patchDraft(patch)}
                 />
@@ -313,6 +320,7 @@ export function StudioDirectorPanelV2({
               >
                 <StudioDirectorSectionSound
                   scene={scene}
+                  storyboard={storyboard}
                   canModify={canModify}
                   onPatch={(patch) => patchDraft(patch)}
                 />
@@ -324,7 +332,14 @@ export function StudioDirectorPanelV2({
                 open={openSections.advanced}
                 onToggle={() => toggleSection("advanced")}
               >
-                <StudioDirectorSectionAdvanced scene={scene} />
+                <StudioDirectorSectionAdvanced
+                  scene={scene}
+                  sceneIndex={sceneIndex}
+                  sceneCount={sceneCount}
+                  aiDirectorNotes={directorNotes}
+                  styleProfile={styleProfile}
+                  directorProfile={directorProfile}
+                />
               </StudioDirectorAccordionSection>
             </>
           ) : null}

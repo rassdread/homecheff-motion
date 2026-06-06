@@ -774,6 +774,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                         {scenes.map((scene, index) => (
                           <StudioSortableSceneCard
                             key={scene.id}
+                            storyboard={storyboard}
                             storyboardId={storyboardId}
                             scene={scene}
                             sceneIndex={index}

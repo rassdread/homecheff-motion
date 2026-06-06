@@ -60,9 +60,22 @@ export function StudioDirectorSectionText({
   const subheadline = syncLegacyFieldFromBeats(built.subtitleBeats);
   const hero = syncLegacyFieldFromBeats(built.heroTextBeats) || built.heroText;
   const finale = syncLegacyFieldFromBeats(built.finaleTextBeats) || built.heroFinaleText;
+  const beatCount =
+    built.beatLines.length +
+    built.headlineBeats.length +
+    built.heroTextBeats.length +
+    built.finaleTextBeats.length;
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900">
+          {t("studio.directorV2.text.studioSource")}
+        </span>
+        <span className="text-[10px] text-zinc-500">
+          {beatCount} {t("studio.directorV2.text.beatCount")}
+        </span>
+      </div>
       <p className="text-xs text-zinc-500">{t("studio.directorV2.text.hint")}</p>
       {headline ? (
         <div className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-3 py-2">
@@ -89,6 +102,7 @@ export function StudioDirectorSectionText({
       {finale && !built.finaleTextBeats.length ? (
         <p className="text-sm text-zinc-700">{finale}</p>
       ) : null}
+      <p className="text-xs text-zinc-500">{t("studio.directorV2.text.motionHandoffHint")}</p>
     </div>
   );
 }

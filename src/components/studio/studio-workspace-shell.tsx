@@ -286,6 +286,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               {activeScene && activeSceneIndex >= 0 ?
                 <StudioDirectorPanelV2
                   storyboardId={storyboardId}
+                  storyboard={storyboard}
                   scene={activeScene}
                   sceneIndex={activeSceneIndex}
                   sceneCount={scenes.length}
@@ -295,6 +296,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   aiDirectorPrompt={storyboard.aiDirectorPrompt}
                   aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
                   directorProfile={directorProfile}
+                  styleProfile={styleProfile}
                   characters={characters}
                   canModify={canModify}
                   saving={savingSceneId === activeScene.id}
