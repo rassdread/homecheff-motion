@@ -9,6 +9,7 @@ import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-bea
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
 import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
+import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -19,6 +20,8 @@ import {
 import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
 import { useActiveTranslator } from "@/i18n/client";
 import { collectStoryboardCharacters } from "@/lib/studio-character-voice";
+import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
+import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
@@ -34,8 +37,12 @@ type Props = {
   activeSceneIndex: number;
   sceneCount: number;
   characters: StudioCharacterListItem[];
+  styleProfile: StudioPromptStyleProfile;
+  directorProfile: StudioDirectorProfile;
   canModify: boolean;
   onStoryboardUpdated: (storyboard: StudioStoryboardDetail) => void;
+  onSceneUpdated: (scene: StudioSceneDetail) => void;
+  onRefreshStoryboard?: () => void | Promise<void>;
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   onSwitchTool?: (tool: StudioToolId) => void;
 };
@@ -218,14 +225,35 @@ export function StudioWorkspaceToolPanel({
   activeSceneIndex,
   sceneCount,
   characters,
+  styleProfile,
+  directorProfile,
   canModify,
   onStoryboardUpdated,
+  onSceneUpdated,
+  onRefreshStoryboard,
   onCharacterUpdated,
   onSwitchTool,
 }: Props) {
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
+
+  if (tool === "visual") {
+    return (
+      <StudioWorkspaceVisualProductionPanel
+        storyboardId={storyboardId}
+        storyboard={storyboard}
+        activeScene={activeScene}
+        activeSceneIndex={activeSceneIndex}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        canModify={canModify}
+        onSceneUpdated={onSceneUpdated}
+        onRefreshStoryboard={onRefreshStoryboard}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
 
   if (tool === "voice") {
     return (

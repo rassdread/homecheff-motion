@@ -4,6 +4,7 @@ export type StudioToolId =
   | "locations"
   | "props"
   | "world"
+  | "visual"
   | "voice"
   | "music"
   | "sound"
@@ -20,6 +21,7 @@ export const STUDIO_TOOL_IDS: StudioToolId[] = [
   "locations",
   "props",
   "world",
+  "visual",
   "voice",
   "music",
   "sound",

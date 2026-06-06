@@ -442,8 +442,12 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   activeSceneIndex={activeSceneIndex}
                   sceneCount={scenes.length}
                   characters={characters}
+                  styleProfile={styleProfile}
+                  directorProfile={directorProfile}
                   canModify={canModify}
                   onStoryboardUpdated={setStoryboard}
+                  onSceneUpdated={handleSceneDraftChange}
+                  onRefreshStoryboard={() => void load()}
                   onCharacterUpdated={handleCharacterUpdated}
                   onSwitchTool={handleToolChange}
                 />
