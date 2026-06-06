@@ -1510,6 +1510,19 @@ export const nl = {
   "studio.characterVoice.languageProfilesHint":
     "Optionele overrides per taal. Vergrendelde personages behouden de basisidentiteit tenzij een taalprofiel is ingesteld.",
   "studio.characterVoice.languageProfileInherit": "Standaard overnemen",
+  "studio.voiceCenter.title": "Character Voice Center",
+  "studio.voiceCenter.subtitle": "Kies hoe dit personage klinkt per taal vóór je rendert.",
+  "studio.voiceCenter.futureRenders":
+    "Deze stem wordt gebruikt voor alle toekomstige renders van dit personage.",
+  "studio.voiceCenter.lockLabel": "Stem vergrendelen (storyboards kunnen niet overschrijven)",
+  "studio.voiceCenter.lockedBadge": "Stem vergrendeld",
+  "studio.voiceCenter.lockedShort": "Vergrendeld",
+  "studio.voiceCenter.perLanguage": "Stemmen per taal",
+  "studio.voiceCenter.defaultActive": "Standaard actieve stem: {voice}",
+  "studio.voiceCenter.activeVoice": "Actieve stem: {voice}",
+  "studio.voiceCenter.customForLang": "Aangepast voor deze taal",
+  "studio.voiceCenter.preview": "Preview",
+  "studio.voiceCenter.lastPreview": "Laatste preview",
 
   "studio.voiceIdentity.title": "Stemidentiteit-mapping",
   "studio.voiceIdentity.hint": "Personage → stem per taal. Geen verborgen resolutie.",

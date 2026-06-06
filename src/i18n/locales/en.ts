@@ -1512,6 +1512,19 @@ export const en: LocaleSchema = {
   "studio.characterVoice.languageProfilesHint":
     "Optional per-language overrides. Locked characters keep base identity unless a language profile is set.",
   "studio.characterVoice.languageProfileInherit": "Inherit default",
+  "studio.voiceCenter.title": "Character Voice Center",
+  "studio.voiceCenter.subtitle": "Choose how this character sounds in every language before you render.",
+  "studio.voiceCenter.futureRenders":
+    "This voice will be used for all future renders of this character.",
+  "studio.voiceCenter.lockLabel": "Lock voice (storyboards cannot override)",
+  "studio.voiceCenter.lockedBadge": "Voice locked",
+  "studio.voiceCenter.lockedShort": "Locked",
+  "studio.voiceCenter.perLanguage": "Voices per language",
+  "studio.voiceCenter.defaultActive": "Default active voice: {voice}",
+  "studio.voiceCenter.activeVoice": "Active voice: {voice}",
+  "studio.voiceCenter.customForLang": "Custom for this language",
+  "studio.voiceCenter.preview": "Preview",
+  "studio.voiceCenter.lastPreview": "Last preview",
 
   "studio.voiceIdentity.title": "Voice identity mapping",
   "studio.voiceIdentity.hint": "Character → voice per language. No hidden resolution.",
