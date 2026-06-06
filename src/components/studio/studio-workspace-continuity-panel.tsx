@@ -39,6 +39,7 @@ const SECTION_TITLE_KEYS = {
   locations: "studio.continuity.section.locations",
   worlds: "studio.continuity.section.worlds",
   voices: "studio.continuity.section.voices",
+  narrationAudio: "studio.continuity.section.narrationAudio",
   styles: "studio.continuity.section.styles",
 } as const satisfies Record<string, TranslationKey>;
 

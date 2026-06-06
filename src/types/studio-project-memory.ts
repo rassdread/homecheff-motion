@@ -22,12 +22,21 @@ export type StudioStyleMemoryEntry = {
   storyboardCount: number;
 };
 
+export type StudioNarrationAudioMemoryEntry = {
+  id: string;
+  storyboardId: string;
+  displayName: string;
+  language: string;
+  durationSeconds: number;
+};
+
 export type StudioProjectMemorySnapshot = {
   characters: Record<string, StudioAssetUsageStats>;
   locations: Record<string, StudioAssetUsageStats>;
   props: Record<string, StudioAssetUsageStats>;
   worlds: Record<string, StudioAssetUsageStats>;
   voices: StudioVoiceMemoryEntry[];
+  narrationAudio: StudioNarrationAudioMemoryEntry[];
   styles: StudioStyleMemoryEntry[];
 };
 

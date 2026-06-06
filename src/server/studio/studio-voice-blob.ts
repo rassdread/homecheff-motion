@@ -7,8 +7,13 @@ export async function uploadStoryboardVoiceAudio(params: {
   voiceAssetId: string;
   audioBuffer: Buffer;
   contentType: string;
+  extension?: string;
 }): Promise<{ audioUrl: string; storageKey: string }> {
-  const ext = params.contentType.includes("wav") ? "wav" : "mp3";
+  const ext =
+    params.extension?.trim().toLowerCase()
+    || (params.contentType.includes("wav") ? "wav"
+      : params.contentType.includes("m4a") || params.contentType.includes("mp4") ? "m4a"
+      : "mp3");
   const pathname = `studio/${params.ownerId}/storyboards/${params.storyboardId}/voice/${params.language}/${params.voiceAssetId}.${ext}`;
   const uploaded = await uploadPublicBlob({
     pathname,

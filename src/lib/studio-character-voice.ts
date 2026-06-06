@@ -40,6 +40,10 @@ export function parseCharacterVoiceProfilesJson(raw: unknown): CharacterVoicePro
       voiceGender: typeof row.voiceGender === "string" ? row.voiceGender.trim() : undefined,
       voiceDescription:
         typeof row.voiceDescription === "string" ? row.voiceDescription.trim() : undefined,
+      referenceAudioUrl:
+        typeof row.referenceAudioUrl === "string" ? row.referenceAudioUrl.trim() : undefined,
+      referenceAudioLabel:
+        typeof row.referenceAudioLabel === "string" ? row.referenceAudioLabel.trim() : undefined,
     };
   }
   return out;

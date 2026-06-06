@@ -137,7 +137,7 @@ export function buildProjectContinuityScore(params: {
 }
 
 export type ContinuityLibrarySection = {
-  id: "characters" | "locations" | "worlds" | "voices" | "styles";
+  id: "characters" | "locations" | "worlds" | "voices" | "narrationAudio" | "styles";
   items: ContinuityLibraryItem[];
 };
 
@@ -284,11 +284,30 @@ export function buildContinuityLibrarySections(params: {
     tool: "story" as const,
   }));
 
+  const narrationAudioItems: ContinuityLibraryItem[] = params.memory.narrationAudio.map((audio) => ({
+    id: audio.id,
+    name: audio.displayName,
+    subtitleKey: "studio.continuity.usage.narrationAudio",
+    subtitleParams: {
+      storyboards: "1",
+      renders: "0",
+      campaigns: "0",
+      language: audio.language,
+      duration: audio.durationSeconds.toFixed(0),
+    },
+    storyboardCount: 1,
+    renderCount: 0,
+    campaignCount: 0,
+    inCurrentProject: audio.storyboardId === params.storyboard.id,
+    tool: "voice" as const,
+  }));
+
   return [
     { id: "characters", items: characterItems },
     { id: "locations", items: locationItems },
     { id: "worlds", items: worldItems },
     { id: "voices", items: voiceItems },
+    { id: "narrationAudio", items: narrationAudioItems },
     { id: "styles", items: styleItems },
   ];
 }

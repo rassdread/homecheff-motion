@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { getVoiceProfilePreset, normalizeStudioNarrationMode, profileIdForNarrationMode } from "@/lib/studio-voice-profiles";
+import {
+  parseStoryboardVoiceMetadata,
+  STORYBOARD_AUDIO_UPLOAD_PROVIDER,
+} from "@/lib/studio-storyboard-audio";
 import type {
   StudioAssetUsageStats,
   StudioProjectMemorySnapshot,
+  StudioNarrationAudioMemoryEntry,
   StudioStyleMemoryEntry,
   StudioVoiceMemoryEntry,
 } from "@/types/studio-project-memory";
@@ -33,7 +38,7 @@ function finalizeStats(
 }
 
 export async function buildStudioProjectMemory(ownerId: string): Promise<StudioProjectMemorySnapshot> {
-  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, characters, worldsFromChars, worldsFromLocs, worldsFromProps] =
+  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices] =
     await Promise.all([
       prisma.studioSceneCharacter.findMany({
         where: { character: { ownerId } },
@@ -76,6 +81,20 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
       prisma.studioProp.findMany({
         where: { ownerId, worldProfileId: { not: null } },
         select: { worldProfileId: true, id: true },
+      }),
+      prisma.studioStoryboardVoice.findMany({
+        where: {
+          provider: STORYBOARD_AUDIO_UPLOAD_PROVIDER,
+          status: "completed",
+          storyboard: { ownerId },
+        },
+        select: {
+          id: true,
+          storyboardId: true,
+          language: true,
+          durationSeconds: true,
+          providerMetadata: true,
+        },
       }),
     ]);
 
@@ -216,12 +235,26 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     styleMap.set(key, entry);
   }
 
+  const narrationAudio: StudioNarrationAudioMemoryEntry[] = uploadedVoices
+    .map((voice) => {
+      const meta = parseStoryboardVoiceMetadata(voice.providerMetadata);
+      return {
+        id: voice.id,
+        storyboardId: voice.storyboardId,
+        displayName: meta.displayName?.trim() || meta.fileName?.trim() || "Uploaded audio",
+        language: voice.language,
+        durationSeconds: voice.durationSeconds,
+      };
+    })
+    .sort((a, b) => b.durationSeconds - a.durationSeconds);
+
   return {
     characters: finalizeStats(charMap, renderByStoryboard, campaignsByStoryboard),
     locations: finalizeStats(locMap, renderByStoryboard, campaignsByStoryboard),
     props: finalizeStats(propMap, renderByStoryboard, campaignsByStoryboard),
     worlds: finalizeStats(worldMap, renderByStoryboard, campaignsByStoryboard),
     voices,
+    narrationAudio,
     styles: [...styleMap.values()].sort((a, b) => b.storyboardCount - a.storyboardCount),
   };
 }

@@ -102,3 +102,60 @@ export async function generateStoryboardTranscriptApi(
     }
   );
 }
+
+export async function uploadStoryboardExternalAudioApi(
+  storyboardId: string,
+  file: File,
+  options?: { language?: string; displayName?: string }
+) {
+  const form = new FormData();
+  form.append("audio", file);
+  if (options?.language) {
+    form.append("language", options.language);
+  }
+  if (options?.displayName) {
+    form.append("displayName", options.displayName);
+  }
+  return fetchSameOriginJson<{
+    ok: boolean;
+    voiceId?: string;
+    audioUrl?: string;
+    durationSeconds?: number;
+    displayName?: string;
+    language?: string;
+    error?: string;
+    code?: string;
+  }>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/audio-upload`
+    ),
+    {
+      method: "POST",
+      body: form,
+    }
+  );
+}
+
+export async function linkCharacterVoiceReferenceApi(
+  characterId: string,
+  params: { audioUrl: string; language?: string; label?: string }
+) {
+  return fetchSameOriginJson<{
+    ok: boolean;
+    characterId?: string;
+    language?: string;
+    referenceAudioUrl?: string;
+    character?: import("@/types/studio-api").StudioCharacterListItem;
+    error?: string;
+    code?: string;
+  }>(
+    sameOriginApiPath(
+      `/api/studio/characters/${encodeURIComponent(characterId)}/voice-reference`
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    }
+  );
+}

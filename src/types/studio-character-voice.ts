@@ -8,6 +8,8 @@ export type CharacterVoiceLanguageProfile = {
   voiceProfile?: string;
   voiceGender?: string;
   voiceDescription?: string;
+  referenceAudioUrl?: string;
+  referenceAudioLabel?: string;
 };
 
 export type CharacterVoiceProfilesByLanguage = Partial<

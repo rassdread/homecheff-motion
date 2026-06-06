@@ -22,6 +22,7 @@ export function emptyProjectMemorySnapshot(): StudioProjectMemorySnapshot {
     props: {},
     worlds: {},
     voices: [],
+    narrationAudio: [],
     styles: [],
   };
 }

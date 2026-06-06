@@ -9,6 +9,7 @@ import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-bea
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
 import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
+import { StudioStoryboardExternalAudioPanel } from "@/components/studio/studio-storyboard-external-audio-panel";
 import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
 import { StudioWorkspaceConsistencyPanel } from "@/components/studio/studio-workspace-consistency-panel";
 import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-workspace-continuity-panel";
@@ -84,6 +85,13 @@ function StudioWorkspaceVoicePanel({
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.voice")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.voice.hint")}</p>
       </div>
+      <StudioStoryboardExternalAudioPanel
+        storyboard={storyboard}
+        characters={characters}
+        canModify={canModify}
+        onStoryboardUpdated={onStoryboardUpdated}
+        onCharacterUpdated={onCharacterUpdated}
+      />
       <StudioWorkspaceAudioProductionPanel
         storyboard={storyboard}
         characters={characters}

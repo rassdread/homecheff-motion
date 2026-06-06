@@ -1,10 +1,6 @@
-import {
-  buildSrtFromSubtitleEntries,
-  buildSubtitleEntriesFromTranscriptWords,
-} from "@/lib/studio-subtitle-track";
+import { transcribeAudioUrlToSubtitleTrack } from "@/lib/studio-transcript-from-audio";
 import type { SessionUser } from "@/server/auth/session";
 import { getStudioStoryboardById } from "@/server/studio/studio-storyboard-service";
-import { selectSttProvider } from "@/server/studio/speech/stt-provider";
 import { prisma } from "@/lib/prisma";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
 import type { SubtitleTrackEntry } from "@/types/studio-voice-execution";
@@ -50,61 +46,24 @@ export async function generateStoryboardTranscript(params: {
     return {
       error: serviceError(
         "NO_AUDIO",
-        "Generate narration audio first, then create a transcript.",
+        "Upload audio or generate narration first, then create a transcript.",
         400
       ),
     };
   }
 
-  const provider = selectSttProvider(params.forceProvider);
-  let transcript;
   try {
-    transcript = await provider.transcribe({
+    const result = await transcribeAudioUrlToSubtitleTrack({
+      storyboardId: params.storyboardId,
+      language,
       audioUrl,
-      languageCode: language,
+      durationHintSeconds: voice.durationSeconds,
       fallbackScript: storyboard.voiceNarrationScript?.trim() || undefined,
-      expectedDurationSeconds: voice.durationSeconds,
+      forceProvider: params.forceProvider,
     });
+    return { ok: true, data: result };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Transcript generation failed.";
     return { error: serviceError("TRANSCRIPT_FAILED", message, 502) };
   }
-
-  const entries = buildSubtitleEntriesFromTranscriptWords(transcript.words);
-  if (entries.length === 0 && transcript.text.trim()) {
-    entries.push({
-      start: 0,
-      end: Math.max(0.5, transcript.durationSeconds),
-      text: transcript.text.trim(),
-    });
-  }
-
-  const track = await prisma.studioStoryboardSubtitleTrack.upsert({
-    where: { storyboardId_language: { storyboardId: params.storyboardId, language } },
-    create: {
-      storyboardId: params.storyboardId,
-      language,
-      status: "ready",
-      entriesJson: entries,
-    },
-    update: {
-      entriesJson: entries,
-      status: "ready",
-    },
-  });
-
-  const srt = buildSrtFromSubtitleEntries(entries);
-
-  return {
-    ok: true,
-    data: {
-      subtitleTrackId: track.id,
-      language,
-      lineCount: entries.length,
-      durationSeconds: transcript.durationSeconds,
-      provider: provider.id,
-      entries,
-      srt,
-    },
-  };
 }
