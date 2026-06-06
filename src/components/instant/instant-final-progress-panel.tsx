@@ -66,6 +66,8 @@ export type InstantFinalProgressPanelProps = {
   hideRecoveryActions?: boolean;
   /** Hide worker/export debug grid (project detail uses collapsed advanced section). */
   hideAdminDiagnostics?: boolean;
+  /** Progress bars only — status/recovery handled by RenderActivityStatusCard. */
+  compactProgressOnly?: boolean;
   className?: string;
 };
 
@@ -124,6 +126,7 @@ export function InstantFinalProgressPanel({
   pollingError = null,
   hideRecoveryActions = false,
   hideAdminDiagnostics = false,
+  compactProgressOnly = false,
   className = "",
 }: InstantFinalProgressPanelProps) {
   const t = useActiveTranslator();
@@ -238,28 +241,39 @@ export function InstantFinalProgressPanel({
 
   return (
     <div className={`rounded-xl border border-zinc-200 bg-white/90 p-4 shadow-sm ${className}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          {isActive ? (
-            <span
-              className="inline-block h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-sky-500"
-              aria-hidden
-            />
-          ) : isCompleted ? (
-            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-          ) : isFailed ? (
-            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
-          ) : (
-            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" aria-hidden />
-          )}
-          <p className="text-sm font-semibold text-zinc-900">{t(stageLabelKey as never)}</p>
-        </div>
-        <p className="text-sm font-bold tabular-nums text-zinc-800">{percent}%</p>
-      </div>
+      {!compactProgressOnly ?
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {isActive ? (
+                <span
+                  className="inline-block h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-sky-500"
+                  aria-hidden
+                />
+              ) : isCompleted ? (
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+              ) : isFailed ? (
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
+              ) : (
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-zinc-300" aria-hidden />
+              )}
+              <p className="text-sm font-semibold text-zinc-900">{t(stageLabelKey as never)}</p>
+            </div>
+            <p className="text-sm font-bold tabular-nums text-zinc-800">{percent}%</p>
+          </div>
 
-      <p className="mt-1 text-xs text-zinc-600">
-        {showTextRerenderProgress ? null : t(operationLabelKey as never)}
-      </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {showTextRerenderProgress ? null : t(operationLabelKey as never)}
+          </p>
+        </>
+      : (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            {t("instant.progress.pipelineTitle")}
+          </p>
+          <p className="text-sm font-bold tabular-nums text-zinc-800">{percent}%</p>
+        </div>
+      )}
 
       {showTextRerenderProgress ? (
         <TextLanguageRenderProgressPanel progress={textRerenderProgress} className="mt-3" />
@@ -298,7 +312,7 @@ export function InstantFinalProgressPanel({
           : null}
       </p>
 
-      {showUnifiedRepair && onRepair ? (
+      {showUnifiedRepair && onRepair && !compactProgressOnly ? (
         <InstantVideoRepairCard
           className="mt-3"
           uiView={repairUiView}
@@ -321,7 +335,7 @@ export function InstantFinalProgressPanel({
         </div>
       ) : null}
 
-      {showFailedBanner ? (
+      {showFailedBanner && !compactProgressOnly ? (
         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-950">
           <p className="font-medium">
             {userFailureKey ? t(userFailureKey as never) : t("instant.exportFailure.generic")}
@@ -351,7 +365,7 @@ export function InstantFinalProgressPanel({
         </div>
       ) : null}
 
-      {showStuckBanner ? (
+      {showStuckBanner && !compactProgressOnly ? (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-medium">{t("instant.progress.exportStuckTitle")}</p>
           <p className="mt-1 text-xs text-amber-900/90">

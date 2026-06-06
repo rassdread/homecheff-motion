@@ -28,9 +28,14 @@ export type CreateBillingEventInput = {
   isEstimated?: boolean;
   metadataJson?: Prisma.InputJsonValue;
   exportIncluded?: boolean;
+  /** For full_rerender — price tier follows story vs transition. */
+  underlyingInstantMode?: "story" | "transition";
 };
 
 function mapActionToRenderType(actionType: string, renderType?: string): VideoRenderType {
+  if (renderType === "full_rerender") {
+    return "full_rerender";
+  }
   if (renderType) {
     return renderType as VideoRenderType;
   }
@@ -65,6 +70,7 @@ export async function createCustomerBillingEvent(
     internalCostUsd: input.internalCostUsd,
     user: input.user,
     exportIncluded: input.exportIncluded,
+    underlyingInstantMode: input.underlyingInstantMode,
   });
 
   if (input.providerCostEventId) {

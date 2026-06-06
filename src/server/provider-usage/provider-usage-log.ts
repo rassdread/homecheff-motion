@@ -10,6 +10,8 @@ import {
   creditsToTotalCostUsd,
 } from "@/server/provider-usage/credit-cost";
 import { estimateCreditsForTransition } from "@/server/provider-usage/estimate-transition-credits";
+import { isFullRerenderInProgress } from "@/lib/full-rerender-audit";
+import { readPendingFullRerender } from "@/server/instant-premium/render-version-service";
 import {
   beginViduRenderCostEvent,
   completeViduRenderCostEvent,
@@ -49,7 +51,11 @@ export function resolveRenderTypeForProject(project: {
   projectType: string;
   instantMode: string;
   sourceProjectId: string | null;
+  instantFinalRebuildAuditJson?: unknown;
 }): string {
+  if (isFullRerenderInProgress(project.instantFinalRebuildAuditJson)) {
+    return "full_rerender";
+  }
   if (project.sourceProjectId) {
     return "concept_render";
   }
@@ -62,6 +68,28 @@ export function resolveRenderTypeForProject(project: {
   return "transition_mode";
 }
 
+export type ViduBillingContext = {
+  renderType: string;
+  instantMode: string;
+  renderVersionId: string | null;
+  renderVersionNumber: number | null;
+};
+
+export function resolveViduBillingContext(project: {
+  projectType: string;
+  instantMode: string;
+  sourceProjectId: string | null;
+  instantFinalRebuildAuditJson?: unknown;
+}): ViduBillingContext {
+  const pending = readPendingFullRerender(project.instantFinalRebuildAuditJson);
+  return {
+    renderType: resolveRenderTypeForProject(project),
+    instantMode: project.instantMode,
+    renderVersionId: pending?.renderVersionId ?? null,
+    renderVersionNumber: pending?.renderVersionNumber ?? null,
+  };
+}
+
 export type BeginProviderUsageLogInput = {
   provider: string;
   providerJobId: string;
@@ -69,6 +97,9 @@ export type BeginProviderUsageLogInput = {
   userId: string;
   renderType: string;
   durationSeconds: number;
+  instantMode?: string;
+  renderVersionId?: string | null;
+  renderVersionNumber?: number | null;
 };
 
 /** Record creditsBefore when a provider job starts. */
@@ -123,6 +154,9 @@ export async function beginProviderUsageLog(
       userId: input.userId,
       renderType: input.renderType,
       durationSeconds: input.durationSeconds,
+      instantMode: input.instantMode,
+      renderVersionId: input.renderVersionId,
+      renderVersionNumber: input.renderVersionNumber,
     }).catch((err) => {
       console.error("[provider-cost] beginViduRenderCostEvent", err);
     });

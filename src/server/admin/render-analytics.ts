@@ -9,6 +9,7 @@ import { animationProjectWithMediaInclude } from "@/server/animation-projects/qu
 import { getViduCreditBalance } from "@/server/video-providers/vidu-credits";
 import {
   aggregateCreditAnalytics,
+  aggregateInstantModeUsage,
   creditsByProject,
   creditsByProvider,
   creditsByUser,
@@ -1084,6 +1085,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
       totalGeneratedVideoSeconds: totalViduSeconds,
       avgCreditsPerRender: creditAnalytics.avgCreditsPerRender,
       avgCostPerRenderUsd,
+      instantModeUsage: aggregateInstantModeUsage(creditRows),
     },
     providers,
     vidu: {

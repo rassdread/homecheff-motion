@@ -55,7 +55,7 @@ import {
   beginProviderUsageLog,
   completeProviderUsageLog,
   logFailedProviderStart,
-  resolveRenderTypeForProject,
+  resolveViduBillingContext,
 } from "@/server/provider-usage/provider-usage-log";
 
 const ACTIVE_TRANSITION_STATUSES = ["queued", "generating", "processing", "rendering"] as const;
@@ -540,11 +540,12 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       },
     });
     if (failedProvider !== "mock") {
+      const billingCtx = resolveViduBillingContext(transition.project);
       await logFailedProviderStart({
         provider: failedProvider,
         projectId: transition.projectId,
         userId: transition.project.ownerId,
-        renderType: resolveRenderTypeForProject(transition.project),
+        renderType: billingCtx.renderType,
         durationSeconds: failedJobSettings.providerDurationSeconds,
         presetId: transition.project.presetId,
         estimatedCredits: transition.project.estimatedCredits,
@@ -581,13 +582,17 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
 
   if (providerSlug !== "mock" && providerResult.providerJobId?.trim()) {
     const startJobSettings = resolveProviderJobSettings(transition.project);
+    const billingCtx = resolveViduBillingContext(transition.project);
     await beginProviderUsageLog({
       provider: providerSlug,
       providerJobId: providerResult.providerJobId,
       projectId: transition.projectId,
       userId: transition.project.ownerId,
-      renderType: resolveRenderTypeForProject(transition.project),
+      renderType: billingCtx.renderType,
       durationSeconds: startJobSettings.providerDurationSeconds,
+      instantMode: billingCtx.instantMode,
+      renderVersionId: billingCtx.renderVersionId,
+      renderVersionNumber: billingCtx.renderVersionNumber,
     }).catch((logErr) => {
       console.error("[provider-usage] beginProviderUsageLog", logErr);
     });

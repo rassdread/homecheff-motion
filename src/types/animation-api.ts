@@ -1,5 +1,6 @@
 import type { AnimationPresetId } from "@/lib/animation-presets";
 import type { BakedTextProtectionPayload } from "@/lib/baked-text-detection";
+import type { ProjectVideoCostSummary } from "@/types/project-video-cost";
 import type {
   ProjectStudioExportMetadata,
   ProjectStudioQaResponse,
@@ -553,6 +554,8 @@ export type AnimationProjectDetailResponse = ProjectSnapshotResponse & {
     projectType: string;
     status: string;
   }>;
+  /** Billing summary for this project (owner + admin). */
+  costSummary?: ProjectVideoCostSummary | null;
 };
 
 export type InstantPremiumSegmentStatus = "queued" | "generating" | "completed" | "failed";

@@ -13,6 +13,9 @@ function mapRenderType(
 ): VideoRenderType {
   const rt = metadata?.renderType;
   if (typeof rt === "string") {
+    if (rt === "full_rerender") {
+      return "full_rerender";
+    }
     if (rt === "story_mode" || rt.includes("story")) {
       return "story_mode";
     }
@@ -68,6 +71,7 @@ export async function syncCustomerBillingFromCostEvent(
   const meta = (event.metadataJson as Record<string, unknown> | null) ?? {};
   const creditsUsed = creditsFromCostEvent(event);
   const internalCostUsd = event.internalCostUsd ?? event.totalCostUsd ?? undefined;
+  const instantMode = typeof meta.instantMode === "string" ? meta.instantMode : undefined;
 
   await createCustomerBillingEvent({
     userId: event.userId,
@@ -80,6 +84,7 @@ export async function syncCustomerBillingFromCostEvent(
     status: event.status === "completed" ? "completed" : event.status,
     user: { role: event.user?.role ?? "user" },
     isEstimated: event.isEstimated,
+    underlyingInstantMode: instantMode === "story" ? "story" : instantMode === "transition" ? "transition" : undefined,
     metadataJson: {
       provider: event.provider,
       providerJobId: event.providerJobId,

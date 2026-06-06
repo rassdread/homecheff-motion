@@ -141,6 +141,8 @@ import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-exp
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
 import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
 import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
+import { MotionSceneSourceBadges } from "@/components/instant/motion/motion-scene-source-badges";
+import { resolveMotionSceneSourceBadges } from "@/lib/motion-scene-source-badges";
 import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
 import { fetchMotionHandoffPayload } from "@/lib/studio-motion-handoff-client";
 import {
@@ -403,6 +405,10 @@ export default function InstantPremiumPage() {
     () => sceneSlots.find((slot) => slot.sceneId === expandedSceneId)?.studioContext ?? null,
     [sceneSlots, expandedSceneId]
   );
+  const activeSceneSourceBadges = useMemo(() => {
+    const slot = sceneSlots.find((s) => s.sceneId === expandedSceneId);
+    return slot ? resolveMotionSceneSourceBadges(slot) : [];
+  }, [sceneSlots, expandedSceneId]);
   const activeStudioSlotMissingImage = useMemo(() => {
     const slot = sceneSlots.find((s) => s.sceneId === expandedSceneId);
     return Boolean(slot?.studioContext && !slot.image);
@@ -1886,12 +1892,15 @@ export default function InstantPremiumPage() {
                             {t("motion.handoff.noStudioImage")}
                           </p>
                         ) : null}
-                        {activeStudioContext ? (
-                          <MotionSceneStudioInspector
-                            context={activeStudioContext}
-                            storyboardTitle={studioHandoffTitle}
-                          />
-                        ) : null}
+                        {activeStudioContext ?
+                          <>
+                            <MotionSceneSourceBadges badges={activeSceneSourceBadges} className="mt-2" />
+                            <MotionSceneStudioInspector
+                              context={activeStudioContext}
+                              storyboardTitle={studioHandoffTitle}
+                            />
+                          </>
+                        : null}
                       </>
                     : null}
                   </div>
@@ -2068,12 +2077,15 @@ export default function InstantPremiumPage() {
                         {t("motion.handoff.noStudioImage")}
                       </p>
                     ) : null}
-                    {activeStudioContext ? (
-                      <MotionSceneStudioInspector
-                        context={activeStudioContext}
-                        storyboardTitle={studioHandoffTitle}
-                      />
-                    ) : null}
+                    {activeStudioContext ?
+                      <>
+                        <MotionSceneSourceBadges badges={activeSceneSourceBadges} className="mt-2" />
+                        <MotionSceneStudioInspector
+                          context={activeStudioContext}
+                          storyboardTitle={studioHandoffTitle}
+                        />
+                      </>
+                    : null}
                   </>
                 ) : null}
               </div>

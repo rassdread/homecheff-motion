@@ -97,6 +97,7 @@ export function RenderAnalyticsDashboard({
     { section: "provider-costs", label: t("admin.renderAnalytics.exportProviderCosts") },
     { section: "project-usage", label: t("admin.renderAnalytics.exportProjectUsage") },
     { section: "user-usage", label: t("admin.renderAnalytics.exportUserUsage") },
+    { section: "instant-mode-usage", label: t("admin.renderAnalytics.exportInstantModeUsage") },
   ];
 
   if (!report && error) {
@@ -224,6 +225,40 @@ export function RenderAnalyticsDashboard({
         <DataTable
           headers={[t("admin.renderAnalytics.renderType"), t("admin.renderAnalytics.count")]}
           rows={Object.entries(report.renders.byType).map(([type, count]) => [type, count])}
+          emptyLabel={emptyLabel}
+        />
+        <h3 className="mt-6 text-sm font-semibold text-zinc-800">
+          {t("admin.renderAnalytics.instantModeUsage")}
+        </h3>
+        <DataTable
+          headers={[
+            t("admin.renderAnalytics.renderType"),
+            t("admin.renderAnalytics.modeRenderCount"),
+            t("admin.renderAnalytics.credits"),
+            t("admin.renderAnalytics.costUsd"),
+            t("admin.renderAnalytics.modeFailures"),
+            t("admin.renderAnalytics.modeAvgDuration"),
+          ]}
+          rows={(
+            [
+              ["story", report.renders.instantModeUsage.story],
+              ["transition", report.renders.instantModeUsage.transition],
+              ["full_rerender", report.renders.instantModeUsage.fullRerender],
+            ] as const
+          ).map(([mode, stats]) => [
+            t(
+              mode === "story"
+                ? "admin.renderAnalytics.modeStory"
+                : mode === "transition"
+                  ? "admin.renderAnalytics.modeTransition"
+                  : "admin.renderAnalytics.modeFullRerender"
+            ),
+            stats.renderCount,
+            stats.credits,
+            usd(stats.costUsd),
+            stats.failedCount,
+            stats.avgDurationSeconds ?? "—",
+          ])}
           emptyLabel={emptyLabel}
         />
       </AppCard>

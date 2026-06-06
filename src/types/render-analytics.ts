@@ -365,6 +365,20 @@ export type FinancialSummary = {
   monthlyForecastBasis: string;
 };
 
+export type ModeUsageStats = {
+  renderCount: number;
+  credits: number;
+  costUsd: number;
+  failedCount: number;
+  avgDurationSeconds: number | null;
+};
+
+export type InstantModeUsageAnalytics = {
+  story: ModeUsageStats;
+  transition: ModeUsageStats;
+  fullRerender: ModeUsageStats;
+};
+
 export type RenderAnalyticsReport = {
   generatedAt: string;
   dataGaps: string[];
@@ -386,6 +400,7 @@ export type RenderAnalyticsReport = {
     totalGeneratedVideoSeconds: number;
     avgCreditsPerRender: number;
     avgCostPerRenderUsd: number;
+    instantModeUsage: InstantModeUsageAnalytics;
   };
   providers: ProviderCostRow[];
   vidu: ViduAnalytics;
@@ -431,4 +446,5 @@ export type RenderAnalyticsCsvSection =
   | "provider-costs"
   | "project-usage"
   | "user-usage"
-  | "customer-billing";
+  | "customer-billing"
+  | "instant-mode-usage";

@@ -13,6 +13,7 @@ import {
 import { estimateCreditsForTransition } from "@/server/provider-usage/estimate-transition-credits";
 import { resolveRenderTypeForProject } from "@/server/provider-usage/provider-usage-log";
 import type { AdminProjectDisplay } from "@/types/admin-project-display";
+import type { InstantModeUsageAnalytics, ModeUsageStats } from "@/types/render-analytics";
 
 export type RenderCreditRow = {
   id: string;
@@ -401,4 +402,46 @@ export function creditsByUser(
     map.set(row.userId, cur);
   }
   return map;
+}
+
+function emptyModeStats(): ModeUsageStats {
+  return { renderCount: 0, credits: 0, costUsd: 0, failedCount: 0, avgDurationSeconds: null };
+}
+
+/** Aggregate Vidu usage by story / transition / full rerender render types. */
+export function aggregateInstantModeUsage(rows: RenderCreditRow[]): InstantModeUsageAnalytics {
+  const buckets: InstantModeUsageAnalytics = {
+    story: emptyModeStats(),
+    transition: emptyModeStats(),
+    fullRerender: emptyModeStats(),
+  };
+  const durationTotals = { story: 0, transition: 0, fullRerender: 0 };
+  const durationCounts = { story: 0, transition: 0, fullRerender: 0 };
+
+  for (const row of rows) {
+    const key =
+      row.renderType === "full_rerender" ? "fullRerender"
+      : row.renderType === "story_mode" ? "story"
+      : "transition";
+    const b = buckets[key];
+    b.renderCount += 1;
+    b.credits += row.creditsUsed;
+    b.costUsd += row.totalCostUsd;
+    if (row.status === "failed" || row.status === "cancelled") {
+      b.failedCount += 1;
+    }
+    if (row.durationSeconds != null && row.durationSeconds > 0) {
+      durationTotals[key] += row.durationSeconds;
+      durationCounts[key] += 1;
+    }
+  }
+
+  for (const key of ["story", "transition", "fullRerender"] as const) {
+    const count = durationCounts[key];
+    buckets[key].avgDurationSeconds =
+      count > 0 ? Math.round((durationTotals[key] / count) * 10) / 10 : null;
+    buckets[key].costUsd = Math.round(buckets[key].costUsd * 100) / 100;
+  }
+
+  return buckets;
 }

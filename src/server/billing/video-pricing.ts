@@ -30,6 +30,8 @@ export type PriceQuoteInput = {
   locale?: "nl" | "en";
   /** When true, full export is included (video already paid). */
   exportIncluded?: boolean;
+  /** For full_rerender pricing — maps to story/transition tier. */
+  underlyingInstantMode?: "story" | "transition";
 };
 
 export type PriceQuote = {
@@ -159,11 +161,14 @@ export function quoteVideoPrice(input: PriceQuoteInput): PriceQuote {
     actionType === "vidu_render" ||
     input.renderType === "transition_mode" ||
     input.renderType === "story_mode" ||
+    input.renderType === "full_rerender" ||
     input.renderType === "concept_render" ||
     input.renderType === "classic"
   ) {
     const renderType =
-      input.renderType === "story_mode" ? "story_mode" : "transition_mode";
+      input.renderType === "story_mode" || input.underlyingInstantMode === "story"
+        ? "story_mode"
+        : "transition_mode";
     const rule = pickCreditTierRule(renderType, creditsUsed);
     if (rule) {
       grossPriceEur = priceFromCreditTier(rule, creditsUsed);

@@ -21,6 +21,7 @@ export const RENDER_ANALYTICS_CSV_SECTIONS: RenderAnalyticsCsvSection[] = [
   "project-usage",
   "user-usage",
   "customer-billing",
+  "instant-mode-usage",
 ];
 
 export function buildRenderAnalyticsCsv(
@@ -364,6 +365,38 @@ export function buildRenderAnalyticsCsv(
             e.pricingRuleLabel,
             e.isAdminFree,
             e.isEstimated,
+          ])
+        ),
+      ].join("\n"),
+    };
+  }
+
+  if (section === "instant-mode-usage") {
+    const usage = report.renders.instantModeUsage;
+    const rows: [string, typeof usage.story][] = [
+      ["story", usage.story],
+      ["transition", usage.transition],
+      ["full_rerender", usage.fullRerender],
+    ];
+    return {
+      filename: "instant-mode-usage.csv",
+      csv: [
+        csvRow([
+          "mode",
+          "render_count",
+          "credits",
+          "cost_usd",
+          "failed_count",
+          "avg_duration_seconds",
+        ]),
+        ...rows.map(([mode, stats]) =>
+          csvRow([
+            mode,
+            stats.renderCount,
+            stats.credits,
+            stats.costUsd,
+            stats.failedCount,
+            stats.avgDurationSeconds,
           ])
         ),
       ].join("\n"),

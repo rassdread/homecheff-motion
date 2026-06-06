@@ -14,6 +14,7 @@ export type VideoPricingActionType =
 export type VideoRenderType =
   | "transition_mode"
   | "story_mode"
+  | "full_rerender"
   | "text_rerender"
   | "language_export"
   | "full_export"

@@ -278,6 +278,9 @@ export async function beginViduRenderCostEvent(input: {
   userId: string;
   renderType: string;
   durationSeconds: number;
+  instantMode?: string;
+  renderVersionId?: string | null;
+  renderVersionNumber?: number | null;
 }): Promise<void> {
   await beginCostEvent({
     provider: "vidu",
@@ -287,7 +290,13 @@ export async function beginViduRenderCostEvent(input: {
     relatedJobId: input.providerJobId,
     unitType: COST_UNIT.CREDITS,
     unitCostUsd: UNIT_COST_USD.vidu_credit,
-    metadataJson: { renderType: input.renderType, durationSeconds: input.durationSeconds },
+    metadataJson: {
+      renderType: input.renderType,
+      durationSeconds: input.durationSeconds,
+      instantMode: input.instantMode,
+      renderVersionId: input.renderVersionId ?? undefined,
+      renderVersionNumber: input.renderVersionNumber ?? undefined,
+    },
   });
 }
 

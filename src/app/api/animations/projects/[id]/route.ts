@@ -27,6 +27,7 @@ import {
   buildProjectStudioQaResponse,
 } from "@/lib/studio-project-metadata";
 import { buildDetailBundleCatalog } from "@/server/animation-projects/build-detail-bundle-catalog";
+import { loadProjectVideoCostSummary } from "@/server/billing/project-video-cost-summary";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -274,6 +275,10 @@ export async function GET(request: Request, context: RouteContext) {
   body.bundleDisplayTitle = bundlePayload.bundleDisplayTitle;
   body.bundleMemberProjectIds = bundlePayload.memberProjectIds;
   body.bundlePeers = bundlePayload.peers;
+  body.costSummary = await loadProjectVideoCostSummary({
+    projectId: id,
+    isAdmin: user.role === "admin",
+  });
   if (body.draftLineage && project.sourceProjectId) {
     const sourceLang = (project.sourceLanguage?.trim() || "nl").toLowerCase();
     const sourceSlot = bundlePayload.catalog.slotsByLanguage[sourceLang]?.find(

@@ -84,6 +84,7 @@ import {
 } from "@/components/videos/project-storage-usage-card";
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
+import { ProjectVideoCostCard } from "@/components/videos/project-video-cost-card";
 import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
@@ -945,7 +946,10 @@ export default function VideoDetailPage() {
   });
   const cleanVideoUrl = activeCleanVideoUrl;
   const showStandaloneRepair =
-    !showInstantProgress && videoRepair.showRepairCard && !originalPlaybackUrl;
+    !showInstantProgress &&
+    !showRenderActivityCard &&
+    videoRepair.showRepairCard &&
+    !originalPlaybackUrl;
   const showRepairQuickAction = videoRepair.showRepairCard && !hasCompletedInstantFinal;
 
   const scrollToSection = (sectionId: string) => {
@@ -1039,6 +1043,15 @@ export default function VideoDetailPage() {
         </div>
       : null}
 
+      {detail?.costSummary ?
+        <ProjectVideoCostCard
+          className="mt-6"
+          projectId={id}
+          summary={detail.costSummary}
+          isAdmin={isAdmin}
+        />
+      : null}
+
       {showRenderActivityCard && detail ?
         <RenderActivityStatusCard
           className="mt-6"
@@ -1076,7 +1089,8 @@ export default function VideoDetailPage() {
           isAdmin={isAdmin}
           hideRecoveryActions
           hideAdminDiagnostics
-          showUnifiedRepair={videoRepair.showRepairCard}
+          compactProgressOnly={showRenderActivityCard}
+          showUnifiedRepair={false}
           repairUiView={videoRepair.uiView}
           repairFeedback={videoRepair.feedback}
           pollingError={panelPollingError}
