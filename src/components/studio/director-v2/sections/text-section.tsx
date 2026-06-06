@@ -72,10 +72,14 @@ export function StudioDirectorSectionText({
         <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-900">
           {t("studio.directorV2.text.studioSource")}
         </span>
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
+          {t("studio.textExperience.syncProtected")}
+        </span>
         <span className="text-[10px] text-zinc-500">
           {beatCount} {t("studio.directorV2.text.beatCount")}
         </span>
       </div>
+      <p className="text-xs text-zinc-600">{t("studio.textExperience.studioHint")}</p>
       <p className="text-xs text-zinc-500">{t("studio.directorV2.text.hint")}</p>
       {headline ? (
         <div className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-3 py-2">
