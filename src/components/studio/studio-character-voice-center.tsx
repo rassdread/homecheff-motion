@@ -11,7 +11,7 @@ import type {
   CharacterVoiceLanguageProfile,
   CharacterVoiceProfilesByLanguage,
 } from "@/types/studio-character-voice";
-import type { StudioCharacterDetail } from "@/types/studio-api";
+import type { StudioCharacterListItem } from "@/types/studio-api";
 import type { StudioVoiceExecutionLanguage } from "@/types/studio-voice-execution";
 
 export const VOICE_CENTER_LANGUAGES = ["nl", "en", "de", "fr", "es"] as const;
@@ -30,7 +30,7 @@ export type CharacterVoiceFormState = {
 };
 
 export function characterVoiceStateFromDetail(
-  character: StudioCharacterDetail
+  character: StudioCharacterListItem
 ): CharacterVoiceFormState {
   return {
     voiceEnabled: character.voiceEnabled,

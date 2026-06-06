@@ -9,11 +9,11 @@ import {
   StudioWorkspaceAssetPicker,
   type WorkspaceAssetPickerItem,
 } from "@/components/studio/studio-workspace-asset-picker";
+import { StudioSceneVoiceOverview } from "@/components/studio/studio-scene-voice-overview";
+import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { useActiveTranslator } from "@/i18n/client";
 import { updateStudioLocationApi } from "@/lib/studio-locations-client";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
-import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
-import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -37,7 +37,9 @@ type Props = {
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onAssetsChanged: () => void;
-  onSwitchTool?: (tool: StudioToolId) => void;
+  onCharacterUpdated?: (character: StudioCharacterListItem) => void;
+  storyLanguage?: string;
+  storyVoiceProfile?: string | null;
 };
 
 function collectSceneWorlds(scene: StudioSceneDetail) {
@@ -70,7 +72,9 @@ export function StudioWorkspaceSceneAssetsPanel({
   canModify,
   onSceneUpdated,
   onAssetsChanged,
-  onSwitchTool,
+  onCharacterUpdated,
+  storyLanguage = "en",
+  storyVoiceProfile,
 }: Props) {
   const t = useActiveTranslator();
   const [busy, setBusy] = useState(false);
@@ -256,6 +260,12 @@ export function StudioWorkspaceSceneAssetsPanel({
 
       {tab === "characters" ?
         <>
+          <StudioSceneVoiceOverview
+            scene={scene}
+            characters={characters}
+            storyLanguage={storyLanguage}
+            storyVoiceProfile={storyVoiceProfile}
+          />
           <div className="flex flex-wrap gap-2">
             {canModify ?
               <>
@@ -279,55 +289,35 @@ export function StudioWorkspaceSceneAssetsPanel({
             : null}
           </div>
           <ul className="space-y-2">
-            {scene.characters.map((character) => (
-              <li
-                key={character.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  {character.referenceImageUrl ?
-                    <img
-                      src={character.referenceImageUrl}
-                      alt=""
-                      className="h-10 w-10 rounded-lg object-cover"
-                    />
-                  : null}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-zinc-900">{character.name}</p>
-                    {character.voiceEnabled ?
-                      <p className="text-xs text-zinc-500">
-                        {t("studio.workspace.assets.voiceLabel")}:{" "}
-                        {t(
-                          getVoiceProfilePreset(normalizeStudioVoiceProfileId(character.voiceProfile))
-                            .labelKey as never
-                        )}
-                      </p>
-                    : null}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {character.voiceEnabled && onSwitchTool ?
-                    <button
-                      type="button"
-                      onClick={() => onSwitchTool("voice")}
-                      className="text-xs font-semibold text-[#0067B1] hover:underline"
-                    >
-                      {t("studio.workspace.assets.openVoiceTab")}
-                    </button>
-                  : null}
+            {scene.characters.map((character) => {
+              const fresh = characters.find((c) => c.id === character.id) ?? character;
+              return (
+                <li key={character.id} className="space-y-2">
+                  <StudioWorkspaceCharacterVoiceInline
+                    character={fresh}
+                    storyLanguage={storyLanguage}
+                    storyVoiceProfile={storyVoiceProfile}
+                    canModify={canModify}
+                    onCharacterUpdated={(updated) => {
+                      onCharacterUpdated?.(updated);
+                      onAssetsChanged();
+                    }}
+                  />
                   {canModify ?
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => unlinkCharacter(character.id)}
-                      className="text-xs font-semibold text-red-700 hover:underline"
-                    >
-                      {t("studio.workspace.assets.removeFromScene")}
-                    </button>
+                    <div className="flex justify-end px-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => unlinkCharacter(character.id)}
+                        className="text-xs font-semibold text-red-700 hover:underline"
+                      >
+                        {t("studio.workspace.assets.removeFromScene")}
+                      </button>
+                    </div>
                   : null}
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
             {scene.characters.length === 0 ?
               <li className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
                 {t("studio.workspace.assets.noLinkedCharacters")}

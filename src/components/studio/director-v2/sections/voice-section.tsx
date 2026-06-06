@@ -3,33 +3,16 @@
 import { useState } from "react";
 import { StudioSourceBadge } from "@/components/studio/studio-source-badge";
 import { useActiveTranslator } from "@/i18n/client";
-import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
+import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type { StudioCharacterListItem, StudioSceneDetail } from "@/types/studio-api";
-import type { VoiceIdentityLanguage } from "@/types/studio-voice-identity";
-
-const DISPLAY_LANGUAGES: VoiceIdentityLanguage[] = ["nl", "en", "de", "fr", "es"];
 
 type Props = {
   scene: StudioSceneDetail;
   allCharacters: StudioCharacterListItem[];
+  storyLanguage: string;
+  storyVoiceProfile?: string | null;
 };
-
-function resolveLanguageProfile(
-  character: StudioCharacterListItem,
-  language: VoiceIdentityLanguage
-): { profile: string; locked: boolean } {
-  const override = character.voiceProfilesByLanguage?.[language];
-  if (override?.voiceProfile?.trim()) {
-    return {
-      profile: override.voiceProfile,
-      locked: Boolean(character.voiceLock),
-    };
-  }
-  return {
-    profile: character.voiceProfile || "warm_narrator",
-    locked: Boolean(character.voiceLock),
-  };
-}
 
 function CharacterVoicePreviewButton({
   characterId,
@@ -88,7 +71,7 @@ function CharacterVoicePreviewButton({
         onClick={() => void runPreview()}
         className="rounded-full border border-[#0067B1]/30 px-2.5 py-0.5 text-[10px] font-semibold text-[#0067B1] disabled:opacity-50"
       >
-        {busy ? t("button.loading") : t("studio.directorV2.voice.preview")}
+        {busy ? t("button.loading") : t("studio.voiceIdentity.voicePreview")}
       </button>
       {error ? <p className="mt-1 text-[10px] text-red-700">{error}</p> : null}
       {previewUrl ?
@@ -98,10 +81,15 @@ function CharacterVoicePreviewButton({
   );
 }
 
-export function StudioDirectorSectionVoice({ scene, allCharacters }: Props) {
+export function StudioDirectorSectionVoice({
+  scene,
+  allCharacters,
+  storyLanguage,
+  storyVoiceProfile,
+}: Props) {
   const t = useActiveTranslator();
   const sceneCharacters = scene.characters
-    .map((link) => allCharacters.find((c) => c.id === link.id))
+    .map((link) => allCharacters.find((c) => c.id === link.id) ?? link)
     .filter((c): c is StudioCharacterListItem => Boolean(c));
 
   if (sceneCharacters.length === 0) {
@@ -115,50 +103,41 @@ export function StudioDirectorSectionVoice({ scene, allCharacters }: Props) {
       <div className="flex flex-wrap gap-2">
         <StudioSourceBadge kind="studio_source" />
       </div>
-      {sceneCharacters.map((character) => (
-        <div
-          key={character.id}
-          className="rounded-xl border border-zinc-200 bg-white p-3"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900">{character.name}</p>
-            {character.voiceLock ? <StudioSourceBadge kind="protected" /> : null}
+      {sceneCharacters.map((character) => {
+        const identity = resolveCharacterVoiceIdentity({
+          character,
+          language: storyLanguage,
+          attemptedOverrideProfile: storyVoiceProfile,
+        });
+        const voiceLabel =
+          identity.voiceEnabled
+            ? t(getVoiceProfilePreset(identity.voiceProfile).labelKey as never)
+            : t("studio.voiceIdentity.noVoice");
+
+        return (
+          <div
+            key={character.id}
+            className="rounded-xl border border-zinc-200 bg-white p-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-zinc-900">{character.name}</p>
+              {identity.voiceLock ? <StudioSourceBadge kind="protected" /> : null}
+            </div>
+            <p className="mt-2 text-sm text-[#0067B1]">
+              {character.name} → {voiceLabel}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {t("studio.voiceIdentity.effectiveVoice")}: {voiceLabel}
+            </p>
+            {character.voiceEnabled ?
+              <CharacterVoicePreviewButton
+                characterId={character.id}
+                language={storyLanguage}
+              />
+            : null}
           </div>
-          <p className="mt-1 text-xs text-zinc-500">
-            {character.voiceEnabled
-              ? t("studio.directorV2.voice.enabled")
-              : t("studio.directorV2.voice.disabled")}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {DISPLAY_LANGUAGES.map((lang) => {
-              const { profile, locked } = resolveLanguageProfile(character, lang);
-              const preset = getVoiceProfilePreset(normalizeStudioVoiceProfileId(profile));
-              return (
-                <span
-                  key={lang}
-                  className={`rounded-lg border px-2 py-1 text-[10px] font-medium ${
-                    locked
-                      ? "border-amber-200 bg-amber-50 text-amber-900"
-                      : "border-zinc-200 bg-zinc-50 text-zinc-700"
-                  }`}
-                  title={locked ? t("studio.directorV2.voice.locked") : undefined}
-                >
-                  {lang.toUpperCase()}: {t(preset.labelKey as never)}
-                </span>
-              );
-            })}
-          </div>
-          {character.voiceDescription ? (
-            <p className="mt-2 text-xs text-zinc-600">{character.voiceDescription}</p>
-          ) : null}
-          {character.voiceEnabled ?
-            <CharacterVoicePreviewButton
-              characterId={character.id}
-              language={character.voiceLanguage || "en"}
-            />
-          : null}
-        </div>
-      ))}
+        );
+      })}
       <p className="text-xs text-zinc-500">{t("studio.directorV2.voice.editHint")}</p>
     </div>
   );

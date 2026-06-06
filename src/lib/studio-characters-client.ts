@@ -51,3 +51,27 @@ export async function deleteStudioCharacterApi(id: string) {
     { method: "DELETE" }
   );
 }
+
+export type CharacterVoiceHistoryEntryClient = {
+  id: string;
+  eventType: string;
+  createdAt: string;
+  before: {
+    voiceEnabled: boolean;
+    voiceProfile: string;
+    voiceLock: boolean;
+  };
+  after: {
+    voiceEnabled: boolean;
+    voiceProfile: string;
+    voiceLock: boolean;
+  };
+};
+
+export async function fetchCharacterVoiceHistory(characterId: string) {
+  return fetchSameOriginJson<{ entries: CharacterVoiceHistoryEntryClient[] }>(
+    sameOriginApiPath(
+      `/api/studio/characters/${encodeURIComponent(characterId)}/voice-history`
+    )
+  );
+}

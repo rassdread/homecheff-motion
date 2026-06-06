@@ -300,7 +300,12 @@ export function StudioDirectorPanelV2({
                 open={openSections.voice}
                 onToggle={() => toggleSection("voice")}
               >
-                <StudioDirectorSectionVoice scene={scene} allCharacters={characters} />
+                <StudioDirectorSectionVoice
+                  scene={scene}
+                  allCharacters={characters}
+                  storyLanguage={storyboard.voiceLanguage ?? "en"}
+                  storyVoiceProfile={storyboard.voiceProfile}
+                />
               </StudioDirectorAccordionSection>
 
               <StudioDirectorAccordionSection

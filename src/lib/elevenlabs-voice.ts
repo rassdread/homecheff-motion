@@ -126,6 +126,9 @@ export async function synthesizeElevenLabsSpeech(params: {
       text: params.request.text,
       model_id: params.request.model_id,
       voice_settings: params.request.voice_settings,
+      ...(params.request.language_code
+        ? { language_code: params.request.language_code }
+        : {}),
     }),
   });
   if (!res.ok) {

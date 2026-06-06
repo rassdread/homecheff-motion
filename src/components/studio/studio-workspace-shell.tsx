@@ -147,6 +147,22 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     if (worldRes.ok) setWorlds(worldRes.data.worlds);
   }, []);
 
+  const handleCharacterUpdated = useCallback((updated: StudioCharacterListItem) => {
+    setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setStoryboard((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      return {
+        ...prev,
+        scenes: prev.scenes.map((scene) => ({
+          ...scene,
+          characters: scene.characters.map((c) => (c.id === updated.id ? updated : c)),
+        })),
+      };
+    });
+  }, []);
+
   const handleSceneAssetUpdated = (updated: StudioSceneDetail) => {
     setStoryboard((prev) =>
       prev
@@ -410,9 +426,11 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   props={props}
                   worlds={worlds}
                   canModify={canModify}
+                  storyLanguage={storyboard.voiceLanguage ?? "en"}
+                  storyVoiceProfile={storyboard.voiceProfile}
                   onSceneUpdated={handleSceneAssetUpdated}
                   onAssetsChanged={() => void refreshAssetLibraries()}
-                  onSwitchTool={handleToolChange}
+                  onCharacterUpdated={handleCharacterUpdated}
                 />
               : (
                 <StudioWorkspaceToolPanel
@@ -425,6 +443,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   characters={characters}
                   canModify={canModify}
                   onStoryboardUpdated={setStoryboard}
+                  onCharacterUpdated={handleCharacterUpdated}
                   onSwitchTool={handleToolChange}
                 />
               )}

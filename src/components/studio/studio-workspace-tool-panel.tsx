@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { StudioDirectorSectionText } from "@/components/studio/director-v2/sections/text-section";
 import { StudioMusicDirectorPanel } from "@/components/studio/studio-music-director-panel";
 import { StudioSoundDirectorPanel } from "@/components/studio/studio-sound-director-panel";
@@ -8,6 +7,8 @@ import { StudioStoryboardVoiceIdentityPanel } from "@/components/studio/studio-s
 import { StudioSubtitlePreviewPanel } from "@/components/studio/studio-subtitle-preview-panel";
 import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-beats-preview-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
+import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
+import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -17,6 +18,7 @@ import {
 } from "@/components/studio/studio-workspace-production-panels";
 import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
 import { useActiveTranslator } from "@/i18n/client";
+import { collectStoryboardCharacters } from "@/lib/studio-character-voice";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
@@ -34,6 +36,7 @@ type Props = {
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onStoryboardUpdated: (storyboard: StudioStoryboardDetail) => void;
+  onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   onSwitchTool?: (tool: StudioToolId) => void;
 };
 
@@ -44,13 +47,19 @@ function StudioWorkspaceVoicePanel({
   characters,
   canModify,
   onStoryboardUpdated,
+  onCharacterUpdated,
 }: {
   storyboard: StudioStoryboardDetail;
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onStoryboardUpdated: (storyboard: StudioStoryboardDetail) => void;
+  onCharacterUpdated?: (character: StudioCharacterListItem) => void;
 }) {
   const t = useActiveTranslator();
+  const storyLanguage = storyboard.voiceLanguage ?? "en";
+  const storyCharacters = collectStoryboardCharacters(storyboard).map(
+    (c) => characters.find((lib) => lib.id === c.id) ?? c
+  );
 
   return (
     <div className="space-y-6">
@@ -58,27 +67,31 @@ function StudioWorkspaceVoicePanel({
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.voice")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.voice.hint")}</p>
       </div>
+      <StudioWorkspaceAudioProductionPanel
+        storyboard={storyboard}
+        characters={characters}
+        canModify={canModify}
+      />
       <StudioVoiceDirectorPanel
         storyboard={storyboard}
         canModify={canModify}
         onStoryboardUpdated={onStoryboardUpdated}
       />
       <StudioStoryboardVoiceIdentityPanel storyboard={storyboard} />
-      {characters.length > 0 ?
+      {storyCharacters.length > 0 ?
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-zinc-900">{t("studio.workspace.voice.charactersTitle")}</h3>
-          <p className="mt-1 text-xs text-zinc-600">{t("studio.workspace.voice.charactersHint")}</p>
-          <ul className="mt-3 space-y-2">
-            {characters.map((character) => (
+          <p className="mt-1 text-xs text-zinc-600">{t("studio.workspace.voice.charactersInlineHint")}</p>
+          <ul className="mt-3 space-y-3">
+            {storyCharacters.map((character) => (
               <li key={character.id}>
-                <Link
-                  href={`/studio/characters/${encodeURIComponent(character.id)}/edit`}
-                  prefetch={false}
-                  className="flex items-center justify-between rounded-xl border border-zinc-100 px-3 py-2 text-sm hover:bg-zinc-50"
-                >
-                  <span className="font-medium text-zinc-900">{character.name}</span>
-                  <span className="text-xs text-[#0067B1]">{t("studio.workspace.voice.manageCharacter")}</span>
-                </Link>
+                <StudioWorkspaceCharacterVoiceInline
+                  character={character}
+                  storyLanguage={storyLanguage}
+                  storyVoiceProfile={storyboard.voiceProfile}
+                  canModify={canModify}
+                  onCharacterUpdated={(updated) => onCharacterUpdated?.(updated)}
+                />
               </li>
             ))}
           </ul>
@@ -207,6 +220,7 @@ export function StudioWorkspaceToolPanel({
   characters,
   canModify,
   onStoryboardUpdated,
+  onCharacterUpdated,
   onSwitchTool,
 }: Props) {
   const t = useActiveTranslator();
@@ -220,6 +234,7 @@ export function StudioWorkspaceToolPanel({
         characters={characters}
         canModify={canModify}
         onStoryboardUpdated={onStoryboardUpdated}
+        onCharacterUpdated={onCharacterUpdated}
       />
     );
   }
