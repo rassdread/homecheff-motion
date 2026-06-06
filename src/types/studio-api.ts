@@ -273,6 +273,20 @@ export type StudioStoryboardDetailResponse = {
   storyboard: StudioStoryboardDetail;
 };
 
+export type StudioMotionProjectSummary = {
+  id: string;
+  title: string | null;
+  status: string;
+  projectType: string;
+  updatedAt: string;
+  latestExportStatus: string | null;
+  hasCompletedFinal: boolean;
+};
+
+export type StudioMotionProjectsResponse = {
+  projects: StudioMotionProjectSummary[];
+};
+
 export type StudioSceneDetailResponse = {
   scene: StudioSceneDetail;
 };

@@ -9,7 +9,7 @@ import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspac
 import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
-import { StudioToolPlaceholderPanel } from "@/components/studio/studio-tool-placeholder-panel";
+import { StudioWorkspaceToolPanel } from "@/components/studio/studio-workspace-tool-panel";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
@@ -22,7 +22,6 @@ import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import {
-  STUDIO_PLACEHOLDER_TOOL_IDS,
   studioToolToAssetTab,
   type StudioToolId,
 } from "@/lib/studio-tool-id";
@@ -359,9 +358,20 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   storyboardId={storyboardId}
                   onNavigate={() => setActiveTool("story")}
                 />
-              : STUDIO_PLACEHOLDER_TOOL_IDS.has(activeTool) ?
-                <StudioToolPlaceholderPanel tool={activeTool} />
-              : null}
+              : (
+                <StudioWorkspaceToolPanel
+                  tool={activeTool}
+                  storyboardId={storyboardId}
+                  storyboard={storyboard}
+                  activeScene={activeScene}
+                  activeSceneIndex={activeSceneIndex}
+                  sceneCount={scenes.length}
+                  characters={characters}
+                  canModify={canModify}
+                  onStoryboardUpdated={setStoryboard}
+                  onSwitchTool={handleToolChange}
+                />
+              )}
             </section>
 
             <aside className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0">

@@ -3,6 +3,7 @@ import type {
   StudioSceneDetailResponse,
   StudioStoryboardDetailResponse,
   StudioStoryboardListResponse,
+  StudioMotionProjectsResponse,
 } from "@/types/studio-api";
 import type { StudioStoryboardCreateInput, StudioStoryboardUpdateInput } from "@/lib/studio-storyboard-validation";
 import type { StudioSceneCreateInput, StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
@@ -45,6 +46,14 @@ export async function deleteStudioStoryboardApi(id: string) {
   return fetchSameOriginJson<{ ok: boolean; error?: string; code?: string }>(
     sameOriginApiPath(`/api/studio/storyboards/${encodeURIComponent(id)}`),
     { method: "DELETE" }
+  );
+}
+
+export async function fetchStoryboardMotionProjects(storyboardId: string) {
+  return fetchSameOriginJson<StudioMotionProjectsResponse>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/motion-projects`
+    )
   );
 }
 

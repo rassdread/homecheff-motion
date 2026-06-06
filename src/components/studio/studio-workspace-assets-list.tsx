@@ -61,6 +61,21 @@ function rowsForTab(
   return [];
 }
 
+function createHrefForTab(tab: StudioWorkspaceNavId): string | null {
+  switch (tab) {
+    case "characters":
+      return "/studio/characters/new";
+    case "locations":
+      return "/studio/locations/new";
+    case "props":
+      return "/studio/props/new";
+    case "worlds":
+      return "/studio/worlds/new";
+    default:
+      return null;
+  }
+}
+
 const TAB_LABEL: Partial<Record<StudioWorkspaceNavId, TranslationKey>> = {
   characters: "studio.feature.characters.title",
   locations: "studio.feature.locations.title",
@@ -99,12 +114,25 @@ export function StudioWorkspaceAssetsList({
     t
   );
   const titleKey = TAB_LABEL[tab];
+  const createHref = createHrefForTab(tab);
 
   return (
     <div className="flex h-full flex-col border-t border-zinc-100">
-      <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-        {titleKey ? t(titleKey) : tab}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          {titleKey ? t(titleKey) : tab}
+        </p>
+        {createHref ?
+          <Link
+            href={createHref}
+            prefetch={false}
+            onClick={onNavigate}
+            className="rounded-full border border-[#006D52]/30 px-2.5 py-1 text-[10px] font-semibold text-[#006D52] hover:bg-[#006D52]/5"
+          >
+            {t("studio.workspace.createNew")}
+          </Link>
+        : null}
+      </div>
       <ul className="flex-1 overflow-y-auto p-2">
         {rows.map((row) => (
           <li key={row.id}>

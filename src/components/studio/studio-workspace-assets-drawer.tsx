@@ -146,6 +146,27 @@ export function StudioWorkspaceAssetsDrawer({
           : null}
         </ul>
         <div className="border-t border-zinc-100 px-4 py-3">
+          {initialTab === "characters" ||
+          initialTab === "locations" ||
+          initialTab === "props" ||
+          initialTab === "worlds" ?
+            <Link
+              href={
+                initialTab === "characters"
+                  ? "/studio/characters/new"
+                  : initialTab === "locations"
+                    ? "/studio/locations/new"
+                    : initialTab === "props"
+                      ? "/studio/props/new"
+                      : "/studio/worlds/new"
+              }
+              prefetch={false}
+              className="mb-2 block text-xs font-semibold text-[#006D52] hover:underline"
+              onClick={onClose}
+            >
+              {t("studio.workspace.createNew")} →
+            </Link>
+          : null}
           <Link
             href={
               initialTab === "characters"
