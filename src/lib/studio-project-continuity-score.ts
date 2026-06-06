@@ -137,7 +137,7 @@ export function buildProjectContinuityScore(params: {
 }
 
 export type ContinuityLibrarySection = {
-  id: "characters" | "locations" | "worlds" | "voices" | "narrationAudio" | "styles";
+  id: "characters" | "locations" | "worlds" | "voices" | "narrationAudio" | "styles" | "shotPatterns";
   items: ContinuityLibraryItem[];
 };
 
@@ -150,7 +150,7 @@ export type ContinuityLibraryItem = {
   renderCount: number;
   campaignCount: number;
   inCurrentProject: boolean;
-  tool: "characters" | "locations" | "world" | "voice" | "story";
+  tool: "characters" | "locations" | "world" | "voice" | "story" | "visual";
 };
 
 export function buildContinuityLibrarySections(params: {
@@ -302,6 +302,27 @@ export function buildContinuityLibrarySections(params: {
     tool: "voice" as const,
   }));
 
+  const shotPatternItems: ContinuityLibraryItem[] = params.memory.shotPatterns.map((pattern, index) => ({
+    id: `${pattern.shotType}-${pattern.cameraMovement}-${index}`,
+    name: `${pattern.shotType} · ${pattern.cameraMovement}`,
+    subtitleKey: "studio.continuity.usage.shotPattern",
+    subtitleParams: {
+      storyboards: String(pattern.storyboardCount),
+      scenes: String(pattern.sceneCount),
+      renders: "0",
+      campaigns: "0",
+    },
+    storyboardCount: pattern.storyboardCount,
+    renderCount: 0,
+    campaignCount: 0,
+    inCurrentProject: params.storyboard.scenes.some(
+      (scene) =>
+        (scene.shotType?.trim() || "medium") === pattern.shotType &&
+        (scene.cameraMovement?.trim() || "static") === pattern.cameraMovement
+    ),
+    tool: "visual" as const,
+  }));
+
   return [
     { id: "characters", items: characterItems },
     { id: "locations", items: locationItems },
@@ -309,5 +330,6 @@ export function buildContinuityLibrarySections(params: {
     { id: "voices", items: voiceItems },
     { id: "narrationAudio", items: narrationAudioItems },
     { id: "styles", items: styleItems },
+    { id: "shotPatterns", items: shotPatternItems },
   ];
 }

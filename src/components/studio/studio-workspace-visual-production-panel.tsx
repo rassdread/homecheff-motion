@@ -10,6 +10,7 @@ import {
   enrichVisualProductionSummary,
   findSceneVisualPlan,
 } from "@/lib/studio-visual-production-summary";
+import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
@@ -102,6 +103,16 @@ export function StudioWorkspaceVisualProductionPanel({
     return findSceneVisualPlan(storyboard, activeScene.id, styleProfile, directorProfile);
   }, [storyboard, activeScene, styleProfile, directorProfile]);
 
+  const shotPlan = useMemo(
+    () => buildCurrentStoryboardShotPlan(storyboard),
+    [storyboard]
+  );
+
+  const totalPacingSeconds = useMemo(
+    () => shotPlan.pacingSeconds.reduce((sum, seconds) => sum + seconds, 0),
+    [shotPlan.pacingSeconds]
+  );
+
   const visualFixes = useMemo(
     () =>
       buildStudioUnifiedReadiness({
@@ -188,6 +199,67 @@ export function StudioWorkspaceVisualProductionPanel({
             })}
           </p>
         : null}
+      </section>
+
+      <section className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
+        <h3 className="text-sm font-semibold text-sky-950">
+          {t("studio.shotPlanner.flowTitle")}
+        </h3>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-white/80 bg-white px-3 py-2">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.shotPlanner.cameraFlow")}
+            </dt>
+            <dd className="mt-1 text-xs text-zinc-800">
+              {shotPlan.cameraFlow.length === 0
+                ? t("studio.shotPlanner.flowEmpty")
+                : shotPlan.cameraFlow
+                    .map(
+                      (row) =>
+                        `${row.order + 1}: ${t(`studio.director.shot.${row.shotType}` as TranslationKey)}`
+                    )
+                    .join(" → ")}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-white/80 bg-white px-3 py-2">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.shotPlanner.shotFlow")}
+            </dt>
+            <dd className="mt-1 text-xs text-zinc-800">
+              {t("studio.shotPlanner.diversityScore", {
+                score: String(shotPlan.shotDiversityScore),
+              })}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-white/80 bg-white px-3 py-2">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.shotPlanner.scenePacing")}
+            </dt>
+            <dd className="mt-1 text-xs text-zinc-800">
+              {shotPlan.pacingSeconds.length === 0
+                ? t("studio.shotPlanner.flowEmpty")
+                : t("studio.shotPlanner.pacingTotal", {
+                    seconds: String(totalPacingSeconds),
+                    scenes: String(shotPlan.pacingSeconds.length),
+                  })}
+            </dd>
+          </div>
+          <div className="rounded-xl border border-white/80 bg-white px-3 py-2">
+            <dt className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.shotPlanner.motionFlow")}
+            </dt>
+            <dd className="mt-1 text-xs text-zinc-800">
+              {shotPlan.motionProgression.length === 0
+                ? t("studio.shotPlanner.flowEmpty")
+                : shotPlan.motionProgression
+                    .map(
+                      (row) =>
+                        `${row.order + 1}: ${t(`studio.director.movement.${row.movement}` as TranslationKey)}`
+                    )
+                    .join(" → ")}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       <section className={`rounded-2xl border p-4 ${levelCardClass(readiness.level)}`}>

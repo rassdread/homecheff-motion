@@ -38,6 +38,13 @@ export type StudioLibraryAudioMemoryEntry = {
   renderCount: number;
 };
 
+export type StudioShotPatternMemoryEntry = {
+  shotType: string;
+  cameraMovement: string;
+  storyboardCount: number;
+  sceneCount: number;
+};
+
 export type StudioProjectMemorySnapshot = {
   characters: Record<string, StudioAssetUsageStats>;
   locations: Record<string, StudioAssetUsageStats>;
@@ -47,6 +54,7 @@ export type StudioProjectMemorySnapshot = {
   narrationAudio: StudioNarrationAudioMemoryEntry[];
   libraryAudio: StudioLibraryAudioMemoryEntry[];
   styles: StudioStyleMemoryEntry[];
+  shotPatterns: StudioShotPatternMemoryEntry[];
 };
 
 export type StudioProjectMemoryResponse = {

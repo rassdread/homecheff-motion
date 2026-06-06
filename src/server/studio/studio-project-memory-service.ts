@@ -11,6 +11,7 @@ import type {
   StudioProjectMemorySnapshot,
   StudioNarrationAudioMemoryEntry,
   StudioLibraryAudioMemoryEntry,
+  StudioShotPatternMemoryEntry,
   StudioStyleMemoryEntry,
   StudioVoiceMemoryEntry,
 } from "@/types/studio-project-memory";
@@ -41,7 +42,7 @@ function finalizeStats(
 }
 
 export async function buildStudioProjectMemory(ownerId: string): Promise<StudioProjectMemorySnapshot> {
-  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices] =
+  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, sceneShots, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices] =
     await Promise.all([
       prisma.studioSceneCharacter.findMany({
         where: { character: { ownerId } },
@@ -69,6 +70,10 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
           narrationMode: true,
           audioAssetMetadataJson: true,
         },
+      }),
+      prisma.studioScene.findMany({
+        where: { storyboard: { ownerId } },
+        select: { shotType: true, cameraMovement: true, storyboardId: true },
       }),
       prisma.studioCharacter.findMany({
         where: { ownerId },
@@ -266,6 +271,31 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
   }
 
   const userLibraryAssets = await listUserAudioLibraryAssets(ownerId);
+
+  const shotPatternMap = new Map<
+    string,
+    { shotType: string; cameraMovement: string; storyboardIds: Set<string>; sceneCount: number }
+  >();
+  for (const scene of sceneShots) {
+    const shotType = scene.shotType?.trim() || "medium";
+    const cameraMovement = scene.cameraMovement?.trim() || "static";
+    const key = `${shotType}::${cameraMovement}`;
+    const entry =
+      shotPatternMap.get(key) ??
+      { shotType, cameraMovement, storyboardIds: new Set<string>(), sceneCount: 0 };
+    entry.sceneCount++;
+    entry.storyboardIds.add(scene.storyboardId);
+    shotPatternMap.set(key, entry);
+  }
+  const shotPatterns: StudioShotPatternMemoryEntry[] = [...shotPatternMap.values()]
+    .map((entry) => ({
+      shotType: entry.shotType,
+      cameraMovement: entry.cameraMovement,
+      storyboardCount: entry.storyboardIds.size,
+      sceneCount: entry.sceneCount,
+    }))
+    .sort((a, b) => b.storyboardCount - a.storyboardCount || b.sceneCount - a.sceneCount);
+
   const libraryAudio: StudioLibraryAudioMemoryEntry[] = userLibraryAssets.map((asset) => {
     const usage = libraryUsage.get(asset.id);
     const storyboardCount = usage?.storyboardIds.size ?? 0;
@@ -293,5 +323,6 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     narrationAudio,
     libraryAudio,
     styles: [...styleMap.values()].sort((a, b) => b.storyboardCount - a.storyboardCount),
+    shotPatterns,
   };
 }

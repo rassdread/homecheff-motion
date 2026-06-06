@@ -5,6 +5,11 @@
 
 import { buildStudioProductionInsights } from "@/lib/studio-production-insights";
 import {
+  analyzeShotPlanConsistency,
+  buildCurrentStoryboardShotPlan,
+  buildStoryboardShotPlan,
+} from "@/lib/studio-shot-planner";
+import {
   buildSceneImageReadiness,
   buildVisualProductionSummary,
   enrichVisualProductionSummary,
@@ -177,6 +182,10 @@ export function buildStudioConsistencyOverview(params: {
   const storyRecs = insights.storyHealth.advisories
     .slice(0, 3)
     .map((a) => a.messageKey);
+  const shotAdvice = analyzeShotPlanConsistency(buildCurrentStoryboardShotPlan(params.storyboard));
+  for (const item of shotAdvice.slice(0, 2)) {
+    storyRecs.push(item.messageKey);
+  }
 
   const domains: ConsistencyDomain[] = [
     {

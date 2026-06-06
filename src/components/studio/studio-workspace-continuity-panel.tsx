@@ -41,6 +41,7 @@ const SECTION_TITLE_KEYS = {
   voices: "studio.continuity.section.voices",
   narrationAudio: "studio.continuity.section.narrationAudio",
   styles: "studio.continuity.section.styles",
+  shotPatterns: "studio.continuity.section.shotPatterns",
 } as const satisfies Record<string, TranslationKey>;
 
 function levelCardClass(level: "ready" | "almost_ready" | "needs_work"): string {

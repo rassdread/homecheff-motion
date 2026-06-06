@@ -2,7 +2,7 @@
  * Per-scene AI director suggestions (advisory, apply optional).
  */
 
-import { buildAutoShotPlan } from "@/lib/studio-auto-shot-planner";
+import { buildAutoShotPlan } from "@/lib/studio-shot-planner";
 import { detectArcPhaseForIndex } from "@/lib/studio-story-arc";
 import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";

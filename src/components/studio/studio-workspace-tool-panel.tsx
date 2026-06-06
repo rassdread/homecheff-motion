@@ -11,6 +11,7 @@ import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
 import { StudioStoryboardExternalAudioPanel } from "@/components/studio/studio-storyboard-external-audio-panel";
 import { StudioWorkspaceAudioMixPanel } from "@/components/studio/studio-workspace-audio-mix-panel";
+import { StudioWorkspaceShotPlannerPanel } from "@/components/studio/studio-workspace-shot-planner-panel";
 import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
 import { StudioWorkspaceConsistencyPanel } from "@/components/studio/studio-workspace-consistency-panel";
 import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-workspace-continuity-panel";
@@ -306,21 +307,29 @@ export function StudioWorkspaceToolPanel({
 
   if (tool === "visual") {
     return (
-      <StudioWorkspaceVisualProductionPanel
-        storyboardId={storyboardId}
-        storyboard={storyboard}
-        activeScene={activeScene}
-        activeSceneIndex={activeSceneIndex}
-        styleProfile={styleProfile}
-        directorProfile={directorProfile}
-        canModify={canModify}
-        onSceneUpdated={onSceneUpdated}
-        onRefreshStoryboard={onRefreshStoryboard}
-        onSwitchTool={onSwitchTool}
-        locations={locations}
-        props={props}
-        worlds={worlds}
-      />
+      <div className="space-y-6">
+        <StudioWorkspaceShotPlannerPanel
+          storyboard={storyboard}
+          canModify={canModify}
+          onStoryboardUpdated={onStoryboardUpdated}
+          onScenesUpdated={onRefreshStoryboard}
+        />
+        <StudioWorkspaceVisualProductionPanel
+          storyboardId={storyboardId}
+          storyboard={storyboard}
+          activeScene={activeScene}
+          activeSceneIndex={activeSceneIndex}
+          styleProfile={styleProfile}
+          directorProfile={directorProfile}
+          canModify={canModify}
+          onSceneUpdated={onSceneUpdated}
+          onRefreshStoryboard={onRefreshStoryboard}
+          onSwitchTool={onSwitchTool}
+          locations={locations}
+          props={props}
+          worlds={worlds}
+        />
+      </div>
     );
   }
 

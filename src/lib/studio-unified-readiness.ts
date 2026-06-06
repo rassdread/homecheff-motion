@@ -4,6 +4,7 @@
  */
 
 import { buildRenderReadinessSummary } from "@/lib/studio-render-readiness-summary";
+import { resolveStoryboardShotPlanReadiness } from "@/lib/studio-shot-planner";
 import { buildSceneImageReadiness } from "@/lib/studio-visual-production-summary";
 import {
   buildReadinessFixActions,
@@ -118,6 +119,13 @@ function buildRenderSoftWarnings(
   const worldCheck = checks.find((c) => c.id === "world");
   if (worldCheck && !worldCheck.passed) {
     warnings.push({ messageKey: "studio.execution.renderWarning.worldInconsistent" });
+  }
+
+  const shotReadiness = resolveStoryboardShotPlanReadiness(storyboard);
+  if (!shotReadiness.hasShotFlow) {
+    warnings.push({ messageKey: "studio.shotPlanner.readiness.missingFlow" });
+  } else if (!shotReadiness.motionLogical) {
+    warnings.push({ messageKey: "studio.shotPlanner.readiness.motionReview" });
   }
 
   return warnings;
