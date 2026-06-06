@@ -84,6 +84,7 @@ import {
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
 import { ProjectVideoCostCard } from "@/components/videos/project-video-cost-card";
+import { ProjectDetailSection } from "@/components/videos/project-detail-section";
 import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
@@ -1043,17 +1044,28 @@ export default function VideoDetailPage() {
       : null}
 
       {detail?.costSummary ?
-        <ProjectVideoCostCard
+        <ProjectDetailSection
+          id="command-cost"
+          titleKey="projectDetail.command.cost"
+          descriptionKey="projectDetail.command.costHint"
           className="mt-6"
-          projectId={id}
-          summary={detail.costSummary}
-          isAdmin={isAdmin}
-        />
+        >
+          <ProjectVideoCostCard
+            projectId={id}
+            summary={detail.costSummary}
+            isAdmin={isAdmin}
+          />
+        </ProjectDetailSection>
       : null}
 
       {effectiveShowRenderActivityCard && detail ?
-        <RenderActivityStatusCard
+        <ProjectDetailSection
+          id="command-status"
+          titleKey="projectDetail.command.status"
+          descriptionKey="projectDetail.command.statusHint"
           className="mt-6"
+        >
+        <RenderActivityStatusCard
           projectId={id}
           projectStatus={detail.status}
           exportStatus={latestExport?.status}
@@ -1074,9 +1086,38 @@ export default function VideoDetailPage() {
             void pollNow();
           }}
         />
+        {showInstantProgress ?
+          <InstantFinalProgressPanel
+            className="mt-4"
+            snapshot={instantSnapshot}
+            lastPolledAtMs={instantLastPolledAtMs}
+            lastProgressChangeAtMs={instantLastProgressChangeAtMs}
+            connectionState="polling"
+            repairBusy={videoRepair.repairInFlight}
+            rebuildBusy={rebuildBusy || Boolean(instantSnapshot?.isRebuildingFinalVideo)}
+            isAdmin={isAdmin}
+            hideRecoveryActions
+            hideAdminDiagnostics
+            compactProgressOnly
+            showUnifiedRepair={false}
+            repairUiView={videoRepair.uiView}
+            repairFeedback={videoRepair.feedback}
+            pollingError={panelPollingError}
+            onRepair={
+              videoRepair.showRepairCard ? () => void videoRepair.runRepair() : undefined
+            }
+            onTextRerender={
+              canRebuildInstant && Boolean(finalVideoUrl) ?
+                () => setTextRerenderEditorOpen(true)
+              : undefined
+            }
+            onForceRebuild={isAdmin && canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
+          />
+        : null}
+        </ProjectDetailSection>
       : null}
 
-      {showInstantProgress ? (
+      {showInstantProgress && !effectiveShowRenderActivityCard ? (
         <InstantFinalProgressPanel
           className="mt-6"
           snapshot={instantSnapshot}
