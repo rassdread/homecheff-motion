@@ -75,6 +75,18 @@ export const nl = {
   "studio.workspace.assetsEmpty": "Nog geen items in deze bibliotheek.",
   "studio.workspace.openFullLibrary": "Open volledige bibliotheek",
   "studio.workspace.missingStoryboard": "Kies een storyboard",
+  "studio.workspace.error.loadTitle": "Workspace laden mislukt",
+  "studio.workspace.error.loadBody": "Storyboard of assets laden niet. Probeer opnieuw of ga terug naar je storyboards.",
+  "studio.workspace.error.authTitle": "Inloggen vereist",
+  "studio.workspace.error.authBody":
+    "Je sessie is verlopen of cookies zijn geblokkeerd. Log in op motion.homecheff.eu en probeer opnieuw.",
+  "studio.workspace.error.notFoundTitle": "Storyboard niet gevonden",
+  "studio.workspace.error.notFoundBody": "Dit storyboard is verwijderd of je hebt geen toegang.",
+  "studio.workspace.error.networkTitle": "Verbinding geblokkeerd",
+  "studio.workspace.error.networkBody":
+    "Safari blokkeerde het API-verzoek (access control). Blijf op motion.homecheff.eu, schakel cross-site blokkade uit, log opnieuw in en probeer opnieuw.",
+  "studio.workspace.error.retry": "Opnieuw laden",
+  "studio.workspace.error.backToStoryboards": "Terug naar storyboards",
   "studio.workspace.missingStoryboardHint":
     "Open Workspace vanuit een storyboard of voeg ?storyboardId= toe aan de URL.",
   "studio.workspace.featureDescription":

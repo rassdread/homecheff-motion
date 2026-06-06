@@ -19,6 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 test("SAME_ORIGIN_JSON_FETCH_INIT uses include credentials and no-store cache", () => {
   assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.credentials, "include");
+  assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.mode, "same-origin");
   assert.equal(SAME_ORIGIN_JSON_FETCH_INIT.cache, "no-store");
   assert.deepEqual(SAME_ORIGIN_JSON_FETCH_INIT.headers, { Accept: "application/json" });
 });
@@ -75,7 +76,35 @@ test("API middleware never redirects and logs auth-check", () => {
   const mw = readFileSync(join(__dirname, "../middleware.ts"), "utf8");
   assert.match(mw, /logAuthCheck/);
   assert.match(mw, /NextResponse\.next/);
+  assert.match(mw, /originMatchesRequestHost/);
   assert.doesNotMatch(mw, /redirect\(/);
+});
+
+test("studio API clients use shared same-origin fetch helper", () => {
+  for (const file of [
+    "studio-storyboards-client.ts",
+    "studio-locations-client.ts",
+    "studio-characters-client.ts",
+    "studio-props-client.ts",
+  ]) {
+    const source = readFileSync(join(__dirname, file), "utf8");
+    assert.match(source, /fetchSameOriginJson/);
+    assert.match(source, /sameOriginApiPath/);
+    assert.doesNotMatch(source, /https:\/\/motion\.homecheff/);
+  }
+});
+
+test("studio API routes return JSON auth errors without redirects", () => {
+  for (const route of [
+    "../app/api/studio/storyboards/[id]/route.ts",
+    "../app/api/studio/locations/route.ts",
+    "../app/api/studio/characters/route.ts",
+    "../app/api/studio/props/route.ts",
+  ]) {
+    const source = readFileSync(join(__dirname, route), "utf8");
+    assert.match(source, /requireActiveUser/);
+    assert.doesNotMatch(source, /redirect\(/);
+  }
 });
 
 test("instant status route uses viewer access and JSON auth errors", () => {

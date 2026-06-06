@@ -17,6 +17,7 @@ import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-worksp
 import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useActiveTranslator } from "@/i18n/client";
+import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { brand } from "@/lib/brand";
@@ -48,6 +49,9 @@ import type {
   StudioStoryboardDetail,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
+import { resolveStudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
+import type { StudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
+import { StudioWorkspaceLoadError } from "@/components/studio/studio-workspace-load-error";
 
 type Props = {
   storyboardId: string;
@@ -63,6 +67,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [props, setProps] = useState<StudioPropListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailure, setLoadFailure] = useState<StudioWorkspaceLoadFailure | null>(null);
   const [error, setError] = useState("");
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
@@ -74,24 +79,44 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    setLoadFailure(null);
+
+    const sessionPayload = await fetchAuthSessionJson({ force: true });
+    if (!sessionPayload.user) {
+      setLoadFailure({
+        kind: "auth",
+        message: t("studio.workspace.error.authBody"),
+      });
+      setStoryboard(null);
+      setLoading(false);
+      return;
+    }
+
     const [sbRes, locRes, charRes, propRes] = await Promise.all([
       fetchStudioStoryboard(storyboardId),
       fetchStudioLocations(),
       fetchStudioCharacters(),
       fetchStudioProps(),
     ]);
-    if (!sbRes.ok) {
-      setError((sbRes.data as { error?: string }).error ?? t("studio.storyboards.error.loadFailed"));
+
+    const failure = resolveStudioWorkspaceLoadFailure(
+      sbRes,
+      t("studio.storyboards.error.loadFailed")
+    );
+    if (failure) {
+      setLoadFailure(failure);
       setStoryboard(null);
-    } else {
-      setStoryboard(sbRes.data.storyboard);
-      setActiveSceneId((prev) => {
-        if (prev && sbRes.data.storyboard.scenes.some((s) => s.id === prev)) {
-          return prev;
-        }
-        return sbRes.data.storyboard.scenes[0]?.id ?? null;
-      });
+      setLoading(false);
+      return;
     }
+
+    setStoryboard(sbRes.data.storyboard);
+    setActiveSceneId((prev) => {
+      if (prev && sbRes.data.storyboard.scenes.some((s) => s.id === prev)) {
+        return prev;
+      }
+      return sbRes.data.storyboard.scenes[0]?.id ?? null;
+    });
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
@@ -256,15 +281,23 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           <p className="mx-auto max-w-[1600px] px-4 py-3 text-sm text-red-700 sm:px-6">{error}</p>
         : null}
 
-        {isStudioAiAssistantEnabled() && !loading && storyboard ?
+        {loadFailure ?
+          <StudioWorkspaceLoadError
+            failure={loadFailure}
+            onRetry={() => void load()}
+            retrying={loading}
+          />
+        : null}
+
+        {isStudioAiAssistantEnabled() && !loading && storyboard && !loadFailure ?
           <div className="mx-auto max-w-[1600px] px-4 pt-4 sm:px-6">
             <MotionStudioOnboarding />
           </div>
         : null}
 
-        {loading ?
+        {loading && !loadFailure ?
           <WorkspaceLoadingSkeleton />
-        : !storyboard ?
+        : !storyboard || loadFailure ?
           null
         : (
           <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-0 lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4 lg:pb-8">

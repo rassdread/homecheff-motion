@@ -4,6 +4,7 @@
  */
 export const SAME_ORIGIN_JSON_FETCH_INIT: RequestInit = {
   credentials: "include",
+  mode: "same-origin",
   cache: "no-store",
   headers: { Accept: "application/json" },
 };
@@ -79,3 +80,6 @@ export async function fetchSameOriginJson<T>(
     };
   }
 }
+
+/** Alias for fetchSameOriginJson — shared safe wrapper for relative /api/* calls. */
+export const safeJsonFetch = fetchSameOriginJson;

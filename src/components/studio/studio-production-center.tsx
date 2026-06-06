@@ -64,8 +64,10 @@ export function StudioProductionCenter({
     void (async () => {
       try {
         const res = await fetch("/api/studio/production/provider-status", {
-          credentials: "same-origin",
+          credentials: "include",
+          mode: "same-origin",
           cache: "no-store",
+          headers: { Accept: "application/json" },
         });
         const json = (await res.json().catch(() => null)) as ProductionProviderReport | null;
         if (!cancelled && res.ok && json?.providers) {

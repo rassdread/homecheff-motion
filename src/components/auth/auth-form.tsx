@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 import { GradientButton } from "@/components/ui/gradient-button";
 
 type AuthFormProps = {
@@ -59,8 +60,10 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
 
       const response = await fetch(`/api/auth/${mode}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "include",
+        mode: "same-origin",
+        cache: "no-store",
         body: JSON.stringify(body),
       });
 
@@ -116,6 +119,7 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
         return;
       }
 
+      invalidateAuthSessionCache();
       // Full navigation so the browser reliably applies Set-Cookie before the next request.
       window.location.assign(resolvePostAuthRedirect());
     } catch {

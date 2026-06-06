@@ -3,8 +3,31 @@ import type { NextRequest } from "next/server";
 import { isAllowedApiOrigin } from "@/lib/allowed-api-origins";
 import { logAuthCheck } from "@/server/auth/auth-check-log";
 
-function applyApiCorsHeaders(response: NextResponse, origin: string | null): void {
-  if (!origin || !isAllowedApiOrigin(origin)) {
+function originMatchesRequestHost(request: NextRequest, origin: string): boolean {
+  const host = request.headers.get("host");
+  if (!host) {
+    return false;
+  }
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
+function shouldAllowApiOrigin(request: NextRequest, origin: string | null): origin is string {
+  if (!origin) {
+    return false;
+  }
+  return isAllowedApiOrigin(origin) || originMatchesRequestHost(request, origin);
+}
+
+function applyApiCorsHeaders(
+  response: NextResponse,
+  request: NextRequest,
+  origin: string | null
+): void {
+  if (!shouldAllowApiOrigin(request, origin)) {
     return;
   }
   response.headers.set("Access-Control-Allow-Origin", origin);
@@ -30,7 +53,7 @@ export function middleware(request: NextRequest) {
 
   if (request.method === "OPTIONS") {
     const preflight = new NextResponse(null, { status: 204 });
-    applyApiCorsHeaders(preflight, origin);
+    applyApiCorsHeaders(preflight, request, origin);
     preflight.headers.set(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
@@ -46,7 +69,7 @@ export function middleware(request: NextRequest) {
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
-  applyApiCorsHeaders(response, origin);
+  applyApiCorsHeaders(response, request, origin);
   return response;
 }
 

@@ -123,7 +123,15 @@ export async function createSession(userId: string): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   const jar = await cookies();
-  jar.delete(SESSION_COOKIE);
+  const domain = await sessionCookieDomain();
+  jar.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: sessionCookieSecure(),
+    path: "/",
+    maxAge: 0,
+    ...(domain ? { domain } : {}),
+  });
 }
 
 export type SessionUser = {

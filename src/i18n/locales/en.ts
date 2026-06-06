@@ -78,6 +78,17 @@ export const en: LocaleSchema = {
   "studio.workspace.assetsEmpty": "No items in this library yet.",
   "studio.workspace.openFullLibrary": "Open full library",
   "studio.workspace.missingStoryboard": "Choose a storyboard",
+  "studio.workspace.error.loadTitle": "Could not load workspace",
+  "studio.workspace.error.loadBody": "Storyboard or assets failed to load. Retry or return to your storyboards.",
+  "studio.workspace.error.authTitle": "Sign in required",
+  "studio.workspace.error.authBody": "Your session expired or cookies were blocked. Sign in on motion.homecheff.eu and try again.",
+  "studio.workspace.error.notFoundTitle": "Storyboard not found",
+  "studio.workspace.error.notFoundBody": "This storyboard may have been deleted or you may not have access.",
+  "studio.workspace.error.networkTitle": "Connection blocked",
+  "studio.workspace.error.networkBody":
+    "Safari blocked the API request (access control). Stay on motion.homecheff.eu, disable cross-site blocking for this site, sign in again, and retry.",
+  "studio.workspace.error.retry": "Reload",
+  "studio.workspace.error.backToStoryboards": "Back to storyboards",
   "studio.workspace.missingStoryboardHint":
     "Open Workspace from a storyboard or add ?storyboardId= to the URL.",
   "studio.workspace.featureDescription":
