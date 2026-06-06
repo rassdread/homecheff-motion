@@ -36,13 +36,12 @@ describe("Studio workspace embed", () => {
     assert.doesNotMatch(src, /StudioToolPlaceholderPanel/);
   });
 
-  it("embeds voice director panel in workspace tool panel", () => {
+  it("embeds production panels and motion project hook", () => {
     const panelPath = join(process.cwd(), "src/components/studio/studio-workspace-tool-panel.tsx");
     const src = readFileSync(panelPath, "utf8");
     assert.match(src, /StudioVoiceDirectorPanel/);
-    assert.match(src, /LanguageExportPanel/);
-    assert.match(src, /StudioMusicDirectorPanel/);
-    assert.match(src, /StudioTextBeatsPreviewPanel/);
+    assert.match(src, /StudioWorkspaceRenderPanel/);
+    assert.match(src, /useStoryboardMotionProjects/);
   });
 
   it("uses scene asset panel in workspace shell instead of redirect list", () => {

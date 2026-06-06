@@ -16,6 +16,8 @@ const TITLE_KEYS: Record<StudioToolId, TranslationKey> = {
   sound: "studio.tools.sound",
   text: "studio.tools.text",
   subtitles: "studio.tools.subtitles",
+  render: "studio.tools.render",
+  versions: "studio.tools.versions",
   translate: "studio.tools.translate",
   export: "studio.tools.export",
 };

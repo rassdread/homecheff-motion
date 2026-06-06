@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioDirectorProposalFlow } from "@/components/studio/studio-director-proposal-flow";
+import { StudioWorkspaceProductionBanner } from "@/components/studio/studio-workspace-production-panels";
+import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
 import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
@@ -80,6 +82,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [assetsDrawerOpen, setAssetsDrawerOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
+  const { projects: motionProjects } = useStoryboardMotionProjects(storyboardId, Boolean(storyboard));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -347,6 +350,16 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 >
                   ← {t("studio.workspace.backToScenes")}
                 </button>
+              : null}
+
+              {motionProjects.length > 0 ?
+                <StudioWorkspaceProductionBanner
+                  projects={motionProjects}
+                  onOpenRender={() => {
+                    setActiveTool("render");
+                    setMobilePane("editor");
+                  }}
+                />
               : null}
 
               {activeTool === "story" ?

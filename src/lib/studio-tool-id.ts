@@ -9,6 +9,8 @@ export type StudioToolId =
   | "sound"
   | "text"
   | "subtitles"
+  | "render"
+  | "versions"
   | "translate"
   | "export";
 
@@ -23,6 +25,8 @@ export const STUDIO_TOOL_IDS: StudioToolId[] = [
   "sound",
   "text",
   "subtitles",
+  "render",
+  "versions",
   "translate",
   "export",
 ];
@@ -40,8 +44,6 @@ export const STUDIO_PLACEHOLDER_TOOL_IDS = new Set<StudioToolId>([
   "sound",
   "text",
   "subtitles",
-  "translate",
-  "export",
 ]);
 
 export function studioToolToAssetTab(
