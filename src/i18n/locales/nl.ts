@@ -2215,7 +2215,7 @@ export const nl = {
   "renderActivity.action.cancelRender": "Annuleer render",
   "renderActivity.action.retry": "Probeer opnieuw",
   "renderActivity.action.refresh": "Vernieuwen",
-  "renderActivity.action.checkStatus": "Controleer status opnieuw",
+  "renderActivity.action.checkStatus": "Opnieuw controleren",
   "renderActivity.action.providerCheck": "Renderstatus controleren",
   "renderActivity.action.forceCancelLocal": "Force cancel (lokaal)",
   "renderActivity.action.repair": "Repair",
@@ -2272,7 +2272,7 @@ export const nl = {
   "landing.hero.subtext":
     "Plan verhalen in Studio, render motion in seconden en beheer afgeronde video's — één creatorplatform voor professionele AI-filmproductie.",
   "landing.hero.ctaPrimary": "Begin met maken",
-  "landing.hero.ctaSecondary": "Ontdekken verkennen",
+  "landing.hero.ctaSecondary": "Vergelijk Motion & Studio",
 
   "landing.ecosystem.homecheff.name": "HomeCheff",
   "landing.ecosystem.homecheff.tagline": "Creatorplatform & productiesuite",
@@ -3163,7 +3163,7 @@ export const nl = {
   "instant.fullRerender.confirmPromptTestMode":
     "Testmodus: deze render is gratis voor admin. Dit start een nieuwe AI-render met dezelfde foto's. Doorgaan?",
   "instant.fullRerender.confirm": "Start nieuwe render",
-  "instant.fullRerender.busy": "Nieuwe render starten…",
+  "instant.fullRerender.busy": "Je nieuwe video starten…",
   "instant.fullRerender.failed": "Kon geen nieuwe render starten.",
   "instant.fullRerender.aborted": "Render opnieuw geannuleerd.",
   "instant.fullRerender.versionNoteLabel": "Versienotitie (optioneel)",

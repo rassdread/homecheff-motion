@@ -2215,7 +2215,7 @@ export const en: LocaleSchema = {
   "renderActivity.action.cancelRender": "Cancel render",
   "renderActivity.action.retry": "Try again",
   "renderActivity.action.refresh": "Refresh",
-  "renderActivity.action.checkStatus": "Check status again",
+  "renderActivity.action.checkStatus": "Check again",
   "renderActivity.action.providerCheck": "Check render status",
   "renderActivity.action.forceCancelLocal": "Force cancel (local)",
   "renderActivity.action.repair": "Repair",
@@ -2272,7 +2272,7 @@ export const en: LocaleSchema = {
   "landing.hero.subtext":
     "Plan stories in Studio, render motion in seconds, and manage finished videos — one creator platform for professional AI film production.",
   "landing.hero.ctaPrimary": "Start creating",
-  "landing.hero.ctaSecondary": "Explore discover",
+  "landing.hero.ctaSecondary": "Compare Motion & Studio",
 
   "landing.ecosystem.homecheff.name": "HomeCheff",
   "landing.ecosystem.homecheff.tagline": "Creator platform & production suite",
@@ -3158,7 +3158,7 @@ export const en: LocaleSchema = {
   "instant.fullRerender.confirmPromptTestMode":
     "Test mode: this render is free for admin. This starts a new AI render with the same photos. Continue?",
   "instant.fullRerender.confirm": "Start new render",
-  "instant.fullRerender.busy": "Starting new render…",
+  "instant.fullRerender.busy": "Starting your new video…",
   "instant.fullRerender.failed": "Could not start a new render.",
   "instant.fullRerender.aborted": "Render again was cancelled.",
   "instant.fullRerender.versionNoteLabel": "Version note (optional)",
