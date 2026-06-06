@@ -29,7 +29,7 @@ test.describe("Motion Studio production smoke", () => {
     await page.goto("/studio");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(studioEditorHeading);
     await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /Mijn videoverhalen|My video stories/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Mijn videoverhalen|My video stories/i }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /Nieuw videoverhaal|New video story/i })).toBeVisible();
   });
 

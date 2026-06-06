@@ -27,7 +27,8 @@ function rowsForTab(
   characters: StudioCharacterListItem[],
   locations: StudioLocationListItem[],
   props: StudioPropListItem[],
-  storyboardId: string
+  storyboardId: string,
+  t: (key: TranslationKey) => string
 ): AssetRow[] {
   if (tab === "characters") {
     return characters.map((c) => ({
@@ -52,21 +53,21 @@ function rowsForTab(
     }));
   }
   if (tab === "worlds") {
-    return [{ id: "worlds", name: "Worlds library", href: "/studio/worlds" }];
+    return [{ id: "worlds", name: t("studio.feature.worlds.title"), href: "/studio/worlds" }];
   }
   if (tab === "assets") {
-    return [{ id: "assets", name: "Asset registry", href: "/studio/assets" }];
+    return [{ id: "assets", name: t("studio.feature.assets.title"), href: "/studio/assets" }];
   }
   if (tab === "versions") {
     return [
       {
         id: "production",
-        name: "Production center",
+        name: t("studio.production.entryButton"),
         href: `/studio/storyboards/${storyboardId}/production`,
       },
       {
         id: "movie-builder",
-        name: "Movie builder",
+        name: t("studio.movieBuilder.entryButton"),
         href: `/studio/storyboards/${storyboardId}/movie-builder`,
       },
     ];
@@ -98,7 +99,7 @@ export function StudioWorkspaceAssetsDrawer({
     return null;
   }
 
-  const rows = rowsForTab(initialTab, characters, locations, props, storyboardId);
+  const rows = rowsForTab(initialTab, characters, locations, props, storyboardId, t);
   const titleKey = TAB_LABEL[initialTab];
 
   return (

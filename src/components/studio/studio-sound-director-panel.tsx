@@ -68,11 +68,11 @@ export function StudioSoundDirectorPanel({ storyboard, onUpdated }: Props) {
     try {
       const res = await updateStudioStoryboardApi(storyboard.id, patch);
       if (!res.ok) {
-        throw new Error((res.data as { error?: string }).error ?? "Save failed");
+        throw new Error((res.data as { error?: string }).error ?? t("studio.common.saveFailed"));
       }
       onUpdated(res.data.storyboard);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setError(e instanceof Error ? e.message : t("studio.common.saveFailed"));
     } finally {
       setSaving(false);
     }

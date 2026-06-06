@@ -41,8 +41,9 @@ export function MotionEmptyState({ titleKey, hintKey, ctaKey, ctaHref, icon }: E
 }
 
 export function CardGridSkeleton({ count = 3 }: { count?: number }) {
+  const t = useActiveTranslator();
   return (
-    <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading">
+    <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label={t("common.loading")}>
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="animate-pulse rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="h-5 w-2/3 rounded bg-zinc-100" />

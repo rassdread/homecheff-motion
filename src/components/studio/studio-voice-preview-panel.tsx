@@ -100,7 +100,7 @@ export function StudioVoicePreviewPanel({
       if (!res.ok) {
         setError(
           ("error" in res && typeof res.error === "string" ? res.error : null) ??
-            "Generation failed"
+            t("studio.common.generationFailed")
         );
         return;
       }

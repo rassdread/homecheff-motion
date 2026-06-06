@@ -19,7 +19,8 @@ function rowsForTab(
   locations: StudioLocationListItem[],
   props: StudioPropListItem[],
   storyboardId: string,
-  advancedOnly: boolean
+  advancedOnly: boolean,
+  t: (key: TranslationKey) => string
 ): AssetRow[] {
   if (tab === "characters") {
     return characters.map((c) => ({
@@ -36,22 +37,22 @@ function rowsForTab(
     return props.map((p) => ({ id: p.id, name: p.name, href: `/studio/props/${p.id}` }));
   }
   if (tab === "worlds") {
-    return [{ id: "worlds", name: "Worlds", href: "/studio/worlds" }];
+    return [{ id: "worlds", name: t("studio.feature.worlds.title"), href: "/studio/worlds" }];
   }
   if (tab === "assets") {
-    return [{ id: "assets", name: "Assets", href: "/studio/assets" }];
+    return [{ id: "assets", name: t("studio.feature.assets.title"), href: "/studio/assets" }];
   }
   if (tab === "versions") {
     return advancedOnly
       ? [
           {
             id: "production",
-            name: "Production",
+            name: t("studio.production.entryButton"),
             href: `/studio/storyboards/${storyboardId}/production`,
           },
           {
             id: "movie-builder",
-            name: "Movie builder",
+            name: t("studio.movieBuilder.entryButton"),
             href: `/studio/storyboards/${storyboardId}/movie-builder`,
           },
         ]
@@ -94,7 +95,8 @@ export function StudioWorkspaceAssetsList({
     locations,
     props,
     storyboardId,
-    uiMode === "advanced"
+    uiMode === "advanced",
+    t
   );
   const titleKey = TAB_LABEL[tab];
 

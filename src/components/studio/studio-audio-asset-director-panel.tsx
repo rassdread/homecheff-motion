@@ -74,7 +74,7 @@ function SceneAssetSummary({
   const persistScene = async (patch: Parameters<typeof updateStudioSceneApi>[2]) => {
     const res = await updateStudioSceneApi(storyboardId, scene.id, patch);
     if (!res.ok) {
-      throw new Error((res.data as { error?: string }).error ?? "Save failed");
+      throw new Error((res.data as { error?: string }).error ?? t("studio.common.saveFailed" as never));
     }
     onSceneUpdated(res.data.scene);
   };
@@ -157,11 +157,11 @@ export function StudioAudioAssetDirectorPanel({ storyboard, onUpdated }: Props) 
     try {
       const res = await updateStudioStoryboardApi(storyboard.id, patch);
       if (!res.ok) {
-        throw new Error((res.data as { error?: string }).error ?? "Save failed");
+        throw new Error((res.data as { error?: string }).error ?? t("studio.common.saveFailed" as never));
       }
       onUpdated(res.data.storyboard);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setError(e instanceof Error ? e.message : t("studio.common.saveFailed" as never));
     } finally {
       setSaving(false);
     }
