@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { StudioDirectorInspectorColumn } from "@/components/studio/director-v2/studio-director-inspector-column";
+import { StudioSceneHandoffBadges } from "@/components/studio/studio-scene-handoff-badges";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildStudioTextBeats, studioSceneDetailToBeatSource } from "@/lib/build-studio-text-beats";
@@ -99,6 +100,7 @@ export function StudioWorkspaceInspectorPanel({
 
   return (
     <div className="space-y-4">
+      <StudioSceneHandoffBadges scene={scene} />
       <StudioDirectorInspectorColumn
         scene={scene}
         sceneIndex={sceneIndex}
