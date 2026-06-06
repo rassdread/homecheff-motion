@@ -29,11 +29,16 @@ export type VersionCenterRow = {
   thumbnailUrl: string | null;
   projectId: string;
   renderVersionId?: string;
+  renderVersionNumber?: number;
   languageExportId?: string;
   languageCode?: string;
   kind?: ProjectRenderVersionSummary["kind"];
   href: string;
   canOpenEditor: boolean;
+  isDefault?: boolean;
+  canRestore?: boolean;
+  timelinePrevHref?: string | null;
+  timelineNextHref?: string | null;
 };
 
 export function versionCenterTabTitleKey(tab: VersionCenterTab): string {
@@ -64,9 +69,12 @@ export function buildVersionCenterRows(
       thumbnailUrl,
       projectId,
       renderVersionId: version.id,
+      renderVersionNumber: version.renderVersionNumber,
       kind: version.kind,
       href: `/videos/${projectId}?renderVersionId=${encodeURIComponent(version.id)}`,
       canOpenEditor: version.kind === "text_rerender" || version.kind === "full_rerender",
+      isDefault: version.isDefault,
+      canRestore: version.status === "completed" && !version.isDefault,
     });
   }
 
@@ -144,7 +152,20 @@ export function buildVersionCenterRows(
     });
   }
 
+  attachRenderVersionTimeline(rows);
   return rows;
+}
+
+function attachRenderVersionTimeline(rows: VersionCenterRow[]): void {
+  const renderRows = rows
+    .filter((r): r is VersionCenterRow & { renderVersionId: string } => Boolean(r.renderVersionId))
+    .sort((a, b) => (a.renderVersionNumber ?? 0) - (b.renderVersionNumber ?? 0));
+
+  for (let i = 0; i < renderRows.length; i += 1) {
+    const row = renderRows[i];
+    row.timelinePrevHref = i > 0 ? renderRows[i - 1].href : null;
+    row.timelineNextHref = i < renderRows.length - 1 ? renderRows[i + 1].href : null;
+  }
 }
 
 function renderVersionTab(version: ProjectRenderVersionSummary): VersionCenterTab {
