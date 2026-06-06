@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { StudioDirectorCardSelect } from "@/components/studio/director-v2/studio-director-card-select";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioEnvironmentSoundPanel } from "@/components/studio/studio-environment-sound-panel";
 import { buildSoundDirectorPlan } from "@/lib/studio-sound-director";
 import { SOUND_ENVIRONMENT_IDS } from "@/types/studio-sound-director";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
@@ -25,6 +26,12 @@ export function StudioDirectorSectionSound({ scene, storyboard, canModify, onPat
 
   return (
     <div className="space-y-4">
+      <StudioEnvironmentSoundPanel
+        storyboard={storyboard}
+        scene={scene}
+        canModify={canModify}
+        onSelectEnvironment={(env) => onPatch({ soundEnvironmentOverride: env })}
+      />
       {sceneCue ?
         <div className="rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs">
           <p className="font-semibold text-violet-900">{t("studio.directorV2.sound.planState")}</p>
