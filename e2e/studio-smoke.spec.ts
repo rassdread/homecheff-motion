@@ -7,7 +7,7 @@ const studioApiPaths = [
   "/api/studio/props",
 ];
 
-const splashHeading = /Plan (your story|je verhaal)/;
+const startHeading = /Create or edit your video|Maak of bewerk je video/;
 
 function isStoryboardListRequest(url: string): boolean {
   try {
@@ -19,11 +19,12 @@ function isStoryboardListRequest(url: string): boolean {
 }
 
 test.describe("Motion Studio production smoke", () => {
-  test("A — / and /studio show production splash without legacy grid", async ({ page }) => {
+  test("A — / and /studio show editor-first start screen without legacy grid", async ({ page }) => {
     for (const path of ["/", "/studio"]) {
       await page.goto(path);
-      await expect(page.getByRole("heading", { level: 1 })).toContainText(splashHeading);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(startHeading);
       await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
+      await expect(page.getByRole("link", { name: /Mijn videoverhalen|My video stories/i })).toBeVisible();
     }
   });
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
-import { StudioProductionSplash } from "@/components/studio/studio-production-splash";
+import { StudioEditorFirstEntry } from "@/components/studio/studio-editor-first-entry";
 import { StudioFeatureCard } from "@/components/studio/studio-feature-card";
 import { StudioRoadmap } from "@/components/studio/studio-roadmap";
 import { AppCard } from "@/components/ui/app-card";
@@ -68,7 +68,7 @@ export function StudioEntryPage() {
   );
 
   if (uiMode === "simple") {
-    return <StudioProductionSplash />;
+    return <StudioEditorFirstEntry />;
   }
 
   return (

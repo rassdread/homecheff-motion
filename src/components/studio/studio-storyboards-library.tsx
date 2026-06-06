@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CardGridSkeleton } from "@/components/ui/motion-studio-primitives";
 import { AppCard } from "@/components/ui/app-card";
+import { StudioNewStoryButton } from "@/components/studio/studio-new-story-button";
 import { StudioStoryboardCard } from "@/components/studio/studio-storyboard-card";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
@@ -147,12 +148,7 @@ export function StudioStoryboardsLibrary() {
                 {t("studio.storyboards.librarySubtitle")}
               </p>
             </div>
-            <Link
-              href="/studio/storyboards/new"
-              className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
-            >
-              {t("studio.storyboards.newStoryboard")}
-            </Link>
+            <StudioNewStoryButton variant="secondary" labelKey="studio.storyboards.newStoryboard" />
           </div>
 
           <div className="mt-8">
@@ -195,12 +191,12 @@ export function StudioStoryboardsLibrary() {
                   : t("studio.storyboards.emptyDescription")}
               </p>
               {!search.trim() ?
-                <Link
-                  href="/studio/storyboards/new"
-                  className="mt-6 inline-flex rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white"
-                >
-                  {t("studio.storyboards.newStoryboard")}
-                </Link>
+                <div className="mt-6 flex justify-center">
+                  <StudioNewStoryButton
+                    variant="secondary"
+                    labelKey="studio.storyboards.newStoryboard"
+                  />
+                </div>
               : null}
             </div>
           : <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

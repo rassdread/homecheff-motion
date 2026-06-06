@@ -23,6 +23,7 @@ import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitiv
 import { brand } from "@/lib/brand";
 import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
 import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
+import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
@@ -111,6 +112,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     }
 
     setStoryboard(sbRes.data.storyboard);
+    rememberRecentStoryboardId(storyboardId);
     setActiveSceneId((prev) => {
       if (prev && sbRes.data.storyboard.scenes.some((s) => s.id === prev)) {
         return prev;

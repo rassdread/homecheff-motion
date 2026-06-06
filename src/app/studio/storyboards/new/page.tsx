@@ -1,59 +1,75 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
-import {
-  StudioStoryboardForm,
-  type StudioStoryboardFormValues,
-} from "@/components/studio/studio-storyboard-form";
+import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
+import { AppCard } from "@/components/ui/app-card";
+import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
-import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
-import { createStudioStoryboardApi } from "@/lib/studio-storyboards-client";
+import { createDefaultStudioStoryboard } from "@/lib/studio-create-story-client";
 
-export default function StudioStoryboardNewPage() {
+function StudioStoryboardAutoCreate() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const [error, setError] = useState("");
 
-  const handleSubmit = async (values: StudioStoryboardFormValues) => {
-    const res = await createStudioStoryboardApi({
-      title: values.title.trim(),
-      description: values.description.trim(),
-    });
-    if (!res.ok) {
-      throw new Error(
-        (res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed")
-      );
-    }
-    router.push(studioWorkspaceHref(res.data.storyboard.id));
-  };
+  useEffect(() => {
+    let cancelled = false;
 
+    void (async () => {
+      const result = await createDefaultStudioStoryboard(t("studio.storyboards.defaultTitle"));
+      if (cancelled) {
+        return;
+      }
+      if (result.ok) {
+        router.replace(result.href);
+        return;
+      }
+      setError(result.error || t("studio.storyboards.error.saveFailed"));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, t]);
+
+  if (error) {
+    return (
+      <main className={`flex-1 ${brand.softGradientBg}`}>
+        <section className="mx-auto max-w-lg px-6 py-16">
+          <AppCard className="bg-white p-8 text-center">
+            <h1 className="text-xl font-semibold text-zinc-900">
+              {t("studio.storyboards.error.saveFailed")}
+            </h1>
+            <p className="mt-2 text-sm text-zinc-600">{error}</p>
+            <Link
+              href="/studio"
+              className="mt-6 inline-flex rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#005a44]"
+            >
+              {t("studio.placeholder.back")}
+            </Link>
+          </AppCard>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1">
+      <WorkspaceLoadingSkeleton />
+    </main>
+  );
+}
+
+export default function StudioStoryboardNewPage() {
   return (
     <StudioAuthGate
       authTitleKey="studio.storyboards.authRequiredTitle"
       authBodyKey="studio.storyboards.authRequiredBody"
     >
-      <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-2xl px-6 py-12 sm:px-10">
-          <Link
-            href="/studio/storyboards"
-            className="text-sm font-medium text-[#006D52] hover:underline"
-          >
-            ← {t("studio.storyboards.backToLibrary")}
-          </Link>
-          <h1 className="mt-2 text-3xl font-bold text-zinc-900">
-            {t("studio.storyboards.createTitle")}
-          </h1>
-          <div className="mt-8">
-            <StudioStoryboardForm
-              submitLabel={t("studio.storyboards.create")}
-              backHref="/studio/storyboards"
-              onSubmit={handleSubmit}
-            />
-          </div>
-        </section>
-      </main>
+      <StudioStoryboardAutoCreate />
     </StudioAuthGate>
   );
 }
