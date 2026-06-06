@@ -45,6 +45,32 @@ export function versionCenterTabTitleKey(tab: VersionCenterTab): string {
   return `versions.center.tab.${tab}`;
 }
 
+export function versionCenterTabIntroKey(tab: VersionCenterTab): string {
+  return `versions.center.tabIntro.${tab}`;
+}
+
+export function versionCenterStatusLabelKey(status: string): string {
+  const normalized = status.trim().toLowerCase();
+  switch (normalized) {
+    case "completed":
+      return "versions.center.status.ready";
+    case "failed":
+      return "versions.center.status.needsAttention";
+    case "running":
+    case "rendering":
+    case "processing":
+    case "queued":
+      return "versions.center.status.processing";
+    case "cancelled":
+      return "versions.center.status.cancelled";
+    case "draft":
+    case "concept":
+      return "versions.center.status.draft";
+    default:
+      return "versions.center.status.unknown";
+  }
+}
+
 function projectThumbnail(detail: AnimationProjectDetailResponse): string | null {
   const first = detail.images?.[0];
   return first?.previewUrl?.trim() || null;

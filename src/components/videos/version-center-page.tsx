@@ -11,6 +11,8 @@ import {
   buildVersionCenterRows,
   rowsForTab,
   tabCounts,
+  versionCenterStatusLabelKey,
+  versionCenterTabIntroKey,
   versionCenterTabTitleKey,
   VERSION_CENTER_TABS,
   type VersionCenterRow,
@@ -33,7 +35,7 @@ function VersionStatusBadge({ status, isDefault }: { status: string; isDefault?:
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${className}`}>
-        {status}
+        {t(versionCenterStatusLabelKey(status) as never)}
       </span>
       {isDefault ?
         <span className="rounded-md bg-[#006D52]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#006D52]">
@@ -202,7 +204,9 @@ export function VersionCenterPage() {
   }, [id, t]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   const rows = useMemo(() => (detail ? buildVersionCenterRows(detail) : []), [detail]);
@@ -267,7 +271,7 @@ export function VersionCenterPage() {
               key={key}
               type="button"
               onClick={() => setTab(key)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold sm:px-4 sm:text-sm ${
+              className={`min-h-[44px] shrink-0 rounded-full border px-3 py-2 text-xs font-semibold sm:px-4 sm:text-sm ${
                 tab === key
                   ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
@@ -277,6 +281,10 @@ export function VersionCenterPage() {
             </button>
           ))}
         </div>
+
+        <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+          {t(versionCenterTabIntroKey(tab) as never)}
+        </p>
 
         {loading ?
           <p className="text-sm text-zinc-600">{t("instant.loading")}</p>

@@ -2216,7 +2216,7 @@ export const nl = {
   "renderActivity.action.retry": "Probeer opnieuw",
   "renderActivity.action.refresh": "Vernieuwen",
   "renderActivity.action.checkStatus": "Controleer status opnieuw",
-  "renderActivity.action.providerCheck": "Provider status check",
+  "renderActivity.action.providerCheck": "Renderstatus controleren",
   "renderActivity.action.forceCancelLocal": "Force cancel (lokaal)",
   "renderActivity.action.repair": "Repair",
   "renderActivity.error.generic": "Actie mislukt. Probeer het opnieuw.",
@@ -2963,6 +2963,31 @@ export const nl = {
   "versions.center.tab.full_rerender": "Video re-renders",
   "versions.center.tab.languages": "Talen",
   "versions.center.tab.drafts": "Concepten",
+  "versions.center.tabIntro.original":
+    "De eerste voltooide render — je startvideo met tekstoverlays.",
+  "versions.center.tabIntro.text":
+    "Alleen-tekst bewerkingen op dezelfde AI-beelden — geen nieuwe videogeneratie.",
+  "versions.center.tabIntro.full_rerender":
+    "Volledige video re-renders met nieuwe AI-beweging vanuit dezelfde scene-afbeeldingen.",
+  "versions.center.tabIntro.languages":
+    "Vertaalde tekstlagen op dezelfde onderliggende video.",
+  "versions.center.tabIntro.drafts":
+    "Conceptkopieën van een afgerond project — bewerk vóór publicatie.",
+  "versions.center.status.ready": "Gereed",
+  "versions.center.status.needsAttention": "Aandacht nodig",
+  "versions.center.status.processing": "Bezig",
+  "versions.center.status.cancelled": "Geannuleerd",
+  "versions.center.status.draft": "Concept",
+  "versions.center.status.unknown": "Onbekend",
+  "motion.handoff.checklist.title": "Studio heeft al geleverd",
+  "motion.handoff.checklist.story": "Verhaal",
+  "motion.handoff.checklist.characters": "Personages",
+  "motion.handoff.checklist.voice": "Voice",
+  "motion.handoff.checklist.music": "Music plan",
+  "motion.handoff.checklist.sound": "Sound plan",
+  "motion.handoff.checklist.textBeats": "Text beats",
+  "motion.handoff.checklist.hint":
+    "Controleer scenes en teksten hieronder. Expert-modus slaat style- en mood-stappen over als Studio die al heeft ingesteld.",
   "projectDetail.quickActions.versionCenter.label": "Version Center",
   "projectDetail.quickActions.versionCenter.hint": "Bekijk originelen, tekstversies, rerenders en taalexports.",
   "projectDetail.quickActions.title": "Wat wil je doen?",

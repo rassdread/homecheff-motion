@@ -2216,7 +2216,7 @@ export const en: LocaleSchema = {
   "renderActivity.action.retry": "Try again",
   "renderActivity.action.refresh": "Refresh",
   "renderActivity.action.checkStatus": "Check status again",
-  "renderActivity.action.providerCheck": "Provider status check",
+  "renderActivity.action.providerCheck": "Check render status",
   "renderActivity.action.forceCancelLocal": "Force cancel (local)",
   "renderActivity.action.repair": "Repair",
   "renderActivity.error.generic": "Action failed. Please try again.",
@@ -2959,6 +2959,31 @@ export const en: LocaleSchema = {
   "versions.center.tab.full_rerender": "Video re-renders",
   "versions.center.tab.languages": "Languages",
   "versions.center.tab.drafts": "Drafts",
+  "versions.center.tabIntro.original":
+    "The first completed render — your starting video with text overlays.",
+  "versions.center.tabIntro.text":
+    "Text-only edits on the same AI footage — no new video generation.",
+  "versions.center.tabIntro.full_rerender":
+    "Full video re-renders with new AI motion from the same scene images.",
+  "versions.center.tabIntro.languages":
+    "Translated text layers exported on the same underlying video.",
+  "versions.center.tabIntro.drafts":
+    "Concept drafts copied from a finished project — edit before publishing.",
+  "versions.center.status.ready": "Ready",
+  "versions.center.status.needsAttention": "Needs attention",
+  "versions.center.status.processing": "Processing",
+  "versions.center.status.cancelled": "Cancelled",
+  "versions.center.status.draft": "Draft",
+  "versions.center.status.unknown": "Unknown",
+  "motion.handoff.checklist.title": "Studio already provided",
+  "motion.handoff.checklist.story": "Story",
+  "motion.handoff.checklist.characters": "Characters",
+  "motion.handoff.checklist.voice": "Voice",
+  "motion.handoff.checklist.music": "Music plan",
+  "motion.handoff.checklist.sound": "Sound plan",
+  "motion.handoff.checklist.textBeats": "Text beats",
+  "motion.handoff.checklist.hint":
+    "Review scenes and texts below. Expert mode skips style and mood steps when Studio already set them.",
   "projectDetail.quickActions.versionCenter.label": "Version Center",
   "projectDetail.quickActions.versionCenter.hint":
     "Browse originals, text edits, video re-renders, and language exports.",
