@@ -55,9 +55,14 @@ describe("language-export-render", () => {
         languageLabel: "Nederlands",
         status: "completed",
         outputVideoUrl: "https://cdn.example/nl.mp4",
+        sourceFinalVideoUrl: "https://cdn.example/final.mp4",
+        textLayerJson: null,
+        translationProvider: null,
         errorMessage: null,
         createdAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
+        version: 1,
+        isDefault: true,
       },
       messages
     );
@@ -76,6 +81,8 @@ describe("language-export-render", () => {
         errorMessage: null,
         createdAt: "",
         completedAt: null,
+        version: 1,
+        isDefault: true,
       },
       {
         id: "2",
@@ -86,6 +93,8 @@ describe("language-export-render", () => {
         errorMessage: null,
         createdAt: "",
         completedAt: null,
+        version: 1,
+        isDefault: false,
       },
     ]);
     assert.equal(rows.length, 1);

@@ -23,6 +23,8 @@ import {
   validateCharacterPerformanceConsistency,
 } from "@/lib/studio-character-performance";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
+import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import { fixture } from "@/test/studio-api-fixtures";
 import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
 
 const chef: StudioCharacterListItem = {
@@ -116,7 +118,7 @@ function minimalStoryboard(): StudioStoryboardDetail {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 describe("Motion V34 — character performance engine", () => {
@@ -303,7 +305,7 @@ describe("Motion V34 — character performance engine", () => {
         selectedImageRecommended: false,
       })),
     };
-    const withVoice = attachVoiceToHandoffPayload(base, {
+    const withVoice = attachVoiceToHandoffPayload(fixture<MotionHandoffPayload>(base), {
       storyboard: sb,
       voice: null,
       subtitle: null,

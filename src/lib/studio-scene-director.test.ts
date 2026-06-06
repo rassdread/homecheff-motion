@@ -99,7 +99,7 @@ describe("studio scene director V23", () => {
           camera: "",
         },
       ],
-    } as unknown as StudioStoryboardDetail;
+    } as unknown as unknown as StudioStoryboardDetail;
     const report = buildDirectorQualityReport(storyboard);
     assert.ok(report.shotDiversityScore < 70);
     assert.ok(report.recommendationKeys.length > 0);
@@ -133,7 +133,7 @@ describe("studio scene director V23", () => {
         { id: "2", order: 1, title: "S2", shotType: "medium", cameraMovement: "tracking", sceneEnergy: "neutral", camera: "" },
         { id: "3", order: 2, title: "S3", shotType: "close_up", cameraMovement: "crane", sceneEnergy: "intense", camera: "" },
       ],
-    } as unknown as StudioStoryboardDetail;
+    } as unknown as unknown as StudioStoryboardDetail;
     const report = buildDirectorQualityReport(storyboard);
     assert.ok(typeof report.storyHealthScore === "number");
     assert.ok(report.storyHealthScore >= 0);

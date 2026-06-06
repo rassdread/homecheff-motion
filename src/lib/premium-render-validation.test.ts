@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
 import type { InstantPremiumCreatePayload } from "@/server/instant-premium/create-instant-premium-project";
+import { posterMotionSettings } from "@/test/motion-test-fixtures";
 
 const basePayload = (): InstantPremiumCreatePayload => ({
   images: [
@@ -13,7 +14,7 @@ const basePayload = (): InstantPremiumCreatePayload => ({
   duration: 8,
   aspectRatio: "9:16",
   textRenderMode: "poster_motion_preserve",
-  posterMotionSettings: { version: 1, animationStyleId: "cartoon_animation" },
+  posterMotionSettings: posterMotionSettings(),
 });
 
 describe("premium render validation", () => {

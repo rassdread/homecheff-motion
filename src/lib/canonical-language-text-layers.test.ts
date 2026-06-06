@@ -16,6 +16,8 @@ describe("canonical-language-text-layers", () => {
       text: "Headline",
       x: 0.5,
       y: 0.2,
+      animation: "fade-in",
+      startMs: 0,
       durationMs: 8000,
     });
     const uiBlock: BakedTextBlockRecord = {

@@ -40,7 +40,7 @@ describe("instant-repair-ui-state", () => {
         segmentsMergeFailed: false,
         finalVideoUrl: null,
         overlayFailed: false,
-        status: "rendering",
+        status: "running",
         videoRepairStatus: null,
         isRestoringFinalVideo: false,
       },

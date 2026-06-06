@@ -13,43 +13,27 @@ import {
 } from "@/lib/studio-character-voice";
 import { buildTimedSegmentsFromSpeakerLines } from "@/lib/build-speaker-voice-segments";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
+import type { MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { studioCharacterListItem } from "@/test/studio-api-fixtures";
+import { fixture } from "@/test/studio-api-fixtures";
 
-const chef: StudioCharacterListItem = {
+const chef = studioCharacterListItem({
   id: "c-chef",
-  ownerId: "u1",
   name: "Chef",
-  slug: "chef",
   role: "mascot",
-  description: "",
-  personality: "",
-  referenceImageUrl: "https://cdn.example/chef.jpg",
   isMascot: true,
-  appearanceMemory: "",
-  personalityMemory: "",
-  continuityNotes: "",
-  defaultClothing: "",
-  defaultAccessories: "",
-  visualKeywords: "",
-  primaryReferenceImageId: null,
-  referenceNotes: "",
-  identityStrength: "strong",
-  continuityStrength: "strong",
-  worldProfileId: null,
-  worldProfile: null,
+  referenceImageUrl: "https://cdn.example/chef.jpg",
   voiceEnabled: true,
   voiceProvider: "elevenlabs",
   voiceProfile: "warm_narrator",
   voiceLanguage: "en",
   voiceGender: "male",
   voiceDescription: "Warm Male",
-  voiceNotes: "",
   voiceLock: true,
   voiceProfilesByLanguage: { nl: { voiceProfile: "documentary", voiceEnabled: true } },
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+});
 
 function minimalStoryboard(): StudioStoryboardDetail {
   return {
@@ -95,7 +79,7 @@ function minimalStoryboard(): StudioStoryboardDetail {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 describe("Motion V33 — character voice profiles", () => {
@@ -147,7 +131,7 @@ describe("Motion V33 — character voice profiles", () => {
         title: sb.title,
         description: "",
         promptStyleProfile: "cinematic",
-        directorProfile: { id: "default", label: "Default" },
+        directorProfile: "commercial",
         shotDiversityScore: 80,
         characterMemory: [],
         locationMemory: null,
@@ -167,7 +151,7 @@ describe("Motion V33 — character voice profiles", () => {
         overallCharacterConsistencyScore: 80,
         characterDriftWarnings: [],
         perSceneCharacterIdentityScores: [],
-        scenes: sb.scenes.map((scene) => ({
+        scenes: fixture<MotionHandoffScene[]>(sb.scenes.map((scene) => ({
           sceneId: scene.id,
           order: scene.order,
           title: scene.title,
@@ -200,7 +184,7 @@ describe("Motion V33 — character voice profiles", () => {
           selectedImageConsistencyScore: null,
           selectedImageImprovementScore: null,
           selectedImageRecommended: false,
-        })),
+        }))),
       },
       {
         storyboard: sb,

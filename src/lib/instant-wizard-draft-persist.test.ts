@@ -110,7 +110,7 @@ describe("instant wizard draft persistence rules", () => {
         },
       },
     ]);
-    const restored = restoreSceneSlotsFromPersisted(slots, undefined, 5);
+    const restored = restoreSceneSlotsFromPersisted(slots, undefined, undefined, 5);
     assert.deepEqual(restored[0]!.text.overlayLayerStyles, {
       title: { fontSize: "smaller" },
     });

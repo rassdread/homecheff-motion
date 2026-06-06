@@ -20,6 +20,7 @@ import { buildCompactFacialActingLine, FACIAL_ANTI_PATTERN_LINE } from "@/lib/pr
 import { buildCompactViduMotionPrompt, VIDU_PROMPT_MAX_CHARS } from "@/lib/vidu-prompt-budget";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 import { buildPremiumRenderValidationReport } from "@/lib/premium-render-validation";
+import { posterMotionSettings } from "@/test/motion-test-fixtures";
 import type { InstantPremiumCreatePayload } from "@/server/instant-premium/create-instant-premium-project";
 
 describe("deevid premium polish", () => {
@@ -78,7 +79,7 @@ describe("deevid premium polish", () => {
       duration: 8,
       aspectRatio: "9:16",
       textRenderMode: "poster_motion_preserve",
-      posterMotionSettings: { version: 1, animationStyleId: "cartoon_animation" },
+      posterMotionSettings: posterMotionSettings(),
     };
     const report = buildPremiumRenderValidationReport({
       payload,

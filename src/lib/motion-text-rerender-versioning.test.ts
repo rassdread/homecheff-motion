@@ -162,7 +162,12 @@ describe("Motion text rerender versioning", () => {
   });
 
   it("pending audit tracks render version for merge blob upload", () => {
-    const audit = mergeAuditWithPendingFullRerender(null, { type: "final_video_rebuild" }, {
+    const audit = mergeAuditWithPendingFullRerender(null, {
+      rebuildType: "full_rerender",
+      status: "running",
+      startedAt: "2026-06-04T12:00:00.000Z",
+      newProviderJobsCreated: true,
+    }, {
       renderVersionId: "rv-pending",
       renderVersionNumber: 4,
       startedAt: "2026-06-04T12:00:00.000Z",

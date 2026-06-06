@@ -58,7 +58,7 @@ function minimalStoryboard(): StudioStoryboardDetail {
         updatedAt: new Date().toISOString(),
       },
     ],
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(): MotionHandoffPayload {

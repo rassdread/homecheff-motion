@@ -16,6 +16,9 @@ import {
 } from "@/lib/studio-character-mouth-assets";
 import { buildMouthAssetOverlayWindows } from "@/lib/studio-mouth-asset-overlay";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
+import { motionHandoffPayload } from "@/test/motion-test-fixtures";
+import type { MotionHandoffScene } from "@/types/motion-handoff-payload";
+import { fixture } from "@/test/studio-api-fixtures";
 import type { CharacterPerformanceProfile } from "@/types/studio-character-performance";
 
 const baseProfile = (overrides?: Partial<CharacterPerformanceProfile>): CharacterPerformanceProfile => ({
@@ -124,31 +127,39 @@ describe("Studio V34.6 — speaking mouth cycle", () => {
   });
 
   it("frame plan closes mouth outside speech and cycles during speech", () => {
-    const handoff = {
-      version: MOTION_HANDOFF_PAYLOAD_VERSION,
+    const handoff = motionHandoffPayload({
       storyboardId: "sb",
       characterPerformanceProfiles: [baseProfile()],
       voiceSegments: [
         {
           sceneId: "s1",
+          order: 0,
           startSeconds: 0.5,
           endSeconds: 4.2,
+          durationSeconds: 3.7,
           text: "Welcome",
           speaker: "Chef",
         },
       ],
       scenes: [
-        {
+        fixture<MotionHandoffScene>({
           sceneId: "s1",
           order: 0,
           title: "Intro",
           emotion: "excited",
           sceneEnergy: "dynamic",
-          characters: [{ id: "chef", name: "Chef", role: "mascot", referenceImageUrl: "/chef.png" }],
-        },
+          characters: [{
+            id: "chef",
+            name: "Chef",
+            role: "mascot",
+            description: "",
+            personality: "",
+            referenceImageUrl: "/chef.png",
+          }],
+        }),
       ],
       performanceStates: [],
-    };
+    });
 
     const plan = buildMotionPerformanceFramePlan({
       handoff,

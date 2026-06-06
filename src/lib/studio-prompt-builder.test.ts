@@ -28,7 +28,7 @@ const rotterdamScene: SceneSnapshot = {
     name: "Rotterdam",
     category: "city",
     description: "Modern Rotterdam waterfront and urban energy.",
-    referenceImageUrl: null,
+    referenceImageUrl: "",
   },
   characters: [
     {
@@ -37,7 +37,7 @@ const rotterdamScene: SceneSnapshot = {
       role: "mascot",
       description: "HomeCheff chef mascot",
       personality: "Friendly, energetic, community-driven",
-      referenceImageUrl: null,
+      referenceImageUrl: "",
     },
     {
       id: "char-sergio",
@@ -45,7 +45,7 @@ const rotterdamScene: SceneSnapshot = {
       role: "human",
       description: "Founder presenting the product",
       personality: "",
-      referenceImageUrl: null,
+      referenceImageUrl: "",
     },
   ],
   props: [
@@ -54,7 +54,7 @@ const rotterdamScene: SceneSnapshot = {
       name: "Laptop",
       category: "laptop",
       description: "HomeCheff platform on screen",
-      referenceImageUrl: null,
+      referenceImageUrl: "",
     },
   ],
   action: "presenting",

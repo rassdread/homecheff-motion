@@ -211,7 +211,6 @@ describe("Motion V22.4 — library UX", () => {
         status: "completed",
         renderVersionCount: 0,
         languageExportCount: 0,
-        isLegacyProject: true,
       })
     );
     assert.ok(badges.some((b) => b.id === "legacy"));

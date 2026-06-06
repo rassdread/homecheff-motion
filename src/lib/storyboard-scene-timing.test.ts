@@ -97,8 +97,12 @@ describe("storyboard transition timing", () => {
     const scenes = [
       { transitionDurationSeconds: 5 },
       { transitionDurationSeconds: 5 },
-    ] as const;
-    const windows = getSceneTimingWindows(scenes, 10, 2);
+    ];
+    const windows = getSceneTimingWindows(
+      scenes as Parameters<typeof getSceneTimingWindows>[0],
+      10,
+      2
+    );
     assert.equal(windows.length, 2);
     assert.ok(Math.abs(windows[0]!.sceneDuration - 5) < 0.01);
     assert.ok(Math.abs(windows[1]!.sceneDuration - 5) < 0.01);

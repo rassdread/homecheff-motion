@@ -8,6 +8,7 @@ import {
   buildStoryboardOverlayPreviewLines,
   storyboardPreviewHasContent,
 } from "@/lib/storyboard-overlay-preview";
+import { emptySceneTextDraft } from "@/lib/instant-scene-text-draft-model";
 import {
   appendTextVersionNote,
   findTextVersionNote,
@@ -65,18 +66,12 @@ describe("story-overlay-v5 polish", () => {
   it("renders footer in storyboard preview order", () => {
     const lines = buildStoryboardOverlayPreviewLines(
       {
+        ...emptySceneTextDraft(5),
         template: "hero",
         heroText: "THIS ISN'T",
         title: "JUST AN APP.",
         subtitle: "IT'S A MOVEMENT.",
-        extraLines: [],
-        accentWords: "",
-        lines: [],
-        heroFinale: false,
-        heroFinaleText: "",
         finaleFooter: "homecheff.eu",
-        durationSeconds: 5,
-        transitionDurationSeconds: 5,
       },
       { isFinalFrame: true }
     );

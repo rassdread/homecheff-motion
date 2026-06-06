@@ -18,66 +18,26 @@ import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
 } from "@/types/studio-api";
+import {
+  studioCharacterListItem,
+  studioLocationListItem,
+  studioPropListItem,
+} from "@/test/studio-api-fixtures";
 
 function character(id: string, name: string): StudioCharacterListItem {
-  return {
+  return studioCharacterListItem({
     id,
-    ownerId: "u1",
     name,
-    slug: name.toLowerCase(),
-    role: "lead",
     description: `${name} description`,
-    personality: "",
-    referenceImageUrl: "",
-    isMascot: false,
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: "",
-    defaultClothing: "",
-    defaultAccessories: "",
-    visualKeywords: "",
-    primaryReferenceImageId: null,
-    referenceNotes: "",
-    identityStrength: "balanced",
-    continuityStrength: "balanced",
-    worldProfileId: null,
-    worldProfile: null,
-    voiceEnabled: false,
-    voiceProvider: "",
-    voiceProfile: "",
-    voiceLanguage: "en",
-    voiceGender: "",
-    voiceStyle: "",
-    voicePitch: "",
-    voiceSpeed: "",
-    voiceEmotion: "",
-    voiceNotes: "",
-    performanceEnabled: false,
-    performanceStyle: "",
-    performanceEnergy: "",
-    performanceNotes: "",
-    mouthAssetId: null,
-    voiceAssetId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 function prop(id: string, name: string, description = ""): StudioPropListItem {
-  return {
+  return studioPropListItem({
     id,
-    ownerId: "u1",
     name,
-    slug: name.toLowerCase(),
     description,
-    referenceImageUrl: "",
-    visualKeywords: "",
-    continuityNotes: "",
-    worldProfileId: null,
-    worldProfile: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 function scene(overrides: Partial<StudioSceneDetail> & { order?: number } = {}): StudioSceneDetail {
@@ -168,7 +128,7 @@ function storyboard(scenes: StudioSceneDetail[]): StudioStoryboardDetail {
     props: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(): MotionHandoffPayload {
@@ -184,7 +144,7 @@ function minimalHandoff(): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],
@@ -261,12 +221,10 @@ describe("Studio V42 scene composition", () => {
 
   it("location composition reflects garden environment", () => {
     const s = scene({
-      location: {
+      location: studioLocationListItem({
         id: "loc1",
         name: "Community Garden",
-        description: "",
-        referenceImageUrl: null,
-      },
+      }),
     });
     const loc = buildSceneCompositionDirector(storyboard([s])).locationCompositionPlans[0]!;
     assert.equal(loc.environmentFocus, "studio.composition.location.garden");

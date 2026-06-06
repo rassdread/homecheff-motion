@@ -17,6 +17,7 @@ import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
 } from "@/types/studio-api";
+import { studioPropListItem, studioSceneDetail } from "@/test/studio-api-fixtures";
 
 const marketLocation: StudioLocationListItem = {
   id: "loc-market",
@@ -46,24 +47,16 @@ const restaurantLocation: StudioLocationListItem = {
   environmentKeywords: "kitchen dining plates",
 };
 
-const phoneProp: StudioPropListItem = {
+const phoneProp = studioPropListItem({
   id: "prop-phone",
-  ownerId: "u1",
   name: "Smartphone",
   slug: "phone",
   category: "phone",
   description: "Brand phone with notifications",
-  appearanceMemory: "",
-  brandingRules: "",
-  continuityNotes: "",
-  worldProfileId: null,
-  worldProfile: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+});
 
 function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): StudioSceneDetail {
-  return {
+  return studioSceneDetail({
     id: `sc-${order}`,
     storyboardId: "sb-sound",
     order,
@@ -93,10 +86,8 @@ function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): Studi
     props: [],
     sceneImages: [],
     selectedSceneImageId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function storyboard(
@@ -133,7 +124,7 @@ function storyboard(
     updatedAt: new Date().toISOString(),
     scenes,
     ...overrides,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
@@ -236,7 +227,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
     })),
-  } as MotionHandoffPayload;
+  } as unknown as MotionHandoffPayload;
 }
 
 describe("Studio V36 — Sound Effects Director", () => {

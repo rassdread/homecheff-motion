@@ -445,6 +445,7 @@ describe("buildSequenceAssEvents", () => {
       styleNames: {
         heroMain: "HCHeroMain_s0",
         heroSmall: "HCHeroSmall_s0",
+        heroFinale: "HCHeroFinale_s0",
         title: "HCStoryTitle_s0",
         subtitle: "HCStorySubtitle_s0",
       },
@@ -473,6 +474,7 @@ describe("buildSequenceAssEvents", () => {
       styleNames: {
         heroMain: "HCHeroMain_s0",
         heroSmall: "HCHeroSmall_s0",
+        heroFinale: "HCHeroFinale_s0",
         title: "HCStoryTitle_s0",
         subtitle: "HCStorySubtitle_s0",
       },

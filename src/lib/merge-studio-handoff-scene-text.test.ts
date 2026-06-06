@@ -41,7 +41,7 @@ function handoffScene(
     selectedImageImprovementScore: null,
     selectedImageRecommended: false,
     promptVersion: {
-      promptVersion: 1,
+      promptVersion: 3,
       generatedAt: "2026-01-01T00:00:00.000Z",
       sceneId: "scene-1",
       generatedPrompt: "prompt",

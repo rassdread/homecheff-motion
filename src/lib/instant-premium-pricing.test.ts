@@ -26,11 +26,15 @@ describe("instant-premium-pricing", () => {
 
   it("converts to cents for Stripe", () => {
     assert.equal(
-      estimateInstantPremiumPriceCents(2, { instantMode: "transition" }),
+      estimateInstantPremiumPriceCents(2, { instantMode: "transition" } as Parameters<
+        typeof estimateInstantPremiumPriceEur
+      >[1]),
       99
     );
     assert.equal(
-      estimateInstantPremiumPriceCents(3, { instantMode: "transition" }),
+      estimateInstantPremiumPriceCents(3, { instantMode: "transition" } as Parameters<
+        typeof estimateInstantPremiumPriceEur
+      >[1]),
       299
     );
   });

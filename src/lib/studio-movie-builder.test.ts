@@ -18,6 +18,7 @@ import {
   scenesWithoutCompletedImages,
 } from "@/lib/studio-movie-scene-image";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { studioSceneDetail, studioStoryboardDetail } from "@/test/studio-api-fixtures";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
 function completedImage(id: string): StudioSceneImageListItem {
@@ -25,7 +26,7 @@ function completedImage(id: string): StudioSceneImageListItem {
     id,
     sceneId: "scene-1",
     status: "completed",
-    promptVersion: 1,
+    promptVersion: 3,
     generationVersion: 1,
     generatedPrompt: "Chef cooks with logo.",
     imageUrl: "https://example.com/a.png",
@@ -59,60 +60,37 @@ function completedImage(id: string): StudioSceneImageListItem {
 
 function baseStoryboard(overrides?: Partial<StudioStoryboardDetail>): StudioStoryboardDetail {
   const img = completedImage("img-1");
-  return {
-    id: "sb-1",
-    ownerId: "u1",
+  return studioStoryboardDetail({
     title: "Kitchen Story",
-    description: "",
-    promptStyleProfile: "commercial",
-    autoSelectImprovedImage: true,
     sceneCount: 2,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     scenes: [
-      {
+      studioSceneDetail({
         id: "scene-1",
-        storyboardId: "sb-1",
         order: 0,
         title: "Opening",
-        description: "",
         action: "Chef waves",
         emotion: "happy",
         camera: "wide",
-        transitionToNext: "",
-        durationSeconds: 5,
         locationId: "loc-1",
-        location: null,
-        characters: [{ id: "c1", name: "Chef" } as StudioStoryboardDetail["scenes"][number]["characters"][number]],
-        props: [],
+        characters: [{ id: "c1", name: "Chef" } as unknown as StudioStoryboardDetail["scenes"][number]["characters"][number]],
         selectedSceneImageId: "img-1",
         sceneImages: [img],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
+      }),
+      studioSceneDetail({
         id: "scene-2",
-        storyboardId: "sb-1",
         order: 1,
         title: "Cooking",
-        description: "",
         action: "Stir pot",
         emotion: "focused",
         camera: "close",
-        transitionToNext: "",
-        durationSeconds: 5,
         locationId: "loc-1",
-        location: null,
-        characters: [{ id: "c1", name: "Chef" } as StudioStoryboardDetail["scenes"][number]["characters"][number]],
-        props: [],
+        characters: [{ id: "c1", name: "Chef" } as unknown as StudioStoryboardDetail["scenes"][number]["characters"][number]],
         selectedSceneImageId: "img-2",
         sceneImages: [completedImage("img-2")],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      }),
     ],
     ...overrides,
-  };
+  });
 }
 
 describe("studio movie builder V16", () => {

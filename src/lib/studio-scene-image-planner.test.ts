@@ -10,99 +10,34 @@ import {
   detectMissingSceneReferences,
   resolveStoryboardImageReadiness,
 } from "@/lib/studio-scene-image-planner";
-import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
-
-function scene(partial: Partial<StudioSceneDetail> & { order: number }): StudioSceneDetail {
-  return {
-    id: partial.id ?? `scene-${partial.order}`,
-    storyboardId: "sb-1",
-    order: partial.order,
-    title: partial.title ?? `Scene ${partial.order + 1}`,
-    description: partial.description ?? "",
-    action: partial.action ?? "",
-    emotion: partial.emotion ?? "",
-    camera: partial.camera ?? "",
-    shotType: partial.shotType ?? "medium_wide",
-    cameraMovement: partial.cameraMovement ?? "static",
-    sceneEnergy: partial.sceneEnergy ?? "neutral",
-    transitionToNext: partial.transitionToNext ?? "",
-    durationSeconds: partial.durationSeconds ?? 5,
-    locationId: partial.location?.id ?? null,
-    location: partial.location ?? null,
-    characters: partial.characters ?? [],
-    props: partial.props ?? [],
-    selectedSceneImageId: null,
-    sceneImages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
+import {
+  studioCharacterListItem,
+  studioLocationListItem,
+  studioSceneDetail,
+  studioStoryboardDetail,
+} from "@/test/studio-api-fixtures";
+import type { StudioSceneDetail } from "@/types/studio-api";
 
 function character(id: string, name: string, extra?: { isMascot?: boolean; defaultClothing?: string }) {
-  return {
+  return studioCharacterListItem({
     id,
-    ownerId: "u1",
     name,
-    slug: name.toLowerCase(),
-    role: "lead" as const,
-    description: "",
-    personality: "",
-    referenceImageUrl: "",
-    isMascot: extra?.isMascot ?? false,
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: "",
-    defaultClothing: extra?.defaultClothing ?? "",
-    defaultAccessories: "",
-    visualKeywords: "",
-    primaryReferenceImageId: null,
-    referenceNotes: "",
-    identityStrength: "strong" as const,
-    continuityStrength: "strong" as const,
-    worldProfileId: null,
-    worldProfile: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    role: extra?.isMascot ? "mascot" : "human",
+    isMascot: extra?.isMascot,
+    defaultClothing: extra?.defaultClothing,
+  });
 }
 
 function location(id: string, name: string) {
-  return {
-    id,
-    ownerId: "u1",
-    name,
-    slug: name.toLowerCase(),
-    category: "office" as const,
-    description: `${name} interior`,
-    referenceImageUrl: "",
-    worldMemory: "",
-    visualIdentity: "",
-    environmentKeywords: "daylight office",
-    continuityNotes: "",
-    continuityStrength: "strong" as const,
-    worldProfileId: null,
-    worldProfile: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  return studioLocationListItem({ id, name, description: `${name} interior` });
 }
 
-function storyboard(scenes: StudioSceneDetail[]): StudioStoryboardDetail {
-  return {
-    id: "sb-1",
-    ownerId: "u1",
-    title: "Test board",
-    description: "",
-    promptStyleProfile: "commercial",
-    directorProfile: "commercial",
-    aiDirectorPrompt: "",
-    aiDirectorStyleStrength: "balanced",
-    autoSelectImprovedImage: true,
-    sceneCount: scenes.length,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    scenes,
-  };
+function scene(partial: Partial<StudioSceneDetail> & { order: number }) {
+  return studioSceneDetail(partial);
+}
+
+function storyboard(scenes: StudioSceneDetail[]) {
+  return studioStoryboardDetail({ title: "Test board", scenes });
 }
 
 describe("studio-scene-image-planner", () => {

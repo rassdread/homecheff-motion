@@ -8,6 +8,7 @@ import {
 import { buildInstantStoryModePromptDetailed } from "@/lib/instant-premium-prompt";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
+import { promptVersionMetadata } from "@/test/motion-test-fixtures";
 
 function baseScene(overrides: Partial<MotionHandoffScene> = {}): MotionHandoffScene {
   return {
@@ -39,7 +40,7 @@ function baseScene(overrides: Partial<MotionHandoffScene> = {}): MotionHandoffSc
     generatedPrompt: "Chef in kitchen.",
     stylePrompt: "",
     continuityPrompt: "",
-    promptVersion: { version: 1, generatedPrompt: "Chef in kitchen.", styleProfile: "commercial" },
+    promptVersion: promptVersionMetadata({ generatedPrompt: "Chef in kitchen." }),
     selectedSceneImageId: null,
     selectedSceneImageUrl: null,
     selectedSceneImagePromptVersion: null,
@@ -89,7 +90,7 @@ function minimalPayload(scenes: MotionHandoffScene[]): MotionHandoffPayload {
     perSceneCharacterIdentityScores: [],
     executionPackage: { aiDirectorNotes: "Warm community story with proud chef hero." },
     scenes,
-  } as MotionHandoffPayload;
+  } as unknown as MotionHandoffPayload;
 }
 
 describe("buildStudioSceneMotionInstructions", () => {

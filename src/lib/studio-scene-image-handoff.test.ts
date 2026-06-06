@@ -9,7 +9,7 @@ describe("resolveStudioSceneImageHandoff", () => {
       status: "completed",
       imageUrl: "https://example.com/old.jpg",
       thumbnailUrl: "https://example.com/old-thumb.jpg",
-      promptVersion: 1,
+      promptVersion: 3,
       generationVersion: 1,
     },
     {
@@ -17,7 +17,7 @@ describe("resolveStudioSceneImageHandoff", () => {
       status: "completed",
       imageUrl: "https://example.com/new.jpg",
       thumbnailUrl: "https://example.com/new-thumb.jpg",
-      promptVersion: 1,
+      promptVersion: 3,
       generationVersion: 2,
     },
   ];

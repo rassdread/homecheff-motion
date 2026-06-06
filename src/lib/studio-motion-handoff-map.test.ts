@@ -5,14 +5,17 @@ import {
   mapHandoffToPersistedWizardState,
   mapStudioEmotionToMotion,
 } from "@/lib/studio-motion-handoff-map";
+import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 const samplePayload: MotionHandoffPayload = {
-  version: 7,
+  version: MOTION_HANDOFF_PAYLOAD_VERSION,
   storyboardId: "sb-1",
   title: "HomeCheff Promo",
   description: "Rotterdam + garden",
   promptStyleProfile: "commercial",
+  directorProfile: "commercial",
+  shotDiversityScore: 50,
   characterMemory: [],
   locationMemory: null,
   propMemory: [],
@@ -53,7 +56,7 @@ const samplePayload: MotionHandoffPayload = {
         sceneImageId: "img-1",
         sceneId: "scene-1",
         storyboardId: "sb-1",
-        promptVersion: 1,
+        promptVersion: 3,
         generationVersion: 1,
         imageUrl: "https://example.com/kitchen.jpg",
         thumbnailUrl: "https://example.com/kitchen.jpg",
@@ -73,7 +76,7 @@ const samplePayload: MotionHandoffPayload = {
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
       promptVersion: {
-        promptVersion: 1,
+        promptVersion: 3,
         generatedAt: "2026-06-08T12:00:00.000Z",
         sceneId: "scene-1",
         generatedPrompt: "Wide kitchen scene with proud energy.",
@@ -97,7 +100,7 @@ const samplePayload: MotionHandoffPayload = {
         stylePrompt: "Professional commercial quality.",
         continuityPrompt: "Maintain visual consistency across the storyboard sequence.",
         promptVersion: {
-          promptVersion: 1,
+          promptVersion: 3,
           generatedAt: "2026-06-08T12:00:00.000Z",
           sceneId: "scene-1",
           generatedPrompt: "Wide kitchen scene with proud energy.",

@@ -16,6 +16,8 @@ import {
   breakTextIntoLines,
   resolveAdaptiveTypography,
 } from "@/server/animation-export/adaptive-typography";
+import type { InstantSceneText } from "@/lib/story-overlay-templates";
+import { fixture } from "@/test/studio-api-fixtures";
 
 const sampleProject = {
   instantSceneTexts: [
@@ -33,7 +35,9 @@ const sampleProject = {
 
 describe("auto language composition workflow", () => {
   it("collects hero, title, subtitle, lines, finale, and accent words", () => {
-    const fields = collectTranslatableFields(sampleProject.instantSceneTexts);
+    const fields = collectTranslatableFields(
+      fixture<InstantSceneText[]>(sampleProject.instantSceneTexts)
+    );
     const fieldNames = fields.map((f) =>
       f.field === "line" ? `line:${f.lineIndex}` : (
         f.field === "accentWord" ? `accent:${f.accentIndex}`

@@ -31,7 +31,7 @@ function imageStub(
     thumbnailUrl: "",
     generatedPrompt: "Chef in kitchen with logo.",
     correctedPrompt: "",
-    promptVersion: 1,
+    promptVersion: 3,
     generationVersion: 1,
     regeneratedFromImageId: null,
     promptPatches: [],
@@ -64,6 +64,7 @@ const rec = (partial: Partial<CorrectionRecommendation>): CorrectionRecommendati
   severity: "high",
   message: "Logo not visible",
   promptPatch: "Include HomeCheff logo clearly.",
+  source: "test",
   ...partial,
 });
 
@@ -200,6 +201,7 @@ describe("studio improvement engine V14", () => {
         location: null,
         props: [],
         world: null,
+        continuityStrength: "strong",
       },
     });
     const summary = buildStoryboardImprovementSummary({

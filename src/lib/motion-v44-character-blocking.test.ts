@@ -26,49 +26,14 @@ import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
 } from "@/types/studio-api";
+import { studioCharacterListItem, studioLocationListItem } from "@/test/studio-api-fixtures";
 
 function character(id: string, name: string): StudioCharacterListItem {
-  return {
+  return studioCharacterListItem({
     id,
-    ownerId: "u1",
     name,
-    slug: name.toLowerCase(),
-    role: "lead",
     description: `${name} description`,
-    personality: "",
-    referenceImageUrl: "",
-    isMascot: false,
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: "",
-    defaultClothing: "",
-    defaultAccessories: "",
-    visualKeywords: "",
-    primaryReferenceImageId: null,
-    referenceNotes: "",
-    identityStrength: "balanced",
-    continuityStrength: "balanced",
-    worldProfileId: null,
-    worldProfile: null,
-    voiceEnabled: false,
-    voiceProvider: "",
-    voiceProfile: "",
-    voiceLanguage: "en",
-    voiceGender: "",
-    voiceStyle: "",
-    voicePitch: "",
-    voiceSpeed: "",
-    voiceEmotion: "",
-    voiceNotes: "",
-    performanceEnabled: false,
-    performanceStyle: "",
-    performanceEnergy: "",
-    performanceNotes: "",
-    mouthAssetId: null,
-    voiceAssetId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 function scene(overrides: Partial<StudioSceneDetail> & { order?: number } = {}): StudioSceneDetail {
@@ -163,7 +128,7 @@ function storyboard(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...overrides,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(version = MOTION_HANDOFF_PAYLOAD_VERSION): MotionHandoffPayload {
@@ -179,7 +144,7 @@ function minimalHandoff(version = MOTION_HANDOFF_PAYLOAD_VERSION): MotionHandoff
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],
@@ -417,7 +382,7 @@ describe("Studio V44 character blocking", () => {
 
   it("narrator scene background character looks at LOCATION", () => {
     const s = scene({
-      location: { id: "loc1", name: "Garden", description: "", referenceImageUrl: null },
+      location: studioLocationListItem({ id: "loc1", name: "Garden" }),
       characters: [
         character("c1", "Chef"),
         character("c2", "Garden"),

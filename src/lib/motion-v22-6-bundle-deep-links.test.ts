@@ -207,7 +207,7 @@ describe("Motion V22.6 — bundle version deep links and download alignment", ()
           finalVideoUrl: "https://cdn.example/journey-b-render.mp4",
         },
       ],
-    } as Parameters<typeof resolveProjectVideoDownload>[0];
+    } as unknown as Parameters<typeof resolveProjectVideoDownload>[0];
 
     const resolved = resolveProjectVideoDownload(
       project,
@@ -238,7 +238,7 @@ describe("Motion V22.6 — bundle version deep links and download alignment", ()
         },
       ],
       renderVersions: [],
-    } as Parameters<typeof resolveProjectVideoDownload>[0];
+    } as unknown as Parameters<typeof resolveProjectVideoDownload>[0];
 
     const resolved = resolveProjectVideoDownload(
       project,
@@ -321,7 +321,7 @@ describe("Motion V22.6 — bundle version deep links and download alignment", ()
           finalVideoUrl: "https://cdn.example/v1.mp4",
         },
       ],
-    } as Parameters<typeof resolveProjectVideoDownload>[0];
+    } as unknown as Parameters<typeof resolveProjectVideoDownload>[0];
 
     assert.equal(
       resolveProjectVideoDownload(project, undefined, undefined, undefined, undefined, "missing"),

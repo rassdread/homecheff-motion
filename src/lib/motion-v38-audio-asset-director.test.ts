@@ -12,7 +12,8 @@ import { selectVoiceAssetForProfile } from "@/lib/studio-voice-asset-selector";
 import { buildAssetReadiness } from "@/lib/studio-production-readiness";
 import { buildProductionChecklist } from "@/lib/studio-production-center";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
-import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
+import { fixture } from "@/test/studio-api-fixtures";
 import type {
   StudioLocationListItem,
   StudioSceneDetail,
@@ -127,7 +128,7 @@ function storyboard(
     updatedAt: new Date().toISOString(),
     scenes,
     ...overrides,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
@@ -143,7 +144,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],
@@ -157,7 +158,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
     overallCharacterConsistencyScore: 0,
     characterDriftWarnings: [],
     perSceneCharacterIdentityScores: [],
-    scenes: sceneIds.map((id, order) => ({
+    scenes: fixture<MotionHandoffScene[]>(sceneIds.map((id, order) => ({
       sceneId: id,
       order,
       title: `Scene ${order + 1}`,
@@ -208,7 +209,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
       selectedImageConsistencyScore: null,
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
-    })),
+    }))),
   };
 }
 

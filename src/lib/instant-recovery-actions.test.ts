@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { resolveInstantRecoveryActionVisibility } from "@/lib/instant-recovery-actions";
+import {
+  resolveInstantRecoveryActionVisibility,
+  type InstantRecoveryActionSnapshot,
+} from "@/lib/instant-recovery-actions";
+import { fixture } from "@/test/studio-api-fixtures";
 import { en } from "@/i18n/locales/en";
 import { nl } from "@/i18n/locales/nl";
 
@@ -41,16 +45,18 @@ describe("instant recovery action visibility", () => {
   });
 
   it("shows Video herstellen for overlay failure instead of text rerender", () => {
-    const visibility = resolveInstantRecoveryActionVisibility({
-      canRepairFinalVideo: false,
-      canRebuildFinalVideo: true,
-      canRetryOverlay: true,
-      canRetryMerge: false,
-      segmentsMergeFailed: false,
-      finalVideoUrl: null,
-      overlayFailed: true,
-      status: "failed_overlay",
-    });
+    const visibility = resolveInstantRecoveryActionVisibility(
+      fixture<InstantRecoveryActionSnapshot>({
+        canRepairFinalVideo: false,
+        canRebuildFinalVideo: true,
+        canRetryOverlay: true,
+        canRetryMerge: false,
+        segmentsMergeFailed: false,
+        finalVideoUrl: null,
+        overlayFailed: true,
+        status: "failed_overlay",
+      })
+    );
     assert.equal(visibility.showVideoRepair, true);
     assert.equal(visibility.showTextRerender, false);
   });

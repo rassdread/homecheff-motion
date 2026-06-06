@@ -27,7 +27,7 @@ describe("resolveProjectVideoDownload", () => {
         outputVideoUrl: "/en-stale.mp4",
       },
     ],
-  } as Parameters<typeof resolveProjectVideoDownload>[0];
+  } as unknown as Parameters<typeof resolveProjectVideoDownload>[0];
 
   it("returns cache-busted default export when no language is set", () => {
     const resolved = resolveProjectVideoDownload(baseProject);
@@ -59,7 +59,7 @@ describe("resolveProjectVideoDownload", () => {
           finalVideoUrl: "https://cdn.example/render-v1.mp4",
         },
       ],
-    } as Parameters<typeof resolveProjectVideoDownload>[0];
+    } as unknown as Parameters<typeof resolveProjectVideoDownload>[0];
     const resolved = resolveProjectVideoDownload(
       project,
       undefined,

@@ -47,7 +47,8 @@ function sceneReport(score: number, warnings: string[] = []): SceneConsistencyRe
       locationScore: 80,
       propScore: 80,
       worldScore: 80,
-      brandingScore: 80,
+      overallScore: score,
+      driftWarnings: warnings,
     },
     characterResults: [
       {
@@ -63,6 +64,13 @@ function sceneReport(score: number, warnings: string[] = []): SceneConsistencyRe
     worldResult: null,
     warnings,
     recommendations: [],
+    memoryReferences: {
+      characters: [{ id: chef.id, name: chef.name }],
+      location: null,
+      props: [],
+      world: null,
+    },
+    analysisMethod: "prompt_memory_alignment",
   };
 }
 
@@ -71,8 +79,16 @@ function timelineEntries(scores: Array<number | null>): CharacterIdentityTimelin
     sceneId: `scene-${order}`,
     sceneTitle: `Scene ${order + 1}`,
     order,
+    imageId: null,
     score,
-    status: score === null ? "needs_review" : score >= 85 ? "excellent" : score >= 70 ? "good" : "poor",
+    status:
+      score === null
+        ? null
+        : score >= 85
+          ? ("excellent" as const)
+          : score >= 70
+            ? ("good" as const)
+            : ("poor" as const),
     driftFlag: score !== null && score < 70,
     warnings: score !== null && score < 70 ? ["Chef hat not detected"] : [],
   }));
@@ -94,6 +110,8 @@ describe("studio character consistency engine V17", () => {
         name: chef.name,
         score: 90,
         warnings: [],
+        recommendations: [],
+        detectedElements: [],
         referenceCompared: true,
       },
       expectedInScene: true,
@@ -126,8 +144,8 @@ describe("studio character consistency engine V17", () => {
               id: chef.id,
               name: chef.name,
               role: chef.role,
-              description: chef.description,
-              personality: chef.personality,
+              description: "",
+              personality: "",
               referenceImageUrl: chef.referenceImageUrl,
               appearanceMemory: chef.appearanceMemory,
               personalityMemory: chef.personalityMemory,
@@ -156,8 +174,8 @@ describe("studio character consistency engine V17", () => {
               id: chef.id,
               name: chef.name,
               role: chef.role,
-              description: chef.description,
-              personality: chef.personality,
+              description: "",
+              personality: "",
               referenceImageUrl: chef.referenceImageUrl,
               appearanceMemory: chef.appearanceMemory,
               personalityMemory: chef.personalityMemory,
@@ -234,7 +252,7 @@ describe("studio character consistency engine V17", () => {
   });
 
   it("computeMovieReadinessScore drops tier when character identity is poor", () => {
-    const sb: StudioStoryboardDetail = {
+    const sb = {
       id: "sb-drift",
       ownerId: "u1",
       title: "Drift test",
@@ -277,7 +295,7 @@ describe("studio character consistency engine V17", () => {
               name: chef.name,
               slug: "chef",
               role: "mascot",
-              description: chef.description,
+              description: "",
               personality: "",
               referenceImageUrl: chef.referenceImageUrl,
               appearanceMemory: chef.appearanceMemory,
@@ -303,7 +321,7 @@ describe("studio character consistency engine V17", () => {
               id: "img-1",
               sceneId: "s1",
               status: "completed",
-              promptVersion: 1,
+              promptVersion: 3,
               generationVersion: 1,
               generatedPrompt: "Chef",
               imageUrl: "https://example.com/1.png",
@@ -356,7 +374,7 @@ describe("studio character consistency engine V17", () => {
               name: chef.name,
               slug: "chef",
               role: "mascot",
-              description: chef.description,
+              description: "",
               personality: "",
               referenceImageUrl: chef.referenceImageUrl,
               appearanceMemory: chef.appearanceMemory,
@@ -382,7 +400,7 @@ describe("studio character consistency engine V17", () => {
               id: "img-2",
               sceneId: "s2",
               status: "completed",
-              promptVersion: 1,
+              promptVersion: 3,
               generationVersion: 1,
               generatedPrompt: "Chef wrong",
               imageUrl: "https://example.com/2.png",
@@ -420,7 +438,7 @@ describe("studio character consistency engine V17", () => {
           updatedAt: new Date().toISOString(),
         },
       ],
-    };
+    } as unknown as StudioStoryboardDetail;
     const readiness = computeMovieReadinessScore(sb);
     assert.ok(readiness.averageCharacterIdentityScore !== null);
     assert.ok(readiness.characterDriftWarningCount > 0);
@@ -431,7 +449,7 @@ describe("studio character consistency engine V17", () => {
     const scenes = storyboardDetailToCharacterConsistencyScenes({
       id: "sb",
       scenes: [],
-    } as StudioStoryboardDetail);
+    } as unknown as StudioStoryboardDetail);
     assert.equal(scenes.length, 0);
   });
 

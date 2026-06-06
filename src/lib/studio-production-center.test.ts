@@ -25,9 +25,14 @@ import {
   resolveProductionQualityLabel,
 } from "@/lib/studio-production-score";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import {
+  studioCharacterListItem,
+  studioSceneDetail,
+  studioStoryboardDetail,
+} from "@/test/studio-api-fixtures";
 
 function scene(order: number): StudioSceneDetail {
-  return {
+  return studioSceneDetail({
     id: `scene-${order}`,
     storyboardId: "sb-1",
     order,
@@ -61,63 +66,24 @@ function scene(order: number): StudioSceneDetail {
       updatedAt: new Date().toISOString(),
     },
     characters: [
-      {
+      studioCharacterListItem({
         id: "c1",
-        ownerId: "u1",
         name: "Sergio",
-        slug: "sergio",
-        role: "lead",
-        description: "",
-        personality: "",
-        referenceImageUrl: "",
-        isMascot: false,
-        appearanceMemory: "",
-        personalityMemory: "",
-        continuityNotes: "",
         defaultClothing: "business casual",
-        defaultAccessories: "",
-        visualKeywords: "",
-        primaryReferenceImageId: null,
-        referenceNotes: "",
-        identityStrength: "strong",
-        continuityStrength: "strong",
-        worldProfileId: null,
-        worldProfile: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      }),
     ],
-    props: [],
-    selectedSceneImageId: null,
-    sceneImages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 function storyboard(scenes: StudioSceneDetail[], extra?: Partial<StudioStoryboardDetail>): StudioStoryboardDetail {
-  return {
-    id: "sb-1",
-    ownerId: "u1",
+  return studioStoryboardDetail({
     title: "Production Test",
     description: "A short brand story for validation.",
-    promptStyleProfile: "commercial",
-    directorProfile: "commercial",
     aiDirectorPrompt: "Premium commercial tone",
-    aiDirectorStyleStrength: "balanced",
-    voiceEnabled: true,
-    voiceLanguage: "en",
     voiceStyle: "warm",
-    voiceProfile: "warm_narrator",
-    narrationMode: "narrator",
-    voiceNarrationScript: "",
-    autoSelectImprovedImage: true,
-    sceneCount: scenes.length,
     scenes,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...extra,
-  };
+  });
 }
 
 describe("studio-production-center", () => {
@@ -144,7 +110,9 @@ describe("studio-production-center", () => {
   });
 
   it("buildProductionWarnings flags missing narration when voice enabled", () => {
-    const warnings = buildProductionWarnings(storyboard([scene(0), scene(1)]));
+    const warnings = buildProductionWarnings(
+      storyboard([scene(0), scene(1)], { voiceEnabled: true, voiceNarrationScript: "" })
+    );
     assert.ok(warnings.some((w) => w.code === "missing_narration"));
   });
 

@@ -14,6 +14,7 @@ import {
   validateStudioProjectImport,
 } from "@/lib/studio-project-metadata";
 import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
+import { promptVersionMetadata } from "@/test/motion-test-fixtures";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { PersistedWizardState } from "@/lib/instant-premium-wizard-storage";
@@ -25,11 +26,13 @@ function minimalHandoff(): MotionHandoffPayload {
     title: "Test board",
     description: "x".repeat(5000),
     promptStyleProfile: "commercial",
+    directorProfile: "commercial",
+    shotDiversityScore: 50,
     characterMemory: [],
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 72,
     driftWarnings: [],
@@ -60,13 +63,11 @@ function minimalHandoff(): MotionHandoffPayload {
         generatedPrompt: "LONG ".repeat(2000),
         stylePrompt: "style",
         continuityPrompt: "cont",
-        promptVersion: {
-          promptVersion: 1,
+        promptVersion: promptVersionMetadata({
           generatedAt: "2026-06-19T12:00:00.000Z",
           sceneId: "sc-1",
           generatedPrompt: "prompt",
-          styleProfile: "commercial",
-        },
+        }),
         studioContext: {
           source: "studio",
           storyboardId: "sb-test",
@@ -146,8 +147,12 @@ describe("studio motion intelligence persistence", () => {
   it("builds wizard import and prisma fields", () => {
     const intelligence = buildMotionStudioIntelligenceSnapshot(minimalHandoff());
     const state: PersistedWizardState = {
-      wizardDraftId: "d1",
-      stylePreset: "cinematic",
+      version: 1,
+      savedAt: new Date().toISOString(),
+      draftId: "d1",
+      step: 1,
+      stylePreset: "food_promo",
+      motionText: "",
       continuityStrength: "balanced",
       chips: [],
       lockedTextMode: true,
@@ -167,7 +172,7 @@ describe("studio motion intelligence persistence", () => {
         {
           sceneId: "sc-1",
           text: {
-            template: "classic",
+            template: "hero",
             transitionDurationSeconds: 5,
             durationSeconds: 5,
             heroText: "",
@@ -179,11 +184,22 @@ describe("studio motion intelligence persistence", () => {
             heroFinale: false,
             heroFinaleText: "",
             finaleFooter: "",
+            footerLines: [],
           },
           image: {
             id: "local-1",
             originalFileName: "a.jpg",
             remoteWorkingUrl: "https://example.com/a.jpg",
+            mimeType: "image/jpeg",
+            sizeBytes: 1024,
+            bakedText: {
+              enabled: false,
+              status: "none",
+              blocks: [],
+              exactText: "",
+              positionY: 0.12,
+              manualMode: false,
+            },
           },
           studioContext: {
             source: "studio",

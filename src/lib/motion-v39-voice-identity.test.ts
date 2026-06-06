@@ -16,38 +16,20 @@ import { buildProductionChecklist } from "@/lib/studio-production-center";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import { studioCharacterListItem } from "@/test/studio-api-fixtures";
+import { promptVersionMetadata } from "@/test/motion-test-fixtures";
 import { VOICE_IDENTITY_LANGUAGES } from "@/types/studio-voice-identity";
 
 function chefCharacter(overrides: Partial<StudioCharacterListItem> = {}): StudioCharacterListItem {
-  return {
+  return studioCharacterListItem({
     id: "char-chef",
-    ownerId: "u1",
     name: "Chef",
-    slug: "chef",
-    role: "lead",
-    description: "",
-    personality: "",
-    referenceImageUrl: "",
-    isMascot: false,
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: "",
-    defaultClothing: "",
-    defaultAccessories: "",
-    visualKeywords: "",
-    primaryReferenceImageId: null,
-    referenceNotes: "",
-    identityStrength: "strong",
-    continuityStrength: "strong",
-    worldProfileId: null,
-    worldProfile: null,
     voiceEnabled: true,
     voiceProvider: "elevenlabs",
     voiceProfile: "warm_narrator",
     voiceLanguage: "nl",
     voiceGender: "Warm Male",
     voiceDescription: "Warm Male",
-    voiceNotes: "",
     voiceLock: true,
     voiceProfilesByLanguage: {
       en: {
@@ -61,10 +43,8 @@ function chefCharacter(overrides: Partial<StudioCharacterListItem> = {}): Studio
         voiceDescription: "Warm Latino",
       },
     },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function scene(order: number, characters: StudioCharacterListItem[] = []): StudioSceneDetail {
@@ -152,7 +132,7 @@ function storyboard(
     updatedAt: new Date().toISOString(),
     scenes,
     ...overrides,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(): MotionHandoffPayload {
@@ -168,7 +148,7 @@ function minimalHandoff(): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],
@@ -217,7 +197,7 @@ function minimalHandoff(): MotionHandoffPayload {
         generatedPrompt: "",
         stylePrompt: "",
         continuityPrompt: "",
-        promptVersion: { version: 1, generatedAt: "", profile: "commercial" },
+        promptVersion: promptVersionMetadata({ generatedAt: "", generatedPrompt: "" }),
         selectedSceneImageId: null,
         selectedSceneImageUrl: null,
         selectedSceneImagePromptVersion: null,

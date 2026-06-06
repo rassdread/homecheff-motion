@@ -12,6 +12,7 @@ import {
 import { buildScenePromptFromInput } from "@/lib/studio-prompt-builder";
 import { sceneSnapshotToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import type { StoryboardConsistencyReport } from "@/types/studio-consistency";
+import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 
 const baseMemory = {
   characters: [
@@ -37,6 +38,7 @@ const baseMemory = {
   location: null,
   props: [],
   world: null,
+  continuityStrength: "strong" as const,
 };
 
 describe("studio correction engine V12", () => {
@@ -131,7 +133,9 @@ describe("studio correction engine V12", () => {
       storyboardId: "sb1",
       analyzedAt: new Date().toISOString(),
       overallScore: 70,
+      timeline: [],
       driftWarnings: [],
+      recommendations: [],
       sceneReports: [
         {
           sceneId: "s1",
@@ -162,6 +166,7 @@ describe("studio correction engine V12", () => {
     const snap = sceneSnapshotToPromptInput(
       {
         sceneId: "s1",
+        order: 0,
         title: "Test",
         description: "Desc",
         action: "walk",
@@ -175,7 +180,7 @@ describe("studio correction engine V12", () => {
         voice: "",
         music: "",
         notes: "",
-      },
+      } as SceneSnapshot,
       "commercial"
     );
     const base = buildScenePromptFromInput(snap);

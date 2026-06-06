@@ -63,7 +63,7 @@ describe("studio storyboard snapshots", () => {
           id: "img-1",
           sceneId: "scene-1",
           status: "completed",
-          promptVersion: 1,
+          promptVersion: 3,
           generationVersion: 1,
           generatedPrompt: "prompt",
           imageUrl: "https://example.com/scene.jpg",

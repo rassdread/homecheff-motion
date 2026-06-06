@@ -107,7 +107,7 @@ function storyboard(): StudioStoryboardDetail {
     props: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(): MotionHandoffPayload {
@@ -123,7 +123,7 @@ function minimalHandoff(): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],

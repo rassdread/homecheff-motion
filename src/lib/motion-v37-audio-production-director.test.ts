@@ -16,6 +16,9 @@ import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
 } from "@/types/studio-api";
+import type { MotionHandoffScene } from "@/types/motion-handoff-payload";
+import { studioCharacterListItem, studioSceneDetail } from "@/test/studio-api-fixtures";
+import { fixture } from "@/test/studio-api-fixtures";
 
 const marketLocation: StudioLocationListItem = {
   id: "loc-market",
@@ -36,34 +39,19 @@ const marketLocation: StudioLocationListItem = {
   updatedAt: new Date().toISOString(),
 };
 
-const chefCharacter: StudioCharacterListItem = {
+const chefCharacter = studioCharacterListItem({
   id: "char-chef",
-  ownerId: "u1",
   name: "Chef Marco",
   slug: "chef-marco",
   description: "Main character",
-  referenceImageUrl: "",
-  appearanceMemory: "",
-  personalityNotes: "",
-  continuityNotes: "",
-  continuityStrength: "strong",
   voiceEnabled: true,
   voiceProvider: "elevenlabs",
   voiceProfile: "warm_narrator",
   voiceLanguage: "en",
-  voiceGender: "",
-  voiceDescription: "",
-  voiceNotes: "",
-  voiceLock: false,
-  voiceProfilesByLanguage: null,
-  worldProfileId: null,
-  worldProfile: null,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
+});
 
 function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): StudioSceneDetail {
-  return {
+  return studioSceneDetail({
     id: `sc-${order}`,
     storyboardId: "sb-audio",
     order,
@@ -97,11 +85,8 @@ function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): Studi
     characters: [],
     props: [],
     sceneImages: [],
-    selectedSceneImageId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function storyboard(
@@ -143,7 +128,7 @@ function storyboard(
     updatedAt: new Date().toISOString(),
     scenes,
     ...overrides,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
@@ -159,7 +144,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],
@@ -173,7 +158,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
     overallCharacterConsistencyScore: 0,
     characterDriftWarnings: [],
     perSceneCharacterIdentityScores: [],
-    scenes: sceneIds.map((id, order) => ({
+    scenes: fixture<MotionHandoffScene[]>(sceneIds.map((id, order) => ({
       sceneId: id,
       order,
       title: `Scene ${order + 1}`,
@@ -224,7 +209,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
       selectedImageConsistencyScore: null,
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
-    })),
+    }))),
   };
 }
 

@@ -24,7 +24,7 @@ function chef(): StudioCharacterListItem {
     ownerId: "u1",
     name: "Chef",
     slug: "chef",
-    role: "lead",
+    role: "human",
     description: "Community chef",
     personality: "warm",
     referenceImageUrl: "https://example.com/chef.jpg",
@@ -148,7 +148,7 @@ function storyboard(scenes: StudioSceneDetail[]): StudioStoryboardDetail {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     scenes,
-  } as StudioStoryboardDetail;
+  } as unknown as StudioStoryboardDetail;
 }
 
 function minimalHandoff(): MotionHandoffPayload {
@@ -164,7 +164,7 @@ function minimalHandoff(): MotionHandoffPayload {
     locationMemory: null,
     propMemory: [],
     worldMemory: null,
-    continuityStrength: "balanced",
+    continuityStrength: "strong",
     consistencyReport: null,
     overallConsistencyScore: 0,
     driftWarnings: [],

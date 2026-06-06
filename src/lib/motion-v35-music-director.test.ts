@@ -16,10 +16,11 @@ import {
 import { buildProductionChecklist } from "@/lib/studio-production-center";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import { studioSceneDetail, studioStoryboardDetail } from "@/test/studio-api-fixtures";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
 function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): StudioSceneDetail {
-  return {
+  return studioSceneDetail({
     id: `sc-${order}`,
     storyboardId: "sb-music",
     order,
@@ -32,17 +33,8 @@ function scene(order: number, overrides: Partial<StudioSceneDetail> = {}): Studi
     cameraMovement: "static",
     sceneEnergy: order === 0 ? "calm" : order === 3 ? "intense" : "dynamic",
     transitionToNext: order === 2 ? "fade" : "cut",
-    durationSeconds: 5,
-    locationId: null,
-    location: null,
-    characters: [],
-    props: [],
-    sceneImages: [],
-    selectedSceneImageId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function storyboard(
@@ -50,32 +42,16 @@ function storyboard(
   overrides: Partial<StudioStoryboardDetail> = {}
 ): StudioStoryboardDetail {
   const scenes = Array.from({ length: sceneCount }, (_, i) => scene(i));
-  return {
+  return studioStoryboardDetail({
     id: "sb-music",
     ownerId: "user-1",
     title: "Music Director Demo",
-    description: "",
-    promptStyleProfile: "commercial",
-    directorProfile: "commercial",
-    aiDirectorPrompt: "",
-    aiDirectorStyleStrength: "balanced",
-    voiceEnabled: false,
-    voiceLanguage: "en",
-    voiceStyle: "",
-    voiceProfile: "",
-    narrationMode: "narrator",
-    voiceNarrationScript: "",
     musicEnabled: true,
-    musicStyle: "",
     musicIntensity: "balanced",
     musicNarrativeRole: "support_narrative",
-    musicNotes: "",
-    autoSelectImprovedImage: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
     scenes,
     ...overrides,
-  } as StudioStoryboardDetail;
+  });
 }
 
 function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
@@ -178,7 +154,7 @@ function minimalHandoff(sceneIds: string[]): MotionHandoffPayload {
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
     })),
-  } as MotionHandoffPayload;
+  } as unknown as MotionHandoffPayload;
 }
 
 describe("Studio V35 — Music Director", () => {
@@ -267,7 +243,7 @@ describe("Studio V35 — Music Director", () => {
     assert.equal(attached.sceneMusicCues?.length, 3);
     assert.ok(attached.musicNarrativeSummary?.includes("Scene"));
     assert.ok(attached.scenes[0]!.musicCue?.cueType);
-    assert.match(attached.scenes[0]!.studioContext.music, /intro|build|momentum|peak|resolution/);
+    assert.match(attached.scenes[0]!.studioContext.music ?? "", /intro|build|momentum|peak|resolution/);
   });
 
   it("buildMotionMusicHandoffPlan mirrors director plan for import summary", () => {

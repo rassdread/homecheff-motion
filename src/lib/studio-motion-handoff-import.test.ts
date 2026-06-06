@@ -61,7 +61,7 @@ const payload: MotionHandoffPayload = {
         sceneImageId: "img-1",
         sceneId: "scene-1",
         storyboardId: "sb-1",
-        promptVersion: 1,
+        promptVersion: 3,
         generationVersion: 3,
         imageUrl: "https://example.com/scene.jpg",
         thumbnailUrl: "https://example.com/scene-thumb.jpg",
@@ -94,7 +94,7 @@ const payload: MotionHandoffPayload = {
       selectedImageImprovementScore: null,
       selectedImageRecommended: false,
       promptVersion: {
-        promptVersion: 1,
+        promptVersion: 3,
         generatedAt: "2026-01-01T00:00:00.000Z",
         sceneId: "scene-1",
         generatedPrompt: "prompt",

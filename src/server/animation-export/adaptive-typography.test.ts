@@ -69,7 +69,6 @@ describe("adaptive typography V1", () => {
       placement: p,
       frameWidth: W,
       frameHeight: H,
-      textWidthFraction: 0.38,
     });
     assert.ok(result.lines.length >= 2);
     assert.ok(isSideZone(p.zoneId));
@@ -265,6 +264,7 @@ describe("accent-aware object placement", () => {
       objectDetections: [],
       combinedAvoidBoxes: [
         {
+          source: "object",
           label: "cell phone",
           confidence: 0.88,
           x: 0.55,

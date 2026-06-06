@@ -9,6 +9,7 @@ import {
   shouldUseFullComicStripMode,
 } from "@/lib/vidu-comic-strip-transitions";
 import { buildInstantVideoPrompt } from "@/lib/instant-premium-prompt";
+import { posterMotionSettings } from "@/test/motion-test-fixtures";
 import { buildCompactViduMotionPrompt, VIDU_PROMPT_MAX_CHARS } from "@/lib/vidu-prompt-budget";
 import { resolvePremiumPolishProfile } from "@/lib/premium-polish-settings";
 
@@ -99,8 +100,9 @@ describe("vidu comic strip world transitions", () => {
       stylePreset: "food_promo",
       duration: 8,
       aspectRatio: "9:16",
+      userIntent: null,
       selectedChips: [],
-      polishSettingsRaw: { version: 1, animationStyleId: "cartoon_animation" },
+      polishSettingsRaw: posterMotionSettings(),
       transitionOrder: 0,
       transitionTotal: 2,
     });

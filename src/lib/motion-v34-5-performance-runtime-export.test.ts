@@ -142,7 +142,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           durationSeconds: 2,
         },
       ],
-    } as unknown as MotionHandoffPayload;
+    } as unknown as unknown as MotionHandoffPayload;
 
     const plan = buildMotionPerformanceFramePlan({ handoff, videoDurationSeconds: 4 });
     const chefActive = plan.frames.filter((f) => f.time >= 0 && f.time < 2 && f.characterId === "c1");
@@ -192,7 +192,7 @@ describe("Studio V34.5 — performance runtime export", () => {
           durationSeconds: 4,
         },
       ],
-    } as unknown as MotionHandoffPayload;
+    } as unknown as unknown as MotionHandoffPayload;
 
     const plan = buildMotionPerformanceFramePlan({ handoff, videoDurationSeconds: 4 });
     assert.ok(plan.frames.every((f) => !f.activeSpeaker));
@@ -205,7 +205,7 @@ describe("Studio V34.5 — performance runtime export", () => {
       storyboardId: "sb",
       characterPerformanceProfiles: [],
       scenes: [],
-    } as unknown as MotionHandoffPayload;
+    } as unknown as unknown as MotionHandoffPayload;
     const plan = buildMotionPerformanceFramePlan({ handoff, videoDurationSeconds: 8 });
     assert.equal(plan.frames.length, 0);
     assert.equal(
@@ -235,7 +235,7 @@ describe("Studio V34.5 — performance runtime export", () => {
       ],
       scenes: [],
       voiceSegments: [{ sceneId: "sc-1", speaker: "Chef", text: "Hi", startSeconds: 0, endSeconds: 1 }],
-    } as unknown as MotionHandoffPayload;
+    } as unknown as unknown as MotionHandoffPayload;
     const plan = buildMotionPerformanceFramePlan({ handoff, videoDurationSeconds: 2 });
     assert.equal(plan.frames.length, 0);
   });
@@ -303,7 +303,7 @@ describe("Studio V34.5 — performance runtime export", () => {
         ],
         scenes: [],
         voiceSegments: [],
-      } as unknown as MotionHandoffPayload,
+      } as unknown as unknown as MotionHandoffPayload,
       videoDurationSeconds: 4,
       performanceApplied: true,
     });
@@ -336,7 +336,7 @@ describe("Studio V34.5 — performance runtime export", () => {
         voiceSegments: [],
         scenes: [{ sceneId: "s", title: "T", emotion: "mysterious_unknown", sceneEnergy: "wild", characters: [] }],
         characterPerformanceProfiles: [],
-      } as unknown as MotionHandoffPayload,
+      } as unknown as unknown as MotionHandoffPayload,
       profiles: [],
     });
     assert.ok(warnings.some((w) => w.code === "no_voice_segments"));

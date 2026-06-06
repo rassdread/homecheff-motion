@@ -13,7 +13,7 @@ const richScene: SceneSnapshot = {
     name: "Rotterdam",
     category: "city",
     description: "City",
-    referenceImageUrl: null,
+    referenceImageUrl: "",
   },
   characters: [
     {
@@ -22,7 +22,7 @@ const richScene: SceneSnapshot = {
       role: "mascot",
       description: "",
       personality: "",
-      referenceImageUrl: null,
+      referenceImageUrl: "",
     },
   ],
   props: [],

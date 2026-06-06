@@ -143,7 +143,7 @@ describe("studio AI director V26", () => {
         sceneEnergy: "",
         camera: "",
       })),
-    } as unknown as StudioStoryboardDetail;
+    } as unknown as unknown as StudioStoryboardDetail;
     const report = buildDirectorQualityReport(storyboard);
     assert.ok(typeof report.directorQualityScore === "number");
     assert.ok(typeof report.styleConsistencyScore === "number");

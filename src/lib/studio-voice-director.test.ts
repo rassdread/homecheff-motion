@@ -19,56 +19,38 @@ import {
 } from "@/lib/studio-voice-script-builder";
 import { analyzeVoiceDirector, computeVoiceScore } from "@/lib/studio-voice-director";
 import { planVoiceTiming } from "@/lib/studio-voice-timing";
+import { studioSceneDetail, studioStoryboardDetail } from "@/test/studio-api-fixtures";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
 function scene(order: number, partial?: Partial<StudioSceneDetail>): StudioSceneDetail {
-  return {
+  return studioSceneDetail({
     id: `scene-${order}`,
-    storyboardId: "sb-1",
     order,
     title: partial?.title ?? `Scene ${order + 1}`,
     description: partial?.description ?? "Team collaborates in a bright office.",
     action: partial?.action ?? "",
     emotion: partial?.emotion ?? "hopeful",
-    camera: "",
-    shotType: "medium",
-    cameraMovement: "static",
-    sceneEnergy: "neutral",
-    transitionToNext: "",
     durationSeconds: partial?.durationSeconds ?? 5,
-    locationId: null,
     location: partial?.location ?? null,
     characters: partial?.characters ?? [],
-    props: [],
-    selectedSceneImageId: null,
-    sceneImages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    ...partial,
+  });
 }
 
 function storyboard(scenes: StudioSceneDetail[], voice?: Partial<StudioStoryboardDetail>): StudioStoryboardDetail {
-  return {
-    id: "sb-1",
-    ownerId: "u1",
+  return studioStoryboardDetail({
     title: "HomeCheff Journey",
     description: "A founder story about building community through food.",
-    promptStyleProfile: "commercial",
-    directorProfile: "commercial",
     aiDirectorPrompt: "Like an Apple commercial",
-    aiDirectorStyleStrength: "balanced",
     voiceEnabled: voice?.voiceEnabled ?? true,
     voiceLanguage: voice?.voiceLanguage ?? "en",
     voiceStyle: voice?.voiceStyle ?? "warm",
     voiceProfile: voice?.voiceProfile ?? "warm_narrator",
     narrationMode: voice?.narrationMode ?? "narrator",
     voiceNarrationScript: voice?.voiceNarrationScript ?? "",
-    autoSelectImprovedImage: true,
-    sceneCount: scenes.length,
     scenes,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+    ...voice,
+  });
 }
 
 describe("studio-voice-director", () => {
