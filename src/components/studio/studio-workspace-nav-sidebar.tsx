@@ -42,7 +42,7 @@ export function StudioWorkspaceNavSidebar({ activeNav, onNavChange }: Props) {
           key={item.id}
           type="button"
           onClick={() => onNavChange(item.id)}
-          className={`rounded-lg px-3 py-2 text-left text-xs font-semibold transition ${
+          className={`min-h-11 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition lg:min-h-0 lg:py-2 lg:text-xs ${
             activeNav === item.id
               ? "bg-[#0067B1]/10 text-[#0067B1]"
               : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"

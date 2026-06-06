@@ -11,7 +11,7 @@ const FEATURE_CARDS = [
   {
     titleKey: "studio.workspace.label" as const,
     descriptionKey: "studio.workspace.featureDescription" as const,
-    href: "/studio/storyboards",
+    href: "/studio/workspace",
   },
   {
     titleKey: "studio.feature.characters.title" as const,

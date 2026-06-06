@@ -14,6 +14,7 @@ import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { brand } from "@/lib/brand";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
@@ -242,7 +243,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         : null}
 
         {loading ?
-          <p className="px-6 py-12 text-sm text-zinc-600">{t("instant.loading")}</p>
+          <WorkspaceLoadingSkeleton />
         : !storyboard ?
           null
         : (

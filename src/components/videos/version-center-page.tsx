@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { VideoPreview } from "@/components/ui/video-preview";
+import {
+  MotionEmptyState,
+  VersionListSkeleton,
+} from "@/components/ui/motion-studio-primitives";
 import { VersionCenterComparePanel } from "@/components/videos/version-center-compare-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
@@ -26,7 +30,7 @@ function VersionStatusBadge({ status, isDefault }: { status: string; isDefault?:
   const normalized = status.toLowerCase();
   const className =
     normalized === "completed"
-      ? "bg-emerald-100 text-emerald-900"
+      ? "bg-[#006D52]/10 text-[#006D52]"
       : normalized === "failed"
         ? "bg-red-100 text-red-900"
         : normalized === "running" || normalized === "rendering"
@@ -123,7 +127,7 @@ function VersionCenterRowCard({
             <Link
               href={row.href}
               prefetch={false}
-              className="rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-3 py-1.5 text-xs font-semibold text-[#006D52] hover:bg-[#006D52]/10"
+              className="inline-flex min-h-11 items-center rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-4 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/10"
             >
               {t("versions.center.open")}
             </Link>
@@ -134,7 +138,7 @@ function VersionCenterRowCard({
                   languageExportId: row.languageExportId,
                   languageCode: row.languageCode,
                 })}
-                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="inline-flex min-h-11 items-center rounded-full border border-zinc-200 px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 {t("versions.center.download")}
               </a>
@@ -147,7 +151,7 @@ function VersionCenterRowCard({
                     : `/videos/${row.projectId}/edit-version`
                 }
                 prefetch={false}
-                className="rounded-full border border-[#0067B1]/30 px-3 py-1.5 text-xs font-semibold text-[#0067B1] hover:bg-[#0067B1]/5"
+                className="inline-flex min-h-11 items-center rounded-full border border-[#0067B1]/30 px-4 text-sm font-semibold text-[#0067B1] hover:bg-[#0067B1]/5"
               >
                 {t("versions.center.openEditor")}
               </Link>
@@ -157,7 +161,7 @@ function VersionCenterRowCard({
                 type="button"
                 disabled={restoreBusy}
                 onClick={() => void restore()}
-                className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-950 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center rounded-full border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-950 disabled:opacity-50"
               >
                 {restoreBusy ? t("button.loading") : t("versions.center.restore")}
               </button>
@@ -260,7 +264,7 @@ export function VersionCenterPage() {
         </p>
 
         {loading ?
-          <p className="text-sm text-zinc-600">{t("instant.loading")}</p>
+          <VersionListSkeleton />
         : null}
         {error ?
           <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -269,9 +273,13 @@ export function VersionCenterPage() {
         : null}
 
         {!loading && !error && visible.length === 0 ?
-          <p className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-600">
-            {t("versions.center.empty")}
-          </p>
+          <MotionEmptyState
+            titleKey="versions.center.emptyTitle"
+            hintKey="versions.center.emptyHint"
+            ctaKey="versions.center.emptyCta"
+            ctaHref={`/videos/${id}`}
+            icon="🎬"
+          />
         : null}
 
         <div className="space-y-4">

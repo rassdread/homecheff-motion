@@ -84,15 +84,15 @@ function barTone(
   }
   if (stage === "completed") {
     return {
-      track: "bg-emerald-100",
-      fill: "bg-emerald-500",
+      track: "bg-[#006D52]/10",
+      fill: "bg-[#006D52]",
       stripe: false,
     };
   }
   if (isActive) {
     return {
-      track: "bg-sky-100",
-      fill: "bg-gradient-to-r from-emerald-500 via-sky-500 to-emerald-400",
+      track: "bg-[#0067B1]/10",
+      fill: "bg-gradient-to-r from-[#006D52] via-[#0067B1] to-[#006D52]",
       stripe: true,
     };
   }
@@ -251,7 +251,7 @@ export function InstantFinalProgressPanel({
                   aria-hidden
                 />
               ) : isCompleted ? (
-                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-[#006D52]" aria-hidden />
               ) : isFailed ? (
                 <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden />
               ) : (

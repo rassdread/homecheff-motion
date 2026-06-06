@@ -30,7 +30,8 @@ export function StudioWorkspaceSceneSidebar({
           <button
             type="button"
             onClick={onAddScene}
-            className="rounded-full bg-[#006D52] px-2.5 py-0.5 text-[10px] font-semibold text-white"
+            aria-label={t("studio.workspace.addScene")}
+            className="flex min-h-11 min-w-11 items-center justify-center rounded-full bg-[#006D52] text-lg font-semibold leading-none text-white"
           >
             +
           </button>
@@ -38,7 +39,10 @@ export function StudioWorkspaceSceneSidebar({
       </div>
       <ul className="flex-1 overflow-y-auto p-2">
         {scenes.length === 0 ?
-          <li className="px-2 py-4 text-xs text-zinc-500">{t("studio.storyboards.noScenes")}</li>
+          <li className="px-2 py-6 text-center">
+            <p className="text-sm font-medium text-zinc-800">{t("studio.workspace.emptyScenesTitle")}</p>
+            <p className="mt-1 text-xs text-zinc-500">{t("studio.workspace.emptyScenesHint")}</p>
+          </li>
         : scenes.map((scene, index) => {
             const selected = scene.id === activeSceneId;
             const thumb =

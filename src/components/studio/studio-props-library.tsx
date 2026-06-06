@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { CardGridSkeleton } from "@/components/ui/motion-studio-primitives";
 import { StudioPropCard } from "@/components/studio/studio-prop-card";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
@@ -106,9 +107,9 @@ export function StudioPropsLibrary() {
             </p>
           ) : null}
 
-          {loading ? (
-            <p className="mt-10 text-sm text-zinc-500">{t("button.loading")}</p>
-          ) : filtered.length === 0 ? (
+          {loading ?
+            <CardGridSkeleton count={3} />
+          : filtered.length === 0 ? (
             <div className="mt-10 rounded-3xl border border-dashed border-zinc-200 bg-white/80 px-8 py-14 text-center">
               <h2 className="text-lg font-semibold text-zinc-900">
                 {search.trim() ? t("studio.props.emptySearch") : t("studio.props.emptyTitle")}

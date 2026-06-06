@@ -40,7 +40,7 @@ export function StudioStoryboardCard({
         <Link
           href={studioWorkspaceHref(storyboard.id)}
           prefetch={false}
-          className="rounded-full bg-[#006D52] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          className="inline-flex min-h-11 items-center rounded-full bg-[#006D52] px-4 text-xs font-semibold text-white hover:opacity-90"
         >
           {t("studio.storyboards.action.open")}
         </Link>
@@ -49,7 +49,7 @@ export function StudioStoryboardCard({
             <Link
               href={`/studio/storyboards/${storyboard.id}/edit`}
               prefetch={false}
-              className="rounded-full border border-[#0067B1]/40 px-3 py-1.5 text-xs font-semibold text-[#0067B1] hover:bg-[#0067B1]/5"
+              className="inline-flex min-h-11 items-center rounded-full border border-[#0067B1]/40 px-4 text-xs font-semibold text-[#0067B1] hover:bg-[#0067B1]/5"
             >
               {t("studio.storyboards.action.edit")}
             </Link>
@@ -57,7 +57,7 @@ export function StudioStoryboardCard({
               type="button"
               disabled={busy}
               onClick={() => onDelete(storyboard.id)}
-              className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center rounded-full border border-red-200 px-4 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
             >
               {busy ? t("button.loading") : t("studio.storyboards.action.delete")}
             </button>

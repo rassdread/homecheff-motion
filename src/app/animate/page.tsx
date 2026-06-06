@@ -242,20 +242,20 @@ export default function AnimatePage() {
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:px-10">
-        {authSession.resolved && authSession.user ? (
+        {authSession.resolved &&
+        authSession.user &&
+        (authSession.user.role === "admin" || authSession.user.role === "power") ? (
           <div
-            className="mx-auto mb-5 max-w-3xl rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm sm:px-4 sm:text-sm"
+            className="mx-auto mb-5 max-w-3xl rounded-lg border border-[#006D52]/20 bg-white px-3 py-2 text-xs text-zinc-700 shadow-sm sm:px-4 sm:text-sm"
             role="status"
           >
             {authSession.user.role === "admin"
               ? t("animate.mode.admin")
-              : authSession.user.role === "power"
-                ? t("animate.mode.power")
-                : t("animate.mode.user")}
+              : t("animate.mode.power")}
           </div>
         ) : null}
       <div className="mx-auto max-w-3xl">
-        <p className="text-sm font-semibold text-emerald-700">{brand.productName}</p>
+        <p className="text-sm font-semibold text-[#006D52]">{brand.productName}</p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           {t("animate.title")}
         </h1>
@@ -922,12 +922,6 @@ export default function AnimatePage() {
         </div>
       </AppCard>
 
-      {projectStatus === "rendering" ? (
-        <AppCard className="mx-auto mt-8 max-w-3xl">
-          <h2 className="text-lg font-semibold">{t("animate.export.title")}</h2>
-          <p className="mt-2 text-sm text-zinc-600">{t(exportPhaseLabelKey)}</p>
-        </AppCard>
-      ) : null}
       {projectStatus === "completed" ? (
         <AppCard className="mx-auto mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold">{t("animate.completed.title")}</h2>

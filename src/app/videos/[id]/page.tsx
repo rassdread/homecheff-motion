@@ -86,6 +86,7 @@ import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voi
 import { ProjectVideoCostCard } from "@/components/videos/project-video-cost-card";
 import { ProjectDetailSection } from "@/components/videos/project-detail-section";
 import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
+import { PageHeaderSkeleton } from "@/components/ui/motion-studio-primitives";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
 
 function presetTitleKey(presetId: string): TranslationKey {
@@ -901,19 +902,13 @@ export default function VideoDetailPage() {
   }
 
   if (loading) {
-    return (
-      <main className="mx-auto w-full max-w-3xl px-6 py-10 sm:px-10">
-        <p className="text-sm text-zinc-500">{t("videos.processing")}</p>
-      </main>
-    );
+    return <PageHeaderSkeleton />;
   }
 
   if (error || !detail) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-10 sm:px-10">
-        <p className="text-sm text-red-700">
-          {t("videos.error")}: {error ?? "—"}
-        </p>
+        <p className="text-sm text-red-700">{t("videos.error")}</p>
         <Link href="/videos" prefetch={false} className="mt-6 inline-block text-sm font-medium text-zinc-800 underline">
           {t("videos.title")}
         </Link>

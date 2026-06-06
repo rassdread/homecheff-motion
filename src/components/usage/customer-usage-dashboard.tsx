@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
+import { MotionEmptyState } from "@/components/ui/motion-studio-primitives";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type { CustomerUsageReport } from "@/types/customer-usage";
@@ -63,7 +64,7 @@ export function CustomerUsageDashboard({
       setFilter(nextFilter);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("usage.loadError"));
+      setError(t("usage.loadError"));
     } finally {
       setLoading(false);
     }
@@ -88,9 +89,9 @@ export function CustomerUsageDashboard({
             type="button"
             onClick={() => void load(f)}
             disabled={loading}
-            className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-medium sm:min-h-0 sm:py-1.5 ${
+            className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-medium ${
               filter === f ?
-                "border-emerald-300 bg-emerald-50 text-emerald-900"
+                "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
               : "border-zinc-200 bg-white text-zinc-700"
             }`}
           >
@@ -215,7 +216,17 @@ export function CustomerUsageDashboard({
             </table>
             <p className="mt-2 text-[11px] text-zinc-500">{t("usage.estimatedNote")}</p>
           </div>
-        : <p className="mt-4 text-sm text-zinc-600">{t("usage.empty")}</p>}
+        : (
+          <div className="mt-4">
+            <MotionEmptyState
+              titleKey="usage.emptyTitle"
+              hintKey="usage.emptyHint"
+              ctaKey="usage.emptyCta"
+              ctaHref="/animate/instant"
+              icon="✨"
+            />
+          </div>
+        )}
       </AppCard>
     </div>
   );

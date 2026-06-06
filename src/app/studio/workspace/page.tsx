@@ -3,6 +3,7 @@
 import { Suspense, use } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { StudioWorkspaceShell } from "@/components/studio/studio-workspace-shell";
 import { useActiveTranslator } from "@/i18n/client";
 
@@ -35,13 +36,10 @@ function StudioWorkspaceContent() {
 
 export default function StudioWorkspacePage({ params }: PageProps) {
   use(params);
-  const t = useActiveTranslator();
 
   return (
     <Suspense
-      fallback={
-        <main className="px-6 py-16 text-sm text-zinc-600">{t("instant.loading")}</main>
-      }
+      fallback={<WorkspaceLoadingSkeleton />}
     >
       <StudioWorkspaceContent />
     </Suspense>

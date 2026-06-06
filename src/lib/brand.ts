@@ -1,7 +1,7 @@
 export const brand = {
   productName: "HomeCheff Motion",
   shortName: "HomeCheff",
-  accentGradient: "from-emerald-500 via-green-500 to-sky-500",
+  accentGradient: "from-[#006D52] via-[#007a5c] to-[#0067B1]",
   /** Solid page wash (matches `globals.css` body) — avoids scroll compositing glitches vs gradients. */
   softGradientBg: "bg-[#f7fbf8]",
   /** HomeCheff Studio brand colors */

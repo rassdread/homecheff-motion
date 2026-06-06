@@ -28,7 +28,7 @@ const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
     id: "homegarden",
     nameKey: "landing.ecosystem.homegarden.name",
     taglineKey: "landing.ecosystem.homegarden.tagline",
-    color: "#2d6a4f",
+    color: brand.studioGreen,
     comingSoon: true,
   },
   {
@@ -136,13 +136,13 @@ export function HomeEcosystemPage() {
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <section className="mx-auto w-full max-w-6xl px-6 pb-8 pt-12 sm:px-10 sm:pb-12 sm:pt-16">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mx-auto mb-6 flex w-fit items-center gap-3 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2">
-            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-emerald-100 bg-white">
+          <div className="mx-auto mb-6 flex w-fit items-center gap-3 rounded-full border border-[#006D52]/20 bg-[#006D52]/5 px-4 py-2">
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-[#006D52]/20 bg-white">
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-90`}
               />
             </div>
-            <p className="text-sm font-semibold tracking-wide text-emerald-700">{brand.shortName}</p>
+            <p className="text-sm font-semibold tracking-wide text-[#006D52]">{brand.shortName}</p>
           </div>
 
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl">
@@ -157,9 +157,9 @@ export function HomeEcosystemPage() {
               {t("landing.hero.ctaPrimary")}
             </GradientButton>
             <Link
-              href="/create"
+              href="#showcase"
               prefetch={false}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-[#0067B1]/30 bg-[#0067B1]/5 px-6 py-3 text-sm font-semibold text-[#0067B1] transition-colors hover:bg-[#0067B1]/10"
             >
               {t("landing.hero.ctaSecondary")}
             </Link>
@@ -173,7 +173,7 @@ export function HomeEcosystemPage() {
         </div>
       </section>
 
-      <section className="border-y border-emerald-100/80 bg-white/60 py-14 sm:py-16">
+      <section id="showcase" className="scroll-mt-20 border-y border-[#006D52]/10 bg-white/60 py-14 sm:py-16">
         <div className="mx-auto w-full max-w-6xl px-6 sm:px-10">
           <h2 className="text-center text-2xl font-bold text-zinc-900 sm:text-3xl">
             {t("landing.showcase.title")}
@@ -201,7 +201,7 @@ export function HomeEcosystemPage() {
               bodyKey="landing.showcase.creator.body"
               ctaKey="landing.showcase.creator.cta"
               href="/videos"
-              accent="#0f766e"
+              accent={brand.studioBlue}
             />
           </div>
         </div>
@@ -259,7 +259,7 @@ export function HomeEcosystemPage() {
               <ul className="space-y-2 text-sm text-zinc-600">
                 {(["highlight1", "highlight2", "highlight3"] as const).map((key) => (
                   <li key={key} className="flex items-start gap-2">
-                    <span className="mt-1 text-emerald-600" aria-hidden>
+                    <span className="mt-1 text-[#006D52]" aria-hidden>
                       ✓
                     </span>
                     {t(`landing.flow.${key}`)}
@@ -271,7 +271,7 @@ export function HomeEcosystemPage() {
         </AppCard>
       </section>
 
-      <section className="border-t border-emerald-100/80 bg-white/40 py-14 sm:py-16">
+      <section className="border-t border-[#006D52]/10 bg-white/40 py-14 sm:py-16">
         <div className="mx-auto w-full max-w-6xl px-6 text-center sm:px-10">
           <h2 className="text-2xl font-bold text-zinc-900 sm:text-3xl">{t("landing.bottomCta.title")}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600 sm:text-base">
