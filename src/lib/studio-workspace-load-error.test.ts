@@ -25,7 +25,7 @@ test("resolveStudioWorkspaceLoadFailure maps access-control network errors", () 
   );
   assert.equal(failure?.kind, "network");
   assert.equal(failure?.accessControl, true);
-  assert.equal(failure?.message, "blocked");
+  assert.equal(failure?.message, "fallback");
 });
 
 test("resolveStudioWorkspaceLoadFailure maps 401 to auth", () => {

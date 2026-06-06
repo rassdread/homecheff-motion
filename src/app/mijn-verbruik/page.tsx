@@ -22,8 +22,8 @@ export default async function MijnVerbruikPage() {
       rows,
       filter: "last30Days" as const,
     };
-  } catch (err) {
-    initialError = err instanceof Error ? err.message : t("usage.loadError");
+  } catch {
+    initialError = t("usage.loadError");
   }
 
   return (

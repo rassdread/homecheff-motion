@@ -17,11 +17,8 @@ export function resolveStudioWorkspaceLoadFailure(
   }
 
   if (storyboardRes.networkError) {
-    const message =
-      (storyboardRes.data as ErrorPayload).error ??
-      (storyboardRes.accessControl
-        ? "Network or session blocked this request. Stay on motion.homecheff.eu, sign in again, and retry."
-        : fallbackMessage);
+    const raw = (storyboardRes.data as ErrorPayload).error;
+    const message = raw && !storyboardRes.accessControl ? raw : fallbackMessage;
     return {
       kind: "network",
       accessControl: Boolean(storyboardRes.accessControl),

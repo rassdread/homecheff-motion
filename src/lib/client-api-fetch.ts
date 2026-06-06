@@ -68,7 +68,7 @@ export async function fetchSameOriginJson<T>(
     const aborted = isAbortLikeError(error);
     const accessControl = isAccessControlLikeError(error);
     const hint = accessControl
-      ? "Network or CORS blocked this request. Stay on the same site you logged in on and retry."
+      ? "We could not reach the server. Check your connection, stay on motion.homecheff.eu, and try again."
       : message;
     return {
       ok: false,

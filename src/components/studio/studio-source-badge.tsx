@@ -2,6 +2,8 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
+import { isStudioProductionModeEnabled } from "@/lib/studio-production-mode-flag";
 
 export type StudioSourceBadgeKind =
   | "studio_source"
@@ -30,9 +32,13 @@ type Props = {
 
 export function StudioSourceBadge({ kind, className = "" }: Props) {
   const t = useActiveTranslator();
+  const [advanced] = useStudioAdvancedFeatures();
+  if (isStudioProductionModeEnabled() && !advanced) {
+    return null;
+  }
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${BADGE_STYLE[kind]} ${className}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${BADGE_STYLE[kind]} ${className}`}
     >
       {t(BADGE_I18N[kind])}
     </span>
