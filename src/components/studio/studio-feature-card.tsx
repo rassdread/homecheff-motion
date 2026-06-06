@@ -13,7 +13,8 @@ type StudioFeatureCardProps = {
     | "studio.feature.worlds.title"
     | "studio.feature.storyboards.title"
     | "studio.feature.assets.title"
-    | "studio.feature.providers.title";
+    | "studio.feature.providers.title"
+    | "studio.workspace.label";
   descriptionKey:
     | "studio.feature.characters.description"
     | "studio.feature.locations.description"
@@ -21,7 +22,8 @@ type StudioFeatureCardProps = {
     | "studio.feature.worlds.description"
     | "studio.feature.storyboards.description"
     | "studio.feature.assets.description"
-    | "studio.feature.providers.description";
+    | "studio.feature.providers.description"
+    | "studio.workspace.featureDescription";
   href: string;
 };
 

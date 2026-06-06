@@ -64,6 +64,8 @@ export const nl = {
   "studio.workspace.missingStoryboard": "Kies een storyboard",
   "studio.workspace.missingStoryboardHint":
     "Open Workspace vanuit een storyboard of voeg ?storyboardId= toe aan de URL.",
+  "studio.workspace.featureDescription":
+    "Pixar-style scene workspace met Director V2, inspector en assets sidebar.",
   "studio.workspace.inspector.storyHealth": "Story health",
   "studio.workspace.inspector.readinessScore": "Productieready",
   "studio.workspace.inspector.consistency": "Consistentie",

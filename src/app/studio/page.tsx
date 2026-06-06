@@ -9,6 +9,11 @@ import { brand } from "@/lib/brand";
 
 const FEATURE_CARDS = [
   {
+    titleKey: "studio.workspace.label" as const,
+    descriptionKey: "studio.workspace.featureDescription" as const,
+    href: "/studio/storyboards",
+  },
+  {
     titleKey: "studio.feature.characters.title" as const,
     descriptionKey: "studio.feature.characters.description" as const,
     href: "/studio/characters",

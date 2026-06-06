@@ -67,6 +67,8 @@ export const en: LocaleSchema = {
   "studio.workspace.missingStoryboard": "Choose a storyboard",
   "studio.workspace.missingStoryboardHint":
     "Open Workspace from a storyboard or add ?storyboardId= to the URL.",
+  "studio.workspace.featureDescription":
+    "Pixar-style scene workspace with Director V2, inspector, and assets sidebar.",
   "studio.workspace.inspector.storyHealth": "Story health",
   "studio.workspace.inspector.readinessScore": "Production readiness",
   "studio.workspace.inspector.consistency": "Consistency",

@@ -10,6 +10,7 @@ import {
 } from "@/components/studio/studio-workspace-nav-sidebar";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
+import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -184,11 +185,11 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   const handleNavChange = (id: StudioWorkspaceNavId) => {
     setActiveNav(id);
-    if (id === "scenes") {
+    if (id !== "scenes" && typeof window !== "undefined" && window.innerWidth < 1024) {
+      setAssetsDrawerOpen(true);
+    } else {
       setAssetsDrawerOpen(false);
-      return;
     }
-    setAssetsDrawerOpen(true);
   };
 
   const selectScene = (sceneId: string) => {
@@ -261,9 +262,14 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   canModify={canModify}
                 />
               : (
-                <p className="px-3 py-4 text-xs text-zinc-500">
-                  {t("studio.workspace.assetsDrawerHint")}
-                </p>
+                <StudioWorkspaceAssetsList
+                  tab={activeNav}
+                  characters={characters}
+                  locations={locations}
+                  props={props}
+                  storyboardId={storyboardId}
+                  onNavigate={() => setActiveNav("scenes")}
+                />
               )}
             </aside>
 
