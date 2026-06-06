@@ -4,10 +4,29 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import type { CustomerUsageReport } from "@/types/customer-usage";
 import { formatPriceEur } from "@/lib/format-price-eur";
 
 type Filter = CustomerUsageReport["filter"];
+
+const RENDER_TYPE_LABEL_KEYS: Record<string, TranslationKey> = {
+  classic: "usage.renderType.classic",
+  concept_render: "usage.renderType.conceptRender",
+  full_export: "usage.renderType.fullExport",
+  full_rerender: "usage.renderType.fullRerender",
+  language_export: "usage.renderType.languageExport",
+  story_mode: "usage.renderType.storyMode",
+  text_rerender: "usage.renderType.textRerender",
+  transition_mode: "usage.renderType.transitionMode",
+};
+
+const ROW_STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
+  completed: "usage.rowStatus.completed",
+  failed: "usage.rowStatus.failed",
+  pending: "usage.rowStatus.pending",
+  processing: "usage.rowStatus.processing",
+};
 
 const FILTERS: Filter[] = ["today", "last7Days", "last30Days", "allTime"];
 
@@ -69,7 +88,7 @@ export function CustomerUsageDashboard({
             type="button"
             onClick={() => void load(f)}
             disabled={loading}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+            className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-medium sm:min-h-0 sm:py-1.5 ${
               filter === f ?
                 "border-emerald-300 bg-emerald-50 text-emerald-900"
               : "border-zinc-200 bg-white text-zinc-700"
@@ -146,7 +165,11 @@ export function CustomerUsageDashboard({
                         "—"
                       )}
                     </td>
-                    <td className="py-2 pr-3">{row.renderType}</td>
+                    <td className="py-2 pr-3">
+                      {RENDER_TYPE_LABEL_KEYS[row.renderType]
+                        ? t(RENDER_TYPE_LABEL_KEYS[row.renderType])
+                        : row.renderType.replace(/_/g, " ")}
+                    </td>
                     <td className="py-2 pr-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
@@ -157,7 +180,9 @@ export function CustomerUsageDashboard({
                               : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
-                        {row.status}
+                        {ROW_STATUS_LABEL_KEYS[row.status]
+                          ? t(ROW_STATUS_LABEL_KEYS[row.status])
+                          : row.status}
                       </span>
                     </td>
                     <td className="py-2 pr-3">
