@@ -192,6 +192,7 @@ export function studioStoryboardDetail(
     audioNotes: partial.audioNotes ?? "",
     audioAssetsEnabled: partial.audioAssetsEnabled ?? false,
     audioAssetNotes: partial.audioAssetNotes ?? "",
+    audioAssetLinks: partial.audioAssetLinks ?? { version: 1 },
     autoSelectImprovedImage: partial.autoSelectImprovedImage ?? true,
     sceneCount: partial.sceneCount ?? scenes.length,
     createdAt: partial.createdAt ?? NOW,

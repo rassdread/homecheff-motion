@@ -154,7 +154,7 @@ export type DirectorProposalFieldChange = {
 
 export type DirectorProposalMemorySuggestion = {
   id: string;
-  kind: "character" | "location" | "prop" | "world" | "voice" | "style";
+  kind: "character" | "location" | "prop" | "world" | "voice" | "style" | "audio";
   issueKey: string;
   memoryBasisKeys: string[];
   memoryBasisParams?: Record<string, string>[];

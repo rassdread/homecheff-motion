@@ -17,6 +17,7 @@ import { mapStudioLocationToListItem, toLocationSnapshot } from "@/server/studio
 import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-prop-service";
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
 import { normalizeAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
+import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-asset-links";
 import {
   normalizeStudioNarrationMode,
   normalizeStudioVoiceProfileId,
@@ -234,6 +235,7 @@ export function mapStudioStoryboardToListItem(
     audioNotes: row.audioNotes ?? "",
     audioAssetsEnabled: row.audioAssetsEnabled ?? true,
     audioAssetNotes: row.audioAssetNotes ?? "",
+    audioAssetLinks: parseStoryboardAudioAssetLinks(row.audioAssetMetadataJson),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: row._count.scenes,
     createdAt: row.createdAt.toISOString(),
@@ -277,6 +279,7 @@ export function mapStudioStoryboardToDetail(
     audioNotes: row.audioNotes ?? "",
     audioAssetsEnabled: row.audioAssetsEnabled ?? true,
     audioAssetNotes: row.audioAssetNotes ?? "",
+    audioAssetLinks: parseStoryboardAudioAssetLinks(row.audioAssetMetadataJson),
     autoSelectImprovedImage: row.autoSelectImprovedImage,
     sceneCount: scenes.length,
     scenes: scenes.map(mapStudioSceneToDetail),

@@ -61,6 +61,7 @@ import type {
   MotionSceneAudioAssetHandoff,
   StudioAudioAsset,
 } from "@/types/studio-audio-asset-director";
+import type { StudioAudioMixHandoffPlan } from "@/lib/studio-audio-mix-timeline";
 import type {
   MotionCharacterResolvedVoiceHandoff,
   MotionVoiceIdentityHandoffPlan,
@@ -248,6 +249,8 @@ export type MotionHandoffPayload = {
   assignedMusicAssets?: StudioAudioAsset[];
   assignedSoundAssets?: StudioAudioAsset[];
   assetWarnings?: AudioAssetWarning[];
+  /** Executable multi-track mix plan (voice + music + sound URLs). */
+  audioMixPlan?: StudioAudioMixHandoffPlan;
   /** V39: Voice Identity plan (lock enforcement, multi-language). */
   voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan;
   lockedVoiceAssignments?: CharacterVoiceAssignment[];

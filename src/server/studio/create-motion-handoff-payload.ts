@@ -34,6 +34,7 @@ import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
 import { attachSoundToHandoffPayload } from "@/lib/attach-sound-handoff";
 import { attachAudioProductionToHandoffPayload } from "@/lib/attach-audio-production-handoff";
 import { attachAudioAssetToHandoffPayload } from "@/lib/attach-audio-asset-handoff";
+import { attachAudioMixToHandoffPayload } from "@/lib/attach-audio-mix-handoff";
 import { attachVoiceIdentityToHandoffPayload } from "@/lib/attach-voice-identity-handoff";
 import { attachMediaAssetToHandoffPayload } from "@/lib/attach-media-asset-handoff";
 import { attachSceneCompositionToHandoffPayload } from "@/lib/attach-scene-composition-handoff";
@@ -412,6 +413,15 @@ export async function createMotionHandoffPayload(
     payload = attachSoundToHandoffPayload(payload, { storyboard: detail });
     payload = attachAudioProductionToHandoffPayload(payload, { storyboard: detail });
     payload = attachAudioAssetToHandoffPayload(payload, { storyboard: detail });
+    payload = await attachAudioMixToHandoffPayload(payload, {
+      storyboard: detail,
+      audioAssetMetadataJson: (
+        await prisma.studioStoryboard.findUnique({
+          where: { id: storyboardId },
+          select: { audioAssetMetadataJson: true },
+        })
+      )?.audioAssetMetadataJson,
+    });
     payload = attachVoiceIdentityToHandoffPayload(payload, { storyboard: detail });
     payload = attachMediaAssetToHandoffPayload(payload, { storyboard: detail });
     payload = attachSceneCompositionToHandoffPayload(payload, { storyboard: detail });

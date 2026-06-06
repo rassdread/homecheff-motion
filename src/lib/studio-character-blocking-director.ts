@@ -359,6 +359,7 @@ function singleSceneStoryboardStub(scene: StudioSceneDetail): StudioStoryboardDe
     audioNotes: "",
     audioAssetsEnabled: false,
     audioAssetNotes: "",
+    audioAssetLinks: { version: 1 },
     autoSelectImprovedImage: true,
     sceneCount: 1,
     subtitleEnabled: false,

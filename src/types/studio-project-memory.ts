@@ -30,6 +30,14 @@ export type StudioNarrationAudioMemoryEntry = {
   durationSeconds: number;
 };
 
+export type StudioLibraryAudioMemoryEntry = {
+  id: string;
+  name: string;
+  kind: "music" | "sfx";
+  storyboardCount: number;
+  renderCount: number;
+};
+
 export type StudioProjectMemorySnapshot = {
   characters: Record<string, StudioAssetUsageStats>;
   locations: Record<string, StudioAssetUsageStats>;
@@ -37,6 +45,7 @@ export type StudioProjectMemorySnapshot = {
   worlds: Record<string, StudioAssetUsageStats>;
   voices: StudioVoiceMemoryEntry[];
   narrationAudio: StudioNarrationAudioMemoryEntry[];
+  libraryAudio: StudioLibraryAudioMemoryEntry[];
   styles: StudioStyleMemoryEntry[];
 };
 

@@ -15,10 +15,15 @@ import {
   burnStudioNarrationSubtitles,
   muxStudioVoiceAudio,
 } from "@/lib/studio-voice-ffmpeg";
+import {
+  mixStudioAudioLayers,
+  muxStudioVideoWithMixedAudio,
+} from "@/lib/studio-audio-mix-ffmpeg";
 import { sanitizeOverlayError } from "@/lib/video-ffmpeg-capability";
 import { prisma } from "@/lib/prisma";
 import { probeVideoSegment } from "@/server/instant-premium/segment-transition";
 import { downloadLanguageExportVideoToFile } from "@/server/instant-premium/language-export-io";
+import type { StudioAudioMixHandoffPlan } from "@/lib/studio-audio-mix-timeline";
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
 
 export type StudioVoiceExportApplyResult = {
@@ -106,22 +111,97 @@ export async function applyStudioVoiceExportToMergedVideo(params: {
     };
   }
 
-  if (applyVoice && settings.voiceAudioUrl) {
-    const audioLocal = path.join(params.workDir, "studio-voice-audio.bin");
+  if (applyVoice && (settings.voiceAudioUrl || settings.musicAudioUrl || settings.soundAudioUrl)) {
+    const voiceLocal = settings.voiceAudioUrl
+      ? path.join(params.workDir, "studio-voice-audio.bin")
+      : null;
+    const musicLocal = settings.musicAudioUrl
+      ? path.join(params.workDir, "studio-music-audio.bin")
+      : null;
+    const soundLocal = settings.soundAudioUrl
+      ? path.join(params.workDir, "studio-sound-audio.bin")
+      : null;
     try {
-      await downloadLanguageExportVideoToFile(settings.voiceAudioUrl, audioLocal);
-      const withVoicePath = path.join(params.workDir, "final-with-studio-voice.mp4");
-      const mux = await muxStudioVoiceAudio({
-        videoPath: currentPath,
-        audioPath: audioLocal,
-        outputPath: withVoicePath,
-        videoDurationSeconds: videoDurationSec,
-      });
-      if (mux.ok) {
-        currentPath = withVoicePath;
-        audioMuxed = true;
-      } else {
-        warnings.push(sanitizeOverlayError(mux.message));
+      if (voiceLocal && settings.voiceAudioUrl) {
+        await downloadLanguageExportVideoToFile(settings.voiceAudioUrl, voiceLocal);
+      }
+      if (musicLocal && settings.musicAudioUrl) {
+        await downloadLanguageExportVideoToFile(settings.musicAudioUrl, musicLocal);
+      }
+      if (soundLocal && settings.soundAudioUrl) {
+        await downloadLanguageExportVideoToFile(settings.soundAudioUrl, soundLocal);
+      }
+
+      const mixPlan: StudioAudioMixHandoffPlan = settings.mixPlan ?? {
+        enabled: true,
+        musicEnabled: Boolean(settings.musicAudioUrl),
+        soundEnabled: Boolean(settings.soundAudioUrl),
+        voiceEnabled: Boolean(settings.voiceAudioUrl),
+        totalDurationSeconds: videoDurationSec,
+        duckingMode: "music_under_voice",
+        voiceVolume: 0.7,
+        musicVolume: 0.35,
+        soundVolume: 0.4,
+        musicFadeInSeconds: 2,
+        musicFadeOutSeconds: 2,
+        musicHardCut: false,
+        voiceAudioUrl: settings.voiceAudioUrl,
+        musicAudioUrl: settings.musicAudioUrl ?? null,
+        soundAudioUrl: settings.soundAudioUrl ?? null,
+        musicAssetName: null,
+        soundAssetName: null,
+        sceneSegments: [],
+        mixReady: true,
+      };
+      const planForRender = {
+        ...mixPlan,
+        totalDurationSeconds: videoDurationSec,
+      };
+
+      const mixedAudioPath = path.join(params.workDir, "studio-mixed-audio.aac");
+      const useMultiLayer = Boolean(
+        settings.mixEnabled && (settings.musicAudioUrl || settings.soundAudioUrl)
+      );
+
+      if (useMultiLayer) {
+        const mix = await mixStudioAudioLayers({
+          voicePath: voiceLocal,
+          musicPath: musicLocal,
+          soundPath: soundLocal,
+          outputPath: mixedAudioPath,
+          plan: planForRender,
+        });
+        if (!mix.ok) {
+          warnings.push(sanitizeOverlayError(mix.message));
+        } else {
+          const withVoicePath = path.join(params.workDir, "final-with-studio-voice.mp4");
+          const mux = await muxStudioVideoWithMixedAudio({
+            videoPath: currentPath,
+            mixedAudioPath,
+            outputPath: withVoicePath,
+            videoDurationSeconds: videoDurationSec,
+          });
+          if (mux.ok) {
+            currentPath = withVoicePath;
+            audioMuxed = true;
+          } else {
+            warnings.push(sanitizeOverlayError(mux.message));
+          }
+        }
+      } else if (voiceLocal) {
+        const withVoicePath = path.join(params.workDir, "final-with-studio-voice.mp4");
+        const mux = await muxStudioVoiceAudio({
+          videoPath: currentPath,
+          audioPath: voiceLocal,
+          outputPath: withVoicePath,
+          videoDurationSeconds: videoDurationSec,
+        });
+        if (mux.ok) {
+          currentPath = withVoicePath;
+          audioMuxed = true;
+        } else {
+          warnings.push(sanitizeOverlayError(mux.message));
+        }
       }
     } catch (error) {
       warnings.push(

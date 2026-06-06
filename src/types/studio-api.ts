@@ -5,6 +5,7 @@ import type { StudioLocationCategory } from "@/lib/studio-location-categories";
 import type { StudioPropCategory } from "@/lib/studio-prop-categories";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import type { StoryboardAudioAssetLinks } from "@/types/studio-user-audio-library";
 import type { StudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
@@ -254,6 +255,7 @@ export type StudioStoryboardListItem = {
   audioNotes: string;
   audioAssetsEnabled: boolean;
   audioAssetNotes: string;
+  audioAssetLinks: StoryboardAudioAssetLinks;
   autoSelectImprovedImage: boolean;
   sceneCount: number;
   createdAt: string;

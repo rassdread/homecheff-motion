@@ -55,6 +55,42 @@ export function buildDirectorMemorySuggestions(params: {
     suggestions.push(recurringToSuggestion(match));
   }
 
+  if (params.proposal.audio.musicEnabled) {
+    const music = params.memory.libraryAudio.find(
+      (a) => a.kind === "music" && a.storyboardCount > 0
+    );
+    if (music) {
+      suggestions.push({
+        id: `memory-audio-music-${music.id}`,
+        kind: "audio",
+        issueKey: "studio.audioMix.directorReuseMusic",
+        memoryBasisKeys: ["studio.continuity.memory.basedOnAudio"],
+        memoryBasisParams: [{ name: music.name }],
+        assetRef: toAssetRef(music.id, music.name),
+        usageStoryboardCount: music.storyboardCount,
+        usageRenderCount: music.renderCount,
+      });
+    }
+  }
+
+  if (params.proposal.audio.soundEnabled) {
+    const sound = params.memory.libraryAudio.find(
+      (a) => a.kind === "sfx" && a.storyboardCount > 0
+    );
+    if (sound) {
+      suggestions.push({
+        id: `memory-audio-sfx-${sound.id}`,
+        kind: "audio",
+        issueKey: "studio.audioMix.directorReuseSound",
+        memoryBasisKeys: ["studio.continuity.memory.basedOnAudio"],
+        memoryBasisParams: [{ name: sound.name }],
+        assetRef: toAssetRef(sound.id, sound.name),
+        usageStoryboardCount: sound.storyboardCount,
+        usageRenderCount: sound.renderCount,
+      });
+    }
+  }
+
   for (const scene of params.proposal.scenes) {
     for (const proposed of scene.proposedCharacters) {
       const recurringChar = detectRecurringCharacter({

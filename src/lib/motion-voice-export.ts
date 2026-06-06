@@ -20,32 +20,40 @@ export function defaultSubtitleModeForStudioVoice(
 export function buildMotionStudioAudioExportFromHandoff(
   handoff: Pick<
     MotionHandoffPayload,
-    "voiceMetadata" | "subtitleTrack" | "subtitleAvailability"
+    "voiceMetadata" | "subtitleTrack" | "subtitleAvailability" | "audioMixPlan"
   >
 ): MotionStudioAudioExportJson {
   const voice = handoff.voiceMetadata;
   const subtitle = handoff.subtitleTrack ?? null;
+  const mix = handoff.audioMixPlan ?? null;
   const hasVoice = Boolean(voice?.ready && voice.audioUrl?.trim());
   const hasSubs = Boolean(
     handoff.subtitleAvailability &&
       subtitle?.available &&
       (subtitle.entries?.length ?? 0) > 0
   );
+  const mixEnabled = Boolean(
+    mix?.mixReady && (mix.musicEnabled || mix.soundEnabled || mix.voiceEnabled)
+  );
 
   return {
     version: MOTION_AUDIO_EXPORT_JSON_VERSION,
-    voiceEnabled: hasVoice,
+    voiceEnabled: hasVoice || Boolean(mix?.voiceEnabled),
     subtitlesEnabled: hasSubs,
     subtitleMode: defaultSubtitleModeForStudioVoice(hasSubs),
-    voiceAudioUrl: voice?.audioUrl?.trim() || null,
+    voiceAudioUrl: voice?.audioUrl?.trim() || mix?.voiceAudioUrl?.trim() || null,
     voiceLanguage: voice?.language?.trim() || null,
     voiceProvider: voice?.provider?.trim() || null,
     voiceDurationSeconds:
       typeof voice?.durationSeconds === "number" && Number.isFinite(voice.durationSeconds)
         ? voice.durationSeconds
-        : null,
+        : mix?.totalDurationSeconds ?? null,
     subtitleTrack: subtitle,
     subtitleFormat: "srt",
+    mixEnabled,
+    musicAudioUrl: mix?.musicAudioUrl ?? null,
+    soundAudioUrl: mix?.soundAudioUrl ?? null,
+    mixPlan: mix,
   };
 }
 
@@ -111,6 +119,16 @@ export function parseMotionStudioAudioExport(raw: unknown): MotionStudioAudioExp
             typeof raw.lastMux.error === "string" ? raw.lastMux.error.slice(0, 500) : null,
         }
       : undefined,
+    mixEnabled: Boolean(raw.mixEnabled),
+    musicAudioUrl:
+      typeof raw.musicAudioUrl === "string" && raw.musicAudioUrl.trim()
+        ? raw.musicAudioUrl.trim()
+        : null,
+    soundAudioUrl:
+      typeof raw.soundAudioUrl === "string" && raw.soundAudioUrl.trim()
+        ? raw.soundAudioUrl.trim()
+        : null,
+    mixPlan: isPlainObject(raw.mixPlan) ? (raw.mixPlan as MotionStudioAudioExportJson["mixPlan"]) : null,
   };
 }
 
@@ -141,11 +159,11 @@ export function resolveMotionStudioAudioExport(params: {
   if (stored) {
     return stored;
   }
-  if (params.handoff?.voiceMetadata || params.handoff?.subtitleTrack) {
+  if (params.handoff?.voiceMetadata || params.handoff?.subtitleTrack || params.handoff?.audioMixPlan) {
     return buildMotionStudioAudioExportFromHandoff(params.handoff);
   }
   const parsed = params.studioHandoffJson as MotionHandoffPayload | null;
-  if (parsed?.voiceMetadata || parsed?.subtitleTrack) {
+  if (parsed?.voiceMetadata || parsed?.subtitleTrack || parsed?.audioMixPlan) {
     return buildMotionStudioAudioExportFromHandoff(parsed);
   }
   return null;
@@ -187,7 +205,20 @@ export function voiceMetadataFromHandoffStorage(
 }
 
 export function shouldApplyStudioVoiceMux(settings: MotionStudioAudioExportJson | null): boolean {
-  return Boolean(settings?.voiceEnabled && settings.voiceAudioUrl?.trim());
+  if (!settings) {
+    return false;
+  }
+  if (settings.voiceEnabled && settings.voiceAudioUrl?.trim()) {
+    return true;
+  }
+  if (settings.mixEnabled) {
+    return Boolean(
+      settings.voiceAudioUrl?.trim()
+        || settings.musicAudioUrl?.trim()
+        || settings.soundAudioUrl?.trim()
+    );
+  }
+  return false;
 }
 
 export function shouldBurnStudioSubtitles(settings: MotionStudioAudioExportJson | null): boolean {

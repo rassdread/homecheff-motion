@@ -4,10 +4,13 @@ import {
   parseStoryboardVoiceMetadata,
   STORYBOARD_AUDIO_UPLOAD_PROVIDER,
 } from "@/lib/studio-storyboard-audio";
+import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-asset-links";
+import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import type {
   StudioAssetUsageStats,
   StudioProjectMemorySnapshot,
   StudioNarrationAudioMemoryEntry,
+  StudioLibraryAudioMemoryEntry,
   StudioStyleMemoryEntry,
   StudioVoiceMemoryEntry,
 } from "@/types/studio-project-memory";
@@ -64,6 +67,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
           directorProfile: true,
           voiceProfile: true,
           narrationMode: true,
+          audioAssetMetadataJson: true,
         },
       }),
       prisma.studioCharacter.findMany({
@@ -248,6 +252,38 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     })
     .sort((a, b) => b.durationSeconds - a.durationSeconds);
 
+  const libraryUsage = new Map<string, { storyboardIds: Set<string> }>();
+  for (const sb of storyboards) {
+    const links = parseStoryboardAudioAssetLinks(sb.audioAssetMetadataJson);
+    for (const assetId of [links.musicAssetId, links.soundAssetId]) {
+      if (!assetId) {
+        continue;
+      }
+      const entry = libraryUsage.get(assetId) ?? { storyboardIds: new Set() };
+      entry.storyboardIds.add(sb.id);
+      libraryUsage.set(assetId, entry);
+    }
+  }
+
+  const userLibraryAssets = await listUserAudioLibraryAssets(ownerId);
+  const libraryAudio: StudioLibraryAudioMemoryEntry[] = userLibraryAssets.map((asset) => {
+    const usage = libraryUsage.get(asset.id);
+    const storyboardCount = usage?.storyboardIds.size ?? 0;
+    let renderCount = 0;
+    if (usage) {
+      for (const sbId of usage.storyboardIds) {
+        renderCount += renderByStoryboard.get(sbId) ?? 0;
+      }
+    }
+    return {
+      id: asset.id,
+      name: asset.name,
+      kind: asset.kind,
+      storyboardCount,
+      renderCount,
+    };
+  });
+
   return {
     characters: finalizeStats(charMap, renderByStoryboard, campaignsByStoryboard),
     locations: finalizeStats(locMap, renderByStoryboard, campaignsByStoryboard),
@@ -255,6 +291,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     worlds: finalizeStats(worldMap, renderByStoryboard, campaignsByStoryboard),
     voices,
     narrationAudio,
+    libraryAudio,
     styles: [...styleMap.values()].sort((a, b) => b.storyboardCount - a.storyboardCount),
   };
 }

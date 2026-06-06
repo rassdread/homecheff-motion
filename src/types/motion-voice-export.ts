@@ -1,4 +1,5 @@
 import type { MotionSubtitleTrackHandoff } from "@/types/studio-voice-execution";
+import type { StudioAudioMixHandoffPlan } from "@/lib/studio-audio-mix-timeline";
 
 export const MOTION_AUDIO_EXPORT_JSON_VERSION = 1 as const;
 
@@ -24,6 +25,11 @@ export type MotionStudioAudioExportJson = {
     at: string;
     error?: string | null;
   };
+  /** Multi-track mix (music + SFX + voice). */
+  mixEnabled?: boolean;
+  musicAudioUrl?: string | null;
+  soundAudioUrl?: string | null;
+  mixPlan?: StudioAudioMixHandoffPlan | null;
 };
 
 export type MotionStudioAudioExportResponse = MotionStudioAudioExportJson & {
