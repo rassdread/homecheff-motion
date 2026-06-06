@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { StudioDirectorProposalFlow } from "@/components/studio/studio-director-proposal-flow";
 import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
@@ -349,8 +350,17 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               : null}
 
               {activeTool === "story" ?
-                activeScene && activeSceneIndex >= 0 ?
-                  <StudioDirectorPanelV2
+                <>
+                  <StudioDirectorProposalFlow
+                    storyboard={storyboard}
+                    characters={characters}
+                    locations={locations}
+                    props={props}
+                    canModify={canModify}
+                    onApplied={() => void load()}
+                  />
+                  {activeScene && activeSceneIndex >= 0 ?
+                    <StudioDirectorPanelV2
                     storyboardId={storyboardId}
                     storyboard={storyboard}
                     scene={activeScene}
@@ -370,11 +380,12 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     onSceneDraftChange={handleSceneDraftChange}
                     onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
                   />
-                : (
-                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
-                    {t("studio.storyboards.noScenes")}
-                  </p>
-                )
+                  : (
+                    <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
+                      {t("studio.storyboards.noScenes")}
+                    </p>
+                  )}
+                </>
               : assetTab ?
                 <StudioWorkspaceSceneAssetsPanel
                   tab={assetTab}
