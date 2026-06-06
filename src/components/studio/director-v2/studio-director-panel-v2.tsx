@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { StudioDirectorAccordionSection } from "@/components/studio/director-v2/studio-director-accordion-section";
-import { StudioDirectorInspectorColumn } from "@/components/studio/director-v2/studio-director-inspector-column";
 import { StudioDirectorScenePreviewStrip } from "@/components/studio/director-v2/studio-director-scene-preview-strip";
 import { StudioDirectorSectionCamera } from "@/components/studio/director-v2/sections/camera-section";
 import { StudioDirectorSectionCharacters } from "@/components/studio/director-v2/sections/characters-section";
@@ -196,8 +195,7 @@ export function StudioDirectorPanelV2({
         aiDirectorNotes={directorNotes}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_240px]">
-        <div className="space-y-3">
+      <div className="space-y-3">
           <StudioDirectorAccordionSection
             title={t("studio.directorV2.section.director")}
             infoKey="studio.directorV2.info.director"
@@ -343,14 +341,6 @@ export function StudioDirectorPanelV2({
               </StudioDirectorAccordionSection>
             </>
           ) : null}
-        </div>
-
-        <StudioDirectorInspectorColumn
-          scene={scene}
-          sceneIndex={sceneIndex}
-          sceneCount={sceneCount}
-          saving={saving}
-        />
       </div>
 
       {error ?

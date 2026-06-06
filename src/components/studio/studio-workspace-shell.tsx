@@ -217,19 +217,19 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={studioClassicEditorHref(storyboardId)}
-                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 {t("studio.workspace.classicEditor")}
               </Link>
               <Link
                 href={`/studio/storyboards/${storyboardId}/production`}
-                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 {t("studio.workspace.production")}
               </Link>
               <Link
                 href={handoffHref}
-                className="rounded-full bg-[#006D52] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#005a44]"
+                className="min-h-[44px] rounded-full bg-[#006D52] px-4 py-2 text-xs font-semibold text-white hover:bg-[#005a44]"
               >
                 {t("studio.workspace.openMotion")}
               </Link>

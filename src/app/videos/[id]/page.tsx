@@ -10,7 +10,6 @@ import {
   type AnimationPresetId,
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
-import { InstantVideoRepairCard } from "@/components/instant/instant-video-repair-card";
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
@@ -372,7 +371,8 @@ export default function VideoDetailPage() {
         detail.status === "generating" ||
         detail.status === "rendering" ||
         detail.status === "queued" ||
-        detail.status === "processing")
+        detail.status === "processing" ||
+        detail.status === "failed")
   );
 
   const isAdmin = session.resolved && session.user?.role === "admin";
@@ -945,11 +945,10 @@ export default function VideoDetailPage() {
     instantSceneTexts: detail.instantSceneTexts,
   });
   const cleanVideoUrl = activeCleanVideoUrl;
-  const showStandaloneRepair =
-    !showInstantProgress &&
-    !showRenderActivityCard &&
-    videoRepair.showRepairCard &&
-    !originalPlaybackUrl;
+  const effectiveShowRenderActivityCard = Boolean(
+    showRenderActivityCard ||
+      (videoRepair.showRepairCard && !originalPlaybackUrl && !showInstantProgress)
+  );
   const showRepairQuickAction = videoRepair.showRepairCard && !hasCompletedInstantFinal;
 
   const scrollToSection = (sectionId: string) => {
@@ -1052,7 +1051,7 @@ export default function VideoDetailPage() {
         />
       : null}
 
-      {showRenderActivityCard && detail ?
+      {effectiveShowRenderActivityCard && detail ?
         <RenderActivityStatusCard
           className="mt-6"
           projectId={id}
@@ -1089,7 +1088,7 @@ export default function VideoDetailPage() {
           isAdmin={isAdmin}
           hideRecoveryActions
           hideAdminDiagnostics
-          compactProgressOnly={showRenderActivityCard}
+          compactProgressOnly={effectiveShowRenderActivityCard}
           showUnifiedRepair={false}
           repairUiView={videoRepair.uiView}
           repairFeedback={videoRepair.feedback}
@@ -1103,20 +1102,6 @@ export default function VideoDetailPage() {
             : undefined
           }
           onForceRebuild={isAdmin && canRebuildInstant ? () => void rebuildFinalVideo() : undefined}
-        />
-      ) : null}
-
-      {showStandaloneRepair ? (
-        <InstantVideoRepairCard
-          className="mt-6"
-          uiView={videoRepair.uiView}
-          repairInFlight={videoRepair.repairInFlight}
-          feedback={videoRepair.feedback}
-          snapshot={instantSnapshot}
-          lastPolledAtMs={instantLastPolledAtMs}
-          lastProgressChangeAtMs={instantLastProgressChangeAtMs}
-          isAdmin={isAdmin}
-          onRepair={() => void videoRepair.runRepair()}
         />
       ) : null}
 
@@ -1352,7 +1337,7 @@ export default function VideoDetailPage() {
         </div>
       ) : (
         <div className="mt-6 space-y-4">
-          {!showInstantProgress && !showStandaloneRepair ?
+          {!showInstantProgress && !effectiveShowRenderActivityCard ?
             <p className="text-sm text-zinc-600">{t("videos.processing")}</p>
           : null}
           {detail.status === "rendering" && showVideoExportCancel ?

@@ -59,12 +59,14 @@ describe("instant-repair-ui-state", () => {
     assert.doesNotMatch(src, /onVideoRepair=\{\(\) => void runVideoRepair\(\)\}/);
   });
 
-  it("video detail page does not duplicate amber recover card when progress panel shows repair", () => {
+  it("video detail page routes repair through render activity card without standalone repair", () => {
     const src = readFileSync(join(__dirname, "../app/videos/[id]/page.tsx"), "utf8");
-    assert.match(src, /showStandaloneRepair\s*=/);
-    assert.match(src, /!showInstantProgress[\s\S]*!showRenderActivityCard[\s\S]*videoRepair\.showRepairCard/);
-    assert.match(src, /compactProgressOnly=\{showRenderActivityCard\}/);
+    assert.match(src, /effectiveShowRenderActivityCard/);
+    assert.match(src, /videoRepair\.showRepairCard && !originalPlaybackUrl/);
+    assert.match(src, /compactProgressOnly=\{effectiveShowRenderActivityCard\}/);
     assert.match(src, /showUnifiedRepair=\{false\}/);
+    assert.doesNotMatch(src, /showStandaloneRepair/);
+    assert.doesNotMatch(src, /InstantVideoRepairCard/);
     assert.doesNotMatch(src, /instant\.recover\.notCompleted/);
   });
 });
