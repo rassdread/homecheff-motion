@@ -7,11 +7,11 @@ import {
 } from "@/lib/studio-director-v2-story-purpose";
 
 describe("studio-director-v2-flag", () => {
-  it("is disabled by default", () => {
+  it("is enabled by default", () => {
     const prev = process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2;
     delete process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2;
     try {
-      assert.equal(isStudioDirectorV2Enabled(), false);
+      assert.equal(isStudioDirectorV2Enabled(), true);
     } finally {
       if (prev === undefined) {
         delete process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2;
@@ -21,11 +21,11 @@ describe("studio-director-v2-flag", () => {
     }
   });
 
-  it("is enabled when env is true", () => {
+  it("can be disabled with false", () => {
     const prev = process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2;
-    process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2 = "true";
+    process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2 = "false";
     try {
-      assert.equal(isStudioDirectorV2Enabled(), true);
+      assert.equal(isStudioDirectorV2Enabled(), false);
     } finally {
       if (prev === undefined) {
         delete process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2;

@@ -1,7 +1,11 @@
 /**
- * Studio Director Panel V2 — feature flag.
- * Set NEXT_PUBLIC_STUDIO_DIRECTOR_V2=true to enable the film console UI per scene.
+ * Studio Director Panel V2 — enabled by default.
+ * Set NEXT_PUBLIC_STUDIO_DIRECTOR_V2=false to roll back to the classic scene composer.
  */
 export function isStudioDirectorV2Enabled(): boolean {
-  return process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2 === "true";
+  const raw = process.env.NEXT_PUBLIC_STUDIO_DIRECTOR_V2?.trim().toLowerCase();
+  if (raw === "false" || raw === "0") {
+    return false;
+  }
+  return true;
 }
