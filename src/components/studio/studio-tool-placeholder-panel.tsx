@@ -12,6 +12,7 @@ const TITLE_KEYS: Record<StudioToolId, TranslationKey> = {
   props: "studio.tools.props",
   world: "studio.tools.world",
   visual: "studio.tools.visual",
+  consistency: "studio.tools.consistency",
   voice: "studio.tools.voice",
   music: "studio.tools.music",
   sound: "studio.tools.sound",

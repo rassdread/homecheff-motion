@@ -10,6 +10,7 @@ import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-direc
 import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
 import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
+import { StudioWorkspaceConsistencyPanel } from "@/components/studio/studio-workspace-consistency-panel";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -237,6 +238,18 @@ export function StudioWorkspaceToolPanel({
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
+
+  if (tool === "consistency") {
+    return (
+      <StudioWorkspaceConsistencyPanel
+        storyboard={storyboard}
+        characters={characters}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
 
   if (tool === "visual") {
     return (
