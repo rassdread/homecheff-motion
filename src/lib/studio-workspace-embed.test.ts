@@ -15,6 +15,10 @@ const WORKSPACE_EMBED_KEYS = [
   "studio.workspace.sound.planningHint",
   "studio.workspace.motion.emptyTitle",
   "studio.workspace.createNew",
+  "studio.workspace.assets.addCharacter",
+  "studio.workspace.assets.chooseLocation",
+  "studio.workspace.assets.removeFromScene",
+  "studio.workspace.assets.noSceneHint",
 ] as const;
 
 describe("Studio workspace embed", () => {
@@ -39,5 +43,20 @@ describe("Studio workspace embed", () => {
     assert.match(src, /LanguageExportPanel/);
     assert.match(src, /StudioMusicDirectorPanel/);
     assert.match(src, /StudioTextBeatsPreviewPanel/);
+  });
+
+  it("uses scene asset panel in workspace shell instead of redirect list", () => {
+    const shellPath = join(process.cwd(), "src/components/studio/studio-workspace-shell.tsx");
+    const src = readFileSync(shellPath, "utf8");
+    assert.match(src, /StudioWorkspaceSceneAssetsPanel/);
+    assert.doesNotMatch(src, /StudioWorkspaceAssetsList/);
+  });
+
+  it("keeps asset picker and create sheet in scene assets panel", () => {
+    const panelPath = join(process.cwd(), "src/components/studio/studio-workspace-scene-assets-panel.tsx");
+    const src = readFileSync(panelPath, "utf8");
+    assert.match(src, /StudioWorkspaceAssetPicker/);
+    assert.match(src, /StudioWorkspaceAssetCreateSheet/);
+    assert.match(src, /updateStudioSceneApi/);
   });
 });

@@ -6,7 +6,7 @@ import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
-import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
+import { StudioWorkspaceSceneAssetsPanel } from "@/components/studio/studio-workspace-scene-assets-panel";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
 import { StudioWorkspaceToolPanel } from "@/components/studio/studio-workspace-tool-panel";
@@ -28,6 +28,7 @@ import {
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
+import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import {
   normalizeStudioDirectorProfile,
   type StudioDirectorProfile,
@@ -48,6 +49,7 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import { resolveStudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
@@ -67,6 +69,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [locations, setLocations] = useState<StudioLocationListItem[]>([]);
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [props, setProps] = useState<StudioPropListItem[]>([]);
+  const [worlds, setWorlds] = useState<StudioWorldProfileListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<StudioWorkspaceLoadFailure | null>(null);
   const [error, setError] = useState("");
@@ -93,11 +96,12 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       return;
     }
 
-    const [sbRes, locRes, charRes, propRes] = await Promise.all([
+    const [sbRes, locRes, charRes, propRes, worldRes] = await Promise.all([
       fetchStudioStoryboard(storyboardId),
       fetchStudioLocations(),
       fetchStudioCharacters(),
       fetchStudioProps(),
+      fetchStudioWorlds(),
     ]);
 
     const failure = resolveStudioWorkspaceLoadFailure(
@@ -122,8 +126,30 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
+    if (worldRes.ok) setWorlds(worldRes.data.worlds);
     setLoading(false);
   }, [storyboardId, t]);
+
+  const refreshAssetLibraries = useCallback(async () => {
+    const [locRes, charRes, propRes, worldRes] = await Promise.all([
+      fetchStudioLocations(),
+      fetchStudioCharacters(),
+      fetchStudioProps(),
+      fetchStudioWorlds(),
+    ]);
+    if (locRes.ok) setLocations(locRes.data.locations);
+    if (charRes.ok) setCharacters(charRes.data.characters);
+    if (propRes.ok) setProps(propRes.data.props);
+    if (worldRes.ok) setWorlds(worldRes.data.worlds);
+  }, []);
+
+  const handleSceneAssetUpdated = (updated: StudioSceneDetail) => {
+    setStoryboard((prev) =>
+      prev
+        ? { ...prev, scenes: prev.scenes.map((s) => (s.id === updated.id ? updated : s)) }
+        : prev
+    );
+  };
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
@@ -350,13 +376,19 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   </p>
                 )
               : assetTab ?
-                <StudioWorkspaceAssetsList
+                <StudioWorkspaceSceneAssetsPanel
                   tab={assetTab}
+                  storyboardId={storyboardId}
+                  scene={activeScene}
+                  sceneIndex={activeSceneIndex}
                   characters={characters}
                   locations={locations}
                   props={props}
-                  storyboardId={storyboardId}
-                  onNavigate={() => setActiveTool("story")}
+                  worlds={worlds}
+                  canModify={canModify}
+                  onSceneUpdated={handleSceneAssetUpdated}
+                  onAssetsChanged={() => void refreshAssetLibraries()}
+                  onSwitchTool={handleToolChange}
                 />
               : (
                 <StudioWorkspaceToolPanel
