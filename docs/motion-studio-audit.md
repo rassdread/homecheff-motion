@@ -115,8 +115,14 @@ Admin render analytics     → /admin/render-analytics
 
 ## Sprint Changelog
 
-| Phase | Focus | Status |
-|-------|-------|--------|
-| 1 | This audit | Done |
-| 2 | Typecheck green (test fixtures) | Done |
-| 3–14 | Polish, billing, recovery, readiness doc | In progress |
+| Phase | Commit | Focus | Status |
+|-------|--------|-------|--------|
+| 1 | `1f9d975` | This audit | Done |
+| 2 | `6bf7001` | Typecheck green (test fixtures) | Done |
+| 3 | `c574496` | Wizard frame-order UX (transition mode) | Done |
+| 4–9 | — | Director, handoff, versions, billing | Open |
+| 10 | `c574496` | Cancelled render clarity banner | Partial |
+| 11–13 | — | Analytics, mobile, dead code | Open |
+| 14 | `c574496` | `motion-production-readiness.md` | Done |
+
+**QA (post-sprint):** lint 0 errors, typecheck 0 errors, build OK, tests **1452/1452**.
