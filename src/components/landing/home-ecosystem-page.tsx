@@ -157,9 +157,9 @@ export function HomeEcosystemPage() {
               {t("landing.hero.ctaPrimary")}
             </GradientButton>
             <Link
-              href="/discover"
+              href="/create"
               prefetch={false}
-              className="inline-flex items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 transition-colors hover:bg-zinc-50"
             >
               {t("landing.hero.ctaSecondary")}
             </Link>
