@@ -2113,6 +2113,8 @@ export const nl = {
   "renderActivity.lastUpdate": "Laatste update",
   "renderActivity.providerJobIds": "Provider job IDs",
   "renderActivity.cancelledNotice": "Geannuleerd. Als de provider al gestart was, kunnen credits verbruikt zijn.",
+  "renderActivity.cancelled.details":
+    "Render gestopt. Credits zijn mogelijk al verbruikt en definitieve kosten zijn onbekend. Gebruik Vernieuwen om de laatste providerstatus op te halen.",
   "renderActivity.status.cancelled": "Geannuleerd",
   "renderActivity.stuck.badge": "Mogelijk vastgelopen",
   "renderActivity.stuck.message": "Deze generatie lijkt vastgelopen. Probeer opnieuw, stop generatie of vernieuw de status.",
@@ -3302,6 +3304,9 @@ export const nl = {
   "instant.wizardStep.upload": "Upload",
   "instant.wizardStep.storyboard": "Storyboard",
   "instant.wizardStep.storyboardHint": "Zet frames in volgorde en controleer timing voordat je tekst toevoegt.",
+  "instant.wizardStep.frameOrder": "Framevolgorde",
+  "instant.wizardStep.frameOrderHint": "Sleep frames in de volgorde waarin ze in je video-overgangen moeten komen.",
+  "instant.wizardStep.frameOrderEmpty": "Upload minstens twee afbeeldingen in de vorige stap om de framevolgorde te bepalen.",
   "instant.wizardStep.text": "Tekst & richting",
   "instant.wizardStep.textHint": "Voeg tekst per scène toe en optionele globale AI-richting.",
   "instant.wizardStep.style": "Animatiestijl",

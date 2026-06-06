@@ -67,6 +67,7 @@ import {
   clampWizardStep,
   resolveWizardView,
   wizardStepCount,
+  wizardStepHintKey,
   wizardStepTitleKey,
 } from "@/lib/instant-wizard-flow";
 import {
@@ -1528,7 +1529,7 @@ export default function InstantPremiumPage() {
               className={`h-1.5 flex-1 rounded-full ${
                 mounted && i + 1 <= step ? activeStyleVisual.progressBar : "bg-zinc-200"
               }`}
-              title={t(wizardStepTitleKey(wizardMode, i + 1) as never)}
+              title={t(wizardStepTitleKey(wizardMode, i + 1, instantMode) as never)}
             />
           ))}
         </div>
@@ -1901,9 +1902,20 @@ export default function InstantPremiumPage() {
             {wizardView === "storyboard" ? (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-semibold tracking-tight">{t("instant.wizardStep.storyboard")}</h2>
-                  <p className="mt-2 text-sm text-zinc-600">{t("instant.wizardStep.storyboardHint")}</p>
+                  <h2 className="text-xl font-semibold tracking-tight">
+                    {t(wizardStepTitleKey(wizardMode, step, instantMode) as never)}
+                  </h2>
+                  {wizardStepHintKey(wizardMode, step, instantMode) ?
+                    <p className="mt-2 text-sm text-zinc-600">
+                      {t(wizardStepHintKey(wizardMode, step, instantMode) as never)}
+                    </p>
+                  : null}
                 </div>
+                {instantMode === "transition" && !showFrameReorder ?
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+                    {t("instant.wizardStep.frameOrderEmpty")}
+                  </p>
+                : null}
                 {hasStudioImportedScenes && studioIntelligence ? (
                   <MotionImportSummaryBanner
                     intelligence={studioIntelligence}

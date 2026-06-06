@@ -1,3 +1,4 @@
+import type { InstantMode } from "@/lib/instant-premium-mode-types";
 import type { InstantWizardMode } from "@/lib/instant-wizard-mode";
 
 export type InstantWizardView =
@@ -52,13 +53,19 @@ export function resolveWizardView(mode: InstantWizardMode, step: number): Instan
   }
 }
 
-export function wizardStepTitleKey(mode: InstantWizardMode, step: number): string {
+export function wizardStepTitleKey(
+  mode: InstantWizardMode,
+  step: number,
+  instantMode?: InstantMode
+): string {
   const view = resolveWizardView(mode, step);
   switch (view) {
     case "upload":
       return "instant.creatorStep.upload";
     case "storyboard":
-      return "instant.wizardStep.storyboard";
+      return mode === "beginner" && instantMode === "transition"
+        ? "instant.wizardStep.frameOrder"
+        : "instant.wizardStep.storyboard";
     case "text":
       return "instant.wizardStep.text";
     case "style":
@@ -71,6 +78,24 @@ export function wizardStepTitleKey(mode: InstantWizardMode, step: number): strin
       return "instant.creatorStep.generate";
     default:
       return "instant.creatorStep.upload";
+  }
+}
+
+export function wizardStepHintKey(
+  mode: InstantWizardMode,
+  step: number,
+  instantMode?: InstantMode
+): string | null {
+  const view = resolveWizardView(mode, step);
+  switch (view) {
+    case "storyboard":
+      return mode === "beginner" && instantMode === "transition"
+        ? "instant.wizardStep.frameOrderHint"
+        : "instant.wizardStep.storyboardHint";
+    case "text":
+      return "instant.wizardStep.textHint";
+    default:
+      return null;
   }
 }
 

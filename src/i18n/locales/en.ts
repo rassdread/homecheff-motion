@@ -2113,6 +2113,8 @@ export const en: LocaleSchema = {
   "renderActivity.lastUpdate": "Last update",
   "renderActivity.providerJobIds": "Provider job IDs",
   "renderActivity.cancelledNotice": "Cancelled. If the provider already started, credits may have been used.",
+  "renderActivity.cancelled.details":
+    "Render stopped. Credits may already have been used and final costs may be unknown. Use Refresh to fetch the latest provider status.",
   "renderActivity.status.cancelled": "Cancelled",
   "renderActivity.stuck.badge": "Possibly stuck",
   "renderActivity.stuck.message": "This generation appears stuck. Try again, stop generation, or refresh status.",
@@ -3295,6 +3297,9 @@ export const en: LocaleSchema = {
   "instant.wizardStep.upload": "Upload",
   "instant.wizardStep.storyboard": "Storyboard",
   "instant.wizardStep.storyboardHint": "Reorder frames and review scene timing before adding text.",
+  "instant.wizardStep.frameOrder": "Frame order",
+  "instant.wizardStep.frameOrderHint": "Drag frames into the order you want for your video transitions.",
+  "instant.wizardStep.frameOrderEmpty": "Upload at least two images on the previous step to arrange frame order.",
   "instant.wizardStep.text": "Text & direction",
   "instant.wizardStep.textHint": "Add on-screen text per scene and optional global direction for the AI.",
   "instant.wizardStep.style": "Animation style",

@@ -221,6 +221,12 @@ export function RenderActivityStatusCard({
         </p>
       : null}
 
+      {normalizedProjectStatus === "cancelled" ?
+        <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">
+          {t("renderActivity.cancelled.details")}
+        </p>
+      : null}
+
       {feedback ?
         <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800">
           {feedback}
