@@ -32,6 +32,8 @@ import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
+import { fetchStudioProjectMemory } from "@/lib/studio-project-memory-client";
+import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import {
   normalizeStudioDirectorProfile,
   type StudioDirectorProfile,
@@ -54,6 +56,7 @@ import type {
   StudioStoryboardDetail,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import { resolveStudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
 import type { StudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
@@ -73,6 +76,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [props, setProps] = useState<StudioPropListItem[]>([]);
   const [worlds, setWorlds] = useState<StudioWorldProfileListItem[]>([]);
+  const [projectMemory, setProjectMemory] = useState<StudioProjectMemorySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailure, setLoadFailure] = useState<StudioWorkspaceLoadFailure | null>(null);
   const [error, setError] = useState("");
@@ -100,12 +104,13 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
       return;
     }
 
-    const [sbRes, locRes, charRes, propRes, worldRes] = await Promise.all([
+    const [sbRes, locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
       fetchStudioStoryboard(storyboardId),
       fetchStudioLocations(),
       fetchStudioCharacters(),
       fetchStudioProps(),
       fetchStudioWorlds(),
+      fetchStudioProjectMemory(),
     ]);
 
     const failure = resolveStudioWorkspaceLoadFailure(
@@ -131,20 +136,23 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
     if (worldRes.ok) setWorlds(worldRes.data.worlds);
+    setProjectMemory(memoryRes.ok ? memoryRes.data.memory : emptyProjectMemorySnapshot());
     setLoading(false);
   }, [storyboardId, t]);
 
   const refreshAssetLibraries = useCallback(async () => {
-    const [locRes, charRes, propRes, worldRes] = await Promise.all([
+    const [locRes, charRes, propRes, worldRes, memoryRes] = await Promise.all([
       fetchStudioLocations(),
       fetchStudioCharacters(),
       fetchStudioProps(),
       fetchStudioWorlds(),
+      fetchStudioProjectMemory(),
     ]);
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
     if (worldRes.ok) setWorlds(worldRes.data.worlds);
+    if (memoryRes.ok) setProjectMemory(memoryRes.data.memory);
   }, []);
 
   const handleCharacterUpdated = useCallback((updated: StudioCharacterListItem) => {
@@ -386,6 +394,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     locations={locations}
                     props={props}
                     worlds={worlds}
+                    projectMemory={projectMemory}
                     canModify={canModify}
                     onApplied={() => void load()}
                   />
@@ -445,6 +454,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   locations={locations}
                   props={props}
                   worlds={worlds}
+                  projectMemory={projectMemory}
                   styleProfile={styleProfile}
                   directorProfile={directorProfile}
                   canModify={canModify}
@@ -511,6 +521,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 handleToolChange(tool);
                 setMobileInsightsOpen(false);
               }}
+              projectMemory={projectMemory}
             />
           </>
         : null}

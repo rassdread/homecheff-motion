@@ -5,11 +5,13 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { buildImproveProjectPreview } from "@/lib/studio-improve-project-preview";
+import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
 import { buildSceneSuggestions } from "@/lib/studio-scene-suggestions";
 import { buildStudioProductionInsights } from "@/lib/studio-production-insights";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 
 type Props = {
   storyboard: StudioStoryboardDetail;
@@ -22,6 +24,7 @@ type Props = {
   /** Mobile bottom sheet: tighter layout, no improve-project block */
   compact?: boolean;
   onSwitchTool?: (tool: StudioToolId) => void;
+  projectMemory?: StudioProjectMemorySnapshot | null;
 };
 
 function ScoreRing({ score, label }: { score: number; label: string }) {
@@ -72,6 +75,7 @@ export function StudioProductionInsightsRail({
   onSceneUpdated,
   compact = false,
   onSwitchTool,
+  projectMemory,
 }: Props) {
   const t = useActiveTranslator();
   const [ignored, setIgnored] = useState<Set<string>>(() => {
@@ -143,6 +147,21 @@ export function StudioProductionInsightsRail({
         ? "studio.aiAssistant.quality.level.medium"
         : "studio.aiAssistant.quality.level.low";
 
+  const reuseMatches = useMemo(() => {
+    if (!projectMemory) {
+      return [];
+    }
+    const idea = `${storyboard.title} ${storyboard.description} ${storyboard.aiDirectorPrompt}`;
+    return findRecurringMatchesForIdea({
+      idea,
+      characters,
+      locations: [],
+      props: [],
+      worlds: [],
+      memory: projectMemory,
+    }).slice(0, compact ? 2 : 3);
+  }, [storyboard, characters, projectMemory, compact]);
+
   const shellClass = compact
     ? "space-y-3"
     : "space-y-4 rounded-2xl border border-[#006D52]/25 bg-gradient-to-br from-[#006D52]/5 via-white to-[#0067B1]/5 p-4 shadow-sm";
@@ -204,6 +223,42 @@ export function StudioProductionInsightsRail({
           ))}
         </ul>
       </InsightSection>
+
+      {reuseMatches.length > 0 ?
+        <InsightSection title={t("studio.continuity.suggestedReuse")}>
+          <div className="space-y-2">
+            {reuseMatches.map((match) => (
+              <StudioAiSuggestionCard
+                key={`${match.kind}-${match.assetId}`}
+                titleKey="studio.continuity.suggestedReuse"
+                issueKey={
+                  (match.kind === "character"
+                    ? "studio.continuity.knownCharacter"
+                    : "studio.continuity.knownLocation") as TranslationKey
+                }
+                reasonKey="studio.continuity.previouslyUsed"
+                currentLabel="—"
+                suggestedLabel={match.assetName}
+                onOpen={
+                  onSwitchTool ?
+                    () =>
+                      onSwitchTool(match.kind === "character" ? "characters" : "locations")
+                  : undefined
+                }
+              />
+            ))}
+            {onSwitchTool ?
+              <button
+                type="button"
+                onClick={() => onSwitchTool("continuity")}
+                className="text-[10px] font-semibold text-[#0067B1] hover:underline"
+              >
+                {t("studio.continuity.openPanel")}
+              </button>
+            : null}
+          </div>
+        </InsightSection>
+      : null}
 
       {insights.unifiedReadiness.fixes.length > 0 ?
         <InsightSection title={t("studio.execution.suggestedImprovements")}>

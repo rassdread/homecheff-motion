@@ -6,6 +6,7 @@ import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 
 type Props = {
   open: boolean;
@@ -18,6 +19,7 @@ type Props = {
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onSwitchTool?: (tool: StudioToolId) => void;
+  projectMemory?: StudioProjectMemorySnapshot | null;
 };
 
 export function StudioMobileInsightsSheet({
@@ -31,6 +33,7 @@ export function StudioMobileInsightsSheet({
   canModify,
   onSceneUpdated,
   onSwitchTool,
+  projectMemory,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -50,6 +53,7 @@ export function StudioMobileInsightsSheet({
         onSceneUpdated={onSceneUpdated}
         compact
         onSwitchTool={onSwitchTool}
+        projectMemory={projectMemory}
       />
     </MotionBottomSheet>
   );

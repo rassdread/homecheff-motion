@@ -152,6 +152,19 @@ export type DirectorProposalFieldChange = {
   toLabel: string;
 };
 
+export type DirectorProposalMemorySuggestion = {
+  id: string;
+  kind: "character" | "location" | "prop" | "world" | "voice" | "style";
+  issueKey: string;
+  memoryBasisKeys: string[];
+  memoryBasisParams?: Record<string, string>[];
+  assetRef?: ProposedAssetRef;
+  proposedName?: string;
+  usageStoryboardCount: number;
+  usageRenderCount: number;
+  sceneOrder?: number;
+};
+
 export type StudioDirectorProposal = {
   version: 2;
   ideaPrompt: string;
@@ -169,4 +182,5 @@ export type StudioDirectorProposal = {
   storyHealthKeys?: string[];
   consistencySuggestions?: DirectorProposalConsistencySuggestion[];
   fieldChanges?: DirectorProposalFieldChange[];
+  memorySuggestions?: DirectorProposalMemorySuggestion[];
 };

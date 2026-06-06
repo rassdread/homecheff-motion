@@ -11,6 +11,7 @@ import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
 import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
 import { StudioWorkspaceConsistencyPanel } from "@/components/studio/studio-workspace-consistency-panel";
+import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-workspace-continuity-panel";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -32,6 +33,7 @@ import type {
   StudioStoryboardDetail,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 
 type Props = {
   tool: StudioToolId;
@@ -44,6 +46,7 @@ type Props = {
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
   worlds: StudioWorldProfileListItem[];
+  projectMemory: StudioProjectMemorySnapshot | null;
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   canModify: boolean;
@@ -235,6 +238,7 @@ export function StudioWorkspaceToolPanel({
   locations,
   props,
   worlds,
+  projectMemory,
   styleProfile,
   directorProfile,
   canModify,
@@ -247,6 +251,29 @@ export function StudioWorkspaceToolPanel({
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
+
+  if (tool === "continuity") {
+    if (!projectMemory) {
+      return (
+        <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-sm text-zinc-600">
+          {t("common.loading")}
+        </div>
+      );
+    }
+    return (
+      <StudioWorkspaceContinuityPanel
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        memory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
 
   if (tool === "consistency") {
     return (

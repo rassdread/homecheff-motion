@@ -7,6 +7,7 @@ import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
 import {
   applyProposalConsistencySuggestion,
 } from "@/lib/studio-director-proposal-enrichment";
+import { applyDirectorMemorySuggestion } from "@/lib/studio-director-proposal-memory";
 import {
   applyDirectorProposal,
   resolveProposedSceneText,
@@ -23,6 +24,7 @@ import type {
   StudioStoryboardDetail,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type {
   DirectorProposalApplyMode,
   StudioDirectorProposal,
@@ -34,6 +36,7 @@ type Props = {
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
   worlds?: StudioWorldProfileListItem[];
+  projectMemory?: StudioProjectMemorySnapshot | null;
   canModify?: boolean;
   onApplied?: () => void | Promise<void>;
 };
@@ -129,6 +132,7 @@ function ProposalPreviewModal({
   onApply,
   onRegenerate,
   onApplySuggestion,
+  onApplyMemorySuggestion,
 }: {
   proposal: StudioDirectorProposal;
   busy?: boolean;
@@ -137,6 +141,7 @@ function ProposalPreviewModal({
   onApply: (mode: DirectorProposalApplyMode) => void;
   onRegenerate: () => void;
   onApplySuggestion: (suggestionId: string) => void;
+  onApplyMemorySuggestion: (suggestionId: string) => void;
 }) {
   const t = useActiveTranslator();
   const assets = useMemo(() => collectUniqueAssets(proposal), [proposal]);
@@ -192,6 +197,54 @@ function ProposalPreviewModal({
                   toLabel={change.toLabel}
                   sceneOrder={change.sceneOrder}
                 />
+              ))}
+            </section>
+          : null}
+
+          {proposal.memorySuggestions && proposal.memorySuggestions.length > 0 ?
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+                {t("studio.continuity.suggestedReuse")}
+              </h3>
+              {proposal.memorySuggestions.map((suggestion) => (
+                <article
+                  key={suggestion.id}
+                  className="rounded-xl border border-violet-200/80 bg-violet-50/40 p-3"
+                >
+                  <p className="text-xs font-semibold text-zinc-900">
+                    {t(suggestion.issueKey as TranslationKey)}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-[10px] text-violet-950">
+                    {suggestion.memoryBasisKeys.map((key, index) => (
+                      <li key={key}>
+                        → {t(key as TranslationKey, suggestion.memoryBasisParams?.[index])}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-zinc-700">
+                    {t("studio.continuity.usage.series", {
+                      storyboards: String(suggestion.usageStoryboardCount),
+                      renders: String(suggestion.usageRenderCount),
+                      campaigns: "0",
+                    })}
+                  </p>
+                  {suggestion.proposedName ?
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {t("studio.continuity.memory.newInstead", { name: suggestion.proposedName })}
+                    </p>
+                  : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {suggestion.assetRef ?
+                      <button
+                        type="button"
+                        onClick={() => onApplyMemorySuggestion(suggestion.id)}
+                        className="min-h-9 rounded-full bg-[#0067B1] px-3 text-[11px] font-semibold text-white"
+                      >
+                        {t("studio.continuity.action.useExisting")}
+                      </button>
+                    : null}
+                  </div>
+                </article>
               ))}
             </section>
           : null}
@@ -502,6 +555,7 @@ export function StudioDirectorProposalFlow({
   locations,
   props,
   worlds = [],
+  projectMemory = null,
   canModify,
   onApplied,
 }: Props) {
@@ -520,6 +574,7 @@ export function StudioDirectorProposalFlow({
       locations,
       props,
       worlds,
+      projectMemory: projectMemory ?? undefined,
       t,
     });
     if (!built) {
@@ -528,11 +583,17 @@ export function StudioDirectorProposalFlow({
     setProposal(built);
     setPreviewOpen(true);
     setFeedback("");
-  }, [idea, storyboard, characters, locations, props, worlds, t]);
+  }, [idea, storyboard, characters, locations, props, worlds, projectMemory, t]);
 
   const handleApplySuggestion = useCallback((suggestionId: string) => {
     setProposal((current) =>
       current ? applyProposalConsistencySuggestion(current, suggestionId) : current
+    );
+  }, []);
+
+  const handleApplyMemorySuggestion = useCallback((suggestionId: string) => {
+    setProposal((current) =>
+      current ? applyDirectorMemorySuggestion(current, suggestionId) : current
     );
   }, []);
 
@@ -637,6 +698,7 @@ export function StudioDirectorProposalFlow({
             handleGenerate();
           }}
           onApplySuggestion={handleApplySuggestion}
+          onApplyMemorySuggestion={handleApplyMemorySuggestion}
         />
       : null}
     </>

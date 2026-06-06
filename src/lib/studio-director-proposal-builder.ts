@@ -19,6 +19,11 @@ import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
 import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-readiness";
 import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
+import { buildDirectorMemorySuggestions, memoryBoostForAsset } from "@/lib/studio-director-proposal-memory";
+import {
+  detectRecurringCharacter,
+  detectRecurringLocation,
+} from "@/lib/studio-recurring-asset-detection";
 import { getVoiceProfilePreset, profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
@@ -32,6 +37,7 @@ import type {
   StudioStoryboardDetail,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type {
   DirectorProposalTextSummary,
   DirectorProposalVoiceSummary,
@@ -445,6 +451,7 @@ function assignAssetsToScene(params: {
   usedCharacterIds: Set<string>;
   usedLocationId: string | null;
   usedPropIds: Set<string>;
+  projectMemory?: StudioProjectMemorySnapshot;
 }): Pick<
   ProposedScene,
   | "characterRefs"
@@ -457,19 +464,30 @@ function assignAssetsToScene(params: {
 > {
   const availableCharacters = params.characters.filter((c) => !params.usedCharacterIds.has(c.id));
   const primaryCharacter =
-    pickBestAsset(params.characters, (c) => scoreCharacterMatch(c, params.promptTokens)) ??
-    pickBestAsset(availableCharacters, (c) => scoreCharacterMatch(c, params.promptTokens));
+    pickBestAsset(params.characters, (c) =>
+      scoreCharacterMatch(c, params.promptTokens) +
+      memoryBoostForAsset(params.projectMemory, "characters", c.id)
+    ) ??
+    pickBestAsset(availableCharacters, (c) =>
+      scoreCharacterMatch(c, params.promptTokens) +
+      memoryBoostForAsset(params.projectMemory, "characters", c.id)
+    );
 
   const secondaryCharacter =
     params.arcPhase === "climax" || params.arcPhase === "build_up"
       ? pickBestAsset(
           availableCharacters.filter((c) => c.id !== primaryCharacter?.id),
-          (c) => scoreCharacterMatch(c, params.promptTokens)
+          (c) =>
+            scoreCharacterMatch(c, params.promptTokens) +
+            memoryBoostForAsset(params.projectMemory, "characters", c.id)
         )
       : null;
 
   const location =
-    pickBestAsset(params.locations, (l) => scoreLocationMatch(l, params.promptTokens)) ??
+    pickBestAsset(params.locations, (l) =>
+      scoreLocationMatch(l, params.promptTokens) +
+      memoryBoostForAsset(params.projectMemory, "locations", l.id)
+    ) ??
     (params.usedLocationId ?
       params.locations.find((l) => l.id === params.usedLocationId) ?? null
     : null);
@@ -500,7 +518,22 @@ function assignAssetsToScene(params: {
     propRefs.push(toAssetRef(prop));
   }
 
-  const locationRef = location ? toAssetRef(location) : null;
+  let locationRef = location ? toAssetRef(location) : null;
+  if (!locationRef) {
+    const recurringLocation = detectRecurringLocation({
+      idea: params.idea,
+      locations: params.locations,
+      memory: params.projectMemory,
+      candidateName: extractProposalTopic(params.idea),
+    });
+    if (recurringLocation) {
+      locationRef = toAssetRef({
+        id: recurringLocation.assetId,
+        name: recurringLocation.assetName,
+      });
+    }
+  }
+
   const worldRef = resolveWorldRef({
     characterRefs,
     locationRef,
@@ -509,12 +542,28 @@ function assignAssetsToScene(params: {
     worlds: params.worlds,
   });
 
-  const proposedCharacters: ProposedNewAsset[] =
-    characterRefs.length === 0 && !libraryHasSimilarName(params.characters, extractProposalTopic(params.idea))
-      ? (suggestNewAsset("character", params.idea, params.sceneIndex) ?
-          [suggestNewAsset("character", params.idea, params.sceneIndex)!]
-        : [])
-    : [];
+  const proposedCharacters: ProposedNewAsset[] = (() => {
+    if (characterRefs.length > 0) {
+      return [];
+    }
+    const recurring = detectRecurringCharacter({
+      idea: params.idea,
+      characters: params.characters,
+      memory: params.projectMemory,
+      candidateName: extractProposalTopic(params.idea),
+    });
+    if (recurring && !characterRefs.some((c) => c.existingId === recurring.assetId)) {
+      characterRefs.push(toAssetRef({ id: recurring.assetId, name: recurring.assetName }));
+      params.usedCharacterIds.add(recurring.assetId);
+      return [];
+    }
+    if (libraryHasSimilarName(params.characters, extractProposalTopic(params.idea))) {
+      return [];
+    }
+    const suggested = suggestNewAsset("character", params.idea, params.sceneIndex);
+    return suggested ? [suggested] : [];
+  })();
+
   const proposedLocation: ProposedNewAsset | null =
     locationRef ? null : suggestNewAsset("location", params.idea, params.sceneIndex);
   const proposedProps: ProposedNewAsset[] =
@@ -622,6 +671,7 @@ export function buildDirectorProposal(params: {
   props: StudioPropListItem[];
   worlds?: StudioWorldProfileListItem[];
   styleStrength?: AiDirectorStyleStrength;
+  projectMemory?: StudioProjectMemorySnapshot;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
@@ -672,6 +722,7 @@ export function buildDirectorProposal(params: {
       usedCharacterIds,
       usedLocationId,
       usedPropIds,
+      projectMemory: params.projectMemory,
     });
     usedLocationId = assets.locationRef?.existingId ?? usedLocationId;
 
@@ -825,7 +876,7 @@ export function buildDirectorProposal(params: {
     });
   }
 
-  return enrichDirectorProposalWithConsistency({
+  const enriched = enrichDirectorProposalWithConsistency({
     proposal,
     storyboard: params.storyboard,
     characters: params.characters,
@@ -834,6 +885,18 @@ export function buildDirectorProposal(params: {
     worlds: params.worlds ?? [],
     t: params.t ?? ((key, p) => `${key}${p?.topic ? `: ${p.topic}` : ""}`),
   });
+
+  const memorySuggestions = buildDirectorMemorySuggestions({
+    idea,
+    proposal: enriched,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    memory: params.projectMemory,
+  });
+
+  return { ...enriched, memorySuggestions };
 }
 
 /** Exported for tests — ensures synthetic flow gets a shot plan when storyboard is empty. */
