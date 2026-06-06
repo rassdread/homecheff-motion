@@ -385,6 +385,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     characters={characters}
                     locations={locations}
                     props={props}
+                    worlds={worlds}
                     canModify={canModify}
                     onApplied={() => void load()}
                   />

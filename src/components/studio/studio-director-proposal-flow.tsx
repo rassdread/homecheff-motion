@@ -8,11 +8,13 @@ import {
   applyDirectorProposal,
   resolveProposedSceneText,
 } from "@/lib/studio-director-proposal-apply";
+import { collectProposalSceneAssets } from "@/lib/studio-director-proposal-readiness";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
   StudioPropListItem,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type {
   DirectorProposalApplyMode,
@@ -24,6 +26,7 @@ type Props = {
   characters: StudioCharacterListItem[];
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
   canModify?: boolean;
   onApplied?: () => void | Promise<void>;
 };
@@ -37,23 +40,12 @@ const EXAMPLE_KEYS = [
 ] as const satisfies readonly TranslationKey[];
 
 function collectUniqueAssets(proposal: StudioDirectorProposal) {
-  const characters = new Map<string, string>();
-  const locations = new Map<string, string>();
-  const propItems = new Map<string, string>();
+  const linked = collectProposalSceneAssets(proposal.scenes);
   const newCharacters: Array<{ name: string; reasonKey: string }> = [];
   const newLocations: Array<{ name: string; reasonKey: string }> = [];
   const newProps: Array<{ name: string; reasonKey: string }> = [];
 
   for (const scene of proposal.scenes) {
-    for (const ref of scene.characterRefs) {
-      characters.set(ref.existingId, ref.name);
-    }
-    for (const ref of scene.propRefs) {
-      propItems.set(ref.existingId, ref.name);
-    }
-    if (scene.locationRef) {
-      locations.set(scene.locationRef.existingId, scene.locationRef.name);
-    }
     for (const item of scene.proposedCharacters) {
       newCharacters.push({ name: item.name, reasonKey: item.reasonKey });
     }
@@ -69,13 +61,57 @@ function collectUniqueAssets(proposal: StudioDirectorProposal) {
   }
 
   return {
-    characters: [...characters.values()],
-    locations: [...locations.values()],
-    props: [...propItems.values()],
+    characters: linked.characters.map((c) => c.name),
+    locations: linked.locations.map((l) => l.name),
+    props: linked.props.map((p) => p.name),
+    worlds: linked.worlds.map((w) => w.name),
     newCharacters,
     newLocations,
     newProps,
   };
+}
+
+function ReadinessCard({ proposal }: { proposal: StudioDirectorProposal }) {
+  const t = useActiveTranslator();
+  const { level, score, checks, recommendationKeys } = proposal.renderReadiness;
+  const levelKey =
+    level === "ready" ? "ready"
+    : level === "almost_ready" ? "almostReady"
+    : "needsWork";
+  const cardClass =
+    level === "ready" ? "border-emerald-200 bg-emerald-50/70"
+    : level === "almost_ready" ? "border-amber-200 bg-amber-50/70"
+    : "border-red-200 bg-red-50/70";
+
+  return (
+    <section className={`rounded-2xl border p-4 ${cardClass}`}>
+      <h3 className="text-sm font-semibold text-zinc-900">
+        {t("studio.directorProposal.readiness.title")}
+      </h3>
+      <p className="mt-1 text-xs font-medium text-zinc-700">
+        {t("studio.directorProposal.readiness.score", { score: String(score) })}
+        {" · "}
+        {t(`studio.directorProposal.readiness.level.${levelKey}` as TranslationKey)}
+      </p>
+      <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+        {checks.map((check) => (
+          <li key={check.id} className="flex items-center gap-2">
+            <span className={check.passed ? "text-emerald-700" : "text-zinc-400"}>
+              {check.passed ? "✓" : "○"}
+            </span>
+            {t(check.messageKey as TranslationKey)}
+          </li>
+        ))}
+      </ul>
+      {recommendationKeys.length > 0 ?
+        <ul className="mt-3 space-y-1 text-xs text-zinc-600">
+          {recommendationKeys.map((key) => (
+            <li key={key}>→ {t(key as TranslationKey)}</li>
+          ))}
+        </ul>
+      : null}
+    </section>
+  );
 }
 
 function ProposalPreviewModal({
@@ -108,7 +144,10 @@ function ProposalPreviewModal({
           <h2 id="director-proposal-title" className="text-lg font-semibold text-zinc-900">
             {t("studio.directorProposal.preview.title")}
           </h2>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-0.5 text-sm text-zinc-600">
+            {t("studio.directorProposal.preview.productionTitle")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
             {t("studio.directorProposal.preview.quality", {
               score: String(proposal.directorQualityScore),
             })}
@@ -116,6 +155,8 @@ function ProposalPreviewModal({
         </header>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-5">
+          <ReadinessCard proposal={proposal} />
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("studio.directorProposal.preview.storyArc")}
@@ -134,6 +175,11 @@ function ProposalPreviewModal({
             <ul className="mt-2 space-y-2">
               {proposal.scenes.map((scene) => {
                 const copy = resolveProposedSceneText(scene, t);
+                const assetNames = [
+                  ...scene.characterRefs.map((c) => c.name),
+                  scene.locationRef?.name,
+                  ...scene.propRefs.map((p) => p.name),
+                ].filter(Boolean);
                 return (
                   <li
                     key={scene.tempId}
@@ -146,6 +192,7 @@ function ProposalPreviewModal({
                       })}
                     </p>
                     <p className="text-zinc-600">{copy.description}</p>
+                    <p className="mt-1 text-xs text-zinc-500">{copy.action}</p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {t("studio.directorProposal.preview.shotLine", {
                         shot: t(`studio.director.shot.${scene.shotType}` as TranslationKey),
@@ -155,6 +202,25 @@ function ProposalPreviewModal({
                         energy: t(`studio.director.energy.${scene.sceneEnergy}` as TranslationKey),
                       })}
                     </p>
+                    <p className="text-xs text-zinc-500">
+                      {t("studio.directorProposal.preview.emotionLine", {
+                        emotion: scene.emotion,
+                        duration: String(scene.durationSeconds),
+                      })}
+                    </p>
+                    {assetNames.length > 0 ?
+                      <p className="mt-1 text-xs text-[#0067B1]">
+                        {t("studio.directorProposal.preview.sceneAssets")}: {assetNames.join(" · ")}
+                      </p>
+                    : null}
+                    {scene.sceneAudio.musicCueType ?
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {t("studio.directorProposal.preview.audioLine", {
+                          music: scene.sceneAudio.musicCueType,
+                          sound: scene.sceneAudio.soundEnvironment || "—",
+                        })}
+                      </p>
+                    : null}
                   </li>
                 );
               })}
@@ -163,12 +229,12 @@ function ProposalPreviewModal({
 
           <section className="grid gap-4 sm:grid-cols-2">
             <AssetList
-              title={t("studio.directorProposal.preview.characters")}
+              title={t("studio.directorProposal.preview.suggestedCharacters")}
               existing={assets.characters}
               proposed={assets.newCharacters}
             />
             <AssetList
-              title={t("studio.directorProposal.preview.locations")}
+              title={t("studio.directorProposal.preview.suggestedLocations")}
               existing={assets.locations}
               proposed={assets.newLocations}
             />
@@ -177,6 +243,53 @@ function ProposalPreviewModal({
               existing={assets.props}
               proposed={assets.newProps}
             />
+            {assets.worlds.length > 0 ?
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("studio.directorProposal.preview.worlds")}
+                </h3>
+                <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+                  {assets.worlds.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              </div>
+            : null}
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.directorProposal.preview.suggestedVoices")}
+            </h3>
+            <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+              <li>
+                {t("studio.directorProposal.preview.voice")}:{" "}
+                {t(proposal.audio.voiceProfileLabelKey as TranslationKey)}
+              </li>
+              {proposal.voices.characterVoices.map((voice) => (
+                <li key={voice.characterId}>
+                  {voice.characterName} → {t(voice.voiceProfileLabelKey as TranslationKey)}
+                  {" · "}
+                  {t(`studio.directorProposal.voice.status.${voice.status}` as TranslationKey)}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.directorProposal.preview.audioRecommendations")}
+              </h3>
+              <p className="mt-2 text-sm text-zinc-700">
+                {t(proposal.audio.musicProfileLabelKey as TranslationKey)} ·{" "}
+                {proposal.audio.musicIntensity}
+              </p>
+              <p className="text-sm text-zinc-700">
+                {t(proposal.audio.soundProfileLabelKey as TranslationKey)} ·{" "}
+                {proposal.audio.soundDensity}
+              </p>
+            </div>
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {t("studio.directorProposal.preview.camera")}
@@ -187,49 +300,37 @@ function ProposalPreviewModal({
                   `studio.director.movement.${proposal.camera.dominantMovement}` as TranslationKey
                 )}
               </p>
-              <p className="text-xs text-zinc-500">
-                {t(proposal.camera.framingKey as TranslationKey)}
-              </p>
             </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("studio.directorProposal.preview.emotion")}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-700">
-                {proposal.emotion.moodKeywords
-                  .map((m) => t(`studio.aiDirector.mood.${m}` as TranslationKey))
-                  .join(" · ")}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {t(proposal.emotion.energyProfileKey as TranslationKey)}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("studio.directorProposal.preview.voice")}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-700">
-                {t(proposal.audio.voiceProfileLabelKey as TranslationKey)}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("studio.directorProposal.preview.music")}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-700">
-                {t(proposal.audio.musicProfileLabelKey as TranslationKey)} ·{" "}
-                {proposal.audio.musicIntensity}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("studio.directorProposal.preview.sound")}
-              </h3>
-              <p className="mt-2 text-sm text-zinc-700">
-                {t(proposal.audio.soundProfileLabelKey as TranslationKey)} ·{" "}
-                {proposal.audio.soundDensity}
-              </p>
-            </div>
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {t("studio.directorProposal.preview.textSuggestions")}
+            </h3>
+            <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+              <li>{t(proposal.text.openingHookKey as TranslationKey, proposal.text.openingHookParams)}</li>
+              <li>{t(proposal.text.coreMessageKey as TranslationKey, proposal.text.coreMessageParams)}</li>
+              <li>{t(proposal.text.ctaKey as TranslationKey, proposal.text.ctaParams)}</li>
+              {proposal.text.sceneOverlays.map((overlay) => (
+                <li key={`${overlay.sceneOrder}-${overlay.overlayKey}`} className="text-xs text-zinc-500">
+                  Scène {overlay.sceneOrder + 1}:{" "}
+                  {t(overlay.overlayKey as TranslationKey, overlay.overlayParams)}
+                </li>
+              ))}
+            </ul>
+            {proposal.text.narrationScriptPreview ?
+              <div className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
+                <p className="text-xs font-semibold text-zinc-600">
+                  {t("studio.directorProposal.preview.narrationPreview")}
+                </p>
+                <p className="mt-1 line-clamp-4 text-xs text-zinc-700">
+                  {proposal.text.narrationScriptPreview}
+                </p>
+              </div>
+            : null}
+            <p className="mt-2 text-xs text-zinc-500">
+              {t("studio.directorProposal.preview.textPreviewOnly")}
+            </p>
           </section>
         </div>
 
@@ -261,6 +362,22 @@ function ProposalPreviewModal({
             className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-800 disabled:opacity-60"
           >
             {t("studio.directorProposal.apply.assets")}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onApply("audio")}
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-800 disabled:opacity-60"
+          >
+            {t("studio.directorProposal.apply.audio")}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onApply("text")}
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-800 disabled:opacity-60"
+          >
+            {t("studio.directorProposal.apply.text")}
           </button>
           <button
             type="button"
@@ -324,6 +441,7 @@ export function StudioDirectorProposalFlow({
   characters,
   locations,
   props,
+  worlds = [],
   canModify,
   onApplied,
 }: Props) {
@@ -341,6 +459,8 @@ export function StudioDirectorProposalFlow({
       characters,
       locations,
       props,
+      worlds,
+      t,
     });
     if (!built) {
       return;
@@ -348,7 +468,7 @@ export function StudioDirectorProposalFlow({
     setProposal(built);
     setPreviewOpen(true);
     setFeedback("");
-  }, [idea, storyboard, characters, locations, props]);
+  }, [idea, storyboard, characters, locations, props, worlds, t]);
 
   const handleApply = useCallback(
     async (mode: DirectorProposalApplyMode) => {
@@ -366,6 +486,9 @@ export function StudioDirectorProposalFlow({
           t,
         });
         const messages = [t("studio.directorProposal.apply.success")];
+        if (mode === "text") {
+          messages.push(t("studio.directorProposal.apply.textPreviewNote"));
+        }
         if (result.skippedNewAssets > 0) {
           messages.push(
             t("studio.directorProposal.apply.partialNewAssets", {

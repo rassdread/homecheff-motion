@@ -224,12 +224,56 @@ describe("studio-director-proposal", () => {
       characters: [],
       locations: [],
       props: [],
+      t: tEn,
     });
     assert.ok(proposal);
+    assert.equal(proposal!.version, 2);
+    assert.ok(proposal!.renderReadiness.checks.length > 0);
+    assert.ok(proposal!.text.openingHookKey);
     const copy = resolveProposedSceneText(proposal!.scenes[0]!, tEn);
     assert.ok(copy.title.includes("Local designer campaign") || copy.title.includes("Opening"));
     const createInput = proposedSceneToCreateInput(proposal!.scenes[0]!, tEn);
     assert.ok(createInput.title);
     assert.ok(createInput.shotType);
+  });
+
+  it("audio-only storyboard patch excludes director metadata", () => {
+    const proposal = buildDirectorProposal({
+      idea: "Cinematic documentary",
+      storyboard: emptyStoryboard(),
+      characters: [],
+      locations: [],
+      props: [],
+    });
+    assert.ok(proposal);
+    const patch = proposalToStoryboardPatch(proposal!, "audio");
+    assert.ok(patch?.voiceEnabled);
+    assert.equal(patch?.aiDirectorPrompt, undefined);
+  });
+
+  it("text mode applies narration preview only", () => {
+    const proposal = buildDirectorProposal({
+      idea: "HomeCheff Garden promo",
+      storyboard: emptyStoryboard(),
+      characters: [],
+      locations: [],
+      props: [],
+    });
+    assert.ok(proposal);
+    const patch = proposalToStoryboardPatch(proposal!, "text");
+    assert.ok(patch?.voiceNarrationScript?.trim());
+    assert.equal(proposalToStoryboardPatch(proposal!, "assets"), null);
+  });
+
+  it("enriches scenes with per-scene audio cues", () => {
+    const proposal = buildDirectorProposal({
+      idea: "Restaurant promo with chef",
+      storyboard: emptyStoryboard(),
+      characters: [],
+      locations: [],
+      props: [],
+    });
+    assert.ok(proposal);
+    assert.ok(proposal!.scenes.some((s) => s.sceneAudio.musicCueType));
   });
 });

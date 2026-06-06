@@ -16,7 +16,10 @@ import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
 import { resolveSoundProfileForDirector } from "@/lib/studio-sound-profiles";
 import { buildSoundDirectorPlan } from "@/lib/studio-sound-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
-import { profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
+import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
+import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-readiness";
+import { getVoiceProfilePreset, profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
+import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 import { type StoryArcPhase } from "@/lib/studio-story-arc";
@@ -26,13 +29,18 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type {
+  DirectorProposalTextSummary,
+  DirectorProposalVoiceSummary,
   ProposedAssetRef,
   ProposedNewAsset,
   ProposedScene,
+  ProposedSceneAudio,
   StudioDirectorProposal,
 } from "@/types/studio-director-proposal";
+import type { ProposalTextResolver } from "@/lib/studio-director-proposal-apply";
 
 const PROPOSAL_PHASES: StoryArcPhase[] = [
   "opening",
@@ -132,9 +140,10 @@ export function scoreAssetMatch(
   name: string,
   description: string | null | undefined,
   category: string | null | undefined,
-  promptTokens: string[]
+  promptTokens: string[],
+  extraFields: string[] = []
 ): number {
-  const haystack = `${name} ${description ?? ""} ${category ?? ""}`.toLowerCase();
+  const haystack = `${name} ${description ?? ""} ${category ?? ""} ${extraFields.join(" ")}`.toLowerCase();
   let score = 0;
   for (const token of promptTokens) {
     if (haystack.includes(token)) {
@@ -142,6 +151,40 @@ export function scoreAssetMatch(
     }
   }
   return score;
+}
+
+function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: string[]): number {
+  let score = scoreAssetMatch(
+    character.name,
+    character.description,
+    character.role,
+    promptTokens,
+    [character.personality, character.visualKeywords, character.continuityNotes]
+  );
+  if (character.isMascot && promptTokens.some((t) => /mascot|chef|character|personage/.test(t))) {
+    score += 2;
+  }
+  return score;
+}
+
+function scoreLocationMatch(location: StudioLocationListItem, promptTokens: string[]): number {
+  return scoreAssetMatch(
+    location.name,
+    location.description,
+    location.category,
+    promptTokens,
+    [location.continuityNotes ?? ""]
+  );
+}
+
+function scorePropMatch(prop: StudioPropListItem, promptTokens: string[]): number {
+  return scoreAssetMatch(
+    prop.name,
+    prop.description,
+    prop.category,
+    promptTokens,
+    [prop.brandingRules ?? "", prop.appearanceMemory ?? ""]
+  );
 }
 
 function pickBestAsset<T extends { id: string; name: string }>(
@@ -190,26 +233,83 @@ function sceneTemplateKeys(phase: StoryArcPhase) {
   };
 }
 
-function textBeatsForPhase(phase: StoryArcPhase, topic: string): { keys: string[]; params: Record<string, string>[] } {
+function textBeatsForPhase(phase: StoryArcPhase, topic: string): {
+  keys: string[];
+  params: Record<string, string>[];
+  overlayKeys: string[];
+  overlayParams: Record<string, string>[];
+} {
+  const empty = { keys: [] as string[], params: [] as Record<string, string>[], overlayKeys: [] as string[], overlayParams: [] as Record<string, string>[] };
   if (phase === "opening") {
     return {
       keys: ["studio.directorProposal.textBeat.hook"],
       params: [{ topic }],
+      overlayKeys: ["studio.directorProposal.overlay.opening"],
+      overlayParams: [{ topic }],
+    };
+  }
+  if (phase === "build_up" || phase === "discovery") {
+    return {
+      keys: ["studio.directorProposal.textBeat.core"],
+      params: [{ topic }],
+      overlayKeys: ["studio.directorProposal.overlay.scene"],
+      overlayParams: [{ topic }],
     };
   }
   if (phase === "climax") {
     return {
       keys: ["studio.directorProposal.textBeat.highlight"],
       params: [{ topic }],
+      overlayKeys: ["studio.directorProposal.overlay.highlight"],
+      overlayParams: [{ topic }],
     };
   }
   if (phase === "resolution") {
     return {
       keys: ["studio.directorProposal.textBeat.cta"],
       params: [{ topic }],
+      overlayKeys: ["studio.directorProposal.overlay.cta"],
+      overlayParams: [{ topic }],
     };
   }
-  return { keys: [], params: [] };
+  return empty;
+}
+
+const EMPTY_SCENE_AUDIO: ProposedSceneAudio = {
+  musicCueType: "",
+  musicEnergyTarget: "",
+  soundEnvironment: "",
+  soundAmbient: "",
+};
+
+function resolveWorldRef(params: {
+  characterRefs: ProposedAssetRef[];
+  locationRef: ProposedAssetRef | null;
+  characters: StudioCharacterListItem[];
+  locations: StudioLocationListItem[];
+  worlds: StudioWorldProfileListItem[];
+}): ProposedAssetRef | null {
+  for (const ref of params.characterRefs) {
+    const character = params.characters.find((c) => c.id === ref.existingId);
+    if (character?.worldProfile) {
+      return { existingId: character.worldProfile.id, name: character.worldProfile.name };
+    }
+  }
+  if (params.locationRef) {
+    const location = params.locations.find((l) => l.id === params.locationRef!.existingId);
+    if (location?.worldProfile) {
+      return { existingId: location.worldProfile.id, name: location.worldProfile.name };
+    }
+  }
+  const matchedWorld = pickBestAsset(params.worlds, (w) =>
+    scoreAssetMatch(w.name, w.description, w.visualStyle, [])
+  );
+  return matchedWorld ? toAssetRef(matchedWorld) : null;
+}
+
+function libraryHasSimilarName(items: Array<{ name: string }>, candidate: string): boolean {
+  const norm = candidate.trim().toLowerCase();
+  return items.some((item) => item.name.trim().toLowerCase() === norm);
 }
 
 function buildSyntheticFlow(count: number, topic: string): StoryFlowSceneInput[] {
@@ -265,9 +365,16 @@ function dominantValue(values: string[]): string {
 function proposalMockStoryboard(
   base: StudioStoryboardDetail,
   proposalScenes: ProposedScene[],
-  idea: string
+  idea: string,
+  characters: StudioCharacterListItem[],
+  props: StudioPropListItem[],
+  locations: StudioLocationListItem[]
 ): StudioStoryboardDetail {
   const interpretation = interpretAiDirectorPrompt(idea);
+  const characterById = new Map(characters.map((c) => [c.id, c]));
+  const propById = new Map(props.map((p) => [p.id, p]));
+  const locationById = new Map(locations.map((l) => [l.id, l]));
+
   return {
     ...base,
     aiDirectorPrompt: idea,
@@ -280,25 +387,25 @@ function proposalMockStoryboard(
       id: scene.existingSceneId ?? scene.tempId,
       storyboardId: base.id,
       order: index,
-      title: scene.titleParams.topic ?? `Scene ${index + 1}`,
-      description: "",
-      action: "",
+      title: scene.titleParams.topic ?? scene.titleParams.title ?? `Scene ${index + 1}`,
+      description: scene.descriptionParams.description ?? "",
+      action: scene.actionParams.topic ?? "",
       emotion: scene.emotion,
       camera: scene.camera,
       shotType: scene.shotType,
       cameraMovement: scene.cameraMovement,
       sceneEnergy: normalizeStudioSceneEnergy(scene.sceneEnergy),
       transitionToNext: "",
-      musicCueType: "",
-      musicEnergyTarget: "",
+      musicCueType: scene.sceneAudio.musicCueType,
+      musicEnergyTarget: scene.sceneAudio.musicEnergyTarget,
       musicTransitionType: "",
       musicStartBehavior: "",
       musicEndBehavior: "",
-      soundEnvironmentOverride: "",
+      soundEnvironmentOverride: scene.sceneAudio.soundEnvironment,
       soundCharacterOverride: "",
       soundPropOverride: "",
       soundTransitionOverride: "",
-      soundAmbientOverride: "",
+      soundAmbientOverride: scene.sceneAudio.soundAmbient,
       voicePriority: "",
       musicPriority: "",
       soundPriority: "",
@@ -310,9 +417,13 @@ function proposalMockStoryboard(
       sfxAssetOverride: "",
       durationSeconds: scene.durationSeconds,
       locationId: scene.locationRef?.existingId ?? null,
-      location: null,
-      characters: [],
-      props: [],
+      location: scene.locationRef ? locationById.get(scene.locationRef.existingId) ?? null : null,
+      characters: scene.characterRefs
+        .map((ref) => characterById.get(ref.existingId))
+        .filter((c): c is StudioCharacterListItem => Boolean(c)),
+      props: scene.propRefs
+        .map((ref) => propById.get(ref.existingId))
+        .filter((p): p is StudioPropListItem => Boolean(p)),
       selectedSceneImageId: null,
       sceneImages: [],
       createdAt: base.createdAt,
@@ -327,41 +438,57 @@ function assignAssetsToScene(params: {
   characters: StudioCharacterListItem[];
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
+  worlds: StudioWorldProfileListItem[];
   sceneIndex: number;
+  arcPhase: StoryArcPhase;
   usedCharacterIds: Set<string>;
   usedLocationId: string | null;
   usedPropIds: Set<string>;
 }): Pick<
   ProposedScene,
-  "characterRefs" | "proposedCharacters" | "locationRef" | "proposedLocation" | "propRefs" | "proposedProps"
+  | "characterRefs"
+  | "proposedCharacters"
+  | "locationRef"
+  | "proposedLocation"
+  | "propRefs"
+  | "proposedProps"
+  | "worldRef"
 > {
-  const character =
-    pickBestAsset(params.characters, (c) =>
-      scoreAssetMatch(c.name, c.description, c.role, params.promptTokens)
-    ) ??
-    pickBestAsset(
-      params.characters.filter((c) => !params.usedCharacterIds.has(c.id)),
-      (c) => scoreAssetMatch(c.name, c.description, c.role, params.promptTokens)
-    );
+  const availableCharacters = params.characters.filter((c) => !params.usedCharacterIds.has(c.id));
+  const primaryCharacter =
+    pickBestAsset(params.characters, (c) => scoreCharacterMatch(c, params.promptTokens)) ??
+    pickBestAsset(availableCharacters, (c) => scoreCharacterMatch(c, params.promptTokens));
+
+  const secondaryCharacter =
+    params.arcPhase === "climax" || params.arcPhase === "build_up"
+      ? pickBestAsset(
+          availableCharacters.filter((c) => c.id !== primaryCharacter?.id),
+          (c) => scoreCharacterMatch(c, params.promptTokens)
+        )
+      : null;
 
   const location =
-    pickBestAsset(params.locations, (l) =>
-      scoreAssetMatch(l.name, l.description, l.category, params.promptTokens)
-    ) ??
+    pickBestAsset(params.locations, (l) => scoreLocationMatch(l, params.promptTokens)) ??
     (params.usedLocationId ?
       params.locations.find((l) => l.id === params.usedLocationId) ?? null
     : null);
 
-  const prop = pickBestAsset(params.props, (p) =>
-    scoreAssetMatch(p.name, p.description, p.category, params.promptTokens)
-  );
+  const prop =
+    pickBestAsset(params.props, (p) => scorePropMatch(p, params.promptTokens)) ??
+    pickBestAsset(
+      params.props.filter((p) => !params.usedPropIds.has(p.id)),
+      (p) => scorePropMatch(p, params.promptTokens)
+    );
 
   const characterRefs: ProposedAssetRef[] = [];
-  if (character && !params.usedCharacterIds.has(character.id)) {
-    characterRefs.push(toAssetRef(character));
-    params.usedCharacterIds.add(character.id);
-  } else if (character) {
-    characterRefs.push(toAssetRef(character));
+  for (const character of [primaryCharacter, secondaryCharacter]) {
+    if (!character) {
+      continue;
+    }
+    if (!characterRefs.some((c) => c.existingId === character.id)) {
+      characterRefs.push(toAssetRef(character));
+      params.usedCharacterIds.add(character.id);
+    }
   }
 
   const propRefs: ProposedAssetRef[] = [];
@@ -373,16 +500,27 @@ function assignAssetsToScene(params: {
   }
 
   const locationRef = location ? toAssetRef(location) : null;
+  const worldRef = resolveWorldRef({
+    characterRefs,
+    locationRef,
+    characters: params.characters,
+    locations: params.locations,
+    worlds: params.worlds,
+  });
 
   const proposedCharacters: ProposedNewAsset[] =
-    characterRefs.length === 0 ?
-      (suggestNewAsset("character", params.idea, params.sceneIndex) ? [suggestNewAsset("character", params.idea, params.sceneIndex)!] : [])
+    characterRefs.length === 0 && !libraryHasSimilarName(params.characters, extractProposalTopic(params.idea))
+      ? (suggestNewAsset("character", params.idea, params.sceneIndex) ?
+          [suggestNewAsset("character", params.idea, params.sceneIndex)!]
+        : [])
     : [];
   const proposedLocation: ProposedNewAsset | null =
     locationRef ? null : suggestNewAsset("location", params.idea, params.sceneIndex);
   const proposedProps: ProposedNewAsset[] =
     propRefs.length === 0 ?
-      (suggestNewAsset("prop", params.idea, params.sceneIndex) ? [suggestNewAsset("prop", params.idea, params.sceneIndex)!] : [])
+      (suggestNewAsset("prop", params.idea, params.sceneIndex) ?
+          [suggestNewAsset("prop", params.idea, params.sceneIndex)!]
+        : [])
     : [];
 
   return {
@@ -392,6 +530,86 @@ function assignAssetsToScene(params: {
     proposedLocation,
     propRefs,
     proposedProps,
+    worldRef,
+  };
+}
+
+function buildProposalVoiceSummary(params: {
+  mockStoryboard: StudioStoryboardDetail;
+  characters: StudioCharacterListItem[];
+  storyLanguage: string;
+  storyVoiceProfile: string;
+  storyVoiceProfileLabelKey: string;
+}): DirectorProposalVoiceSummary {
+  const identityPlan = buildVoiceIdentityPlan(params.mockStoryboard);
+  const storyCharacters = params.mockStoryboard.scenes.flatMap((s) => s.characters);
+  const uniqueById = new Map<string, StudioCharacterListItem>();
+  for (const c of [...storyCharacters, ...params.characters]) {
+    if (!uniqueById.has(c.id)) {
+      uniqueById.set(c.id, c);
+    }
+  }
+
+  const characterVoices = [...uniqueById.values()]
+    .filter((c) => storyCharacters.some((sc) => sc.id === c.id))
+    .map((character) => {
+      const identity = resolveCharacterVoiceIdentity({
+        character,
+        language: params.storyLanguage,
+        attemptedOverrideProfile: params.storyVoiceProfile,
+      });
+      const preset = getVoiceProfilePreset(identity.voiceProfile);
+      let status: "ready" | "missing" | "inconsistent" = "ready";
+      let recommendationKey: string | undefined;
+      if (!identity.voiceEnabled) {
+        status = "missing";
+        recommendationKey = "studio.directorProposal.voice.rec.enableCharacter";
+      } else if (identity.voiceLock && params.storyVoiceProfile && identity.voiceProfile !== params.storyVoiceProfile) {
+        status = "inconsistent";
+        recommendationKey = "studio.directorProposal.voice.rec.respectLock";
+      }
+      return {
+        characterId: character.id,
+        characterName: character.name,
+        voiceProfile: identity.voiceProfile,
+        voiceProfileLabelKey: preset.labelKey,
+        voiceEnabled: identity.voiceEnabled,
+        voiceLock: identity.voiceLock,
+        status,
+        recommendationKey,
+      };
+    });
+
+  return {
+    storyVoiceProfile: params.storyVoiceProfile,
+    storyVoiceProfileLabelKey: params.storyVoiceProfileLabelKey,
+    characterVoices,
+    warningKeys: identityPlan.warnings.slice(0, 4).map((w) => w.messageKey),
+  };
+}
+
+function buildProposalTextSummary(params: {
+  topic: string;
+  scenes: ProposedScene[];
+  narrationScriptPreview: string;
+}): DirectorProposalTextSummary {
+  const sceneOverlays = params.scenes.flatMap((scene) =>
+    scene.overlayKeys.map((overlayKey, index) => ({
+      sceneOrder: scene.order,
+      overlayKey,
+      overlayParams: scene.overlayParams[index] ?? { topic: params.topic },
+    }))
+  );
+
+  return {
+    openingHookKey: "studio.directorProposal.textBeat.hook",
+    openingHookParams: { topic: params.topic },
+    coreMessageKey: "studio.directorProposal.textBeat.core",
+    coreMessageParams: { topic: params.topic },
+    ctaKey: "studio.directorProposal.textBeat.cta",
+    ctaParams: { topic: params.topic },
+    sceneOverlays,
+    narrationScriptPreview: params.narrationScriptPreview,
   };
 }
 
@@ -401,7 +619,9 @@ export function buildDirectorProposal(params: {
   characters: StudioCharacterListItem[];
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
   styleStrength?: AiDirectorStyleStrength;
+  t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
   if (!idea) {
@@ -445,7 +665,9 @@ export function buildDirectorProposal(params: {
       characters: params.characters,
       locations: params.locations,
       props: params.props,
+      worlds: params.worlds ?? [],
       sceneIndex: index,
+      arcPhase: phase,
       usedCharacterIds,
       usedLocationId,
       usedPropIds,
@@ -473,13 +695,23 @@ export function buildDirectorProposal(params: {
       sceneEnergy: planRow.sceneEnergy,
       camera: planRow.legacyCamera,
       ...assets,
+      sceneAudio: { ...EMPTY_SCENE_AUDIO },
       textBeatKeys: textBeats.keys,
       textBeatParams: textBeats.params,
+      overlayKeys: textBeats.overlayKeys,
+      overlayParams: textBeats.overlayParams,
       durationSeconds: existing?.durationSeconds ?? 6,
     };
   });
 
-  const mockStoryboard = proposalMockStoryboard(params.storyboard, scenes, idea);
+  const mockStoryboard = proposalMockStoryboard(
+    params.storyboard,
+    scenes,
+    idea,
+    params.characters,
+    params.props,
+    params.locations
+  );
   const narrationMode = normalizeStudioNarrationMode(params.storyboard.narrationMode || "narrator");
   const voiceReport = analyzeVoiceDirector({
     ...mockStoryboard,
@@ -493,13 +725,42 @@ export function buildDirectorProposal(params: {
   const musicProfile = resolveMusicProfileForDirector(interpretation.directorProfile);
   const soundProfile = resolveSoundProfileForDirector(interpretation.directorProfile);
 
+  const musicCueBySceneId = new Map(musicPlan.sceneCues.map((cue) => [cue.sceneId, cue]));
+  const soundCueBySceneId = new Map(soundPlan.sceneCues.map((cue) => [cue.sceneId, cue]));
+
+  for (const scene of scenes) {
+    const sceneId = scene.existingSceneId ?? scene.tempId;
+    const musicCue = musicCueBySceneId.get(sceneId);
+    const soundCue = soundCueBySceneId.get(sceneId);
+    scene.sceneAudio = {
+      musicCueType: musicCue?.cueType ?? "",
+      musicEnergyTarget: musicCue?.energyTarget ?? "",
+      soundEnvironment: soundCue?.environmentSounds?.join(", ") ?? "",
+      soundAmbient: soundCue?.ambientRecommendation?.join(", ") ?? "",
+    };
+  }
+
+  const storyLanguage = (params.storyboard.voiceLanguage ?? "nl").slice(0, 2);
+  const voices = buildProposalVoiceSummary({
+    mockStoryboard,
+    characters: params.characters,
+    storyLanguage,
+    storyVoiceProfile: voiceReport.voiceProfile,
+    storyVoiceProfileLabelKey: voiceReport.presetLabelKey,
+  });
+  const text = buildProposalTextSummary({
+    topic,
+    scenes,
+    narrationScriptPreview: voiceReport.script.fullNarration.slice(0, 1200),
+  });
+
   const recommendationKeys = [
     ...musicPlan.recommendations.slice(0, 2),
     ...soundPlan.recommendations.slice(0, 2),
   ];
 
-  return {
-    version: 1,
+  const proposal: StudioDirectorProposal = {
+    version: 2,
     ideaPrompt: idea,
     interpretation,
     styleStrength,
@@ -536,7 +797,28 @@ export function buildDirectorProposal(params: {
       soundEnabled: true,
       recommendationKeys,
     },
+    text,
+    voices,
+    renderReadiness: { level: "needs_work", score: 0, checks: [], recommendationKeys: [] },
   };
+
+  if (params.t) {
+    proposal.renderReadiness = buildProposalRenderReadiness({
+      proposal,
+      baseStoryboard: params.storyboard,
+      characters: params.characters,
+      t: params.t,
+    });
+  } else {
+    proposal.renderReadiness = buildProposalRenderReadiness({
+      proposal,
+      baseStoryboard: params.storyboard,
+      characters: params.characters,
+      t: (key, p) => `${key}${p?.topic ? `: ${p.topic}` : ""}`,
+    });
+  }
+
+  return proposal;
 }
 
 /** Exported for tests — ensures synthetic flow gets a shot plan when storyboard is empty. */

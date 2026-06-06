@@ -78,7 +78,7 @@ export function proposedSceneToUpdateInput(
     };
   }
 
-  return {
+  const base: StudioSceneUpdateInput = {
     title: copy.title || undefined,
     description: copy.description || undefined,
     action: copy.action || undefined,
@@ -92,6 +92,27 @@ export function proposedSceneToUpdateInput(
     characterIds: scene.characterRefs.map((c) => c.existingId),
     propIds: scene.propRefs.map((p) => p.existingId),
   };
+
+  if (mode === "all") {
+    return {
+      ...base,
+      musicCueType: scene.sceneAudio.musicCueType || undefined,
+      musicEnergyTarget: scene.sceneAudio.musicEnergyTarget || undefined,
+      soundEnvironmentOverride: scene.sceneAudio.soundEnvironment || undefined,
+      soundAmbientOverride: scene.sceneAudio.soundAmbient || undefined,
+    };
+  }
+
+  return base;
+}
+
+export function proposedSceneToAudioUpdateInput(scene: ProposedScene): StudioSceneUpdateInput {
+  return {
+    musicCueType: scene.sceneAudio.musicCueType || undefined,
+    musicEnergyTarget: scene.sceneAudio.musicEnergyTarget || undefined,
+    soundEnvironmentOverride: scene.sceneAudio.soundEnvironment || undefined,
+    soundAmbientOverride: scene.sceneAudio.soundAmbient || undefined,
+  };
 }
 
 export function proposalToStoryboardPatch(
@@ -101,24 +122,40 @@ export function proposalToStoryboardPatch(
   if (mode === "assets") {
     return null;
   }
+
+  const audioPatch = {
+    voiceEnabled: proposal.audio.voiceEnabled,
+    voiceProfile: proposal.audio.voiceProfile,
+    narrationMode: proposal.audio.narrationMode,
+    musicEnabled: proposal.audio.musicEnabled,
+    musicStyle: proposal.audio.musicProfile,
+    musicIntensity: proposal.audio.musicIntensity,
+    soundEnabled: proposal.audio.soundEnabled,
+    soundStyle: proposal.audio.soundProfile,
+    soundDensity: proposal.audio.soundDensity,
+  };
+
+  if (mode === "audio") {
+    return audioPatch;
+  }
+
+  if (mode === "text") {
+    const script = proposal.text.narrationScriptPreview.trim();
+    if (!script) {
+      return null;
+    }
+    return {
+      voiceEnabled: true,
+      voiceNarrationScript: script,
+    };
+  }
+
   return {
     aiDirectorPrompt: proposal.ideaPrompt,
     aiDirectorStyleStrength: proposal.styleStrength,
     directorProfile: proposal.interpretation.directorProfile,
     promptStyleProfile: proposal.interpretation.promptStyleProfile,
-    ...(mode === "all" ?
-      {
-        voiceEnabled: proposal.audio.voiceEnabled,
-        voiceProfile: proposal.audio.voiceProfile,
-        narrationMode: proposal.audio.narrationMode,
-        musicEnabled: proposal.audio.musicEnabled,
-        musicStyle: proposal.audio.musicProfile,
-        musicIntensity: proposal.audio.musicIntensity,
-        soundEnabled: proposal.audio.soundEnabled,
-        soundStyle: proposal.audio.soundProfile,
-        soundDensity: proposal.audio.soundDensity,
-      }
-    : {}),
+    ...(mode === "all" ? audioPatch : {}),
   };
 }
 
@@ -183,6 +220,27 @@ export async function applyDirectorProposal(params: {
         createdSceneIds.push(res.data.scene.id);
       } else {
         errors.push(`scene_create_${proposed.order}_${res.status}`);
+      }
+    }
+  }
+
+  if (params.mode === "audio") {
+    const existingByOrder = [...params.existingScenes].sort((a, b) => a.order - b.order);
+    for (const proposed of params.proposal.scenes) {
+      const targetId =
+        proposed.existingSceneId ?? existingByOrder[proposed.order]?.id ?? null;
+      if (!targetId) {
+        continue;
+      }
+      const res = await updateStudioSceneApi(
+        params.storyboardId,
+        targetId,
+        proposedSceneToAudioUpdateInput(proposed)
+      );
+      if (res.ok) {
+        updatedSceneIds.push(targetId);
+      } else {
+        errors.push(`scene_audio_${targetId}_${res.status}`);
       }
     }
   }

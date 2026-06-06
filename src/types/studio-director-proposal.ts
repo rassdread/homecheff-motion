@@ -4,8 +4,9 @@
 
 import type { AiDirectorStyleStrength, InterpretedDirectorStyle } from "@/lib/studio-ai-director-interpreter";
 import type { StoryArcPhase } from "@/lib/studio-story-arc";
+import type { RenderReadinessLevel } from "@/lib/studio-render-readiness-summary";
 
-export type DirectorProposalApplyMode = "all" | "scenes" | "assets";
+export type DirectorProposalApplyMode = "all" | "scenes" | "assets" | "audio" | "text";
 
 export type ProposedNewAsset = {
   tempId: string;
@@ -16,6 +17,13 @@ export type ProposedNewAsset = {
 export type ProposedAssetRef = {
   existingId: string;
   name: string;
+};
+
+export type ProposedSceneAudio = {
+  musicCueType: string;
+  musicEnergyTarget: string;
+  soundEnvironment: string;
+  soundAmbient: string;
 };
 
 export type ProposedScene = {
@@ -40,8 +48,12 @@ export type ProposedScene = {
   proposedLocation: ProposedNewAsset | null;
   propRefs: ProposedAssetRef[];
   proposedProps: ProposedNewAsset[];
+  worldRef: ProposedAssetRef | null;
+  sceneAudio: ProposedSceneAudio;
   textBeatKeys: string[];
   textBeatParams: Record<string, string>[];
+  overlayKeys: string[];
+  overlayParams: Record<string, string>[];
   durationSeconds: number;
 };
 
@@ -80,8 +92,48 @@ export type DirectorProposalAudio = {
   recommendationKeys: string[];
 };
 
+export type ProposedCharacterVoice = {
+  characterId: string;
+  characterName: string;
+  voiceProfile: string;
+  voiceProfileLabelKey: string;
+  voiceEnabled: boolean;
+  voiceLock: boolean;
+  status: "ready" | "missing" | "inconsistent";
+  recommendationKey?: string;
+};
+
+export type DirectorProposalTextSummary = {
+  openingHookKey: string;
+  openingHookParams: Record<string, string>;
+  coreMessageKey: string;
+  coreMessageParams: Record<string, string>;
+  ctaKey: string;
+  ctaParams: Record<string, string>;
+  sceneOverlays: Array<{
+    sceneOrder: number;
+    overlayKey: string;
+    overlayParams: Record<string, string>;
+  }>;
+  narrationScriptPreview: string;
+};
+
+export type DirectorProposalVoiceSummary = {
+  storyVoiceProfile: string;
+  storyVoiceProfileLabelKey: string;
+  characterVoices: ProposedCharacterVoice[];
+  warningKeys: string[];
+};
+
+export type DirectorProposalRenderReadiness = {
+  level: RenderReadinessLevel;
+  score: number;
+  checks: Array<{ id: string; messageKey: string; passed: boolean }>;
+  recommendationKeys: string[];
+};
+
 export type StudioDirectorProposal = {
-  version: 1;
+  version: 2;
   ideaPrompt: string;
   interpretation: InterpretedDirectorStyle;
   styleStrength: AiDirectorStyleStrength;
@@ -91,4 +143,7 @@ export type StudioDirectorProposal = {
   camera: DirectorProposalCameraSummary;
   emotion: DirectorProposalEmotionSummary;
   audio: DirectorProposalAudio;
+  text: DirectorProposalTextSummary;
+  voices: DirectorProposalVoiceSummary;
+  renderReadiness: DirectorProposalRenderReadiness;
 };
