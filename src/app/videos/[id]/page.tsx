@@ -81,6 +81,7 @@ import {
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
 import { ProjectVideoCostCard } from "@/components/videos/project-video-cost-card";
+import { ProjectRenderTracePanel } from "@/components/videos/project-render-trace-panel";
 import { ProjectTimelinePanel } from "@/components/videos/project-timeline-panel";
 import { ProjectDetailSection } from "@/components/videos/project-detail-section";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
@@ -952,11 +953,16 @@ export default function VideoDetailPage() {
         onRename={() => setRenameOpen(true)}
       />
 
-      {isStudioAiAssistantEnabled() ?
-        <div className="mt-6">
+      <div className="mt-6 space-y-4">
+        <ProjectRenderTracePanel
+          detail={detail}
+          renderVersionId={selectedCatalogSlot?.renderVersionId}
+          languageExportId={selectedCatalogSlot?.languageExportId}
+        />
+        {isStudioAiAssistantEnabled() ?
           <ProjectTimelinePanel detail={detail} />
-        </div>
-      : null}
+        : null}
+      </div>
 
       {detail.draftLineage ? (
         <div className="mt-6">

@@ -13,6 +13,7 @@ import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspac
 import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
 import { MotionStudioOnboarding } from "@/components/studio/motion-studio-onboarding";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
+import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -67,6 +68,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [activeNav, setActiveNav] = useState<StudioWorkspaceNavId>("scenes");
   const [assetsDrawerOpen, setAssetsDrawerOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
+  const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -294,7 +296,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             {/* Center: Director workspace */}
             <section
               className={`min-h-[60vh] bg-white px-4 py-4 sm:px-6 ${
-                mobilePane === "list" ? "hidden lg:block" : "block"
+                mobilePane === "list" ? "hidden lg:block" : "block pb-28 lg:pb-4"
               }`}
             >
               {mobilePane === "editor" ?
@@ -335,12 +337,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               )}
             </section>
 
-            {/* Right: Inspector */}
-            <aside
-              className={`border-t border-zinc-200 bg-zinc-50/50 p-4 lg:border-l lg:border-t-0 ${
-                mobilePane === "list" ? "hidden lg:block" : "block"
-              }`}
-            >
+            {/* Right: Inspector (desktop only — mobile uses bottom sheet) */}
+            <aside className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0">
               {activeScene && activeSceneIndex >= 0 ?
                 <StudioWorkspaceInspectorPanel
                   storyboard={storyboard}
@@ -358,6 +356,35 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             </aside>
           </div>
         )}
+
+        {isStudioAiAssistantEnabled() && storyboard && activeScene && activeSceneIndex >= 0 ?
+          <>
+            <div
+              className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur lg:hidden"
+              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+            >
+              <button
+                type="button"
+                onClick={() => setMobileInsightsOpen(true)}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white"
+              >
+                <span aria-hidden>✦</span>
+                {t("studio.mobileInsights.open")}
+              </button>
+            </div>
+            <StudioMobileInsightsSheet
+              open={mobileInsightsOpen}
+              onClose={() => setMobileInsightsOpen(false)}
+              storyboard={storyboard}
+              scene={activeScene}
+              sceneIndex={activeSceneIndex}
+              sceneCount={scenes.length}
+              characters={characters}
+              canModify={canModify}
+              onSceneUpdated={handleSceneDraftChange}
+            />
+          </>
+        : null}
 
         <StudioWorkspaceAssetsDrawer
           open={assetsDrawerOpen}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioSourceBadge } from "@/components/studio/studio-source-badge";
 import { StudioDirectorCardSelect } from "@/components/studio/director-v2/studio-director-card-select";
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioEnvironmentSoundPanel } from "@/components/studio/studio-environment-sound-panel";
@@ -26,6 +27,7 @@ export function StudioDirectorSectionSound({ scene, storyboard, canModify, onPat
 
   return (
     <div className="space-y-4">
+      <StudioSourceBadge kind="studio_source" />
       <StudioEnvironmentSoundPanel
         storyboard={storyboard}
         scene={scene}

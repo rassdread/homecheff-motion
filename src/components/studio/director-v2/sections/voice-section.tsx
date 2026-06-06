@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StudioSourceBadge } from "@/components/studio/studio-source-badge";
 import { useActiveTranslator } from "@/i18n/client";
 import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
 import type { StudioCharacterListItem, StudioSceneDetail } from "@/types/studio-api";
@@ -111,6 +112,9 @@ export function StudioDirectorSectionVoice({ scene, allCharacters }: Props) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <StudioSourceBadge kind="studio_source" />
+      </div>
       {sceneCharacters.map((character) => (
         <div
           key={character.id}
@@ -118,11 +122,7 @@ export function StudioDirectorSectionVoice({ scene, allCharacters }: Props) {
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold text-zinc-900">{character.name}</p>
-            {character.voiceLock ? (
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
-                {t("studio.directorV2.voice.locked")}
-              </span>
-            ) : null}
+            {character.voiceLock ? <StudioSourceBadge kind="protected" /> : null}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
             {character.voiceEnabled

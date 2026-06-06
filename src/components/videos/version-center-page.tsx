@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/motion-studio-primitives";
 import { VersionIntelligencePanel } from "@/components/videos/version-intelligence-panel";
 import { VersionCenterComparePanel } from "@/components/videos/version-center-compare-panel";
+import { VersionCenterLineagePanel } from "@/components/videos/version-center-lineage-panel";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useStudioProductionUiMode } from "@/lib/studio-advanced-features";
 import { useActiveTranslator } from "@/i18n/client";
@@ -278,6 +279,10 @@ export function VersionCenterPage() {
             </Link>
           </div>
         </div>
+
+        {detail ?
+          <VersionCenterLineagePanel detail={detail} />
+        : null}
 
         {detail && isStudioAiAssistantEnabled() && uiMode === "advanced" ?
           <VersionIntelligencePanel detail={detail} />

@@ -140,6 +140,7 @@ import { MotionAudioExportWizardSettings } from "@/components/instant/motion/mot
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
 import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-export";
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
+import { MotionFirstRenderConfidencePanel } from "@/components/instant/motion/motion-first-render-confidence-panel";
 import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
 import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
 import { MotionSceneSourceBadges } from "@/components/instant/motion/motion-scene-source-badges";
@@ -2296,6 +2297,18 @@ export default function InstantPremiumPage() {
                       : t("instant.step7.testModeHelp")
                     : t("instant.step7.checkoutHelp")}
                 </p>
+                {hasStudioImportedScenes && studioIntelligence ?
+                  <MotionFirstRenderConfidencePanel
+                    intelligence={studioIntelligence}
+                    sceneCount={sceneCount}
+                    voiceReady={Boolean(
+                      readPersistedWizardState()?.studioHandoff?.voiceMetadata?.ready ??
+                        studioIntelligence.voiceSummary?.ready
+                    )}
+                    textReady={sceneCount > 0}
+                    charactersReady={studioIntelligence.charactersUsed.length > 0}
+                  />
+                : null}
               </div>
             ) : null}
           </InstantWizardContent>

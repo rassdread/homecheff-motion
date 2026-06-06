@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioSourceBadge } from "@/components/studio/studio-source-badge";
 import { StudioDirectorCardSelect } from "@/components/studio/director-v2/studio-director-card-select";
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioMusicPreviewCard } from "@/components/studio/studio-music-preview-card";
@@ -30,6 +31,7 @@ export function StudioDirectorSectionMusic({ scene, storyboard, canModify, onPat
 
   return (
     <div className="space-y-4">
+      <StudioSourceBadge kind="studio_source" />
       <StudioMusicPreviewCard storyboard={storyboard} scene={scene} />
       {sceneCue ?
         <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-3 py-2 text-xs">

@@ -12,6 +12,7 @@ import { StudioDirectorSectionMusic } from "@/components/studio/director-v2/sect
 import { StudioDirectorSectionSound } from "@/components/studio/director-v2/sections/sound-section";
 import { StudioDirectorSectionText } from "@/components/studio/director-v2/sections/text-section";
 import { StudioDirectorSectionAdvanced } from "@/components/studio/director-v2/sections/advanced-section";
+import { StudioAudioConfidenceCard } from "@/components/studio/studio-audio-confidence-card";
 import {
   readStudioDirectorV2Mode,
   writeStudioDirectorV2Mode,
@@ -193,6 +194,12 @@ export function StudioDirectorPanelV2({
         storyboardTitle={storyboardTitle}
         storyboardDescription={storyboardDescription}
         aiDirectorNotes={directorNotes}
+      />
+
+      <StudioAudioConfidenceCard
+        storyboard={storyboard}
+        scene={scene}
+        characters={characters}
       />
 
       <div className="space-y-3">

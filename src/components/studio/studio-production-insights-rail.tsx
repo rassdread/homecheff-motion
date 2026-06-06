@@ -17,6 +17,8 @@ type Props = {
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
+  /** Mobile bottom sheet: tighter layout, no improve-project block */
+  compact?: boolean;
 };
 
 function ScoreRing({ score, label }: { score: number; label: string }) {
@@ -65,6 +67,7 @@ export function StudioProductionInsightsRail({
   characters,
   canModify,
   onSceneUpdated,
+  compact = false,
 }: Props) {
   const t = useActiveTranslator();
   const [ignored, setIgnored] = useState<Set<string>>(() => {
@@ -141,14 +144,20 @@ export function StudioProductionInsightsRail({
         ? "studio.aiAssistant.quality.level.medium"
         : "studio.aiAssistant.quality.level.low";
 
+  const shellClass = compact
+    ? "space-y-3"
+    : "space-y-4 rounded-2xl border border-[#006D52]/25 bg-gradient-to-br from-[#006D52]/5 via-white to-[#0067B1]/5 p-4 shadow-sm";
+
   return (
-    <section className="space-y-4 rounded-2xl border border-[#006D52]/25 bg-gradient-to-br from-[#006D52]/5 via-white to-[#0067B1]/5 p-4 shadow-sm">
-      <header>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#006D52]">
-          {t("studio.productionInsights.label")}
-        </p>
-        <p className="mt-1 text-xs text-zinc-600">{t("studio.productionInsights.hint")}</p>
-      </header>
+    <section className={shellClass}>
+      {!compact ?
+        <header>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#006D52]">
+            {t("studio.productionInsights.label")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">{t("studio.productionInsights.hint")}</p>
+        </header>
+      : null}
 
       <div className="grid grid-cols-3 gap-2">
         <ScoreRing
@@ -197,7 +206,7 @@ export function StudioProductionInsightsRail({
         </ul>
       </InsightSection>
 
-      {insights.consistency.characters.length > 0 ?
+      {!compact && insights.consistency.characters.length > 0 ?
         <InsightSection
           title={t("studio.aiAssistant.consistency.title")}
           badge={
@@ -264,7 +273,7 @@ export function StudioProductionInsightsRail({
         </InsightSection>
       : null}
 
-      {canModify ?
+      {!compact && canModify ?
         <div className="rounded-xl border border-dashed border-[#006D52]/30 bg-white/80 p-3">
           <button
             type="button"
