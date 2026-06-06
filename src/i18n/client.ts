@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import {
   DEFAULT_LOCALE,
   getActiveLocale,
@@ -21,5 +21,5 @@ export function useLocale(): [Locale, (locale: Locale) => void] {
 
 export function useActiveTranslator() {
   const [locale] = useLocale();
-  return getTranslator(locale);
+  return useMemo(() => getTranslator(locale), [locale]);
 }

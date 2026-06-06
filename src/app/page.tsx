@@ -1,5 +1,5 @@
-import { HomeEcosystemPage } from "@/components/landing/home-ecosystem-page";
+import { StudioEntryPage } from "@/components/studio/studio-entry-page";
 
 export default function Home() {
-  return <HomeEcosystemPage />;
+  return <StudioEntryPage />;
 }

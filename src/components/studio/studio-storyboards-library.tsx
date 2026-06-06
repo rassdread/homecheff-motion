@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CardGridSkeleton } from "@/components/ui/motion-studio-primitives";
+import { AppCard } from "@/components/ui/app-card";
 import { StudioStoryboardCard } from "@/components/studio/studio-storyboard-card";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { brand } from "@/lib/brand";
 import { filterStudioAssetsBySearch } from "@/lib/studio-asset-search";
 import {
   deleteStudioStoryboardApi,
   fetchStudioStoryboards,
 } from "@/lib/studio-storyboards-client";
+import { userFacingApiError } from "@/lib/user-facing-error";
 import type { StudioStoryboardListItem } from "@/types/studio-api";
 
 export function StudioStoryboardsLibrary() {
@@ -20,22 +23,71 @@ export function StudioStoryboardsLibrary() {
   const session = useAuthSession();
   const [storyboards, setStoryboards] = useState<StudioStoryboardListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [retrying, setRetrying] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
+  const initialLoadDoneRef = useRef(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const isAdmin = session.user?.role === "admin";
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    const res = await fetchStudioStoryboards();
-    if (!res.ok) {
-      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.loadFailed"));
-      setStoryboards([]);
-    } else {
-      setStoryboards(res.data.storyboards);
-    }
-    setLoading(false);
-  }, [t]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const load = useCallback(
+    async (options?: { manualRetry?: boolean }) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      if (!initialLoadDoneRef.current) {
+        setLoading(true);
+      } else if (options?.manualRetry) {
+        setRetrying(true);
+      }
+      setLoadError("");
+
+      const sessionPayload = await fetchAuthSessionJson({ force: true });
+      if (!mountedRef.current || controller.signal.aborted) {
+        return;
+      }
+      if (!sessionPayload.user) {
+        setStoryboards([]);
+        initialLoadDoneRef.current = true;
+        setInitialLoadDone(true);
+        setLoading(false);
+        setRetrying(false);
+        return;
+      }
+
+      const res = await fetchStudioStoryboards();
+      if (!mountedRef.current || controller.signal.aborted) {
+        return;
+      }
+
+      if (!res.ok) {
+        const raw = (res.data as { error?: string }).error;
+        const fallback = t("studio.storyboards.error.loadFailed");
+        setLoadError(userFacingApiError(raw, fallback, { isAdmin }));
+        setStoryboards([]);
+      } else {
+        setStoryboards(res.data.storyboards);
+      }
+
+      initialLoadDoneRef.current = true;
+      setInitialLoadDone(true);
+      setLoading(false);
+      setRetrying(false);
+    },
+    [isAdmin, t]
+  );
 
   useEffect(() => {
     if (!session.resolved || !session.user) {
@@ -50,7 +102,10 @@ export function StudioStoryboardsLibrary() {
     storyboards.map((sb) => ({ ...sb, name: sb.title })),
     search,
     (sb) => `${sb.sceneCount}`
-  ).map(({ name: _n, ...sb }) => sb as StudioStoryboardListItem);
+  ).map(({ name, ...sb }) => {
+    void name;
+    return sb as StudioStoryboardListItem;
+  });
 
   const userId = session.user?.id;
 
@@ -62,11 +117,16 @@ export function StudioStoryboardsLibrary() {
     const res = await deleteStudioStoryboardApi(id);
     setDeleteBusyId(null);
     if (!res.ok) {
-      setError((res.data as { error?: string }).error ?? t("studio.storyboards.error.deleteFailed"));
+      const raw = (res.data as { error?: string }).error;
+      setLoadError(
+        userFacingApiError(raw, t("studio.storyboards.error.deleteFailed"), { isAdmin })
+      );
       return;
     }
     setStoryboards((list) => list.filter((s) => s.id !== id));
   };
+
+  const showSkeleton = loading && !initialLoadDone;
 
   return (
     <StudioAuthGate
@@ -105,15 +165,26 @@ export function StudioStoryboardsLibrary() {
             />
           </div>
 
-          {error ? (
-            <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-
-          {loading ?
+          {loadError ?
+            <div className="mt-10">
+              <AppCard className="bg-white p-8 text-center">
+                <h2 className="text-lg font-semibold text-zinc-900">
+                  {t("studio.storyboards.error.loadTitle")}
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{loadError}</p>
+                <button
+                  type="button"
+                  onClick={() => void load({ manualRetry: true })}
+                  disabled={retrying}
+                  className="mt-6 min-h-11 rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#005a44] disabled:opacity-60"
+                >
+                  {retrying ? t("button.loading") : t("studio.storyboards.error.retry")}
+                </button>
+              </AppCard>
+            </div>
+          : showSkeleton ?
             <CardGridSkeleton count={3} />
-          : filtered.length === 0 ? (
+          : filtered.length === 0 ?
             <div className="mt-10 rounded-3xl border border-dashed border-zinc-200 bg-white/80 px-8 py-14 text-center">
               <h2 className="text-lg font-semibold text-zinc-900">
                 {search.trim() ? t("studio.storyboards.emptySearch") : t("studio.storyboards.emptyTitle")}
@@ -123,17 +194,16 @@ export function StudioStoryboardsLibrary() {
                   ? t("studio.storyboards.emptySearchHint")
                   : t("studio.storyboards.emptyDescription")}
               </p>
-              {!search.trim() ? (
+              {!search.trim() ?
                 <Link
                   href="/studio/storyboards/new"
                   className="mt-6 inline-flex rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white"
                 >
                   {t("studio.storyboards.newStoryboard")}
                 </Link>
-              ) : null}
+              : null}
             </div>
-          ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          : <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((sb) => (
                 <StudioStoryboardCard
                   key={sb.id}
@@ -144,7 +214,7 @@ export function StudioStoryboardsLibrary() {
                 />
               ))}
             </div>
-          )}
+          }
         </section>
       </main>
     </StudioAuthGate>

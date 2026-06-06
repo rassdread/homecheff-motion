@@ -1,18 +1,30 @@
 import { expect, test } from "@playwright/test";
 
 const studioApiPaths = [
+  "/api/studio/storyboards",
   "/api/studio/locations",
   "/api/studio/characters",
   "/api/studio/props",
 ];
 
+const splashHeading = /Plan (your story|je verhaal)/;
+
+function isStoryboardListRequest(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    return path === "/api/studio/storyboards";
+  } catch {
+    return false;
+  }
+}
+
 test.describe("Motion Studio production smoke", () => {
-  test("A — /studio shows production splash without legacy grid", async ({ page }) => {
-    await page.goto("/studio");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      /Plan (your story|je verhaal)/
-    );
-    await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
+  test("A — / and /studio show production splash without legacy grid", async ({ page }) => {
+    for (const path of ["/", "/studio"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(splashHeading);
+      await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
+    }
   });
 
   test("C — unauthenticated studio APIs return JSON 401 without CORS throw", async ({
@@ -63,7 +75,89 @@ test.describe("Motion Studio production smoke", () => {
     expect(res.headers()["access-control-allow-credentials"]).toBe("true");
   });
 
-  test("B — authenticated workspace APIs (optional E2E_SESSION_COOKIE)", async ({
+  test("B — unauthenticated /studio/storyboards shows login CTA without API loop", async ({
+    page,
+  }) => {
+    const storyboardListRequests: string[] = [];
+    page.on("request", (req) => {
+      if (isStoryboardListRequest(req.url())) {
+        storyboardListRequests.push(req.url());
+      }
+    });
+
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.goto("/studio/storyboards");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(1500);
+
+    await expect(
+      page.getByRole("main").getByRole("link", { name: /log in|inloggen/i })
+    ).toBeVisible();
+
+    const accessControlLogs = consoleErrors.filter((line) =>
+      /access control checks/i.test(line)
+    );
+    expect(accessControlLogs).toEqual([]);
+    expect(storyboardListRequests.length).toBeLessThanOrEqual(1);
+    await expect(page.getByLabel("Loading")).toHaveCount(0);
+  });
+
+  test("A — authenticated storyboards list (optional E2E_SESSION_COOKIE)", async ({
+    page,
+    context,
+  }) => {
+    const sessionCookie = process.env.E2E_SESSION_COOKIE?.trim();
+    test.skip(!sessionCookie, "Set E2E_SESSION_COOKIE");
+
+    await context.addCookies([
+      {
+        name: "hc_session",
+        value: sessionCookie!,
+        domain: ".homecheff.eu",
+        path: "/",
+        secure: true,
+        httpOnly: true,
+        sameSite: "Lax",
+      },
+    ]);
+
+    const storyboardListRequests: string[] = [];
+    page.on("request", (req) => {
+      if (isStoryboardListRequest(req.url())) {
+        storyboardListRequests.push(req.url());
+      }
+    });
+
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.goto("/studio/storyboards");
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(2000);
+
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(
+      /videoverhalen|video stories/i
+    );
+
+    const accessControlLogs = consoleErrors.filter((line) =>
+      /access control checks/i.test(line)
+    );
+    expect(accessControlLogs).toEqual([]);
+    expect(storyboardListRequests.length).toBeLessThanOrEqual(2);
+    await expect(page.getByLabel("Loading")).toHaveCount(0);
+  });
+
+  test("B — authenticated workspace APIs (optional E2E_SESSION_COOKIE + E2E_STORYBOARD_ID)", async ({
     page,
     context,
   }) => {
