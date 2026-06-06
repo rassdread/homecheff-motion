@@ -204,7 +204,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   return (
     <StudioAuthGate>
       <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
-        <header className="border-b border-zinc-200 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-[#006D52]">
@@ -246,7 +246,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         : !storyboard ?
           null
         : (
-          <div className="mx-auto grid max-w-[1600px] grid-cols-1 lg:grid-cols-[220px_1fr_280px] lg:gap-0">
+          <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-0 lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4 lg:pb-8">
             {/* Left: nav + scene list — hidden on mobile when editing */}
             <aside
               className={`border-b border-zinc-200 bg-white lg:border-b-0 lg:border-r ${
