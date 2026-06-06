@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { analyzeAssetEvolutionContinuity } from "@/lib/studio-asset-evolution";
 import {
   buildContinuityLibrarySections,
   buildProjectContinuityScore,
@@ -147,6 +148,19 @@ export function StudioWorkspaceContinuityPanel({
     }).filter((match) => match.usage.storyboardCount >= 1);
   }, [storyboard, characters, locations, props, worlds, memory]);
 
+  const assetContinuityAdvice = useMemo(
+    () =>
+      analyzeAssetEvolutionContinuity({
+        storyboard,
+        characters,
+        locations,
+        props,
+        worlds,
+        memory,
+      }),
+    [storyboard, characters, locations, props, worlds, memory]
+  );
+
   return (
     <div className="space-y-6 pb-8">
       <div>
@@ -205,6 +219,24 @@ export function StudioWorkspaceContinuityPanel({
               }
             />
           ))}
+        </section>
+      : null}
+
+      {assetContinuityAdvice.length > 0 ?
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">
+            {t("studio.assetEvolution.continuity.title")}
+          </h3>
+          <ul className="mt-2 space-y-1 text-xs text-amber-900">
+            {assetContinuityAdvice.map((item) => (
+              <li key={item.code}>
+                → {t(item.messageKey as TranslationKey)}
+                {item.sceneOrders.length > 0 ?
+                  ` (${item.sceneOrders.map((o) => o + 1).join(", ")})`
+                : ""}
+              </li>
+            ))}
+          </ul>
         </section>
       : null}
 

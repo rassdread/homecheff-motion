@@ -124,10 +124,13 @@ export function StudioWorkspaceConsistencyPanel({
       buildStudioConsistencyOverview({
         storyboard,
         characters,
+        locations,
+        props,
+        worlds,
         styleProfile,
         directorProfile,
       }),
-    [storyboard, characters, styleProfile, directorProfile]
+    [storyboard, characters, locations, props, worlds, styleProfile, directorProfile]
   );
 
   const unified = useMemo(

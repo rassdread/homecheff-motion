@@ -12,6 +12,7 @@ import {
   buildProposedStoryboardShotPlan,
   analyzeShotPlanConsistency,
 } from "@/lib/studio-shot-planner";
+import { buildShotPlannerAssetAdvice } from "@/lib/studio-asset-evolution";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
@@ -75,6 +76,11 @@ export function StudioWorkspaceShotPlannerPanel({
   const consistencyAdvice = useMemo(
     () => analyzeShotPlanConsistency(currentPlan),
     [currentPlan]
+  );
+
+  const shotAssetAdvice = useMemo(
+    () => buildShotPlannerAssetAdvice(storyboard),
+    [storyboard]
   );
 
   const liveInterpretation = useMemo(() => interpretAiDirectorPrompt(prompt), [prompt]);
@@ -217,6 +223,23 @@ export function StudioWorkspaceShotPlannerPanel({
           ))}
         </ul>
       </section>
+
+      {shotAssetAdvice.length > 0 ?
+        <section className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4">
+          <h3 className="text-sm font-semibold text-violet-950">
+            {t("studio.assetEvolution.shot.title")}
+          </h3>
+          <ul className="mt-2 space-y-1 text-xs text-violet-900">
+            {shotAssetAdvice.map((item) => (
+              <li key={`${item.code}-${item.sceneOrders[0]}`}>
+                → {t(item.messageKey as TranslationKey, {
+                  scene: String((item.sceneOrders[0] ?? 0) + 1),
+                })}
+              </li>
+            ))}
+          </ul>
+        </section>
+      : null}
 
       {consistencyAdvice.length > 0 ?
         <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">

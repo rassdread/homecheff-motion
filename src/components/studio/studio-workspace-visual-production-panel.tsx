@@ -11,6 +11,7 @@ import {
   findSceneVisualPlan,
 } from "@/lib/studio-visual-production-summary";
 import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
+import { buildVisualProductionAssetGaps } from "@/lib/studio-asset-evolution";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
@@ -111,6 +112,11 @@ export function StudioWorkspaceVisualProductionPanel({
   const totalPacingSeconds = useMemo(
     () => shotPlan.pacingSeconds.reduce((sum, seconds) => sum + seconds, 0),
     [shotPlan.pacingSeconds]
+  );
+
+  const visualAssetGaps = useMemo(
+    () => buildVisualProductionAssetGaps(storyboard),
+    [storyboard]
   );
 
   const visualFixes = useMemo(
@@ -261,6 +267,23 @@ export function StudioWorkspaceVisualProductionPanel({
           </div>
         </dl>
       </section>
+
+      {visualAssetGaps.length > 0 ?
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">
+            {t("studio.assetEvolution.visual.title")}
+          </h3>
+          <ul className="mt-2 space-y-1 text-xs text-amber-900">
+            {visualAssetGaps.map((gap) => (
+              <li key={`${gap.code}-${gap.sceneOrders[0]}`}>
+                → {t(gap.messageKey as TranslationKey, {
+                  scene: String((gap.sceneOrders[0] ?? 0) + 1),
+                })}
+              </li>
+            ))}
+          </ul>
+        </section>
+      : null}
 
       <section className={`rounded-2xl border p-4 ${levelCardClass(readiness.level)}`}>
         <h3 className="text-sm font-semibold text-zinc-900">

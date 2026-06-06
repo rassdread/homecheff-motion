@@ -4,10 +4,10 @@
  */
 
 import { buildStudioProductionInsights } from "@/lib/studio-production-insights";
+import { buildStoryboardAssetEvolution } from "@/lib/studio-asset-evolution";
 import {
   analyzeShotPlanConsistency,
   buildCurrentStoryboardShotPlan,
-  buildStoryboardShotPlan,
 } from "@/lib/studio-shot-planner";
 import {
   buildSceneImageReadiness,
@@ -25,7 +25,8 @@ import {
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { RenderReadinessSummary } from "@/lib/studio-render-readiness-summary";
-import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
+import type { StudioCharacterListItem, StudioLocationListItem, StudioPropListItem, StudioStoryboardDetail, StudioWorldProfileListItem } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 
 export type ConsistencyLevel = "ready" | "almost_ready" | "needs_work";
 
@@ -88,10 +89,17 @@ function audioLaneScore(enabled: boolean, ready: boolean, hasPartial: boolean): 
 export function buildStudioConsistencyOverview(params: {
   storyboard: StudioStoryboardDetail;
   characters?: StudioCharacterListItem[];
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
+  memory?: StudioProjectMemorySnapshot;
   styleProfile?: string;
   directorProfile?: string;
 }): StudioConsistencyOverview {
   const cast = params.characters ?? [];
+  const locations = params.locations ?? [];
+  const propsList = params.props ?? [];
+  const worlds = params.worlds ?? [];
   const styleProfile = normalizeStudioPromptStyleProfile(
     params.styleProfile ?? params.storyboard.promptStyleProfile
   );
@@ -185,6 +193,23 @@ export function buildStudioConsistencyOverview(params: {
   const shotAdvice = analyzeShotPlanConsistency(buildCurrentStoryboardShotPlan(params.storyboard));
   for (const item of shotAdvice.slice(0, 2)) {
     storyRecs.push(item.messageKey);
+  }
+
+  const assetEvolution = buildStoryboardAssetEvolution({
+    storyboard: params.storyboard,
+    characters: cast,
+    locations,
+    props: propsList,
+    worlds,
+    memory: params.memory,
+  });
+  for (const section of assetEvolution.sections) {
+    for (const entry of section.recommended.slice(0, 1)) {
+      storyRecs.push(entry.reasonKeys[0] ?? "studio.assetEvolution.reuseRecommended");
+    }
+    for (const entry of section.missing.slice(0, 1)) {
+      storyRecs.push(entry.reasonKeys[0] ?? "studio.assetEvolution.stillMissing");
+    }
   }
 
   const domains: ConsistencyDomain[] = [
