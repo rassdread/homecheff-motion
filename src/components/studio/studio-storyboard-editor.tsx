@@ -568,6 +568,14 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                   <div className="flex flex-wrap gap-2">
                     {scenes.length > 0 ?
                       <Link
+                        href={`/studio/workspace?storyboardId=${encodeURIComponent(storyboardId)}`}
+                        className="rounded-full border border-[#006D52]/40 bg-[#006D52]/10 px-4 py-2 text-sm font-semibold text-[#006D52] hover:opacity-90"
+                      >
+                        {t("studio.workspace.label")}
+                      </Link>
+                    : null}
+                    {scenes.length > 0 ?
+                      <Link
                         href={`/studio/storyboards/${storyboardId}/production`}
                         className="rounded-full border border-[#0067B1]/40 bg-[#0067B1]/10 px-4 py-2 text-sm font-semibold text-[#0067B1] hover:opacity-90"
                       >
