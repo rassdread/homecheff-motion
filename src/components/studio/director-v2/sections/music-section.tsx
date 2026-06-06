@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { StudioDirectorCardSelect } from "@/components/studio/director-v2/studio-director-card-select";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioMusicPreviewCard } from "@/components/studio/studio-music-preview-card";
 import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
 import {
   MUSIC_CUE_TYPES,
@@ -29,6 +30,7 @@ export function StudioDirectorSectionMusic({ scene, storyboard, canModify, onPat
 
   return (
     <div className="space-y-4">
+      <StudioMusicPreviewCard storyboard={storyboard} scene={scene} />
       {sceneCue ?
         <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-3 py-2 text-xs">
           <p className="font-semibold text-[#0067B1]">{t("studio.directorV2.music.planState")}</p>
