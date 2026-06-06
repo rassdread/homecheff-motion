@@ -7,6 +7,10 @@ import {
   resolveCharacterVoiceForLanguage,
 } from "@/lib/studio-character-voice";
 import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import {
+  isClonedVoiceProfileRef,
+  normalizeStoredVoiceProfile,
+} from "@/lib/studio-voice-profile-ref";
 import { isStudioVoiceExecutionLanguage } from "@/types/studio-voice-execution";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 import type {
@@ -62,7 +66,7 @@ export function resolveCharacterVoiceIdentity(params: {
     voiceProfilesJson: params.character.voiceProfilesByLanguage ?? null,
   });
 
-  const baseProfile = normalizeStudioVoiceProfileId(snapshot.voiceProfile);
+  const baseProfile = normalizeStoredVoiceProfile(snapshot.voiceProfile);
   const resolved = resolveCharacterVoiceForLanguage(snapshot, language);
   const langOverride =
     isStudioVoiceExecutionLanguage(language) &&
@@ -72,7 +76,7 @@ export function resolveCharacterVoiceIdentity(params: {
   if (params.character.voiceLock) {
     voiceProfile = langOverride ? resolved.voiceProfile : baseProfile;
     if (params.attemptedOverrideProfile?.trim()) {
-      const attempted = normalizeStudioVoiceProfileId(params.attemptedOverrideProfile);
+      const attempted = normalizeStoredVoiceProfile(params.attemptedOverrideProfile);
       if (attempted !== voiceProfile) {
         voiceProfile = langOverride ? resolved.voiceProfile : baseProfile;
       }
@@ -80,6 +84,9 @@ export function resolveCharacterVoiceIdentity(params: {
   }
 
   const preset = getVoiceProfilePreset(voiceProfile);
+  const presetLabelKey = isClonedVoiceProfileRef(voiceProfile)
+    ? "studio.voiceClone.clonedVoice"
+    : preset.labelKey;
   const source: ResolvedCharacterVoiceIdentity["source"] =
     params.character.voiceLock && !langOverride ? "locked_base"
     : langOverride ? "language_override"
@@ -95,11 +102,11 @@ export function resolveCharacterVoiceIdentity(params: {
     voiceGender: resolved.voiceGender,
     voiceDescription: resolved.voiceDescription,
     voiceLock: params.character.voiceLock ?? false,
-    presetLabelKey: preset.labelKey,
+    presetLabelKey,
     displayLabel: displayLabelForIdentity({
       voiceGender: resolved.voiceGender,
       voiceDescription: resolved.voiceDescription,
-      presetLabelKey: preset.labelKey,
+      presetLabelKey,
     }),
     source,
     languageOverrideApplied: langOverride,

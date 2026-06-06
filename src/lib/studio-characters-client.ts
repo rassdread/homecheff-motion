@@ -59,11 +59,13 @@ export type CharacterVoiceHistoryEntryClient = {
   before: {
     voiceEnabled: boolean;
     voiceProfile: string;
+    voiceDescription?: string;
     voiceLock: boolean;
   };
   after: {
     voiceEnabled: boolean;
     voiceProfile: string;
+    voiceDescription?: string;
     voiceLock: boolean;
   };
 };
@@ -74,4 +76,42 @@ export async function fetchCharacterVoiceHistory(characterId: string) {
       `/api/studio/characters/${encodeURIComponent(characterId)}/voice-history`
     )
   );
+}
+
+export async function cloneCharacterVoiceApi(
+  characterId: string,
+  params: {
+    sample: File;
+    voiceName: string;
+    consentConfirmed: boolean;
+    voiceLock?: boolean;
+    language?: string;
+    mock?: boolean;
+  }
+) {
+  const form = new FormData();
+  form.append("sample", params.sample);
+  form.append("voiceName", params.voiceName);
+  form.append("consentConfirmed", params.consentConfirmed ? "true" : "false");
+  if (params.voiceLock != null) {
+    form.append("voiceLock", params.voiceLock ? "true" : "false");
+  }
+  if (params.language) {
+    form.append("language", params.language);
+  }
+  if (params.mock) {
+    form.append("mock", "true");
+  }
+
+  return fetchSameOriginJson<{
+    ok: boolean;
+    character: import("@/types/studio-api").StudioCharacterListItem;
+    clonedVoiceName?: string;
+    previewAudioUrl?: string | null;
+    error?: string;
+    code?: string;
+  }>(sameOriginApiPath(`/api/studio/characters/${encodeURIComponent(characterId)}/voice-clone`), {
+    method: "POST",
+    body: form,
+  });
 }

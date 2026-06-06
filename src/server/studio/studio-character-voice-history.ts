@@ -82,7 +82,7 @@ export async function appendCharacterVoiceHistoryIfChanged(
     | "voiceProfilesJson"
   >,
   after: typeof before,
-  eventType: "voice_profile_updated" | "voice_lock_changed"
+  eventType: "voice_profile_updated" | "voice_lock_changed" | "voice_clone_applied"
 ): Promise<void> {
   const snapBefore = JSON.stringify(characterVoiceSnapshotFromRow(before));
   const snapAfter = JSON.stringify(characterVoiceSnapshotFromRow(after));

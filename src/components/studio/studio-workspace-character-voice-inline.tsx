@@ -7,9 +7,11 @@ import {
   type CharacterVoiceFormState,
 } from "@/components/studio/studio-character-voice-center";
 import { StudioCharacterVoiceHistoryPanel } from "@/components/studio/studio-character-voice-history-panel";
+import { StudioCharacterVoiceClonePanel } from "@/components/studio/studio-character-voice-clone-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { updateStudioCharacterApi } from "@/lib/studio-characters-client";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
+import { isClonedVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 
@@ -73,6 +75,9 @@ export function StudioWorkspaceCharacterVoiceInline({
   const currentVoiceLabel = useMemo(() => {
     if (!resolved.voiceEnabled) {
       return t("studio.voiceIdentity.noVoice");
+    }
+    if (isClonedVoiceProfileRef(resolved.voiceProfile) && resolved.voiceDescription?.trim()) {
+      return resolved.voiceDescription.trim();
     }
     return t(getVoiceProfilePreset(resolved.voiceProfile).labelKey as never);
   }, [resolved, t]);
@@ -158,6 +163,16 @@ export function StudioWorkspaceCharacterVoiceInline({
             characterName={character.name}
             value={voiceState}
             onChange={setVoiceState}
+          />
+          <StudioCharacterVoiceClonePanel
+            character={character}
+            language={storyLanguage}
+            canModify={canModify}
+            onCharacterUpdated={(updated) => {
+              onCharacterUpdated(updated);
+              setVoiceState(characterVoiceStateFromDetail(updated));
+            }}
+            onHistoryRefresh={() => setHistoryRefresh((n) => n + 1)}
           />
           {canModify ?
             <div className="mt-4 flex flex-wrap gap-2">

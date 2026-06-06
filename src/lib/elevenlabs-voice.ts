@@ -8,6 +8,7 @@ import {
   normalizeStudioVoiceProfileId,
   type StudioVoiceProfilePreset,
 } from "@/lib/studio-voice-profiles";
+import { parseVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
 import { cleanVoiceScript } from "@/lib/studio-voice-script-builder";
 
 export type ElevenLabsVoiceSettings = {
@@ -81,12 +82,15 @@ const PROFILE_VOICE_IDS: Record<string, string> = {
 };
 
 export function resolveElevenLabsVoiceId(voiceProfile: string): string {
+  const ref = parseVoiceProfileRef(voiceProfile);
+  if (ref.kind === "clone") {
+    return ref.providerVoiceId;
+  }
   const envDefault = process.env.ELEVENLABS_VOICE_ID?.trim();
   if (envDefault) {
     return envDefault;
   }
-  const profile = normalizeStudioVoiceProfileId(voiceProfile);
-  return PROFILE_VOICE_IDS[profile] ?? PROFILE_VOICE_IDS.warm_narrator;
+  return PROFILE_VOICE_IDS[ref.profileId] ?? PROFILE_VOICE_IDS.warm_narrator;
 }
 
 export function estimateMp3DurationSeconds(buffer: Buffer, bitrateKbps = 128): number {

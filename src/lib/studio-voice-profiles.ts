@@ -2,6 +2,8 @@
  * Studio V28 — ElevenLabs-oriented voice presets (planning only).
  */
 
+import { parseVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
+
 export const STUDIO_NARRATION_MODES = [
   "narrator",
   "founder",
@@ -144,6 +146,10 @@ export function normalizeStudioVoiceProfileId(value: string | undefined | null):
 }
 
 export function getVoiceProfilePreset(id: string): StudioVoiceProfilePreset {
+  const ref = parseVoiceProfileRef(id);
+  if (ref.kind === "clone") {
+    return STUDIO_VOICE_PROFILE_PRESETS.warm_narrator;
+  }
   return STUDIO_VOICE_PROFILE_PRESETS[normalizeStudioVoiceProfileId(id)];
 }
 

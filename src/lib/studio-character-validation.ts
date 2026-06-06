@@ -1,5 +1,6 @@
 import { isStudioCharacterRole, type StudioCharacterRole } from "@/lib/studio-character-roles";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
+import { normalizeStoredVoiceProfile } from "@/lib/studio-voice-profile-ref";
 import { normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
 import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
 import {
@@ -108,9 +109,7 @@ function parseCharacterVoiceFields(raw: StudioCharacterVoiceInput) {
   return {
     voiceEnabled: Boolean(raw.voiceEnabled),
     voiceProvider: (raw.voiceProvider ?? "").trim().slice(0, 40),
-    voiceProfile: raw.voiceProfile
-      ? normalizeStudioVoiceProfileId(raw.voiceProfile)
-      : "",
+    voiceProfile: raw.voiceProfile ? normalizeStoredVoiceProfile(raw.voiceProfile) : "",
     voiceLanguage: (raw.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2) || "en",
     voiceGender: trimText(raw.voiceGender, 40),
     voiceDescription: trimText(raw.voiceDescription, 500),

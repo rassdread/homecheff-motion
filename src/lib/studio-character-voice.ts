@@ -6,6 +6,7 @@ import {
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
+import { normalizeStoredVoiceProfile } from "@/lib/studio-voice-profile-ref";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type {
   CharacterVoiceAssignment,
@@ -34,7 +35,7 @@ export function parseCharacterVoiceProfilesJson(raw: unknown): CharacterVoicePro
       voiceProvider: typeof row.voiceProvider === "string" ? row.voiceProvider.trim() : undefined,
       voiceProfile:
         typeof row.voiceProfile === "string"
-          ? normalizeStudioVoiceProfileId(row.voiceProfile)
+          ? normalizeStoredVoiceProfile(row.voiceProfile)
           : undefined,
       voiceGender: typeof row.voiceGender === "string" ? row.voiceGender.trim() : undefined,
       voiceDescription:
@@ -58,7 +59,7 @@ export function characterVoiceSnapshotFromRow(row: {
   return {
     voiceEnabled: row.voiceEnabled,
     voiceProvider: row.voiceProvider?.trim() ?? "",
-    voiceProfile: normalizeStudioVoiceProfileId(row.voiceProfile),
+    voiceProfile: normalizeStoredVoiceProfile(row.voiceProfile),
     voiceLanguage: (row.voiceLanguage?.trim() || "en").slice(0, 2),
     voiceGender: row.voiceGender?.trim() ?? "",
     voiceDescription: row.voiceDescription?.trim() ?? "",
@@ -84,7 +85,7 @@ export function resolveCharacterVoiceForLanguage(
     voiceEnabled: override.voiceEnabled ?? snapshot.voiceEnabled,
     voiceProvider: override.voiceProvider?.trim() || snapshot.voiceProvider,
     voiceProfile: override.voiceProfile
-      ? normalizeStudioVoiceProfileId(override.voiceProfile)
+      ? normalizeStoredVoiceProfile(override.voiceProfile)
       : snapshot.voiceProfile,
     voiceGender: override.voiceGender?.trim() || snapshot.voiceGender,
     voiceDescription: override.voiceDescription?.trim() || snapshot.voiceDescription,
