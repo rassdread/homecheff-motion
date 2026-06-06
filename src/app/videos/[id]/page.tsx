@@ -11,7 +11,6 @@ import {
 } from "@/lib/animation-presets";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
-import { VideoVersionsPanel } from "@/components/instant/video-versions-panel";
 import { LanguagePlaybackSelector } from "@/components/instant/language-playback-selector";
 import { ProjectDetailVersionToolbar } from "@/components/videos/project-detail-version-toolbar";
 import {
@@ -30,7 +29,6 @@ import {
 import { MotionDeepLinkWarning } from "@/components/videos/motion-deep-link-warning";
 import { resolveProjectDisplayTitle } from "@/lib/project-display-title";
 import { DraftLineageBanner } from "@/components/videos/draft-lineage-banner";
-import { ProjectBundleOverviewPanel } from "@/components/videos/project-bundle-overview-panel";
 import { ProjectBundleSettingsDialog } from "@/components/videos/project-bundle-settings-dialog";
 import {
   filterCompletedLanguageExportsForPlayback,
@@ -66,7 +64,6 @@ import {
 } from "@/lib/instant-export-client";
 import { TextRerenderEditorModal } from "@/components/instant/text-rerender-editor-modal";
 import { FullRerenderEditorModal } from "@/components/instant/full-rerender-editor-modal";
-import { RenderHistoryPanel } from "@/components/instant/render-history-panel";
 import { VideoPreview } from "@/components/ui/video-preview";
 import {
   ProjectDetailHeader,
@@ -196,10 +193,6 @@ export default function VideoDetailPage() {
       }
     }
   }, [id]);
-
-  const updateLanguageExports = useCallback((exports: VideoLanguageExportSummary[]) => {
-    setDetail((prev) => (prev ? { ...prev, languageExports: exports } : prev));
-  }, []);
 
   const setPlaybackLanguage = useCallback(
     (languageCode: string) => {
@@ -949,10 +942,6 @@ export default function VideoDetailPage() {
   );
   const showRepairQuickAction = videoRepair.showRepairCard && !hasCompletedInstantFinal;
 
-  const scrollToSection = (sectionId: string) => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
     <main className="mx-auto w-full max-w-3xl overflow-x-hidden px-4 py-8 sm:px-10 sm:py-10">
       <ProjectDetailHeader
@@ -1229,10 +1218,7 @@ export default function VideoDetailPage() {
               copyBusy={fullRerenderBusy}
               onQuickRerender={() => void handleQuickFullRerender()}
               onCopyAsConcept={() => void handleCopyAsConcept()}
-              onTextOnlyAdjust={() => {
-                setTextRerenderEditorOpen(true);
-                scrollToSection("version-original");
-              }}
+              onTextOnlyAdjust={() => setTextRerenderEditorOpen(true)}
             />
           : null}
 
@@ -1291,7 +1277,7 @@ export default function VideoDetailPage() {
                   hasMotionVersionCatalog && !cleanVideoUrl
                     ? "projectDetail.versions.noCleanForVersion"
                     : "projectDetail.quickActions.viewClean.hint",
-                onClick: () => scrollToSection("version-clean"),
+                href: `/videos/${id}/versions?tab=latest`,
                 visible: Boolean(cleanVideoUrl || hasMotionVersionCatalog),
                 disabled: hasMotionVersionCatalog && !cleanVideoUrl,
               },
@@ -1299,7 +1285,7 @@ export default function VideoDetailPage() {
                 id: "new-language",
                 labelKey: "projectDetail.quickActions.newLanguage.label",
                 hintKey: "projectDetail.quickActions.newLanguage.hint",
-                onClick: () => scrollToSection("version-languages"),
+                href: `/videos/${id}/versions?tab=languages`,
                 visible: Boolean(
                   instantLikeProject && hasCompletedInstantFinal && usesStoryOverlay
                 ),
@@ -1320,16 +1306,21 @@ export default function VideoDetailPage() {
           {fullRerenderInfo ? <p className="text-sm text-emerald-800">{fullRerenderInfo}</p> : null}
           {fullRerenderError ? <p className="text-sm text-red-700">{fullRerenderError}</p> : null}
 
-          {instantLikeProject && hasMotionVersionCatalog && motionCatalog ?
-            <div className="mt-6">
-              <ProjectBundleOverviewPanel
-                detail={detail}
-                catalog={motionCatalog}
-                selectedSlot={selectedCatalogSlot}
-                onSlotSelect={(slot) => {
-                  setMotionVersionSelection(slot.languageCode, slot.selectionKey, slot.versionNumber);
-                }}
-              />
+          {instantLikeProject ?
+            <div className="mt-6 rounded-2xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-4">
+              <p className="text-sm font-semibold text-zinc-900">
+                {t("projectDetail.quickActions.versionCenter.label")}
+              </p>
+              <p className="mt-1 text-xs text-zinc-600">
+                {t("projectDetail.quickActions.versionCenter.hint")}
+              </p>
+              <Link
+                href={`/videos/${id}/versions`}
+                prefetch={false}
+                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-[#0067B1] px-4 text-sm font-semibold text-white hover:bg-[#005a9e]"
+              >
+                {t("projectDetail.quickActions.versionCenter.label")} →
+              </Link>
             </div>
           : null}
 
@@ -1344,40 +1335,6 @@ export default function VideoDetailPage() {
             />
           : null}
 
-          {instantLikeProject && (detail.renderVersions?.length ?? 0) > 0 ?
-            <RenderHistoryPanel
-              versions={detail.renderVersions ?? []}
-              projectId={id}
-              onRestored={() => void load()}
-            />
-          : null}
-
-          {instantLikeProject && hasCompletedInstantFinal ? (
-            <VideoVersionsPanel
-              layout="detail"
-              projectId={id}
-              bundleCatalog={motionCatalog}
-              cleanVideoUrl={cleanVideoUrl}
-              finalVideoUrl={activeFinalVideoUrl ?? originalPlaybackUrl}
-              finalIsArchivedFallback={videoDisplay.finalIsArchivedFallback}
-              cleanIsLatestBareOnly={videoDisplay.cleanIsLatestBareOnly}
-              hideOriginalVideoPlayer
-              usesStoryOverlay={usesStoryOverlay}
-              instantSceneTexts={detail.instantSceneTexts}
-              images={(detail.images ?? []).map((img) => ({
-                id: img.id,
-                previewUrl: img.previewUrl ?? "",
-              }))}
-              languageExports={languageExports}
-              onLanguageExportsChange={updateLanguageExports}
-              onTextsRerendered={() => void load()}
-              textRerenderBusy={rebuildBusy}
-              rebuildCount={detail.instantFinalRebuildCount ?? 0}
-              previousFinalVideoUrl={detail.instantPreviousFinalVideoUrl}
-              textVersionNotesJson={detail.instantTextVersionNotesJson}
-              onRequestCreateLanguage={() => scrollToSection("version-languages")}
-            />
-          ) : null}
         </div>
       ) : (
         <div className="mt-6 space-y-4">

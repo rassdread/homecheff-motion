@@ -9,6 +9,7 @@ import type {
   StudioPropListItem,
 } from "@/types/studio-api";
 import type { StudioWorkspaceNavId } from "@/components/studio/studio-workspace-nav-sidebar";
+import { useStudioProductionUiMode } from "@/lib/studio-advanced-features";
 
 type AssetRow = { id: string; name: string; href: string; meta?: string };
 
@@ -17,7 +18,8 @@ function rowsForTab(
   characters: StudioCharacterListItem[],
   locations: StudioLocationListItem[],
   props: StudioPropListItem[],
-  storyboardId: string
+  storyboardId: string,
+  advancedOnly: boolean
 ): AssetRow[] {
   if (tab === "characters") {
     return characters.map((c) => ({
@@ -40,18 +42,20 @@ function rowsForTab(
     return [{ id: "assets", name: "Assets", href: "/studio/assets" }];
   }
   if (tab === "versions") {
-    return [
-      {
-        id: "production",
-        name: "Production",
-        href: `/studio/storyboards/${storyboardId}/production`,
-      },
-      {
-        id: "movie-builder",
-        name: "Movie builder",
-        href: `/studio/storyboards/${storyboardId}/movie-builder`,
-      },
-    ];
+    return advancedOnly
+      ? [
+          {
+            id: "production",
+            name: "Production",
+            href: `/studio/storyboards/${storyboardId}/production`,
+          },
+          {
+            id: "movie-builder",
+            name: "Movie builder",
+            href: `/studio/storyboards/${storyboardId}/movie-builder`,
+          },
+        ]
+      : [];
   }
   return [];
 }
@@ -83,7 +87,15 @@ export function StudioWorkspaceAssetsList({
   onNavigate,
 }: Props) {
   const t = useActiveTranslator();
-  const rows = rowsForTab(tab, characters, locations, props, storyboardId);
+  const uiMode = useStudioProductionUiMode();
+  const rows = rowsForTab(
+    tab,
+    characters,
+    locations,
+    props,
+    storyboardId,
+    uiMode === "advanced"
+  );
   const titleKey = TAB_LABEL[tab];
 
   return (

@@ -18,6 +18,8 @@ import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { brand } from "@/lib/brand";
+import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
+import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
@@ -203,6 +205,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   };
 
   const handoffHref = `/animate/instant/import?storyboardId=${encodeURIComponent(storyboardId)}`;
+  const [advancedFeatures] = useStudioAdvancedFeatures();
 
   return (
     <StudioAuthGate>
@@ -218,18 +221,23 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href={studioClassicEditorHref(storyboardId)}
-                className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-              >
-                {t("studio.workspace.classicEditor")}
-              </Link>
-              <Link
-                href={`/studio/storyboards/${storyboardId}/production`}
-                className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-              >
-                {t("studio.workspace.production")}
-              </Link>
+              {advancedFeatures ?
+                <>
+                  <Link
+                    href={studioClassicEditorHref(storyboardId)}
+                    className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    {t("studio.workspace.classicEditor")}
+                  </Link>
+                  <Link
+                    href={`/studio/storyboards/${storyboardId}/production`}
+                    className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    {t("studio.workspace.production")}
+                  </Link>
+                </>
+              : null}
+              <StudioAdvancedFeaturesToggle />
               <Link
                 href={handoffHref}
                 className="min-h-[44px] rounded-full bg-[#006D52] px-4 py-2 text-xs font-semibold text-white hover:bg-[#005a44]"

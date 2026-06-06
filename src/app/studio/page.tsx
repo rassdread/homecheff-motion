@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
 import { StudioFeatureCard } from "@/components/studio/studio-feature-card";
 import { StudioRoadmap } from "@/components/studio/studio-roadmap";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
+import { useStudioProductionUiMode } from "@/lib/studio-advanced-features";
 import { brand } from "@/lib/brand";
 
 const FEATURE_CARDS = [
@@ -50,8 +52,18 @@ const FEATURE_CARDS = [
   },
 ] as const;
 
+const ADVANCED_ONLY_HREFS = new Set<string>([
+  "/studio/worlds",
+  "/studio/assets",
+  "/studio/providers",
+]);
+
 export default function StudioPage() {
   const t = useActiveTranslator();
+  const uiMode = useStudioProductionUiMode();
+  const featureCards = FEATURE_CARDS.filter(
+    (card) => uiMode === "advanced" || !ADVANCED_ONLY_HREFS.has(card.href)
+  );
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -69,6 +81,9 @@ export default function StudioPage() {
           <p className="mt-4 text-base leading-relaxed text-zinc-600 sm:text-lg">
             {t("studio.subtitle")}
           </p>
+          <div className="mt-4">
+            <StudioAdvancedFeaturesToggle />
+          </div>
         </header>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -96,7 +111,7 @@ export default function StudioPage() {
         </div>
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {FEATURE_CARDS.map((card) => (
+          {featureCards.map((card) => (
             <StudioFeatureCard
               key={card.href}
               titleKey={card.titleKey}

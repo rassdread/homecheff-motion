@@ -1543,6 +1543,9 @@ export const en: LocaleSchema = {
   "studio.musicPreview.assetPlanHint": "Music plan is set — full audio is mixed when your video renders.",
   "studio.aiAssistant.label": "AI Production Assistant",
   "studio.aiAssistant.hint": "Advisory only — nothing is blocked. Apply suggestions when they help.",
+  "studio.productionInsights.label": "Production Insights",
+  "studio.productionInsights.hint": "Story health, readiness, and suggestions in one place — no duplicate scores.",
+  "studio.productionMode.advancedToggle": "Advanced studio features",
   "studio.aiAssistant.storyHealth.title": "Story Health",
   "studio.aiAssistant.storyHealth.scoreLabel": "Story",
   "studio.aiAssistant.storyHealth.allGood": "Your story structure looks solid.",
@@ -3101,12 +3104,17 @@ export const en: LocaleSchema = {
   "versions.center.timelineNext": "Next version",
   "versions.center.compareHint": "Compare latest versions:",
   "versions.center.tab.original": "Original",
+  "versions.center.tab.latest": "Latest version",
+  "versions.center.simpleMode": "Simple",
+  "versions.center.advancedMode": "Advanced",
   "versions.center.tab.text": "Text edits",
   "versions.center.tab.full_rerender": "Video re-renders",
   "versions.center.tab.languages": "Languages",
   "versions.center.tab.drafts": "Drafts",
   "versions.center.tabIntro.original":
     "The first completed render — your starting video with text overlays.",
+  "versions.center.tabIntro.latest":
+    "Your most recent completed version — play or download without browsing every tab.",
   "versions.center.tabIntro.text":
     "Text-only edits on the same AI footage — no new video generation.",
   "versions.center.tabIntro.full_rerender":

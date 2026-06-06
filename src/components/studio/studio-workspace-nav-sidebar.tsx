@@ -2,6 +2,7 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { useStudioProductionUiMode } from "@/lib/studio-advanced-features";
 
 export type StudioWorkspaceNavId =
   | "scenes"
@@ -27,6 +28,13 @@ const NAV_ITEMS: NavItem[] = [
   { id: "versions", labelKey: "studio.workspace.versions" },
 ];
 
+const SIMPLE_NAV_IDS = new Set<StudioWorkspaceNavId>([
+  "scenes",
+  "characters",
+  "locations",
+  "props",
+]);
+
 type Props = {
   activeNav: StudioWorkspaceNavId;
   onNavChange: (id: StudioWorkspaceNavId) => void;
@@ -34,10 +42,13 @@ type Props = {
 
 export function StudioWorkspaceNavSidebar({ activeNav, onNavChange }: Props) {
   const t = useActiveTranslator();
+  const uiMode = useStudioProductionUiMode();
+  const visibleItems =
+    uiMode === "simple" ? NAV_ITEMS.filter((item) => SIMPLE_NAV_IDS.has(item.id)) : NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-0.5 border-b border-zinc-200 p-2 lg:border-b-0 lg:border-r">
-      {NAV_ITEMS.map((item) => (
+      {visibleItems.map((item) => (
         <button
           key={item.id}
           type="button"

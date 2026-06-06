@@ -1541,6 +1541,9 @@ export const nl = {
   "studio.musicPreview.assetPlanHint": "Music plan staat klaar — volledige audio wordt gemixt bij render.",
   "studio.aiAssistant.label": "AI Productie-assistent",
   "studio.aiAssistant.hint": "Alleen advies — niets wordt geblokkeerd. Pas suggesties toe wanneer ze helpen.",
+  "studio.productionInsights.label": "Productie-inzichten",
+  "studio.productionInsights.hint": "Verhaalstatus, gereedheid en suggesties op één plek — geen dubbele scores.",
+  "studio.productionMode.advancedToggle": "Geavanceerde studio-functies",
   "studio.aiAssistant.storyHealth.title": "Verhaalstatus",
   "studio.aiAssistant.storyHealth.scoreLabel": "Verhaal",
   "studio.aiAssistant.storyHealth.allGood": "Je verhaalstructuur ziet er goed uit.",
@@ -3105,12 +3108,17 @@ export const nl = {
   "versions.center.timelineNext": "Volgende versie",
   "versions.center.compareHint": "Vergelijk laatste versies:",
   "versions.center.tab.original": "Origineel",
+  "versions.center.tab.latest": "Laatste versie",
+  "versions.center.simpleMode": "Eenvoudig",
+  "versions.center.advancedMode": "Geavanceerd",
   "versions.center.tab.text": "Tekstbewerkingen",
   "versions.center.tab.full_rerender": "Video opnieuw renderen",
   "versions.center.tab.languages": "Talen",
   "versions.center.tab.drafts": "Concepten",
   "versions.center.tabIntro.original":
     "De eerste voltooide render — je startvideo met tekstoverlays.",
+  "versions.center.tabIntro.latest":
+    "Je meest recente voltooide versie — afspelen of downloaden zonder alle tabs te doorlopen.",
   "versions.center.tabIntro.text":
     "Alleen-tekst bewerkingen op dezelfde AI-beelden — geen nieuwe videogeneratie.",
   "versions.center.tabIntro.full_rerender":

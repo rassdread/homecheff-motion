@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
 import { VideoPreview } from "@/components/ui/video-preview";
 import {
   MotionEmptyState,
@@ -11,6 +12,7 @@ import {
 import { VersionIntelligencePanel } from "@/components/videos/version-intelligence-panel";
 import { VersionCenterComparePanel } from "@/components/videos/version-center-compare-panel";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
+import { useStudioProductionUiMode } from "@/lib/studio-advanced-features";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
@@ -21,8 +23,13 @@ import {
   versionCenterStatusLabelKey,
   versionCenterTabIntroKey,
   versionCenterTabTitleKey,
+  VERSION_CENTER_SIMPLE_TABS,
   VERSION_CENTER_TABS,
+  rowsForSimpleTab,
+  simpleTabCounts,
+  versionCenterSimpleTabIntroKey,
   type VersionCenterRow,
+  type VersionCenterSimpleTab,
   type VersionCenterTab,
 } from "@/lib/version-center-tabs";
 import type { AnimationProjectDetailResponse } from "@/types/animation-api";
@@ -178,14 +185,30 @@ function VersionCenterRowCard({
   );
 }
 
+function isVersionCenterTab(value: string | null): value is VersionCenterTab {
+  return value !== null && (VERSION_CENTER_TABS as string[]).includes(value);
+}
+
+function isVersionCenterSimpleTab(value: string | null): value is VersionCenterSimpleTab {
+  return value !== null && (VERSION_CENTER_SIMPLE_TABS as string[]).includes(value);
+}
+
 export function VersionCenterPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = typeof params.id === "string" ? params.id : "";
   const t = useActiveTranslator();
+  const uiMode = useStudioProductionUiMode();
   const [detail, setDetail] = useState<AnimationProjectDetailResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<VersionCenterTab>("original");
+  const tabFromUrl = searchParams.get("tab");
+  const [advancedTab, setAdvancedTab] = useState<VersionCenterTab>(() =>
+    isVersionCenterTab(tabFromUrl) ? tabFromUrl : "original"
+  );
+  const [simpleTab, setSimpleTab] = useState<VersionCenterSimpleTab>(() =>
+    isVersionCenterSimpleTab(tabFromUrl) ? tabFromUrl : "original"
+  );
 
   const load = useCallback(async () => {
     if (!id) {
@@ -217,8 +240,19 @@ export function VersionCenterPage() {
   }, [load]);
 
   const rows = useMemo(() => (detail ? buildVersionCenterRows(detail) : []), [detail]);
-  const counts = useMemo(() => tabCounts(rows), [rows]);
-  const visible = useMemo(() => rowsForTab(rows, tab), [rows, tab]);
+  const advancedCounts = useMemo(() => tabCounts(rows), [rows]);
+  const simpleCounts = useMemo(() => simpleTabCounts(rows), [rows]);
+  const visible = useMemo(
+    () =>
+      uiMode === "simple"
+        ? rowsForSimpleTab(rows, simpleTab)
+        : rowsForTab(rows, advancedTab),
+    [rows, uiMode, simpleTab, advancedTab]
+  );
+  const activeTabIntroKey =
+    uiMode === "simple"
+      ? versionCenterSimpleTabIntroKey(simpleTab)
+      : versionCenterTabIntroKey(advancedTab);
 
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
@@ -233,40 +267,58 @@ export function VersionCenterPage() {
               <p className="mt-1 text-sm text-zinc-600">{detail.title}</p>
             : null}
           </div>
-          <Link
-            href={`/videos/${id}`}
-            prefetch={false}
-            className="text-sm font-semibold text-[#0067B1] hover:underline"
-          >
-            {t("versions.center.backToProject")} →
-          </Link>
+          <div className="flex flex-col items-end gap-2">
+            <StudioAdvancedFeaturesToggle />
+            <Link
+              href={`/videos/${id}`}
+              prefetch={false}
+              className="text-sm font-semibold text-[#0067B1] hover:underline"
+            >
+              {t("versions.center.backToProject")} →
+            </Link>
+          </div>
         </div>
 
-        {detail && isStudioAiAssistantEnabled() ?
+        {detail && isStudioAiAssistantEnabled() && uiMode === "advanced" ?
           <VersionIntelligencePanel detail={detail} />
         : null}
 
-        <VersionCenterComparePanel rows={rows} />
+        {uiMode === "advanced" ? <VersionCenterComparePanel rows={rows} /> : null}
 
         <div className="mb-6 flex gap-1 overflow-x-auto pb-1">
-          {VERSION_CENTER_TABS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key)}
-              className={`min-h-[44px] shrink-0 rounded-full border px-3 py-2 text-xs font-semibold sm:px-4 sm:text-sm ${
-                tab === key
-                  ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-              }`}
-            >
-              {t(versionCenterTabTitleKey(key) as never)} ({counts[key]})
-            </button>
-          ))}
+          {uiMode === "simple"
+            ? VERSION_CENTER_SIMPLE_TABS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSimpleTab(key)}
+                  className={`min-h-[44px] shrink-0 rounded-full border px-3 py-2 text-xs font-semibold sm:px-4 sm:text-sm ${
+                    simpleTab === key
+                      ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  {t(versionCenterTabTitleKey(key) as never)} ({simpleCounts[key]})
+                </button>
+              ))
+            : VERSION_CENTER_TABS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setAdvancedTab(key)}
+                  className={`min-h-[44px] shrink-0 rounded-full border px-3 py-2 text-xs font-semibold sm:px-4 sm:text-sm ${
+                    advancedTab === key
+                      ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  {t(versionCenterTabTitleKey(key) as never)} ({advancedCounts[key]})
+                </button>
+              ))}
         </div>
 
         <p className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-          {t(versionCenterTabIntroKey(tab) as never)}
+          {t(activeTabIntroKey as never)}
         </p>
 
         {loading ?

@@ -11,6 +11,10 @@ export type VersionCenterTab =
   | "languages"
   | "drafts";
 
+export type VersionCenterSimpleTab = "original" | "latest";
+
+export const VERSION_CENTER_SIMPLE_TABS: VersionCenterSimpleTab[] = ["original", "latest"];
+
 export const VERSION_CENTER_TABS: VersionCenterTab[] = [
   "original",
   "text",
@@ -41,8 +45,12 @@ export type VersionCenterRow = {
   timelineNextHref?: string | null;
 };
 
-export function versionCenterTabTitleKey(tab: VersionCenterTab): string {
+export function versionCenterTabTitleKey(tab: VersionCenterTab | VersionCenterSimpleTab): string {
   return `versions.center.tab.${tab}`;
+}
+
+export function versionCenterSimpleTabIntroKey(tab: VersionCenterSimpleTab): string {
+  return `versions.center.tabIntro.${tab}`;
 }
 
 export function versionCenterTabIntroKey(tab: VersionCenterTab): string {
@@ -206,6 +214,43 @@ function renderVersionTab(version: ProjectRenderVersionSummary): VersionCenterTa
 
 export function rowsForTab(rows: VersionCenterRow[], tab: VersionCenterTab): VersionCenterRow[] {
   return rows.filter((row) => row.tab === tab);
+}
+
+export function pickLatestVersionRow(rows: VersionCenterRow[]): VersionCenterRow | null {
+  const candidates = rows.filter(
+    (row) => row.videoUrl && row.status.trim().toLowerCase() === "completed"
+  );
+  if (candidates.length === 0) {
+    return null;
+  }
+  return [...candidates].sort((a, b) => {
+    const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+    const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+    if (bTime !== aTime) {
+      return bTime - aTime;
+    }
+    return (b.renderVersionNumber ?? 0) - (a.renderVersionNumber ?? 0);
+  })[0] ?? null;
+}
+
+export function rowsForSimpleTab(
+  rows: VersionCenterRow[],
+  tab: VersionCenterSimpleTab
+): VersionCenterRow[] {
+  if (tab === "original") {
+    return rowsForTab(rows, "original");
+  }
+  const latest = pickLatestVersionRow(rows);
+  return latest ? [latest] : [];
+}
+
+export function simpleTabCounts(
+  rows: VersionCenterRow[]
+): Record<VersionCenterSimpleTab, number> {
+  return {
+    original: rowsForTab(rows, "original").length,
+    latest: pickLatestVersionRow(rows) ? 1 : 0,
+  };
 }
 
 export function tabCounts(rows: VersionCenterRow[]): Record<VersionCenterTab, number> {

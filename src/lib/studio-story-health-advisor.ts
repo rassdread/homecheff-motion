@@ -4,7 +4,8 @@
 
 import { climaxSceneIndex } from "@/lib/studio-story-arc";
 import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
-import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
+import { analyzeStoryIntelligence, type StoryIntelligenceReport } from "@/lib/studio-story-intelligence";
+import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StoryHealthFactors } from "@/lib/studio-story-health";
 import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
@@ -68,12 +69,20 @@ function characterUsageRatio(
   return usedIds.size / cast.length;
 }
 
+export type StoryHealthAdvisorOptions = {
+  intelligence?: StoryIntelligenceReport;
+  flow?: StoryFlowSceneInput[];
+};
+
 export function buildStoryHealthAdvisorReport(
   storyboard: StudioStoryboardDetail,
-  cast: StudioCharacterListItem[] = []
+  cast: StudioCharacterListItem[] = [],
+  options?: StoryHealthAdvisorOptions
 ): StoryHealthAdvisorReport {
   const directorProfile = normalizeStudioDirectorProfile(storyboard.directorProfile);
-  const intelligence = analyzeStoryIntelligence(storyboardToFlowInput(storyboard), directorProfile);
+  const flow = options?.flow ?? storyboardToFlowInput(storyboard);
+  const intelligence =
+    options?.intelligence ?? analyzeStoryIntelligence(flow, directorProfile);
   const advisories: StoryHealthAdvisory[] = [];
 
   for (const w of intelligence.warnings) {
@@ -100,7 +109,7 @@ export function buildStoryHealthAdvisorReport(
     });
   }
 
-  const climaxIdx = climaxSceneIndex(storyboardToFlowInput(storyboard));
+  const climaxIdx = climaxSceneIndex(flow);
   if (sceneCount >= 4 && climaxIdx < 0) {
     advisories.push({
       code: "missing_climax",

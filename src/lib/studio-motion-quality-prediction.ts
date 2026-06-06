@@ -4,7 +4,10 @@
 
 import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
 import { analyzeStoryFlow } from "@/lib/studio-story-flow-analyzer";
-import { buildStoryHealthAdvisorReport } from "@/lib/studio-story-health-advisor";
+import {
+  buildStoryHealthAdvisorReport,
+  type StoryHealthAdvisorReport,
+} from "@/lib/studio-story-health-advisor";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
 
@@ -16,15 +19,20 @@ export type MotionQualityPrediction = {
   reasonKeys: string[];
 };
 
+export type MotionQualityPredictionOptions = {
+  storyHealth?: StoryHealthAdvisorReport;
+};
+
 export function predictMotionQuality(
   storyboard: StudioStoryboardDetail,
-  cast: StudioCharacterListItem[] = []
+  cast: StudioCharacterListItem[] = [],
+  options?: MotionQualityPredictionOptions
 ): MotionQualityPrediction {
   const scenes = [...storyboard.scenes].sort((a, b) => a.order - b.order);
   const sceneCount = scenes.length;
   const imageCount = scenes.filter((s) => sceneHasCompletedImage(s)).length;
   const flow = analyzeStoryFlow(storyboardToFlowInput(storyboard));
-  const health = buildStoryHealthAdvisorReport(storyboard, cast);
+  const health = options?.storyHealth ?? buildStoryHealthAdvisorReport(storyboard, cast);
 
   let score = 50;
   const reasonKeys: string[] = [];

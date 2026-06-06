@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { AdvancedMotionDeveloperPanel } from "@/components/instant/advanced-motion-developer-panel";
+import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { LockedTextLayersEditor, type LockedTextLayerDraft } from "@/components/instant/locked-text-layers-editor";
 import type { OverlayStyle, TextRenderMode } from "@/lib/hybrid-motion-overlay";
 import {
@@ -63,6 +64,7 @@ type Props = {
 export function AdvancedCreatorSettingsPanel(props: Props) {
   const t = useActiveTranslator();
   const [open, setOpen] = useState(false);
+  const [advancedFeatures] = useStudioAdvancedFeatures();
 
   if (!props.isAdmin) {
     return null;
@@ -176,18 +178,20 @@ export function AdvancedCreatorSettingsPanel(props: Props) {
             onLayersChange={props.onLockedTextLayersChange}
           />
 
-          <AdvancedMotionDeveloperPanel
-            textRenderMode={props.textRenderMode}
-            overlayStyle={props.overlayStyle}
-            posterMotionSettings={props.posterMotionSettings}
-            isAdmin={props.isAdmin}
-            showAdminDiagnostics={props.showAdminDiagnostics}
-            onTextRenderModeChange={props.onTextRenderModeChange}
-            onOverlayStyleChange={props.onOverlayStyleChange}
-            onPosterMotionSettingsChange={props.onPosterMotionSettingsChange}
-            onStylePresetChange={props.onStylePresetChange}
-            buildValidationPayload={props.buildValidationPayload}
-          />
+          {advancedFeatures ?
+            <AdvancedMotionDeveloperPanel
+              textRenderMode={props.textRenderMode}
+              overlayStyle={props.overlayStyle}
+              posterMotionSettings={props.posterMotionSettings}
+              isAdmin={props.isAdmin}
+              showAdminDiagnostics={props.showAdminDiagnostics}
+              onTextRenderModeChange={props.onTextRenderModeChange}
+              onOverlayStyleChange={props.onOverlayStyleChange}
+              onPosterMotionSettingsChange={props.onPosterMotionSettingsChange}
+              onStylePresetChange={props.onStylePresetChange}
+              buildValidationPayload={props.buildValidationPayload}
+            />
+          : null}
         </div>
       ) : null}
     </div>
