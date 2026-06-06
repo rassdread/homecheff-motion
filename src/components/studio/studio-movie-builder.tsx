@@ -12,6 +12,7 @@ import { StudioStoryboardJobPanel } from "@/components/studio/studio-storyboard-
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { buildMoviePrepareChecklist } from "@/lib/studio-movie-prepare-checklist";
 import {
   buildMovieBuilderDashboard,
@@ -285,7 +286,7 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <Link
-                href={`/studio/storyboards/${storyboardId}`}
+                href={studioWorkspaceHref(storyboardId)}
                 className="text-sm font-medium text-[#006D52] hover:underline"
               >
                 ← {t("studio.movieBuilder.backToStoryboard")}
@@ -420,7 +421,7 @@ export function StudioMovieBuilder({ storyboardId }: StudioMovieBuilderProps) {
                     ))}
                   </ul>
                   <Link
-                    href={`/studio/storyboards/${storyboardId}`}
+                    href={studioWorkspaceHref(storyboardId)}
                     className="text-sm font-semibold text-[#006D52] hover:underline"
                   >
                     {t("studio.movieBuilder.prepare.editScenes")}

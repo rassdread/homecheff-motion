@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
@@ -130,7 +131,7 @@ export function MotionProjectStudioQaPanel({
               {refreshBusy ? t("motion.qa.refresh.refreshing") : t("motion.qa.refresh.refreshQa")}
             </button>
             <Link
-              href={`/studio/storyboards/${encodeURIComponent(studioQa.source.storyboardId)}`}
+              href={studioWorkspaceHref(studioQa.source.storyboardId)}
               className="rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-semibold text-[#006D52]"
             >
               {t("motion.qa.importSummary.openStoryboard")}
@@ -187,7 +188,7 @@ export function MotionProjectStudioQaPanel({
                 <>
                   {" "}
                   <Link
-                    href={`/studio/storyboards/${encodeURIComponent(studioQa.source.storyboardId)}`}
+                    href={studioWorkspaceHref(studioQa.source.storyboardId)}
                     className="text-[#006D52] underline"
                   >
                     {t("motion.qa.importSummary.openStoryboard")}

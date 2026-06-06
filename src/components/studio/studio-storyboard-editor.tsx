@@ -22,6 +22,7 @@ import { StudioStoryboardTimeline } from "@/components/studio/studio-storyboard-
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
@@ -500,12 +501,22 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12 sm:px-10 sm:py-14">
           <div>
-            <Link
-              href="/studio/storyboards"
-              className="text-sm font-medium text-[#006D52] hover:underline"
-            >
-              ← {t("studio.storyboards.backToLibrary")}
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href={studioWorkspaceHref(storyboardId)}
+                className="text-sm font-medium text-[#006D52] hover:underline"
+              >
+                ← {t("studio.workspace.backToWorkspace")}
+              </Link>
+              <span className="text-xs text-zinc-400">·</span>
+              <Link
+                href="/studio/storyboards"
+                className="text-sm font-medium text-zinc-500 hover:underline"
+              >
+                {t("studio.storyboards.backToLibrary")}
+              </Link>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">{t("studio.workspace.classicEditorHint")}</p>
             {loading ? (
               <p className="mt-6 text-sm text-zinc-500">{t("button.loading")}</p>
             ) : storyboard ? (
@@ -566,14 +577,6 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {scenes.length > 0 ?
-                      <Link
-                        href={`/studio/workspace?storyboardId=${encodeURIComponent(storyboardId)}`}
-                        className="rounded-full border border-[#006D52]/40 bg-[#006D52]/10 px-4 py-2 text-sm font-semibold text-[#006D52] hover:opacity-90"
-                      >
-                        {t("studio.workspace.label")}
-                      </Link>
-                    : null}
                     {scenes.length > 0 ?
                       <Link
                         href={`/studio/storyboards/${storyboardId}/production`}

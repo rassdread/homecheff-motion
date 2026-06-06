@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { useActiveTranslator } from "@/i18n/client";
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import type { CharacterVoiceAssignment } from "@/types/studio-character-voice";
@@ -412,7 +413,7 @@ export function MotionImportSummaryBanner({
         <div className="flex flex-wrap gap-2">
           {storyboardId ?
             <Link
-              href={`/studio/storyboards/${encodeURIComponent(storyboardId)}`}
+              href={studioWorkspaceHref(storyboardId)}
               className="rounded-full border border-[#0067B1]/40 px-3 py-1 text-xs font-semibold text-[#0067B1]"
             >
               {t("motion.qa.importSummary.openStoryboard")}

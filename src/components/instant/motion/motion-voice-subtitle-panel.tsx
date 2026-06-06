@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { useCallback, useState } from "react";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { patchProjectAudioExportSettings } from "@/lib/motion-voice-export-client";
@@ -87,7 +88,7 @@ export function MotionVoiceSubtitlePanel({
             </a>
             {storyboardId ?
               <Link
-                href={`/studio/storyboards/${encodeURIComponent(storyboardId)}`}
+                href={studioWorkspaceHref(storyboardId)}
                 className="inline-flex rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-medium text-violet-900 hover:bg-violet-50"
               >
                 {t("motion.voice.regenerateInStudio")}

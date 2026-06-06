@@ -1,3 +1,5 @@
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
+
 export type AdminProjectHrefInput = {
   projectId: string;
   status?: string | null;
@@ -30,8 +32,7 @@ export function getAdminProjectHref(input: AdminProjectHrefInput): AdminProjectH
   const href = isConcept ? `/videos/${encoded}/edit-version` : `/videos/${encoded}`;
 
   const studioId = input.studioSourceStoryboardId?.trim();
-  const studioHref =
-    studioId ? `/studio/storyboards/${encodeURIComponent(studioId)}` : null;
+  const studioHref = studioId ? studioWorkspaceHref(studioId) : null;
 
   return { href, studioHref };
 }

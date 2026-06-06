@@ -7,6 +7,7 @@ import { StudioProductionCenter } from "@/components/studio/studio-production-ce
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { fetchStudioStoryboard } from "@/lib/studio-storyboards-client";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 
@@ -49,7 +50,7 @@ export default function StudioProductionPage() {
     <StudioAuthGate>
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <Link
-          href={`/studio/storyboards/${encodeURIComponent(storyboardId)}`}
+          href={studioWorkspaceHref(storyboardId)}
           className="text-sm font-medium text-zinc-600 underline"
         >
           {t("studio.production.backToStoryboard")}

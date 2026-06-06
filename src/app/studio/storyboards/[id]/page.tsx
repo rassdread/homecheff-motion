@@ -1,13 +1,11 @@
-"use client";
-
-import { use } from "react";
-import { StudioStoryboardEditor } from "@/components/studio/studio-storyboard-editor";
+import { redirect } from "next/navigation";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default function StudioStoryboardEditorPage({ params }: PageProps) {
-  const { id } = use(params);
-  return <StudioStoryboardEditor storyboardId={id} />;
+export default async function StudioStoryboardPage({ params }: PageProps) {
+  const { id } = await params;
+  redirect(studioWorkspaceHref(id));
 }

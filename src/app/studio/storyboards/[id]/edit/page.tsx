@@ -11,6 +11,7 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import {
   fetchStudioStoryboard,
   updateStudioStoryboardApi,
@@ -65,7 +66,7 @@ export default function StudioStoryboardEditPage({ params }: PageProps) {
         (res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed")
       );
     }
-    router.push(`/studio/storyboards/${id}`);
+    router.push(studioWorkspaceHref(id));
   };
 
   return (
@@ -76,7 +77,7 @@ export default function StudioStoryboardEditPage({ params }: PageProps) {
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-2xl px-6 py-12 sm:px-10">
           <Link
-            href={`/studio/storyboards/${id}`}
+            href={studioWorkspaceHref(id)}
             className="text-sm font-medium text-[#006D52] hover:underline"
           >
             ← {t("studio.storyboards.backToStoryboard")}
@@ -91,7 +92,7 @@ export default function StudioStoryboardEditPage({ params }: PageProps) {
               <StudioStoryboardForm
                 initial={storyboard}
                 submitLabel={t("studio.storyboards.saveChanges")}
-                backHref={`/studio/storyboards/${id}`}
+                backHref={studioWorkspaceHref(id)}
                 onSubmit={handleSubmit}
               />
             </div>

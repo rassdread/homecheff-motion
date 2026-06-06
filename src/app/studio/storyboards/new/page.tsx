@@ -9,6 +9,7 @@ import {
 } from "@/components/studio/studio-storyboard-form";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { createStudioStoryboardApi } from "@/lib/studio-storyboards-client";
 
 export default function StudioStoryboardNewPage() {
@@ -25,7 +26,7 @@ export default function StudioStoryboardNewPage() {
         (res.data as { error?: string }).error ?? t("studio.storyboards.error.saveFailed")
       );
     }
-    router.push(`/studio/storyboards/${res.data.storyboard.id}`);
+    router.push(studioWorkspaceHref(res.data.storyboard.id));
   };
 
   return (

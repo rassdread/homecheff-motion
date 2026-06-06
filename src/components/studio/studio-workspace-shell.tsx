@@ -15,6 +15,7 @@ import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-worksp
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -215,7 +216,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href={`/studio/storyboards/${storyboardId}`}
+                href={studioClassicEditorHref(storyboardId)}
                 className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
               >
                 {t("studio.workspace.classicEditor")}

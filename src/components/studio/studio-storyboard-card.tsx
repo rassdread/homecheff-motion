@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AppCard } from "@/components/ui/app-card";
 import { truncateStudioText } from "@/lib/studio-asset-text";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioStoryboardListItem } from "@/types/studio-api";
 
@@ -37,7 +38,7 @@ export function StudioStoryboardCard({
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
-          href={`/studio/storyboards/${storyboard.id}`}
+          href={studioWorkspaceHref(storyboard.id)}
           prefetch={false}
           className="rounded-full bg-[#006D52] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
         >
