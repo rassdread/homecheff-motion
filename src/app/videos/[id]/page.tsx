@@ -84,7 +84,9 @@ import {
 import { MotionProjectStudioQaPanel } from "@/components/instant/motion/motion-project-studio-qa-panel";
 import { MotionVoiceSubtitlePanel } from "@/components/instant/motion/motion-voice-subtitle-panel";
 import { ProjectVideoCostCard } from "@/components/videos/project-video-cost-card";
+import { ProjectTimelinePanel } from "@/components/videos/project-timeline-panel";
 import { ProjectDetailSection } from "@/components/videos/project-detail-section";
+import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { RenderActivityStatusCard } from "@/components/videos/render-activity-status-card";
 import { PageHeaderSkeleton } from "@/components/ui/motion-studio-primitives";
 import { fetchStudioIntelligenceStale } from "@/lib/refresh-studio-intelligence-client";
@@ -960,6 +962,12 @@ export default function VideoDetailPage() {
         mode={projectMode}
         onRename={() => setRenameOpen(true)}
       />
+
+      {isStudioAiAssistantEnabled() ?
+        <div className="mt-6">
+          <ProjectTimelinePanel detail={detail} />
+        </div>
+      : null}
 
       {detail.draftLineage ? (
         <div className="mt-6">

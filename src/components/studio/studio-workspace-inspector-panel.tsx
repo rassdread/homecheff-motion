@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioAiProductionAssistantPanel } from "@/components/studio/studio-ai-production-assistant-panel";
 import { StudioDirectorInspectorColumn } from "@/components/studio/director-v2/studio-director-inspector-column";
+import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { StudioSceneHandoffBadges } from "@/components/studio/studio-scene-handoff-badges";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -19,7 +21,11 @@ import {
 import { buildSceneCompositionForScene } from "@/lib/studio-scene-composition-director";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
-import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import type {
+  StudioCharacterListItem,
+  StudioSceneDetail,
+  StudioStoryboardDetail,
+} from "@/types/studio-api";
 
 type Props = {
   storyboard: StudioStoryboardDetail;
@@ -29,6 +35,9 @@ type Props = {
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   saving: boolean;
+  characters: StudioCharacterListItem[];
+  canModify: boolean;
+  onSceneUpdated: (scene: StudioSceneDetail) => void;
 };
 
 function SummaryBlock({ title, children }: { title: string; children: React.ReactNode }) {
@@ -48,6 +57,9 @@ export function StudioWorkspaceInspectorPanel({
   styleProfile,
   directorProfile,
   saving,
+  characters,
+  canModify,
+  onSceneUpdated,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -100,6 +112,17 @@ export function StudioWorkspaceInspectorPanel({
 
   return (
     <div className="space-y-4">
+      {isStudioAiAssistantEnabled() ?
+        <StudioAiProductionAssistantPanel
+          storyboard={storyboard}
+          scene={scene}
+          sceneIndex={sceneIndex}
+          sceneCount={sceneCount}
+          characters={characters}
+          canModify={canModify}
+          onSceneUpdated={onSceneUpdated}
+        />
+      : null}
       <StudioSceneHandoffBadges scene={scene} />
       <StudioDirectorInspectorColumn
         scene={scene}

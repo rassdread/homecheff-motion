@@ -8,7 +8,9 @@ import {
   MotionEmptyState,
   VersionListSkeleton,
 } from "@/components/ui/motion-studio-primitives";
+import { VersionIntelligencePanel } from "@/components/videos/version-intelligence-panel";
 import { VersionCenterComparePanel } from "@/components/videos/version-center-compare-panel";
+import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
@@ -239,6 +241,10 @@ export function VersionCenterPage() {
             {t("versions.center.backToProject")} →
           </Link>
         </div>
+
+        {detail && isStudioAiAssistantEnabled() ?
+          <VersionIntelligencePanel detail={detail} />
+        : null}
 
         <VersionCenterComparePanel rows={rows} />
 

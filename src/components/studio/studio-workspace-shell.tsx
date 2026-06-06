@@ -11,7 +11,9 @@ import {
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
 import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
+import { MotionStudioOnboarding } from "@/components/studio/motion-studio-onboarding";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
+import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
@@ -242,6 +244,12 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           <p className="mx-auto max-w-[1600px] px-4 py-3 text-sm text-red-700 sm:px-6">{error}</p>
         : null}
 
+        {isStudioAiAssistantEnabled() && !loading && storyboard ?
+          <div className="mx-auto max-w-[1600px] px-4 pt-4 sm:px-6">
+            <MotionStudioOnboarding />
+          </div>
+        : null}
+
         {loading ?
           <WorkspaceLoadingSkeleton />
         : !storyboard ?
@@ -334,6 +342,9 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   styleProfile={styleProfile}
                   directorProfile={directorProfile}
                   saving={savingSceneId === activeScene.id}
+                  characters={characters}
+                  canModify={canModify}
+                  onSceneUpdated={handleSceneDraftChange}
                 />
               : null}
             </aside>
