@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { VideoPreview } from "@/components/ui/video-preview";
+import { VersionCenterComparePanel } from "@/components/videos/version-center-compare-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
 import { brand } from "@/lib/brand";
@@ -213,17 +214,6 @@ export function VersionCenterPage() {
   const counts = useMemo(() => tabCounts(rows), [rows]);
   const visible = useMemo(() => rowsForTab(rows, tab), [rows, tab]);
 
-  const compareVersions = useMemo(() => {
-    const renderRows = rows.filter((r) => r.renderVersionId);
-    if (renderRows.length < 2) {
-      return null;
-    }
-    const sorted = [...renderRows].sort(
-      (a, b) => (b.renderVersionNumber ?? 0) - (a.renderVersionNumber ?? 0)
-    );
-    return { a: sorted[0], b: sorted[1] };
-  }, [rows]);
-
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
@@ -246,24 +236,7 @@ export function VersionCenterPage() {
           </Link>
         </div>
 
-        {compareVersions ?
-          <p className="mb-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs text-zinc-600">
-            {t("versions.center.compareHint")}{" "}
-            <Link
-              href={`/videos/${id}?renderVersionId=${encodeURIComponent(compareVersions.a.renderVersionId!)}`}
-              className="font-semibold text-[#0067B1]"
-            >
-              V{compareVersions.a.renderVersionNumber}
-            </Link>
-            {" vs "}
-            <Link
-              href={`/videos/${id}?renderVersionId=${encodeURIComponent(compareVersions.b.renderVersionId!)}`}
-              className="font-semibold text-[#0067B1]"
-            >
-              V{compareVersions.b.renderVersionNumber}
-            </Link>
-          </p>
-        : null}
+        <VersionCenterComparePanel rows={rows} />
 
         <div className="mb-6 flex gap-1 overflow-x-auto pb-1">
           {VERSION_CENTER_TABS.map((key) => (
