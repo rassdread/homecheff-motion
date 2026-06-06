@@ -12,7 +12,7 @@ type AuthFormProps = {
 };
 
 const isDev = process.env.NODE_ENV === "development";
-const DEFAULT_POST_AUTH_PATH = "/animate/instant";
+const DEFAULT_POST_AUTH_PATH = "/studio";
 
 function resolvePostAuthRedirect(): string {
   if (typeof window === "undefined") {

@@ -1,5 +1,5 @@
 export function studioWorkspaceHref(storyboardId: string): string {
-  return `/studio/workspace?storyboardId=${encodeURIComponent(storyboardId)}`;
+  return `/studio?storyboardId=${encodeURIComponent(storyboardId)}`;
 }
 
 export function studioClassicEditorHref(storyboardId: string): string {

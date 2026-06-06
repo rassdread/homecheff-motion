@@ -12,7 +12,7 @@ type Variant = "primary" | "secondary";
 type Props = {
   variant?: Variant;
   className?: string;
-  labelKey?: "studio.start.newStory" | "studio.storyboards.newStoryboard";
+  labelKey?: "studio.start.newStory" | "studio.storyboards.newStoryboard" | "studio.shell.newStory";
 };
 
 export function StudioNewStoryButton({

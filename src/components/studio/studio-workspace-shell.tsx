@@ -4,27 +4,28 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
-import {
-  StudioWorkspaceNavSidebar,
-  type StudioWorkspaceNavId,
-} from "@/components/studio/studio-workspace-nav-sidebar";
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
 import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
+import { StudioShellHeader } from "@/components/studio/studio-shell-header";
+import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
+import { StudioToolPlaceholderPanel } from "@/components/studio/studio-tool-placeholder-panel";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
-import { MotionStudioOnboarding } from "@/components/studio/motion-studio-onboarding";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
-import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import { useActiveTranslator } from "@/i18n/client";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { brand } from "@/lib/brand";
-import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
 import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
+import {
+  STUDIO_PLACEHOLDER_TOOL_IDS,
+  studioToolToAssetTab,
+  type StudioToolId,
+} from "@/lib/studio-tool-id";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -72,7 +73,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
   const [error, setError] = useState("");
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
   const [savingSceneId, setSavingSceneId] = useState<string | null>(null);
-  const [activeNav, setActiveNav] = useState<StudioWorkspaceNavId>("scenes");
+  const [activeTool, setActiveTool] = useState<StudioToolId>("story");
   const [assetsDrawerOpen, setAssetsDrawerOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
   const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
@@ -219,65 +220,56 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     await load();
   };
 
-  const handleNavChange = (id: StudioWorkspaceNavId) => {
-    setActiveNav(id);
-    if (id !== "scenes" && typeof window !== "undefined" && window.innerWidth < 1024) {
-      setAssetsDrawerOpen(true);
-    } else {
+  const handleToolChange = (tool: StudioToolId) => {
+    setActiveTool(tool);
+    if (tool !== "story" && typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobilePane("editor");
       setAssetsDrawerOpen(false);
     }
   };
 
   const selectScene = (sceneId: string) => {
     setActiveSceneId(sceneId);
-    setActiveNav("scenes");
+    setActiveTool("story");
     setMobilePane("editor");
   };
 
-  const handoffHref = `/animate/instant/import?storyboardId=${encodeURIComponent(storyboardId)}`;
+  const assetTab = studioToolToAssetTab(activeTool);
+  const drawerTab =
+    assetTab ??
+    (activeTool === "story" ? "scenes" : "characters");
+
   const [advancedFeatures] = useStudioAdvancedFeatures();
 
   return (
     <StudioAuthGate>
-      <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
-        <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
-          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-[#006D52]">
-                {t("studio.workspace.label")}
-              </p>
-              <h1 className="truncate text-lg font-bold text-zinc-900">
-                {storyboard?.title ?? t("studio.workspace.loadingTitle")}
-              </h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <MotionBuildDebugBadge className="hidden sm:block" />
-              {advancedFeatures ?
-                <>
-                  <Link
-                    href={studioClassicEditorHref(storyboardId)}
-                    className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    {t("studio.workspace.classicEditor")}
-                  </Link>
-                  <Link
-                    href={`/studio/storyboards/${storyboardId}/production`}
-                    className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    {t("studio.workspace.production")}
-                  </Link>
-                </>
-              : null}
-              <StudioAdvancedFeaturesToggle />
-              <Link
-                href={handoffHref}
-                className="min-h-[44px] rounded-full bg-[#006D52] px-4 py-2 text-xs font-semibold text-white hover:bg-[#005a44]"
-              >
-                {t("studio.workspace.openMotion")}
-              </Link>
-            </div>
+      <main className={`flex min-h-screen flex-1 flex-col ${brand.softGradientBg}`}>
+        <StudioShellHeader
+          projectTitle={storyboard?.title}
+          storyboardId={storyboardId}
+          showMakeVideo={Boolean(storyboard && !loadFailure)}
+        />
+
+        {advancedFeatures ?
+          <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-2 px-4 pt-2 sm:px-6">
+            <Link
+              href={studioClassicEditorHref(storyboardId)}
+              className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              {t("studio.workspace.classicEditor")}
+            </Link>
+            <Link
+              href={`/studio/storyboards/${storyboardId}/production`}
+              className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              {t("studio.workspace.production")}
+            </Link>
+            <Link href="/studio/advanced" className="text-xs font-semibold text-zinc-500 hover:text-zinc-700">
+              {t("studio.shell.advancedLink")}
+            </Link>
+            <MotionBuildDebugBadge />
           </div>
-        </header>
+        : null}
 
         {error ?
           <p className="mx-auto max-w-[1600px] px-4 py-3 text-sm text-red-700 sm:px-6">{error}</p>
@@ -291,49 +283,34 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
           />
         : null}
 
-        {isStudioAiAssistantEnabled() && !loading && storyboard && !loadFailure ?
-          <div className="mx-auto max-w-[1600px] px-4 pt-4 sm:px-6">
-            <MotionStudioOnboarding />
-          </div>
-        : null}
-
         {loading && !loadFailure ?
           <WorkspaceLoadingSkeleton />
         : !storyboard || loadFailure ?
           null
         : (
-          <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-0 lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4 lg:pb-8">
-            {/* Left: nav + scene list — hidden on mobile when editing */}
+          <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4">
             <aside
               className={`border-b border-zinc-200 bg-white lg:border-b-0 lg:border-r ${
-                mobilePane === "editor" ? "hidden lg:block" : "block"
+                mobilePane === "editor" && activeTool === "story" ? "hidden lg:block" : "block"
               }`}
             >
-              <StudioWorkspaceNavSidebar activeNav={activeNav} onNavChange={handleNavChange} />
-              {activeNav === "scenes" ?
-                <StudioWorkspaceSceneSidebar
-                  scenes={scenes}
-                  activeSceneId={activeSceneId}
-                  onSelectScene={selectScene}
-                  onAddScene={canModify ? () => void handleAddScene() : undefined}
-                  canModify={canModify}
-                />
-              : (
-                <StudioWorkspaceAssetsList
-                  tab={activeNav}
-                  characters={characters}
-                  locations={locations}
-                  props={props}
-                  storyboardId={storyboardId}
-                  onNavigate={() => setActiveNav("scenes")}
-                />
-              )}
+              <div className="border-b border-zinc-200 px-3 py-2 lg:border-b-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("studio.workspace.scenes")}
+                </p>
+              </div>
+              <StudioWorkspaceSceneSidebar
+                scenes={scenes}
+                activeSceneId={activeSceneId}
+                onSelectScene={selectScene}
+                onAddScene={canModify ? () => void handleAddScene() : undefined}
+                canModify={canModify}
+              />
             </aside>
 
-            {/* Center: Director workspace */}
             <section
-              className={`min-h-[60vh] bg-white px-4 py-4 sm:px-6 ${
-                mobilePane === "list" ? "hidden lg:block" : "block pb-28 lg:pb-4"
+              className={`min-h-[50vh] flex-1 bg-white px-4 py-4 sm:px-6 ${
+                mobilePane === "list" ? "hidden lg:block" : "block pb-36 lg:pb-4"
               }`}
             >
               {mobilePane === "editor" ?
@@ -346,35 +323,47 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 </button>
               : null}
 
-              {activeScene && activeSceneIndex >= 0 ?
-                <StudioDirectorPanelV2
-                  storyboardId={storyboardId}
-                  storyboard={storyboard}
-                  scene={activeScene}
-                  sceneIndex={activeSceneIndex}
-                  sceneCount={scenes.length}
-                  flowScenes={flowScenes}
-                  storyboardTitle={storyboard.title}
-                  storyboardDescription={storyboard.description}
-                  aiDirectorPrompt={storyboard.aiDirectorPrompt}
-                  aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
-                  directorProfile={directorProfile}
-                  styleProfile={styleProfile}
+              {activeTool === "story" ?
+                activeScene && activeSceneIndex >= 0 ?
+                  <StudioDirectorPanelV2
+                    storyboardId={storyboardId}
+                    storyboard={storyboard}
+                    scene={activeScene}
+                    sceneIndex={activeSceneIndex}
+                    sceneCount={scenes.length}
+                    flowScenes={flowScenes}
+                    storyboardTitle={storyboard.title}
+                    storyboardDescription={storyboard.description}
+                    aiDirectorPrompt={storyboard.aiDirectorPrompt}
+                    aiDirectorStyleStrength={storyboard.aiDirectorStyleStrength}
+                    directorProfile={directorProfile}
+                    styleProfile={styleProfile}
+                    characters={characters}
+                    canModify={canModify}
+                    saving={savingSceneId === activeScene.id}
+                    onSave={handleSaveScene}
+                    onSceneDraftChange={handleSceneDraftChange}
+                    onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
+                  />
+                : (
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
+                    {t("studio.storyboards.noScenes")}
+                  </p>
+                )
+              : assetTab ?
+                <StudioWorkspaceAssetsList
+                  tab={assetTab}
                   characters={characters}
-                  canModify={canModify}
-                  saving={savingSceneId === activeScene.id}
-                  onSave={handleSaveScene}
-                  onSceneDraftChange={handleSceneDraftChange}
-                  onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
+                  locations={locations}
+                  props={props}
+                  storyboardId={storyboardId}
+                  onNavigate={() => setActiveTool("story")}
                 />
-              : (
-                <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
-                  {t("studio.storyboards.noScenes")}
-                </p>
-              )}
+              : STUDIO_PLACEHOLDER_TOOL_IDS.has(activeTool) ?
+                <StudioToolPlaceholderPanel tool={activeTool} />
+              : null}
             </section>
 
-            {/* Right: Inspector (desktop only — mobile uses bottom sheet) */}
             <aside className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0">
               {activeScene && activeSceneIndex >= 0 ?
                 <StudioWorkspaceInspectorPanel
@@ -389,24 +378,30 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   canModify={canModify}
                   onSceneUpdated={handleSceneDraftChange}
                 />
-              : null}
+              : (
+                <p className="text-sm text-zinc-600">{t("studio.shell.emptyDirectorHint")}</p>
+              )}
             </aside>
           </div>
         )}
 
-        {isStudioAiAssistantEnabled() && storyboard && activeScene && activeSceneIndex >= 0 ?
+        {storyboard && !loadFailure ?
+          <StudioToolStrip activeTool={activeTool} onToolChange={handleToolChange} />
+        : null}
+
+        {storyboard && activeScene && activeSceneIndex >= 0 ?
           <>
             <div
-              className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur lg:hidden"
-              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}
+              className="fixed inset-x-0 bottom-[52px] z-30 px-4 py-2 lg:hidden"
+              style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
             >
               <button
                 type="button"
                 onClick={() => setMobileInsightsOpen(true)}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#006D52] px-4 text-sm font-semibold text-white shadow-lg"
               >
                 <span aria-hidden>✦</span>
-                {t("studio.mobileInsights.open")}
+                {t("studio.shell.aiDirector")}
               </button>
             </div>
             <StudioMobileInsightsSheet
@@ -425,14 +420,14 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
         <StudioWorkspaceAssetsDrawer
           open={assetsDrawerOpen}
-          initialTab={activeNav}
+          initialTab={drawerTab === "scenes" ? "characters" : drawerTab}
           characters={characters}
           locations={locations}
           props={props}
           storyboardId={storyboardId}
           onClose={() => {
             setAssetsDrawerOpen(false);
-            setActiveNav("scenes");
+            setActiveTool("story");
           }}
         />
       </main>

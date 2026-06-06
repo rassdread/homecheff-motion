@@ -1,5 +1,5 @@
-import { StudioEntryPage } from "@/components/studio/studio-entry-page";
+import { StudioRootPage } from "@/components/studio/studio-root-page";
 
 export default function Home() {
-  return <StudioEntryPage />;
+  return <StudioRootPage />;
 }

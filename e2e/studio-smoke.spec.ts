@@ -185,7 +185,7 @@ test.describe("Motion Studio production smoke", () => {
       }
     });
 
-    await page.goto(`/studio/workspace?storyboardId=${encodeURIComponent(storyboardId!)}`);
+    await page.goto(`/studio?storyboardId=${encodeURIComponent(storyboardId!)}`);
     await page.waitForLoadState("networkidle");
 
     const apiResult = await page.evaluate(
@@ -225,6 +225,6 @@ test.describe("Motion Studio production smoke", () => {
     );
     expect(accessControlLogs).toEqual([]);
 
-    await expect(page.getByText(/Scene Workspace|Scene Workspace/i)).toBeVisible();
+    await expect(page.getByText(/Verhaaleditor|Story editor/i)).toBeVisible();
   });
 });
