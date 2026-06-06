@@ -10,11 +10,13 @@ import {
   enrichVisualProductionSummary,
   findSceneVisualPlan,
 } from "@/lib/studio-visual-production-summary";
+import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
+import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioToolId } from "@/lib/studio-tool-id";
-import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import type { StudioSceneDetail, StudioStoryboardDetail, StudioLocationListItem, StudioPropListItem, StudioWorldProfileListItem } from "@/types/studio-api";
 
 type Props = {
   storyboardId: string;
@@ -27,6 +29,9 @@ type Props = {
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onRefreshStoryboard?: () => void | Promise<void>;
   onSwitchTool?: (tool: StudioToolId) => void;
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
 };
 
 function levelCardClass(level: string): string {
@@ -60,6 +65,9 @@ export function StudioWorkspaceVisualProductionPanel({
   onSceneUpdated,
   onRefreshStoryboard,
   onSwitchTool,
+  locations = [],
+  props = [],
+  worlds = [],
 }: Props) {
   const t = useActiveTranslator();
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -93,6 +101,21 @@ export function StudioWorkspaceVisualProductionPanel({
     }
     return findSceneVisualPlan(storyboard, activeScene.id, styleProfile, directorProfile);
   }, [storyboard, activeScene, styleProfile, directorProfile]);
+
+  const visualFixes = useMemo(
+    () =>
+      buildStudioUnifiedReadiness({
+        storyboard,
+        styleProfile,
+        directorProfile,
+        locations,
+        props,
+        worlds,
+      }).fixes.filter((f) =>
+        ["location", "world", "characters", "camera", "images"].includes(f.checkId)
+      ),
+    [storyboard, styleProfile, directorProfile, locations, props, worlds]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -194,6 +217,27 @@ export function StudioWorkspaceVisualProductionPanel({
           </ul>
         : null}
       </section>
+
+      {visualFixes.length > 0 ?
+        <section className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/30 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">
+            {t("studio.execution.suggestedImprovements")}
+          </h3>
+          <p className="text-xs text-amber-900">{t("studio.execution.visualPreGenerateHint")}</p>
+          {visualFixes.slice(0, 4).map((fix) => (
+            <StudioAiSuggestionCard
+              key={fix.id}
+              titleKey="studio.execution.suggestedImprovement"
+              issueKey={fix.issueKey as TranslationKey}
+              reasonKey={fix.reasonKey as TranslationKey | undefined}
+              currentLabel={fix.currentLabel}
+              suggestedLabel={fix.suggestedLabel}
+              suggestedIsLabelKey={fix.suggestedLabel.startsWith("studio.")}
+              onOpen={onSwitchTool ? () => onSwitchTool(fix.tool) : undefined}
+            />
+          ))}
+        </section>
+      : null}
 
       {canModify ?
         <div className="flex flex-wrap gap-2">

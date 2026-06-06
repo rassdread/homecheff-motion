@@ -12,6 +12,8 @@ import { RenderActivityStatusCard } from "@/components/videos/render-activity-st
 import { VideoVersionDownloadTrigger } from "@/components/videos/project-storage-usage-card";
 import { VideoPreview } from "@/components/ui/video-preview";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
+import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import {
   isInstantLikeMotionProject,
   shouldPollStudioMotionStatus,
@@ -182,14 +184,35 @@ export function StudioWorkspaceProductionBanner({
 
 export function StudioWorkspaceRenderPanel({
   storyboardId,
+  storyboard,
+  characters = [],
+  locations = [],
+  props = [],
+  worlds = [],
   projects,
   loading,
 }: {
   storyboardId: string;
+  storyboard: import("@/types/studio-api").StudioStoryboardDetail;
+  characters?: import("@/types/studio-api").StudioCharacterListItem[];
+  locations?: import("@/types/studio-api").StudioLocationListItem[];
+  props?: import("@/types/studio-api").StudioPropListItem[];
+  worlds?: import("@/types/studio-api").StudioWorldProfileListItem[];
   projects: StudioMotionProjectSummary[];
   loading: boolean;
 }) {
   const t = useActiveTranslator();
+  const renderReadiness = useMemo(
+    () =>
+      buildStudioUnifiedReadiness({
+        storyboard,
+        characters,
+        locations,
+        props,
+        worlds,
+      }),
+    [storyboard, characters, locations, props, worlds]
+  );
 
   return (
     <div className="space-y-4">
@@ -197,6 +220,22 @@ export function StudioWorkspaceRenderPanel({
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.render")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.render.hint")}</p>
       </div>
+      {renderReadiness.renderWarnings.length > 0 ?
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+          <h3 className="text-sm font-semibold text-amber-950">
+            {t("studio.execution.possibleMismatch")}
+          </h3>
+          <p className="mt-1 text-xs text-amber-900">{t(renderReadiness.softGateKey as TranslationKey)}</p>
+          <ul className="mt-2 space-y-1 text-xs text-amber-950">
+            {renderReadiness.renderWarnings.map((w) => (
+              <li key={w.messageKey}>
+                ⚠ {t(w.messageKey as TranslationKey, w.params)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[10px] text-amber-800">{t("studio.execution.renderSoftGateHint")}</p>
+        </section>
+      : null}
       <MotionPanelShell storyboardId={storyboardId} projects={projects} loading={loading}>
         {({
           detail,

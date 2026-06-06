@@ -132,6 +132,26 @@ export type DirectorProposalRenderReadiness = {
   recommendationKeys: string[];
 };
 
+export type DirectorProposalConsistencySuggestion = {
+  id: string;
+  domain: "story" | "characters" | "location" | "prop" | "voice" | "world" | "visual";
+  issueKey: string;
+  currentLabel: string;
+  suggestedLabel: string;
+  reasonKey?: string;
+  sceneOrder?: number;
+  assetRef?: ProposedAssetRef;
+  voiceProfile?: string;
+};
+
+export type DirectorProposalFieldChange = {
+  id: string;
+  sceneOrder?: number;
+  fieldKey: string;
+  fromLabel: string;
+  toLabel: string;
+};
+
 export type StudioDirectorProposal = {
   version: 2;
   ideaPrompt: string;
@@ -146,4 +166,7 @@ export type StudioDirectorProposal = {
   text: DirectorProposalTextSummary;
   voices: DirectorProposalVoiceSummary;
   renderReadiness: DirectorProposalRenderReadiness;
+  storyHealthKeys?: string[];
+  consistencySuggestions?: DirectorProposalConsistencySuggestion[];
+  fieldChanges?: DirectorProposalFieldChange[];
 };

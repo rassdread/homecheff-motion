@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import {
@@ -9,14 +10,24 @@ import {
   type ConsistencyDomainId,
   type ConsistencyLevel,
 } from "@/lib/studio-consistency-overview";
+import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioToolId } from "@/lib/studio-tool-id";
-import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
+import type {
+  StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
+  StudioStoryboardDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
 
 type Props = {
   storyboard: StudioStoryboardDetail;
   characters: StudioCharacterListItem[];
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   onSwitchTool?: (tool: StudioToolId) => void;
@@ -56,12 +67,12 @@ function levelCardClass(level: ConsistencyLevel): string {
 
 function levelLabelKey(level: ConsistencyLevel): TranslationKey {
   if (level === "ready") {
-    return "studio.consistency.level.ready";
+    return "studio.execution.softGate.ready";
   }
   if (level === "almost_ready") {
-    return "studio.consistency.level.almostReady";
+    return "studio.execution.softGate.review";
   }
-  return "studio.consistency.level.needsWork";
+  return "studio.execution.softGate.missing";
 }
 
 function DomainCard({
@@ -82,20 +93,13 @@ function DomainCard({
         <span className="text-sm font-bold tabular-nums text-zinc-800">{domain.score}</span>
       </div>
       <p className="mt-1 text-[10px] font-medium text-zinc-600">{t(levelLabelKey(domain.level))}</p>
-      {domain.recommendationKeys.length > 0 ?
-        <ul className="mt-2 space-y-0.5 text-[10px] text-zinc-600">
-          {domain.recommendationKeys.slice(0, 2).map((key) => (
-            <li key={key}>→ {t(key as TranslationKey)}</li>
-          ))}
-        </ul>
-      : null}
       {onOpen ?
         <button
           type="button"
           onClick={onOpen}
           className="mt-2 text-[10px] font-semibold text-[#0067B1] hover:underline"
         >
-          {t("studio.consistency.openTool")}
+          {t("studio.execution.action.open")}
         </button>
       : null}
     </article>
@@ -105,6 +109,9 @@ function DomainCard({
 export function StudioWorkspaceConsistencyPanel({
   storyboard,
   characters,
+  locations = [],
+  props = [],
+  worlds = [],
   styleProfile,
   directorProfile,
   onSwitchTool,
@@ -122,12 +129,19 @@ export function StudioWorkspaceConsistencyPanel({
     [storyboard, characters, styleProfile, directorProfile]
   );
 
-  const renderLevelKey =
-    overview.renderReadiness.level === "ready"
-      ? "studio.consistency.level.ready"
-      : overview.renderReadiness.level === "almost_ready"
-        ? "studio.consistency.level.almostReady"
-        : "studio.consistency.level.needsWork";
+  const unified = useMemo(
+    () =>
+      buildStudioUnifiedReadiness({
+        storyboard,
+        characters,
+        locations,
+        props,
+        worlds,
+        styleProfile,
+        directorProfile,
+      }),
+    [storyboard, characters, locations, props, worlds, styleProfile, directorProfile]
+  );
 
   return (
     <div className="space-y-6 pb-8">
@@ -137,28 +151,26 @@ export function StudioWorkspaceConsistencyPanel({
       </div>
 
       <section
-        className={`rounded-2xl border p-4 text-center ${levelCardClass(overview.overallLevel)}`}
+        className={`rounded-2xl border p-4 text-center ${levelCardClass(unified.level)}`}
       >
         <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
           {t("studio.consistency.overall.title")}
         </p>
-        <p className="mt-1 text-4xl font-bold tabular-nums text-zinc-900">{overview.overallScore}</p>
-        <p className="mt-1 text-xs font-medium text-zinc-700">{t(levelLabelKey(overview.overallLevel))}</p>
+        <p className="mt-1 text-4xl font-bold tabular-nums text-zinc-900">{unified.score}</p>
+        <p className="mt-1 text-xs font-medium text-zinc-700">{t(unified.softGateKey as TranslationKey)}</p>
       </section>
 
-      <section className={`rounded-2xl border p-4 ${levelCardClass(overview.renderReadiness.level)}`}>
+      <section className={`rounded-2xl border p-4 ${levelCardClass(unified.level)}`}>
         <h3 className="text-sm font-semibold text-zinc-900">
-          {t("studio.consistency.renderReady.title")}
+          {t("studio.execution.readyToContinue")}
         </h3>
         <p className="mt-1 text-xs text-zinc-700">
-          {t("studio.consistency.renderReady.score", {
-            score: String(overview.renderReadiness.score),
-          })}
+          {t("studio.consistency.renderReady.score", { score: String(unified.score) })}
           {" · "}
-          {t(renderLevelKey)}
+          {t(unified.softGateKey as TranslationKey)}
         </p>
         <ul className="mt-3 space-y-1 text-xs text-zinc-700">
-          {overview.renderReadiness.checks.map((check) => (
+          {unified.checks.map((check) => (
             <li key={check.id} className="flex items-center gap-2">
               <span className={check.passed ? "text-emerald-700" : "text-zinc-400"}>
                 {check.passed ? "✓" : "○"}
@@ -168,6 +180,27 @@ export function StudioWorkspaceConsistencyPanel({
           ))}
         </ul>
       </section>
+
+      {unified.fixes.length > 0 ?
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            {t("studio.execution.suggestedImprovements")}
+          </h3>
+          {unified.fixes.slice(0, 6).map((fix) => (
+            <StudioAiSuggestionCard
+              key={fix.id}
+              titleKey="studio.execution.suggestedImprovement"
+              issueKey={fix.issueKey as TranslationKey}
+              reasonKey={fix.reasonKey as TranslationKey | undefined}
+              currentLabel={fix.currentLabel}
+              suggestedLabel={fix.suggestedLabel}
+              suggestedIsLabelKey={fix.suggestedLabel.startsWith("studio.")}
+              canApply={Boolean(fix.suggestedAssetId || fix.suggestedVoiceProfile)}
+              onOpen={onSwitchTool ? () => onSwitchTool(fix.tool) : undefined}
+            />
+          ))}
+        </section>
+      : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {overview.domains.map((domain) => (

@@ -2,9 +2,11 @@
  * Studio V2 — render readiness projection for AI Director proposals.
  */
 
-import { buildStudioTextBeats, studioSceneDetailToBeatSource } from "@/lib/build-studio-text-beats";
 import { resolveProposedSceneText, type ProposalTextResolver } from "@/lib/studio-director-proposal-apply";
-import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
+import {
+  buildStudioUnifiedReadiness,
+  unifiedToProposalRenderReadiness,
+} from "@/lib/studio-unified-readiness";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 import type {
@@ -12,22 +14,6 @@ import type {
   ProposedScene,
   StudioDirectorProposal,
 } from "@/types/studio-director-proposal";
-
-function recommendationForCheck(id: string, passed: boolean): string | null {
-  if (passed) {
-    return null;
-  }
-  const map: Record<string, string> = {
-    scenes: "studio.directorProposal.readiness.rec.scenes",
-    characters: "studio.directorProposal.readiness.rec.characters",
-    location: "studio.directorProposal.readiness.rec.location",
-    voice: "studio.directorProposal.readiness.rec.voice",
-    text_beats: "studio.directorProposal.readiness.rec.textBeats",
-    emotion: "studio.directorProposal.readiness.rec.emotion",
-    images: "studio.directorProposal.readiness.rec.images",
-  };
-  return map[id] ?? null;
-}
 
 export function buildProposalAppliedStoryboard(
   base: StudioStoryboardDetail,
@@ -114,6 +100,9 @@ export function buildProposalRenderReadiness(params: {
   baseStoryboard: StudioStoryboardDetail;
   characters: StudioCharacterListItem[];
   t: ProposalTextResolver;
+  locations?: import("@/types/studio-api").StudioLocationListItem[];
+  props?: import("@/types/studio-api").StudioPropListItem[];
+  worlds?: import("@/types/studio-api").StudioWorldProfileListItem[];
 }): DirectorProposalRenderReadiness {
   const projected = buildProposalAppliedStoryboard(
     params.baseStoryboard,
@@ -121,88 +110,16 @@ export function buildProposalRenderReadiness(params: {
     params.characters,
     params.t
   );
-  const scenes = [...projected.scenes].sort((a, b) => a.order - b.order);
-  const sceneCount = scenes.length;
-
-  const hasCharacters = params.proposal.scenes.some((s) => s.characterRefs.length > 0);
-  const hasLocation = params.proposal.scenes.some((s) => s.locationRef);
-  const voiceOk =
-    !projected.voiceEnabled ||
-    Boolean(projected.voiceProfile?.trim() || projected.voiceNarrationScript?.trim()) ||
-    params.proposal.voices.characterVoices.some((v) => v.voiceEnabled);
-  const imagesOk =
-    sceneCount > 0 && scenes.every((s) => sceneHasCompletedImage(s));
-
-  let textBeatsOk = false;
-  let emotionOk = false;
-  if (sceneCount > 0) {
-    textBeatsOk =
-      params.proposal.text.sceneOverlays.length > 0 ||
-      Boolean(params.proposal.text.narrationScriptPreview.trim()) ||
-      scenes.some((scene, index) => {
-        const beats = buildStudioTextBeats({
-          scene: studioSceneDetailToBeatSource(scene),
-          sceneIndex: index,
-          sceneCount,
-          storyboardTitle: projected.title,
-          storyboardDescription: projected.description,
-          aiDirectorNotes: projected.aiDirectorPrompt,
-        });
-        return beats.beatLines.length > 0 || beats.headlineBeats.length > 0;
-      });
-    emotionOk = scenes.filter((s) => s.emotion?.trim()).length >= Math.ceil(sceneCount * 0.6);
-  }
-
-  const checks = [
-    {
-      id: "scenes",
-      messageKey: "studio.directorProposal.readiness.check.scenes",
-      passed: sceneCount >= 2,
-    },
-    {
-      id: "characters",
-      messageKey: "studio.directorProposal.readiness.check.characters",
-      passed: hasCharacters,
-    },
-    {
-      id: "location",
-      messageKey: "studio.directorProposal.readiness.check.location",
-      passed: hasLocation,
-    },
-    {
-      id: "voice",
-      messageKey: "studio.directorProposal.readiness.check.voice",
-      passed: voiceOk,
-    },
-    {
-      id: "text_beats",
-      messageKey: "studio.directorProposal.readiness.check.textBeats",
-      passed: textBeatsOk,
-    },
-    {
-      id: "emotion",
-      messageKey: "studio.directorProposal.readiness.check.emotion",
-      passed: emotionOk,
-    },
-    {
-      id: "images",
-      messageKey: "studio.directorProposal.readiness.check.images",
-      passed: imagesOk,
-    },
-  ];
-
-  const passedCount = checks.filter((c) => c.passed).length;
-  const score = Math.round((passedCount / checks.length) * 100);
-  const level: DirectorProposalRenderReadiness["level"] =
-    score >= 85 ? "ready"
-    : score >= 55 ? "almost_ready"
-    : "needs_work";
-
-  const recommendationKeys = checks
-    .map((c) => recommendationForCheck(c.id, c.passed))
-    .filter((k): k is string => Boolean(k));
-
-  return { level, score, checks, recommendationKeys };
+  const unified = buildStudioUnifiedReadiness({
+    storyboard: projected,
+    characters: params.characters,
+    locations: params.locations ?? [],
+    props: params.props ?? [],
+    worlds: params.worlds ?? [],
+    styleProfile: params.proposal.interpretation.promptStyleProfile,
+    directorProfile: params.proposal.interpretation.directorProfile,
+  });
+  return unifiedToProposalRenderReadiness(unified);
 }
 
 export function collectProposalSceneAssets(scenes: ProposedScene[]) {

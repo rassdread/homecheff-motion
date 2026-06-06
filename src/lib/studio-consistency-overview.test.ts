@@ -26,7 +26,7 @@ describe("studio-consistency-overview", () => {
     });
     assert.equal(overview.domains.length, 8);
     assert.ok(overview.overallScore >= 0 && overview.overallScore <= 100);
-    assert.equal(overview.renderReadiness.level, "almost_ready");
+    assert.equal(overview.renderReadiness.level, "needs_work");
   });
 
   it("buildStudioConsistencyOverview scores prepared storyboard higher", () => {

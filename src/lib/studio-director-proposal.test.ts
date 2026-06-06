@@ -17,6 +17,7 @@ import {
   resolveProposedSceneText,
 } from "@/lib/studio-director-proposal-apply";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { studioCharacterListItem } from "@/test/studio-api-fixtures";
 
 const tNl = getTranslator("nl");
 const tEn = getTranslator("en");
@@ -77,12 +78,12 @@ describe("studio-director-proposal", () => {
       idea: "Pixar-achtige chef promotievideo voor HomeCheff",
       storyboard: emptyStoryboard(),
       characters: [
-        {
+        studioCharacterListItem({
           id: "char-chef",
           name: "Chef Mascot",
           description: "HomeCheff mascot chef",
-          role: "protagonist",
-        } as import("@/types/studio-api").StudioCharacterListItem,
+          role: "mascot",
+        }),
       ],
       locations: [],
       props: [],

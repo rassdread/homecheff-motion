@@ -26,8 +26,11 @@ import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profile
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 
 type Props = {
@@ -38,6 +41,9 @@ type Props = {
   activeSceneIndex: number;
   sceneCount: number;
   characters: StudioCharacterListItem[];
+  locations: StudioLocationListItem[];
+  props: StudioPropListItem[];
+  worlds: StudioWorldProfileListItem[];
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   canModify: boolean;
@@ -226,6 +232,9 @@ export function StudioWorkspaceToolPanel({
   activeSceneIndex,
   sceneCount,
   characters,
+  locations,
+  props,
+  worlds,
   styleProfile,
   directorProfile,
   canModify,
@@ -244,6 +253,9 @@ export function StudioWorkspaceToolPanel({
       <StudioWorkspaceConsistencyPanel
         storyboard={storyboard}
         characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
         styleProfile={styleProfile}
         directorProfile={directorProfile}
         onSwitchTool={onSwitchTool}
@@ -264,6 +276,9 @@ export function StudioWorkspaceToolPanel({
         onSceneUpdated={onSceneUpdated}
         onRefreshStoryboard={onRefreshStoryboard}
         onSwitchTool={onSwitchTool}
+        locations={locations}
+        props={props}
+        worlds={worlds}
       />
     );
   }
@@ -332,7 +347,16 @@ export function StudioWorkspaceToolPanel({
 
   if (tool === "render") {
     return (
-      <StudioWorkspaceRenderPanel storyboardId={storyboardId} projects={projects} loading={loading} />
+      <StudioWorkspaceRenderPanel
+        storyboardId={storyboardId}
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projects={projects}
+        loading={loading}
+      />
     );
   }
 

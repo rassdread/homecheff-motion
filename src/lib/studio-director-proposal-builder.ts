@@ -18,6 +18,7 @@ import { buildSoundDirectorPlan } from "@/lib/studio-sound-director";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
 import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
 import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-readiness";
+import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
 import { getVoiceProfilePreset, profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
@@ -807,6 +808,9 @@ export function buildDirectorProposal(params: {
       proposal,
       baseStoryboard: params.storyboard,
       characters: params.characters,
+      locations: params.locations,
+      props: params.props,
+      worlds: params.worlds ?? [],
       t: params.t,
     });
   } else {
@@ -814,11 +818,22 @@ export function buildDirectorProposal(params: {
       proposal,
       baseStoryboard: params.storyboard,
       characters: params.characters,
+      locations: params.locations,
+      props: params.props,
+      worlds: params.worlds ?? [],
       t: (key, p) => `${key}${p?.topic ? `: ${p.topic}` : ""}`,
     });
   }
 
-  return proposal;
+  return enrichDirectorProposalWithConsistency({
+    proposal,
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    t: params.t ?? ((key, p) => `${key}${p?.topic ? `: ${p.topic}` : ""}`),
+  });
 }
 
 /** Exported for tests — ensures synthetic flow gets a shot plan when storyboard is empty. */

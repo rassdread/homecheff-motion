@@ -5,10 +5,17 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
 import {
+  applyProposalConsistencySuggestion,
+} from "@/lib/studio-director-proposal-enrichment";
+import {
   applyDirectorProposal,
   resolveProposedSceneText,
 } from "@/lib/studio-director-proposal-apply";
 import { collectProposalSceneAssets } from "@/lib/studio-director-proposal-readiness";
+import {
+  StudioAiSuggestionCard,
+  StudioFieldChangeRow,
+} from "@/components/studio/studio-ai-suggestion-card";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -121,6 +128,7 @@ function ProposalPreviewModal({
   onClose,
   onApply,
   onRegenerate,
+  onApplySuggestion,
 }: {
   proposal: StudioDirectorProposal;
   busy?: boolean;
@@ -128,6 +136,7 @@ function ProposalPreviewModal({
   onClose: () => void;
   onApply: (mode: DirectorProposalApplyMode) => void;
   onRegenerate: () => void;
+  onApplySuggestion: (suggestionId: string) => void;
 }) {
   const t = useActiveTranslator();
   const assets = useMemo(() => collectUniqueAssets(proposal), [proposal]);
@@ -156,6 +165,57 @@ function ProposalPreviewModal({
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-5">
           <ReadinessCard proposal={proposal} />
+
+          {proposal.storyHealthKeys && proposal.storyHealthKeys.length > 0 ?
+            <section className="rounded-xl border border-violet-100 bg-violet-50/40 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+                {t("studio.execution.recommendedReview")}
+              </h3>
+              <ul className="mt-2 space-y-1 text-xs text-violet-950">
+                {proposal.storyHealthKeys.map((key) => (
+                  <li key={key}>→ {t(key as TranslationKey)}</li>
+                ))}
+              </ul>
+            </section>
+          : null}
+
+          {proposal.fieldChanges && proposal.fieldChanges.length > 0 ?
+            <section className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.directorProposal.preview.changes")}
+              </h3>
+              {proposal.fieldChanges.map((change) => (
+                <StudioFieldChangeRow
+                  key={change.id}
+                  fieldKey={change.fieldKey as TranslationKey}
+                  fromLabel={change.fromLabel}
+                  toLabel={change.toLabel}
+                  sceneOrder={change.sceneOrder}
+                />
+              ))}
+            </section>
+          : null}
+
+          {proposal.consistencySuggestions && proposal.consistencySuggestions.length > 0 ?
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.execution.suggestedImprovements")}
+              </h3>
+              {proposal.consistencySuggestions.map((suggestion) => (
+                <StudioAiSuggestionCard
+                  key={suggestion.id}
+                  titleKey="studio.execution.suggestedImprovement"
+                  issueKey={suggestion.issueKey as TranslationKey}
+                  reasonKey={suggestion.reasonKey as TranslationKey | undefined}
+                  currentLabel={suggestion.currentLabel}
+                  suggestedLabel={suggestion.suggestedLabel}
+                  suggestedIsLabelKey={suggestion.suggestedLabel.startsWith("studio.")}
+                  canApply={Boolean(suggestion.assetRef)}
+                  onApply={() => onApplySuggestion(suggestion.id)}
+                />
+              ))}
+            </section>
+          : null}
 
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -470,6 +530,12 @@ export function StudioDirectorProposalFlow({
     setFeedback("");
   }, [idea, storyboard, characters, locations, props, worlds, t]);
 
+  const handleApplySuggestion = useCallback((suggestionId: string) => {
+    setProposal((current) =>
+      current ? applyProposalConsistencySuggestion(current, suggestionId) : current
+    );
+  }, []);
+
   const handleApply = useCallback(
     async (mode: DirectorProposalApplyMode) => {
       if (!canModify || !proposal) {
@@ -570,6 +636,7 @@ export function StudioDirectorProposalFlow({
             setFeedback("");
             handleGenerate();
           }}
+          onApplySuggestion={handleApplySuggestion}
         />
       : null}
     </>

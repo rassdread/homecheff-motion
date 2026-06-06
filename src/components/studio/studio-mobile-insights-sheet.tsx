@@ -3,6 +3,7 @@
 import { MotionBottomSheet } from "@/components/ui/motion-bottom-sheet";
 import { StudioProductionInsightsRail } from "@/components/studio/studio-production-insights-rail";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
+import type { StudioToolId } from "@/lib/studio-tool-id";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
@@ -16,6 +17,7 @@ type Props = {
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
+  onSwitchTool?: (tool: StudioToolId) => void;
 };
 
 export function StudioMobileInsightsSheet({
@@ -28,6 +30,7 @@ export function StudioMobileInsightsSheet({
   characters,
   canModify,
   onSceneUpdated,
+  onSwitchTool,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -46,6 +49,7 @@ export function StudioMobileInsightsSheet({
         canModify={canModify}
         onSceneUpdated={onSceneUpdated}
         compact
+        onSwitchTool={onSwitchTool}
       />
     </MotionBottomSheet>
   );

@@ -3,9 +3,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { buildImproveProjectPreview } from "@/lib/studio-improve-project-preview";
 import { buildSceneSuggestions } from "@/lib/studio-scene-suggestions";
 import { buildStudioProductionInsights } from "@/lib/studio-production-insights";
+import type { StudioToolId } from "@/lib/studio-tool-id";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
@@ -19,6 +21,7 @@ type Props = {
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   /** Mobile bottom sheet: tighter layout, no improve-project block */
   compact?: boolean;
+  onSwitchTool?: (tool: StudioToolId) => void;
 };
 
 function ScoreRing({ score, label }: { score: number; label: string }) {
@@ -68,6 +71,7 @@ export function StudioProductionInsightsRail({
   canModify,
   onSceneUpdated,
   compact = false,
+  onSwitchTool,
 }: Props) {
   const t = useActiveTranslator();
   const [ignored, setIgnored] = useState<Set<string>>(() => {
@@ -130,12 +134,7 @@ export function StudioProductionInsightsRail({
     }
   };
 
-  const readinessLabelKey: TranslationKey =
-    insights.readiness.level === "ready"
-      ? "studio.aiAssistant.readiness.level.ready"
-      : insights.readiness.level === "almost_ready"
-        ? "studio.aiAssistant.readiness.level.almostReady"
-        : "studio.aiAssistant.readiness.level.needsWork";
+  const readinessLabelKey: TranslationKey = insights.unifiedReadiness.softGateKey as TranslationKey;
 
   const qualityLabelKey: TranslationKey =
     insights.quality.level === "high"
@@ -205,6 +204,25 @@ export function StudioProductionInsightsRail({
           ))}
         </ul>
       </InsightSection>
+
+      {insights.unifiedReadiness.fixes.length > 0 ?
+        <InsightSection title={t("studio.execution.suggestedImprovements")}>
+          <div className="space-y-2">
+            {insights.unifiedReadiness.fixes.slice(0, compact ? 3 : 5).map((fix) => (
+              <StudioAiSuggestionCard
+                key={fix.id}
+                titleKey="studio.execution.suggestedImprovement"
+                issueKey={fix.issueKey as TranslationKey}
+                reasonKey={fix.reasonKey as TranslationKey | undefined}
+                currentLabel={fix.currentLabel}
+                suggestedLabel={fix.suggestedLabel}
+                suggestedIsLabelKey={fix.suggestedLabel.startsWith("studio.")}
+                onOpen={onSwitchTool ? () => onSwitchTool(fix.tool) : undefined}
+              />
+            ))}
+          </div>
+        </InsightSection>
+      : null}
 
       {!compact && insights.consistency.characters.length > 0 ?
         <InsightSection

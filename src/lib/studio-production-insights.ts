@@ -12,10 +12,7 @@ import {
   predictMotionQuality,
   type MotionQualityPrediction,
 } from "@/lib/studio-motion-quality-prediction";
-import {
-  buildRenderReadinessSummary,
-  type RenderReadinessSummary,
-} from "@/lib/studio-render-readiness-summary";
+import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import {
   buildStoryHealthAdvisorReport,
@@ -25,7 +22,16 @@ import { analyzeStoryIntelligence } from "@/lib/studio-story-intelligence";
 import type { StudioCharacterListItem, StudioStoryboardDetail } from "@/types/studio-api";
 export type StudioProductionInsights = {
   storyHealth: StoryHealthAdvisorReport;
-  readiness: RenderReadinessSummary;
+  readiness: {
+    score: number;
+    level: ReturnType<typeof buildStudioUnifiedReadiness>["level"];
+    checks: Array<{
+      id: "scenes" | "images" | "voice" | "text_beats" | "emotion";
+      messageKey: string;
+      passed: boolean;
+    }>;
+  };
+  unifiedReadiness: ReturnType<typeof buildStudioUnifiedReadiness>;
   consistency: CharacterConsistencySummary;
   quality: MotionQualityPrediction;
 };
@@ -38,9 +44,22 @@ export function buildStudioProductionInsights(
   const flow = storyboardToFlowInput(storyboard);
   const intelligence = analyzeStoryIntelligence(flow, directorProfile);
   const storyHealth = buildStoryHealthAdvisorReport(storyboard, cast, { intelligence, flow });
-  const readiness = buildRenderReadinessSummary(storyboard);
+  const unifiedReadiness = buildStudioUnifiedReadiness({ storyboard, characters: cast });
+  const readiness = {
+    score: unifiedReadiness.score,
+    level: unifiedReadiness.level,
+    checks: unifiedReadiness.checks
+      .filter((c) =>
+        ["scenes", "images", "voice", "text_beats", "emotion"].includes(c.id)
+      )
+      .map((c) => ({
+        id: c.id as "scenes" | "images" | "voice" | "text_beats" | "emotion",
+        messageKey: c.messageKey,
+        passed: c.passed,
+      })),
+  };
   const consistency = buildCharacterConsistencySummary(cast);
   const quality = predictMotionQuality(storyboard, cast, { storyHealth });
 
-  return { storyHealth, readiness, consistency, quality };
+  return { storyHealth, readiness, unifiedReadiness, consistency, quality };
 }

@@ -442,6 +442,9 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   activeSceneIndex={activeSceneIndex}
                   sceneCount={scenes.length}
                   characters={characters}
+                  locations={locations}
+                  props={props}
+                  worlds={worlds}
                   styleProfile={styleProfile}
                   directorProfile={directorProfile}
                   canModify={canModify}
@@ -504,6 +507,10 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               characters={characters}
               canModify={canModify}
               onSceneUpdated={handleSceneDraftChange}
+              onSwitchTool={(tool) => {
+                handleToolChange(tool);
+                setMobileInsightsOpen(false);
+              }}
             />
           </>
         : null}
