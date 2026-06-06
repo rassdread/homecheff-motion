@@ -1,4 +1,67 @@
+import type { TranscriptWord } from "@/types/studio-speech-to-text";
 import type { SubtitleTrackEntry, TimedVoiceSegment } from "@/types/studio-voice-execution";
+
+const DEFAULT_MAX_CHARS = 42;
+const DEFAULT_MAX_DURATION = 5.5;
+
+function isSubtitleWord(word: TranscriptWord): boolean {
+  const type = word.type?.toLowerCase() ?? "word";
+  if (type === "spacing" || type === "audio_event") {
+    return false;
+  }
+  return word.text.trim().length > 0;
+}
+
+/** Group word-level STT timestamps into readable subtitle lines. */
+export function buildSubtitleEntriesFromTranscriptWords(
+  words: TranscriptWord[],
+  options?: { maxChars?: number; maxDuration?: number }
+): SubtitleTrackEntry[] {
+  const maxChars = options?.maxChars ?? DEFAULT_MAX_CHARS;
+  const maxDuration = options?.maxDuration ?? DEFAULT_MAX_DURATION;
+  const spoken = words.filter(isSubtitleWord);
+  if (spoken.length === 0) {
+    return [];
+  }
+
+  const entries: SubtitleTrackEntry[] = [];
+  let chunk: TranscriptWord[] = [];
+  let chunkStart = spoken[0]!.start;
+
+  const flush = () => {
+    if (chunk.length === 0) {
+      return;
+    }
+    const text = chunk.map((w) => w.text).join(" ").replace(/\s+/g, " ").trim();
+    if (text) {
+      entries.push({
+        start: chunkStart,
+        end: Math.max(chunkStart + 0.05, chunk[chunk.length - 1]!.end),
+        text,
+      });
+    }
+    chunk = [];
+  };
+
+  for (const word of spoken) {
+    if (chunk.length === 0) {
+      chunkStart = word.start;
+      chunk.push(word);
+      continue;
+    }
+    const nextText = [...chunk, word].map((w) => w.text).join(" ").replace(/\s+/g, " ").trim();
+    const span = word.end - chunkStart;
+    if (nextText.length > maxChars || span > maxDuration) {
+      flush();
+      chunkStart = word.start;
+      chunk.push(word);
+    } else {
+      chunk.push(word);
+    }
+  }
+  flush();
+  return entries;
+}
 
 export function buildSubtitleEntriesFromVoiceSegments(
   segments: TimedVoiceSegment[]

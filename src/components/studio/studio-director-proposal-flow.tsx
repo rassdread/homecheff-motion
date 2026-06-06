@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
@@ -681,6 +682,16 @@ export function StudioDirectorProposalFlow({
             t("studio.directorProposal.generating")
           : t("studio.directorProposal.generate")}
         </button>
+
+        {storyboard.voiceEnabled ?
+          <div className="mt-3">
+            <StudioTranscriptStatusLine
+              storyboardId={storyboard.id}
+              voiceEnabled={Boolean(storyboard.voiceEnabled)}
+              language={(storyboard.voiceLanguage ?? "en").slice(0, 2)}
+            />
+          </div>
+        : null}
       </section>
 
       {previewOpen && proposal ?

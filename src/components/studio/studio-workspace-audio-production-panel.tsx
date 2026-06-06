@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { StudioVoicePreviewPanel } from "@/components/studio/studio-voice-preview-panel";
+import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import { collectStoryboardCharacters } from "@/lib/studio-character-voice";
 import { analyzeVoiceDirector } from "@/lib/studio-voice-director";
@@ -81,9 +82,14 @@ export function StudioWorkspaceAudioProductionPanel({
             {t("studio.voiceIdentity.subtitleStatus")}
           </dt>
           <dd className="mt-1 text-sm font-medium text-zinc-900">
-            {voiceEnabled
-              ? t("studio.voiceIdentity.subtitlesAvailable")
-              : t("studio.voiceIdentity.subtitlesNeedVoice")}
+            {voiceEnabled ?
+              <StudioTranscriptStatusLine
+                storyboardId={storyboard.id}
+                voiceEnabled={voiceEnabled}
+                language={storyLanguage}
+                compact
+              />
+            : t("studio.voiceIdentity.subtitlesNeedVoice")}
           </dd>
         </div>
       </dl>

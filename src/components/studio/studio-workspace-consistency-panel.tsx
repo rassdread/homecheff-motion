@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
+import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import {
@@ -180,6 +181,22 @@ export function StudioWorkspaceConsistencyPanel({
           ))}
         </ul>
       </section>
+
+      {storyboard.voiceEnabled ?
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            {t("studio.consistency.transcript.title")}
+          </h3>
+          <p className="mt-1 text-xs text-zinc-600">{t("studio.consistency.transcript.hint")}</p>
+          <div className="mt-3">
+            <StudioTranscriptStatusLine
+              storyboardId={storyboard.id}
+              voiceEnabled={Boolean(storyboard.voiceEnabled)}
+              language={(storyboard.voiceLanguage ?? "en").slice(0, 2)}
+            />
+          </div>
+        </section>
+      : null}
 
       {unified.fixes.length > 0 ?
         <section className="space-y-3">

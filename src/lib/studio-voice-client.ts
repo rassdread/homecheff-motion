@@ -75,3 +75,30 @@ export async function updateStoryboardSubtitlesApi(
     }
   );
 }
+
+export async function generateStoryboardTranscriptApi(
+  storyboardId: string,
+  options?: { language?: string; mock?: boolean }
+) {
+  return fetchSameOriginJson<{
+    ok: boolean;
+    subtitleTrackId?: string;
+    language?: string;
+    lineCount?: number;
+    durationSeconds?: number;
+    provider?: string;
+    entries?: SubtitleTrackEntry[];
+    srt?: string;
+    error?: string;
+    code?: string;
+  }>(
+    sameOriginApiPath(
+      `/api/studio/storyboards/${encodeURIComponent(storyboardId)}/subtitles/transcribe`
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options ?? {}),
+    }
+  );
+}
