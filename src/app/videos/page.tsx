@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { loginHref } from "@/lib/auth-login-href";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
@@ -489,7 +490,7 @@ function VideosPageContent() {
         <h1 className="text-xl font-semibold text-zinc-900">{t("videos.title")}</h1>
         <p className="mt-3 text-sm text-zinc-600">{t("errors.authRequired")}</p>
         <Link
-          href="/login"
+          href={loginHref("/videos")}
           prefetch={false}
           className="mt-6 inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-emerald-50"
         >

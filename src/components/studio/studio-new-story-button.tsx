@@ -6,6 +6,7 @@ import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { createDefaultStudioStoryboard } from "@/lib/studio-create-story-client";
+import { loginHref } from "@/lib/auth-login-href";
 
 type Variant = "primary" | "secondary";
 
@@ -29,7 +30,7 @@ export function StudioNewStoryButton({
   const handleClick = async () => {
     setError("");
     if (!session.user) {
-      router.push("/login");
+      router.push(loginHref("/studio/storyboards/new"));
       return;
     }
 
@@ -43,7 +44,7 @@ export function StudioNewStoryButton({
     }
 
     if (result.status === 401) {
-      router.push("/login");
+      router.push(loginHref("/studio/storyboards/new"));
       return;
     }
 

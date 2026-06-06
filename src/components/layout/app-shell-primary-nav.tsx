@@ -24,9 +24,9 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    href: "/create",
+    href: "/maak",
     labelKey: "nav.create",
-    match: (pathname) => pathname === "/create" || pathname.startsWith("/create/"),
+    match: (pathname) => pathname === "/maak" || pathname.startsWith("/maak/"),
   },
   {
     href: "/studio",

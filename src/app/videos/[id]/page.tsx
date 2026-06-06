@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { loginHref } from "@/lib/auth-login-href";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDurationSeconds, getTotalVideoDurationSeconds } from "@/lib/animation-duration";
 import {
@@ -130,6 +131,7 @@ export default function VideoDetailPage() {
   const [locale] = useLocale();
   const dateLocale = locale === "nl" ? "nl" : "en";
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
@@ -890,7 +892,7 @@ export default function VideoDetailPage() {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-10">
         <p className="text-sm text-zinc-600">{t("errors.authRequired")}</p>
-        <Link href="/login" prefetch={false} className="mt-4 inline-block text-sm font-medium text-emerald-800 underline">
+        <Link href={loginHref(pathname)} prefetch={false} className="mt-4 inline-block text-sm font-medium text-emerald-800 underline">
           {t("nav.login")}
         </Link>
       </main>

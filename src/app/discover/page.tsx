@@ -59,7 +59,7 @@ export default function DiscoverPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <GradientButton href="/create" className="px-8">
+          <GradientButton href="/maak" className="px-8">
             {t("discover.cta")}
           </GradientButton>
         </div>

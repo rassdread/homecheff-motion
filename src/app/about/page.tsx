@@ -62,7 +62,7 @@ export default function AboutPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <GradientButton href="/create" className="px-8">
+          <GradientButton href="/maak" className="px-8">
             {t("about.cta")}
           </GradientButton>
         </div>

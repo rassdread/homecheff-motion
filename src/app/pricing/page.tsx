@@ -59,7 +59,7 @@ export default function PricingPage() {
             </GradientButton>
           )}
           <Link
-            href="/create"
+            href="/maak"
             prefetch={false}
             className="text-sm font-semibold text-zinc-600 hover:text-zinc-900 hover:underline"
           >

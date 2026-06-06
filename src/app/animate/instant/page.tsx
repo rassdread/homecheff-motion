@@ -105,6 +105,7 @@ import {
   type InstantPremiumChipId,
   type InstantPremiumStylePreset,
 } from "@/lib/instant-premium-prompt";
+import { loginHref } from "@/lib/auth-login-href";
 import { brand } from "@/lib/brand";
 import { writeActiveInstantProjectId } from "@/lib/instant-premium-progress-cache";
 import {
@@ -1500,7 +1501,7 @@ export default function InstantPremiumPage() {
             <h1 className="text-xl font-semibold">{t("instant.auth.requiredTitle")}</h1>
             <p className="mt-2 text-sm text-zinc-600">{t("instant.auth.requiredDescription")}</p>
             <div className="mt-6 flex gap-3">
-              <GradientButton href="/login">{t("instant.auth.login")}</GradientButton>
+              <GradientButton href={loginHref("/animate/instant")}>{t("instant.auth.login")}</GradientButton>
               <Link href="/signup" className="text-sm font-medium text-emerald-800 underline">
                 {t("instant.auth.signup")}
               </Link>

@@ -5,6 +5,7 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { useAuthActionHref } from "@/hooks/use-auth-action-href";
 import { brand } from "@/lib/brand";
 
 type EcosystemProduct = {
@@ -56,6 +57,7 @@ const ECOSYSTEM_PRODUCTS: EcosystemProduct[] = [
 
 function EcosystemPill({ product }: { product: EcosystemProduct }) {
   const t = useActiveTranslator();
+  const actionHref = useAuthActionHref(product.href ?? "/");
   const inner = (
     <div
       className={`group h-full rounded-3xl border-2 bg-white p-4 text-left shadow-[0_16px_40px_-24px_rgba(16,185,129,0.2)] transition-shadow hover:shadow-md ${
@@ -84,7 +86,7 @@ function EcosystemPill({ product }: { product: EcosystemProduct }) {
 
   if (product.href) {
     return (
-      <Link href={product.href} prefetch={false} className="block h-full">
+      <Link href={actionHref} prefetch={false} className="block h-full">
         {inner}
       </Link>
     );
@@ -107,6 +109,7 @@ function ShowcaseCard({
   accent: string;
 }) {
   const t = useActiveTranslator();
+  const actionHref = useAuthActionHref(href);
 
   return (
     <AppCard className="flex h-full flex-col bg-white p-6 sm:p-8">
@@ -118,7 +121,7 @@ function ShowcaseCard({
       <h3 className="text-xl font-bold text-zinc-900">{t(titleKey)}</h3>
       <p className="mt-3 flex-1 text-sm leading-relaxed text-zinc-600 sm:text-base">{t(bodyKey)}</p>
       <Link
-        href={href}
+        href={actionHref}
         prefetch={false}
         className="mt-5 inline-flex text-sm font-semibold hover:underline"
         style={{ color: accent }}
@@ -131,6 +134,9 @@ function ShowcaseCard({
 
 export function HomeEcosystemPage() {
   const t = useActiveTranslator();
+  const maakHref = useAuthActionHref("/maak");
+  const instantHref = useAuthActionHref("/animate/instant");
+  const studioStoriesHref = useAuthActionHref("/studio/storyboards");
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -153,7 +159,7 @@ export function HomeEcosystemPage() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <GradientButton href="/create" className="px-8">
+            <GradientButton href={maakHref} className="px-8">
               {t("landing.hero.ctaPrimary")}
             </GradientButton>
             <Link
@@ -237,11 +243,11 @@ export function HomeEcosystemPage() {
                 ))}
               </ol>
               <div className="mt-8 flex flex-wrap gap-3">
-                <GradientButton href="/studio/storyboards" className="px-6 py-2.5 text-sm">
+                <GradientButton href={studioStoriesHref} className="px-6 py-2.5 text-sm">
                   {t("landing.flow.ctaStudio")}
                 </GradientButton>
                 <Link
-                  href="/animate/instant"
+                  href={instantHref}
                   prefetch={false}
                   className="inline-flex items-center rounded-full border border-[#0067B1]/30 bg-[#0067B1]/5 px-6 py-2.5 text-sm font-semibold text-[#0067B1] hover:bg-[#0067B1]/10"
                 >

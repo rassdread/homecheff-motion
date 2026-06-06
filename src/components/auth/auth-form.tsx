@@ -11,18 +11,15 @@ type AuthFormProps = {
   inviteToken?: string;
 };
 
+import { resolvePostAuthRedirectFromSearch, DEFAULT_POST_AUTH_PATH } from "@/lib/auth-post-auth-redirect";
+
 const isDev = process.env.NODE_ENV === "development";
-const DEFAULT_POST_AUTH_PATH = "/studio";
 
 function resolvePostAuthRedirect(): string {
   if (typeof window === "undefined") {
     return DEFAULT_POST_AUTH_PATH;
   }
-  const next = new URLSearchParams(window.location.search).get("next")?.trim();
-  if (next && next.startsWith("/") && !next.startsWith("//")) {
-    return next;
-  }
-  return DEFAULT_POST_AUTH_PATH;
+  return resolvePostAuthRedirectFromSearch(window.location.search);
 }
 
 async function parseErrorJson(

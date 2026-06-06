@@ -7,7 +7,8 @@ const studioApiPaths = [
   "/api/studio/props",
 ];
 
-const startHeading = /Create or edit your video|Maak of bewerk je video/;
+const landingHeadline = /AI-video|AI video/i;
+const studioEditorHeading = /Verhaaleditor|Story editor/;
 
 function isStoryboardListRequest(url: string): boolean {
   try {
@@ -19,13 +20,17 @@ function isStoryboardListRequest(url: string): boolean {
 }
 
 test.describe("Motion Studio production smoke", () => {
-  test("A — / and /studio show editor-first start screen without legacy grid", async ({ page }) => {
-    for (const path of ["/", "/studio"]) {
-      await page.goto(path);
-      await expect(page.getByRole("heading", { level: 1 })).toContainText(startHeading);
-      await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
-      await expect(page.getByRole("link", { name: /Mijn videoverhalen|My video stories/i })).toBeVisible();
-    }
+  test("A — / shows public landing; /studio shows productive shell without legacy grid", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(landingHeadline);
+
+    await page.goto("/studio");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(studioEditorHeading);
+    await expect(page.locator('a[href="/studio/characters"]')).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Mijn videoverhalen|My video stories/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nieuw videoverhaal|New video story/i })).toBeVisible();
   });
 
   test("C — unauthenticated studio APIs return JSON 401 without CORS throw", async ({

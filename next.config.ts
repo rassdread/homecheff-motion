@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
   ],
   async redirects() {
     return [
+      { source: "/create", destination: "/maak", permanent: false },
+      { source: "/create/:path*", destination: "/maak", permanent: false },
       { source: "/beheer", destination: "/admin", permanent: false },
       { source: "/beheer/:path*", destination: "/admin/:path*", permanent: false },
     ];

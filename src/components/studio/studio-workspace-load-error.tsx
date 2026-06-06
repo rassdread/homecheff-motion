@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
+import { loginHref } from "@/lib/auth-login-href";
 
 type Props = {
   failure: StudioWorkspaceLoadFailure;
@@ -54,7 +55,7 @@ export function StudioWorkspaceLoadError({ failure, onRetry, retrying = false }:
           </Link>
           {failure.kind === "auth" ?
             <Link
-              href="/login"
+              href={loginHref("/studio")}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#006D52]/40 px-5 py-2.5 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/5"
             >
               {t("nav.login")}

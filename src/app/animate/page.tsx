@@ -25,6 +25,7 @@ import {
   MAX_ANIMATION_USER_PROMPT_LENGTH,
   type AnimationPresetId,
 } from "@/lib/animation-presets";
+import { loginHref } from "@/lib/auth-login-href";
 import { brand } from "@/lib/brand";
 
 const INTENT_LABEL_KEYS: Record<AnimationIntentId, TranslationKey> = {
@@ -224,7 +225,7 @@ export default function AnimatePage() {
             <h1 className="text-2xl font-semibold">{t("animate.auth.requiredTitle")}</h1>
             <p className="mt-2 text-zinc-600">{t("animate.auth.requiredDescription")}</p>
             <div className="mt-6 flex gap-3">
-              <GradientButton href="/login">{t("animate.auth.loginCta")}</GradientButton>
+              <GradientButton href={loginHref("/animate/instant")}>{t("animate.auth.loginCta")}</GradientButton>
               <Link
                 href="/signup"
                 className="rounded-full border border-emerald-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-800 hover:bg-emerald-50"
