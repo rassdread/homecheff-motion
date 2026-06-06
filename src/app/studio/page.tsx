@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioAdvancedFeaturesToggle } from "@/components/studio/studio-advanced-features-toggle";
+import { StudioProductionSplash } from "@/components/studio/studio-production-splash";
 import { StudioFeatureCard } from "@/components/studio/studio-feature-card";
 import { StudioRoadmap } from "@/components/studio/studio-roadmap";
 import { AppCard } from "@/components/ui/app-card";
@@ -65,6 +67,10 @@ export default function StudioPage() {
     (card) => uiMode === "advanced" || !ADVANCED_ONLY_HREFS.has(card.href)
   );
 
+  if (uiMode === "simple") {
+    return <StudioProductionSplash />;
+  }
+
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <section className="mx-auto flex w-full max-w-6xl flex-col px-6 py-12 sm:px-10 sm:py-16">
@@ -81,8 +87,9 @@ export default function StudioPage() {
           <p className="mt-4 text-base leading-relaxed text-zinc-600 sm:text-lg">
             {t("studio.subtitle")}
           </p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-4">
             <StudioAdvancedFeaturesToggle />
+            <MotionBuildDebugBadge />
           </div>
         </header>
 

@@ -140,6 +140,7 @@ import { MotionAudioExportWizardSettings } from "@/components/instant/motion/mot
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
 import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-export";
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
+import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { MotionFirstRenderConfidencePanel } from "@/components/instant/motion/motion-first-render-confidence-panel";
 import { MotionPreRenderQaModal } from "@/components/instant/motion/motion-pre-render-qa-modal";
 import { MotionSceneStudioInspector } from "@/components/instant/motion/motion-scene-studio-inspector";
@@ -1520,6 +1521,7 @@ export default function InstantPremiumPage() {
             </p>
             <h1 className="text-2xl font-bold tracking-tight">{t("instant.title")}</h1>
             <p className="mt-1 text-xs text-zinc-500">{t(`instant.wizardStep.${wizardView}` as never)}</p>
+            <MotionBuildDebugBadge className="mt-2" />
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
             <InstantWizardModeToggle

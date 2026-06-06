@@ -17,6 +17,16 @@ export const nl = {
   "nav.usage": "Verbruik",
   "nav.premium": "Premium",
 
+  "studio.splash.label": "Motion Studio",
+  "studio.splash.title": "Plan je verhaal. Render met vertrouwen.",
+  "studio.splash.subtitle":
+    "Director workspace, productie-inzichten en een direct pad naar Motion — zonder het oude tegelraster.",
+  "studio.splash.openStoryboards": "Open mijn storyboards",
+  "studio.splash.newProject": "Nieuw storyboard",
+  "studio.splash.openMotion": "Open Motion",
+  "studio.splash.step1": "Kies of maak een storyboard.",
+  "studio.splash.step2": "Bewerk scènes in de workspace met Director en productie-inzichten.",
+  "studio.splash.step3": "Open Motion om je video te genereren en beheer versies.",
   "studio.label": "HomeCheff Studio",
   "studio.title": "HomeCheff Studio",
   "studio.subtitle":

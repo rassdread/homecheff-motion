@@ -59,7 +59,7 @@ export default function CreatePage() {
 
         <p className="mt-8 text-center text-sm text-zinc-500">
           {t("create.handoffHint")}{" "}
-          <Link href="/studio" prefetch={false} className="font-medium text-[#006D52] hover:underline">
+          <Link href="/studio/storyboards" prefetch={false} className="font-medium text-[#006D52] hover:underline">
             {t("create.handoffLink")}
           </Link>
         </p>

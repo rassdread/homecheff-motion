@@ -11,6 +11,7 @@ import {
 import { StudioWorkspaceSceneSidebar } from "@/components/studio/studio-workspace-scene-sidebar";
 import { StudioWorkspaceAssetsDrawer } from "@/components/studio/studio-workspace-assets-drawer";
 import { StudioWorkspaceAssetsList } from "@/components/studio/studio-workspace-assets-list";
+import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { MotionStudioOnboarding } from "@/components/studio/motion-studio-onboarding";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
 import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
@@ -223,6 +224,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               </h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <MotionBuildDebugBadge className="hidden sm:block" />
               {advancedFeatures ?
                 <>
                   <Link

@@ -21,6 +21,16 @@ export const en: LocaleSchema = {
   "nav.usage": "Usage",
   "nav.premium": "Premium",
 
+  "studio.splash.label": "Motion Studio",
+  "studio.splash.title": "Plan your story. Render with confidence.",
+  "studio.splash.subtitle":
+    "Director workspace, production insights, and a straight path to Motion — without the old feature grid.",
+  "studio.splash.openStoryboards": "Open my storyboards",
+  "studio.splash.newProject": "New storyboard",
+  "studio.splash.openMotion": "Open Motion",
+  "studio.splash.step1": "Pick or create a storyboard.",
+  "studio.splash.step2": "Edit scenes in the workspace with Director and production insights.",
+  "studio.splash.step3": "Open Motion to generate your video, then manage versions.",
   "studio.label": "HomeCheff Studio",
   "studio.title": "HomeCheff Studio",
   "studio.subtitle":
