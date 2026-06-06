@@ -31,7 +31,7 @@ export function formatLanguageVersionTitle(
 }
 
 export function formatTextVersionTitle(version: number, locale: "en" | "nl" = "nl"): string {
-  const label = locale === "nl" ? "Tekstversie" : "Text version";
+  const label = locale === "nl" ? "Tekstbewerking" : "Text edit";
   return `${label} v${version}`;
 }
 

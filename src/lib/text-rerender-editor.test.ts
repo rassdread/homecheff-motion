@@ -72,8 +72,8 @@ describe("text rerender editor flow", () => {
   it("user copy uses Edit texts / Teksten aanpassen and render secondary action", () => {
     assert.equal(en["instant.textRerender.cta"], "Edit texts");
     assert.equal(nl["instant.textRerender.cta"], "Teksten aanpassen");
-    assert.equal(en["instant.textRerender.render"], "Render text version");
-    assert.equal(nl["instant.textRerender.render"], "Tekstversie renderen");
+    assert.equal(en["instant.textRerender.render"], "Render text edit");
+    assert.equal(nl["instant.textRerender.render"], "Tekstbewerking renderen");
   });
 });
 
