@@ -18,7 +18,9 @@ export type ProductionTimelineEventKind =
   | "director_applied"
   | "scene_added"
   | "production_updated"
-  | "memory_pattern";
+  | "memory_pattern"
+  | "snapshot_created"
+  | "snapshot_restored";
 
 export type ProductionTimelineEventSource =
   | "storyboard"
@@ -93,6 +95,7 @@ export type BuildProductionTimelineInput = {
   projectMemory?: import("@/types/studio-project-memory").StudioProjectMemorySnapshot;
   assetDecisionRegistry?: StudioAssetDecisionRegistry;
   productionBrief?: StudioProductionBrief | null;
+  snapshotTimelineEvents?: ProductionTimelineEvent[];
 };
 
 export type ProductionTimelineContext = {

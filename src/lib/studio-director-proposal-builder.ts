@@ -62,6 +62,10 @@ import {
   buildProductionPatternContext,
   enrichIdeaWithProductionPattern,
 } from "@/lib/studio-production-pattern-profile";
+import {
+  buildStudioSnapshotContext,
+  enrichIdeaWithStudioSnapshot,
+} from "@/lib/studio-snapshot-context";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -822,6 +826,16 @@ export function buildDirectorProposal(params: {
     productionPatternContext
   );
 
+  const snapshotContext = buildStudioSnapshotContext({
+    storyboardId: params.storyboard.id,
+    storyboardUpdatedAt: params.storyboard.updatedAt,
+  });
+
+  const enrichedFromSnapshot = enrichIdeaWithStudioSnapshot(
+    enrichedFromPatterns,
+    snapshotContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -836,7 +850,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromPatterns, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromSnapshot, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1194,6 +1208,7 @@ export function buildDirectorProposal(params: {
     creativeReviewContext,
     creationAssistantContext,
     productionPatternContext,
+    snapshotContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

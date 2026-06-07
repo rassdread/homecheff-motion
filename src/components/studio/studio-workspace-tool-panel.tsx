@@ -18,6 +18,7 @@ import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-works
 import { StudioWorkspaceCreativeReviewPanel } from "@/components/studio/studio-workspace-creative-review-panel";
 import { StudioWorkspaceCreationAssistantPanel } from "@/components/studio/studio-workspace-creation-assistant-panel";
 import { StudioWorkspaceProductionHistoryPanel } from "@/components/studio/studio-workspace-production-history-panel";
+import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -280,6 +281,8 @@ export function StudioWorkspaceToolPanel({
         worlds={worlds}
         projectMemory={projectMemory}
         onSwitchTool={onSwitchTool}
+        onRefreshStoryboard={onRefreshStoryboard}
+        canModify={canModify}
       />
     );
   }
@@ -466,12 +469,29 @@ export function StudioWorkspaceToolPanel({
 
   if (tool === "versions") {
     return (
-      <StudioWorkspaceVersionsPanel
-        storyboardId={storyboardId}
-        projects={projects}
-        loading={loading}
-        onSwitchTool={onSwitchTool}
-      />
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.versions")}</h2>
+          <p className="mt-1 text-sm text-zinc-600">{t("studio.snapshot.versions.subtitle")}</p>
+        </div>
+        <StudioWorkspaceSnapshotsSection
+          storyboard={storyboard}
+          characters={characters}
+          locations={locations}
+          props={props}
+          worlds={worlds}
+          projectMemory={projectMemory}
+          canModify={canModify}
+          onRestored={onRefreshStoryboard}
+          onSwitchTool={onSwitchTool}
+        />
+        <StudioWorkspaceVersionsPanel
+          storyboardId={storyboardId}
+          projects={projects}
+          loading={loading}
+          onSwitchTool={onSwitchTool}
+        />
+      </div>
     );
   }
 

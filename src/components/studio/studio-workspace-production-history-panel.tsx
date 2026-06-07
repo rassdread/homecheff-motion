@@ -5,6 +5,8 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
 import { buildProductionTimelineWithPatterns } from "@/lib/studio-production-pattern-profile";
+import { buildSnapshotTimelineEvents } from "@/lib/studio-snapshot-context";
+import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
@@ -24,6 +26,8 @@ type Props = {
   worlds: StudioWorldProfileListItem[];
   projectMemory?: StudioProjectMemorySnapshot | null;
   onSwitchTool?: (tool: StudioToolId) => void;
+  onRefreshStoryboard?: () => void | Promise<void>;
+  canModify?: boolean;
 };
 
 function formatWhen(iso: string, locale: string): string {
@@ -62,12 +66,14 @@ export function StudioWorkspaceProductionHistoryPanel({
   worlds,
   projectMemory,
   onSwitchTool,
+  onRefreshStoryboard,
+  canModify = true,
 }: Props) {
   const t = useActiveTranslator();
 
   const timeline = useMemo(() => {
     const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
-    return buildProductionTimelineWithPatterns({
+    const base = buildProductionTimelineWithPatterns({
       storyboard,
       characters,
       locations,
@@ -76,6 +82,13 @@ export function StudioWorkspaceProductionHistoryPanel({
       projectMemory: projectMemory ?? undefined,
       assetDecisionRegistry,
     });
+    const snapshotEvents = buildSnapshotTimelineEvents(storyboard.id);
+    return {
+      ...base,
+      timelineEvents: [...snapshotEvents, ...base.timelineEvents].sort(
+        (a, b) => Date.parse(b.at) - Date.parse(a.at)
+      ),
+    };
   }, [storyboard, characters, locations, props, worlds, projectMemory]);
 
   const locale = typeof navigator !== "undefined" ? navigator.language : "en";
@@ -88,6 +101,18 @@ export function StudioWorkspaceProductionHistoryPanel({
         </h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.productionTimeline.subtitle")}</p>
       </div>
+
+      <StudioWorkspaceSnapshotsSection
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        canModify={canModify}
+        onRestored={onRefreshStoryboard}
+        onSwitchTool={onSwitchTool}
+      />
 
       {timeline.milestones.length > 0 ?
         <section className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4">

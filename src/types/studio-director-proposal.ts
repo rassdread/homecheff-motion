@@ -266,6 +266,7 @@ export type StudioDirectorProposal = {
   creativeReviewContext?: import("@/types/studio-creative-review").CreativeReviewContext;
   creationAssistantContext?: import("@/types/studio-creation-assistant").CreationAssistantContext;
   productionPatternContext?: import("@/types/studio-production-pattern").ProductionPatternContext;
+  snapshotContext?: import("@/types/studio-production-snapshot").StudioSnapshotContext;
   generationPlanPreview?: Array<{
     sceneOrder: number;
     actionBeat: string;

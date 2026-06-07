@@ -65,6 +65,15 @@ export type CreationAssistantCompletionProgress = {
   readinessScore: number;
 };
 
+export type CreationAssistantRecoveryPoint = {
+  snapshotId: string;
+  savedAt: string;
+  labelKey: string;
+  labelParams: Record<string, string>;
+  sceneCount: number;
+  isStale: boolean;
+};
+
 export type StudioCreationAssistantView = {
   version: 1;
   nowTasks: CreationAssistantTask[];
@@ -74,6 +83,7 @@ export type StudioCreationAssistantView = {
   blockers: CreationAssistantTask[];
   completionProgress: CreationAssistantCompletionProgress;
   directorContextLines: string[];
+  recoveryPoint: CreationAssistantRecoveryPoint | null;
 };
 
 export type CreationAssistantContext = {

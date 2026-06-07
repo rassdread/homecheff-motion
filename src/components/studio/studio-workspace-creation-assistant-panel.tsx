@@ -244,6 +244,34 @@ export function StudioWorkspaceCreationAssistantPanel({
         </div>
       </section>
 
+      {view.recoveryPoint ?
+        <section className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
+          <p className="text-sm font-medium text-zinc-900">
+            {t("studio.snapshot.recovery.title")}
+          </p>
+          <p className="mt-1 text-sm text-zinc-700">
+            {t(view.recoveryPoint.labelKey as TranslationKey, view.recoveryPoint.labelParams)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {t("studio.snapshot.recovery.meta", {
+              scenes: String(view.recoveryPoint.sceneCount),
+            })}
+            {view.recoveryPoint.isStale ?
+              ` · ${t("studio.snapshot.recovery.stale")}`
+            : ""}
+          </p>
+          {onSwitchTool ?
+            <button
+              type="button"
+              onClick={() => onSwitchTool("versions")}
+              className="mt-3 text-sm font-semibold text-[#0067B1] hover:underline"
+            >
+              {t("studio.snapshot.recovery.openVersions")}
+            </button>
+          : null}
+        </section>
+      : null}
+
       {view.blockers.length > 0 ?
         <TaskSection
           titleKey="studio.creationAssistant.section.blockers"

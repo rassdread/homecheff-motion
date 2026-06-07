@@ -12,6 +12,7 @@ import {
   getAssetLifecycleDisplayStatus,
 } from "@/lib/studio-asset-lifecycle-resolver";
 import { buildProductionTimeline, buildRecentCompletedTimelineTasks } from "@/lib/studio-production-timeline";
+import { findLastSafeRecoveryPoint } from "@/lib/studio-snapshot-recovery";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -447,6 +448,7 @@ export function emptyCreationAssistantView(): StudioCreationAssistantView {
       readinessScore: 0,
     },
     directorContextLines: [],
+    recoveryPoint: null,
   };
 }
 
@@ -657,6 +659,11 @@ export function buildCreationAssistantView(
     openTaskCount: dedupedNow.length + dedupedNext.length,
   });
 
+  const recoveryPointRaw = findLastSafeRecoveryPoint(
+    storyboard.id,
+    storyboard.updatedAt
+  );
+
   const view: StudioCreationAssistantView = {
     version: 1,
     nowTasks: dedupedNow,
@@ -666,6 +673,7 @@ export function buildCreationAssistantView(
     blockers,
     completionProgress,
     directorContextLines: [],
+    recoveryPoint: recoveryPointRaw,
   };
   view.directorContextLines = buildDirectorContextLines(view);
   return view;

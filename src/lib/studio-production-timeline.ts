@@ -546,6 +546,7 @@ export function buildProductionTimeline(
     ...directorEvents,
     ...sceneEvents,
     ...memoryEvents,
+    ...(input.snapshotTimelineEvents ?? []),
   ]);
 
   const productionEvolution = buildEvolutionPoints(input);
