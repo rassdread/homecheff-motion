@@ -27,6 +27,7 @@ import { reorderSceneIds } from "@/lib/studio-scene-order";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
+import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { StudioAiDirectorPanel } from "@/components/studio/studio-ai-director-panel";
 import { StudioStoryIntelligencePanel } from "@/components/studio/studio-story-intelligence-panel";
 import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-beats-preview-panel";
@@ -95,6 +96,7 @@ import type {
   StudioCharacterListItem,
   StudioLocationListItem,
   StudioPropListItem,
+  StudioWorldProfileListItem,
   StudioStoryboardDetail,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
@@ -111,6 +113,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const [locations, setLocations] = useState<StudioLocationListItem[]>([]);
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [props, setProps] = useState<StudioPropListItem[]>([]);
+  const [worlds, setWorlds] = useState<StudioWorldProfileListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -146,11 +149,12 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const [sbRes, locRes, charRes, propRes] = await Promise.all([
+    const [sbRes, locRes, charRes, propRes, worldRes] = await Promise.all([
       fetchStudioStoryboard(storyboardId),
       fetchStudioLocations(),
       fetchStudioCharacters(),
       fetchStudioProps(),
+      fetchStudioWorlds(),
     ]);
     if (!sbRes.ok) {
       setError((sbRes.data as { error?: string }).error ?? t("studio.storyboards.error.loadFailed"));
@@ -164,6 +168,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
     if (locRes.ok) setLocations(locRes.data.locations);
     if (charRes.ok) setCharacters(charRes.data.characters);
     if (propRes.ok) setProps(propRes.data.props);
+    if (worldRes.ok) setWorlds(worldRes.data.worlds);
     const jobsRes = await listStudioJobsApi(storyboardId);
     if (jobsRes.ok) {
       setRecentJobs(jobsRes.data.jobs);
@@ -795,6 +800,7 @@ export function StudioStoryboardEditor({ storyboardId }: StudioStoryboardEditorP
                             locations={locations}
                             characters={characters}
                             props={props}
+                            worlds={worlds}
                             styleProfile={styleProfile}
                             directorProfile={directorProfile}
                             saving={savingSceneId === scene.id}

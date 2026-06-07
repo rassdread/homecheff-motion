@@ -6,6 +6,8 @@ import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import type { PromptBuilderSourceEntities } from "@/lib/studio-identity-prompt-context";
+import type { StudioSceneDetail } from "@/types/studio-api";
 
 export const PROMPT_BUILDER_VERSION = 3 as const;
 
@@ -30,6 +32,10 @@ export type PromptBuilderInput = {
   memoryBundle?: SceneMemoryBundle;
   /** V12: structured corrections from consistency analysis (applied as prompt layer). */
   correctionRecommendations?: CorrectionRecommendation[];
+  /** Identity Consumption: full library entities for identity-aware prompt sections. */
+  sourceEntities?: PromptBuilderSourceEntities;
+  /** Scene detail for world identity resolution (client preview). */
+  sceneDetail?: StudioSceneDetail;
 };
 
 export type PromptBuilderSections = {
@@ -44,6 +50,7 @@ export type PromptBuilderSections = {
   visualStyle: string;
   qualityInstructions: string;
   continuity: string;
+  identity: string;
 };
 
 export type PromptBuilderOutput = {

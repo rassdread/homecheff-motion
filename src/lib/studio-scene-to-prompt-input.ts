@@ -10,7 +10,11 @@ import type { PropSnapshot } from "@/types/studio-prop-snapshot";
 import { buildSceneMemoryBundle } from "@/lib/studio-memory-mappers";
 import type { PromptBuilderInput } from "@/types/studio-prompt-builder";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
-import type { StudioSceneDetail } from "@/types/studio-api";
+import type {
+  StudioSceneDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
+import type { PromptBuilderSourceEntities } from "@/lib/studio-identity-prompt-context";
 
 function characterToSnapshot(
   c: StudioSceneDetail["characters"][number]
@@ -69,7 +73,44 @@ export function studioSceneDetailToSnapshot(scene: StudioSceneDetail): SceneSnap
   };
 }
 
-function sceneDetailToMemoryBundle(scene: StudioSceneDetail) {
+type WorldProfilePick = {
+  id: string;
+  name: string;
+  description: string;
+  visualStyle: string;
+  tone: string;
+  continuityRules: string;
+  continuityStrength: string;
+};
+
+function resolveWorldProfilePick(
+  worldProfileId: string | null | undefined,
+  worldProfileSummary: { id: string; name: string } | null | undefined,
+  worlds: StudioWorldProfileListItem[]
+): WorldProfilePick | null {
+  const id = worldProfileId ?? worldProfileSummary?.id;
+  if (!id) {
+    return null;
+  }
+  const full = worlds.find((w) => w.id === id);
+  if (full) {
+    return {
+      id: full.id,
+      name: full.name,
+      description: full.description,
+      visualStyle: full.visualStyle,
+      tone: full.tone,
+      continuityRules: full.continuityRules,
+      continuityStrength: full.continuityStrength,
+    };
+  }
+  return null;
+}
+
+function sceneDetailToMemoryBundle(
+  scene: StudioSceneDetail,
+  worlds: StudioWorldProfileListItem[] = []
+) {
   return buildSceneMemoryBundle({
     characters: scene.characters.map((c) => ({
       id: c.id,
@@ -89,17 +130,7 @@ function sceneDetailToMemoryBundle(scene: StudioSceneDetail) {
       identityStrength: c.identityStrength,
       continuityStrength: c.continuityStrength,
       worldProfileId: c.worldProfileId,
-      worldProfile: c.worldProfile
-        ? {
-            id: c.worldProfile.id,
-            name: c.worldProfile.name,
-            description: "",
-            visualStyle: "",
-            tone: "",
-            continuityRules: "",
-            continuityStrength: "strong",
-          }
-        : null,
+      worldProfile: resolveWorldProfilePick(c.worldProfileId, c.worldProfile, worlds),
     })),
     location: scene.location
       ? {
@@ -114,17 +145,11 @@ function sceneDetailToMemoryBundle(scene: StudioSceneDetail) {
           continuityNotes: scene.location.continuityNotes,
           continuityStrength: scene.location.continuityStrength,
           worldProfileId: scene.location.worldProfileId,
-          worldProfile: scene.location.worldProfile
-            ? {
-                id: scene.location.worldProfile.id,
-                name: scene.location.worldProfile.name,
-                description: "",
-                visualStyle: "",
-                tone: "",
-                continuityRules: "",
-                continuityStrength: "strong",
-              }
-            : null,
+          worldProfile: resolveWorldProfilePick(
+            scene.location.worldProfileId,
+            scene.location.worldProfile,
+            worlds
+          ),
         }
       : null,
     props: scene.props.map((p) => ({
@@ -138,35 +163,35 @@ function sceneDetailToMemoryBundle(scene: StudioSceneDetail) {
       continuityNotes: p.continuityNotes,
       continuityStrength: p.continuityStrength,
       worldProfileId: p.worldProfileId,
-      worldProfile: p.worldProfile
-        ? {
-            id: p.worldProfile.id,
-            name: p.worldProfile.name,
-            description: "",
-            visualStyle: "",
-            tone: "",
-            continuityRules: "",
-            continuityStrength: "strong",
-          }
-        : null,
+      worldProfile: resolveWorldProfilePick(p.worldProfileId, p.worldProfile, worlds),
     })),
   });
 }
 
+export type StudioScenePromptInputOptions = {
+  styleProfile?: StudioPromptStyleProfile | string;
+  directorProfile?: string;
+  sourceEntities?: PromptBuilderSourceEntities;
+};
+
 export function studioSceneDetailToPromptInput(
   scene: StudioSceneDetail,
   styleProfile?: StudioPromptStyleProfile | string,
-  directorProfile?: string
+  directorProfile?: string,
+  options?: Omit<StudioScenePromptInputOptions, "styleProfile" | "directorProfile">
 ): PromptBuilderInput {
   const snap = studioSceneDetailToSnapshot(scene);
   const input = sceneSnapshotToPromptInput(snap, styleProfile, directorProfile);
+  const worlds = options?.sourceEntities?.worlds ?? [];
   return {
     ...input,
     shotType: scene.shotType,
     cameraMovement: scene.cameraMovement,
     sceneEnergy: scene.sceneEnergy,
     directorProfile: normalizeStudioDirectorProfile(directorProfile),
-    memoryBundle: sceneDetailToMemoryBundle(scene),
+    memoryBundle: sceneDetailToMemoryBundle(scene, worlds),
+    sceneDetail: scene,
+    sourceEntities: options?.sourceEntities,
   };
 }
 

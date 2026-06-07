@@ -30,6 +30,7 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
@@ -52,6 +53,7 @@ type StudioSceneComposerProps = {
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
+  worlds: StudioWorldProfileListItem[];
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   saving: boolean;
@@ -79,6 +81,7 @@ export function StudioSceneComposer({
   locations,
   characters,
   props,
+  worlds,
   styleProfile,
   directorProfile,
   saving,
@@ -170,6 +173,10 @@ export function StudioSceneComposer({
           scene={draft}
           styleProfile={styleProfile}
           directorProfile={directorProfile}
+          characters={characters}
+          locations={locations}
+          props={props}
+          worlds={worlds}
         />
       ) : tab === "image" ? (
         <StudioSceneImagePanel
@@ -199,6 +206,9 @@ export function StudioSceneComposer({
           directorProfile={directorProfile}
           styleProfile={styleProfile}
           characters={characters}
+          locations={locations}
+          props={props}
+          worlds={worlds}
           canModify={canModify}
           saving={saving}
           onSave={onSave}

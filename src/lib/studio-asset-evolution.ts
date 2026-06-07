@@ -11,7 +11,7 @@ import { getAssetUsageStats } from "@/lib/studio-project-memory-utils";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
-import { buildSceneIdentityConsumption } from "@/lib/studio-identity-consumption";
+import { buildSceneIdentityConsumption, identityConsumptionRationaleKeyForKind } from "@/lib/studio-identity-consumption";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -223,7 +223,11 @@ function recommendedFromRecurring(params: {
       id: entryId(kind, match.assetId),
       name: match.assetName,
       status: "recommended",
-      reasonKeys: ["studio.assetEvolution.reuseRecommended", ...match.matchReasonKeys],
+      reasonKeys: [
+        "studio.assetEvolution.reuseRecommended",
+        identityConsumptionRationaleKeyForKind(kind),
+        ...match.matchReasonKeys,
+      ],
       existingId: match.assetId,
       usageStoryboardCount: match.usage.storyboardCount,
       usageRenderCount: match.usage.renderCount,

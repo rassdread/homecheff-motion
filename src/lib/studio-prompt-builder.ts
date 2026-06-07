@@ -17,6 +17,7 @@ import {
   buildCorrectedPrompt,
   recommendationsToPromptPatches,
 } from "@/lib/build-corrected-prompt";
+import { buildScenePromptIdentitySection } from "@/lib/studio-identity-prompt-context";
 import { sceneSnapshotToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import {
@@ -54,12 +55,17 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     props: input.props,
     memoryBundle: input.memoryBundle,
   });
+  const source = input.sourceEntities;
+  const identity =
+    input.sceneDetail && source
+      ? buildScenePromptIdentitySection({ scene: input.sceneDetail, libraries: source })
+      : "";
 
   return {
     sceneContext: buildSceneContextSection(input),
-    characters: buildCharactersPrompt(input.characters),
-    location: buildLocationPrompt(input.location),
-    props: buildPropsPrompt(input.props),
+    characters: buildCharactersPrompt(input.characters, source?.characters),
+    location: buildLocationPrompt(input.location, source?.locations.find((l) => l.id === input.location?.id) ?? null),
+    props: buildPropsPrompt(input.props, source?.props),
     action: buildActionPrompt(input.scene.action),
     emotion: buildEmotionPrompt(input.scene.emotion),
     camera:
@@ -73,6 +79,7 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     visualStyle: stylePrompt,
     qualityInstructions: QUALITY_INSTRUCTIONS,
     continuity,
+    identity,
   };
 }
 
@@ -81,6 +88,7 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
   const quality = scorePromptQuality(input);
 
   const bodyParts = [
+    sections.identity,
     sections.location,
     sections.characters
       ? `${sections.characters}${sections.props ? `\n\nProps:\n${sections.props}` : ""}`
@@ -91,6 +99,7 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
     sections.director,
     sections.camera,
     sections.visualStyle,
+    sections.continuity,
     sections.qualityInstructions,
   ];
 

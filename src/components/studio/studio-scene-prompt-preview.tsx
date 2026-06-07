@@ -6,12 +6,22 @@ import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-inp
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { useActiveTranslator } from "@/i18n/client";
-import type { StudioSceneDetail } from "@/types/studio-api";
+import type {
+  StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
+  StudioSceneDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
 
 type StudioScenePromptPreviewProps = {
   scene: StudioSceneDetail;
   styleProfile: StudioPromptStyleProfile;
   directorProfile?: StudioDirectorProfile;
+  characters?: StudioCharacterListItem[];
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
 };
 
 function PromptBlock({ label, body }: { label: string; body: string }) {
@@ -30,14 +40,20 @@ export function StudioScenePromptPreview({
   scene,
   styleProfile,
   directorProfile,
+  characters = [],
+  locations = [],
+  props = [],
+  worlds = [],
 }: StudioScenePromptPreviewProps) {
   const t = useActiveTranslator();
   const output = useMemo(
     () =>
       buildScenePromptFromInput(
-        studioSceneDetailToPromptInput(scene, styleProfile, directorProfile)
+        studioSceneDetailToPromptInput(scene, styleProfile, directorProfile, {
+          sourceEntities: { characters, locations, props, worlds },
+        })
       ),
-    [scene, styleProfile, directorProfile]
+    [scene, styleProfile, directorProfile, characters, locations, props, worlds]
   );
 
   const tierLabel =
@@ -74,6 +90,7 @@ export function StudioScenePromptPreview({
         <PromptBlock label={t("studio.prompt.section.director")} body={output.sections.director} />
         <PromptBlock label={t("studio.prompt.section.camera")} body={output.sections.camera} />
         <PromptBlock label={t("studio.prompt.section.visualStyle")} body={output.sections.visualStyle} />
+        <PromptBlock label={t("studio.prompt.section.identity")} body={output.sections.identity} />
         <PromptBlock
           label={t("studio.prompt.section.continuity")}
           body={output.sections.continuity}

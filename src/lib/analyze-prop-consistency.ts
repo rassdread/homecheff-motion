@@ -5,6 +5,10 @@ import {
   requiredPhraseMatchRatio,
   scorePhrasesAgainstHaystack,
 } from "@/lib/studio-consistency-text-signals";
+import {
+  mergeConsistencyPhrases,
+  propIdentityConsistencyPhrases,
+} from "@/lib/studio-identity-consistency-phrases";
 import type { PropConsistencyResult, SceneImageConsistencyInput } from "@/types/studio-consistency";
 import type { PropMemorySnapshot } from "@/types/studio-memory-snapshots";
 
@@ -20,11 +24,12 @@ export function analyzePropConsistency(
   );
 
   const requiredRatio = requiredPhraseMatchRatio(prop.continuityStrength);
-  const phrases = [
-    ...memoryPhrases(prop.appearanceMemory),
-    ...memoryPhrases(prop.brandingRules),
-    prop.name,
-  ];
+  const phrases = mergeConsistencyPhrases(
+    memoryPhrases(prop.appearanceMemory),
+    memoryPhrases(prop.brandingRules),
+    propIdentityConsistencyPhrases(prop),
+    [prop.name]
+  );
 
   const { score, missing } = scorePhrasesAgainstHaystack(haystack, phrases, requiredRatio);
   const warnings: string[] = [];

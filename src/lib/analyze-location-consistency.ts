@@ -5,6 +5,10 @@ import {
   requiredPhraseMatchRatio,
   scorePhrasesAgainstHaystack,
 } from "@/lib/studio-consistency-text-signals";
+import {
+  locationIdentityConsistencyPhrases,
+  mergeConsistencyPhrases,
+} from "@/lib/studio-identity-consistency-phrases";
 import type {
   LocationConsistencyResult,
   SceneImageConsistencyInput,
@@ -24,12 +28,13 @@ export function analyzeLocationConsistency(
   );
 
   const requiredRatio = requiredPhraseMatchRatio(location.continuityStrength);
-  const phrases = [
-    ...memoryPhrases(location.visualIdentity),
-    ...memoryPhrases(location.worldMemory),
-    ...memoryPhrases(location.environmentKeywords),
-    location.name,
-  ];
+  const phrases = mergeConsistencyPhrases(
+    memoryPhrases(location.visualIdentity),
+    memoryPhrases(location.worldMemory),
+    memoryPhrases(location.environmentKeywords),
+    locationIdentityConsistencyPhrases(location),
+    [location.name]
+  );
 
   const { score, missing } = scorePhrasesAgainstHaystack(haystack, phrases, requiredRatio);
   const warnings: string[] = [];

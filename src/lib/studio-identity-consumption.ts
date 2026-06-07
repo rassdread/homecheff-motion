@@ -222,6 +222,21 @@ export function resolveSceneIdentityShotBias(params: {
   return null;
 }
 
+export function identityConsumptionRationaleKeyForKind(
+  kind: IdentitySpecKind
+): string {
+  switch (kind) {
+    case "character":
+      return "studio.identityConsumption.rationale.characterIdentity";
+    case "location":
+      return "studio.identityConsumption.rationale.locationIdentity";
+    case "prop":
+      return "studio.identityConsumption.rationale.propAction";
+    case "world":
+      return "studio.identityConsumption.rationale.worldRules";
+  }
+}
+
 function buildRationale(
   id: string,
   reasonKey: string,
@@ -302,6 +317,42 @@ export function buildSceneIdentityConsumption(params: {
         world.name,
         { name: world.name },
         "world",
+      )
+    );
+  }
+  if (bundle.location) {
+    rationales.push(
+      buildRationale(
+        `location-${bundle.location.id}-${params.scene.id}`,
+        "studio.identityConsumption.rationale.locationIdentity",
+        "location",
+        bundle.location.name,
+        { name: bundle.location.name },
+        "locations",
+      )
+    );
+  }
+  for (const character of bundle.characters) {
+    rationales.push(
+      buildRationale(
+        `character-${character.id}-${params.scene.id}`,
+        "studio.identityConsumption.rationale.characterIdentity",
+        "character",
+        character.name,
+        { name: character.name },
+        "characters",
+      )
+    );
+  }
+  for (const prop of bundle.props) {
+    rationales.push(
+      buildRationale(
+        `prop-${prop.id}-${params.scene.id}`,
+        "studio.identityConsumption.rationale.propAction",
+        "prop",
+        prop.name,
+        { name: prop.name },
+        "props",
       )
     );
   }

@@ -5,6 +5,10 @@ import {
   requiredPhraseMatchRatio,
   scorePhrasesAgainstHaystack,
 } from "@/lib/studio-consistency-text-signals";
+import {
+  characterIdentityConsistencyPhrases,
+  mergeConsistencyPhrases,
+} from "@/lib/studio-identity-consistency-phrases";
 import type {
   CharacterConsistencyResult,
   SceneImageConsistencyInput,
@@ -23,13 +27,14 @@ export function analyzeCharacterConsistency(
   );
 
   const requiredRatio = requiredPhraseMatchRatio(character.identityStrength);
-  const phrases = [
-    ...memoryPhrases(character.appearanceMemory),
-    ...memoryPhrases(character.defaultClothing),
-    ...memoryPhrases(character.defaultAccessories),
-    ...memoryPhrases(character.visualKeywords),
-    ...memoryPhrases(character.personalityMemory),
-  ];
+  const phrases = mergeConsistencyPhrases(
+    memoryPhrases(character.appearanceMemory),
+    memoryPhrases(character.defaultClothing),
+    memoryPhrases(character.defaultAccessories),
+    memoryPhrases(character.visualKeywords),
+    memoryPhrases(character.personalityMemory),
+    characterIdentityConsistencyPhrases(character)
+  );
 
   const { score, missing } = scorePhrasesAgainstHaystack(haystack, phrases, requiredRatio);
 

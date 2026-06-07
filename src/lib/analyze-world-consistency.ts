@@ -5,6 +5,10 @@ import {
   requiredPhraseMatchRatio,
   scorePhrasesAgainstHaystack,
 } from "@/lib/studio-consistency-text-signals";
+import {
+  mergeConsistencyPhrases,
+  worldIdentityConsistencyPhrases,
+} from "@/lib/studio-identity-consistency-phrases";
 import type { SceneImageConsistencyInput, WorldConsistencyResult } from "@/types/studio-consistency";
 import type { WorldMemorySnapshot } from "@/types/studio-memory-snapshots";
 
@@ -21,12 +25,13 @@ export function analyzeWorldConsistency(
   );
 
   const requiredRatio = requiredPhraseMatchRatio(world.continuityStrength);
-  const phrases = [
-    ...memoryPhrases(world.visualStyle),
-    ...memoryPhrases(world.tone),
-    ...memoryPhrases(world.continuityRules),
-    world.name,
-  ];
+  const phrases = mergeConsistencyPhrases(
+    memoryPhrases(world.visualStyle),
+    memoryPhrases(world.tone),
+    memoryPhrases(world.continuityRules),
+    worldIdentityConsistencyPhrases(world),
+    [world.name]
+  );
 
   const { score, missing } = scorePhrasesAgainstHaystack(haystack, phrases, requiredRatio);
   const warnings: string[] = [];

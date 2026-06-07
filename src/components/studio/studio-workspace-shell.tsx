@@ -483,6 +483,9 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     directorProfile={directorProfile}
                     styleProfile={styleProfile}
                     characters={characters}
+                    locations={locations}
+                    props={props}
+                    worlds={worlds}
                     canModify={canModify}
                     saving={savingSceneId === activeScene.id}
                     onSave={handleSaveScene}

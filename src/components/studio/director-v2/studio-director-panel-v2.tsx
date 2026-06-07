@@ -13,6 +13,7 @@ import { StudioDirectorSectionSound } from "@/components/studio/director-v2/sect
 import { StudioDirectorSectionText } from "@/components/studio/director-v2/sections/text-section";
 import { StudioDirectorSectionAdvanced } from "@/components/studio/director-v2/sections/advanced-section";
 import { StudioAudioConfidenceCard } from "@/components/studio/studio-audio-confidence-card";
+import { StudioSceneIdentityConsumptionSummary } from "@/components/studio/studio-scene-identity-consumption-summary";
 import {
   readStudioDirectorV2Mode,
   writeStudioDirectorV2Mode,
@@ -23,8 +24,11 @@ import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { useActiveTranslator } from "@/i18n/client";
 import type {
   StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
@@ -44,6 +48,9 @@ type Props = {
   directorProfile: StudioDirectorProfile;
   styleProfile: StudioPromptStyleProfile;
   characters: StudioCharacterListItem[];
+  locations: StudioLocationListItem[];
+  props: StudioPropListItem[];
+  worlds: StudioWorldProfileListItem[];
   canModify: boolean;
   saving: boolean;
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
@@ -65,6 +72,9 @@ export function StudioDirectorPanelV2({
   directorProfile,
   styleProfile,
   characters,
+  locations,
+  props,
+  worlds,
   canModify,
   saving,
   onSave,
@@ -200,6 +210,11 @@ export function StudioDirectorPanelV2({
         storyboard={storyboard}
         scene={scene}
         characters={characters}
+      />
+
+      <StudioSceneIdentityConsumptionSummary
+        scene={scene}
+        libraries={{ characters, locations, props, worlds }}
       />
 
       <div className="space-y-3">

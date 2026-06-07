@@ -16,6 +16,7 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { CorrectionRecommendation } from "@/types/studio-correction";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
@@ -37,6 +38,7 @@ type StudioSortableSceneCardProps = {
   locations: StudioLocationListItem[];
   characters: StudioCharacterListItem[];
   props: StudioPropListItem[];
+  worlds: StudioWorldProfileListItem[];
   styleProfile: StudioPromptStyleProfile;
   directorProfile: StudioDirectorProfile;
   saving: boolean;
@@ -66,6 +68,7 @@ export function StudioSortableSceneCard({
   locations,
   characters,
   props,
+  worlds,
   styleProfile,
   directorProfile,
   saving,
@@ -242,6 +245,7 @@ export function StudioSortableSceneCard({
             locations={locations}
             characters={characters}
             props={props}
+            worlds={worlds}
             styleProfile={styleProfile}
             directorProfile={directorProfile}
             saving={saving}
