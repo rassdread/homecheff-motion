@@ -3043,6 +3043,7 @@ export const nl = {
   "studio.voiceClone.resultProvider": "Providerstatus",
   "studio.voiceClone.resultPreview": "Gekloonde stem beluisteren",
   "studio.myVoices.title": "Mijn stemmen",
+  "studio.myVoices.discovery": "Maak of kies je eigen stem",
   "studio.myVoices.subtitle": "Studio-brede gekloonde stemmen — hergebruik voor personages en verhalen.",
   "studio.myVoices.loading": "Je stemmen laden…",
   "studio.myVoices.empty": "Nog geen gekloonde stemmen. Neem op of upload een sample om er een te maken.",
@@ -3717,12 +3718,19 @@ export const nl = {
     "Voorbeelden: Welkom bij HomeCheff. · Vandaag laat ik je iets bijzonders zien. · Ik ben Chef Sergio.",
   "studio.voiceCenter.draftPreviewBadge": "Conceptvoorbeeld",
   "studio.voiceCenter.previewFailed": "Stemvoorbeeld mislukt. Probeer het opnieuw.",
+  "studio.voiceCenter.chooseVoice": "Kies een stem",
+  "studio.voiceCenter.enableToUseHint":
+    "Schakel personagestem in om deze stem te gebruiken in renders. Je kunt al browsen en beluisteren.",
+  "studio.voiceCenter.browseBeforeEnableHint":
+    "Blader door presets, persona's en je eigen stemmen — kies een stem om personagestem automatisch in te schakelen.",
   "studio.voiceCenter.sourceLabel": "Bron",
   "studio.voiceCenter.source.preset": "Preset-stem",
-  "studio.voiceCenter.source.persona": "Persona-stem",
+  "studio.voiceCenter.source.persona": "Persona & bibliotheek",
   "studio.voiceCenter.source.myVoice": "Mijn stem",
   "studio.voiceLibrary.title": "Stemmenbibliotheek",
   "studio.voiceLibrary.subtitle": "Blader door ElevenLabs-stemmen met accent-, gender- en taalmetadata.",
+  "studio.voiceLibrary.discoverCta": "Ontdek stemmen met accenten",
+  "studio.voiceLibrary.accentSearchCta": "Zoek stemmen op accent, taal en stijl.",
   "studio.voiceLibrary.personaPresets": "Persona-presets",
   "studio.voiceLibrary.personaPresetsHint":
     "Gecureerde karakterstemmen gekoppeld aan echte bibliotheekitems — handmatig selecteren.",

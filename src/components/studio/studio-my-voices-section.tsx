@@ -10,7 +10,6 @@ import { formatClonedVoiceProfileRef, parseVoiceProfileRef } from "@/lib/studio-
 import type { UserVoiceLibraryEntry } from "@/types/studio-user-voice-library";
 
 type Props = {
-  voiceEnabled: boolean;
   selectedProfile: string;
   characterId?: string | null;
   characterName: string;
@@ -22,13 +21,11 @@ type Props = {
 function MyVoiceRow({
   voice,
   selected,
-  disabled,
   onSelect,
   onRename,
 }: {
   voice: UserVoiceLibraryEntry;
   selected: boolean;
-  disabled: boolean;
   onSelect: () => void;
   onRename: (name: string) => void;
 }) {
@@ -65,17 +62,15 @@ function MyVoiceRow({
         <div className="flex flex-wrap gap-1">
           <button
             type="button"
-            disabled={disabled}
             onClick={onSelect}
-            className="min-h-[36px] rounded-full border border-violet-300 bg-white px-3 py-1 text-xs font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
+            className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50"
           >
             {selected ? t("studio.voiceLibrary.selected") : t("studio.myVoices.useVoice")}
           </button>
           <button
             type="button"
-            disabled={disabled}
             onClick={() => setEditing(true)}
-            className="min-h-[36px] rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+            className="min-h-[44px] rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
           >
             {t("studio.myVoices.rename")}
           </button>
@@ -97,14 +92,13 @@ function MyVoiceRow({
 }
 
 export function StudioMyVoicesSection({
-  voiceEnabled,
   selectedProfile,
   characterId,
   characterName,
   language,
   canModify,
   onSelectProfile,
-}: Props) {
+}: Omit<Props, "voiceEnabled">) {
   const t = useActiveTranslator();
   const userVoices = useOptionalUserVoiceLibrary();
   const selectedRef = parseVoiceProfileRef(selectedProfile);
@@ -127,9 +121,7 @@ export function StudioMyVoicesSection({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
-          {t("studio.myVoices.title")}
-        </h3>
+        <h3 className="text-sm font-bold text-violet-950">{t("studio.myVoices.discovery")}</h3>
         <p className="mt-1 text-xs text-violet-800">{t("studio.myVoices.subtitle")}</p>
       </div>
 
@@ -146,25 +138,31 @@ export function StudioMyVoicesSection({
         />
       : null}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        {voices.map((voice) => (
-          <MyVoiceRow
-            key={voice.cloneId}
-            voice={voice}
-            selected={selectedCloneId === voice.cloneId}
-            disabled={!voiceEnabled}
-            onSelect={() =>
-              onSelectProfile(formatClonedVoiceProfileRef(voice.cloneId), { voiceName: voice.name })
-            }
-            onRename={(name) => {
-              void renameUserVoiceCloneApi(voice.cloneId, name).then(() => userVoices.refresh());
-            }}
-          />
-        ))}
-      </div>
+      {voices.length > 0 ?
+        <div>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+            {t("studio.myVoices.title")}
+          </h4>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {voices.map((voice) => (
+              <MyVoiceRow
+                key={voice.cloneId}
+                voice={voice}
+                selected={selectedCloneId === voice.cloneId}
+                onSelect={() =>
+                  onSelectProfile(formatClonedVoiceProfileRef(voice.cloneId), { voiceName: voice.name })
+                }
+                onRename={(name) => {
+                  void renameUserVoiceCloneApi(voice.cloneId, name).then(() => userVoices.refresh());
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      : null}
 
       {voices.length === 0 ?
-        <p className="text-xs text-violet-700">{t("studio.myVoices.empty")}</p>
+        <p className="text-sm text-violet-700">{t("studio.myVoices.empty")}</p>
       : null}
     </div>
   );

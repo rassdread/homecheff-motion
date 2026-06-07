@@ -20,6 +20,8 @@ import {
   characterVoiceStateFromDetail,
   type CharacterVoiceFormState,
 } from "@/components/studio/studio-character-voice-profile-panel";
+import { VoiceLibraryProvider } from "@/components/studio/studio-voice-library-provider";
+import { UserVoiceLibraryProvider } from "@/components/studio/studio-user-voice-library-provider";
 import { StudioCharacterMouthAnimationPanel } from "@/components/studio/studio-character-mouth-animation-panel";
 import {
   StudioCharacterPerformanceProfilePanel,
@@ -285,12 +287,17 @@ export function StudioCharacterForm({
         </div>
       </AppCard>
 
-      <StudioCharacterVoiceProfilePanel
-        characterId={initial?.id ?? null}
-        characterName={values.name || t("studio.characters.createTitle")}
-        value={values.voice}
-        onChange={(voice) => setValues((v) => ({ ...v, voice }))}
-      />
+      <VoiceLibraryProvider>
+        <UserVoiceLibraryProvider>
+          <StudioCharacterVoiceProfilePanel
+            characterId={initial?.id ?? null}
+            characterName={values.name || t("studio.characters.createTitle")}
+            value={values.voice}
+            onChange={(voice) => setValues((v) => ({ ...v, voice }))}
+            canModify
+          />
+        </UserVoiceLibraryProvider>
+      </VoiceLibraryProvider>
 
       <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
         <h2 className="text-sm font-semibold text-amber-950">

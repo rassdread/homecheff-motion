@@ -3044,6 +3044,7 @@ export const en: LocaleSchema = {
   "studio.voiceClone.resultProvider": "Provider status",
   "studio.voiceClone.resultPreview": "Preview cloned voice",
   "studio.myVoices.title": "My voices",
+  "studio.myVoices.discovery": "Create or choose your own voice",
   "studio.myVoices.subtitle": "Studio-wide cloned voices — reuse across characters and stories.",
   "studio.myVoices.loading": "Loading your voices…",
   "studio.myVoices.empty": "No cloned voices yet. Record or upload a sample to create one.",
@@ -3718,12 +3719,19 @@ export const en: LocaleSchema = {
     "Examples: Welcome to HomeCheff. · Today I'll show you something special. · I am Chef Sergio.",
   "studio.voiceCenter.draftPreviewBadge": "Draft preview",
   "studio.voiceCenter.previewFailed": "Voice preview failed. Try again.",
+  "studio.voiceCenter.chooseVoice": "Choose a voice",
+  "studio.voiceCenter.enableToUseHint":
+    "Enable character voice to use this voice in renders. You can browse and preview first.",
+  "studio.voiceCenter.browseBeforeEnableHint":
+    "Browse presets, personas, and your own voices — selecting a voice turns character voice on automatically.",
   "studio.voiceCenter.sourceLabel": "Source",
   "studio.voiceCenter.source.preset": "Preset voice",
-  "studio.voiceCenter.source.persona": "Persona voice",
+  "studio.voiceCenter.source.persona": "Persona & library",
   "studio.voiceCenter.source.myVoice": "My voice",
   "studio.voiceLibrary.title": "Voice library",
   "studio.voiceLibrary.subtitle": "Browse ElevenLabs voices with accent, gender, and language metadata.",
+  "studio.voiceLibrary.discoverCta": "Discover voices by accent",
+  "studio.voiceLibrary.accentSearchCta": "Search voices by accent, language and style.",
   "studio.voiceLibrary.personaPresets": "Persona presets",
   "studio.voiceLibrary.personaPresetsHint":
     "Curated character voices mapped to real library entries — select manually.",
