@@ -19,6 +19,8 @@ import type {
   StoryStructurePhaseId,
   StoryStructurePhaseStatus,
 } from "@/types/studio-production-plan";
+import type { ProposalStoryEntities } from "@/lib/studio-scene-beat-translation";
+import { buildMomentSceneParams } from "@/lib/studio-scene-beat-translation";
 import type { StudioSceneDetail } from "@/types/studio-api";
 
 const DEFAULT_PLANNED_SCENE_COUNT = 5;
@@ -321,8 +323,12 @@ export function sceneParamsFromStoryArchitecture(
   architecture: StoryArchitecture,
   moment: StoryNarrativeMoment,
   sceneIndex: number,
-  sceneCount: number
+  sceneCount: number,
+  entities?: ProposalStoryEntities
 ): Record<string, string> {
+  if (entities) {
+    return buildMomentSceneParams(architecture, moment, sceneIndex, sceneCount, entities);
+  }
   return {
     ...moment.beatParams,
     topic: architecture.message.slice(0, 72) || architecture.storyGoal.slice(0, 72),

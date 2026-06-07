@@ -2714,6 +2714,70 @@ export const en: LocaleSchema = {
   "studio.storyArchitect.scene.closing.title": "Closing — {message}",
   "studio.storyArchitect.scene.closing.description": "Wrap up with a clear ending (scene {scene}/{scenes}).",
   "studio.storyArchitect.scene.closing.action": "Leave the viewer with {message}.",
+  "studio.storyArchitect.beatTranslation.departure.title.0": "Departure — {subject}",
+  "studio.storyArchitect.beatTranslation.departure.title.1": "The first step",
+  "studio.storyArchitect.beatTranslation.departure.title.2": "On the way to {setting}",
+  "studio.storyArchitect.beatTranslation.departure.description.0":
+    "Begin with {focus} — scene {scene}/{scenes}.",
+  "studio.storyArchitect.beatTranslation.departure.description.1":
+    "Set the stage for {subject} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.departure.description.2":
+    "{character} heads toward {setting} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.departure.action.0": "Open with {focus}.",
+  "studio.storyArchitect.beatTranslation.departure.action.1": "Show why {subject} begins.",
+  "studio.storyArchitect.beatTranslation.departure.action.2": "Follow {character} at the start.",
+  "studio.storyArchitect.beatTranslation.discovery.title.0": "First encounter",
+  "studio.storyArchitect.beatTranslation.discovery.title.1": "New surroundings",
+  "studio.storyArchitect.beatTranslation.discovery.title.2": "Hidden place discovered",
+  "studio.storyArchitect.beatTranslation.discovery.description.0":
+    "Discover what makes {subject} interesting (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.description.1":
+    "Explore {setting} and what it reveals (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.description.2":
+    "{character} finds something new in {setting} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.action.0": "Reveal what makes {focus} special.",
+  "studio.storyArchitect.beatTranslation.discovery.action.1": "Show details of {setting}.",
+  "studio.storyArchitect.beatTranslation.discovery.action.2": "Let {character} discover something new.",
+  "studio.storyArchitect.beatTranslation.conflict.title.0": "Challenge",
+  "studio.storyArchitect.beatTranslation.conflict.title.1": "Setback",
+  "studio.storyArchitect.beatTranslation.conflict.title.2": "Tension builds",
+  "studio.storyArchitect.beatTranslation.conflict.description.0":
+    "Raise the stakes around {subject} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.description.1":
+    "Build tension before the peak (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.description.2":
+    "{character} faces an obstacle in {setting} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.action.0": "Deepen engagement around {focus}.",
+  "studio.storyArchitect.beatTranslation.conflict.action.1": "Make the setback felt.",
+  "studio.storyArchitect.beatTranslation.conflict.action.2": "Show how {character} responds to pressure.",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.0": "Breakthrough",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.1": "Decisive moment",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.2": "The peak",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.0":
+    "The peak moment of {subject} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.1":
+    "Everything comes together in {setting} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.2":
+    "{character} reaches the turning point (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.0": "Deliver the strongest visual beat.",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.1": "Let {focus} land with impact.",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.2": "Show the decisive moment.",
+  "studio.storyArchitect.beatTranslation.closing.title.0": "Outcome",
+  "studio.storyArchitect.beatTranslation.closing.title.1": "Looking back",
+  "studio.storyArchitect.beatTranslation.closing.title.2": "A new future",
+  "studio.storyArchitect.beatTranslation.closing.description.0":
+    "Close with {message} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.description.1":
+    "Reflect on {subject} (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.description.2":
+    "End in {setting} with a clear message (scene {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.action.0": "Leave the viewer with {message}.",
+  "studio.storyArchitect.beatTranslation.closing.action.1": "Reflect on {focus}.",
+  "studio.storyArchitect.beatTranslation.closing.action.2": "End with a clear closing beat.",
+  "studio.storyArchitect.beatTranslation.warning.duplicate":
+    "Scene {sceneOrder} was too similar to an earlier scene — alternate beat variant applied.",
+  "studio.storyArchitect.beatTranslation.warning.similar":
+    "Scene {sceneOrder} is very similar to an earlier scene — review the copy.",
   "studio.storyArchitect.task.missingClimax": "No clear climax — add a peak moment to your story.",
   "studio.storyArchitect.task.missingEnding": "No clear ending — close the story with a takeaway.",
   "studio.storyArchitect.task.unclearMessage": "Core message is unclear — sharpen what viewers should remember.",

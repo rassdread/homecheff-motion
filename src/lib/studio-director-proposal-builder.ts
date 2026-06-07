@@ -63,12 +63,17 @@ import {
   enrichIdeaWithProductionPattern,
 } from "@/lib/studio-production-pattern-profile";
 import {
-  architectureSceneTemplateKeys,
   buildStoryArchitecture,
   enrichIdeaWithStoryArchitecture,
   pickStoryMomentForPhase,
-  sceneParamsFromStoryArchitecture,
 } from "@/lib/studio-story-architecture";
+import {
+  applySceneBeatDedupe,
+  extractProposalStoryEntities,
+  suggestAssetNameFromEntities,
+  translateStoryBeatForScene,
+  type ProposalStoryEntities,
+} from "@/lib/studio-scene-beat-translation";
 import {
   buildStudioSnapshotContext,
   enrichIdeaWithStudioSnapshot,
@@ -291,16 +296,16 @@ function toAssetRef(item: { id: string; name: string }): ProposedAssetRef {
 function suggestNewAsset(
   type: "character" | "location" | "prop",
   idea: string,
-  index: number
+  index: number,
+  entities: ProposalStoryEntities
 ): ProposedNewAsset | null {
   const rule = ENTITY_KEYWORDS.find((r) => r.type === type);
   if (!rule || !rule.patterns.some((p) => p.test(idea))) {
     return null;
   }
-  const topic = extractProposalTopic(idea);
   return {
     tempId: `new-${type}-${index}`,
-    name: topic.slice(0, 80) || type,
+    name: suggestAssetNameFromEntities(type, entities, index),
     reasonKey: rule.reasonKey,
   };
 }
@@ -314,43 +319,51 @@ function sceneTemplateKeys(phase: StoryArcPhase) {
   };
 }
 
-function textBeatsForPhase(phase: StoryArcPhase, topic: string): {
+function textBeatsForPhase(
+  phase: StoryArcPhase,
+  sceneParams: Record<string, string>
+): {
   keys: string[];
   params: Record<string, string>[];
   overlayKeys: string[];
   overlayParams: Record<string, string>[];
 } {
+  const beatParams = {
+    topic: sceneParams.subject || sceneParams.focus || sceneParams.topic,
+    focus: sceneParams.focus || sceneParams.subject,
+    subject: sceneParams.subject,
+  };
   const empty = { keys: [] as string[], params: [] as Record<string, string>[], overlayKeys: [] as string[], overlayParams: [] as Record<string, string>[] };
   if (phase === "opening") {
     return {
       keys: ["studio.directorProposal.textBeat.hook"],
-      params: [{ topic }],
+      params: [beatParams],
       overlayKeys: ["studio.directorProposal.overlay.opening"],
-      overlayParams: [{ topic }],
+      overlayParams: [beatParams],
     };
   }
   if (phase === "build_up" || phase === "discovery") {
     return {
       keys: ["studio.directorProposal.textBeat.core"],
-      params: [{ topic }],
+      params: [beatParams],
       overlayKeys: ["studio.directorProposal.overlay.scene"],
-      overlayParams: [{ topic }],
+      overlayParams: [beatParams],
     };
   }
   if (phase === "climax") {
     return {
       keys: ["studio.directorProposal.textBeat.highlight"],
-      params: [{ topic }],
+      params: [beatParams],
       overlayKeys: ["studio.directorProposal.overlay.highlight"],
-      overlayParams: [{ topic }],
+      overlayParams: [beatParams],
     };
   }
   if (phase === "resolution") {
     return {
       keys: ["studio.directorProposal.textBeat.cta"],
-      params: [{ topic }],
+      params: [beatParams],
       overlayKeys: ["studio.directorProposal.overlay.cta"],
-      overlayParams: [{ topic }],
+      overlayParams: [beatParams],
     };
   }
   return empty;
@@ -400,7 +413,7 @@ function libraryHasSimilarName(items: Array<{ name: string }>, candidate: string
   return items.some((item) => item.name.trim().toLowerCase() === norm);
 }
 
-function buildSyntheticFlow(count: number, topic: string): StoryFlowSceneInput[] {
+function buildSyntheticFlow(count: number, subject: string): StoryFlowSceneInput[] {
   const phases = PROPOSAL_PHASES.slice(0, Math.min(count, PROPOSAL_PHASES.length));
   while (phases.length < count) {
     phases.push("build_up");
@@ -408,7 +421,7 @@ function buildSyntheticFlow(count: number, topic: string): StoryFlowSceneInput[]
   return phases.map((_phase, order) => ({
     sceneId: `proposal-${order}`,
     order,
-    title: `${topic} ${order + 1}`,
+    title: subject ? `Scene ${order + 1}` : `Scene ${order + 1}`,
     shotType: "",
     cameraMovement: "",
     sceneEnergy: "",
@@ -475,9 +488,9 @@ function proposalMockStoryboard(
       id: scene.existingSceneId ?? scene.tempId,
       storyboardId: base.id,
       order: index,
-      title: scene.titleParams.topic ?? scene.titleParams.title ?? `Scene ${index + 1}`,
-      description: scene.descriptionParams.description ?? "",
-      action: scene.actionParams.topic ?? "",
+      title: scene.titleParams.title ?? scene.titleParams.subject ?? `Scene ${index + 1}`,
+      description: scene.descriptionParams.description ?? scene.descriptionParams.focus ?? "",
+      action: scene.actionParams.focus ?? scene.actionParams.subject ?? "",
       emotion: scene.emotion,
       camera: scene.camera,
       shotType: scene.shotType,
@@ -523,6 +536,7 @@ function proposalMockStoryboard(
 function assignAssetsToScene(params: {
   idea: string;
   promptTokens: string[];
+  entities: ProposalStoryEntities;
   characters: StudioCharacterListItem[];
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
@@ -605,7 +619,7 @@ function assignAssetsToScene(params: {
       idea: params.idea,
       locations: params.locations,
       memory: params.projectMemory,
-      candidateName: extractProposalTopic(params.idea),
+      candidateName: params.entities.setting || params.entities.subject,
     });
     if (recurringLocation) {
       locationRef = toAssetRef({
@@ -631,26 +645,26 @@ function assignAssetsToScene(params: {
       idea: params.idea,
       characters: params.characters,
       memory: params.projectMemory,
-      candidateName: extractProposalTopic(params.idea),
+      candidateName: params.entities.character || params.entities.subject,
     });
     if (recurring && !characterRefs.some((c) => c.existingId === recurring.assetId)) {
       characterRefs.push(toAssetRef({ id: recurring.assetId, name: recurring.assetName }));
       params.usedCharacterIds.add(recurring.assetId);
       return [];
     }
-    if (libraryHasSimilarName(params.characters, extractProposalTopic(params.idea))) {
+    if (libraryHasSimilarName(params.characters, params.entities.character || params.entities.subject)) {
       return [];
     }
-    const suggested = suggestNewAsset("character", params.idea, params.sceneIndex);
+    const suggested = suggestNewAsset("character", params.idea, params.sceneIndex, params.entities);
     return suggested ? [suggested] : [];
   })();
 
   const proposedLocation: ProposedNewAsset | null =
-    locationRef ? null : suggestNewAsset("location", params.idea, params.sceneIndex);
+    locationRef ? null : suggestNewAsset("location", params.idea, params.sceneIndex, params.entities);
   const proposedProps: ProposedNewAsset[] =
     propRefs.length === 0 ?
-      (suggestNewAsset("prop", params.idea, params.sceneIndex) ?
-          [suggestNewAsset("prop", params.idea, params.sceneIndex)!]
+      (suggestNewAsset("prop", params.idea, params.sceneIndex, params.entities) ?
+          [suggestNewAsset("prop", params.idea, params.sceneIndex, params.entities)!]
         : [])
     : [];
 
@@ -720,25 +734,31 @@ function buildProposalVoiceSummary(params: {
 }
 
 function buildProposalTextSummary(params: {
-  topic: string;
+  subject: string;
+  focus: string;
   scenes: ProposedScene[];
   narrationScriptPreview: string;
 }): DirectorProposalTextSummary {
+  const beatParams = {
+    topic: params.subject,
+    focus: params.focus,
+    subject: params.subject,
+  };
   const sceneOverlays = params.scenes.flatMap((scene) =>
     scene.overlayKeys.map((overlayKey, index) => ({
       sceneOrder: scene.order,
       overlayKey,
-      overlayParams: scene.overlayParams[index] ?? { topic: params.topic },
+      overlayParams: scene.overlayParams[index] ?? beatParams,
     }))
   );
 
   return {
     openingHookKey: "studio.directorProposal.textBeat.hook",
-    openingHookParams: { topic: params.topic },
+    openingHookParams: beatParams,
     coreMessageKey: "studio.directorProposal.textBeat.core",
-    coreMessageParams: { topic: params.topic },
+    coreMessageParams: beatParams,
     ctaKey: "studio.directorProposal.textBeat.cta",
-    ctaParams: { topic: params.topic },
+    ctaParams: beatParams,
     sceneOverlays,
     narrationScriptPreview: params.narrationScriptPreview,
   };
@@ -962,15 +982,21 @@ export function buildDirectorProposal(params: {
     params.styleStrength ?? params.storyboard.aiDirectorStyleStrength ?? DEFAULT_AI_DIRECTOR_STYLE_STRENGTH
   );
   const interpretation = interpretAiDirectorPrompt(enrichedIdea);
-  const topic = extractProposalTopic(idea);
-  const topicParams = { topic };
+  const storyEntities = extractProposalStoryEntities({
+    idea,
+    productionBrief: params.productionBrief,
+    architecture: storyArchitecture,
+    promptTokens: tokenizeForAssetMatch(idea),
+  });
+  const topic = storyEntities.subject || extractProposalTopic(idea);
+  const topicParams = { topic, subject: storyEntities.subject, focus: storyEntities.setting || storyEntities.subject };
   const promptTokens = tokenizeForAssetMatch(idea);
 
   const existingScenes = [...(params.storyboard.scenes ?? [])].sort((a, b) => a.order - b.order);
   const targetCount =
     existingScenes.length > 0 ? existingScenes.length : DEFAULT_PROPOSAL_SCENE_COUNT;
   const flowInput =
-    existingScenes.length > 0 ? existingToFlow(existingScenes) : buildSyntheticFlow(targetCount, topic);
+    existingScenes.length > 0 ? existingToFlow(existingScenes) : buildSyntheticFlow(targetCount, storyEntities.subject);
 
   const direction = buildAiDirectorDirection({
     scenes: flowInput,
@@ -983,22 +1009,24 @@ export function buildDirectorProposal(params: {
   let usedLocationId: string | null = null;
   const usedPropIds = new Set<string>();
 
-  const scenes: ProposedScene[] = flowInput.map((flowScene, index) => {
+  let scenes: ProposedScene[] = flowInput.map((flowScene, index) => {
     const planRow = planBySceneId.get(flowScene.sceneId)!;
     const existing = existingScenes[index];
     const phase = planRow.arcPhase;
     const moment = pickStoryMomentForPhase(storyArchitecture, phase);
-    const templates = architectureSceneTemplateKeys(moment.id);
-    const sceneParams = sceneParamsFromStoryArchitecture(
-      storyArchitecture,
+    const translated = translateStoryBeatForScene({
+      architecture: storyArchitecture,
       moment,
-      index,
-      flowInput.length
-    );
-    const textBeats = textBeatsForPhase(phase, sceneParams.topic);
+      sceneIndex: index,
+      sceneCount: flowInput.length,
+      entities: storyEntities,
+    });
+    const sceneParams = translated.sceneParams;
+    const textBeats = textBeatsForPhase(phase, sceneParams);
     const assets = assignAssetsToScene({
       idea,
       promptTokens,
+      entities: storyEntities,
       characters: params.characters,
       locations: params.locations,
       props: params.props,
@@ -1020,13 +1048,15 @@ export function buildDirectorProposal(params: {
       existingSceneId: existing?.id,
       order: index,
       arcPhase: phase,
-      titleKey: keepTitle ? "" : templates.titleKey,
+      titleKey: keepTitle ? "" : translated.titleKey,
       titleParams: keepTitle ? { title: existing!.title.trim() } : sceneParams,
-      descriptionKey: keepDescription ? "" : templates.descriptionKey,
+      descriptionKey: keepDescription ? "" : translated.descriptionKey,
       descriptionParams:
         keepDescription ? { description: existing!.description.trim() } : sceneParams,
-      actionKey: templates.actionKey,
+      actionKey: translated.actionKey,
       actionParams: sceneParams,
+      beatMomentId: moment.id,
+      beatVariantIndex: translated.variantIndex,
       emotion: existing?.emotion?.trim() || EMOTION_BY_PHASE[phase] || "neutral",
       shotType: planRow.shotType,
       cameraMovement: planRow.cameraMovement,
@@ -1041,6 +1071,31 @@ export function buildDirectorProposal(params: {
       durationSeconds: existing?.durationSeconds ?? 6,
     };
   });
+
+  const beatDedupeT = (key: string, p?: Record<string, string>) =>
+    params.t
+      ? params.t(key as Parameters<NonNullable<typeof params.t>>[0], p)
+    : `${key}${p?.subject ? `: ${p.subject}` : p?.focus ? `: ${p.focus}` : ""}`;
+
+  const dedupeResult = applySceneBeatDedupe({
+    scenes: scenes.map((scene) => ({
+      ...scene,
+      momentId: scene.beatMomentId ?? "departure",
+      variantIndex: scene.beatVariantIndex ?? 0,
+    })),
+    architecture: storyArchitecture,
+    entities: storyEntities,
+    t: beatDedupeT,
+  });
+  scenes = dedupeResult.scenes.map((scene) => {
+    const { momentId, variantIndex, ...rest } = scene;
+    return {
+      ...rest,
+      beatMomentId: momentId,
+      beatVariantIndex: variantIndex,
+    };
+  });
+  const beatTranslationWarnings = dedupeResult.warnings;
 
   const mockStoryboard = proposalMockStoryboard(
     params.storyboard,
@@ -1159,7 +1214,8 @@ export function buildDirectorProposal(params: {
     storyVoiceProfileLabelKey: voiceReport.presetLabelKey,
   });
   const text = buildProposalTextSummary({
-    topic,
+    subject: storyEntities.subject,
+    focus: storyEntities.setting || storyEntities.subject,
     scenes,
     narrationScriptPreview: voiceReport.script.fullNarration.slice(0, 1200),
   });
@@ -1182,6 +1238,7 @@ export function buildDirectorProposal(params: {
       topicParams,
     },
     scenes,
+    beatTranslationWarnings,
     camera: {
       dominantShotType: dominantValue(scenes.map((s) => s.shotType)) || "medium",
       dominantMovement: dominantValue(scenes.map((s) => s.cameraMovement)) || "static",

@@ -5,12 +5,12 @@ import { buildCreationAssistantView } from "@/lib/studio-creation-assistant";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
 import {
-  architectureSceneTemplateKeys,
   buildStoryArchitectSummary,
   buildStoryArchitecture,
   pickStoryMomentForPhase,
   sceneParamsFromStoryArchitecture,
 } from "@/lib/studio-story-architecture";
+import { extractProposalStoryEntities } from "@/lib/studio-scene-beat-translation";
 import { studioSceneDetail, studioStoryboardDetail } from "@/test/studio-api-fixtures";
 
 describe("studio-story-architecture", () => {
@@ -84,14 +84,19 @@ describe("studio-story-architecture", () => {
       userIdea: "Designer craft promo",
       plannedSceneCount: 5,
     });
+    const entities = extractProposalStoryEntities({
+      idea: "Designer craft promo",
+      architecture,
+      promptTokens: ["designer", "craft", "promo"],
+    });
     const departure = pickStoryMomentForPhase(architecture, "opening");
     const climax = pickStoryMomentForPhase(architecture, "climax");
-    const departureParams = sceneParamsFromStoryArchitecture(architecture, departure, 0, 5);
-    const climaxParams = sceneParamsFromStoryArchitecture(architecture, climax, 3, 5);
+    const departureParams = sceneParamsFromStoryArchitecture(architecture, departure, 0, 5, entities);
+    const climaxParams = sceneParamsFromStoryArchitecture(architecture, climax, 3, 5, entities);
     assert.notEqual(departureParams.moment, climaxParams.moment);
+    assert.notEqual(departureParams.focus, climaxParams.focus);
     assert.equal(departureParams.scene, "1");
     assert.equal(climaxParams.scene, "4");
-    assert.ok(architectureSceneTemplateKeys("departure").titleKey.includes("departure"));
   });
 
   it("flags missing climax in recommendations", () => {
@@ -118,7 +123,7 @@ describe("studio-story-architecture", () => {
     assert.ok(proposal!.storyArchitectureContext!.architecture.storyMoments.length === 5);
     const scenes = proposal!.scenes;
     assert.ok(scenes.length > 0);
-    assert.ok(scenes[0]!.titleKey.includes("storyArchitect"));
+    assert.ok(scenes[0]!.titleKey.includes("beatTranslation"));
     assert.ok(scenes.some((scene) => scene.titleKey.includes("breakthrough")));
     assert.notEqual(scenes[0]!.titleKey, scenes[Math.min(3, scenes.length - 1)]!.titleKey);
   });

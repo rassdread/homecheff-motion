@@ -58,6 +58,9 @@ export type ProposedScene = {
   overlayKeys: string[];
   overlayParams: Record<string, string>[];
   durationSeconds: number;
+  /** Narrative moment consumed for beat translation. */
+  beatMomentId?: import("@/types/studio-story-architecture").StoryNarrativeMomentId;
+  beatVariantIndex?: number;
 };
 
 export type DirectorProposalStoryArc = {
@@ -270,6 +273,11 @@ export type StudioDirectorProposal = {
   storyArchitectureContext?: import("@/types/studio-story-architecture").StoryArchitectureContext;
   decisionMemoryContext?: import("@/types/studio-director-decision-memory").DirectorDecisionMemoryContext;
   insightSummaryContext?: import("@/types/studio-insights-hub").InsightsHubContext;
+  beatTranslationWarnings?: Array<{
+    sceneOrder: number;
+    messageKey: string;
+    alternateVariantIndex: number;
+  }>;
   generationPlanPreview?: Array<{
     sceneOrder: number;
     actionBeat: string;

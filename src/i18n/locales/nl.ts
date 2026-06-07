@@ -2713,6 +2713,70 @@ export const nl = {
   "studio.storyArchitect.scene.closing.title": "Afsluiting — {message}",
   "studio.storyArchitect.scene.closing.description": "Rond af met een duidelijk einde (scène {scene}/{scenes}).",
   "studio.storyArchitect.scene.closing.action": "Laat de kijker achter met {message}.",
+  "studio.storyArchitect.beatTranslation.departure.title.0": "Vertrek — {subject}",
+  "studio.storyArchitect.beatTranslation.departure.title.1": "De eerste stap",
+  "studio.storyArchitect.beatTranslation.departure.title.2": "Op weg naar {setting}",
+  "studio.storyArchitect.beatTranslation.departure.description.0":
+    "Start met {focus} — scène {scene}/{scenes}.",
+  "studio.storyArchitect.beatTranslation.departure.description.1":
+    "Zet het toneel voor {subject} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.departure.description.2":
+    "{character} vertrekt richting {setting} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.departure.action.0": "Open met {focus}.",
+  "studio.storyArchitect.beatTranslation.departure.action.1": "Laat zien waarom {subject} begint.",
+  "studio.storyArchitect.beatTranslation.departure.action.2": "Volg {character} aan het begin.",
+  "studio.storyArchitect.beatTranslation.discovery.title.0": "Eerste ontmoeting",
+  "studio.storyArchitect.beatTranslation.discovery.title.1": "Nieuwe omgeving",
+  "studio.storyArchitect.beatTranslation.discovery.title.2": "Verborgen plek ontdekt",
+  "studio.storyArchitect.beatTranslation.discovery.description.0":
+    "Ontdek wat {subject} interessant maakt (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.description.1":
+    "Verken {setting} en wat het onthult (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.description.2":
+    "{character} ontdekt iets nieuws in {setting} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.discovery.action.0": "Onthul wat {focus} bijzonder maakt.",
+  "studio.storyArchitect.beatTranslation.discovery.action.1": "Toon details van {setting}.",
+  "studio.storyArchitect.beatTranslation.discovery.action.2": "Laat {character} iets nieuws vinden.",
+  "studio.storyArchitect.beatTranslation.conflict.title.0": "Uitdaging",
+  "studio.storyArchitect.beatTranslation.conflict.title.1": "Tegenslag",
+  "studio.storyArchitect.beatTranslation.conflict.title.2": "De spanning loopt op",
+  "studio.storyArchitect.beatTranslation.conflict.description.0":
+    "Verhoog de inzet rond {subject} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.description.1":
+    "Bouw spanning op vóór het hoogtepunt (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.description.2":
+    "{character} staat voor een obstakel in {setting} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.conflict.action.0": "Verdiep de betrokkenheid rond {focus}.",
+  "studio.storyArchitect.beatTranslation.conflict.action.1": "Laat de tegenslag voelbaar worden.",
+  "studio.storyArchitect.beatTranslation.conflict.action.2": "Toon hoe {character} reageert op druk.",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.0": "Doorbraak",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.1": "Beslissend moment",
+  "studio.storyArchitect.beatTranslation.breakthrough.title.2": "Het hoogtepunt",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.0":
+    "Het piekmoment van {subject} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.1":
+    "Alles komt samen in {setting} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.description.2":
+    "{character} bereikt het keerpunt (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.0": "Lever de sterkste visuele beat.",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.1": "Laat {focus} landen met impact.",
+  "studio.storyArchitect.beatTranslation.breakthrough.action.2": "Toon het beslissende moment.",
+  "studio.storyArchitect.beatTranslation.closing.title.0": "Resultaat",
+  "studio.storyArchitect.beatTranslation.closing.title.1": "Terugblik",
+  "studio.storyArchitect.beatTranslation.closing.title.2": "Nieuwe toekomst",
+  "studio.storyArchitect.beatTranslation.closing.description.0":
+    "Rond af met {message} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.description.1":
+    "Kijk terug op {subject} (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.description.2":
+    "Sluit af in {setting} met een duidelijke boodschap (scène {scene}/{scenes}).",
+  "studio.storyArchitect.beatTranslation.closing.action.0": "Laat de kijker achter met {message}.",
+  "studio.storyArchitect.beatTranslation.closing.action.1": "Reflecteer op {focus}.",
+  "studio.storyArchitect.beatTranslation.closing.action.2": "Eindig met een heldere afsluiting.",
+  "studio.storyArchitect.beatTranslation.warning.duplicate":
+    "Scène {sceneOrder} leek te veel op een eerdere scène — alternatieve beat-variant toegepast.",
+  "studio.storyArchitect.beatTranslation.warning.similar":
+    "Scène {sceneOrder} lijkt sterk op een eerdere scène — controleer de copy.",
   "studio.storyArchitect.task.missingClimax": "Geen duidelijk hoogtepunt — voeg een piekmoment toe aan je verhaal.",
   "studio.storyArchitect.task.missingEnding": "Geen duidelijke afsluiting — sluit het verhaal af met een boodschap.",
   "studio.storyArchitect.task.unclearMessage": "Kernboodschap is onduidelijk — scherp aan wat kijkers moeten onthouden.",
