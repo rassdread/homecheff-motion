@@ -11,6 +11,7 @@ import {
   assetDecisionKindToToolId,
   getAssetLifecycleDisplayStatus,
 } from "@/lib/studio-asset-lifecycle-resolver";
+import { buildProductionTimeline, buildRecentCompletedTimelineTasks } from "@/lib/studio-production-timeline";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -603,6 +604,19 @@ export function buildCreationAssistantView(
   const assetDecisionTasks = buildAssetDecisionTasks(input.assetDecisionRegistry);
   nextTasks.push(...assetDecisionTasks.pending);
 
+  const timeline =
+    input.productionTimeline
+    ?? buildProductionTimeline({
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: input.projectMemory,
+      assetDecisionRegistry: input.assetDecisionRegistry,
+    });
+  const timelineRecentTasks = buildRecentCompletedTimelineTasks(timeline);
+
   const completedItems = dedupeTasks(
     [
       ...buildCompletedItems({
@@ -611,6 +625,17 @@ export function buildCreationAssistantView(
         review,
       }),
       ...assetDecisionTasks.fulfilled,
+      ...timelineRecentTasks.map((task) => ({
+        id: task.id,
+        category: "asset" as const,
+        tier: "completed" as const,
+        messageKey: task.messageKey,
+        messageParams: task.messageParams,
+        toolId: task.toolId,
+        actionKind: "open" as const,
+        source: "production_timeline" as const,
+        priority: "low" as const,
+      })),
     ],
     12
   );

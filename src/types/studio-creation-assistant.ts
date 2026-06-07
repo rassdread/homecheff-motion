@@ -35,7 +35,8 @@ export type CreationAssistantTaskSource =
   | "generation_plan"
   | "domain_check"
   | "production_plan"
-  | "asset_decision";
+  | "asset_decision"
+  | "production_timeline";
 
 export type CreationAssistantTask = {
   id: string;
@@ -92,4 +93,5 @@ export type StudioCreationAssistantInput = {
   directorProfile?: string;
   currentIdea?: string;
   assetDecisionRegistry?: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry;
+  productionTimeline?: import("@/types/studio-production-timeline").StudioProductionTimeline;
 };

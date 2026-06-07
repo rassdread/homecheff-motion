@@ -13,6 +13,11 @@ import {
 import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import { StudioProductionMemoryPanel } from "@/components/studio/studio-production-memory-panel";
+import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
+import {
+  buildProductionTimeline,
+  productionTimelineMemoryGuidanceKeys,
+} from "@/lib/studio-production-timeline";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -126,6 +131,20 @@ export function StudioWorkspaceContinuityPanel({
     [storyboard, characters, locations, props, worlds, memory, styleProfile, directorProfile]
   );
 
+  const timelineGuidanceKeys = useMemo(() => {
+    const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    const timeline = buildProductionTimeline({
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: memory,
+      assetDecisionRegistry,
+    });
+    return productionTimelineMemoryGuidanceKeys(timeline);
+  }, [storyboard, characters, locations, props, worlds, memory]);
+
   const sections = useMemo(
     () =>
       buildContinuityLibrarySections({
@@ -204,6 +223,7 @@ export function StudioWorkspaceContinuityPanel({
         characters={characters}
         worlds={worlds}
         compact
+        timelineGuidanceKeys={timelineGuidanceKeys}
       />
 
       {reuseSuggestions.length > 0 ?

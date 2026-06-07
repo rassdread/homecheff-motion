@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
 import { buildCreationAssistantView } from "@/lib/studio-creation-assistant";
+import { buildProductionTimeline } from "@/lib/studio-production-timeline";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
@@ -176,6 +177,15 @@ export function StudioWorkspaceCreationAssistantPanel({
 
   const view = useMemo(() => {
     const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    const productionTimeline = buildProductionTimeline({
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: projectMemory ?? undefined,
+      assetDecisionRegistry,
+    });
     return buildCreationAssistantView({
       storyboard,
       characters,
@@ -187,6 +197,7 @@ export function StudioWorkspaceCreationAssistantPanel({
       directorProfile,
       currentIdea: storyboard.aiDirectorPrompt,
       assetDecisionRegistry,
+      productionTimeline,
     });
   }, [
     storyboard,

@@ -18,6 +18,7 @@ type Props = {
   worlds?: StudioWorldProfileListItem[];
   guidance?: ProductionMemoryCreationGuidance | null;
   compact?: boolean;
+  timelineGuidanceKeys?: string[];
 };
 
 function MemoryChip({ label }: { label: string }) {
@@ -35,6 +36,7 @@ export function StudioProductionMemoryPanel({
   worlds,
   guidance,
   compact = false,
+  timelineGuidanceKeys = [],
 }: Props) {
   const t = useActiveTranslator();
 
@@ -90,6 +92,19 @@ export function StudioProductionMemoryPanel({
               )}
             </p>
           : null}
+        </div>
+      : null}
+
+      {timelineGuidanceKeys.length > 0 ?
+        <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+          <p className="text-sm font-medium text-zinc-900">
+            {t("studio.productionMemory.timelineGuidance.title")}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-zinc-700">
+            {timelineGuidanceKeys.slice(0, 3).map((key) => (
+              <li key={key}>→ {t(key as TranslationKey)}</li>
+            ))}
+          </ul>
         </div>
       : null}
 

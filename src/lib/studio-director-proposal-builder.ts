@@ -54,6 +54,10 @@ import {
   buildCreationAssistantContext,
   enrichIdeaWithCreationAssistant,
 } from "@/lib/studio-creation-assistant";
+import {
+  buildProductionTimelineContext,
+  enrichIdeaWithProductionTimeline,
+} from "@/lib/studio-production-timeline";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -782,6 +786,22 @@ export function buildDirectorProposal(params: {
     creationAssistantContext
   );
 
+  const timelineContext = buildProductionTimelineContext({
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+    assetDecisionRegistry: params.assetDecisionRegistry,
+    productionBrief: params.productionBrief,
+  });
+
+  const enrichedFromTimeline = enrichIdeaWithProductionTimeline(
+    enrichedFromAssistant,
+    timelineContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -796,7 +816,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromAssistant, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromTimeline, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
