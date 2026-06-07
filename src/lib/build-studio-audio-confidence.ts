@@ -5,7 +5,7 @@
 import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
 import { buildSoundDirectorPlan } from "@/lib/studio-sound-director";
 import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
-import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import { voiceProfileLabelKeyForPlanning } from "@/lib/studio-voice-profile-ref";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
 export type StudioAudioConfidence = {
@@ -42,8 +42,12 @@ export function buildStudioAudioConfidence(
   );
 
   const lockedNames = lockedCharacters.map((c) => {
-    const preset = getVoiceProfilePreset(normalizeStudioVoiceProfileId(c.voiceProfile));
-    return `${c.name} (${preset.labelKey.split(".").pop()?.replace(/_/g, " ") ?? c.voiceProfile})`;
+    const labelKey = voiceProfileLabelKeyForPlanning(c.voiceProfile);
+    const shortLabel = labelKey.split(".").pop()?.replace(/_/g, " ") ?? c.voiceProfile;
+    const display =
+      c.voiceDescription?.trim() ||
+      (labelKey === "studio.voiceClone.clonedVoice" ? "cloned voice" : shortLabel);
+    return `${c.name} (${display})`;
   });
 
   const musicMood =

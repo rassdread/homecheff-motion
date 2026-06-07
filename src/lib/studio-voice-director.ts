@@ -6,10 +6,13 @@ import { buildVoiceRequest, estimateVoiceCredits, validateVoiceSettings } from "
 import {
   getVoiceProfilePreset,
   normalizeStudioNarrationMode,
-  normalizeStudioVoiceProfileId,
   profileIdForNarrationMode,
   voiceStyleFromProfile,
 } from "@/lib/studio-voice-profiles";
+import {
+  resolvePlanningVoiceProfile,
+  voiceProfileLabelKeyForPlanning,
+} from "@/lib/studio-voice-profile-ref";
 import {
   applyVoiceProfileToneHints,
   buildVoiceScriptBundle,
@@ -60,10 +63,11 @@ export function analyzeVoiceDirector(storyboard: StudioStoryboardDetail): VoiceD
   const enabled = storyboard.voiceEnabled ?? false;
   const voiceLanguage = (storyboard.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2) || "en";
   const narrationMode = normalizeStudioNarrationMode(storyboard.narrationMode);
-  const voiceProfile = normalizeStudioVoiceProfileId(
+  const voiceProfile = resolvePlanningVoiceProfile(
     storyboard.voiceProfile || profileIdForNarrationMode(narrationMode)
   );
-  const voiceStyle = storyboard.voiceStyle?.trim() || voiceStyleFromProfile(voiceProfile);
+  const presetProfile = getVoiceProfilePreset(voiceProfile);
+  const voiceStyle = storyboard.voiceStyle?.trim() || voiceStyleFromProfile(presetProfile.id);
   const preset = getVoiceProfilePreset(voiceProfile);
 
   const rawScript = buildVoiceScriptBundle({
@@ -115,7 +119,7 @@ export function analyzeVoiceDirector(storyboard: StudioStoryboardDetail): VoiceD
     voiceStyle,
     voiceProfile,
     narrationMode,
-    presetLabelKey: preset.labelKey,
+    presetLabelKey: voiceProfileLabelKeyForPlanning(voiceProfile),
     script,
     timing,
     voiceScore,

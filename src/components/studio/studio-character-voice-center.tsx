@@ -12,6 +12,17 @@ import {
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
+import {
+  isClonedVoiceProfileRef,
+  isLibraryVoiceProfileRef,
+  normalizeStoredVoiceProfile,
+  parseVoiceProfileRef,
+} from "@/lib/studio-voice-profile-ref";
+import {
+  StudioCharacterVoiceLibrarySection,
+  type VoiceLibraryTab,
+} from "@/components/studio/studio-character-voice-library-section";
+import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import type {
   CharacterVoiceLanguageProfile,
   CharacterVoiceProfilesByLanguage,
@@ -50,12 +61,54 @@ export function characterVoiceStateFromDetail(
   };
 }
 
+function inferVoiceLibraryTab(voiceProfile: string): VoiceLibraryTab {
+  const ref = parseVoiceProfileRef(voiceProfile);
+  if (ref.kind === "clone") {
+    return "my_voice";
+  }
+  if (ref.kind === "library") {
+    return "persona";
+  }
+  return "presets";
+}
+
 type Props = {
   characterId: string | null;
   characterName: string;
   value: CharacterVoiceFormState;
   onChange: (next: CharacterVoiceFormState) => void;
+  canModify?: boolean;
 };
+
+function normalizeVoiceProfileSelection(value: string): string {
+  const ref = parseVoiceProfileRef(value);
+  if (ref.kind === "clone" || ref.kind === "library") {
+    return ref.raw;
+  }
+  return normalizeStudioVoiceProfileId(value);
+}
+
+function resolveVoiceDisplayLabel(params: {
+  voiceProfile: string;
+  voiceDescription: string;
+  t: (key: never, p?: Record<string, string>) => string;
+  catalogVoiceName?: string;
+}): string {
+  if (isClonedVoiceProfileRef(params.voiceProfile)) {
+    return params.voiceDescription.trim() || params.t("studio.voiceClone.clonedVoice" as never);
+  }
+  if (isLibraryVoiceProfileRef(params.voiceProfile)) {
+    if (params.voiceDescription.trim()) {
+      return params.voiceDescription.trim();
+    }
+    if (params.catalogVoiceName) {
+      return params.catalogVoiceName;
+    }
+    return params.t("studio.voiceLibrary.libraryVoice" as never);
+  }
+  const preset = getVoiceProfilePreset(params.voiceProfile);
+  return params.t(preset.labelKey as never);
+}
 
 function resolveLanguageVoice(
   value: CharacterVoiceFormState,
@@ -78,8 +131,13 @@ export function StudioCharacterVoiceCenter({
   characterName,
   value,
   onChange,
+  canModify = true,
 }: Props) {
   const t = useActiveTranslator();
+  const voiceLibrary = useOptionalVoiceLibrary();
+  const [voiceLibraryTab, setVoiceLibraryTab] = useState<VoiceLibraryTab>(() =>
+    inferVoiceLibraryTab(value.voiceProfile)
+  );
   const [previewByLang, setPreviewByLang] = useState<Partial<Record<VoiceCenterLanguage, string>>>(
     {}
   );
@@ -94,10 +152,22 @@ export function StudioCharacterVoiceCenter({
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
   const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
 
-  const defaultProfileLabel = useMemo(() => {
-    const preset = getVoiceProfilePreset(normalizeStudioVoiceProfileId(value.voiceProfile));
-    return t(preset.labelKey as never);
-  }, [value.voiceProfile, t]);
+  const profileRef = parseVoiceProfileRef(value.voiceProfile);
+  const catalogVoiceName =
+    profileRef.kind === "library" && voiceLibrary?.payload
+      ? voiceLibrary.payload.catalog.voices.find((v) => v.id === profileRef.providerVoiceId)?.name
+      : undefined;
+
+  const defaultProfileLabel = useMemo(
+    () =>
+      resolveVoiceDisplayLabel({
+        voiceProfile: value.voiceProfile,
+        voiceDescription: value.voiceDescription,
+        t,
+        catalogVoiceName,
+      }),
+    [value.voiceProfile, value.voiceDescription, t, catalogVoiceName]
+  );
 
   const runPreview = useCallback(
     async (lang: VoiceCenterLanguage) => {
@@ -178,26 +248,6 @@ export function StudioCharacterVoiceCenter({
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-medium text-violet-900">
-          {t("studio.characterVoice.profile")}
-          <select
-            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-            value={value.voiceProfile}
-            disabled={!value.voiceEnabled}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                voiceProfile: normalizeStudioVoiceProfileId(e.target.value),
-              })
-            }
-          >
-            {STUDIO_VOICE_PROFILE_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t(getVoiceProfilePreset(id).labelKey as never)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-medium text-violet-900">
           {t("studio.characterVoice.language")}
           <select
             className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
@@ -216,6 +266,54 @@ export function StudioCharacterVoiceCenter({
           {t("studio.voiceCenter.defaultActive", { voice: defaultProfileLabel })}
         </p>
       </div>
+
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+          {t("studio.voiceCenter.sourceLabel")}
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(
+            [
+              ["presets", "studio.voiceCenter.source.preset"],
+              ["persona", "studio.voiceCenter.source.persona"],
+              ["my_voice", "studio.voiceCenter.source.myVoice"],
+            ] as const
+          ).map(([tab, labelKey]) => (
+            <button
+              key={tab}
+              type="button"
+              disabled={!value.voiceEnabled}
+              onClick={() => setVoiceLibraryTab(tab)}
+              className={`rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-50 ${
+                voiceLibraryTab === tab
+                  ? "bg-violet-700 text-white"
+                  : "border border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
+              }`}
+            >
+              {t(labelKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <StudioCharacterVoiceLibrarySection
+        activeTab={voiceLibraryTab}
+        voiceEnabled={value.voiceEnabled}
+        selectedProfile={value.voiceProfile}
+        characterId={characterId}
+        characterName={characterName}
+        language={value.voiceLanguage}
+        canModify={canModify}
+        onSelectProfile={(profile, meta) =>
+          onChange({
+            ...value,
+            voiceProfile: normalizeStoredVoiceProfile(profile),
+            voiceDescription: meta?.personaLabelKey
+              ? t(meta.personaLabelKey as never)
+              : meta?.voiceName ?? value.voiceDescription,
+          })
+        }
+      />
 
       <label className="mt-4 block text-xs font-medium text-violet-900">
         {t("studio.voiceCenter.previewTextLabel")}
@@ -241,9 +339,19 @@ export function StudioCharacterVoiceCenter({
         </h3>
         {VOICE_CENTER_LANGUAGES.map((lang) => {
           const resolved = resolveLanguageVoice(value, lang);
-          const preset = getVoiceProfilePreset(normalizeStudioVoiceProfileId(resolved.profile));
-          const activeLabel = t(preset.labelKey as never);
           const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
+          const profileRef = parseVoiceProfileRef(resolved.profile);
+          const langCatalogName =
+            profileRef.kind === "library" && voiceLibrary?.payload
+              ? voiceLibrary.payload.catalog.voices.find((v) => v.id === profileRef.providerVoiceId)
+                  ?.name
+              : undefined;
+          const activeLabel = resolveVoiceDisplayLabel({
+            voiceProfile: resolved.profile,
+            voiceDescription: row.voiceDescription ?? value.voiceDescription,
+            t,
+            catalogVoiceName: langCatalogName,
+          });
           const previewUrl = previewByLang[lang];
 
           return (
@@ -280,7 +388,7 @@ export function StudioCharacterVoiceCenter({
                     onChange={(e) =>
                       updateLang(lang, {
                         voiceProfile: e.target.value
-                          ? normalizeStudioVoiceProfileId(e.target.value)
+                          ? normalizeVoiceProfileSelection(e.target.value)
                           : undefined,
                       })
                     }

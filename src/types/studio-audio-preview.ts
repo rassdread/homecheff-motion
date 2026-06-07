@@ -14,7 +14,8 @@ export type StudioAudioPreviewSource =
   | "mix_music"
   | "mix_sfx"
   | "subtitle_narration"
-  | "motion_voice";
+  | "motion_voice"
+  | "voice_library";
 
 export type StudioAudioPreviewPlayerProps = {
   title?: string;

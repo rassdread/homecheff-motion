@@ -3,7 +3,6 @@ import { buildVoiceRequest, validateVoiceSettings } from "@/lib/elevenlabs-voice
 import {
   getVoiceProfilePreset,
   normalizeStudioNarrationMode,
-  normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
 import { buildSubtitleEntriesFromVoiceSegments } from "@/lib/studio-subtitle-track";
 import { buildTimedSegmentsFromSpeakerLines } from "@/lib/build-speaker-voice-segments";

@@ -18,10 +18,11 @@ import { mapStudioPropToListItem, toPropSnapshot } from "@/server/studio/studio-
 import type { StoryboardSnapshot } from "@/types/studio-storyboard-snapshot";
 import { normalizeAiDirectorStyleStrength } from "@/lib/studio-ai-director-interpreter";
 import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-asset-links";
+import { normalizeStoredVoiceProfile, resolvePlanningVoiceProfile } from "@/lib/studio-voice-profile-ref";
 import {
   normalizeStudioNarrationMode,
-  normalizeStudioVoiceProfileId,
   voiceStyleFromProfile,
+  getVoiceProfilePreset,
 } from "@/lib/studio-voice-profiles";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
@@ -217,7 +218,7 @@ export function mapStudioStoryboardToListItem(
     voiceEnabled: row.voiceEnabled ?? false,
     voiceLanguage: row.voiceLanguage ?? "en",
     voiceStyle: row.voiceStyle ?? "warm",
-    voiceProfile: normalizeStudioVoiceProfileId(row.voiceProfile),
+    voiceProfile: resolvePlanningVoiceProfile(row.voiceProfile),
     narrationMode: normalizeStudioNarrationMode(row.narrationMode),
     voiceNarrationScript: row.voiceNarrationScript ?? "",
     musicEnabled: row.musicEnabled ?? false,
@@ -260,8 +261,10 @@ export function mapStudioStoryboardToDetail(
     aiDirectorStyleStrength: normalizeAiDirectorStyleStrength(row.aiDirectorStyleStrength),
     voiceEnabled: row.voiceEnabled ?? false,
     voiceLanguage: row.voiceLanguage ?? "en",
-    voiceStyle: row.voiceStyle ?? voiceStyleFromProfile(normalizeStudioVoiceProfileId(row.voiceProfile)),
-    voiceProfile: normalizeStudioVoiceProfileId(row.voiceProfile),
+    voiceStyle:
+      row.voiceStyle ??
+      voiceStyleFromProfile(getVoiceProfilePreset(resolvePlanningVoiceProfile(row.voiceProfile)).id),
+    voiceProfile: resolvePlanningVoiceProfile(row.voiceProfile),
     narrationMode: normalizeStudioNarrationMode(row.narrationMode),
     voiceNarrationScript: row.voiceNarrationScript ?? "",
     musicEnabled: row.musicEnabled ?? false,

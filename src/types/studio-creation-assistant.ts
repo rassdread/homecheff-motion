@@ -38,7 +38,8 @@ export type CreationAssistantTaskSource =
   | "asset_decision"
   | "production_timeline"
   | "story_architect"
-  | "director_decision";
+  | "director_decision"
+  | "voice_library";
 
 export type CreationAssistantTask = {
   id: string;

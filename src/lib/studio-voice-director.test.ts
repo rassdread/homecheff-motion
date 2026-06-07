@@ -158,4 +158,13 @@ describe("studio-voice-director", () => {
     const seconds = estimateSecondsFromWords(words, 150);
     assert.ok(seconds >= 1 && seconds <= 5);
   });
+
+  it("analyzeVoiceDirector preserves cloned voice profile refs", () => {
+    const cloneRef = "clone:chef-voice-99";
+    const report = analyzeVoiceDirector(
+      storyboard([scene(0)], { voiceProfile: cloneRef, voiceEnabled: true })
+    );
+    assert.equal(report.voiceProfile, cloneRef);
+    assert.equal(report.presetLabelKey, "studio.voiceClone.clonedVoice");
+  });
 });

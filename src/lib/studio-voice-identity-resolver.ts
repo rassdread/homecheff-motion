@@ -9,7 +9,9 @@ import {
 import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
 import {
   isClonedVoiceProfileRef,
+  isLibraryVoiceProfileRef,
   normalizeStoredVoiceProfile,
+  resolveVoiceProfileLabelKey,
 } from "@/lib/studio-voice-profile-ref";
 import { isStudioVoiceExecutionLanguage } from "@/types/studio-voice-execution";
 import type { StudioCharacterListItem } from "@/types/studio-api";
@@ -84,9 +86,10 @@ export function resolveCharacterVoiceIdentity(params: {
   }
 
   const preset = getVoiceProfilePreset(voiceProfile);
-  const presetLabelKey = isClonedVoiceProfileRef(voiceProfile)
-    ? "studio.voiceClone.clonedVoice"
-    : preset.labelKey;
+  const presetLabelKey =
+    isClonedVoiceProfileRef(voiceProfile) ? "studio.voiceClone.clonedVoice"
+    : isLibraryVoiceProfileRef(voiceProfile) ? "studio.voiceLibrary.libraryVoice"
+    : resolveVoiceProfileLabelKey(voiceProfile, preset.labelKey);
   const source: ResolvedCharacterVoiceIdentity["source"] =
     params.character.voiceLock && !langOverride ? "locked_base"
     : langOverride ? "language_override"

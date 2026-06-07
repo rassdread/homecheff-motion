@@ -562,6 +562,11 @@ function ProposalPreviewModal({
                   {t(`studio.directorProposal.voice.status.${voice.status}` as TranslationKey)}
                 </li>
               ))}
+              {proposal.voices.frequentCloneAdvisories.map((advisory) => (
+                <li key={advisory.id} className="text-violet-800">
+                  {t(advisory.messageKey as TranslationKey, advisory.messageParams)}
+                </li>
+              ))}
             </ul>
           </section>
 

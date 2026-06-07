@@ -129,6 +129,25 @@ export type DirectorProposalVoiceSummary = {
   storyVoiceProfileLabelKey: string;
   characterVoices: ProposedCharacterVoice[];
   warningKeys: string[];
+  voiceSuggestions: DirectorProposalVoiceSuggestion[];
+  /** Advisory only — based on production memory, never auto-applied. */
+  frequentCloneAdvisories: DirectorProposalFrequentCloneAdvisory[];
+};
+
+export type DirectorProposalVoiceSuggestion = {
+  locationName: string;
+  accentLabelKey: string;
+  personaPresetLabelKeys: string[];
+  recommendedVoiceNames: string[];
+};
+
+export type DirectorProposalFrequentCloneAdvisory = {
+  id: string;
+  messageKey: "studio.directorProposal.voice.advisory.frequentClone";
+  messageParams: { voiceName: string };
+  voiceProfile: string;
+  storyboardCount: number;
+  characterCount: number;
 };
 
 export type DirectorProposalRenderReadiness = {

@@ -6,10 +6,14 @@ import {
   STUDIO_VOICE_PROFILE_IDS,
   getVoiceProfilePreset,
   normalizeStudioNarrationMode,
-  normalizeStudioVoiceProfileId,
   profileIdForNarrationMode,
   voiceStyleFromProfile,
+  type StudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
+import {
+  isProviderVoiceProfileRef,
+  resolvePlanningVoiceProfile,
+} from "@/lib/studio-voice-profile-ref";
 import {
   applyVoiceProfileToneHints,
   buildVoiceScriptBundle,
@@ -30,6 +34,13 @@ type Props = {
 
 const VOICE_LANGUAGES = ["en", "nl", "es", "fr"] as const;
 
+function resolveVoiceStyleForProfile(voiceProfile: string, fallback?: string): string {
+  if (isProviderVoiceProfileRef(voiceProfile)) {
+    return fallback?.trim() || "balanced";
+  }
+  return voiceStyleFromProfile(voiceProfile as StudioVoiceProfileId);
+}
+
 export function StudioVoiceDirectorPanel({
   storyboard,
   canModify,
@@ -42,7 +53,7 @@ export function StudioVoiceDirectorPanel({
     normalizeStudioNarrationMode(storyboard.narrationMode)
   );
   const [voiceProfile, setVoiceProfile] = useState(
-    normalizeStudioVoiceProfileId(storyboard.voiceProfile)
+    resolvePlanningVoiceProfile(storyboard.voiceProfile)
   );
   const [generatedScript, setGeneratedScript] = useState(
     storyboard.voiceNarrationScript?.trim() ?? ""
@@ -55,7 +66,7 @@ export function StudioVoiceDirectorPanel({
       setEnabled(storyboard.voiceEnabled ?? false);
       setLanguage(storyboard.voiceLanguage ?? "en");
       setNarrationMode(normalizeStudioNarrationMode(storyboard.narrationMode));
-      setVoiceProfile(normalizeStudioVoiceProfileId(storyboard.voiceProfile));
+      setVoiceProfile(resolvePlanningVoiceProfile(storyboard.voiceProfile));
       setGeneratedScript(storyboard.voiceNarrationScript?.trim() ?? "");
     }, 0);
     return () => window.clearTimeout(timer);
@@ -72,7 +83,7 @@ export function StudioVoiceDirectorPanel({
       ...storyboard,
       voiceEnabled: enabled,
       voiceLanguage: language,
-      voiceStyle: voiceStyleFromProfile(voiceProfile),
+      voiceStyle: resolveVoiceStyleForProfile(voiceProfile, storyboard.voiceStyle),
       voiceProfile,
       narrationMode,
       voiceNarrationScript: generatedScript,
@@ -85,7 +96,9 @@ export function StudioVoiceDirectorPanel({
   const handleModeChange = (mode: string) => {
     const normalized = normalizeStudioNarrationMode(mode);
     setNarrationMode(normalized);
-    setVoiceProfile(profileIdForNarrationMode(normalized));
+    if (!isProviderVoiceProfileRef(voiceProfile)) {
+      setVoiceProfile(profileIdForNarrationMode(normalized));
+    }
   };
 
   const handleGenerateNarration = useCallback(() => {
@@ -110,7 +123,7 @@ export function StudioVoiceDirectorPanel({
       const res = await updateStudioStoryboardApi(storyboard.id, {
         voiceEnabled: enabled,
         voiceLanguage: language,
-        voiceStyle: voiceStyleFromProfile(voiceProfile),
+        voiceStyle: resolveVoiceStyleForProfile(voiceProfile, storyboard.voiceStyle),
         voiceProfile,
         narrationMode,
         voiceNarrationScript: generatedScript,
@@ -190,18 +203,23 @@ export function StudioVoiceDirectorPanel({
         </label>
         <label className="text-xs font-medium text-zinc-700 sm:col-span-2">
           {t("studio.voice.preset")}
-          <select
-            value={voiceProfile}
-            disabled={!canModify || !enabled}
-            onChange={(e) => setVoiceProfile(normalizeStudioVoiceProfileId(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-          >
-            {STUDIO_VOICE_PROFILE_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t(getVoiceProfilePreset(id).labelKey as TranslationKey)}
-              </option>
-            ))}
-          </select>
+          {isProviderVoiceProfileRef(voiceProfile) ?
+            <p className="mt-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1.5 text-sm text-violet-950">
+              {t(report.presetLabelKey as TranslationKey)}
+            </p>
+          : <select
+              value={voiceProfile}
+              disabled={!canModify || !enabled}
+              onChange={(e) => setVoiceProfile(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+            >
+              {STUDIO_VOICE_PROFILE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {t(getVoiceProfilePreset(id).labelKey as TranslationKey)}
+                </option>
+              ))}
+            </select>
+          }
         </label>
       </div>
 

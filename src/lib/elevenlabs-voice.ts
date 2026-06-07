@@ -51,7 +51,10 @@ export function validateVoiceSettings(params: {
   if (!SUPPORTED_LANGUAGES.has(lang)) {
     return { ok: false, code: "UNSUPPORTED_LANGUAGE", message: "Voice language is not supported." };
   }
-  normalizeStudioVoiceProfileId(params.voiceProfile);
+  const ref = parseVoiceProfileRef(params.voiceProfile);
+  if (ref.kind === "preset") {
+    normalizeStudioVoiceProfileId(ref.profileId);
+  }
   normalizeStudioNarrationMode(params.narrationMode);
   if (!params.script.trim()) {
     return { ok: false, code: "SCRIPT_REQUIRED", message: "Narration script is required when voice is enabled." };
@@ -83,7 +86,7 @@ const PROFILE_VOICE_IDS: Record<string, string> = {
 
 export function resolveElevenLabsVoiceId(voiceProfile: string): string {
   const ref = parseVoiceProfileRef(voiceProfile);
-  if (ref.kind === "clone") {
+  if (ref.kind === "clone" || ref.kind === "library") {
     return ref.providerVoiceId;
   }
   const envDefault = process.env.ELEVENLABS_VOICE_ID?.trim();

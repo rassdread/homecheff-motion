@@ -7,11 +7,12 @@ import {
   type CharacterVoiceFormState,
 } from "@/components/studio/studio-character-voice-center";
 import { StudioCharacterVoiceHistoryPanel } from "@/components/studio/studio-character-voice-history-panel";
-import { StudioCharacterVoiceClonePanel } from "@/components/studio/studio-character-voice-clone-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { updateStudioCharacterApi } from "@/lib/studio-characters-client";
+import { VoiceLibraryProvider } from "@/components/studio/studio-voice-library-provider";
+import { UserVoiceLibraryProvider } from "@/components/studio/studio-user-voice-library-provider";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
-import { isClonedVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
+import { isClonedVoiceProfileRef, isLibraryVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 
@@ -78,6 +79,9 @@ export function StudioWorkspaceCharacterVoiceInline({
     }
     if (isClonedVoiceProfileRef(resolved.voiceProfile) && resolved.voiceDescription?.trim()) {
       return resolved.voiceDescription.trim();
+    }
+    if (isLibraryVoiceProfileRef(resolved.voiceProfile)) {
+      return resolved.voiceDescription?.trim() || t("studio.voiceLibrary.libraryVoice");
     }
     return t(getVoiceProfilePreset(resolved.voiceProfile).labelKey as never);
   }, [resolved, t]);
@@ -158,22 +162,17 @@ export function StudioWorkspaceCharacterVoiceInline({
 
       {expanded ?
         <div className="border-t border-zinc-100 px-3 pb-4">
-          <StudioCharacterVoiceCenter
-            characterId={character.id}
-            characterName={character.name}
-            value={voiceState}
-            onChange={setVoiceState}
-          />
-          <StudioCharacterVoiceClonePanel
-            character={character}
-            language={storyLanguage}
-            canModify={canModify}
-            onCharacterUpdated={(updated) => {
-              onCharacterUpdated(updated);
-              setVoiceState(characterVoiceStateFromDetail(updated));
-            }}
-            onHistoryRefresh={() => setHistoryRefresh((n) => n + 1)}
-          />
+          <VoiceLibraryProvider>
+            <UserVoiceLibraryProvider>
+              <StudioCharacterVoiceCenter
+                characterId={character.id}
+                characterName={character.name}
+                value={voiceState}
+                onChange={setVoiceState}
+                canModify={canModify}
+              />
+            </UserVoiceLibraryProvider>
+          </VoiceLibraryProvider>
           {canModify ?
             <div className="mt-4 flex flex-wrap gap-2">
               <button

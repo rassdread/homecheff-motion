@@ -99,6 +99,11 @@ import {
   detectRecurringLocation,
 } from "@/lib/studio-recurring-asset-detection";
 import { getVoiceProfilePreset, profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
+import {
+  voiceProfileLabelKeyForPlanning,
+} from "@/lib/studio-voice-profile-ref";
+import { buildDirectorVoiceSuggestions } from "@/lib/studio-voice-location-suggestions";
+import { buildFrequentCloneAdvisories } from "@/lib/studio-user-voice-advisories";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioShotType } from "@/lib/studio-scene-director";
@@ -685,6 +690,8 @@ function buildProposalVoiceSummary(params: {
   storyLanguage: string;
   storyVoiceProfile: string;
   storyVoiceProfileLabelKey: string;
+  locationNames: string[];
+  projectMemory?: StudioProjectMemorySnapshot;
 }): DirectorProposalVoiceSummary {
   const identityPlan = buildVoiceIdentityPlan(params.mockStoryboard);
   const storyCharacters = params.mockStoryboard.scenes.flatMap((s) => s.characters);
@@ -703,7 +710,7 @@ function buildProposalVoiceSummary(params: {
         language: params.storyLanguage,
         attemptedOverrideProfile: params.storyVoiceProfile,
       });
-      const preset = getVoiceProfilePreset(identity.voiceProfile);
+      const voiceProfileLabelKey = voiceProfileLabelKeyForPlanning(identity.voiceProfile);
       let status: "ready" | "missing" | "inconsistent" = "ready";
       let recommendationKey: string | undefined;
       if (!identity.voiceEnabled) {
@@ -717,7 +724,7 @@ function buildProposalVoiceSummary(params: {
         characterId: character.id,
         characterName: character.name,
         voiceProfile: identity.voiceProfile,
-        voiceProfileLabelKey: preset.labelKey,
+        voiceProfileLabelKey,
         voiceEnabled: identity.voiceEnabled,
         voiceLock: identity.voiceLock,
         status,
@@ -725,11 +732,24 @@ function buildProposalVoiceSummary(params: {
       };
     });
 
+  const voiceSuggestions = buildDirectorVoiceSuggestions({
+    locationNames: params.locationNames,
+  }).map((suggestion) => ({
+    locationName: suggestion.matchedLocation,
+    accentLabelKey: suggestion.accentLabelKey,
+    personaPresetLabelKeys: suggestion.personaPresets.map((preset) => preset.labelKey),
+    recommendedVoiceNames: suggestion.recommendedVoices.map((voice) => voice.voiceName),
+  }));
+
+  const frequentCloneAdvisories = buildFrequentCloneAdvisories(params.projectMemory);
+
   return {
     storyVoiceProfile: params.storyVoiceProfile,
     storyVoiceProfileLabelKey: params.storyVoiceProfileLabelKey,
     characterVoices,
     warningKeys: identityPlan.warnings.slice(0, 4).map((w) => w.messageKey),
+    voiceSuggestions,
+    frequentCloneAdvisories,
   };
 }
 
@@ -1206,12 +1226,21 @@ export function buildDirectorProposal(params: {
   }
 
   const storyLanguage = (params.storyboard.voiceLanguage ?? "nl").slice(0, 2);
+  const locationNames = [
+    ...new Set(
+      scenes
+        .map((scene) => scene.locationRef?.name ?? scene.proposedLocation?.name ?? "")
+        .filter(Boolean)
+    ),
+  ];
   const voices = buildProposalVoiceSummary({
     mockStoryboard,
     characters: params.characters,
     storyLanguage,
     storyVoiceProfile: voiceReport.voiceProfile,
     storyVoiceProfileLabelKey: voiceReport.presetLabelKey,
+    locationNames,
+    projectMemory: params.projectMemory,
   });
   const text = buildProposalTextSummary({
     subject: storyEntities.subject,

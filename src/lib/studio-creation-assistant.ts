@@ -38,6 +38,11 @@ import type {
   StudioCreationAssistantView,
 } from "@/types/studio-creation-assistant";
 import type { StudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
+import { characterHasExplicitVoiceChoice } from "@/lib/studio-voice-profile-ref";
+import { topFrequentCloneVoices } from "@/lib/studio-user-voice-advisories";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
+import type { StudioCharacterListItem } from "@/types/studio-api";
+import type { StudioStoryboardDetail } from "@/types/studio-api";
 
 const IMAGE_ROLE_TASK_KEYS: Partial<Record<SceneGenerationPlanImage["imageRole"], string>> = {
   start_frame: "studio.creationAssistant.image.startMissing",
@@ -244,6 +249,69 @@ function buildAudioTasks(review: StudioCreativeReview): CreationAssistantTask[] 
     .map((item) =>
       reviewItemToTask(item, "audio", item.status === "missing" ? "now" : "next")
     );
+}
+
+function buildVoiceLibraryTasks(params: {
+  storyboard: StudioStoryboardDetail;
+  characters: StudioCharacterListItem[];
+}): CreationAssistantTask[] {
+  if (!params.storyboard.voiceEnabled) {
+    return [];
+  }
+
+  const sceneCharacterIds = new Set(
+    params.storyboard.scenes.flatMap((scene) => scene.characters.map((character) => character.id))
+  );
+  const tasks: CreationAssistantTask[] = [];
+
+  for (const character of params.characters) {
+    if (!sceneCharacterIds.has(character.id)) {
+      continue;
+    }
+    if (!character.voiceEnabled) {
+      continue;
+    }
+    if (characterHasExplicitVoiceChoice(character.voiceProfile)) {
+      continue;
+    }
+    tasks.push({
+      id: `voice-library-${character.id}`,
+      category: "audio",
+      tier: "now",
+      messageKey: "studio.creationAssistant.task.chooseVoice",
+      messageParams: { character: character.name },
+      toolId: "voice",
+      actionKind: "open",
+      suggestedAssetId: character.id,
+      suggestedLabel: character.name,
+      source: "voice_library",
+      priority: "high",
+    });
+  }
+
+  return tasks;
+}
+
+function buildFrequentCloneAdvisoryTasks(
+  memory?: StudioProjectMemorySnapshot
+): CreationAssistantTask[] {
+  const top = topFrequentCloneVoices(memory, 1)[0];
+  if (!top) {
+    return [];
+  }
+  return [
+    {
+      id: `frequent-clone-${top.cloneId}`,
+      category: "audio",
+      tier: "optional",
+      messageKey: "studio.creationAssistant.advisory.frequentClone",
+      messageParams: { voiceName: top.voiceName },
+      toolId: "voice",
+      actionKind: "open",
+      source: "voice_library",
+      priority: "low",
+    },
+  ];
 }
 
 function buildRenderTasks(review: StudioCreativeReview): CreationAssistantTask[] {
@@ -560,6 +628,13 @@ export function buildCreationAssistantView(
   const nextTasks: CreationAssistantTask[] = [];
   const optionalTasks: CreationAssistantTask[] = [];
 
+  nowTasks.push(
+    ...buildVoiceLibraryTasks({
+      storyboard,
+      characters: input.characters ?? [],
+    })
+  );
+
   for (const fix of unified.fixes.slice(0, 8)) {
     nowTasks.push(fixToTask(fix, "now"));
   }
@@ -619,6 +694,8 @@ export function buildCreationAssistantView(
       priority: "low",
     });
   }
+
+  optionalTasks.push(...buildFrequentCloneAdvisoryTasks(input.projectMemory));
 
   nowTasks.push(...buildAudioTasks(review).filter((t) => t.tier === "now"));
   nowTasks.push(...buildRenderTasks(review).filter((t) => t.tier === "now"));

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import { normalizeVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
 import { mapStudioCharacterToDetail } from "@/server/studio/studio-character-service";
 import {
@@ -39,7 +39,7 @@ export async function generateCharacterVoicePreview(params: {
   const language = (params.language ?? row.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2);
   const snap = resolveCharacterVoiceForLanguage(characterVoiceSnapshotFromRow(row), language);
   const voiceProfileOverride = params.voiceProfile?.trim();
-  const voiceProfile = normalizeStudioVoiceProfileId(
+  const voiceProfile = normalizeVoiceProfileForSynthesis(
     voiceProfileOverride || snap.voiceProfile || "warm_narrator"
   );
 
@@ -97,7 +97,7 @@ export async function generateCharacterVoicePreviewDraft(params: {
     };
   }
 
-  const voiceProfile = normalizeStudioVoiceProfileId(params.voiceProfile || "warm_narrator");
+  const voiceProfile = normalizeVoiceProfileForSynthesis(params.voiceProfile || "warm_narrator");
   const language = params.voiceLanguage.trim().toLowerCase().slice(0, 2) || "en";
   const { storageAssetId, storageStoryboardId } = draftCharacterVoicePreviewStorageIds(
     params.ownerId

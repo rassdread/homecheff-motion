@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { buildVoiceRequest, validateVoiceSettings } from "@/lib/elevenlabs-voice";
 import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
-import { getVoiceProfilePreset, normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
+import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
+import { normalizeVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
 import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
 import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
@@ -51,7 +52,7 @@ export async function synthesizeCharacterVoicePreview(
   input: CharacterVoicePreviewSynthesisInput
 ): Promise<CharacterVoicePreviewSynthesisResult> {
   const language = input.language.trim().toLowerCase().slice(0, 2) || "en";
-  const voiceProfile = normalizeStudioVoiceProfileId(input.voiceProfile || "warm_narrator");
+  const voiceProfile = normalizeVoiceProfileForSynthesis(input.voiceProfile || "warm_narrator");
   const script = resolveCharacterVoicePreviewScript({
     characterName: input.characterName,
     language,

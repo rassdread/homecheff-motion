@@ -14,6 +14,8 @@ export type StudioAssetUsageStats = {
 export type StudioVoiceMemoryEntry = {
   profileId: string;
   labelKey: string;
+  /** Human-readable clone name when profileId is a clone ref. */
+  displayName?: string;
   characterCount: number;
   storyboardCount: number;
 };

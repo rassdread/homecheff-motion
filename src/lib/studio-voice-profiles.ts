@@ -147,7 +147,7 @@ export function normalizeStudioVoiceProfileId(value: string | undefined | null):
 
 export function getVoiceProfilePreset(id: string): StudioVoiceProfilePreset {
   const ref = parseVoiceProfileRef(id);
-  if (ref.kind === "clone") {
+  if (ref.kind === "clone" || ref.kind === "library") {
     return STUDIO_VOICE_PROFILE_PRESETS.warm_narrator;
   }
   return STUDIO_VOICE_PROFILE_PRESETS[normalizeStudioVoiceProfileId(id)];

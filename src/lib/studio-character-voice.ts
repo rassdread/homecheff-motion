@@ -2,11 +2,8 @@
  * Studio V33 — character voice profiles, assignments, and speaker resolution.
  */
 
-import {
-  getVoiceProfilePreset,
-  normalizeStudioVoiceProfileId,
-} from "@/lib/studio-voice-profiles";
-import { normalizeStoredVoiceProfile } from "@/lib/studio-voice-profile-ref";
+import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
+import { normalizeStoredVoiceProfile, resolvePlanningVoiceProfile } from "@/lib/studio-voice-profile-ref";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import type {
   CharacterVoiceAssignment,
@@ -235,7 +232,7 @@ export function resolveSpeakerSegmentsWithCharacters(params: {
     return {
       ...seg,
       order: index,
-      voiceProfile: normalizeStudioVoiceProfileId(params.fallbackVoiceProfile),
+      voiceProfile: resolvePlanningVoiceProfile(params.fallbackVoiceProfile),
       voiceLanguage: params.storyboardLanguage,
     };
   });
@@ -300,7 +297,7 @@ export function validateCharacterVoiceConsistency(params: {
     if (
       usedProfile &&
       assignment.voiceProfile &&
-      normalizeStudioVoiceProfileId(usedProfile) !== assignment.voiceProfile
+      normalizeStoredVoiceProfile(usedProfile) !== assignment.voiceProfile
     ) {
       warnings.push({
         code: "character_voice_mismatch",

@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { getVoiceProfilePreset, normalizeStudioNarrationMode, profileIdForNarrationMode } from "@/lib/studio-voice-profiles";
+import {
+  formatClonedVoiceProfileRef,
+  isClonedVoiceProfileRef,
+  voiceProfileLabelKeyForPlanning,
+} from "@/lib/studio-voice-profile-ref";
+import { normalizeStudioNarrationMode, profileIdForNarrationMode } from "@/lib/studio-voice-profiles";
+import { readUserVoiceCloneManifest } from "@/server/studio/studio-user-voice-clone-blob";
 import {
   parseStoryboardVoiceMetadata,
   STORYBOARD_AUDIO_UPLOAD_PROVIDER,
@@ -111,7 +117,7 @@ function buildProductionRecords(params: {
 }
 
 export async function buildStudioProjectMemory(ownerId: string): Promise<StudioProjectMemorySnapshot> {
-  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, sceneShots, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices, storyboardsForProduction] =
+  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, sceneShots, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices, storyboardsForProduction, cloneManifest] =
     await Promise.all([
       prisma.studioSceneCharacter.findMany({
         where: { character: { ownerId } },
@@ -146,7 +152,13 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
       }),
       prisma.studioCharacter.findMany({
         where: { ownerId },
-        select: { id: true, voiceProfile: true, voiceEnabled: true, worldProfileId: true },
+        select: {
+          id: true,
+          voiceProfile: true,
+          voiceDescription: true,
+          voiceEnabled: true,
+          worldProfileId: true,
+        },
       }),
       prisma.studioCharacter.findMany({
         where: { ownerId, worldProfileId: { not: null } },
@@ -197,7 +209,16 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
           },
         },
       }),
+      readUserVoiceCloneManifest(ownerId),
     ]);
+
+  const cloneNameByProfile = new Map<string, string>();
+  for (const clone of cloneManifest.clones) {
+    const profileRef = clone.voiceProfileRef?.trim() || formatClonedVoiceProfileRef(clone.cloneId);
+    if (clone.name.trim()) {
+      cloneNameByProfile.set(profileRef, clone.name.trim());
+    }
+  }
 
   const renderByStoryboard = new Map<string, number>();
   const campaignsByStoryboard = new Map<string, Set<string>>();
@@ -303,7 +324,10 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     worldMap.set(row.worldProfileId, entry);
   }
 
-  const voiceByProfile = new Map<string, { characterIds: Set<string>; storyboardIds: Set<string> }>();
+  const voiceByProfile = new Map<
+    string,
+    { characterIds: Set<string>; storyboardIds: Set<string>; displayName?: string }
+  >();
   for (const character of characters) {
     if (!character.voiceEnabled || !character.voiceProfile?.trim()) {
       continue;
@@ -312,6 +336,13 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     const usage = charMap.get(character.id);
     const entry = voiceByProfile.get(profileId) ?? { characterIds: new Set(), storyboardIds: new Set() };
     entry.characterIds.add(character.id);
+    if (
+      isClonedVoiceProfileRef(profileId) &&
+      character.voiceDescription?.trim() &&
+      !entry.displayName
+    ) {
+      entry.displayName = character.voiceDescription.trim();
+    }
     if (usage) {
       for (const sbId of usage.storyboardIds) {
         entry.storyboardIds.add(sbId);
@@ -333,10 +364,12 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
 
   const voices: StudioVoiceMemoryEntry[] = [...voiceByProfile.entries()]
     .map(([profileId, usage]) => {
-      const preset = getVoiceProfilePreset(profileId);
+      const labelKey = voiceProfileLabelKeyForPlanning(profileId);
+      const displayName = usage.displayName ?? cloneNameByProfile.get(profileId);
       return {
         profileId,
-        labelKey: preset.labelKey,
+        labelKey,
+        ...(displayName ? { displayName } : {}),
         characterCount: usage.characterIds.size,
         storyboardCount: usage.storyboardIds.size,
       };

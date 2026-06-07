@@ -21,6 +21,8 @@ import {
   productionMemoryBriefRecommendations,
   resolveProductionMemoryProfile,
 } from "@/lib/studio-production-memory-integration";
+import { buildProductionBriefVoiceSuggestions } from "@/lib/studio-voice-location-suggestions";
+import { buildProductionBriefCloneAdvisories } from "@/lib/studio-user-voice-advisories";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -412,6 +414,17 @@ export function buildProductionBrief(params: StudioProductionBriefInput): Studio
     worlds,
   });
   const memoryRecommendations = productionMemoryBriefRecommendations(memoryProfile);
+  const voicePersonaRecommendations = buildProductionBriefVoiceSuggestions({
+    contentType,
+    idea,
+    locationNames: recommendedLocations.map((location) => location.name),
+  }).map((item) => ({
+    id: item.id,
+    messageKey: item.messageKey,
+    messageParams: item.messageParams,
+    priority: "medium" as const,
+  }));
+  const frequentCloneRecommendations = buildProductionBriefCloneAdvisories(params.projectMemory);
 
   const brief: StudioProductionBrief = {
     version: 1,
@@ -436,7 +449,11 @@ export function buildProductionBrief(params: StudioProductionBriefInput): Studio
     callToAction,
     callToActionKey,
     recommendations: mergeUniqueRecommendations(
-      briefRecommendations(productionPlan, actionIntensity),
+      mergeUniqueRecommendations(
+        mergeUniqueRecommendations(voicePersonaRecommendations, frequentCloneRecommendations, 8),
+        briefRecommendations(productionPlan, actionIntensity),
+        8
+      ),
       memoryRecommendations,
       8
     ),

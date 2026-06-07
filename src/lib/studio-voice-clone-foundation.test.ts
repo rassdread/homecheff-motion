@@ -6,7 +6,9 @@ import {
 } from "@/lib/elevenlabs-voice-clone";
 import {
   formatClonedVoiceProfileRef,
+  formatLibraryVoiceProfileRef,
   isClonedVoiceProfileRef,
+  isLibraryVoiceProfileRef,
   parseVoiceProfileRef,
   resolveProviderVoiceIdFromProfile,
 } from "@/lib/studio-voice-profile-ref";
@@ -26,6 +28,13 @@ describe("studio-voice-profile-ref", () => {
     const ref = parseVoiceProfileRef("warm_narrator");
     assert.equal(ref.kind, "preset");
     assert.equal(isClonedVoiceProfileRef("warm_narrator"), false);
+  });
+
+  it("round-trips library voice refs", () => {
+    const ref = formatLibraryVoiceProfileRef("lib-voice-1");
+    assert.equal(isLibraryVoiceProfileRef(ref), true);
+    assert.equal(parseVoiceProfileRef(ref).kind, "library");
+    assert.equal(resolveElevenLabsVoiceId(ref), "lib-voice-1");
   });
 });
 

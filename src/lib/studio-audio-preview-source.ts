@@ -18,6 +18,7 @@ const SOURCE_LABEL_KEYS: Record<StudioAudioPreviewSource, TranslationKey> = {
   mix_sfx: "studio.audioPreview.source.mixSfx",
   subtitle_narration: "studio.audioPreview.source.subtitleNarration",
   motion_voice: "studio.audioPreview.source.motionVoice",
+  voice_library: "studio.audioPreview.source.voiceLibrary",
 };
 
 export function audioPreviewSourceLabelKey(source: StudioAudioPreviewSource): TranslationKey {
