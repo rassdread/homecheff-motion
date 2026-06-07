@@ -153,6 +153,39 @@ export type MotionAnimationPlanHandoffPlan = {
   }>;
 };
 
+/** Slim Vidu execution plan metadata for Studio → Motion handoff (V49 — P1, no auto-render). */
+export type MotionViduExecutionPlanHandoffPlan = {
+  executionMode: "story_video" | "action_chain" | "hybrid";
+  executionModeLabelKey: string;
+  usesMultipleSteps: boolean;
+  totalJobCount: number;
+  estimatedDurationSeconds: number;
+  readyToRender: boolean;
+  fallbackActive: boolean;
+  fallbackMode: "story_video" | "generate_images_first" | "preview_only" | null;
+  fallbackReasonKey: string;
+  audioMixIncluded: boolean;
+  audioMixReady: boolean;
+  readiness: {
+    planPresent: boolean;
+    readyToRender: boolean;
+    missingStartEndImages: boolean;
+    unsupportedHybridPieces: boolean;
+    fallbackActive: boolean;
+  };
+  jobs: Array<{
+    id: string;
+    jobKind: string;
+    sceneIds: string[];
+    durationSeconds: number;
+    outputRole: string;
+    missingImageCount: number;
+    beatLabels: string[];
+  }>;
+  missingRequirementCount: number;
+  warningCount: number;
+};
+
 /** Slim render strategy metadata for Studio → Motion handoff (V47). */
 export type MotionRenderStrategyHandoffPlan = {
   recommendedStrategy: StudioRenderStrategy;
@@ -359,5 +392,7 @@ export type MotionHandoffPayload = {
   renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
   /** V48: Animation Planner metadata (Motion may ignore until P1/P2). */
   animationPlan?: MotionAnimationPlanHandoffPlan;
+  /** V49: Vidu Execution Planner metadata (Motion may ignore until P1). */
+  viduExecutionPlan?: MotionViduExecutionPlanHandoffPlan;
   scenes: MotionHandoffScene[];
 };

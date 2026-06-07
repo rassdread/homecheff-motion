@@ -15,6 +15,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
+import { StudioViduExecutionPlanSummary } from "@/components/studio/studio-vidu-execution-plan-summary";
 import {
   isInstantLikeMotionProject,
   shouldPollStudioMotionStatus,
@@ -228,6 +229,14 @@ export function StudioWorkspaceRenderPanel({
         props={props}
         worlds={worlds}
         plan={renderReadiness.renderStrategyPlan}
+        variant="full"
+      />
+      <StudioViduExecutionPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
         variant="full"
       />
       {renderReadiness.renderWarnings.length > 0 ?

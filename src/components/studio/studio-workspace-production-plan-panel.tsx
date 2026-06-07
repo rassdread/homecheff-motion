@@ -1,6 +1,7 @@
 "use client";
 
 import { StudioAnimationPlanSummary } from "@/components/studio/studio-animation-plan-summary";
+import { StudioViduExecutionPlanSummary } from "@/components/studio/studio-vidu-execution-plan-summary";
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -242,6 +243,18 @@ export function StudioWorkspaceProductionPlanPanel({
       </section>
 
       <StudioAnimationPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+
+      <StudioViduExecutionPlanSummary
         storyboard={storyboard}
         characters={characters}
         locations={locations}

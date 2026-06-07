@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { StudioAnimationPlanSummary } from "@/components/studio/studio-animation-plan-summary";
+import { StudioViduExecutionPlanSummary } from "@/components/studio/studio-vidu-execution-plan-summary";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { StudioWorldIdentityRulesSummary } from "@/components/studio/studio-world-identity-rules-summary";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
@@ -246,6 +247,16 @@ export function StudioWorkspaceConsistencyPanel({
       />
 
       <StudioAnimationPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        variant="full"
+        onSwitchTool={onSwitchTool}
+      />
+
+      <StudioViduExecutionPlanSummary
         storyboard={storyboard}
         characters={characters}
         locations={locations}
