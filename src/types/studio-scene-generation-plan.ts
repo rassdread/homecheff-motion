@@ -101,4 +101,5 @@ export type StudioSceneGenerationPlanInput = {
   animationPlan?: import("@/types/studio-animation-plan").StudioAnimationPlan;
   renderStrategyPlan?: import("@/types/studio-render-strategy").StudioRenderStrategyPlan;
   actionShotDistributions?: import("@/types/studio-action-shot-distribution").StoryboardActionShotDistribution;
+  assetDecisionRegistry?: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry;
 };

@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
+import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
 import {
   applyProposalConsistencySuggestion,
 } from "@/lib/studio-director-proposal-enrichment";
@@ -736,6 +737,15 @@ export function StudioDirectorProposalFlow({
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
 
+  const assetDecisionRegistry = useMemo(
+    () =>
+      loadAssetDecisionRegistry({
+        storyboardId: storyboard.id,
+        briefIdea: storyboard.aiDirectorPrompt,
+      }),
+    [storyboard.id, storyboard.aiDirectorPrompt]
+  );
+
   const handleGenerate = useCallback(() => {
     const productionPlan = buildStudioProductionPlan({
       storyboard,
@@ -744,6 +754,7 @@ export function StudioDirectorProposalFlow({
       props,
       worlds,
       projectMemory: projectMemory ?? undefined,
+      assetDecisionRegistry,
     });
     const built = buildDirectorProposal({
       idea,
@@ -754,6 +765,7 @@ export function StudioDirectorProposalFlow({
       worlds,
       projectMemory: projectMemory ?? undefined,
       productionPlan,
+      assetDecisionRegistry,
       t,
     });
     if (!built) {
@@ -762,7 +774,7 @@ export function StudioDirectorProposalFlow({
     setProposal(built);
     setPreviewOpen(true);
     setFeedback("");
-  }, [idea, storyboard, characters, locations, props, worlds, projectMemory, t]);
+  }, [idea, storyboard, characters, locations, props, worlds, projectMemory, assetDecisionRegistry, t]);
 
   const handleApplySuggestion = useCallback((suggestionId: string) => {
     setProposal((current) =>

@@ -32,6 +32,7 @@ import type {
   StudioSceneGenerationPlan,
   StudioSceneGenerationPlanInput,
 } from "@/types/studio-scene-generation-plan";
+import { filterSceneGenerationPlanByDecisions } from "@/lib/studio-asset-decision-execution";
 
 const ROLE_LABEL: Record<AnimationRequiredImageRole, string> = {
   scene_still: "studio.generationPlan.role.sceneStill",
@@ -499,7 +500,7 @@ export function buildSceneGenerationPlan(
 
   const firstMissing = allItems.find((i) => i.status !== "present");
 
-  return {
+  const basePlan: StudioSceneGenerationPlan = {
     guidanceKey: "studio.generationPlan.guidance.createFirst",
     guidanceParams: {
       count: String(readiness.requiredMissing + readiness.recommendedMissing),
@@ -525,6 +526,12 @@ export function buildSceneGenerationPlan(
       missingAssets.length > 0 ? `generation:assets:${missingAssets.length}` : "",
     ].filter(Boolean),
   };
+
+  if (input.assetDecisionRegistry) {
+    return filterSceneGenerationPlanByDecisions(basePlan, input.assetDecisionRegistry);
+  }
+
+  return basePlan;
 }
 
 export function enrichIdeaWithGenerationPlan(

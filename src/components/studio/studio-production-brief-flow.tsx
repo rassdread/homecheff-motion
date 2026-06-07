@@ -8,6 +8,21 @@ import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildProductionBrief } from "@/lib/studio-production-brief-builder";
 import { createStoryboardFromProductionBrief } from "@/lib/studio-create-story-from-brief-client";
+import {
+  applyAssetDecision,
+  buildIdentityPrefillFromDecision,
+  decisionStatusLabelKey,
+  defaultDecisionModeForProposal,
+  getAssetDecision,
+} from "@/lib/studio-asset-decision-execution";
+import {
+  identityBuilderHref,
+  storeIdentityBuilderPrefill,
+} from "@/lib/studio-identity-builder-prefill-storage";
+import {
+  loadAssetDecisionRegistry,
+  saveAssetDecisionRegistry,
+} from "@/lib/studio-asset-decision-storage";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -26,12 +41,9 @@ import type {
   ProductionBriefAssetProposal,
   StudioProductionBrief,
 } from "@/types/studio-production-brief";
+import type { AssetDecisionMode, StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 
 type FlowStep = "idea" | "brief" | "preview";
-
-type AssetChoice = "use_existing" | "build_new" | "skip";
-
-type AssetChoiceState = Record<string, AssetChoice>;
 
 const EXAMPLE_KEYS = [
   "studio.directorProposal.example.homecheffGarden",
@@ -41,25 +53,30 @@ const EXAMPLE_KEYS = [
   "studio.directorProposal.example.restaurantPromo",
 ] as const satisfies readonly TranslationKey[];
 
-function assetBuildHref(kind: ProductionBriefAssetProposal["kind"]): string {
-  if (kind === "character") return "/studio/characters/new";
-  if (kind === "location") return "/studio/locations/new";
-  return "/studio/props/new";
+function decisionStatusClass(mode: AssetDecisionMode): string {
+  if (mode === "use_existing") {
+    return "bg-emerald-50 text-emerald-800";
+  }
+  if (mode === "build_new") {
+    return "bg-amber-50 text-amber-900";
+  }
+  return "bg-zinc-100 text-zinc-600";
 }
 
 function AssetProposalRow({
   asset,
-  choice,
-  onChoice,
+  registry,
+  ideaContext,
+  onApplyDecision,
 }: {
   asset: ProductionBriefAssetProposal;
-  choice: AssetChoice | undefined;
-  onChoice: (id: string, value: AssetChoice) => void;
+  registry: StudioAssetDecisionRegistry;
+  ideaContext: string;
+  onApplyDecision: (mode: AssetDecisionMode) => void;
 }) {
   const t = useActiveTranslator();
-  const resolvedChoice =
-    choice ??
-    (asset.status === "existing" || asset.recurringMatch ? "use_existing" : undefined);
+  const decision = getAssetDecision(registry, asset.id);
+  const resolvedMode = decision?.mode ?? defaultDecisionModeForProposal(asset);
 
   return (
     <li className="rounded-xl border border-zinc-200 bg-white p-3">
@@ -69,8 +86,15 @@ function AssetProposalRow({
           <p className="mt-0.5 text-xs text-zinc-500">
             {t(asset.reasonKey as TranslationKey, asset.reasonParams)}
           </p>
+          {decision ?
+            <span
+              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${decisionStatusClass(decision.mode)}`}
+            >
+              {t(decisionStatusLabelKey(decision.mode) as TranslationKey)}
+            </span>
+          : null}
           {asset.recurringMatch ?
-            <span className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+            <span className="mt-1 ml-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
               {t("studio.productionBrief.asset.recurringBadge")}
             </span>
           : null}
@@ -79,9 +103,9 @@ function AssetProposalRow({
           {asset.status === "existing" || asset.recurringMatch ?
             <button
               type="button"
-              onClick={() => onChoice(asset.id, "use_existing")}
+              onClick={() => onApplyDecision("use_existing")}
               className={`rounded-full px-3 py-1 text-xs font-medium ${
-                resolvedChoice === "use_existing"
+                resolvedMode === "use_existing"
                   ? "bg-[#006D52] text-white"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               }`}
@@ -90,10 +114,26 @@ function AssetProposalRow({
             </button>
           : null}
           <Link
-            href={assetBuildHref(asset.kind)}
-            onClick={() => onChoice(asset.id, "build_new")}
+            href={identityBuilderHref(asset.kind, asset.id)}
+            onClick={() => {
+              onApplyDecision("build_new");
+              storeIdentityBuilderPrefill(
+                buildIdentityPrefillFromDecision({
+                  decision: {
+                    id: asset.id,
+                    kind: asset.kind,
+                    mode: "build_new",
+                    name: asset.name,
+                    existingId: asset.existingId,
+                    decidedAt: new Date().toISOString(),
+                    source: "production_brief",
+                  },
+                  ideaContext,
+                })
+              );
+            }}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              resolvedChoice === "build_new"
+              resolvedMode === "build_new"
                 ? "bg-[#006D52] text-white"
                 : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
             }`}
@@ -102,9 +142,9 @@ function AssetProposalRow({
           </Link>
           <button
             type="button"
-            onClick={() => onChoice(asset.id, "skip")}
+            onClick={() => onApplyDecision("skip")}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
-              resolvedChoice === "skip"
+              resolvedMode === "skip"
                 ? "bg-zinc-700 text-white"
                 : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
             }`}
@@ -246,7 +286,9 @@ export function StudioProductionBriefFlow() {
   const [step, setStep] = useState<FlowStep>("idea");
   const [idea, setIdea] = useState("");
   const [brief, setBrief] = useState<StudioProductionBrief | null>(null);
-  const [assetChoices, setAssetChoices] = useState<AssetChoiceState>({});
+  const [decisionRegistry, setDecisionRegistry] = useState<StudioAssetDecisionRegistry>(() =>
+    loadAssetDecisionRegistry({})
+  );
   const [loadingLibraries, setLoadingLibraries] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -258,6 +300,10 @@ export function StudioProductionBriefFlow() {
   const [projectMemory, setProjectMemory] = useState<StudioProjectMemorySnapshot>(
     emptyProjectMemorySnapshot()
   );
+
+  useEffect(() => {
+    saveAssetDecisionRegistry(decisionRegistry);
+  }, [decisionRegistry]);
 
   useEffect(() => {
     let cancelled = false;
@@ -302,12 +348,25 @@ export function StudioProductionBriefFlow() {
       return;
     }
     setBrief(built);
+    setDecisionRegistry(loadAssetDecisionRegistry({ briefIdea: idea }));
     setStep("brief");
   }, [idea, characters, locations, props, worlds, projectMemory, t]);
 
-  const handleAssetChoice = useCallback((id: string, value: AssetChoice) => {
-    setAssetChoices((prev) => ({ ...prev, [id]: value }));
-  }, []);
+  const handleApplyAssetDecision = useCallback(
+    (asset: ProductionBriefAssetProposal, mode: AssetDecisionMode) => {
+      setDecisionRegistry((current) =>
+        applyAssetDecision(current, {
+          id: asset.id,
+          kind: asset.kind,
+          mode,
+          name: asset.name,
+          existingId: asset.existingId,
+          source: "production_brief",
+        })
+      );
+    },
+    []
+  );
 
   const handleCreateStory = useCallback(async () => {
     if (!brief) return;
@@ -315,6 +374,7 @@ export function StudioProductionBriefFlow() {
     setError("");
     const result = await createStoryboardFromProductionBrief({
       brief,
+      assetDecisionRegistry: decisionRegistry,
       characters,
       locations,
       props,
@@ -328,7 +388,7 @@ export function StudioProductionBriefFlow() {
       return;
     }
     setError(result.error || t("studio.storyboards.error.saveFailed"));
-  }, [brief, characters, locations, props, worlds, projectMemory, t]);
+  }, [brief, decisionRegistry, characters, locations, props, worlds, projectMemory, t]);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -418,8 +478,9 @@ export function StudioProductionBriefFlow() {
                       <AssetProposalRow
                         key={asset.id}
                         asset={asset}
-                        choice={assetChoices[asset.id]}
-                        onChoice={handleAssetChoice}
+                        registry={decisionRegistry}
+                        ideaContext={idea}
+                        onApplyDecision={(mode) => handleApplyAssetDecision(asset, mode)}
                       />
                     ))}
                   </ul>

@@ -42,7 +42,9 @@ import {
   enrichIdeaWithProductionPlan,
 } from "@/lib/studio-production-planner";
 import { enrichIdeaWithProductionBrief } from "@/lib/studio-production-brief-enrichment";
+import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
+import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -711,6 +713,7 @@ export function buildDirectorProposal(params: {
   productionPlan?: StudioProductionPlan;
   animationPlan?: import("@/types/studio-animation-plan").StudioAnimationPlan;
   productionBrief?: StudioProductionBrief;
+  assetDecisionRegistry?: StudioAssetDecisionRegistry;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
@@ -731,6 +734,7 @@ export function buildDirectorProposal(params: {
       worlds: params.worlds ?? [],
       projectMemory: params.projectMemory,
       productionBrief: params.productionBrief,
+      assetDecisionRegistry: params.assetDecisionRegistry,
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
@@ -1081,9 +1085,10 @@ export function buildDirectorProposal(params: {
     props: params.props,
     worlds: params.worlds ?? [],
     projectMemory: params.projectMemory,
+    assetDecisionRegistry: params.assetDecisionRegistry,
   });
 
-  return {
+  const builtProposal: StudioDirectorProposal = {
     ...enriched,
     memorySuggestions,
     productionPlan,
@@ -1176,6 +1181,12 @@ export function buildDirectorProposal(params: {
     },
     renderStrategyPlan: toMotionRenderStrategyHandoffPlan(renderStrategyPlanBuilt),
   };
+
+  if (params.assetDecisionRegistry) {
+    return applyDecisionsToDirectorProposal(builtProposal, params.assetDecisionRegistry);
+  }
+
+  return builtProposal;
 }
 
 /** Exported for tests — ensures synthetic flow gets a shot plan when storyboard is empty. */

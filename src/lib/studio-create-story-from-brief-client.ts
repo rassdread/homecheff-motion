@@ -4,6 +4,14 @@ import {
 } from "@/lib/studio-storyboards-client";
 import { applyDirectorProposal } from "@/lib/studio-director-proposal-apply";
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
+import {
+  applyDecisionsToDirectorProposal,
+  enrichBriefWithAssetDecisions,
+} from "@/lib/studio-asset-decision-execution";
+import {
+  migrateDraftDecisionsToStoryboard,
+  saveAssetDecisionRegistry,
+} from "@/lib/studio-asset-decision-storage";
 import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type {
@@ -14,6 +22,7 @@ import type {
 } from "@/types/studio-api";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
+import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 import type { ProposalTextResolver } from "@/lib/studio-director-proposal-apply";
 
 export type CreateStoryFromBriefResult =
@@ -22,6 +31,7 @@ export type CreateStoryFromBriefResult =
 
 export async function createStoryboardFromProductionBrief(params: {
   brief: StudioProductionBrief;
+  assetDecisionRegistry: StudioAssetDecisionRegistry;
   characters: StudioCharacterListItem[];
   locations: StudioLocationListItem[];
   props: StudioPropListItem[];
@@ -30,17 +40,19 @@ export async function createStoryboardFromProductionBrief(params: {
   t: ProposalTextResolver;
   applyProposal?: boolean;
 }): Promise<CreateStoryFromBriefResult> {
-  const title = params.brief.goal.trim().slice(0, 160) || params.brief.idea.trim().slice(0, 160);
+  const enrichedBrief = enrichBriefWithAssetDecisions(params.brief, params.assetDecisionRegistry);
+  const title =
+    enrichedBrief.goal.trim().slice(0, 160) || enrichedBrief.idea.trim().slice(0, 160);
   if (!title) {
     return { ok: false, error: "Title is required" };
   }
 
   const createRes = await createStudioStoryboardApi({
     title,
-    description: params.brief.idea.slice(0, 4000),
-    promptStyleProfile: params.brief.targetStyle.promptStyleProfile,
-    directorProfile: params.brief.targetStyle.directorProfile,
-    aiDirectorPrompt: params.brief.idea,
+    description: enrichedBrief.idea.slice(0, 4000),
+    promptStyleProfile: enrichedBrief.targetStyle.promptStyleProfile,
+    directorProfile: enrichedBrief.targetStyle.directorProfile,
+    aiDirectorPrompt: enrichedBrief.idea,
   });
 
   if (!createRes.ok) {
@@ -56,27 +68,38 @@ export async function createStoryboardFromProductionBrief(params: {
   const storyboard = createRes.data.storyboard;
 
   await updateStudioStoryboardApi(storyboardId, {
-    aiDirectorStyleStrength: params.brief.targetStyle.styleStrength,
+    aiDirectorStyleStrength: enrichedBrief.targetStyle.styleStrength,
   });
+
+  const persistedRegistry: StudioAssetDecisionRegistry = {
+    ...params.assetDecisionRegistry,
+    storyboardId,
+    briefIdea: enrichedBrief.idea,
+    updatedAt: new Date().toISOString(),
+  };
+  saveAssetDecisionRegistry(persistedRegistry);
+  migrateDraftDecisionsToStoryboard(storyboardId, enrichedBrief.idea);
 
   if (params.applyProposal !== false) {
     const proposal = buildDirectorProposal({
-      idea: params.brief.idea,
-      storyboard: { ...storyboard, aiDirectorPrompt: params.brief.idea },
+      idea: enrichedBrief.idea,
+      storyboard: { ...storyboard, aiDirectorPrompt: enrichedBrief.idea },
       characters: params.characters,
       locations: params.locations,
       props: params.props,
       worlds: params.worlds,
       projectMemory: params.projectMemory,
-      productionBrief: params.brief,
-      styleStrength: params.brief.targetStyle.styleStrength,
+      productionBrief: enrichedBrief,
+      assetDecisionRegistry: persistedRegistry,
+      styleStrength: enrichedBrief.targetStyle.styleStrength,
       t: params.t,
     });
 
     if (proposal) {
+      const proposalWithDecisions = applyDecisionsToDirectorProposal(proposal, persistedRegistry);
       const applyResult = await applyDirectorProposal({
         storyboardId,
-        proposal,
+        proposal: proposalWithDecisions,
         mode: "all",
         existingScenes: [],
         t: params.t,

@@ -151,4 +151,5 @@ export type StudioProductionPlanInput = {
   styleProfile?: string;
   directorProfile?: string;
   productionBrief?: import("@/types/studio-production-brief").StudioProductionBrief;
+  assetDecisionRegistry?: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry;
 };

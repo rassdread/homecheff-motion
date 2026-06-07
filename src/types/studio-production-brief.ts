@@ -6,6 +6,7 @@ import type { AiDirectorStyleStrength } from "@/lib/studio-ai-director-interpret
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioProductionPlan } from "@/types/studio-production-plan";
+import type { StudioAssetDecision } from "@/types/studio-asset-decision";
 
 export type ProductionBriefActionIntensity = "low" | "medium" | "high";
 
@@ -78,6 +79,7 @@ export type StudioProductionBrief = {
   recommendations: ProductionBriefRecommendation[];
   storyPreview: ProductionBriefStoryPreview;
   productionPlan?: StudioProductionPlan;
+  assetDecisions?: StudioAssetDecision[];
 };
 
 export type StudioProductionBriefInput = {

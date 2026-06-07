@@ -32,6 +32,11 @@ import type {
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { buildSceneGenerationPlan } from "@/lib/studio-scene-generation-orchestrator";
 import type { ProductionBriefAssetProposal, StudioProductionBrief } from "@/types/studio-production-brief";
+import {
+  filterProductionAssetEntriesByDecisions,
+  filterProductionMissingItemsByDecisions,
+} from "@/lib/studio-asset-decision-execution";
+import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 
 const STORY_PHASE_MAP: Record<StoryStructurePhaseId, StoryArcPhase[]> = {
   intro: ["opening"],
@@ -205,7 +210,8 @@ function assetPlanningFromBrief(brief: StudioProductionBrief): ProductionAssetPl
 
 function applyProductionBriefOverrides(
   plan: StudioProductionPlan,
-  brief: StudioProductionBrief
+  brief: StudioProductionBrief,
+  registry?: StudioAssetDecisionRegistry
 ): StudioProductionPlan {
   const preview = brief.storyPreview;
   const briefAssetPlanning = assetPlanningFromBrief(brief);
@@ -221,7 +227,7 @@ function applyProductionBriefOverrides(
     : brief.actionIntensity === "low" ? "low"
     : plan.actionPlanning.complexity;
 
-  return {
+  const overridden: StudioProductionPlan = {
     ...plan,
     productionGoalKey: "studio.productionPlan.goal.fromBrief",
     productionGoalParams: {
@@ -250,6 +256,27 @@ function applyProductionBriefOverrides(
       brief.world ? `world:${brief.world.name}` : "",
       ...plan.directorContextLines,
     ].filter(Boolean),
+  };
+
+  return registry ? applyAssetDecisionFiltersToPlan(overridden, registry) : overridden;
+}
+
+function applyAssetDecisionFiltersToPlan(
+  plan: StudioProductionPlan,
+  registry: StudioAssetDecisionRegistry
+): StudioProductionPlan {
+  const assetPlanning = {
+    ...plan.assetPlanning,
+    characters: filterProductionAssetEntriesByDecisions(plan.assetPlanning.characters, registry),
+    locations: filterProductionAssetEntriesByDecisions(plan.assetPlanning.locations, registry),
+    props: filterProductionAssetEntriesByDecisions(plan.assetPlanning.props, registry),
+    worlds: filterProductionAssetEntriesByDecisions(plan.assetPlanning.worlds, registry),
+  };
+  return {
+    ...plan,
+    missingItems: filterProductionMissingItemsByDecisions(plan.missingItems, registry),
+    creationGuidance: filterProductionMissingItemsByDecisions(plan.creationGuidance, registry),
+    assetPlanning,
   };
 }
 
@@ -545,6 +572,7 @@ export function buildStudioProductionPlan(
     directorProfile,
     renderStrategyPlan: renderPlan,
     actionShotDistributions: actionDistribution,
+    assetDecisionRegistry: input.assetDecisionRegistry,
   });
 
   const generationPlanning = {
@@ -612,7 +640,11 @@ export function buildStudioProductionPlan(
   };
 
   if (scenes.length === 0 && input.productionBrief) {
-    return applyProductionBriefOverrides(basePlan, input.productionBrief);
+    return applyProductionBriefOverrides(basePlan, input.productionBrief, input.assetDecisionRegistry);
+  }
+
+  if (input.assetDecisionRegistry) {
+    return applyAssetDecisionFiltersToPlan(basePlan, input.assetDecisionRegistry);
   }
 
   return basePlan;
