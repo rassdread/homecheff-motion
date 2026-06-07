@@ -420,15 +420,28 @@ export function buildIdentityPrefillFromDecision(params: {
   ideaContext?: string;
   storyboardId?: string;
   role?: string;
+  worldProfileId?: string | null;
+  visualStyle?: string;
 }): IdentityBuilderPrefill {
+  const role = params.role ?? (params.decision.kind === "character" ? "mascot" : undefined);
+  const roleKey = role?.trim().toLowerCase() ?? "mascot";
+  const characterType =
+    roleKey === "human" ? "human"
+    : roleKey === "animal" ? "animal"
+    : roleKey === "object" ? "object_character"
+    : "mascot";
+
   return {
     version: 1,
     kind: params.decision.kind,
     name: params.decision.name,
-    role: params.role ?? (params.decision.kind === "character" ? "mascot" : undefined),
+    role,
+    characterType,
     description: params.ideaContext?.slice(0, 400) ?? "",
     personality: params.ideaContext?.slice(0, 200) ?? "",
     usageContext: params.ideaContext?.slice(0, 400) ?? "",
+    visualStyle: params.visualStyle ?? "",
+    worldProfileId: params.worldProfileId ?? null,
     storyboardId: params.storyboardId,
     decisionId: params.decision.id,
     ideaContext: params.ideaContext,

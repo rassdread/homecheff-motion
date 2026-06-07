@@ -1,9 +1,11 @@
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
 import {
   characterIdentityFormFromCharacter,
+  mapCharacterTypeToRole,
   type CharacterIdentityFormValues,
 } from "@/lib/studio-character-identity-fields";
 import { getTranslator } from "@/i18n";
+import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -99,5 +101,41 @@ export function hasCharacterIdentitySuggestion(
 ): boolean {
   if (!suggestion) return false;
   const current = characterIdentityFormFromCharacter(character);
-  return diffCharacterIdentityForm(current, suggestion).length > 0;
+  return hasCharacterIdentityFormSuggestion(current, suggestion);
+}
+
+export function hasCharacterIdentityFormSuggestion(
+  form: CharacterIdentityFormValues,
+  suggestion: Partial<CharacterIdentityFormValues> | null
+): boolean {
+  if (!suggestion) return false;
+  return diffCharacterIdentityForm(form, suggestion).length > 0;
+}
+
+const ROLE_TO_TYPE: Record<string, string> = {
+  human: "human",
+  mascot: "mascot",
+  animal: "animal",
+  object: "object_character",
+  other: "human",
+};
+
+/** Prefill / Build New context → partial identity form (no auto-apply). */
+export function buildCharacterIdentitySuggestionFromPrefill(
+  prefill: IdentityBuilderPrefill
+): Partial<CharacterIdentityFormValues> {
+  const role = (prefill.role?.trim().toLowerCase() ?? "mascot") as CharacterIdentityFormValues["role"];
+  return {
+    name: prefill.name,
+    role: mapCharacterTypeToRole(prefill.characterType ?? ROLE_TO_TYPE[role] ?? "mascot"),
+    characterType: prefill.characterType ?? ROLE_TO_TYPE[role] ?? "mascot",
+    description: prefill.description ?? "",
+    personality: prefill.personality ?? "",
+    usageContext: prefill.usageContext ?? prefill.ideaContext?.slice(0, 400) ?? "",
+    visualStyle: prefill.visualStyle ?? "",
+    shapeLanguage: prefill.shapeLanguage ?? "",
+    energy: prefill.energy ?? "",
+    colorTheme: prefill.colorTheme ?? "",
+    worldProfileId: prefill.worldProfileId ?? null,
+  };
 }

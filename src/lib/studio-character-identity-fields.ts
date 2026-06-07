@@ -144,6 +144,83 @@ export function mapCharacterTypeToRole(characterType: string): StudioCharacterRo
   return TYPE_TO_ROLE[characterType] ?? "other";
 }
 
+export function emptyCharacterIdentityForm(
+  overrides?: Partial<CharacterIdentityFormValues>
+): CharacterIdentityFormValues {
+  return {
+    name: "",
+    description: "",
+    characterType: "",
+    role: "mascot",
+    visualStyle: "",
+    shapeLanguage: "",
+    energy: "",
+    personality: "",
+    colorTheme: "",
+    clothing: "",
+    accessories: "",
+    appearanceMemory: "",
+    forbiddenElements: "",
+    usageContext: "",
+    worldProfileId: null,
+    ...overrides,
+  };
+}
+
+/** Merge identity form into a list item shape for completeness / spec preview. */
+export function characterListItemPreviewFromIdentityForm(
+  form: CharacterIdentityFormValues,
+  base?: Partial<StudioCharacterListItem>
+): StudioCharacterListItem {
+  const patch = characterIdentityFormToPatch(form);
+  return {
+    id: base?.id ?? "preview",
+    ownerId: base?.ownerId ?? "",
+    name: patch.name ?? form.name,
+    slug: base?.slug ?? "",
+    role: (patch.role as StudioCharacterListItem["role"]) ?? form.role,
+    description: patch.description ?? form.description,
+    personality: patch.personality ?? form.personality,
+    referenceImageUrl: base?.referenceImageUrl ?? "",
+    isMascot: form.characterType === "mascot" || form.role === "mascot",
+    appearanceMemory: patch.appearanceMemory ?? "",
+    personalityMemory: patch.personalityMemory ?? "",
+    continuityNotes: patch.continuityNotes ?? "",
+    defaultClothing: patch.defaultClothing ?? "",
+    defaultAccessories: patch.defaultAccessories ?? "",
+    visualKeywords: patch.visualKeywords ?? "",
+    primaryReferenceImageId: base?.primaryReferenceImageId ?? null,
+    referenceNotes: base?.referenceNotes ?? "",
+    identityStrength: base?.identityStrength ?? "strong",
+    continuityStrength: base?.continuityStrength ?? "strong",
+    worldProfileId: patch.worldProfileId ?? null,
+    worldProfile: base?.worldProfile ?? null,
+    voiceEnabled: base?.voiceEnabled ?? false,
+    voiceProvider: base?.voiceProvider ?? "",
+    voiceProfile: base?.voiceProfile ?? "",
+    voiceLanguage: base?.voiceLanguage ?? "en",
+    voiceGender: base?.voiceGender ?? "",
+    voiceDescription: base?.voiceDescription ?? "",
+    voiceNotes: base?.voiceNotes ?? "",
+    voiceLock: base?.voiceLock ?? false,
+    voiceProfilesByLanguage: base?.voiceProfilesByLanguage ?? {},
+    performanceEnabled: base?.performanceEnabled ?? false,
+    defaultSmileStrength: base?.defaultSmileStrength ?? 70,
+    defaultBlinkRate: base?.defaultBlinkRate ?? "medium",
+    defaultHeadMovement: base?.defaultHeadMovement ?? "medium",
+    defaultMouthIntensity: base?.defaultMouthIntensity ?? "medium",
+    idleAnimationStyle: base?.idleAnimationStyle ?? "subtle",
+    performanceNotes: base?.performanceNotes ?? "",
+    mouthAnimationEnabled: base?.mouthAnimationEnabled ?? false,
+    mouthClosedAssetUrl: base?.mouthClosedAssetUrl ?? "",
+    mouthSmallAssetUrl: base?.mouthSmallAssetUrl ?? "",
+    mouthMediumAssetUrl: base?.mouthMediumAssetUrl ?? "",
+    mouthWideAssetUrl: base?.mouthWideAssetUrl ?? "",
+    createdAt: base?.createdAt ?? new Date(0).toISOString(),
+    updatedAt: base?.updatedAt ?? new Date(0).toISOString(),
+  };
+}
+
 export function characterIdentityFormFromCharacter(
   character: StudioCharacterListItem
 ): CharacterIdentityFormValues {

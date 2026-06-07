@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioCharacterForm,
+  studioCharacterFormToUpdatePayload,
   type StudioCharacterFormValues,
 } from "@/components/studio/studio-character-form";
 import { useActiveTranslator } from "@/i18n/client";
@@ -55,39 +56,10 @@ export default function StudioCharacterEditPage() {
     Boolean(session.user?.id && character && character.ownerId === session.user.id);
 
   const handleSubmit = async (values: StudioCharacterFormValues) => {
-    const res = await updateStudioCharacterApi(id, {
-      name: values.name,
-      role: values.role,
-      description: values.description,
-      personality: values.personality,
-      voiceEnabled: values.voice.voiceEnabled,
-      voiceProvider: values.voice.voiceProvider,
-      voiceProfile: values.voice.voiceProfile,
-      voiceLanguage: values.voice.voiceLanguage,
-      voiceGender: values.voice.voiceGender,
-      voiceDescription: values.voice.voiceDescription,
-      voiceNotes: values.voice.voiceNotes,
-      voiceLock: values.voice.voiceLock,
-      voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
-      performanceEnabled: values.performance.performanceEnabled,
-      defaultSmileStrength: values.performance.defaultSmileStrength,
-      defaultBlinkRate: values.performance.defaultBlinkRate,
-      defaultHeadMovement: values.performance.defaultHeadMovement,
-      defaultMouthIntensity: values.performance.defaultMouthIntensity,
-      idleAnimationStyle: values.performance.idleAnimationStyle,
-      performanceNotes: values.performance.performanceNotes,
-      mouthAnimationEnabled: values.performance.mouthAnimationEnabled,
-      mouthClosedAssetUrl: values.performance.mouthClosedAssetUrl,
-      mouthSmallAssetUrl: values.performance.mouthSmallAssetUrl,
-      mouthMediumAssetUrl: values.performance.mouthMediumAssetUrl,
-      mouthWideAssetUrl: values.performance.mouthWideAssetUrl,
-      ...(values.referenceImageUrl !== character?.referenceImageUrl
-        ? {
-            referenceImageUrl: values.referenceImageUrl,
-            referenceStorageKey: values.referenceStorageKey,
-          }
-        : {}),
-    });
+    const res = await updateStudioCharacterApi(
+      id,
+      studioCharacterFormToUpdatePayload(values, character)
+    );
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));
     }
@@ -97,7 +69,7 @@ export default function StudioCharacterEditPage() {
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-2xl px-6 py-12 sm:px-10">
+        <section className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-10">
           <Link
             href={`/studio/characters/${id}`}
             className="text-sm font-medium text-[#006D52] hover:underline"

@@ -438,6 +438,9 @@ export const nl = {
   "studio.characters.backToLibrary": "Terug naar personagesbibliotheek",
   "studio.characters.backToCharacter": "Terug naar personage",
   "studio.characters.createTitle": "Nieuw personage",
+  "studio.characters.createIdentityHeading": "Maak personage-identiteit",
+  "studio.characters.createIdentityLead":
+    "Kies type, stijl, outfit en stem — alles wat dit personage herkenbaar maakt in je video's.",
   "studio.characters.editTitle": "Personage bewerken",
   "studio.characters.save": "Opslaan",
   "studio.characters.saveChanges": "Wijzigingen opslaan",

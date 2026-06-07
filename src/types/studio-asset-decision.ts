@@ -57,6 +57,12 @@ export type IdentityBuilderPrefill = {
   description?: string;
   personality?: string;
   usageContext?: string;
+  characterType?: string;
+  visualStyle?: string;
+  shapeLanguage?: string;
+  energy?: string;
+  colorTheme?: string;
+  worldProfileId?: string | null;
   storyboardId?: string;
   decisionId: string;
   ideaContext?: string;

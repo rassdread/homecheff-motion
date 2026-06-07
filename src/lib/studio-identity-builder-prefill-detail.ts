@@ -3,6 +3,11 @@
  */
 
 import { loadIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
+import {
+  characterIdentityFormToPatch,
+  emptyCharacterIdentityForm,
+} from "@/lib/studio-character-identity-fields";
+import { buildCharacterIdentitySuggestionFromPrefill } from "@/lib/studio-character-identity-suggestion";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 import type {
   StudioCharacterDetail,
@@ -18,27 +23,34 @@ function slugFromName(name: string): string {
 export function buildCharacterDetailFromPrefill(
   prefill: IdentityBuilderPrefill
 ): StudioCharacterDetail {
+  const identityForm = {
+    ...emptyCharacterIdentityForm(),
+    ...buildCharacterIdentitySuggestionFromPrefill(prefill),
+  };
+  const patch = characterIdentityFormToPatch(identityForm);
+  const role = (patch.role as StudioCharacterDetail["role"]) ?? "mascot";
+
   return {
     id: "prefill",
     ownerId: "",
-    name: prefill.name,
+    name: patch.name ?? prefill.name,
     slug: slugFromName(prefill.name),
-    role: (prefill.role as StudioCharacterDetail["role"]) ?? "mascot",
-    description: prefill.description ?? "",
-    personality: prefill.personality ?? "",
+    role,
+    description: patch.description ?? "",
+    personality: patch.personality ?? "",
     referenceImageUrl: "",
-    isMascot: prefill.role === "mascot",
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: prefill.usageContext ?? "",
-    defaultClothing: "",
-    defaultAccessories: "",
-    visualKeywords: "",
+    isMascot: role === "mascot",
+    appearanceMemory: patch.appearanceMemory ?? "",
+    personalityMemory: patch.personalityMemory ?? "",
+    continuityNotes: patch.continuityNotes ?? "",
+    defaultClothing: patch.defaultClothing ?? "",
+    defaultAccessories: patch.defaultAccessories ?? "",
+    visualKeywords: patch.visualKeywords ?? "",
     primaryReferenceImageId: null,
     referenceNotes: "",
     identityStrength: "strong",
     continuityStrength: "strong",
-    worldProfileId: null,
+    worldProfileId: patch.worldProfileId ?? null,
     worldProfile: null,
     voiceEnabled: false,
     voiceProvider: "",

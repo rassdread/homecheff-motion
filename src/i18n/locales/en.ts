@@ -440,6 +440,9 @@ export const en: LocaleSchema = {
   "studio.characters.backToLibrary": "Back to Characters Library",
   "studio.characters.backToCharacter": "Back to character",
   "studio.characters.createTitle": "New character",
+  "studio.characters.createIdentityHeading": "Build character identity",
+  "studio.characters.createIdentityLead":
+    "Choose type, style, outfit, and voice — everything that makes this character recognizable in your videos.",
   "studio.characters.editTitle": "Edit character",
   "studio.characters.save": "Save",
   "studio.characters.saveChanges": "Save changes",

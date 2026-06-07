@@ -6,6 +6,7 @@ import { useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioCharacterForm,
+  studioCharacterFormToCreatePayload,
   type StudioCharacterFormValues,
 } from "@/components/studio/studio-character-form";
 import { useActiveTranslator } from "@/i18n/client";
@@ -27,35 +28,7 @@ export default function StudioCharacterNewPage() {
   const prefillCharacter = prefill ? buildCharacterDetailFromPrefill(prefill) : undefined;
 
   const handleSubmit = async (values: StudioCharacterFormValues) => {
-    const res = await createStudioCharacterApi({
-      name: values.name,
-      role: values.role,
-      description: values.description,
-      personality: values.personality,
-      referenceImageUrl: values.referenceImageUrl,
-      referenceStorageKey: values.referenceStorageKey,
-      voiceEnabled: values.voice.voiceEnabled,
-      voiceProvider: values.voice.voiceProvider,
-      voiceProfile: values.voice.voiceProfile,
-      voiceLanguage: values.voice.voiceLanguage,
-      voiceGender: values.voice.voiceGender,
-      voiceDescription: values.voice.voiceDescription,
-      voiceNotes: values.voice.voiceNotes,
-      voiceLock: values.voice.voiceLock,
-      voiceProfilesByLanguage: values.voice.voiceProfilesByLanguage,
-      performanceEnabled: values.performance.performanceEnabled,
-      defaultSmileStrength: values.performance.defaultSmileStrength,
-      defaultBlinkRate: values.performance.defaultBlinkRate,
-      defaultHeadMovement: values.performance.defaultHeadMovement,
-      defaultMouthIntensity: values.performance.defaultMouthIntensity,
-      idleAnimationStyle: values.performance.idleAnimationStyle,
-      performanceNotes: values.performance.performanceNotes,
-      mouthAnimationEnabled: values.performance.mouthAnimationEnabled,
-      mouthClosedAssetUrl: values.performance.mouthClosedAssetUrl,
-      mouthSmallAssetUrl: values.performance.mouthSmallAssetUrl,
-      mouthMediumAssetUrl: values.performance.mouthMediumAssetUrl,
-      mouthWideAssetUrl: values.performance.mouthWideAssetUrl,
-    });
+    const res = await createStudioCharacterApi(studioCharacterFormToCreatePayload(values));
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));
     }
@@ -65,7 +38,7 @@ export default function StudioCharacterNewPage() {
         storyboardId: prefill.storyboardId,
         kind: "character",
         createdEntityId: res.data.character.id,
-        createdName: values.name,
+        createdName: values.identity.name,
         decisionId: prefill.decisionId,
       });
       clearIdentityBuilderPrefill();
@@ -80,7 +53,7 @@ export default function StudioCharacterNewPage() {
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-2xl px-6 py-12 sm:px-10">
+        <section className="mx-auto w-full max-w-3xl px-6 py-12 sm:px-10">
           <Link href="/studio/characters" className="text-sm font-medium text-[#006D52] hover:underline">
             ← {t("studio.characters.backToLibrary")}
           </Link>
@@ -92,6 +65,7 @@ export default function StudioCharacterNewPage() {
               submitLabel={t("studio.characters.save")}
               backHref="/studio/characters"
               initial={prefillCharacter}
+              identityPrefill={prefill}
               onSubmit={handleSubmit}
             />
           </div>
