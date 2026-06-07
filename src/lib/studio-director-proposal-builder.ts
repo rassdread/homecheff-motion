@@ -80,6 +80,10 @@ import {
   enrichIdeaWithDirectorDecisionMemory,
   mergeDecisionPatternsIntoProductionMemory,
 } from "@/lib/studio-director-decision-memory";
+import {
+  buildInsightsHubContext,
+  enrichIdeaWithInsightsHub,
+} from "@/lib/studio-insights-hub";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -902,6 +906,23 @@ export function buildDirectorProposal(params: {
     decisionMemoryContext
   );
 
+  const insightSummaryContext = buildInsightsHubContext({
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+    assetDecisionRegistry: params.assetDecisionRegistry,
+    currentIdea: idea,
+    productionTimeline: timelineContext.timeline,
+  });
+
+  const enrichedFromInsightsHub = enrichIdeaWithInsightsHub(
+    enrichedFromDecisionMemory,
+    insightSummaryContext
+  );
+
   const mergedProductionMemoryContext = {
     ...productionMemoryContext,
     profile: mergeDecisionPatternsIntoProductionMemory(
@@ -924,7 +945,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromDecisionMemory, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromInsightsHub, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1292,6 +1313,7 @@ export function buildDirectorProposal(params: {
     snapshotContext,
     storyArchitectureContext,
     decisionMemoryContext,
+    insightSummaryContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

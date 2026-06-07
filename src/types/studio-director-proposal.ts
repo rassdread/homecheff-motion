@@ -269,6 +269,7 @@ export type StudioDirectorProposal = {
   snapshotContext?: import("@/types/studio-production-snapshot").StudioSnapshotContext;
   storyArchitectureContext?: import("@/types/studio-story-architecture").StoryArchitectureContext;
   decisionMemoryContext?: import("@/types/studio-director-decision-memory").DirectorDecisionMemoryContext;
+  insightSummaryContext?: import("@/types/studio-insights-hub").InsightsHubContext;
   generationPlanPreview?: Array<{
     sceneOrder: number;
     actionBeat: string;

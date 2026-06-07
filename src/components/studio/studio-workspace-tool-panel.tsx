@@ -20,6 +20,7 @@ import { StudioWorkspaceCreationAssistantPanel } from "@/components/studio/studi
 import { StudioWorkspaceProductionHistoryPanel } from "@/components/studio/studio-workspace-production-history-panel";
 import { StudioWorkspaceStoryArchitecturePanel } from "@/components/studio/studio-workspace-story-architecture-panel";
 import { StudioWorkspaceDirectorPreferencesPanel } from "@/components/studio/studio-workspace-director-preferences-panel";
+import { StudioWorkspaceInsightsHubPanel } from "@/components/studio/studio-workspace-insights-hub-panel";
 import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import {
   StudioWorkspaceDownloadPanel,
@@ -276,6 +277,22 @@ export function StudioWorkspaceToolPanel({
   if (tool === "storyArchitecture") {
     return (
       <StudioWorkspaceStoryArchitecturePanel
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
+
+  if (tool === "insights") {
+    return (
+      <StudioWorkspaceInsightsHubPanel
         storyboard={storyboard}
         characters={characters}
         locations={locations}
