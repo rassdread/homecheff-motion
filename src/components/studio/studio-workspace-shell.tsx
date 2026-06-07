@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioWorkspaceAssetEvolutionPanel } from "@/components/studio/studio-workspace-asset-evolution-panel";
+import { StudioWorkspaceProductionPlanPanel } from "@/components/studio/studio-workspace-production-plan-panel";
 import { StudioDirectorProposalFlow } from "@/components/studio/studio-director-proposal-flow";
 import { StudioWorkspaceProductionBanner } from "@/components/studio/studio-workspace-production-panels";
 import { useStoryboardMotionProjects } from "@/hooks/use-studio-workspace-motion";
@@ -445,7 +446,19 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                 />
               : null}
 
-              {activeTool === "story" ?
+              {activeTool === "production" ?
+                <StudioWorkspaceProductionPlanPanel
+                  storyboard={storyboard}
+                  characters={characters}
+                  locations={locations}
+                  props={props}
+                  worlds={worlds}
+                  projectMemory={projectMemory}
+                  styleProfile={styleProfile}
+                  directorProfile={directorProfile}
+                  onSwitchTool={handleToolChange}
+                />
+              : activeTool === "story" ?
                 <>
                   <StudioWorkspaceAssetEvolutionPanel
                     storyboard={storyboard}

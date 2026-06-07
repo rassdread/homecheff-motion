@@ -29,6 +29,10 @@ import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-plan
 import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
+import {
+  buildStudioProductionPlan,
+  enrichIdeaWithProductionPlan,
+} from "@/lib/studio-production-planner";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -58,6 +62,7 @@ import type {
   ProposedSceneAudio,
   StudioDirectorProposal,
 } from "@/types/studio-director-proposal";
+import type { StudioProductionPlan } from "@/types/studio-production-plan";
 import type { ProposalTextResolver } from "@/lib/studio-director-proposal-apply";
 
 const PROPOSAL_PHASES: StoryArcPhase[] = [
@@ -693,6 +698,7 @@ export function buildDirectorProposal(params: {
   worlds?: StudioWorldProfileListItem[];
   styleStrength?: AiDirectorStyleStrength;
   projectMemory?: StudioProjectMemorySnapshot;
+  productionPlan?: StudioProductionPlan;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
@@ -700,10 +706,23 @@ export function buildDirectorProposal(params: {
     return null;
   }
 
+  const productionPlan =
+    params.productionPlan ??
+    buildStudioProductionPlan({
+      storyboard: params.storyboard,
+      characters: params.characters,
+      locations: params.locations,
+      props: params.props,
+      worlds: params.worlds ?? [],
+      projectMemory: params.projectMemory,
+    });
+
+  const enrichedIdea = enrichIdeaWithProductionPlan(idea, productionPlan);
+
   const styleStrength = normalizeAiDirectorStyleStrength(
     params.styleStrength ?? params.storyboard.aiDirectorStyleStrength ?? DEFAULT_AI_DIRECTOR_STYLE_STRENGTH
   );
-  const interpretation = interpretAiDirectorPrompt(idea);
+  const interpretation = interpretAiDirectorPrompt(enrichedIdea);
   const topic = extractProposalTopic(idea);
   const topicParams = { topic };
   const promptTokens = tokenizeForAssetMatch(idea);
@@ -716,7 +735,7 @@ export function buildDirectorProposal(params: {
 
   const direction = buildAiDirectorDirection({
     scenes: flowInput,
-    prompt: idea,
+    prompt: enrichedIdea,
     styleStrength,
   });
 
@@ -1006,6 +1025,7 @@ export function buildDirectorProposal(params: {
   return {
     ...enriched,
     memorySuggestions,
+    productionPlan,
     actionIntelligence: {
       characterPlans: actionIntelligenceRaw.characterPlans.map((plan) => ({
         characterId: plan.characterId,

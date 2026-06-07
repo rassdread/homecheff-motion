@@ -1,4 +1,5 @@
 export type StudioToolId =
+  | "production"
   | "story"
   | "characters"
   | "locations"
@@ -18,6 +19,7 @@ export type StudioToolId =
   | "export";
 
 export const STUDIO_TOOL_IDS: StudioToolId[] = [
+  "production",
   "story",
   "characters",
   "locations",

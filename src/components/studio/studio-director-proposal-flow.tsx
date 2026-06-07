@@ -5,6 +5,7 @@ import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcrip
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildDirectorProposal } from "@/lib/studio-director-proposal-builder";
+import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
 import {
   applyProposalConsistencySuggestion,
 } from "@/lib/studio-director-proposal-enrichment";
@@ -662,6 +663,14 @@ export function StudioDirectorProposalFlow({
   const [feedback, setFeedback] = useState("");
 
   const handleGenerate = useCallback(() => {
+    const productionPlan = buildStudioProductionPlan({
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: projectMemory ?? undefined,
+    });
     const built = buildDirectorProposal({
       idea,
       storyboard,
@@ -670,6 +679,7 @@ export function StudioDirectorProposalFlow({
       props,
       worlds,
       projectMemory: projectMemory ?? undefined,
+      productionPlan,
       t,
     });
     if (!built) {

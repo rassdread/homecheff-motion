@@ -6,6 +6,7 @@ import type { TranslationKey } from "@/i18n";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 
 const TITLE_KEYS: Record<StudioToolId, TranslationKey> = {
+  production: "studio.tools.production",
   story: "studio.tools.story",
   characters: "studio.tools.characters",
   locations: "studio.tools.locations",

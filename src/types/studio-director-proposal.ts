@@ -6,6 +6,7 @@ import type { AiDirectorStyleStrength, InterpretedDirectorStyle } from "@/lib/st
 import type { StoryArcPhase } from "@/lib/studio-story-arc";
 import type { RenderReadinessLevel } from "@/lib/studio-render-readiness-summary";
 import type { MotionRenderStrategyHandoffPlan } from "@/types/motion-handoff-payload";
+import type { StudioProductionPlan } from "@/types/studio-production-plan";
 
 export type DirectorProposalApplyMode = "all" | "scenes" | "assets" | "audio" | "text";
 
@@ -242,4 +243,5 @@ export type StudioDirectorProposal = {
   renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
   actionIntelligence?: DirectorProposalActionIntelligence;
   actionShotDistribution?: DirectorProposalActionShotDistributionEntry[];
+  productionPlan?: StudioProductionPlan;
 };
