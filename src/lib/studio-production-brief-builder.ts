@@ -16,6 +16,11 @@ import {
 import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
 import { extractActionSteps } from "@/lib/studio-scene-action-extraction";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
+import {
+  mergeUniqueRecommendations,
+  productionMemoryBriefRecommendations,
+  resolveProductionMemoryProfile,
+} from "@/lib/studio-production-memory-integration";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -400,6 +405,14 @@ export function buildProductionBrief(params: StudioProductionBriefInput): Studio
   const callToActionKey = proposal.text.ctaKey;
   const callToAction = goal;
 
+  const memoryProfile = resolveProductionMemoryProfile({
+    projectMemory: params.projectMemory,
+    currentIdea: idea,
+    characters,
+    worlds,
+  });
+  const memoryRecommendations = productionMemoryBriefRecommendations(memoryProfile);
+
   const brief: StudioProductionBrief = {
     version: 1,
     idea,
@@ -422,7 +435,11 @@ export function buildProductionBrief(params: StudioProductionBriefInput): Studio
     },
     callToAction,
     callToActionKey,
-    recommendations: briefRecommendations(productionPlan, actionIntensity),
+    recommendations: mergeUniqueRecommendations(
+      briefRecommendations(productionPlan, actionIntensity),
+      memoryRecommendations,
+      8
+    ),
     storyPreview: {
       estimatedSceneCount,
       estimatedShotCount,
@@ -431,6 +448,7 @@ export function buildProductionBrief(params: StudioProductionBriefInput): Studio
       locationCount,
     },
     productionPlan,
+    productionMemoryGuidance: memoryProfile?.creationGuidance ?? null,
   };
 
   return brief;

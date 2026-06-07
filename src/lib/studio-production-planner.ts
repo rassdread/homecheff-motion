@@ -31,6 +31,11 @@ import type {
 } from "@/types/studio-production-plan";
 import type { StudioSceneDetail } from "@/types/studio-api";
 import { buildSceneGenerationPlan } from "@/lib/studio-scene-generation-orchestrator";
+import {
+  mergeUniqueRecommendations,
+  productionMemoryPlannerRecommendations,
+  resolveProductionMemoryProfile,
+} from "@/lib/studio-production-memory-integration";
 import type { ProductionBriefAssetProposal, StudioProductionBrief } from "@/types/studio-production-brief";
 import {
   filterProductionAssetEntriesByDecisions,
@@ -599,6 +604,15 @@ export function buildStudioProductionPlan(
     });
   }
 
+  const memoryProfile = resolveProductionMemoryProfile({
+    projectMemory: input.projectMemory,
+    currentIdea: storyboard.aiDirectorPrompt,
+    characters,
+    worlds,
+  });
+  const memoryRecommendations = productionMemoryPlannerRecommendations(memoryProfile);
+  const memoryContextLines = memoryProfile?.directorContextLines ?? [];
+
   const basePlan: StudioProductionPlan = {
     productionGoalKey: "studio.productionPlan.goal.summary",
     productionGoalParams: {
@@ -614,7 +628,7 @@ export function buildStudioProductionPlan(
     readiness: unified.level,
     readinessScore: unified.score,
     missingItems: missingItems.slice(0, 12),
-    recommendations: recommendations.slice(0, 10),
+    recommendations: mergeUniqueRecommendations(recommendations, memoryRecommendations, 10),
     creationGuidance: creationGuidance.slice(0, 8),
     storyStructure,
     assetPlanning,
@@ -636,7 +650,7 @@ export function buildStudioProductionPlan(
       confidence: renderPlan.confidence,
     },
     domainReadiness,
-    directorContextLines,
+    directorContextLines: [...directorContextLines, ...memoryContextLines],
   };
 
   if (scenes.length === 0 && input.productionBrief) {

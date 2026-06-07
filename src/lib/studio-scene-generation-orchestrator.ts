@@ -33,6 +33,11 @@ import type {
   StudioSceneGenerationPlanInput,
 } from "@/types/studio-scene-generation-plan";
 import { filterSceneGenerationPlanByDecisions } from "@/lib/studio-asset-decision-execution";
+import {
+  mergeUniqueRecommendations,
+  productionMemoryGenerationRecommendations,
+  resolveProductionMemoryProfile,
+} from "@/lib/studio-production-memory-integration";
 
 const ROLE_LABEL: Record<AnimationRequiredImageRole, string> = {
   scene_still: "studio.generationPlan.role.sceneStill",
@@ -487,11 +492,21 @@ export function buildSceneGenerationPlan(
     worlds: input.worlds,
   });
   const readiness = computeReadiness(allItems);
-  const recommendations = buildRecommendations({
-    readiness,
-    missingAssets,
-    steps: generationSteps,
+  const memoryProfile = resolveProductionMemoryProfile({
+    projectMemory: input.projectMemory,
+    currentIdea: storyboard.aiDirectorPrompt,
+    characters: input.characters,
+    worlds: input.worlds,
   });
+  const recommendations = mergeUniqueRecommendations(
+    buildRecommendations({
+      readiness,
+      missingAssets,
+      steps: generationSteps,
+    }),
+    productionMemoryGenerationRecommendations(memoryProfile),
+    6
+  );
 
   const totalPresent = allItems.filter((i) => i.status === "present").length;
   const totalMissing = allItems.filter(
@@ -524,6 +539,7 @@ export function buildSceneGenerationPlan(
       `generation:ready:${readiness.readyToRender}`,
       `generation:strategy:${strategy}`,
       missingAssets.length > 0 ? `generation:assets:${missingAssets.length}` : "",
+      ...(memoryProfile?.directorContextLines ?? []),
     ].filter(Boolean),
   };
 

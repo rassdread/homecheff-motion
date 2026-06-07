@@ -7,6 +7,7 @@ import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioProductionPlan } from "@/types/studio-production-plan";
 import type { StudioAssetDecision } from "@/types/studio-asset-decision";
+import type { ProductionMemoryCreationGuidance } from "@/types/studio-production-memory";
 
 export type ProductionBriefActionIntensity = "low" | "medium" | "high";
 
@@ -80,6 +81,7 @@ export type StudioProductionBrief = {
   storyPreview: ProductionBriefStoryPreview;
   productionPlan?: StudioProductionPlan;
   assetDecisions?: StudioAssetDecision[];
+  productionMemoryGuidance?: ProductionMemoryCreationGuidance | null;
 };
 
 export type StudioProductionBriefInput = {

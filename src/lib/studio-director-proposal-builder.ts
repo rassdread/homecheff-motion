@@ -42,7 +42,12 @@ import {
   enrichIdeaWithProductionPlan,
 } from "@/lib/studio-production-planner";
 import { enrichIdeaWithProductionBrief } from "@/lib/studio-production-brief-enrichment";
+import {
+  buildProductionMemoryContext,
+  enrichIdeaWithProductionMemory,
+} from "@/lib/studio-production-memory-profile";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
+import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
 import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
@@ -724,6 +729,20 @@ export function buildDirectorProposal(params: {
   const enrichedFromBrief =
     params.productionBrief ? enrichIdeaWithProductionBrief(idea, params.productionBrief) : idea;
 
+  const productionMemoryContext = buildProductionMemoryContext({
+    memory: params.projectMemory ?? emptyProjectMemorySnapshot(),
+    currentIdea: idea,
+    libraries: {
+      characters: params.characters,
+      worlds: params.worlds ?? [],
+    },
+  });
+
+  const enrichedFromMemory = enrichIdeaWithProductionMemory(
+    enrichedFromBrief,
+    productionMemoryContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -738,7 +757,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromBrief, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromMemory, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1060,6 +1079,7 @@ export function buildDirectorProposal(params: {
     locations: params.locations,
     props: params.props,
     worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
   });
 
   const animationPlan = buildStudioAnimationPlan({
@@ -1091,6 +1111,7 @@ export function buildDirectorProposal(params: {
   const builtProposal: StudioDirectorProposal = {
     ...enriched,
     memorySuggestions,
+    productionMemoryContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

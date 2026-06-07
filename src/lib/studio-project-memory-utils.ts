@@ -26,5 +26,6 @@ export function emptyProjectMemorySnapshot(): StudioProjectMemorySnapshot {
     libraryAudio: [],
     styles: [],
     shotPatterns: [],
+    productionRecords: [],
   };
 }

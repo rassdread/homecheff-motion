@@ -27,6 +27,10 @@ import type {
   StudioRenderStrategyPlanInput,
 } from "@/types/studio-render-strategy";
 import type { StudioSceneDetail } from "@/types/studio-api";
+import {
+  productionMemoryRenderReasons,
+  resolveProductionMemoryProfile,
+} from "@/lib/studio-production-memory-integration";
 
 const ACTION_VERB_PATTERNS = actionVerbPatternsAsRegex();
 
@@ -493,6 +497,16 @@ export function buildStudioRenderStrategyPlan(
         reasonParams: { name: consumption.dominantWorldName },
       });
     }
+  }
+
+  const memoryProfile = resolveProductionMemoryProfile({
+    projectMemory: input.projectMemory,
+    currentIdea: input.storyboard.aiDirectorPrompt,
+    characters: input.characters,
+    worlds: input.worlds,
+  });
+  for (const memoryReason of productionMemoryRenderReasons(memoryProfile)) {
+    reasons.push(memoryReason);
   }
 
   return {

@@ -2,6 +2,8 @@
  * Cross-storyboard project memory — usage stats for library assets.
  */
 
+import type { ProductionMemoryRecord } from "@/types/studio-production-memory";
+
 export type StudioAssetUsageStats = {
   storyboardCount: number;
   sceneCount: number;
@@ -55,6 +57,8 @@ export type StudioProjectMemorySnapshot = {
   libraryAudio: StudioLibraryAudioMemoryEntry[];
   styles: StudioStyleMemoryEntry[];
   shotPatterns: StudioShotPatternMemoryEntry[];
+  /** Per-storyboard production summaries for pattern learning (advisory). */
+  productionRecords?: ProductionMemoryRecord[];
 };
 
 export type StudioProjectMemoryResponse = {

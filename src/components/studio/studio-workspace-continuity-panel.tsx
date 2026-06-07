@@ -12,6 +12,7 @@ import {
 } from "@/lib/studio-project-continuity-score";
 import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
+import { StudioProductionMemoryPanel } from "@/components/studio/studio-production-memory-panel";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -195,6 +196,14 @@ export function StudioWorkspaceContinuityPanel({
         memory={memory}
         showConsistency={false}
         variant="compact"
+      />
+
+      <StudioProductionMemoryPanel
+        memory={memory}
+        currentIdea={storyboard.aiDirectorPrompt}
+        characters={characters}
+        worlds={worlds}
+        compact
       />
 
       {reuseSuggestions.length > 0 ?

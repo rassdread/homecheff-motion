@@ -42,6 +42,7 @@ import type {
   StudioProductionBrief,
 } from "@/types/studio-production-brief";
 import type { AssetDecisionMode, StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
+import { StudioProductionMemoryPanel } from "@/components/studio/studio-production-memory-panel";
 
 type FlowStep = "idea" | "brief" | "preview";
 
@@ -157,7 +158,17 @@ function AssetProposalRow({
   );
 }
 
-function BriefSummary({ brief }: { brief: StudioProductionBrief }) {
+function BriefSummary({
+  brief,
+  projectMemory,
+  characters,
+  worlds,
+}: {
+  brief: StudioProductionBrief;
+  projectMemory?: StudioProjectMemorySnapshot;
+  characters?: StudioCharacterListItem[];
+  worlds?: StudioWorldProfileListItem[];
+}) {
   const t = useActiveTranslator();
 
   return (
@@ -226,6 +237,16 @@ function BriefSummary({ brief }: { brief: StudioProductionBrief }) {
             ))}
           </ul>
         </section>
+      : null}
+
+      {projectMemory ?
+        <StudioProductionMemoryPanel
+          memory={projectMemory}
+          currentIdea={brief.idea}
+          characters={characters}
+          worlds={worlds}
+          guidance={brief.productionMemoryGuidance}
+        />
       : null}
     </div>
   );
@@ -465,7 +486,12 @@ export function StudioProductionBriefFlow() {
 
           {step === "brief" && brief ?
             <div className="space-y-6">
-              <BriefSummary brief={brief} />
+              <BriefSummary
+                brief={brief}
+                projectMemory={projectMemory}
+                characters={characters}
+                worlds={worlds}
+              />
 
               {allAssetProposals.length > 0 ?
                 <section>
@@ -505,7 +531,12 @@ export function StudioProductionBriefFlow() {
           {step === "preview" && brief ?
             <div className="space-y-6">
               <StoryPreview brief={brief} />
-              <BriefSummary brief={brief} />
+              <BriefSummary
+                brief={brief}
+                projectMemory={projectMemory}
+                characters={characters}
+                worlds={worlds}
+              />
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"

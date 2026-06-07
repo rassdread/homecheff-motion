@@ -15,6 +15,8 @@ import type {
   StudioStyleMemoryEntry,
   StudioVoiceMemoryEntry,
 } from "@/types/studio-project-memory";
+import type { ProductionMemoryRecord } from "@/types/studio-production-memory";
+import type { StudioRenderStrategy } from "@/types/studio-render-strategy";
 
 function finalizeStats(
   map: Map<string, { storyboardIds: Set<string>; sceneCount: number }>,
@@ -41,8 +43,75 @@ function finalizeStats(
   return out;
 }
 
+function instantModeToRenderStrategy(instantMode: string | null | undefined): StudioRenderStrategy | undefined {
+  const mode = instantMode?.trim().toLowerCase();
+  if (mode === "story") {
+    return "story";
+  }
+  if (mode === "transition") {
+    return "action_chain";
+  }
+  return undefined;
+}
+
+function buildProductionRecords(params: {
+  storyboards: Array<{
+    id: string;
+    title: string;
+    aiDirectorPrompt: string;
+    directorProfile: string;
+    promptStyleProfile: string;
+    voiceProfile: string;
+    audioStyle: string;
+    musicStyle: string;
+    soundStyle: string;
+    scenes: Array<{
+      durationSeconds: number;
+      action: string;
+      description: string;
+      title: string;
+    }>;
+  }>;
+  charactersByStoryboard: Map<string, Set<string>>;
+  worldsByStoryboard: Map<string, Set<string>>;
+  renderStrategyByStoryboard: Map<string, StudioRenderStrategy>;
+}): ProductionMemoryRecord[] {
+  return params.storyboards.map((sb) => {
+    const sceneCount = sb.scenes.length;
+    const durationSeconds = sb.scenes.reduce(
+      (sum, scene) => sum + (scene.durationSeconds > 0 ? scene.durationSeconds : 5),
+      0
+    );
+    const shotCount = Math.max(sceneCount, 1);
+    const hasCtaScene = sb.scenes.some((scene) =>
+      /\b(cta|call to action|bestel|order|shop|koop|buy|visit|bezoek|download|sign up|aanmelden)\b/i.test(
+        [scene.action, scene.description, scene.title].join(" ")
+      )
+    );
+
+    return {
+      storyboardId: sb.id,
+      title: sb.title,
+      ideaText: sb.aiDirectorPrompt,
+      directorProfile: sb.directorProfile,
+      promptStyleProfile: sb.promptStyleProfile,
+      sceneCount,
+      shotCount,
+      durationSeconds,
+      renderStrategy: params.renderStrategyByStoryboard.get(sb.id),
+      voiceProfile: sb.voiceProfile?.trim() || undefined,
+      audioStyle: sb.audioStyle?.trim() || undefined,
+      musicStyle: sb.musicStyle?.trim() || undefined,
+      soundStyle: sb.soundStyle?.trim() || undefined,
+      dominantWorldIds: [...(params.worldsByStoryboard.get(sb.id) ?? [])],
+      characterIds: [...(params.charactersByStoryboard.get(sb.id) ?? [])],
+      hasCtaScene,
+    };
+  });
+}
+
 export async function buildStudioProjectMemory(ownerId: string): Promise<StudioProjectMemorySnapshot> {
-  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, sceneShots, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices] =
+  const [charLinks, locationScenes, propLinks, motionProjects, storyboards, sceneShots, characters, worldsFromChars, worldsFromLocs, worldsFromProps, uploadedVoices, storyboardsForProduction] =
     await Promise.all([
       prisma.studioSceneCharacter.findMany({
         where: { character: { ownerId } },
@@ -58,7 +127,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
       }),
       prisma.animationProject.findMany({
         where: { ownerId, studioSourceStoryboardId: { not: null } },
-        select: { studioSourceStoryboardId: true, projectType: true },
+        select: { studioSourceStoryboardId: true, projectType: true, instantMode: true },
       }),
       prisma.studioStoryboard.findMany({
         where: { ownerId },
@@ -105,13 +174,41 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
           providerMetadata: true,
         },
       }),
+      prisma.studioStoryboard.findMany({
+        where: { ownerId },
+        select: {
+          id: true,
+          title: true,
+          aiDirectorPrompt: true,
+          directorProfile: true,
+          promptStyleProfile: true,
+          voiceProfile: true,
+          audioStyle: true,
+          musicStyle: true,
+          soundStyle: true,
+          scenes: {
+            select: {
+              durationSeconds: true,
+              action: true,
+              description: true,
+              title: true,
+            },
+            orderBy: { order: "asc" },
+          },
+        },
+      }),
     ]);
 
   const renderByStoryboard = new Map<string, number>();
   const campaignsByStoryboard = new Map<string, Set<string>>();
+  const renderStrategyByStoryboard = new Map<string, StudioRenderStrategy>();
   for (const project of motionProjects) {
     const sbId = project.studioSourceStoryboardId!;
     renderByStoryboard.set(sbId, (renderByStoryboard.get(sbId) ?? 0) + 1);
+    const strategy = instantModeToRenderStrategy(project.instantMode);
+    if (strategy && !renderStrategyByStoryboard.has(sbId)) {
+      renderStrategyByStoryboard.set(sbId, strategy);
+    }
     const types = campaignsByStoryboard.get(sbId) ?? new Set<string>();
     if (project.projectType?.trim()) {
       types.add(project.projectType.trim());
@@ -120,11 +217,16 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
   }
 
   const charMap = new Map<string, { storyboardIds: Set<string>; sceneCount: number }>();
+  const charactersByStoryboard = new Map<string, Set<string>>();
   for (const link of charLinks) {
     const entry = charMap.get(link.characterId) ?? { storyboardIds: new Set(), sceneCount: 0 };
     entry.sceneCount++;
     entry.storyboardIds.add(link.scene.storyboardId);
     charMap.set(link.characterId, entry);
+    const sbChars =
+      charactersByStoryboard.get(link.scene.storyboardId) ?? new Set<string>();
+    sbChars.add(link.characterId);
+    charactersByStoryboard.set(link.scene.storyboardId, sbChars);
   }
 
   const locMap = new Map<string, { storyboardIds: Set<string>; sceneCount: number }>();
@@ -145,7 +247,13 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
   }
 
   const worldMap = new Map<string, { storyboardIds: Set<string>; sceneCount: number }>();
+  const worldsByStoryboard = new Map<string, Set<string>>();
   const charStoryboardsByChar = charMap;
+  const addWorldToStoryboard = (storyboardId: string, worldId: string) => {
+    const set = worldsByStoryboard.get(storyboardId) ?? new Set<string>();
+    set.add(worldId);
+    worldsByStoryboard.set(storyboardId, set);
+  };
   for (const row of worldsFromChars) {
     if (!row.worldProfileId) {
       continue;
@@ -157,6 +265,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     const entry = worldMap.get(row.worldProfileId) ?? { storyboardIds: new Set(), sceneCount: 0 };
     for (const sbId of charUsage.storyboardIds) {
       entry.storyboardIds.add(sbId);
+      addWorldToStoryboard(sbId, row.worldProfileId);
     }
     entry.sceneCount += charUsage.sceneCount;
     worldMap.set(row.worldProfileId, entry);
@@ -172,6 +281,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     const entry = worldMap.get(row.worldProfileId) ?? { storyboardIds: new Set(), sceneCount: 0 };
     for (const sbId of locUsage.storyboardIds) {
       entry.storyboardIds.add(sbId);
+      addWorldToStoryboard(sbId, row.worldProfileId);
     }
     entry.sceneCount += locUsage.sceneCount;
     worldMap.set(row.worldProfileId, entry);
@@ -187,6 +297,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     const entry = worldMap.get(row.worldProfileId) ?? { storyboardIds: new Set(), sceneCount: 0 };
     for (const sbId of propUsage.storyboardIds) {
       entry.storyboardIds.add(sbId);
+      addWorldToStoryboard(sbId, row.worldProfileId);
     }
     entry.sceneCount += propUsage.sceneCount;
     worldMap.set(row.worldProfileId, entry);
@@ -314,6 +425,13 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     };
   });
 
+  const productionRecords = buildProductionRecords({
+    storyboards: storyboardsForProduction,
+    charactersByStoryboard,
+    worldsByStoryboard,
+    renderStrategyByStoryboard,
+  });
+
   return {
     characters: finalizeStats(charMap, renderByStoryboard, campaignsByStoryboard),
     locations: finalizeStats(locMap, renderByStoryboard, campaignsByStoryboard),
@@ -324,5 +442,6 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     libraryAudio,
     styles: [...styleMap.values()].sort((a, b) => b.storyboardCount - a.storyboardCount),
     shotPatterns,
+    productionRecords,
   };
 }

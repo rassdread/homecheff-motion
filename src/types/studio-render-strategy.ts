@@ -89,4 +89,5 @@ export type StudioRenderStrategyPlanInput = {
   props?: import("@/types/studio-api").StudioPropListItem[];
   worlds?: import("@/types/studio-api").StudioWorldProfileListItem[];
   desiredFinalDurationSeconds?: number;
+  projectMemory?: import("@/types/studio-project-memory").StudioProjectMemorySnapshot;
 };

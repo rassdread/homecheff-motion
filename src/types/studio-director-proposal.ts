@@ -262,6 +262,7 @@ export type StudioDirectorProposal = {
   animationPlan?: StudioAnimationPlan;
   animationPlanPreview?: DirectorProposalAnimationPlanEntry[];
   generationPlan?: import("@/types/studio-scene-generation-plan").StudioSceneGenerationPlan;
+  productionMemoryContext?: import("@/types/studio-production-memory").ProductionMemoryContext;
   generationPlanPreview?: Array<{
     sceneOrder: number;
     actionBeat: string;
