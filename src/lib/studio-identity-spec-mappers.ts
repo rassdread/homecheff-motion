@@ -4,6 +4,10 @@
 
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { normalizeStudioIdentityStrength } from "@/lib/studio-memory-validation";
+import {
+  extractPropStructuredKeywordString,
+  parsePropAppearanceDetails,
+} from "@/lib/studio-prop-identity-structured";
 import type {
   StudioCharacterDetail,
   StudioCharacterListItem,
@@ -55,7 +59,7 @@ function buildLocationTags(location: StudioLocationListItem): string[] {
 
 function buildPropTags(prop: StudioPropListItem): string[] {
   const tags = [prop.category, prop.slug];
-  tags.push(...splitKeywordTags(prop.appearanceMemory));
+  tags.push(...splitKeywordTags(parsePropAppearanceDetails(prop.appearanceMemory)));
   return [...new Set(tags)];
 }
 
@@ -77,7 +81,10 @@ function buildLocationVisualRules(location: StudioLocationListItem): string {
 }
 
 function buildPropVisualRules(prop: StudioPropListItem): string {
-  return joinNonEmpty([prop.appearanceMemory, prop.brandingRules]);
+  return joinNonEmpty([
+    parsePropAppearanceDetails(prop.appearanceMemory),
+    prop.brandingRules,
+  ]);
 }
 
 function buildWorldVisualRules(world: StudioWorldProfileListItem): string {
@@ -221,7 +228,7 @@ export function propToIdentitySpec(
     role: "",
     description: prop.description,
     personality: "",
-    visualKeywords: "",
+    visualKeywords: extractPropStructuredKeywordString(prop.appearanceMemory),
     visualRules: buildPropVisualRules(prop),
     tags: buildPropTags(prop),
     references: primaryReference(prop.referenceImageUrl, storageKey, ""),

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { StudioWorkspaceCharacterIdentityBuilder } from "@/components/studio/studio-workspace-character-identity-builder";
 import { StudioWorkspaceLocationIdentityBuilder } from "@/components/studio/studio-workspace-location-identity-builder";
+import { StudioWorkspacePropIdentityBuilder } from "@/components/studio/studio-workspace-prop-identity-builder";
 import {
   StudioWorkspaceAssetCreateSheet,
   type WorkspaceAssetCreateKind,
@@ -41,6 +42,7 @@ type Props = {
   onAssetsChanged: () => void;
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   onLocationUpdated?: (location: StudioLocationListItem) => void;
+  onPropUpdated?: (prop: StudioPropListItem) => void;
   storyLanguage?: string;
   storyVoiceProfile?: string | null;
   storyboard?: StudioStoryboardDetail | null;
@@ -80,6 +82,7 @@ export function StudioWorkspaceSceneAssetsPanel({
   onAssetsChanged,
   onCharacterUpdated,
   onLocationUpdated,
+  onPropUpdated,
   storyLanguage = "en",
   storyVoiceProfile,
   storyboard,
@@ -243,6 +246,130 @@ export function StudioWorkspaceSceneAssetsPanel({
           : t("studio.workspace.assets.chooseWorld");
 
   const sceneWorlds = scene ? collectSceneWorlds(scene) : [];
+
+  if (tab === "props") {
+    return (
+      <div className="space-y-6 pb-8">
+        <StudioWorkspacePropIdentityBuilder
+          props={props}
+          characters={characters}
+          worlds={worlds}
+          locations={locations}
+          storyboard={storyboard}
+          memory={memory}
+          canModify={canModify}
+          onPropUpdated={(updated) => {
+            onPropUpdated?.(updated);
+            onAssetsChanged();
+          }}
+        />
+
+        {!scene ?
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+            {t("studio.workspace.assets.noSceneHint")}
+          </p>
+        : (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.workspace.assets.sceneLabel", { n: String(sceneIndex + 1) })}
+              </p>
+              <p className="mt-0.5 text-sm text-zinc-600">
+                {t("studio.workspace.assets.linkedToScene")}
+              </p>
+            </div>
+            {error ?
+              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {error}
+              </p>
+            : null}
+            <div className="flex flex-wrap gap-2">
+              {canModify ?
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setPickerOpen(true)}
+                    className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
+                  >
+                    {t("studio.workspace.assets.addProp")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCreateKind("prop")}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
+                  >
+                    {t("studio.workspace.assets.newProp")}
+                  </button>
+                </>
+              : null}
+            </div>
+            <ul className="space-y-2">
+              {scene.props.map((prop) => {
+                const fresh = props.find((p) => p.id === prop.id) ?? prop;
+                return (
+                  <li
+                    key={prop.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      {fresh.referenceImageUrl ?
+                        <img
+                          src={fresh.referenceImageUrl}
+                          alt=""
+                          className="h-10 w-10 rounded-lg object-cover"
+                        />
+                      : null}
+                      <p className="text-sm font-semibold text-zinc-900">{fresh.name}</p>
+                    </div>
+                    {canModify ?
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => unlinkProp(prop.id)}
+                        className="text-xs font-semibold text-red-700 hover:underline"
+                      >
+                        {t("studio.workspace.assets.removeFromScene")}
+                      </button>
+                    : null}
+                  </li>
+                );
+              })}
+              {scene.props.length === 0 ?
+                <li className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+                  {t("studio.workspace.assets.noLinkedProps")}
+                </li>
+              : null}
+            </ul>
+          </>
+        )}
+
+        <StudioWorkspaceAssetPicker
+          open={pickerOpen}
+          title={pickerTitle}
+          items={pickerItems}
+          linkedIds={linkedIds}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(id) => {
+            setPickerOpen(false);
+            if (scene) linkProp(id);
+          }}
+        />
+        {createKind ?
+          <StudioWorkspaceAssetCreateSheet
+            open={Boolean(createKind)}
+            kind={createKind}
+            onClose={() => setCreateKind(null)}
+            onCreated={(kind, id) => {
+              setCreateKind(null);
+              handleCreated(kind, id);
+            }}
+          />
+        : null}
+      </div>
+    );
+  }
 
   if (tab === "locations") {
     return (
@@ -494,63 +621,6 @@ export function StudioWorkspaceSceneAssetsPanel({
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
       : null}
 
-      {tab === "props" ?
-        <>
-          <div className="flex flex-wrap gap-2">
-            {canModify ?
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setPickerOpen(true)}
-                  className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
-                >
-                  {t("studio.workspace.assets.addProp")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openCreate("prop")}
-                  className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
-                >
-                  {t("studio.workspace.assets.newProp")}
-                </button>
-              </>
-            : null}
-          </div>
-          <ul className="space-y-2">
-            {scene.props.map((prop) => (
-              <li
-                key={prop.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  {prop.referenceImageUrl ?
-                    <img src={prop.referenceImageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                  : null}
-                  <p className="text-sm font-semibold text-zinc-900">{prop.name}</p>
-                </div>
-                {canModify ?
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => unlinkProp(prop.id)}
-                    className="text-xs font-semibold text-red-700 hover:underline"
-                  >
-                    {t("studio.workspace.assets.removeFromScene")}
-                  </button>
-                : null}
-              </li>
-            ))}
-            {scene.props.length === 0 ?
-              <li className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
-                {t("studio.workspace.assets.noLinkedProps")}
-              </li>
-            : null}
-          </ul>
-        </>
-      : null}
-
       {tab === "worlds" ?
         <>
           <p className="text-sm text-zinc-600">{t("studio.workspace.assets.worldContextHint")}</p>
@@ -599,9 +669,7 @@ export function StudioWorkspaceSceneAssetsPanel({
         linkedIds={linkedIds}
         onClose={() => setPickerOpen(false)}
         onSelect={(id) => {
-          if (tab === "props") {
-            linkProp(id);
-          } else if (tab === "worlds") {
+          if (tab === "worlds") {
             void applyWorldToLocation(id);
           }
         }}

@@ -1,5 +1,7 @@
 import { continuityStrengthPromptHint } from "@/lib/studio-continuity-strength";
 import { buildLocationIdentityMemoryPromptExtras } from "@/lib/studio-location-identity-visual-hints";
+import { buildPropIdentityMemoryPromptExtras } from "@/lib/studio-prop-identity-visual-hints";
+import { parsePropAppearanceDetails } from "@/lib/studio-prop-identity-structured";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
 function joinLines(parts: string[]): string {
@@ -77,8 +79,10 @@ export function buildLocationMemoryPromptLines(
 export function buildPropMemoryPromptLines(props: SceneMemoryBundle["props"]): string[] {
   return props.map((prop) => {
     const block: string[] = [`Keep ${prop.name} visually consistent when visible.`];
-    if (prop.appearanceMemory.trim()) {
-      block.push(`Appearance: ${prop.appearanceMemory.trim()}.`);
+    block.push(...buildPropIdentityMemoryPromptExtras(prop));
+    const detailOnly = parsePropAppearanceDetails(prop.appearanceMemory);
+    if (detailOnly) {
+      block.push(`Appearance: ${detailOnly}.`);
     }
     if (prop.brandingRules.trim()) {
       block.push(`Branding: ${prop.brandingRules.trim()}.`);

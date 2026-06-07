@@ -189,6 +189,22 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     });
   }, []);
 
+  const handlePropUpdated = useCallback((updated: StudioPropListItem) => {
+    setProps((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setStoryboard((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      return {
+        ...prev,
+        scenes: prev.scenes.map((scene) => ({
+          ...scene,
+          props: scene.props.map((p) => (p.id === updated.id ? updated : p)),
+        })),
+      };
+    });
+  }, []);
+
   const handleSceneAssetUpdated = (updated: StudioSceneDetail) => {
     setStoryboard((prev) =>
       prev
@@ -474,6 +490,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   onAssetsChanged={() => void refreshAssetLibraries()}
                   onCharacterUpdated={handleCharacterUpdated}
                   onLocationUpdated={handleLocationUpdated}
+                  onPropUpdated={handlePropUpdated}
                 />
               : (
                 <StudioWorkspaceToolPanel
