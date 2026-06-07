@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { generateCharacterVoicePreview } from "@/server/studio/generate-character-voice-preview";
+import { generateCharacterVoicePreviewDraft } from "@/server/studio/generate-character-voice-preview";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: Request) {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
     return user;
   }
 
-  const { id } = await context.params;
   let body: {
-    language?: string;
-    sampleLine?: string;
-    voiceProfile?: string;
     characterName?: string;
+    voiceProfile?: string;
+    voiceLanguage?: string;
+    sampleLine?: string;
   } = {};
   try {
     body = (await request.json().catch(() => ({}))) as typeof body;
@@ -23,13 +20,12 @@ export async function POST(request: Request, context: RouteContext) {
     body = {};
   }
 
-  const result = await generateCharacterVoicePreview({
-    characterId: id,
+  const result = await generateCharacterVoicePreviewDraft({
     ownerId: user.id,
-    language: body.language,
-    sampleLine: body.sampleLine,
-    voiceProfile: body.voiceProfile,
-    characterName: body.characterName,
+    characterName: typeof body.characterName === "string" ? body.characterName : "",
+    voiceProfile: typeof body.voiceProfile === "string" ? body.voiceProfile : "warm_narrator",
+    voiceLanguage: typeof body.voiceLanguage === "string" ? body.voiceLanguage : "en",
+    sampleLine: typeof body.sampleLine === "string" ? body.sampleLine : undefined,
   });
 
   if ("error" in result) {
@@ -44,5 +40,6 @@ export async function POST(request: Request, context: RouteContext) {
     audioUrl: result.audioUrl,
     durationSeconds: result.durationSeconds,
     provider: result.provider,
+    metadata: result.metadata,
   });
 }

@@ -4,6 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import {
+  requestCharacterVoicePreview,
+  resolveDefaultCharacterPreviewText,
+} from "@/lib/studio-character-voice-preview-client";
+import {
   STUDIO_VOICE_PROFILE_IDS,
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
@@ -81,6 +85,14 @@ export function StudioCharacterVoiceCenter({
   );
   const [previewBusyLang, setPreviewBusyLang] = useState<VoiceCenterLanguage | null>(null);
   const [previewError, setPreviewError] = useState("");
+  const [lastPreviewWasDraft, setLastPreviewWasDraft] = useState(false);
+  const defaultPreviewText = useMemo(
+    () => resolveDefaultCharacterPreviewText(characterName, value.voiceLanguage),
+    [characterName, value.voiceLanguage]
+  );
+  const [previewText, setPreviewText] = useState("");
+  const [previewTextTouched, setPreviewTextTouched] = useState(false);
+  const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
 
   const defaultProfileLabel = useMemo(() => {
     const preset = getVoiceProfilePreset(normalizeStudioVoiceProfileId(value.voiceProfile));
@@ -89,44 +101,29 @@ export function StudioCharacterVoiceCenter({
 
   const runPreview = useCallback(
     async (lang: VoiceCenterLanguage) => {
-      if (!characterId || !value.voiceEnabled) {
+      if (!value.voiceEnabled) {
         return;
       }
+      const resolved = resolveLanguageVoice(value, lang);
       setPreviewBusyLang(lang);
       setPreviewError("");
       try {
-        const res = await fetch(
-          `/api/studio/characters/${encodeURIComponent(characterId)}/voice-preview`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ language: lang }),
-          }
-        );
-        const json: unknown = await res.json().catch(() => null);
-        if (!res.ok) {
-          const msg =
-            json && typeof json === "object" && "error" in json
-              ? String((json as { error: unknown }).error)
-              : `HTTP ${res.status}`;
-          throw new Error(msg);
-        }
-        const url =
-          json && typeof json === "object" && "audioUrl" in json
-            ? String((json as { audioUrl: unknown }).audioUrl)
-            : "";
-        if (!url) {
-          throw new Error("No preview URL returned.");
-        }
-        setPreviewByLang((prev) => ({ ...prev, [lang]: url }));
+        const result = await requestCharacterVoicePreview({
+          characterId,
+          characterName,
+          voiceProfile: resolved.profile,
+          language: lang,
+          sampleLine: resolvedPreviewText,
+        });
+        setPreviewByLang((prev) => ({ ...prev, [lang]: result.audioUrl }));
+        setLastPreviewWasDraft(result.isDraft);
       } catch (e) {
-        setPreviewError(e instanceof Error ? e.message : "Preview failed.");
+        setPreviewError(e instanceof Error ? e.message : t("studio.voiceCenter.previewFailed"));
       } finally {
         setPreviewBusyLang(null);
       }
     },
-    [characterId, value.voiceEnabled]
+    [characterId, characterName, resolvedPreviewText, t, value]
   );
 
   const updateLang = (
@@ -220,6 +217,24 @@ export function StudioCharacterVoiceCenter({
         </p>
       </div>
 
+      <label className="mt-4 block text-xs font-medium text-violet-900">
+        {t("studio.voiceCenter.previewTextLabel")}
+        <textarea
+          className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+          rows={2}
+          value={resolvedPreviewText}
+          disabled={!value.voiceEnabled}
+          placeholder={defaultPreviewText}
+          onChange={(e) => {
+            setPreviewTextTouched(true);
+            setPreviewText(e.target.value);
+          }}
+        />
+        <span className="mt-1 block text-[11px] text-violet-700/90">
+          {t("studio.voiceCenter.previewTextHint")}
+        </span>
+      </label>
+
       <div className="mt-6 space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
           {t("studio.voiceCenter.perLanguage")}
@@ -281,7 +296,7 @@ export function StudioCharacterVoiceCenter({
                 <div className="flex flex-col justify-end gap-2">
                   <button
                     type="button"
-                    disabled={!characterId || !value.voiceEnabled || previewBusyLang === lang}
+                    disabled={!value.voiceEnabled || previewBusyLang === lang}
                     onClick={() => void runPreview(lang)}
                     className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
                   >
@@ -293,13 +308,20 @@ export function StudioCharacterVoiceCenter({
               </div>
 
               {previewUrl ?
-                <StudioAudioPreviewPlayer
-                  title={t("studio.voiceCenter.lastPreview")}
-                  audioUrl={previewUrl}
-                  source="voice_character"
-                  variant="compact"
-                  className="mt-3 border-violet-100"
-                />
+                <div className="mt-3 space-y-1">
+                  {lastPreviewWasDraft ?
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                      {t("studio.voiceCenter.draftPreviewBadge")}
+                    </p>
+                  : null}
+                  <StudioAudioPreviewPlayer
+                    title={t("studio.voiceCenter.lastPreview")}
+                    audioUrl={previewUrl}
+                    source="voice_character"
+                    variant="compact"
+                    className="border-violet-100"
+                  />
+                </div>
               : null}
             </article>
           );

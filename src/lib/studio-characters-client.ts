@@ -107,6 +107,8 @@ export async function cloneCharacterVoiceApi(
     ok: boolean;
     character: import("@/types/studio-api").StudioCharacterListItem;
     clonedVoiceName?: string;
+    voiceProfileRef?: string;
+    provider?: string;
     previewAudioUrl?: string | null;
     error?: string;
     code?: string;

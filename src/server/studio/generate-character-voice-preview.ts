@@ -1,23 +1,31 @@
-import { buildVoiceRequest, validateVoiceSettings } from "@/lib/elevenlabs-voice";
-import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
-import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
 import { prisma } from "@/lib/prisma";
-import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
-import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
+import { normalizeStudioVoiceProfileId } from "@/lib/studio-voice-profiles";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
 import { mapStudioCharacterToDetail } from "@/server/studio/studio-character-service";
-import { characterVoiceSnapshotFromRow, resolveCharacterVoiceForLanguage } from "@/lib/studio-character-voice";
+import {
+  characterVoiceSnapshotFromRow,
+  resolveCharacterVoiceForLanguage,
+} from "@/lib/studio-character-voice";
+import {
+  draftCharacterVoicePreviewStorageIds,
+  synthesizeCharacterVoicePreview,
+} from "@/server/studio/synthesize-character-voice-preview";
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
 }
 
+export type CharacterVoicePreviewOverrides = {
+  language?: string;
+  sampleLine?: string;
+  voiceProfile?: string;
+  characterName?: string;
+};
+
 export async function generateCharacterVoicePreview(params: {
   characterId: string;
   ownerId: string;
-  language?: string;
-  sampleLine?: string;
-}): Promise<
+} & CharacterVoicePreviewOverrides): Promise<
   | { ok: true; audioUrl: string; durationSeconds: number; provider: string }
   | { error: ServiceError }
 > {
@@ -30,61 +38,94 @@ export async function generateCharacterVoicePreview(params: {
 
   const language = (params.language ?? row.voiceLanguage ?? "en").trim().toLowerCase().slice(0, 2);
   const snap = resolveCharacterVoiceForLanguage(characterVoiceSnapshotFromRow(row), language);
-  if (!snap.voiceEnabled && !snap.voiceProfile) {
+  const voiceProfileOverride = params.voiceProfile?.trim();
+  const voiceProfile = normalizeStudioVoiceProfileId(
+    voiceProfileOverride || snap.voiceProfile || "warm_narrator"
+  );
+
+  if (!params.voiceProfile && !snap.voiceEnabled && !snap.voiceProfile) {
     return {
       error: serviceError("VOICE_DISABLED", "Enable a voice profile on this character first.", 400),
     };
   }
 
-  const voiceProfile = snap.voiceProfile || "warm_narrator";
-  const preset = getVoiceProfilePreset(voiceProfile);
-  const script =
-    params.sampleLine?.trim() ||
-    defaultCharacterVoicePreviewLine(mapStudioCharacterToDetail(row).name, language);
+  const characterName =
+    params.characterName?.trim() || mapStudioCharacterToDetail(row).name || "Character";
 
-  const validation = validateVoiceSettings({
-    voiceEnabled: true,
-    voiceLanguage: language,
+  const synthesis = await synthesizeCharacterVoicePreview({
+    ownerId: params.ownerId,
+    characterName,
     voiceProfile,
-    narrationMode: "narrator",
-    script,
+    language,
+    sampleLine: params.sampleLine,
+    storageStoryboardId: `character-${row.id}`,
+    storageAssetId: row.id,
   });
-  if (!validation.ok) {
-    return { error: serviceError(validation.code, validation.message, 400) };
+
+  if ("error" in synthesis) {
+    return synthesis;
   }
 
-  const request = buildVoiceRequest({
-    script,
-    voiceProfile,
-    voiceLanguage: language,
-    narrationMode: "narrator",
-    preset,
-  });
+  return {
+    ok: true,
+    audioUrl: synthesis.audioUrl,
+    durationSeconds: synthesis.durationSeconds,
+    provider: synthesis.provider,
+  };
+}
 
-  try {
-    const provider = selectVoiceProvider();
-    const synthesis = await provider.synthesize({
-      request,
-      voiceProfile,
-      voiceLanguage: language,
-    });
-    const contentType = synthesis.provider === "mock" ? "audio/wav" : "audio/mpeg";
-    const uploaded = await uploadStoryboardVoiceAudio({
-      ownerId: params.ownerId,
-      storyboardId: `character-${row.id}`,
-      language: `preview-${language}`,
-      voiceAssetId: row.id,
-      audioBuffer: synthesis.audioBuffer,
-      contentType,
-    });
+export async function generateCharacterVoicePreviewDraft(params: {
+  ownerId: string;
+  characterName: string;
+  voiceProfile: string;
+  voiceLanguage: string;
+  sampleLine?: string;
+}): Promise<
+  | {
+      ok: true;
+      audioUrl: string;
+      durationSeconds: number;
+      provider: string;
+      metadata: { script: string; voiceProfile: string; language: string };
+    }
+  | { error: ServiceError }
+> {
+  const characterName = params.characterName.trim();
+  if (!characterName) {
     return {
-      ok: true,
-      audioUrl: uploaded.audioUrl,
-      durationSeconds: synthesis.durationSeconds,
-      provider: synthesis.provider,
+      error: serviceError("CHARACTER_NAME_REQUIRED", "Enter a character name for preview.", 400),
     };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Voice preview failed.";
-    return { error: serviceError("VOICE_PREVIEW_FAILED", message, 502) };
   }
+
+  const voiceProfile = normalizeStudioVoiceProfileId(params.voiceProfile || "warm_narrator");
+  const language = params.voiceLanguage.trim().toLowerCase().slice(0, 2) || "en";
+  const { storageAssetId, storageStoryboardId } = draftCharacterVoicePreviewStorageIds(
+    params.ownerId
+  );
+
+  const synthesis = await synthesizeCharacterVoicePreview({
+    ownerId: params.ownerId,
+    characterName,
+    voiceProfile,
+    language,
+    sampleLine: params.sampleLine,
+    storageStoryboardId,
+    storageAssetId,
+  });
+
+  if ("error" in synthesis) {
+    return synthesis;
+  }
+
+  return {
+    ok: true,
+    audioUrl: synthesis.audioUrl,
+    durationSeconds: synthesis.durationSeconds,
+    provider: synthesis.provider,
+    metadata: {
+      script: synthesis.script,
+      voiceProfile: synthesis.voiceProfile,
+      language: synthesis.language,
+    },
+  };
 }
