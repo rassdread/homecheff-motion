@@ -4,6 +4,7 @@
  */
 
 import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-plan";
+import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
@@ -11,7 +12,6 @@ import {
   actionVerbPatternsAsRegex,
   countDistinctActionCapabilities,
   extractActionSteps,
-  SEQUENTIAL_ACTION_SPLIT,
 } from "@/lib/studio-scene-action-extraction";
 import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
 import { parseWorldRenderStrategies } from "@/lib/studio-world-identity-structured";
@@ -264,30 +264,23 @@ function classifyStrategy(params: {
 }
 
 function buildShotSplitSuggestions(
-  analyses: SceneActionAnalysis[]
+  distributions: ReturnType<typeof buildStoryboardActionShotDistribution>["scenes"]
 ): RenderStrategyShotSplitSuggestion[] {
   const suggestions: RenderStrategyShotSplitSuggestion[] = [];
-  for (const analysis of analyses) {
-    if (analysis.complexity !== "high") {
-      continue;
-    }
-    const steps =
-      analysis.actionSteps.length >= 2
-        ? analysis.actionSteps
-        : analysis.action.split(SEQUENTIAL_ACTION_SPLIT).filter((s) => s.trim().length >= 3);
-    if (steps.length < 2) {
+  for (const dist of distributions) {
+    if (!dist.suggestsMultipleShots || dist.beats.length < 2) {
       continue;
     }
     suggestions.push({
-      sceneId: analysis.sceneId,
-      sceneOrder: analysis.order,
-      sceneTitle: analysis.title,
-      originalAction: analysis.action,
-      suggestedShotCount: steps.length,
-      suggestedShots: steps.map((step, index) => ({
-        order: index + 1,
-        labelKey: "studio.renderStrategy.shotSplit.shotLabel",
-        actionHint: step.trim(),
+      sceneId: dist.sceneId,
+      sceneOrder: dist.sceneOrder,
+      sceneTitle: dist.sceneTitle,
+      originalAction: dist.actionChain.actionText,
+      suggestedShotCount: dist.recommendedShotCount,
+      suggestedShots: dist.beats.map((beat) => ({
+        order: beat.order,
+        labelKey: beat.labelKey,
+        actionHint: beat.actionHint,
       })),
       reasonKey: "studio.renderStrategy.shotSplit.multiAction",
       previewOnly: true,
@@ -380,6 +373,12 @@ export function buildStudioRenderStrategyPlan(
   input: StudioRenderStrategyPlanInput
 ): StudioRenderStrategyPlan {
   const scenes = [...input.storyboard.scenes].sort((a, b) => a.order - b.order);
+  const actionShotDistribution = buildStoryboardActionShotDistribution({
+    storyboard: input.storyboard,
+    characters: input.characters,
+    props: input.props,
+    worlds: input.worlds,
+  });
   const actionIntelligence = buildStoryboardActionIntelligence({
     storyboard: input.storyboard,
     characters: input.characters ?? [],
@@ -446,7 +445,7 @@ export function buildStudioRenderStrategyPlan(
   const presentImageCount = imageRequirements.filter((r) => r.status === "present").length;
   const missingImageCount = imageRequirements.filter((r) => r.status === "missing").length;
 
-  const suggestedShotSplitting = buildShotSplitSuggestions(analyses);
+  const suggestedShotSplitting = buildShotSplitSuggestions(actionShotDistribution.scenes);
 
   const warnings: RenderStrategyReason[] = [];
   if (missingImageCount > 0) {
@@ -466,6 +465,14 @@ export function buildStudioRenderStrategyPlan(
     warnings.push({
       id: "few-scenes",
       reasonKey: "studio.renderStrategy.warning.fewScenes",
+    });
+  }
+
+  if (actionShotDistribution.scenesNeedingSplit > 0) {
+    warnings.push({
+      id: "duration-mismatch",
+      reasonKey: "studio.actionSequence.warning.durationMismatch",
+      reasonParams: { count: String(actionShotDistribution.scenesNeedingSplit) },
     });
   }
 
@@ -509,6 +516,7 @@ export function buildStudioRenderStrategyPlan(
     internalInstantMode: internalMode,
     strategyLabelKey: strategyLabelKey(strategy),
     strategyExplanationKey: strategyExplanationKey(strategy),
+    actionShotDistributions: actionShotDistribution.scenes.filter((d) => d.suggestsMultipleShots),
   };
 }
 

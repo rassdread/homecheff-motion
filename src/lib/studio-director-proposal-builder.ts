@@ -27,6 +27,7 @@ import {
 } from "@/lib/studio-identity-consumption";
 import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
 import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
+import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
@@ -995,6 +996,13 @@ export function buildDirectorProposal(params: {
     worlds: params.worlds ?? [],
   });
 
+  const actionShotDistributionRaw = buildStoryboardActionShotDistribution({
+    storyboard: mockStoryboard,
+    characters: params.characters,
+    props: params.props,
+    worlds: params.worlds ?? [],
+  });
+
   return {
     ...enriched,
     memorySuggestions,
@@ -1021,6 +1029,26 @@ export function buildDirectorProposal(params: {
           };
         }),
     },
+    actionShotDistribution: actionShotDistributionRaw.scenes
+      .filter((d) => d.suggestsMultipleShots)
+      .map((d) => ({
+        sceneOrder: d.sceneOrder,
+        sceneTitle: d.sceneTitle,
+        recommendedShotCount: d.recommendedShotCount,
+        suggestsMultipleShots: d.suggestsMultipleShots,
+        distributionReasonKey: d.distributionReasonKey,
+        durationAdviceKey: d.durationAdvice.adviceKey,
+        durationAdviceParams: d.durationAdvice.adviceParams,
+        beats: d.beats.map((b) => ({
+          order: b.order,
+          labelKey: b.labelKey,
+          actionHint: b.actionHint,
+          role: b.role,
+          imageRole: b.imageRole,
+          imageStatus: b.imageStatus,
+        })),
+        missingAssetKeys: d.actionChain.missingSupportingAssets.map((a) => a.reasonKey),
+      })),
     identityConsumption: {
       directorContextLines: identityConsumption.directorContextLines,
       rationales: identityConsumption.rationales.map((r) => ({

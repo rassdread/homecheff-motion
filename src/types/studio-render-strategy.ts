@@ -78,6 +78,8 @@ export type StudioRenderStrategyPlan = {
   internalInstantMode: RenderStrategyInternalInstantMode;
   strategyLabelKey: string;
   strategyExplanationKey: string;
+  /** Per-scene action → shot beat distribution (planning only). */
+  actionShotDistributions?: import("@/types/studio-action-shot-distribution").SceneActionShotDistribution[];
 };
 
 export type StudioRenderStrategyPlanInput = {

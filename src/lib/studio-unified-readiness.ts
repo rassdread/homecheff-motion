@@ -145,6 +145,19 @@ function buildRenderSoftWarnings(
   if (renderStrategyPlan.suggestedShotSplitting.length > 0) {
     warnings.push({ messageKey: "studio.renderStrategy.warning.splitAdvice" });
   }
+  if ((renderStrategyPlan.actionShotDistributions?.length ?? 0) > 0) {
+    warnings.push({ messageKey: "studio.actionSequence.warning.multipleShots" });
+  }
+  const durationMismatchCount =
+    renderStrategyPlan.actionShotDistributions?.filter(
+      (d) => d.durationAdvice.level === "too_short"
+    ).length ?? 0;
+  if (durationMismatchCount > 0) {
+    warnings.push({
+      messageKey: "studio.actionSequence.warning.durationMismatch",
+      params: { count: String(durationMismatchCount) },
+    });
+  }
 
   return warnings;
 }

@@ -15,6 +15,7 @@ import { StudioDirectorSectionAdvanced } from "@/components/studio/director-v2/s
 import { StudioAudioConfidenceCard } from "@/components/studio/studio-audio-confidence-card";
 import { StudioSceneIdentityConsumptionSummary } from "@/components/studio/studio-scene-identity-consumption-summary";
 import { StudioCharacterCapabilitiesSummary } from "@/components/studio/studio-character-capabilities-summary";
+import { StudioActionSequenceSummary } from "@/components/studio/studio-action-sequence-summary";
 import {
   readStudioDirectorV2Mode,
   writeStudioDirectorV2Mode,
@@ -226,6 +227,15 @@ export function StudioDirectorPanelV2({
         worlds={worlds}
         variant="compact"
         showMemoryTrends={false}
+      />
+
+      <StudioActionSequenceSummary
+        storyboard={storyboard}
+        scene={scene}
+        characters={characters}
+        props={props}
+        worlds={worlds}
+        variant="compact"
       />
 
       <div className="space-y-3">

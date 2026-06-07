@@ -310,6 +310,61 @@ function ProposalPreviewModal({
             </section>
           : null}
 
+          {proposal.actionShotDistribution && proposal.actionShotDistribution.length > 0 ?
+            <section className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
+                {t("studio.actionSequence.title")}
+              </h3>
+              <p className="mt-1 text-xs text-amber-900">
+                {t("studio.actionSequence.reason.multipleShots")}
+              </p>
+              {proposal.actionShotDistribution.map((entry) => (
+                <div key={entry.sceneOrder} className="mt-3 rounded-lg bg-white/90 p-3">
+                  <p className="text-xs font-semibold text-zinc-900">
+                    {t("studio.directorProposal.preview.sceneLine", {
+                      index: String(entry.sceneOrder + 1),
+                      title: entry.sceneTitle,
+                    })}
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-500">
+                    {t("studio.actionSequence.recommendedShots", {
+                      count: String(entry.recommendedShotCount),
+                    })}
+                  </p>
+                  <ol className="mt-2 space-y-1 text-xs text-zinc-700">
+                    {entry.beats.map((beat) => (
+                      <li key={beat.order}>
+                        {beat.order}. {t(beat.labelKey as TranslationKey)}
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-2 text-[10px] text-amber-800">
+                    {t(entry.durationAdviceKey as TranslationKey, entry.durationAdviceParams)}
+                  </p>
+                </div>
+              ))}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-full bg-[#0067B1]/40 px-3 py-1.5 text-xs font-semibold text-white"
+                  title={t("studio.actionSequence.previewOnly")}
+                >
+                  {t("studio.actionSequence.useSuggestion")}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700"
+                >
+                  {t("studio.actionSequence.keepAsIs")}
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] text-zinc-500">
+                {t("studio.actionSequence.previewOnly")}
+              </p>
+            </section>
+          : null}
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("studio.directorProposal.preview.storyArc")}

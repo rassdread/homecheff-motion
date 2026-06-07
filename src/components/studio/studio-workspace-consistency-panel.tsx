@@ -5,6 +5,7 @@ import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion
 import { StudioWorldIdentityRulesSummary } from "@/components/studio/studio-world-identity-rules-summary";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
+import { StudioActionSequenceSummary } from "@/components/studio/studio-action-sequence-summary";
 import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -232,6 +233,14 @@ export function StudioWorkspaceConsistencyPanel({
         props={props}
         worlds={worlds}
         plan={unified.renderStrategyPlan}
+        variant="full"
+      />
+
+      <StudioActionSequenceSummary
+        storyboard={storyboard}
+        characters={characters}
+        props={props}
+        worlds={worlds}
         variant="full"
       />
 

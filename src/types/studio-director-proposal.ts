@@ -185,6 +185,25 @@ export type DirectorProposalIdentityConsumption = {
   }>;
 };
 
+export type DirectorProposalActionShotDistributionEntry = {
+  sceneOrder: number;
+  sceneTitle: string;
+  recommendedShotCount: number;
+  suggestsMultipleShots: boolean;
+  distributionReasonKey?: string;
+  durationAdviceKey: string;
+  durationAdviceParams?: Record<string, string>;
+  beats: Array<{
+    order: number;
+    labelKey: string;
+    actionHint: string;
+    role: string;
+    imageRole: string;
+    imageStatus: string;
+  }>;
+  missingAssetKeys: string[];
+};
+
 export type DirectorProposalActionIntelligence = {
   characterPlans: Array<{
     characterId: string;
@@ -222,4 +241,5 @@ export type StudioDirectorProposal = {
   identityConsumption?: DirectorProposalIdentityConsumption;
   renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
   actionIntelligence?: DirectorProposalActionIntelligence;
+  actionShotDistribution?: DirectorProposalActionShotDistributionEntry[];
 };

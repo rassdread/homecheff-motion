@@ -6,8 +6,9 @@ import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
-import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
+import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
+import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -38,6 +39,8 @@ export type VisualImageReadiness = {
     messageKey: string;
     messageParams?: Record<string, string>;
   }>;
+  actionSequenceSceneIds?: string[];
+  actionSequenceDurationWarnings?: number;
 };
 
 const WARNING_TO_REC: Record<string, string> = {
@@ -164,6 +167,8 @@ export function buildSceneImageReadiness(params: {
   let identityCompletenessPassed: boolean | undefined;
   let identityContextLines: string[] | undefined;
   let actionCapabilityHints: VisualImageReadiness["actionCapabilityHints"];
+  let actionSequenceSceneIds: string[] | undefined;
+  let actionSequenceDurationWarnings: number | undefined;
 
   if (librariesProvided) {
     const consumption = buildStoryboardIdentityConsumption({
@@ -187,6 +192,33 @@ export function buildSceneImageReadiness(params: {
       worlds: params.worlds,
     });
     actionCapabilityHints = actionIntel.visualProductionHints;
+
+    const actionDistribution = buildStoryboardActionShotDistribution({
+      storyboard: params.storyboard,
+      characters: params.characters,
+      props: params.props,
+      worlds: params.worlds,
+    });
+    actionSequenceSceneIds = actionDistribution.scenes
+      .filter((d) => d.suggestsMultipleShots)
+      .map((d) => d.sceneId);
+    actionSequenceDurationWarnings = actionDistribution.scenes.filter(
+      (d) => d.durationAdvice.level === "too_short"
+    ).length;
+
+    if (actionSequenceDurationWarnings > 0) {
+      checks.push({
+        id: "action_duration",
+        messageKey: "studio.actionSequence.readiness.durationMismatch",
+        passed: false,
+      });
+    } else if (actionSequenceSceneIds.length > 0) {
+      checks.push({
+        id: "action_sequence",
+        messageKey: "studio.actionSequence.readiness.distributionPresent",
+        passed: true,
+      });
+    }
 
     if (consumption.assetSummaries.length > 0 && !identityCompletenessPassed) {
       checks.push({
@@ -219,6 +251,8 @@ export function buildSceneImageReadiness(params: {
     identityCompletenessPassed,
     identityContextLines,
     actionCapabilityHints,
+    actionSequenceSceneIds,
+    actionSequenceDurationWarnings,
   };
 }
 

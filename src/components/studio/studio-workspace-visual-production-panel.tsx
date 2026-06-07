@@ -17,6 +17,7 @@ import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
 import { StudioCharacterCapabilitiesSummary } from "@/components/studio/studio-character-capabilities-summary";
+import { StudioActionSequenceSummary } from "@/components/studio/studio-action-sequence-summary";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -340,6 +341,15 @@ export function StudioWorkspaceVisualProductionPanel({
       />
 
       <StudioCharacterCapabilitiesSummary
+        storyboard={storyboard}
+        scene={activeScene}
+        characters={characters}
+        props={props}
+        worlds={worlds}
+        variant="full"
+      />
+
+      <StudioActionSequenceSummary
         storyboard={storyboard}
         scene={activeScene}
         characters={characters}
