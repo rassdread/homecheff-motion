@@ -6,6 +6,11 @@
 
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStudioAnimationPlan } from "@/lib/studio-animation-planner";
+import { resolveAssetDecisions } from "@/lib/studio-asset-decision-execution";
+import {
+  assetDecisionKindToToolId,
+  getAssetLifecycleDisplayStatus,
+} from "@/lib/studio-asset-lifecycle-resolver";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -319,6 +324,51 @@ function buildCompletedItems(params: {
   return dedupeTasks(items, 12);
 }
 
+function buildAssetDecisionTasks(
+  registry: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry | undefined
+): { pending: CreationAssistantTask[]; fulfilled: CreationAssistantTask[] } {
+  if (!registry || registry.decisions.length === 0) {
+    return { pending: [], fulfilled: [] };
+  }
+
+  const resolved = resolveAssetDecisions(registry);
+  const pending: CreationAssistantTask[] = [];
+  const fulfilled: CreationAssistantTask[] = [];
+
+  for (const decision of resolved.buildNew) {
+    pending.push({
+      id: `asset-pending-${decision.id}`,
+      category: "asset",
+      tier: "next",
+      messageKey: "studio.assetLifecycle.task.inProgress",
+      messageParams: { name: decision.name },
+      toolId: assetDecisionKindToToolId(decision.kind),
+      actionKind: "createNew",
+      source: "asset_decision",
+      priority: "medium",
+    });
+  }
+
+  for (const decision of registry.decisions) {
+    if (getAssetLifecycleDisplayStatus(decision) !== "completed") {
+      continue;
+    }
+    fulfilled.push({
+      id: `asset-fulfilled-${decision.id}`,
+      category: "asset",
+      tier: "completed",
+      messageKey: "studio.assetLifecycle.task.completed",
+      messageParams: { name: decision.name },
+      toolId: assetDecisionKindToToolId(decision.kind),
+      actionKind: "open",
+      source: "asset_decision",
+      priority: "low",
+    });
+  }
+
+  return { pending, fulfilled };
+}
+
 function buildBlockers(params: {
   nowTasks: CreationAssistantTask[];
   generationRequiredMissing: number;
@@ -437,6 +487,7 @@ export function buildCreationAssistantView(
     projectMemory: input.projectMemory,
     styleProfile,
     directorProfile,
+    assetDecisionRegistry: input.assetDecisionRegistry,
   });
 
   const renderStrategyPlan = buildStudioRenderStrategyPlan({
@@ -482,6 +533,7 @@ export function buildCreationAssistantView(
     animationPlan,
     renderStrategyPlan,
     actionShotDistributions: actionDistribution,
+    assetDecisionRegistry: input.assetDecisionRegistry,
   });
 
   const review = buildCreativeReview({
@@ -548,11 +600,20 @@ export function buildCreationAssistantView(
     nextTasks.push(reviewItemToTask(item, "asset", "next"));
   }
 
-  const completedItems = buildCompletedItems({
-    unified,
-    domainReadiness: productionPlan.domainReadiness,
-    review,
-  });
+  const assetDecisionTasks = buildAssetDecisionTasks(input.assetDecisionRegistry);
+  nextTasks.push(...assetDecisionTasks.pending);
+
+  const completedItems = dedupeTasks(
+    [
+      ...buildCompletedItems({
+        unified,
+        domainReadiness: productionPlan.domainReadiness,
+        review,
+      }),
+      ...assetDecisionTasks.fulfilled,
+    ],
+    12
+  );
 
   const dedupedNow = dedupeTasks(nowTasks, 10);
   const dedupedNext = dedupeTasks(nextTasks, 10);

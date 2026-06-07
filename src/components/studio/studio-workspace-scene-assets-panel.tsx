@@ -184,7 +184,7 @@ export function StudioWorkspaceSceneAssetsPanel({
     void saveScenePatch({ locationId: scene.location.id });
   };
 
-  const handleCreated = (kind: WorkspaceAssetCreateKind, id: string) => {
+  const handleCreated = (kind: WorkspaceAssetCreateKind, id: string, _name: string) => {
     onAssetsChanged();
     if (!scene) {
       return;
@@ -348,10 +348,11 @@ export function StudioWorkspaceSceneAssetsPanel({
           <StudioWorkspaceAssetCreateSheet
             open={Boolean(createKind)}
             kind={createKind}
+            storyboardId={storyboardId}
             onClose={() => setCreateKind(null)}
-            onCreated={(kind, id) => {
+            onCreated={(kind, id, name) => {
               setCreateKind(null);
-              handleCreated(kind, id);
+              handleCreated(kind, id, name);
             }}
           />
         : null}
@@ -472,10 +473,11 @@ export function StudioWorkspaceSceneAssetsPanel({
           <StudioWorkspaceAssetCreateSheet
             open={Boolean(createKind)}
             kind={createKind}
+            storyboardId={storyboardId}
             onClose={() => setCreateKind(null)}
-            onCreated={(kind, id) => {
+            onCreated={(kind, id, name) => {
               setCreateKind(null);
-              handleCreated(kind, id);
+              handleCreated(kind, id, name);
             }}
           />
         : null}
@@ -588,10 +590,11 @@ export function StudioWorkspaceSceneAssetsPanel({
           <StudioWorkspaceAssetCreateSheet
             open={Boolean(createKind)}
             kind={createKind}
+            storyboardId={storyboardId}
             onClose={() => setCreateKind(null)}
-            onCreated={(kind, id) => {
+            onCreated={(kind, id, name) => {
               setCreateKind(null);
-              handleCreated(kind, id);
+              handleCreated(kind, id, name);
             }}
           />
         : null}
@@ -698,10 +701,11 @@ export function StudioWorkspaceSceneAssetsPanel({
           <StudioWorkspaceAssetCreateSheet
             open={Boolean(createKind)}
             kind={createKind}
+            storyboardId={storyboardId}
             onClose={() => setCreateKind(null)}
-            onCreated={(kind, id) => {
+            onCreated={(kind, id, name) => {
               setCreateKind(null);
-              handleCreated(kind, id);
+              handleCreated(kind, id, name);
             }}
           />
         : null}
@@ -748,6 +752,7 @@ export function StudioWorkspaceSceneAssetsPanel({
         <StudioWorkspaceAssetCreateSheet
           open={Boolean(createKind)}
           kind={createKind}
+          storyboardId={storyboardId}
           onClose={() => setCreateKind(null)}
           onCreated={handleCreated}
         />

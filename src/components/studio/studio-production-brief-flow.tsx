@@ -11,10 +11,13 @@ import { createStoryboardFromProductionBrief } from "@/lib/studio-create-story-f
 import {
   applyAssetDecision,
   buildIdentityPrefillFromDecision,
-  decisionStatusLabelKey,
   defaultDecisionModeForProposal,
   getAssetDecision,
 } from "@/lib/studio-asset-decision-execution";
+import {
+  assetLifecycleStatusClass,
+  assetLifecycleStatusLabelKey,
+} from "@/lib/studio-asset-lifecycle-resolver";
 import {
   identityBuilderHref,
   storeIdentityBuilderPrefill,
@@ -54,16 +57,6 @@ const EXAMPLE_KEYS = [
   "studio.directorProposal.example.restaurantPromo",
 ] as const satisfies readonly TranslationKey[];
 
-function decisionStatusClass(mode: AssetDecisionMode): string {
-  if (mode === "use_existing") {
-    return "bg-emerald-50 text-emerald-800";
-  }
-  if (mode === "build_new") {
-    return "bg-amber-50 text-amber-900";
-  }
-  return "bg-zinc-100 text-zinc-600";
-}
-
 function AssetProposalRow({
   asset,
   registry,
@@ -89,9 +82,9 @@ function AssetProposalRow({
           </p>
           {decision ?
             <span
-              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${decisionStatusClass(decision.mode)}`}
+              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${assetLifecycleStatusClass(decision)}`}
             >
-              {t(decisionStatusLabelKey(decision.mode) as TranslationKey)}
+              {t(assetLifecycleStatusLabelKey(decision) as TranslationKey)}
             </span>
           : null}
           {asset.recurringMatch ?

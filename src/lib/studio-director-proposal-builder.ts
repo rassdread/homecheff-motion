@@ -774,6 +774,7 @@ export function buildDirectorProposal(params: {
     worlds: params.worlds ?? [],
     projectMemory: params.projectMemory,
     currentIdea: idea,
+    assetDecisionRegistry: params.assetDecisionRegistry,
   });
 
   const enrichedFromAssistant = enrichIdeaWithCreationAssistant(

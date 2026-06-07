@@ -34,7 +34,8 @@ export type CreationAssistantTaskSource =
   | "creative_review"
   | "generation_plan"
   | "domain_check"
-  | "production_plan";
+  | "production_plan"
+  | "asset_decision";
 
 export type CreationAssistantTask = {
   id: string;
@@ -90,4 +91,5 @@ export type StudioCreationAssistantInput = {
   styleProfile?: string;
   directorProfile?: string;
   currentIdea?: string;
+  assetDecisionRegistry?: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry;
 };

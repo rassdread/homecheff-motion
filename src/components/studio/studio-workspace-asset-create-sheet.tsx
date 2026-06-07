@@ -15,20 +15,23 @@ import { createStudioCharacterApi } from "@/lib/studio-characters-client";
 import { createStudioLocationApi } from "@/lib/studio-locations-client";
 import { createStudioPropApi } from "@/lib/studio-props-client";
 import { createStudioWorldApi } from "@/lib/studio-worlds-client";
+import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
 
 export type WorkspaceAssetCreateKind = "character" | "location" | "prop" | "world";
 
 type Props = {
   open: boolean;
   kind: WorkspaceAssetCreateKind;
+  storyboardId?: string;
   worldProfileId?: string | null;
   onClose: () => void;
-  onCreated: (kind: WorkspaceAssetCreateKind, id: string) => void;
+  onCreated: (kind: WorkspaceAssetCreateKind, id: string, name: string) => void;
 };
 
 export function StudioWorkspaceAssetCreateSheet({
   open,
   kind,
+  storyboardId,
   worldProfileId,
   onClose,
   onCreated,
@@ -111,9 +114,10 @@ export function StudioWorkspaceAssetCreateSheet({
     }
     setSaving(true);
     try {
+      const trimmedName = name.trim();
       if (kind === "character") {
         const res = await createStudioCharacterApi({
-          name: name.trim(),
+          name: trimmedName,
           role: category,
           description: description.trim(),
           personality: "",
@@ -124,10 +128,18 @@ export function StudioWorkspaceAssetCreateSheet({
         if (!res.ok) {
           throw new Error((res.data as { error?: string }).error ?? t("studio.workspace.assets.saveFailed"));
         }
-        onCreated("character", res.data.character.id);
+        if (storyboardId) {
+          completeAssetLifecycleAfterCreate({
+            storyboardId,
+            kind: "character",
+            createdEntityId: res.data.character.id,
+            createdName: trimmedName,
+          });
+        }
+        onCreated("character", res.data.character.id, trimmedName);
       } else if (kind === "location") {
         const res = await createStudioLocationApi({
-          name: name.trim(),
+          name: trimmedName,
           category,
           description: description.trim(),
           referenceImageUrl,
@@ -137,10 +149,18 @@ export function StudioWorkspaceAssetCreateSheet({
         if (!res.ok) {
           throw new Error((res.data as { error?: string }).error ?? t("studio.workspace.assets.saveFailed"));
         }
-        onCreated("location", res.data.location.id);
+        if (storyboardId) {
+          completeAssetLifecycleAfterCreate({
+            storyboardId,
+            kind: "location",
+            createdEntityId: res.data.location.id,
+            createdName: trimmedName,
+          });
+        }
+        onCreated("location", res.data.location.id, trimmedName);
       } else if (kind === "prop") {
         const res = await createStudioPropApi({
-          name: name.trim(),
+          name: trimmedName,
           category,
           description: description.trim(),
           referenceImageUrl,
@@ -150,16 +170,32 @@ export function StudioWorkspaceAssetCreateSheet({
         if (!res.ok) {
           throw new Error((res.data as { error?: string }).error ?? t("studio.workspace.assets.saveFailed"));
         }
-        onCreated("prop", res.data.prop.id);
+        if (storyboardId) {
+          completeAssetLifecycleAfterCreate({
+            storyboardId,
+            kind: "prop",
+            createdEntityId: res.data.prop.id,
+            createdName: trimmedName,
+          });
+        }
+        onCreated("prop", res.data.prop.id, trimmedName);
       } else {
         const res = await createStudioWorldApi({
-          name: name.trim(),
+          name: trimmedName,
           description: description.trim(),
         });
         if (!res.ok) {
           throw new Error((res.data as { error?: string }).error ?? t("studio.workspace.assets.saveFailed"));
         }
-        onCreated("world", res.data.world.id);
+        if (storyboardId) {
+          completeAssetLifecycleAfterCreate({
+            storyboardId,
+            kind: "world",
+            createdEntityId: res.data.world.id,
+            createdName: trimmedName,
+          });
+        }
+        onCreated("world", res.data.world.id, trimmedName);
       }
       reset();
       onClose();

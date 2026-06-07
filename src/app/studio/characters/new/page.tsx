@@ -10,80 +10,21 @@ import {
 } from "@/components/studio/studio-character-form";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
 import { createStudioCharacterApi } from "@/lib/studio-characters-client";
 import {
-  clearIdentityBuilderPrefill,
-  loadIdentityBuilderPrefill,
-} from "@/lib/studio-identity-builder-prefill-storage";
+  buildCharacterDetailFromPrefill,
+  readIdentityPrefillForKind,
+} from "@/lib/studio-identity-builder-prefill-detail";
+import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
+import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
-import type { StudioCharacterDetail } from "@/types/studio-api";
-
-function buildPrefillCharacterDetail(
-  prefill: IdentityBuilderPrefill
-): StudioCharacterDetail {
-  return {
-    id: "prefill",
-    ownerId: "",
-    name: prefill.name,
-    slug: prefill.name.toLowerCase().replace(/\s+/g, "-"),
-    role: (prefill.role as StudioCharacterFormValues["role"]) ?? "mascot",
-    description: prefill.description ?? "",
-    personality: prefill.personality ?? "",
-    referenceImageUrl: "",
-    isMascot: prefill.role === "mascot",
-    appearanceMemory: "",
-    personalityMemory: "",
-    continuityNotes: prefill.usageContext ?? "",
-    defaultClothing: "",
-    defaultAccessories: "",
-    visualKeywords: "",
-    primaryReferenceImageId: null,
-    referenceNotes: "",
-    identityStrength: "strong",
-    continuityStrength: "strong",
-    worldProfileId: null,
-    worldProfile: null,
-    voiceEnabled: false,
-    voiceProvider: "",
-    voiceProfile: "warm_narrator",
-    voiceLanguage: "en",
-    voiceGender: "",
-    voiceDescription: "",
-    voiceNotes: "",
-    voiceLock: false,
-    voiceProfilesByLanguage: {},
-    performanceEnabled: false,
-    defaultSmileStrength: 50,
-    defaultBlinkRate: "normal",
-    defaultHeadMovement: "subtle",
-    defaultMouthIntensity: "medium",
-    idleAnimationStyle: "neutral",
-    performanceNotes: "",
-    mouthAnimationEnabled: false,
-    mouthClosedAssetUrl: "",
-    mouthSmallAssetUrl: "",
-    mouthMediumAssetUrl: "",
-    mouthWideAssetUrl: "",
-    referenceStorageKey: "",
-    isSystemCharacter: false,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  };
-}
-
-function readPrefillCharacterDetail(): StudioCharacterDetail | undefined {
-  const prefill = loadIdentityBuilderPrefill();
-  if (!prefill || prefill.kind !== "character") {
-    return undefined;
-  }
-  clearIdentityBuilderPrefill();
-  return buildPrefillCharacterDetail(prefill);
-}
 
 export default function StudioCharacterNewPage() {
   const t = useActiveTranslator();
   const router = useRouter();
-  const [prefillCharacter] = useState(readPrefillCharacterDetail);
+  const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("character"));
+  const prefillCharacter = prefill ? buildCharacterDetailFromPrefill(prefill) : undefined;
 
   const handleSubmit = async (values: StudioCharacterFormValues) => {
     const res = await createStudioCharacterApi({
@@ -118,6 +59,21 @@ export default function StudioCharacterNewPage() {
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));
     }
+
+    if (prefill?.storyboardId) {
+      completeAssetLifecycleAfterCreate({
+        storyboardId: prefill.storyboardId,
+        kind: "character",
+        createdEntityId: res.data.character.id,
+        createdName: values.name,
+        decisionId: prefill.decisionId,
+      });
+      clearIdentityBuilderPrefill();
+      router.push(studioWorkspaceHref(prefill.storyboardId));
+      return;
+    }
+
+    clearIdentityBuilderPrefill();
     router.push(`/studio/characters/${res.data.character.id}`);
   };
 

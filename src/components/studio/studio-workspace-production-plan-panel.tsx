@@ -6,6 +6,7 @@ import { StudioViduExecutionPlanSummary } from "@/components/studio/studio-vidu-
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
@@ -84,20 +85,20 @@ export function StudioWorkspaceProductionPlanPanel({
 }: Props) {
   const t = useActiveTranslator();
 
-  const plan = useMemo(
-    () =>
-      buildStudioProductionPlan({
-        storyboard,
-        characters,
-        locations,
-        props,
-        worlds,
-        projectMemory: projectMemory ?? undefined,
-        styleProfile,
-        directorProfile,
-      }),
-    [storyboard, characters, locations, props, worlds, projectMemory, styleProfile, directorProfile]
-  );
+  const plan = useMemo(() => {
+    const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    return buildStudioProductionPlan({
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: projectMemory ?? undefined,
+      styleProfile,
+      directorProfile,
+      assetDecisionRegistry,
+    });
+  }, [storyboard, characters, locations, props, worlds, projectMemory, styleProfile, directorProfile]);
 
   const readinessLabelKey =
     plan.readiness === "ready"

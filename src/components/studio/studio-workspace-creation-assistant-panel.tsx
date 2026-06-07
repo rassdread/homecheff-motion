@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
+import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
 import { buildCreationAssistantView } from "@/lib/studio-creation-assistant";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
@@ -173,30 +174,30 @@ export function StudioWorkspaceCreationAssistantPanel({
 }: Props) {
   const t = useActiveTranslator();
 
-  const view = useMemo(
-    () =>
-      buildCreationAssistantView({
-        storyboard,
-        characters,
-        locations,
-        props,
-        worlds,
-        projectMemory: projectMemory ?? undefined,
-        styleProfile,
-        directorProfile,
-        currentIdea: storyboard.aiDirectorPrompt,
-      }),
-    [
+  const view = useMemo(() => {
+    const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    return buildCreationAssistantView({
       storyboard,
       characters,
       locations,
       props,
       worlds,
-      projectMemory,
+      projectMemory: projectMemory ?? undefined,
       styleProfile,
       directorProfile,
-    ]
-  );
+      currentIdea: storyboard.aiDirectorPrompt,
+      assetDecisionRegistry,
+    });
+  }, [
+    storyboard,
+    characters,
+    locations,
+    props,
+    worlds,
+    projectMemory,
+    styleProfile,
+    directorProfile,
+  ]);
 
   const { completionProgress: progress } = view;
 

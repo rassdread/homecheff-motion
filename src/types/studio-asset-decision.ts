@@ -20,6 +20,8 @@ export type StudioAssetDecision = {
   existingId?: string;
   decidedAt: string;
   source: AssetDecisionSource;
+  /** Set when a build_new decision is fulfilled after asset creation. */
+  fulfilledAt?: string;
 };
 
 export type StudioAssetDecisionRegistry = {
@@ -37,6 +39,7 @@ export type ApplyAssetDecisionInput = {
   name: string;
   existingId?: string;
   source?: AssetDecisionSource;
+  fulfilledAt?: string;
 };
 
 export type ResolvedAssetDecisions = {

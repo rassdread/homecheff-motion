@@ -743,7 +743,7 @@ export function StudioDirectorProposalFlow({
         storyboardId: storyboard.id,
         briefIdea: storyboard.aiDirectorPrompt,
       }),
-    [storyboard.id, storyboard.aiDirectorPrompt]
+    [storyboard.id, storyboard.aiDirectorPrompt, characters, locations, props, worlds]
   );
 
   const handleGenerate = useCallback(() => {

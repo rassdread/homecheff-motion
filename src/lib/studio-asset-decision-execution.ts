@@ -26,6 +26,10 @@ import type {
   StudioAssetDecision,
   StudioAssetDecisionRegistry,
 } from "@/types/studio-asset-decision";
+import {
+  isAssetDecisionFulfilled,
+  isAssetDecisionPendingBuild,
+} from "@/lib/studio-asset-lifecycle-resolver";
 
 function normalizeKey(kind: AssetDecisionKind, name: string, existingId?: string): string {
   const idPart = existingId?.trim() ?? "";
@@ -46,6 +50,7 @@ export function applyAssetDecision(
     existingId: input.existingId,
     decidedAt: now,
     source: input.source ?? "production_brief",
+    fulfilledAt: input.fulfilledAt,
   };
 
   const withoutDupes = registry.decisions.filter(
@@ -314,7 +319,25 @@ export function filterProductionMissingItemsByDecisions(
       item.kind === "prop" ||
       item.kind === "world"
     ) {
-      return !isAssetDecisionSkipped(registry, item.kind, { name: item.label, existingId: item.id });
+      if (isAssetDecisionSkipped(registry, item.kind, { name: item.label, existingId: item.id })) {
+        return false;
+      }
+      if (isAssetDecisionPendingBuild(registry, item.kind, { id: item.id, name: item.label })) {
+        return false;
+      }
+      if (isAssetDecisionFulfilled(registry, item.kind, { id: item.id, name: item.label, existingId: item.id })) {
+        return false;
+      }
+      const resolvedUseExisting = registry.decisions.some(
+        (d) =>
+          d.kind === item.kind &&
+          d.mode === "use_existing" &&
+          !d.fulfilledAt &&
+          (d.existingId === item.id || d.name.trim().toLowerCase() === item.label.trim().toLowerCase())
+      );
+      if (resolvedUseExisting) {
+        return false;
+      }
     }
     return true;
   });
@@ -328,7 +351,16 @@ export function filterProductionAssetEntriesByDecisions(
     if (entry.status !== "missing" && entry.status !== "recommended") {
       return true;
     }
-    return !isAssetDecisionSkipped(registry, entry.kind, { name: entry.name, existingId: entry.id });
+    if (isAssetDecisionSkipped(registry, entry.kind, { name: entry.name, existingId: entry.id })) {
+      return false;
+    }
+    if (isAssetDecisionPendingBuild(registry, entry.kind, { id: entry.id, name: entry.name })) {
+      return false;
+    }
+    if (isAssetDecisionFulfilled(registry, entry.kind, { name: entry.name, existingId: entry.id })) {
+      return false;
+    }
+    return true;
   });
 }
 
