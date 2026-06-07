@@ -32,3 +32,7 @@ export async function applyMotionHandoffImport(
 }
 
 export { resolveMotionHandoffExecutionPrefill } from "@/lib/motion-handoff-execution-prefill";
+export {
+  resolveMotionHandoffExecutionConsumption,
+  toMotionExecutionConsumptionSummary,
+} from "@/lib/motion-handoff-execution-consumption";

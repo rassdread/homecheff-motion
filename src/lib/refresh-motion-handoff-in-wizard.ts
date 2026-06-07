@@ -14,6 +14,16 @@ import {
   type WizardSceneSlot,
 } from "@/lib/instant-wizard-scene-slots";
 import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
+import {
+  computeExecutionRefreshDiff,
+  resolveMotionHandoffExecutionConsumption,
+  toMotionExecutionConsumptionSummary,
+} from "@/lib/motion-handoff-execution-consumption";
+import {
+  resolveMotionHandoffExecutionPrefill,
+  toMotionHandoffExecutionPrefillSummary,
+} from "@/lib/motion-handoff-execution-prefill";
+import type { MotionExecutionRefreshDiff } from "@/types/motion-handoff-execution-consumption";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
 /**
@@ -50,9 +60,13 @@ export function mergeHandoffIntoWizardSlots(
 
 export function mergeMotionHandoffRefresh(
   current: PersistedWizardState,
-  payload: MotionHandoffPayload
+  payload: MotionHandoffPayload,
+  options?: { instantMode?: import("@/lib/instant-premium-mode-types").InstantMode }
 ): PersistedWizardState {
-  const transitionSeconds = current.transitionSeconds ?? 5;
+  const prefill = resolveMotionHandoffExecutionPrefill(payload);
+  const instantMode = options?.instantMode ?? current.instantMode ?? prefill.instantMode;
+  const consumption = resolveMotionHandoffExecutionConsumption(payload, { instantMode });
+  const transitionSeconds = current.transitionSeconds ?? prefill.transitionSeconds;
   const slotBySceneId = new Map(
     (current.sceneSlots ?? []).map((slot) => [slot.sceneId, slot])
   );
@@ -82,6 +96,9 @@ export function mergeMotionHandoffRefresh(
   return {
     ...current,
     savedAt: new Date().toISOString(),
+    instantMode,
+    transitionSeconds,
+    durationSec: consumption.totalDurationSeconds,
     motionText: payload.description.trim() || payload.title.trim(),
     sceneSlots,
     sceneTexts: sceneSlots.map((slot) => slot.text),
@@ -99,8 +116,28 @@ export function mergeMotionHandoffRefresh(
       voiceMetadata: payload.voiceMetadata,
       subtitleAvailability: payload.subtitleAvailability,
       storedHandoff: sanitizeMotionHandoffForStorage(payload),
+      executionPrefill: toMotionHandoffExecutionPrefillSummary(prefill),
+      executionConsumption: toMotionExecutionConsumptionSummary(consumption),
     },
   };
+}
+
+export function previewExecutionRefreshDiff(
+  current: PersistedWizardState,
+  payload: MotionHandoffPayload
+): MotionExecutionRefreshDiff {
+  const instantMode = current.instantMode ?? resolveMotionHandoffExecutionPrefill(payload).instantMode;
+  const nextConsumption = toMotionExecutionConsumptionSummary(
+    resolveMotionHandoffExecutionConsumption(payload, { instantMode })
+  );
+  return computeExecutionRefreshDiff(current.studioHandoff?.executionConsumption, nextConsumption);
+}
+
+export function applyExecutionRefreshFromHandoff(
+  current: PersistedWizardState,
+  payload: MotionHandoffPayload
+): PersistedWizardState {
+  return mergeMotionHandoffRefresh(current, payload);
 }
 
 export function refreshPersistedWizardFromHandoff(payload: MotionHandoffPayload): PersistedWizardState {

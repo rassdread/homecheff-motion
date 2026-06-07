@@ -139,7 +139,8 @@ import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
 import { MotionAudioExportWizardSettings } from "@/components/instant/motion/motion-audio-export-wizard-settings";
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
-import { MotionExecutionPrefillBanner } from "@/components/instant/motion/motion-execution-prefill-banner";
+import { MotionExecutionReadinessPanel } from "@/components/instant/motion/motion-execution-readiness-panel";
+import { MotionExecutionRefreshDiffModal } from "@/components/instant/motion/motion-execution-refresh-diff-modal";
 import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-export";
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
@@ -151,10 +152,11 @@ import { resolveMotionSceneSourceBadges } from "@/lib/motion-scene-source-badges
 import { MotionStudioIntelligencePanel } from "@/components/instant/motion/motion-studio-intelligence-panel";
 import { fetchMotionHandoffPayload } from "@/lib/studio-motion-handoff-client";
 import {
+  applyExecutionRefreshFromHandoff,
   mergeHandoffIntoWizardSlots,
-  refreshPersistedWizardFromHandoff,
+  previewExecutionRefreshDiff,
 } from "@/lib/refresh-motion-handoff-in-wizard";
-import { readPersistedWizardState } from "@/lib/instant-premium-wizard-storage";
+import { readPersistedWizardState, writePersistedWizardState } from "@/lib/instant-premium-wizard-storage";
 import {
   computeMotionRenderReadiness,
   motionReadinessShouldWarn,
@@ -177,6 +179,8 @@ import {
   updateAttachedImagesInSlots,
   type WizardSceneSlot,
 } from "@/lib/instant-wizard-scene-slots";
+import type { MotionExecutionRefreshDiff } from "@/types/motion-handoff-execution-consumption";
+import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import type {
   CreateAnimationProjectImageInput,
   InstantPremiumCreateAndGenerateErrorBody,
@@ -355,6 +359,14 @@ export default function InstantPremiumPage() {
     null
   );
   const [refreshingStudioHandoff, setRefreshingStudioHandoff] = useState(false);
+  const [executionRefreshOpen, setExecutionRefreshOpen] = useState(false);
+  const [executionRefreshDiff, setExecutionRefreshDiff] = useState<MotionExecutionRefreshDiff | null>(
+    null
+  );
+  const [pendingRefreshPayload, setPendingRefreshPayload] = useState<MotionHandoffPayload | null>(
+    null
+  );
+  const [applyingExecutionRefresh, setApplyingExecutionRefresh] = useState(false);
   const [preRenderQaOpen, setPreRenderQaOpen] = useState(false);
   const [studioIntelligenceRevision, setStudioIntelligenceRevision] = useState(0);
   const [wizardAudioExport, setWizardAudioExport] = useState<MotionStudioAudioExportJson | null>(
@@ -623,37 +635,66 @@ export default function InstantPremiumPage() {
     if (!studioHandoffStoryboardId) {
       return;
     }
-    if (
-      !window.confirm(t("motion.handoff.refreshConfirm"))
-    ) {
-      return;
-    }
     setRefreshingStudioHandoff(true);
     setError("");
     const res = await fetchMotionHandoffPayload(studioHandoffStoryboardId);
+    setRefreshingStudioHandoff(false);
     if (!res.ok) {
-      setRefreshingStudioHandoff(false);
       setError((res.data as { error?: string }).error ?? t("motion.handoff.error.loadFailed"));
       return;
     }
+    const current = readPersistedWizardState();
+    if (!current) {
+      setError(t("motion.handoff.error.importFailed"));
+      return;
+    }
+    const diff = previewExecutionRefreshDiff(current, res.data.payload);
+    if (!diff.hasChanges) {
+      setToastMessage(t("motion.handoff.executionConsumption.refreshNoChanges"));
+      return;
+    }
+    setPendingRefreshPayload(res.data.payload);
+    setExecutionRefreshDiff(diff);
+    setExecutionRefreshOpen(true);
+  }, [studioHandoffStoryboardId, t]);
+
+  const handleApplyExecutionRefresh = useCallback(async () => {
+    const current = readPersistedWizardState();
+    if (!current || !pendingRefreshPayload) {
+      setExecutionRefreshOpen(false);
+      return;
+    }
+    setApplyingExecutionRefresh(true);
     try {
-      refreshPersistedWizardFromHandoff(res.data.payload);
+      const merged = applyExecutionRefreshFromHandoff(current, pendingRefreshPayload);
+      writePersistedWizardState(merged);
+      setInstantMode(merged.instantMode ?? instantMode);
+      setTransitionSeconds(merged.transitionSeconds ?? transitionSeconds);
       setSceneSlots((prev) =>
         syncAutoEmotionsForSceneSlots(
-          mergeHandoffIntoWizardSlots(prev, res.data.payload, transitionSeconds),
-          instantMode
+          mergeHandoffIntoWizardSlots(
+            prev,
+            pendingRefreshPayload,
+            merged.transitionSeconds ?? transitionSeconds
+          ),
+          merged.instantMode ?? instantMode
         )
       );
-      setMotionText(res.data.payload.description.trim() || res.data.payload.title.trim());
-      setStudioHandoffTitle(res.data.payload.title);
+      setMotionText(
+        pendingRefreshPayload.description.trim() || pendingRefreshPayload.title.trim()
+      );
+      setStudioHandoffTitle(pendingRefreshPayload.title);
       setToastMessage(t("motion.handoff.refreshDone"));
       setStudioIntelligenceRevision((n) => n + 1);
+      setExecutionRefreshOpen(false);
+      setPendingRefreshPayload(null);
+      setExecutionRefreshDiff(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("motion.handoff.error.importFailed"));
     } finally {
-      setRefreshingStudioHandoff(false);
+      setApplyingExecutionRefresh(false);
     }
-  }, [studioHandoffStoryboardId, t, transitionSeconds, instantMode]);
+  }, [instantMode, pendingRefreshPayload, t, transitionSeconds]);
 
   const onDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -1863,9 +1904,13 @@ export default function InstantPremiumPage() {
                             {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
                           </p>
                         </div>
-                        {readPersistedWizardState()?.studioHandoff?.executionPrefill ?
-                          <MotionExecutionPrefillBanner
-                            prefill={readPersistedWizardState()!.studioHandoff!.executionPrefill!}
+                        {readPersistedWizardState()?.studioHandoff?.executionPrefill ||
+                        readPersistedWizardState()?.studioHandoff?.executionConsumption ?
+                          <MotionExecutionReadinessPanel
+                            prefill={readPersistedWizardState()?.studioHandoff?.executionPrefill}
+                            consumption={
+                              readPersistedWizardState()?.studioHandoff?.executionConsumption
+                            }
                           />
                         : null}
                       </div>
@@ -2368,6 +2413,19 @@ export default function InstantPremiumPage() {
           setExpandedSceneSelection("auto");
         }}
         onRenderAnyway={() => startCheckoutFlow()}
+      />
+
+      <MotionExecutionRefreshDiffModal
+        open={executionRefreshOpen}
+        diff={executionRefreshDiff}
+        loading={refreshingStudioHandoff}
+        applying={applyingExecutionRefresh}
+        onClose={() => {
+          setExecutionRefreshOpen(false);
+          setPendingRefreshPayload(null);
+          setExecutionRefreshDiff(null);
+        }}
+        onApply={() => void handleApplyExecutionRefresh()}
       />
 
       <InstantWizardToast message={toastMessage} />

@@ -161,6 +161,8 @@ export type PersistedWizardState = {
     storedHandoff?: Record<string, unknown>;
     /** Studio execution plan prefill summary (V49 — read-only). */
     executionPrefill?: import("@/types/motion-handoff-execution-prefill").MotionHandoffExecutionPrefillSummary;
+    /** Studio execution consumption summary (V50 — wizard + create). */
+    executionConsumption?: import("@/types/motion-handoff-execution-consumption").MotionExecutionConsumptionSummary;
   };
 };
 

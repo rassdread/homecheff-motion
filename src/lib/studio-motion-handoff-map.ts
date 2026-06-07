@@ -19,6 +19,10 @@ import {
   resolveMotionHandoffExecutionPrefill,
   toMotionHandoffExecutionPrefillSummary,
 } from "@/lib/motion-handoff-execution-prefill";
+import {
+  resolveMotionHandoffExecutionConsumption,
+  toMotionExecutionConsumptionSummary,
+} from "@/lib/motion-handoff-execution-consumption";
 import type { MotionHandoffExecutionPrefill } from "@/types/motion-handoff-execution-prefill";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 import { normalizeStorySceneDurationSeconds } from "@/lib/story-overlay-templates";
@@ -204,8 +208,9 @@ export function mapHandoffToPersistedWizardState(
   }
 ): PersistedWizardState {
   const prefill = options?.executionPrefill ?? resolveMotionHandoffExecutionPrefill(payload);
-  const transitionSeconds = options?.transitionSeconds ?? prefill.transitionSeconds;
   const instantMode = options?.instantMode ?? prefill.instantMode;
+  const consumption = resolveMotionHandoffExecutionConsumption(payload, { instantMode });
+  const transitionSeconds = options?.transitionSeconds ?? prefill.transitionSeconds;
   const durationBySceneId = new Map(
     prefill.sceneDurations.map((row) => [row.sceneId, row.durationSeconds])
   );
@@ -260,6 +265,7 @@ export function mapHandoffToPersistedWizardState(
       subtitleAvailability: payload.subtitleAvailability,
       storedHandoff: sanitizeMotionHandoffForStorage(payload),
       executionPrefill: toMotionHandoffExecutionPrefillSummary(prefill),
+      executionConsumption: toMotionExecutionConsumptionSummary(consumption),
     },
   };
 }
