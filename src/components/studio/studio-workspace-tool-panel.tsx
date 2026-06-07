@@ -310,6 +310,10 @@ export function StudioWorkspaceToolPanel({
       <div className="space-y-6">
         <StudioWorkspaceShotPlannerPanel
           storyboard={storyboard}
+          characters={characters}
+          locations={locations}
+          props={props}
+          worlds={worlds}
           canModify={canModify}
           onStoryboardUpdated={onStoryboardUpdated}
           onScenesUpdated={onRefreshStoryboard}
@@ -325,6 +329,7 @@ export function StudioWorkspaceToolPanel({
           onSceneUpdated={onSceneUpdated}
           onRefreshStoryboard={onRefreshStoryboard}
           onSwitchTool={onSwitchTool}
+          characters={characters}
           locations={locations}
           props={props}
           worlds={worlds}

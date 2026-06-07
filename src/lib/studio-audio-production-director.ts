@@ -23,7 +23,15 @@ import {
   type StudioAudioStyleId,
 } from "@/lib/studio-audio-production-profiles";
 import { clampMixLevel, isAudioDuckingMode, isAudioFocusType } from "@/lib/studio-audio-production-validation";
-import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
+import type {
+  StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
+  StudioSceneDetail,
+  StudioStoryboardDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
 import type {
   AudioDuckingMode,
   AudioFocusType,
@@ -362,7 +370,13 @@ function computeAudioScore(params: {
 }
 
 export function buildAudioProductionDirectorPlan(
-  storyboard: StudioStoryboardDetail
+  storyboard: StudioStoryboardDetail,
+  options?: {
+    worlds?: StudioWorldProfileListItem[];
+    characters?: StudioCharacterListItem[];
+    locations?: StudioLocationListItem[];
+    props?: StudioPropListItem[];
+  }
 ): AudioProductionPlan {
   const scenes = [...(storyboard.scenes ?? [])].sort((a, b) => a.order - b.order);
   const directorProfile = normalizeStudioDirectorProfile(storyboard.directorProfile);
@@ -525,6 +539,34 @@ export function buildAudioProductionDirectorPlan(
     soundScore: soundPlan.soundScore,
   });
 
+  let identityHintKeys: string[] | undefined;
+  let identityContextLines: string[] | undefined;
+
+  if (options?.worlds?.length || options?.characters?.length) {
+    const consumption = buildStoryboardIdentityConsumption({
+      storyboard,
+      libraries: {
+        characters: options.characters ?? [],
+        locations: options.locations ?? [],
+        props: options.props ?? [],
+        worlds: options.worlds ?? [],
+      },
+    });
+    if (consumption.audioProductionLines.length > 0) {
+      identityContextLines = consumption.audioProductionLines.slice(0, 5);
+      identityHintKeys = ["studio.identityConsumption.audio.worldRules"];
+      warnings.push({
+        code: "identity_audio_hint",
+        severity: "info",
+        messageKey: "studio.identityConsumption.audio.hint",
+        params: { world: consumption.dominantWorldName ?? "" },
+      });
+      if (consumption.dominantWorldName) {
+        recommendations.push("studio.identityConsumption.audio.followWorld");
+      }
+    }
+  }
+
   return {
     enabled,
     style: styleId,
@@ -537,6 +579,8 @@ export function buildAudioProductionDirectorPlan(
     voiceEnabled,
     musicEnabled,
     soundEnabled,
+    identityHintKeys,
+    identityContextLines,
   };
 }
 

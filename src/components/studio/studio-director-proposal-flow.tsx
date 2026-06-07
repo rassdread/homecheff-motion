@@ -271,6 +271,24 @@ function ProposalPreviewModal({
             </section>
           : null}
 
+          {proposal.identityConsumption?.rationales &&
+          proposal.identityConsumption.rationales.length > 0 ?
+            <section className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
+                {t("studio.identityConsumption.directorTitle")}
+              </h3>
+              <ul className="mt-2 space-y-1.5 text-xs text-zinc-700">
+                {proposal.identityConsumption.rationales.slice(0, 5).map((r) => (
+                  <li key={r.id}>
+                    <span className="font-medium">{r.sourceName}</span>
+                    {" — "}
+                    {t(r.reasonKey as TranslationKey, r.reasonParams)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          : null}
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("studio.directorProposal.preview.storyArc")}

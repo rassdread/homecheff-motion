@@ -165,6 +165,25 @@ export type DirectorProposalMemorySuggestion = {
   sceneOrder?: number;
 };
 
+export type DirectorProposalIdentityRationale = {
+  id: string;
+  reasonKey: string;
+  reasonParams?: Record<string, string>;
+  sourceKind: string;
+  sourceName: string;
+};
+
+export type DirectorProposalIdentityConsumption = {
+  directorContextLines: string[];
+  rationales: DirectorProposalIdentityRationale[];
+  completenessWarnings: Array<{
+    id: string;
+    messageKey: string;
+    assetName: string;
+    kind: string;
+  }>;
+};
+
 export type StudioDirectorProposal = {
   version: 2;
   ideaPrompt: string;
@@ -183,4 +202,5 @@ export type StudioDirectorProposal = {
   consistencySuggestions?: DirectorProposalConsistencySuggestion[];
   fieldChanges?: DirectorProposalFieldChange[];
   memorySuggestions?: DirectorProposalMemorySuggestion[];
+  identityConsumption?: DirectorProposalIdentityConsumption;
 };

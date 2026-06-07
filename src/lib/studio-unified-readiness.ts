@@ -7,6 +7,10 @@ import { buildRenderReadinessSummary } from "@/lib/studio-render-readiness-summa
 import { resolveStoryboardShotPlanReadiness } from "@/lib/studio-shot-planner";
 import { buildSceneImageReadiness } from "@/lib/studio-visual-production-summary";
 import {
+  buildIdentityConsumptionFixActions,
+  buildStoryboardIdentityConsumption,
+} from "@/lib/studio-identity-consumption";
+import {
   buildReadinessFixActions,
   type StudioReadinessFixAction,
 } from "@/lib/studio-consistency-fix-suggestions";
@@ -152,6 +156,10 @@ export function buildStudioUnifiedReadiness(params: {
     storyboard: params.storyboard,
     styleProfile,
     directorProfile,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds,
   });
 
   const renderById = new Map(render.checks.map((c) => [c.id, c]));
@@ -217,6 +225,28 @@ export function buildStudioUnifiedReadiness(params: {
     props: params.props ?? [],
     worlds: params.worlds ?? [],
   });
+
+  if (params.characters?.length || params.worlds?.length) {
+    const consumption = buildStoryboardIdentityConsumption({
+      storyboard: params.storyboard,
+      libraries: {
+        characters: params.characters ?? [],
+        locations: params.locations ?? [],
+        props: params.props ?? [],
+        worlds: params.worlds ?? [],
+      },
+    });
+    const identityFixes = buildIdentityConsumptionFixActions(consumption).map((fix) => ({
+      id: fix.id,
+      checkId: "characters" as const,
+      tool: fix.tool,
+      issueKey: fix.issueKey,
+      reasonKey: fix.reasonKey,
+      currentLabel: fix.currentLabel,
+      suggestedLabel: fix.suggestedLabelKey,
+    }));
+    fixes.push(...identityFixes.slice(0, 3));
+  }
 
   return {
     level,

@@ -13,9 +13,16 @@ import {
   analyzeShotPlanConsistency,
 } from "@/lib/studio-shot-planner";
 import { buildShotPlannerAssetAdvice } from "@/lib/studio-asset-evolution";
+import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
-import type { StudioStoryboardDetail } from "@/types/studio-api";
+import type {
+  StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
+  StudioStoryboardDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
 import type { SceneShotPlan, ShotBeatRole } from "@/types/studio-shot-planner";
 import {
   updateStudioSceneApi,
@@ -26,6 +33,10 @@ import { StudioShotPlannerCompareModal } from "@/components/studio/studio-shot-p
 
 type Props = {
   storyboard: StudioStoryboardDetail;
+  characters?: StudioCharacterListItem[];
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
   canModify?: boolean;
   onStoryboardUpdated?: (storyboard: StudioStoryboardDetail) => void;
   onScenesUpdated?: () => void | Promise<void>;
@@ -53,6 +64,10 @@ function beatLabel(
 
 export function StudioWorkspaceShotPlannerPanel({
   storyboard,
+  characters = [],
+  locations = [],
+  props = [],
+  worlds = [],
   canModify,
   onStoryboardUpdated,
   onScenesUpdated,
@@ -79,8 +94,14 @@ export function StudioWorkspaceShotPlannerPanel({
   );
 
   const shotAssetAdvice = useMemo(
-    () => buildShotPlannerAssetAdvice(storyboard),
-    [storyboard]
+    () =>
+      buildShotPlannerAssetAdvice(storyboard, {
+        characters,
+        locations,
+        props,
+        worlds,
+      }),
+    [storyboard, characters, locations, props, worlds]
   );
 
   const liveInterpretation = useMemo(() => interpretAiDirectorPrompt(prompt), [prompt]);
@@ -144,6 +165,16 @@ export function StudioWorkspaceShotPlannerPanel({
       <section className="rounded-2xl border border-[#0067B1]/20 bg-gradient-to-br from-[#0067B1]/5 to-white p-4 shadow-sm">
         <h3 className="text-base font-bold text-zinc-900">{t("studio.shotPlanner.title")}</h3>
         <p className="mt-1 text-xs text-zinc-600">{t("studio.shotPlanner.hint")}</p>
+
+        <div className="mt-4">
+          <StudioIdentityConsumptionSummary
+            storyboard={storyboard}
+            libraries={{ characters, locations, props, worlds }}
+            variant="compact"
+            showTrends={false}
+            showConsistency={false}
+          />
+        </div>
 
         <label className="mt-4 block text-sm font-medium text-zinc-800">
           {t("studio.aiDirector.promptLabel")}

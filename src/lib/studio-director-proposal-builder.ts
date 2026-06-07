@@ -20,6 +20,11 @@ import { buildVoiceIdentityPlan } from "@/lib/studio-voice-identity-director";
 import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-readiness";
 import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
 import { buildDirectorMemorySuggestions, memoryBoostForAsset } from "@/lib/studio-director-proposal-memory";
+import {
+  biasShotTypeFromIdentity,
+  buildSceneIdentityConsumption,
+  buildStoryboardIdentityConsumption,
+} from "@/lib/studio-identity-consumption";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -28,6 +33,7 @@ import {
 import { getVoiceProfilePreset, profileIdForNarrationMode, normalizeStudioNarrationMode } from "@/lib/studio-voice-profiles";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
+import type { StudioShotType } from "@/lib/studio-scene-director";
 import type { StoryFlowSceneInput } from "@/lib/studio-story-flow-analyzer";
 import { type StoryArcPhase } from "@/lib/studio-story-arc";
 import type {
@@ -775,6 +781,35 @@ export function buildDirectorProposal(params: {
     params.props,
     params.locations
   );
+
+  const identityLibraries = {
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+  };
+
+  for (const mockScene of mockStoryboard.scenes) {
+    const sceneConsumption = buildSceneIdentityConsumption({
+      scene: mockScene,
+      libraries: identityLibraries,
+    });
+    const proposalScene = scenes.find(
+      (s) => (s.existingSceneId ?? s.tempId) === mockScene.id
+    );
+    if (proposalScene?.shotType && sceneConsumption.shotHint) {
+      proposalScene.shotType = biasShotTypeFromIdentity(
+        proposalScene.shotType as StudioShotType,
+        sceneConsumption.shotHint
+      );
+    }
+  }
+
+  const identityConsumption = buildStoryboardIdentityConsumption({
+    storyboard: mockStoryboard,
+    libraries: identityLibraries,
+    memory: params.projectMemory,
+  });
   const narrationMode = normalizeStudioNarrationMode(params.storyboard.narrationMode || "narrator");
   const voiceReport = analyzeVoiceDirector({
     ...mockStoryboard,
@@ -907,7 +942,28 @@ export function buildDirectorProposal(params: {
     memory: params.projectMemory,
   });
 
-  return { ...enriched, memorySuggestions };
+  return {
+    ...enriched,
+    memorySuggestions,
+    identityConsumption: {
+      directorContextLines: identityConsumption.directorContextLines,
+      rationales: identityConsumption.rationales.map((r) => ({
+        id: r.id,
+        reasonKey: r.reasonKey,
+        reasonParams: r.reasonParams,
+        sourceKind: r.sourceKind,
+        sourceName: r.sourceName,
+      })),
+      completenessWarnings: identityConsumption.completenessChecks
+        .filter((c) => !c.passed)
+        .map((c) => ({
+          id: c.id,
+          messageKey: c.messageKey,
+          assetName: c.assetName,
+          kind: c.kind,
+        })),
+    },
+  };
 }
 
 /** Exported for tests — ensures synthetic flow gets a shot plan when storyboard is empty. */

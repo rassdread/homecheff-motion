@@ -63,6 +63,8 @@ export type AudioProductionPlan = {
   voiceEnabled: boolean;
   musicEnabled: boolean;
   soundEnabled: boolean;
+  identityHintKeys?: string[];
+  identityContextLines?: string[];
 };
 
 /** Motion handoff V17 — audio production plan (no mixed audio). */

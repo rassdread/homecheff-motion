@@ -14,11 +14,12 @@ import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
 import { buildVisualProductionAssetGaps } from "@/lib/studio-asset-evolution";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
+import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { StudioToolId } from "@/lib/studio-tool-id";
-import type { StudioSceneDetail, StudioStoryboardDetail, StudioLocationListItem, StudioPropListItem, StudioWorldProfileListItem } from "@/types/studio-api";
+import type { StudioSceneDetail, StudioStoryboardDetail, StudioCharacterListItem, StudioLocationListItem, StudioPropListItem, StudioWorldProfileListItem } from "@/types/studio-api";
 
 type Props = {
   storyboardId: string;
@@ -31,6 +32,7 @@ type Props = {
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onRefreshStoryboard?: () => void | Promise<void>;
   onSwitchTool?: (tool: StudioToolId) => void;
+  characters?: StudioCharacterListItem[];
   locations?: StudioLocationListItem[];
   props?: StudioPropListItem[];
   worlds?: StudioWorldProfileListItem[];
@@ -67,6 +69,7 @@ export function StudioWorkspaceVisualProductionPanel({
   onSceneUpdated,
   onRefreshStoryboard,
   onSwitchTool,
+  characters = [],
   locations = [],
   props = [],
   worlds = [],
@@ -93,8 +96,12 @@ export function StudioWorkspaceVisualProductionPanel({
         storyboard,
         styleProfile,
         directorProfile,
+        characters,
+        locations,
+        props,
+        worlds,
       }),
-    [storyboard, styleProfile, directorProfile]
+    [storyboard, styleProfile, directorProfile, characters, locations, props, worlds]
   );
 
   const scenePlan = useMemo(() => {
@@ -125,13 +132,14 @@ export function StudioWorkspaceVisualProductionPanel({
         storyboard,
         styleProfile,
         directorProfile,
+        characters,
         locations,
         props,
         worlds,
       }).fixes.filter((f) =>
         ["location", "world", "characters", "camera", "images"].includes(f.checkId)
       ),
-    [storyboard, styleProfile, directorProfile, locations, props, worlds]
+    [storyboard, styleProfile, directorProfile, characters, locations, props, worlds]
   );
 
   useEffect(() => {
@@ -312,6 +320,12 @@ export function StudioWorkspaceVisualProductionPanel({
           </ul>
         : null}
       </section>
+
+      <StudioIdentityConsumptionSummary
+        storyboard={storyboard}
+        libraries={{ characters, locations, props, worlds }}
+        variant="full"
+      />
 
       {visualFixes.length > 0 ?
         <section className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/30 p-4">

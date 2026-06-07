@@ -6,7 +6,14 @@ import { analyzeSceneImagePlanner } from "@/lib/studio-scene-image-planner";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
-import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
+import type {
+  StudioCharacterListItem,
+  StudioLocationListItem,
+  StudioPropListItem,
+  StudioStoryboardDetail,
+  StudioWorldProfileListItem,
+} from "@/types/studio-api";
 
 export type VisualProductionLevel = "ready" | "almost_ready" | "needs_work";
 
@@ -24,6 +31,8 @@ export type VisualImageReadiness = {
   score: number;
   checks: Array<{ id: string; messageKey: string; passed: boolean }>;
   recommendationKeys: string[];
+  identityCompletenessPassed?: boolean;
+  identityContextLines?: string[];
 };
 
 const WARNING_TO_REC: Record<string, string> = {
@@ -67,6 +76,10 @@ export function buildSceneImageReadiness(params: {
   storyboard: StudioStoryboardDetail;
   styleProfile?: string;
   directorProfile?: string;
+  characters?: StudioCharacterListItem[];
+  locations?: StudioLocationListItem[];
+  props?: StudioPropListItem[];
+  worlds?: StudioWorldProfileListItem[];
 }): VisualImageReadiness {
   const report = analyzeSceneImagePlanner({
     storyboard: params.storyboard,
@@ -123,14 +136,6 @@ export function buildSceneImageReadiness(params: {
     },
   ];
 
-  const passedCount = checks.filter((c) => c.passed).length;
-  const score = Math.round((passedCount / checks.length) * 100);
-  const plannerLevel = mapPlannerReadiness(report.readiness);
-  const level: VisualProductionLevel =
-    score >= 85 && plannerLevel === "ready" ? "ready"
-    : score >= 50 || plannerLevel === "almost_ready" ? "almost_ready"
-    : "needs_work";
-
   const recommendationKeys = [
     ...checks.filter((c) => !c.passed).map((c) => {
       const map: Record<string, string> = {
@@ -140,6 +145,7 @@ export function buildSceneImageReadiness(params: {
         camera: "studio.visualProduction.rec.camera",
         emotion: "studio.visualProduction.rec.emotion",
         images: "studio.visualProduction.rec.generateImages",
+        identity: "studio.identityConsumption.rec.completeIdentity",
       };
       return map[c.id];
     }),
@@ -148,11 +154,56 @@ export function buildSceneImageReadiness(params: {
       .filter((k): k is string => Boolean(k)),
   ];
 
+  const librariesProvided =
+    params.characters || params.locations || params.props || params.worlds;
+  let identityCompletenessPassed: boolean | undefined;
+  let identityContextLines: string[] | undefined;
+
+  if (librariesProvided) {
+    const consumption = buildStoryboardIdentityConsumption({
+      storyboard: params.storyboard,
+      libraries: {
+        characters: params.characters ?? [],
+        locations: params.locations ?? [],
+        props: params.props ?? [],
+        worlds: params.worlds ?? [],
+      },
+    });
+    identityCompletenessPassed =
+      consumption.completenessChecks.length === 0 ||
+      consumption.completenessChecks.every((c) => c.passed);
+    identityContextLines = consumption.visualProductionLines.slice(0, 6);
+
+    if (consumption.assetSummaries.length > 0 && !identityCompletenessPassed) {
+      checks.push({
+        id: "identity",
+        messageKey: "studio.identityConsumption.readiness.incomplete",
+        passed: false,
+      });
+    } else if (consumption.assetSummaries.length > 0) {
+      checks.push({
+        id: "identity",
+        messageKey: "studio.identityConsumption.readiness.complete",
+        passed: true,
+      });
+    }
+  }
+
+  const passedCount = checks.filter((c) => c.passed).length;
+  const score = Math.round((passedCount / checks.length) * 100);
+  const plannerLevel = mapPlannerReadiness(report.readiness);
+  const level: VisualProductionLevel =
+    score >= 85 && plannerLevel === "ready" ? "ready"
+    : score >= 50 || plannerLevel === "almost_ready" ? "almost_ready"
+    : "needs_work";
+
   return {
     level,
     score,
     checks,
     recommendationKeys: [...new Set(recommendationKeys)].slice(0, 6),
+    identityCompletenessPassed,
+    identityContextLines,
   };
 }
 

@@ -11,6 +11,7 @@ import { getAssetUsageStats } from "@/lib/studio-project-memory-utils";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
+import { buildSceneIdentityConsumption } from "@/lib/studio-identity-consumption";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -611,7 +612,13 @@ const SHOT_NEEDS_CHARACTER =
   /\b(chef|person|character|host|presentator|mascot|koken|bereidt|cook|prepares)\b/i;
 
 export function buildShotPlannerAssetAdvice(
-  storyboard: StudioStoryboardDetail
+  storyboard: StudioStoryboardDetail,
+  libraries?: {
+    characters?: StudioCharacterListItem[];
+    locations?: StudioLocationListItem[];
+    props?: StudioPropListItem[];
+    worlds?: StudioWorldProfileListItem[];
+  }
 ): AssetEvolutionAdvice[] {
   const advice: AssetEvolutionAdvice[] = [];
   const plan = buildCurrentStoryboardShotPlan(storyboard);
@@ -621,6 +628,32 @@ export function buildShotPlannerAssetAdvice(
     if (!scene) {
       continue;
     }
+
+    if (libraries) {
+      const consumption = buildSceneIdentityConsumption({
+        scene,
+        libraries: {
+          characters: libraries.characters ?? [],
+          locations: libraries.locations ?? [],
+          props: libraries.props ?? [],
+          worlds: libraries.worlds ?? [],
+        },
+      });
+      if (consumption.shotHint) {
+        advice.push({
+          code: "shot_identity_hint",
+          kind:
+            consumption.shotHint.sourceKind === "world" ? "world"
+            : consumption.shotHint.sourceKind === "location" ? "location"
+            : consumption.shotHint.sourceKind === "character" ? "character"
+            : "prop",
+          messageKey: consumption.shotHint.rationaleKey,
+          sceneOrders: [scene.order],
+          reasonParams: { name: consumption.shotHint.sourceName },
+        });
+      }
+    }
+
     const focusText = `${scene.action} ${scene.title} ${scene.description}`;
     const needsCharacter =
       SHOT_NEEDS_CHARACTER.test(focusText) ||

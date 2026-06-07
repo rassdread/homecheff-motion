@@ -11,6 +11,7 @@ import {
   type ContinuityLibraryItem,
 } from "@/lib/studio-project-continuity-score";
 import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
+import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -187,6 +188,14 @@ export function StudioWorkspaceContinuityPanel({
           </ul>
         : null}
       </section>
+
+      <StudioIdentityConsumptionSummary
+        storyboard={storyboard}
+        libraries={{ characters, locations, props, worlds }}
+        memory={memory}
+        showConsistency={false}
+        variant="compact"
+      />
 
       {reuseSuggestions.length > 0 ?
         <section className="space-y-3">

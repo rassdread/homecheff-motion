@@ -30,6 +30,7 @@ export type AssetEvolutionAdvice = {
   kind: AssetEvolutionKind;
   messageKey: string;
   sceneOrders: number[];
+  reasonParams?: Record<string, string>;
 };
 
 export type StoryboardAssetEvolution = {
