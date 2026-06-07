@@ -14,7 +14,12 @@ import {
   type InstantWizardLocalImage,
 } from "@/lib/instant-wizard-image-model";
 import { INSTANT_WIZARD_DEFAULT_BAKED_TEXT } from "@/lib/reset-instant-premium-wizard";
-import type { InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import type { InstantMode, InstantTransitionSeconds } from "@/lib/instant-premium-mode-types";
+import {
+  resolveMotionHandoffExecutionPrefill,
+  toMotionHandoffExecutionPrefillSummary,
+} from "@/lib/motion-handoff-execution-prefill";
+import type { MotionHandoffExecutionPrefill } from "@/types/motion-handoff-execution-prefill";
 import { isValidHttpUrl } from "@/lib/is-valid-http-url";
 import { normalizeStorySceneDurationSeconds } from "@/lib/story-overlay-templates";
 import {
@@ -51,11 +56,12 @@ export function mapStudioEmotionToMotion(
 
 function legacyMapHandoffSceneToPersistedText(
   scene: MotionHandoffPayload["scenes"][number],
-  fallbackTransition: InstantTransitionSeconds
+  fallbackTransition: InstantTransitionSeconds,
+  durationOverride?: number
 ): PersistedSceneTextDraft {
   const base = emptySceneTextDraft(fallbackTransition);
   const duration = normalizeStorySceneDurationSeconds(
-    scene.durationSeconds,
+    durationOverride ?? scene.durationSeconds,
     fallbackTransition
   );
   const emotionPatch = mapStudioEmotionToMotion(scene.emotion);
@@ -75,16 +81,17 @@ function legacyMapHandoffSceneToPersistedText(
 
 export function mapHandoffSceneToPersistedText(
   scene: MotionHandoffPayload["scenes"][number],
-  fallbackTransition: InstantTransitionSeconds = 5
+  fallbackTransition: InstantTransitionSeconds = 5,
+  durationOverride?: number
 ): PersistedSceneTextDraft {
   const beats = scene.studioTextBeats;
   if (!beats) {
-    return legacyMapHandoffSceneToPersistedText(scene, fallbackTransition);
+    return legacyMapHandoffSceneToPersistedText(scene, fallbackTransition, durationOverride);
   }
 
   const base = emptySceneTextDraft(fallbackTransition);
   const duration = normalizeStorySceneDurationSeconds(
-    scene.durationSeconds,
+    durationOverride ?? scene.durationSeconds,
     fallbackTransition
   );
   const emotionPatch = mapStudioEmotionToMotion(scene.emotion);
@@ -190,13 +197,26 @@ export function mapHandoffSceneToWizardLocalImage(
 
 export function mapHandoffToPersistedWizardState(
   payload: MotionHandoffPayload,
-  options?: { transitionSeconds?: InstantTransitionSeconds }
+  options?: {
+    transitionSeconds?: InstantTransitionSeconds;
+    instantMode?: InstantMode;
+    executionPrefill?: MotionHandoffExecutionPrefill;
+  }
 ): PersistedWizardState {
-  const transitionSeconds = options?.transitionSeconds ?? 5;
+  const prefill = options?.executionPrefill ?? resolveMotionHandoffExecutionPrefill(payload);
+  const transitionSeconds = options?.transitionSeconds ?? prefill.transitionSeconds;
+  const instantMode = options?.instantMode ?? prefill.instantMode;
+  const durationBySceneId = new Map(
+    prefill.sceneDurations.map((row) => [row.sceneId, row.durationSeconds])
+  );
   const intelligence = buildMotionStudioIntelligenceSnapshot(payload);
   const sceneSlots: PersistedWizardSceneSlot[] = payload.scenes.map((scene) => ({
     sceneId: scene.sceneId,
-    text: mapHandoffSceneToPersistedText(scene, transitionSeconds),
+    text: mapHandoffSceneToPersistedText(
+      scene,
+      transitionSeconds,
+      durationBySceneId.get(scene.sceneId)
+    ),
     image: mapHandoffSceneToPersistedImage(scene),
     studioContext: enrichStudioContextForMotion(scene, payload),
   }));
@@ -221,8 +241,9 @@ export function mapHandoffToPersistedWizardState(
     aspectRatio: "9:16",
     fastRenderMode: false,
     images,
-    instantMode: "story",
+    instantMode,
     transitionSeconds,
+    durationSec: prefill.totalDurationSeconds,
     sceneSlots,
     sceneTexts: sceneSlots.map((slot) => slot.text),
     studioHandoff: {
@@ -238,6 +259,7 @@ export function mapHandoffToPersistedWizardState(
       voiceMetadata: payload.voiceMetadata,
       subtitleAvailability: payload.subtitleAvailability,
       storedHandoff: sanitizeMotionHandoffForStorage(payload),
+      executionPrefill: toMotionHandoffExecutionPrefillSummary(prefill),
     },
   };
 }

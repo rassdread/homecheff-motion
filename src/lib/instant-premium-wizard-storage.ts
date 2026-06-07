@@ -159,6 +159,8 @@ export type PersistedWizardState = {
     subtitleAvailability?: boolean;
     /** Sanitized handoff persisted for project create (includes execution prompts). */
     storedHandoff?: Record<string, unknown>;
+    /** Studio execution plan prefill summary (V49 — read-only). */
+    executionPrefill?: import("@/types/motion-handoff-execution-prefill").MotionHandoffExecutionPrefillSummary;
   };
 };
 

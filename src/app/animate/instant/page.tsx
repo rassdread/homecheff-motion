@@ -139,6 +139,7 @@ import { StoryboardEditor } from "@/components/instant/storyboard-editor";
 import { STORYBOARD_FRAME_SCROLL_INSET_PX } from "@/lib/storyboard-frame-scroll";
 import { MotionAudioExportWizardSettings } from "@/components/instant/motion/motion-audio-export-wizard-settings";
 import { MotionImportSummaryBanner } from "@/components/instant/motion/motion-import-summary-banner";
+import { MotionExecutionPrefillBanner } from "@/components/instant/motion/motion-execution-prefill-banner";
 import { mergeMotionAudioExportIntoHandoffStorage } from "@/lib/motion-voice-export";
 import type { MotionStudioAudioExportJson } from "@/types/motion-voice-export";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
@@ -1856,10 +1857,17 @@ export default function InstantPremiumPage() {
                         </p>
                       </div>
                     : hasStudioImportedScenes && studioHandoffTitle ?
-                      <div className="mb-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">
-                        <p className="text-xs text-[#0067B1]">
-                          {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
-                        </p>
+                      <div className="mb-4 space-y-2">
+                        <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-2">
+                          <p className="text-xs text-[#0067B1]">
+                            {t("motion.handoff.importedBanner", { title: studioHandoffTitle })}
+                          </p>
+                        </div>
+                        {readPersistedWizardState()?.studioHandoff?.executionPrefill ?
+                          <MotionExecutionPrefillBanner
+                            prefill={readPersistedWizardState()!.studioHandoff!.executionPrefill!}
+                          />
+                        : null}
                       </div>
                     : null}
                     <p className="text-sm font-medium text-zinc-800">{t("instant.step2.title")}</p>
