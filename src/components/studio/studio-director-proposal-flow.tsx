@@ -366,6 +366,55 @@ function ProposalPreviewModal({
             </section>
           : null}
 
+          {proposal.animationPlanPreview && proposal.animationPlanPreview.length > 0 ?
+            <section className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+                {t("studio.animationPlan.title")}
+              </h3>
+              <p className="mt-1 text-xs text-zinc-600">{t("studio.animationPlan.subtitle")}</p>
+              {proposal.animationPlan ?
+                <p className="mt-2 text-xs text-zinc-700">
+                  {t("studio.animationPlan.speed.summary", {
+                    provider: String(proposal.animationPlan.providerDurationEstimate),
+                    final: String(proposal.animationPlan.finalDurationEstimate),
+                  })}
+                </p>
+              : null}
+              {proposal.animationPlanPreview.map((entry) => (
+                <div key={entry.sceneOrder} className="mt-3 rounded-lg bg-white/90 p-3">
+                  <p className="text-xs font-semibold text-zinc-900">
+                    {t("studio.animationPlan.sceneLine", {
+                      index: String(entry.sceneOrder + 1),
+                      title: entry.sceneTitle,
+                      duration: String(entry.targetDuration),
+                    })}
+                  </p>
+                  <ol className="mt-2 space-y-1 text-xs text-zinc-700">
+                    {entry.shots.map((shot, idx) => (
+                      <li key={idx}>
+                        <span className="tabular-nums text-zinc-500">
+                          {shot.startTime.toFixed(0)}–{shot.endTime.toFixed(0)}s
+                        </span>
+                        {" · "}
+                        {t(`studio.animationPlan.shotRole.${shot.shotRole}` as TranslationKey)}
+                        {" · "}
+                        {t(shot.motionIntentKey as TranslationKey)}
+                        {shot.missingImage ?
+                          <>
+                            {" · "}
+                            <span className="text-amber-800">
+                              {t("studio.animationPlan.missingImage")}
+                            </span>
+                          </>
+                        : null}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </section>
+          : null}
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("studio.directorProposal.preview.storyArc")}

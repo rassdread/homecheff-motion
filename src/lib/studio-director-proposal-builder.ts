@@ -33,6 +33,10 @@ import {
   buildStudioProductionPlan,
   enrichIdeaWithProductionPlan,
 } from "@/lib/studio-production-planner";
+import {
+  buildStudioAnimationPlan,
+  enrichIdeaWithAnimationPlan,
+} from "@/lib/studio-animation-planner";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -699,6 +703,7 @@ export function buildDirectorProposal(params: {
   styleStrength?: AiDirectorStyleStrength;
   projectMemory?: StudioProjectMemorySnapshot;
   productionPlan?: StudioProductionPlan;
+  animationPlan?: import("@/types/studio-animation-plan").StudioAnimationPlan;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
@@ -717,7 +722,19 @@ export function buildDirectorProposal(params: {
       projectMemory: params.projectMemory,
     });
 
-  const enrichedIdea = enrichIdeaWithProductionPlan(idea, productionPlan);
+  const enrichedIdea = enrichIdeaWithAnimationPlan(
+    enrichIdeaWithProductionPlan(idea, productionPlan),
+    params.animationPlan ??
+      buildStudioAnimationPlan({
+        storyboard: params.storyboard,
+        productionPlan,
+        characters: params.characters,
+        locations: params.locations,
+        props: params.props,
+        worlds: params.worlds ?? [],
+        projectMemory: params.projectMemory,
+      })
+  );
 
   const styleStrength = normalizeAiDirectorStyleStrength(
     params.styleStrength ?? params.storyboard.aiDirectorStyleStrength ?? DEFAULT_AI_DIRECTOR_STYLE_STRENGTH
@@ -1022,10 +1039,44 @@ export function buildDirectorProposal(params: {
     worlds: params.worlds ?? [],
   });
 
+  const renderStrategyPlanBuilt = buildStudioRenderStrategyPlan({
+    storyboard: mockStoryboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+  });
+
+  const animationPlan = buildStudioAnimationPlan({
+    storyboard: mockStoryboard,
+    productionPlan,
+    renderStrategyPlan: renderStrategyPlanBuilt,
+    actionShotDistributions: actionShotDistributionRaw,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+  });
+
   return {
     ...enriched,
     memorySuggestions,
     productionPlan,
+    animationPlan,
+    animationPlanPreview: animationPlan.scenes.map((scene) => ({
+      sceneOrder: scene.sceneOrder,
+      sceneTitle: scene.sceneTitle,
+      targetDuration: scene.targetDuration,
+      shots: scene.shots.map((shot) => ({
+        shotRole: shot.shotRole,
+        startTime: shot.startTime,
+        endTime: shot.endTime,
+        motionIntentKey: shot.motionIntentKey,
+        missingImage: shot.missingImage,
+        actionBeat: shot.actionBeat,
+      })),
+    })),
     actionIntelligence: {
       characterPlans: actionIntelligenceRaw.characterPlans.map((plan) => ({
         characterId: plan.characterId,
@@ -1087,15 +1138,7 @@ export function buildDirectorProposal(params: {
           kind: c.kind,
         })),
     },
-    renderStrategyPlan: toMotionRenderStrategyHandoffPlan(
-      buildStudioRenderStrategyPlan({
-        storyboard: params.storyboard,
-        characters: params.characters,
-        locations: params.locations,
-        props: params.props,
-        worlds: params.worlds ?? [],
-      })
-    ),
+    renderStrategyPlan: toMotionRenderStrategyHandoffPlan(renderStrategyPlanBuilt),
   };
 }
 

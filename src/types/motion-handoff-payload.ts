@@ -117,6 +117,42 @@ import type {
   RenderStrategyInternalInstantMode,
 } from "@/types/studio-render-strategy";
 
+/** Slim animation plan metadata for Studio → Motion handoff (V48 — P1/P2, no execution). */
+export type MotionAnimationPlanHandoffPlan = {
+  totalTargetDuration: number;
+  providerDurationEstimate: number;
+  finalDurationEstimate: number;
+  suggestedSpeedAdjustment: number | null;
+  speedAdviceOnly: true;
+  totalShotCount: number;
+  missingImageCount: number;
+  recommendedStrategy: StudioRenderStrategy;
+  readiness: {
+    planPresent: boolean;
+    timingLogical: boolean;
+    imagesComplete: boolean;
+    actionStructureComplete: boolean;
+  };
+  scenes: Array<{
+    sceneId: string;
+    sceneOrder: number;
+    targetDuration: number;
+    startTime: number;
+    endTime: number;
+    shots: Array<{
+      shotRole: string;
+      actionBeat: string;
+      startTime: number;
+      endTime: number;
+      durationSeconds: number;
+      motionIntent: string;
+      requiredImageRole: string;
+      missingImage: boolean;
+      renderModeHint: string;
+    }>;
+  }>;
+};
+
 /** Slim render strategy metadata for Studio → Motion handoff (V47). */
 export type MotionRenderStrategyHandoffPlan = {
   recommendedStrategy: StudioRenderStrategy;
@@ -321,5 +357,7 @@ export type MotionHandoffPayload = {
   blockingWarnings?: BlockingWarning[];
   /** V47: Render Strategy Planner metadata (Motion may ignore until P1). */
   renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
+  /** V48: Animation Planner metadata (Motion may ignore until P1/P2). */
+  animationPlan?: MotionAnimationPlanHandoffPlan;
   scenes: MotionHandoffScene[];
 };

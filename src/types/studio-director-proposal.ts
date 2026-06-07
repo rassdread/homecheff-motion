@@ -7,6 +7,7 @@ import type { StoryArcPhase } from "@/lib/studio-story-arc";
 import type { RenderReadinessLevel } from "@/lib/studio-render-readiness-summary";
 import type { MotionRenderStrategyHandoffPlan } from "@/types/motion-handoff-payload";
 import type { StudioProductionPlan } from "@/types/studio-production-plan";
+import type { StudioAnimationPlan } from "@/types/studio-animation-plan";
 
 export type DirectorProposalApplyMode = "all" | "scenes" | "assets" | "audio" | "text";
 
@@ -221,6 +222,20 @@ export type DirectorProposalActionIntelligence = {
   }>;
 };
 
+export type DirectorProposalAnimationPlanEntry = {
+  sceneOrder: number;
+  sceneTitle: string;
+  targetDuration: number;
+  shots: Array<{
+    shotRole: string;
+    startTime: number;
+    endTime: number;
+    motionIntentKey: string;
+    missingImage: boolean;
+    actionBeat: string;
+  }>;
+};
+
 export type StudioDirectorProposal = {
   version: 2;
   ideaPrompt: string;
@@ -244,4 +259,6 @@ export type StudioDirectorProposal = {
   actionIntelligence?: DirectorProposalActionIntelligence;
   actionShotDistribution?: DirectorProposalActionShotDistributionEntry[];
   productionPlan?: StudioProductionPlan;
+  animationPlan?: StudioAnimationPlan;
+  animationPlanPreview?: DirectorProposalAnimationPlanEntry[];
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { StudioAnimationPlanSummary } from "@/components/studio/studio-animation-plan-summary";
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -239,6 +240,18 @@ export function StudioWorkspaceProductionPlanPanel({
           {t(plan.renderPlanning.strategyExplanationKey as TranslationKey)}
         </p>
       </section>
+
+      <StudioAnimationPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
 
       {plan.creationGuidance.length > 0 ?
         <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { StudioAnimationPlanSummary } from "@/components/studio/studio-animation-plan-summary";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { StudioWorldIdentityRulesSummary } from "@/components/studio/studio-world-identity-rules-summary";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
@@ -242,6 +243,16 @@ export function StudioWorkspaceConsistencyPanel({
         props={props}
         worlds={worlds}
         variant="full"
+      />
+
+      <StudioAnimationPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        variant="full"
+        onSwitchTool={onSwitchTool}
       />
 
       <StudioWorldIdentityRulesSummary worlds={worlds} />

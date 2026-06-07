@@ -43,6 +43,8 @@ import { attachCharacterBlockingToHandoffPayload } from "@/lib/attach-character-
 import { attachTextBeatsToHandoffPayload } from "@/lib/attach-text-beats-handoff";
 import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
 import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
+import { buildStudioAnimationPlan } from "@/lib/studio-animation-planner";
+import { toMotionAnimationPlanHandoffPlan } from "@/lib/studio-animation-plan-handoff";
 import { attachProviderExecutionToHandoffPayload } from "@/lib/attach-provider-execution-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
@@ -453,11 +455,15 @@ export async function createMotionHandoffPayload(
   payload = attachTextBeatsToHandoffPayload(payload);
 
   if (detail) {
+    const renderStrategyPlan = buildStudioRenderStrategyPlan({ storyboard: detail });
+    const animationPlan = buildStudioAnimationPlan({
+      storyboard: detail,
+      renderStrategyPlan,
+    });
     payload = {
       ...payload,
-      renderStrategyPlan: toMotionRenderStrategyHandoffPlan(
-        buildStudioRenderStrategyPlan({ storyboard: detail })
-      ),
+      renderStrategyPlan: toMotionRenderStrategyHandoffPlan(renderStrategyPlan),
+      animationPlan: toMotionAnimationPlanHandoffPlan(animationPlan),
     };
   }
 
