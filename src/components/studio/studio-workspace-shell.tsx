@@ -450,6 +450,9 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   canModify={canModify}
                   storyLanguage={storyboard.voiceLanguage ?? "en"}
                   storyVoiceProfile={storyboard.voiceProfile}
+                  storyboard={storyboard}
+                  memory={projectMemory}
+                  isAdmin={session.user?.role === "admin"}
                   onSceneUpdated={handleSceneAssetUpdated}
                   onAssetsChanged={() => void refreshAssetLibraries()}
                   onCharacterUpdated={handleCharacterUpdated}

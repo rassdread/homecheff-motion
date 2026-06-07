@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { StudioWorkspaceCharacterIdentityBuilder } from "@/components/studio/studio-workspace-character-identity-builder";
 import {
   StudioWorkspaceAssetCreateSheet,
   type WorkspaceAssetCreateKind,
@@ -9,8 +10,6 @@ import {
   StudioWorkspaceAssetPicker,
   type WorkspaceAssetPickerItem,
 } from "@/components/studio/studio-workspace-asset-picker";
-import { StudioSceneVoiceOverview } from "@/components/studio/studio-scene-voice-overview";
-import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { useActiveTranslator } from "@/i18n/client";
 import { updateStudioLocationApi } from "@/lib/studio-locations-client";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
@@ -19,8 +18,10 @@ import type {
   StudioLocationListItem,
   StudioPropListItem,
   StudioSceneDetail,
+  StudioStoryboardDetail,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
+import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 
 type AssetTab = "characters" | "locations" | "props" | "worlds";
@@ -40,6 +41,9 @@ type Props = {
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   storyLanguage?: string;
   storyVoiceProfile?: string | null;
+  storyboard?: StudioStoryboardDetail | null;
+  memory?: StudioProjectMemorySnapshot | null;
+  isAdmin?: boolean;
 };
 
 function collectSceneWorlds(scene: StudioSceneDetail) {
@@ -75,6 +79,9 @@ export function StudioWorkspaceSceneAssetsPanel({
   onCharacterUpdated,
   storyLanguage = "en",
   storyVoiceProfile,
+  storyboard,
+  memory,
+  isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
   const [busy, setBusy] = useState(false);
@@ -234,6 +241,116 @@ export function StudioWorkspaceSceneAssetsPanel({
 
   const sceneWorlds = scene ? collectSceneWorlds(scene) : [];
 
+  if (tab === "characters") {
+    return (
+      <div className="space-y-6 pb-8">
+        <StudioWorkspaceCharacterIdentityBuilder
+          characters={characters}
+          worlds={worlds}
+          locations={locations}
+          props={props}
+          storyboard={storyboard}
+          memory={memory}
+          canModify={canModify}
+          isAdmin={isAdmin}
+          storyLanguage={storyLanguage}
+          storyVoiceProfile={storyVoiceProfile}
+          onCharacterUpdated={(updated) => {
+            onCharacterUpdated?.(updated);
+            onAssetsChanged();
+          }}
+        />
+
+        {!scene ?
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+            {t("studio.workspace.assets.noSceneHint")}
+          </p>
+        : (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.workspace.assets.sceneLabel", { n: String(sceneIndex + 1) })}
+              </p>
+              <p className="mt-0.5 text-sm text-zinc-600">
+                {t("studio.workspace.assets.linkedToScene")}
+              </p>
+            </div>
+            {error ?
+              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {error}
+              </p>
+            : null}
+            <div className="flex flex-wrap gap-2">
+              {canModify ?
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setPickerOpen(true)}
+                    className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
+                  >
+                    {t("studio.workspace.assets.addCharacter")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCreateKind("character")}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
+                  >
+                    {t("studio.workspace.assets.newCharacter")}
+                  </button>
+                </>
+              : null}
+            </div>
+            <ul className="space-y-2">
+              {scene.characters.map((character) => {
+                const fresh = characters.find((c) => c.id === character.id) ?? character;
+                return (
+                  <li key={character.id} className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2">
+                    <span className="text-sm font-medium text-zinc-900">{fresh.name}</span>
+                    {canModify ?
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => unlinkCharacter(character.id)}
+                        className="text-xs font-semibold text-red-700 hover:underline"
+                      >
+                        {t("studio.workspace.assets.removeFromScene")}
+                      </button>
+                    : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
+        <StudioWorkspaceAssetPicker
+          open={pickerOpen}
+          title={pickerTitle}
+          items={pickerItems}
+          linkedIds={linkedIds}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(id) => {
+            setPickerOpen(false);
+            if (scene) linkCharacter(id);
+          }}
+        />
+        {createKind ?
+          <StudioWorkspaceAssetCreateSheet
+            open={Boolean(createKind)}
+            kind={createKind}
+            onClose={() => setCreateKind(null)}
+            onCreated={(kind, id) => {
+              setCreateKind(null);
+              handleCreated(kind, id);
+            }}
+          />
+        : null}
+      </div>
+    );
+  }
+
   if (!scene) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-12 text-center">
@@ -256,75 +373,6 @@ export function StudioWorkspaceSceneAssetsPanel({
 
       {error ?
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
-      : null}
-
-      {tab === "characters" ?
-        <>
-          <StudioSceneVoiceOverview
-            scene={scene}
-            characters={characters}
-            storyLanguage={storyLanguage}
-            storyVoiceProfile={storyVoiceProfile}
-          />
-          <div className="flex flex-wrap gap-2">
-            {canModify ?
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setPickerOpen(true)}
-                  className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
-                >
-                  {t("studio.workspace.assets.addCharacter")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openCreate("character")}
-                  className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
-                >
-                  {t("studio.workspace.assets.newCharacter")}
-                </button>
-              </>
-            : null}
-          </div>
-          <ul className="space-y-2">
-            {scene.characters.map((character) => {
-              const fresh = characters.find((c) => c.id === character.id) ?? character;
-              return (
-                <li key={character.id} className="space-y-2">
-                  <StudioWorkspaceCharacterVoiceInline
-                    character={fresh}
-                    storyLanguage={storyLanguage}
-                    storyVoiceProfile={storyVoiceProfile}
-                    canModify={canModify}
-                    onCharacterUpdated={(updated) => {
-                      onCharacterUpdated?.(updated);
-                      onAssetsChanged();
-                    }}
-                  />
-                  {canModify ?
-                    <div className="flex justify-end px-1">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => unlinkCharacter(character.id)}
-                        className="text-xs font-semibold text-red-700 hover:underline"
-                      >
-                        {t("studio.workspace.assets.removeFromScene")}
-                      </button>
-                    </div>
-                  : null}
-                </li>
-              );
-            })}
-            {scene.characters.length === 0 ?
-              <li className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
-                {t("studio.workspace.assets.noLinkedCharacters")}
-              </li>
-            : null}
-          </ul>
-        </>
       : null}
 
       {tab === "locations" ?
@@ -487,9 +535,7 @@ export function StudioWorkspaceSceneAssetsPanel({
         linkedIds={linkedIds}
         onClose={() => setPickerOpen(false)}
         onSelect={(id) => {
-          if (tab === "characters") {
-            linkCharacter(id);
-          } else if (tab === "locations") {
+          if (tab === "locations") {
             linkLocation(id);
           } else if (tab === "props") {
             linkProp(id);
