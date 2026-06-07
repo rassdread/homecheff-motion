@@ -1,4 +1,6 @@
 import type { LocationSnapshot } from "@/types/studio-location-snapshot";
+import { buildLocationIdentityPromptContext } from "@/lib/studio-location-identity-visual-hints";
+import type { StudioLocationListItem } from "@/types/studio-api";
 
 const CATEGORY_HINTS: Record<string, string> = {
   city: "urban city environment",
@@ -12,7 +14,10 @@ const CATEGORY_HINTS: Record<string, string> = {
   fantasy: "stylized fantasy environment",
 };
 
-export function buildLocationPrompt(location: LocationSnapshot | null): string {
+export function buildLocationPrompt(
+  location: LocationSnapshot | null,
+  sourceLocation?: StudioLocationListItem | null
+): string {
   if (!location) {
     return "";
   }
@@ -21,6 +26,10 @@ export function buildLocationPrompt(location: LocationSnapshot | null): string {
   parts.push(`A cinematic ${location.name} scene — ${categoryHint}.`);
   if (location.description.trim()) {
     parts.push(location.description.trim());
+  }
+  const identityContext = buildLocationIdentityPromptContext(sourceLocation ?? null);
+  if (identityContext) {
+    parts.push(identityContext);
   }
   return parts.join(" ");
 }

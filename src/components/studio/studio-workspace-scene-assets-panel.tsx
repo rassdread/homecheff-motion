@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { StudioWorkspaceCharacterIdentityBuilder } from "@/components/studio/studio-workspace-character-identity-builder";
+import { StudioWorkspaceLocationIdentityBuilder } from "@/components/studio/studio-workspace-location-identity-builder";
 import {
   StudioWorkspaceAssetCreateSheet,
   type WorkspaceAssetCreateKind,
@@ -39,6 +40,7 @@ type Props = {
   onSceneUpdated: (scene: StudioSceneDetail) => void;
   onAssetsChanged: () => void;
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
+  onLocationUpdated?: (location: StudioLocationListItem) => void;
   storyLanguage?: string;
   storyVoiceProfile?: string | null;
   storyboard?: StudioStoryboardDetail | null;
@@ -77,6 +79,7 @@ export function StudioWorkspaceSceneAssetsPanel({
   onSceneUpdated,
   onAssetsChanged,
   onCharacterUpdated,
+  onLocationUpdated,
   storyLanguage = "en",
   storyVoiceProfile,
   storyboard,
@@ -241,6 +244,122 @@ export function StudioWorkspaceSceneAssetsPanel({
 
   const sceneWorlds = scene ? collectSceneWorlds(scene) : [];
 
+  if (tab === "locations") {
+    return (
+      <div className="space-y-6 pb-8">
+        <StudioWorkspaceLocationIdentityBuilder
+          locations={locations}
+          worlds={worlds}
+          characters={characters}
+          props={props}
+          storyboard={storyboard}
+          memory={memory}
+          canModify={canModify}
+          isAdmin={isAdmin}
+          onLocationUpdated={(updated) => {
+            onLocationUpdated?.(updated);
+            onAssetsChanged();
+          }}
+        />
+
+        {!scene ?
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+            {t("studio.workspace.assets.noSceneHint")}
+          </p>
+        : (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.workspace.assets.sceneLabel", { n: String(sceneIndex + 1) })}
+              </p>
+              <p className="mt-0.5 text-sm text-zinc-600">
+                {t("studio.workspace.assets.linkedToScene")}
+              </p>
+            </div>
+            {error ?
+              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {error}
+              </p>
+            : null}
+            <div className="flex flex-wrap gap-2">
+              {canModify ?
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setPickerOpen(true)}
+                    className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
+                  >
+                    {t("studio.workspace.assets.chooseLocation")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCreateKind("location")}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
+                  >
+                    {t("studio.workspace.assets.newLocation")}
+                  </button>
+                </>
+              : null}
+            </div>
+            {scene.location ?
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3">
+                <div className="flex items-center gap-3">
+                  {scene.location.referenceImageUrl ?
+                    <img
+                      src={scene.location.referenceImageUrl}
+                      alt=""
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  : null}
+                  <p className="text-sm font-semibold text-zinc-900">{scene.location.name}</p>
+                </div>
+                {canModify ?
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={clearLocation}
+                    className="text-xs font-semibold text-red-700 hover:underline"
+                  >
+                    {t("studio.workspace.assets.removeFromScene")}
+                  </button>
+                : null}
+              </div>
+            : (
+              <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+                {t("studio.workspace.assets.noLinkedLocation")}
+              </p>
+            )}
+          </>
+        )}
+
+        <StudioWorkspaceAssetPicker
+          open={pickerOpen}
+          title={pickerTitle}
+          items={pickerItems}
+          linkedIds={linkedIds}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(id) => {
+            setPickerOpen(false);
+            if (scene) linkLocation(id);
+          }}
+        />
+        {createKind ?
+          <StudioWorkspaceAssetCreateSheet
+            open={Boolean(createKind)}
+            kind={createKind}
+            onClose={() => setCreateKind(null)}
+            onCreated={(kind, id) => {
+              setCreateKind(null);
+              handleCreated(kind, id);
+            }}
+          />
+        : null}
+      </div>
+    );
+  }
+
   if (tab === "characters") {
     return (
       <div className="space-y-6 pb-8">
@@ -375,61 +494,6 @@ export function StudioWorkspaceSceneAssetsPanel({
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
       : null}
 
-      {tab === "locations" ?
-        <>
-          <div className="flex flex-wrap gap-2">
-            {canModify ?
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setPickerOpen(true)}
-                  className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
-                >
-                  {t("studio.workspace.assets.chooseLocation")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openCreate("location")}
-                  className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
-                >
-                  {t("studio.workspace.assets.newLocation")}
-                </button>
-              </>
-            : null}
-          </div>
-          {scene.location ?
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-3">
-              <div className="flex items-center gap-3">
-                {scene.location.referenceImageUrl ?
-                  <img
-                    src={scene.location.referenceImageUrl}
-                    alt=""
-                    className="h-10 w-10 rounded-lg object-cover"
-                  />
-                : null}
-                <p className="text-sm font-semibold text-zinc-900">{scene.location.name}</p>
-              </div>
-              {canModify ?
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={clearLocation}
-                  className="text-xs font-semibold text-red-700 hover:underline"
-                >
-                  {t("studio.workspace.assets.removeFromScene")}
-                </button>
-              : null}
-            </div>
-          : (
-            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
-              {t("studio.workspace.assets.noLinkedLocation")}
-            </p>
-          )}
-        </>
-      : null}
-
       {tab === "props" ?
         <>
           <div className="flex flex-wrap gap-2">
@@ -535,9 +599,7 @@ export function StudioWorkspaceSceneAssetsPanel({
         linkedIds={linkedIds}
         onClose={() => setPickerOpen(false)}
         onSelect={(id) => {
-          if (tab === "locations") {
-            linkLocation(id);
-          } else if (tab === "props") {
+          if (tab === "props") {
             linkProp(id);
           } else if (tab === "worlds") {
             void applyWorldToLocation(id);

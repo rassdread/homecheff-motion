@@ -1,4 +1,5 @@
 import { continuityStrengthPromptHint } from "@/lib/studio-continuity-strength";
+import { buildLocationIdentityMemoryPromptExtras } from "@/lib/studio-location-identity-visual-hints";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
 function joinLines(parts: string[]): string {
@@ -65,6 +66,7 @@ export function buildLocationMemoryPromptLines(
   if (location.environmentKeywords.trim()) {
     block.push(`Environment keywords: ${location.environmentKeywords.trim()}.`);
   }
+  block.push(...buildLocationIdentityMemoryPromptExtras(location));
   block.push(continuityStrengthPromptHint(location.continuityStrength));
   if (location.continuityNotes.trim()) {
     block.push(location.continuityNotes.trim());

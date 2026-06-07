@@ -19,6 +19,9 @@ import type {
   SceneVisualRole,
   ScreenPosition,
 } from "@/types/studio-scene-composition";
+import {
+  locationIdentityFormFromLocation,
+} from "@/lib/studio-location-identity-fields";
 
 const BRAND_NAMES = [
   { match: "homecheff", brandId: "brand-homecheff", brandName: "HomeCheff" },
@@ -182,15 +185,26 @@ function buildLocationPlan(scene: StudioSceneDetail): LocationCompositionPlan {
   const visualDensity: LocationCompositionPlan["visualDensity"] =
     entityLoad >= 5 ? "dense" : entityLoad >= 2 ? "medium" : "light";
 
+  const locationType =
+    scene.location ? locationIdentityFormFromLocation(scene.location).locationType : "";
   const locationName = scene.location?.name?.toLowerCase() ?? "";
   let environmentFocus = "studio.composition.location.generic";
-  if (locationName.includes("garden")) {
+  if (locationType === "garden" || locationName.includes("garden")) {
     environmentFocus = "studio.composition.location.garden";
-  } else if (locationName.includes("restaurant") || locationName.includes("kitchen")) {
+  } else if (
+    locationType === "restaurant" ||
+    locationType === "kitchen" ||
+    locationName.includes("restaurant") ||
+    locationName.includes("kitchen")
+  ) {
     environmentFocus = "studio.composition.location.restaurant";
-  } else if (locationName.includes("market")) {
+  } else if (locationType === "market" || locationName.includes("market")) {
     environmentFocus = "studio.composition.location.market";
-  } else if (locationName.includes("studio") || locationName.includes("design")) {
+  } else if (
+    locationType === "studio_room" ||
+    locationName.includes("studio") ||
+    locationName.includes("design")
+  ) {
     environmentFocus = "studio.composition.location.designStudio";
   }
 
