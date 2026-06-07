@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildProductionMemoryProfile } from "@/lib/studio-production-memory-profile";
+import { buildProductionPatternProfile } from "@/lib/studio-production-pattern-profile";
 import type {
   StudioCharacterListItem,
+  StudioPropListItem,
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
@@ -16,6 +18,7 @@ type Props = {
   currentIdea?: string;
   characters?: StudioCharacterListItem[];
   worlds?: StudioWorldProfileListItem[];
+  props?: StudioPropListItem[];
   guidance?: ProductionMemoryCreationGuidance | null;
   compact?: boolean;
   timelineGuidanceKeys?: string[];
@@ -29,11 +32,28 @@ function MemoryChip({ label }: { label: string }) {
   );
 }
 
+function PatternSubsection({
+  titleKey,
+  children,
+}: {
+  titleKey: TranslationKey;
+  children: ReactNode;
+}) {
+  const t = useActiveTranslator();
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{t(titleKey)}</p>
+      <div className="mt-2 flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
 export function StudioProductionMemoryPanel({
   memory,
   currentIdea,
   characters,
   worlds,
+  props,
   guidance,
   compact = false,
   timelineGuidanceKeys = [],
@@ -50,13 +70,36 @@ export function StudioProductionMemoryPanel({
     [memory, currentIdea, characters, worlds]
   );
 
+  const patternProfile = useMemo(
+    () =>
+      buildProductionPatternProfile({
+        projectMemory: memory,
+        currentIdea,
+        characters,
+        worlds,
+        props,
+      }),
+    [memory, currentIdea, characters, worlds, props]
+  );
+
   const activeGuidance = guidance ?? profile.creationGuidance;
+  const hasPatternContent =
+    patternProfile.recurringProductionTypes.length > 0 ||
+    patternProfile.structureSummary !== null ||
+    patternProfile.recurringRenderStrategies.length > 0 ||
+    patternProfile.recurringAssetCombinations.length > 0 ||
+    patternProfile.recurringCharacters.length > 0 ||
+    patternProfile.recurringWorlds.length > 0 ||
+    patternProfile.recurringProps.length > 0 ||
+    patternProfile.currentProductionType !== null;
+
   const hasContent =
     profile.totalProductions >= 2 ||
     profile.topCharacters.length > 0 ||
     profile.recurringWorlds.length > 0 ||
     profile.recurringStyles.length > 0 ||
-    profile.recurringRenderStrategies.length > 0;
+    profile.recurringRenderStrategies.length > 0 ||
+    hasPatternContent;
 
   if (!hasContent) {
     return (
@@ -108,15 +151,28 @@ export function StudioProductionMemoryPanel({
         </div>
       : null}
 
-      {!compact ?
-        <div className="mt-4 space-y-3">
-          {profile.productionPatterns.length > 0 ?
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                {t("studio.productionMemory.section.patterns")}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {profile.productionPatterns.slice(0, 4).map((pattern) => (
+      {hasPatternContent ?
+        <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-3">
+          <h4 className="text-sm font-semibold text-zinc-900">
+            {t("studio.productionPattern.title")}
+          </h4>
+          <p className="mt-0.5 text-xs text-zinc-600">{t("studio.productionPattern.subtitle")}</p>
+
+          <div className={`mt-3 space-y-3 ${compact ? "space-y-2" : ""}`}>
+            {patternProfile.currentProductionTypeLabelKey ?
+              <PatternSubsection titleKey="studio.productionPattern.section.currentType">
+                <MemoryChip
+                  label={t(
+                    patternProfile.currentProductionTypeLabelKey as TranslationKey,
+                    { count: "1" }
+                  )}
+                />
+              </PatternSubsection>
+            : null}
+
+            {patternProfile.recurringProductionTypes.length > 0 ?
+              <PatternSubsection titleKey="studio.productionPattern.section.productionTypes">
+                {patternProfile.recurringProductionTypes.slice(0, compact ? 2 : 4).map((pattern) => (
                   <MemoryChip
                     key={pattern.id}
                     label={t(pattern.labelKey as TranslationKey, {
@@ -124,42 +180,114 @@ export function StudioProductionMemoryPanel({
                     })}
                   />
                 ))}
-              </div>
-            </div>
-          : null}
+              </PatternSubsection>
+            : null}
 
-          {profile.recurringWorlds.length > 0 ?
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                {t("studio.productionMemory.section.worlds")}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {profile.recurringWorlds.slice(0, 4).map((world) => (
+            {patternProfile.structureSummary ?
+              <PatternSubsection titleKey="studio.productionPattern.section.structures">
+                <MemoryChip
+                  label={t(
+                    patternProfile.structureSummary.labelKey as TranslationKey,
+                    patternProfile.structureSummary.params
+                  )}
+                />
+                {patternProfile.recurringStructures.slice(0, 2).map((structure) => (
                   <MemoryChip
-                    key={world.id}
-                    label={t(world.labelKey as TranslationKey, world.params)}
+                    key={structure.id}
+                    label={t(structure.labelKey as TranslationKey, structure.params)}
                   />
                 ))}
-              </div>
-            </div>
-          : null}
+              </PatternSubsection>
+            : null}
 
-          {profile.topCharacters.length > 0 ?
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                {t("studio.productionMemory.section.characters")}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {profile.topCharacters.slice(0, 4).map((character) => (
+            {(patternProfile.recurringDurations.length > 0 ||
+              patternProfile.recurringShotCounts.length > 0) ?
+              <PatternSubsection titleKey="studio.productionPattern.section.timing">
+                {patternProfile.recurringDurations.slice(0, 2).map((duration) => (
                   <MemoryChip
-                    key={character.id}
-                    label={t(character.labelKey as TranslationKey, character.params)}
+                    key={duration.id}
+                    label={t(duration.labelKey as TranslationKey, {
+                      count: String(duration.storyboardCount),
+                    })}
                   />
                 ))}
-              </div>
-            </div>
-          : null}
+                {patternProfile.recurringShotCounts.slice(0, 2).map((shots) => (
+                  <MemoryChip
+                    key={shots.id}
+                    label={t(shots.labelKey as TranslationKey, {
+                      count: String(shots.storyboardCount),
+                    })}
+                  />
+                ))}
+              </PatternSubsection>
+            : null}
 
+            {patternProfile.recurringRenderStrategies.length > 0 ?
+              <PatternSubsection titleKey="studio.productionPattern.section.render">
+                {patternProfile.recurringRenderStrategies.slice(0, compact ? 2 : 3).map((render) => (
+                  <MemoryChip
+                    key={render.id}
+                    label={t(render.labelKey as TranslationKey, {
+                      count: String(render.storyboardCount),
+                    })}
+                  />
+                ))}
+              </PatternSubsection>
+            : null}
+
+            {!compact ?
+              <>
+                {patternProfile.recurringAssetCombinations.length > 0 ?
+                  <PatternSubsection titleKey="studio.productionPattern.section.assets">
+                    {patternProfile.recurringAssetCombinations.map((combo) => (
+                      <MemoryChip
+                        key={combo.id}
+                        label={t(combo.labelKey as TranslationKey, combo.params)}
+                      />
+                    ))}
+                  </PatternSubsection>
+                : null}
+
+                {patternProfile.recurringCharacters.length > 0 ?
+                  <PatternSubsection titleKey="studio.productionPattern.section.characters">
+                    {patternProfile.recurringCharacters.slice(0, 4).map((character) => (
+                      <MemoryChip
+                        key={character.id}
+                        label={t(character.labelKey as TranslationKey, character.params)}
+                      />
+                    ))}
+                  </PatternSubsection>
+                : null}
+
+                {patternProfile.recurringWorlds.length > 0 ?
+                  <PatternSubsection titleKey="studio.productionPattern.section.worlds">
+                    {patternProfile.recurringWorlds.slice(0, 4).map((world) => (
+                      <MemoryChip
+                        key={world.id}
+                        label={t(world.labelKey as TranslationKey, world.params)}
+                      />
+                    ))}
+                  </PatternSubsection>
+                : null}
+
+                {patternProfile.recurringProps.length > 0 ?
+                  <PatternSubsection titleKey="studio.productionPattern.section.props">
+                    {patternProfile.recurringProps.map((prop) => (
+                      <MemoryChip
+                        key={prop.id}
+                        label={t(prop.labelKey as TranslationKey, prop.params)}
+                      />
+                    ))}
+                  </PatternSubsection>
+                : null}
+              </>
+            : null}
+          </div>
+        </div>
+      : null}
+
+      {!compact ?
+        <div className="mt-4 space-y-3">
           {profile.recurringStyles.length > 0 ?
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -170,24 +298,6 @@ export function StudioProductionMemoryPanel({
                   <MemoryChip
                     key={style.id}
                     label={t(style.labelKey as TranslationKey, style.params)}
-                  />
-                ))}
-              </div>
-            </div>
-          : null}
-
-          {profile.recurringRenderStrategies.length > 0 ?
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                {t("studio.productionMemory.section.renderApproaches")}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {profile.recurringRenderStrategies.slice(0, 3).map((render) => (
-                  <MemoryChip
-                    key={render.id}
-                    label={t(render.labelKey as TranslationKey, {
-                      count: String(render.storyboardCount),
-                    })}
                   />
                 ))}
               </div>

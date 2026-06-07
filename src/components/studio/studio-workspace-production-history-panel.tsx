@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
-import { buildProductionTimeline } from "@/lib/studio-production-timeline";
+import { buildProductionTimelineWithPatterns } from "@/lib/studio-production-pattern-profile";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
   StudioCharacterListItem,
@@ -67,7 +67,7 @@ export function StudioWorkspaceProductionHistoryPanel({
 
   const timeline = useMemo(() => {
     const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
-    return buildProductionTimeline({
+    return buildProductionTimelineWithPatterns({
       storyboard,
       characters,
       locations,
@@ -103,6 +103,11 @@ export function StudioWorkspaceProductionHistoryPanel({
                 <span className="font-medium text-zinc-900">
                   {t(milestone.titleKey as TranslationKey, milestone.titleParams)}
                 </span>
+                {milestone.patternHintKey ?
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800">
+                    {t(milestone.patternHintKey as TranslationKey, milestone.patternHintParams)}
+                  </span>
+                : null}
                 <span className="text-xs text-zinc-500">{formatWhen(milestone.at, locale)}</span>
                 {milestone.toolId && onSwitchTool ?
                   <button

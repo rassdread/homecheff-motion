@@ -54,6 +54,16 @@ const PATTERN_SIGNALS: PatternSignal[] = [
     labelKey: "studio.productionMemory.pattern.sportsPromo",
     test: /\b(sport|voetbal|football|soccer|nike|athletic|stadium|stadion|mascot)\b/i,
   },
+  {
+    id: "tutorial_promo",
+    labelKey: "studio.productionMemory.pattern.tutorialPromo",
+    test: /\b(tutorial|how to|how-to|step by step|learn|uitleg|handleiding|guide)\b/i,
+  },
+  {
+    id: "community_promo",
+    labelKey: "studio.productionMemory.pattern.communityPromo",
+    test: /\b(community|gemeenschap|neighborhood|buurt|local heroes|samen|together)\b/i,
+  },
 ];
 
 const RENDER_STRATEGY_LABEL: Record<StudioRenderStrategy, string> = {
@@ -83,6 +93,11 @@ function detectPatternForText(text: string): ProductionMemoryPatternId | null {
     }
   }
   return null;
+}
+
+/** Detect production type from idea/title text using existing heuristics. */
+export function detectProductionTypeFromIdea(text: string): ProductionMemoryPatternId | null {
+  return detectPatternForText(text.trim());
 }
 
 function roundAverage(values: number[]): number {

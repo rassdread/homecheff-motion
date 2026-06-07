@@ -51,6 +51,8 @@ export type ProductionTimelineMilestone = {
   titleKey: string;
   titleParams?: Record<string, string>;
   toolId?: StudioToolId;
+  patternHintKey?: string;
+  patternHintParams?: Record<string, string>;
 };
 
 export type ProductionTimelineDecision = {

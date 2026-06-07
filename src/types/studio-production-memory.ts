@@ -30,6 +30,8 @@ export type ProductionMemoryPatternId =
   | "designer_promo"
   | "affiliate_promo"
   | "sports_promo"
+  | "tutorial_promo"
+  | "community_promo"
   | "generic_commercial";
 
 export type ProductionMemoryPattern = {

@@ -58,6 +58,10 @@ import {
   buildProductionTimelineContext,
   enrichIdeaWithProductionTimeline,
 } from "@/lib/studio-production-timeline";
+import {
+  buildProductionPatternContext,
+  enrichIdeaWithProductionPattern,
+} from "@/lib/studio-production-pattern-profile";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -802,6 +806,22 @@ export function buildDirectorProposal(params: {
     timelineContext
   );
 
+  const productionPatternContext = buildProductionPatternContext({
+    projectMemory: params.projectMemory,
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    assetDecisionRegistry: params.assetDecisionRegistry,
+    currentIdea: idea,
+  });
+
+  const enrichedFromPatterns = enrichIdeaWithProductionPattern(
+    enrichedFromTimeline,
+    productionPatternContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -816,7 +836,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromTimeline, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromPatterns, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1173,6 +1193,7 @@ export function buildDirectorProposal(params: {
     productionMemoryContext,
     creativeReviewContext,
     creationAssistantContext,
+    productionPatternContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

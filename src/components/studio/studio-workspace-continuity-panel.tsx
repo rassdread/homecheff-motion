@@ -222,6 +222,7 @@ export function StudioWorkspaceContinuityPanel({
         currentIdea={storyboard.aiDirectorPrompt}
         characters={characters}
         worlds={worlds}
+        props={props}
         compact
         timelineGuidanceKeys={timelineGuidanceKeys}
       />
