@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { StudioWorkspaceCharacterIdentityBuilder } from "@/components/studio/studio-workspace-character-identity-builder";
 import { StudioWorkspaceLocationIdentityBuilder } from "@/components/studio/studio-workspace-location-identity-builder";
 import { StudioWorkspacePropIdentityBuilder } from "@/components/studio/studio-workspace-prop-identity-builder";
+import { StudioWorkspaceWorldIdentityBuilder } from "@/components/studio/studio-workspace-world-identity-builder";
 import {
   StudioWorkspaceAssetCreateSheet,
   type WorkspaceAssetCreateKind,
@@ -15,6 +16,7 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import { updateStudioLocationApi } from "@/lib/studio-locations-client";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
+import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -24,7 +26,7 @@ import type {
   StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
-import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
+import type { StudioToolId } from "@/lib/studio-tool-id";
 
 type AssetTab = "characters" | "locations" | "props" | "worlds";
 
@@ -43,6 +45,8 @@ type Props = {
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   onLocationUpdated?: (location: StudioLocationListItem) => void;
   onPropUpdated?: (prop: StudioPropListItem) => void;
+  onWorldUpdated?: (world: StudioWorldProfileListItem) => void;
+  onSwitchTool?: (tool: StudioToolId) => void;
   storyLanguage?: string;
   storyVoiceProfile?: string | null;
   storyboard?: StudioStoryboardDetail | null;
@@ -83,6 +87,8 @@ export function StudioWorkspaceSceneAssetsPanel({
   onCharacterUpdated,
   onLocationUpdated,
   onPropUpdated,
+  onWorldUpdated,
+  onSwitchTool,
   storyLanguage = "en",
   storyVoiceProfile,
   storyboard,
@@ -246,6 +252,112 @@ export function StudioWorkspaceSceneAssetsPanel({
           : t("studio.workspace.assets.chooseWorld");
 
   const sceneWorlds = scene ? collectSceneWorlds(scene) : [];
+
+  if (tab === "worlds") {
+    return (
+      <div className="space-y-6 pb-8">
+        <StudioWorkspaceWorldIdentityBuilder
+          worlds={worlds}
+          characters={characters}
+          locations={locations}
+          props={props}
+          storyboard={storyboard}
+          memory={memory}
+          canModify={canModify}
+          isAdmin={isAdmin}
+          onSwitchTool={onSwitchTool}
+          onWorldUpdated={(updated) => {
+            onWorldUpdated?.(updated);
+            onAssetsChanged();
+          }}
+        />
+
+        {!scene ?
+          <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-500">
+            {t("studio.workspace.assets.noSceneHint")}
+          </p>
+        : (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("studio.workspace.assets.sceneLabel", { n: String(sceneIndex + 1) })}
+              </p>
+              <p className="mt-0.5 text-sm text-zinc-600">
+                {t("studio.workspace.assets.linkedToScene")}
+              </p>
+            </div>
+            {error ?
+              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {error}
+              </p>
+            : null}
+            <p className="text-sm text-zinc-600">{t("studio.workspace.assets.worldContextHint")}</p>
+            {sceneWorlds.length > 0 ?
+              <ul className="space-y-2">
+                {sceneWorlds.map((world) => (
+                  <li
+                    key={world.id}
+                    className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-3 py-2 text-sm font-medium text-zinc-900"
+                  >
+                    {world.name}
+                  </li>
+                ))}
+              </ul>
+            : (
+              <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-sm text-zinc-500">
+                {t("studio.workspace.assets.noSceneWorld")}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {canModify ?
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setPickerOpen(true)}
+                    className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
+                  >
+                    {t("studio.workspace.assets.chooseWorld")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCreateKind("world")}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
+                  >
+                    {t("studio.workspace.assets.newWorld")}
+                  </button>
+                </>
+              : null}
+            </div>
+          </>
+        )}
+
+        <StudioWorkspaceAssetPicker
+          open={pickerOpen}
+          title={pickerTitle}
+          items={pickerItems}
+          linkedIds={linkedIds}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(id) => {
+            setPickerOpen(false);
+            if (scene) void applyWorldToLocation(id);
+          }}
+        />
+        {createKind ?
+          <StudioWorkspaceAssetCreateSheet
+            open={Boolean(createKind)}
+            kind={createKind}
+            onClose={() => setCreateKind(null)}
+            onCreated={(kind, id) => {
+              setCreateKind(null);
+              handleCreated(kind, id);
+            }}
+          />
+        : null}
+      </div>
+    );
+  }
 
   if (tab === "props") {
     return (
@@ -621,47 +733,6 @@ export function StudioWorkspaceSceneAssetsPanel({
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
       : null}
 
-      {tab === "worlds" ?
-        <>
-          <p className="text-sm text-zinc-600">{t("studio.workspace.assets.worldContextHint")}</p>
-          {sceneWorlds.length > 0 ?
-            <ul className="space-y-2">
-              {sceneWorlds.map((world) => (
-                <li key={world.id} className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 px-3 py-2 text-sm font-medium text-zinc-900">
-                  {world.name}
-                </li>
-              ))}
-            </ul>
-          : (
-            <p className="rounded-xl border border-dashed border-zinc-200 px-4 py-4 text-sm text-zinc-500">
-              {t("studio.workspace.assets.noSceneWorld")}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {canModify ?
-              <>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setPickerOpen(true)}
-                  className="rounded-full bg-[#0067B1]/10 px-4 py-2 text-xs font-semibold text-[#0067B1]"
-                >
-                  {t("studio.workspace.assets.chooseWorld")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openCreate("world")}
-                  className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
-                >
-                  {t("studio.workspace.assets.newWorld")}
-                </button>
-              </>
-            : null}
-          </div>
-        </>
-      : null}
-
       <StudioWorkspaceAssetPicker
         open={pickerOpen}
         title={pickerTitle}
@@ -669,9 +740,7 @@ export function StudioWorkspaceSceneAssetsPanel({
         linkedIds={linkedIds}
         onClose={() => setPickerOpen(false)}
         onSelect={(id) => {
-          if (tab === "worlds") {
-            void applyWorldToLocation(id);
-          }
+          void applyWorldToLocation(id);
         }}
       />
 

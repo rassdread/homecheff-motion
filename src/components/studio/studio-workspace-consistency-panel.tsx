@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
+import { StudioWorldIdentityRulesSummary } from "@/components/studio/studio-world-identity-rules-summary";
 import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -221,6 +222,8 @@ export function StudioWorkspaceConsistencyPanel({
           ))}
         </section>
       : null}
+
+      <StudioWorldIdentityRulesSummary worlds={worlds} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {overview.domains.map((domain) => (

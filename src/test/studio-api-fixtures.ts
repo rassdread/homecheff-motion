@@ -9,6 +9,7 @@ import type {
   StudioPropListItem,
   StudioSceneDetail,
   StudioStoryboardDetail,
+  StudioWorldProfileListItem,
 } from "@/types/studio-api";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
 
@@ -153,6 +154,24 @@ export function studioLocationListItem(
     continuityStrength: partial.continuityStrength ?? "strong",
     worldProfileId: partial.worldProfileId ?? null,
     worldProfile: partial.worldProfile ?? null,
+    createdAt: partial.createdAt ?? NOW,
+    updatedAt: partial.updatedAt ?? NOW,
+  };
+}
+
+export function studioWorldProfileListItem(
+  partial: Partial<StudioWorldProfileListItem> & { id: string; name: string }
+): StudioWorldProfileListItem {
+  return {
+    id: partial.id,
+    ownerId: partial.ownerId ?? "u1",
+    name: partial.name,
+    slug: partial.slug ?? partial.name.toLowerCase().replace(/\s+/g, "-"),
+    description: partial.description ?? "",
+    visualStyle: partial.visualStyle ?? "",
+    tone: partial.tone ?? "",
+    continuityRules: partial.continuityRules ?? "",
+    continuityStrength: partial.continuityStrength ?? "strong",
     createdAt: partial.createdAt ?? NOW,
     updatedAt: partial.updatedAt ?? NOW,
   };

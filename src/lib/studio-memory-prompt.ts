@@ -1,6 +1,7 @@
 import { continuityStrengthPromptHint } from "@/lib/studio-continuity-strength";
 import { buildLocationIdentityMemoryPromptExtras } from "@/lib/studio-location-identity-visual-hints";
 import { buildPropIdentityMemoryPromptExtras } from "@/lib/studio-prop-identity-visual-hints";
+import { buildWorldIdentityMemoryPromptExtras } from "@/lib/studio-world-identity-visual-hints";
 import { parsePropAppearanceDetails } from "@/lib/studio-prop-identity-structured";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
@@ -100,15 +101,15 @@ export function buildWorldMemoryPromptLines(world: SceneMemoryBundle["world"]): 
     return [];
   }
   const block: string[] = [`Maintain ${world.name} world visual style.`];
-  if (world.visualStyle.trim()) {
-    block.push(`Visual style: ${world.visualStyle.trim()}.`);
-  }
-  if (world.tone.trim()) {
-    block.push(`Tone: ${world.tone.trim()}.`);
-  }
-  if (world.continuityRules.trim()) {
-    block.push(world.continuityRules.trim());
-  }
+  block.push(...buildWorldIdentityMemoryPromptExtras({
+    id: world.id,
+    name: world.name,
+    description: world.description,
+    visualStyle: world.visualStyle,
+    tone: world.tone,
+    continuityRules: world.continuityRules,
+    continuityStrength: world.continuityStrength,
+  }));
   block.push(continuityStrengthPromptHint(world.continuityStrength));
   return [block.join(" ")];
 }

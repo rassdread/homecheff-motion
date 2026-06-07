@@ -8,6 +8,7 @@ import {
   extractPropStructuredKeywordString,
   parsePropAppearanceDetails,
 } from "@/lib/studio-prop-identity-structured";
+import { extractWorldVisualKeywordString, parseWorldContinuitySections, parseWorldVisualStructured, WORLD_AUDIO_FORBIDDEN_MARKER, WORLD_BRAND_MARKER, WORLD_FORBIDDEN_MARKER, WORLD_RENDER_MARKER, WORLD_SHOTS_MARKER } from "@/lib/studio-world-identity-structured";
 import type {
   StudioCharacterDetail,
   StudioCharacterListItem,
@@ -250,21 +251,37 @@ export function propToIdentitySpec(
 }
 
 export function worldToIdentitySpec(world: StudioWorldProfileListItem): WorldIdentitySpec {
+  const visual = parseWorldVisualStructured(world.visualStyle);
+  const continuity = parseWorldContinuitySections(world.continuityRules);
+  const worldContinuityMarkers = [
+    WORLD_SHOTS_MARKER,
+    WORLD_RENDER_MARKER,
+    WORLD_FORBIDDEN_MARKER,
+    WORLD_AUDIO_FORBIDDEN_MARKER,
+    WORLD_BRAND_MARKER,
+  ];
+  const hasStructuredContinuity = worldContinuityMarkers.some((marker) =>
+    world.continuityRules.includes(marker)
+  );
+
   return {
     kind: "world",
     id: world.id,
     name: world.name,
-    type: "",
+    type: visual.worldType,
     role: "",
     description: world.description,
     personality: world.tone,
-    visualKeywords: "",
+    visualKeywords: extractWorldVisualKeywordString(world.visualStyle),
     visualRules: buildWorldVisualRules(world),
-    tags: [],
+    tags: visual.worldType ? [visual.worldType] : [],
     references: [],
     world: { id: world.id, name: world.name },
-    usageContext: world.continuityRules,
-    forbiddenElements: world.continuityRules,
+    usageContext: hasStructuredContinuity ? continuity.usageContext : world.continuityRules,
+    forbiddenElements:
+      hasStructuredContinuity ?
+        continuity.forbiddenElements
+      : world.continuityRules.trim(),
     continuityMetadata: {
       notes: world.continuityRules,
       continuityStrength: world.continuityStrength,

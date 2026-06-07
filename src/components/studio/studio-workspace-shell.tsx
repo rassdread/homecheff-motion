@@ -205,6 +205,31 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
     });
   }, []);
 
+  const handleWorldUpdated = useCallback((updated: StudioWorldProfileListItem) => {
+    setWorlds((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.worldProfileId === updated.id ?
+          { ...c, worldProfile: { id: updated.id, name: updated.name } }
+        : c
+      )
+    );
+    setLocations((prev) =>
+      prev.map((l) =>
+        l.worldProfileId === updated.id ?
+          { ...l, worldProfile: { id: updated.id, name: updated.name } }
+        : l
+      )
+    );
+    setProps((prev) =>
+      prev.map((p) =>
+        p.worldProfileId === updated.id ?
+          { ...p, worldProfile: { id: updated.id, name: updated.name } }
+        : p
+      )
+    );
+  }, []);
+
   const handleSceneAssetUpdated = (updated: StudioSceneDetail) => {
     setStoryboard((prev) =>
       prev
@@ -491,6 +516,8 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   onCharacterUpdated={handleCharacterUpdated}
                   onLocationUpdated={handleLocationUpdated}
                   onPropUpdated={handlePropUpdated}
+                  onWorldUpdated={handleWorldUpdated}
+                  onSwitchTool={handleToolChange}
                 />
               : (
                 <StudioWorkspaceToolPanel
