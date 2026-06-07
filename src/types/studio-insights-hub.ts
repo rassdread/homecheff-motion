@@ -104,6 +104,7 @@ export type StudioInsightsHubView = {
   timelineSummary: InsightsTimelineSummary;
   nextBestAction: InsightsNextBestAction | null;
   insightSummaryContextLines: string[];
+  voiceCastSummary: import("@/types/studio-character-voice-orchestration").InsightsVoiceCastSummary | null;
 };
 
 export type InsightsHubContext = {

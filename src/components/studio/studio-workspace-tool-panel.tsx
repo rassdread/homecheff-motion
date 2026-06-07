@@ -7,6 +7,7 @@ import { StudioStoryboardVoiceIdentityPanel } from "@/components/studio/studio-s
 import { StudioSubtitlePreviewPanel } from "@/components/studio/studio-subtitle-preview-panel";
 import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-beats-preview-panel";
 import { StudioVoiceDirectorPanel } from "@/components/studio/studio-voice-director-panel";
+import { StudioVoiceCastOverviewPanel } from "@/components/studio/studio-voice-cast-overview-panel";
 import { StudioWorkspaceCharacterVoiceInline } from "@/components/studio/studio-workspace-character-voice-inline";
 import { StudioWorkspaceAudioProductionPanel } from "@/components/studio/studio-workspace-audio-production-panel";
 import { StudioStoryboardExternalAudioPanel } from "@/components/studio/studio-storyboard-external-audio-panel";
@@ -117,6 +118,12 @@ function StudioWorkspaceVoicePanel({
         onStoryboardUpdated={onStoryboardUpdated}
       />
       <StudioStoryboardVoiceIdentityPanel storyboard={storyboard} />
+      <section className="rounded-2xl border border-violet-200 bg-violet-50/30 p-4">
+        <StudioVoiceCastOverviewPanel
+          storyboard={storyboard}
+          characters={characters}
+        />
+      </section>
       {storyCharacters.length > 0 ?
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
           <h3 className="text-sm font-semibold text-zinc-900">{t("studio.workspace.voice.charactersTitle")}</h3>

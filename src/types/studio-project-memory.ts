@@ -20,6 +20,11 @@ export type StudioVoiceMemoryEntry = {
   storyboardCount: number;
 };
 
+export type StudioCastMemoryEntry = {
+  characterIds: string[];
+  storyboardCount: number;
+};
+
 export type StudioStyleMemoryEntry = {
   promptStyleProfile: string;
   directorProfile: string;
@@ -55,6 +60,8 @@ export type StudioProjectMemorySnapshot = {
   props: Record<string, StudioAssetUsageStats>;
   worlds: Record<string, StudioAssetUsageStats>;
   voices: StudioVoiceMemoryEntry[];
+  /** Recurring multi-character casts (advisory). */
+  castCombinations: StudioCastMemoryEntry[];
   narrationAudio: StudioNarrationAudioMemoryEntry[];
   libraryAudio: StudioLibraryAudioMemoryEntry[];
   styles: StudioStyleMemoryEntry[];

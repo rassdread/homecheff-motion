@@ -377,6 +377,8 @@ export type MotionHandoffPayload = {
   audioMixPlan?: StudioAudioMixHandoffPlan;
   /** V39: Voice Identity plan (lock enforcement, multi-language). */
   voiceIdentityPlan?: MotionVoiceIdentityHandoffPlan;
+  /** Cast speaker plan for multi-character narration (motion may ignore until P1/P2). */
+  characterVoicePlan?: import("@/types/studio-character-voice-orchestration").MotionCharacterVoicePlanHandoff;
   lockedVoiceAssignments?: CharacterVoiceAssignment[];
   resolvedVoiceProfiles?: ResolvedCharacterVoiceIdentity[];
   voiceIdentityWarnings?: VoiceIdentityWarning[];

@@ -6,6 +6,7 @@ import {
 } from "@/lib/studio-voice-profile-ref";
 import { normalizeStudioNarrationMode, profileIdForNarrationMode } from "@/lib/studio-voice-profiles";
 import { readUserVoiceCloneManifest } from "@/server/studio/studio-user-voice-clone-blob";
+import { buildCastCombinationFrequency } from "@/lib/studio-voice-cast-advisories";
 import {
   parseStoryboardVoiceMetadata,
   STORYBOARD_AUDIO_UPLOAD_PROVIDER,
@@ -14,9 +15,10 @@ import { parseStoryboardAudioAssetLinks } from "@/lib/studio-storyboard-audio-as
 import { listUserAudioLibraryAssets } from "@/server/studio/studio-user-audio-library-blob";
 import type {
   StudioAssetUsageStats,
-  StudioProjectMemorySnapshot,
-  StudioNarrationAudioMemoryEntry,
+  StudioCastMemoryEntry,
   StudioLibraryAudioMemoryEntry,
+  StudioNarrationAudioMemoryEntry,
+  StudioProjectMemorySnapshot,
   StudioShotPatternMemoryEntry,
   StudioStyleMemoryEntry,
   StudioVoiceMemoryEntry,
@@ -376,6 +378,20 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     })
     .sort((a, b) => b.storyboardCount - a.storyboardCount);
 
+  const castFrequency = buildCastCombinationFrequency({
+    storyboards: [...charactersByStoryboard.entries()].map(([id, characterIds]) => ({
+      id,
+      characterIds: [...characterIds],
+    })),
+  });
+  const castCombinations: StudioCastMemoryEntry[] = [...castFrequency.values()]
+    .map((entry) => ({
+      characterIds: entry.characterIds,
+      storyboardCount: entry.storyboardIds.size,
+    }))
+    .filter((entry) => entry.characterIds.length >= 2)
+    .sort((a, b) => b.storyboardCount - a.storyboardCount);
+
   const styleMap = new Map<string, StudioStyleMemoryEntry>();
   for (const sb of storyboards) {
     const key = `${sb.promptStyleProfile}::${sb.directorProfile}`;
@@ -471,6 +487,7 @@ export async function buildStudioProjectMemory(ownerId: string): Promise<StudioP
     props: finalizeStats(propMap, renderByStoryboard, campaignsByStoryboard),
     worlds: finalizeStats(worldMap, renderByStoryboard, campaignsByStoryboard),
     voices,
+    castCombinations,
     narrationAudio,
     libraryAudio,
     styles: [...styleMap.values()].sort((a, b) => b.storyboardCount - a.storyboardCount),

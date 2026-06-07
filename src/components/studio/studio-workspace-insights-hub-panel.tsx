@@ -234,6 +234,43 @@ export function StudioWorkspaceInsightsHubPanel({
         </section>
       : null}
 
+      {view.voiceCastSummary ?
+        <section className="rounded-2xl border border-violet-200 bg-violet-50/40 p-4">
+          <h3 className="text-sm font-semibold text-violet-950">
+            {t("studio.insightsHub.section.voiceCast")}
+          </h3>
+          <ul className="mt-3 space-y-2 text-sm text-violet-950">
+            <li className="rounded-lg bg-white/90 px-3 py-2">
+              {t("studio.insightsHub.voiceCast.characters", {
+                count: String(view.voiceCastSummary.characterCount),
+              })}
+            </li>
+            <li className="rounded-lg bg-white/90 px-3 py-2">
+              {t("studio.insightsHub.voiceCast.voices", {
+                count: String(view.voiceCastSummary.voiceAssignedCount),
+              })}
+            </li>
+            <li className="rounded-lg bg-white/90 px-3 py-2">
+              {t("studio.insightsHub.voiceCast.breakdown", {
+                clones: String(view.voiceCastSummary.cloneCount),
+                personas: String(view.voiceCastSummary.personaCount),
+                presets: String(view.voiceCastSummary.presetCount),
+              })}
+            </li>
+            <li className="rounded-lg bg-white/90 px-3 py-2">
+              {t(view.voiceCastSummary.dialogueReadinessLabelKey as TranslationKey)}
+            </li>
+            {view.voiceCastSummary.missingVoiceCount > 0 ?
+              <li className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                {t("studio.insightsHub.voiceCast.missing", {
+                  names: view.voiceCastSummary.missingVoiceNames.join(", "),
+                })}
+              </li>
+            : null}
+          </ul>
+        </section>
+      : null}
+
       <section className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
         <h3 className="text-sm font-semibold text-amber-950">
           {t("studio.insightsHub.section.snapshots")}

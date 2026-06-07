@@ -36,6 +36,7 @@ import { attachAudioProductionToHandoffPayload } from "@/lib/attach-audio-produc
 import { attachAudioAssetToHandoffPayload } from "@/lib/attach-audio-asset-handoff";
 import { attachAudioMixToHandoffPayload } from "@/lib/attach-audio-mix-handoff";
 import { attachVoiceIdentityToHandoffPayload } from "@/lib/attach-voice-identity-handoff";
+import { attachCharacterVoicePlanToHandoff } from "@/lib/attach-character-voice-plan-handoff";
 import { attachMediaAssetToHandoffPayload } from "@/lib/attach-media-asset-handoff";
 import { attachSceneCompositionToHandoffPayload } from "@/lib/attach-scene-composition-handoff";
 import { attachAssetPlacementToHandoffPayload } from "@/lib/attach-asset-placement-handoff";
@@ -432,6 +433,7 @@ export async function createMotionHandoffPayload(
       )?.audioAssetMetadataJson,
     });
     payload = attachVoiceIdentityToHandoffPayload(payload, { storyboard: detail });
+    payload = attachCharacterVoicePlanToHandoff(payload, { storyboard: detail });
     payload = attachMediaAssetToHandoffPayload(payload, { storyboard: detail });
     payload = attachSceneCompositionToHandoffPayload(payload, { storyboard: detail });
     payload = attachAssetPlacementToHandoffPayload(payload, { storyboard: detail });

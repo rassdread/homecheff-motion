@@ -104,6 +104,7 @@ import {
 } from "@/lib/studio-voice-profile-ref";
 import { buildDirectorVoiceSuggestions } from "@/lib/studio-voice-location-suggestions";
 import { buildFrequentCloneAdvisories } from "@/lib/studio-user-voice-advisories";
+import { buildCharacterVoiceOrchestrationContext } from "@/lib/studio-character-voice-orchestration";
 import { resolveCharacterVoiceIdentity } from "@/lib/studio-voice-identity-resolver";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioShotType } from "@/lib/studio-scene-director";
@@ -1389,6 +1390,14 @@ export function buildDirectorProposal(params: {
     assetDecisionRegistry: params.assetDecisionRegistry,
   });
 
+  const characterVoiceContext = buildCharacterVoiceOrchestrationContext({
+    storyboard: mockStoryboard,
+    characters: params.characters,
+    language: storyLanguage,
+    storyArchitecture,
+    projectMemory: params.projectMemory,
+  });
+
   const builtProposal: StudioDirectorProposal = {
     ...enriched,
     memorySuggestions,
@@ -1400,6 +1409,7 @@ export function buildDirectorProposal(params: {
     storyArchitectureContext,
     decisionMemoryContext,
     insightSummaryContext,
+    characterVoiceContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

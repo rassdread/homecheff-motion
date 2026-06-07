@@ -39,7 +39,8 @@ export type CreationAssistantTaskSource =
   | "production_timeline"
   | "story_architect"
   | "director_decision"
-  | "voice_library";
+  | "voice_library"
+  | "character_voice";
 
 export type CreationAssistantTask = {
   id: string;

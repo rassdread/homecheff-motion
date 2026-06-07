@@ -40,6 +40,10 @@ import type {
 import type { StudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { characterHasExplicitVoiceChoice } from "@/lib/studio-voice-profile-ref";
 import { topFrequentCloneVoices } from "@/lib/studio-user-voice-advisories";
+import {
+  buildCharacterVoiceOrchestration,
+  buildInsightsVoiceCastSummary,
+} from "@/lib/studio-character-voice-orchestration";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
@@ -290,6 +294,31 @@ function buildVoiceLibraryTasks(params: {
   }
 
   return tasks;
+}
+
+function buildCharacterVoiceCastTasks(params: {
+  storyboard: StudioStoryboardDetail;
+  language: string;
+}): CreationAssistantTask[] {
+  const orchestration = buildCharacterVoiceOrchestration({
+    storyboard: params.storyboard,
+    language: params.language,
+  });
+  return orchestration.castMembers
+    .filter((m) => m.appearsInSceneCount > 0 && m.status === "missing_voice")
+    .map((m) => ({
+      id: `character-voice-cast-${m.characterId}`,
+      category: "audio" as const,
+      tier: "now" as const,
+      messageKey: "studio.creationAssistant.task.assignCharacterVoice",
+      messageParams: { character: m.characterName },
+      toolId: "voice" as const,
+      actionKind: "open" as const,
+      suggestedAssetId: m.characterId,
+      suggestedLabel: m.characterName,
+      source: "character_voice" as const,
+      priority: "high" as const,
+    }));
 }
 
 function buildFrequentCloneAdvisoryTasks(
@@ -632,6 +661,12 @@ export function buildCreationAssistantView(
     ...buildVoiceLibraryTasks({
       storyboard,
       characters: input.characters ?? [],
+    })
+  );
+  nowTasks.push(
+    ...buildCharacterVoiceCastTasks({
+      storyboard,
+      language: (storyboard.voiceLanguage ?? "en").slice(0, 2),
     })
   );
 

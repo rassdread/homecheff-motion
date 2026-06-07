@@ -567,6 +567,12 @@ function ProposalPreviewModal({
                   {t(advisory.messageKey as TranslationKey, advisory.messageParams)}
                 </li>
               ))}
+              {proposal.characterVoiceContext?.orchestration.momentSpeakers.map((moment) => (
+                <li key={moment.momentId} className="text-sm text-zinc-600">
+                  {t(moment.momentLabelKey as TranslationKey)} →{" "}
+                  {moment.carrierCharacterName ?? "—"}
+                </li>
+              ))}
             </ul>
           </section>
 

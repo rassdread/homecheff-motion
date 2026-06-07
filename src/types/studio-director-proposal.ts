@@ -292,6 +292,7 @@ export type StudioDirectorProposal = {
   storyArchitectureContext?: import("@/types/studio-story-architecture").StoryArchitectureContext;
   decisionMemoryContext?: import("@/types/studio-director-decision-memory").DirectorDecisionMemoryContext;
   insightSummaryContext?: import("@/types/studio-insights-hub").InsightsHubContext;
+  characterVoiceContext?: import("@/types/studio-character-voice-orchestration").CharacterVoiceOrchestrationContext;
   beatTranslationWarnings?: Array<{
     sceneOrder: number;
     messageKey: string;

@@ -16,6 +16,10 @@ import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-pro
 import { buildSceneGenerationPlan } from "@/lib/studio-scene-generation-orchestrator";
 import { findLastSafeRecoveryPoint } from "@/lib/studio-snapshot-recovery";
 import { buildStoryArchitecture } from "@/lib/studio-story-architecture";
+import {
+  buildCharacterVoiceOrchestration,
+  buildInsightsVoiceCastSummary,
+} from "@/lib/studio-character-voice-orchestration";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { CreationAssistantTask, CreationAssistantTaskSource } from "@/types/studio-creation-assistant";
 import type { ProductionDomainReadiness } from "@/types/studio-production-plan";
@@ -84,6 +88,9 @@ function mapTaskSource(source: CreationAssistantTaskSource): InsightsExplanation
       return "production_planner";
     case "readiness_fix":
       return "readiness";
+    case "character_voice":
+    case "voice_library":
+      return "creation_assistant";
     default:
       return "creation_assistant";
   }
@@ -526,6 +533,15 @@ export function buildStudioInsightsHubView(input: StudioInsightsHubInput): Studi
     ...creationAssistant.nowTasks.slice(0, 6),
   ];
 
+  const voiceOrchestration = buildCharacterVoiceOrchestration({
+    storyboard,
+    characters,
+    language: (storyboard.voiceLanguage ?? "en").slice(0, 2),
+    storyArchitecture,
+    projectMemory: input.projectMemory ?? emptyProjectMemorySnapshot(),
+  });
+  const voiceCastSummary = buildInsightsVoiceCastSummary(voiceOrchestration);
+
   const view: StudioInsightsHubView = {
     version: 1,
     currentPhase,
@@ -543,13 +559,21 @@ export function buildStudioInsightsHubView(input: StudioInsightsHubInput): Studi
       creativeSuggestionKeys: creativeReview.improvementSuggestions.map((item) => item.messageKey),
       generationMissingCount: generationPlan.requiredImages.filter((img) => img.status === "missing").length,
     }),
-    learningLines: buildLearningLines({
-      memoryPatternKey: productionMemory.profile.productionPatterns[0]?.labelKey,
-      memoryRenderLabel: productionMemory.profile.recurringRenderStrategies[0]?.label,
-      sceneCountMin: decisionMemory.memory.preferredSceneCountMin,
-      sceneCountMax: decisionMemory.memory.preferredSceneCountMax,
-      directorLearningKeys: decisionMemory.memory.learningSummaryKeys,
-    }),
+    learningLines: [
+      ...buildLearningLines({
+        memoryPatternKey: productionMemory.profile.productionPatterns[0]?.labelKey,
+        memoryRenderLabel: productionMemory.profile.recurringRenderStrategies[0]?.label,
+        sceneCountMin: decisionMemory.memory.preferredSceneCountMin,
+        sceneCountMax: decisionMemory.memory.preferredSceneCountMax,
+        directorLearningKeys: decisionMemory.memory.learningSummaryKeys,
+      }),
+      ...voiceOrchestration.castAdvisories.map((advisory) => ({
+        id: advisory.id,
+        messageKey: advisory.messageKey,
+        messageParams: advisory.messageParams,
+        source: "production_memory" as const,
+      })),
+    ],
     snapshotSummary: buildSnapshotSummary({
       storyboardId: storyboard.id,
       storyboardUpdatedAt: storyboard.updatedAt,
@@ -559,6 +583,7 @@ export function buildStudioInsightsHubView(input: StudioInsightsHubInput): Studi
     timelineSummary: buildTimelineSummary(timeline.timelineEvents),
     nextBestAction: pickNextBestAction(creationAssistant.blockers, creationAssistant.nowTasks),
     insightSummaryContextLines: [],
+    voiceCastSummary,
   };
 
   view.insightSummaryContextLines = buildInsightSummaryContextLines(view);
