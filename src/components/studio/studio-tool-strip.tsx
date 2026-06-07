@@ -6,6 +6,7 @@ import { STUDIO_TOOL_IDS, type StudioToolId } from "@/lib/studio-tool-id";
 
 const TOOL_LABEL_KEYS: Record<StudioToolId, TranslationKey> = {
   production: "studio.tools.production",
+  creativeReview: "studio.tools.creativeReview",
   story: "studio.tools.story",
   characters: "studio.tools.characters",
   locations: "studio.tools.locations",

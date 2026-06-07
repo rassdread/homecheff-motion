@@ -15,6 +15,7 @@ import { StudioWorkspaceShotPlannerPanel } from "@/components/studio/studio-work
 import { StudioWorkspaceVisualProductionPanel } from "@/components/studio/studio-workspace-visual-production-panel";
 import { StudioWorkspaceConsistencyPanel } from "@/components/studio/studio-workspace-consistency-panel";
 import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-workspace-continuity-panel";
+import { StudioWorkspaceCreativeReviewPanel } from "@/components/studio/studio-workspace-creative-review-panel";
 import {
   StudioWorkspaceDownloadPanel,
   StudioWorkspaceRenderPanel,
@@ -266,6 +267,22 @@ export function StudioWorkspaceToolPanel({
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
+
+  if (tool === "creativeReview") {
+    return (
+      <StudioWorkspaceCreativeReviewPanel
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
 
   if (tool === "continuity") {
     if (!projectMemory) {
