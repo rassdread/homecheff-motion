@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   audioMixStatusLabelKey,
@@ -27,6 +28,8 @@ export function StudioWorkspaceAudioMixPanel({ storyboard, canModify, onStoryboa
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [library, setLibrary] = useState<UserAudioLibraryAsset[]>([]);
   const [hasVoiceAudio, setHasVoiceAudio] = useState(false);
+  const [narrationAudioUrl, setNarrationAudioUrl] = useState<string | null>(null);
+  const [narrationDuration, setNarrationDuration] = useState<number | null>(null);
   const committedMusicId = storyboard.audioAssetLinks.musicAssetId ?? "";
   const committedSoundId = storyboard.audioAssetLinks.soundAssetId ?? "";
   const linksKey = `${committedMusicId}|${committedSoundId}`;
@@ -57,7 +60,10 @@ export function StudioWorkspaceAudioMixPanel({ storyboard, canModify, onStoryboa
       const voice =
         voiceRes.data.voices.find((v) => v.language === lang && v.status === "completed")
         ?? voiceRes.data.voice;
-      setHasVoiceAudio(Boolean(voice?.audioUrl?.trim()));
+      const url = voice?.audioUrl?.trim() || null;
+      setNarrationAudioUrl(url);
+      setNarrationDuration(voice?.durationSeconds ?? null);
+      setHasVoiceAudio(Boolean(url));
     }
   }, [storyboard.id, storyboard.voiceLanguage]);
 
@@ -79,7 +85,10 @@ export function StudioWorkspaceAudioMixPanel({ storyboard, canModify, onStoryboa
         const voice =
           voiceRes.data.voices.find((v) => v.language === lang && v.status === "completed")
           ?? voiceRes.data.voice;
-        setHasVoiceAudio(Boolean(voice?.audioUrl?.trim()));
+        const url = voice?.audioUrl?.trim() || null;
+        setNarrationAudioUrl(url);
+        setNarrationDuration(voice?.durationSeconds ?? null);
+        setHasVoiceAudio(Boolean(url));
       }
     })();
     return () => {
@@ -106,6 +115,23 @@ export function StudioWorkspaceAudioMixPanel({ storyboard, canModify, onStoryboa
 
   const musicAssets = library.filter((a) => a.kind === "music");
   const sfxAssets = library.filter((a) => a.kind === "sfx");
+
+  const selectedMusicAsset = useMemo(
+    () => musicAssets.find((a) => a.id === musicAssetId) ?? null,
+    [musicAssets, musicAssetId]
+  );
+  const selectedSoundAsset = useMemo(
+    () => sfxAssets.find((a) => a.id === soundAssetId) ?? null,
+    [sfxAssets, soundAssetId]
+  );
+  const linkedMusicAsset = useMemo(
+    () => musicAssets.find((a) => a.id === committedMusicId) ?? null,
+    [musicAssets, committedMusicId]
+  );
+  const linkedSoundAsset = useMemo(
+    () => sfxAssets.find((a) => a.id === committedSoundId) ?? null,
+    [sfxAssets, committedSoundId]
+  );
 
   const handleUpload = async (file: File) => {
     if (!canModify) {
@@ -267,6 +293,40 @@ export function StudioWorkspaceAudioMixPanel({ storyboard, canModify, onStoryboa
           mixPreview.soundAssetName ?? ""
         )}
       </dl>
+
+      <div className="mt-4 space-y-3">
+        <p className="text-xs font-semibold text-violet-950">{t("studio.audioMix.previewTitle")}</p>
+        {narrationAudioUrl ?
+          <StudioAudioPreviewPlayer
+            title={t("studio.audioMix.narration")}
+            audioUrl={narrationAudioUrl}
+            durationSeconds={narrationDuration}
+            source="mix_narration"
+            variant="compact"
+          />
+        : null}
+        {(selectedMusicAsset ?? linkedMusicAsset)?.audioUrl ?
+          <StudioAudioPreviewPlayer
+            title={(selectedMusicAsset ?? linkedMusicAsset)!.name}
+            audioUrl={(selectedMusicAsset ?? linkedMusicAsset)!.audioUrl}
+            durationSeconds={(selectedMusicAsset ?? linkedMusicAsset)!.durationSeconds}
+            source="mix_music"
+            variant="compact"
+          />
+        : null}
+        {(selectedSoundAsset ?? linkedSoundAsset)?.audioUrl ?
+          <StudioAudioPreviewPlayer
+            title={(selectedSoundAsset ?? linkedSoundAsset)!.name}
+            audioUrl={(selectedSoundAsset ?? linkedSoundAsset)!.audioUrl}
+            durationSeconds={(selectedSoundAsset ?? linkedSoundAsset)!.durationSeconds}
+            source="mix_sfx"
+            variant="compact"
+          />
+        : null}
+        {!narrationAudioUrl && !selectedMusicAsset && !linkedMusicAsset && !selectedSoundAsset && !linkedSoundAsset ?
+          <p className="text-xs text-violet-800">{t("studio.audioMix.previewEmpty")}</p>
+        : null}
+      </div>
 
       {canModify ?
         <div className="mt-4 grid gap-3 sm:grid-cols-2">

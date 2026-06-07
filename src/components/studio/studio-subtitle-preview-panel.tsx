@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   fetchStoryboardVoiceBundle,
@@ -31,6 +32,7 @@ export function StudioSubtitlePreviewPanel({
   const t = useActiveTranslator();
   const [entries, setEntries] = useState<SubtitleTrackEntry[]>([]);
   const [voiceDuration, setVoiceDuration] = useState<number | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [hasAudio, setHasAudio] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -44,13 +46,16 @@ export function StudioSubtitlePreviewPanel({
         setEntries([]);
         setHasAudio(false);
         setVoiceDuration(null);
+        setAudioUrl(null);
         return;
       }
       const lang = language.slice(0, 2);
       const voice =
         data.voices.find((v) => v.language === lang && v.status === "completed") ??
         (data.voice?.status === "completed" ? data.voice : null);
-      setHasAudio(Boolean(voice?.audioUrl?.trim()));
+      const url = voice?.audioUrl?.trim() || null;
+      setAudioUrl(url);
+      setHasAudio(Boolean(url));
       setVoiceDuration(voice?.durationSeconds ?? null);
       setEntries(data.subtitle?.entries ?? []);
       const status = resolveStoryboardTranscriptStatus({
@@ -214,6 +219,15 @@ export function StudioSubtitlePreviewPanel({
         : null}
         {feedback ?
           <p className="mt-3 text-xs text-emerald-800">{feedback}</p>
+        : null}
+
+        {hasAudio && audioUrl ?
+          <StudioAudioPreviewPlayer
+            audioUrl={audioUrl}
+            durationSeconds={voiceDuration}
+            source="subtitle_narration"
+            className="mt-4"
+          />
         : null}
       </div>
 

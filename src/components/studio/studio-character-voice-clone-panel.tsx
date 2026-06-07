@@ -1,8 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import { cloneCharacterVoiceApi } from "@/lib/studio-characters-client";
+import {
+  createAudioFileObjectUrl,
+  revokeAudioFileObjectUrl,
+} from "@/lib/studio-audio-preview-object-url";
 import { isClonedVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
 import type { StudioCharacterListItem } from "@/types/studio-api";
 
@@ -30,8 +35,27 @@ export function StudioCharacterVoiceClonePanel({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [samplePreviewUrl, setSamplePreviewUrl] = useState<string | null>(null);
+  const [sampleFileName, setSampleFileName] = useState<string | null>(null);
 
   const hasClone = isClonedVoiceProfileRef(character.voiceProfile);
+
+  useEffect(() => {
+    return () => {
+      revokeAudioFileObjectUrl(samplePreviewUrl);
+    };
+  }, [samplePreviewUrl]);
+
+  const handleSampleChange = (file: File | null) => {
+    revokeAudioFileObjectUrl(samplePreviewUrl);
+    if (!file) {
+      setSamplePreviewUrl(null);
+      setSampleFileName(null);
+      return;
+    }
+    setSamplePreviewUrl(createAudioFileObjectUrl(file));
+    setSampleFileName(file.name.replace(/\.[^.]+$/, "") || file.name);
+  };
 
   const handleClone = useCallback(async () => {
     const file = fileRef.current?.files?.[0];
@@ -68,6 +92,9 @@ export function StudioCharacterVoiceClonePanel({
       if (fileRef.current) {
         fileRef.current.value = "";
       }
+      revokeAudioFileObjectUrl(samplePreviewUrl);
+      setSamplePreviewUrl(null);
+      setSampleFileName(null);
     } finally {
       setBusy(false);
     }
@@ -113,8 +140,23 @@ export function StudioCharacterVoiceClonePanel({
           accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4,audio/x-m4a"
           disabled={!canModify || busy}
           className="mt-1 block w-full text-sm"
+          onChange={(e) => {
+            handleSampleChange(e.target.files?.[0] ?? null);
+          }}
         />
       </label>
+
+      {samplePreviewUrl ?
+        <div className="mt-3">
+          <StudioAudioPreviewPlayer
+            title={sampleFileName ?? voiceName}
+            audioUrl={samplePreviewUrl}
+            source="voice_clone_sample"
+            variant="compact"
+            className="border-violet-200/80"
+          />
+        </div>
+      : null}
 
       <label className="mt-3 flex items-start gap-2 text-xs text-violet-950">
         <input
@@ -145,10 +187,13 @@ export function StudioCharacterVoiceClonePanel({
       : null}
 
       {previewUrl ?
-        <div className="mt-3">
-          <p className="text-xs font-medium text-violet-950">{t("studio.voiceClone.previewReady")}</p>
-          <audio controls src={previewUrl} className="mt-2 w-full" />
-        </div>
+        <StudioAudioPreviewPlayer
+          title={voiceName}
+          audioUrl={previewUrl}
+          source="voice_clone"
+          variant="compact"
+          className="mt-3 border-violet-200/80"
+        />
       : null}
 
       {canModify ?

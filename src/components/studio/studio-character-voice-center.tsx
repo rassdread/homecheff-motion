@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   STUDIO_VOICE_PROFILE_IDS,
@@ -292,12 +293,13 @@ export function StudioCharacterVoiceCenter({
               </div>
 
               {previewUrl ?
-                <div className="mt-3 rounded-lg border border-violet-100 bg-violet-50/50 p-2">
-                  <p className="text-[10px] font-semibold uppercase text-violet-700">
-                    {t("studio.voiceCenter.lastPreview")}
-                  </p>
-                  <audio controls preload="none" src={previewUrl} className="mt-1 w-full" />
-                </div>
+                <StudioAudioPreviewPlayer
+                  title={t("studio.voiceCenter.lastPreview")}
+                  audioUrl={previewUrl}
+                  source="voice_character"
+                  variant="compact"
+                  className="mt-3 border-violet-100"
+                />
               : null}
             </article>
           );

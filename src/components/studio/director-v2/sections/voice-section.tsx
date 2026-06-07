@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { StudioSourceBadge } from "@/components/studio/studio-source-badge";
 import { useActiveTranslator } from "@/i18n/client";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
@@ -75,7 +76,12 @@ function CharacterVoicePreviewButton({
       </button>
       {error ? <p className="mt-1 text-[10px] text-red-700">{error}</p> : null}
       {previewUrl ?
-        <audio controls src={previewUrl} className="mt-2 h-8 w-full max-w-xs" />
+        <StudioAudioPreviewPlayer
+          audioUrl={previewUrl}
+          source="voice_character"
+          variant="inline"
+          className="mt-2"
+        />
       : null}
     </div>
   );

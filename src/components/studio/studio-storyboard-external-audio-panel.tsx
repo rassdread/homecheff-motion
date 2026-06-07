@@ -13,6 +13,7 @@ import {
   subtitleStatusLabelKey,
   transcriptStatusLabelKey,
 } from "@/lib/studio-subtitle-readiness";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import {
   fetchStoryboardVoiceBundle,
   generateStoryboardTranscriptApi,
@@ -280,7 +281,13 @@ export function StudioStoryboardExternalAudioPanel({
       </dl>
 
       {audioUrl ?
-        <audio controls src={audioUrl} className="mt-4 w-full" preload="metadata" />
+        <StudioAudioPreviewPlayer
+          title={displayName ?? undefined}
+          audioUrl={audioUrl}
+          durationSeconds={durationSeconds}
+          source="narration_upload"
+          className="mt-4 border-sky-200/70"
+        />
       : null}
 
       {canModify && audioUrl ?

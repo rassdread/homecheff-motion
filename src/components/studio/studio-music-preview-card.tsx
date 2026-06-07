@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  StudioAudioPreviewPlanningOnly,
+  StudioAudioPreviewPlayer,
+} from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
+import { fetchUserAudioLibraryApi } from "@/lib/studio-audio-library-client";
 import { buildAudioAssetDirectorPlan } from "@/lib/studio-audio-asset-director";
 import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
+import type { UserAudioLibraryAsset } from "@/types/studio-user-audio-library";
 import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 
 type Props = {
@@ -11,24 +17,39 @@ type Props = {
   scene: StudioSceneDetail;
 };
 
-type MusicPreviewState = "preview" | "asset" | "plan";
+type MusicPreviewState = "playback" | "plan";
 
 export function StudioMusicPreviewCard({ storyboard, scene }: Props) {
   const t = useActiveTranslator();
-  const [volume, setVolume] = useState(0.7);
+  const [library, setLibrary] = useState<UserAudioLibraryAsset[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetchUserAudioLibraryApi();
+      if (!cancelled && res.ok) {
+        setLibrary(res.data.assets ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const plan = useMemo(() => buildMusicDirectorPlan(storyboard), [storyboard]);
   const assetPlan = useMemo(() => buildAudioAssetDirectorPlan(storyboard), [storyboard]);
   const sceneCue = plan.sceneCues.find((c) => c.sceneId === scene.id);
   const scenePkg = assetPlan.scenePackages.find((p) => p.sceneId === scene.id);
-  const assignedMusic = scenePkg?.musicAssets[0]?.assetName ?? null;
+  const catalogMusicName = scenePkg?.musicAssets[0]?.assetName ?? null;
 
-  const state: MusicPreviewState = !storyboard.musicEnabled
-    ? "plan"
-    : assignedMusic
-      ? "preview"
-      : sceneCue?.cueType
-        ? "asset"
-        : "plan";
+  const linkedMusicId = storyboard.audioAssetLinks.musicAssetId ?? "";
+  const linkedMusicAsset = useMemo(
+    () => library.find((a) => a.id === linkedMusicId && a.kind === "music") ?? null,
+    [library, linkedMusicId]
+  );
+
+  const hasPlayback = Boolean(linkedMusicAsset?.audioUrl?.trim());
+  const state: MusicPreviewState = hasPlayback ? "playback" : "plan";
 
   const mood = storyboard.musicStyle || plan.profileId || "—";
   const energy = scene.musicEnergyTarget || sceneCue?.energyTarget || storyboard.musicIntensity || "—";
@@ -42,14 +63,14 @@ export function StudioMusicPreviewCard({ storyboard, scene }: Props) {
         </div>
         <span
           className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${
-            state === "preview"
+            state === "playback"
               ? "bg-emerald-100 text-emerald-900"
-              : state === "asset"
-                ? "bg-indigo-100 text-indigo-900"
-                : "bg-zinc-100 text-zinc-700"
+              : "bg-zinc-100 text-zinc-700"
           }`}
         >
-          {t(`studio.musicPreview.state.${state}`)}
+          {state === "playback"
+            ? t("studio.musicPreview.state.playback")
+            : t("studio.musicPreview.state.plan")}
         </span>
       </div>
 
@@ -64,42 +85,34 @@ export function StudioMusicPreviewCard({ storyboard, scene }: Props) {
         </div>
       </dl>
 
-      {assignedMusic ?
-        <p className="mt-3 text-xs font-medium text-indigo-900">
-          {t("studio.musicPreview.assignedTrack")}: {assignedMusic}
-        </p>
-      : sceneCue ?
-        <p className="mt-3 text-xs text-zinc-700">
-          {sceneCue.cueType.replace(/_/g, " ")} · {plan.narrativeSummary}
-        </p>
-      : (
-        <p className="mt-3 text-xs text-zinc-600">{t("studio.musicPreview.planOnlyHint")}</p>
-      )}
-
-      {state !== "plan" ?
-        <div className="mt-4 rounded-lg border border-indigo-100 bg-white/90 p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-zinc-700">{t("studio.musicPreview.volume")}</span>
-            <span className="text-xs text-zinc-500">{Math.round(volume * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(volume * 100)}
-            onChange={(e) => setVolume(Number(e.target.value) / 100)}
-            className="mt-2 w-full accent-indigo-600"
-            aria-label={t("studio.musicPreview.volume")}
+      {hasPlayback && linkedMusicAsset ?
+        <>
+          <StudioAudioPreviewPlayer
+            title={linkedMusicAsset.name}
+            audioUrl={linkedMusicAsset.audioUrl}
+            durationSeconds={linkedMusicAsset.durationSeconds}
+            source="music_upload"
+            variant="compact"
+            className="mt-4 border-indigo-100"
           />
-          <p className="mt-2 text-[10px] text-zinc-500">
-            {state === "preview"
-              ? t("studio.musicPreview.previewReadyHint")
-              : t("studio.musicPreview.assetPlanHint")}
+          <p className="mt-2 text-[10px] text-indigo-700/90">
+            {t("studio.musicPreview.linkedUploadHint")}
           </p>
-        </div>
-      : null}
-
-      <p className="mt-3 text-[10px] text-indigo-700/90">{t("studio.musicPreview.hearBeforeRender")}</p>
+        </>
+      : <>
+          {catalogMusicName || sceneCue ?
+            <p className="mt-3 text-xs text-zinc-700">
+              {catalogMusicName
+                ? `${t("studio.musicPreview.catalogPlan")}: ${catalogMusicName}`
+                : `${sceneCue!.cueType.replace(/_/g, " ")} · ${plan.narrativeSummary}`}
+            </p>
+          : null}
+          <StudioAudioPreviewPlanningOnly
+            messageKey="studio.musicPreview.planOnlyHint"
+            className="mt-3"
+          />
+        </>
+      }
     </article>
   );
 }

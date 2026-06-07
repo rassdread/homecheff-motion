@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   fetchStoryboardVoiceBundle,
@@ -28,7 +29,6 @@ export function StudioVoicePreviewPanel({
   onVoiceGenerated,
 }: Props) {
   const t = useActiveTranslator();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [voice, setVoice] = useState<StoryboardVoiceAsset | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -150,12 +150,13 @@ export function StudioVoicePreviewPanel({
         </div>
       </dl>
       {ready ?
-        <audio
-          ref={audioRef}
-          className="mt-3 w-full"
-          controls
-          src={voice!.audioUrl}
-          preload="metadata"
+        <StudioAudioPreviewPlayer
+          title={presetLabel}
+          audioUrl={voice!.audioUrl}
+          durationSeconds={voice!.durationSeconds}
+          source="voice_tts"
+          showDownload
+          className="mt-3 border-indigo-200/70 bg-white"
         />
       : null}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -172,15 +173,6 @@ export function StudioVoicePreviewPanel({
               t("studio.voice.preview.regenerate")
             : t("studio.voice.preview.generate")}
           </button>
-        : null}
-        {ready ?
-          <a
-            href={voice!.audioUrl}
-            download
-            className="rounded-full border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-900"
-          >
-            {t("studio.voice.preview.download")}
-          </a>
         : null}
       </div>
     </div>

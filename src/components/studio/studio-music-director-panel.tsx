@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
+import { fetchUserAudioLibraryApi } from "@/lib/studio-audio-library-client";
 import { STUDIO_MUSIC_PROFILE_IDS } from "@/lib/studio-music-profiles";
 import { buildMusicDirectorPlan } from "@/lib/studio-music-director";
 import { updateStudioStoryboardApi } from "@/lib/studio-storyboards-client";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import type { UserAudioLibraryAsset } from "@/types/studio-user-audio-library";
 
 type Props = {
   storyboard: StudioStoryboardDetail;
@@ -16,6 +19,28 @@ export function StudioMusicDirectorPanel({ storyboard, onUpdated }: Props) {
   const t = useActiveTranslator();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [library, setLibrary] = useState<UserAudioLibraryAsset[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const res = await fetchUserAudioLibraryApi();
+      if (!cancelled && res.ok) {
+        setLibrary(res.data.assets ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const linkedMusic = useMemo(
+    () =>
+      library.find(
+        (a) => a.id === (storyboard.audioAssetLinks.musicAssetId ?? "") && a.kind === "music"
+      ) ?? null,
+    [library, storyboard.audioAssetLinks.musicAssetId]
+  );
 
   const plan = useMemo(() => buildMusicDirectorPlan(storyboard), [storyboard]);
 
@@ -39,6 +64,17 @@ export function StudioMusicDirectorPanel({ storyboard, onUpdated }: Props) {
     <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
       <h3 className="text-sm font-semibold text-indigo-950">{t("studio.music.title")}</h3>
       <p className="mt-1 text-xs text-indigo-800">{t("studio.music.hint")}</p>
+
+      {linkedMusic?.audioUrl ?
+        <StudioAudioPreviewPlayer
+          title={linkedMusic.name}
+          audioUrl={linkedMusic.audioUrl}
+          durationSeconds={linkedMusic.durationSeconds}
+          source="music_upload"
+          variant="compact"
+          className="mt-4 border-indigo-100"
+        />
+      : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm font-medium text-indigo-950 sm:col-span-2">

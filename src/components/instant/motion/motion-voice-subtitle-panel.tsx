@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import { useCallback, useState } from "react";
 import { animationProjectDownloadUrl } from "@/lib/animation-project-download";
@@ -78,7 +79,12 @@ export function MotionVoiceSubtitlePanel({
           </ul>
           <div className="flex flex-wrap gap-2">
             {settings.voiceAudioUrl ?
-              <audio controls preload="none" src={settings.voiceAudioUrl} className="max-w-full" />
+              <StudioAudioPreviewPlayer
+                audioUrl={settings.voiceAudioUrl}
+                durationSeconds={settings.voiceDurationSeconds}
+                source="motion_voice"
+                variant="inline"
+              />
             : null}
             <a
               href={voiceDownload}
