@@ -50,6 +50,10 @@ import {
   buildCreativeReviewContext,
   enrichIdeaWithCreativeReview,
 } from "@/lib/studio-creative-review";
+import {
+  buildCreationAssistantContext,
+  enrichIdeaWithCreationAssistant,
+} from "@/lib/studio-creation-assistant";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -762,6 +766,21 @@ export function buildDirectorProposal(params: {
     creativeReviewContext
   );
 
+  const creationAssistantContext = buildCreationAssistantContext({
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+    currentIdea: idea,
+  });
+
+  const enrichedFromAssistant = enrichIdeaWithCreationAssistant(
+    enrichedFromReview,
+    creationAssistantContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -776,7 +795,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromReview, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromAssistant, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1132,6 +1151,7 @@ export function buildDirectorProposal(params: {
     memorySuggestions,
     productionMemoryContext,
     creativeReviewContext,
+    creationAssistantContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

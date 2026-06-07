@@ -1,5 +1,6 @@
 export type StudioToolId =
   | "production"
+  | "creationAssistant"
   | "creativeReview"
   | "story"
   | "characters"
@@ -21,6 +22,7 @@ export type StudioToolId =
 
 export const STUDIO_TOOL_IDS: StudioToolId[] = [
   "production",
+  "creationAssistant",
   "creativeReview",
   "story",
   "characters",
