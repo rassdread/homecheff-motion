@@ -63,6 +63,13 @@ import {
   enrichIdeaWithProductionPattern,
 } from "@/lib/studio-production-pattern-profile";
 import {
+  architectureSceneTemplateKeys,
+  buildStoryArchitecture,
+  enrichIdeaWithStoryArchitecture,
+  pickStoryMomentForPhase,
+  sceneParamsFromStoryArchitecture,
+} from "@/lib/studio-story-architecture";
+import {
   buildStudioSnapshotContext,
   enrichIdeaWithStudioSnapshot,
 } from "@/lib/studio-snapshot-context";
@@ -836,6 +843,35 @@ export function buildDirectorProposal(params: {
     snapshotContext
   );
 
+  const storyArchitecture = buildStoryArchitecture({
+    userIdea: idea,
+    productionBrief: params.productionBrief,
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+    assetDecisionRegistry: params.assetDecisionRegistry,
+    directorProfile: params.storyboard.directorProfile,
+    styleProfile: params.storyboard.promptStyleProfile,
+    plannedSceneCount:
+      (params.storyboard.scenes?.length ?? 0) > 0 ?
+        params.storyboard.scenes!.length
+      : DEFAULT_PROPOSAL_SCENE_COUNT,
+  });
+
+  const storyArchitectureContext = {
+    architecture: storyArchitecture,
+    contextLines: storyArchitecture.directorContextLines,
+    recommendationKeys: storyArchitecture.recommendationKeys,
+  };
+
+  const enrichedFromStoryArchitecture = enrichIdeaWithStoryArchitecture(
+    enrichedFromSnapshot,
+    storyArchitectureContext
+  );
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -850,7 +886,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromSnapshot, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromStoryArchitecture, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -892,8 +928,15 @@ export function buildDirectorProposal(params: {
     const planRow = planBySceneId.get(flowScene.sceneId)!;
     const existing = existingScenes[index];
     const phase = planRow.arcPhase;
-    const templates = sceneTemplateKeys(phase);
-    const textBeats = textBeatsForPhase(phase, topic);
+    const moment = pickStoryMomentForPhase(storyArchitecture, phase);
+    const templates = architectureSceneTemplateKeys(moment.id);
+    const sceneParams = sceneParamsFromStoryArchitecture(
+      storyArchitecture,
+      moment,
+      index,
+      flowInput.length
+    );
+    const textBeats = textBeatsForPhase(phase, sceneParams.topic);
     const assets = assignAssetsToScene({
       idea,
       promptTokens,
@@ -919,12 +962,12 @@ export function buildDirectorProposal(params: {
       order: index,
       arcPhase: phase,
       titleKey: keepTitle ? "" : templates.titleKey,
-      titleParams: keepTitle ? { title: existing!.title.trim() } : topicParams,
+      titleParams: keepTitle ? { title: existing!.title.trim() } : sceneParams,
       descriptionKey: keepDescription ? "" : templates.descriptionKey,
       descriptionParams:
-        keepDescription ? { description: existing!.description.trim() } : topicParams,
+        keepDescription ? { description: existing!.description.trim() } : sceneParams,
       actionKey: templates.actionKey,
-      actionParams: topicParams,
+      actionParams: sceneParams,
       emotion: existing?.emotion?.trim() || EMOTION_BY_PHASE[phase] || "neutral",
       shotType: planRow.shotType,
       cameraMovement: planRow.cameraMovement,
@@ -1209,6 +1252,7 @@ export function buildDirectorProposal(params: {
     creationAssistantContext,
     productionPatternContext,
     snapshotContext,
+    storyArchitectureContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

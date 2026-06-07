@@ -13,6 +13,7 @@ import {
 } from "@/lib/studio-asset-lifecycle-resolver";
 import { buildProductionTimeline, buildRecentCompletedTimelineTasks } from "@/lib/studio-production-timeline";
 import { findLastSafeRecoveryPoint } from "@/lib/studio-snapshot-recovery";
+import { buildStoryArchitecture } from "@/lib/studio-story-architecture";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -572,6 +573,32 @@ export function buildCreationAssistantView(
   }
 
   nowTasks.push(...buildStoryTasks(review).filter((t) => t.tier === "now"));
+
+  const storyArchitecture = buildStoryArchitecture({
+    userIdea: input.currentIdea ?? storyboard.aiDirectorPrompt ?? "",
+    storyboard,
+    characters,
+    locations,
+    props,
+    worlds,
+    projectMemory: input.projectMemory,
+    assetDecisionRegistry: input.assetDecisionRegistry,
+    directorProfile: input.directorProfile,
+    styleProfile: input.styleProfile,
+  });
+  for (const key of storyArchitecture.recommendationKeys) {
+    nowTasks.push({
+      id: `story-arch-${key}`,
+      category: "story",
+      tier: "now",
+      messageKey: key,
+      toolId: "storyArchitecture",
+      actionKind: "open",
+      source: "story_architect",
+      priority: "high",
+    });
+  }
+
   nowTasks.push(...buildAudioTasks(review).filter((t) => t.tier === "now"));
   nowTasks.push(...buildRenderTasks(review).filter((t) => t.tier === "now"));
 

@@ -18,6 +18,7 @@ import { StudioWorkspaceContinuityPanel } from "@/components/studio/studio-works
 import { StudioWorkspaceCreativeReviewPanel } from "@/components/studio/studio-workspace-creative-review-panel";
 import { StudioWorkspaceCreationAssistantPanel } from "@/components/studio/studio-workspace-creation-assistant-panel";
 import { StudioWorkspaceProductionHistoryPanel } from "@/components/studio/studio-workspace-production-history-panel";
+import { StudioWorkspaceStoryArchitecturePanel } from "@/components/studio/studio-workspace-story-architecture-panel";
 import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import {
   StudioWorkspaceDownloadPanel,
@@ -270,6 +271,22 @@ export function StudioWorkspaceToolPanel({
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
   const { projects, loading } = useStoryboardMotionProjects(storyboardId, needsMotionProjects);
+
+  if (tool === "storyArchitecture") {
+    return (
+      <StudioWorkspaceStoryArchitecturePanel
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        onSwitchTool={onSwitchTool}
+      />
+    );
+  }
 
   if (tool === "productionHistory") {
     return (

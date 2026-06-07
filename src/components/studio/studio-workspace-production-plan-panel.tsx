@@ -7,6 +7,10 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
+import {
+  buildStoryArchitectSummary,
+  buildStoryArchitecture,
+} from "@/lib/studio-story-architecture";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
@@ -100,6 +104,23 @@ export function StudioWorkspaceProductionPlanPanel({
     });
   }, [storyboard, characters, locations, props, worlds, projectMemory, styleProfile, directorProfile]);
 
+  const architectSummary = useMemo(() => {
+    const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    const architecture = buildStoryArchitecture({
+      userIdea: storyboard.aiDirectorPrompt ?? "",
+      storyboard,
+      characters,
+      locations,
+      props,
+      worlds,
+      projectMemory: projectMemory ?? undefined,
+      assetDecisionRegistry,
+      styleProfile,
+      directorProfile,
+    });
+    return buildStoryArchitectSummary(architecture);
+  }, [storyboard, characters, locations, props, worlds, projectMemory, styleProfile, directorProfile]);
+
   const readinessLabelKey =
     plan.readiness === "ready"
       ? "studio.productionPlan.readiness.ready"
@@ -138,6 +159,25 @@ export function StudioWorkspaceProductionPlanPanel({
             <p className="font-semibold text-zinc-900">{plan.estimatedAssetCount}</p>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+        <h3 className="text-sm font-semibold text-zinc-900">
+          {t("studio.storyArchitect.summary.title")}
+        </h3>
+        <p className="mt-1 text-sm text-zinc-700">{architectSummary.storyGoal || "—"}</p>
+        <p className="mt-2 text-xs text-indigo-900">
+          {t(architectSummary.labelKey as TranslationKey, architectSummary.params)}
+        </p>
+        {onSwitchTool ?
+          <button
+            type="button"
+            onClick={() => onSwitchTool("storyArchitecture")}
+            className="mt-3 text-sm font-semibold text-[#0067B1] hover:underline"
+          >
+            {t("studio.storyArchitect.summary.open")}
+          </button>
+        : null}
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">

@@ -36,7 +36,8 @@ export type CreationAssistantTaskSource =
   | "domain_check"
   | "production_plan"
   | "asset_decision"
-  | "production_timeline";
+  | "production_timeline"
+  | "story_architect";
 
 export type CreationAssistantTask = {
   id: string;

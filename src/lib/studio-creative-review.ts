@@ -5,6 +5,7 @@
 
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
+import { buildStoryArchitecture } from "@/lib/studio-story-architecture";
 import { buildStoryboardAssetEvolution } from "@/lib/studio-asset-evolution";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
 import { buildStudioAnimationPlan } from "@/lib/studio-animation-planner";
@@ -857,7 +858,21 @@ export function buildCreativeReview(input: StudioCreativeReviewInput): StudioCre
     },
     directorContextLines: [],
   };
-  review.directorContextLines = buildDirectorContextLines(review);
+  const storyArchitecture = buildStoryArchitecture({
+    userIdea: currentIdea ?? "",
+    storyboard,
+    characters,
+    locations,
+    props,
+    worlds,
+    projectMemory: input.projectMemory,
+    directorProfile,
+    styleProfile,
+  });
+  review.directorContextLines = [
+    ...buildDirectorContextLines(review),
+    ...storyArchitecture.directorContextLines.map((line) => `architect:${line}`),
+  ];
   return review;
 }
 
