@@ -7,6 +7,7 @@ import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
+import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -33,6 +34,10 @@ export type VisualImageReadiness = {
   recommendationKeys: string[];
   identityCompletenessPassed?: boolean;
   identityContextLines?: string[];
+  actionCapabilityHints?: Array<{
+    messageKey: string;
+    messageParams?: Record<string, string>;
+  }>;
 };
 
 const WARNING_TO_REC: Record<string, string> = {
@@ -158,6 +163,7 @@ export function buildSceneImageReadiness(params: {
     params.characters || params.locations || params.props || params.worlds;
   let identityCompletenessPassed: boolean | undefined;
   let identityContextLines: string[] | undefined;
+  let actionCapabilityHints: VisualImageReadiness["actionCapabilityHints"];
 
   if (librariesProvided) {
     const consumption = buildStoryboardIdentityConsumption({
@@ -173,6 +179,14 @@ export function buildSceneImageReadiness(params: {
       consumption.completenessChecks.length === 0 ||
       consumption.completenessChecks.every((c) => c.passed);
     identityContextLines = consumption.visualProductionLines.slice(0, 6);
+
+    const actionIntel = buildStoryboardActionIntelligence({
+      storyboard: params.storyboard,
+      characters: params.characters ?? [],
+      props: params.props,
+      worlds: params.worlds,
+    });
+    actionCapabilityHints = actionIntel.visualProductionHints;
 
     if (consumption.assetSummaries.length > 0 && !identityCompletenessPassed) {
       checks.push({
@@ -204,6 +218,7 @@ export function buildSceneImageReadiness(params: {
     recommendationKeys: [...new Set(recommendationKeys)].slice(0, 6),
     identityCompletenessPassed,
     identityContextLines,
+    actionCapabilityHints,
   };
 }
 

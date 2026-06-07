@@ -14,6 +14,7 @@ import { StudioDirectorSectionText } from "@/components/studio/director-v2/secti
 import { StudioDirectorSectionAdvanced } from "@/components/studio/director-v2/sections/advanced-section";
 import { StudioAudioConfidenceCard } from "@/components/studio/studio-audio-confidence-card";
 import { StudioSceneIdentityConsumptionSummary } from "@/components/studio/studio-scene-identity-consumption-summary";
+import { StudioCharacterCapabilitiesSummary } from "@/components/studio/studio-character-capabilities-summary";
 import {
   readStudioDirectorV2Mode,
   writeStudioDirectorV2Mode,
@@ -215,6 +216,16 @@ export function StudioDirectorPanelV2({
       <StudioSceneIdentityConsumptionSummary
         scene={scene}
         libraries={{ characters, locations, props, worlds }}
+      />
+
+      <StudioCharacterCapabilitiesSummary
+        storyboard={storyboard}
+        scene={scene}
+        characters={characters}
+        props={props}
+        worlds={worlds}
+        variant="compact"
+        showMemoryTrends={false}
       />
 
       <div className="space-y-3">

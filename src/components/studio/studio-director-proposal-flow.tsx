@@ -289,6 +289,27 @@ function ProposalPreviewModal({
             </section>
           : null}
 
+          {proposal.renderStrategyPlan ?
+            <section className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
+                {t("studio.renderStrategy.recommendedApproach")}
+              </h3>
+              <p className="mt-2 text-sm font-semibold text-zinc-900">
+                {t(proposal.renderStrategyPlan.strategyLabelKey as TranslationKey)}
+              </p>
+              <p className="mt-1 text-xs text-zinc-700">
+                {t(proposal.renderStrategyPlan.strategyExplanationKey as TranslationKey)}
+              </p>
+              {proposal.renderStrategyPlan.reasons.length > 0 ?
+                <ul className="mt-2 space-y-1 text-xs text-zinc-600">
+                  {proposal.renderStrategyPlan.reasons.slice(0, 3).map((r) => (
+                    <li key={r.id}>{t(r.reasonKey as TranslationKey, r.reasonParams)}</li>
+                  ))}
+                </ul>
+              : null}
+            </section>
+          : null}
+
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("studio.directorProposal.preview.storyArc")}

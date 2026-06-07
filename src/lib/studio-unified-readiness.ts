@@ -16,6 +16,8 @@ import {
 } from "@/lib/studio-consistency-fix-suggestions";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
+import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
+import type { StudioRenderStrategyPlan } from "@/types/studio-render-strategy";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import type {
@@ -59,6 +61,7 @@ export type StudioUnifiedReadiness = {
   checks: UnifiedReadinessCheck[];
   fixes: StudioReadinessFixAction[];
   renderWarnings: StudioRenderSoftWarning[];
+  renderStrategyPlan: StudioRenderStrategyPlan;
 };
 
 export function unifiedLevelFromScore(score: number): UnifiedReadinessLevel {
@@ -83,7 +86,8 @@ export function unifiedSoftGateKey(level: UnifiedReadinessLevel): string {
 
 function buildRenderSoftWarnings(
   storyboard: StudioStoryboardDetail,
-  checks: UnifiedReadinessCheck[]
+  checks: UnifiedReadinessCheck[],
+  renderStrategyPlan: StudioRenderStrategyPlan
 ): StudioRenderSoftWarning[] {
   const scenes = [...storyboard.scenes].sort((a, b) => a.order - b.order);
   const warnings: StudioRenderSoftWarning[] = [];
@@ -128,8 +132,18 @@ function buildRenderSoftWarnings(
   const shotReadiness = resolveStoryboardShotPlanReadiness(storyboard);
   if (!shotReadiness.hasShotFlow) {
     warnings.push({ messageKey: "studio.shotPlanner.readiness.missingFlow" });
-  } else if (!shotReadiness.motionLogical) {
+  } else   if (!shotReadiness.motionLogical) {
     warnings.push({ messageKey: "studio.shotPlanner.readiness.motionReview" });
+  }
+
+  if (renderStrategyPlan.missingImageCount > 0) {
+    warnings.push({
+      messageKey: "studio.renderStrategy.warning.missingImages",
+      params: { count: String(renderStrategyPlan.missingImageCount) },
+    });
+  }
+  if (renderStrategyPlan.suggestedShotSplitting.length > 0) {
+    warnings.push({ messageKey: "studio.renderStrategy.warning.splitAdvice" });
   }
 
   return warnings;
@@ -248,13 +262,22 @@ export function buildStudioUnifiedReadiness(params: {
     fixes.push(...identityFixes.slice(0, 3));
   }
 
+  const renderStrategyPlan = buildStudioRenderStrategyPlan({
+    storyboard: params.storyboard,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds,
+  });
+
   return {
     level,
     score,
     softGateKey: unifiedSoftGateKey(level),
     checks,
     fixes,
-    renderWarnings: buildRenderSoftWarnings(params.storyboard, checks),
+    renderWarnings: buildRenderSoftWarnings(params.storyboard, checks, renderStrategyPlan),
+    renderStrategyPlan,
   };
 }
 

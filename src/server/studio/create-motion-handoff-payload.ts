@@ -41,6 +41,8 @@ import { attachSceneCompositionToHandoffPayload } from "@/lib/attach-scene-compo
 import { attachAssetPlacementToHandoffPayload } from "@/lib/attach-asset-placement-handoff";
 import { attachCharacterBlockingToHandoffPayload } from "@/lib/attach-character-blocking-handoff";
 import { attachTextBeatsToHandoffPayload } from "@/lib/attach-text-beats-handoff";
+import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
+import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
 import { attachProviderExecutionToHandoffPayload } from "@/lib/attach-provider-execution-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
@@ -449,6 +451,15 @@ export async function createMotionHandoffPayload(
   }
 
   payload = attachTextBeatsToHandoffPayload(payload);
+
+  if (detail) {
+    payload = {
+      ...payload,
+      renderStrategyPlan: toMotionRenderStrategyHandoffPlan(
+        buildStudioRenderStrategyPlan({ storyboard: detail })
+      ),
+    };
+  }
 
   return { payload };
 }

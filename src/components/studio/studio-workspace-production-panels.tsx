@@ -14,6 +14,7 @@ import { VideoPreview } from "@/components/ui/video-preview";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
+import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
 import {
   isInstantLikeMotionProject,
   shouldPollStudioMotionStatus,
@@ -220,6 +221,15 @@ export function StudioWorkspaceRenderPanel({
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.render")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.render.hint")}</p>
       </div>
+      <StudioRenderStrategySummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        plan={renderReadiness.renderStrategyPlan}
+        variant="full"
+      />
       {renderReadiness.renderWarnings.length > 0 ?
         <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
           <h3 className="text-sm font-semibold text-amber-950">

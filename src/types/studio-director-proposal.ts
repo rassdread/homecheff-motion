@@ -5,6 +5,7 @@
 import type { AiDirectorStyleStrength, InterpretedDirectorStyle } from "@/lib/studio-ai-director-interpreter";
 import type { StoryArcPhase } from "@/lib/studio-story-arc";
 import type { RenderReadinessLevel } from "@/lib/studio-render-readiness-summary";
+import type { MotionRenderStrategyHandoffPlan } from "@/types/motion-handoff-payload";
 
 export type DirectorProposalApplyMode = "all" | "scenes" | "assets" | "audio" | "text";
 
@@ -184,6 +185,22 @@ export type DirectorProposalIdentityConsumption = {
   }>;
 };
 
+export type DirectorProposalActionIntelligence = {
+  characterPlans: Array<{
+    characterId: string;
+    characterName: string;
+    expected: string[];
+    supported: string[];
+    possible: string[];
+  }>;
+  sceneSuggestions: Array<{
+    sceneOrder: number;
+    classification: "supported" | "possible" | "unusual" | "unsupported";
+    suggestionKey?: string;
+    suggestionParams?: Record<string, string>;
+  }>;
+};
+
 export type StudioDirectorProposal = {
   version: 2;
   ideaPrompt: string;
@@ -203,4 +220,6 @@ export type StudioDirectorProposal = {
   fieldChanges?: DirectorProposalFieldChange[];
   memorySuggestions?: DirectorProposalMemorySuggestion[];
   identityConsumption?: DirectorProposalIdentityConsumption;
+  renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
+  actionIntelligence?: DirectorProposalActionIntelligence;
 };

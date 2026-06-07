@@ -25,6 +25,9 @@ import {
   buildSceneIdentityConsumption,
   buildStoryboardIdentityConsumption,
 } from "@/lib/studio-identity-consumption";
+import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
+import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
+import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -782,6 +785,49 @@ export function buildDirectorProposal(params: {
     params.locations
   );
 
+  if (params.t) {
+    for (let i = 0; i < scenes.length; i++) {
+      const mockScene = mockStoryboard.scenes[i];
+      const proposalScene = scenes[i];
+      if (!mockScene || !proposalScene) {
+        continue;
+      }
+      try {
+        const action = params.t(
+          proposalScene.actionKey as Parameters<NonNullable<typeof params.t>>[0],
+          proposalScene.actionParams
+        );
+        if (action) {
+          mockScene.action = action;
+        }
+      } catch {
+        /* keep proposalMockStoryboard fallback action */
+      }
+      try {
+        const title = params.t(
+          proposalScene.titleKey as Parameters<NonNullable<typeof params.t>>[0],
+          proposalScene.titleParams
+        );
+        if (title) {
+          mockScene.title = title;
+        }
+      } catch {
+        /* keep fallback title */
+      }
+      try {
+        const description = params.t(
+          proposalScene.descriptionKey as Parameters<NonNullable<typeof params.t>>[0],
+          proposalScene.descriptionParams
+        );
+        if (description) {
+          mockScene.description = description;
+        }
+      } catch {
+        /* keep fallback description */
+      }
+    }
+  }
+
   const identityLibraries = {
     characters: params.characters,
     locations: params.locations,
@@ -942,9 +988,39 @@ export function buildDirectorProposal(params: {
     memory: params.projectMemory,
   });
 
+  const actionIntelligenceRaw = buildStoryboardActionIntelligence({
+    storyboard: mockStoryboard,
+    characters: params.characters,
+    props: params.props,
+    worlds: params.worlds ?? [],
+  });
+
   return {
     ...enriched,
     memorySuggestions,
+    actionIntelligence: {
+      characterPlans: actionIntelligenceRaw.characterPlans.map((plan) => ({
+        characterId: plan.characterId,
+        characterName: plan.characterName,
+        expected: plan.expected,
+        supported: plan.supported,
+        possible: plan.possible,
+      })),
+      sceneSuggestions: actionIntelligenceRaw.sceneClassifications
+        .filter(
+          (c) =>
+            c.dominantClassification === "unusual" || c.dominantClassification === "possible"
+        )
+        .map((c) => {
+          const unusualAction = c.actions.find((a) => a.suggestionKey);
+          return {
+            sceneOrder: c.sceneOrder,
+            classification: c.dominantClassification,
+            suggestionKey: unusualAction?.suggestionKey,
+            suggestionParams: unusualAction?.suggestionParams,
+          };
+        }),
+    },
     identityConsumption: {
       directorContextLines: identityConsumption.directorContextLines,
       rationales: identityConsumption.rationales.map((r) => ({
@@ -963,6 +1039,15 @@ export function buildDirectorProposal(params: {
           kind: c.kind,
         })),
     },
+    renderStrategyPlan: toMotionRenderStrategyHandoffPlan(
+      buildStudioRenderStrategyPlan({
+        storyboard: params.storyboard,
+        characters: params.characters,
+        locations: params.locations,
+        props: params.props,
+        worlds: params.worlds ?? [],
+      })
+    ),
   };
 }
 

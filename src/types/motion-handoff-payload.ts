@@ -109,6 +109,33 @@ import type {
   SceneCharacterBlocking,
 } from "@/types/studio-character-blocking";
 import type { MotionSceneTextBeatsHandoff } from "@/types/studio-text-beats-handoff";
+import type {
+  ActionComplexityLevel,
+  RenderStrategyConfidence,
+  RenderStrategyReason,
+  StudioRenderStrategy,
+  RenderStrategyInternalInstantMode,
+} from "@/types/studio-render-strategy";
+
+/** Slim render strategy metadata for Studio → Motion handoff (V47). */
+export type MotionRenderStrategyHandoffPlan = {
+  recommendedStrategy: StudioRenderStrategy;
+  confidence: RenderStrategyConfidence;
+  confidenceScore: number;
+  actionComplexity: ActionComplexityLevel;
+  estimatedProviderDurationSeconds: number;
+  estimatedFinalDurationSeconds: number;
+  suggestedSpeedAdjustment: number | null;
+  speedAdviceOnly: boolean;
+  requiredImageCount: number;
+  presentImageCount: number;
+  missingImageCount: number;
+  internalInstantMode: RenderStrategyInternalInstantMode;
+  strategyLabelKey: string;
+  strategyExplanationKey: string;
+  reasons: RenderStrategyReason[];
+  warnings: RenderStrategyReason[];
+};
 
 export const MOTION_HANDOFF_PAYLOAD_VERSION = 25 as const;
 
@@ -292,5 +319,7 @@ export type MotionHandoffPayload = {
   characterInteractions?: CharacterInteractionPlan[];
   attentionTargets?: AttentionTargetPlan[];
   blockingWarnings?: BlockingWarning[];
+  /** V47: Render Strategy Planner metadata (Motion may ignore until P1). */
+  renderStrategyPlan?: MotionRenderStrategyHandoffPlan;
   scenes: MotionHandoffScene[];
 };

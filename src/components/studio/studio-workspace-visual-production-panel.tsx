@@ -15,6 +15,8 @@ import { buildVisualProductionAssetGaps } from "@/lib/studio-asset-evolution";
 import { buildStudioUnifiedReadiness } from "@/lib/studio-unified-readiness";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
+import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
+import { StudioCharacterCapabilitiesSummary } from "@/components/studio/studio-character-capabilities-summary";
 import { bulkGenerateStudioSceneImagesApi } from "@/lib/studio-scene-images-client";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -324,6 +326,25 @@ export function StudioWorkspaceVisualProductionPanel({
       <StudioIdentityConsumptionSummary
         storyboard={storyboard}
         libraries={{ characters, locations, props, worlds }}
+        variant="full"
+      />
+
+      <StudioRenderStrategySummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        variant="compact"
+        showShotSplit={false}
+      />
+
+      <StudioCharacterCapabilitiesSummary
+        storyboard={storyboard}
+        scene={activeScene}
+        characters={characters}
+        props={props}
+        worlds={worlds}
         variant="full"
       />
 

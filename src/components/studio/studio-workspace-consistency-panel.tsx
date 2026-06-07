@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { StudioAiSuggestionCard } from "@/components/studio/studio-ai-suggestion-card";
 import { StudioWorldIdentityRulesSummary } from "@/components/studio/studio-world-identity-rules-summary";
 import { StudioIdentityConsumptionSummary } from "@/components/studio/studio-identity-consumption-summary";
+import { StudioRenderStrategySummary } from "@/components/studio/studio-render-strategy-summary";
 import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -223,6 +224,16 @@ export function StudioWorkspaceConsistencyPanel({
           ))}
         </section>
       : null}
+
+      <StudioRenderStrategySummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        plan={unified.renderStrategyPlan}
+        variant="full"
+      />
 
       <StudioWorldIdentityRulesSummary worlds={worlds} />
 

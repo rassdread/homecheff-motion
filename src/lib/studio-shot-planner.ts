@@ -26,6 +26,7 @@ import {
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
+import { matchActionFragmentToCapability } from "@/lib/studio-scene-action-extraction";
 import type {
   SceneShotPlan,
   ShotBeat,
@@ -87,7 +88,10 @@ function openingShotForPhase(focusShot: StudioShotType, phase: StoryArcPhase): S
   return stepFraming(focusShot, -1);
 }
 
-function closingShotForPhase(focusShot: StudioShotType, phase: StoryArcPhase): StudioShotType {
+function closingShotForPhase(focusShot: StudioShotType, phase: StoryArcPhase, scene?: ShotPlannerSceneInput): StudioShotType {
+  if (scene && capabilityPrefersWideClosing(scene)) {
+    return stepFraming(focusShot, 2);
+  }
   if (phase === "climax" || phase === "resolution" || phase === "outro") {
     return stepFraming(focusShot, 1);
   }
@@ -109,9 +113,24 @@ function focusLabel(scene: ShotPlannerSceneInput): string {
   return scene.description?.trim().slice(0, 120) ?? "";
 }
 
+function capabilityPrefersDetail(scene: ShotPlannerSceneInput): boolean {
+  const text = `${scene.action ?? ""} ${scene.description ?? ""} ${scene.title ?? ""}`;
+  const cap = matchActionFragmentToCapability(text);
+  return cap === "cook" || cap === "stir" || cap === "taste" || cap === "sew" || cap === "draw";
+}
+
+function capabilityPrefersWideClosing(scene: ShotPlannerSceneInput): boolean {
+  const text = `${scene.action ?? ""} ${scene.description ?? ""}`;
+  const cap = matchActionFragmentToCapability(text);
+  return cap === "celebrate" || cap === "cheer" || cap === "run" || cap === "kick";
+}
+
 function shouldIncludeDetailBeat(scene: ShotPlannerSceneInput, phase: StoryArcPhase): boolean {
   const text = `${scene.action ?? ""} ${scene.description ?? ""} ${scene.title ?? ""}`;
   if (DETAIL_KEYWORDS.test(text)) {
+    return true;
+  }
+  if (capabilityPrefersDetail(scene)) {
     return true;
   }
   return phase === "build_up" || phase === "climax";
@@ -120,12 +139,16 @@ function shouldIncludeDetailBeat(scene: ShotPlannerSceneInput, phase: StoryArcPh
 function beatMovement(
   role: ShotBeatRole,
   base: StudioCameraMovement,
-  phase: StoryArcPhase
+  phase: StoryArcPhase,
+  scene?: ShotPlannerSceneInput
 ): StudioCameraMovement {
   if (role === "opening") {
     return phase === "opening" || phase === "discovery" ? "push_in" : base;
   }
   if (role === "closing") {
+    if (scene && capabilityPrefersWideClosing(scene)) {
+      return "tracking";
+    }
     return phase === "resolution" || phase === "outro" ? "pull_out" : base;
   }
   if (role === "detail") {
@@ -144,14 +167,14 @@ export function buildSceneShotBeats(params: {
   const focusText = focusLabel(scene);
   const includeDetail = shouldIncludeDetailBeat(scene, arcPhase);
   const openingShot = openingShotForPhase(focusShot, arcPhase);
-  const closingShot = closingShotForPhase(focusShot, arcPhase);
+  const closingShot = closingShotForPhase(focusShot, arcPhase, scene);
 
   const beats: ShotBeat[] = [
     {
       role: "opening",
       present: true,
       shotType: openingShot,
-      cameraMovement: beatMovement("opening", focusMovement, arcPhase),
+      cameraMovement: beatMovement("opening", focusMovement, arcPhase, scene),
       label: focusText ? "" : "",
       labelKey:
         arcPhase === "opening" || arcPhase === "discovery"
@@ -173,7 +196,7 @@ export function buildSceneShotBeats(params: {
       role: "detail",
       present: true,
       shotType: "detail_shot",
-      cameraMovement: beatMovement("detail", focusMovement, arcPhase),
+      cameraMovement: beatMovement("detail", focusMovement, arcPhase, scene),
       label: "",
       labelKey: "studio.shotPlanner.beat.detailMoment",
     });
@@ -184,7 +207,7 @@ export function buildSceneShotBeats(params: {
     role: "closing",
     present: true,
     shotType: closingShot,
-    cameraMovement: beatMovement("closing", focusMovement, arcPhase),
+    cameraMovement: beatMovement("closing", focusMovement, arcPhase, scene),
     label: closingLabel ?? "",
     labelKey: closingLabel ? undefined : "studio.shotPlanner.beat.closingResult",
   });
