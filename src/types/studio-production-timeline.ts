@@ -16,6 +16,9 @@ export type ProductionTimelineEventKind =
   | "asset_linked"
   | "director_prompt_updated"
   | "director_applied"
+  | "director_partially_applied"
+  | "director_modified"
+  | "director_rejected"
   | "scene_added"
   | "production_updated"
   | "memory_pattern"
@@ -96,6 +99,8 @@ export type BuildProductionTimelineInput = {
   assetDecisionRegistry?: StudioAssetDecisionRegistry;
   productionBrief?: StudioProductionBrief | null;
   snapshotTimelineEvents?: ProductionTimelineEvent[];
+  directorApplyAudits?: import("@/types/studio-director-decision-memory").DirectorApplyAuditRecord[];
+  directorApplyBaseline?: import("@/types/studio-director-decision-memory").DirectorApplyBaseline | null;
 };
 
 export type ProductionTimelineContext = {

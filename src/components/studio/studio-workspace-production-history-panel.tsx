@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
+import { loadDirectorDecisionRegistry } from "@/lib/studio-director-decision-storage";
 import { buildProductionTimelineWithPatterns } from "@/lib/studio-production-pattern-profile";
 import { buildSnapshotTimelineEvents } from "@/lib/studio-snapshot-context";
 import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
@@ -73,6 +74,7 @@ export function StudioWorkspaceProductionHistoryPanel({
 
   const timeline = useMemo(() => {
     const assetDecisionRegistry = loadAssetDecisionRegistry({ storyboardId: storyboard.id });
+    const decisionRegistry = loadDirectorDecisionRegistry(storyboard.id);
     const base = buildProductionTimelineWithPatterns({
       storyboard,
       characters,
@@ -81,6 +83,8 @@ export function StudioWorkspaceProductionHistoryPanel({
       worlds,
       projectMemory: projectMemory ?? undefined,
       assetDecisionRegistry,
+      directorApplyAudits: decisionRegistry.audits,
+      directorApplyBaseline: decisionRegistry.applyBaseline,
     });
     const snapshotEvents = buildSnapshotTimelineEvents(storyboard.id);
     return {

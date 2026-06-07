@@ -6,6 +6,7 @@
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryArchitecture } from "@/lib/studio-story-architecture";
+import { buildDirectorDecisionMemoryContext } from "@/lib/studio-director-decision-memory";
 import { buildStoryboardAssetEvolution } from "@/lib/studio-asset-evolution";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
 import { buildStudioAnimationPlan } from "@/lib/studio-animation-planner";
@@ -873,6 +874,25 @@ export function buildCreativeReview(input: StudioCreativeReviewInput): StudioCre
     ...buildDirectorContextLines(review),
     ...storyArchitecture.directorContextLines.map((line) => `architect:${line}`),
   ];
+  const decisionMemory = buildDirectorDecisionMemoryContext({
+    storyboardId: storyboard.id,
+    storyboard,
+  });
+  if (decisionMemory.memory.proposalRetentionLabelKey) {
+    review.improvementSuggestions.push({
+      id: "director-proposal-retention",
+      messageKey: decisionMemory.memory.proposalRetentionLabelKey,
+      messageParams: {
+        score: String(decisionMemory.memory.proposalRetentionScore ?? 0),
+      },
+      status: "info",
+      priority: "medium",
+      toolId: "directorPreferences",
+    });
+  }
+  review.directorContextLines.push(
+    ...decisionMemory.contextLines.map((line) => `decision:${line}`)
+  );
   return review;
 }
 

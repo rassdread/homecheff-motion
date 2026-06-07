@@ -14,6 +14,9 @@ import {
 import { buildProductionTimeline, buildRecentCompletedTimelineTasks } from "@/lib/studio-production-timeline";
 import { findLastSafeRecoveryPoint } from "@/lib/studio-snapshot-recovery";
 import { buildStoryArchitecture } from "@/lib/studio-story-architecture";
+import { buildDirectorDecisionMemoryContext } from "@/lib/studio-director-decision-memory";
+import { recordDirectorModificationsIfDrift } from "@/lib/studio-director-apply-audit";
+import { loadDirectorDecisionRegistry } from "@/lib/studio-director-decision-storage";
 import { buildCreativeReview } from "@/lib/studio-creative-review";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -449,6 +452,7 @@ export function emptyCreationAssistantView(): StudioCreationAssistantView {
       readinessScore: 0,
     },
     directorContextLines: [],
+    directorLearningKeys: [],
     recoveryPoint: null,
   };
 }
@@ -599,6 +603,23 @@ export function buildCreationAssistantView(
     });
   }
 
+  const decisionMemory = buildDirectorDecisionMemoryContext({
+    storyboardId: storyboard.id,
+    storyboard,
+  });
+  for (const key of decisionMemory.memory.learningSummaryKeys.slice(0, 4)) {
+    optionalTasks.push({
+      id: `director-learn-${key}`,
+      category: "story",
+      tier: "optional",
+      messageKey: key,
+      toolId: "directorPreferences",
+      actionKind: "open",
+      source: "director_decision",
+      priority: "low",
+    });
+  }
+
   nowTasks.push(...buildAudioTasks(review).filter((t) => t.tier === "now"));
   nowTasks.push(...buildRenderTasks(review).filter((t) => t.tier === "now"));
 
@@ -633,6 +654,14 @@ export function buildCreationAssistantView(
   const assetDecisionTasks = buildAssetDecisionTasks(input.assetDecisionRegistry);
   nextTasks.push(...assetDecisionTasks.pending);
 
+  const decisionRegistry = loadDirectorDecisionRegistry(storyboard.id);
+  if (storyboard.scenes?.length) {
+    recordDirectorModificationsIfDrift({
+      storyboardId: storyboard.id,
+      storyboard,
+    });
+  }
+  const refreshedDecisionRegistry = loadDirectorDecisionRegistry(storyboard.id);
   const timeline =
     input.productionTimeline
     ?? buildProductionTimeline({
@@ -643,6 +672,8 @@ export function buildCreationAssistantView(
       worlds,
       projectMemory: input.projectMemory,
       assetDecisionRegistry: input.assetDecisionRegistry,
+      directorApplyAudits: refreshedDecisionRegistry.audits,
+      directorApplyBaseline: refreshedDecisionRegistry.applyBaseline,
     });
   const timelineRecentTasks = buildRecentCompletedTimelineTasks(timeline);
 
@@ -700,6 +731,7 @@ export function buildCreationAssistantView(
     blockers,
     completionProgress,
     directorContextLines: [],
+    directorLearningKeys: decisionMemory.memory.learningSummaryKeys,
     recoveryPoint: recoveryPointRaw,
   };
   view.directorContextLines = buildDirectorContextLines(view);

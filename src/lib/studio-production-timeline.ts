@@ -6,6 +6,7 @@
 import { getAssetLifecycleDisplayStatus } from "@/lib/studio-asset-lifecycle-resolver";
 import { buildProductionMemoryProfile } from "@/lib/studio-production-memory-profile";
 import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
+import { directorAuditsToTimelineEvents } from "@/lib/studio-director-apply-audit";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import type { AssetDecisionKind, StudioAssetDecision } from "@/types/studio-asset-decision";
@@ -235,6 +236,10 @@ function buildAssetEvents(input: BuildProductionTimelineInput): {
 }
 
 function buildDirectorEvents(input: BuildProductionTimelineInput): ProductionTimelineEvent[] {
+  if (input.directorApplyAudits?.length) {
+    return directorAuditsToTimelineEvents(input.directorApplyAudits);
+  }
+
   const { storyboard } = input;
   const events: ProductionTimelineEvent[] = [];
   const scenes = [...storyboard.scenes].sort((a, b) => a.order - b.order);

@@ -73,6 +73,13 @@ import {
   buildStudioSnapshotContext,
   enrichIdeaWithStudioSnapshot,
 } from "@/lib/studio-snapshot-context";
+import { recordDirectorModificationsIfDrift } from "@/lib/studio-director-apply-audit";
+import { loadDirectorDecisionRegistry } from "@/lib/studio-director-decision-storage";
+import {
+  buildDirectorDecisionMemoryContext,
+  enrichIdeaWithDirectorDecisionMemory,
+  mergeDecisionPatternsIntoProductionMemory,
+} from "@/lib/studio-director-decision-memory";
 import { applyDecisionsToDirectorProposal } from "@/lib/studio-asset-decision-execution";
 import { emptyProjectMemorySnapshot } from "@/lib/studio-project-memory-utils";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
@@ -756,6 +763,15 @@ export function buildDirectorProposal(params: {
   const enrichedFromBrief =
     params.productionBrief ? enrichIdeaWithProductionBrief(idea, params.productionBrief) : idea;
 
+  const decisionRegistry = loadDirectorDecisionRegistry(params.storyboard.id);
+  if (params.storyboard.scenes?.length) {
+    recordDirectorModificationsIfDrift({
+      storyboardId: params.storyboard.id,
+      storyboard: params.storyboard,
+    });
+  }
+  const refreshedDecisionRegistry = loadDirectorDecisionRegistry(params.storyboard.id);
+
   const productionMemoryContext = buildProductionMemoryContext({
     memory: params.projectMemory ?? emptyProjectMemorySnapshot(),
     currentIdea: idea,
@@ -810,6 +826,8 @@ export function buildDirectorProposal(params: {
     projectMemory: params.projectMemory,
     assetDecisionRegistry: params.assetDecisionRegistry,
     productionBrief: params.productionBrief,
+    directorApplyAudits: refreshedDecisionRegistry.audits,
+    directorApplyBaseline: refreshedDecisionRegistry.applyBaseline,
   });
 
   const enrichedFromTimeline = enrichIdeaWithProductionTimeline(
@@ -872,6 +890,26 @@ export function buildDirectorProposal(params: {
     storyArchitectureContext
   );
 
+  const decisionMemoryContext = buildDirectorDecisionMemoryContext({
+    storyboardId: params.storyboard.id,
+    storyboard: params.storyboard,
+    audits: refreshedDecisionRegistry.audits,
+    applyBaseline: refreshedDecisionRegistry.applyBaseline,
+  });
+
+  const enrichedFromDecisionMemory = enrichIdeaWithDirectorDecisionMemory(
+    enrichedFromStoryArchitecture,
+    decisionMemoryContext
+  );
+
+  const mergedProductionMemoryContext = {
+    ...productionMemoryContext,
+    profile: mergeDecisionPatternsIntoProductionMemory(
+      productionMemoryContext.profile,
+      decisionMemoryContext.memory
+    ),
+  };
+
   const productionPlan =
     params.productionPlan ??
     buildStudioProductionPlan({
@@ -886,7 +924,7 @@ export function buildDirectorProposal(params: {
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(enrichedFromStoryArchitecture, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromDecisionMemory, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1247,12 +1285,13 @@ export function buildDirectorProposal(params: {
   const builtProposal: StudioDirectorProposal = {
     ...enriched,
     memorySuggestions,
-    productionMemoryContext,
+    productionMemoryContext: mergedProductionMemoryContext,
     creativeReviewContext,
     creationAssistantContext,
     productionPatternContext,
     snapshotContext,
     storyArchitectureContext,
+    decisionMemoryContext,
     productionPlan,
     animationPlan,
     animationPlanPreview: animationPlan.scenes.map((scene) => ({

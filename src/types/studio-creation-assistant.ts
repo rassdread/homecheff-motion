@@ -37,7 +37,8 @@ export type CreationAssistantTaskSource =
   | "production_plan"
   | "asset_decision"
   | "production_timeline"
-  | "story_architect";
+  | "story_architect"
+  | "director_decision";
 
 export type CreationAssistantTask = {
   id: string;
@@ -84,6 +85,7 @@ export type StudioCreationAssistantView = {
   blockers: CreationAssistantTask[];
   completionProgress: CreationAssistantCompletionProgress;
   directorContextLines: string[];
+  directorLearningKeys: string[];
   recoveryPoint: CreationAssistantRecoveryPoint | null;
 };
 

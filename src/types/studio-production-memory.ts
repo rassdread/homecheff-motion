@@ -107,6 +107,15 @@ export type ProductionMemoryProfile = {
   topCharacters: ProductionMemoryRecurringEntry[];
   creationGuidance: ProductionMemoryCreationGuidance | null;
   directorContextLines: string[];
+  decisionPatterns: ProductionMemoryDecisionPattern[];
+};
+
+export type ProductionMemoryDecisionPattern = {
+  id: string;
+  labelKey: string;
+  count: number;
+  confidence: "high" | "medium" | "low";
+  params?: Record<string, string>;
 };
 
 export type ProductionMemoryContext = {

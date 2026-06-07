@@ -19,6 +19,7 @@ import { StudioWorkspaceCreativeReviewPanel } from "@/components/studio/studio-w
 import { StudioWorkspaceCreationAssistantPanel } from "@/components/studio/studio-workspace-creation-assistant-panel";
 import { StudioWorkspaceProductionHistoryPanel } from "@/components/studio/studio-workspace-production-history-panel";
 import { StudioWorkspaceStoryArchitecturePanel } from "@/components/studio/studio-workspace-story-architecture-panel";
+import { StudioWorkspaceDirectorPreferencesPanel } from "@/components/studio/studio-workspace-director-preferences-panel";
 import { StudioWorkspaceSnapshotsSection } from "@/components/studio/studio-workspace-snapshots-section";
 import {
   StudioWorkspaceDownloadPanel,
@@ -286,6 +287,10 @@ export function StudioWorkspaceToolPanel({
         onSwitchTool={onSwitchTool}
       />
     );
+  }
+
+  if (tool === "directorPreferences") {
+    return <StudioWorkspaceDirectorPreferencesPanel storyboard={storyboard} />;
   }
 
   if (tool === "productionHistory") {

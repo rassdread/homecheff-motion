@@ -244,6 +244,21 @@ export function StudioWorkspaceCreationAssistantPanel({
         </div>
       </section>
 
+      {view.directorLearningKeys.length > 0 ?
+        <section className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+          <h3 className="text-sm font-semibold text-indigo-950">
+            {t("studio.creationAssistant.section.directorLearning")}
+          </h3>
+          <ul className="mt-3 space-y-2">
+            {view.directorLearningKeys.map((key) => (
+              <li key={key} className="rounded-lg bg-white/90 px-3 py-2 text-sm text-indigo-950">
+                {t(key as TranslationKey)}
+              </li>
+            ))}
+          </ul>
+        </section>
+      : null}
+
       {view.recoveryPoint ?
         <section className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
           <p className="text-sm font-medium text-zinc-900">

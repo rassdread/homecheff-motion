@@ -56,6 +56,8 @@ export type BuildProductionPatternProfileInput = {
   worlds?: import("@/types/studio-api").StudioWorldProfileListItem[];
   assetDecisionRegistry?: import("@/types/studio-asset-decision").StudioAssetDecisionRegistry;
   currentIdea?: string;
+  directorApplyAudits?: import("@/types/studio-director-decision-memory").DirectorApplyAuditRecord[];
+  directorApplyBaseline?: import("@/types/studio-director-decision-memory").DirectorApplyBaseline | null;
 };
 
 export type ProductionPatternContext = {

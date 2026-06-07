@@ -664,13 +664,10 @@ export function emptyProductionMemoryProfile(): ProductionMemoryProfile {
     topCharacters: [],
     creationGuidance: null,
     directorContextLines: [],
+    decisionPatterns: [],
   };
 }
 
-/**
- * Build a production memory profile from project memory and optional current idea.
- * Advisory only — never mutates plans or blocks creation.
- */
 export function buildProductionMemoryProfile(
   input: BuildProductionMemoryProfileInput
 ): ProductionMemoryProfile {
@@ -708,6 +705,7 @@ export function buildProductionMemoryProfile(
     recurringVoiceTypes: buildRecurringVoiceTypes(input.memory),
     recurringAudioStyles: buildRecurringAudioStyles(records, input.memory),
     topCharacters: buildTopCharacters(input.memory, input.libraries?.characters),
+    decisionPatterns: [],
   };
 
   const creationGuidance = buildCreationGuidance({
@@ -721,6 +719,7 @@ export function buildProductionMemoryProfile(
     ...partial,
     creationGuidance,
     directorContextLines: [],
+    decisionPatterns: [],
   };
   profile.directorContextLines = buildDirectorContextLines(profile);
   return profile;

@@ -339,6 +339,8 @@ export function buildProductionTimelineWithPatterns(
     worlds: input.worlds,
     projectMemory: input.projectMemory,
     assetDecisionRegistry: input.assetDecisionRegistry,
+    directorApplyAudits: input.directorApplyAudits,
+    directorApplyBaseline: input.directorApplyBaseline,
   });
 
   const profile = buildProductionPatternProfile(input);

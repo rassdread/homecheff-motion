@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { StudioTranscriptStatusLine } from "@/components/studio/studio-transcript-status-line";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -15,6 +15,11 @@ import {
   applyDirectorProposal,
   resolveProposedSceneText,
 } from "@/lib/studio-director-proposal-apply";
+import {
+  recordDirectorProposalApplied,
+  recordDirectorProposalPending,
+  recordDirectorProposalRejected,
+} from "@/lib/studio-director-apply-audit";
 import { collectProposalSceneAssets } from "@/lib/studio-director-proposal-readiness";
 import {
   StudioAiSuggestionCard,
@@ -736,6 +741,7 @@ export function StudioDirectorProposalFlow({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const appliedThisSessionRef = useRef(false);
 
   const assetDecisionRegistry = useMemo(
     () =>
@@ -772,6 +778,8 @@ export function StudioDirectorProposalFlow({
       return;
     }
     setProposal(built);
+    appliedThisSessionRef.current = false;
+    recordDirectorProposalPending(storyboard.id, `proposal-${Date.now()}`);
     setPreviewOpen(true);
     setFeedback("");
   }, [idea, storyboard, characters, locations, props, worlds, projectMemory, assetDecisionRegistry, t]);
@@ -816,6 +824,15 @@ export function StudioDirectorProposalFlow({
         }
         setFeedback(messages.join(" "));
         if (result.ok) {
+          appliedThisSessionRef.current = true;
+          recordDirectorProposalApplied({
+            storyboardId: storyboard.id,
+            proposal,
+            mode,
+            result,
+            storyboard,
+            t,
+          });
           await onApplied?.();
           if (mode !== "assets") {
             setPreviewOpen(false);
@@ -890,6 +907,12 @@ export function StudioDirectorProposalFlow({
           busy={busy}
           feedback={feedback}
           onClose={() => {
+            if (!appliedThisSessionRef.current && proposal) {
+              recordDirectorProposalRejected({
+                storyboardId: storyboard.id,
+                proposal,
+              });
+            }
             setPreviewOpen(false);
             setFeedback("");
           }}
