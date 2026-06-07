@@ -79,6 +79,19 @@ export type ProductionImagePlanning = {
   recommendedCount: number;
 };
 
+export type ProductionGenerationPlanning = {
+  requiredCount: number;
+  recommendedCount: number;
+  optionalCount: number;
+  missingRequiredCount: number;
+  missingRecommendedCount: number;
+  missingAssetCount: number;
+  readyToRender: boolean;
+  readinessLevel: ProductionReadinessLevel;
+  readinessScore: number;
+  generationStepCount: number;
+};
+
 export type ProductionAudioStatus = "ready" | "partial" | "missing";
 
 export type ProductionAudioPlanning = {
@@ -121,6 +134,7 @@ export type StudioProductionPlan = {
   assetPlanning: ProductionAssetPlanning;
   actionPlanning: ProductionActionPlanning;
   imagePlanning: ProductionImagePlanning;
+  generationPlanning: ProductionGenerationPlanning;
   audioPlanning: ProductionAudioPlanning;
   renderPlanning: ProductionRenderPlanning;
   domainReadiness: ProductionDomainReadiness[];
@@ -136,4 +150,5 @@ export type StudioProductionPlanInput = {
   projectMemory?: import("@/types/studio-project-memory").StudioProjectMemorySnapshot;
   styleProfile?: string;
   directorProfile?: string;
+  productionBrief?: import("@/types/studio-production-brief").StudioProductionBrief;
 };

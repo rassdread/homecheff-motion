@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { createDefaultStudioStoryboard } from "@/lib/studio-create-story-client";
 import { loginHref } from "@/lib/auth-login-href";
 
 type Variant = "primary" | "secondary";
@@ -24,46 +24,29 @@ export function StudioNewStoryButton({
   const t = useActiveTranslator();
   const router = useRouter();
   const session = useAuthSession();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleClick = async () => {
+  const handleClick = () => {
     setError("");
     if (!session.user) {
       router.push(loginHref("/studio/storyboards/new"));
       return;
     }
-
-    setLoading(true);
-    const result = await createDefaultStudioStoryboard(t("studio.storyboards.defaultTitle"));
-    setLoading(false);
-
-    if (result.ok) {
-      router.push(result.href);
-      return;
-    }
-
-    if (result.status === 401) {
-      router.push(loginHref("/studio/storyboards/new"));
-      return;
-    }
-
-    setError(result.error || t("studio.storyboards.error.saveFailed"));
+    router.push("/studio/storyboards/new");
   };
 
   const label = t(labelKey);
-  const loadingLabel = t("studio.start.creatingStory");
 
   if (variant === "secondary") {
     return (
       <div className={className}>
         <button
           type="button"
-          onClick={() => void handleClick()}
-          disabled={loading || !session.resolved}
+          onClick={handleClick}
+          disabled={!session.resolved}
           className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? loadingLabel : label}
+          {label}
         </button>
         {error ?
           <p className="mt-2 text-xs text-red-700">{error}</p>
@@ -76,9 +59,7 @@ export function StudioNewStoryButton({
     <div className={className}>
       <GradientButton
         type="button"
-        onClick={() => void handleClick()}
-        loading={loading}
-        loadingLabel={loadingLabel}
+        onClick={handleClick}
         disabled={!session.resolved}
         className="w-full sm:w-auto"
       >

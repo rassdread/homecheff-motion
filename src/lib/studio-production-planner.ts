@@ -22,6 +22,7 @@ import type {
   ProductionDomainReadiness,
   ProductionMissingItem,
   ProductionRecommendation,
+  ProductionAssetPlanning,
   ProductionStoryStructurePhase,
   StoryStructurePhaseId,
   StoryStructurePhaseStatus,
@@ -29,6 +30,8 @@ import type {
   StudioProductionPlanInput,
 } from "@/types/studio-production-plan";
 import type { StudioSceneDetail } from "@/types/studio-api";
+import { buildSceneGenerationPlan } from "@/lib/studio-scene-generation-orchestrator";
+import type { ProductionBriefAssetProposal, StudioProductionBrief } from "@/types/studio-production-brief";
 
 const STORY_PHASE_MAP: Record<StoryStructurePhaseId, StoryArcPhase[]> = {
   intro: ["opening"],
@@ -142,6 +145,112 @@ function assetEntriesFromEvolution(
 function toolForAssetKind(kind: ProductionAssetEntry["kind"]): StudioToolId {
   if (kind === "world") return "world";
   return kind === "character" ? "characters" : kind === "location" ? "locations" : "props";
+}
+
+function assetPlanningFromBrief(brief: StudioProductionBrief): ProductionAssetPlanning {
+  const toEntries = (
+    items: ProductionBriefAssetProposal[],
+    kind: ProductionAssetEntry["kind"]
+  ): ProductionAssetEntry[] =>
+    items.map((item) => ({
+      id: item.existingId ?? item.id,
+      name: item.name,
+      kind,
+      status:
+        item.status === "existing" ? "present"
+        : item.status === "new" ? "missing"
+        : "recommended",
+      reasonKey: item.reasonKey,
+    }));
+
+  const characters = toEntries(brief.mainCharacters, "character");
+  const locations = toEntries(brief.recommendedLocations, "location");
+  const props = toEntries(brief.recommendedProps, "prop");
+  const worlds: ProductionAssetEntry[] =
+    brief.world ?
+      [
+        {
+          id: brief.world.existingId ?? brief.world.name,
+          name: brief.world.name,
+          kind: "world",
+          status: brief.world.existingId ? "present" : "recommended",
+          reasonKey: brief.world.reasonKey,
+        },
+      ]
+    : [];
+
+  const assetPlanning: ProductionAssetPlanning = {
+    characters,
+    locations,
+    props,
+    worlds,
+    requiredCount: 0,
+    presentCount: 0,
+    missingCount: 0,
+  };
+
+  for (const list of [characters, locations, props, worlds]) {
+    for (const entry of list) {
+      assetPlanning.requiredCount += 1;
+      if (entry.status === "present") {
+        assetPlanning.presentCount += 1;
+      } else if (entry.status === "missing") {
+        assetPlanning.missingCount += 1;
+      }
+    }
+  }
+
+  return assetPlanning;
+}
+
+function applyProductionBriefOverrides(
+  plan: StudioProductionPlan,
+  brief: StudioProductionBrief
+): StudioProductionPlan {
+  const preview = brief.storyPreview;
+  const briefAssetPlanning = assetPlanningFromBrief(brief);
+  const briefRecommendations: ProductionRecommendation[] = brief.recommendations.map((r) => ({
+    id: r.id,
+    messageKey: r.messageKey,
+    messageParams: r.messageParams,
+    priority: r.priority,
+  }));
+
+  const actionComplexity =
+    brief.actionIntensity === "high" ? "high"
+    : brief.actionIntensity === "low" ? "low"
+    : plan.actionPlanning.complexity;
+
+  return {
+    ...plan,
+    productionGoalKey: "studio.productionPlan.goal.fromBrief",
+    productionGoalParams: {
+      goal: brief.goal,
+      duration: String(preview.estimatedDurationSeconds),
+      shots: String(preview.estimatedShotCount),
+      scenes: String(preview.estimatedSceneCount),
+    },
+    estimatedDurationSeconds: preview.estimatedDurationSeconds,
+    estimatedShotCount: preview.estimatedShotCount,
+    estimatedSceneCount: preview.estimatedSceneCount,
+    estimatedAssetCount: Math.max(plan.estimatedAssetCount, briefAssetPlanning.requiredCount),
+    assetPlanning: briefAssetPlanning,
+    actionPlanning: {
+      ...plan.actionPlanning,
+      complexity: actionComplexity,
+      recommendedShotCount: Math.max(plan.actionPlanning.recommendedShotCount, preview.estimatedShotCount),
+    },
+    recommendations: [...briefRecommendations, ...plan.recommendations].slice(0, 10),
+    directorContextLines: [
+      `brief:${brief.goal}`,
+      `duration:${preview.estimatedDurationSeconds}s`,
+      `shots:${preview.estimatedShotCount}`,
+      `scenes:${preview.estimatedSceneCount}`,
+      `action:${brief.actionIntensity}`,
+      brief.world ? `world:${brief.world.name}` : "",
+      ...plan.directorContextLines,
+    ].filter(Boolean),
+  };
 }
 
 export function buildProductionPlanDirectorContext(plan: StudioProductionPlan): string[] {
@@ -425,7 +534,44 @@ export function buildStudioProductionPlan(
     assetPlanning.missingCount +
     assetPlanning.characters.filter((c) => c.status === "recommended").length;
 
-  return {
+  const generationPlan = buildSceneGenerationPlan({
+    storyboard,
+    characters,
+    locations,
+    props,
+    worlds,
+    projectMemory: input.projectMemory,
+    styleProfile,
+    directorProfile,
+    renderStrategyPlan: renderPlan,
+    actionShotDistributions: actionDistribution,
+  });
+
+  const generationPlanning = {
+    requiredCount: generationPlan.totalRequired,
+    recommendedCount: generationPlan.totalRecommended,
+    optionalCount: generationPlan.totalOptional,
+    missingRequiredCount: generationPlan.readiness.requiredMissing,
+    missingRecommendedCount: generationPlan.readiness.recommendedMissing,
+    missingAssetCount: generationPlan.missingAssets.length,
+    readyToRender: generationPlan.readiness.readyToRender,
+    readinessLevel: generationPlan.readiness.level,
+    readinessScore: generationPlan.readiness.score,
+    generationStepCount: generationPlan.generationSteps.length,
+  };
+
+  if (generationPlanning.missingRequiredCount > 0 && !missingItems.some((m) => m.id === "generation-required")) {
+    missingItems.push({
+      id: "generation-required",
+      kind: "image",
+      label: String(generationPlanning.missingRequiredCount),
+      reasonKey: "studio.generationPlan.missing.requiredBeforeRender",
+      reasonParams: { count: String(generationPlanning.missingRequiredCount) },
+      toolId: "visual",
+    });
+  }
+
+  const basePlan: StudioProductionPlan = {
     productionGoalKey: "studio.productionPlan.goal.summary",
     productionGoalParams: {
       duration: String(estimatedDurationSeconds),
@@ -452,6 +598,7 @@ export function buildStudioProductionPlan(
       durationMismatchScenes: actionDistribution.scenesNeedingSplit,
     },
     imagePlanning,
+    generationPlanning,
     audioPlanning,
     renderPlanning: {
       recommendedStrategy: renderPlan.recommendedStrategy,
@@ -463,6 +610,12 @@ export function buildStudioProductionPlan(
     domainReadiness,
     directorContextLines,
   };
+
+  if (scenes.length === 0 && input.productionBrief) {
+    return applyProductionBriefOverrides(basePlan, input.productionBrief);
+  }
+
+  return basePlan;
 }
 
 /** Enrich user idea with production plan context for AI Director (no new AI). */

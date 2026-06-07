@@ -465,6 +465,7 @@ export async function createStudioStoryboard(
       description: validated.value.description,
       promptStyleProfile: validated.value.promptStyleProfile,
       directorProfile: validated.value.directorProfile,
+      aiDirectorPrompt: validated.value.aiDirectorPrompt,
     },
   });
 

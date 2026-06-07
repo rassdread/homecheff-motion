@@ -21,6 +21,7 @@ export type StudioStoryboardCreateInput = {
   description?: string;
   promptStyleProfile?: string;
   directorProfile?: string;
+  aiDirectorPrompt?: string;
 };
 
 export type StudioStoryboardUpdateInput = {
@@ -69,6 +70,7 @@ export function validateStudioStoryboardCreateInput(
   description: string;
   promptStyleProfile: string;
   directorProfile: string;
+  aiDirectorPrompt: string;
 }> {
   const title = raw.title?.trim() ?? "";
   if (!title) {
@@ -92,6 +94,7 @@ export function validateStudioStoryboardCreateInput(
       description: trimText(raw.description, STUDIO_STORYBOARD_TEXT_MAX),
       promptStyleProfile: profile,
       directorProfile: director,
+      aiDirectorPrompt: trimText(raw.aiDirectorPrompt, STUDIO_STORYBOARD_TEXT_MAX),
     },
   };
 }

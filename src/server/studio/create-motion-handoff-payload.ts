@@ -47,6 +47,9 @@ import { buildStudioAnimationPlan } from "@/lib/studio-animation-planner";
 import { toMotionAnimationPlanHandoffPlan } from "@/lib/studio-animation-plan-handoff";
 import { buildViduExecutionPlan } from "@/lib/studio-vidu-execution-planner";
 import { toMotionViduExecutionPlanHandoffPlan } from "@/lib/studio-vidu-execution-plan-handoff";
+import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
+import { buildSceneGenerationPlan } from "@/lib/studio-scene-generation-orchestrator";
+import { toMotionSceneGenerationHandoffPlan } from "@/lib/studio-scene-generation-plan-handoff";
 import { attachProviderExecutionToHandoffPayload } from "@/lib/attach-provider-execution-handoff";
 import { attachPerformanceToHandoffPayload } from "@/lib/attach-performance-handoff";
 import { attachExecutionToHandoffPayload } from "@/lib/studio-scene-execution";
@@ -467,11 +470,18 @@ export async function createMotionHandoffPayload(
       renderStrategyPlan,
       animationPlan,
     });
+    const sceneGenerationPlan = buildSceneGenerationPlan({
+      storyboard: detail,
+      renderStrategyPlan,
+      animationPlan,
+      actionShotDistributions: buildStoryboardActionShotDistribution({ storyboard: detail }),
+    });
     payload = {
       ...payload,
       renderStrategyPlan: toMotionRenderStrategyHandoffPlan(renderStrategyPlan),
       animationPlan: toMotionAnimationPlanHandoffPlan(animationPlan),
       viduExecutionPlan: toMotionViduExecutionPlanHandoffPlan(viduExecutionPlan),
+      sceneGenerationPlan: toMotionSceneGenerationHandoffPlan(sceneGenerationPlan),
     };
   }
 

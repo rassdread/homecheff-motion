@@ -1,6 +1,7 @@
 "use client";
 
 import { StudioAnimationPlanSummary } from "@/components/studio/studio-animation-plan-summary";
+import { StudioSceneGenerationPlanSummary } from "@/components/studio/studio-scene-generation-plan-summary";
 import { StudioViduExecutionPlanSummary } from "@/components/studio/studio-vidu-execution-plan-summary";
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
@@ -206,7 +207,28 @@ export function StudioWorkspaceProductionPlanPanel({
             missing: String(plan.imagePlanning.missingCount),
           })}
         </p>
+        {plan.generationPlanning.missingRequiredCount > 0 ?
+          <p className="mt-2 text-xs text-amber-800">
+            {t("studio.generationPlan.production.beforeRender", {
+              images: String(plan.generationPlanning.missingRequiredCount),
+              assets: String(plan.generationPlanning.missingAssetCount),
+            })}
+          </p>
+        : null}
       </section>
+
+      <StudioSceneGenerationPlanSummary
+        storyboard={storyboard}
+        characters={characters}
+        locations={locations}
+        props={props}
+        worlds={worlds}
+        projectMemory={projectMemory}
+        styleProfile={styleProfile}
+        directorProfile={directorProfile}
+        compact
+        onSwitchTool={onSwitchTool}
+      />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4">
         <h3 className="text-sm font-semibold text-zinc-900">

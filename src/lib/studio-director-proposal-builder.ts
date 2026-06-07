@@ -30,13 +30,19 @@ import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import {
-  buildStudioProductionPlan,
-  enrichIdeaWithProductionPlan,
-} from "@/lib/studio-production-planner";
+  buildSceneGenerationPlan,
+  enrichIdeaWithGenerationPlan,
+} from "@/lib/studio-scene-generation-orchestrator";
 import {
   buildStudioAnimationPlan,
   enrichIdeaWithAnimationPlan,
 } from "@/lib/studio-animation-planner";
+import {
+  buildStudioProductionPlan,
+  enrichIdeaWithProductionPlan,
+} from "@/lib/studio-production-planner";
+import { enrichIdeaWithProductionBrief } from "@/lib/studio-production-brief-enrichment";
+import type { StudioProductionBrief } from "@/types/studio-production-brief";
 import { toIdentitySpec, toSearchHaystack } from "@/lib/studio-identity-spec-engine";
 import {
   detectRecurringCharacter,
@@ -704,12 +710,16 @@ export function buildDirectorProposal(params: {
   projectMemory?: StudioProjectMemorySnapshot;
   productionPlan?: StudioProductionPlan;
   animationPlan?: import("@/types/studio-animation-plan").StudioAnimationPlan;
+  productionBrief?: StudioProductionBrief;
   t?: ProposalTextResolver;
 }): StudioDirectorProposal | null {
   const idea = params.idea.trim();
   if (!idea) {
     return null;
   }
+
+  const enrichedFromBrief =
+    params.productionBrief ? enrichIdeaWithProductionBrief(idea, params.productionBrief) : idea;
 
   const productionPlan =
     params.productionPlan ??
@@ -720,10 +730,11 @@ export function buildDirectorProposal(params: {
       props: params.props,
       worlds: params.worlds ?? [],
       projectMemory: params.projectMemory,
+      productionBrief: params.productionBrief,
     });
 
   const enrichedIdea = enrichIdeaWithAnimationPlan(
-    enrichIdeaWithProductionPlan(idea, productionPlan),
+    enrichIdeaWithProductionPlan(enrichedFromBrief, productionPlan),
     params.animationPlan ??
       buildStudioAnimationPlan({
         storyboard: params.storyboard,
@@ -1059,6 +1070,19 @@ export function buildDirectorProposal(params: {
     projectMemory: params.projectMemory,
   });
 
+  const generationPlan = buildSceneGenerationPlan({
+    storyboard: mockStoryboard,
+    productionPlan,
+    animationPlan,
+    renderStrategyPlan: renderStrategyPlanBuilt,
+    actionShotDistributions: actionShotDistributionRaw,
+    characters: params.characters,
+    locations: params.locations,
+    props: params.props,
+    worlds: params.worlds ?? [],
+    projectMemory: params.projectMemory,
+  });
+
   return {
     ...enriched,
     memorySuggestions,
@@ -1077,6 +1101,18 @@ export function buildDirectorProposal(params: {
         actionBeat: shot.actionBeat,
       })),
     })),
+    generationPlan,
+    generationPlanPreview: [...generationPlan.requiredImages, ...generationPlan.recommendedImages]
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .slice(0, 12)
+      .map((item) => ({
+        sceneOrder: item.sceneOrder,
+        actionBeat: item.actionBeat,
+        roleLabelKey: item.roleLabelKey,
+        priority: item.priority,
+        status: item.status,
+        orderIndex: item.orderIndex,
+      })),
     actionIntelligence: {
       characterPlans: actionIntelligenceRaw.characterPlans.map((plan) => ({
         characterId: plan.characterId,

@@ -261,4 +261,13 @@ export type StudioDirectorProposal = {
   productionPlan?: StudioProductionPlan;
   animationPlan?: StudioAnimationPlan;
   animationPlanPreview?: DirectorProposalAnimationPlanEntry[];
+  generationPlan?: import("@/types/studio-scene-generation-plan").StudioSceneGenerationPlan;
+  generationPlanPreview?: Array<{
+    sceneOrder: number;
+    actionBeat: string;
+    roleLabelKey: string;
+    priority: "required" | "recommended" | "optional";
+    status: "present" | "missing" | "blocked";
+    orderIndex: number;
+  }>;
 };

@@ -311,6 +311,31 @@ function ProposalPreviewModal({
             </section>
           : null}
 
+          {proposal.generationPlanPreview && proposal.generationPlanPreview.length > 0 ?
+            <section className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
+                {t("studio.directorProposal.generationPlan.title")}
+              </h3>
+              <ol className="mt-2 space-y-1 text-xs text-zinc-700">
+                {proposal.generationPlanPreview
+                  .filter((row) => row.status !== "present")
+                  .slice(0, 8)
+                  .map((row) => (
+                    <li key={`${row.sceneOrder}-${row.orderIndex}`}>
+                      {t("studio.directorProposal.generationPlan.order", {
+                        index: String(row.orderIndex),
+                      })}
+                      {" — "}
+                      {row.actionBeat} · {t(row.roleLabelKey as TranslationKey)}
+                      {row.status === "missing" ?
+                        ` (${t("studio.directorProposal.generationPlan.missing")})`
+                      : null}
+                    </li>
+                  ))}
+              </ol>
+            </section>
+          : null}
+
           {proposal.actionShotDistribution && proposal.actionShotDistribution.length > 0 ?
             <section className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">

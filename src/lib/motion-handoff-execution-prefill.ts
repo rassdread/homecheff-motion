@@ -49,6 +49,7 @@ function buildWarnings(
   const warnings: MotionHandoffPrefillWarning[] = [];
   const exec = payload.viduExecutionPlan;
   const animation = payload.animationPlan;
+  const generation = payload.sceneGenerationPlan;
 
   if (exec?.readiness.missingStartEndImages) {
     warnings.push({
@@ -96,6 +97,14 @@ function buildWarnings(
       id: "animation-missing-images",
       messageKey: "motion.handoff.executionPrefill.warning.missingImagesCount",
       messageParams: { count: String(animation.missingImageCount) },
+    });
+  }
+
+  if (generation && generation.requiredMissing > 0) {
+    warnings.push({
+      id: "generation-required-images",
+      messageKey: "studio.generationPlan.warning.requiredBeforeRender",
+      messageParams: { count: String(generation.requiredMissing) },
     });
   }
 
@@ -169,8 +178,9 @@ export function resolveMotionHandoffExecutionPrefill(
   const exec = payload.viduExecutionPlan;
   const render = payload.renderStrategyPlan;
   const animation = payload.animationPlan;
+  const generation = payload.sceneGenerationPlan;
 
-  const metadataAvailable = Boolean(exec || render || animation);
+  const metadataAvailable = Boolean(exec || render || animation || generation);
   const executionMode = exec?.executionMode ?? null;
 
   const { mode: instantMode, source: instantModeSource } = resolveInstantMode({
@@ -222,7 +232,10 @@ export function resolveMotionHandoffExecutionPrefill(
     sceneDurations,
     totalDurationSeconds,
     transitionSeconds: deriveTransitionSeconds(payload),
-    readyToRender: exec?.readyToRender ?? sceneImageMissingCount === 0,
+    readyToRender:
+      exec?.readyToRender ??
+      generation?.readyToRender ??
+      (sceneImageMissingCount === 0 && (generation?.requiredMissing ?? 0) === 0),
     fallbackActive: exec?.fallbackActive ?? false,
     fallbackLabelKey:
       exec?.fallbackActive ? exec.fallbackReasonKey ?? "studio.executionPlan.fallback.title" : null,

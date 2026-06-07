@@ -6,7 +6,6 @@
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
-import { buildStudioProductionPlan } from "@/lib/studio-production-planner";
 import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
 import { buildCurrentStoryboardShotPlan } from "@/lib/studio-shot-planner";
 import {
@@ -330,18 +329,12 @@ export function buildStudioAnimationPlan(input: StudioAnimationPlanInput): Studi
     memory: input.projectMemory,
   });
 
-  const productionPlan =
-    input.productionPlan ??
-    buildStudioProductionPlan({
-      storyboard,
-      characters: input.characters,
-      locations: input.locations,
-      props: input.props,
-      worlds: input.worlds,
-      projectMemory: input.projectMemory,
-      styleProfile,
-      directorProfile,
-    });
+  const productionPlan = input.productionPlan;
+
+  const actionStepCount = actionDistribution.scenes.reduce(
+    (sum, d) => sum + d.actionChain.steps.length,
+    0
+  );
 
   const shotPlan = buildCurrentStoryboardShotPlan(storyboard);
   const shotPlanBySceneId = new Map(shotPlan.scenes.map((s) => [s.sceneId, s]));
@@ -419,8 +412,8 @@ export function buildStudioAnimationPlan(input: StudioAnimationPlanInput): Studi
     speedAdvice.suggestedSpeedAdjustment
       ? `speed:${speedAdvice.suggestedSpeedAdjustment.toFixed(2)}x`
       : "",
-    productionPlan.actionPlanning.totalActionSteps > 0
-      ? `actions:${productionPlan.actionPlanning.totalActionSteps}`
+    (productionPlan?.actionPlanning.totalActionSteps ?? actionStepCount) > 0
+      ? `actions:${productionPlan?.actionPlanning.totalActionSteps ?? actionStepCount}`
       : "",
   ].filter(Boolean);
 

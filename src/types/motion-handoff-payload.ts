@@ -186,6 +186,34 @@ export type MotionViduExecutionPlanHandoffPlan = {
   warningCount: number;
 };
 
+/** Slim Scene Generation Orchestrator metadata for Studio → Motion handoff (V50 — planning only). */
+export type MotionSceneGenerationHandoffPlan = {
+  readyToRender: boolean;
+  readinessLevel: "ready" | "almost_ready" | "needs_work";
+  readinessScore: number;
+  requiredMissing: number;
+  recommendedMissing: number;
+  blockedCount: number;
+  totalRequired: number;
+  totalPresent: number;
+  totalMissing: number;
+  generationStepCount: number;
+  missingAssetCount: number;
+  orderedSteps: Array<{
+    order: number;
+    summaryKey: string;
+    itemCount: number;
+  }>;
+  nextImages: Array<{
+    sceneOrder: number;
+    sceneTitle: string;
+    actionBeat: string;
+    roleLabelKey: string;
+    priority: "required" | "recommended" | "optional";
+    status: "present" | "missing" | "blocked";
+  }>;
+};
+
 /** Slim render strategy metadata for Studio → Motion handoff (V47). */
 export type MotionRenderStrategyHandoffPlan = {
   recommendedStrategy: StudioRenderStrategy;
@@ -394,5 +422,7 @@ export type MotionHandoffPayload = {
   animationPlan?: MotionAnimationPlanHandoffPlan;
   /** V49: Vidu Execution Planner metadata (Motion may ignore until P1). */
   viduExecutionPlan?: MotionViduExecutionPlanHandoffPlan;
+  /** V50: Scene Generation Orchestrator metadata (planning only). */
+  sceneGenerationPlan?: MotionSceneGenerationHandoffPlan;
   scenes: MotionHandoffScene[];
 };
