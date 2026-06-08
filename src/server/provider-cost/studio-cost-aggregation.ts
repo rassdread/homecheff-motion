@@ -58,12 +58,19 @@ export type PreviewDuplicationReport = {
   uniqueHashes: number;
   duplicateEvents: number;
   estimatedWasteUsd: number;
+  cacheHitEvents: number;
+  cacheMissEvents: number;
+  cacheHitRate: number;
+  estimatedCacheSavingsUsd: number;
   topDuplicates: Array<{
     previewDedupHash: string;
     repeatCount: number;
     estimatedWasteUsd: number;
     voiceId?: string;
   }>;
+  topPreviewUsers: Array<{ userId: string; previewCount: number; cacheHits: number }>;
+  topPreviewVoices: Array<{ voiceId: string; previewCount: number; cacheHits: number }>;
+  topPreviewTexts: Array<{ previewDedupHash: string; previewCount: number; voiceId?: string }>;
 };
 
 function eventCostUsd(row: { internalCostUsd: number | null; totalCostUsd: number | null }): number {
@@ -284,20 +291,51 @@ export async function aggregateFeatureCostSummary(params?: {
     .slice(0, limit);
 }
 
+function metaVoiceId(metadataJson: unknown): string | undefined {
+  if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
+    return undefined;
+  }
+  const voiceId = (metadataJson as Record<string, unknown>).voiceId;
+  return typeof voiceId === "string" && voiceId.trim() ? voiceId : undefined;
+}
+
+function metaEstimatedSavings(metadataJson: unknown): number {
+  if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
+    return 0;
+  }
+  const v = (metadataJson as Record<string, unknown>).estimatedCostSavedUsd;
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
 export async function buildPreviewDuplicationReport(params?: {
   since?: Date;
 }): Promise<PreviewDuplicationReport> {
-  const events = await prisma.providerCostEvent.findMany({
-    where: {
-      actionType: COST_ACTION.ELEVENLABS_TTS,
-      ...(params?.since ? { createdAt: { gte: params.since } } : {}),
-    },
-    select: {
-      internalCostUsd: true,
-      totalCostUsd: true,
-      metadataJson: true,
-    },
-  });
+  const sinceFilter = params?.since ? { createdAt: { gte: params.since } } : {};
+
+  const [ttsEvents, cacheHitEvents] = await Promise.all([
+    prisma.providerCostEvent.findMany({
+      where: {
+        actionType: COST_ACTION.ELEVENLABS_TTS,
+        ...sinceFilter,
+      },
+      select: {
+        userId: true,
+        internalCostUsd: true,
+        totalCostUsd: true,
+        metadataJson: true,
+      },
+    }),
+    prisma.providerCostEvent.findMany({
+      where: {
+        actionType: COST_ACTION.VOICE_PREVIEW_CACHE_HIT,
+        ...sinceFilter,
+      },
+      select: {
+        userId: true,
+        metadataJson: true,
+      },
+    }),
+  ]);
 
   const previewFeatures = new Set([
     "voice_preview_character",
@@ -309,10 +347,13 @@ export async function buildPreviewDuplicationReport(params?: {
     string,
     { count: number; costUsd: number; voiceId?: string }
   >();
+  const byUser = new Map<string, { previewCount: number; cacheHits: number }>();
+  const byVoice = new Map<string, { previewCount: number; cacheHits: number }>();
 
   let totalPreviewEvents = 0;
+  let cacheMissEvents = 0;
 
-  for (const e of events) {
+  for (const e of ttsEvents) {
     const feature = metaFeature(e.metadataJson);
     if (!feature || !previewFeatures.has(feature)) {
       continue;
@@ -322,13 +363,9 @@ export async function buildPreviewDuplicationReport(params?: {
       continue;
     }
     totalPreviewEvents += 1;
+    cacheMissEvents += 1;
     const cost = eventCostUsd(e);
-    const voiceId =
-      e.metadataJson &&
-      typeof e.metadataJson === "object" &&
-      !Array.isArray(e.metadataJson)
-        ? String((e.metadataJson as Record<string, unknown>).voiceId ?? "")
-        : undefined;
+    const voiceId = metaVoiceId(e.metadataJson);
     const cur = byHash.get(hash) ?? { count: 0, costUsd: 0, voiceId };
     cur.count += 1;
     cur.costUsd += cost;
@@ -336,13 +373,62 @@ export async function buildPreviewDuplicationReport(params?: {
       cur.voiceId = voiceId;
     }
     byHash.set(hash, cur);
+
+    if (e.userId) {
+      const userRow = byUser.get(e.userId) ?? { previewCount: 0, cacheHits: 0 };
+      userRow.previewCount += 1;
+      byUser.set(e.userId, userRow);
+    }
+    if (voiceId) {
+      const voiceRow = byVoice.get(voiceId) ?? { previewCount: 0, cacheHits: 0 };
+      voiceRow.previewCount += 1;
+      byVoice.set(voiceId, voiceRow);
+    }
+  }
+
+  let estimatedCacheSavingsUsd = 0;
+  for (const e of cacheHitEvents) {
+    const feature = metaFeature(e.metadataJson);
+    if (feature !== "voice_preview_cache_hit") {
+      continue;
+    }
+    totalPreviewEvents += 1;
+    estimatedCacheSavingsUsd += metaEstimatedSavings(e.metadataJson);
+    const hash = metaPreviewHash(e.metadataJson);
+    const voiceId = metaVoiceId(e.metadataJson);
+    if (hash) {
+      const cur = byHash.get(hash) ?? { count: 0, costUsd: 0, voiceId };
+      cur.count += 1;
+      if (voiceId) {
+        cur.voiceId = voiceId;
+      }
+      byHash.set(hash, cur);
+    }
+    if (e.userId) {
+      const userRow = byUser.get(e.userId) ?? { previewCount: 0, cacheHits: 0 };
+      userRow.previewCount += 1;
+      userRow.cacheHits += 1;
+      byUser.set(e.userId, userRow);
+    }
+    if (voiceId) {
+      const voiceRow = byVoice.get(voiceId) ?? { previewCount: 0, cacheHits: 0 };
+      voiceRow.previewCount += 1;
+      voiceRow.cacheHits += 1;
+      byVoice.set(voiceId, voiceRow);
+    }
   }
 
   let duplicateEvents = 0;
   let estimatedWasteUsd = 0;
   const topDuplicates: PreviewDuplicationReport["topDuplicates"] = [];
+  const topPreviewTexts: PreviewDuplicationReport["topPreviewTexts"] = [];
 
   for (const [hash, data] of byHash.entries()) {
+    topPreviewTexts.push({
+      previewDedupHash: hash,
+      previewCount: data.count,
+      voiceId: data.voiceId,
+    });
     if (data.count > 1) {
       duplicateEvents += data.count - 1;
       const waste = (data.costUsd / data.count) * (data.count - 1);
@@ -357,13 +443,37 @@ export async function buildPreviewDuplicationReport(params?: {
   }
 
   topDuplicates.sort((a, b) => b.estimatedWasteUsd - a.estimatedWasteUsd);
+  topPreviewTexts.sort((a, b) => b.previewCount - a.previewCount);
+
+  const cacheHitCount = cacheHitEvents.filter(
+    (e) => metaFeature(e.metadataJson) === "voice_preview_cache_hit"
+  ).length;
+  const cacheHitRate =
+    totalPreviewEvents > 0 ? Math.round((cacheHitCount / totalPreviewEvents) * 1000) / 1000 : 0;
+
+  const topPreviewUsers = [...byUser.entries()]
+    .map(([userId, row]) => ({ userId, ...row }))
+    .sort((a, b) => b.previewCount - a.previewCount)
+    .slice(0, 10);
+
+  const topPreviewVoices = [...byVoice.entries()]
+    .map(([voiceId, row]) => ({ voiceId, ...row }))
+    .sort((a, b) => b.previewCount - a.previewCount)
+    .slice(0, 10);
 
   return {
     totalPreviewEvents,
     uniqueHashes: byHash.size,
     duplicateEvents,
     estimatedWasteUsd: roundUsd(estimatedWasteUsd),
+    cacheHitEvents: cacheHitCount,
+    cacheMissEvents,
+    cacheHitRate,
+    estimatedCacheSavingsUsd: roundUsd(estimatedCacheSavingsUsd),
     topDuplicates: topDuplicates.slice(0, 20),
+    topPreviewUsers,
+    topPreviewVoices,
+    topPreviewTexts: topPreviewTexts.slice(0, 20),
   };
 }
 

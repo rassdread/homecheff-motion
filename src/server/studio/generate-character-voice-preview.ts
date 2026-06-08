@@ -6,6 +6,7 @@ import {
   characterVoiceSnapshotFromRow,
   resolveCharacterVoiceForLanguage,
 } from "@/lib/studio-character-voice";
+import { normalizeVoicePreviewType } from "@/lib/studio-voice-preview-cache-key";
 import {
   draftCharacterVoicePreviewStorageIds,
   synthesizeCharacterVoicePreview,
@@ -20,6 +21,7 @@ export type CharacterVoicePreviewOverrides = {
   sampleLine?: string;
   voiceProfile?: string;
   characterName?: string;
+  previewType?: string;
 };
 
 export async function generateCharacterVoicePreview(params: {
@@ -60,6 +62,9 @@ export async function generateCharacterVoicePreview(params: {
     sampleLine: params.sampleLine,
     storageStoryboardId: `character-${row.id}`,
     storageAssetId: row.id,
+    previewType: params.previewType
+      ? normalizeVoicePreviewType(params.previewType)
+      : undefined,
   });
 
   if ("error" in synthesis) {
@@ -80,6 +85,7 @@ export async function generateCharacterVoicePreviewDraft(params: {
   voiceProfile: string;
   voiceLanguage: string;
   sampleLine?: string;
+  previewType?: string;
 }): Promise<
   | {
       ok: true;
@@ -111,6 +117,9 @@ export async function generateCharacterVoicePreviewDraft(params: {
     sampleLine: params.sampleLine,
     storageStoryboardId,
     storageAssetId,
+    previewType: params.previewType
+      ? normalizeVoicePreviewType(params.previewType)
+      : undefined,
   });
 
   if ("error" in synthesis) {

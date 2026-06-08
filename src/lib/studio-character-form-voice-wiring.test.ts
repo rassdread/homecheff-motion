@@ -66,13 +66,12 @@ describe("voice library discovery UX", () => {
     assert.equal(defaultVoiceLibraryTab(formatClonedVoiceProfileRef("clone-1")), "my_voice");
   });
 
-  it("voice center exposes choose-voice heading and does not disable source tabs", () => {
+  it("voice center exposes enable hint and auto-enables voice on selection", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
-    assert.match(src, /studio\.voiceCenter\.chooseVoice/);
     assert.match(src, /studio\.voiceCenter\.enableToUseHint/);
     assert.match(src, /voiceEnabled: true/);
-    assert.doesNotMatch(src, /disabled=\{!value\.voiceEnabled\}\s*\n\s*onClick=\{\(\) => setVoiceLibraryTab/);
+    assert.doesNotMatch(src, /setVoiceLibraryTab/);
   });
 
   it("allows voice preview without requiring voiceEnabled", () => {
@@ -102,38 +101,44 @@ describe("voice library discovery UX", () => {
     assert.doesNotMatch(src, /disabled=\{!_voiceEnabled\}/);
   });
 
-  it("voice center shows main voice, recommendations, and collapsed advanced language settings", () => {
+  it("voice center shows main voice card and collapsible discovery sections", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
     assert.match(src, /studio\.voiceCenter\.mainVoiceTitle/);
+    assert.match(src, /CharacterMainVoiceCard/);
+    assert.match(src, /VoiceCenterCollapsibleSection/);
     assert.match(src, /StudioVoiceRecommendationsPanel/);
+    assert.match(src, /StudioVoicePersonaPresetsPanel/);
     assert.match(src, /studio\.voiceCenter\.advancedLanguageTitle/);
     assert.match(src, /studio\.voiceCenter\.sameVoiceForAllLanguages/);
     assert.match(src, /advancedLanguageOpen/);
-    assert.match(src, /CharacterMainVoiceCard/);
   });
 
-  it("orders voice center: main voice, recommendations, persona presets, marketplace", () => {
+  it("orders voice center: main voice, then collapsible best matches and persona presets", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
     const renderBlock = src.slice(src.indexOf("export function StudioCharacterVoiceCenter"));
     const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
+    const collapsibleIdx = renderBlock.indexOf("<VoiceCenterCollapsibleSection");
     const recIdx = renderBlock.indexOf("<StudioVoiceRecommendationsPanel");
     const personaIdx = renderBlock.indexOf("<StudioVoicePersonaPresetsPanel");
-    const chooseIdx = renderBlock.indexOf("studio.voiceCenter.chooseVoice");
-    assert.ok(mainIdx >= 0 && recIdx > mainIdx);
+    assert.ok(mainIdx >= 0 && collapsibleIdx > mainIdx);
+    assert.ok(recIdx > collapsibleIdx);
     assert.ok(personaIdx > recIdx);
-    assert.ok(chooseIdx > personaIdx);
   });
 
-  it("keeps preview textarea in advanced language settings only", () => {
+  it("shows auto preview hint in main flow and textarea only in advanced settings", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const src = readFileSync(centerPath, "utf8");
-    assert.match(src, /studio\.voiceCenter\.previewTextAutoHint/);
-    const advancedIdx = src.indexOf("advancedLanguageOpen");
-    const textareaIdx = src.indexOf("studio.voiceCenter.previewTextLabel");
+    const renderBlock = src.slice(src.indexOf("export function StudioCharacterVoiceCenter"));
+    assert.match(renderBlock, /studio\.voiceCenter\.previewTextAutoHint/);
+    const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
+    const hintIdx = renderBlock.indexOf("studio.voiceCenter.previewTextAutoHint");
+    const advancedIdx = renderBlock.indexOf('title={t("studio.voiceCenter.advancedLanguageTitle")}');
+    const textareaIdx = renderBlock.indexOf("studio.voiceCenter.previewTextLabel");
+    assert.ok(mainIdx >= 0 && hintIdx > mainIdx && hintIdx < advancedIdx);
     assert.ok(advancedIdx >= 0 && textareaIdx > advancedIdx);
-    const beforeAdvanced = src.slice(0, advancedIdx);
+    const beforeAdvanced = renderBlock.slice(0, advancedIdx);
     assert.doesNotMatch(beforeAdvanced, /studio\.voiceCenter\.previewTextLabel/);
   });
 
@@ -173,14 +178,19 @@ describe("voice library discovery UX", () => {
     assert.match(src, /StudioVoiceCloneWorkflow/);
   });
 
-  it("uses mobile-friendly min touch targets on voice tabs and cards", () => {
+  it("uses mobile-friendly min touch targets on collapsible sections and cards", () => {
     const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
     const sectionPath = join(
       process.cwd(),
       "src/components/studio/studio-character-voice-library-section.tsx"
     );
-    assert.match(readFileSync(centerPath, "utf8"), /min-h-\[44px\].*setVoiceLibraryTab/s);
+    const collapsiblePath = join(
+      process.cwd(),
+      "src/components/studio/voice-center-collapsible-section.tsx"
+    );
+    assert.match(readFileSync(collapsiblePath, "utf8"), /min-h-\[44px\]/);
     assert.match(readFileSync(sectionPath, "utf8"), /min-h-\[44px\]/);
+    assert.match(readFileSync(centerPath, "utf8"), /min-h-\[44px\]/);
   });
 });
 
@@ -296,8 +306,12 @@ describe("buildPerLanguageVoiceOverrideOptions", () => {
 
 describe("studio-character-form voice wiring i18n parity", () => {
   const keys = [
-    "studio.voiceCenter.chooseVoice",
     "studio.voiceCenter.mainVoiceTitle",
+    "studio.voiceCenter.section.bestMatches",
+    "studio.voiceCenter.section.library",
+    "studio.voiceCenter.openLibrary",
+    "studio.voiceCenter.quickPicksTitle",
+    "studio.voiceCenter.showDebugOverrides",
     "studio.voiceCenter.advancedLanguageTitle",
     "studio.voiceCenter.sameVoiceForAllLanguages",
     "studio.voiceCenter.enableToUseHint",

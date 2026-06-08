@@ -16,6 +16,7 @@ export async function POST(request: Request, context: RouteContext) {
     sampleLine?: string;
     voiceProfile?: string;
     characterName?: string;
+    previewType?: string;
   } = {};
   try {
     body = (await request.json().catch(() => ({}))) as typeof body;
@@ -30,6 +31,7 @@ export async function POST(request: Request, context: RouteContext) {
     sampleLine: body.sampleLine,
     voiceProfile: body.voiceProfile,
     characterName: body.characterName,
+    previewType: body.previewType,
   });
 
   if ("error" in result) {

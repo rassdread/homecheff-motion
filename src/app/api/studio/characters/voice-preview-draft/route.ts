@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     voiceProfile?: string;
     voiceLanguage?: string;
     sampleLine?: string;
+    previewType?: string;
   } = {};
   try {
     body = (await request.json().catch(() => ({}))) as typeof body;
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     voiceProfile: typeof body.voiceProfile === "string" ? body.voiceProfile : "warm_narrator",
     voiceLanguage: typeof body.voiceLanguage === "string" ? body.voiceLanguage : "en",
     sampleLine: typeof body.sampleLine === "string" ? body.sampleLine : undefined,
+    previewType: typeof body.previewType === "string" ? body.previewType : undefined,
   });
 
   if ("error" in result) {

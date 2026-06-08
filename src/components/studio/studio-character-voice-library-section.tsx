@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useDebouncedMarketplaceSearch } from "@/hooks/use-debounced-marketplace-search";
 import {
   buildMarketplaceAppliedFilters,
@@ -54,12 +62,22 @@ import {
   parseVoiceProfileRef,
   safeFormatLibraryVoiceProfileRef,
 } from "@/lib/studio-voice-profile-ref";
-import { VOICE_PERSONA_GROUP_LABEL_KEYS } from "@/lib/studio-voice-persona-presets";
+import {
+  VOICE_PERSONA_GROUP_LABEL_KEYS,
+  type VoicePersonaPresetGroupId,
+} from "@/lib/studio-voice-persona-presets";
+import { buildVoiceQuickPicks, type VoiceQuickPick } from "@/lib/studio-voice-center-ux";
 import type { VoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
 
 export type VoiceLibraryTab = "presets" | "persona" | "my_voice";
 
 const BROWSE_PAGE_SIZE = 24;
+
+const PERSONA_PREVIEW_TYPES = new Set(["chef", "garden", "designer", "community"]);
+
+function previewTypeForPersonaGroup(groupId: string): string | undefined {
+  return PERSONA_PREVIEW_TYPES.has(groupId) ? groupId : undefined;
+}
 
 export type VoiceSelectMeta = {
   voiceName?: string;
@@ -78,6 +96,8 @@ type Props = {
   canModify?: boolean;
   isAdmin?: boolean;
   marketplaceContext?: VoiceMarketplaceContext;
+  browseOpen?: boolean;
+  onBrowseOpen?: () => void;
 };
 
 export type StudioVoiceRecommendationsPanelProps = {
@@ -90,10 +110,25 @@ export type StudioVoiceRecommendationsPanelProps = {
   language?: string;
   previewText: string;
   onPreviewError?: (message: string) => void;
+  embedded?: boolean;
 };
 
 export type StudioVoicePersonaPresetsPanelProps = {
   personaPresets: VoicePersonaResolvedPreset[];
+  selectedProfile: string;
+  onSelectProfile: (profile: string, meta?: VoiceSelectMeta) => void;
+  characterId?: string | null;
+  characterName?: string;
+  language?: string;
+  previewText: string;
+  onPreviewError?: (message: string) => void;
+  embedded?: boolean;
+  preferredGroupId?: VoicePersonaPresetGroupId;
+};
+
+export type StudioVoiceQuickPicksPanelProps = {
+  payload: VoiceLibraryPayload;
+  marketplaceContext: VoiceMarketplaceContext;
   selectedProfile: string;
   onSelectProfile: (profile: string, meta?: VoiceSelectMeta) => void;
   characterId?: string | null;
@@ -435,7 +470,95 @@ function VoicePersonaPresetCard({
   );
 }
 
-export function StudioVoicePersonaPresetsPanel({
+const PersonaPresetGroupSection = memo(function PersonaPresetGroupSection({
+  groupId,
+  presets,
+  open,
+  onToggle,
+  selectedProfile,
+  previewBusyId,
+  ttsPreviewById,
+  previewErrorById,
+  onPreview,
+  onSelectProfile,
+}: {
+  groupId: string;
+  presets: VoicePersonaResolvedPreset[];
+  open: boolean;
+  onToggle: () => void;
+  selectedProfile: string;
+  previewBusyId: string | null;
+  ttsPreviewById: Record<string, string>;
+  previewErrorById: Record<string, string>;
+  onPreview: (preset: VoicePersonaResolvedPreset) => void;
+  onSelectProfile: (profile: string, meta?: VoiceSelectMeta) => void;
+}) {
+  const t = useActiveTranslator();
+  const groupLabelKey =
+    VOICE_PERSONA_GROUP_LABEL_KEYS[groupId as keyof typeof VOICE_PERSONA_GROUP_LABEL_KEYS];
+
+  return (
+    <div className="rounded-lg border border-violet-100 bg-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex min-h-[44px] w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-violet-50/60"
+      >
+        <span aria-hidden className="text-violet-600">
+          {open ? "▼" : "▶"}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-xs font-semibold text-violet-950">
+            {t(groupLabelKey as never)}
+          </span>
+          {!open ?
+            <span className="text-[11px] text-violet-700">
+              {t("studio.voiceCenter.personaGroupCount", { count: String(presets.length) })}
+            </span>
+          : null}
+        </span>
+      </button>
+      {open ?
+        <div className="border-t border-violet-100 px-3 pb-3 pt-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {presets.map((preset) => {
+              const canSelect = preset.available && Boolean(preset.voiceId.trim());
+              const selectedRef = parseVoiceProfileRef(selectedProfile);
+              const selected =
+                canSelect &&
+                selectedRef.kind === "library" &&
+                selectedRef.providerVoiceId === preset.voiceId;
+              return (
+                <VoicePersonaPresetCard
+                  key={preset.id}
+                  preset={preset}
+                  selected={selected}
+                  previewBusy={previewBusyId === preset.id}
+                  ttsPreviewUrl={ttsPreviewById[preset.id]}
+                  previewError={previewErrorById[preset.id]}
+                  onPreview={() => onPreview(preset)}
+                  onSelect={() => {
+                    const profileRef = safeFormatLibraryVoiceProfileRef(preset.voiceId);
+                    if (!profileRef) {
+                      return;
+                    }
+                    onSelectProfile(profileRef, {
+                      voiceName: preset.voiceName,
+                      personaLabelKey: preset.labelKey,
+                    });
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      : null}
+    </div>
+  );
+});
+
+export const StudioVoicePersonaPresetsPanel = memo(function StudioVoicePersonaPresetsPanel({
   personaPresets,
   selectedProfile,
   onSelectProfile,
@@ -444,6 +567,8 @@ export function StudioVoicePersonaPresetsPanel({
   language = "en",
   previewText,
   onPreviewError,
+  embedded = false,
+  preferredGroupId = "community",
 }: StudioVoicePersonaPresetsPanelProps) {
   const t = useActiveTranslator();
   const [previewBusyId, setPreviewBusyId] = useState<string | null>(null);
@@ -459,6 +584,23 @@ export function StudioVoicePersonaPresetsPanel({
     }
     return [...groups.entries()];
   }, [personaPresets]);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  const effectiveOpenGroups = useMemo(() => {
+    const next: Record<string, boolean> = {};
+    for (const [groupId] of personaGroups) {
+      next[groupId] = openGroups[groupId] ?? groupId === preferredGroupId;
+    }
+    return next;
+  }, [personaGroups, openGroups, preferredGroupId]);
+
+  const toggleGroup = useCallback((groupId: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupId]: !(prev[groupId] ?? groupId === preferredGroupId),
+    }));
+  }, [preferredGroupId]);
 
   if (personaPresets.length === 0) {
     return null;
@@ -482,6 +624,7 @@ export function StudioVoicePersonaPresetsPanel({
         voiceProfile: profileRef,
         language,
         sampleLine: previewText,
+        previewType: previewTypeForPersonaGroup(preset.groupId),
       });
       setTtsPreviewById((prev) => ({ ...prev, [preset.id]: result.audioUrl }));
     } catch (e) {
@@ -494,52 +637,35 @@ export function StudioVoicePersonaPresetsPanel({
   };
 
   return (
-    <section className="mt-6">
-      <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceLibrary.personaPresets")}</h3>
-      <p className="mt-1 text-xs text-violet-800">{t("studio.voiceLibrary.personaPresetsHint")}</p>
-      <div className="mt-3 space-y-4">
+    <section className={embedded ? undefined : "mt-6"}>
+      {!embedded ?
+        <>
+          <h3 className="text-sm font-bold text-violet-950">
+            {t("studio.voiceLibrary.personaPresets")}
+          </h3>
+          <p className="mt-1 text-xs text-violet-800">{t("studio.voiceLibrary.personaPresetsHint")}</p>
+        </>
+      : <p className="text-xs text-violet-800">{t("studio.voiceLibrary.personaPresetsHint")}</p>}
+      <div className="mt-3 space-y-2">
         {personaGroups.map(([groupId, presets]) => (
-          <div key={groupId}>
-            <p className="text-xs font-semibold text-violet-950">
-              {t(VOICE_PERSONA_GROUP_LABEL_KEYS[groupId as keyof typeof VOICE_PERSONA_GROUP_LABEL_KEYS] as never)}
-            </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {presets.map((preset) => {
-                const canSelect = preset.available && Boolean(preset.voiceId.trim());
-                const selectedRef = parseVoiceProfileRef(selectedProfile);
-                const selected =
-                  canSelect &&
-                  selectedRef.kind === "library" &&
-                  selectedRef.providerVoiceId === preset.voiceId;
-                return (
-                  <VoicePersonaPresetCard
-                    key={preset.id}
-                    preset={preset}
-                    selected={selected}
-                    previewBusy={previewBusyId === preset.id}
-                    ttsPreviewUrl={ttsPreviewById[preset.id]}
-                    previewError={previewErrorById[preset.id]}
-                    onPreview={() => void handlePreview(preset)}
-                    onSelect={() => {
-                      const profileRef = safeFormatLibraryVoiceProfileRef(preset.voiceId);
-                      if (!profileRef) {
-                        return;
-                      }
-                      onSelectProfile(profileRef, {
-                        voiceName: preset.voiceName,
-                        personaLabelKey: preset.labelKey,
-                      });
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
+          <PersonaPresetGroupSection
+            key={groupId}
+            groupId={groupId}
+            presets={presets}
+            open={effectiveOpenGroups[groupId] ?? false}
+            onToggle={() => toggleGroup(groupId)}
+            selectedProfile={selectedProfile}
+            previewBusyId={previewBusyId}
+            ttsPreviewById={ttsPreviewById}
+            previewErrorById={previewErrorById}
+            onPreview={(preset) => void handlePreview(preset)}
+            onSelectProfile={onSelectProfile}
+          />
         ))}
       </div>
     </section>
   );
-}
+});
 
 function VoiceRecommendationCard({
   recommendation,
@@ -652,7 +778,7 @@ function buildRecommendationSelectionMemory(
   };
 }
 
-export function StudioVoiceRecommendationsPanel({
+export const StudioVoiceRecommendationsPanel = memo(function StudioVoiceRecommendationsPanel({
   payload,
   marketplaceContext,
   selectedProfile,
@@ -662,6 +788,7 @@ export function StudioVoiceRecommendationsPanel({
   language = "en",
   previewText,
   onPreviewError,
+  embedded = false,
 }: StudioVoiceRecommendationsPanelProps) {
   const t = useActiveTranslator();
   const userVoiceLibrary = useOptionalUserVoiceLibrary();
@@ -694,6 +821,7 @@ export function StudioVoiceRecommendationsPanel({
         voiceProfile: entry.profileRef,
         language,
         sampleLine: previewText,
+        previewType: "generic",
       });
       setTtsPreviewById((prev) => ({ ...prev, [entry.id]: result.audioUrl }));
     } catch (e) {
@@ -708,9 +836,15 @@ export function StudioVoiceRecommendationsPanel({
   };
 
   return (
-    <section className="mt-6">
-      <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceLibrary.recommendations")}</h3>
-      <p className="mt-1 text-xs text-violet-700">{t("studio.voiceLibrary.recommendationsHint")}</p>
+    <section className={embedded ? undefined : "mt-6"}>
+      {!embedded ?
+        <>
+          <h3 className="text-sm font-bold text-violet-950">
+            {t("studio.voiceLibrary.recommendations")}
+          </h3>
+          <p className="mt-1 text-xs text-violet-700">{t("studio.voiceLibrary.recommendationsHint")}</p>
+        </>
+      : <p className="text-xs text-violet-700">{t("studio.voiceLibrary.recommendationsHint")}</p>}
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {recommendations.map((rec) => (
           <VoiceRecommendationCard
@@ -736,7 +870,160 @@ export function StudioVoiceRecommendationsPanel({
       </div>
     </section>
   );
-}
+});
+
+const VoiceQuickPickCard = memo(function VoiceQuickPickCard({
+  pick,
+  selected,
+  previewBusy,
+  ttsPreviewUrl,
+  onPreview,
+  onSelect,
+}: {
+  pick: VoiceQuickPick;
+  selected: boolean;
+  previewBusy: boolean;
+  ttsPreviewUrl?: string;
+  onPreview: () => void;
+  onSelect: () => void;
+}) {
+  const t = useActiveTranslator();
+  const { entry } = pick;
+
+  return (
+    <article className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+        {t(pick.labelKey as never)}
+      </p>
+      <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-violet-950">{entry.name}</p>
+          {entry.accentLabelKey ?
+            <p className="mt-0.5 text-xs text-violet-800">{t(entry.accentLabelKey as never)}</p>
+          : null}
+        </div>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <button
+            type="button"
+            disabled={previewBusy}
+            onClick={onPreview}
+            className="min-h-[44px] rounded-full border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
+          >
+            {previewBusy ? t("button.loading") : t("studio.voiceCenter.preview")}
+          </button>
+          <button
+            type="button"
+            onClick={onSelect}
+            className="min-h-[44px] rounded-full border border-violet-400 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-50"
+          >
+            {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
+          </button>
+        </div>
+      </div>
+      {ttsPreviewUrl ?
+        <div className="mt-2">
+          <StudioAudioPreviewPlayer
+            title={entry.name}
+            audioUrl={ttsPreviewUrl}
+            source="voice_character"
+            variant="compact"
+            className="border-violet-100"
+          />
+        </div>
+      : null}
+    </article>
+  );
+});
+
+export const StudioVoiceQuickPicksPanel = memo(function StudioVoiceQuickPicksPanel({
+  payload,
+  marketplaceContext,
+  selectedProfile,
+  onSelectProfile,
+  characterId,
+  characterName = "",
+  language = "en",
+  previewText,
+  onPreviewError,
+}: StudioVoiceQuickPicksPanelProps) {
+  const t = useActiveTranslator();
+  const userVoiceLibrary = useOptionalUserVoiceLibrary();
+  const clones = userVoiceLibrary?.library?.voices ?? [];
+  const [previewBusyId, setPreviewBusyId] = useState<string | null>(null);
+  const [ttsPreviewById, setTtsPreviewById] = useState<Record<string, string>>({});
+
+  const quickPicks = useMemo(() => {
+    const entries = buildMarketplaceEntries(payload.catalog, clones);
+    return buildVoiceQuickPicks(entries, payload.personaPresets, 8);
+  }, [payload.catalog, payload.personaPresets, clones]);
+
+  if (quickPicks.length === 0) {
+    return null;
+  }
+
+  const handlePreview = async (entry: VoiceMarketplaceEntry, previewType = "generic") => {
+    setPreviewBusyId(entry.id);
+    try {
+      const result = await requestCharacterVoicePreview({
+        characterId: characterId ?? null,
+        characterName,
+        voiceProfile: entry.profileRef,
+        language,
+        sampleLine: previewText,
+        previewType,
+      });
+      setTtsPreviewById((prev) => ({ ...prev, [entry.id]: result.audioUrl }));
+    } catch (e) {
+      if (e instanceof CharacterVoicePreviewError && e.code === "VOICE_LIBRARY_ACCESS_DENIED") {
+        onPreviewError?.(t("studio.voiceLibrary.ttsAccessDenied" as never));
+      } else {
+        onPreviewError?.(e instanceof Error ? e.message : t("studio.voiceCenter.previewFailed"));
+      }
+    } finally {
+      setPreviewBusyId(null);
+    }
+  };
+
+  return (
+    <section>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+        {t("studio.voiceCenter.quickPicksTitle")}
+      </h4>
+      <p className="mt-1 text-xs text-violet-700">{t("studio.voiceCenter.quickPicksHint")}</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {quickPicks.map((pick) => (
+          <VoiceQuickPickCard
+            key={pick.id}
+            pick={pick}
+            selected={selectedProfile === pick.entry.profileRef}
+            previewBusy={previewBusyId === pick.entry.id}
+            ttsPreviewUrl={ttsPreviewById[pick.entry.id]}
+            onPreview={() =>
+              void handlePreview(
+                pick.entry,
+                pick.labelKey.includes("chef")
+                  ? "chef"
+                  : pick.labelKey.includes("community")
+                  ? "community"
+                  : "generic"
+              )
+            }
+            onSelect={() =>
+              onSelectProfile(
+                pick.entry.profileRef,
+                buildRecommendationSelectionMemory(
+                  pick.entry,
+                  marketplaceContext,
+                  payload.personaPresets
+                )
+              )
+            }
+          />
+        ))}
+      </div>
+    </section>
+  );
+});
 
 function VoiceMarketplaceCard({
   entry,
@@ -1172,7 +1459,7 @@ function VoiceLibraryBrowsePanel({
   );
 }
 
-export function StudioCharacterVoiceLibrarySection({
+export const StudioCharacterVoiceLibrarySection = memo(function StudioCharacterVoiceLibrarySection({
   activeTab,
   voiceEnabled: _voiceEnabled,
   selectedProfile,
@@ -1183,6 +1470,8 @@ export function StudioCharacterVoiceLibrarySection({
   canModify: _canModify = false,
   isAdmin: _isAdmin = false,
   marketplaceContext: marketplaceContextProp,
+  browseOpen = false,
+  onBrowseOpen,
 }: Props) {
   const t = useActiveTranslator();
   const library = useOptionalVoiceLibrary();
@@ -1258,17 +1547,46 @@ export function StudioCharacterVoiceLibrarySection({
     return null;
   }
 
+  const stats =
+    payload.stats ??
+    buildVoiceLibraryStats({
+      catalog: payload.catalog,
+      filterOptions: payload.filterOptions,
+      personaPresets: payload.personaPresets,
+    });
+
+  if (!browseOpen) {
+    return (
+      <div className="rounded-xl border border-violet-200 bg-white p-4">
+        <p className="text-sm text-violet-800">{t("studio.voiceCenter.libraryIntro")}</p>
+        <p className="mt-2 text-xs text-violet-700">
+          {t("studio.voiceLibrary.stats.summary", {
+            voices: stats.totalVoices,
+            accents: stats.accentCount,
+            languages: stats.languageCount,
+            personas: stats.personaCount,
+          })}
+        </p>
+        <button
+          type="button"
+          onClick={onBrowseOpen}
+          className="mt-4 min-h-[44px] rounded-full border border-violet-400 bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+        >
+          {t("studio.voiceCenter.openLibrary")}
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-6">
-      <VoiceLibraryBrowsePanel
-        payload={payload}
-        filters={filters}
-        setFilters={setFilters}
-        selectedProfile={selectedProfile}
-        onSelectProfile={onSelectProfile}
-        marketplaceContext={marketplaceContext}
-        loadingVoices={library.loadingVoices}
-      />
-    </div>
+    <VoiceLibraryBrowsePanel
+      payload={payload}
+      filters={filters}
+      setFilters={setFilters}
+      selectedProfile={selectedProfile}
+      onSelectProfile={onSelectProfile}
+      marketplaceContext={marketplaceContext}
+      loadingVoices={library.loadingVoices}
+    />
   );
-}
+});

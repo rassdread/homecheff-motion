@@ -29,6 +29,7 @@ export type StudioCostFeature =
   | "voice_preview_character"
   | "voice_preview_draft"
   | "voice_preview_persona"
+  | "voice_preview_cache_hit"
   | "voice_narration"
   | "voice_narration_multi"
   | "voice_clone"
@@ -263,7 +264,48 @@ export function meterElevenLabsTts(params: {
         estimatedCostUsd,
         previewDedupHash,
         previewTextLength: params.previewText?.length,
+        cacheHit: false,
       }),
+    })
+  );
+}
+
+export function meterVoicePreviewCacheHit(params: {
+  ctx: StudioMeteringContext;
+  voiceId: string;
+  previewDedupHash: string;
+  previewType: string;
+  language: string;
+  modelId: string;
+  estimatedCostSavedUsd: number;
+  previewTextLength?: number;
+}): void {
+  safeRecord(() =>
+    recordCostEvent({
+      provider: "cache",
+      actionType: COST_ACTION.VOICE_PREVIEW_CACHE_HIT,
+      userId: params.ctx.userId,
+      relatedJobId: params.ctx.relatedJobId,
+      status: "completed",
+      unitType: COST_UNIT.REQUEST,
+      unitsUsed: 1,
+      unitCostUsd: 0,
+      isEstimated: true,
+      estimateReason: "voice_preview_blob_cache_hit",
+      skipBillingSync: true,
+      metadataJson: baseMetadata(
+        { ...params.ctx, feature: "voice_preview_cache_hit" },
+        {
+          cacheHit: true,
+          voiceId: params.voiceId,
+          previewDedupHash: params.previewDedupHash,
+          previewType: params.previewType,
+          language: params.language,
+          modelId: params.modelId,
+          estimatedCostSavedUsd: params.estimatedCostSavedUsd,
+          previewTextLength: params.previewTextLength,
+        }
+      ),
     })
   );
 }

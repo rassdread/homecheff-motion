@@ -4,15 +4,28 @@ import {
   ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_CODE,
   ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_EN,
   ElevenLabsVoiceAccessDeniedError,
+  resolveElevenLabsVoiceId,
   validateVoiceSettings,
 } from "@/lib/elevenlabs-voice";
 import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
+import { inferVoicePreviewType } from "@/lib/studio-voice-preview-cache-key";
+import { estimateElevenLabsTtsCostUsd } from "@/lib/studio-cost-estimates";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
 import { validateVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
+import type { VoicePreviewType } from "@/types/studio-voice-preview-cache";
 import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
 import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
+import {
+  lookupVoicePreviewCache,
+  storeVoicePreviewCache,
+} from "@/server/studio/studio-voice-preview-cache";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
-import { meterElevenLabsTts } from "@/server/provider-cost/studio-cost-metering";
+import {
+  buildVoicePreviewDedupHash,
+  meterElevenLabsTts,
+  meterVoicePreviewCacheHit,
+  type StudioCostFeature,
+} from "@/server/provider-cost/studio-cost-metering";
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
@@ -27,6 +40,7 @@ export type CharacterVoicePreviewSynthesisInput = {
   /** Blob path scope — character id or draft id */
   storageAssetId: string;
   storageStoryboardId: string;
+  previewType?: VoicePreviewType;
 };
 
 export type CharacterVoicePreviewSynthesisResult =
@@ -38,6 +52,7 @@ export type CharacterVoicePreviewSynthesisResult =
       script: string;
       voiceProfile: string;
       language: string;
+      cacheHit: boolean;
     }
   | { error: ServiceError };
 
@@ -55,6 +70,20 @@ export function resolveCharacterVoicePreviewScript(params: {
   return defaultCharacterVoicePreviewLine(name, language);
 }
 
+function resolvePreviewCostFeature(storageStoryboardId: string): StudioCostFeature {
+  if (storageStoryboardId.startsWith("character-draft-")) {
+    return "voice_preview_draft";
+  }
+  return "voice_preview_character";
+}
+
+function resolveProviderVoiceId(voiceProfile: string, providerId: string): string {
+  if (providerId === "mock") {
+    return "mock-voice";
+  }
+  return resolveElevenLabsVoiceId(voiceProfile);
+}
+
 export async function synthesizeCharacterVoicePreview(
   input: CharacterVoicePreviewSynthesisInput
 ): Promise<CharacterVoicePreviewSynthesisResult> {
@@ -69,6 +98,10 @@ export async function synthesizeCharacterVoicePreview(
     };
   }
   const voiceProfile = profileValidation.voiceProfile;
+  const defaultLine = defaultCharacterVoicePreviewLine(
+    input.characterName.trim() || "Character",
+    language
+  );
   const script = resolveCharacterVoicePreviewScript({
     characterName: input.characterName,
     language,
@@ -101,29 +134,100 @@ export async function synthesizeCharacterVoicePreview(
     preset,
   });
 
+  const provider = selectVoiceProvider();
+  const modelId = request.model_id;
+  const providerVoiceId = resolveProviderVoiceId(voiceProfile, provider.id);
+  const previewType =
+    input.previewType ??
+    inferVoicePreviewType({
+      sampleLine: input.sampleLine,
+      defaultLine,
+    });
+  const costFeature = resolvePreviewCostFeature(input.storageStoryboardId);
+  const meteringCtx = {
+    userId: input.ownerId,
+    storyboardId: input.storageStoryboardId,
+    feature: costFeature,
+    relatedJobId: input.storageAssetId,
+  };
+
+  if (provider.id === "elevenlabs") {
+    const cached = await lookupVoicePreviewCache({
+      voiceId: providerVoiceId,
+      previewText: script,
+      language,
+      modelId,
+    });
+    if (cached) {
+      const estimatedCostSavedUsd = estimateElevenLabsTtsCostUsd({
+        characterCount: script.length,
+        modelId,
+      });
+      meterVoicePreviewCacheHit({
+        ctx: meteringCtx,
+        voiceId: providerVoiceId,
+        previewDedupHash: cached.cacheKey,
+        previewType,
+        language,
+        modelId,
+        estimatedCostSavedUsd,
+        previewTextLength: script.length,
+      });
+      return {
+        ok: true,
+        audioUrl: cached.audioUrl,
+        durationSeconds: Math.max(1, script.length / 14),
+        provider: "elevenlabs",
+        script,
+        voiceProfile,
+        language,
+        cacheHit: true,
+      };
+    }
+  }
+
   try {
-    const provider = selectVoiceProvider();
     const synthesis = await provider.synthesize({
       request,
       voiceProfile,
       voiceLanguage: language,
     });
-    const isDraft = input.storageStoryboardId.startsWith("character-draft-");
-    meterElevenLabsTts({
-      ctx: {
-        userId: input.ownerId,
-        storyboardId: input.storageStoryboardId,
-        feature: isDraft ? "voice_preview_draft" : "voice_preview_character",
-        relatedJobId: input.storageAssetId,
-      },
-      status: "completed",
-      providerId: synthesis.provider,
-      voiceId: synthesis.providerVoiceId,
-      characterCount: request.metadata.estimatedCharacters,
-      modelId: synthesis.providerModelId,
-      language,
-      previewText: script,
-    });
+
+    if (synthesis.provider === "elevenlabs") {
+      meterElevenLabsTts({
+        ctx: meteringCtx,
+        status: "completed",
+        providerId: synthesis.provider,
+        voiceId: synthesis.providerVoiceId,
+        characterCount: request.metadata.estimatedCharacters,
+        modelId: synthesis.providerModelId,
+        language,
+        previewText: script,
+      });
+
+      const stored = await storeVoicePreviewCache({
+        voiceId: synthesis.providerVoiceId,
+        previewText: script,
+        language,
+        modelId: synthesis.providerModelId,
+        provider: synthesis.provider,
+        previewType,
+        audioBuffer: synthesis.audioBuffer,
+        contentType: "audio/mpeg",
+      });
+
+      return {
+        ok: true,
+        audioUrl: stored.audioUrl,
+        durationSeconds: synthesis.durationSeconds,
+        provider: synthesis.provider,
+        script,
+        voiceProfile,
+        language,
+        cacheHit: false,
+      };
+    }
+
     const contentType = synthesis.provider === "mock" ? "audio/wav" : "audio/mpeg";
     const uploaded = await uploadStoryboardVoiceAudio({
       ownerId: input.ownerId,
@@ -141,6 +245,7 @@ export async function synthesizeCharacterVoicePreview(
       script,
       voiceProfile,
       language,
+      cacheHit: false,
     };
   } catch (err) {
     if (err instanceof ElevenLabsVoiceAccessDeniedError) {
@@ -165,4 +270,14 @@ export function draftCharacterVoicePreviewStorageIds(ownerId: string): {
     storageStoryboardId: `character-draft-${ownerId}`,
     storageAssetId: randomUUID(),
   };
+}
+
+/** Exported for tests — builds the dedup hash used by cache + metering. */
+export function voicePreviewCacheKeyForTest(params: {
+  voiceId: string;
+  previewText: string;
+  language: string;
+  modelId: string;
+}): string {
+  return buildVoicePreviewDedupHash(params);
 }

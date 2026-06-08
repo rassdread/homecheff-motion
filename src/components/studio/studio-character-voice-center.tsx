@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
@@ -40,11 +40,21 @@ import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
 import {
   StudioCharacterVoiceLibrarySection,
   StudioVoicePersonaPresetsPanel,
+  StudioVoiceQuickPicksPanel,
   StudioVoiceRecommendationsPanel,
   type VoiceLibraryTab,
 } from "@/components/studio/studio-character-voice-library-section";
+import { VoiceCenterCollapsibleSection } from "@/components/studio/voice-center-collapsible-section";
+import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { buildVoiceLibraryStats } from "@/lib/studio-voice-accent-coverage";
+import {
+  PREVIEW_TEXT_DEBOUNCE_MS,
+  countVoiceRecommendations,
+  hasExplicitVoiceSelection,
+  personaGroupSummaryLabelKey,
+  resolvePersonaGroupFromCharacterType,
+} from "@/lib/studio-voice-center-ux";
 import type {
   CharacterVoiceLanguageProfile,
   CharacterVoiceProfilesByLanguage,
@@ -362,9 +372,6 @@ export function StudioCharacterVoiceCenter({
   const t = useActiveTranslator();
   const voiceLibrary = useOptionalVoiceLibrary();
   const userVoiceLibrary = useOptionalUserVoiceLibrary();
-  const [voiceLibraryTab, setVoiceLibraryTab] = useState<VoiceLibraryTab>(() =>
-    defaultVoiceLibraryTab(value.voiceProfile)
-  );
   const [previewByLang, setPreviewByLang] = useState<Partial<Record<VoiceCenterLanguage, string>>>(
     {}
   );
@@ -381,13 +388,58 @@ export function StudioCharacterVoiceCenter({
     }
     return resolveDefaultCharacterPreviewText(characterName, value.voiceLanguage);
   }, [characterName, value.voiceLanguage, marketplaceContext]);
-  const [previewText, setPreviewText] = useState("");
+  const [previewTextInput, setPreviewTextInput] = useState("");
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
-  const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
+  const [appliedPreviewTextOverride, setAppliedPreviewTextOverride] = useState<string | null>(
+    null
+  );
   const [advancedLanguageOpen, setAdvancedLanguageOpen] = useState(false);
+  const [adminDebugOverridesOpen, setAdminDebugOverridesOpen] = useState(false);
+  const [libraryBrowseOpen, setLibraryBrowseOpen] = useState(false);
   const [useSameVoiceForAllLanguages, setUseSameVoiceForAllLanguages] = useState(
     () => !hasLanguageVoiceOverrides(value.voiceProfilesByLanguage)
   );
+
+  const chosenVoice = hasExplicitVoiceSelection(value.voiceProfile, value.voiceNotes);
+  const [bestMatchesOpen, setBestMatchesOpen] = useState(() => !chosenVoice);
+  const [personaPresetsOpen, setPersonaPresetsOpen] = useState(false);
+  const [librarySectionOpen, setLibrarySectionOpen] = useState(false);
+  const [myVoiceOpen, setMyVoiceOpen] = useState(false);
+
+  const preferredPersonaGroupId = useMemo(
+    () => resolvePersonaGroupFromCharacterType(marketplaceContext?.characterType),
+    [marketplaceContext?.characterType]
+  );
+
+  useEffect(() => {
+    if (!previewTextTouched) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setAppliedPreviewTextOverride(previewTextInput.trim() || defaultPreviewText);
+    }, PREVIEW_TEXT_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [previewTextInput, previewTextTouched, defaultPreviewText]);
+
+  const appliedPreviewText = useMemo(() => {
+    if (!previewTextTouched) {
+      return defaultPreviewText;
+    }
+    return appliedPreviewTextOverride ?? (previewTextInput.trim() || defaultPreviewText);
+  }, [
+    appliedPreviewTextOverride,
+    defaultPreviewText,
+    previewTextInput,
+    previewTextTouched,
+  ]);
+
+  const flushPreviewText = useCallback(() => {
+    if (!previewTextTouched) {
+      setAppliedPreviewTextOverride(null);
+      return;
+    }
+    setAppliedPreviewTextOverride(previewTextInput.trim() || defaultPreviewText);
+  }, [previewTextInput, previewTextTouched, defaultPreviewText]);
 
   const mainVoiceLang = (value.voiceLanguage as VoiceCenterLanguage) || "en";
   const mainPreviewUrl = previewByLang[mainVoiceLang];
@@ -438,22 +490,42 @@ export function StudioCharacterVoiceCenter({
     selectionMemory,
   ]);
 
-  const libraryAvailabilityLine =
-    voiceLibraryTab === "persona" && voiceLibrary?.payload
-      ? (() => {
-          const stats =
-            voiceLibrary.payload.stats ??
-            buildVoiceLibraryStats({
-              catalog: voiceLibrary.payload.catalog,
-              filterOptions: voiceLibrary.payload.filterOptions,
-              personaPresets: voiceLibrary.payload.personaPresets,
-            });
-          return t("studio.voiceCenter.libraryAvailability", {
-            voices: stats.totalVoices,
-            accents: stats.accentCount,
-          });
-        })()
-      : null;
+  const resolvedMarketplaceContext = useMemo(
+    (): VoiceMarketplaceContext => ({
+      ...marketplaceContext,
+      characterName,
+      language: value.voiceLanguage,
+      gender: value.voiceGender,
+    }),
+    [marketplaceContext, characterName, value.voiceLanguage, value.voiceGender]
+  );
+
+  const libraryStats = useMemo(() => {
+    if (!voicePayload) {
+      return null;
+    }
+    return (
+      voicePayload.stats ??
+      buildVoiceLibraryStats({
+        catalog: voicePayload.catalog,
+        filterOptions: voicePayload.filterOptions,
+        personaPresets: voicePayload.personaPresets,
+      })
+    );
+  }, [voicePayload]);
+
+  const recommendationCount = useMemo(() => {
+    if (!voicePayload) {
+      return 0;
+    }
+    return countVoiceRecommendations({
+      payload: voicePayload,
+      marketplaceContext: resolvedMarketplaceContext,
+      clones: cloneVoices ?? [],
+    });
+  }, [voicePayload, resolvedMarketplaceContext, cloneVoices]);
+
+  const cloneCount = cloneVoices?.length ?? 0;
 
   const invalidMainVoice = isInvalidProviderVoiceProfileRef(value.voiceProfile);
   const invalidLangOverrides = VOICE_CENTER_LANGUAGES.some((lang) => {
@@ -516,12 +588,14 @@ export function StudioCharacterVoiceCenter({
           : meta?.voiceName ?? value.voiceDescription,
         voiceNotes,
       });
+      setBestMatchesOpen(false);
     },
     [onChange, t, value]
   );
 
   const runPreview = useCallback(
     async (lang: VoiceCenterLanguage) => {
+      flushPreviewText();
       const resolved = resolveLanguageVoice(value, lang);
       const validation = validateVoiceProfileForSynthesis(resolved.profile);
       if (!validation.ok) {
@@ -530,13 +604,16 @@ export function StudioCharacterVoiceCenter({
       }
       setPreviewBusyLang(lang);
       setPreviewError("");
+      const sampleLine = previewTextTouched
+        ? previewTextInput.trim() || defaultPreviewText
+        : defaultPreviewText;
       try {
         const result = await requestCharacterVoicePreview({
           characterId,
           characterName,
           voiceProfile: resolved.profile,
           language: lang,
-          sampleLine: resolvedPreviewText,
+          sampleLine,
         });
         setPreviewByLang((prev) => ({ ...prev, [lang]: result.audioUrl }));
         setLastPreviewWasDraft(result.isDraft);
@@ -552,8 +629,20 @@ export function StudioCharacterVoiceCenter({
         setPreviewBusyLang(null);
       }
     },
-    [characterId, characterName, resolvedPreviewText, t, value]
+    [
+      characterId,
+      characterName,
+      defaultPreviewText,
+      flushPreviewText,
+      previewTextInput,
+      previewTextTouched,
+      t,
+      value,
+    ]
   );
+
+  const showLanguageOverrideCards =
+    !useSameVoiceForAllLanguages || (isAdmin && adminDebugOverridesOpen);
 
   const updateLang = (
     lang: VoiceCenterLanguage,
@@ -667,149 +756,196 @@ export function StudioCharacterVoiceCenter({
 
       <p className="mt-4 text-xs text-violet-700/90">{t("studio.voiceCenter.previewTextAutoHint")}</p>
 
-      {voicePayload && voiceLibrary?.voicesReady ?
-        <StudioVoiceRecommendationsPanel
-          payload={voicePayload}
-          marketplaceContext={{
-            ...marketplaceContext,
-            characterName,
-            language: value.voiceLanguage,
-            gender: value.voiceGender,
-          }}
+      {!value.voiceEnabled ?
+        <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2 text-xs text-sky-950">
+          {t("studio.voiceCenter.enableToUseHint")}
+        </p>
+      : null}
+
+      <VoiceCenterCollapsibleSection
+        title={t("studio.voiceCenter.section.bestMatches")}
+        summary={t("studio.voiceCenter.summary.recommendations", {
+          count: String(recommendationCount),
+        })}
+        open={bestMatchesOpen}
+        onToggle={() => setBestMatchesOpen((open) => !open)}
+      >
+        {voiceLibrary?.loadingVoices ?
+          <p className="text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
+        : voicePayload && voiceLibrary?.voicesReady ?
+          <StudioVoiceRecommendationsPanel
+            payload={voicePayload}
+            marketplaceContext={resolvedMarketplaceContext}
+            selectedProfile={value.voiceProfile}
+            onSelectProfile={handleSelectProfile}
+            characterId={characterId}
+            characterName={characterName}
+            language={value.voiceLanguage}
+            previewText={appliedPreviewText}
+            onPreviewError={setPreviewError}
+            embedded
+          />
+        : null}
+      </VoiceCenterCollapsibleSection>
+
+      <VoiceCenterCollapsibleSection
+        title={t("studio.voiceCenter.section.personaPresets")}
+        summary={t("studio.voiceCenter.summary.personaPresets", {
+          count: String(voicePayload?.personaPresets.length ?? 0),
+          group: t(personaGroupSummaryLabelKey(preferredPersonaGroupId) as never),
+        })}
+        open={personaPresetsOpen}
+        onToggle={() => setPersonaPresetsOpen((open) => !open)}
+      >
+        {voicePayload ?
+          <StudioVoicePersonaPresetsPanel
+            personaPresets={voicePayload.personaPresets}
+            selectedProfile={value.voiceProfile}
+            onSelectProfile={handleSelectProfile}
+            characterId={characterId}
+            characterName={characterName}
+            language={value.voiceLanguage}
+            previewText={appliedPreviewText}
+            onPreviewError={setPreviewError}
+            embedded
+            preferredGroupId={preferredPersonaGroupId}
+          />
+        : null}
+      </VoiceCenterCollapsibleSection>
+
+      <VoiceCenterCollapsibleSection
+        title={t("studio.voiceCenter.section.library")}
+        summary={
+          libraryStats
+            ? t("studio.voiceCenter.summary.library", {
+                voices: libraryStats.totalVoices,
+                accents: libraryStats.accentCount,
+                languages: libraryStats.languageCount,
+              })
+            : t("studio.voiceLibrary.loading")
+        }
+        open={librarySectionOpen}
+        onToggle={() => setLibrarySectionOpen((open) => !open)}
+      >
+        {voicePayload && voiceLibrary?.voicesReady ?
+          <div className="space-y-4">
+            <StudioVoiceQuickPicksPanel
+              payload={voicePayload}
+              marketplaceContext={resolvedMarketplaceContext}
+              selectedProfile={value.voiceProfile}
+              onSelectProfile={handleSelectProfile}
+              characterId={characterId}
+              characterName={characterName}
+              language={value.voiceLanguage}
+              previewText={appliedPreviewText}
+              onPreviewError={setPreviewError}
+            />
+            <StudioCharacterVoiceLibrarySection
+              activeTab="persona"
+              voiceEnabled={value.voiceEnabled}
+              selectedProfile={value.voiceProfile}
+              characterId={characterId}
+              characterName={characterName}
+              language={value.voiceLanguage}
+              canModify={canModify}
+              isAdmin={isAdmin}
+              marketplaceContext={marketplaceContext}
+              browseOpen={libraryBrowseOpen}
+              onBrowseOpen={() => setLibraryBrowseOpen(true)}
+              onSelectProfile={handleSelectProfile}
+            />
+          </div>
+        : voiceLibrary?.loadingVoices ?
+          <p className="text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
+        : null}
+      </VoiceCenterCollapsibleSection>
+
+      <VoiceCenterCollapsibleSection
+        title={t("studio.voiceCenter.section.myVoice")}
+        summary={t("studio.voiceCenter.summary.myVoice", { count: String(cloneCount) })}
+        open={myVoiceOpen}
+        onToggle={() => setMyVoiceOpen((open) => !open)}
+      >
+        <StudioMyVoicesSection
           selectedProfile={value.voiceProfile}
-          onSelectProfile={handleSelectProfile}
           characterId={characterId}
           characterName={characterName}
           language={value.voiceLanguage}
-          previewText={resolvedPreviewText}
-          onPreviewError={setPreviewError}
-        />
-      : voiceLibrary?.loadingVoices ?
-        <p className="mt-6 text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
-      : null}
-
-      {voicePayload ?
-        <StudioVoicePersonaPresetsPanel
-          personaPresets={voicePayload.personaPresets}
-          selectedProfile={value.voiceProfile}
+          canModify={canModify}
           onSelectProfile={handleSelectProfile}
-          characterId={characterId}
-          characterName={characterName}
-          language={value.voiceLanguage}
-          previewText={resolvedPreviewText}
-          onPreviewError={setPreviewError}
         />
-      : null}
+        <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.clonesInLibraryHint")}</p>
+      </VoiceCenterCollapsibleSection>
 
-      <div className="mt-6">
-        <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceCenter.chooseVoice")}</h3>
-        {!value.voiceEnabled ?
-          <p className="mt-2 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2 text-xs text-sky-950">
-            {t("studio.voiceCenter.enableToUseHint")}
-          </p>
-        : null}
-        <p className="mt-2 text-xs text-violet-800">{t("studio.voiceCenter.browseBeforeEnableHint")}</p>
-        {libraryAvailabilityLine ?
-          <p className="mt-2 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-violet-900">
-            {libraryAvailabilityLine}
-          </p>
-        : null}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(
-            [
-              ["presets", "studio.voiceCenter.source.preset"],
-              ["persona", "studio.voiceCenter.source.persona"],
-              ["my_voice", "studio.voiceCenter.source.myVoice"],
-            ] as const
-          ).map(([tab, labelKey]) => (
+      <VoiceCenterCollapsibleSection
+        title={t("studio.voiceCenter.advancedLanguageTitle")}
+        summary={
+          useSameVoiceForAllLanguages
+            ? t("studio.voiceCenter.summary.sameVoiceForAllLanguages")
+            : t("studio.voiceCenter.summary.languageOverrides")
+        }
+        open={advancedLanguageOpen}
+        onToggle={() => setAdvancedLanguageOpen((open) => !open)}
+      >
+        <div className="space-y-4 rounded-xl border border-violet-100 bg-white/80 p-4">
+          <p className="text-xs text-violet-700">{t("studio.voiceCenter.advancedLanguageOptional")}</p>
+
+          <label className="block text-xs font-medium text-violet-900">
+            {t("studio.voiceCenter.previewTextLabel")}
+            <textarea
+              className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+              rows={2}
+              value={previewTextTouched ? previewTextInput : defaultPreviewText}
+              placeholder={defaultPreviewText}
+              onChange={(e) => {
+                setPreviewTextTouched(true);
+                setPreviewTextInput(e.target.value);
+              }}
+              onBlur={flushPreviewText}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  flushPreviewText();
+                }
+              }}
+            />
+            <span className="mt-1 block text-[11px] text-violet-700/90">
+              {t("studio.voiceCenter.previewTextHint")}
+            </span>
+          </label>
+
+          <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-violet-950">
+            <input
+              type="checkbox"
+              checked={useSameVoiceForAllLanguages}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setUseSameVoiceForAllLanguages(checked);
+                if (checked) {
+                  onChange({ ...value, voiceProfilesByLanguage: {} });
+                  setAdminDebugOverridesOpen(false);
+                }
+              }}
+            />
+            {t("studio.voiceCenter.sameVoiceForAllLanguages")}
+          </label>
+
+          {isAdmin && useSameVoiceForAllLanguages && !adminDebugOverridesOpen ?
             <button
-              key={tab}
               type="button"
-              onClick={() => setVoiceLibraryTab(tab)}
-              className={`min-h-[44px] rounded-full px-4 py-2.5 text-sm font-semibold ${
-                voiceLibraryTab === tab
-                  ? "bg-violet-700 text-white"
-                  : "border border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
-              }`}
+              onClick={() => setAdminDebugOverridesOpen(true)}
+              className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-xs font-semibold text-violet-900 hover:bg-violet-50"
             >
-              {t(labelKey)}
+              {t("studio.voiceCenter.showDebugOverrides")}
             </button>
-          ))}
-        </div>
-      </div>
+          : null}
 
-      <StudioCharacterVoiceLibrarySection
-        activeTab={voiceLibraryTab}
-        voiceEnabled={value.voiceEnabled}
-        selectedProfile={value.voiceProfile}
-        characterId={characterId}
-        characterName={characterName}
-        language={value.voiceLanguage}
-        canModify={canModify}
-        isAdmin={isAdmin}
-        marketplaceContext={{
-          ...marketplaceContext,
-          characterName,
-          language: value.voiceLanguage,
-          gender: value.voiceGender,
-        }}
-        onSelectProfile={handleSelectProfile}
-      />
-
-      <div className="mt-6">
-        <button
-          type="button"
-          onClick={() => setAdvancedLanguageOpen((open) => !open)}
-          className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-3 text-left text-sm font-semibold text-violet-950 hover:bg-violet-50/80"
-          aria-expanded={advancedLanguageOpen}
-        >
-          <span aria-hidden className="text-violet-600">
-            {advancedLanguageOpen ? "▼" : "▶"}
-          </span>
-          {t("studio.voiceCenter.advancedLanguageTitle")}
-        </button>
-        <p className="mt-1 px-1 text-xs text-violet-700">{t("studio.voiceCenter.advancedLanguageOptional")}</p>
-
-        {advancedLanguageOpen ?
-          <div className="mt-3 space-y-4 rounded-xl border border-violet-100 bg-white/80 p-4">
-            <label className="block text-xs font-medium text-violet-900">
-              {t("studio.voiceCenter.previewTextLabel")}
-              <textarea
-                className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-                rows={2}
-                value={resolvedPreviewText}
-                placeholder={defaultPreviewText}
-                onChange={(e) => {
-                  setPreviewTextTouched(true);
-                  setPreviewText(e.target.value);
-                }}
-              />
-              <span className="mt-1 block text-[11px] text-violet-700/90">
-                {t("studio.voiceCenter.previewTextHint")}
-              </span>
-            </label>
-
-            <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-violet-950">
-              <input
-                type="checkbox"
-                checked={useSameVoiceForAllLanguages}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setUseSameVoiceForAllLanguages(checked);
-                  if (checked) {
-                    onChange({ ...value, voiceProfilesByLanguage: {} });
-                  }
-                }}
-              />
-              {t("studio.voiceCenter.sameVoiceForAllLanguages")}
-            </label>
-
-            {!useSameVoiceForAllLanguages || isAdmin ?
-              <div className="space-y-3">
-                {isAdmin && useSameVoiceForAllLanguages ?
-                  <p className="text-xs text-violet-700">{t("studio.voiceCenter.adminOverridesHint")}</p>
-                : null}
-                {VOICE_CENTER_LANGUAGES.map((lang) => {
+          {showLanguageOverrideCards ?
+            <div className="space-y-3">
+              {isAdmin && useSameVoiceForAllLanguages ?
+                <p className="text-xs text-violet-700">{t("studio.voiceCenter.adminOverridesHint")}</p>
+              : null}
+              {VOICE_CENTER_LANGUAGES.map((lang) => {
                   const resolved = resolveLanguageVoice(value, lang);
                   const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
                   const profileRefLang = parseVoiceProfileRef(resolved.profile);
@@ -927,11 +1063,10 @@ export function StudioCharacterVoiceCenter({
                     </article>
                   );
                 })}
-              </div>
-            : null}
-          </div>
-        : null}
-      </div>
+            </div>
+          : null}
+        </div>
+      </VoiceCenterCollapsibleSection>
 
       {previewError ?
         <p className="mt-3 text-xs text-red-700">{previewError}</p>

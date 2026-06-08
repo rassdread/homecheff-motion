@@ -15,6 +15,7 @@ export type CharacterVoicePreviewRequest = {
   voiceProfile: string;
   language: string;
   sampleLine?: string;
+  previewType?: string;
 };
 
 export type CharacterVoicePreviewResponse = {
@@ -44,12 +45,14 @@ export function buildCharacterVoicePreviewBody(
   request: CharacterVoicePreviewRequest
 ): Record<string, string> {
   const sampleLine = request.sampleLine?.trim();
+  const previewType = request.previewType?.trim();
   if (request.characterId) {
     return {
       language: request.language,
       voiceProfile: request.voiceProfile,
       characterName: request.characterName.trim(),
       ...(sampleLine ? { sampleLine } : {}),
+      ...(previewType ? { previewType } : {}),
     };
   }
   return {
@@ -57,6 +60,7 @@ export function buildCharacterVoicePreviewBody(
     voiceProfile: request.voiceProfile,
     voiceLanguage: request.language,
     ...(sampleLine ? { sampleLine } : {}),
+    ...(previewType ? { previewType } : {}),
   };
 }
 

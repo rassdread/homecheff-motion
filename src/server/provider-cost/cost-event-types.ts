@@ -18,6 +18,7 @@ export const COST_ACTION = {
   ELEVENLABS_TTS: "elevenlabs_tts",
   ELEVENLABS_STT: "elevenlabs_stt",
   ELEVENLABS_CLONE: "elevenlabs_clone",
+  VOICE_PREVIEW_CACHE_HIT: "voice_preview_cache_hit",
   TEXT_RERENDER: "text_rerender",
   LANGUAGE_EXPORT: "language_export",
   VIDEO_EXPORT: "video_export",
@@ -36,6 +37,7 @@ export const INSTRUMENTATION_ONLY_ACTIONS: ReadonlySet<CostActionType> = new Set
   COST_ACTION.ELEVENLABS_TTS,
   COST_ACTION.ELEVENLABS_STT,
   COST_ACTION.ELEVENLABS_CLONE,
+  COST_ACTION.VOICE_PREVIEW_CACHE_HIT,
 ]);
 
 export const COST_UNIT = {
