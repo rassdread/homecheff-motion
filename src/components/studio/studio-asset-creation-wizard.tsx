@@ -17,6 +17,7 @@ import {
 import { StudioAssetDerivationPreviewStep } from "@/components/studio/studio-asset-derivation-preview-step";
 import { StudioAssetDerivationSourceStep } from "@/components/studio/studio-asset-derivation-source-step";
 import { StudioAssetDerivationTransformStep } from "@/components/studio/studio-asset-derivation-transform-step";
+import { StudioWizardTransformPromptStep } from "@/components/studio/studio-wizard-transform-prompt-step";
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
 import { StudioWizardSourceTransformStep } from "@/components/studio/studio-wizard-source-transform-step";
 import { useActiveTranslator } from "@/i18n/client";
@@ -45,6 +46,7 @@ import {
 import {
   canAdvanceFromSourceTransformStep,
 } from "@/lib/studio-asset-wizard-source-flow";
+import { canAdvanceFromTransformPromptStep } from "@/lib/studio-asset-transform-prompt";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { resolveWizardChoiceDef } from "@/lib/studio-asset-transformation-options";
@@ -214,6 +216,9 @@ export function StudioAssetCreationWizard({
     }
     if (step === "source_transform") {
       return canAdvanceFromSourceTransformStep(activeDraft);
+    }
+    if (step === "transform_prompt") {
+      return canAdvanceFromTransformPromptStep(activeDraft);
     }
     if (step === "reference") {
       return canAdvanceFromReferenceStep(activeDraft.referenceMode, activeDraft.referenceImageUrl, {
@@ -416,6 +421,31 @@ export function StudioAssetCreationWizard({
         />
       : null}
 
+      {activeDraft && step === "transform_prompt" ?
+        <StudioWizardTransformPromptStep
+          kind={activeDraft.kind}
+          draft={activeDraft}
+          onDraftChange={updateDraft}
+          onGenerationComplete={() => {
+            const refIdx = stepSequence.indexOf("reference");
+            if (refIdx >= 0) {
+              setNavIndex(refIdx);
+            }
+          }}
+          onBack={() => {
+            const transformIdx = stepSequence.indexOf("source_transform");
+            const derivePreviewIdx = stepSequence.indexOf("derive_preview");
+            if (transformIdx >= 0) {
+              setNavIndex(transformIdx);
+            } else if (derivePreviewIdx >= 0) {
+              setNavIndex(derivePreviewIdx);
+            } else {
+              goBack();
+            }
+          }}
+        />
+      : null}
+
       {activeDraft && step === "reference" ?
         <StudioWizardReferenceStep
           kind={activeDraft.kind}
@@ -428,9 +458,15 @@ export function StudioAssetCreationWizard({
             }
           }}
           onBackToSourceTransform={() => {
+            const promptIdx = stepSequence.indexOf("transform_prompt");
             const transformIdx = stepSequence.indexOf("source_transform");
-            if (transformIdx >= 0) {
+            const deriveTransformIdx = stepSequence.indexOf("derive_transform");
+            if (promptIdx >= 0) {
+              setNavIndex(promptIdx);
+            } else if (transformIdx >= 0) {
               setNavIndex(transformIdx);
+            } else if (deriveTransformIdx >= 0) {
+              setNavIndex(deriveTransformIdx);
             }
           }}
           onChangeSource={() => {
@@ -493,7 +529,7 @@ export function StudioAssetCreationWizard({
               {t("studio.assetCreation.wizard.back")}
             </button>
           : null}
-          {step !== "readiness" ?
+          {step !== "readiness" && step !== "transform_prompt" ?
             <button
               type="button"
               disabled={!canGoNext}

@@ -34,6 +34,9 @@ export async function generateStudioAssetReferenceApi(params: {
     imageUrl?: string;
     transformLabel?: string;
     userPrompt?: string;
+    preserveHint?: string;
+    changeHint?: string;
+    forbiddenHint?: string;
   };
 }) {
   return fetchSameOriginJson<GenerateAssetReferenceResponse>(

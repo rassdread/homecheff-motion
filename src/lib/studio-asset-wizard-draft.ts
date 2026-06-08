@@ -72,6 +72,11 @@ export type AssetWizardDraft = {
   /** Source-reference transformation (image_only / image_and_prompt). */
   sourceTransformChoice: string;
   sourceTransformCustom: string;
+  /** Explicit transformation prompt confirmation (source / derive flows). */
+  sourceTransformInstruction: string;
+  sourceTransformPreserve: string;
+  sourceTransformChange: string;
+  sourceTransformForbidden: string;
   derivationAccepted: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
@@ -118,6 +123,10 @@ export function emptyAssetWizardDraft(
     derivationTransformCustom: "",
     sourceTransformChoice: "",
     sourceTransformCustom: "",
+    sourceTransformInstruction: "",
+    sourceTransformPreserve: "",
+    sourceTransformChange: "",
+    sourceTransformForbidden: "",
     derivationAccepted: false,
     fields: {},
   };

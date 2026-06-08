@@ -3,8 +3,14 @@ import {
   hasWizardSourceReference,
   resolveWizardSourceReference,
 } from "@/lib/studio-asset-wizard-source-reference";
+import {
+  buildSourceTransformSummaryPrompt,
+  shouldShowTransformPromptStep,
+} from "@/lib/studio-asset-transform-prompt";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 import { kindSupportsReferenceStep } from "@/lib/studio-asset-wizard-choices";
+
+export { buildSourceTransformSummaryPrompt } from "@/lib/studio-asset-transform-prompt";
 
 /** User already picked/uploaded a source image before the reference step. */
 export function hasUpfrontSourceReference(draft: AssetWizardDraft): boolean {
@@ -23,6 +29,9 @@ export function wizardStepLabelKeyForDraft(
 ): string | null {
   if (step === "reference" && hasUpfrontSourceReference(draft)) {
     return "studio.assetCreation.wizard.step.generateVariant";
+  }
+  if (step === "transform_prompt") {
+    return "studio.assetCreation.wizard.step.transformPrompt";
   }
   return null;
 }
@@ -77,6 +86,21 @@ function insertReferenceStep(
   return result;
 }
 
+function insertTransformPromptStep(
+  steps: AssetCreationWizardStep[],
+  draft: AssetWizardDraft
+): AssetCreationWizardStep[] {
+  if (!shouldShowTransformPromptStep(draft) || steps.includes("transform_prompt")) {
+    return steps;
+  }
+  const result = [...steps];
+  const refIdx = result.indexOf("reference");
+  if (refIdx >= 0) {
+    result.splice(refIdx, 0, "transform_prompt");
+  }
+  return result;
+}
+
 function insertSourceTransformStep(
   steps: AssetCreationWizardStep[],
   draft: AssetWizardDraft
@@ -113,31 +137,6 @@ export function canAdvanceFromSourceTransformStep(draft: AssetWizardDraft): bool
   return Boolean(draft.sourceTransformChoice.trim());
 }
 
-export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): string {
-  const source = resolveWizardSourceReference(draft);
-  const sourceName = source?.sourceReferenceName ?? "source image";
-  const custom = draft.sourceTransformCustom.trim();
-  const choice = draft.sourceTransformChoice.trim();
-
-  if (choice === "custom" && custom) {
-    return `Using "${sourceName}" as the style base: ${custom}. Preserve shape language, main colors, and brand identity. Change only role, outfit, props, or context as described.`;
-  }
-
-  if (custom && choice) {
-    return `Using "${sourceName}" as the style base, create a ${choice.replace(/_/g, " ")} variant. ${custom}. Preserve shape language, main colors, and brand identity.`;
-  }
-
-  if (choice) {
-    return `Using "${sourceName}" as the style base, create a ${choice.replace(/_/g, " ")} variant. Preserve shape language, main colors, and brand identity — change only role, outfit, props, or context.`;
-  }
-
-  if (custom) {
-    return `Using "${sourceName}" as the style base: ${custom}. Preserve shape language, main colors, and brand identity.`;
-  }
-
-  return draft.summaryPrompt;
-}
-
 export function resolveTransformLabelForGeneration(draft: AssetWizardDraft): string | undefined {
   if (draft.derivationTransformChoice) {
     return draft.derivationTransformCustom.trim() || draft.derivationTransformChoice.replace(/_/g, " ");
@@ -167,7 +166,7 @@ export function injectSourceReferenceWizardSteps(
     result = insertReferenceStep(result, draft);
   }
 
-  return insertSourceTransformStep(result, draft);
+  return insertTransformPromptStep(insertSourceTransformStep(result, draft), draft);
 }
 
 export type SourceReferenceFlowAuditRow = {

@@ -43,9 +43,11 @@ describe("studio-asset-wizard-source-flow", () => {
     assert.equal(shouldShowSourceTransformStep(draft), true);
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const transformIdx = steps.indexOf("source_transform");
+    const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
     assert.ok(transformIdx >= 0);
-    assert.ok(refIdx > transformIdx);
+    assert.ok(promptIdx > transformIdx);
+    assert.ok(refIdx > promptIdx);
   });
 
   it("image_and_prompt path skips reference mode choice", () => {
@@ -87,9 +89,11 @@ describe("studio-asset-wizard-source-flow", () => {
     draft.summaryPrompt = "Mascot variant.";
     steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const previewIdx = steps.indexOf("derive_preview");
+    const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
     assert.ok(previewIdx >= 0);
-    assert.ok(refIdx > previewIdx);
+    assert.ok(promptIdx > previewIdx);
+    assert.ok(refIdx > promptIdx);
     assert.equal(shouldSkipReferenceModeChoice(draft), true);
     assert.equal(
       wizardStepLabelKeyForDraft("reference", draft),
@@ -127,10 +131,12 @@ describe("studio-asset-wizard-source-flow", () => {
     };
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const previewIdx = steps.indexOf("derive_preview");
+    const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
     const readinessIdx = steps.indexOf("readiness");
     assert.ok(previewIdx >= 0);
-    assert.ok(refIdx > previewIdx);
+    assert.ok(promptIdx > previewIdx);
+    assert.ok(refIdx > promptIdx);
     assert.ok(readinessIdx > refIdx);
     assert.equal(shouldSkipReferenceModeChoice(draft), true);
     assert.equal(auditSourceReferenceFlows(draft).find((r) => r.path === "derive_from_reference")!.showReferenceModeChoice, false);

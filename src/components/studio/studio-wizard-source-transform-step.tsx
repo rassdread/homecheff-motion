@@ -83,14 +83,6 @@ export function StudioWizardSourceTransformStep({ kind, draft, onDraftChange, on
           />
         </label>
       : null}
-      {draft.summaryPrompt ?
-        <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
-            {t("studio.assetCreation.summary.liveLabel")}
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-800">{draft.summaryPrompt}</p>
-        </div>
-      : null}
       <button
         type="button"
         onClick={onChangeSource}

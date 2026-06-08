@@ -13,6 +13,9 @@ export type AssetReferencePromptInput = {
     name: string;
     transformLabel?: string;
     userPrompt?: string;
+    preserveHint?: string;
+    changeHint?: string;
+    forbiddenHint?: string;
   };
 };
 
@@ -72,6 +75,9 @@ function sourceReferenceBlock(
   }
   const transform = sourceReference.transformLabel?.trim();
   const userPrompt = sourceReference.userPrompt?.trim();
+  const preserve = sourceReference.preserveHint?.trim();
+  const change = sourceReference.changeHint?.trim();
+  const forbidden = sourceReference.forbiddenHint?.trim();
   const roleLine =
     transform && userPrompt ?
       `Use the uploaded source "${sourceReference.name}" as the style base. Create a ${transform} variant: ${userPrompt}.`
@@ -80,12 +86,14 @@ function sourceReferenceBlock(
     : userPrompt ?
       `Use the uploaded source "${sourceReference.name}" as the style base: ${userPrompt}.`
     : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
-  return [
+  const lines = [
     roleLine,
-    "Preserve the source shape language, main colors, brand style, and mascot identity.",
-    "Keep the friendly visual DNA — change only role, outfit, props, or context as described.",
+    preserve ? `Preserve: ${preserve}.` : "Preserve the source shape language, main colors, brand style, and mascot identity.",
+    change ? `Change: ${change}.` : "Keep the friendly visual DNA — change only role, outfit, props, or context as described.",
+    forbidden ? `Do not: ${forbidden}.` : "",
     "Do not redesign from scratch.",
-  ].join(" ");
+  ].filter(Boolean);
+  return lines.join(" ");
 }
 
 function characterBoostLines(

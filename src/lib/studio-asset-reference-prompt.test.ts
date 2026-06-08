@@ -65,4 +65,22 @@ describe("studio-asset-reference-prompt", () => {
     assert.ok(prompt.includes("green cap"));
     assert.ok(prompt.toLowerCase().includes("preserve"));
   });
+
+  it("adds forbidden hints to generation prompt", () => {
+    const prompt = buildAssetReferenceGenerationPrompt({
+      kind: "character",
+      summaryPrompt: "Chef mascot variant.",
+      sourceReference: {
+        name: "Globe Man",
+        transformLabel: "Chef",
+        userPrompt: "chef hat and apron",
+        preserveHint: "round face, brand colors",
+        changeHint: "chef outfit",
+        forbiddenHint: "no green skin",
+      },
+    });
+    assert.ok(prompt.includes("Preserve: round face"));
+    assert.ok(prompt.includes("Change: chef outfit"));
+    assert.ok(prompt.includes("Do not: no green skin"));
+  });
 });

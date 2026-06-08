@@ -5,15 +5,8 @@ import { StudioWizardChoiceGrid } from "@/components/studio/studio-wizard-choice
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import {
-  analyzeAssetStyleDnaApi,
-  recordAssetDerivationAcceptApi,
-} from "@/lib/studio-asset-derivation-client";
-import {
-  fetchAssetReferenceGenerationStatus,
-  generateStudioAssetReferenceApi,
-} from "@/lib/studio-asset-reference-client";
-import { transformLabelForChoice } from "@/lib/studio-asset-derivation-choices";
+import { recordAssetDerivationAcceptApi } from "@/lib/studio-asset-derivation-client";
+import { fetchAssetReferenceGenerationStatus } from "@/lib/studio-asset-reference-client";
 import {
   getClientImagePreprocessOptionsForRole,
   preprocessImageFile,
@@ -21,15 +14,18 @@ import {
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
+  draftPatchForGenerationFailure,
+  draftPatchForGenerationStart,
+  draftPatchForGenerationSuccess,
+  runAssetReferenceGeneration,
+} from "@/lib/studio-asset-wizard-reference-generation";
+import {
   clearWizardGeneratedReferenceOutput,
   hasWizardSourceReference,
   recordWizardSourceReference,
   resolveWizardSourceReference,
 } from "@/lib/studio-asset-wizard-source-reference";
-import {
-  resolveTransformLabelForGeneration,
-  shouldSkipReferenceModeChoice,
-} from "@/lib/studio-asset-wizard-source-flow";
+import { shouldSkipReferenceModeChoice } from "@/lib/studio-asset-wizard-source-flow";
 import type { AssetReferenceMode } from "@/types/studio-asset-creation";
 import type { WizardChoiceStepDef } from "@/lib/studio-asset-wizard-choices";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -83,7 +79,6 @@ export function StudioWizardReferenceStep({
   const [uploadError, setUploadError] = useState("");
   const [generationAvailable, setGenerationAvailable] = useState<boolean | null>(null);
   const [providerDebugError, setProviderDebugError] = useState("");
-  const generateStartedRef = useRef(false);
 
   const referenceMode = draft.referenceMode;
   const referenceImageUrl = draft.referenceImageUrl;
@@ -109,151 +104,38 @@ export function StudioWizardReferenceStep({
     });
   }, []);
 
-  const resolveTransformLabel = useCallback(() => {
-    const fromFlow = resolveTransformLabelForGeneration(draft);
-    if (fromFlow) {
-      return fromFlow;
-    }
-    if (!draft.derivationTransformChoice) {
-      return undefined;
-    }
-    const labels: Record<string, string> = {};
-    const choiceId = draft.derivationTransformChoice;
-    const prefix =
-      kind === "character" ? "character."
-      : kind === "prop" ? "prop."
-      : "location.";
-    labels[`${prefix}${choiceId}`] = t(
-      `studio.assetDerivation.transform.${prefix}${choiceId}` as never
-    );
-    return transformLabelForChoice(
-      kind,
-      choiceId,
-      draft.derivationTransformCustom,
-      labels
-    );
-  }, [draft.derivationTransformChoice, draft.derivationTransformCustom, kind, t]);
-
   const runGeneration = useCallback(
     async (forceNewId = false) => {
+      setProviderDebugError("");
       const generationId =
         forceNewId || !draft.referenceGenerationId
           ? crypto.randomUUID()
           : draft.referenceGenerationId;
 
-      setProviderDebugError("");
-      onDraftChange((d) => ({
-        ...d,
-        ...clearWizardGeneratedReferenceOutput(d),
-        referenceGenerationStatus: "generating",
-        referenceGenerationError: "",
-        referenceGenerationId: generationId,
-      }));
+      onDraftChange(draftPatchForGenerationStart(draft, generationId));
 
-      const source = resolveWizardSourceReference(draft);
-      let styleDna = draft.derivationStyleDna;
-      let derivationSource = draft.derivationSource;
-
-      if (source && !styleDna && source.sourceReferenceImageUrl) {
-        const analyze = await analyzeAssetStyleDnaApi({
-          imageUrl: source.sourceReferenceImageUrl,
-          sourceKind: draft.derivationTargetKind ?? kind,
-          sourceName: source.sourceReferenceName,
-          derivationJobId: generationId,
-        });
-        if (analyze.ok) {
-          styleDna = analyze.data.styleDna;
-          if (!derivationSource) {
-            derivationSource = {
-              sourceType: "upload",
-              sourceKind: draft.derivationTargetKind ?? kind,
-              assetId: null,
-              assetName: source.sourceReferenceName,
-              referenceImageUrl: source.sourceReferenceImageUrl,
-              referenceStorageKey: source.sourceReferenceStorageKey,
-            };
-          }
-          onDraftChange({
-            derivationStyleDna: styleDna,
-            derivationStyleDnaStatus: "ready",
-            derivationSource,
-          });
-        }
-      }
-
-      const transformLabel = resolveTransformLabel();
-      const userPrompt =
-        draft.sourceTransformCustom.trim() ||
-        (draft.sourceTransformChoice === "custom" ? "" : undefined);
-      const sourceReference =
-        source ?
-          {
-            name: source.sourceReferenceName,
-            imageUrl: source.sourceReferenceImageUrl,
-            transformLabel,
-            userPrompt: userPrompt || undefined,
-          }
-        : undefined;
-
-      const res = await generateStudioAssetReferenceApi({
+      const { outcome } = await runAssetReferenceGeneration({
+        draft,
         kind,
-        summaryPrompt: draft.summaryPrompt,
-        choices: draft.choices,
-        customTexts: draft.customTexts,
-        generationId,
-        sourceReference,
-        derivation:
-          styleDna && (derivationSource || source)
-            ? {
-                styleDna,
-                sourceName: derivationSource?.assetName ?? source!.sourceReferenceName,
-                sourceKind: derivationSource?.sourceKind ?? kind,
-                sourceAssetId: derivationSource?.assetId,
-              }
-            : undefined,
+        forceNewId,
       });
 
-      if (!res.ok) {
-        const data = res.data as { error?: string; providerMessage?: string | null };
-        const errorKey = data.error?.startsWith("studio.") ? data.error : null;
-        if (data.providerMessage) {
-          setProviderDebugError(data.providerMessage);
+      if (!outcome.ok) {
+        if (outcome.providerMessage) {
+          setProviderDebugError(outcome.providerMessage);
         }
         onDraftChange({
-          referenceGenerationStatus: "failed",
-          referenceGenerationError:
-            errorKey ?
-              t(errorKey as never)
-            : data.error ?? t("studio.assetCreation.reference.generateFailedUser"),
+          ...draftPatchForGenerationFailure(
+            outcome.errorKey ? t(outcome.errorKey as never) : outcome.error
+          ),
         });
         return;
       }
 
-      onDraftChange({
-        referenceGenerationStatus: "preview",
-        generatedReferencePreviewUrl: res.data.referenceImageUrl,
-        generatedReferenceStorageKey: res.data.referenceStorageKey,
-        referenceGenerationPrompt: res.data.generatedPrompt,
-      });
+      onDraftChange(draftPatchForGenerationSuccess(outcome));
     },
-    [draft, kind, onDraftChange, resolveTransformLabel, t]
+    [draft, kind, onDraftChange, t]
   );
-
-  useEffect(() => {
-    if (
-      referenceMode === "generate" &&
-      generationAvailable &&
-      draft.referenceGenerationStatus === "idle" &&
-      draft.summaryPrompt.trim() &&
-      !generateStartedRef.current
-    ) {
-      generateStartedRef.current = true;
-      void runGeneration();
-    }
-    if (referenceMode !== "generate") {
-      generateStartedRef.current = false;
-    }
-  }, [referenceMode, generationAvailable, draft.referenceGenerationStatus, draft.summaryPrompt, runGeneration]);
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -301,7 +183,6 @@ export function StudioWizardReferenceStep({
       referenceMode: mode,
       ...clearWizardGeneratedReferenceOutput({ ...d, referenceMode: mode }),
     }));
-    generateStartedRef.current = false;
   };
 
   const acceptGenerated = () => {
@@ -336,15 +217,9 @@ export function StudioWizardReferenceStep({
         <div className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">
-              {t("studio.assetCreation.sourceTransform.title")}
+              {t("studio.assetCreation.sourceTransform.reviewVariant")}
             </h2>
-            <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.sourceTransform.lead")}</p>
-          </div>
-          <div className="rounded-xl border border-[#0067B1]/25 bg-[#0067B1]/5 px-4 py-3">
-            <p className="text-sm font-semibold text-[#0067B1]">
-              {t("studio.assetCreation.sourceTransform.usingAsBasis")}
-            </p>
-            <p className="mt-1 text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+            <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.transformPrompt.reviewLead")}</p>
           </div>
         </div>
       : (
@@ -408,11 +283,25 @@ export function StudioWizardReferenceStep({
 
       {(sourceFlow || referenceMode === "generate") ?
         <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
-          {sourceFlow && !draft.summaryPrompt.trim() ?
+          {sourceFlow && draft.referenceGenerationStatus === "idle" ?
             <p className="text-sm text-amber-700">
-              {t("studio.assetCreation.sourceTransform.summaryRequired")}
+              {t("studio.assetCreation.transformPrompt.completePromptFirst")}
             </p>
           : null}
+
+          {!sourceFlow &&
+          draft.referenceGenerationStatus === "idle" &&
+          generationAvailable &&
+          draft.summaryPrompt.trim() ?
+            <button
+              type="button"
+              onClick={() => void runGeneration()}
+              className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
+            >
+              {t("studio.assetCreation.transformPrompt.generateVariant")}
+            </button>
+          : null}
+
           {draft.referenceGenerationStatus === "generating" ?
             <div className="space-y-3" role="status" aria-live="polite">
               <div className="h-48 animate-pulse rounded-xl bg-zinc-200" />
