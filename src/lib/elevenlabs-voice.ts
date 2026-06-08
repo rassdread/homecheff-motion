@@ -54,6 +54,12 @@ export function validateVoiceSettings(params: {
   const ref = parseVoiceProfileRef(params.voiceProfile);
   if (ref.kind === "preset") {
     normalizeStudioVoiceProfileId(ref.profileId);
+  } else if (!ref.providerVoiceId) {
+    return {
+      ok: false,
+      code: "PROVIDER_VOICE_ID_REQUIRED",
+      message: "This voice is not available.",
+    };
   }
   normalizeStudioNarrationMode(params.narrationMode);
   if (!params.script.trim()) {
@@ -87,6 +93,9 @@ const PROFILE_VOICE_IDS: Record<string, string> = {
 export function resolveElevenLabsVoiceId(voiceProfile: string): string {
   const ref = parseVoiceProfileRef(voiceProfile);
   if (ref.kind === "clone" || ref.kind === "library") {
+    if (!ref.providerVoiceId) {
+      throw new Error("Provider voice id is required.");
+    }
     return ref.providerVoiceId;
   }
   const envDefault = process.env.ELEVENLABS_VOICE_ID?.trim();

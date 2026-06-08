@@ -29,19 +29,52 @@ export function formatLibraryVoiceProfileRef(providerVoiceId: string): string {
   return `${LIBRARY_VOICE_PROFILE_PREFIX}${id}`;
 }
 
+export function safeFormatClonedVoiceProfileRef(providerVoiceId: string): string | null {
+  const id = providerVoiceId.trim();
+  return id ? `${CLONED_VOICE_PROFILE_PREFIX}${id}` : null;
+}
+
+export function safeFormatLibraryVoiceProfileRef(providerVoiceId: string): string | null {
+  const id = providerVoiceId.trim();
+  return id ? `${LIBRARY_VOICE_PROFILE_PREFIX}${id}` : null;
+}
+
+export type VoiceProfileSynthesisValidation =
+  | { ok: true; voiceProfile: string }
+  | { ok: false; code: string; message: string };
+
+/** Reject clone/library refs without a provider voice id before TTS or preview. */
+export function validateVoiceProfileForSynthesis(
+  value: string | undefined | null
+): VoiceProfileSynthesisValidation {
+  const raw = (value ?? "").trim();
+  if (!raw) {
+    return {
+      ok: false,
+      code: "VOICE_PROFILE_REQUIRED",
+      message: "Voice profile is required.",
+    };
+  }
+  const ref = parseVoiceProfileRef(raw);
+  if ((ref.kind === "clone" || ref.kind === "library") && !ref.providerVoiceId) {
+    return {
+      ok: false,
+      code: "PROVIDER_VOICE_ID_REQUIRED",
+      message: "This voice is not available.",
+    };
+  }
+  return { ok: true, voiceProfile: normalizeVoiceProfileForSynthesis(raw) };
+}
+
 export function parseVoiceProfileRef(value: string | undefined | null): VoiceProfileRef {
   const raw = (value ?? "").trim();
   if (raw.startsWith(CLONED_VOICE_PROFILE_PREFIX)) {
     const providerVoiceId = raw.slice(CLONED_VOICE_PROFILE_PREFIX.length).trim();
-    if (providerVoiceId) {
-      return { kind: "clone", providerVoiceId, raw };
-    }
+    return { kind: "clone", providerVoiceId, raw };
   }
   if (raw.startsWith(LIBRARY_VOICE_PROFILE_PREFIX)) {
     const providerVoiceId = raw.slice(LIBRARY_VOICE_PROFILE_PREFIX.length).trim();
-    if (providerVoiceId) {
-      return { kind: "library", providerVoiceId, raw };
-    }
+    return { kind: "library", providerVoiceId, raw };
   }
   const profileId = normalizeStudioVoiceProfileId(raw);
   return { kind: "preset", profileId, raw: profileId };

@@ -3774,6 +3774,7 @@ export const nl = {
   "studio.voiceLibrary.search": "Zoeken",
   "studio.voiceLibrary.searchPlaceholder": "Zoek op naam of accent…",
   "studio.voiceLibrary.previewFailed": "Voorbeeld niet beschikbaar voor deze stem.",
+  "studio.voiceLibrary.unavailableVoice": "Deze stem is niet beschikbaar.",
   "studio.voiceLibrary.filter.all": "Alle",
   "studio.voiceLibrary.filter.accent": "Accent",
   "studio.voiceLibrary.noAccentMetadata":

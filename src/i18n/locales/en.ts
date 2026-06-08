@@ -3775,6 +3775,7 @@ export const en: LocaleSchema = {
   "studio.voiceLibrary.search": "Search",
   "studio.voiceLibrary.searchPlaceholder": "Search by name or accent…",
   "studio.voiceLibrary.previewFailed": "Preview unavailable for this voice.",
+  "studio.voiceLibrary.unavailableVoice": "This voice is not available.",
   "studio.voiceLibrary.filter.all": "All",
   "studio.voiceLibrary.filter.accent": "Accent",
   "studio.voiceLibrary.noAccentMetadata":

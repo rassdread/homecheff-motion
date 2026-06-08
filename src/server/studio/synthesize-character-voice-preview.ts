@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { buildVoiceRequest, validateVoiceSettings } from "@/lib/elevenlabs-voice";
 import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
-import { normalizeVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
+import { validateVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
 import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
 import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
@@ -52,7 +52,16 @@ export async function synthesizeCharacterVoicePreview(
   input: CharacterVoicePreviewSynthesisInput
 ): Promise<CharacterVoicePreviewSynthesisResult> {
   const language = input.language.trim().toLowerCase().slice(0, 2) || "en";
-  const voiceProfile = normalizeVoiceProfileForSynthesis(input.voiceProfile || "warm_narrator");
+  const profileValidation = validateVoiceProfileForSynthesis(input.voiceProfile || "warm_narrator");
+  if (!profileValidation.ok) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[voice-preview] blocked synthesis:", profileValidation.code, input.voiceProfile);
+    }
+    return {
+      error: serviceError(profileValidation.code, profileValidation.message, 400),
+    };
+  }
+  const voiceProfile = profileValidation.voiceProfile;
   const script = resolveCharacterVoicePreviewScript({
     characterName: input.characterName,
     language,

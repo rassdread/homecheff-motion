@@ -18,6 +18,7 @@ import {
   formatLibraryVoiceProfileRef,
   isClonedVoiceProfileRef,
   parseVoiceProfileRef,
+  safeFormatLibraryVoiceProfileRef,
 } from "@/lib/studio-voice-profile-ref";
 import { VOICE_PERSONA_GROUP_LABEL_KEYS } from "@/lib/studio-voice-persona-presets";
 import type { VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
@@ -51,6 +52,11 @@ function VoiceLibraryRow({
   const metaParts = [voice.accent, voice.gender, voice.age, voice.language.toUpperCase()].filter(
     Boolean
   );
+  const canSelect = Boolean(voice.id.trim());
+
+  if (!canSelect) {
+    return null;
+  }
 
   return (
     <article
@@ -71,7 +77,8 @@ function VoiceLibraryRow({
         <button
           type="button"
           onClick={onSelect}
-          className="min-h-[44px] shrink-0 rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50"
+          disabled={!canSelect}
+          className="min-h-[44px] shrink-0 rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
         </button>
@@ -228,9 +235,13 @@ function VoiceLibraryBrowsePanel({
             key={voice.id}
             voice={voice}
             selected={selectedVoiceId === voice.id}
-            onSelect={() =>
-              onSelectProfile(formatLibraryVoiceProfileRef(voice.id), { voiceName: voice.name })
-            }
+            onSelect={() => {
+              const ref = safeFormatLibraryVoiceProfileRef(voice.id);
+              if (!ref) {
+                return;
+              }
+              onSelectProfile(ref, { voiceName: voice.name });
+            }}
           />
         ))}
       </div>
@@ -356,28 +367,29 @@ export function StudioCharacterVoiceLibrarySection({
               </p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {presets.map((preset) => {
-                  const profileRef = formatLibraryVoiceProfileRef(preset.voiceId);
+                  const canSelect = preset.available && Boolean(preset.voiceId.trim());
                   const selectedRef = parseVoiceProfileRef(selectedProfile);
                   const selected =
-                    preset.available &&
-                    (selectedProfile === profileRef ||
-                      (selectedRef.kind === "library" && selectedRef.providerVoiceId === preset.voiceId));
+                    canSelect &&
+                    selectedRef.kind === "library" &&
+                    selectedRef.providerVoiceId === preset.voiceId;
                   return (
                     <button
                       key={preset.id}
                       type="button"
-                      disabled={!preset.available}
+                      disabled={!canSelect}
                       onClick={() => {
-                        if (!preset.available) {
+                        if (!canSelect) {
                           return;
                         }
+                        const profileRef = formatLibraryVoiceProfileRef(preset.voiceId);
                         onSelectProfile(profileRef, {
                           voiceName: preset.voiceName,
                           personaLabelKey: preset.labelKey,
                         });
                       }}
                       className={`min-h-[44px] rounded-lg border px-3 py-2.5 text-left text-sm ${
-                        !preset.available
+                        !canSelect
                           ? "cursor-not-allowed border-violet-100 bg-violet-50/60 text-violet-500"
                           : selected
                           ? "border-violet-400 bg-violet-50 font-semibold text-violet-950"
@@ -385,7 +397,7 @@ export function StudioCharacterVoiceLibrarySection({
                       }`}
                     >
                       <span className="block font-semibold">{t(preset.labelKey as never)}</span>
-                      {preset.available ?
+                      {canSelect ?
                         <span className="mt-0.5 block text-xs text-violet-700">
                           {preset.voiceName}
                         </span>

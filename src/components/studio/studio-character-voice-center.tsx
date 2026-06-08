@@ -14,11 +14,12 @@ import {
 } from "@/lib/studio-voice-profiles";
 import {
   formatClonedVoiceProfileRef,
-  formatLibraryVoiceProfileRef,
   isClonedVoiceProfileRef,
   isLibraryVoiceProfileRef,
   normalizeStoredVoiceProfile,
   parseVoiceProfileRef,
+  safeFormatLibraryVoiceProfileRef,
+  validateVoiceProfileForSynthesis,
 } from "@/lib/studio-voice-profile-ref";
 import type { VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
@@ -163,14 +164,18 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
       if (!preset.available || !preset.voiceId) {
         continue;
       }
-      add(
-        formatLibraryVoiceProfileRef(preset.voiceId),
-        params.t(preset.labelKey as never)
-      );
+      const ref = safeFormatLibraryVoiceProfileRef(preset.voiceId);
+      if (!ref) {
+        continue;
+      }
+      add(ref, params.t(preset.labelKey as never));
     }
 
     for (const voice of params.payload.catalog.voices.filter((v) => v.language === params.lang).slice(0, 48)) {
-      add(formatLibraryVoiceProfileRef(voice.id), voice.name);
+      const ref = safeFormatLibraryVoiceProfileRef(voice.id);
+      if (ref) {
+        add(ref, voice.name);
+      }
     }
   }
 
@@ -245,6 +250,12 @@ export function StudioCharacterVoiceCenter({
       profile: string,
       meta?: { voiceName?: string; personaLabelKey?: string }
     ) => {
+      const validation = validateVoiceProfileForSynthesis(profile);
+      if (!validation.ok) {
+        setPreviewError(t("studio.voiceLibrary.unavailableVoice" as never));
+        return;
+      }
+      setPreviewError("");
       onChange({
         ...value,
         voiceEnabled: true,
@@ -260,6 +271,11 @@ export function StudioCharacterVoiceCenter({
   const runPreview = useCallback(
     async (lang: VoiceCenterLanguage) => {
       const resolved = resolveLanguageVoice(value, lang);
+      const validation = validateVoiceProfileForSynthesis(resolved.profile);
+      if (!validation.ok) {
+        setPreviewError(t("studio.voiceLibrary.unavailableVoice" as never));
+        return;
+      }
       setPreviewBusyLang(lang);
       setPreviewError("");
       try {
