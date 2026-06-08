@@ -11,7 +11,10 @@ import {
   canAdvanceFromSourceTransformStep,
   shouldShowSourceTransformStep,
   shouldSkipReferenceModeChoice,
+  wizardStepLabelKeyForDraft,
 } from "@/lib/studio-asset-wizard-source-flow";
+import { emptyDerivationWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 
 function draftWithSource(
   entryPath: "image_only" | "image_and_prompt" | "derive_from_reference" | "existing_asset",
@@ -57,6 +60,80 @@ describe("studio-asset-wizard-source-flow", () => {
     const draft = draftWithSource("derive_from_reference");
     assert.equal(shouldSkipReferenceModeChoice(draft), true);
     assert.equal(shouldShowSourceTransformStep(draft), false);
+  });
+
+  it("derive_from_reference with derivationSource only still skips reference mode choice", () => {
+    const draft = emptyDerivationWizardDraft("character");
+    draft.derivationSource = {
+      sourceType: "library_asset",
+      sourceKind: "character",
+      assetId: "asset-1",
+      assetName: "Globe Man",
+      referenceImageUrl: "https://example.com/globe.png",
+      referenceStorageKey: "uploads/globe.png",
+    };
+    draft.derivationStyleDnaStatus = "ready";
+    assert.equal(shouldSkipReferenceModeChoice(draft), true);
+    assert.equal(draft.sourceReferenceImageUrl, "");
+  });
+
+  it("derivation flow omits reference until source exists, then inserts after preview", () => {
+    let draft = emptyDerivationWizardDraft("character");
+    let steps = wizardStepSequenceForDraft(draft, { includeKind: false });
+    assert.equal(steps.includes("reference"), false);
+
+    draft = draftWithSource("derive_from_reference");
+    draft.derivationTransformChoice = "mascot";
+    draft.summaryPrompt = "Mascot variant.";
+    steps = wizardStepSequenceForDraft(draft, { includeKind: false });
+    const previewIdx = steps.indexOf("derive_preview");
+    const refIdx = steps.indexOf("reference");
+    assert.ok(previewIdx >= 0);
+    assert.ok(refIdx > previewIdx);
+    assert.equal(shouldSkipReferenceModeChoice(draft), true);
+    assert.equal(
+      wizardStepLabelKeyForDraft("reference", draft),
+      "studio.assetCreation.wizard.step.generateVariant"
+    );
+  });
+
+  it("screenshot derivation flow never requires reference mode choice copy when source exists", () => {
+    const styleDna: AssetStyleDna = {
+      visualStyle: "flat cartoon",
+      colorTheme: "blue and orange",
+      shapeLanguage: "rounded",
+      outfitHints: "cap",
+      brandIdentity: "playful globe mascot",
+      mascotTraits: "friendly",
+      confidence: 0.9,
+    };
+    let draft = emptyDerivationWizardDraft("character");
+    draft = {
+      ...draft,
+      derivationSource: {
+        sourceType: "upload",
+        sourceKind: "character",
+        assetId: null,
+        assetName: "Globe Man",
+        referenceImageUrl: "https://example.com/globe.png",
+        referenceStorageKey: "uploads/globe.png",
+      },
+      derivationStyleDna: styleDna,
+      derivationStyleDnaStatus: "ready",
+      derivationTargetKind: "character",
+      derivationTransformChoice: "mascot",
+      summaryPrompt: "A mascot variant preserving Globe Man style DNA.",
+      referenceMode: "generate",
+    };
+    const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
+    const previewIdx = steps.indexOf("derive_preview");
+    const refIdx = steps.indexOf("reference");
+    const readinessIdx = steps.indexOf("readiness");
+    assert.ok(previewIdx >= 0);
+    assert.ok(refIdx > previewIdx);
+    assert.ok(readinessIdx > refIdx);
+    assert.equal(shouldSkipReferenceModeChoice(draft), true);
+    assert.equal(auditSourceReferenceFlows(draft).find((r) => r.path === "derive_from_reference")!.showReferenceModeChoice, false);
   });
 
   it("source upload persists across steps via sourceReference fields", () => {

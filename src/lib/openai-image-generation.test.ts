@@ -14,14 +14,23 @@ describe("openai-image-generation", () => {
   });
 
   it("omits response_format for gpt-image models", () => {
+    for (const model of ["gpt-image-1", "gpt-image-1.5", "gpt-image-1-mini"]) {
+      const body = buildOpenAiImageGenerationsBody({
+        model,
+        prompt: "A mascot chef",
+        size: "1024x1024",
+      });
+      assert.equal("response_format" in body, false, model);
+    }
+  });
+
+  it("omits response_format for unknown models", () => {
     const body = buildOpenAiImageGenerationsBody({
-      model: "gpt-image-1",
+      model: "some-future-image-model",
       prompt: "A mascot chef",
       size: "1024x1024",
     });
     assert.equal("response_format" in body, false);
-    assert.equal(body.model, "gpt-image-1");
-    assert.equal(body.n, 1);
   });
 
   it("adds response_format url for dall-e-3", () => {

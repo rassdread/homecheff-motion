@@ -88,7 +88,7 @@ export function StudioWizardReferenceStep({
   const referenceMode = draft.referenceMode;
   const referenceImageUrl = draft.referenceImageUrl;
   const previewUrl = draft.generatedReferencePreviewUrl || referenceImageUrl;
-  const sourceFlow = shouldSkipReferenceModeChoice(draft);
+  const sourceFlow = shouldSkipReferenceModeChoice(draft) || hasWizardSourceReference(draft);
   const source = resolveWizardSourceReference(draft);
 
   useEffect(() => {
@@ -333,11 +333,19 @@ export function StudioWizardReferenceStep({
       <StudioWizardSourceReferenceBanner draft={draft} />
 
       {sourceFlow ?
-        <div className="rounded-xl border border-[#0067B1]/25 bg-[#0067B1]/5 px-4 py-3">
-          <p className="text-sm font-semibold text-[#0067B1]">
-            {t("studio.assetCreation.sourceTransform.usingAsBasis")}
-          </p>
-          <p className="mt-1 text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">
+              {t("studio.assetCreation.sourceTransform.title")}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.sourceTransform.lead")}</p>
+          </div>
+          <div className="rounded-xl border border-[#0067B1]/25 bg-[#0067B1]/5 px-4 py-3">
+            <p className="text-sm font-semibold text-[#0067B1]">
+              {t("studio.assetCreation.sourceTransform.usingAsBasis")}
+            </p>
+            <p className="mt-1 text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+          </div>
         </div>
       : (
         <StudioWizardChoiceGrid

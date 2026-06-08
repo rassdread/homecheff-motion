@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { wizardChoiceDefAtIndex } from "@/lib/studio-asset-wizard-choices";
+import { wizardStepLabelKeyForDraft } from "@/lib/studio-asset-wizard-source-flow";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
+import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 
 const VISIBLE_LABELS: Record<AssetCreationWizardStep, string> = {
   kind: "studio.assetCreation.wizard.step.kind",
@@ -29,6 +31,7 @@ type Props = {
   lockKind?: boolean;
   choiceFlowKind?: StudioAssetKind;
   choiceStepIndex?: number;
+  wizardDraft?: AssetWizardDraft | null;
 };
 
 export function StudioAssetCreationFlowProgress({
@@ -38,6 +41,7 @@ export function StudioAssetCreationFlowProgress({
   lockKind = false,
   choiceFlowKind,
   choiceStepIndex,
+  wizardDraft,
 }: Props) {
   const t = useActiveTranslator();
 
@@ -61,6 +65,12 @@ export function StudioAssetCreationFlowProgress({
   }, [phase, steps, wizardStep, choiceStepIndex]);
 
   const stepLabel = (step: AssetCreationWizardStep, index: number) => {
+    if (wizardDraft) {
+      const sourceLabel = wizardStepLabelKeyForDraft(step, wizardDraft);
+      if (sourceLabel) {
+        return t(sourceLabel as never);
+      }
+    }
     if (step === "choice" && choiceFlowKind) {
       let choiceIdx = 0;
       for (let i = 0; i < index; i++) {

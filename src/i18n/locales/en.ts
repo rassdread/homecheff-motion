@@ -4167,6 +4167,7 @@ export const en: LocaleSchema = {
   "studio.assetCreation.wizard.step.save": "Save",
   "studio.assetCreation.wizard.step.choice": "Choice",
   "studio.assetCreation.wizard.step.reference": "Reference",
+  "studio.assetCreation.wizard.step.generateVariant": "Generate variant",
   "studio.assetCreation.wizard.step.sourceTransform": "Transform",
   "studio.assetCreation.wizard.step.deriveSource": "Style base",
   "studio.assetCreation.wizard.step.deriveTarget": "Create as",

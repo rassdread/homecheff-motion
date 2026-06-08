@@ -4,10 +4,13 @@ export function resolveOpenAiImageModel(): string {
   return process.env.STUDIO_SCENE_IMAGE_MODEL?.trim() || "dall-e-3";
 }
 
-/** DALL-E 2/3 accept response_format; gpt-image and newer models reject it. */
+/** DALL-E 2/3 accept response_format; gpt-image and unknown models must not send it. */
 export function openAiImageGenerationSupportsResponseFormat(model: string): boolean {
   const normalized = model.trim().toLowerCase();
-  return normalized === "dall-e-2" || normalized === "dall-e-3";
+  if (normalized.startsWith("gpt-image")) {
+    return false;
+  }
+  return normalized.startsWith("dall-e-2") || normalized.startsWith("dall-e-3");
 }
 
 export function buildOpenAiImageGenerationsBody(params: {

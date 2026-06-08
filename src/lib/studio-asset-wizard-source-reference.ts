@@ -19,15 +19,32 @@ export function recordWizardSourceReference(params: {
   };
 }
 
+function resolveWizardSourceImageUrl(draft: AssetWizardDraft): string {
+  return (
+    draft.sourceReferenceImageUrl?.trim() ||
+    draft.derivationSource?.referenceImageUrl?.trim() ||
+    draft.referenceImageUrl?.trim() ||
+    ""
+  );
+}
+
+function resolveWizardSourceStorageKey(draft: AssetWizardDraft): string {
+  return (
+    draft.sourceReferenceStorageKey?.trim() ||
+    draft.derivationSource?.referenceStorageKey?.trim() ||
+    draft.referenceStorageKey?.trim() ||
+    ""
+  );
+}
+
 export function resolveWizardSourceReference(draft: AssetWizardDraft): WizardSourceReference | null {
-  const url = draft.sourceReferenceImageUrl?.trim() || draft.referenceImageUrl?.trim();
+  const url = resolveWizardSourceImageUrl(draft);
   if (!url) {
     return null;
   }
   return {
     sourceReferenceImageUrl: url,
-    sourceReferenceStorageKey:
-      draft.sourceReferenceStorageKey?.trim() || draft.referenceStorageKey?.trim() || "",
+    sourceReferenceStorageKey: resolveWizardSourceStorageKey(draft),
     sourceReferenceName:
       draft.sourceReferenceName?.trim() ||
       draft.derivationSource?.assetName?.trim() ||
@@ -36,7 +53,16 @@ export function resolveWizardSourceReference(draft: AssetWizardDraft): WizardSou
 }
 
 export function hasWizardSourceReference(draft: AssetWizardDraft): boolean {
-  return Boolean(resolveWizardSourceReference(draft));
+  if (draft.sourceReferenceImageUrl?.trim() || draft.sourceReferenceStorageKey?.trim()) {
+    return true;
+  }
+  if (
+    draft.derivationSource?.referenceImageUrl?.trim() ||
+    draft.derivationSource?.referenceStorageKey?.trim()
+  ) {
+    return true;
+  }
+  return Boolean(draft.derivationSource?.assetId);
 }
 
 /** Clear generated output fields only — keep sourceReference intact. */

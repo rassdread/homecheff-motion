@@ -4166,6 +4166,7 @@ export const nl = {
   "studio.assetCreation.wizard.step.save": "Opslaan",
   "studio.assetCreation.wizard.step.choice": "Keuze",
   "studio.assetCreation.wizard.step.reference": "Referentie",
+  "studio.assetCreation.wizard.step.generateVariant": "Genereer variant",
   "studio.assetCreation.wizard.step.sourceTransform": "Transformatie",
   "studio.assetCreation.wizard.step.deriveSource": "Stijlbasis",
   "studio.assetCreation.wizard.step.deriveTarget": "Maken als",

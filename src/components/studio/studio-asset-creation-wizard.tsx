@@ -304,6 +304,7 @@ export function StudioAssetCreationWizard({
         lockKind={lockKind}
         choiceFlowKind={activeDraft?.choiceBasedFlow ? activeDraft.kind : undefined}
         choiceStepIndex={step === "choice" ? navIndexClamped : undefined}
+        wizardDraft={activeDraft}
       />
 
       {showSummaryBar ?

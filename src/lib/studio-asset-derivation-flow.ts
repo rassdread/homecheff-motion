@@ -1,4 +1,3 @@
-import { kindSupportsReferenceStep } from "@/lib/studio-asset-wizard-choices";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -8,10 +7,6 @@ export function wizardStepsForDerivationFlow(
 ): AssetCreationWizardStep[] {
   const steps: AssetCreationWizardStep[] = options?.includeKind ? ["kind"] : [];
   steps.push("derive_source", "derive_target_kind", "derive_transform", "derive_preview");
-  const targetKind = kind;
-  if (kindSupportsReferenceStep(targetKind)) {
-    steps.push("reference");
-  }
   steps.push("readiness", "save");
   return steps;
 }

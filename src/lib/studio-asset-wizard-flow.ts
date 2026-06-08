@@ -39,7 +39,6 @@ export function wizardStepsForEntryPath(
         "derive_target_kind",
         "derive_transform",
         "derive_preview",
-        "reference",
         "readiness",
         "save"
       );
@@ -50,7 +49,6 @@ export function wizardStepsForEntryPath(
         "derive_target_kind",
         "derive_transform",
         "derive_preview",
-        "reference",
         "readiness",
         "save"
       );

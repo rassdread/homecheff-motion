@@ -13,20 +13,83 @@ export function hasUpfrontSourceReference(draft: AssetWizardDraft): boolean {
 
 /** Skip upload / generate / skip mode grid — go straight to variant generation. */
 export function shouldSkipReferenceModeChoice(draft: AssetWizardDraft): boolean {
-  if (!hasUpfrontSourceReference(draft)) {
+  return hasUpfrontSourceReference(draft);
+}
+
+/** Progress label: source flows show variant generation, not generic reference choice. */
+export function wizardStepLabelKeyForDraft(
+  step: AssetCreationWizardStep,
+  draft: AssetWizardDraft
+): string | null {
+  if (step === "reference" && hasUpfrontSourceReference(draft)) {
+    return "studio.assetCreation.wizard.step.generateVariant";
+  }
+  return null;
+}
+
+function shouldIncludeReferenceStep(draft: AssetWizardDraft): boolean {
+  if (!kindSupportsReferenceStep(draft.kind)) {
     return false;
   }
-  if (draft.referenceMode === "upload" && draft.referenceImageUrl && !draft.generatedReferencePreviewUrl) {
-    return false;
+  if (hasUpfrontSourceReference(draft)) {
+    return true;
   }
-  return (
-    draft.derivationFlow ||
-    draft.entryPath === "image_only" ||
-    draft.entryPath === "image_and_prompt" ||
-    draft.entryPath === "existing_asset" ||
-    draft.entryPath === "derive_from_reference" ||
-    Boolean(draft.sourceTransformChoice || draft.sourceTransformCustom.trim())
-  );
+  if (draft.choiceBasedFlow && !draft.derivationFlow) {
+    return true;
+  }
+  if (draft.entryPath === "design" || draft.entryPath === "prompt_only") {
+    return true;
+  }
+  return false;
+}
+
+function insertReferenceStep(
+  steps: AssetCreationWizardStep[],
+  draft: AssetWizardDraft
+): AssetCreationWizardStep[] {
+  const result = [...steps];
+  if (result.includes("reference")) {
+    return result;
+  }
+
+  if (draft.derivationFlow) {
+    const previewIdx = result.indexOf("derive_preview");
+    const anchor = previewIdx >= 0 ? previewIdx + 1 : result.indexOf("readiness");
+    result.splice(anchor >= 0 ? anchor : result.length, 0, "reference");
+    return result;
+  }
+
+  if (draft.entryPath === "image_only" || draft.entryPath === "image_and_prompt") {
+    const proposalIdx = result.indexOf("proposal");
+    const inputIdx = result.indexOf("input");
+    const anchor = proposalIdx >= 0 ? proposalIdx + 1 : inputIdx >= 0 ? inputIdx + 1 : -1;
+    if (anchor > 0) {
+      result.splice(anchor, 0, "reference");
+    } else {
+      const readinessIdx = result.indexOf("readiness");
+      result.splice(readinessIdx >= 0 ? readinessIdx : result.length, 0, "reference");
+    }
+    return result;
+  }
+
+  const readinessIdx = result.indexOf("readiness");
+  result.splice(readinessIdx >= 0 ? readinessIdx : result.length, 0, "reference");
+  return result;
+}
+
+function insertSourceTransformStep(
+  steps: AssetCreationWizardStep[],
+  draft: AssetWizardDraft
+): AssetCreationWizardStep[] {
+  if (!shouldShowSourceTransformStep(draft) || steps.includes("source_transform")) {
+    return steps;
+  }
+  const result = [...steps];
+  const refIdx = result.indexOf("reference");
+  if (refIdx >= 0) {
+    result.splice(refIdx, 0, "source_transform");
+  }
+  return result;
 }
 
 /** Dedicated transformation prompt step (not covered by derive_transform). */
@@ -98,27 +161,13 @@ export function injectSourceReferenceWizardSteps(
     return steps;
   }
 
-  const result = [...steps];
+  let result = steps.filter((step) => step !== "reference" || shouldIncludeReferenceStep(draft));
 
-  const needsReferenceForImagePath =
-    (draft.entryPath === "image_only" || draft.entryPath === "image_and_prompt") &&
-    hasUpfrontSourceReference(draft);
-
-  if (needsReferenceForImagePath && !result.includes("reference")) {
-    const anchor = result.indexOf("proposal") >= 0 ? result.indexOf("proposal") + 1 : result.indexOf("input") + 1;
-    if (anchor > 0) {
-      result.splice(anchor, 0, "reference");
-    }
+  if (shouldIncludeReferenceStep(draft)) {
+    result = insertReferenceStep(result, draft);
   }
 
-  if (shouldShowSourceTransformStep(draft) && !result.includes("source_transform")) {
-    const refIdx = result.indexOf("reference");
-    if (refIdx >= 0) {
-      result.splice(refIdx, 0, "source_transform");
-    }
-  }
-
-  return result;
+  return insertSourceTransformStep(result, draft);
 }
 
 export type SourceReferenceFlowAuditRow = {
@@ -151,6 +200,18 @@ export function auditSourceReferenceFlows(
     };
     if (path.includes("image") || path.startsWith("derive") || path === "existing_asset") {
       sample.sourceReferenceImageUrl = sample.sourceReferenceImageUrl || "https://example.com/src.png";
+    }
+    if (path === "derive_from_reference" || path === "existing_asset") {
+      sample.derivationSource =
+        sample.derivationSource ??
+        ({
+          sourceType: "upload",
+          sourceKind: sample.kind,
+          assetId: null,
+          assetName: "Source asset",
+          referenceImageUrl: "https://example.com/src.png",
+          referenceStorageKey: "uploads/src.png",
+        } as AssetWizardDraft["derivationSource"]);
     }
     return {
       path,

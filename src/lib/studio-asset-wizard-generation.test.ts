@@ -26,6 +26,21 @@ describe("studio-asset-wizard-generation", () => {
     assert.equal(source.sourceReferenceImageUrl, "https://example.com/globe.png");
   });
 
+  it("detects derivationSource as wizard source reference", () => {
+    const draft = emptyChoiceBasedWizardDraft("character");
+    draft.derivationFlow = true;
+    draft.derivationSource = {
+      sourceType: "library_asset",
+      sourceKind: "character",
+      assetId: "a1",
+      assetName: "Globe Man",
+      referenceImageUrl: "https://example.com/globe.png",
+      referenceStorageKey: "uploads/globe.png",
+    };
+    assert.equal(hasWizardSourceReference(draft), true);
+    assert.equal(resolveWizardSourceReference(draft)!.sourceReferenceName, "Globe Man");
+  });
+
   it("includes source-reference preservation in generation prompt", () => {
     const prompt = buildAssetReferenceGenerationPrompt({
       kind: "character",
