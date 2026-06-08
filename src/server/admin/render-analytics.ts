@@ -29,6 +29,7 @@ import {
 } from "@/server/admin/admin-project-display";
 import { buildBillingAnalytics } from "@/server/admin/billing-analytics";
 import { buildVideoCostAnalytics } from "@/server/admin/video-cost-analytics";
+import { buildStudioCostAnalytics } from "@/server/admin/studio-cost-analytics";
 import type {
   BalanceSnapshotRow,
   ExportTypeAnalytics,
@@ -322,10 +323,11 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     (p) => p.instantDetectedTextMetadata != null
   ).length;
 
-  const [creditRows, videoCosts, billing, customerBillingDb] = await Promise.all([
+  const [creditRows, videoCosts, billing, studioCosts, customerBillingDb] = await Promise.all([
     loadRenderCreditDataset(),
     buildVideoCostAnalytics(),
     buildBillingAnalytics(),
+    buildStudioCostAnalytics(),
     prisma.customerBillingEvent.findMany({
       orderBy: { createdAt: "desc" },
       take: 5000,
@@ -885,7 +887,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
 
   const recommendedLoggingFields = [
     "ProviderCostEvent — generic ledger (active: Vidu, OCR, language export, video export, text rerender, storage)",
-    "ProviderCostEvent — extend to full_rerender Vidu jobs and Studio vision calls",
+    "ProviderCostEvent — Studio OpenAI/ElevenLabs instrumentation active (scene images, vision, TTS, STT, clone)",
     "ProviderCreditBalanceSnapshot — daily capture (active on render start/complete)",
     "AnimationUsageLedger — write on instant_premium + full_rerender",
     "BlobAssetInventory — storageKey, sizeBytes, projectId, kind",
@@ -992,7 +994,8 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     "Storage audit covers latest 250 projects with video URLs (HEAD probes), not full Blob inventory.",
     "Image uploads and Studio assets are excluded from storage totals.",
     "ProviderCostEvent tracks all paid actions; legacy Vidu rows supplement from ProviderUsageLog.",
-    "OpenAI/Replicate/Runway actual spend not available without external billing APIs.",
+    "Studio OpenAI/ElevenLabs costs are estimated per call — no provider balance API.",
+    "ElevenLabs clone cost uses planning estimate ($1) — actual IVC price not published.",
     "Infrastructure cost uses a $20/mo baseline estimate, not Vercel invoice data.",
     "Text rerenders and language exports have zero Vidu cost by design.",
     "Stripe InstantPremiumPendingOrder rows exist but paid EUR amounts are not stored on the order row.",
@@ -1161,6 +1164,7 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     },
     sqlQueriesUsed: SQL_QUERIES,
     videoCosts: enrichedVideoCosts,
+    studioCosts,
     billing,
     customerBillingRows,
   };

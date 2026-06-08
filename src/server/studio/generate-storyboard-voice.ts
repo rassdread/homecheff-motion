@@ -24,6 +24,7 @@ import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
 import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
+import { meterElevenLabsTts } from "@/server/provider-cost/studio-cost-metering";
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
@@ -125,6 +126,20 @@ export async function generateStoryboardVoice(params: {
       request,
       voiceProfile: report.voiceProfile,
       voiceLanguage: language,
+    });
+    meterElevenLabsTts({
+      ctx: {
+        userId: params.ownerId,
+        storyboardId: sb.id,
+        feature: "voice_narration",
+        relatedJobId: voiceRow.id,
+      },
+      status: "completed",
+      providerId: synthesis.provider,
+      voiceId: synthesis.providerVoiceId,
+      characterCount: request.metadata.estimatedCharacters,
+      modelId: synthesis.providerModelId,
+      language,
     });
 
     const segments = buildTimedVoiceSegments({
@@ -256,6 +271,20 @@ async function generateMultiCharacterStoryboardVoice(params: {
         request,
         voiceProfile: line.voiceProfile,
         voiceLanguage: language,
+      });
+      meterElevenLabsTts({
+        ctx: {
+          userId: params.ownerId,
+          storyboardId: sb.id,
+          feature: "voice_narration_multi",
+          relatedJobId: voiceRow.id,
+        },
+        status: "completed",
+        providerId: synthesis.provider,
+        voiceId: synthesis.providerVoiceId,
+        characterCount: request.metadata.estimatedCharacters,
+        modelId: synthesis.providerModelId,
+        language,
       });
       buffers.push(synthesis.audioBuffer);
       durations.push(synthesis.durationSeconds);

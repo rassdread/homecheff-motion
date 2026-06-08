@@ -5,7 +5,10 @@
 import { prisma } from "@/lib/prisma";
 import { createCustomerBillingEvent } from "@/server/billing/customer-billing-events";
 import type { VideoRenderType } from "@/server/billing/video-pricing-config";
-import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
+import {
+  COST_ACTION,
+  INSTRUMENTATION_ONLY_ACTIONS,
+} from "@/server/provider-cost/cost-event-types";
 
 function mapRenderType(
   actionType: string,
@@ -60,6 +63,10 @@ export async function syncCustomerBillingFromCostEvent(
   });
 
   if (!event?.userId) {
+    return;
+  }
+
+  if (INSTRUMENTATION_ONLY_ACTIONS.has(event.actionType as (typeof COST_ACTION)[keyof typeof COST_ACTION])) {
     return;
   }
 

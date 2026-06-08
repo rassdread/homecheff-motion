@@ -232,6 +232,8 @@ export type RecordCostEventInput = {
   needsReview?: boolean;
   estimateReason?: string | null;
   metadataJson?: Prisma.InputJsonValue;
+  /** Studio instrumentation — do not create CustomerBillingEvent. */
+  skipBillingSync?: boolean;
 };
 
 /** One-shot cost event (no balance delta — e.g. OCR, storage, internal merge). */
@@ -266,9 +268,11 @@ export async function recordCostEvent(input: RecordCostEventInput): Promise<void
     },
   });
 
-  await syncCustomerBillingFromCostEvent(row.id).catch((err) => {
-    console.error("[billing] syncCustomerBillingFromCostEvent", err);
-  });
+  if (!input.skipBillingSync) {
+    await syncCustomerBillingFromCostEvent(row.id).catch((err) => {
+      console.error("[billing] syncCustomerBillingFromCostEvent", err);
+    });
+  }
 }
 
 /** Vidu render — begin cost event alongside usage log. */

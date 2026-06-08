@@ -32,4 +32,12 @@ export type ProjectVideoCostSummary = {
   exactCostUsd?: number;
   estimatedCostUsd?: number;
   providerEvents?: ProjectVideoCostProviderEvent[];
+  /** Admin-only — OpenAI / ElevenLabs / Vidu / storage breakdown */
+  costByProviderUsd?: {
+    openai: number;
+    elevenlabs: number;
+    vidu: number;
+    storage: number;
+    other: number;
+  };
 };

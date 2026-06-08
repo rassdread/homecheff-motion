@@ -12,6 +12,7 @@ import { validateVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref
 import { selectVoiceProvider } from "@/server/studio/voice/voice-provider";
 import { uploadStoryboardVoiceAudio } from "@/server/studio/studio-voice-blob";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
+import { meterElevenLabsTts } from "@/server/provider-cost/studio-cost-metering";
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
@@ -106,6 +107,22 @@ export async function synthesizeCharacterVoicePreview(
       request,
       voiceProfile,
       voiceLanguage: language,
+    });
+    const isDraft = input.storageStoryboardId.startsWith("character-draft-");
+    meterElevenLabsTts({
+      ctx: {
+        userId: input.ownerId,
+        storyboardId: input.storageStoryboardId,
+        feature: isDraft ? "voice_preview_draft" : "voice_preview_character",
+        relatedJobId: input.storageAssetId,
+      },
+      status: "completed",
+      providerId: synthesis.provider,
+      voiceId: synthesis.providerVoiceId,
+      characterCount: request.metadata.estimatedCharacters,
+      modelId: synthesis.providerModelId,
+      language,
+      previewText: script,
     });
     const contentType = synthesis.provider === "mock" ? "audio/wav" : "audio/mpeg";
     const uploaded = await uploadStoryboardVoiceAudio({

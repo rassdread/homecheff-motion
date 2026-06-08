@@ -1,4 +1,9 @@
 import { CREDIT_USD } from "@/lib/animation-presets";
+import {
+  ELEVENLABS_VOICE_CLONE_ESTIMATE_USD,
+  OPENAI_DALLE3_IMAGE_USD,
+  OPENAI_VISION_BASE_USD,
+} from "@/lib/studio-cost-estimates";
 import { OPENAI_OCR_ESTIMATE_USD, INTERNAL_MERGE_ESTIMATE_USD } from "@/server/admin/render-analytics-cost";
 import { BLOB_STORAGE_USD_PER_GB_MONTH_DEFAULT } from "@/lib/blob-storage-pricing";
 
@@ -6,6 +11,13 @@ import { BLOB_STORAGE_USD_PER_GB_MONTH_DEFAULT } from "@/lib/blob-storage-pricin
 export const COST_ACTION = {
   VIDU_RENDER: "vidu_render",
   OPENAI_OCR: "openai_ocr",
+  OPENAI_SCENE_IMAGE: "openai_scene_image",
+  OPENAI_VISION: "openai_vision",
+  OPENAI_CHARACTER_ANALYSIS: "openai_character_analysis",
+  OPENAI_TRANSLATION: "openai_translation",
+  ELEVENLABS_TTS: "elevenlabs_tts",
+  ELEVENLABS_STT: "elevenlabs_stt",
+  ELEVENLABS_CLONE: "elevenlabs_clone",
   TEXT_RERENDER: "text_rerender",
   LANGUAGE_EXPORT: "language_export",
   VIDEO_EXPORT: "video_export",
@@ -14,6 +26,17 @@ export const COST_ACTION = {
 } as const;
 
 export type CostActionType = (typeof COST_ACTION)[keyof typeof COST_ACTION];
+
+/** Studio instrumentation events — never sync to CustomerBillingEvent. */
+export const INSTRUMENTATION_ONLY_ACTIONS: ReadonlySet<CostActionType> = new Set([
+  COST_ACTION.OPENAI_SCENE_IMAGE,
+  COST_ACTION.OPENAI_VISION,
+  COST_ACTION.OPENAI_CHARACTER_ANALYSIS,
+  COST_ACTION.OPENAI_TRANSLATION,
+  COST_ACTION.ELEVENLABS_TTS,
+  COST_ACTION.ELEVENLABS_STT,
+  COST_ACTION.ELEVENLABS_CLONE,
+]);
 
 export const COST_UNIT = {
   CREDITS: "credits",
@@ -33,6 +56,10 @@ export type CostUnitType = (typeof COST_UNIT)[keyof typeof COST_UNIT];
 export const UNIT_COST_USD: Record<string, number> = {
   vidu_credit: CREDIT_USD,
   openai_ocr_call: OPENAI_OCR_ESTIMATE_USD,
+  openai_scene_image: OPENAI_DALLE3_IMAGE_USD,
+  openai_vision_call: OPENAI_VISION_BASE_USD,
+  openai_character_analysis_call: OPENAI_VISION_BASE_USD,
+  elevenlabs_clone_call: ELEVENLABS_VOICE_CLONE_ESTIMATE_USD,
   internal_merge: INTERNAL_MERGE_ESTIMATE_USD,
   language_export: 0,
   text_rerender: 0,

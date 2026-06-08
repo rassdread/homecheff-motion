@@ -17,6 +17,10 @@ import { studioStoryboardViewerCanModify } from "@/server/studio/studio-storyboa
 import type { SessionUser } from "@/server/auth/session";
 import type { VisionConsistencyReport, StoryboardVisionReport } from "@/types/studio-vision-consistency";
 import type { StudioSceneImageListItem } from "@/types/studio-scene-image";
+import {
+  meterOpenAiVision,
+  type StudioMeteringContext,
+} from "@/server/provider-cost/studio-cost-metering";
 
 export type ServiceError = {
   code: string;
@@ -79,15 +83,43 @@ export async function analyzeSceneImageVision(params: {
   imageUrl: string;
   thumbnailUrl: string;
   generatedPrompt: string;
+  metering?: StudioMeteringContext;
 }): Promise<VisionConsistencyReport> {
   const provider = getStudioVisionProvider();
-  const raw = await provider.analyzeImage(
-    buildVisionInput(params.scene, {
-      imageUrl: params.imageUrl,
-      thumbnailUrl: params.thumbnailUrl,
-      generatedPrompt: params.generatedPrompt,
-    })
-  );
+  const visionInput = buildVisionInput(params.scene, {
+    imageUrl: params.imageUrl,
+    thumbnailUrl: params.thumbnailUrl,
+    generatedPrompt: params.generatedPrompt,
+  });
+  const refImageCount =
+    1 +
+    visionInput.references.characters.filter((c) => c.referenceImageUrl).length +
+    (visionInput.references.location?.referenceImageUrl ? 1 : 0) +
+    visionInput.references.props.filter((p) => p.referenceImageUrl).length;
+  let raw;
+  try {
+    raw = await provider.analyzeImage(visionInput);
+    if (params.metering) {
+      meterOpenAiVision({
+        ctx: params.metering,
+        status: "completed",
+        imageCount: Math.min(refImageCount, 5),
+        providerId: provider.id,
+        relatedJobId: params.metering.relatedJobId ?? undefined,
+      });
+    }
+  } catch (err) {
+    if (params.metering) {
+      meterOpenAiVision({
+        ctx: params.metering,
+        status: "failed",
+        imageCount: Math.min(refImageCount, 5),
+        providerId: provider.id,
+        relatedJobId: params.metering.relatedJobId ?? undefined,
+      });
+    }
+    throw err;
+  }
   const memoryBundle = buildSceneMemoryBundleFromSceneRow({
     characters: params.scene.characters,
     location: params.scene.location,
@@ -163,6 +195,13 @@ export async function analyzeAndPersistSceneImageVision(
       imageUrl: image.imageUrl,
       thumbnailUrl: image.thumbnailUrl,
       generatedPrompt: image.generatedPrompt,
+      metering: {
+        userId: viewer.id,
+        storyboardId,
+        sceneId,
+        feature: "vision_scene_qa",
+        relatedJobId: imageId,
+      },
     });
     const updated = await persistSceneImageVision(imageId, report);
     return { image: updated, report };
@@ -235,6 +274,13 @@ export async function analyzeStoryboardVision(
         imageUrl: target.imageUrl,
         thumbnailUrl: target.thumbnailUrl,
         generatedPrompt: target.generatedPrompt,
+        metering: {
+          userId: viewer.id,
+          storyboardId,
+          sceneId: scene.id,
+          feature: "vision_storyboard",
+          relatedJobId: target.imageId,
+        },
       });
       const image = await persistSceneImageVision(target.imageId, report);
       updatedImages.push(image);

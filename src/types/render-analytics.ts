@@ -1,6 +1,7 @@
 /** Admin render / cost analytics — credit-based: totalCostUsd = creditsUsed × 0.005 */
 
 import type { AdminProjectDisplay } from "@/types/admin-project-display";
+import type { StudioCostAnalytics } from "@/server/admin/studio-cost-analytics";
 import type { CreditAccuracy } from "@/server/provider-usage/credit-cost";
 
 export type CostEstimateMeta = {
@@ -417,6 +418,7 @@ export type RenderAnalyticsReport = {
   };
   sqlQueriesUsed: string[];
   videoCosts: VideoCostAnalytics;
+  studioCosts: StudioCostAnalytics;
   billing: BillingAnalytics;
   customerBillingRows: CustomerBillingEventRow[];
 };

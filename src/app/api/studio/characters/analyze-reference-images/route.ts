@@ -4,6 +4,7 @@ import { buildCharacterIdentityPrefillFromPrompt } from "@/lib/studio-character-
 import { mergeCharacterIdentityPrefills } from "@/lib/studio-character-identity-prefill-merge";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { analyzeCharacterReferenceImagesWithOpenAi } from "@/server/studio/analyze-character-reference-images";
+import { meterOpenAiCharacterAnalysis } from "@/server/provider-cost/studio-cost-metering";
 import type { CharacterIdentityImagePrefillInput } from "@/types/studio-character-identity-image-prefill";
 
 export async function POST(request: Request) {
@@ -41,6 +42,10 @@ export async function POST(request: Request) {
   const locale = body.locale ?? "en";
 
   try {
+    const model =
+      process.env.OPENAI_CHARACTER_IDENTITY_MODEL?.trim() ||
+      process.env.OPENAI_VISION_MODEL?.trim() ||
+      "gpt-4o-mini";
     const analysis = await analyzeCharacterReferenceImagesWithOpenAi(
       {
         imageUrls,
@@ -50,6 +55,16 @@ export async function POST(request: Request) {
       },
       apiKey
     );
+
+    meterOpenAiCharacterAnalysis({
+      ctx: {
+        userId: user.id,
+        feature: "character_reference_analysis",
+      },
+      status: "completed",
+      imageCount: imageUrls.length,
+      model,
+    });
 
     const imageResult = buildCharacterIdentityPrefillFromImages({
       analysis,

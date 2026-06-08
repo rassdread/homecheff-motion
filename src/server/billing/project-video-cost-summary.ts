@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/prisma";
 import {
+  COST_ACTION,
   resolveCostAccuracy,
   type CostAccuracy,
 } from "@/server/provider-cost/cost-event-types";
@@ -38,10 +39,43 @@ export async function loadProjectVideoCostSummary(params: {
   let exactCostUsd = 0;
   let estimatedCostUsd = 0;
   let pendingCount = 0;
+  const costByProviderUsd = {
+    openai: 0,
+    elevenlabs: 0,
+    vidu: 0,
+    storage: 0,
+    other: 0,
+  };
+
+  const openAiActions = new Set<string>([
+    COST_ACTION.OPENAI_OCR,
+    COST_ACTION.OPENAI_SCENE_IMAGE,
+    COST_ACTION.OPENAI_VISION,
+    COST_ACTION.OPENAI_CHARACTER_ANALYSIS,
+    COST_ACTION.OPENAI_TRANSLATION,
+  ]);
+  const elevenActions = new Set<string>([
+    COST_ACTION.ELEVENLABS_TTS,
+    COST_ACTION.ELEVENLABS_STT,
+    COST_ACTION.ELEVENLABS_CLONE,
+  ]);
 
   for (const e of costEvents) {
     const units = e.unitsUsed ?? 0;
     const cost = e.internalCostUsd ?? e.totalCostUsd ?? 0;
+    if (params.isAdmin) {
+      if (openAiActions.has(e.actionType)) {
+        costByProviderUsd.openai += cost;
+      } else if (elevenActions.has(e.actionType)) {
+        costByProviderUsd.elevenlabs += cost;
+      } else if (e.actionType === COST_ACTION.VIDU_RENDER) {
+        costByProviderUsd.vidu += cost;
+      } else if (e.actionType === COST_ACTION.STORAGE_UPLOAD || e.provider === "vercel_blob") {
+        costByProviderUsd.storage += cost;
+      } else {
+        costByProviderUsd.other += cost;
+      }
+    }
     if (e.unitType === "credits" && units > 0) {
       creditsUsed += units;
     }
@@ -113,6 +147,13 @@ export async function loadProjectVideoCostSummary(params: {
     summary.marginPercent = marginPercent;
     summary.exactCostUsd = Math.round(exactCostUsd * 10000) / 10000;
     summary.estimatedCostUsd = Math.round(estimatedCostUsd * 10000) / 10000;
+    summary.costByProviderUsd = {
+      openai: Math.round(costByProviderUsd.openai * 10000) / 10000,
+      elevenlabs: Math.round(costByProviderUsd.elevenlabs * 10000) / 10000,
+      vidu: Math.round(costByProviderUsd.vidu * 10000) / 10000,
+      storage: Math.round(costByProviderUsd.storage * 10000) / 10000,
+      other: Math.round(costByProviderUsd.other * 10000) / 10000,
+    };
     summary.providerEvents = costEvents.slice(0, 20).map((e) => ({
       id: e.id,
       provider: e.provider,

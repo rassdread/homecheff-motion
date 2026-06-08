@@ -44,6 +44,10 @@ import type {
 } from "@/types/studio-scene-image";
 import { PROMPT_BUILDER_VERSION } from "@/types/studio-prompt-builder";
 import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob";
+import {
+  meterOpenAiSceneImage,
+  type StudioCostFeature,
+} from "@/server/provider-cost/studio-cost-metering";
 
 const SCENE_FOR_IMAGE_INCLUDE = {
   storyboard: true,
@@ -134,6 +138,7 @@ async function runSceneImageGeneration(params: {
   imageRowId: string;
   scene: SceneForImageRow;
   overrides?: SceneImageGenerationOverrides;
+  costFeature?: StudioCostFeature;
 }): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   const styleProfile = normalizeStudioPromptStyleProfile(params.scene.storyboard.promptStyleProfile);
   const snapshot = toSceneSnapshot(params.scene);
@@ -194,11 +199,29 @@ async function runSceneImageGeneration(params: {
 
   try {
     const provider = getSceneImageProvider();
+    const costFeature = params.costFeature ?? "scene_image_generate";
+    const meteringCtx = {
+      userId: params.scene.storyboard.ownerId,
+      storyboardId: params.scene.storyboardId,
+      sceneId: params.scene.id,
+      feature: costFeature,
+      relatedJobId: params.imageRowId,
+    };
     const result = await provider.generate({
       prompt: fullPrompt,
       sceneId: params.scene.id,
       imageRecordId: params.imageRowId,
       ownerId: params.scene.storyboard.ownerId,
+    });
+
+    meterOpenAiSceneImage({
+      ctx: meteringCtx,
+      status: "completed",
+      imageCount: 1,
+      model: result.model,
+      size: result.size,
+      imageRecordId: params.imageRowId,
+      providerId: result.provider,
     });
 
     const thumbContentType = result.thumbnailBuffer === result.imageBuffer
@@ -248,6 +271,13 @@ async function runSceneImageGeneration(params: {
         imageUrl: completed.imageUrl,
         thumbnailUrl: completed.thumbnailUrl,
         generatedPrompt: completed.generatedPrompt,
+        metering: {
+          userId: params.scene.storyboard.ownerId,
+          storyboardId: params.scene.storyboardId,
+          sceneId: params.scene.id,
+          feature: "vision_scene_qa",
+          relatedJobId: completed.id,
+        },
       });
       await persistSceneImageVision(completed.id, visionReport);
     } catch {
@@ -286,6 +316,18 @@ async function runSceneImageGeneration(params: {
     });
     return { image: finalRow ? mapStudioSceneImageToListItem(finalRow) : withConsistency };
   } catch (err) {
+    meterOpenAiSceneImage({
+      ctx: {
+        userId: params.scene.storyboard.ownerId,
+        storyboardId: params.scene.storyboardId,
+        sceneId: params.scene.id,
+        feature: params.costFeature ?? "scene_image_generate",
+        relatedJobId: params.imageRowId,
+      },
+      status: "failed",
+      imageRecordId: params.imageRowId,
+      providerId: getSelectedSceneImageProviderId(),
+    });
     await prisma.studioSceneImage.update({
       where: { id: params.imageRowId },
       data: { status: "failed" },
@@ -300,7 +342,8 @@ async function runSceneImageGeneration(params: {
 export async function generateStudioSceneImage(
   storyboardId: string,
   sceneId: string,
-  viewer: Pick<SessionUser, "id" | "role">
+  viewer: Pick<SessionUser, "id" | "role">,
+  options?: { costFeature?: StudioCostFeature }
 ): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   const loaded = await loadSceneForImage(storyboardId, sceneId, viewer);
   if ("error" in loaded) {
@@ -318,7 +361,11 @@ export async function generateStudioSceneImage(
     },
   });
 
-  return runSceneImageGeneration({ imageRowId: queued.id, scene: loaded.scene });
+  return runSceneImageGeneration({
+    imageRowId: queued.id,
+    scene: loaded.scene,
+    costFeature: options?.costFeature ?? "scene_image_generate",
+  });
 }
 
 export async function regenerateStudioSceneImage(
@@ -326,7 +373,9 @@ export async function regenerateStudioSceneImage(
   sceneId: string,
   viewer: Pick<SessionUser, "id" | "role">
 ): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
-  return generateStudioSceneImage(storyboardId, sceneId, viewer);
+  return generateStudioSceneImage(storyboardId, sceneId, viewer, {
+    costFeature: "scene_image_regenerate",
+  });
 }
 
 export async function regenerateStudioSceneImageWithCorrections(
@@ -397,6 +446,7 @@ export async function regenerateStudioSceneImageWithCorrections(
   const gen = await runSceneImageGeneration({
     imageRowId: queued.id,
     scene: loaded.scene,
+    costFeature: "scene_image_regenerate_corrections",
     overrides: {
       fullPrompt: bundle.correctedPrompt,
       correctedPrompt: bundle.correctedPrompt,
@@ -561,7 +611,11 @@ export async function bulkGenerateStudioStoryboardSceneImages(
       },
     });
 
-    const gen = await runSceneImageGeneration({ imageRowId: queued.id, scene });
+    const gen = await runSceneImageGeneration({
+      imageRowId: queued.id,
+      scene,
+      costFeature: "scene_image_bulk",
+    });
     if ("error" in gen) {
       results.push({
         sceneId: scene.id,

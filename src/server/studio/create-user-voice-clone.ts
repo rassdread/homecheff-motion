@@ -10,6 +10,7 @@ import { generateCharacterVoicePreviewDraft } from "@/server/studio/generate-cha
 import { mapStudioCharacterToDetail } from "@/server/studio/studio-character-service";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
 import type { SessionUser } from "@/server/auth/session";
+import { meterElevenLabsClone } from "@/server/provider-cost/studio-cost-metering";
 
 function serviceError(code: string, message: string, httpStatus: number): ServiceError {
   return { code, message, httpStatus };
@@ -105,6 +106,17 @@ export async function createUserVoiceClone(params: {
   if (!cloneId) {
     return { error: serviceError("CLONE_FAILED", "Voice clone did not return a valid id.", 502) };
   }
+
+  meterElevenLabsClone({
+    ctx: {
+      userId: ownerId,
+      feature: "voice_clone",
+      relatedJobId: cloneId,
+    },
+    status: "completed",
+    providerId: provider.id,
+    providerVoiceId: cloneId,
+  });
 
   let previewAudioUrl: string | null = null;
   let previewDurationSeconds: number | null = null;

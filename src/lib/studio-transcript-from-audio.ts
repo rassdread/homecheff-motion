@@ -4,6 +4,7 @@ import {
 } from "@/lib/studio-subtitle-track";
 import { selectSttProvider, type SttProviderId } from "@/server/studio/speech/stt-provider";
 import { prisma } from "@/lib/prisma";
+import { meterElevenLabsStt } from "@/server/provider-cost/studio-cost-metering";
 import type { SubtitleTrackEntry } from "@/types/studio-voice-execution";
 
 export type TranscriptFromAudioResult = {
@@ -23,6 +24,7 @@ export async function transcribeAudioUrlToSubtitleTrack(params: {
   durationHintSeconds?: number;
   fallbackScript?: string;
   forceProvider?: SttProviderId;
+  ownerId?: string;
 }): Promise<TranscriptFromAudioResult> {
   const provider = selectSttProvider(params.forceProvider);
   const transcript = await provider.transcribe({
@@ -38,6 +40,20 @@ export async function transcribeAudioUrlToSubtitleTrack(params: {
       start: 0,
       end: Math.max(0.5, transcript.durationSeconds),
       text: transcript.text.trim(),
+    });
+  }
+
+  if (params.ownerId) {
+    meterElevenLabsStt({
+      ctx: {
+        userId: params.ownerId,
+        storyboardId: params.storyboardId,
+        feature: "voice_transcribe",
+      },
+      status: "completed",
+      providerId: provider.id,
+      durationSeconds: transcript.durationSeconds,
+      modelId: transcript.modelId,
     });
   }
 

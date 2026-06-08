@@ -19,6 +19,7 @@ import { isInstantPremiumExportCompleted } from "@/lib/instant-premium-export-st
 import { LANGUAGE_EXPORT_NO_LAYERS } from "@/lib/language-export-prepare";
 import { buildLanguageExportPreviews } from "@/lib/language-export-prepare";
 import { translateLanguageTextLayers } from "@/lib/translate-language-text";
+import { meterOpenAiTranslation } from "@/server/provider-cost/studio-cost-metering";
 import {
   isLanguageExportCode,
   languageExportLabel,
@@ -128,6 +129,22 @@ export async function prepareLanguageTextLayers(params: {
     });
     layers = translated.layers;
     translationProvider = translated.provider;
+    if (translated.provider === "openai" && !translated.translationFailed) {
+      const tokenEstimate = Math.max(
+        1,
+        Math.round(translated.translationCostEstimate / 0.000002)
+      );
+      meterOpenAiTranslation({
+        ctx: {
+          userId: project.ownerId,
+          projectId: params.projectId,
+          feature: "language_translation",
+        },
+        status: "completed",
+        tokenCount: tokenEstimate,
+        projectId: params.projectId,
+      });
+    }
     if (translated.translationFailed) {
       translationFailed = true;
       translationMessage =

@@ -60,6 +60,7 @@ export async function generateStoryboardTranscript(params: {
       durationHintSeconds: voice.durationSeconds,
       fallbackScript: storyboard.voiceNarrationScript?.trim() || undefined,
       forceProvider: params.forceProvider,
+      ownerId: params.viewer.id,
     });
     return { ok: true, data: result };
   } catch (err) {
