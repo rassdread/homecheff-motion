@@ -54,4 +54,39 @@ describe("asset reference generate path", () => {
       })
     );
   });
+
+  it("uses /v1/images/edits when transform intent and source image are provided", async () => {
+    let requestUrl = "";
+    let usedFormData = false;
+    globalThis.fetch = mock.fn(async (url, init) => {
+      requestUrl = String(url);
+      usedFormData = init?.body instanceof FormData;
+      if (String(url).includes("example.com")) {
+        return new Response(Buffer.from("fakepng"), {
+          status: 200,
+          headers: { "Content-Type": "image/png" },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          data: [{ b64_json: Buffer.from("fakepng").toString("base64") }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    const result = await generateImageBuffersFromPrompt({
+      prompt: "Transform Globe Man into Chef — same mascot, chef outfit only.",
+      correlationId: "asset-ref-edit-1",
+      ownerId: "user-1",
+      logRoute: "/api/studio/asset-references/generate",
+      sourceImageUrl: "https://example.com/globe.png",
+      generationIntent: "TRANSFORM_EXISTING_ASSET",
+      identityLockLevel: 2,
+    });
+
+    assert.match(requestUrl, /\/v1\/images\/edits$/);
+    assert.equal(usedFormData, true);
+    assert.equal(result.generationMode, "image_edit");
+  });
 });

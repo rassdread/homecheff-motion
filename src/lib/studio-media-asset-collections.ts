@@ -168,6 +168,7 @@ export function buildBrandAssetRegistryEntries(): import("@/types/studio-media-a
     tags: b.tags,
     owner: "system",
     source: "system" as const,
+    visibility: "admin_only" as const,
     status: "active" as const,
     createdAt: now,
     updatedAt: now,

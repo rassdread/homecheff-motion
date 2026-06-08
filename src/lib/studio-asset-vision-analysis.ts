@@ -15,6 +15,7 @@ import {
   buildCharacterVariantChangeRules,
   buildCharacterVariantPreserveRules,
   buildIdentityFingerprintFromVision,
+  applyKnownBrandDefaults,
   inferAssetFamily,
   inferBrandIdentityFromContext,
   normalizeCharacterLineage,
@@ -264,7 +265,7 @@ export function mapVisionJsonToAnalysis(
       ? buildCharacterVariantPreserveRules(baseAnalysis)
       : baseAnalysis.suggestedPreserve;
 
-  return {
+  const withFingerprint: AssetVisionAnalysis = {
     ...baseAnalysis,
     suggestedPreserve: preserve,
     suggestedForbidden: forbidden,
@@ -273,6 +274,8 @@ export function mapVisionJsonToAnalysis(
       json
     ),
   };
+
+  return applyKnownBrandDefaults(withFingerprint, context);
 }
 
 export function mapVisionAnalysisToStyleDna(vision: AssetVisionAnalysis): AssetStyleDna {

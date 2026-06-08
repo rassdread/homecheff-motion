@@ -43,7 +43,13 @@ export async function POST(request: Request) {
       name: string;
       imageUrl?: string;
       transformLabel?: string;
+      userPrompt?: string;
+      preserveHint?: string;
+      changeHint?: string;
+      forbiddenHint?: string;
+      visionHint?: string;
     };
+    identityAudit?: import("@/types/studio-asset-identity-generation-audit").AssetIdentityGenerationAudit;
   };
 
   try {
@@ -71,6 +77,9 @@ export async function POST(request: Request) {
       envOpenAiImageModel: process.env.OPENAI_IMAGE_MODEL?.trim() ?? null,
       generationId: body.generationId ?? null,
       kind,
+      hasSourceImage: Boolean(body.sourceReference?.imageUrl?.trim()),
+      sourceImageUrl: body.sourceReference?.imageUrl ?? null,
+      identityAudit: body.identityAudit ?? null,
     })
   );
 
@@ -82,6 +91,7 @@ export async function POST(request: Request) {
     generationId: body.generationId ?? "",
     sourceReference: body.sourceReference,
     derivation: body.derivation,
+    identityAudit: body.identityAudit,
   });
 
   if ("error" in result) {

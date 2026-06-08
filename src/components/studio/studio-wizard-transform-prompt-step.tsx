@@ -5,6 +5,8 @@ import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wi
 import { useActiveTranslator } from "@/i18n/client";
 import { fetchAssetReferenceGenerationStatus } from "@/lib/studio-asset-reference-client";
 import { formatVisionColorsForDisplay } from "@/lib/studio-asset-vision-analysis";
+import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
   draftPatchForGenerationFailure,
@@ -77,6 +79,7 @@ export function StudioWizardTransformPromptStep({
   onBack,
 }: Props) {
   const t = useActiveTranslator();
+  const session = useAuthSession();
   const [generationAvailable, setGenerationAvailable] = useState<boolean | null>(null);
   const [generating, setGenerating] = useState(false);
   const [providerDebugError, setProviderDebugError] = useState("");
@@ -351,6 +354,12 @@ export function StudioWizardTransformPromptStep({
         </dl>
         <p className="mt-3 rounded-lg bg-white p-3 text-xs leading-relaxed text-zinc-600">{preview.compactPrompt}</p>
       </div>
+
+      <StudioWizardIdentityDebugPanel
+        draft={draft}
+        preview={preview}
+        showFullPrompt={session.user?.role === "admin"}
+      />
 
       {generationAvailable === false ?
         <p className="text-sm text-amber-700">{t("studio.assetCreation.reference.generateUnavailable")}</p>

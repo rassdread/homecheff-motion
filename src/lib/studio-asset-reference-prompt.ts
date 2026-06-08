@@ -23,6 +23,24 @@ export type AssetReferencePromptInput = {
 /** Build DALL-E prompt from wizard summary + kind-specific framing (reuses summary, no second builder). */
 export function buildAssetReferenceGenerationPrompt(input: AssetReferencePromptInput): string {
   const summary = input.summaryPrompt.trim();
+  const sourceRef = input.sourceReference;
+  const isSourceTransform =
+    Boolean(sourceRef?.name.trim()) &&
+    summary.includes("TRANSFORM THE EXISTING SOURCE CHARACTER");
+
+  if (isSourceTransform) {
+    if (input.kind === "character") {
+      return [
+        summary,
+        "Character reference portrait. Same mascot identity as source — outfit/role variant only. Centered subject, clean simple background.",
+        NO_TEXT_SUFFIX,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+    }
+    return [summary, NO_TEXT_SUFFIX].filter(Boolean).join("\n\n");
+  }
+
   const fields = applyWizardChoicesToFields(
     input.kind,
     input.choices ?? {},
@@ -87,7 +105,7 @@ function sourceReferenceBlock(
       `Transform the existing "${sourceReference.name}" into a ${transform} version — same asset family and identity, not a new character.`
     : userPrompt ?
       `Use the uploaded source "${sourceReference.name}" as the style base: ${userPrompt}.`
-    : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
+    : `Transform the existing "${sourceReference.name}" — preserve identity; do not create a new character.`;
   const lines = [
     `SOURCE IMAGE FIDELITY (highest priority): Match "${sourceReference.name}" exactly.`,
     vision,

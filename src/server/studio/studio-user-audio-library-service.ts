@@ -6,6 +6,7 @@ import {
   listUserAudioLibraryAssets,
   uploadUserAudioLibraryAsset,
 } from "@/server/studio/studio-user-audio-library-blob";
+import { registerUserLibraryUpload } from "@/server/studio/studio-user-upload-library-blob";
 import type { SessionUser } from "@/server/auth/session";
 import type { ServiceError } from "@/server/studio/studio-storyboard-service";
 import type {
@@ -73,6 +74,21 @@ export async function uploadOwnerAudioLibraryAsset(params: {
         validation.extension
       ),
     });
+
+    try {
+      await registerUserLibraryUpload({
+        ownerId: params.ownerId,
+        assetType: params.kind === "music" ? "music" : "sound",
+        mimeType: validation.contentType,
+        fileName: params.fileName?.trim() || `${params.name}.${validation.extension}`,
+        storageKey: asset.storageKey,
+        publicUrl: asset.audioUrl,
+        originContext: "audio_library",
+      });
+    } catch {
+      // Library manifest is best-effort; audio asset manifest remains authoritative.
+    }
+
     return { ok: true, asset };
   } catch {
     return {

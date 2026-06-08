@@ -1,18 +1,27 @@
 import { createHash } from "node:crypto";
+import { resolveAssetGenerationIntent } from "@/lib/studio-asset-generation-intent";
 import { buildAssetReferenceGenerationPrompt } from "@/lib/studio-asset-reference-prompt";
 import { buildDerivationReferenceGenerationPrompt } from "@/lib/studio-asset-derivation-prompt";
 import { presentAssetReferenceGenerationError } from "@/lib/studio-asset-reference-errors";
+import { resolveIdentityLockLevel } from "@/lib/studio-asset-identity-preservation";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import { isSceneImageProviderAvailable } from "@/lib/studio-regeneration-guard";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioAssetReferenceBuffers } from "@/server/studio/studio-asset-reference-blob";
 import { generateImageBuffersFromPrompt } from "@/server/studio/studio-image-generation-core";
-import { logOpenAiImageGenerationRequest, resolveOpenAiImageModel } from "@/lib/openai-image-generation";
+import {
+  logOpenAiImageGenerationRequest,
+  openAiImageModelSupportsEdit,
+  resolveOpenAiImageEditModel,
+  resolveOpenAiImageModel,
+} from "@/lib/openai-image-generation";
 import {
   meterAssetDerivation,
   meterOpenAiSceneImage,
   type StudioMeteringContext,
 } from "@/server/provider-cost/studio-cost-metering";
+import type { AssetIdentityGenerationAudit } from "@/types/studio-asset-identity-generation-audit";
+import type { AssetImageGenerationMode } from "@/types/studio-asset-image-generation";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 import type { SessionUser } from "@/server/auth/session";
 
@@ -38,6 +47,7 @@ export type GenerateAssetReferenceInput = {
     sourceKind: string;
     sourceAssetId?: string | null;
   };
+  identityAudit?: AssetIdentityGenerationAudit;
 };
 
 export type GenerateAssetReferenceResult = {
@@ -46,6 +56,8 @@ export type GenerateAssetReferenceResult = {
   thumbnailUrl: string;
   generatedPrompt: string;
   provider: string;
+  generationMode?: AssetImageGenerationMode;
+  generationIntent?: import("@/types/studio-asset-image-generation").AssetGenerationIntent;
 };
 
 type ServiceError = {
@@ -100,6 +112,7 @@ export async function generateAssetReference(
   const sourceRef = input.sourceReference?.name.trim()
     ? {
         name: input.sourceReference.name.trim(),
+        imageUrl: input.sourceReference.imageUrl?.trim(),
         transformLabel: input.sourceReference.transformLabel?.trim(),
         userPrompt: input.sourceReference.userPrompt?.trim(),
         preserveHint: input.sourceReference.preserveHint?.trim(),
@@ -131,6 +144,44 @@ export async function generateAssetReference(
         sourceReference: sourceRef,
       });
 
+  const generationIntent = resolveAssetGenerationIntent({
+    sourceImageUrl: sourceRef?.imageUrl ?? input.identityAudit?.sourceImageUrl,
+    derivationSourceAssetId: input.derivation?.sourceAssetId,
+  });
+  const identityLockLevel = resolveIdentityLockLevel({
+    strictRegeneration: input.identityAudit?.strictRegeneration,
+    identityLockLevel: input.identityAudit?.identityLockLevel,
+  });
+  const sourceImageUrl = sourceRef?.imageUrl ?? input.identityAudit?.sourceImageUrl ?? undefined;
+  const willUseImageEdit =
+    generationIntent === "TRANSFORM_EXISTING_ASSET" &&
+    Boolean(sourceImageUrl?.trim()) &&
+    openAiImageModelSupportsEdit(resolveOpenAiImageEditModel());
+
+  console.info(
+    "[asset-references/generate:identity-audit]",
+    JSON.stringify({
+      generationId,
+      kind: input.kind,
+      generationIntent,
+      identityLockLevel,
+      imageGenerationMode: willUseImageEdit ? "image_edit" : "text_to_image",
+      hasSourceImage: input.identityAudit?.hasSourceImage ?? Boolean(sourceImageUrl),
+      sourceImageUrl: sourceImageUrl ?? null,
+      brandIdentity: input.identityAudit?.brandIdentity ?? null,
+      assetFamily: input.identityAudit?.assetFamily ?? null,
+      characterLineage: input.identityAudit?.characterLineage ?? null,
+      identityFingerprintHash: input.identityAudit?.identityFingerprintHash ?? null,
+      preserveRules: input.identityAudit?.preserveRules ?? sourceRef?.preserveHint ?? null,
+      changeRules: input.identityAudit?.changeRules ?? sourceRef?.changeHint ?? null,
+      forbiddenRules: input.identityAudit?.forbiddenRules ?? sourceRef?.forbiddenHint ?? null,
+      strictRegeneration: input.identityAudit?.strictRegeneration ?? false,
+      finalPromptLength: generatedPrompt.length,
+      finalPromptExcerpt: generatedPrompt.slice(0, 1200),
+      finalPrompt: generatedPrompt,
+    })
+  );
+
   const meteringCtx: StudioMeteringContext = {
     userId: viewer.id,
     feature: input.derivation ? "asset_derivation" : "asset_reference_generate",
@@ -159,6 +210,9 @@ export async function generateAssetReference(
       ownerId: viewer.id,
       seed: promptSeed(generatedPrompt, generationId),
       logRoute: "/api/studio/asset-references/generate",
+      sourceImageUrl,
+      generationIntent,
+      identityLockLevel,
     });
 
     const uploaded = await uploadStudioAssetReferenceBuffers({
@@ -207,6 +261,8 @@ export async function generateAssetReference(
         thumbnailUrl: uploaded.thumbnailUrl,
         generatedPrompt,
         provider: buffers.provider,
+        generationMode: buffers.generationMode,
+        generationIntent,
       },
     };
   } catch (e) {

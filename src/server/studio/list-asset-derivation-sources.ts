@@ -3,16 +3,36 @@ import { parseAssetReferencesBundle } from "@/lib/studio-asset-canonical-referen
 import { listStudioCharacters } from "@/server/studio/studio-character-service";
 import { listStudioLocations } from "@/server/studio/studio-location-service";
 import { listStudioProps } from "@/server/studio/studio-prop-service";
+import { listUserLibraryUploads } from "@/server/studio/studio-user-upload-library-blob";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type { SessionUser } from "@/server/auth/session";
+import type { UserLibraryUploadAssetType } from "@/types/studio-user-upload-library";
+
+const IMAGE_UPLOAD_TYPES = new Set<UserLibraryUploadAssetType>([
+  "reference_image",
+  "source_image",
+  "character_image",
+  "prop_image",
+  "location_image",
+]);
+
+function uploadKindForAssetType(
+  assetType: UserLibraryUploadAssetType
+): AssetDerivationSourceListItem["kind"] {
+  if (assetType === "character_image") return "character";
+  if (assetType === "prop_image") return "prop";
+  if (assetType === "location_image") return "location";
+  return "character";
+}
 
 export async function listAssetDerivationSources(
   viewer: Pick<SessionUser, "id" | "role">
 ): Promise<AssetDerivationSourceListItem[]> {
-  const [characters, props, locations] = await Promise.all([
+  const [characters, props, locations, userUploads] = await Promise.all([
     listStudioCharacters(viewer),
     listStudioProps(viewer),
     listStudioLocations(viewer),
+    listUserLibraryUploads(viewer.id),
   ]);
 
   const items: AssetDerivationSourceListItem[] = [];
@@ -102,6 +122,21 @@ export async function listAssetDerivationSources(
         });
       }
     }
+  }
+
+  for (const upload of userUploads) {
+    if (!IMAGE_UPLOAD_TYPES.has(upload.assetType) || !upload.publicUrl?.trim()) {
+      continue;
+    }
+    items.push({
+      sourceType: "upload",
+      kind: uploadKindForAssetType(upload.assetType),
+      assetId: upload.id,
+      name: upload.fileName.replace(/\.[^.]+$/, "") || "Upload",
+      referenceImageUrl: upload.publicUrl,
+      referenceStorageKey: upload.storageKey,
+      thumbnailUrl: upload.thumbnailUrl ?? upload.publicUrl,
+    });
   }
 
   return items;

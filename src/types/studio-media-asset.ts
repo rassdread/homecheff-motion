@@ -19,6 +19,13 @@ export type StudioAssetSource = "system" | "user" | "imported";
 
 export type StudioAssetOrigin = "generated" | "uploaded" | "derived" | "manual" | "system";
 
+export type StudioAssetVisibility =
+  | "user_owned"
+  | "system_usable"
+  | "system_hidden"
+  | "admin_only"
+  | "placeholder";
+
 export type StudioAssetStatus = "active" | "draft" | "archived";
 
 export type StudioAssetSourceRef = {
@@ -44,6 +51,7 @@ export type StudioAsset = {
   downloadUrl?: string | null;
   storageKey?: string | null;
   origin?: StudioAssetOrigin;
+  visibility?: StudioAssetVisibility;
   isFavorite?: boolean;
   lastUsedAt?: string | null;
   generationId?: string;

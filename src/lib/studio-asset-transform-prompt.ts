@@ -3,9 +3,9 @@ import {
   buildAssetSemanticGenerationContext,
 } from "@/lib/studio-asset-semantic-generation-context";
 import {
-  buildSourceImageFidelityBlock,
-  buildVariantTransformationPromptBlock,
+  resolveEffectiveBrandIdentity,
   formatIdentityFingerprintSummary,
+  buildSourceTransformEnforcementPrompt,
 } from "@/lib/studio-asset-identity-preservation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
@@ -68,6 +68,14 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
   const forbidden = draft.sourceTransformForbidden.trim();
   const compactPrompt = buildSourceTransformSummaryPrompt(draft);
   const vision = draft.sourceVisionAnalysis;
+  const resolvedBrand = vision
+    ? resolveEffectiveBrandIdentity({
+        rawBrand: vision.brandIdentity,
+        sourceName,
+        promptText: variantLabel,
+        objectType: vision.objectType,
+      })
+    : "";
 
   return {
     sourceName,
@@ -77,7 +85,7 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
     forbidden,
     instruction,
     compactPrompt,
-    brandIdentity: vision?.brandIdentity ?? "",
+    brandIdentity: resolvedBrand || vision?.brandIdentity || "",
     assetFamily: vision?.assetFamily ?? "",
     identityFingerprintSummary: vision
       ? formatIdentityFingerprintSummary(vision.identityFingerprint)
@@ -94,37 +102,21 @@ export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): stri
     buildAssetSemanticGenerationInputFromDraft(draft)
   );
 
-  const variantBlock = buildVariantTransformationPromptBlock({
+  return buildSourceTransformEnforcementPrompt({
     sourceName,
     variantLabel,
-    brandIdentity: vision?.brandIdentity,
-    assetFamily: vision?.assetFamily,
+    vision,
+    preserveRules: preview.preserve,
+    changeRules: preview.change,
+    forbiddenRules: preview.forbidden || formatForbiddenFromVision(draft),
+    instruction: preview.instruction,
+    semanticContext: contextBlock,
+    identityFingerprintSummary: vision
+      ? formatIdentityFingerprintSummary(vision.identityFingerprint)
+      : undefined,
+    strictRegeneration: draft.variantRegenerationStrict,
+    identityLockLevel: draft.variantRegenerationStrict ? 2 : 1,
   });
-  const fidelityBlock = buildSourceImageFidelityBlock(sourceName);
-
-  const lines = [
-    fidelityBlock,
-    variantBlock,
-    contextBlock,
-    vision?.identityFingerprint
-      ? `Identity fingerprint: ${formatIdentityFingerprintSummary(vision.identityFingerprint)}.`
-      : "",
-  ].filter(Boolean);
-
-  if (preview.instruction) {
-    lines.push(`User instruction: ${preview.instruction}`);
-  }
-
-  lines.push(`Preserve: ${preview.preserve}.`);
-  lines.push(`Change: ${preview.change}.`);
-
-  const forbidden =
-    preview.forbidden ||
-    formatForbiddenFromVision(draft) ||
-    "style break, color break, redesign from scratch";
-  lines.push(`Forbidden: ${forbidden}.`);
-
-  return lines.join(" ");
 }
 
 function formatForbiddenFromVision(draft: AssetWizardDraft): string {
@@ -132,7 +124,7 @@ function formatForbiddenFromVision(draft: AssetWizardDraft): string {
   return forbidden.length ? forbidden.join(", ") : "";
 }
 
-function buildTransformPromptPreviewFields(draft: AssetWizardDraft) {
+export function buildTransformPromptPreviewFields(draft: AssetWizardDraft) {
   const source = resolveWizardSourceReference(draft);
   return {
     sourceName: source?.sourceReferenceName ?? "source image",

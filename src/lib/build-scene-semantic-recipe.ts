@@ -206,6 +206,7 @@ export function buildSceneSemanticRecipe(params: {
     crossAssetRelations: buildCrossAssetRelations({ characters, props, location, world }),
     promptLineage,
     assetFamily: characters[0]?.assetFamily ?? props[0]?.assetFamily,
+    brandIdentity: characters[0]?.brandIdentity ?? props[0]?.brandIdentity,
     identityFingerprintSummary: characters[0]?.identityFingerprintSummary,
   };
 
@@ -227,6 +228,7 @@ export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe):
     recipe.world ? `World: ${recipe.world.name}.` : "",
     recipe.props.length ? `Props: ${recipe.props.map((p) => p.name).join(", ")}.` : "",
     recipe.preserveRules?.length ? `Preserve: ${recipe.preserveRules.join(", ")}.` : "",
+    recipe.brandIdentity ? `Brand identity: ${recipe.brandIdentity}.` : "",
     recipe.assetFamily ? `Asset family: ${recipe.assetFamily}.` : "",
     recipe.identityFingerprintSummary ? `Identity: ${recipe.identityFingerprintSummary}.` : "",
     recipe.continuityRules ? `Continuity: ${recipe.continuityRules}.` : "",

@@ -11,7 +11,9 @@ import { brand } from "@/lib/brand";
 import {
   fetchAssetLibraryPreferences,
   fetchGeneratedReferenceHistory,
+  fetchUserUploadLibrary,
 } from "@/lib/studio-asset-library-client";
+import { fetchUserAudioLibraryApi } from "@/lib/studio-audio-library-client";
 import {
   applyAssetLibraryPreferences,
   applyAssetLibraryFilters,
@@ -20,15 +22,14 @@ import {
   type AssetLibrarySort,
   type AssetLibraryTab,
   type AssetLibraryViewMode,
-  userOwnedAssetsOnly,
 } from "@/lib/studio-asset-library-filters";
+import { assembleUserStudioAssetRegistry } from "@/lib/assemble-user-studio-asset-registry";
 import { computeStudioAssetLibraryCounts } from "@/lib/studio-asset-library-counts";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
-import { buildStudioAssetRegistry } from "@/lib/studio-media-asset-registry";
 import type { StudioAsset } from "@/types/studio-media-asset";
 
 const TABS: AssetLibraryTab[] = [
@@ -93,6 +94,7 @@ export function StudioAssetLibrary({
   const [userRegistry, setUserRegistry] = useState<StudioAsset[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [showSystemAssets, setShowSystemAssets] = useState(false);
 
   const load = useCallback(async () => {
     if (storyboardAssets) {
@@ -100,13 +102,24 @@ export function StudioAssetLibrary({
     }
     setLoading(true);
     setError("");
-    const [chars, locs, props, worlds, prefs, history] = await Promise.all([
+    const [chars, locs, props, worlds, prefs, history, uploads, audioLib, voiceLib] = await Promise.all([
       fetchStudioCharacters(),
       fetchStudioLocations(),
       fetchStudioProps(),
       fetchStudioWorlds(),
       fetchAssetLibraryPreferences(),
       fetchGeneratedReferenceHistory(),
+      fetchUserUploadLibrary(),
+      fetchUserAudioLibraryApi(),
+      fetch("/api/studio/user-voice-library", { cache: "no-store" }).then(async (res) => {
+        if (!res.ok) {
+          return { ok: false as const };
+        }
+        const json = (await res.json()) as { ok: boolean; library?: { voices: unknown[] } };
+        return json.ok && json.library
+          ? { ok: true as const, voices: json.library.voices as import("@/types/studio-user-voice-library").UserVoiceLibraryEntry[] }
+          : { ok: false as const };
+      }),
     ]);
     if (!chars.ok || !locs.ok || !props.ok || !worlds.ok) {
       setError(t("studio.mediaAsset.error.loadFailed"));
@@ -116,6 +129,7 @@ export function StudioAssetLibrary({
     }
 
     const userId = session.user?.id ?? "";
+    const isAdmin = session.user?.role === "admin";
     const generatedRefs =
       history.ok
         ? history.data
@@ -134,29 +148,31 @@ export function StudioAssetLibrary({
             }))
         : [];
 
-    const registry = buildStudioAssetRegistry({
+    const registry = assembleUserStudioAssetRegistry({
+      userId,
       characters: chars.data.characters,
       locations: locs.data.locations,
       props: props.data.props,
       worlds: worlds.data.worlds,
       generatedReferences: generatedRefs,
-      includeSystemCatalog: true,
-      userId,
+      userUploads: uploads.ok ? uploads.uploads : [],
+      userAudioAssets: audioLib.ok ? audioLib.data.assets : [],
+      userVoiceClones: voiceLib.ok ? voiceLib.voices : [],
+      isAdmin,
+      showSystemAssets: showSystemAssets && isAdmin,
     });
-
-    const owned = userId ? userOwnedAssetsOnly(registry, userId) : registry;
     const favs = prefs.ok ? prefs.data.favorites : [];
     const recents = prefs.ok ? prefs.data.recentAssetIds : [];
     setFavoriteIds(favs);
     setRecentIds(recents);
     setUserRegistry(
-      applyAssetLibraryPreferences(owned, {
+      applyAssetLibraryPreferences(registry, {
         favoriteIds: favs,
         recentAssetIds: recents,
       })
     );
     setLoading(false);
-  }, [storyboardAssets, t, session.user?.id]);
+  }, [storyboardAssets, t, session.user?.id, session.user?.role, showSystemAssets]);
 
   useEffect(() => {
     if (storyboardAssets || !session.resolved || !session.user) {
@@ -218,11 +234,24 @@ export function StudioAssetLibrary({
           <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{t("studio.mediaAsset.title")}</h2>
           <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
         </div>
-        {layout === "page" ?
-          <Link href="/studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
-            ← {t("studio.mediaAsset.backToMyStudio")}
-          </Link>
-        : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {isAdmin ?
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={showSystemAssets}
+                onChange={(e) => setShowSystemAssets(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              {t("studio.mediaAsset.showSystemAssets")}
+            </label>
+          : null}
+          {layout === "page" ?
+            <Link href="/studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+              ← {t("studio.mediaAsset.backToMyStudio")}
+            </Link>
+          : null}
+        </div>
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">

@@ -66,14 +66,22 @@ describe("studio-asset-library-filters", () => {
     assert.equal(sorted[0]?.name, "Alpha");
   });
 
-  it("scopes to user-owned assets", () => {
+  it("scopes to user-owned assets (excludes other users and system)", () => {
     const items = [
-      asset({ id: "character:a", name: "Mine", category: "character", owner: "user-1" }),
-      asset({ id: "character:b", name: "Other", category: "character", owner: "user-2" }),
-      asset({ id: "voice:sys", name: "System", category: "voice", owner: "system" }),
+      asset({ id: "character:a", name: "Mine", category: "character", owner: "user-1", visibility: "user_owned" }),
+      asset({ id: "character:b", name: "Other", category: "character", owner: "user-2", visibility: "user_owned" }),
+      asset({
+        id: "voice:sys",
+        name: "System",
+        category: "voice",
+        owner: "system",
+        visibility: "placeholder",
+        source: "system",
+      }),
     ];
     const scoped = userOwnedAssetsOnly(items, "user-1");
-    assert.equal(scoped.length, 2);
+    assert.equal(scoped.length, 1);
+    assert.equal(scoped[0]?.owner, "user-1");
   });
 
   it("applies favorite ids from preferences", () => {

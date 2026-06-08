@@ -6,6 +6,12 @@ export type SceneImageGenerateInput = {
   seed?: string;
   /** Server log context for OpenAI image generation diagnostics. */
   logRoute?: string;
+  /** Source image URL for transform / image-edit flows. */
+  sourceImageUrl?: string;
+  /** Internal generation intent — image edit when transform + source image. */
+  generationIntent?: import("@/types/studio-asset-image-generation").AssetGenerationIntent;
+  /** Identity lock level for transform prompts (1 = default, 2 = strict). */
+  identityLockLevel?: import("@/types/studio-asset-image-generation").AssetIdentityLockLevel;
 };
 
 export type SceneImageGenerateResult = {
@@ -16,6 +22,8 @@ export type SceneImageGenerateResult = {
   seed: string | null;
   model?: string;
   size?: string;
+  /** How the image was produced. */
+  generationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode;
 };
 
 export type SceneImageProvider = {

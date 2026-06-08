@@ -2,19 +2,97 @@ import { hashSemanticText } from "@/lib/studio-asset-semantic-record";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type {
   AssetIdentityFingerprint,
+  VariantFidelityRecoveryTier,
   VariantFidelityScore,
 } from "@/types/studio-asset-identity-preservation";
-import { VARIANT_FIDELITY_LOW_THRESHOLD } from "@/types/studio-asset-identity-preservation";
+import {
+  VARIANT_FIDELITY_IDENTITY_FAILURE_THRESHOLD,
+  VARIANT_FIDELITY_STRICT_REGENERATE_THRESHOLD,
+  VARIANT_FIDELITY_WARNING_THRESHOLD,
+} from "@/types/studio-asset-identity-preservation";
+import type { AssetIdentityGenerationAudit } from "@/types/studio-asset-identity-generation-audit";
+import type { AssetIdentityLockLevel } from "@/types/studio-asset-image-generation";
 import type {
   AssetReferenceVisionJson,
   AssetVisionAnalysis,
   AssetVisionObjectType,
 } from "@/types/studio-asset-vision-analysis";
 
-export { VARIANT_FIDELITY_LOW_THRESHOLD };
+export {
+  VARIANT_FIDELITY_IDENTITY_FAILURE_THRESHOLD,
+  VARIANT_FIDELITY_LOW_THRESHOLD,
+  VARIANT_FIDELITY_STRICT_REGENERATE_THRESHOLD,
+  VARIANT_FIDELITY_WARNING_THRESHOLD,
+} from "@/types/studio-asset-identity-preservation";
 
 const UNKNOWN_BRAND_RE =
   /^(unknown(\s+(brand(\s+asset)?|asset))?|generic(\s+asset)?|n\/a|none)$/i;
+
+const HOME_CHEFF_GLOBE_CONTEXT_RE =
+  /home\s*cheff|homecheff|globe\s*man|homecheff\s*globe|homecheff\s*mascot|globe\s*mascot/i;
+
+export const HARD_IDENTITY_LOCK_INTRO = [
+  "TRANSFORM THE EXISTING SOURCE CHARACTER.",
+  "DO NOT CREATE A NEW CHARACTER.",
+  "KEEP THE SAME FACE STRUCTURE, HEAD SHAPE, BODY PROPORTIONS, SILHOUETTE, OUTLINE STYLE, COLOR PALETTE, AND BRAND IDENTITY.",
+  "CHANGE ONLY THE REQUESTED ROLE, OUTFIT, AND ACCESSORIES.",
+].join(" ");
+
+export const FLAT_MASCOT_STYLE_LOCK = [
+  "KEEP 2D FLAT VECTOR LOGO-MASCOT STYLE.",
+  "DO NOT CONVERT TO 3D, PIXAR, DISNEY, TOY, CLAY, REALISTIC, OR ANIME STYLE.",
+  "DO NOT ADD SKIN TONE.",
+  "DO NOT REDESIGN THE FACE.",
+].join(" ");
+
+export const STRICT_REGENERATION_IDENTITY_INSTRUCTION =
+  "The previous result changed the character identity. Retry with stricter identity preservation.";
+
+export const MANDATORY_FORBIDDEN_RULES = [
+  "new character",
+  "redesigned face",
+  "different head shape",
+  "different proportions",
+  "3D cartoon style",
+  "Pixar/Disney style",
+  "realistic human skin",
+  "changed brand colors",
+  "missing source identity",
+  "unrelated chef mascot",
+] as const;
+
+export type BrandIdentityContext = {
+  rawBrand?: string;
+  sourceName?: string;
+  sourceId?: string;
+  promptText?: string;
+  objectType?: AssetVisionObjectType;
+};
+
+export function buildBrandIdentitySearchText(params: BrandIdentityContext): string {
+  return [params.rawBrand, params.sourceName, params.sourceId, params.promptText]
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function resolveHomeCheffGlobeBrandProfile(searchText: string): {
+  brandIdentity: string;
+  assetFamily: string;
+  characterLineage: string;
+} | null {
+  if (!HOME_CHEFF_GLOBE_CONTEXT_RE.test(searchText.trim())) {
+    return null;
+  }
+  return {
+    brandIdentity: "HomeCheff Globe Mascot",
+    assetFamily: "HomeCheff Mascots",
+    characterLineage: "Primary Mascot",
+  };
+}
+
+export function resolveEffectiveBrandIdentity(params: BrandIdentityContext): string {
+  return inferBrandIdentityFromContext(params);
+}
 
 const FLAT_VECTOR_STYLE_RE =
   /\b(flat|vector|logo|icon|2d|minimal|corporate\s+brand|line\s+art)\b/i;
@@ -23,17 +101,22 @@ const PRESERVE_PRIORITY_1 = [
   "face structure",
   "head shape",
   "body proportions",
-  "outline style",
-  "color palette",
-  "identity markers",
   "silhouette",
-  "line weight",
-  "brand colors",
+  "outline style",
+  "proportions",
 ];
 
-const PRESERVE_PRIORITY_2 = ["pose", "expression", "accessories", "accessory pattern"];
+const PRESERVE_PRIORITY_2 = [
+  "color palette",
+  "brand colors",
+  "identity markers",
+  "line weight",
+  "branding",
+];
 
-const CHANGE_PRIORITY_3 = ["outfit", "role", "role accessories", "environment", "context"];
+const PRESERVE_PRIORITY_3 = ["pose", "expression"];
+
+const CHANGE_PRIORITY_4 = ["outfit", "role", "role accessories", "accessories", "environment", "context"];
 
 const FLAT_MASCOT_AUTO_FORBIDDEN = [
   "Pixar style",
@@ -55,11 +138,13 @@ export function isUnknownBrandIdentity(value: string): boolean {
   return !value.trim() || UNKNOWN_BRAND_RE.test(value.trim());
 }
 
-export function inferBrandIdentityFromContext(params: {
-  rawBrand?: string;
-  sourceName?: string;
-  objectType?: AssetVisionObjectType;
-}): string {
+export function inferBrandIdentityFromContext(params: BrandIdentityContext): string {
+  const searchText = buildBrandIdentitySearchText(params);
+  const homeCheffProfile = resolveHomeCheffGlobeBrandProfile(searchText);
+  if (homeCheffProfile) {
+    return homeCheffProfile.brandIdentity;
+  }
+
   const raw = params.rawBrand?.trim() ?? "";
   if (raw && !isUnknownBrandIdentity(raw)) {
     return raw;
@@ -81,7 +166,7 @@ export function inferBrandIdentityFromContext(params: {
     return `HomeCheff ${sourceName.replace(/home\s*cheff\s*/i, "").trim() || "Mascot"}`;
   }
   if (globe && params.objectType && CHARACTER_LIKE.includes(params.objectType)) {
-    return `${sourceName} Mascot`;
+    return "HomeCheff Globe Mascot";
   }
 
   if (params.objectType === "logo" || params.objectType === "brand_asset") {
@@ -89,6 +174,61 @@ export function inferBrandIdentityFromContext(params: {
   }
 
   return raw || sourceName;
+}
+
+export function applyKnownBrandDefaults(
+  analysis: AssetVisionAnalysis,
+  context?: BrandIdentityContext
+): AssetVisionAnalysis {
+  const searchText = buildBrandIdentitySearchText({
+    ...context,
+    rawBrand: analysis.brandIdentity,
+    sourceName: context?.sourceName,
+    objectType: analysis.objectType,
+  });
+  const profile = resolveHomeCheffGlobeBrandProfile(searchText);
+  if (!profile) {
+    if (isUnknownBrandIdentity(analysis.brandIdentity) && context?.sourceName?.trim()) {
+      const inferred = inferBrandIdentityFromContext({
+        rawBrand: analysis.brandIdentity,
+        sourceName: context.sourceName,
+        sourceId: context.sourceId,
+        promptText: context.promptText,
+        objectType: analysis.objectType,
+      });
+      const family = inferAssetFamily({
+        brandIdentity: inferred,
+        sourceName: context.sourceName,
+        objectType: analysis.objectType,
+        rawFamily: analysis.assetFamily,
+      });
+      return {
+        ...analysis,
+        brandIdentity: inferred,
+        assetFamily: family,
+        characterLineage:
+          analysis.characterLineage && !isUnknownBrandIdentity(analysis.characterLineage)
+            ? analysis.characterLineage
+            : normalizeCharacterLineage(undefined),
+        identityFingerprint: {
+          ...analysis.identityFingerprint,
+          brandIdentity: inferred,
+        },
+      };
+    }
+    return analysis;
+  }
+
+  return {
+    ...analysis,
+    brandIdentity: profile.brandIdentity,
+    assetFamily: profile.assetFamily,
+    characterLineage: profile.characterLineage,
+    identityFingerprint: {
+      ...analysis.identityFingerprint,
+      brandIdentity: profile.brandIdentity,
+    },
+  };
 }
 
 export function inferAssetFamily(params: {
@@ -100,6 +240,16 @@ export function inferAssetFamily(params: {
   const raw = params.rawFamily?.trim();
   if (raw && !isUnknownBrandIdentity(raw)) {
     return raw;
+  }
+
+  const searchText = buildBrandIdentitySearchText({
+    rawBrand: params.brandIdentity,
+    sourceName: params.sourceName,
+    objectType: params.objectType,
+  });
+  const homeCheffProfile = resolveHomeCheffGlobeBrandProfile(searchText);
+  if (homeCheffProfile) {
+    return homeCheffProfile.assetFamily;
   }
 
   const brand = params.brandIdentity.trim();
@@ -222,8 +372,234 @@ export function buildCharacterVariantChangeRules(
   vision?: AssetVisionAnalysis | null
 ): string[] {
   const fromVision = vision?.suggestedChange ?? [];
-  const roleChange = variantLabel.trim() ? [`${variantLabel} outfit`, `${variantLabel} role accessories`, "environment"] : [];
-  return [...new Set([...CHANGE_PRIORITY_3, ...roleChange, ...fromVision].map((r) => r.trim()).filter(Boolean))];
+  const roleChange = variantLabel.trim() ? [`${variantLabel} outfit`, `${variantLabel} role accessories`] : [];
+  return [...new Set([...CHANGE_PRIORITY_4, ...roleChange, ...fromVision].map((r) => r.trim()).filter(Boolean))];
+}
+
+export function buildExactMascotVariantLead(
+  sourceName: string,
+  variantLabel: string,
+  brandIdentity?: string
+): string {
+  const subject = brandIdentity?.trim() || sourceName;
+  return `Make a ${variantLabel} version of this exact mascot "${sourceName}" (${subject}) — NOT a new ${variantLabel} mascot or separate character design.`;
+}
+
+export function buildFingerprintLockBlock(identityLockLevel: AssetIdentityLockLevel = 1): string {
+  const p1 = PRESERVE_PRIORITY_1.join(", ");
+  const p2 = PRESERVE_PRIORITY_2.join(", ");
+  const p3 = PRESERVE_PRIORITY_3.join(", ");
+  const p4 = CHANGE_PRIORITY_4.join(", ");
+
+  if (identityLockLevel >= 2) {
+    return [
+      "IDENTITY FINGERPRINT LOCK (level 2 — strict):",
+      `P1 LOCKED (never change): ${p1}.`,
+      `P2 LOCKED (never change): ${p2}.`,
+      `P3 LOCKED (preserve from source): ${p3}.`,
+      `P4 ONLY (allowed changes): ${p4}.`,
+    ].join(" ");
+  }
+
+  return [
+    "IDENTITY FINGERPRINT LOCK (level 1):",
+    `P1 LOCKED (never change): ${p1}.`,
+    `P2 LOCKED (never change): ${p2}.`,
+    `P3 PRESERVE (keep unless user explicitly requests change): ${p3}.`,
+    `P4 ONLY (default allowed changes): ${p4}.`,
+  ].join(" ");
+}
+
+export function resolveIdentityLockLevel(params: {
+  strictRegeneration?: boolean;
+  identityLockLevel?: AssetIdentityLockLevel;
+}): AssetIdentityLockLevel {
+  if (params.identityLockLevel === 2 || params.strictRegeneration) {
+    return 2;
+  }
+  return 1;
+}
+
+export function resolveVariantFidelityRecoveryTier(overall: number): VariantFidelityRecoveryTier {
+  if (overall < VARIANT_FIDELITY_IDENTITY_FAILURE_THRESHOLD) {
+    return "identity_failure";
+  }
+  if (overall < VARIANT_FIDELITY_STRICT_REGENERATE_THRESHOLD) {
+    return "strict_regenerate";
+  }
+  if (overall < VARIANT_FIDELITY_WARNING_THRESHOLD) {
+    return "warning";
+  }
+  return "ok";
+}
+
+export function buildMandatoryForbiddenBlock(
+  vision?: AssetVisionAnalysis | null,
+  extraForbidden?: string
+): string {
+  const merged = [
+    ...MANDATORY_FORBIDDEN_RULES,
+    ...(vision?.suggestedForbidden ?? []),
+    ...(extraForbidden ?? "")
+      .split(/[,;]+/)
+      .map((r) => r.trim())
+      .filter(Boolean),
+  ];
+  const unique = [...new Set(merged.map((r) => r.toLowerCase()))].map((lower) => {
+    return merged.find((r) => r.toLowerCase() === lower) ?? lower;
+  });
+  return `Forbidden:\n- ${unique.join("\n- ")}`;
+}
+
+export function buildIdentityEnforcementPromptBlocks(params: {
+  sourceName: string;
+  variantLabel?: string;
+  vision?: AssetVisionAnalysis | null;
+  brandIdentity?: string;
+  assetFamily?: string;
+  strictRegeneration?: boolean;
+  identityLockLevel?: AssetIdentityLockLevel;
+}): string[] {
+  const vision = params.vision;
+  const lockLevel = resolveIdentityLockLevel({
+    strictRegeneration: params.strictRegeneration,
+    identityLockLevel: params.identityLockLevel,
+  });
+  const brandIdentity =
+    params.brandIdentity?.trim() ||
+    resolveEffectiveBrandIdentity({
+      rawBrand: vision?.brandIdentity,
+      sourceName: params.sourceName,
+      promptText: params.variantLabel,
+      objectType: vision?.objectType,
+    });
+  const assetFamily =
+    params.assetFamily?.trim() ||
+    vision?.assetFamily ||
+    inferAssetFamily({
+      brandIdentity,
+      sourceName: params.sourceName,
+      objectType: vision?.objectType,
+    });
+
+  const blocks: string[] = [];
+  if (params.strictRegeneration) {
+    blocks.push(STRICT_REGENERATION_IDENTITY_INSTRUCTION);
+  }
+  blocks.push(HARD_IDENTITY_LOCK_INTRO);
+  blocks.push(buildFingerprintLockBlock(lockLevel));
+
+  if (!vision || isFlatOrVectorMascotStyle(vision)) {
+    blocks.push(FLAT_MASCOT_STYLE_LOCK);
+  }
+
+  if (params.variantLabel?.trim()) {
+    blocks.push(buildExactMascotVariantLead(params.sourceName, params.variantLabel, brandIdentity));
+  }
+
+  blocks.push(buildSourceImageFidelityBlock(params.sourceName));
+  blocks.push(
+    buildVariantTransformationPromptBlock({
+      sourceName: params.sourceName,
+      variantLabel: params.variantLabel ?? "variant",
+      brandIdentity,
+      assetFamily,
+    })
+  );
+
+  return blocks.filter(Boolean);
+}
+
+export function buildSourceTransformEnforcementPrompt(params: {
+  sourceName: string;
+  variantLabel?: string;
+  vision?: AssetVisionAnalysis | null;
+  preserveRules: string;
+  changeRules: string;
+  forbiddenRules: string;
+  instruction?: string;
+  semanticContext?: string;
+  identityFingerprintSummary?: string;
+  strictRegeneration?: boolean;
+  identityLockLevel?: AssetIdentityLockLevel;
+}): string {
+  const vision = params.vision;
+  const brandIdentity = resolveEffectiveBrandIdentity({
+    rawBrand: vision?.brandIdentity,
+    sourceName: params.sourceName,
+    promptText: params.variantLabel,
+    objectType: vision?.objectType,
+  });
+
+  const sections = [
+    ...buildIdentityEnforcementPromptBlocks({
+      sourceName: params.sourceName,
+      variantLabel: params.variantLabel,
+      vision,
+      brandIdentity,
+      assetFamily: vision?.assetFamily,
+      strictRegeneration: params.strictRegeneration,
+      identityLockLevel: params.identityLockLevel,
+    }),
+    params.semanticContext?.trim() ?? "",
+    params.identityFingerprintSummary
+      ? `Identity fingerprint: ${params.identityFingerprintSummary}.`
+      : "",
+    params.instruction?.trim() ? `User instruction: ${params.instruction.trim()}.` : "",
+    params.preserveRules.trim() ? `Preserve: ${params.preserveRules.trim()}.` : "",
+    params.changeRules.trim() ? `Change: ${params.changeRules.trim()}.` : "",
+    buildMandatoryForbiddenBlock(vision, params.forbiddenRules),
+  ].filter(Boolean);
+
+  return sections.join("\n\n");
+}
+
+export function buildAssetIdentityGenerationAudit(params: {
+  sourceName: string;
+  sourceImageUrl?: string | null;
+  vision?: AssetVisionAnalysis | null;
+  preserveRules: string;
+  changeRules: string;
+  forbiddenRules: string;
+  strictRegeneration?: boolean;
+  variantLabel?: string;
+  identityLockLevel?: AssetIdentityLockLevel;
+  generationIntent?: import("@/types/studio-asset-image-generation").AssetGenerationIntent;
+  imageGenerationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode;
+}): AssetIdentityGenerationAudit {
+  const vision = params.vision;
+  const brandIdentity = resolveEffectiveBrandIdentity({
+    rawBrand: vision?.brandIdentity,
+    sourceName: params.sourceName,
+    promptText: params.variantLabel,
+    objectType: vision?.objectType,
+  });
+  const assetFamily =
+    vision?.assetFamily ||
+    inferAssetFamily({
+      brandIdentity,
+      sourceName: params.sourceName,
+      objectType: vision?.objectType,
+    });
+
+  return {
+    hasSourceImage: Boolean(params.sourceImageUrl?.trim()),
+    sourceImageUrl: params.sourceImageUrl ?? null,
+    brandIdentity,
+    assetFamily,
+    characterLineage: vision?.characterLineage || normalizeCharacterLineage(undefined),
+    identityFingerprintHash: vision?.identityFingerprint.fingerprintHash,
+    preserveRules: params.preserveRules,
+    changeRules: params.changeRules,
+    forbiddenRules: params.forbiddenRules,
+    strictRegeneration: params.strictRegeneration,
+    generationIntent: params.generationIntent,
+    identityLockLevel: resolveIdentityLockLevel({
+      strictRegeneration: params.strictRegeneration,
+      identityLockLevel: params.identityLockLevel,
+    }),
+    imageGenerationMode: params.imageGenerationMode,
+  };
 }
 
 export function buildVariantTransformationPromptBlock(params: {
@@ -248,7 +624,7 @@ export function buildSourceImageFidelityBlock(sourceName: string): string {
   return [
     `SOURCE IMAGE FIDELITY (highest priority): Match the uploaded source "${sourceName}" exactly.`,
     "The source image overrides generic style suggestions, role creativity, and AI defaults.",
-    "Priority order: (1) source image, (2) identity fingerprint, (3) preserve rules, (4) change rules, (5) user instructions.",
+    "Priority order: (1) source image, (2) identity fingerprint, (3) brand identity, (4) asset family, (5) preserve rules, (6) change rules, (7) forbidden rules, (8) user instructions.",
   ].join(" ");
 }
 
@@ -296,16 +672,18 @@ export function computeVariantFidelityScore(params: {
     generated.colors.map((c) => c.label)
   );
   const brandPreservation = stringSimilarity(source.brandIdentity, generated.brandIdentity);
+  const familyPreservation = stringSimilarity(source.assetFamily, generated.assetFamily);
   const featurePreservation = tokenOverlapScore(source.keyFeatures, generated.keyFeatures);
   const identityPreservation = Math.round(
     shapePreservation * 0.35 + featurePreservation * 0.35 + brandPreservation * 0.3
   );
 
   const overall = Math.round(
-    identityPreservation * 0.4 +
-      colorPreservation * 0.25 +
-      shapePreservation * 0.2 +
-      brandPreservation * 0.15
+    identityPreservation * 0.35 +
+      colorPreservation * 0.2 +
+      shapePreservation * 0.15 +
+      brandPreservation * 0.15 +
+      familyPreservation * 0.15
   );
 
   return {
@@ -313,8 +691,10 @@ export function computeVariantFidelityScore(params: {
     colorPreservation,
     shapePreservation,
     brandPreservation,
+    familyPreservation,
     overall,
-    lowFidelity: overall < VARIANT_FIDELITY_LOW_THRESHOLD,
+    lowFidelity: overall < VARIANT_FIDELITY_WARNING_THRESHOLD,
+    recoveryTier: resolveVariantFidelityRecoveryTier(overall),
   };
 }
 
@@ -359,10 +739,12 @@ export function buildStricterPreservePatch(draft: AssetWizardDraft): Partial<Ass
       .join(", "),
     sourceTransformInstruction: [
       draft.sourceTransformInstruction.trim(),
+      STRICT_REGENERATION_IDENTITY_INSTRUCTION,
       "Strict variant: preserve exact face, proportions, silhouette, and brand identity from source.",
     ]
       .filter(Boolean)
       .join(" "),
+    variantRegenerationStrict: true,
   };
 }
 

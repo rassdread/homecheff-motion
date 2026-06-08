@@ -59,5 +59,6 @@ export type SceneSemanticRecipe = {
   crossAssetRelations?: SceneCrossAssetRelation[];
   promptLineage?: ScenePromptLineage;
   assetFamily?: string;
+  brandIdentity?: string;
   identityFingerprintSummary?: string;
 };

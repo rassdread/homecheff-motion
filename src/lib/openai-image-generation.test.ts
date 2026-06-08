@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import {
+  buildOpenAiImageEditFormData,
   buildOpenAiImageGenerationsBody,
+  openAiImageEditSupportsInputFidelity,
   openAiImageGenerationSupportsResponseFormat,
+  openAiImageModelSupportsEdit,
   prepareOpenAiImageGenerationsBody,
+  resolveOpenAiImageEditModel,
   resolveOpenAiImageModel,
   stripUnsafeOpenAiImageGenerationParams,
 } from "@/lib/openai-image-generation";
@@ -78,5 +82,30 @@ describe("openai-image-generation", () => {
     delete process.env.STUDIO_SCENE_IMAGE_MODEL;
     process.env.OPENAI_IMAGE_MODEL = "gpt-image-1";
     assert.equal(resolveOpenAiImageModel(), "gpt-image-1");
+  });
+
+  it("openAiImageModelSupportsEdit returns true for gpt-image and dall-e-2", () => {
+    assert.equal(openAiImageModelSupportsEdit("gpt-image-1"), true);
+    assert.equal(openAiImageModelSupportsEdit("gpt-image-1.5"), true);
+    assert.equal(openAiImageModelSupportsEdit("dall-e-2"), true);
+    assert.equal(openAiImageModelSupportsEdit("dall-e-3"), false);
+  });
+
+  it("resolveOpenAiImageEditModel falls back to gpt-image-1 when primary is dall-e-3", () => {
+    process.env.STUDIO_SCENE_IMAGE_MODEL = "dall-e-3";
+    assert.equal(resolveOpenAiImageEditModel(), "gpt-image-1");
+  });
+
+  it("buildOpenAiImageEditFormData includes input_fidelity for gpt-image-1", () => {
+    const form = buildOpenAiImageEditFormData({
+      model: "gpt-image-1",
+      prompt: "Transform into chef outfit",
+      size: "1024x1024",
+      imageBuffer: Buffer.from("fake"),
+      inputFidelity: "high",
+    });
+    assert.equal(form.get("input_fidelity"), "high");
+    assert.equal(openAiImageEditSupportsInputFidelity("gpt-image-1"), true);
+    assert.equal(openAiImageEditSupportsInputFidelity("gpt-image-2"), false);
   });
 });

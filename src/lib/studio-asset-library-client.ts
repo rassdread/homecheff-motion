@@ -69,6 +69,20 @@ export async function recordVoiceRecentApi(voiceRef: string): Promise<void> {
   });
 }
 
+export async function fetchUserUploadLibrary(): Promise<
+  { ok: true; uploads: import("@/types/studio-user-upload-library").UserLibraryUploadRecord[] } | { ok: false }
+> {
+  const res = await fetch("/api/studio/asset-library/uploads", { cache: "no-store" });
+  if (!res.ok) {
+    return { ok: false };
+  }
+  const json = (await res.json()) as {
+    ok: boolean;
+    uploads: import("@/types/studio-user-upload-library").UserLibraryUploadRecord[];
+  };
+  return json.ok ? { ok: true, uploads: json.uploads } : { ok: false };
+}
+
 export async function fetchGeneratedReferenceHistory(): Promise<
   { ok: true; data: GeneratedReferenceHistoryItem[] } | { ok: false; error: string }
 > {

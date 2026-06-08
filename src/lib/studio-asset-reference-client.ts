@@ -8,6 +8,8 @@ export type GenerateAssetReferenceResponse = {
   thumbnailUrl: string;
   generatedPrompt: string;
   provider: string;
+  generationMode?: import("@/types/studio-asset-image-generation").AssetImageGenerationMode;
+  generationIntent?: import("@/types/studio-asset-image-generation").AssetGenerationIntent;
 };
 
 export async function fetchAssetReferenceGenerationStatus() {
@@ -37,7 +39,9 @@ export async function generateStudioAssetReferenceApi(params: {
     preserveHint?: string;
     changeHint?: string;
     forbiddenHint?: string;
+    visionHint?: string;
   };
+  identityAudit?: import("@/types/studio-asset-identity-generation-audit").AssetIdentityGenerationAudit;
 }) {
   return fetchSameOriginJson<GenerateAssetReferenceResponse>(
     "/api/studio/asset-references/generate",

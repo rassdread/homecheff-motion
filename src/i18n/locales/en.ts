@@ -4306,9 +4306,16 @@ export const en: LocaleSchema = {
   "studio.assetCreation.reference.regenerate": "Generate again",
   "studio.assetCreation.reference.fidelityTitle": "Variant fidelity",
   "studio.assetCreation.reference.fidelityBreakdown":
-    "Identity {identity}% · Color {color}% · Shape {shape}% · Brand {brand}%",
+    "Identity {identity}% · Color {color}% · Shape {shape}% · Brand {brand}% · Family {family}%",
   "studio.assetCreation.reference.fidelityLowWarning":
-    "Identity drift detected. Regenerating will apply stricter preserve rules.",
+    "Low identity match — the variant may have drifted from the source mascot. Regenerate applies stricter identity preservation.",
+  "studio.assetCreation.reference.fidelityIdentityFailure":
+    "Identity failure — the generated image does not match the source asset. Try a different source image, adjust preserve rules, or upload a reference manually.",
+  "studio.assetCreation.reference.fidelityAutoRecovered":
+    "Studio automatically retried with stricter identity lock after a low fidelity result.",
+  "studio.assetCreation.identityDebug.title": "Identity enforcement (debug)",
+  "studio.assetCreation.identityDebug.fingerprintHash": "Identity fingerprint hash",
+  "studio.assetCreation.identityDebug.finalPromptExcerpt": "Final prompt excerpt",
   "studio.assetCreation.reference.backToChoices": "Edit choices",
   "studio.assetCreation.reference.summaryRequired":
     "Complete the choice steps first so Studio can build a summary.",
@@ -5011,6 +5018,7 @@ export const en: LocaleSchema = {
   "studio.mediaAsset.title": "My Assets",
   "studio.mediaAsset.hint": "One authoritative home for Studio assets — search, filter, and inspect usage.",
   "studio.mediaAsset.hintPersonal": "Your personal creator library — find, download, favorite, and reuse everything you make.",
+  "studio.mediaAsset.showSystemAssets": "Show system assets",
   "studio.mediaAsset.backToMyStudio": "My Studio",
   "studio.mediaAsset.filters": "Filters",
   "studio.mediaAsset.viewGrid": "Grid",

@@ -1,4 +1,5 @@
 import type { StudioAsset, StudioAssetCategory, StudioAssetOrigin } from "@/types/studio-media-asset";
+import { filterUserLibraryAssets } from "@/lib/studio-asset-visibility";
 
 export type AssetLibraryViewMode = "grid" | "list";
 
@@ -162,8 +163,16 @@ export function applyAssetLibraryPreferences(
 }
 
 export function userOwnedAssetsOnly(assets: StudioAsset[], userId: string): StudioAsset[] {
-  return assets.filter((a) => a.owner === userId || a.owner === "system");
+  return filterUserLibraryAssets(assets, { userId, isAdmin: false, showSystemAssets: false });
 }
+
+export {
+  classifyStudioAssetVisibility,
+  filterAssetsForPickerContext,
+  filterUserLibraryAssets,
+  isAssetUsableInPickerContext,
+  isUserOwnedStudioAsset,
+} from "@/lib/studio-asset-visibility";
 
 /** Same filter pipeline as the asset library UI (search, collection, origin, sort). */
 export function applyAssetLibraryFilters(

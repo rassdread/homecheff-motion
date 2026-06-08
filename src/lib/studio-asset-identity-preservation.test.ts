@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildAutoForbiddenStyleRules,
   buildCharacterVariantPreserveRules,
+  buildFingerprintLockBlock,
   buildIdentityFingerprintFromVision,
   buildSourceImageFidelityBlock,
   buildStricterPreservePatch,
@@ -11,6 +12,8 @@ import {
   inferAssetFamily,
   inferBrandIdentityFromContext,
   isFlatOrVectorMascotStyle,
+  resolveHomeCheffGlobeBrandProfile,
+  resolveVariantFidelityRecoveryTier,
 } from "@/lib/studio-asset-identity-preservation";
 import { mapVisionJsonToAnalysis } from "@/lib/studio-asset-vision-analysis";
 import { buildSourceTransformSummaryPrompt } from "@/lib/studio-asset-transform-prompt";
@@ -143,9 +146,124 @@ describe("studio-asset-identity-preservation", () => {
     assert.match(patch.sourceTransformForbidden ?? "", /Pixar|face redesign/i);
   });
 
-  it("source fidelity block declares priority order", () => {
+  it("Globe Man to Chef prompt enforces identity lock and HomeCheff brand", () => {
+    const vision = mapVisionJsonToAnalysis(
+      {
+        objectType: "Mascot",
+        visualStyle: "Flat cartoon logo mascot",
+        colors: [{ label: "Green", hex: "#006D52" }],
+        shapeLanguage: ["Round"],
+        keyFeatures: ["Globe body"],
+        brandIdentity: "Unknown Brand Asset",
+        suggestedForbidden: [],
+        confidence: 0.8,
+      },
+      { sourceName: "Globe Man" }
+    );
+    assert.equal(vision.brandIdentity, "HomeCheff Globe Mascot");
+    assert.equal(vision.assetFamily, "HomeCheff Mascots");
+    assert.equal(vision.characterLineage, "Primary Mascot");
+
+    let draft = emptyAssetWizardDraft("character", "image_only");
+    draft = {
+      ...draft,
+      ...recordWizardSourceReference({
+        imageUrl: "https://example.com/globe.png",
+        storageKey: "globe",
+        name: "Globe Man",
+      }),
+      sourceVisionAnalysis: vision,
+      sourceVisionAnalysisStatus: "ready",
+      sourceTransformChoice: "chef",
+      sourceTransformPreserve: buildCharacterVariantPreserveRules(vision).join(", "),
+      sourceTransformChange: "chef outfit, chef hat, spoon",
+      sourceTransformForbidden: buildAutoForbiddenStyleRules(vision).join(", "),
+    };
+
+    const prompt = buildSourceTransformSummaryPrompt(draft);
+    assert.match(prompt, /TRANSFORM THE EXISTING SOURCE CHARACTER/);
+    assert.match(prompt, /DO NOT CREATE A NEW CHARACTER/);
+    assert.match(prompt, /KEEP 2D FLAT VECTOR LOGO-MASCOT STYLE/);
+    assert.match(prompt, /DO NOT CONVERT TO 3D/);
+    assert.match(prompt, /Make a Chef version of this exact mascot/i);
+    assert.match(prompt, /Forbidden:/i);
+    assert.match(prompt, /redesigned face/i);
+    assert.match(prompt, /Pixar\/Disney style/i);
+    assert.doesNotMatch(prompt, /Unknown Brand Asset/i);
+  });
+
+  it("resolveHomeCheffGlobeBrandProfile matches Globe Man source name", () => {
+    const profile = resolveHomeCheffGlobeBrandProfile("Globe Man chef variant");
+    assert.ok(profile);
+    assert.equal(profile!.brandIdentity, "HomeCheff Globe Mascot");
+    assert.equal(profile!.assetFamily, "HomeCheff Mascots");
+  });
+
+  it("buildFingerprintLockBlock enforces P1-P4 tiers", () => {
+    const level1 = buildFingerprintLockBlock(1);
+    assert.match(level1, /P1 LOCKED/i);
+    assert.match(level1, /P4 ONLY/i);
+    const level2 = buildFingerprintLockBlock(2);
+    assert.match(level2, /level 2/i);
+    assert.match(level2, /P3 LOCKED/i);
+  });
+
+  it("resolveVariantFidelityRecoveryTier maps thresholds", () => {
+    assert.equal(resolveVariantFidelityRecoveryTier(90), "ok");
+    assert.equal(resolveVariantFidelityRecoveryTier(75), "warning");
+    assert.equal(resolveVariantFidelityRecoveryTier(50), "strict_regenerate");
+    assert.equal(resolveVariantFidelityRecoveryTier(30), "identity_failure");
+  });
+
+  it("source image fidelity block lists full priority order", () => {
     const block = buildSourceImageFidelityBlock("Globe Man");
-    assert.match(block, /highest priority/i);
-    assert.match(block, /identity fingerprint/i);
+    assert.match(block, /asset family/i);
+    assert.match(block, /forbidden rules/i);
+  });
+
+  it("Globe Man to Chef variant scenarios preserve HomeCheff Mascots family", () => {
+    const scenarios = [
+      { label: "Chef", choice: "chef" },
+      { label: "Garden", choice: "garden" },
+      { label: "Designer", choice: "designer" },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      const vision = mapVisionJsonToAnalysis(
+        {
+          objectType: "Mascot",
+          visualStyle: "Flat cartoon logo mascot",
+          colors: [{ label: "Green", hex: "#006D52" }],
+          shapeLanguage: ["Round"],
+          keyFeatures: ["Globe body"],
+          brandIdentity: "HomeCheff Globe Mascot",
+          assetFamily: "HomeCheff Mascots",
+          suggestedForbidden: [],
+          confidence: 0.8,
+        },
+        { sourceName: "Globe Man" }
+      );
+
+      let draft = emptyAssetWizardDraft("character", "image_only");
+      draft = {
+        ...draft,
+        ...recordWizardSourceReference({
+          imageUrl: "https://example.com/globe.png",
+          storageKey: "globe",
+          name: "Globe Man",
+        }),
+        sourceVisionAnalysis: vision,
+        sourceVisionAnalysisStatus: "ready",
+        sourceTransformChoice: scenario.choice,
+        sourceTransformPreserve: buildCharacterVariantPreserveRules(vision).join(", "),
+        sourceTransformChange: `${scenario.label} outfit`,
+        sourceTransformForbidden: buildAutoForbiddenStyleRules(vision).join(", "),
+      };
+
+      const prompt = buildSourceTransformSummaryPrompt(draft);
+      assert.match(prompt, /HomeCheff Mascots|HomeCheff Globe Mascot/i);
+      assert.match(prompt, new RegExp(scenario.label, "i"));
+      assert.match(prompt, /IDENTITY FINGERPRINT LOCK/i);
+    }
   });
 });

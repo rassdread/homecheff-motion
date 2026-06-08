@@ -4305,9 +4305,16 @@ export const nl = {
   "studio.assetCreation.reference.regenerate": "Opnieuw genereren",
   "studio.assetCreation.reference.fidelityTitle": "Variantgetrouwheid",
   "studio.assetCreation.reference.fidelityBreakdown":
-    "Identiteit {identity}% · Kleur {color}% · Vorm {shape}% · Merk {brand}%",
+    "Identiteit {identity}% · Kleur {color}% · Vorm {shape}% · Merk {brand}% · Familie {family}%",
   "studio.assetCreation.reference.fidelityLowWarning":
-    "Identiteitsverlies gedetecteerd. Opnieuw genereren gebruikt strengere behoudregels.",
+    "Lage identiteitsmatch — de variant wijkt mogelijk af van de bronmascotte. Opnieuw genereren gebruikt strengere identiteitsbehoud.",
+  "studio.assetCreation.reference.fidelityIdentityFailure":
+    "Identiteitsfout — de gegenereerde afbeelding komt niet overeen met het bronasset. Probeer een andere bronafbeelding, pas behoudregels aan of upload handmatig een referentie.",
+  "studio.assetCreation.reference.fidelityAutoRecovered":
+    "Studio heeft automatisch opnieuw geprobeerd met strengere identiteitsvergrendeling na een lage getrouwheidsscore.",
+  "studio.assetCreation.identityDebug.title": "Identiteitsafdwinging (debug)",
+  "studio.assetCreation.identityDebug.fingerprintHash": "Identity fingerprint hash",
+  "studio.assetCreation.identityDebug.finalPromptExcerpt": "Fragment van de uiteindelijke prompt",
   "studio.assetCreation.reference.backToChoices": "Keuzes aanpassen",
   "studio.assetCreation.reference.summaryRequired":
     "Maak eerst de keuzestappen af zodat Studio een samenvatting kan bouwen.",
@@ -5010,6 +5017,7 @@ export const nl = {
   "studio.mediaAsset.title": "Mijn assets",
   "studio.mediaAsset.hint": "Eén centrale plek voor Studio-assets — zoeken, filteren en gebruik bekijken.",
   "studio.mediaAsset.hintPersonal": "Jouw persoonlijke creator-bibliotheek — terugvinden, downloaden, favorieten en hergebruiken.",
+  "studio.mediaAsset.showSystemAssets": "Toon systeem-assets",
   "studio.mediaAsset.backToMyStudio": "Mijn Studio",
   "studio.mediaAsset.filters": "Filters",
   "studio.mediaAsset.viewGrid": "Raster",

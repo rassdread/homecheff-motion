@@ -12,7 +12,9 @@ import {
 } from "@/lib/instant-image-upload-errors";
 import { BLOB_IMAGE_THUMB_MAX_BYTES, getMaxWorkingImageBytesForUploadRole } from "@/lib/media-export-constants";
 import type { UploadImageResponse } from "@/types/animation-api";
+import type { UserLibraryUploadAssetType } from "@/types/studio-user-upload-library";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { registerUserLibraryUpload } from "@/server/studio/studio-user-upload-library-blob";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -68,6 +70,8 @@ export async function POST(request: Request) {
     const mimeType = formData.get("mimeType");
     const sizeBytes = formData.get("sizeBytes");
     const clientUploadId = formData.get("clientUploadId");
+    const originContextRaw = formData.get("originContext");
+    const assetTypeRaw = formData.get("assetType");
 
     if (
       !(workingImage instanceof File) ||
@@ -161,6 +165,39 @@ export async function POST(request: Request) {
       workingStorageKey: workingBlob.pathname,
       thumbnailStorageKey: thumbBlob.pathname,
     };
+
+    const allowedAssetTypes = new Set<UserLibraryUploadAssetType>([
+      "reference_image",
+      "source_image",
+      "character_image",
+      "prop_image",
+      "location_image",
+    ]);
+    const assetType =
+      typeof assetTypeRaw === "string" && allowedAssetTypes.has(assetTypeRaw as UserLibraryUploadAssetType)
+        ? (assetTypeRaw as UserLibraryUploadAssetType)
+        : "reference_image";
+    const originContext =
+      typeof originContextRaw === "string" && originContextRaw.trim()
+        ? originContextRaw.trim().slice(0, 80)
+        : undefined;
+
+    try {
+      await registerUserLibraryUpload({
+        ownerId: user.id,
+        assetType,
+        mimeType: "image/jpeg",
+        fileName: originalFileName,
+        storageKey: workingBlob.pathname,
+        publicUrl: workingBlob.url,
+        thumbnailUrl: thumbBlob.url,
+        originContext,
+      });
+    } catch (registerError) {
+      logInstantImages("upload-library-register-failed", requestId, {
+        message: registerError instanceof Error ? registerError.message : String(registerError),
+      });
+    }
 
     logInstantImages("complete", requestId);
     return NextResponse.json(response, { status: 200 });

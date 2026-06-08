@@ -1,7 +1,9 @@
-import { buildStudioAssetRegistry } from "@/lib/studio-media-asset-registry";
-import { userOwnedAssetsOnly } from "@/lib/studio-asset-library-filters";
+import { assembleUserStudioAssetRegistry } from "@/lib/assemble-user-studio-asset-registry";
 import { computeStudioAssetLibraryCounts } from "@/lib/studio-asset-library-counts";
+import { buildUserVoiceLibrary } from "@/lib/studio-user-voice-library";
 import { listUserGeneratedReferences } from "@/server/studio/list-user-generated-references";
+import { getOwnerAudioLibrary } from "@/server/studio/studio-user-audio-library-service";
+import { listUserLibraryUploads } from "@/server/studio/studio-user-upload-library-blob";
 import { listStudioCharacters } from "@/server/studio/studio-character-service";
 import { listStudioLocations } from "@/server/studio/studio-location-service";
 import { listStudioProps } from "@/server/studio/studio-prop-service";
@@ -13,6 +15,7 @@ import type { StudioAsset } from "@/types/studio-media-asset";
 export type UserStudioAssetRegistrySnapshot = {
   registry: StudioAsset[];
   libraryCounts: StudioAssetLibraryCounts;
+  systemAssetCount: number;
 };
 
 export async function loadUserStudioAssetRegistry(
@@ -20,15 +23,22 @@ export async function loadUserStudioAssetRegistry(
   options?: {
     favoriteIds?: string[];
     recentAssetIds?: string[];
+    showSystemAssets?: boolean;
   }
 ): Promise<UserStudioAssetRegistrySnapshot> {
-  const [characters, locations, props, worlds, history] = await Promise.all([
-    listStudioCharacters(viewer),
-    listStudioLocations(viewer),
-    listStudioProps(viewer),
-    listStudioWorldProfiles(viewer),
-    listUserGeneratedReferences({ userId: viewer.id, limit: 50 }),
-  ]);
+  const isAdmin = viewer.role === "admin";
+
+  const [characters, locations, props, worlds, history, userUploads, userAudio, voiceLibrary] =
+    await Promise.all([
+      listStudioCharacters(viewer),
+      listStudioLocations(viewer),
+      listStudioProps(viewer),
+      listStudioWorldProfiles(viewer),
+      listUserGeneratedReferences({ userId: viewer.id, limit: 50 }),
+      listUserLibraryUploads(viewer.id),
+      getOwnerAudioLibrary(viewer.id),
+      buildUserVoiceLibrary(viewer.id),
+    ]);
 
   const generatedRefs = history
     .filter((item) => item.referenceImageUrl)
@@ -45,18 +55,35 @@ export async function loadUserStudioAssetRegistry(
       ownerId: viewer.id,
     }));
 
-  const registry = userOwnedAssetsOnly(
-    buildStudioAssetRegistry({
-      characters,
-      locations,
-      props,
-      worlds,
-      generatedReferences: generatedRefs,
-      includeSystemCatalog: true,
-      userId: viewer.id,
-    }),
-    viewer.id
-  );
+  const registry = assembleUserStudioAssetRegistry({
+    userId: viewer.id,
+    characters,
+    locations,
+    props,
+    worlds,
+    generatedReferences: generatedRefs,
+    userUploads,
+    userAudioAssets: userAudio,
+    userVoiceClones: voiceLibrary.voices,
+    isAdmin,
+    showSystemAssets: options?.showSystemAssets,
+  });
+
+  const systemRegistry = options?.showSystemAssets && isAdmin
+    ? assembleUserStudioAssetRegistry({
+        userId: viewer.id,
+        characters,
+        locations,
+        props,
+        worlds,
+        generatedReferences: generatedRefs,
+        userUploads,
+        userAudioAssets: userAudio,
+        userVoiceClones: voiceLibrary.voices,
+        isAdmin: true,
+        showSystemAssets: true,
+      })
+    : registry;
 
   const libraryCounts = computeStudioAssetLibraryCounts(registry, {
     userId: viewer.id,
@@ -70,5 +97,7 @@ export async function loadUserStudioAssetRegistry(
     },
   });
 
-  return { registry, libraryCounts };
+  const systemAssetCount = systemRegistry.length - registry.length;
+
+  return { registry, libraryCounts, systemAssetCount };
 }

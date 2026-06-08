@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioWizardChoiceGrid } from "@/components/studio/studio-wizard-choice-grid";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
@@ -19,6 +19,8 @@ import {
   draftPatchForGenerationSuccess,
   runAssetReferenceGeneration,
 } from "@/lib/studio-asset-wizard-reference-generation";
+import { buildTransformPromptPreview } from "@/lib/studio-asset-transform-prompt";
+import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
 import {
   clearWizardGeneratedReferenceOutput,
   hasWizardSourceReference,
@@ -85,6 +87,10 @@ export function StudioWizardReferenceStep({
   const previewUrl = draft.generatedReferencePreviewUrl || referenceImageUrl;
   const sourceFlow = shouldSkipReferenceModeChoice(draft) || hasWizardSourceReference(draft);
   const source = resolveWizardSourceReference(draft);
+  const identityPreview = useMemo(
+    () => (sourceFlow ? buildTransformPromptPreview(draft) : null),
+    [draft, sourceFlow]
+  );
 
   useEffect(() => {
     if (sourceFlow && referenceMode !== "generate") {
@@ -370,7 +376,9 @@ export function StudioWizardReferenceStep({
               {draft.variantFidelityScore ?
                 <div
                   className={`rounded-xl border p-3 text-sm ${
-                    draft.variantFidelityScore.lowFidelity
+                    draft.variantFidelityScore.recoveryTier === "identity_failure"
+                      ? "border-red-300 bg-red-50 text-red-900"
+                      : draft.variantFidelityScore.lowFidelity
                       ? "border-amber-300 bg-amber-50 text-amber-900"
                       : "border-emerald-200 bg-emerald-50 text-emerald-900"
                   }`}
@@ -385,14 +393,27 @@ export function StudioWizardReferenceStep({
                       color: draft.variantFidelityScore.colorPreservation,
                       shape: draft.variantFidelityScore.shapePreservation,
                       brand: draft.variantFidelityScore.brandPreservation,
+                      family: draft.variantFidelityScore.familyPreservation,
                     })}
                   </p>
-                  {draft.variantFidelityScore.lowFidelity ?
+                  {draft.variantFidelityScore.recoveryTier === "identity_failure" ?
+                    <p className="mt-2 text-xs font-medium">
+                      {t("studio.assetCreation.reference.fidelityIdentityFailure")}
+                    </p>
+                  : draft.variantFidelityScore.lowFidelity ?
                     <p className="mt-2 text-xs font-medium">
                       {t("studio.assetCreation.reference.fidelityLowWarning")}
                     </p>
                   : null}
                 </div>
+              : null}
+              {identityPreview ?
+                <StudioWizardIdentityDebugPanel
+                  draft={draft}
+                  preview={identityPreview}
+                  generatedPrompt={draft.referenceGenerationPrompt}
+                  showFullPrompt={session.user?.role === "admin"}
+                />
               : null}
               <p className="text-sm font-medium text-zinc-800">
                 {t("studio.assetCreation.reference.useOfficialQuestion")}
