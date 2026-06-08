@@ -1,40 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioAssetLibraryActions } from "@/components/studio/studio-asset-library-actions";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
 import type { StudioAsset, StudioAssetUsageEntry } from "@/types/studio-media-asset";
 
 type Props = {
   asset: StudioAsset;
   usage?: StudioAssetUsageEntry | null;
+  isAdmin?: boolean;
   onClose?: () => void;
+  onFavoriteChange?: (assetId: string, favorite: boolean) => void;
 };
 
-export function StudioAssetDetailView({ asset, usage, onClose }: Props) {
+export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavoriteChange }: Props) {
   const t = useActiveTranslator();
   const collections = STUDIO_ASSET_COLLECTIONS.filter((c) => asset.collectionIds.includes(c.id));
 
-  const entityLink = (() => {
-    const ref = asset.sourceRef;
-    if (ref.entityType === "character") {
-      return `/studio/characters/${encodeURIComponent(ref.entityId)}`;
-    }
-    if (ref.entityType === "location") {
-      return `/studio/locations/${encodeURIComponent(ref.entityId)}`;
-    }
-    if (ref.entityType === "prop") {
-      return `/studio/props/${encodeURIComponent(ref.entityId)}`;
-    }
-    return null;
-  })();
-
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t(`studio.mediaAsset.tab.${asset.category}` as never)}
+            {asset.sourceRef.entityType === "world"
+              ? t("studio.mediaAsset.tab.world")
+              : t(`studio.mediaAsset.tab.${asset.category}` as never)}
           </p>
           <h3 className="mt-1 text-base font-semibold text-slate-900">{asset.name}</h3>
         </div>
@@ -42,7 +32,7 @@ export function StudioAssetDetailView({ asset, usage, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+            className="min-h-[44px] rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
           >
             {t("studio.mediaAsset.close")}
           </button>
@@ -53,7 +43,7 @@ export function StudioAssetDetailView({ asset, usage, onClose }: Props) {
         <img
           src={asset.previewUrl}
           alt={asset.name}
-          className="mt-3 max-h-40 w-full rounded-lg border border-slate-100 object-cover"
+          className="mt-3 max-h-48 w-full rounded-xl border border-slate-100 object-cover"
         />
       : null}
 
@@ -62,24 +52,30 @@ export function StudioAssetDetailView({ asset, usage, onClose }: Props) {
           <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.description")}</dt>
           <dd className="mt-0.5">{asset.description || "—"}</dd>
         </div>
+        {asset.origin ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.origin")}</dt>
+            <dd className="mt-0.5">{t(`studio.mediaAsset.origin.${asset.origin}` as never)}</dd>
+          </div>
+        : null}
+        {asset.promptSummary ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.prompt")}</dt>
+            <dd className="mt-0.5 line-clamp-4">{asset.promptSummary}</dd>
+          </div>
+        : null}
         <div>
           <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.source")}</dt>
-          <dd className="mt-0.5 capitalize">{t(`studio.mediaAsset.source.${asset.source}` as never)}</dd>
+          <dd className="mt-0.5">{t(`studio.mediaAsset.source.${asset.source}` as never)}</dd>
         </div>
         <div>
-          <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.owner")}</dt>
-          <dd className="mt-0.5">{asset.owner === "system" ? t("studio.mediaAsset.owner.system") : asset.owner}</dd>
-        </div>
-        <div>
-          <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.tags")}</dt>
-          <dd className="mt-0.5">{asset.tags.join(", ") || "—"}</dd>
+          <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.updated")}</dt>
+          <dd className="mt-0.5">{new Date(asset.updatedAt).toLocaleString()}</dd>
         </div>
         {collections.length > 0 ?
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.collections")}</dt>
-            <dd className="mt-0.5">
-              {collections.map((c) => t(c.labelKey as never)).join(" · ")}
-            </dd>
+            <dd className="mt-0.5">{collections.map((c) => t(c.labelKey as never)).join(" · ")}</dd>
           </div>
         : null}
       </dl>
@@ -91,21 +87,17 @@ export function StudioAssetDetailView({ asset, usage, onClose }: Props) {
             {usage.usedBy.map((ref) => (
               <li key={`${ref.entityType}-${ref.entityId}`}>
                 {t(`studio.mediaAsset.usage.${ref.entityType}` as never)}: {ref.entityName}
-                {ref.sceneOrder != null ? ` (#${ref.sceneOrder + 1})` : ""}
               </li>
             ))}
           </ul>
         </div>
       : null}
 
-      {entityLink ?
-        <Link
-          href={entityLink}
-          className="mt-4 inline-block text-xs font-semibold text-[#006D52] hover:underline"
-        >
-          {t("studio.mediaAsset.detail.openEntity")} →
-        </Link>
-      : null}
+      <StudioAssetLibraryActions
+        asset={asset}
+        isAdmin={isAdmin}
+        onFavoriteChange={onFavoriteChange}
+      />
     </div>
   );
 }

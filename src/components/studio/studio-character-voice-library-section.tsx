@@ -15,6 +15,7 @@ import {
   resolveMarketplaceSearchQuery,
 } from "@/lib/studio-voice-marketplace-search";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
+import { StudioVoiceFavoriteButton } from "@/components/studio/studio-voice-favorite-button";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { useActiveTranslator } from "@/i18n/client";
@@ -702,6 +703,7 @@ function VoiceRecommendationCard({
           : null}
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
+          <StudioVoiceFavoriteButton voiceRef={entry.id} />
           <button
             type="button"
             disabled={previewBusy}

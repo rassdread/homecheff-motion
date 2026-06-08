@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { DERIVATION_TIME_SAVED_MINUTES } from "@/lib/studio-asset-style-dna";
+import { readAssetLibraryPreferencesManifest } from "@/server/studio/studio-asset-library-preferences-blob";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
 import type {
   UserStudioActivityItem,
@@ -138,6 +139,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
     recentLocations,
     recentWorlds,
     recentCostEvents,
+    libraryPrefs,
   ] = await Promise.all([
     prisma.animationProject.count({ where: { ownerId: userId } }),
     prisma.studioStoryboard.count({ where: { ownerId: userId } }),
@@ -187,6 +189,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    readAssetLibraryPreferencesManifest(userId),
   ]);
 
   const activity: UserStudioActivityItem[] = [];
@@ -264,6 +267,14 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
         title: "Voice clone",
         href: null,
       });
+    } else if (feature === "asset_reference_generate") {
+      activity.push({
+        id: `ref-gen-${e.id}`,
+        at: e.createdAt.toISOString(),
+        kind: "asset_derived",
+        title: "Reference image generated",
+        href: "/studio/assets?tab=generated",
+      });
     } else if (feature === "asset_derivation") {
       activity.push({
         id: `derive-${e.id}`,
@@ -297,6 +308,10 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       props,
       locations,
       worlds,
+    },
+    librarySummary: {
+      favoritesCount: libraryPrefs.favorites.length,
+      voiceFavoritesCount: libraryPrefs.voiceFavorites.length,
     },
     recentActivity: activity.slice(0, 12),
   };

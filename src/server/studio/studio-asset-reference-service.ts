@@ -152,6 +152,8 @@ export async function generateAssetReference(
         sourceAssetId: input.derivation.sourceAssetId,
         sourceAssetName: input.derivation.sourceName,
         model: buffers.model,
+        promptSummary: summary.slice(0, 240),
+        assetKind: input.kind,
       });
     } else {
       meterOpenAiSceneImage({
@@ -161,6 +163,11 @@ export async function generateAssetReference(
         size: buffers.size,
         imageRecordId: generationId,
         providerId: buffers.provider,
+        extraMetadata: {
+          assetKind: input.kind,
+          promptSummary: summary.slice(0, 240),
+          sourceAssetName: sourceRef?.name,
+        },
       });
     }
 

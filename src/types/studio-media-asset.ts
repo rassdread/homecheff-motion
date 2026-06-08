@@ -17,6 +17,8 @@ export type StudioAssetCategory = (typeof STUDIO_ASSET_CATEGORIES)[number];
 
 export type StudioAssetSource = "system" | "user" | "imported";
 
+export type StudioAssetOrigin = "generated" | "uploaded" | "derived" | "manual" | "system";
+
 export type StudioAssetStatus = "active" | "draft" | "archived";
 
 export type StudioAssetSourceRef = {
@@ -38,6 +40,14 @@ export type StudioAsset = {
   sourceRef: StudioAssetSourceRef;
   previewUrl?: string | null;
   collectionIds: string[];
+  /** Downloadable image URL when preview exists */
+  downloadUrl?: string | null;
+  storageKey?: string | null;
+  origin?: StudioAssetOrigin;
+  isFavorite?: boolean;
+  lastUsedAt?: string | null;
+  generationId?: string;
+  promptSummary?: string;
 };
 
 export type StudioAssetCollection = {

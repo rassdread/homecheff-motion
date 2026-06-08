@@ -104,6 +104,26 @@ export function StudioMyStudioPage() {
                 <h3 className="text-sm font-semibold text-zinc-900">{t("studio.myStudio.libraryTitle")}</h3>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <AssetCountLink
+                    label={t("studio.myStudio.library.allAssets")}
+                    count={
+                      report.assetCounts.characters +
+                      report.assetCounts.props +
+                      report.assetCounts.locations +
+                      report.assetCounts.worlds
+                    }
+                    href="/studio/assets"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.favorites")}
+                    count={report.librarySummary.favoritesCount}
+                    href="/studio/assets?filter=favorites"
+                  />
+                  <AssetCountLink
+                    label={t("studio.myStudio.library.generated")}
+                    count={report.assetReferencesGenerated}
+                    href="/studio/assets?tab=generated"
+                  />
+                  <AssetCountLink
                     label={t("studio.myStudio.library.projects")}
                     count={report.assetCounts.projects}
                     href="/videos"

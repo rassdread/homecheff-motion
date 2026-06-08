@@ -6,70 +6,96 @@ import { StudioAssetDetailView } from "@/components/studio/studio-asset-detail-v
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { brand } from "@/lib/brand";
+import {
+  fetchAssetLibraryPreferences,
+  fetchGeneratedReferenceHistory,
+} from "@/lib/studio-asset-library-client";
+import {
+  applyAssetLibraryPreferences,
+  ASSET_LIBRARY_USER_COLLECTIONS,
+  filterAssetsByCollectionPreset,
+  filterAssetsByOrigin,
+  matchesAssetLibraryTab,
+  searchStudioAssets,
+  sortStudioAssets,
+  type AssetLibraryOriginFilter,
+  type AssetLibrarySort,
+  type AssetLibraryTab,
+  type AssetLibraryViewMode,
+  userOwnedAssetsOnly,
+} from "@/lib/studio-asset-library-filters";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
+import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
-import {
-  buildStudioAssetRegistry,
-  searchStudioAssetRegistry,
-} from "@/lib/studio-media-asset-registry";
-import type { StudioAssetCategory, StudioAsset } from "@/types/studio-media-asset";
+import { buildStudioAssetRegistry } from "@/lib/studio-media-asset-registry";
+import type { StudioAsset } from "@/types/studio-media-asset";
 
-type TabId =
-  | "all"
-  | "character"
-  | "location"
-  | "prop"
-  | "reference_image"
-  | "voice"
-  | "music"
-  | "sound"
-  | "brand_asset";
-
-const TABS: TabId[] = [
+const TABS: AssetLibraryTab[] = [
   "all",
+  "favorites",
+  "recent",
   "character",
-  "location",
   "prop",
+  "location",
+  "world",
   "reference_image",
+  "generated",
+  "derived",
   "voice",
   "music",
   "sound",
-  "brand_asset",
 ];
-
-function tabToCategory(tab: TabId): StudioAssetCategory | "all" | "sound" {
-  return tab;
-}
-
-function matchesTab(asset: StudioAsset, tab: TabId): boolean {
-  if (tab === "all") return true;
-  if (tab === "sound") {
-    return asset.category === "ambience" || asset.category === "sound_effect" || asset.category === "mouth_asset";
-  }
-  if (tab === "reference_image") {
-    return asset.category === "reference_image" || asset.category === "mouth_asset";
-  }
-  return asset.category === tab;
-}
 
 type Props = {
   layout?: "page" | "embedded";
   storyboardAssets?: StudioAsset[];
+  initialTab?: AssetLibraryTab;
+  initialCollection?: string;
 };
 
-export function StudioAssetLibrary({ layout = "page", storyboardAssets }: Props) {
+function parseInitialTab(value: string | null): AssetLibraryTab {
+  if (value && TABS.includes(value as AssetLibraryTab)) {
+    return value as AssetLibraryTab;
+  }
+  return "all";
+}
+
+export function StudioAssetLibrary({
+  layout = "page",
+  storyboardAssets,
+  initialTab,
+  initialCollection,
+}: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
+  const isAdmin = session.user?.role === "admin";
+
   const [loading, setLoading] = useState(layout === "page");
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<TabId>("all");
+  const [tab, setTab] = useState<AssetLibraryTab>(() => {
+    if (initialTab) {
+      return initialTab;
+    }
+    if (typeof window !== "undefined") {
+      return parseInitialTab(new URLSearchParams(window.location.search).get("tab"));
+    }
+    return "all";
+  });
   const [query, setQuery] = useState("");
-  const [collectionId, setCollectionId] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const [collectionId, setCollectionId] = useState(initialCollection ?? "");
+  const [originFilter, setOriginFilter] = useState<AssetLibraryOriginFilter>("all");
+  const [sort, setSort] = useState<AssetLibrarySort>("updated_desc");
+  const [viewMode, setViewMode] = useState<AssetLibraryViewMode>("grid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [userRegistry, setUserRegistry] = useState<StudioAsset[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (storyboardAssets) {
@@ -77,27 +103,63 @@ export function StudioAssetLibrary({ layout = "page", storyboardAssets }: Props)
     }
     setLoading(true);
     setError("");
-    const [chars, locs, props] = await Promise.all([
+    const [chars, locs, props, worlds, prefs, history] = await Promise.all([
       fetchStudioCharacters(),
       fetchStudioLocations(),
       fetchStudioProps(),
+      fetchStudioWorlds(),
+      fetchAssetLibraryPreferences(),
+      fetchGeneratedReferenceHistory(),
     ]);
-    if (!chars.ok || !locs.ok || !props.ok) {
+    if (!chars.ok || !locs.ok || !props.ok || !worlds.ok) {
       setError(t("studio.mediaAsset.error.loadFailed"));
       setUserRegistry([]);
       setLoading(false);
       return;
     }
+
+    const userId = session.user?.id ?? "";
+    const generatedRefs =
+      history.ok
+        ? history.data
+            .filter((item) => item.referenceImageUrl)
+            .map((item) => ({
+              generationId: item.generationId,
+              kind: item.kind,
+              createdAt: item.createdAt,
+              promptSummary: item.promptSummary,
+              referenceImageUrl: item.referenceImageUrl!,
+              referenceStorageKey: item.referenceStorageKey,
+              thumbnailUrl: item.thumbnailUrl,
+              sourceAssetName: item.sourceAssetName,
+              origin: item.origin,
+              ownerId: userId,
+            }))
+        : [];
+
+    const registry = buildStudioAssetRegistry({
+      characters: chars.data.characters,
+      locations: locs.data.locations,
+      props: props.data.props,
+      worlds: worlds.data.worlds,
+      generatedReferences: generatedRefs,
+      includeSystemCatalog: true,
+      userId,
+    });
+
+    const owned = userId ? userOwnedAssetsOnly(registry, userId) : registry;
+    const favs = prefs.ok ? prefs.data.favorites : [];
+    const recents = prefs.ok ? prefs.data.recentAssetIds : [];
+    setFavoriteIds(favs);
+    setRecentIds(recents);
     setUserRegistry(
-      buildStudioAssetRegistry({
-        characters: chars.data.characters,
-        locations: locs.data.locations,
-        props: props.data.props,
-        includeSystemCatalog: true,
+      applyAssetLibraryPreferences(owned, {
+        favoriteIds: favs,
+        recentAssetIds: recents,
       })
     );
     setLoading(false);
-  }, [storyboardAssets, t]);
+  }, [storyboardAssets, t, session.user?.id]);
 
   useEffect(() => {
     if (storyboardAssets || !session.resolved || !session.user) {
@@ -111,53 +173,55 @@ export function StudioAssetLibrary({ layout = "page", storyboardAssets }: Props)
   const registry = storyboardAssets ?? userRegistry;
 
   const filtered = useMemo(() => {
-    const category = tabToCategory(tab);
-    const base =
-      category === "sound" || category === "reference_image"
-        ? registry.filter((a) => matchesTab(a, tab))
-        : searchStudioAssetRegistry({
-            registry,
-            category: category === "all" ? "all" : (category as StudioAssetCategory),
-            query,
-            collectionId: collectionId || undefined,
-          });
-    if (category === "sound" || category === "reference_image") {
-      const q = query.trim().toLowerCase();
-      return base.filter((a) => {
-        if (collectionId && !a.collectionIds.includes(collectionId)) return false;
-        if (!q) return true;
-        return [a.name, a.description, ...a.tags].join(" ").toLowerCase().includes(q);
-      });
-    }
-    return base;
-  }, [registry, tab, query, collectionId]);
+    const favoriteSet = new Set(favoriteIds);
+    const recentSet = new Set(recentIds);
+    let items = registry.filter((a) => matchesAssetLibraryTab(a, tab));
+    items = filterAssetsByCollectionPreset(items, collectionId, favoriteSet, recentSet);
+    items = filterAssetsByOrigin(items, originFilter);
+    items = searchStudioAssets(items, debouncedQuery);
+    items = sortStudioAssets(items, tab === "recent" ? "recent" : sort);
+    return items;
+  }, [registry, tab, collectionId, originFilter, debouncedQuery, sort, favoriteIds, recentIds]);
 
-  const selected = filtered.find((a) => a.id === selectedId) ?? registry.find((a) => a.id === selectedId) ?? null;
+  const selected =
+    filtered.find((a) => a.id === selectedId) ?? registry.find((a) => a.id === selectedId) ?? null;
+
+  const handleFavoriteChange = (assetId: string, favorite: boolean) => {
+    setFavoriteIds((prev) => {
+      const set = new Set(prev);
+      if (favorite) {
+        set.add(assetId);
+      } else {
+        set.delete(assetId);
+      }
+      return [...set];
+    });
+    setUserRegistry((prev) =>
+      prev.map((a) => (a.id === assetId ? { ...a, isFavorite: favorite } : a))
+    );
+  };
 
   const inner = (
     <div className={layout === "page" ? "" : "rounded-xl border border-slate-200 bg-slate-50/50 p-4"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">{t("studio.mediaAsset.title")}</h2>
-          <p className="mt-1 text-xs text-slate-600">{t("studio.mediaAsset.hint")}</p>
+          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{t("studio.mediaAsset.title")}</h2>
+          <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
         </div>
         {layout === "page" ?
-          <Link
-            href="/studio"
-            className="text-xs font-medium text-[#006D52] hover:underline"
-          >
-            ← {t("studio.mediaAsset.backToStudio")}
+          <Link href="/studio/my-studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+            ← {t("studio.mediaAsset.backToMyStudio")}
           </Link>
         : null}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1">
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
         {TABS.map((id) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+            className={`shrink-0 rounded-full px-3 py-2 text-xs font-medium min-h-[44px] ${
               tab === id ? "bg-slate-800 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200"
             }`}
           >
@@ -172,67 +236,159 @@ export function StudioAssetLibrary({ layout = "page", storyboardAssets }: Props)
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("studio.mediaAsset.search")}
-          className="min-w-[180px] flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
+          className="min-h-[44px] min-w-[180px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
         />
-        <select
-          value={collectionId}
-          onChange={(e) => setCollectionId(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm"
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 lg:hidden"
         >
-          <option value="">{t("studio.mediaAsset.filterCollectionAll")}</option>
-          {STUDIO_ASSET_COLLECTIONS.map((c) => (
-            <option key={c.id} value={c.id}>
-              {t(c.labelKey as never)}
-            </option>
-          ))}
-        </select>
+          {t("studio.mediaAsset.filters")}
+        </button>
+        <div className={`${filtersOpen ? "flex" : "hidden"} w-full flex-wrap gap-2 lg:flex`}>
+          <select
+            value={collectionId}
+            onChange={(e) => setCollectionId(e.target.value)}
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          >
+            <option value="">{t("studio.mediaAsset.filterCollectionAll")}</option>
+            <optgroup label={t("studio.mediaAsset.filterGroup.personal")}>
+              {ASSET_LIBRARY_USER_COLLECTIONS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {t(c.labelKey as never)}
+                </option>
+              ))}
+            </optgroup>
+            {STUDIO_ASSET_COLLECTIONS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {t(c.labelKey as never)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={originFilter}
+            onChange={(e) => setOriginFilter(e.target.value as AssetLibraryOriginFilter)}
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          >
+            <option value="all">{t("studio.mediaAsset.filterOriginAll")}</option>
+            <option value="generated">{t("studio.mediaAsset.filterOriginGenerated")}</option>
+            <option value="uploaded">{t("studio.mediaAsset.filterOriginUploaded")}</option>
+            <option value="derived">{t("studio.mediaAsset.filterOriginDerived")}</option>
+            <option value="manual">{t("studio.mediaAsset.filterOriginManual")}</option>
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as AssetLibrarySort)}
+            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          >
+            <option value="updated_desc">{t("studio.mediaAsset.sort.updatedDesc")}</option>
+            <option value="updated_asc">{t("studio.mediaAsset.sort.updatedAsc")}</option>
+            <option value="name_asc">{t("studio.mediaAsset.sort.nameAsc")}</option>
+            <option value="name_desc">{t("studio.mediaAsset.sort.nameDesc")}</option>
+            <option value="recent">{t("studio.mediaAsset.sort.recent")}</option>
+          </select>
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={`min-h-[40px] rounded-lg px-3 text-xs font-medium ${viewMode === "grid" ? "bg-slate-100" : ""}`}
+            >
+              {t("studio.mediaAsset.viewGrid")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`min-h-[40px] rounded-lg px-3 text-xs font-medium ${viewMode === "list" ? "bg-slate-100" : ""}`}
+            >
+              {t("studio.mediaAsset.viewList")}
+            </button>
+          </div>
+        </div>
       </div>
+
+      <p className="mt-2 text-xs text-slate-500">
+        {t("studio.mediaAsset.resultCount", { count: String(filtered.length) })}
+      </p>
 
       {loading ?
         <p className="mt-4 text-sm text-slate-600">{t("button.loading")}</p>
       : error ?
         <p className="mt-4 text-sm text-red-700">{error}</p>
       : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
-          <ul className="max-h-[420px] space-y-1 overflow-y-auto rounded-lg border border-slate-100 bg-white p-2">
-            {filtered.length === 0 ?
-              <li className="px-2 py-4 text-xs text-slate-500">{t("studio.mediaAsset.empty")}</li>
-            : filtered.map((asset) => (
-                <li key={asset.id}>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
+          {viewMode === "grid" ?
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 max-h-[520px] overflow-y-auto">
+              {filtered.length === 0 ?
+                <p className="col-span-full px-2 py-8 text-sm text-slate-500">{t("studio.mediaAsset.empty")}</p>
+              : filtered.map((asset) => (
                   <button
+                    key={asset.id}
                     type="button"
                     onClick={() => setSelectedId(asset.id)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs hover:bg-slate-50 ${
-                      selectedId === asset.id ? "bg-slate-100" : ""
+                    className={`flex min-h-[120px] flex-col rounded-2xl border p-3 text-left transition-colors ${
+                      selectedId === asset.id ? "border-[#006D52] bg-[#006D52]/5" : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     {asset.previewUrl ?
-                      <img
-                        src={asset.previewUrl}
-                        alt=""
-                        className="h-8 w-8 shrink-0 rounded object-cover"
-                      />
+                      <img src={asset.previewUrl} alt="" className="mb-2 h-20 w-full rounded-lg object-cover" />
                     : (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-slate-100 text-[10px] uppercase text-slate-500">
+                      <span className="mb-2 flex h-20 items-center justify-center rounded-lg bg-slate-100 text-xs uppercase text-slate-500">
                         {asset.category.slice(0, 3)}
                       </span>
                     )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-slate-900">{asset.name}</span>
-                      <span className="block truncate text-slate-500">
-                        {t(`studio.mediaAsset.source.${asset.source}` as never)} ·{" "}
-                        {t(`studio.mediaAsset.tab.${asset.category}` as never)}
-                      </span>
+                    <span className="truncate text-sm font-semibold text-slate-900">{asset.name}</span>
+                    <span className="truncate text-xs text-slate-500">
+                      {asset.isFavorite ? "★ " : ""}
+                      {t(`studio.mediaAsset.source.${asset.source}` as never)}
                     </span>
                   </button>
-                </li>
-              ))
-            }
-          </ul>
-          {selected ?
-            <StudioAssetDetailView asset={selected} onClose={() => setSelectedId(null)} />
+                ))
+              }
+            </div>
           : (
-            <p className="text-xs text-slate-500">{t("studio.mediaAsset.selectHint")}</p>
+            <ul className="max-h-[520px] space-y-1 overflow-y-auto rounded-xl border border-slate-100 bg-white p-2">
+              {filtered.length === 0 ?
+                <li className="px-2 py-8 text-sm text-slate-500">{t("studio.mediaAsset.empty")}</li>
+              : filtered.map((asset) => (
+                  <li key={asset.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(asset.id)}
+                      className={`flex w-full min-h-[56px] items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                        selectedId === asset.id ? "bg-slate-100" : ""
+                      }`}
+                    >
+                      {asset.previewUrl ?
+                        <img src={asset.previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                      : (
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] uppercase text-slate-500">
+                          {asset.category.slice(0, 3)}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-slate-900">
+                          {asset.isFavorite ? "★ " : ""}
+                          {asset.name}
+                        </span>
+                        <span className="block truncate text-xs text-slate-500">
+                          {asset.origin ? t(`studio.mediaAsset.origin.${asset.origin}` as never) : ""}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))
+              }
+            </ul>
+          )}
+          {selected ?
+            <StudioAssetDetailView
+              asset={selected}
+              isAdmin={isAdmin}
+              onClose={() => setSelectedId(null)}
+              onFavoriteChange={handleFavoriteChange}
+            />
+          : (
+            <p className="hidden text-sm text-slate-500 lg:block">{t("studio.mediaAsset.selectHint")}</p>
           )}
         </div>
       )}
@@ -246,7 +402,7 @@ export function StudioAssetLibrary({ layout = "page", storyboardAssets }: Props)
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:px-10 sm:py-14">{inner}</section>
+        <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">{inner}</section>
       </main>
     </StudioAuthGate>
   );

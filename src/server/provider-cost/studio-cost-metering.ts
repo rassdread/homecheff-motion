@@ -89,6 +89,7 @@ export function meterOpenAiSceneImage(params: {
   size?: string;
   imageRecordId?: string;
   providerId?: string;
+  extraMetadata?: Record<string, unknown>;
 }): void {
   if (params.providerId && params.providerId !== "openai") {
     return;
@@ -114,6 +115,7 @@ export function meterOpenAiSceneImage(params: {
         size: params.size,
         imageCount: count,
         estimatedCostUsd: count * unitCost,
+        ...params.extraMetadata,
       }),
     })
   );
@@ -388,6 +390,8 @@ export function meterAssetDerivation(params: {
   imageCount?: number;
   model?: string;
   derivationAccepted?: boolean;
+  promptSummary?: string;
+  assetKind?: string;
 }): void {
   const actionType =
     params.phase === "vision" ? COST_ACTION.OPENAI_CHARACTER_ANALYSIS : COST_ACTION.OPENAI_SCENE_IMAGE;
@@ -456,6 +460,8 @@ export function meterAssetDerivation(params: {
         model: params.model,
         imageCount: params.imageCount,
         estimatedCostUsd: unitCost,
+        promptSummary: params.promptSummary,
+        assetKind: params.assetKind ?? params.targetKind,
       }),
     })
   );

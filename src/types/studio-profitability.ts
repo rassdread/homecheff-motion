@@ -194,5 +194,9 @@ export type UserStudioActivityItem = {
 
 export type UserStudioDashboardReport = UserStudioInsightsReport & {
   assetCounts: UserStudioAssetCounts;
+  librarySummary: {
+    favoritesCount: number;
+    voiceFavoritesCount: number;
+  };
   recentActivity: UserStudioActivityItem[];
 };

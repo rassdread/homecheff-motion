@@ -94,6 +94,8 @@ export function characterToRegistryAsset(
     sourceRef: { entityType: "character", entityId: character.id },
     previewUrl: character.referenceImageUrl || null,
     collectionIds: [],
+    downloadUrl: character.referenceImageUrl || null,
+    origin: "manual",
   };
 }
 
@@ -115,6 +117,8 @@ export function characterReferenceImageAsset(character: StudioCharacterListItem)
     sourceRef: { entityType: "character", entityId: character.id },
     previewUrl: character.referenceImageUrl,
     collectionIds: [],
+    downloadUrl: character.referenceImageUrl,
+    origin: "uploaded",
   };
 }
 
@@ -162,6 +166,8 @@ export function locationToRegistryAsset(location: StudioLocationListItem): Studi
     sourceRef: { entityType: "location", entityId: location.id },
     previewUrl: location.referenceImageUrl || null,
     collectionIds: [],
+    downloadUrl: location.referenceImageUrl || null,
+    origin: "manual",
   };
 }
 
@@ -183,6 +189,8 @@ export function locationReferenceImageAsset(location: StudioLocationListItem): S
     sourceRef: { entityType: "location", entityId: location.id },
     previewUrl: location.referenceImageUrl,
     collectionIds: [],
+    downloadUrl: location.referenceImageUrl,
+    origin: "uploaded",
   };
 }
 
@@ -201,6 +209,8 @@ export function propToRegistryAsset(prop: StudioPropListItem): StudioAsset {
     sourceRef: { entityType: "prop", entityId: prop.id },
     previewUrl: prop.referenceImageUrl || null,
     collectionIds: [],
+    downloadUrl: prop.referenceImageUrl || null,
+    origin: "manual",
   };
 }
 
@@ -222,6 +232,63 @@ export function sceneImageToRegistryAsset(
     sourceRef: { entityType: "scene_image", entityId: image.id },
     previewUrl: image.imageUrl,
     collectionIds: [],
+    downloadUrl: image.imageUrl,
+    origin: "generated",
+  };
+}
+
+export function worldToRegistryAsset(world: StudioWorldProfileListItem): StudioAsset {
+  return {
+    id: `world:${world.id}`,
+    name: world.name,
+    category: "character",
+    description: world.description || world.visualStyle || "",
+    tags: ["world", world.slug, world.visualStyle].filter(Boolean),
+    owner: world.ownerId,
+    source: "user",
+    status: "active",
+    createdAt: world.createdAt,
+    updatedAt: world.updatedAt,
+    sourceRef: { entityType: "world", entityId: world.id },
+    previewUrl: null,
+    collectionIds: [],
+    origin: "manual",
+  };
+}
+
+export function generatedReferenceToRegistryAsset(item: {
+  generationId: string;
+  kind: string;
+  createdAt: string;
+  promptSummary: string;
+  referenceImageUrl: string;
+  referenceStorageKey: string | null;
+  thumbnailUrl: string | null;
+  sourceAssetName: string | null;
+  origin: "generated" | "derived";
+  ownerId: string;
+}): StudioAsset {
+  return {
+    id: studioAssetId("reference_image", `gen_${item.generationId}`),
+    name: item.promptSummary.slice(0, 80) || "Generated reference",
+    category: "reference_image",
+    description: item.sourceAssetName
+      ? `From ${item.sourceAssetName}`
+      : item.promptSummary,
+    tags: ["generated", item.kind, item.origin],
+    owner: item.ownerId,
+    source: "user",
+    status: "active",
+    createdAt: item.createdAt,
+    updatedAt: item.createdAt,
+    sourceRef: { entityType: "scene_image", entityId: item.generationId },
+    previewUrl: item.thumbnailUrl ?? item.referenceImageUrl,
+    downloadUrl: item.referenceImageUrl,
+    storageKey: item.referenceStorageKey,
+    collectionIds: [],
+    origin: item.origin,
+    generationId: item.generationId,
+    promptSummary: item.promptSummary,
   };
 }
 
@@ -230,8 +297,21 @@ export function buildStudioAssetRegistry(params?: {
   locations?: StudioLocationListItem[];
   props?: StudioPropListItem[];
   worlds?: StudioWorldProfileListItem[];
+  generatedReferences?: Array<{
+    generationId: string;
+    kind: string;
+    createdAt: string;
+    promptSummary: string;
+    referenceImageUrl: string;
+    referenceStorageKey: string | null;
+    thumbnailUrl: string | null;
+    sourceAssetName: string | null;
+    origin: "generated" | "derived";
+    ownerId: string;
+  }>;
   storyboard?: StudioStoryboardDetail;
   includeSystemCatalog?: boolean;
+  userId?: string;
 }): StudioAsset[] {
   const assets: StudioAsset[] = [];
   const includeSystem = params?.includeSystemCatalog !== false;
@@ -289,8 +369,18 @@ export function buildStudioAssetRegistry(params?: {
         sourceRef: { entityType: "prop", entityId: prop.id },
         previewUrl: prop.referenceImageUrl,
         collectionIds: [],
+        downloadUrl: prop.referenceImageUrl,
+        origin: "uploaded",
       });
     }
+  }
+
+  for (const world of params?.worlds ?? []) {
+    assets.push(worldToRegistryAsset(world));
+  }
+
+  for (const gen of params?.generatedReferences ?? []) {
+    assets.push(generatedReferenceToRegistryAsset(gen));
   }
 
   if (params?.storyboard) {
