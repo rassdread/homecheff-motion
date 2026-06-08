@@ -75,7 +75,7 @@ export function StudioWorldsLibrary() {
               <p className="mt-2 text-sm text-zinc-600">{t("studio.worlds.librarySubtitle")}</p>
             </div>
             <Link
-              href="/studio/worlds/new"
+              href="/studio/worlds/new?guided=1"
               className="rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#005a45]"
             >
               {t("studio.worlds.newWorld")}

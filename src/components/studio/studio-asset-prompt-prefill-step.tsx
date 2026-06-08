@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { StudioAssetPrefillReviewCard } from "@/components/studio/studio-asset-prefill-review-card";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
-import { buildAssetPromptPrefillProposal } from "@/lib/studio-asset-prompt-prefill";
+import { buildAssetIdentityPrefillFromPrompt } from "@/lib/studio-asset-identity-prefill";
 import type { AssetPromptPrefillProposal, StudioAssetKind } from "@/types/studio-asset-creation";
 
 type Props = {
@@ -32,7 +32,7 @@ export function StudioAssetPromptPrefillStep({
       return;
     }
     setProposal(
-      buildAssetPromptPrefillProposal({
+      buildAssetIdentityPrefillFromPrompt({
         kind,
         prompt: promptText,
         usageContext: promptUsage,

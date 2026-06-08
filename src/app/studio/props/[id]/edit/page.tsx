@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
-import { StudioPropForm, type StudioPropFormValues } from "@/components/studio/studio-prop-form";
+import {
+  StudioPropForm,
+  studioPropFormToCreatePayload,
+  type StudioPropFormValues,
+} from "@/components/studio/studio-prop-form";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
@@ -49,14 +53,19 @@ export default function StudioPropEditPage() {
     Boolean(session.user?.id && prop && prop.ownerId === session.user.id);
 
   const handleSubmit = async (values: StudioPropFormValues) => {
+    const payload = studioPropFormToCreatePayload(values);
     const res = await updateStudioPropApi(id, {
-      name: values.name,
-      category: values.category,
-      description: values.description,
+      name: payload.name,
+      category: payload.category,
+      description: payload.description,
+      appearanceMemory: payload.appearanceMemory,
+      brandingRules: payload.brandingRules,
+      continuityNotes: payload.continuityNotes,
+      worldProfileId: payload.worldProfileId,
       ...(values.referenceImageUrl !== prop?.referenceImageUrl
         ? {
-            referenceImageUrl: values.referenceImageUrl,
-            referenceStorageKey: values.referenceStorageKey,
+            referenceImageUrl: payload.referenceImageUrl,
+            referenceStorageKey: payload.referenceStorageKey,
           }
         : {}),
     });

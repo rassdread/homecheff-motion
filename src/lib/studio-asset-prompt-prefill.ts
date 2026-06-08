@@ -1,5 +1,6 @@
 /**
  * Heuristic prompt → identity prefill for all asset kinds (no auto-save, no LLM).
+ * @deprecated Import from `@/lib/studio-asset-identity-prefill` for new code.
  */
 
 import { buildCharacterIdentityPrefillFromPrompt } from "@/lib/studio-character-identity-prompt-prefill";

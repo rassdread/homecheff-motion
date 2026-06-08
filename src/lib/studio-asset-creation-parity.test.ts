@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { shouldShowAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
-import { buildAssetPromptPrefillProposal, mapEntryPathToCharacter } from "@/lib/studio-asset-prompt-prefill";
+import { buildAssetIdentityPrefillFromPrompt } from "@/lib/studio-asset-identity-prefill";
+import { mapEntryPathToCharacter } from "@/lib/studio-asset-prompt-prefill";
 import { buildPropReadinessView } from "@/lib/studio-prop-readiness";
 import { buildLocationReadinessView } from "@/lib/studio-location-readiness";
 import { buildWorldReadinessView } from "@/lib/studio-world-readiness";
 
 describe("studio-asset-creation-parity", () => {
   it("builds prop prompt prefill from street food description", () => {
-    const proposal = buildAssetPromptPrefillProposal({
+    const proposal = buildAssetIdentityPrefillFromPrompt({
       kind: "prop",
       prompt: "Jamaican street food cart with steel pots",
       usageContext: "promo",
@@ -19,7 +20,7 @@ describe("studio-asset-creation-parity", () => {
   });
 
   it("builds location prompt prefill for market scene", () => {
-    const proposal = buildAssetPromptPrefillProposal({
+    const proposal = buildAssetIdentityPrefillFromPrompt({
       kind: "location",
       prompt: "Busy outdoor market in Kingston street",
     });
@@ -28,7 +29,7 @@ describe("studio-asset-creation-parity", () => {
   });
 
   it("builds world prompt prefill for cyberpunk", () => {
-    const proposal = buildAssetPromptPrefillProposal({
+    const proposal = buildAssetIdentityPrefillFromPrompt({
       kind: "world",
       prompt: "Futuristic cyberpunk market universe",
     });

@@ -84,7 +84,7 @@ export function StudioPropsLibrary() {
               </p>
             </div>
             <Link
-              href="/studio/props/new"
+              href="/studio/props/new?guided=1"
               className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
             >
               {t("studio.props.newProp")}
@@ -121,7 +121,7 @@ export function StudioPropsLibrary() {
               </p>
               {!search.trim() ? (
                 <Link
-                  href="/studio/props/new"
+                  href="/studio/props/new?guided=1"
                   className="mt-6 inline-flex rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white"
                 >
                   {t("studio.props.newProp")}

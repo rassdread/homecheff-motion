@@ -5,6 +5,7 @@ import {
   StudioAssetCreationWizard,
   type AssetCreationWizardResult,
 } from "@/components/studio/studio-asset-creation-wizard";
+import { StudioAssetCreationFlowProgress } from "@/components/studio/studio-asset-creation-flow-progress";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   readSkipAssetCreationWizard,
@@ -84,6 +85,7 @@ export function StudioAssetCreationPage({
 
   return (
     <div className="space-y-4">
+      <StudioAssetCreationFlowProgress phase="builder" />
       <div className="flex justify-end">
         <button
           type="button"

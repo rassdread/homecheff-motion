@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { StudioAssetCreateEntryChoice } from "@/components/studio/studio-asset-create-entry-choice";
+import { StudioAssetImagePrefillHint } from "@/components/studio/studio-asset-image-prefill-hint";
+import { StudioAssetPrefillMergeStep } from "@/components/studio/studio-asset-prefill-merge-step";
 import { StudioAssetPromptPrefillStep } from "@/components/studio/studio-asset-prompt-prefill-step";
 import { StudioAssetSummaryReadinessPanel } from "@/components/studio/studio-asset-summary-readiness-panel";
 import { StudioPropCategoryBadge } from "@/components/studio/studio-prop-category-badge";
@@ -149,6 +151,11 @@ export function StudioPropForm({
     mode === "create" ? initialEntryPath : null
   );
   const [showAssignReference, setShowAssignReference] = useState(false);
+  const [lastUploadedFileName, setLastUploadedFileName] = useState("");
+  const [imagePrefillProposal, setImagePrefillProposal] =
+    useState<AssetPromptPrefillProposal | null>(null);
+  const [promptPrefillProposal, setPromptPrefillProposal] =
+    useState<AssetPromptPrefillProposal | null>(wizardProposal);
 
   useEffect(() => {
     if (!session.resolved || !session.user) return;
@@ -191,6 +198,7 @@ export function StudioPropForm({
           referenceStorageKey: uploaded.workingStorageKey,
         }));
         setPreviewUrl(uploaded.workingImageUrl);
+        setLastUploadedFileName(file.name);
         setShowAssignReference(true);
       } catch (e) {
         const message =
@@ -250,17 +258,35 @@ export function StudioPropForm({
         </AppCard>
       : null}
 
-      {mode === "create" && createEntryPath === "prompt_only" ?
+      {mode === "create" &&
+      (createEntryPath === "prompt_only" || createEntryPath === "image_and_prompt") ?
         <StudioAssetPromptPrefillStep
           kind="prop"
           initialProposal={wizardProposal}
           initialApplied={proposalApplied}
           onApply={(proposal) => {
+            setPromptPrefillProposal(proposal);
             setValues((v) => ({
               ...v,
               identity: mergePropIdentityForm(v.identity, proposal.prefill as Partial<PropIdentityFormValues>),
               name: String(proposal.prefill.name ?? v.name),
               description: String(proposal.prefill.description ?? v.description),
+            }));
+          }}
+        />
+      : null}
+
+      {mode === "create" && createEntryPath === "image_and_prompt" ?
+        <StudioAssetPrefillMergeStep
+          kind="prop"
+          promptProposal={promptPrefillProposal}
+          imageProposal={imagePrefillProposal}
+          onUseMerged={(merged) => {
+            setValues((v) => ({
+              ...v,
+              identity: mergePropIdentityForm(v.identity, merged.prefill as Partial<PropIdentityFormValues>),
+              name: String(merged.prefill.name ?? v.name),
+              description: String(merged.prefill.description ?? v.description),
             }));
           }}
         />
@@ -304,6 +330,26 @@ export function StudioPropForm({
                 </button>
                 {showAssignReference && previewUrl ?
                   <p className="mt-2 text-xs text-emerald-800">{t("studio.assetCreation.reference.assigned")}</p>
+                : null}
+                {mode === "create" &&
+                (createEntryPath === "image_only" || createEntryPath === "image_and_prompt") ?
+                  <StudioAssetImagePrefillHint
+                    kind="prop"
+                    fileName={lastUploadedFileName}
+                    onProposalReady={setImagePrefillProposal}
+                    onApply={(proposal) => {
+                      setImagePrefillProposal(proposal);
+                      setValues((v) => ({
+                        ...v,
+                        identity: mergePropIdentityForm(
+                          v.identity,
+                          proposal.prefill as Partial<PropIdentityFormValues>
+                        ),
+                        name: String(proposal.prefill.name ?? v.name),
+                        description: String(proposal.prefill.description ?? v.description),
+                      }));
+                    }}
+                  />
                 : null}
               </div>
             </div>

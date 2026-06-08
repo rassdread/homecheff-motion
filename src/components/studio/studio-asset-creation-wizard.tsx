@@ -5,7 +5,8 @@ import { StudioAssetCreateEntryChoice } from "@/components/studio/studio-asset-c
 import { StudioAssetPrefillReviewCard } from "@/components/studio/studio-asset-prefill-review-card";
 import { useActiveTranslator } from "@/i18n/client";
 import { useLocale } from "@/i18n/client";
-import { buildAssetPromptPrefillProposal } from "@/lib/studio-asset-prompt-prefill";
+import { StudioAssetCreationFlowProgress } from "@/components/studio/studio-asset-creation-flow-progress";
+import { buildAssetIdentityPrefillFromPrompt } from "@/lib/studio-asset-identity-prefill";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
 import type {
   AssetCreateEntryPath,
@@ -17,7 +18,7 @@ export type AssetCreationWizardResult = {
   kind: StudioAssetKind;
   entryPath: AssetCreateEntryPath;
   proposalApplied: boolean;
-  proposal: ReturnType<typeof buildAssetPromptPrefillProposal> | null;
+  proposal: ReturnType<typeof buildAssetIdentityPrefillFromPrompt> | null;
 };
 
 type Props = {
@@ -45,13 +46,11 @@ export function StudioAssetCreationWizard({
   const [promptText, setPromptText] = useState("");
   const [promptUsage, setPromptUsage] = useState("");
   const [promptBrandRules, setPromptBrandRules] = useState("");
-  const [proposal, setProposal] = useState<ReturnType<typeof buildAssetPromptPrefillProposal> | null>(
+  const [proposal, setProposal] = useState<ReturnType<typeof buildAssetIdentityPrefillFromPrompt> | null>(
     null
   );
   const [proposalApplied, setProposalApplied] = useState(false);
   const [skipWizardRemember, setSkipWizardRemember] = useState(false);
-
-  const stepIndex = STEP_ORDER.indexOf(step);
 
   const needsProposalStep = useMemo(
     () => entryPath === "prompt_only" || entryPath === "image_and_prompt",
@@ -79,7 +78,7 @@ export function StudioAssetCreationWizard({
     if (!promptText.trim()) {
       return;
     }
-    const next = buildAssetPromptPrefillProposal({
+    const next = buildAssetIdentityPrefillFromPrompt({
       kind,
       prompt: promptText,
       usageContext: promptUsage,
@@ -129,17 +128,7 @@ export function StudioAssetCreationWizard({
         </button>
       </div>
 
-      <ol className="flex flex-wrap gap-2 text-xs font-semibold text-zinc-500">
-        {STEP_ORDER.filter((s) => s !== "builder" || false).map((s, index) => (
-          <li
-            key={s}
-            className={index <= stepIndex ? "text-[#0067B1]" : ""}
-          >
-            {t(`studio.assetCreation.wizard.step.${s}` as never)}
-            {index < STEP_ORDER.length - 2 ? " → " : ""}
-          </li>
-        ))}
-      </ol>
+      <StudioAssetCreationFlowProgress phase="wizard" wizardStep={step} />
 
       {step === "kind" && !lockKind ?
         <div className="space-y-3">
