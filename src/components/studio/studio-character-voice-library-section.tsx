@@ -8,6 +8,7 @@ import {
   filterVoiceLibrary,
   type VoiceLibraryFilters,
 } from "@/lib/studio-voice-accent-model";
+import { isVoiceAccentMetadataMissing } from "@/lib/studio-voice-library-catalog";
 import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
 import {
   STUDIO_VOICE_PROFILE_IDS,
@@ -46,6 +47,10 @@ function VoiceLibraryRow({
 }) {
   const t = useActiveTranslator();
   const [previewError, setPreviewError] = useState(false);
+  const missingAccent = isVoiceAccentMetadataMissing(voice);
+  const metaParts = [voice.accent, voice.gender, voice.age, voice.language.toUpperCase()].filter(
+    Boolean
+  );
 
   return (
     <article
@@ -55,10 +60,13 @@ function VoiceLibraryRow({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-violet-950">{voice.name}</p>
           <p className="mt-0.5 text-xs text-violet-800">
-            {[voice.accent, voice.gender, voice.age, voice.language.toUpperCase()]
-              .filter(Boolean)
-              .join(" · ")}
+            {metaParts.length > 0 ? metaParts.join(" · ") : voice.name}
           </p>
+          {missingAccent ?
+            <p className="mt-1 text-[11px] text-violet-600">
+              {t("studio.voiceLibrary.noAccentMetadata")}
+            </p>
+          : null}
         </div>
         <button
           type="button"
@@ -127,23 +135,27 @@ function VoiceLibraryBrowsePanel({
       <p className="mt-1 text-xs text-violet-800">{t("studio.voiceLibrary.subtitle")}</p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-violet-900">
-          {t("studio.voiceLibrary.filter.accent")}
-          <select
-            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-            value={filters.accentId ?? ""}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, accentId: e.target.value || undefined }))
-            }
-          >
-            <option value="">{t("studio.voiceLibrary.filter.all")}</option>
-            {payload.filterOptions.accents.map((accent) => (
-              <option key={accent.id} value={accent.id}>
-                {t(accent.labelKey as never)} ({accent.voiceCount})
-              </option>
-            ))}
-          </select>
-        </label>
+        {payload.filterOptions.accents.length > 0 ?
+          <label className="block text-xs font-medium text-violet-900">
+            {t("studio.voiceLibrary.filter.accent")}
+            <select
+              className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+              value={filters.accentId ?? ""}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, accentId: e.target.value || undefined }))
+              }
+            >
+              <option value="">{t("studio.voiceLibrary.filter.all")}</option>
+              {payload.filterOptions.accents.map((accent) => (
+                <option key={accent.id} value={accent.id}>
+                  {t(accent.labelKey as never)} ({accent.voiceCount})
+                </option>
+              ))}
+            </select>
+          </label>
+        : <p className="text-xs text-violet-700 sm:col-span-2">
+            {t("studio.voiceLibrary.noAccentFilters")}
+          </p>}
         <label className="block text-xs font-medium text-violet-900">
           {t("studio.voiceLibrary.filter.gender")}
           <select
@@ -347,28 +359,40 @@ export function StudioCharacterVoiceLibrarySection({
                   const profileRef = formatLibraryVoiceProfileRef(preset.voiceId);
                   const selectedRef = parseVoiceProfileRef(selectedProfile);
                   const selected =
-                    selectedProfile === profileRef ||
-                    (selectedRef.kind === "library" && selectedRef.providerVoiceId === preset.voiceId);
+                    preset.available &&
+                    (selectedProfile === profileRef ||
+                      (selectedRef.kind === "library" && selectedRef.providerVoiceId === preset.voiceId));
                   return (
                     <button
                       key={preset.id}
                       type="button"
-                      onClick={() =>
+                      disabled={!preset.available}
+                      onClick={() => {
+                        if (!preset.available) {
+                          return;
+                        }
                         onSelectProfile(profileRef, {
                           voiceName: preset.voiceName,
                           personaLabelKey: preset.labelKey,
-                        })
-                      }
+                        });
+                      }}
                       className={`min-h-[44px] rounded-lg border px-3 py-2.5 text-left text-sm ${
-                        selected
+                        !preset.available
+                          ? "cursor-not-allowed border-violet-100 bg-violet-50/60 text-violet-500"
+                          : selected
                           ? "border-violet-400 bg-violet-50 font-semibold text-violet-950"
                           : "border-violet-100 bg-white text-violet-900 hover:bg-violet-50/80"
                       }`}
                     >
                       <span className="block font-semibold">{t(preset.labelKey as never)}</span>
-                      <span className="mt-0.5 block text-xs text-violet-700">
-                        {preset.voiceName}
-                      </span>
+                      {preset.available ?
+                        <span className="mt-0.5 block text-xs text-violet-700">
+                          {preset.voiceName}
+                        </span>
+                      : <span className="mt-0.5 block text-xs text-violet-600">
+                          {t((preset.unavailableReasonKey ?? "studio.voicePersona.unavailable.noMatch") as never)}
+                        </span>
+                      }
                     </button>
                   );
                 })}

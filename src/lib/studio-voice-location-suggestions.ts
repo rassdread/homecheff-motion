@@ -128,8 +128,8 @@ export function suggestVoicesForLocation(
     return null;
   }
 
-  const personaPresets = buildVoicePersonaPresets(catalog).filter((p) =>
-    rule.personaPresetIds.includes(p.id)
+  const personaPresets = buildVoicePersonaPresets(catalog).filter(
+    (p) => rule.personaPresetIds.includes(p.id) && p.available
   );
 
   const accentDef = CANONICAL_ACCENT_DEFINITIONS.find((d) => d.id === rule.accentCanonicalId);
@@ -216,7 +216,7 @@ export function buildProductionBriefVoiceSuggestions(params: {
     }
   }
 
-  const presets = buildVoicePersonaPresets(catalog).filter((p) => personaIds.has(p.id));
+  const presets = buildVoicePersonaPresets(catalog).filter((p) => personaIds.has(p.id) && p.available);
   if (presets.length === 0) {
     return [];
   }

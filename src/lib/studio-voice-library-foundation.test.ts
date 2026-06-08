@@ -59,6 +59,8 @@ describe("studio-voice-accent-model", () => {
     assert.equal(classifyVoiceAccent("jamaican")?.id, "english.jamaican");
     assert.equal(classifyVoiceAccent("dutch")?.id, "dutch.nederlands");
     assert.equal(classifyVoiceAccent("surinamese")?.id, "dutch.surinaams");
+    assert.equal(classifyVoiceAccent("italian")?.id, "english.italian");
+    assert.equal(classifyVoiceAccent("latin american")?.id, "spanish.latin_american");
   });
 
   it("builds accent filters only for accents present in catalog", () => {
@@ -91,8 +93,9 @@ describe("studio-voice-persona-presets", () => {
     assert.ok(britishChef);
     assert.ok(britishChef!.voiceId);
     assert.ok(britishChef!.voiceName);
-    const ids = presets.map((p) => p.voiceId);
-    assert.equal(new Set(ids).size, ids.length, "persona presets should not duplicate voices");
+    const available = presets.filter((p) => p.available);
+    const ids = available.map((p) => p.voiceId);
+    assert.equal(new Set(ids).size, ids.length, "available persona presets should not duplicate voices");
   });
 });
 

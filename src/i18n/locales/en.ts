@@ -3748,6 +3748,10 @@ export const en: LocaleSchema = {
   "studio.voiceLibrary.previewFailed": "Preview unavailable for this voice.",
   "studio.voiceLibrary.filter.all": "All",
   "studio.voiceLibrary.filter.accent": "Accent",
+  "studio.voiceLibrary.noAccentMetadata":
+    "This voice has no accent metadata from the provider.",
+  "studio.voiceLibrary.noAccentFilters":
+    "No accent filters available — the provider did not supply accent metadata for these voices.",
   "studio.voiceLibrary.filter.gender": "Gender",
   "studio.voiceLibrary.filter.language": "Language",
   "studio.voiceLibrary.filter.age": "Age",
@@ -3768,6 +3772,9 @@ export const en: LocaleSchema = {
   "studio.voiceLibrary.accent.english.south_african": "South African English",
   "studio.voiceLibrary.accent.english.jamaican": "Jamaican English",
   "studio.voiceLibrary.accent.english.caribbean": "Caribbean English",
+  "studio.voiceLibrary.accent.english.italian": "Italian English",
+  "studio.voiceLibrary.accent.english.nigerian": "Nigerian English",
+  "studio.voiceLibrary.accent.english.indian": "Indian English",
   "studio.voiceLibrary.accent.dutch.nederlands": "Dutch",
   "studio.voiceLibrary.accent.dutch.vlaams": "Flemish",
   "studio.voiceLibrary.accent.dutch.surinaams": "Surinamese Dutch",
@@ -3793,6 +3800,8 @@ export const en: LocaleSchema = {
   "studio.voicePersona.community.localStoryteller": "Local Storyteller",
   "studio.voicePersona.community.neighborhoodHost": "Neighborhood Host",
   "studio.voicePersona.community.communityOrganizer": "Community Organizer",
+  "studio.voicePersona.unavailable.noMatch":
+    "No matching voice is available in the library for this persona.",
   "studio.musicPreview.title": "Music preview",
   "studio.musicPreview.subtitle": "Hear the mood and energy before you render.",
   "studio.musicPreview.mood": "Mood",

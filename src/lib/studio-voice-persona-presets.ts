@@ -5,6 +5,7 @@
 import { canonicalAccentForVoice } from "@/lib/studio-voice-accent-model";
 import {
   findVoiceLibraryEntry,
+  isMockOnlyVoiceId,
   type VoiceLibraryCatalog,
   type VoiceLibraryEntry,
 } from "@/lib/studio-voice-library-catalog";
@@ -35,7 +36,11 @@ export type VoicePersonaResolvedPreset = {
   voiceName: string;
   previewUrl: string;
   resolved: boolean;
+  available: boolean;
+  unavailableReasonKey?: string;
 };
+
+export const MIN_PERSONA_MATCH_SCORE = 5;
 
 export const VOICE_PERSONA_PRESET_DEFINITIONS: VoicePersonaPresetDefinition[] = [
   {
@@ -62,7 +67,7 @@ export const VOICE_PERSONA_PRESET_DEFINITIONS: VoicePersonaPresetDefinition[] = 
     id: "italian_restaurant_owner",
     groupId: "chef",
     labelKey: "studio.voicePersona.chef.italianRestaurantOwner",
-    accentCanonicalId: "english.british",
+    accentCanonicalId: "english.italian",
     language: "en",
     gender: "male",
     fallbackVoiceId: "mock-italian",
@@ -180,7 +185,7 @@ export const VOICE_PERSONA_PRESET_DEFINITIONS: VoicePersonaPresetDefinition[] = 
   },
 ];
 
-function scoreVoiceForPreset(
+export function scoreVoiceForPreset(
   voice: VoiceLibraryEntry,
   preset: VoicePersonaPresetDefinition
 ): number {
@@ -219,23 +224,28 @@ function resolvePresetVoice(
   catalog: VoiceLibraryCatalog,
   preset: VoicePersonaPresetDefinition,
   usedVoiceIds: Set<string>
-): VoiceLibraryEntry | undefined {
+): { voice: VoiceLibraryEntry; score: number } | null {
   const ranked = catalog.voices
     .filter((voice) => !usedVoiceIds.has(voice.id))
     .map((voice) => ({ voice, score: scoreVoiceForPreset(voice, preset) }))
     .sort((a, b) => b.score - a.score);
 
   const best = ranked[0];
-  if (best && best.score >= 5) {
-    return best.voice;
+  if (best && best.score >= MIN_PERSONA_MATCH_SCORE) {
+    return best;
   }
 
-  const fallback = findVoiceLibraryEntry(catalog, preset.fallbackVoiceId);
-  if (fallback && !usedVoiceIds.has(fallback.id)) {
-    return fallback;
+  if (catalog.source === "mock" || !isMockOnlyVoiceId(preset.fallbackVoiceId)) {
+    const fallback = findVoiceLibraryEntry(catalog, preset.fallbackVoiceId);
+    if (fallback && !usedVoiceIds.has(fallback.id)) {
+      const fallbackScore = scoreVoiceForPreset(fallback, preset);
+      if (catalog.source === "mock" || fallbackScore >= MIN_PERSONA_MATCH_SCORE) {
+        return { voice: fallback, score: fallbackScore };
+      }
+    }
   }
 
-  return ranked.find((entry) => entry.score > 0)?.voice ?? catalog.voices.find((v) => !usedVoiceIds.has(v.id));
+  return null;
 }
 
 export function buildVoicePersonaPresets(catalog: VoiceLibraryCatalog): VoicePersonaResolvedPreset[] {
@@ -243,11 +253,31 @@ export function buildVoicePersonaPresets(catalog: VoiceLibraryCatalog): VoicePer
   const resolved: VoicePersonaResolvedPreset[] = [];
 
   for (const preset of VOICE_PERSONA_PRESET_DEFINITIONS) {
-    const voice = resolvePresetVoice(catalog, preset, usedVoiceIds);
-    if (!voice) {
+    const match = resolvePresetVoice(catalog, preset, usedVoiceIds);
+    if (!match) {
+      resolved.push({
+        id: preset.id,
+        groupId: preset.groupId,
+        labelKey: preset.labelKey,
+        accentCanonicalId: preset.accentCanonicalId,
+        language: preset.language,
+        voiceId: "",
+        voiceName: "",
+        previewUrl: "",
+        resolved: false,
+        available: false,
+        unavailableReasonKey: "studio.voicePersona.unavailable.noMatch",
+      });
       continue;
     }
+
+    const { voice, score } = match;
     usedVoiceIds.add(voice.id);
+    const usedMockFallback =
+      catalog.source === "elevenlabs" &&
+      isMockOnlyVoiceId(preset.fallbackVoiceId) &&
+      voice.id === preset.fallbackVoiceId;
+
     resolved.push({
       id: preset.id,
       groupId: preset.groupId,
@@ -257,7 +287,8 @@ export function buildVoicePersonaPresets(catalog: VoiceLibraryCatalog): VoicePer
       voiceId: voice.id,
       voiceName: voice.name,
       previewUrl: voice.previewUrl,
-      resolved: voice.id !== preset.fallbackVoiceId || catalog.source === "elevenlabs",
+      resolved: score >= MIN_PERSONA_MATCH_SCORE && !usedMockFallback,
+      available: true,
     });
   }
 

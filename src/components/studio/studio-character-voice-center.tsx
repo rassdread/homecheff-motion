@@ -160,6 +160,9 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
 
   if (params.payload) {
     for (const preset of params.payload.personaPresets) {
+      if (!preset.available || !preset.voiceId) {
+        continue;
+      }
       add(
         formatLibraryVoiceProfileRef(preset.voiceId),
         params.t(preset.labelKey as never)

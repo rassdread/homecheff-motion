@@ -3747,6 +3747,10 @@ export const nl = {
   "studio.voiceLibrary.previewFailed": "Voorbeeld niet beschikbaar voor deze stem.",
   "studio.voiceLibrary.filter.all": "Alle",
   "studio.voiceLibrary.filter.accent": "Accent",
+  "studio.voiceLibrary.noAccentMetadata":
+    "Deze stem heeft geen accentmetadata van de provider.",
+  "studio.voiceLibrary.noAccentFilters":
+    "Geen accentfilters beschikbaar — de provider levert geen accentmetadata voor deze stemmen.",
   "studio.voiceLibrary.filter.gender": "Gender",
   "studio.voiceLibrary.filter.language": "Taal",
   "studio.voiceLibrary.filter.age": "Leeftijd",
@@ -3767,6 +3771,9 @@ export const nl = {
   "studio.voiceLibrary.accent.english.south_african": "Zuid-Afrikaans Engels",
   "studio.voiceLibrary.accent.english.jamaican": "Jamaicaans Engels",
   "studio.voiceLibrary.accent.english.caribbean": "Caribisch Engels",
+  "studio.voiceLibrary.accent.english.italian": "Italiaans Engels",
+  "studio.voiceLibrary.accent.english.nigerian": "Nigeriaans Engels",
+  "studio.voiceLibrary.accent.english.indian": "Indiaas Engels",
   "studio.voiceLibrary.accent.dutch.nederlands": "Nederlands",
   "studio.voiceLibrary.accent.dutch.vlaams": "Vlaams",
   "studio.voiceLibrary.accent.dutch.surinaams": "Surinaams-Nederlands",
@@ -3792,6 +3799,8 @@ export const nl = {
   "studio.voicePersona.community.localStoryteller": "Lokale verhalenverteller",
   "studio.voicePersona.community.neighborhoodHost": "Buurthost",
   "studio.voicePersona.community.communityOrganizer": "Community-organisator",
+  "studio.voicePersona.unavailable.noMatch":
+    "Geen passende stem beschikbaar in de bibliotheek voor dit persona.",
   "studio.musicPreview.title": "Music preview",
   "studio.musicPreview.subtitle": "Hoor de mood en energie vóór je rendert.",
   "studio.musicPreview.mood": "Mood",

@@ -2,6 +2,11 @@
  * ElevenLabs voice library catalog — GET /v1/voices consumption (no schema).
  */
 
+import {
+  CANONICAL_ACCENT_DEFINITIONS,
+  classifyVoiceAccent,
+} from "@/lib/studio-voice-accent-model";
+
 export type VoiceLibraryEntry = {
   id: string;
   name: string;
@@ -21,17 +26,31 @@ export type VoiceLibraryCatalog = {
   voices: VoiceLibraryEntry[];
 };
 
-type ElevenLabsVoiceRow = {
+export type ElevenLabsVerifiedLanguage = {
+  language?: string;
+  locale?: string | null;
+  accent?: string | null;
+  model_id?: string;
+  preview_url?: string | null;
+};
+
+export type ElevenLabsVoiceRow = {
   voice_id?: string;
   name?: string;
   labels?: Record<string, string>;
   preview_url?: string;
   category?: string;
+  description?: string | null;
+  verified_languages?: ElevenLabsVerifiedLanguage[] | null;
 };
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 let cachedCatalog: VoiceLibraryCatalog | null = null;
 let cacheExpiresAt = 0;
+
+export function isMockOnlyVoiceId(voiceId: string): boolean {
+  return voiceId.trim().startsWith("mock-");
+}
 
 function pickLabel(labels: Record<string, string>, ...keys: string[]): string {
   for (const key of keys) {
@@ -43,16 +62,157 @@ function pickLabel(labels: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
-function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry | null {
+export function normalizeLanguageCode(raw: string): string {
+  const value = raw.trim().toLowerCase();
+  if (!value) {
+    return "";
+  }
+  const primary = value.split(/[-_]/)[0]?.trim();
+  return primary ?? value;
+}
+
+export function inferAccentFromLocale(locale: string): string {
+  const lc = locale.trim().toLowerCase();
+  if (!lc) {
+    return "";
+  }
+  if (lc === "nl-be" || lc.startsWith("nl-be")) {
+    return "flemish";
+  }
+  if (lc === "nl-nl" || lc.startsWith("nl-nl")) {
+    return "dutch";
+  }
+  if (lc === "en-gb" || lc.startsWith("en-gb")) {
+    return "british";
+  }
+  if (lc === "en-us" || lc.startsWith("en-us")) {
+    return "american";
+  }
+  if (lc === "en-au" || lc.startsWith("en-au")) {
+    return "australian";
+  }
+  if (lc === "en-ie" || lc.startsWith("en-ie")) {
+    return "irish";
+  }
+  if (lc.includes("scot")) {
+    return "scottish";
+  }
+  if (lc === "en-jm" || lc.startsWith("en-jm")) {
+    return "jamaican";
+  }
+  if (lc === "en-in" || lc.startsWith("en-in")) {
+    return "indian";
+  }
+  if (lc === "en-ng" || lc.startsWith("en-ng")) {
+    return "nigerian";
+  }
+  if (lc === "en-za" || lc.startsWith("en-za")) {
+    return "south african";
+  }
+  if (lc.startsWith("fr-ca") || lc.includes("quebec")) {
+    return "canadian french";
+  }
+  if (lc === "es-es") {
+    return "spanish";
+  }
+  if (lc.startsWith("es-") && (lc.includes("mx") || lc.includes("419") || lc.includes("ar"))) {
+    return "latin american";
+  }
+  return "";
+}
+
+function sortedAccentDefinitions() {
+  return [...CANONICAL_ACCENT_DEFINITIONS].sort((a, b) => {
+    const maxA = Math.max(...a.matchers.map((m) => m.length), 0);
+    const maxB = Math.max(...b.matchers.map((m) => m.length), 0);
+    return maxB - maxA;
+  });
+}
+
+export function parseAccentFromDescription(description: string): string {
+  const text = description.trim().toLowerCase();
+  if (!text || !classifyVoiceAccent(text)) {
+    return "";
+  }
+  for (const def of sortedAccentDefinitions()) {
+    for (const matcher of def.matchers) {
+      if (text.includes(matcher)) {
+        return matcher;
+      }
+    }
+  }
+  return "";
+}
+
+export function pickVerifiedLanguage(row: ElevenLabsVoiceRow): ElevenLabsVerifiedLanguage | null {
+  const entries = row.verified_languages ?? [];
+  if (entries.length === 0) {
+    return null;
+  }
+  const labels = row.labels ?? {};
+  const labelLang = normalizeLanguageCode(pickLabel(labels, "language", "Language", "locale"));
+  const withAccent = entries.filter((entry) => entry.accent?.trim());
+
+  if (labelLang) {
+    const matched = withAccent.find((entry) => {
+      const lang = normalizeLanguageCode(entry.language ?? entry.locale ?? "");
+      return lang === labelLang;
+    });
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return withAccent[0] ?? entries[0] ?? null;
+}
+
+export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry | null {
   const id = row.voice_id?.trim();
   if (!id) {
     return null;
   }
-  const labels = row.labels ?? {};
-  const accent = pickLabel(labels, "accent", "Accent");
+
+  const labels = { ...(row.labels ?? {}) };
+  const verified = pickVerifiedLanguage(row);
+
+  let accent = pickLabel(labels, "accent", "Accent");
   const gender = pickLabel(labels, "gender", "Gender");
   const age = pickLabel(labels, "age", "Age");
-  const language = pickLabel(labels, "language", "Language", "locale");
+  let language = normalizeLanguageCode(pickLabel(labels, "language", "Language", "locale"));
+  let previewUrl = row.preview_url?.trim() ?? "";
+
+  if (verified) {
+    if (!accent && verified.accent?.trim()) {
+      accent = verified.accent.trim();
+    }
+    if (!language) {
+      language =
+        normalizeLanguageCode(verified.language ?? "") ||
+        normalizeLanguageCode(verified.locale ?? "");
+    }
+    if (!accent && verified.locale?.trim()) {
+      accent = inferAccentFromLocale(verified.locale) || accent;
+    }
+    if (!previewUrl && verified.preview_url?.trim()) {
+      previewUrl = verified.preview_url.trim();
+    }
+  }
+
+  if (!accent && row.description?.trim()) {
+    accent = parseAccentFromDescription(row.description);
+  }
+
+  if (!language && verified?.locale?.trim()) {
+    language = normalizeLanguageCode(verified.locale);
+  }
+
+  if (accent) {
+    labels.accent = labels.accent || accent;
+  }
+  if (language) {
+    labels.language = labels.language || language;
+  }
+
   return {
     id,
     name: row.name?.trim() || id,
@@ -61,9 +221,14 @@ function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry | null {
     age,
     language,
     labels,
-    previewUrl: row.preview_url?.trim() ?? "",
+    previewUrl,
     category: row.category?.trim() ?? "premade",
   };
+}
+
+export function isVoiceAccentMetadataMissing(voice: VoiceLibraryEntry): boolean {
+  const raw = voice.accent || voice.labels.accent || "";
+  return !raw.trim() && !classifyVoiceAccent(voice.name);
 }
 
 /** Representative mock catalog for tests and offline dev. */
@@ -303,7 +468,7 @@ async function fetchElevenLabsVoiceCatalog(): Promise<VoiceLibraryCatalog> {
     version: 1,
     source: "elevenlabs",
     fetchedAt: new Date().toISOString(),
-    voices: voices.length > 0 ? voices : mockVoiceLibraryCatalog().voices,
+    voices,
   };
 }
 

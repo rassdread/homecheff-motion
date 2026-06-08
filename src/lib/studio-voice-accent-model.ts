@@ -15,24 +15,36 @@ export type CanonicalAccentDefinition = {
   matchers: string[];
 };
 
+/** Longer / more specific matchers are checked first via sortedAccentDefinitions(). */
 export const CANONICAL_ACCENT_DEFINITIONS: CanonicalAccentDefinition[] = [
-  { id: "english.american", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.american", matchers: ["american", "us english", "usa"] },
+  { id: "spanish.latin_american", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.latin_american", matchers: ["latin american", "latino", "mexican", "colombian"] },
+  { id: "french.canadian", familyId: "french", labelKey: "studio.voiceLibrary.accent.french.canadian", matchers: ["canadian french", "quebec", "québécois"] },
+  { id: "english.south_african", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.south_african", matchers: ["south african"] },
   { id: "english.british", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.british", matchers: ["british", "uk english", "english (uk)"] },
   { id: "english.australian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.australian", matchers: ["australian", "aussie"] },
+  { id: "english.american", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.american", matchers: ["american", "us english", "usa"] },
   { id: "english.irish", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.irish", matchers: ["irish"] },
   { id: "english.scottish", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.scottish", matchers: ["scottish"] },
-  { id: "english.canadian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.canadian", matchers: ["canadian"] },
-  { id: "english.south_african", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.south_african", matchers: ["south african"] },
+  { id: "english.canadian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.canadian", matchers: ["canadian english"] },
   { id: "english.jamaican", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.jamaican", matchers: ["jamaican"] },
   { id: "english.caribbean", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.caribbean", matchers: ["caribbean", "west indian"] },
-  { id: "dutch.nederlands", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.nederlands", matchers: ["dutch", "nederlands", "netherlands"] },
-  { id: "dutch.vlaams", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.vlaams", matchers: ["flemish", "vlaams", "belgian dutch"] },
+  { id: "english.nigerian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.nigerian", matchers: ["nigerian", "nigeria"] },
+  { id: "english.indian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.indian", matchers: ["indian", "india english"] },
+  { id: "english.italian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.italian", matchers: ["italian"] },
   { id: "dutch.surinaams", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.surinaams", matchers: ["surinamese", "surinaams", "suriname"] },
+  { id: "dutch.vlaams", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.vlaams", matchers: ["flemish", "vlaams", "belgian dutch"] },
+  { id: "dutch.nederlands", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.nederlands", matchers: ["dutch", "nederlands", "netherlands"] },
   { id: "spanish.spain", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.spain", matchers: ["spanish", "castilian", "spain"] },
-  { id: "spanish.latin_american", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.latin_american", matchers: ["latin american", "latino", "mexican", "colombian"] },
   { id: "french.france", familyId: "french", labelKey: "studio.voiceLibrary.accent.french.france", matchers: ["french", "france"] },
-  { id: "french.canadian", familyId: "french", labelKey: "studio.voiceLibrary.accent.french.canadian", matchers: ["canadian french", "quebec", "québécois"] },
 ];
+
+function sortedAccentDefinitions(): CanonicalAccentDefinition[] {
+  return [...CANONICAL_ACCENT_DEFINITIONS].sort((a, b) => {
+    const maxA = Math.max(...a.matchers.map((m) => m.length), 0);
+    const maxB = Math.max(...b.matchers.map((m) => m.length), 0);
+    return maxB - maxA;
+  });
+}
 
 export type VoiceAccentFilterOption = {
   id: string;
@@ -58,7 +70,7 @@ export function classifyVoiceAccent(rawAccent: string): CanonicalAccentDefinitio
   if (!normalized) {
     return null;
   }
-  for (const def of CANONICAL_ACCENT_DEFINITIONS) {
+  for (const def of sortedAccentDefinitions()) {
     if (def.matchers.some((m) => normalized.includes(m))) {
       return def;
     }
