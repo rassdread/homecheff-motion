@@ -23,6 +23,11 @@ import { deleteStudioReferenceBlob } from "@/server/studio/studio-reference-blob
 import { assertWorldProfileOwnedByViewer } from "@/server/studio/studio-world-profile-service";
 import { parseCharacterVoiceProfilesJson } from "@/lib/studio-character-voice";
 import { appendCharacterVoiceHistoryIfChanged } from "@/server/studio/studio-character-voice-history";
+import {
+  archivePreviousPrimaryReference,
+  buildCanonicalCharacterIdentity,
+} from "@/lib/studio-character-canonical-references";
+import { randomUUID } from "node:crypto";
 
 const CHARACTER_INCLUDE = {
   worldProfile: { select: { id: true, name: true } },
@@ -108,9 +113,23 @@ export function mapStudioCharacterToDetail(
 
 export function toCharacterSnapshot(row: Pick<
   StudioCharacter,
-  "id" | "name" | "role" | "description" | "personality" | "referenceImageUrl"
->): CharacterSnapshot {
-  return {
+  | "id"
+  | "name"
+  | "role"
+  | "description"
+  | "personality"
+  | "referenceImageUrl"
+  | "referenceStorageKey"
+  | "primaryReferenceImageId"
+  | "referenceNotes"
+  | "visualKeywords"
+  | "defaultClothing"
+  | "appearanceMemory"
+  | "worldProfileId"
+> & {
+  worldProfile?: { id: string; name: string } | null;
+}): CharacterSnapshot {
+  const base = {
     id: row.id,
     name: row.name,
     role: row.role,
@@ -118,6 +137,30 @@ export function toCharacterSnapshot(row: Pick<
     personality: row.personality,
     referenceImageUrl: row.referenceImageUrl,
   };
+
+  if ("referenceStorageKey" in row && row.referenceStorageKey) {
+    return {
+      ...base,
+      canonicalIdentity: buildCanonicalCharacterIdentity({
+        id: row.id,
+        referenceImageUrl: row.referenceImageUrl,
+        referenceStorageKey: row.referenceStorageKey,
+        primaryReferenceImageId: row.primaryReferenceImageId ?? null,
+        referenceNotes: row.referenceNotes ?? "",
+        visualKeywords: row.visualKeywords ?? "",
+        defaultClothing: row.defaultClothing ?? "",
+        name: row.name,
+        role: row.role,
+        description: row.description,
+        personality: row.personality,
+        appearanceMemory: row.appearanceMemory ?? "",
+        worldProfileId: row.worldProfileId ?? null,
+        worldProfile: row.worldProfile ?? null,
+      }),
+    };
+  }
+
+  return base;
 }
 
 async function resolveUniqueSlug(ownerId: string, name: string): Promise<string> {
@@ -200,6 +243,8 @@ export async function createStudioCharacter(
   }
 
   const slug = await resolveUniqueSlug(ownerId, validated.value.name);
+  const primaryReferenceImageId =
+    validated.value.primaryReferenceImageId ?? randomUUID();
   const row = await prisma.studioCharacter.create({
     data: {
       ownerId,
@@ -216,7 +261,7 @@ export async function createStudioCharacter(
       defaultClothing: validated.value.defaultClothing,
       defaultAccessories: validated.value.defaultAccessories,
       visualKeywords: validated.value.visualKeywords,
-      primaryReferenceImageId: validated.value.primaryReferenceImageId,
+      primaryReferenceImageId,
       referenceNotes: validated.value.referenceNotes,
       identityStrength: validated.value.identityStrength,
       continuityStrength: validated.value.continuityStrength,
@@ -322,10 +367,40 @@ export async function updateStudioCharacter(
     patch.referenceImageUrl &&
     patch.referenceImageUrl !== previousReferenceUrl
   ) {
-    await deleteStudioReferenceBlob(previousReferenceUrl);
+    const archived = archivePreviousPrimaryReference({
+      existing: {
+        id: existing.id,
+        referenceImageUrl: existing.referenceImageUrl,
+        referenceStorageKey: existing.referenceStorageKey,
+        primaryReferenceImageId: existing.primaryReferenceImageId,
+        referenceNotes: existing.referenceNotes,
+        visualKeywords: existing.visualKeywords,
+        defaultClothing: existing.defaultClothing,
+        name: existing.name,
+        role: existing.role,
+        description: existing.description,
+        personality: existing.personality,
+        appearanceMemory: existing.appearanceMemory,
+        worldProfileId: existing.worldProfileId,
+      },
+      newReferenceImageUrl: patch.referenceImageUrl,
+      newReferenceStorageKey: patch.referenceStorageKey ?? existing.referenceStorageKey,
+    });
+    await prisma.studioCharacter.update({
+      where: { id },
+      data: {
+        referenceNotes: archived.referenceNotes,
+        primaryReferenceImageId: archived.primaryReferenceImageId,
+      },
+    });
   }
 
-  return { character: mapStudioCharacterToDetail(row) };
+  const refreshed = await prisma.studioCharacter.findUnique({
+    where: { id },
+    include: CHARACTER_INCLUDE,
+  });
+
+  return { character: mapStudioCharacterToDetail(refreshed ?? row) };
 }
 
 export async function deleteStudioCharacter(

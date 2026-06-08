@@ -14,6 +14,7 @@ export type VoiceLibraryEntry = {
   gender: string;
   age: string;
   language: string;
+  description: string;
   labels: Record<string, string>;
   previewUrl: string;
   category: string;
@@ -220,10 +221,16 @@ export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry |
     gender,
     age,
     language,
+    description: row.description?.trim() ?? "",
     labels,
     previewUrl,
     category: row.category?.trim() ?? "premade",
   };
+}
+
+export function isVoiceLanguageMetadataMissing(voice: VoiceLibraryEntry): boolean {
+  const language = (voice.language || voice.labels.language || "").trim();
+  return !language;
 }
 
 export function isVoiceAccentMetadataMissing(voice: VoiceLibraryEntry): boolean {
@@ -233,7 +240,7 @@ export function isVoiceAccentMetadataMissing(voice: VoiceLibraryEntry): boolean 
 
 /** Representative mock catalog for tests and offline dev. */
 export function mockVoiceLibraryCatalog(): VoiceLibraryCatalog {
-  const voices: VoiceLibraryEntry[] = [
+  const voices = [
     {
       id: "21m00Tcm4TlvDq8ikWAM",
       name: "Rachel",
@@ -241,6 +248,7 @@ export function mockVoiceLibraryCatalog(): VoiceLibraryCatalog {
       gender: "female",
       age: "young",
       language: "en",
+      description: "",
       labels: { accent: "american", gender: "female", age: "young", use_case: "narration" },
       previewUrl: "https://storage.googleapis.com/eleven-public-prod/premade/voices/mock-rachel.mp3",
       category: "premade",
@@ -437,7 +445,7 @@ export function mockVoiceLibraryCatalog(): VoiceLibraryCatalog {
     version: 1,
     source: "mock",
     fetchedAt: new Date().toISOString(),
-    voices,
+    voices: voices.map((v) => ({ description: "", ...v })),
   };
 }
 

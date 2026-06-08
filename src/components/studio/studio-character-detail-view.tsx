@@ -15,7 +15,11 @@ import {
   deleteStudioCharacterApi,
   fetchStudioCharacter,
 } from "@/lib/studio-characters-client";
+import { StudioCharacterCanonicalOverviewPanel } from "@/components/studio/studio-character-canonical-overview-panel";
+import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
+import { buildCharacterHealthView } from "@/lib/studio-character-health";
 import type { StudioCharacterDetail } from "@/types/studio-api";
+import type { CharacterHealthView } from "@/types/studio-character-canonical-references";
 
 type StudioCharacterDetailViewProps = {
   characterId: string;
@@ -26,6 +30,7 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
   const router = useRouter();
   const session = useAuthSession();
   const [character, setCharacter] = useState<StudioCharacterDetail | null>(null);
+  const [health, setHealth] = useState<CharacterHealthView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -38,8 +43,16 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
     if (!res.ok) {
       setError((res.data as { error?: string }).error ?? t("studio.characters.error.loadFailed"));
       setCharacter(null);
+      setHealth(null);
     } else {
       setCharacter(res.data.character);
+      setHealth(
+        res.data.health ??
+          buildCharacterHealthView({
+            ...res.data.character,
+            storyUsage: res.data.storyUsage ?? null,
+          })
+      );
     }
     setLoading(false);
   }, [characterId, t]);
@@ -162,7 +175,7 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
                     },
                     {
                       label: t("studio.memory.field.referenceNotes"),
-                      value: character.referenceNotes,
+                      value: parseCharacterReferencesBundle(character.referenceNotes).humanNotes,
                     },
                     {
                       label: t("studio.memory.field.continuityNotes"),
@@ -172,18 +185,9 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
                 />
               ) : null}
 
-              {tab === "overview" ? (
+              {tab === "overview" && character && health ? (
               <>
-              <AppCard className="mt-8 overflow-hidden p-0">
-                <div className="aspect-video w-full bg-zinc-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={character.referenceImageUrl}
-                    alt={character.name}
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-              </AppCard>
+              <StudioCharacterCanonicalOverviewPanel character={character} health={health} />
 
               <AppCard className="mt-6 space-y-4 bg-white p-6">
                 <div>

@@ -39,6 +39,7 @@ export function StudioSceneCharacterIdentityPanel({
         description: ch.description,
         personality: ch.personality,
         referenceImageUrl: ch.referenceImageUrl,
+        referenceStorageKey: "",
         appearanceMemory: ch.appearanceMemory,
         personalityMemory: ch.personalityMemory,
         continuityNotes: ch.continuityNotes,

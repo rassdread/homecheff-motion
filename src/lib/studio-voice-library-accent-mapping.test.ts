@@ -105,6 +105,7 @@ describe("mapElevenLabsVoice accent metadata mapping", () => {
           gender: "female",
           age: "young",
           language: "en",
+          description: "",
           labels: { accent: "american", gender: "female", language: "en" },
           previewUrl: "",
           category: "premade",

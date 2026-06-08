@@ -38,6 +38,8 @@ describe("studio-memory-mappers", () => {
     assert.equal(snap.worldProfileName, "HomeCheff Universe");
     assert.equal(snap.continuityStrength, "strict");
     assert.equal(snap.primaryReferenceImageId, "c1");
+    assert.ok(snap.canonicalIdentity);
+    assert.equal(snap.canonicalIdentity?.primaryReference?.imageUrl, "https://example.com/c.png");
   });
 
   it("aggregates strictest continuity across assets", () => {

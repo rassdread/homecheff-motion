@@ -23,6 +23,7 @@ type Props = {
   canModify: boolean;
   onCharacterUpdated: (character: StudioCharacterListItem) => void;
   defaultExpanded?: boolean;
+  isAdmin?: boolean;
 };
 
 function voiceFormToPatch(state: CharacterVoiceFormState) {
@@ -46,6 +47,7 @@ export function StudioWorkspaceCharacterVoiceInline({
   canModify,
   onCharacterUpdated,
   defaultExpanded = false,
+  isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -170,6 +172,7 @@ export function StudioWorkspaceCharacterVoiceInline({
                 value={voiceState}
                 onChange={setVoiceState}
                 canModify={canModify}
+                isAdmin={isAdmin}
               />
             </UserVoiceLibraryProvider>
           </VoiceLibraryProvider>

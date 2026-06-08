@@ -66,6 +66,7 @@ type Props = {
   onRefreshStoryboard?: () => void | Promise<void>;
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
   onSwitchTool?: (tool: StudioToolId) => void;
+  isAdmin?: boolean;
 };
 
 const PRODUCTION_TOOLS = new Set<StudioToolId>(["render", "versions", "translate", "export"]);
@@ -76,12 +77,14 @@ function StudioWorkspaceVoicePanel({
   canModify,
   onStoryboardUpdated,
   onCharacterUpdated,
+  isAdmin = false,
 }: {
   storyboard: StudioStoryboardDetail;
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onStoryboardUpdated: (storyboard: StudioStoryboardDetail) => void;
   onCharacterUpdated?: (character: StudioCharacterListItem) => void;
+  isAdmin?: boolean;
 }) {
   const t = useActiveTranslator();
   const storyLanguage = storyboard.voiceLanguage ?? "en";
@@ -136,6 +139,7 @@ function StudioWorkspaceVoicePanel({
                   storyLanguage={storyLanguage}
                   storyVoiceProfile={storyboard.voiceProfile}
                   canModify={canModify}
+                  isAdmin={isAdmin}
                   onCharacterUpdated={(updated) => onCharacterUpdated?.(updated)}
                 />
               </li>
@@ -276,6 +280,7 @@ export function StudioWorkspaceToolPanel({
   onRefreshStoryboard,
   onCharacterUpdated,
   onSwitchTool,
+  isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
   const needsMotionProjects = PRODUCTION_TOOLS.has(tool) || tool === "text";
@@ -444,6 +449,7 @@ export function StudioWorkspaceToolPanel({
         canModify={canModify}
         onStoryboardUpdated={onStoryboardUpdated}
         onCharacterUpdated={onCharacterUpdated}
+        isAdmin={isAdmin}
       />
     );
   }

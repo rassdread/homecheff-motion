@@ -98,6 +98,8 @@ export type StudioCharacterListResponse = {
 
 export type StudioCharacterDetailResponse = {
   character: StudioCharacterDetail;
+  storyUsage?: import("@/types/studio-character-canonical-references").CharacterStoryUsage;
+  health?: import("@/types/studio-character-canonical-references").CharacterHealthView;
 };
 
 export type StudioLocationListItem = {

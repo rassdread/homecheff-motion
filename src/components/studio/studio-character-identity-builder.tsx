@@ -30,7 +30,7 @@ import type { StudioWorldProfileListItem } from "@/types/studio-api";
 
 export type StudioCharacterIdentityBuilderMode = "create" | "edit" | "workspace";
 
-export type CharacterCreateEntryPath = "design" | "existing_image";
+export type CharacterCreateEntryPath = "design" | "existing_image" | "image_prefill" | "prompt_prefill";
 
 type Props = {
   mode: StudioCharacterIdentityBuilderMode;
@@ -46,6 +46,8 @@ type Props = {
   initialExpandedSections?: string[];
   createEntryPath?: CharacterCreateEntryPath;
   highlightStoryPrefill?: boolean;
+  highlightImagePrefill?: boolean;
+  suggestionSource?: "story" | "image" | "prompt";
 };
 
 function presetKey(group: string, id: string): TranslationKey {
@@ -70,6 +72,8 @@ export function StudioCharacterIdentityBuilder({
   initialExpandedSections = ["core"],
   createEntryPath,
   highlightStoryPrefill = false,
+  highlightImagePrefill = false,
+  suggestionSource = "story",
 }: Props) {
   const t = useActiveTranslator();
   const [advancedFeatures] = useStudioAdvancedFeatures();
@@ -97,7 +101,7 @@ export function StudioCharacterIdentityBuilder({
   );
 
   const suggestedFieldKeys = useMemo(() => {
-    if (!highlightStoryPrefill || !aiSuggestion) {
+    if ((!highlightStoryPrefill && !highlightImagePrefill) || !aiSuggestion) {
       return new Set<string>();
     }
     return new Set(
@@ -106,7 +110,7 @@ export function StudioCharacterIdentityBuilder({
         return value !== undefined && value !== null && String(value).trim() !== "";
       })
     );
-  }, [highlightStoryPrefill, aiSuggestion]);
+  }, [highlightImagePrefill, highlightStoryPrefill, aiSuggestion]);
 
   const suggestedLabel = (fieldKey: keyof CharacterIdentityFormValues) =>
     suggestedFieldKeys.has(fieldKey) ?
@@ -145,12 +149,20 @@ export function StudioCharacterIdentityBuilder({
   const titleKey =
     mode === "create" && createEntryPath === "existing_image"
       ? ("studio.characters.createIdentityHeadingExisting" as TranslationKey)
+    : mode === "create" && createEntryPath === "image_prefill"
+      ? ("studio.characters.createIdentityHeadingImagePrefill" as TranslationKey)
+    : mode === "create" && createEntryPath === "prompt_prefill"
+      ? ("studio.characters.createIdentityHeadingPromptPrefill" as TranslationKey)
     : mode === "create"
       ? ("studio.characters.createIdentityHeading" as TranslationKey)
     : ("studio.characterIdentity.title" as TranslationKey);
   const hintKey =
     mode === "create" && createEntryPath === "existing_image"
       ? ("studio.characters.createIdentityLeadExisting" as TranslationKey)
+    : mode === "create" && createEntryPath === "image_prefill"
+      ? ("studio.characters.createIdentityLeadImagePrefill" as TranslationKey)
+    : mode === "create" && createEntryPath === "prompt_prefill"
+      ? ("studio.characters.createIdentityLeadPromptPrefill" as TranslationKey)
     : mode === "create"
       ? ("studio.characters.createIdentityLead" as TranslationKey)
     : ("studio.characterIdentity.hint" as TranslationKey);
@@ -181,7 +193,11 @@ export function StudioCharacterIdentityBuilder({
       {showSuggestion ?
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
           <p className="text-xs font-semibold text-amber-900">
-            {t("studio.characterIdentity.suggestion.available")}
+            {suggestionSource === "image"
+              ? t("studio.characterIdentity.suggestion.availableFromImage")
+              : suggestionSource === "prompt"
+                ? t("studio.characterIdentity.suggestion.availableFromPrompt")
+                : t("studio.characterIdentity.suggestion.available")}
           </p>
           <button
             type="button"

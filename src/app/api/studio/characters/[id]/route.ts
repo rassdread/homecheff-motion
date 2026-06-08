@@ -5,6 +5,8 @@ import {
   getStudioCharacterByIdForViewer,
   updateStudioCharacter,
 } from "@/server/studio/studio-character-service";
+import { getCharacterStoryUsage } from "@/server/studio/studio-character-story-usage";
+import { buildCharacterHealthView } from "@/lib/studio-character-health";
 import type { StudioCharacterDetailResponse } from "@/types/studio-api";
 import type { StudioCharacterUpdateInput } from "@/lib/studio-character-validation";
 
@@ -24,7 +26,13 @@ export async function GET(_: Request, context: RouteContext) {
     return NextResponse.json({ error: "Character not found.", code: "NOT_FOUND" }, { status: 404 });
   }
 
-  const body: StudioCharacterDetailResponse = { character };
+  const storyUsage = await getCharacterStoryUsage(id);
+  const health = buildCharacterHealthView({
+    ...character,
+    storyUsage,
+  });
+
+  const body: StudioCharacterDetailResponse = { character, storyUsage, health };
   return NextResponse.json(body, { status: 200 });
 }
 

@@ -551,6 +551,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                   styleProfile={styleProfile}
                   directorProfile={directorProfile}
                   canModify={canModify}
+                  isAdmin={session.user?.role === "admin"}
                   onStoryboardUpdated={setStoryboard}
                   onSceneUpdated={handleSceneDraftChange}
                   onRefreshStoryboard={() => void load()}

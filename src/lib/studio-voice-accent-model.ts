@@ -194,7 +194,14 @@ export function filterVoiceLibrary(
       }
     }
     if (query) {
-      const haystack = [voice.name, voice.accent, voice.category, ...Object.values(voice.labels)]
+      const haystack = [
+        voice.name,
+        voice.accent,
+        voice.language,
+        voice.description,
+        voice.category,
+        ...Object.values(voice.labels),
+      ]
         .join(" ")
         .toLowerCase();
       if (!haystack.includes(query)) {

@@ -1,4 +1,5 @@
 import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import type { CanonicalCharacterIdentity } from "@/types/studio-character-canonical-references";
 
 export type CharacterMemorySnapshot = {
   id: string;
@@ -17,6 +18,8 @@ export type CharacterMemorySnapshot = {
   continuityStrength: StudioContinuityStrength;
   worldProfileId: string | null;
   worldProfileName: string | null;
+  /** Official identity bundle for storyboard / motion consumption (when full row available). */
+  canonicalIdentity?: CanonicalCharacterIdentity;
 };
 
 export type LocationMemorySnapshot = {

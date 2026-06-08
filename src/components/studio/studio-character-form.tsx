@@ -8,6 +8,8 @@ import {
   StudioCharacterIdentityBuilder,
   type CharacterCreateEntryPath,
 } from "@/components/studio/studio-character-identity-builder";
+import { StudioCharacterImagePrefillPanel } from "@/components/studio/studio-character-image-prefill-panel";
+import { StudioCharacterPromptPrefillPanel } from "@/components/studio/studio-character-prompt-prefill-panel";
 import {
   StudioCharacterVoiceProfilePanel,
   characterVoiceStateFromDetail,
@@ -21,13 +23,14 @@ import {
   characterPerformanceStateFromDetail,
   type CharacterPerformanceFormState,
 } from "@/components/studio/studio-character-performance-profile-panel";
-import { useActiveTranslator } from "@/i18n/client";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import {
   characterIdentityFormFromCharacter,
   characterIdentityFormToPatch,
   characterListItemPreviewFromIdentityForm,
   emptyCharacterIdentityForm,
+  mergeCharacterIdentityForm,
   type CharacterIdentityFormValues,
   type CharacterVoiceIdentityStatus,
 } from "@/lib/studio-character-identity-fields";
@@ -43,9 +46,10 @@ import type {
   StudioCharacterCreateInput,
   StudioCharacterUpdateInput,
 } from "@/lib/studio-character-validation";
+import type { ImagePrefillSlot } from "@/lib/studio-character-identity-image-prefill-client";
+import type { CharacterIdentityPrefillResult } from "@/types/studio-character-identity-prefill";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
-import type { StudioCharacterDetail } from "@/types/studio-api";
-import type { StudioWorldProfileListItem } from "@/types/studio-api";
+import type { StudioCharacterDetail, StudioWorldProfileListItem } from "@/types/studio-api";
 
 export type { CharacterCreateEntryPath };
 
@@ -57,6 +61,23 @@ export const CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS = [
 ] as const;
 
 export const CHARACTER_CREATE_EXISTING_IMAGE_EXPANDED_SECTIONS = ["core", "voice"] as const;
+
+export const CHARACTER_CREATE_IMAGE_PREFILL_EXPANDED_SECTIONS = [
+  "core",
+  "style",
+  "personality",
+  "look",
+  "voice",
+] as const;
+
+export const CHARACTER_CREATE_PROMPT_PREFILL_EXPANDED_SECTIONS = [
+  "core",
+  "style",
+  "personality",
+  "look",
+  "context",
+  "voice",
+] as const;
 
 export type StudioCharacterFormValues = {
   identity: CharacterIdentityFormValues;
@@ -306,6 +327,30 @@ function CharacterCreateEntryChoice({
             {t("studio.characters.createEntryExistingDescription")}
           </p>
         </button>
+        <button
+          type="button"
+          onClick={() => onSelect("image_prefill")}
+          className="rounded-2xl border border-zinc-200 bg-white p-5 text-left transition hover:border-[#0067B1]/40 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-zinc-900">
+            {t("studio.characters.createEntryImagePrefillTitle")}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+            {t("studio.characters.createEntryImagePrefillDescription")}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect("prompt_prefill")}
+          className="rounded-2xl border border-zinc-200 bg-white p-5 text-left transition hover:border-[#0067B1]/40 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-zinc-900">
+            {t("studio.characters.createEntryPromptPrefillTitle")}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+            {t("studio.characters.createEntryPromptPrefillDescription")}
+          </p>
+        </button>
       </div>
     </div>
   );
@@ -320,8 +365,10 @@ export function StudioCharacterForm({
   backHref,
 }: StudioCharacterFormProps) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
+  const identityBuilderRef = useRef<HTMLDivElement>(null);
   const [values, setValues] = useState<StudioCharacterFormValues>(
     initial ? fromDetail(initial) : emptyValues()
   );
@@ -333,6 +380,18 @@ export function StudioCharacterForm({
   const [createEntryPath, setCreateEntryPath] = useState<CharacterCreateEntryPath | null>(() =>
     mode === "create" && identityPrefill ? "design" : null
   );
+  const [imagePrefillSlots, setImagePrefillSlots] = useState<ImagePrefillSlot[]>([]);
+  const [imagePrefillDescription, setImagePrefillDescription] = useState("");
+  const [imagePrefillUsage, setImagePrefillUsage] = useState("");
+  const [prefillAnalysis, setPrefillAnalysis] = useState<CharacterIdentityPrefillResult | null>(
+    null
+  );
+  const [prefillApplied, setPrefillApplied] = useState(false);
+  const [prefillSuggestion, setPrefillSuggestion] =
+    useState<Partial<CharacterIdentityFormValues> | null>(null);
+  const [promptPrefillText, setPromptPrefillText] = useState("");
+  const [promptPrefillUsage, setPromptPrefillUsage] = useState("");
+  const [promptPrefillBrandRules, setPromptPrefillBrandRules] = useState("");
 
   const isAdmin = session.user?.role === "admin";
 
@@ -347,18 +406,34 @@ export function StudioCharacterForm({
     });
   }, [session.resolved, session.user]);
 
-  const aiSuggestion = useMemo(
+  const briefAiSuggestion = useMemo(
     () => (identityPrefill ? buildCharacterIdentitySuggestionFromPrefill(identityPrefill) : null),
     [identityPrefill]
   );
+
+  const aiSuggestion = prefillSuggestion ?? briefAiSuggestion;
+  const suggestionSource =
+    prefillSuggestion ?
+      createEntryPath === "prompt_prefill" ?
+        ("prompt" as const)
+      : ("image" as const)
+    : ("story" as const);
+  const highlightImagePrefill = Boolean(prefillSuggestion);
 
   const identityExpandedSections = useMemo(() => {
     if (mode !== "create" || !createEntryPath) {
       return ["core"];
     }
-    return createEntryPath === "design"
-      ? [...CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS]
-      : [...CHARACTER_CREATE_EXISTING_IMAGE_EXPANDED_SECTIONS];
+    if (createEntryPath === "design") {
+      return [...CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS];
+    }
+    if (createEntryPath === "image_prefill") {
+      return [...CHARACTER_CREATE_IMAGE_PREFILL_EXPANDED_SECTIONS];
+    }
+    if (createEntryPath === "prompt_prefill") {
+      return [...CHARACTER_CREATE_PROMPT_PREFILL_EXPANDED_SECTIONS];
+    }
+    return [...CHARACTER_CREATE_EXISTING_IMAGE_EXPANDED_SECTIONS];
   }, [mode, createEntryPath]);
 
   const completenessScore = useMemo(() => {
@@ -411,6 +486,35 @@ export function StudioCharacterForm({
     [session.user, t]
   );
 
+  const handleApplyPrefillProposal = useCallback(
+    (prefill: Partial<CharacterIdentityFormValues>, voiceHint: string) => {
+      setValues((v) => ({
+        ...v,
+        identity: mergeCharacterIdentityForm(v.identity, prefill),
+        voice:
+          voiceHint.trim() && !v.voice.voiceDescription.trim()
+            ? { ...v.voice, voiceDescription: voiceHint.trim() }
+            : v.voice,
+      }));
+      setPrefillSuggestion(prefill);
+      setPrefillApplied(true);
+    },
+    []
+  );
+
+  const scrollToIdentityBuilder = useCallback(() => {
+    identityBuilderRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handlePrimaryImageFromPrefill = useCallback((url: string, storageKey: string) => {
+    setValues((v) => ({
+      ...v,
+      referenceImageUrl: url,
+      referenceStorageKey: storageKey,
+    }));
+    setPreviewUrl(url);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -435,18 +539,27 @@ export function StudioCharacterForm({
   const showCreateEntryChoice = mode === "create" && createEntryPath === null;
 
   const identityBuilder = (
+    <div ref={identityBuilderRef}>
     <AppCard className="bg-white p-6">
       {mode === "create" && createEntryPath ?
         <div className="mb-4 rounded-xl border border-[#0067B1]/15 bg-[#0067B1]/5 px-4 py-3">
           <p className="text-sm font-semibold text-zinc-900">
             {createEntryPath === "design"
               ? t("studio.characters.createDiscoveryDesign")
-              : t("studio.characters.createDiscoveryExisting")}
+              : createEntryPath === "image_prefill"
+                ? t("studio.characters.createDiscoveryImagePrefill")
+                : createEntryPath === "prompt_prefill"
+                  ? t("studio.characters.createDiscoveryPromptPrefill")
+                  : t("studio.characters.createDiscoveryExisting")}
           </p>
           <p className="mt-1 text-xs text-zinc-600">
             {createEntryPath === "design"
               ? t("studio.characters.createDiscoveryDesignHint")
-              : t("studio.characters.createDiscoveryExistingHint")}
+              : createEntryPath === "image_prefill"
+                ? t("studio.characters.createDiscoveryImagePrefillHint")
+                : createEntryPath === "prompt_prefill"
+                  ? t("studio.characters.createDiscoveryPromptPrefillHint")
+                  : t("studio.characters.createDiscoveryExistingHint")}
           </p>
           <button
             type="button"
@@ -480,6 +593,8 @@ export function StudioCharacterForm({
         createEntryPath={createEntryPath ?? undefined}
         initialExpandedSections={identityExpandedSections}
         highlightStoryPrefill={Boolean(identityPrefill)}
+        highlightImagePrefill={highlightImagePrefill}
+        suggestionSource={suggestionSource}
         voiceSection={
           <VoiceLibraryProvider>
             <UserVoiceLibraryProvider>
@@ -489,12 +604,14 @@ export function StudioCharacterForm({
                 value={values.voice}
                 onChange={(voice) => setValues((v) => ({ ...v, voice }))}
                 canModify
+                isAdmin={isAdmin}
               />
             </UserVoiceLibraryProvider>
           </VoiceLibraryProvider>
         }
       />
     </AppCard>
+    </div>
   );
 
   const referenceImageCard = (
@@ -536,11 +653,49 @@ export function StudioCharacterForm({
         showCreationPhases={mode === "create"}
       />
 
+      {mode === "create" && createEntryPath === "prompt_prefill" ?
+        <StudioCharacterPromptPrefillPanel
+          locale={locale}
+          prompt={promptPrefillText}
+          onPromptChange={setPromptPrefillText}
+          usageContext={promptPrefillUsage}
+          onUsageContextChange={setPromptPrefillUsage}
+          brandRules={promptPrefillBrandRules}
+          onBrandRulesChange={setPromptPrefillBrandRules}
+          analysisResult={prefillAnalysis}
+          onAnalysisResult={setPrefillAnalysis}
+          onApplyProposal={handleApplyPrefillProposal}
+          proposalApplied={prefillApplied}
+          onAdjustFocus={scrollToIdentityBuilder}
+        />
+      : null}
+
+      {mode === "create" && createEntryPath === "image_prefill" ?
+        <StudioCharacterImagePrefillPanel
+          userRole={session.user?.role ?? "user"}
+          locale={locale}
+          slots={imagePrefillSlots}
+          onSlotsChange={setImagePrefillSlots}
+          userDescription={imagePrefillDescription}
+          onUserDescriptionChange={setImagePrefillDescription}
+          intendedUsage={imagePrefillUsage}
+          onIntendedUsageChange={setImagePrefillUsage}
+          analysisResult={prefillAnalysis}
+          onAnalysisResult={setPrefillAnalysis}
+          onPrimaryImageReady={handlePrimaryImageFromPrefill}
+          onApplyProposal={handleApplyPrefillProposal}
+          proposalApplied={prefillApplied}
+          onAdjustFocus={scrollToIdentityBuilder}
+        />
+      : null}
+
       {mode === "create" && createEntryPath === "existing_image" ? referenceImageCard : null}
 
       {identityBuilder}
 
-      {mode === "create" && createEntryPath === "design" ? referenceImageCard : null}
+      {mode === "create" && (createEntryPath === "design" || createEntryPath === "prompt_prefill")
+        ? referenceImageCard
+        : null}
 
       {mode === "edit" ? referenceImageCard : null}
 

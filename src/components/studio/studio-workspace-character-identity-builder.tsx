@@ -195,6 +195,7 @@ export function StudioWorkspaceCharacterIdentityBuilder({
                 storyLanguage={storyLanguage}
                 storyVoiceProfile={storyVoiceProfile}
                 canModify={canModify}
+                isAdmin={isAdmin}
                 defaultExpanded
                 onCharacterUpdated={(updated) => {
                   onCharacterUpdated(updated);

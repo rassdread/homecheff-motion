@@ -1,5 +1,6 @@
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { strictestContinuityStrength } from "@/lib/studio-continuity-strength";
+import { buildCanonicalCharacterIdentity } from "@/lib/studio-character-canonical-references";
 import type {
   CharacterMemorySnapshot,
   LocationMemorySnapshot,
@@ -28,6 +29,7 @@ type CharacterRow = {
   description: string;
   personality: string;
   referenceImageUrl: string;
+  referenceStorageKey?: string;
   appearanceMemory: string;
   personalityMemory: string;
   continuityNotes: string;
@@ -101,6 +103,22 @@ export function toCharacterMemorySnapshot(row: CharacterRow): CharacterMemorySna
     continuityStrength: normalizeStudioContinuityStrength(row.continuityStrength),
     worldProfileId: row.worldProfileId,
     worldProfileName: row.worldProfile?.name ?? null,
+    canonicalIdentity: buildCanonicalCharacterIdentity({
+      id: row.id,
+      referenceImageUrl: row.referenceImageUrl,
+      referenceStorageKey: row.referenceStorageKey ?? "",
+      primaryReferenceImageId: row.primaryReferenceImageId,
+      referenceNotes: row.referenceNotes,
+      visualKeywords: row.visualKeywords,
+      defaultClothing: row.defaultClothing,
+      name: row.name,
+      role: row.role,
+      description: row.description,
+      personality: row.personality,
+      appearanceMemory: row.appearanceMemory,
+      worldProfileId: row.worldProfileId,
+      worldProfile: row.worldProfile,
+    }),
   };
 }
 
@@ -188,6 +206,7 @@ export function buildSceneMemoryBundleFromSnapshots(params: {
       description: c.description,
       personality: c.personality,
       referenceImageUrl: c.referenceImageUrl,
+      referenceStorageKey: "",
       appearanceMemory: "",
       personalityMemory: c.personality,
       continuityNotes: "",

@@ -31,6 +31,7 @@ import {
   type VoiceLibraryTab,
 } from "@/components/studio/studio-character-voice-library-section";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
+import { buildVoiceLibraryStats } from "@/lib/studio-voice-accent-coverage";
 import type {
   CharacterVoiceLanguageProfile,
   CharacterVoiceProfilesByLanguage,
@@ -84,6 +85,7 @@ type Props = {
   value: CharacterVoiceFormState;
   onChange: (next: CharacterVoiceFormState) => void;
   canModify?: boolean;
+  isAdmin?: boolean;
 };
 
 function normalizeVoiceProfileSelection(value: string): string {
@@ -176,7 +178,7 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
       add(ref, params.t(preset.labelKey as never));
     }
 
-    for (const voice of params.payload.catalog.voices.filter((v) => v.language === params.lang).slice(0, 48)) {
+    for (const voice of params.payload.catalog.voices.filter((v) => v.language === params.lang)) {
       const ref = safeFormatLibraryVoiceProfileRef(voice.id);
       if (ref) {
         add(ref, voice.name);
@@ -215,6 +217,7 @@ export function StudioCharacterVoiceCenter({
   value,
   onChange,
   canModify = true,
+  isAdmin = false,
 }: Props) {
   const t = useActiveTranslator();
   const voiceLibrary = useOptionalVoiceLibrary();
@@ -235,6 +238,23 @@ export function StudioCharacterVoiceCenter({
   const [previewText, setPreviewText] = useState("");
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
   const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
+
+  const libraryAvailabilityLine =
+    voiceLibraryTab === "persona" && voiceLibrary?.payload
+      ? (() => {
+          const stats =
+            voiceLibrary.payload.stats ??
+            buildVoiceLibraryStats({
+              catalog: voiceLibrary.payload.catalog,
+              filterOptions: voiceLibrary.payload.filterOptions,
+              personaPresets: voiceLibrary.payload.personaPresets,
+            });
+          return t("studio.voiceCenter.libraryAvailability", {
+            voices: stats.totalVoices,
+            accents: stats.accentCount,
+          });
+        })()
+      : null;
 
   const invalidMainVoice = isInvalidProviderVoiceProfileRef(value.voiceProfile);
   const invalidLangOverrides = VOICE_CENTER_LANGUAGES.some((lang) => {
@@ -433,6 +453,11 @@ export function StudioCharacterVoiceCenter({
           </p>
         : null}
         <p className="mt-2 text-xs text-violet-800">{t("studio.voiceCenter.browseBeforeEnableHint")}</p>
+        {libraryAvailabilityLine ?
+          <p className="mt-2 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-violet-900">
+            {libraryAvailabilityLine}
+          </p>
+        : null}
         <div className="mt-3 flex flex-wrap gap-2">
           {(
             [
@@ -465,6 +490,7 @@ export function StudioCharacterVoiceCenter({
         characterName={characterName}
         language={value.voiceLanguage}
         canModify={canModify}
+        isAdmin={isAdmin}
         onSelectProfile={handleSelectProfile}
       />
 

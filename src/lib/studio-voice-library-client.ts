@@ -4,12 +4,18 @@
 
 import type { VoiceLibraryFilterOptions } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
+import type {
+  VoiceAccentCoverageRow,
+  VoiceLibraryStats,
+} from "@/lib/studio-voice-accent-coverage";
 import type { VoicePersonaResolvedPreset } from "@/lib/studio-voice-persona-presets";
 
 export type VoiceLibraryPayload = {
   catalog: VoiceLibraryCatalog;
   filterOptions: VoiceLibraryFilterOptions;
   personaPresets: VoicePersonaResolvedPreset[];
+  stats: VoiceLibraryStats;
+  accentCoverage: VoiceAccentCoverageRow[];
 };
 
 type CacheEntry = {

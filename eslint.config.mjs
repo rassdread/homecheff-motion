@@ -21,6 +21,13 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: ["src/components/studio/studio-voice-library-admin-audit-panel.tsx"],
+    rules: {
+      // Admin audit panel loads ElevenLabs catalog on mount.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
