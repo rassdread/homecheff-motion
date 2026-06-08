@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { StudioWorkspaceCharacterIdentityBuilder } from "@/components/studio/studio-workspace-character-identity-builder";
 import { StudioWorkspaceLocationIdentityBuilder } from "@/components/studio/studio-workspace-location-identity-builder";
@@ -652,14 +653,12 @@ export function StudioWorkspaceSceneAssetsPanel({
                   >
                     {t("studio.workspace.assets.addCharacter")}
                   </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setCreateKind("character")}
-                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800"
+                  <Link
+                    href="/studio/characters/new"
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
                   >
                     {t("studio.workspace.assets.newCharacter")}
-                  </button>
+                  </Link>
                 </>
               : null}
             </div>

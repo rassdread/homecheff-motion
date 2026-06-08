@@ -140,6 +140,9 @@ export const en: LocaleSchema = {
   "studio.workspace.assets.saveFailed": "We couldn't save this. Try again.",
   "studio.workspace.assets.saveAndLink": "Save and link to scene",
   "studio.workspace.assets.savedToLibraryHint": "Saved to your library and linked to this scene.",
+  "studio.workspace.assets.fullCharacterCreateLink": "Set up full identity, style, and voice →",
+  "studio.workspace.assets.fullCharacterCreateHint":
+    "Use the full character flow for type, style, presets, and Voice Library.",
   "studio.workspace.assets.noSceneTitle": "Choose a scene first",
   "studio.workspace.assets.noSceneHint": "Choose a scene first or create a new scene.",
   "studio.workspace.assets.sceneLabel": "Scene {n}",
@@ -440,9 +443,32 @@ export const en: LocaleSchema = {
   "studio.characters.backToLibrary": "Back to Characters Library",
   "studio.characters.backToCharacter": "Back to character",
   "studio.characters.createTitle": "New character",
+  "studio.characters.createEntryQuestion": "What would you like to do?",
+  "studio.characters.createEntryLead": "Choose how you want to create this character.",
+  "studio.characters.createEntryDesignTitle": "Design a new character",
+  "studio.characters.createEntryDesignDescription":
+    "Create a new mascot, avatar, or character identity.",
+  "studio.characters.createEntryExistingTitle": "Use an existing image",
+  "studio.characters.createEntryExistingDescription":
+    "Upload an existing photo, mascot, or reference image.",
+  "studio.characters.createEntryChangeChoice": "Choose a different option",
+  "studio.characters.createDiscoveryDesign": "✨ Design your character",
+  "studio.characters.createDiscoveryDesignHint":
+    "Choose type, style, colors, outfit, and voice.",
+  "studio.characters.createDiscoveryExisting": "📷 Use an existing image",
+  "studio.characters.createDiscoveryExistingHint":
+    "Upload your mascot, avatar, or reference image.",
+  "studio.characters.createPrefillBanner": "Based on your story idea",
+  "studio.characters.createPrefillBannerHint":
+    "Fields marked as suggested come from your storyboard brief.",
+  "studio.characters.createPrefillFieldBadge": "suggested",
+  "studio.characters.createReferenceStep": "Step 2",
   "studio.characters.createIdentityHeading": "Build character identity",
   "studio.characters.createIdentityLead":
     "Choose type, style, outfit, and voice — everything that makes this character recognizable in your videos.",
+  "studio.characters.createIdentityHeadingExisting": "Complete character identity",
+  "studio.characters.createIdentityLeadExisting":
+    "Describe role, personality, and voice based on your uploaded image.",
   "studio.characters.editTitle": "Edit character",
   "studio.characters.save": "Save",
   "studio.characters.saveChanges": "Save changes",
@@ -454,6 +480,9 @@ export const en: LocaleSchema = {
   "studio.characters.replaceImageHint": "Upload a new image to replace the reference.",
   "studio.characters.field.referenceImage": "Reference image",
   "studio.characters.field.referenceImageHint": "Required — this identity image can be reused in future videos.",
+  "studio.characters.field.referenceImageDesign": "Reference image",
+  "studio.characters.field.referenceImageDesignHint":
+    "Upload a reference image of this character.",
   "studio.characters.field.name": "Name",
   "studio.characters.field.role": "Role",
   "studio.characters.field.description": "Description",

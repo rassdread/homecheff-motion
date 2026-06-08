@@ -30,6 +30,8 @@ import type { StudioWorldProfileListItem } from "@/types/studio-api";
 
 export type StudioCharacterIdentityBuilderMode = "create" | "edit" | "workspace";
 
+export type CharacterCreateEntryPath = "design" | "existing_image";
+
 type Props = {
   mode: StudioCharacterIdentityBuilderMode;
   form: CharacterIdentityFormValues;
@@ -41,6 +43,9 @@ type Props = {
   aiSuggestion?: Partial<CharacterIdentityFormValues> | null;
   voiceSection?: React.ReactNode;
   voiceStatus?: CharacterVoiceIdentityStatus;
+  initialExpandedSections?: string[];
+  createEntryPath?: CharacterCreateEntryPath;
+  highlightStoryPrefill?: boolean;
 };
 
 function presetKey(group: string, id: string): TranslationKey {
@@ -62,17 +67,53 @@ export function StudioCharacterIdentityBuilder({
   aiSuggestion = null,
   voiceSection,
   voiceStatus = "none",
+  initialExpandedSections = ["core"],
+  createEntryPath,
+  highlightStoryPrefill = false,
 }: Props) {
   const t = useActiveTranslator();
   const [advancedFeatures] = useStudioAdvancedFeatures();
   const showAdvancedStyles = isAdmin || advancedFeatures;
   const [compareOpen, setCompareOpen] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<string>("core");
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set(initialExpandedSections)
+  );
+
+  const toggleSection = useCallback((sectionId: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
 
   const showSuggestion = useMemo(
     () => hasCharacterIdentityFormSuggestion(form, aiSuggestion),
     [form, aiSuggestion]
   );
+
+  const suggestedFieldKeys = useMemo(() => {
+    if (!highlightStoryPrefill || !aiSuggestion) {
+      return new Set<string>();
+    }
+    return new Set(
+      (Object.keys(aiSuggestion) as (keyof CharacterIdentityFormValues)[]).filter((key) => {
+        const value = aiSuggestion[key];
+        return value !== undefined && value !== null && String(value).trim() !== "";
+      })
+    );
+  }, [highlightStoryPrefill, aiSuggestion]);
+
+  const suggestedLabel = (fieldKey: keyof CharacterIdentityFormValues) =>
+    suggestedFieldKeys.has(fieldKey) ?
+      <span className="ml-1.5 text-[10px] font-semibold text-amber-700">
+        {t("studio.characters.createPrefillFieldBadge")}
+      </span>
+    : null;
 
   const completenessTier = characterIdentityCompletenessTier(completenessScore);
   const visibleStyles = listVisibleCharacterStyles(showAdvancedStyles);
@@ -102,12 +143,16 @@ export function StudioCharacterIdentityBuilder({
   };
 
   const titleKey =
-    mode === "create" ?
-      ("studio.characters.createIdentityHeading" as TranslationKey)
+    mode === "create" && createEntryPath === "existing_image"
+      ? ("studio.characters.createIdentityHeadingExisting" as TranslationKey)
+    : mode === "create"
+      ? ("studio.characters.createIdentityHeading" as TranslationKey)
     : ("studio.characterIdentity.title" as TranslationKey);
   const hintKey =
-    mode === "create" ?
-      ("studio.characters.createIdentityLead" as TranslationKey)
+    mode === "create" && createEntryPath === "existing_image"
+      ? ("studio.characters.createIdentityLeadExisting" as TranslationKey)
+    : mode === "create"
+      ? ("studio.characters.createIdentityLead" as TranslationKey)
     : ("studio.characterIdentity.hint" as TranslationKey);
 
   return (
@@ -194,19 +239,22 @@ export function StudioCharacterIdentityBuilder({
         <div key={section.id} className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <button
             type="button"
-            onClick={() => setExpandedSection((s) => (s === section.id ? "" : section.id))}
+            onClick={() => toggleSection(section.id)}
             className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-zinc-900"
           >
             {section.title}
-            <span className="text-zinc-400">{expandedSection === section.id ? "−" : "+"}</span>
+            <span className="text-zinc-400">{expandedSections.has(section.id) ? "−" : "+"}</span>
           </button>
 
-          {expandedSection === section.id ?
+          {expandedSections.has(section.id) ?
             <div className="space-y-3 border-t border-zinc-100 px-4 py-4">
               {section.id === "core" ?
                 <>
                   <label className="block">
-                    <span className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("name"))}</span>
+                    <span className="text-xs font-medium text-zinc-700">
+                      {t(fieldLabelKey("name"))}
+                      {suggestedLabel("name")}
+                    </span>
                     <input
                       value={form.name}
                       disabled={!canModify}
@@ -217,6 +265,7 @@ export function StudioCharacterIdentityBuilder({
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-700">
                       {t(fieldLabelKey("characterType"))}
+                      {suggestedLabel("characterType")}
                     </span>
                     <select
                       value={form.characterType}
@@ -235,6 +284,7 @@ export function StudioCharacterIdentityBuilder({
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-700">
                       {t(fieldLabelKey("description"))}
+                      {suggestedLabel("description")}
                     </span>
                     <textarea
                       value={form.description}
@@ -250,7 +300,10 @@ export function StudioCharacterIdentityBuilder({
               {section.id === "style" ?
                 <>
                   <div>
-                    <p className="text-xs font-medium text-zinc-700">{t(fieldLabelKey("visualStyle"))}</p>
+                    <p className="text-xs font-medium text-zinc-700">
+                      {t(fieldLabelKey("visualStyle"))}
+                      {suggestedLabel("visualStyle")}
+                    </p>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {visibleStyles.map((styleId) =>
                         CHARACTER_IDENTITY_STYLE_PREVIEW_IDS.includes(styleId) ?
@@ -346,6 +399,7 @@ export function StudioCharacterIdentityBuilder({
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-700">
                       {t(fieldLabelKey("personality"))}
+                      {suggestedLabel("personality")}
                     </span>
                     <textarea
                       value={form.personality}

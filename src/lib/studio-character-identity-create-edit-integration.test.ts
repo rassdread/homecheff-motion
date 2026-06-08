@@ -204,5 +204,47 @@ describe("character identity builder create/edit integration", () => {
     assert.ok(en["studio.characters.createIdentityHeading"]);
     assert.ok(nl["studio.characters.createIdentityLead"]);
     assert.ok(en["studio.characters.createIdentityLead"]);
+    assert.ok(nl["studio.characters.createEntryQuestion"]);
+    assert.ok(en["studio.characters.createEntryQuestion"]);
+    assert.ok(nl["studio.characters.createPrefillBanner"]);
+    assert.ok(en["studio.characters.createPrefillBanner"]);
+  });
+
+  it("create form presents entry choice and reorders sections by path", () => {
+    const formPath = join(process.cwd(), "src/components/studio/studio-character-form.tsx");
+    const src = readFileSync(formPath, "utf8");
+    assert.match(src, /CharacterCreateEntryChoice/);
+    assert.match(src, /createEntryPath === "design"/);
+    assert.match(src, /createEntryPath === "existing_image"/);
+    assert.match(src, /CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS/);
+    assert.match(src, /createPrefillBanner/);
+  });
+
+  it("identity builder supports multi-expand sections for create discovery", () => {
+    const builderPath = join(
+      process.cwd(),
+      "src/components/studio/studio-character-identity-builder.tsx"
+    );
+    const src = readFileSync(builderPath, "utf8");
+    assert.match(src, /initialExpandedSections/);
+    assert.match(src, /expandedSections/);
+    assert.match(src, /createEntryPath/);
+    assert.match(src, /highlightStoryPrefill/);
+  });
+
+  it("workspace character create links to full create flow", () => {
+    const sheetPath = join(
+      process.cwd(),
+      "src/components/studio/studio-workspace-asset-create-sheet.tsx"
+    );
+    const panelPath = join(
+      process.cwd(),
+      "src/components/studio/studio-workspace-scene-assets-panel.tsx"
+    );
+    const sheetSrc = readFileSync(sheetPath, "utf8");
+    const panelSrc = readFileSync(panelPath, "utf8");
+    assert.match(sheetSrc, /\/studio\/characters\/new/);
+    assert.match(sheetSrc, /fullCharacterCreateLink/);
+    assert.match(panelSrc, /href="\/studio\/characters\/new"/);
   });
 });

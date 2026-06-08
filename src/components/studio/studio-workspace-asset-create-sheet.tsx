@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -240,6 +241,18 @@ export function StudioWorkspaceAssetCreateSheet({
             </button>
           </div>
           <p className="mt-1 text-xs text-zinc-600">{t("studio.workspace.assets.savedToLibraryHint")}</p>
+
+          {kind === "character" ?
+            <div className="mt-4 rounded-xl border border-[#0067B1]/15 bg-[#0067B1]/5 px-4 py-3">
+              <p className="text-xs text-zinc-600">{t("studio.workspace.assets.fullCharacterCreateHint")}</p>
+              <Link
+                href="/studio/characters/new"
+                className="mt-2 inline-flex text-sm font-semibold text-[#0067B1] hover:underline"
+              >
+                {t("studio.workspace.assets.fullCharacterCreateLink")}
+              </Link>
+            </div>
+          : null}
 
           {needsImage ?
             <div className="mt-4">

@@ -137,6 +137,9 @@ export const nl = {
   "studio.workspace.assets.saveFailed": "We konden dit niet opslaan. Probeer opnieuw.",
   "studio.workspace.assets.saveAndLink": "Opslaan en koppelen aan scène",
   "studio.workspace.assets.savedToLibraryHint": "Opgeslagen in je bibliotheek en gekoppeld aan deze scène.",
+  "studio.workspace.assets.fullCharacterCreateLink": "Volledige identiteit, stijl en stem instellen →",
+  "studio.workspace.assets.fullCharacterCreateHint":
+    "Gebruik de volledige personage-flow voor type, stijl, presets en Voice Library.",
   "studio.workspace.assets.noSceneTitle": "Kies eerst een scène",
   "studio.workspace.assets.noSceneHint": "Kies eerst een scène of maak een nieuwe scène.",
   "studio.workspace.assets.sceneLabel": "Scène {n}",
@@ -438,9 +441,32 @@ export const nl = {
   "studio.characters.backToLibrary": "Terug naar personagesbibliotheek",
   "studio.characters.backToCharacter": "Terug naar personage",
   "studio.characters.createTitle": "Nieuw personage",
+  "studio.characters.createEntryQuestion": "Wat wil je doen?",
+  "studio.characters.createEntryLead": "Kies hoe je dit personage wilt aanmaken.",
+  "studio.characters.createEntryDesignTitle": "Ontwerp nieuw personage",
+  "studio.characters.createEntryDesignDescription":
+    "Maak een nieuwe mascotte, avatar of karakteridentiteit.",
+  "studio.characters.createEntryExistingTitle": "Gebruik bestaande afbeelding",
+  "studio.characters.createEntryExistingDescription":
+    "Upload een bestaande foto, mascotte of referentiebeeld.",
+  "studio.characters.createEntryChangeChoice": "Andere optie kiezen",
+  "studio.characters.createDiscoveryDesign": "✨ Ontwerp je personage",
+  "studio.characters.createDiscoveryDesignHint":
+    "Kies type, stijl, kleuren, outfit en stem.",
+  "studio.characters.createDiscoveryExisting": "📷 Gebruik een bestaande afbeelding",
+  "studio.characters.createDiscoveryExistingHint":
+    "Upload je mascotte, avatar of referentiebeeld.",
+  "studio.characters.createPrefillBanner": "Gebaseerd op jouw verhaalidee",
+  "studio.characters.createPrefillBannerHint":
+    "Velden met een voorgesteld-label komen uit je storyboard-brief.",
+  "studio.characters.createPrefillFieldBadge": "voorgesteld",
+  "studio.characters.createReferenceStep": "Stap 2",
   "studio.characters.createIdentityHeading": "Maak personage-identiteit",
   "studio.characters.createIdentityLead":
     "Kies type, stijl, outfit en stem — alles wat dit personage herkenbaar maakt in je video's.",
+  "studio.characters.createIdentityHeadingExisting": "Vul personage-identiteit aan",
+  "studio.characters.createIdentityLeadExisting":
+    "Beschrijf rol, persoonlijkheid en stem op basis van je geüploade afbeelding.",
   "studio.characters.editTitle": "Personage bewerken",
   "studio.characters.save": "Opslaan",
   "studio.characters.saveChanges": "Wijzigingen opslaan",
@@ -453,6 +479,9 @@ export const nl = {
   "studio.characters.field.referenceImage": "Referentieafbeelding",
   "studio.characters.field.referenceImageHint":
     "Verplicht — deze identiteitsafbeelding kan later opnieuw worden gebruikt.",
+  "studio.characters.field.referenceImageDesign": "Referentieafbeelding",
+  "studio.characters.field.referenceImageDesignHint":
+    "Upload een referentieafbeelding van dit personage.",
   "studio.characters.field.name": "Naam",
   "studio.characters.field.role": "Rol",
   "studio.characters.field.description": "Beschrijving",

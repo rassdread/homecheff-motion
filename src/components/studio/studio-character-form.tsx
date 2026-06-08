@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
-import { StudioCharacterIdentityBuilder } from "@/components/studio/studio-character-identity-builder";
+import {
+  StudioCharacterIdentityBuilder,
+  type CharacterCreateEntryPath,
+} from "@/components/studio/studio-character-identity-builder";
 import {
   StudioCharacterVoiceProfilePanel,
   characterVoiceStateFromDetail,
@@ -42,6 +45,17 @@ import type {
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 import type { StudioCharacterDetail } from "@/types/studio-api";
 import type { StudioWorldProfileListItem } from "@/types/studio-api";
+
+export type { CharacterCreateEntryPath };
+
+export const CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS = [
+  "core",
+  "style",
+  "personality",
+  "voice",
+] as const;
+
+export const CHARACTER_CREATE_EXISTING_IMAGE_EXPANDED_SECTIONS = ["core", "voice"] as const;
 
 export type StudioCharacterFormValues = {
   identity: CharacterIdentityFormValues;
@@ -181,6 +195,121 @@ export function studioCharacterFormToUpdatePayload(
   };
 }
 
+type ReferenceImageCardProps = {
+  mode: "create" | "edit";
+  createEntryPath?: CharacterCreateEntryPath;
+  previewUrl: string;
+  uploading: boolean;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onFileSelect: (file: File | null) => void;
+};
+
+function ReferenceImageCard({
+  mode,
+  createEntryPath,
+  previewUrl,
+  uploading,
+  fileRef,
+  onFileSelect,
+}: ReferenceImageCardProps) {
+  const t = useActiveTranslator();
+  const isDesignStepTwo = mode === "create" && createEntryPath === "design";
+
+  return (
+    <AppCard className="bg-white p-6">
+      {isDesignStepTwo ?
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("studio.characters.createReferenceStep")}
+        </p>
+      : null}
+      <label className="block text-sm font-semibold text-zinc-900">
+        {isDesignStepTwo
+          ? t("studio.characters.field.referenceImageDesign")
+          : t("studio.characters.field.referenceImage")}
+      </label>
+      <p className="mt-1 text-xs text-zinc-500">
+        {isDesignStepTwo
+          ? t("studio.characters.field.referenceImageDesignHint")
+          : t("studio.characters.field.referenceImageHint")}
+      </p>
+      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
+          {previewUrl ?
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+          : <div className="flex h-full items-center justify-center text-xs text-zinc-400">
+              {t("studio.characters.noPreview")}
+            </div>
+          }
+        </div>
+        <div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(ev) => void onFileSelect(ev.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileRef.current?.click()}
+            className="rounded-full border border-[#0067B1]/40 px-4 py-2 text-sm font-semibold text-[#0067B1] hover:bg-[#0067B1]/5 disabled:opacity-50"
+          >
+            {uploading ? t("button.loading") : t("studio.characters.uploadImage")}
+          </button>
+          {mode === "edit" ?
+            <p className="mt-2 text-xs text-zinc-500">{t("studio.characters.replaceImageHint")}</p>
+          : null}
+        </div>
+      </div>
+    </AppCard>
+  );
+}
+
+function CharacterCreateEntryChoice({
+  onSelect,
+}: {
+  onSelect: (path: CharacterCreateEntryPath) => void;
+}) {
+  const t = useActiveTranslator();
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">{t("studio.characters.createEntryQuestion")}</h2>
+        <p className="mt-1 text-sm text-zinc-600">{t("studio.characters.createEntryLead")}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onSelect("design")}
+          className="rounded-2xl border border-zinc-200 bg-white p-5 text-left transition hover:border-[#0067B1]/40 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-zinc-900">
+            {t("studio.characters.createEntryDesignTitle")}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+            {t("studio.characters.createEntryDesignDescription")}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect("existing_image")}
+          className="rounded-2xl border border-zinc-200 bg-white p-5 text-left transition hover:border-[#0067B1]/40 hover:shadow-sm"
+        >
+          <p className="text-sm font-semibold text-zinc-900">
+            {t("studio.characters.createEntryExistingTitle")}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+            {t("studio.characters.createEntryExistingDescription")}
+          </p>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function StudioCharacterForm({
   mode,
   initial,
@@ -200,6 +329,9 @@ export function StudioCharacterForm({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createEntryPath, setCreateEntryPath] = useState<CharacterCreateEntryPath | null>(() =>
+    mode === "create" && identityPrefill ? "design" : null
+  );
 
   const isAdmin = session.user?.role === "admin";
 
@@ -218,6 +350,15 @@ export function StudioCharacterForm({
     () => (identityPrefill ? buildCharacterIdentitySuggestionFromPrefill(identityPrefill) : null),
     [identityPrefill]
   );
+
+  const identityExpandedSections = useMemo(() => {
+    if (mode !== "create" || !createEntryPath) {
+      return ["core"];
+    }
+    return createEntryPath === "design"
+      ? [...CHARACTER_CREATE_DESIGN_EXPANDED_SECTIONS]
+      : [...CHARACTER_CREATE_EXISTING_IMAGE_EXPANDED_SECTIONS];
+  }, [mode, createEntryPath]);
 
   const completenessScore = useMemo(() => {
     const preview = characterListItemPreviewFromIdentityForm(values.identity, {
@@ -290,72 +431,107 @@ export function StudioCharacterForm({
     }
   };
 
+  const showCreateEntryChoice = mode === "create" && createEntryPath === null;
+
+  const identityBuilder = (
+    <AppCard className="bg-white p-6">
+      {mode === "create" && createEntryPath ?
+        <div className="mb-4 rounded-xl border border-[#0067B1]/15 bg-[#0067B1]/5 px-4 py-3">
+          <p className="text-sm font-semibold text-zinc-900">
+            {createEntryPath === "design"
+              ? t("studio.characters.createDiscoveryDesign")
+              : t("studio.characters.createDiscoveryExisting")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {createEntryPath === "design"
+              ? t("studio.characters.createDiscoveryDesignHint")
+              : t("studio.characters.createDiscoveryExistingHint")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreateEntryPath(null)}
+            className="mt-2 text-xs font-semibold text-[#0067B1] hover:underline"
+          >
+            {t("studio.characters.createEntryChangeChoice")}
+          </button>
+        </div>
+      : null}
+
+      {identityPrefill ?
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-950">
+            {t("studio.characters.createPrefillBanner")}
+          </p>
+          <p className="mt-1 text-xs text-amber-900">{t("studio.characters.createPrefillBannerHint")}</p>
+        </div>
+      : null}
+
+      <StudioCharacterIdentityBuilder
+        mode={mode}
+        form={values.identity}
+        onFormChange={(identity) => setValues((v) => ({ ...v, identity }))}
+        worlds={worlds}
+        canModify
+        isAdmin={isAdmin}
+        completenessScore={completenessScore}
+        aiSuggestion={aiSuggestion}
+        voiceStatus={voiceStatusFromForm(values.voice)}
+        createEntryPath={createEntryPath ?? undefined}
+        initialExpandedSections={identityExpandedSections}
+        highlightStoryPrefill={Boolean(identityPrefill)}
+        voiceSection={
+          <VoiceLibraryProvider>
+            <UserVoiceLibraryProvider>
+              <StudioCharacterVoiceProfilePanel
+                characterId={initial?.id ?? null}
+                characterName={values.identity.name || t("studio.characters.createTitle")}
+                value={values.voice}
+                onChange={(voice) => setValues((v) => ({ ...v, voice }))}
+                canModify
+              />
+            </UserVoiceLibraryProvider>
+          </VoiceLibraryProvider>
+        }
+      />
+    </AppCard>
+  );
+
+  const referenceImageCard = (
+    <ReferenceImageCard
+      mode={mode}
+      createEntryPath={createEntryPath ?? undefined}
+      previewUrl={previewUrl}
+      uploading={uploading}
+      fileRef={fileRef}
+      onFileSelect={(file) => void handleFile(file)}
+    />
+  );
+
+  if (showCreateEntryChoice) {
+    return (
+      <div className="space-y-6">
+        <CharacterCreateEntryChoice onSelect={setCreateEntryPath} />
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href={backHref}
+            className="inline-flex items-center rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            {t("studio.characters.cancel")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <AppCard className="bg-white p-6">
-        <label className="block text-sm font-semibold text-zinc-900">
-          {t("studio.characters.field.referenceImage")}
-        </label>
-        <p className="mt-1 text-xs text-zinc-500">{t("studio.characters.field.referenceImageHint")}</p>
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50">
-            {previewUrl ?
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-            : <div className="flex h-full items-center justify-center text-xs text-zinc-400">
-                {t("studio.characters.noPreview")}
-              </div>
-            }
-          </div>
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(ev) => void handleFile(ev.target.files?.[0] ?? null)}
-            />
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-              className="rounded-full border border-[#0067B1]/40 px-4 py-2 text-sm font-semibold text-[#0067B1] hover:bg-[#0067B1]/5 disabled:opacity-50"
-            >
-              {uploading ? t("button.loading") : t("studio.characters.uploadImage")}
-            </button>
-            {mode === "edit" ?
-              <p className="mt-2 text-xs text-zinc-500">{t("studio.characters.replaceImageHint")}</p>
-            : null}
-          </div>
-        </div>
-      </AppCard>
+      {mode === "create" && createEntryPath === "existing_image" ? referenceImageCard : null}
 
-      <AppCard className="bg-white p-6">
-        <StudioCharacterIdentityBuilder
-          mode={mode}
-          form={values.identity}
-          onFormChange={(identity) => setValues((v) => ({ ...v, identity }))}
-          worlds={worlds}
-          canModify
-          isAdmin={isAdmin}
-          completenessScore={completenessScore}
-          aiSuggestion={aiSuggestion}
-          voiceStatus={voiceStatusFromForm(values.voice)}
-          voiceSection={
-            <VoiceLibraryProvider>
-              <UserVoiceLibraryProvider>
-                <StudioCharacterVoiceProfilePanel
-                  characterId={initial?.id ?? null}
-                  characterName={values.identity.name || t("studio.characters.createTitle")}
-                  value={values.voice}
-                  onChange={(voice) => setValues((v) => ({ ...v, voice }))}
-                  canModify
-                />
-              </UserVoiceLibraryProvider>
-            </VoiceLibraryProvider>
-          }
-        />
-      </AppCard>
+      {identityBuilder}
+
+      {mode === "create" && createEntryPath === "design" ? referenceImageCard : null}
+
+      {mode === "edit" ? referenceImageCard : null}
 
       <section className="mt-8 rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
         <h2 className="text-sm font-semibold text-amber-950">
