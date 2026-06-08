@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
+import type { AssetCreationWizardResult } from "@/components/studio/studio-asset-creation-wizard";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioCharacterForm,
@@ -13,6 +14,7 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
+import { characterFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { createStudioCharacterApi } from "@/lib/studio-characters-client";
 import {
   buildCharacterDetailFromPrefill,
@@ -53,6 +55,11 @@ function StudioCharacterNewPageContent() {
     router.push(`/studio/characters/${res.data.character.id}`);
   };
 
+  const handleWizardSave = async (result: AssetCreationWizardResult) => {
+    const values = characterFormValuesFromWizardDraft(result.draft);
+    await handleSubmit(values);
+  };
+
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -66,6 +73,7 @@ function StudioCharacterNewPageContent() {
               kind="character"
               guidedQueryParam={guided}
               hasDecisionPrefill={Boolean(prefill)}
+              onWizardSave={handleWizardSave}
             >
               {(ctx) => (
                 <StudioCharacterForm
@@ -78,6 +86,7 @@ function StudioCharacterNewPageContent() {
                   wizardEntryPath={ctx.entryPath}
                   wizardProposal={ctx.wizardProposal}
                   wizardProposalApplied={ctx.proposalApplied}
+                  wizardDraft={ctx.wizardDraft}
                   onSubmit={handleSubmit}
                 />
               )}

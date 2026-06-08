@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
+import type { AssetCreationWizardResult } from "@/components/studio/studio-asset-creation-wizard";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioWorldProfileForm,
@@ -18,6 +19,7 @@ import {
   readIdentityPrefillForKind,
 } from "@/lib/studio-identity-builder-prefill-detail";
 import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
+import { worldFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { createStudioWorldApi } from "@/lib/studio-worlds-client";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
@@ -53,6 +55,11 @@ function StudioNewWorldPageContent() {
     router.push(`/studio/worlds/${res.data.world.id}`);
   };
 
+  const handleWizardSave = async (result: AssetCreationWizardResult) => {
+    const values = worldFormValuesFromWizardDraft(result.draft);
+    await handleSubmit(values);
+  };
+
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -66,6 +73,7 @@ function StudioNewWorldPageContent() {
               kind="world"
               guidedQueryParam={guided}
               hasDecisionPrefill={Boolean(prefill)}
+              onWizardSave={handleWizardSave}
             >
               {(ctx) => (
                 <StudioWorldProfileForm
@@ -77,6 +85,7 @@ function StudioNewWorldPageContent() {
                   createEntryPath={ctx.entryPath}
                   wizardProposal={ctx.wizardProposal}
                   proposalApplied={ctx.proposalApplied}
+                  wizardDraft={ctx.wizardDraft}
                   onSubmit={handleSubmit}
                 />
               )}

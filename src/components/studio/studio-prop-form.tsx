@@ -33,6 +33,10 @@ import {
   type StudioPropCategory,
 } from "@/lib/studio-prop-categories";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
+import {
+  propFormValuesFromWizardDraft,
+  type AssetWizardDraft,
+} from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreateEntryPath, AssetPromptPrefillProposal } from "@/types/studio-asset-creation";
 import type { StudioPropDetail, StudioWorldProfileListItem } from "@/types/studio-api";
 
@@ -54,6 +58,7 @@ type StudioPropFormProps = {
   createEntryPath?: AssetCreateEntryPath | null;
   wizardProposal?: AssetPromptPrefillProposal | null;
   proposalApplied?: boolean;
+  wizardDraft?: AssetWizardDraft | null;
 };
 
 function emptyIdentity(): PropIdentityFormValues {
@@ -115,11 +120,15 @@ export function StudioPropForm({
   createEntryPath: initialEntryPath = null,
   wizardProposal = null,
   proposalApplied = false,
+  wizardDraft = null,
 }: StudioPropFormProps) {
   const t = useActiveTranslator();
   const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<StudioPropFormValues>(() => {
+    if (mode === "create" && wizardDraft) {
+      return propFormValuesFromWizardDraft(wizardDraft);
+    }
     const base =
       initial ? fromDetail(initial) : {
         name: "",

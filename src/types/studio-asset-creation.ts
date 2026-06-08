@@ -9,11 +9,16 @@ export type AssetCreateEntryPath =
   | "image_and_prompt"
   | "existing_asset";
 
+export type AssetReferenceMode = "upload" | "generate" | "skip" | null;
+
 export type AssetCreationWizardStep =
   | "kind"
   | "entry"
+  | "choice"
+  | "reference"
+  | "input"
   | "proposal"
-  | "builder"
+  | "essentials"
   | "readiness"
   | "save";
 

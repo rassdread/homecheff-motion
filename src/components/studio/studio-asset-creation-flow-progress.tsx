@@ -1,38 +1,85 @@
 "use client";
 
+import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
-import type { AssetCreationWizardStep } from "@/types/studio-asset-creation";
+import { wizardChoiceDefAtIndex } from "@/lib/studio-asset-wizard-choices";
+import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 
-const FLOW_STEPS: AssetCreationWizardStep[] = [
-  "entry",
-  "proposal",
-  "builder",
-  "readiness",
-  "save",
-];
-
-type Props = {
-  /** Wizard-complete phases: builder form is active. */
-  phase: "wizard" | "builder";
-  wizardStep?: AssetCreationWizardStep;
+const VISIBLE_LABELS: Record<AssetCreationWizardStep, string> = {
+  kind: "studio.assetCreation.wizard.step.kind",
+  entry: "studio.assetCreation.wizard.step.entry",
+  choice: "studio.assetCreation.wizard.step.choice",
+  reference: "studio.assetCreation.wizard.step.reference",
+  input: "studio.assetCreation.wizard.step.input",
+  proposal: "studio.assetCreation.wizard.step.proposal",
+  essentials: "studio.assetCreation.wizard.step.essentials",
+  readiness: "studio.assetCreation.wizard.step.readiness",
+  save: "studio.assetCreation.wizard.step.save",
 };
 
-export function StudioAssetCreationFlowProgress({ phase, wizardStep = "entry" }: Props) {
+type Props = {
+  phase: "wizard" | "builder";
+  wizardStep?: AssetCreationWizardStep;
+  stepSequence?: AssetCreationWizardStep[];
+  lockKind?: boolean;
+  choiceFlowKind?: StudioAssetKind;
+  choiceStepIndex?: number;
+};
+
+export function StudioAssetCreationFlowProgress({
+  phase,
+  wizardStep = "entry",
+  stepSequence,
+  lockKind = false,
+  choiceFlowKind,
+  choiceStepIndex,
+}: Props) {
   const t = useActiveTranslator();
-  const activeIndex =
-    phase === "wizard"
-      ? Math.max(0, ["kind", "entry", "proposal", "builder"].indexOf(wizardStep))
-      : 3;
+
+  const steps = useMemo(() => {
+    if (!stepSequence || stepSequence.length === 0) {
+      return lockKind
+        ? (["entry", "readiness", "save"] as AssetCreationWizardStep[])
+        : (["kind", "entry", "readiness", "save"] as AssetCreationWizardStep[]);
+    }
+    return stepSequence;
+  }, [stepSequence, lockKind]);
+
+  const activeIndex = useMemo(() => {
+    if (phase === "builder") {
+      return steps.length - 1;
+    }
+    if (choiceStepIndex !== undefined && wizardStep === "choice") {
+      return choiceStepIndex;
+    }
+    return Math.max(0, steps.indexOf(wizardStep));
+  }, [phase, steps, wizardStep, choiceStepIndex]);
+
+  const stepLabel = (step: AssetCreationWizardStep, index: number) => {
+    if (step === "choice" && choiceFlowKind) {
+      let choiceIdx = 0;
+      for (let i = 0; i < index; i++) {
+        if (steps[i] === "choice") {
+          choiceIdx++;
+        }
+      }
+      const def = wizardChoiceDefAtIndex(choiceFlowKind, choiceIdx);
+      if (def) {
+        return t(def.titleKey as never);
+      }
+    }
+    return t(VISIBLE_LABELS[step] as never);
+  };
 
   return (
-    <ol className="flex flex-wrap gap-1 text-[11px] font-semibold text-zinc-500">
-      {FLOW_STEPS.map((step, index) => {
-        const labelKey = `studio.assetCreation.wizard.step.${step}` as const;
-        const active = phase === "builder" ? index <= 4 : index <= activeIndex;
+    <ol className="flex flex-wrap gap-x-1 gap-y-1 text-[11px] font-semibold text-zinc-500">
+      {steps.map((step, index) => {
+        const active = phase === "builder" ? index <= steps.length - 1 : index <= activeIndex;
+        const key = step === "choice" ? `choice-${index}` : step;
         return (
-          <li key={step} className={active ? "text-[#0067B1]" : ""}>
-            {t(labelKey as never)}
-            {index < FLOW_STEPS.length - 1 ? " → " : ""}
+          <li key={key} className={active ? "text-[#0067B1]" : ""}>
+            {stepLabel(step, index)}
+            {index < steps.length - 1 ? " → " : ""}
           </li>
         );
       })}

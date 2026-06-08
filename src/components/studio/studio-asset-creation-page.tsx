@@ -11,13 +11,16 @@ import {
   readSkipAssetCreationWizard,
   shouldShowAssetCreationWizard,
 } from "@/lib/studio-asset-creation-preference";
+import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreateEntryPath, StudioAssetKind } from "@/types/studio-asset-creation";
 
 export type AssetCreationPageContext = {
   entryPath: AssetCreateEntryPath | null;
   wizardProposal: AssetCreationWizardResult["proposal"];
   proposalApplied: boolean;
+  wizardDraft: AssetWizardDraft | null;
   showWizard: boolean;
+  advancedMode: boolean;
   openGuidedCreation: () => void;
 };
 
@@ -25,6 +28,7 @@ type Props = {
   kind: StudioAssetKind;
   guidedQueryParam?: boolean;
   hasDecisionPrefill?: boolean;
+  onWizardSave: (result: AssetCreationWizardResult) => Promise<void>;
   children: (ctx: AssetCreationPageContext) => React.ReactNode;
 };
 
@@ -32,18 +36,20 @@ export function StudioAssetCreationPage({
   kind,
   guidedQueryParam = false,
   hasDecisionPrefill = false,
+  onWizardSave,
   children,
 }: Props) {
   const t = useActiveTranslator();
   const [forceWizard, setForceWizard] = useState(false);
-  const [wizardDone, setWizardDone] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(false);
   const [entryPath, setEntryPath] = useState<AssetCreateEntryPath | null>(null);
   const [wizardProposal, setWizardProposal] =
     useState<AssetCreationWizardResult["proposal"]>(null);
   const [proposalApplied, setProposalApplied] = useState(false);
+  const [wizardDraft, setWizardDraft] = useState<AssetWizardDraft | null>(null);
 
   const showWizard = useMemo(() => {
-    if (wizardDone || hasDecisionPrefill) {
+    if (advancedMode || hasDecisionPrefill) {
       return false;
     }
     if (forceWizard) {
@@ -54,19 +60,40 @@ export function StudioAssetCreationPage({
       guidedQueryParam,
       hasDecisionPrefill,
     });
-  }, [wizardDone, hasDecisionPrefill, forceWizard, guidedQueryParam]);
+  }, [advancedMode, hasDecisionPrefill, forceWizard, guidedQueryParam]);
 
-  const handleWizardComplete = useCallback((result: AssetCreationWizardResult) => {
+  const applyWizardResult = useCallback((result: AssetCreationWizardResult) => {
     setEntryPath(result.entryPath);
     setWizardProposal(result.proposal);
     setProposalApplied(result.proposalApplied);
-    setWizardDone(true);
-    setForceWizard(false);
+    setWizardDraft(result.draft);
   }, []);
+
+  const handleAdvancedEdit = useCallback(
+    (result: AssetCreationWizardResult) => {
+      applyWizardResult(result);
+      setAdvancedMode(true);
+      setForceWizard(false);
+    },
+    [applyWizardResult]
+  );
+
+  const handleWizardSave = useCallback(
+    async (result: AssetCreationWizardResult) => {
+      applyWizardResult(result);
+      await onWizardSave(result);
+    },
+    [applyWizardResult, onWizardSave]
+  );
 
   const openGuidedCreation = useCallback(() => {
     setForceWizard(true);
-    setWizardDone(false);
+    setAdvancedMode(false);
+  }, []);
+
+  const handleSkipToClassic = useCallback(() => {
+    setAdvancedMode(true);
+    setForceWizard(false);
   }, []);
 
   if (showWizard) {
@@ -74,11 +101,10 @@ export function StudioAssetCreationPage({
       <StudioAssetCreationWizard
         initialKind={kind}
         lockKind
-        onComplete={handleWizardComplete}
-        onSkipToClassic={() => {
-          setWizardDone(true);
-          setForceWizard(false);
-        }}
+        choiceBasedFlow={guidedQueryParam || forceWizard}
+        onAdvancedEdit={handleAdvancedEdit}
+        onSave={handleWizardSave}
+        onSkipToClassic={handleSkipToClassic}
       />
     );
   }
@@ -90,7 +116,7 @@ export function StudioAssetCreationPage({
         <button
           type="button"
           onClick={openGuidedCreation}
-          className="text-sm font-medium text-[#006D52] hover:underline"
+          className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline"
         >
           {t("studio.assetCreation.guidedCreation")}
         </button>
@@ -99,7 +125,9 @@ export function StudioAssetCreationPage({
         entryPath,
         wizardProposal,
         proposalApplied,
+        wizardDraft,
         showWizard: false,
+        advancedMode,
         openGuidedCreation,
       })}
     </div>

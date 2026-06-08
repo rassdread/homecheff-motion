@@ -49,6 +49,8 @@ import type {
 import type { ImagePrefillSlot } from "@/lib/studio-character-identity-image-prefill-client";
 import type { CharacterIdentityPrefillResult } from "@/types/studio-character-identity-prefill";
 import { mapEntryPathToCharacter } from "@/lib/studio-asset-prompt-prefill";
+import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { characterFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreateEntryPath, AssetPromptPrefillProposal } from "@/types/studio-asset-creation";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 import type { StudioCharacterDetail, StudioWorldProfileListItem } from "@/types/studio-api";
@@ -96,6 +98,7 @@ type StudioCharacterFormProps = {
   wizardEntryPath?: AssetCreateEntryPath | null;
   wizardProposal?: AssetPromptPrefillProposal | null;
   wizardProposalApplied?: boolean;
+  wizardDraft?: AssetWizardDraft | null;
   submitLabel: string;
   onSubmit: (values: StudioCharacterFormValues) => Promise<void>;
   backHref: string;
@@ -368,6 +371,7 @@ export function StudioCharacterForm({
   wizardEntryPath = null,
   wizardProposal = null,
   wizardProposalApplied = false,
+  wizardDraft = null,
   submitLabel,
   onSubmit,
   backHref,
@@ -378,6 +382,9 @@ export function StudioCharacterForm({
   const fileRef = useRef<HTMLInputElement>(null);
   const identityBuilderRef = useRef<HTMLDivElement>(null);
   const [values, setValues] = useState<StudioCharacterFormValues>(() => {
+    if (mode === "create" && wizardDraft) {
+      return characterFormValuesFromWizardDraft(wizardDraft);
+    }
     const base = initial ? fromDetail(initial) : emptyValues();
     if (mode === "create" && wizardProposal && wizardProposalApplied) {
       return {

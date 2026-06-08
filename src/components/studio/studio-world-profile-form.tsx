@@ -23,6 +23,10 @@ import {
   listVisibleWorldTypes,
 } from "@/lib/studio-world-identity-presets";
 import { buildWorldReadinessView } from "@/lib/studio-world-readiness";
+import {
+  worldFormValuesFromWizardDraft,
+  type AssetWizardDraft,
+} from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreateEntryPath, AssetPromptPrefillProposal } from "@/types/studio-asset-creation";
 import type { StudioWorldProfileDetail } from "@/types/studio-api";
 
@@ -40,6 +44,7 @@ type StudioWorldProfileFormProps = {
   createEntryPath?: AssetCreateEntryPath | null;
   wizardProposal?: AssetPromptPrefillProposal | null;
   proposalApplied?: boolean;
+  wizardDraft?: AssetWizardDraft | null;
 };
 
 function emptyIdentity(): WorldIdentityFormValues {
@@ -102,9 +107,13 @@ export function StudioWorldProfileForm({
   createEntryPath: initialEntryPath = null,
   wizardProposal = null,
   proposalApplied = false,
+  wizardDraft = null,
 }: StudioWorldProfileFormProps) {
   const t = useActiveTranslator();
   const [values, setValues] = useState<StudioWorldProfileFormValues>(() => {
+    if (mode === "create" && wizardDraft) {
+      return worldFormValuesFromWizardDraft(wizardDraft);
+    }
     const base = initial ? fromDetail(initial) : { continuityStrength: "strong" as const, identity: emptyIdentity() };
     if (mode === "create" && wizardProposal && proposalApplied) {
       return {

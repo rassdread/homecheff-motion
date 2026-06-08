@@ -23,6 +23,7 @@ export type StudioCostFeature =
   | "scene_image_regenerate"
   | "scene_image_regenerate_corrections"
   | "scene_image_bulk"
+  | "asset_reference_generate"
   | "vision_scene_qa"
   | "vision_storyboard"
   | "character_reference_analysis"

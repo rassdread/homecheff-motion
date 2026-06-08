@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
+import type { AssetCreationWizardResult } from "@/components/studio/studio-asset-creation-wizard";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioLocationForm,
@@ -18,6 +19,7 @@ import {
   readIdentityPrefillForKind,
 } from "@/lib/studio-identity-builder-prefill-detail";
 import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
+import { locationFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { createStudioLocationApi } from "@/lib/studio-locations-client";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
@@ -53,6 +55,11 @@ function StudioLocationNewPageContent() {
     router.push(`/studio/locations/${res.data.location.id}`);
   };
 
+  const handleWizardSave = async (result: AssetCreationWizardResult) => {
+    const values = locationFormValuesFromWizardDraft(result.draft);
+    await handleSubmit(values);
+  };
+
   return (
     <StudioAuthGate
       authTitleKey="studio.locations.authRequiredTitle"
@@ -69,6 +76,7 @@ function StudioLocationNewPageContent() {
               kind="location"
               guidedQueryParam={guided}
               hasDecisionPrefill={Boolean(prefill)}
+              onWizardSave={handleWizardSave}
             >
               {(ctx) => (
                 <StudioLocationForm
@@ -80,6 +88,7 @@ function StudioLocationNewPageContent() {
                   createEntryPath={ctx.entryPath}
                   wizardProposal={ctx.wizardProposal}
                   proposalApplied={ctx.proposalApplied}
+                  wizardDraft={ctx.wizardDraft}
                   onSubmit={handleSubmit}
                 />
               )}

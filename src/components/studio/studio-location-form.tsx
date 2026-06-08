@@ -36,6 +36,10 @@ import {
 } from "@/lib/studio-location-identity-presets";
 import { buildLocationReadinessView } from "@/lib/studio-location-readiness";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
+import {
+  locationFormValuesFromWizardDraft,
+  type AssetWizardDraft,
+} from "@/lib/studio-asset-wizard-draft";
 import type { AssetCreateEntryPath, AssetPromptPrefillProposal } from "@/types/studio-asset-creation";
 import type { StudioLocationDetail, StudioWorldProfileListItem } from "@/types/studio-api";
 
@@ -57,6 +61,7 @@ type StudioLocationFormProps = {
   createEntryPath?: AssetCreateEntryPath | null;
   wizardProposal?: AssetPromptPrefillProposal | null;
   proposalApplied?: boolean;
+  wizardDraft?: AssetWizardDraft | null;
 };
 
 function emptyIdentity(): LocationIdentityFormValues {
@@ -120,11 +125,15 @@ export function StudioLocationForm({
   createEntryPath: initialEntryPath = null,
   wizardProposal = null,
   proposalApplied = false,
+  wizardDraft = null,
 }: StudioLocationFormProps) {
   const t = useActiveTranslator();
   const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<StudioLocationFormValues>(() => {
+    if (mode === "create" && wizardDraft) {
+      return locationFormValuesFromWizardDraft(wizardDraft);
+    }
     const base =
       initial ? fromDetail(initial) : {
         name: "",
