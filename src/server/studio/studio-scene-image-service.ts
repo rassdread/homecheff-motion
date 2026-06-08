@@ -142,17 +142,18 @@ async function runSceneImageGeneration(params: {
     location: params.scene.location,
     props: params.scene.props,
   });
-  const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile);
   const boardRow = await prisma.studioStoryboard.findFirst({
     where: { id: params.scene.storyboardId },
     include: {
       scenes: { orderBy: { order: "asc" }, include: STUDIO_SCENE_DETAIL_INCLUDE },
     },
   });
-  const identityDriftLines = boardRow
-    ? buildCharacterIdentityDriftLinesForStoryboard(
-        mapStudioStoryboardToDetail(boardRow)
-      )
+  const boardDetail = boardRow ? mapStudioStoryboardToDetail(boardRow) : undefined;
+  const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile, undefined, {
+    storyboard: boardDetail,
+  });
+  const identityDriftLines = boardDetail
+    ? buildCharacterIdentityDriftLinesForStoryboard(boardDetail)
     : [];
   const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput, {
     identityDriftLines,

@@ -31,7 +31,9 @@ import {
   buildSceneIdentityConsumption,
   identityLibrariesFromStoryboard,
   type IdentityConsumptionLibraries,
+  type SceneIdentityConsumption,
 } from "@/lib/studio-identity-consumption";
+import type { WorldIdentityShotHint } from "@/lib/studio-world-identity-visual-hints";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 import { matchActionFragmentToCapability } from "@/lib/studio-scene-action-extraction";
 import type {
@@ -143,12 +145,71 @@ function shouldIncludeDetailBeat(scene: ShotPlannerSceneInput, phase: StoryArcPh
   return phase === "build_up" || phase === "climax";
 }
 
+function worldPrefersCloseShots(hint: SceneIdentityConsumption["shotHint"]): boolean {
+  if (!hint || hint.sourceKind !== "world") {
+    return false;
+  }
+  const preferred = hint.preferredShotTypes[0];
+  return (
+    preferred === "close_up" ||
+    preferred === "medium_close_up" ||
+    preferred === "extreme_close_up" ||
+    preferred === "detail_shot"
+  );
+}
+
+function worldPrefersWideShots(hint: SceneIdentityConsumption["shotHint"]): boolean {
+  if (!hint || hint.sourceKind !== "world") {
+    return false;
+  }
+  const preferred = hint.preferredShotTypes[0];
+  return (
+    preferred === "wide" ||
+    preferred === "extreme_wide" ||
+    preferred === "medium_wide" ||
+    preferred === "drone"
+  );
+}
+
+function biasBeatShotFromIdentity(
+  shot: StudioShotType,
+  role: ShotBeatRole,
+  shotHint: SceneIdentityConsumption["shotHint"]
+): StudioShotType {
+  if (!shotHint || shotHint.preferredShotTypes.length === 0) {
+    return shot;
+  }
+  if (role === "focus") {
+    return biasShotTypeFromIdentity(shot, shotHint);
+  }
+  if (role === "detail" && worldPrefersCloseShots(shotHint)) {
+    return "detail_shot";
+  }
+  if (role === "opening" && worldPrefersWideShots(shotHint)) {
+    return stepFraming(shot, -2);
+  }
+  if (role === "closing" && worldPrefersWideShots(shotHint)) {
+    return stepFraming(shot, 1);
+  }
+  if (role === "opening" && worldPrefersCloseShots(shotHint)) {
+    return stepFraming(shot, 1);
+  }
+  return shot;
+}
+
 function beatMovement(
   role: ShotBeatRole,
   base: StudioCameraMovement,
   phase: StoryArcPhase,
-  scene?: ShotPlannerSceneInput
+  scene?: ShotPlannerSceneInput,
+  worldShotHint?: WorldIdentityShotHint | null
 ): StudioCameraMovement {
+  if (worldShotHint?.pacing === "slow" && role === "opening") {
+    return "push_in";
+  }
+  if (worldShotHint?.pacing === "fast" && role === "focus") {
+    return base === "static" ? "tracking" : base;
+  }
   if (role === "opening") {
     return phase === "opening" || phase === "discovery" ? "push_in" : base;
   }
@@ -169,19 +230,45 @@ export function buildSceneShotBeats(params: {
   arcPhase: StoryArcPhase;
   focusShot: StudioShotType;
   focusMovement: StudioCameraMovement;
+  identityShotHint?: SceneIdentityConsumption["shotHint"];
 }): ShotBeat[] {
-  const { scene, arcPhase, focusShot, focusMovement } = params;
+  const { scene, arcPhase, focusShot, focusMovement, identityShotHint } = params;
   const focusText = focusLabel(scene);
-  const includeDetail = shouldIncludeDetailBeat(scene, arcPhase);
-  const openingShot = openingShotForPhase(focusShot, arcPhase);
-  const closingShot = closingShotForPhase(focusShot, arcPhase, scene);
+  const includeDetail =
+    shouldIncludeDetailBeat(scene, arcPhase) || worldPrefersCloseShots(identityShotHint ?? null);
+  const openingShot = biasBeatShotFromIdentity(
+    openingShotForPhase(focusShot, arcPhase),
+    "opening",
+    identityShotHint ?? null
+  );
+  const closingShot = biasBeatShotFromIdentity(
+    closingShotForPhase(focusShot, arcPhase, scene),
+    "closing",
+    identityShotHint ?? null
+  );
+  const biasedFocusShot = biasBeatShotFromIdentity(focusShot, "focus", identityShotHint ?? null);
+  const worldShotHint =
+    identityShotHint?.sourceKind === "world"
+      ? {
+          preferredShotTypes: identityShotHint.preferredShotTypes,
+          pacing:
+            identityShotHint.rationaleKey.includes("food")
+              ? "slow"
+              : identityShotHint.rationaleKey.includes("sports")
+                ? "fast"
+                : identityShotHint.rationaleKey.includes("cyberpunk")
+                  ? "medium"
+                  : "medium",
+          rationaleKey: identityShotHint.rationaleKey,
+        }
+      : null;
 
   const beats: ShotBeat[] = [
     {
       role: "opening",
       present: true,
       shotType: openingShot,
-      cameraMovement: beatMovement("opening", focusMovement, arcPhase, scene),
+      cameraMovement: beatMovement("opening", focusMovement, arcPhase, scene, worldShotHint),
       label: focusText ? "" : "",
       labelKey:
         arcPhase === "opening" || arcPhase === "discovery"
@@ -191,8 +278,8 @@ export function buildSceneShotBeats(params: {
     {
       role: "focus",
       present: true,
-      shotType: focusShot,
-      cameraMovement: focusMovement,
+      shotType: biasedFocusShot,
+      cameraMovement: beatMovement("focus", focusMovement, arcPhase, scene, worldShotHint),
       label: focusText,
       labelKey: focusText ? undefined : "studio.shotPlanner.beat.focusFallback",
     },
@@ -202,8 +289,8 @@ export function buildSceneShotBeats(params: {
     beats.push({
       role: "detail",
       present: true,
-      shotType: "detail_shot",
-      cameraMovement: beatMovement("detail", focusMovement, arcPhase, scene),
+      shotType: biasBeatShotFromIdentity("detail_shot", "detail", identityShotHint ?? null),
+      cameraMovement: beatMovement("detail", focusMovement, arcPhase, scene, worldShotHint),
       label: "",
       labelKey: "studio.shotPlanner.beat.detailMoment",
     });
@@ -214,7 +301,7 @@ export function buildSceneShotBeats(params: {
     role: "closing",
     present: true,
     shotType: closingShot,
-    cameraMovement: beatMovement("closing", focusMovement, arcPhase, scene),
+    cameraMovement: beatMovement("closing", focusMovement, arcPhase, scene, worldShotHint),
     label: closingLabel ?? "",
     labelKey: closingLabel ? undefined : "studio.shotPlanner.beat.closingResult",
   });
@@ -296,6 +383,7 @@ export function buildSceneShotPlan(params: {
       arcPhase,
       focusShot,
       focusMovement,
+      identityShotHint: params.identityShotHint,
     }),
   };
 }

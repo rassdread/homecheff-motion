@@ -14,10 +14,12 @@ import {
   resolveSceneShotType,
 } from "@/lib/studio-scene-director";
 import {
-  buildCharacterMemoryPromptLines,
-  buildLocationMemoryPromptLines,
-  buildPropMemoryPromptLines,
-  buildWorldMemoryPromptLines,
+  buildCharacterMemoryPromptChunks,
+  buildLocationMemoryPromptChunks,
+  buildPropMemoryPromptChunks,
+  buildWorldMemoryPromptChunks,
+  type MemoryPromptPriority,
+  type PrioritizedMemoryChunk,
 } from "@/lib/studio-memory-prompt";
 import { worldProfilePickToListItem } from "@/lib/studio-prompt-source-entities";
 import {
@@ -291,6 +293,36 @@ function buildWorldStrategyMotionLine(
   return `World: ${trimSentence(chunks.join(" "), 140)}`;
 }
 
+const MEMORY_IDENTITY_MAX_CHARS = 220;
+const MEMORY_PRIORITY_ORDER: MemoryPromptPriority[] = ["high", "medium", "low"];
+
+function packPrioritizedMemoryChunks(
+  chunks: PrioritizedMemoryChunk[],
+  maxChars: number
+): string {
+  const parts: string[] = [];
+  let total = 0;
+  for (const tier of MEMORY_PRIORITY_ORDER) {
+    for (const chunk of chunks) {
+      if (chunk.priority !== tier || !chunk.text.trim()) {
+        continue;
+      }
+      const text = chunk.text.trim();
+      const next = total === 0 ? text.length : total + 1 + text.length;
+      if (next > maxChars) {
+        const remaining = maxChars - total - (total > 0 ? 1 : 0);
+        if (remaining > 24) {
+          parts.push(`${text.slice(0, remaining - 1).trim()}…`);
+        }
+        return parts.join(" ");
+      }
+      parts.push(text);
+      total = next;
+    }
+  }
+  return parts.join(" ");
+}
+
 function buildMemoryContextLine(
   scene: MotionHandoffScene,
   storyMemory?: StudioSceneMotionInstructionInput["storyMemory"]
@@ -300,26 +332,28 @@ function buildMemoryContextLine(
   }
   const sceneNames = new Set(scene.characters.map((c) => c.name.trim().toLowerCase()));
   const characterNamesById = new Map(storyMemory.characters.map((c) => [c.id, c.name]));
-  const characterLines = buildCharacterMemoryPromptLines(
-    storyMemory.characters.filter((c) => sceneNames.has(c.name.trim().toLowerCase()))
+  const sceneCharacters = storyMemory.characters.filter((c) =>
+    sceneNames.has(c.name.trim().toLowerCase())
   );
-  const locationLine =
+  const sceneProps = storyMemory.props.filter((p) =>
+    new Set(scene.props.map((row) => row.id)).has(p.id)
+  );
+  const sceneLocation =
     storyMemory.location && scene.location?.id === storyMemory.location.id
-      ? buildLocationMemoryPromptLines(storyMemory.location)
-      : [];
-  const propIds = new Set(scene.props.map((p) => p.id));
-  const propLines = buildPropMemoryPromptLines(
-    storyMemory.props.filter((p) => propIds.has(p.id)),
-    { characterNamesById }
-  );
-  const worldLines = storyMemory.world ? buildWorldMemoryPromptLines(storyMemory.world) : [];
-  const combined = [...worldLines, ...characterLines, ...locationLine, ...propLines]
-    .join(" ")
-    .trim();
+      ? storyMemory.location
+      : null;
+  // Motion path: characters first so outfit/forbidden survive the identity budget.
+  const chunks = [
+    ...buildCharacterMemoryPromptChunks(sceneCharacters),
+    ...buildWorldMemoryPromptChunks(storyMemory.world),
+    ...buildLocationMemoryPromptChunks(sceneLocation),
+    ...buildPropMemoryPromptChunks(sceneProps, { characterNamesById }),
+  ];
+  const combined = packPrioritizedMemoryChunks(chunks, MEMORY_IDENTITY_MAX_CHARS).trim();
   if (!combined) {
     return null;
   }
-  return `Identity: ${trimSentence(combined, 220)}`;
+  return `Identity: ${combined}`;
 }
 
 function buildLocationLine(scene: MotionHandoffScene): string | null {
@@ -383,15 +417,26 @@ function collectIgnoredAudioFields(scene: MotionHandoffScene): string[] {
   return ignored;
 }
 
-function packLines(lines: string[], maxChars: number): { lines: string[]; text: string } {
+type MotionInstructionCandidate = {
+  line: string;
+  field: string;
+  /** Lower drops first when budget is tight — identity tiers stay. */
+  dropPriority: number;
+};
+
+function packLines(candidates: MotionInstructionCandidate[], maxChars: number): {
+  lines: string[];
+  text: string;
+} {
+  const sorted = [...candidates].sort((a, b) => a.dropPriority - b.dropPriority);
   const kept: string[] = [];
   let total = 0;
-  for (const line of lines) {
-    const next = total === 0 ? line.length : total + 1 + line.length;
+  for (const row of sorted) {
+    const next = total === 0 ? row.line.length : total + 1 + row.line.length;
     if (next > maxChars) {
-      break;
+      continue;
     }
-    kept.push(line);
+    kept.push(row.line);
     total = next;
   }
   return { lines: kept, text: kept.join("\n") };
@@ -405,13 +450,14 @@ export function buildStudioSceneMotionInstructions(
   const usedFields: string[] = [];
   const ignoredFields = collectIgnoredAudioFields(scene);
 
-  const candidateLines: Array<{ line: string; field: string }> = [];
+  const candidateLines: MotionInstructionCandidate[] = [];
 
   const worldStrategyLine = buildWorldStrategyMotionLine(storyMemory);
   if (worldStrategyLine) {
     candidateLines.push({
       line: worldStrategyLine,
       field: "worldRenderStrategy,worldMemory",
+      dropPriority: 1,
     });
   }
 
@@ -420,6 +466,7 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({
       line: memoryLine,
       field: "characterMemory,worldMemory,locationMemory,propMemory",
+      dropPriority: 1,
     });
   }
 
@@ -428,6 +475,7 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({
       line: actionLine,
       field: scene.characterBlocking ? "characterBlocking" : "action",
+      dropPriority: 3,
     });
   } else if (scene.characterBlocking) {
     ignoredFields.push("characterBlocking");
@@ -438,19 +486,24 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({
       line: blockingLine,
       field: scene.assetPlacement ? "assetPlacement" : "characterBlocking",
+      dropPriority: 4,
     });
   }
 
   const compositionLine = buildCompositionLine(scene);
   if (compositionLine) {
-    candidateLines.push({ line: compositionLine, field: "sceneComposition" });
+    candidateLines.push({ line: compositionLine, field: "sceneComposition", dropPriority: 5 });
   } else if (scene.sceneComposition) {
     ignoredFields.push("sceneComposition");
   }
 
   const cameraLine = buildCameraLine(scene);
   if (cameraLine) {
-    candidateLines.push({ line: cameraLine, field: "shotType,cameraMovement,sceneEnergy" });
+    candidateLines.push({
+      line: cameraLine,
+      field: "shotType,cameraMovement,sceneEnergy",
+      dropPriority: 3,
+    });
   }
 
   const emotionLine = buildEmotionLine(scene);
@@ -458,38 +511,40 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({
       line: emotionLine,
       field: scene.speakerPerformance ? "emotion,speakerPerformance" : "emotion",
+      dropPriority: 4,
     });
   }
 
   const propsLine = buildPropsLine(scene);
   if (propsLine) {
-    candidateLines.push({ line: propsLine, field: "props,assetPlacement" });
+    candidateLines.push({ line: propsLine, field: "props,assetPlacement", dropPriority: 4 });
   } else if (scene.props.length > 0) {
     ignoredFields.push("props");
   }
 
   const locationLine = buildLocationLine(scene);
   if (locationLine) {
-    candidateLines.push({ line: locationLine, field: "location" });
+    candidateLines.push({ line: locationLine, field: "location", dropPriority: 4 });
   } else if (scene.location) {
     ignoredFields.push("location");
   }
 
   const arcLine = buildStoryArcLine(sceneIndex, sceneCount);
   if (arcLine) {
-    candidateLines.push({ line: arcLine, field: "storyIntelligence" });
+    candidateLines.push({ line: arcLine, field: "storyIntelligence", dropPriority: 6 });
   }
 
   if (sceneIndex === 0 && aiDirectorNotes?.trim()) {
     candidateLines.push({
       line: `Director note: ${trimSentence(aiDirectorNotes.trim(), 100)}`,
       field: "aiDirectorNotes",
+      dropPriority: 5,
     });
   } else if (aiDirectorNotes?.trim()) {
     ignoredFields.push("aiDirectorNotes");
   }
 
-  candidateLines.push({ line: buildSafetyLine(scene), field: "safety" });
+  candidateLines.push({ line: buildSafetyLine(scene), field: "safety", dropPriority: 2 });
 
   for (const row of candidateLines) {
     for (const part of row.field.split(",")) {
@@ -500,10 +555,7 @@ export function buildStudioSceneMotionInstructions(
     }
   }
 
-  const packed = packLines(
-    candidateLines.map((c) => c.line),
-    STUDIO_MOTION_INSTRUCTION_MAX_CHARS
-  );
+  const packed = packLines(candidateLines, STUDIO_MOTION_INSTRUCTION_MAX_CHARS);
 
   return {
     lines: packed.lines,

@@ -10,7 +10,7 @@ import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bu
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
-import type { StudioSceneDetail } from "@/types/studio-api";
+import type { StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
 import {
   mapStudioSceneToDetail,
@@ -41,11 +41,14 @@ function buildPromptSourceEntitiesFromSceneRow(
 export function buildScenePromptFromSceneRow(
   row: StudioStoryboardSceneRow,
   styleProfile?: StudioPromptStyleProfile | string,
-  directorProfile?: string
+  directorProfile?: string,
+  options?: { storyboard?: StudioStoryboardDetail }
 ): PromptBuilderOutput {
   const sceneDetail = mapStudioSceneToDetail(row);
   const sourceEntities = buildPromptSourceEntitiesFromSceneRow(row);
-  const directorContextLines = buildSceneDirectorContextLines(sceneDetail, sourceEntities);
+  const directorContextLines = buildSceneDirectorContextLines(sceneDetail, sourceEntities, {
+    storyboard: options?.storyboard,
+  });
 
   return buildScenePromptFromInput(
     studioSceneDetailToPromptInput(sceneDetail, styleProfile, directorProfile, {
@@ -61,12 +64,15 @@ export function buildScenePromptForDetail(
   options?: {
     sourceEntities?: ReturnType<typeof buildPromptSourceEntitiesFromSceneDetail>;
     worlds?: StudioWorldProfileListItem[];
+    storyboard?: StudioStoryboardDetail;
   }
 ): PromptBuilderOutput {
   const sourceEntities =
     options?.sourceEntities ??
     buildPromptSourceEntitiesFromSceneDetail(scene, options?.worlds ?? []);
-  const directorContextLines = buildSceneDirectorContextLines(scene, sourceEntities);
+  const directorContextLines = buildSceneDirectorContextLines(scene, sourceEntities, {
+    storyboard: options?.storyboard,
+  });
   return buildScenePromptFromInput(
     studioSceneDetailToPromptInput(scene, styleProfile, undefined, {
       sourceEntities,

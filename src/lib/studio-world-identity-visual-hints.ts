@@ -25,7 +25,7 @@ export type WorldIdentityShotHint = {
 
 const WORLD_TYPE_SHOT_HINTS: Record<string, WorldIdentityShotHint> = {
   food_universe: {
-    preferredShotTypes: ["close_up", "medium_close_up"],
+    preferredShotTypes: ["close_up", "medium_close_up", "detail_shot"],
     pacing: "slow",
     rationaleKey: "studio.worldIdentity.shotHint.food",
   },
@@ -43,6 +43,16 @@ const WORLD_TYPE_SHOT_HINTS: Record<string, WorldIdentityShotHint> = {
     preferredShotTypes: ["wide", "extreme_wide"],
     pacing: "slow",
     rationaleKey: "studio.worldIdentity.shotHint.cinematic",
+  },
+  documentary_universe: {
+    preferredShotTypes: ["medium", "medium_wide"],
+    pacing: "slow",
+    rationaleKey: "studio.worldIdentity.shotHint.documentary",
+  },
+  cyberpunk: {
+    preferredShotTypes: ["wide", "medium_wide", "drone"],
+    pacing: "medium",
+    rationaleKey: "studio.worldIdentity.shotHint.cyberpunk",
   },
 };
 

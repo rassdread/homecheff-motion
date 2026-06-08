@@ -21,131 +21,264 @@ function joinLines(parts: string[]): string {
     .join("\n");
 }
 
-export function buildCharacterMemoryPromptLines(
-  characters: SceneMemoryBundle["characters"]
-): string[] {
-  const lines: string[] = [];
-  for (const character of characters) {
-    const block: string[] = [];
-    block.push(
-      character.role === "mascot"
-        ? `Maintain the same ${character.name} mascot identity.`
-        : `Maintain consistent identity for ${character.name}.`
-    );
-    if (character.appearanceMemory.trim()) {
-      block.push(`Appearance: ${character.appearanceMemory.trim()}.`);
+export type MemoryPromptPriority = "high" | "medium" | "low";
+
+export type PrioritizedMemoryChunk = {
+  text: string;
+  priority: MemoryPromptPriority;
+};
+
+function joinPrioritizedChunks(chunks: PrioritizedMemoryChunk[]): string {
+  const order: MemoryPromptPriority[] = ["high", "medium", "low"];
+  const parts: string[] = [];
+  for (const tier of order) {
+    for (const chunk of chunks) {
+      if (chunk.priority === tier && chunk.text.trim()) {
+        parts.push(chunk.text.trim());
+      }
     }
+  }
+  return parts.join(" ");
+}
+
+export function buildCharacterMemoryPromptChunks(
+  characters: SceneMemoryBundle["characters"]
+): PrioritizedMemoryChunk[] {
+  const chunks: PrioritizedMemoryChunk[] = [];
+  for (const character of characters) {
+    chunks.push({
+      priority: "high",
+      text:
+        character.role === "mascot"
+          ? `Maintain the same ${character.name} mascot identity.`
+          : `Maintain consistent identity for ${character.name}.`,
+    });
     if (character.defaultClothing.trim()) {
-      block.push(`Clothing: ${character.defaultClothing.trim()}.`);
+      chunks.push({
+        priority: "high",
+        text: `Clothing: ${character.defaultClothing.trim()}.`,
+      });
     }
     if (character.defaultAccessories.trim()) {
-      block.push(`Accessories: ${character.defaultAccessories.trim()}.`);
-    }
-    if (character.personalityMemory.trim()) {
-      block.push(`Personality: ${character.personalityMemory.trim()}.`);
+      chunks.push({
+        priority: "high",
+        text: `Accessories: ${character.defaultAccessories.trim()}.`,
+      });
     }
     const structuredIdentityLines = buildCharacterIdentityPromptLinesFromMemory(character);
-    block.push(...structuredIdentityLines);
-    if (
-      character.visualKeywords.trim() &&
-      buildCharacterStructuredIdentityPromptLines(character.visualKeywords).length === 0
-    ) {
-      block.push(`Visual keywords: ${character.visualKeywords.trim()}.`);
+    for (const line of structuredIdentityLines) {
+      chunks.push({ priority: "high", text: line });
     }
     const { forbiddenElements, usageContext } = parseIdentityContinuityNotes(
       character.continuityNotes
     );
     if (forbiddenElements) {
-      block.push(`Forbidden: ${forbiddenElements}.`);
+      chunks.push({ priority: "high", text: `Forbidden: ${forbiddenElements}.` });
     }
-    if (character.referenceNotes.trim()) {
-      block.push(`Reference notes: ${character.referenceNotes.trim()}.`);
-    }
-    block.push(continuityStrengthPromptHint(character.identityStrength));
-    if (usageContext) {
-      block.push(usageContext);
+    if (character.appearanceMemory.trim()) {
+      chunks.push({
+        priority: "medium",
+        text: `Appearance: ${character.appearanceMemory.trim()}.`,
+      });
     }
     if (character.worldProfileName) {
-      block.push(`Belongs to world: ${character.worldProfileName}.`);
+      chunks.push({
+        priority: "medium",
+        text: `Belongs to world: ${character.worldProfileName}.`,
+      });
     }
-    lines.push(block.join(" "));
+    if (
+      character.visualKeywords.trim() &&
+      buildCharacterStructuredIdentityPromptLines(character.visualKeywords).length === 0
+    ) {
+      chunks.push({
+        priority: "medium",
+        text: `Visual keywords: ${character.visualKeywords.trim()}.`,
+      });
+    }
+    if (character.personalityMemory.trim()) {
+      chunks.push({
+        priority: "low",
+        text: `Personality: ${character.personalityMemory.trim()}.`,
+      });
+    }
+    if (character.referenceNotes.trim()) {
+      chunks.push({
+        priority: "low",
+        text: `Reference notes: ${character.referenceNotes.trim()}.`,
+      });
+    }
+    chunks.push({
+      priority: "low",
+      text: continuityStrengthPromptHint(character.identityStrength),
+    });
+    if (usageContext) {
+      chunks.push({ priority: "low", text: usageContext });
+    }
   }
-  return lines;
+  return chunks;
+}
+
+export function buildCharacterMemoryPromptLines(
+  characters: SceneMemoryBundle["characters"]
+): string[] {
+  return characters.map((character) =>
+    joinPrioritizedChunks(buildCharacterMemoryPromptChunks([character]))
+  );
+}
+
+export function buildLocationMemoryPromptChunks(
+  location: SceneMemoryBundle["location"]
+): PrioritizedMemoryChunk[] {
+  if (!location) {
+    return [];
+  }
+  const chunks: PrioritizedMemoryChunk[] = [
+    { priority: "high", text: `Maintain consistent ${location.name} environment.` },
+  ];
+  if (location.visualIdentity.trim()) {
+    chunks.push({
+      priority: "high",
+      text: `Visual identity: ${location.visualIdentity.trim()}.`,
+    });
+  }
+  for (const line of buildLocationIdentityMemoryPromptExtras(location)) {
+    chunks.push({ priority: "high", text: line });
+  }
+  const { forbiddenElements, usageContext } = parseIdentityContinuityNotes(
+    location.continuityNotes
+  );
+  if (forbiddenElements) {
+    chunks.push({ priority: "high", text: `Forbidden: ${forbiddenElements}.` });
+  }
+  if (location.environmentKeywords.trim()) {
+    chunks.push({
+      priority: "medium",
+      text: `Environment keywords: ${location.environmentKeywords.trim()}.`,
+    });
+  }
+  if (location.worldMemory.trim()) {
+    chunks.push({ priority: "medium", text: location.worldMemory.trim() });
+  }
+  chunks.push({
+    priority: "low",
+    text: continuityStrengthPromptHint(location.continuityStrength),
+  });
+  if (usageContext) {
+    chunks.push({ priority: "low", text: usageContext });
+  }
+  return chunks;
 }
 
 export function buildLocationMemoryPromptLines(
   location: SceneMemoryBundle["location"]
 ): string[] {
-  if (!location) {
+  const chunks = buildLocationMemoryPromptChunks(location);
+  if (chunks.length === 0) {
     return [];
   }
-  const block: string[] = [`Maintain consistent ${location.name} environment.`];
-  if (location.visualIdentity.trim()) {
-    block.push(`Visual identity: ${location.visualIdentity.trim()}.`);
+  return [joinPrioritizedChunks(chunks)];
+}
+
+export function buildPropMemoryPromptChunks(
+  props: SceneMemoryBundle["props"],
+  options?: { characterNamesById?: Map<string, string> }
+): PrioritizedMemoryChunk[] {
+  const chunks: PrioritizedMemoryChunk[] = [];
+  for (const prop of props) {
+    chunks.push({
+      priority: "high",
+      text: `Keep ${prop.name} visually consistent when visible.`,
+    });
+    for (const line of buildPropIdentityMemoryPromptExtras(prop, options?.characterNamesById)) {
+      chunks.push({ priority: "high", text: line });
+    }
+    if (prop.brandingRules.trim()) {
+      chunks.push({
+        priority: "high",
+        text: `Branding: ${prop.brandingRules.trim()}.`,
+      });
+    }
+    const detailOnly = parsePropAppearanceDetails(prop.appearanceMemory);
+    if (detailOnly) {
+      chunks.push({ priority: "medium", text: `Appearance: ${detailOnly}.` });
+    }
+    chunks.push({
+      priority: "low",
+      text: continuityStrengthPromptHint(prop.continuityStrength),
+    });
+    if (prop.continuityNotes.trim()) {
+      chunks.push({ priority: "low", text: prop.continuityNotes.trim() });
+    }
   }
-  if (location.worldMemory.trim()) {
-    block.push(location.worldMemory.trim());
-  }
-  if (location.environmentKeywords.trim()) {
-    block.push(`Environment keywords: ${location.environmentKeywords.trim()}.`);
-  }
-  block.push(...buildLocationIdentityMemoryPromptExtras(location));
-  const { forbiddenElements, usageContext } = parseIdentityContinuityNotes(
-    location.continuityNotes
-  );
-  if (forbiddenElements) {
-    block.push(`Forbidden: ${forbiddenElements}.`);
-  }
-  block.push(continuityStrengthPromptHint(location.continuityStrength));
-  if (usageContext) {
-    block.push(usageContext);
-  }
-  return [block.join(" ")];
+  return chunks;
 }
 
 export function buildPropMemoryPromptLines(
   props: SceneMemoryBundle["props"],
   options?: { characterNamesById?: Map<string, string> }
 ): string[] {
-  return props.map((prop) => {
-    const block: string[] = [`Keep ${prop.name} visually consistent when visible.`];
-    block.push(...buildPropIdentityMemoryPromptExtras(prop, options?.characterNamesById));
-    const detailOnly = parsePropAppearanceDetails(prop.appearanceMemory);
-    if (detailOnly) {
-      block.push(`Appearance: ${detailOnly}.`);
-    }
-    if (prop.brandingRules.trim()) {
-      block.push(`Branding: ${prop.brandingRules.trim()}.`);
-    }
-    block.push(continuityStrengthPromptHint(prop.continuityStrength));
-    if (prop.continuityNotes.trim()) {
-      block.push(prop.continuityNotes.trim());
-    }
-    return block.join(" ");
-  });
+  return props.map((prop) =>
+    joinPrioritizedChunks(buildPropMemoryPromptChunks([prop], options))
+  );
 }
 
-export function buildWorldMemoryPromptLines(world: SceneMemoryBundle["world"]): string[] {
+export function buildWorldMemoryPromptChunks(
+  world: SceneMemoryBundle["world"]
+): PrioritizedMemoryChunk[] {
   if (!world) {
     return [];
   }
-  const block: string[] = [`Maintain ${world.name} world visual style.`];
-  block.push(...buildWorldIdentityMemoryPromptExtras(world));
-  block.push(
-    ...buildWorldIdentityRenderStrategyHints(
-      worldProfilePickToListItem({
-        id: world.id,
-        name: world.name,
-        description: world.description,
-        visualStyle: world.visualStyle,
-        tone: world.tone,
-        continuityRules: world.continuityRules,
-        continuityStrength: world.continuityStrength,
-      })
-    )
-  );
-  block.push(continuityStrengthPromptHint(world.continuityStrength));
-  return [block.join(" ")];
+  const chunks: PrioritizedMemoryChunk[] = [
+    { priority: "high", text: `Maintain ${world.name} world visual style.` },
+  ];
+  for (const line of buildWorldIdentityMemoryPromptExtras(world)) {
+    chunks.push({ priority: "high", text: line });
+  }
+  for (const line of buildWorldIdentityRenderStrategyHints(
+    worldProfilePickToListItem({
+      id: world.id,
+      name: world.name,
+      description: world.description,
+      visualStyle: world.visualStyle,
+      tone: world.tone,
+      continuityRules: world.continuityRules,
+      continuityStrength: world.continuityStrength,
+    })
+  )) {
+    chunks.push({ priority: "high", text: line });
+  }
+  chunks.push({
+    priority: "low",
+    text: continuityStrengthPromptHint(world.continuityStrength),
+  });
+  return chunks;
+}
+
+export function buildWorldMemoryPromptLines(world: SceneMemoryBundle["world"]): string[] {
+  const chunks = buildWorldMemoryPromptChunks(world);
+  if (chunks.length === 0) {
+    return [];
+  }
+  return [joinPrioritizedChunks(chunks)];
+}
+
+/** Priority-ordered memory chunks for motion instruction packing (high first). */
+export function buildSceneMemoryPromptChunks(
+  params: {
+    characters: SceneMemoryBundle["characters"];
+    location: SceneMemoryBundle["location"];
+    props: SceneMemoryBundle["props"];
+    world: SceneMemoryBundle["world"];
+  },
+  options?: { characterNamesById?: Map<string, string> }
+): PrioritizedMemoryChunk[] {
+  return [
+    ...buildWorldMemoryPromptChunks(params.world),
+    ...buildCharacterMemoryPromptChunks(params.characters),
+    ...buildLocationMemoryPromptChunks(params.location),
+    ...buildPropMemoryPromptChunks(params.props, options),
+  ];
 }
 
 export function buildSceneMemoryContinuityPrompt(

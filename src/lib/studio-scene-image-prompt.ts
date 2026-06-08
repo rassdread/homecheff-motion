@@ -5,6 +5,24 @@ import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 
+const SUPPORTING_REF_ROLE_PRIORITY = [
+  "face",
+  "portrait",
+  "outfit",
+  "full_body",
+  "detail",
+  "architecture",
+  "material",
+  "lighting",
+  "branding",
+];
+
+function supportingRefSortScore(role: string): number {
+  const normalized = role.trim().toLowerCase();
+  const idx = SUPPORTING_REF_ROLE_PRIORITY.indexOf(normalized);
+  return idx >= 0 ? idx : SUPPORTING_REF_ROLE_PRIORITY.length;
+}
+
 function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string[] {
   if (!memoryBundle) {
     return [];
@@ -12,7 +30,10 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   const lines: string[] = [];
   for (const character of memoryBundle.characters) {
     const { bundle } = parseCharacterReferencesBundle(character.referenceNotes);
-    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 3)) {
+    for (const ref of bundle.supporting
+      .filter((r) => r.status === "active")
+      .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
+      .slice(0, 3)) {
       const label = ref.label?.trim() || ref.role;
       lines.push(
         `${character.name}: match ${label} from supporting ${ref.role} reference image — keep face, outfit, and proportions consistent.`
@@ -21,7 +42,10 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   }
   if (memoryBundle.location) {
     const { bundle } = parseAssetReferencesBundle(memoryBundle.location.continuityNotes);
-    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
+    for (const ref of bundle.supporting
+      .filter((r) => r.status === "active")
+      .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
+      .slice(0, 2)) {
       lines.push(
         `${memoryBundle.location.name}: match supporting ${ref.role} reference — preserve architecture, materials, and lighting.`
       );
@@ -29,7 +53,10 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   }
   for (const prop of memoryBundle.props) {
     const { bundle } = parseAssetReferencesBundle(prop.continuityNotes);
-    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
+    for (const ref of bundle.supporting
+      .filter((r) => r.status === "active")
+      .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
+      .slice(0, 2)) {
       lines.push(
         `${prop.name}: match supporting ${ref.role} reference — preserve shape, branding, and material.`
       );
@@ -42,16 +69,17 @@ function buildReferenceConsistencyLines(
   scene: SceneSnapshot,
   memoryBundle?: SceneMemoryBundle
 ): string[] {
-  const lines: string[] = [];
+  const primaryLines: string[] = [];
+  const secondaryLines: string[] = [];
 
   for (const character of scene.characters) {
     const url = character.referenceImageUrl?.trim();
     if (url) {
-      lines.push(
-        `${character.name}: maintain identity consistency, clothing consistency, and facial consistency aligned with the reference image.`
+      primaryLines.push(
+        `${character.name}: maintain identity consistency, clothing consistency, and facial consistency aligned with the primary reference image.`
       );
     } else if (character.personality.trim() || character.description.trim()) {
-      lines.push(
+      secondaryLines.push(
         `${character.name}: maintain identity consistency, clothing consistency, and facial consistency.`
       );
     }
@@ -60,11 +88,11 @@ function buildReferenceConsistencyLines(
   if (scene.location) {
     const locUrl = scene.location.referenceImageUrl?.trim();
     if (locUrl) {
-      lines.push(
-        `${scene.location.name}: reuse the same environment characteristics and world consistency from the location reference.`
+      primaryLines.push(
+        `${scene.location.name}: reuse the same environment characteristics and world consistency from the primary location reference.`
       );
     } else {
-      lines.push(
+      secondaryLines.push(
         `Maintain consistent ${scene.location.name} environment and neighborhood atmosphere.`
       );
     }
@@ -73,15 +101,15 @@ function buildReferenceConsistencyLines(
   for (const prop of scene.props) {
     const propUrl = prop.referenceImageUrl?.trim();
     if (propUrl) {
-      lines.push(
-        `${prop.name}: reuse the same object appearance and branding consistency from the prop reference.`
+      primaryLines.push(
+        `${prop.name}: reuse the same object appearance and branding consistency from the primary prop reference.`
       );
     } else {
-      lines.push(`Keep ${prop.name} visually consistent when visible.`);
+      secondaryLines.push(`Keep ${prop.name} visually consistent when visible.`);
     }
   }
 
-  return [...lines, ...buildSupportingReferenceLines(memoryBundle)];
+  return [...primaryLines, ...secondaryLines, ...buildSupportingReferenceLines(memoryBundle)];
 }
 
 /**
@@ -127,6 +155,7 @@ export function buildSceneImageReferenceAssets(
         memory ?
           parseCharacterReferencesBundle(memory.referenceNotes).bundle.supporting
             .filter((r) => r.status === "active")
+            .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
             .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
         : [];
       return {
@@ -144,6 +173,7 @@ export function buildSceneImageReferenceAssets(
               locMemory && locMemory.id === scene.location!.id
                 ? parseAssetReferencesBundle(locMemory.continuityNotes).bundle.supporting
                     .filter((r) => r.status === "active")
+                    .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
                     .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
                 : [];
             return {
@@ -160,6 +190,7 @@ export function buildSceneImageReferenceAssets(
         propMemory
           ? parseAssetReferencesBundle(propMemory.continuityNotes).bundle.supporting
               .filter((r) => r.status === "active")
+              .sort((a, b) => supportingRefSortScore(a.role) - supportingRefSortScore(b.role))
               .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
           : [];
       return {

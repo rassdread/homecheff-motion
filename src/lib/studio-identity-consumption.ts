@@ -21,6 +21,7 @@ import {
   buildWorldIdentityVisualProductionLines,
   resolveWorldIdentityShotHint,
 } from "@/lib/studio-world-identity-visual-hints";
+import { buildVoiceIntelligenceDirectorLines } from "@/lib/studio-voice-intelligence-consumption";
 import {
   collectSceneIdentitySpecs,
   identityCompleteness,
@@ -563,6 +564,55 @@ export function buildIdentityMemoryTrends(params: {
   return trends.slice(0, 5);
 }
 
+/** Merge scene + storyboard director lines — scene-specific first, then storyboard-wide. */
+export function mergeDirectorContextLines(
+  sceneLines: string[],
+  storyboardLines: string[]
+): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const line of [...sceneLines, ...storyboardLines]) {
+    const key = line.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(key);
+  }
+  return merged.slice(0, 16);
+}
+
+function buildPrioritizedStoryboardDirectorLines(
+  linkedSpecs: IdentitySpec[]
+): string[] {
+  const worldVisual: string[] = [];
+  const worldAudio: string[] = [];
+  const characterLines: string[] = [];
+  const locationLines: string[] = [];
+  const propLines: string[] = [];
+
+  for (const spec of linkedSpecs) {
+    switch (spec.kind) {
+      case "world":
+        worldVisual.push(...buildWorldIdentityVisualProductionLines(spec));
+        worldAudio.push(...buildWorldIdentityAudioProductionLines(spec));
+        break;
+      case "character":
+        characterLines.push(...buildCharacterIdentityVisualProductionLines(spec));
+        break;
+      case "location":
+        locationLines.push(...buildLocationIdentityVisualProductionLines(spec));
+        break;
+      case "prop":
+        propLines.push(...buildPropIdentityVisualProductionLines(spec));
+        break;
+    }
+  }
+
+  return mergeDirectorContextLines(
+    [],
+    [...worldVisual, ...characterLines, ...locationLines, ...propLines, ...worldAudio]
+  );
+}
+
 export function buildStoryboardIdentityConsumption(params: {
   storyboard: StudioStoryboardDetail;
   libraries: IdentityConsumptionLibraries;
@@ -597,12 +647,23 @@ export function buildStoryboardIdentityConsumption(params: {
   const audioProductionLines = sceneConsumptions.flatMap((s) => s.audioLines);
   const rationales = sceneConsumptions.flatMap((s) => s.rationales);
 
-  const directorContextLines = [
-    ...new Set([
-      ...visualProductionLines.slice(0, 8),
-      ...audioProductionLines.slice(0, 4),
-    ]),
+  const directorContextLines = buildPrioritizedStoryboardDirectorLines(linkedSpecs);
+
+  const locationNames = [
+    ...new Set(
+      params.storyboard.scenes
+        .map((s) => s.location?.name?.trim())
+        .filter((n): n is string => Boolean(n))
+    ),
   ];
+  const voiceIntelligenceLines = buildVoiceIntelligenceDirectorLines({
+    characters: params.libraries.characters,
+    locationNames,
+  });
+  const directorContextWithVoice = mergeDirectorContextLines(
+    directorContextLines,
+    voiceIntelligenceLines
+  );
 
   const dominantWorld = linkedSpecs.find((s) => s.kind === "world");
 
@@ -613,7 +674,7 @@ export function buildStoryboardIdentityConsumption(params: {
     consistencyChecks,
     trends,
     sceneConsumptions,
-    directorContextLines,
+    directorContextLines: directorContextWithVoice,
     visualProductionLines: [...new Set(visualProductionLines)],
     audioProductionLines: [...new Set(audioProductionLines)],
     rationales: dedupeRationales(rationales),
