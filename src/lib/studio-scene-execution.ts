@@ -79,12 +79,16 @@ export function buildLocationRulesForExecution(
 
 export function buildPropRulesForExecution(
   scene: MotionHandoffScene,
-  propMemory: SceneMemoryBundle["props"]
+  propMemory: SceneMemoryBundle["props"],
+  storyCharacters: SceneMemoryBundle["characters"] = []
 ): string {
   const scenePropIds = new Set(scene.props.map((p) => p.id));
   const memoryMatches = propMemory.filter((p) => scenePropIds.has(p.id));
   if (memoryMatches.length > 0) {
-    return buildPropMemoryPromptLines(memoryMatches).join("\n");
+    const characterNamesById = new Map(
+      storyCharacters.map((character) => [character.id, character.name])
+    );
+    return buildPropMemoryPromptLines(memoryMatches, { characterNamesById }).join("\n");
   }
   return buildPropsPrompt(scene.props);
 }
@@ -115,7 +119,11 @@ export function buildSceneExecutionPackage(
     worldRules: buildWorldRulesForExecution(bundle.world, options.directorProfile),
     characterRules: buildCharacterRulesForExecution(scene, options.storyMemory.characters),
     locationRules: buildLocationRulesForExecution(scene, options.storyMemory.location),
-    propRules: buildPropRulesForExecution(scene, options.storyMemory.props),
+    propRules: buildPropRulesForExecution(
+      scene,
+      options.storyMemory.props,
+      options.storyMemory.characters
+    ),
     continuityRules:
       scene.continuityPrompt.trim() ||
       buildContinuityPrompt({

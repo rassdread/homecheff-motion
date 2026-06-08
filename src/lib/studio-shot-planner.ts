@@ -12,6 +12,7 @@ import type { AiDirectorStyleStrength } from "@/lib/studio-ai-director-interpret
 import { buildAutoShotPlan, type ShotPlanRecommendation } from "@/lib/studio-auto-shot-planner";
 import { storyboardToFlowInput } from "@/lib/studio-movie-director-quality";
 import {
+  normalizeStudioSceneEnergy,
   resolveSceneShotType,
   type StudioCameraMovement,
   type StudioSceneEnergy,
@@ -25,6 +26,12 @@ import {
 } from "@/lib/studio-story-flow-analyzer";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import { normalizeStudioDirectorProfile } from "@/lib/studio-director-profiles";
+import {
+  biasShotTypeFromIdentity,
+  buildSceneIdentityConsumption,
+  identityLibrariesFromStoryboard,
+  type IdentityConsumptionLibraries,
+} from "@/lib/studio-identity-consumption";
 import type { StudioStoryboardDetail } from "@/types/studio-api";
 import { matchActionFragmentToCapability } from "@/lib/studio-scene-action-extraction";
 import type {
@@ -235,24 +242,45 @@ export function sceneInputFromStoryboard(
     }));
 }
 
+function sceneEnergyFromIdentityRationale(
+  rationaleKey: string,
+  current: StudioSceneEnergy
+): StudioSceneEnergy {
+  if (rationaleKey.includes("energetic") || rationaleKey.includes("sports")) {
+    return "dynamic";
+  }
+  if (rationaleKey.includes("calm") || rationaleKey.includes("cinematic")) {
+    return current === "intense" ? current : "calm";
+  }
+  return current;
+}
+
 export function buildSceneShotPlan(params: {
   scene: ShotPlannerSceneInput;
   sceneCount: number;
   recommendation?: ShotPlanRecommendation;
+  identityShotHint?: ReturnType<typeof buildSceneIdentityConsumption>["shotHint"];
 }): SceneShotPlan {
-  const { scene, sceneCount, recommendation } = params;
+  const { scene, sceneCount, recommendation, identityShotHint } = params;
   const arcPhase =
     recommendation?.arcPhase ??
     detectArcPhaseForIndex(scene.order, sceneCount);
-  const focusShot =
+  const baseFocusShot =
     recommendation?.shotType ??
     (resolveSceneShotType(scene.shotType, scene.camera) || "medium");
+  const focusShot = identityShotHint
+    ? biasShotTypeFromIdentity(baseFocusShot, identityShotHint)
+    : baseFocusShot;
   const focusMovement =
     recommendation?.cameraMovement ??
     ((scene.cameraMovement?.trim() || "static") as StudioCameraMovement);
-  const sceneEnergy =
+  const baseEnergy =
     recommendation?.sceneEnergy ??
     ((scene.sceneEnergy?.trim() || "neutral") as StudioSceneEnergy);
+  const sceneEnergy =
+    identityShotHint
+      ? sceneEnergyFromIdentityRationale(identityShotHint.rationaleKey, baseEnergy)
+      : baseEnergy;
 
   return {
     sceneId: scene.sceneId,
@@ -276,6 +304,7 @@ export function buildStoryboardShotPlan(params: {
   storyboard: StudioStoryboardDetail;
   directorProfile?: StudioDirectorProfile;
   recommendations?: ShotPlanRecommendation[];
+  libraries?: IdentityConsumptionLibraries;
 }): StoryboardShotPlan {
   const scenes = sceneInputFromStoryboard(params.storyboard);
   const profile = normalizeStudioDirectorProfile(
@@ -284,14 +313,22 @@ export function buildStoryboardShotPlan(params: {
   const recommendations =
     params.recommendations ?? buildAutoShotPlan(scenes, profile);
   const recById = new Map(recommendations.map((row) => [row.sceneId, row]));
+  const libraries = params.libraries ?? identityLibrariesFromStoryboard(params.storyboard);
+  const sceneById = new Map(params.storyboard.scenes.map((s) => [s.id, s]));
 
-  const scenePlans = scenes.map((scene) =>
-    buildSceneShotPlan({
+  const scenePlans = scenes.map((scene) => {
+    const sceneDetail = sceneById.get(scene.sceneId);
+    const identityShotHint =
+      sceneDetail
+        ? buildSceneIdentityConsumption({ scene: sceneDetail, libraries }).shotHint
+        : null;
+    return buildSceneShotPlan({
       scene,
       sceneCount: scenes.length,
       recommendation: recById.get(scene.sceneId),
-    })
-  );
+      identityShotHint,
+    });
+  });
 
   const flowInput = storyboardToFlowInput(params.storyboard);
   const diversity = computeShotDiversityScore(flowInput);

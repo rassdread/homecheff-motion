@@ -19,6 +19,11 @@ import {
   buildPropMemoryPromptLines,
   buildWorldMemoryPromptLines,
 } from "@/lib/studio-memory-prompt";
+import { worldProfilePickToListItem } from "@/lib/studio-prompt-source-entities";
+import {
+  buildWorldIdentityRenderStrategyHints,
+  resolveWorldIdentityShotHint,
+} from "@/lib/studio-world-identity-visual-hints";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type { CharacterAction } from "@/types/studio-character-blocking";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -251,6 +256,41 @@ function buildPropsLine(scene: MotionHandoffScene): string | null {
   return `Props: Keep ${list} visible and readable when on screen.`;
 }
 
+function buildWorldStrategyMotionLine(
+  storyMemory?: StudioSceneMotionInstructionInput["storyMemory"]
+): string | null {
+  if (!storyMemory?.world) {
+    return null;
+  }
+  const worldItem = worldProfilePickToListItem({
+    id: storyMemory.world.id,
+    name: storyMemory.world.name,
+    description: storyMemory.world.description,
+    visualStyle: storyMemory.world.visualStyle,
+    tone: storyMemory.world.tone,
+    continuityRules: storyMemory.world.continuityRules,
+    continuityStrength: storyMemory.world.continuityStrength,
+  });
+  const strategies = buildWorldIdentityRenderStrategyHints(worldItem);
+  const shotHint = resolveWorldIdentityShotHint(worldItem);
+  const chunks: string[] = [];
+  if (strategies.length > 0) {
+    chunks.push(strategies.join(" "));
+  }
+  if (shotHint?.pacing) {
+    chunks.push(`Pacing: ${shotHint.pacing}.`);
+  }
+  if (shotHint?.preferredShotTypes.length) {
+    chunks.push(
+      `Camera intent: ${shotHint.preferredShotTypes.slice(0, 2).join(", ").replace(/_/g, " ")}.`
+    );
+  }
+  if (chunks.length === 0) {
+    return null;
+  }
+  return `World: ${trimSentence(chunks.join(" "), 140)}`;
+}
+
 function buildMemoryContextLine(
   scene: MotionHandoffScene,
   storyMemory?: StudioSceneMotionInstructionInput["storyMemory"]
@@ -259,6 +299,7 @@ function buildMemoryContextLine(
     return null;
   }
   const sceneNames = new Set(scene.characters.map((c) => c.name.trim().toLowerCase()));
+  const characterNamesById = new Map(storyMemory.characters.map((c) => [c.id, c.name]));
   const characterLines = buildCharacterMemoryPromptLines(
     storyMemory.characters.filter((c) => sceneNames.has(c.name.trim().toLowerCase()))
   );
@@ -268,7 +309,8 @@ function buildMemoryContextLine(
       : [];
   const propIds = new Set(scene.props.map((p) => p.id));
   const propLines = buildPropMemoryPromptLines(
-    storyMemory.props.filter((p) => propIds.has(p.id))
+    storyMemory.props.filter((p) => propIds.has(p.id)),
+    { characterNamesById }
   );
   const worldLines = storyMemory.world ? buildWorldMemoryPromptLines(storyMemory.world) : [];
   const combined = [...worldLines, ...characterLines, ...locationLine, ...propLines]
@@ -277,7 +319,7 @@ function buildMemoryContextLine(
   if (!combined) {
     return null;
   }
-  return `Identity: ${trimSentence(combined, 200)}`;
+  return `Identity: ${trimSentence(combined, 220)}`;
 }
 
 function buildLocationLine(scene: MotionHandoffScene): string | null {
@@ -365,6 +407,22 @@ export function buildStudioSceneMotionInstructions(
 
   const candidateLines: Array<{ line: string; field: string }> = [];
 
+  const worldStrategyLine = buildWorldStrategyMotionLine(storyMemory);
+  if (worldStrategyLine) {
+    candidateLines.push({
+      line: worldStrategyLine,
+      field: "worldRenderStrategy,worldMemory",
+    });
+  }
+
+  const memoryLine = buildMemoryContextLine(scene, storyMemory);
+  if (memoryLine) {
+    candidateLines.push({
+      line: memoryLine,
+      field: "characterMemory,worldMemory,locationMemory,propMemory",
+    });
+  }
+
   const actionLine = buildCharacterActionLine(scene);
   if (actionLine) {
     candidateLines.push({
@@ -415,11 +473,6 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({ line: locationLine, field: "location" });
   } else if (scene.location) {
     ignoredFields.push("location");
-  }
-
-  const memoryLine = buildMemoryContextLine(scene, storyMemory);
-  if (memoryLine) {
-    candidateLines.push({ line: memoryLine, field: "characterMemory,worldMemory,locationMemory,propMemory" });
   }
 
   const arcLine = buildStoryArcLine(sceneIndex, sceneCount);

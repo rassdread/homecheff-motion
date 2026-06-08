@@ -1,4 +1,8 @@
-import { buildCharacterIdentityPromptLinesFromMemory } from "@/lib/studio-character-identity-prompt-lines";
+import { parseIdentityContinuityNotes } from "@/lib/studio-character-identity-fields";
+import {
+  buildCharacterIdentityPromptLinesFromMemory,
+  buildCharacterStructuredIdentityPromptLines,
+} from "@/lib/studio-character-identity-prompt-lines";
 import { continuityStrengthPromptHint } from "@/lib/studio-continuity-strength";
 import { buildLocationIdentityMemoryPromptExtras } from "@/lib/studio-location-identity-visual-hints";
 import { buildPropIdentityMemoryPromptExtras } from "@/lib/studio-prop-identity-visual-hints";
@@ -40,16 +44,26 @@ export function buildCharacterMemoryPromptLines(
     if (character.personalityMemory.trim()) {
       block.push(`Personality: ${character.personalityMemory.trim()}.`);
     }
-    block.push(...buildCharacterIdentityPromptLinesFromMemory(character));
-    if (character.visualKeywords.trim()) {
+    const structuredIdentityLines = buildCharacterIdentityPromptLinesFromMemory(character);
+    block.push(...structuredIdentityLines);
+    if (
+      character.visualKeywords.trim() &&
+      buildCharacterStructuredIdentityPromptLines(character.visualKeywords).length === 0
+    ) {
       block.push(`Visual keywords: ${character.visualKeywords.trim()}.`);
+    }
+    const { forbiddenElements, usageContext } = parseIdentityContinuityNotes(
+      character.continuityNotes
+    );
+    if (forbiddenElements) {
+      block.push(`Forbidden: ${forbiddenElements}.`);
     }
     if (character.referenceNotes.trim()) {
       block.push(`Reference notes: ${character.referenceNotes.trim()}.`);
     }
     block.push(continuityStrengthPromptHint(character.identityStrength));
-    if (character.continuityNotes.trim()) {
-      block.push(character.continuityNotes.trim());
+    if (usageContext) {
+      block.push(usageContext);
     }
     if (character.worldProfileName) {
       block.push(`Belongs to world: ${character.worldProfileName}.`);
@@ -76,17 +90,26 @@ export function buildLocationMemoryPromptLines(
     block.push(`Environment keywords: ${location.environmentKeywords.trim()}.`);
   }
   block.push(...buildLocationIdentityMemoryPromptExtras(location));
+  const { forbiddenElements, usageContext } = parseIdentityContinuityNotes(
+    location.continuityNotes
+  );
+  if (forbiddenElements) {
+    block.push(`Forbidden: ${forbiddenElements}.`);
+  }
   block.push(continuityStrengthPromptHint(location.continuityStrength));
-  if (location.continuityNotes.trim()) {
-    block.push(location.continuityNotes.trim());
+  if (usageContext) {
+    block.push(usageContext);
   }
   return [block.join(" ")];
 }
 
-export function buildPropMemoryPromptLines(props: SceneMemoryBundle["props"]): string[] {
+export function buildPropMemoryPromptLines(
+  props: SceneMemoryBundle["props"],
+  options?: { characterNamesById?: Map<string, string> }
+): string[] {
   return props.map((prop) => {
     const block: string[] = [`Keep ${prop.name} visually consistent when visible.`];
-    block.push(...buildPropIdentityMemoryPromptExtras(prop));
+    block.push(...buildPropIdentityMemoryPromptExtras(prop, options?.characterNamesById));
     const detailOnly = parsePropAppearanceDetails(prop.appearanceMemory);
     if (detailOnly) {
       block.push(`Appearance: ${detailOnly}.`);
@@ -129,11 +152,12 @@ export function buildSceneMemoryContinuityPrompt(
   bundle: SceneMemoryBundle,
   options?: { identityDriftLines?: string[] }
 ): string {
+  const characterNamesById = new Map(bundle.characters.map((c) => [c.id, c.name]));
   const parts = [
     ...buildWorldMemoryPromptLines(bundle.world),
     ...buildCharacterMemoryPromptLines(bundle.characters),
     ...buildLocationMemoryPromptLines(bundle.location),
-    ...buildPropMemoryPromptLines(bundle.props),
+    ...buildPropMemoryPromptLines(bundle.props, { characterNamesById }),
     ...(options?.identityDriftLines ?? []),
     continuityStrengthPromptHint(bundle.continuityStrength),
   ];

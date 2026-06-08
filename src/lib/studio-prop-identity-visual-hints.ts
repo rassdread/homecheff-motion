@@ -108,6 +108,7 @@ export function buildPropIdentityVisualProductionLines(spec: PropIdentitySpec): 
   }
   if (structured.linkedCharacterIds.length > 0) {
     lines.push(`Linked characters: ${structured.linkedCharacterIds.join(", ")}.`);
+    lines.push(`Keep this prop visually tied to its linked character when both appear.`);
   }
 
   const details = spec.memoryMetadata.appearanceMemory;
@@ -124,7 +125,10 @@ export function buildPropIdentityVisualProductionLines(spec: PropIdentitySpec): 
   return lines;
 }
 
-export function buildPropIdentityMemoryPromptExtras(prop: PropMemorySnapshot): string[] {
+export function buildPropIdentityMemoryPromptExtras(
+  prop: PropMemorySnapshot,
+  characterNamesById?: Map<string, string>
+): string[] {
   const structured = parsePropStructuredKeywords(prop.appearanceMemory);
   const lines: string[] = [];
 
@@ -145,6 +149,12 @@ export function buildPropIdentityMemoryPromptExtras(prop: PropMemorySnapshot): s
   }
   if (structured.styleId) {
     lines.push(`Style: ${structured.styleId.replace(/_/g, " ")}.`);
+  }
+  if (structured.linkedCharacterIds.length > 0) {
+    const names = structured.linkedCharacterIds.map(
+      (id) => characterNamesById?.get(id) ?? id
+    );
+    lines.push(`Signature prop for ${names.join(" and ")}.`);
   }
 
   return lines;

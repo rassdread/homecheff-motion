@@ -13,8 +13,9 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   for (const character of memoryBundle.characters) {
     const { bundle } = parseCharacterReferencesBundle(character.referenceNotes);
     for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 3)) {
+      const label = ref.label?.trim() || ref.role;
       lines.push(
-        `${character.name}: use supporting ${ref.role} reference for ${ref.label || ref.role} consistency.`
+        `${character.name}: match ${label} from supporting ${ref.role} reference image — keep face, outfit, and proportions consistent.`
       );
     }
   }
@@ -22,14 +23,16 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
     const { bundle } = parseAssetReferencesBundle(memoryBundle.location.continuityNotes);
     for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
       lines.push(
-        `${memoryBundle.location.name}: supporting ${ref.role} reference for environment consistency.`
+        `${memoryBundle.location.name}: match supporting ${ref.role} reference — preserve architecture, materials, and lighting.`
       );
     }
   }
   for (const prop of memoryBundle.props) {
     const { bundle } = parseAssetReferencesBundle(prop.continuityNotes);
     for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
-      lines.push(`${prop.name}: supporting ${ref.role} reference for prop consistency.`);
+      lines.push(
+        `${prop.name}: match supporting ${ref.role} reference — preserve shape, branding, and material.`
+      );
     }
   }
   return lines;
@@ -133,17 +136,38 @@ export function buildSceneImageReferenceAssets(
         supportingReferences: supporting,
       };
     }),
-    location: scene.location
-      ? {
-          id: scene.location.id,
-          name: scene.location.name,
-          referenceImageUrl: scene.location.referenceImageUrl?.trim() || null,
-        }
-      : null,
-    props: scene.props.map((p) => ({
-      id: p.id,
-      name: p.name,
-      referenceImageUrl: p.referenceImageUrl?.trim() || null,
-    })),
+    location:
+      scene.location
+        ? (() => {
+            const locMemory = memoryBundle?.location;
+            const supporting =
+              locMemory && locMemory.id === scene.location!.id
+                ? parseAssetReferencesBundle(locMemory.continuityNotes).bundle.supporting
+                    .filter((r) => r.status === "active")
+                    .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
+                : [];
+            return {
+              id: scene.location.id,
+              name: scene.location.name,
+              referenceImageUrl: scene.location.referenceImageUrl?.trim() || null,
+              supportingReferences: supporting,
+            };
+          })()
+        : null,
+    props: scene.props.map((p) => {
+      const propMemory = memoryBundle?.props.find((m) => m.id === p.id);
+      const supporting =
+        propMemory
+          ? parseAssetReferencesBundle(propMemory.continuityNotes).bundle.supporting
+              .filter((r) => r.status === "active")
+              .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
+          : [];
+      return {
+        id: p.id,
+        name: p.name,
+        referenceImageUrl: p.referenceImageUrl?.trim() || null,
+        supportingReferences: supporting,
+      };
+    }),
   };
 }

@@ -306,7 +306,7 @@ export type MotionHandoffPayload = {
   /** V23: director profile + shot metadata (read-only for Motion). */
   directorProfile: StudioDirectorProfile;
   shotDiversityScore: number;
-  /** V10: stored for future Motion continuity; not used in rendering yet. */
+  /** V10: scene memory snapshots — consumed in studioMotionInstructions via storyMemory. */
   characterMemory: CharacterMemorySnapshot[];
   locationMemory: LocationMemorySnapshot | null;
   propMemory: PropMemorySnapshot[];

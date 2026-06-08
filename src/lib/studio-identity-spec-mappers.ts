@@ -4,6 +4,7 @@
 
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { normalizeStudioIdentityStrength } from "@/lib/studio-memory-validation";
+import { parseIdentityContinuityNotes } from "@/lib/studio-character-identity-fields";
 import {
   extractPropStructuredKeywordString,
   parsePropAppearanceDetails,
@@ -127,6 +128,9 @@ export function characterToIdentitySpec(
 ): CharacterIdentitySpec {
   const storageKey =
     "referenceStorageKey" in character ? character.referenceStorageKey : undefined;
+  const { usageContext, forbiddenElements } = parseIdentityContinuityNotes(
+    character.continuityNotes
+  );
 
   return {
     kind: "character",
@@ -151,8 +155,8 @@ export function characterToIdentitySpec(
       id: character.worldProfileId,
       name: character.worldProfile?.name ?? null,
     },
-    usageContext: character.continuityNotes,
-    forbiddenElements: "",
+    usageContext,
+    forbiddenElements,
     continuityMetadata: {
       notes: character.continuityNotes,
       continuityStrength: character.continuityStrength,
@@ -185,6 +189,9 @@ export function locationToIdentitySpec(
 ): LocationIdentitySpec {
   const storageKey =
     "referenceStorageKey" in location ? location.referenceStorageKey : undefined;
+  const { usageContext, forbiddenElements } = parseIdentityContinuityNotes(
+    location.continuityNotes
+  );
 
   return {
     kind: "location",
@@ -202,8 +209,8 @@ export function locationToIdentitySpec(
       id: location.worldProfileId,
       name: location.worldProfile?.name ?? null,
     },
-    usageContext: location.continuityNotes,
-    forbiddenElements: "",
+    usageContext,
+    forbiddenElements,
     continuityMetadata: {
       notes: location.continuityNotes,
       continuityStrength: location.continuityStrength,
@@ -297,6 +304,10 @@ export function worldToIdentitySpec(world: StudioWorldProfileListItem): WorldIde
 export function characterMemorySnapshotToIdentitySpec(
   snapshot: CharacterMemorySnapshot
 ): CharacterIdentitySpec {
+  const { usageContext, forbiddenElements } = parseIdentityContinuityNotes(
+    snapshot.continuityNotes
+  );
+
   return {
     kind: "character",
     id: snapshot.id,
@@ -318,8 +329,8 @@ export function characterMemorySnapshotToIdentitySpec(
       id: snapshot.worldProfileId,
       name: snapshot.worldProfileName,
     },
-    usageContext: snapshot.continuityNotes,
-    forbiddenElements: "",
+    usageContext,
+    forbiddenElements,
     continuityMetadata: {
       notes: snapshot.continuityNotes,
       continuityStrength: snapshot.continuityStrength,
@@ -340,6 +351,10 @@ export function characterMemorySnapshotToIdentitySpec(
 export function locationMemorySnapshotToIdentitySpec(
   snapshot: LocationMemorySnapshot
 ): LocationIdentitySpec {
+  const { usageContext, forbiddenElements } = parseIdentityContinuityNotes(
+    snapshot.continuityNotes
+  );
+
   return {
     kind: "location",
     id: snapshot.id,
@@ -360,8 +375,8 @@ export function locationMemorySnapshotToIdentitySpec(
       id: snapshot.worldProfileId,
       name: snapshot.worldProfileName,
     },
-    usageContext: snapshot.continuityNotes,
-    forbiddenElements: "",
+    usageContext,
+    forbiddenElements,
     continuityMetadata: {
       notes: snapshot.continuityNotes,
       continuityStrength: snapshot.continuityStrength,

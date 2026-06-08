@@ -29,6 +29,7 @@ import {
 } from "@/lib/studio-identity-spec-engine";
 import type { StudioShotType } from "@/lib/studio-scene-director";
 import type { StudioToolId } from "@/lib/studio-tool-id";
+import { worldProfilePickToListItem } from "@/lib/studio-prompt-source-entities";
 import type {
   StudioCharacterListItem,
   StudioLocationListItem,
@@ -36,6 +37,7 @@ import type {
   StudioSceneDetail,
   StudioStoryboardDetail,
   StudioWorldProfileListItem,
+  StudioWorldProfileSummary,
 } from "@/types/studio-api";
 import type { IdentitySpec, IdentitySpecKind } from "@/types/studio-identity-spec";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
@@ -115,6 +117,59 @@ export type IdentityConsumptionLibraries = {
   props: StudioPropListItem[];
   worlds: StudioWorldProfileListItem[];
 };
+
+function worldSummaryToListItem(summary: StudioWorldProfileSummary): StudioWorldProfileListItem {
+  return worldProfilePickToListItem({
+    id: summary.id,
+    name: summary.name,
+    description: "",
+    visualStyle: "",
+    tone: "",
+    continuityRules: "",
+    continuityStrength: "strong",
+  });
+}
+
+/** Derive identity libraries from storyboard scene links (no extra API fetch). */
+export function identityLibrariesFromStoryboard(
+  storyboard: StudioStoryboardDetail
+): IdentityConsumptionLibraries {
+  const characters = new Map<string, StudioCharacterListItem>();
+  const locations = new Map<string, StudioLocationListItem>();
+  const props = new Map<string, StudioPropListItem>();
+  const worlds = new Map<string, StudioWorldProfileListItem>();
+
+  for (const scene of storyboard.scenes) {
+    for (const character of scene.characters) {
+      characters.set(character.id, character);
+      if (character.worldProfile) {
+        worlds.set(character.worldProfile.id, worldSummaryToListItem(character.worldProfile));
+      }
+    }
+    if (scene.location) {
+      locations.set(scene.location.id, scene.location);
+      if (scene.location.worldProfile) {
+        worlds.set(
+          scene.location.worldProfile.id,
+          worldSummaryToListItem(scene.location.worldProfile)
+        );
+      }
+    }
+    for (const prop of scene.props) {
+      props.set(prop.id, prop);
+      if (prop.worldProfile) {
+        worlds.set(prop.worldProfile.id, worldSummaryToListItem(prop.worldProfile));
+      }
+    }
+  }
+
+  return {
+    characters: [...characters.values()],
+    locations: [...locations.values()],
+    props: [...props.values()],
+    worlds: [...worlds.values()],
+  };
+}
 
 const COMPLETENESS_ALMOST = 50;
 const COMPLETENESS_COMPLETE = 85;

@@ -117,7 +117,10 @@ function encodeStructuredKeywords(structured: StructuredIdentityKeywords): strin
   return tokens.join(", ");
 }
 
-function parseContinuityNotes(raw: string): { usageContext: string; forbiddenElements: string } {
+export function parseIdentityContinuityNotes(raw: string): {
+  usageContext: string;
+  forbiddenElements: string;
+} {
   const idx = raw.indexOf(FORBIDDEN_MARKER);
   if (idx === -1) {
     return { usageContext: raw.trim(), forbiddenElements: "" };
@@ -126,6 +129,10 @@ function parseContinuityNotes(raw: string): { usageContext: string; forbiddenEle
     usageContext: raw.slice(0, idx).trim(),
     forbiddenElements: raw.slice(idx + FORBIDDEN_MARKER.length).trim(),
   };
+}
+
+function parseContinuityNotes(raw: string): { usageContext: string; forbiddenElements: string } {
+  return parseIdentityContinuityNotes(raw);
 }
 
 function buildContinuityNotes(usageContext: string, forbiddenElements: string): string {

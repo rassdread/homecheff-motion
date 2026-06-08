@@ -3,6 +3,7 @@
  */
 
 import { characterIdentityFormFromCharacter } from "@/lib/studio-character-identity-fields";
+import { buildCharacterStructuredIdentityPromptLines } from "@/lib/studio-character-identity-prompt-lines";
 import { toIdentitySpec } from "@/lib/studio-identity-spec-engine";
 import type { StudioShotType } from "@/lib/studio-scene-director";
 import type { CharacterIdentitySpec } from "@/types/studio-identity-spec";
@@ -72,11 +73,30 @@ export function buildCharacterIdentityVisualProductionLines(
   spec: CharacterIdentitySpec
 ): string[] {
   const lines: string[] = [];
-  if (spec.type) lines.push(`Character type: ${spec.type.replace(/_/g, " ")}.`);
-  if (spec.role) lines.push(`Role: ${spec.role}.`);
-  if (spec.personality.trim()) lines.push(`Personality: ${spec.personality.trim()}.`);
-  if (spec.visualKeywords.trim()) lines.push(`Visual keywords: ${spec.visualKeywords.trim()}.`);
-  if (spec.visualRules.trim()) lines.push(`Visual rules: ${spec.visualRules.trim()}.`);
+  const structured = buildCharacterStructuredIdentityPromptLines(spec.visualKeywords);
+  lines.push(...structured);
+
+  if (spec.role && !structured.some((l) => l.startsWith("Character type:"))) {
+    lines.push(`Role: ${spec.role}.`);
+  }
+  if (spec.personality.trim()) {
+    lines.push(`Personality: ${spec.personality.trim()}.`);
+  }
+  if (spec.memoryMetadata.defaultClothing.trim()) {
+    lines.push(`Outfit: ${spec.memoryMetadata.defaultClothing.trim()}.`);
+  }
+  if (spec.memoryMetadata.defaultAccessories.trim()) {
+    lines.push(`Accessories: ${spec.memoryMetadata.defaultAccessories.trim()}.`);
+  }
+  if (structured.length === 0 && spec.visualKeywords.trim()) {
+    lines.push(`Visual keywords: ${spec.visualKeywords.trim()}.`);
+  }
+  if (spec.memoryMetadata.appearanceMemory.trim()) {
+    lines.push(`Appearance: ${spec.memoryMetadata.appearanceMemory.trim()}.`);
+  }
+  if (spec.visualRules.trim()) {
+    lines.push(`Visual rules: ${spec.visualRules.trim()}.`);
+  }
   if (spec.forbiddenElements.trim()) {
     lines.push(`Forbidden: ${spec.forbiddenElements.trim()}.`);
   }
