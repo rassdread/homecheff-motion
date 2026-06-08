@@ -400,6 +400,21 @@ export function applyWizardChoicesToFields(
     } else if (typeId === "mascot") {
       fields.characterType = "mascot";
       fields.role = "mascot";
+    } else if (typeId === "host") {
+      fields.characterType = "human";
+      fields.role = "host";
+    } else if (typeId === "founder") {
+      fields.characterType = "human";
+      fields.role = "founder";
+    } else if (typeId === "customer") {
+      fields.characterType = "human";
+      fields.role = "customer";
+    } else if (typeId === "expert") {
+      fields.characterType = "human";
+      fields.role = "expert";
+    } else if (typeId === "community") {
+      fields.characterType = "human";
+      fields.role = "community";
     } else if (typeId === "human") {
       fields.characterType = "human";
       fields.role = "human";

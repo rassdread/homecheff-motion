@@ -29,6 +29,11 @@ export async function generateStudioAssetReferenceApi(params: {
     sourceKind: string;
     sourceAssetId?: string | null;
   };
+  sourceReference?: {
+    name: string;
+    imageUrl?: string;
+    transformLabel?: string;
+  };
 }) {
   return fetchSameOriginJson<GenerateAssetReferenceResponse>(
     "/api/studio/asset-references/generate",

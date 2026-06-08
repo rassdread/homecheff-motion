@@ -1,4 +1,8 @@
 import type { SceneImageGenerateInput, SceneImageGenerateResult, SceneImageProvider } from "@/server/scene-image-providers/types";
+import {
+  buildOpenAiImageGenerationsBody,
+  resolveOpenAiImageModel,
+} from "@/lib/openai-image-generation";
 
 type OpenAiImageResponse = {
   data?: Array<{ url?: string; b64_json?: string }>;
@@ -35,7 +39,7 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
       throw new Error("OPENAI_API_KEY is not configured.");
     }
 
-    const model = process.env.STUDIO_SCENE_IMAGE_MODEL?.trim() || "dall-e-3";
+    const model = resolveOpenAiImageModel();
     const size = process.env.STUDIO_SCENE_IMAGE_SIZE?.trim() || "1024x1024";
 
     const res = await fetch("https://api.openai.com/v1/images/generations", {
@@ -44,13 +48,14 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        prompt: input.prompt.slice(0, 4000),
-        n: 1,
-        size,
-        response_format: "url",
-      }),
+      body: JSON.stringify(
+        buildOpenAiImageGenerationsBody({
+          model,
+          prompt: input.prompt,
+          size,
+          n: 1,
+        })
+      ),
     });
 
     const payload = (await res.json()) as OpenAiImageResponse;

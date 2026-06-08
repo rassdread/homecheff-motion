@@ -9,6 +9,10 @@ export type AssetReferencePromptInput = {
   summaryPrompt: string;
   choices?: Record<string, string>;
   customTexts?: Record<string, string>;
+  sourceReference?: {
+    name: string;
+    transformLabel?: string;
+  };
 };
 
 /** Build DALL-E prompt from wizard summary + kind-specific framing (reuses summary, no second builder). */
@@ -23,8 +27,9 @@ export function buildAssetReferenceGenerationPrompt(input: AssetReferencePromptI
   if (input.kind === "character") {
     const boosts = [
       summary,
+      sourceReferenceBlock(input.sourceReference),
       characterBoostLines(fields, input.choices ?? {}),
-      "Character reference portrait. Friendly HomeCheff brand-safe illustration.",
+      "Character reference portrait. Professional brand-safe illustration.",
       "Centered subject, clean simple background, consistent identity for animation.",
       NO_TEXT_SUFFIX,
     ];
@@ -34,6 +39,7 @@ export function buildAssetReferenceGenerationPrompt(input: AssetReferencePromptI
   if (input.kind === "prop") {
     const boosts = [
       summary,
+      sourceReferenceBlock(input.sourceReference),
       propBoostLines(fields, input.choices ?? {}),
       "Hero product / prop reference render. Isolated object, studio lighting.",
       NO_TEXT_SUFFIX,
@@ -44,6 +50,7 @@ export function buildAssetReferenceGenerationPrompt(input: AssetReferencePromptI
   if (input.kind === "location") {
     const boosts = [
       summary,
+      sourceReferenceBlock(input.sourceReference),
       locationBoostLines(fields, input.choices ?? {}),
       "Environment establishing shot. Wide cinematic location reference.",
       NO_TEXT_SUFFIX,
@@ -51,7 +58,27 @@ export function buildAssetReferenceGenerationPrompt(input: AssetReferencePromptI
     return boosts.filter(Boolean).join("\n\n");
   }
 
-  return [summary, NO_TEXT_SUFFIX].filter(Boolean).join("\n\n");
+  return [summary, sourceReferenceBlock(input.sourceReference), NO_TEXT_SUFFIX]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function sourceReferenceBlock(
+  sourceReference: AssetReferencePromptInput["sourceReference"]
+): string {
+  if (!sourceReference?.name.trim()) {
+    return "";
+  }
+  const transform = sourceReference.transformLabel?.trim();
+  const roleLine =
+    transform ?
+      `Create a ${transform} variant of the source reference "${sourceReference.name}".`
+    : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
+  return [
+    roleLine,
+    "Preserve the source shape language, color palette, brand style, and mascot identity.",
+    "Change only role, outfit, props, or context as described — do not redesign from scratch.",
+  ].join(" ");
 }
 
 function characterBoostLines(

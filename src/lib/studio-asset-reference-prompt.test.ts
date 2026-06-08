@@ -50,4 +50,14 @@ describe("studio-asset-reference-prompt", () => {
     assert.ok(prompt.includes("Environment establishing shot"));
     assert.ok(prompt.includes("Lighting: golden_hour"));
   });
+
+  it("adds source reference preservation block when upload exists", () => {
+    const prompt = buildAssetReferenceGenerationPrompt({
+      kind: "character",
+      summaryPrompt: "Chef mascot variant.",
+      sourceReference: { name: "Globe Man", transformLabel: "Chef" },
+    });
+    assert.ok(prompt.includes("Globe Man"));
+    assert.ok(prompt.includes("Preserve the source shape language"));
+  });
 });

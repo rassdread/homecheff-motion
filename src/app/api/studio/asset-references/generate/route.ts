@@ -37,6 +37,11 @@ export async function POST(request: Request) {
       sourceKind: string;
       sourceAssetId?: string | null;
     };
+    sourceReference?: {
+      name: string;
+      imageUrl?: string;
+      transformLabel?: string;
+    };
   };
 
   try {
@@ -59,12 +64,17 @@ export async function POST(request: Request) {
     choices: body.choices ?? {},
     customTexts: body.customTexts ?? {},
     generationId: body.generationId ?? "",
+    sourceReference: body.sourceReference,
     derivation: body.derivation,
   });
 
   if ("error" in result) {
     return NextResponse.json(
-      { error: result.error, code: result.code },
+      {
+        error: result.error,
+        code: result.code,
+        providerMessage: result.providerMessage ?? null,
+      },
       { status: result.status }
     );
   }

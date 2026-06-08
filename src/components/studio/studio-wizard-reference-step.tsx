@@ -2,18 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StudioWizardChoiceGrid } from "@/components/studio/studio-wizard-choice-grid";
+import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
-import { recordAssetDerivationAcceptApi } from "@/lib/studio-asset-derivation-client";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import {
+  analyzeAssetStyleDnaApi,
+  recordAssetDerivationAcceptApi,
+} from "@/lib/studio-asset-derivation-client";
 import {
   fetchAssetReferenceGenerationStatus,
   generateStudioAssetReferenceApi,
 } from "@/lib/studio-asset-reference-client";
+import { transformLabelForChoice } from "@/lib/studio-asset-derivation-choices";
 import {
   getClientImagePreprocessOptionsForRole,
   preprocessImageFile,
 } from "@/lib/image-preprocess";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import {
+  clearWizardGeneratedReferenceOutput,
+  hasWizardSourceReference,
+  recordWizardSourceReference,
+  resolveWizardSourceReference,
+} from "@/lib/studio-asset-wizard-source-reference";
 import type { AssetReferenceMode } from "@/types/studio-asset-creation";
 import type { WizardChoiceStepDef } from "@/lib/studio-asset-wizard-choices";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -52,10 +64,12 @@ type Props = {
 
 export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackToChoices }: Props) {
   const t = useActiveTranslator();
+  const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [generationAvailable, setGenerationAvailable] = useState<boolean | null>(null);
+  const [providerDebugError, setProviderDebugError] = useState("");
   const generateStartedRef = useRef(false);
 
   const referenceMode = draft.referenceMode;
@@ -72,6 +86,27 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
     });
   }, []);
 
+  const resolveTransformLabel = useCallback(() => {
+    if (!draft.derivationTransformChoice) {
+      return undefined;
+    }
+    const labels: Record<string, string> = {};
+    const choiceId = draft.derivationTransformChoice;
+    const prefix =
+      kind === "character" ? "character."
+      : kind === "prop" ? "prop."
+      : "location.";
+    labels[`${prefix}${choiceId}`] = t(
+      `studio.assetDerivation.transform.${prefix}${choiceId}` as never
+    );
+    return transformLabelForChoice(
+      kind,
+      choiceId,
+      draft.derivationTransformCustom,
+      labels
+    );
+  }, [draft.derivationTransformChoice, draft.derivationTransformCustom, kind, t]);
+
   const runGeneration = useCallback(
     async (forceNewId = false) => {
       const generationId =
@@ -79,15 +114,55 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
           ? crypto.randomUUID()
           : draft.referenceGenerationId;
 
-      onDraftChange({
+      setProviderDebugError("");
+      onDraftChange((d) => ({
+        ...d,
+        ...clearWizardGeneratedReferenceOutput(d),
         referenceGenerationStatus: "generating",
         referenceGenerationError: "",
         referenceGenerationId: generationId,
-        generatedReferencePreviewUrl: "",
-        generatedReferenceStorageKey: "",
-        referenceImageUrl: "",
-        referenceStorageKey: "",
-      });
+      }));
+
+      const source = resolveWizardSourceReference(draft);
+      let styleDna = draft.derivationStyleDna;
+      let derivationSource = draft.derivationSource;
+
+      if (source && !styleDna && source.sourceReferenceImageUrl) {
+        const analyze = await analyzeAssetStyleDnaApi({
+          imageUrl: source.sourceReferenceImageUrl,
+          sourceKind: draft.derivationTargetKind ?? kind,
+          sourceName: source.sourceReferenceName,
+          derivationJobId: generationId,
+        });
+        if (analyze.ok) {
+          styleDna = analyze.data.styleDna;
+          if (!derivationSource) {
+            derivationSource = {
+              sourceType: "upload",
+              sourceKind: draft.derivationTargetKind ?? kind,
+              assetId: null,
+              assetName: source.sourceReferenceName,
+              referenceImageUrl: source.sourceReferenceImageUrl,
+              referenceStorageKey: source.sourceReferenceStorageKey,
+            };
+          }
+          onDraftChange({
+            derivationStyleDna: styleDna,
+            derivationStyleDnaStatus: "ready",
+            derivationSource,
+          });
+        }
+      }
+
+      const transformLabel = resolveTransformLabel();
+      const sourceReference =
+        source ?
+          {
+            name: source.sourceReferenceName,
+            imageUrl: source.sourceReferenceImageUrl,
+            transformLabel,
+          }
+        : undefined;
 
       const res = await generateStudioAssetReferenceApi({
         kind,
@@ -95,22 +170,30 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         choices: draft.choices,
         customTexts: draft.customTexts,
         generationId,
+        sourceReference,
         derivation:
-          draft.derivationFlow && draft.derivationStyleDna && draft.derivationSource
+          styleDna && (derivationSource || source)
             ? {
-                styleDna: draft.derivationStyleDna,
-                sourceName: draft.derivationSource.assetName,
-                sourceKind: draft.derivationSource.sourceKind,
-                sourceAssetId: draft.derivationSource.assetId,
+                styleDna,
+                sourceName: derivationSource?.assetName ?? source!.sourceReferenceName,
+                sourceKind: derivationSource?.sourceKind ?? kind,
+                sourceAssetId: derivationSource?.assetId,
               }
             : undefined,
       });
 
       if (!res.ok) {
+        const data = res.data as { error?: string; providerMessage?: string | null };
+        const errorKey = data.error?.startsWith("studio.") ? data.error : null;
+        if (data.providerMessage) {
+          setProviderDebugError(data.providerMessage);
+        }
         onDraftChange({
           referenceGenerationStatus: "failed",
           referenceGenerationError:
-            (res.data as { error?: string }).error ?? t("studio.assetCreation.reference.generateFailed"),
+            errorKey ?
+              t(errorKey as never)
+            : data.error ?? t("studio.assetCreation.reference.generateFailedUser"),
         });
         return;
       }
@@ -122,7 +205,7 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         referenceGenerationPrompt: res.data.generatedPrompt,
       });
     },
-    [draft, kind, onDraftChange, t]
+    [draft, kind, onDraftChange, resolveTransformLabel, t]
   );
 
   useEffect(() => {
@@ -159,7 +242,13 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         formData.set("sizeBytes", String(file.size));
         formData.set("clientUploadId", clientUploadId);
         const uploaded = await postWizardImageUpload(formData);
+        const sourcePatch = recordWizardSourceReference({
+          imageUrl: uploaded.workingImageUrl,
+          storageKey: uploaded.workingStorageKey,
+          name: file.name.replace(/\.[^.]+$/, ""),
+        });
         onDraftChange({
+          ...sourcePatch,
           referenceImageUrl: uploaded.workingImageUrl,
           referenceStorageKey: uploaded.workingStorageKey,
           referenceGenerationStatus: "accepted",
@@ -176,16 +265,11 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
   );
 
   const handleModeChange = (mode: AssetReferenceMode) => {
-    onDraftChange({
+    onDraftChange((d) => ({
+      ...d,
       referenceMode: mode,
-      referenceImageUrl: "",
-      referenceStorageKey: "",
-      referenceGenerationStatus: "idle",
-      referenceGenerationError: "",
-      generatedReferencePreviewUrl: "",
-      generatedReferenceStorageKey: "",
-      referenceGenerationPrompt: "",
-    });
+      ...clearWizardGeneratedReferenceOutput({ ...d, referenceMode: mode }),
+    }));
     generateStartedRef.current = false;
   };
 
@@ -215,6 +299,8 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
 
   return (
     <div className="space-y-4">
+      <StudioWizardSourceReferenceBanner draft={draft} />
+
       <StudioWizardChoiceGrid
         def={REFERENCE_CHOICE_DEF}
         selectedId={referenceMode}
@@ -274,6 +360,9 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
 
       {referenceMode === "generate" ?
         <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
+          {hasWizardSourceReference(draft) ?
+            <p className="text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+          : null}
           {draft.referenceGenerationStatus === "generating" ?
             <div className="space-y-3" role="status" aria-live="polite">
               <div className="h-48 animate-pulse rounded-xl bg-zinc-200" />
@@ -286,6 +375,9 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
           {draft.referenceGenerationStatus === "failed" ?
             <div className="space-y-3">
               <p className="text-sm text-red-700">{draft.referenceGenerationError}</p>
+              {session.user?.role === "admin" && providerDebugError ?
+                <p className="text-xs text-zinc-500">{providerDebugError}</p>
+              : null}
               <button
                 type="button"
                 onClick={() => void runGeneration(true)}

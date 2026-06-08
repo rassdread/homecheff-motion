@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAssetCreateEntryChoice } from "@/components/studio/studio-asset-create-entry-choice";
 import { StudioAssetCreationFlowProgress } from "@/components/studio/studio-asset-creation-flow-progress";
 import { StudioAssetWizardChoiceStep } from "@/components/studio/studio-asset-wizard-choice-step";
@@ -42,6 +42,9 @@ import {
   wizardStepsForEntryPath,
 } from "@/lib/studio-asset-wizard-flow";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
+import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
+import { resolveWizardChoiceDef } from "@/lib/studio-asset-transformation-options";
+import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type {
   AssetCreateEntryPath,
   AssetCreationWizardStep,
@@ -86,6 +89,15 @@ export function StudioAssetCreationWizard({
   const [skipWizardRemember, setSkipWizardRemember] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [derivationSources, setDerivationSources] = useState<AssetDerivationSourceListItem[]>([]);
+
+  useEffect(() => {
+    void fetchAssetDerivationSources().then((res) => {
+      if (res.ok) {
+        setDerivationSources(res.data.sources);
+      }
+    });
+  }, []);
 
   const stepSequence = useMemo(() => {
     if (draft) {
@@ -119,8 +131,9 @@ export function StudioAssetCreationWizard({
     if (!activeDraft || step !== "choice") {
       return null;
     }
-    return choiceDefForWizardStep(activeDraft.kind, stepSequence, step, navIndexClamped);
-  }, [activeDraft, step, stepSequence, navIndexClamped]);
+    const base = choiceDefForWizardStep(activeDraft.kind, stepSequence, step, navIndexClamped);
+    return resolveWizardChoiceDef(activeDraft.kind, base, derivationSources);
+  }, [activeDraft, step, stepSequence, navIndexClamped, derivationSources]);
 
   const updateDraft = useCallback(
     (patch: Partial<AssetWizardDraft> | ((d: AssetWizardDraft) => AssetWizardDraft)) => {

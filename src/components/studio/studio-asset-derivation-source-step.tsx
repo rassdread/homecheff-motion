@@ -12,6 +12,7 @@ import {
 } from "@/lib/image-preprocess";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { recordWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import type { AssetDerivationSource, AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 
 type DraftPatch = Partial<AssetWizardDraft> | ((d: AssetWizardDraft) => AssetWizardDraft);
@@ -55,6 +56,11 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
     async (source: AssetDerivationSource) => {
       onDraftChange({
         derivationSource: source,
+        ...recordWizardSourceReference({
+          imageUrl: source.referenceImageUrl,
+          storageKey: source.referenceStorageKey,
+          name: source.assetName,
+        }),
         derivationStyleDnaStatus: "loading",
         derivationStyleDnaError: "",
         derivationStyleDna: null,
@@ -112,6 +118,13 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
           referenceImageUrl: uploaded.workingImageUrl,
           referenceStorageKey: uploaded.workingStorageKey,
         };
+        onDraftChange(
+          recordWizardSourceReference({
+            imageUrl: uploaded.workingImageUrl,
+            storageKey: uploaded.workingStorageKey,
+            name: source.assetName,
+          })
+        );
         await runStyleExtraction(source);
       } catch (e) {
         setUploadError(

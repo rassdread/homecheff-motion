@@ -8,7 +8,6 @@ import {
   buildDerivationPreview,
   buildDerivationSummaryPrompt,
 } from "@/lib/studio-asset-style-dna";
-import { transformLabelForChoice } from "@/lib/studio-asset-derivation-choices";
 import { syncChoiceDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -28,30 +27,16 @@ export function StudioAssetDerivationPreviewStep({ draft, onDraftChange }: Props
   const styleDna = draft.derivationStyleDna;
 
   const transformLabel = useMemo(() => {
-    const labels: Record<string, string> = {};
-    for (const key of [
-      "character.chef",
-      "character.garden",
-      "character.designer",
-      "character.community",
-      "character.mascot",
-      "prop.variant",
-      "prop.seasonal",
-      "prop.premium",
-      "prop.branded",
-      "location.variant",
-      "location.region",
-      "location.timeOfDay",
-      "location.mood",
-    ]) {
-      labels[key] = t(`studio.assetDerivation.transform.${key}` as never);
+    if (draft.derivationTransformChoice === "custom" && draft.derivationTransformCustom.trim()) {
+      return draft.derivationTransformCustom.trim();
     }
-    return transformLabelForChoice(
-      targetKind,
-      draft.derivationTransformChoice,
-      draft.derivationTransformCustom,
-      labels
-    );
+    const id = draft.derivationTransformChoice;
+    if (!id) {
+      return "";
+    }
+    const key = `studio.assetDerivation.transform.${targetKind}.${id}` as const;
+    const translated = t(key as never);
+    return translated !== key ? translated : id.replace(/_/g, " ");
   }, [targetKind, draft.derivationTransformChoice, draft.derivationTransformCustom, t]);
 
   const preview = useMemo(() => {

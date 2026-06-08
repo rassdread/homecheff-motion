@@ -115,40 +115,79 @@ export function applyDerivationTransformToChoices(
 ): Record<string, string> {
   if (targetKind === "character") {
     const choices: Record<string, string> = { character_type: transformChoice };
-    if (transformChoice === "chef") {
-      choices.character_outfit = "chef";
-    } else if (transformChoice === "garden") {
-      choices.character_outfit = "casual";
+    const outfitMap: Record<string, string> = {
+      chef: "chef",
+      garden: "casual",
+      designer: "smart_casual",
+      host: "smart_casual",
+      founder: "smart_casual",
+      expert: "smart_casual",
+      customer: "casual",
+    };
+    if (outfitMap[transformChoice]) {
+      choices.character_outfit = outfitMap[transformChoice];
+    }
+    if (transformChoice === "garden") {
       choices.character_world = "garden";
-    } else if (transformChoice === "designer") {
-      choices.character_outfit = "smart_casual";
-    } else if (transformChoice === "community") {
+    }
+    if (transformChoice === "community" || transformChoice === "customer") {
       choices.character_personality = "friendly";
-    } else if (transformChoice === "mascot") {
+    }
+    if (transformChoice === "mascot") {
       choices.character_type = "mascot";
+    }
+    if (transformChoice === "host") {
+      choices.character_personality = "inspiring";
+    }
+    if (transformChoice === "narrator") {
+      choices.character_type = "narrator";
+    }
+    if (transformChoice === "founder" || transformChoice === "expert") {
+      choices.character_personality = "professional";
     }
     return choices;
   }
   if (targetKind === "prop") {
     const map: Record<string, string> = {
-      variant: "product",
-      seasonal: "seasonal",
+      product_variant: "product",
+      packaging: "brand_asset",
       premium: "luxury",
+      seasonal: "seasonal",
       branded: "brand_asset",
-    };
-    return { prop_category: map[transformChoice] ?? "brand_asset", prop_style: transformChoice };
-  }
-  if (targetKind === "location") {
-    const map: Record<string, string> = {
-      variant: "garden",
-      region: "outdoor",
-      time_of_day: "golden_hour",
-      mood: "cozy",
+      variant: "product",
     };
     return {
-      location_type: map[transformChoice] ?? "garden",
-      location_mood: transformChoice === "mood" ? "cozy" : transformChoice,
-      location_lighting: transformChoice === "time_of_day" ? "golden_hour" : "natural",
+      prop_category: map[transformChoice] ?? "brand_asset",
+      prop_style: transformChoice === "premium" ? "premium" : "modern",
+    };
+  }
+  if (targetKind === "location") {
+    const typeMap: Record<string, string> = {
+      day: "garden",
+      night: "studio",
+      premium: "market",
+      local: "outdoor",
+      cinematic: "market",
+      variant: "garden",
+      region: "outdoor",
+      time_of_day: "garden",
+      mood: "garden",
+    };
+    const lightingMap: Record<string, string> = {
+      day: "natural",
+      night: "dramatic",
+      time_of_day: "golden_hour",
+      cinematic: "dramatic",
+    };
+    const moodMap: Record<string, string> = {
+      night: "cozy",
+      mood: "cozy",
+      cinematic: "inspiring",
+    };
+    return {
+      location_type: typeMap[transformChoice] ?? "garden",
+      location_mood: moodMap[transformChoice] ?? transformChoice,
+      location_lighting: lightingMap[transformChoice] ?? "natural",
     };
   }
   return {};

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { buildAssetReferenceGenerationPrompt } from "@/lib/studio-asset-reference-prompt";
 import { buildDerivationReferenceGenerationPrompt } from "@/lib/studio-asset-derivation-prompt";
+import { presentAssetReferenceGenerationError } from "@/lib/studio-asset-reference-errors";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import { isSceneImageProviderAvailable } from "@/lib/studio-regeneration-guard";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
@@ -20,6 +21,11 @@ export type GenerateAssetReferenceInput = {
   choices?: Record<string, string>;
   customTexts?: Record<string, string>;
   generationId: string;
+  sourceReference?: {
+    name: string;
+    imageUrl?: string;
+    transformLabel?: string;
+  };
   derivation?: {
     styleDna: AssetStyleDna;
     sourceName: string;
@@ -36,7 +42,12 @@ export type GenerateAssetReferenceResult = {
   provider: string;
 };
 
-type ServiceError = { error: string; code: string; status: number };
+type ServiceError = {
+  error: string;
+  code: string;
+  status: number;
+  providerMessage?: string;
+};
 
 export function isAssetReferenceGenerationAvailable(): boolean {
   return isSceneImageProviderAvailable();
@@ -80,6 +91,13 @@ export async function generateAssetReference(
     };
   }
 
+  const sourceRef = input.sourceReference?.name.trim()
+    ? {
+        name: input.sourceReference.name.trim(),
+        transformLabel: input.sourceReference.transformLabel?.trim(),
+      }
+    : undefined;
+
   const generatedPrompt = input.derivation
     ? buildDerivationReferenceGenerationPrompt({
         kind: input.kind,
@@ -88,12 +106,14 @@ export async function generateAssetReference(
         customTexts: input.customTexts,
         styleDna: input.derivation.styleDna,
         sourceName: input.derivation.sourceName,
+        transformLabel: sourceRef?.transformLabel,
       })
     : buildAssetReferenceGenerationPrompt({
         kind: input.kind,
         summaryPrompt: summary,
         choices: input.choices,
         customTexts: input.customTexts,
+        sourceReference: sourceRef,
       });
 
   const meteringCtx: StudioMeteringContext = {
@@ -173,7 +193,13 @@ export async function generateAssetReference(
       });
     }
     const message = e instanceof Error ? e.message : "Asset reference generation failed.";
-    return { error: message, code: "GENERATION_FAILED", status: 502 };
+    const presented = presentAssetReferenceGenerationError(message);
+    return {
+      error: presented.userMessageKey,
+      code: presented.code,
+      status: 502,
+      providerMessage: presented.providerMessage,
+    };
   }
 }
 

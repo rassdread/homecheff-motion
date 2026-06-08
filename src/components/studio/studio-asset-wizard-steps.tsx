@@ -23,6 +23,7 @@ import {
   preprocessImageFile,
 } from "@/lib/image-preprocess";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
+import { recordWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { buildLocationReadinessView } from "@/lib/studio-location-readiness";
 import { buildPropReadinessView } from "@/lib/studio-prop-readiness";
 import { buildWorldReadinessView } from "@/lib/studio-world-readiness";
@@ -81,6 +82,11 @@ export function StudioAssetWizardInputStep({
         const uploaded = await postWizardImageUpload(formData);
         onDraftChange((d) => ({
           ...d,
+          ...recordWizardSourceReference({
+            imageUrl: uploaded.workingImageUrl,
+            storageKey: uploaded.workingStorageKey,
+            name: file.name.replace(/\.[^.]+$/, ""),
+          }),
           referenceImageUrl: uploaded.workingImageUrl,
           referenceStorageKey: uploaded.workingStorageKey,
         }));

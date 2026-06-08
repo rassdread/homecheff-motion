@@ -1,5 +1,7 @@
 import type { WizardChoiceStepDef } from "@/lib/studio-asset-wizard-choices";
+import { buildDerivationTransformDef } from "@/lib/studio-asset-transformation-options";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
+import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 
 function opts(ids: Array<{ id: string; labelKey: string; emoji?: string }>) {
   return ids.map((o) => ({
@@ -63,17 +65,11 @@ export const LOCATION_DERIVATION_TRANSFORMS: WizardChoiceStepDef = {
   allowsCustom: true,
 };
 
-export function derivationTransformDefForKind(kind: StudioAssetKind): WizardChoiceStepDef | null {
-  if (kind === "character") {
-    return CHARACTER_DERIVATION_TRANSFORMS;
-  }
-  if (kind === "prop") {
-    return PROP_DERIVATION_TRANSFORMS;
-  }
-  if (kind === "location") {
-    return LOCATION_DERIVATION_TRANSFORMS;
-  }
-  return null;
+export function derivationTransformDefForKind(
+  kind: StudioAssetKind,
+  sources: AssetDerivationSourceListItem[] = []
+): WizardChoiceStepDef | null {
+  return buildDerivationTransformDef(kind, sources);
 }
 
 export function transformLabelForChoice(
@@ -85,9 +81,9 @@ export function transformLabelForChoice(
   if (choiceId === "custom" && customText.trim()) {
     return customText.trim();
   }
-  const prefix =
-    kind === "character" ? "character."
-    : kind === "prop" ? "prop."
-    : "location.";
-  return labels[`${prefix}${choiceId}`] ?? choiceId.replace(/_/g, " ");
+  const kindPrefix =
+    kind === "character" ? "character"
+    : kind === "prop" ? "prop"
+    : "location";
+  return labels[`${kindPrefix}.${choiceId}`] ?? choiceId.replace(/_/g, " ");
 }

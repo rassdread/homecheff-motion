@@ -43,6 +43,10 @@ export type AssetWizardDraft = {
   description: string;
   referenceImageUrl: string;
   referenceStorageKey: string;
+  /** User-uploaded or library source kept across wizard steps (DNA for generation). */
+  sourceReferenceImageUrl: string;
+  sourceReferenceStorageKey: string;
+  sourceReferenceName: string;
   referenceMode: AssetReferenceMode;
   referenceGenerationStatus: "idle" | "generating" | "preview" | "accepted" | "failed";
   referenceGenerationError: string;
@@ -87,6 +91,9 @@ export function emptyAssetWizardDraft(
     description: "",
     referenceImageUrl: "",
     referenceStorageKey: "",
+    sourceReferenceImageUrl: "",
+    sourceReferenceStorageKey: "",
+    sourceReferenceName: "",
     referenceMode: null,
     referenceGenerationStatus: "idle",
     referenceGenerationError: "",

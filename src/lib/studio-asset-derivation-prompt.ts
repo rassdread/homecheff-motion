@@ -9,6 +9,7 @@ export type DerivationReferencePromptInput = {
   customTexts?: Record<string, string>;
   styleDna: AssetStyleDna;
   sourceName: string;
+  transformLabel?: string;
 };
 
 /** Extends asset reference prompt with style DNA from source reference. */
@@ -18,6 +19,10 @@ export function buildDerivationReferenceGenerationPrompt(input: DerivationRefere
     summaryPrompt: input.summaryPrompt,
     choices: input.choices,
     customTexts: input.customTexts,
+    sourceReference: {
+      name: input.sourceName,
+      transformLabel: input.transformLabel,
+    },
   });
 
   const dnaBlock = [
