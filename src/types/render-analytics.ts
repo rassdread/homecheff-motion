@@ -3,6 +3,7 @@
 import type { AdminProjectDisplay } from "@/types/admin-project-display";
 import type { StudioCostAnalytics } from "@/server/admin/studio-cost-analytics";
 import type { CreditAccuracy } from "@/server/provider-usage/credit-cost";
+import type { StudioProfitabilityReport } from "@/types/studio-profitability";
 
 export type CostEstimateMeta = {
   isEstimated: boolean;
@@ -421,6 +422,7 @@ export type RenderAnalyticsReport = {
   studioCosts: StudioCostAnalytics;
   billing: BillingAnalytics;
   customerBillingRows: CustomerBillingEventRow[];
+  profitability: StudioProfitabilityReport;
 };
 
 export type CustomerBillingEventRow = {

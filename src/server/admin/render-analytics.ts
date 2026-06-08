@@ -30,6 +30,7 @@ import {
 import { buildBillingAnalytics } from "@/server/admin/billing-analytics";
 import { buildVideoCostAnalytics } from "@/server/admin/video-cost-analytics";
 import { buildStudioCostAnalytics } from "@/server/admin/studio-cost-analytics";
+import { buildStudioProfitabilityReport } from "@/server/admin/studio-profitability";
 import type {
   BalanceSnapshotRow,
   ExportTypeAnalytics,
@@ -323,11 +324,13 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     (p) => p.instantDetectedTextMetadata != null
   ).length;
 
-  const [creditRows, videoCosts, billing, studioCosts, customerBillingDb] = await Promise.all([
+  const [creditRows, videoCosts, billing, studioCosts, profitability, customerBillingDb] =
+    await Promise.all([
     loadRenderCreditDataset(),
     buildVideoCostAnalytics(),
     buildBillingAnalytics(),
     buildStudioCostAnalytics(),
+    buildStudioProfitabilityReport(),
     prisma.customerBillingEvent.findMany({
       orderBy: { createdAt: "desc" },
       take: 5000,
@@ -1167,5 +1170,6 @@ export async function getRenderAnalyticsReport(): Promise<RenderAnalyticsReport>
     studioCosts,
     billing,
     customerBillingRows,
+    profitability,
   };
 }

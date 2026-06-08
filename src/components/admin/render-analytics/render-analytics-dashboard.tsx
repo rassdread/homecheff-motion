@@ -16,6 +16,7 @@ import {
   projectUsageTableRow,
 } from "@/components/admin/render-analytics/project-linked-table";
 import { usd } from "@/components/admin/render-analytics/format";
+import { StudioProfitabilitySection } from "@/components/admin/render-analytics/studio-profitability-section";
 
 type RenderAnalyticsDashboardProps = {
   initialReport: RenderAnalyticsReport | null;
@@ -127,6 +128,7 @@ export function RenderAnalyticsDashboard({
   const credits = report.credits;
   const videoCosts = report.videoCosts;
   const billing = report.billing;
+  const profitability = report.profitability;
 
   function accuracyLabel(accuracy: string): string {
     if (accuracy === "exact") {
@@ -446,6 +448,8 @@ export function RenderAnalyticsDashboard({
           emptyLabel={emptyLabel}
         />
       </AppCard>
+
+      <StudioProfitabilitySection profitability={profitability} emptyLabel={emptyLabel} />
 
       <AppCard>
         <h2 className="text-lg font-semibold">{t("admin.renderAnalytics.revenueOverview")}</h2>
