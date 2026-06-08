@@ -162,3 +162,37 @@ export type UserStudioInsightsReport = {
   withinLimits: boolean;
   limitHintKey: string | null;
 };
+
+export type UserStudioAssetCounts = {
+  projects: number;
+  storyboards: number;
+  characters: number;
+  props: number;
+  locations: number;
+  worlds: number;
+};
+
+export type UserStudioActivityKind =
+  | "project_created"
+  | "storyboard_created"
+  | "character_created"
+  | "prop_created"
+  | "location_created"
+  | "world_created"
+  | "voice_clone_created"
+  | "motion_render"
+  | "asset_derived"
+  | "scene_image";
+
+export type UserStudioActivityItem = {
+  id: string;
+  at: string;
+  kind: UserStudioActivityKind;
+  title: string;
+  href: string | null;
+};
+
+export type UserStudioDashboardReport = UserStudioInsightsReport & {
+  assetCounts: UserStudioAssetCounts;
+  recentActivity: UserStudioActivityItem[];
+};

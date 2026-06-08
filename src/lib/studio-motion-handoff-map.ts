@@ -31,6 +31,10 @@ import {
   buildMotionStudioIntelligenceSnapshot,
 } from "@/lib/build-motion-studio-intelligence";
 import { buildStudioSceneMotionInstructions } from "@/lib/build-studio-scene-motion-instructions";
+import {
+  mapStudioContinuityToWizardStrength,
+  mapStudioStyleProfileToWizardPreset,
+} from "@/lib/studio-motion-handoff-style-map";
 import { sanitizeMotionHandoffForStorage } from "@/lib/studio-motion-handoff-storage";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
@@ -236,9 +240,9 @@ export function mapHandoffToPersistedWizardState(
     draftId: createWizardDraftId(),
     wizardFlowVersion: CREATOR_WIZARD_FLOW_VERSION,
     step: 1,
-    stylePreset: "food_promo",
+    stylePreset: mapStudioStyleProfileToWizardPreset(payload.promptStyleProfile),
     motionText: payload.description.trim() || payload.title.trim(),
-    continuityStrength: "balanced",
+    continuityStrength: mapStudioContinuityToWizardStrength(payload.continuityStrength),
     chips: [],
     lockedTextMode: true,
     lockedTextLayers: [],

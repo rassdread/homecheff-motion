@@ -273,16 +273,40 @@ function emptyPeriodTotals(): PeriodProfitabilityTotals {
   };
 }
 
+export function metaStoryboardId(metadataJson: unknown): string | null {
+  if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
+    return null;
+  }
+  const id = (metadataJson as Record<string, unknown>).storyboardId;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
+}
+
+export function resolveCostEventProjectId(
+  event: Pick<CostEventInput, "projectId" | "metadataJson">,
+  storyboardToProject: Map<string, string>
+): string | null {
+  if (event.projectId?.trim()) {
+    return event.projectId.trim();
+  }
+  const storyboardId = metaStoryboardId(event.metadataJson);
+  if (!storyboardId) {
+    return null;
+  }
+  return storyboardToProject.get(storyboardId) ?? null;
+}
+
 export function buildProfitabilityFromEvents(params: {
   costEvents: CostEventInput[];
   billingEvents: BillingEventInput[];
   projectTitles: Map<string, string | null>;
   userEmails: Map<string, string>;
+  storyboardToProject?: Map<string, string>;
   now?: Date;
   topLimit?: number;
 }): StudioProfitabilityReport {
   const now = params.now ?? new Date();
   const topLimit = params.topLimit ?? 20;
+  const storyboardToProject = params.storyboardToProject ?? new Map<string, string>();
 
   const executiveSummary: Record<ProfitabilityPeriodKey, PeriodProfitabilityTotals> = {
     last7Days: emptyPeriodTotals(),
@@ -333,27 +357,31 @@ export function buildProfitabilityFromEvents(params: {
     const cost = eventCostUsd(e);
     const breakdown = classifyCostToBreakdown(e);
     const periods = periodKeyForDate(e.createdAt, now);
+    const resolvedProjectId = resolveCostEventProjectId(e, storyboardToProject);
 
     for (const p of periods) {
       const ex = executiveSummary[p];
       ex.costUsd = roundUsd(ex.costUsd + cost);
       ex.costEventCount += 1;
-      if (e.projectId) {
-        periodProjects.get(p)!.add(e.projectId);
+      if (resolvedProjectId) {
+        periodProjects.get(p)!.add(resolvedProjectId);
       }
       if (e.userId) {
         periodUsers.get(p)!.add(e.userId);
       }
     }
 
-    if (e.projectId) {
-      projectCosts.set(e.projectId, mergeBreakdowns(projectCosts.get(e.projectId) ?? emptyBreakdown(), breakdown));
+    if (resolvedProjectId) {
+      projectCosts.set(
+        resolvedProjectId,
+        mergeBreakdowns(projectCosts.get(resolvedProjectId) ?? emptyBreakdown(), breakdown)
+      );
     }
     if (e.userId) {
       userCosts.set(e.userId, mergeBreakdowns(userCosts.get(e.userId) ?? emptyBreakdown(), breakdown));
       const up = userProjects.get(e.userId) ?? new Set<string>();
-      if (e.projectId) {
-        up.add(e.projectId);
+      if (resolvedProjectId) {
+        up.add(resolvedProjectId);
       }
       userProjects.set(e.userId, up);
 
@@ -709,7 +737,7 @@ export function buildProfitabilityFromEvents(params: {
 }
 
 export async function buildStudioProfitabilityReport(): Promise<StudioProfitabilityReport> {
-  const [costEvents, billingEvents] = await Promise.all([
+  const [costEvents, billingEvents, studioLinkedProjects] = await Promise.all([
     prisma.providerCostEvent.findMany({
       select: {
         id: true,
@@ -737,10 +765,23 @@ export async function buildStudioProfitabilityReport(): Promise<StudioProfitabil
       },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.animationProject.findMany({
+      where: { studioSourceStoryboardId: { not: null } },
+      select: { id: true, title: true, studioSourceStoryboardId: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
   const projectIds = new Set<string>();
   const userIds = new Set<string>();
+  const storyboardToProject = new Map<string, string>();
+  for (const row of studioLinkedProjects) {
+    const sbId = row.studioSourceStoryboardId?.trim();
+    if (sbId && !storyboardToProject.has(sbId)) {
+      storyboardToProject.set(sbId, row.id);
+      projectIds.add(row.id);
+    }
+  }
   for (const e of costEvents) {
     if (e.projectId) {
       projectIds.add(e.projectId);
@@ -772,6 +813,11 @@ export async function buildStudioProfitabilityReport(): Promise<StudioProfitabil
   ]);
 
   const projectTitles = new Map(projects.map((p) => [p.id, p.title]));
+  for (const row of studioLinkedProjects) {
+    if (!projectTitles.has(row.id)) {
+      projectTitles.set(row.id, row.title);
+    }
+  }
   const userEmails = new Map(users.map((u) => [u.id, u.email]));
 
   return buildProfitabilityFromEvents({
@@ -779,5 +825,6 @@ export async function buildStudioProfitabilityReport(): Promise<StudioProfitabil
     billingEvents,
     projectTitles,
     userEmails,
+    storyboardToProject,
   });
 }

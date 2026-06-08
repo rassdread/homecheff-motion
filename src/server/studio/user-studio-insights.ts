@@ -5,7 +5,11 @@
 import { prisma } from "@/lib/prisma";
 import { DERIVATION_TIME_SAVED_MINUTES } from "@/lib/studio-asset-style-dna";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
-import type { UserStudioInsightsReport } from "@/types/studio-profitability";
+import type {
+  UserStudioActivityItem,
+  UserStudioDashboardReport,
+  UserStudioInsightsReport,
+} from "@/types/studio-profitability";
 
 function metaFeature(metadataJson: unknown): string | null {
   if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
@@ -114,5 +118,186 @@ export async function buildUserStudioInsights(userId: string): Promise<UserStudi
     estimatedProviderActions,
     withinLimits: true,
     limitHintKey: null,
+  };
+}
+
+export async function buildUserStudioDashboard(userId: string): Promise<UserStudioDashboardReport> {
+  const insights = await buildUserStudioInsights(userId);
+
+  const [
+    projects,
+    storyboards,
+    characters,
+    props,
+    locations,
+    worlds,
+    recentProjects,
+    recentStoryboards,
+    recentCharacters,
+    recentProps,
+    recentLocations,
+    recentWorlds,
+    recentCostEvents,
+  ] = await Promise.all([
+    prisma.animationProject.count({ where: { ownerId: userId } }),
+    prisma.studioStoryboard.count({ where: { ownerId: userId } }),
+    prisma.studioCharacter.count({ where: { ownerId: userId } }),
+    prisma.studioProp.count({ where: { ownerId: userId } }),
+    prisma.studioLocation.count({ where: { ownerId: userId } }),
+    prisma.studioWorldProfile.count({ where: { ownerId: userId } }),
+    prisma.animationProject.findMany({
+      where: { ownerId: userId },
+      select: { id: true, title: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioStoryboard.findMany({
+      where: { ownerId: userId },
+      select: { id: true, title: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioCharacter.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioProp.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioLocation.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.studioWorldProfile.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.providerCostEvent.findMany({
+      where: { userId },
+      select: { id: true, createdAt: true, actionType: true, metadataJson: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  const activity: UserStudioActivityItem[] = [];
+
+  for (const row of recentProjects) {
+    activity.push({
+      id: `project-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "project_created",
+      title: row.title?.trim() || "Motion project",
+      href: `/videos/${row.id}`,
+    });
+  }
+  for (const row of recentStoryboards) {
+    activity.push({
+      id: `storyboard-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "storyboard_created",
+      title: row.title?.trim() || "Storyboard",
+      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+    });
+  }
+  for (const row of recentCharacters) {
+    activity.push({
+      id: `character-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "character_created",
+      title: row.name?.trim() || "Character",
+      href: `/studio/characters/${row.id}`,
+    });
+  }
+  for (const row of recentProps) {
+    activity.push({
+      id: `prop-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "prop_created",
+      title: row.name?.trim() || "Prop",
+      href: `/studio/props/${row.id}`,
+    });
+  }
+  for (const row of recentLocations) {
+    activity.push({
+      id: `location-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "location_created",
+      title: row.name?.trim() || "Location",
+      href: `/studio/locations/${row.id}`,
+    });
+  }
+  for (const row of recentWorlds) {
+    activity.push({
+      id: `world-${row.id}`,
+      at: row.createdAt.toISOString(),
+      kind: "world_created",
+      title: row.name?.trim() || "World",
+      href: `/studio/worlds/${row.id}`,
+    });
+  }
+
+  for (const e of recentCostEvents) {
+    const feature = metaFeature(e.metadataJson);
+    if (e.actionType === COST_ACTION.VIDU_RENDER) {
+      activity.push({
+        id: `render-${e.id}`,
+        at: e.createdAt.toISOString(),
+        kind: "motion_render",
+        title: "Motion render",
+        href: null,
+      });
+    } else if (feature === "voice_clone" || e.actionType === COST_ACTION.ELEVENLABS_CLONE) {
+      activity.push({
+        id: `clone-${e.id}`,
+        at: e.createdAt.toISOString(),
+        kind: "voice_clone_created",
+        title: "Voice clone",
+        href: null,
+      });
+    } else if (feature === "asset_derivation") {
+      activity.push({
+        id: `derive-${e.id}`,
+        at: e.createdAt.toISOString(),
+        kind: "asset_derived",
+        title: "Asset derived from reference",
+        href: "/studio/assets",
+      });
+    } else if (
+      feature?.startsWith("scene_image") ||
+      e.actionType === COST_ACTION.OPENAI_SCENE_IMAGE
+    ) {
+      activity.push({
+        id: `scene-image-${e.id}`,
+        at: e.createdAt.toISOString(),
+        kind: "scene_image",
+        title: "Scene image generated",
+        href: null,
+      });
+    }
+  }
+
+  activity.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+
+  return {
+    ...insights,
+    assetCounts: {
+      projects,
+      storyboards,
+      characters,
+      props,
+      locations,
+      worlds,
+    },
+    recentActivity: activity.slice(0, 12),
   };
 }

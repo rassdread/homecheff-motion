@@ -28,7 +28,7 @@ function StudioPropNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const guided = searchParams.get("guided") === "1";
+  const guided = searchParams.get("advanced") !== "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("prop"));
   const prefillProp = prefill ? buildPropDetailFromPrefill(prefill) : undefined;
 
@@ -75,6 +75,7 @@ function StudioPropNewPageContent() {
             <StudioAssetCreationPage
               kind="prop"
               guidedQueryParam={guided}
+              startInAdvancedMode={searchParams.get("advanced") === "1"}
               hasDecisionPrefill={Boolean(prefill)}
               onWizardSave={handleWizardSave}
             >

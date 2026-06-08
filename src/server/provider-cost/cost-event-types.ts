@@ -30,6 +30,7 @@ export type CostActionType = (typeof COST_ACTION)[keyof typeof COST_ACTION];
 
 /** Studio instrumentation events — never sync to CustomerBillingEvent. */
 export const INSTRUMENTATION_ONLY_ACTIONS: ReadonlySet<CostActionType> = new Set([
+  COST_ACTION.OPENAI_OCR,
   COST_ACTION.OPENAI_SCENE_IMAGE,
   COST_ACTION.OPENAI_VISION,
   COST_ACTION.OPENAI_CHARACTER_ANALYSIS,
@@ -38,6 +39,8 @@ export const INSTRUMENTATION_ONLY_ACTIONS: ReadonlySet<CostActionType> = new Set
   COST_ACTION.ELEVENLABS_STT,
   COST_ACTION.ELEVENLABS_CLONE,
   COST_ACTION.VOICE_PREVIEW_CACHE_HIT,
+  COST_ACTION.STORAGE_UPLOAD,
+  COST_ACTION.INTERNAL_MERGE,
 ]);
 
 export const COST_UNIT = {

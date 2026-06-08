@@ -1,7 +1,8 @@
 /**
- * Persist asset decisions in localStorage (same-browser reload; no schema migration).
+ * Persist asset decisions in localStorage (same-browser reload) with server blob sync.
  */
 
+import { scheduleStudioWorkspaceStateSync } from "@/lib/studio-workspace-state-client";
 import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 
 const DRAFT_KEY = "hc-studio-asset-decisions-draft";
@@ -57,7 +58,10 @@ export function loadAssetDecisionRegistry(params: {
   }
 }
 
-export function saveAssetDecisionRegistry(registry: StudioAssetDecisionRegistry): void {
+export function saveAssetDecisionRegistry(
+  registry: StudioAssetDecisionRegistry,
+  options?: { skipServerSync?: boolean }
+): void {
   if (typeof window === "undefined") {
     return;
   }
@@ -67,6 +71,11 @@ export function saveAssetDecisionRegistry(registry: StudioAssetDecisionRegistry)
     : DRAFT_KEY;
   try {
     window.localStorage.setItem(key, JSON.stringify(registry));
+    if (registry.storyboardId && !options?.skipServerSync) {
+      scheduleStudioWorkspaceStateSync(registry.storyboardId, {
+        assetDecisionRegistry: registry,
+      });
+    }
   } catch {
     /* quota or private mode */
   }

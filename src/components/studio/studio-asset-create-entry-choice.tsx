@@ -33,11 +33,6 @@ const ENTRY_OPTIONS: Array<{
     descriptionKey: "studio.assetCreation.entry.imagePromptDescription",
   },
   {
-    path: "existing_asset",
-    titleKey: "studio.assetCreation.entry.existingTitle",
-    descriptionKey: "studio.assetCreation.entry.existingDescription",
-  },
-  {
     path: "derive_from_reference",
     titleKey: "studio.assetCreation.entry.deriveTitle",
     descriptionKey: "studio.assetCreation.entry.deriveDescription",

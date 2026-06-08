@@ -27,6 +27,7 @@ export type AssetCreationPageContext = {
 type Props = {
   kind: StudioAssetKind;
   guidedQueryParam?: boolean;
+  startInAdvancedMode?: boolean;
   hasDecisionPrefill?: boolean;
   onWizardSave: (result: AssetCreationWizardResult) => Promise<void>;
   children: (ctx: AssetCreationPageContext) => React.ReactNode;
@@ -35,13 +36,14 @@ type Props = {
 export function StudioAssetCreationPage({
   kind,
   guidedQueryParam = false,
+  startInAdvancedMode = false,
   hasDecisionPrefill = false,
   onWizardSave,
   children,
 }: Props) {
   const t = useActiveTranslator();
   const [forceWizard, setForceWizard] = useState(false);
-  const [advancedMode, setAdvancedMode] = useState(false);
+  const [advancedMode, setAdvancedMode] = useState(startInAdvancedMode);
   const [entryPath, setEntryPath] = useState<AssetCreateEntryPath | null>(null);
   const [wizardProposal, setWizardProposal] =
     useState<AssetCreationWizardResult["proposal"]>(null);

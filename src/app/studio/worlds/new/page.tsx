@@ -28,7 +28,7 @@ function StudioNewWorldPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const guided = searchParams.get("guided") === "1";
+  const guided = searchParams.get("advanced") !== "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("world"));
   const prefillWorld = prefill ? buildWorldDetailFromPrefill(prefill) : undefined;
 
@@ -72,6 +72,7 @@ function StudioNewWorldPageContent() {
             <StudioAssetCreationPage
               kind="world"
               guidedQueryParam={guided}
+              startInAdvancedMode={searchParams.get("advanced") === "1"}
               hasDecisionPrefill={Boolean(prefill)}
               onWizardSave={handleWizardSave}
             >

@@ -135,6 +135,10 @@ export function sanitizeMotionHandoffForStorage(
     energyModifiers: raw.energyModifiers,
     motionAudioExport: stripLargeStrings(raw.motionAudioExport),
     motionPerformanceExport: stripLargeStrings(raw.motionPerformanceExport),
+    renderStrategyPlan: stripLargeStrings(raw.renderStrategyPlan),
+    animationPlan: stripLargeStrings(raw.animationPlan),
+    viduExecutionPlan: stripLargeStrings(raw.viduExecutionPlan),
+    sceneGenerationPlan: stripLargeStrings(raw.sceneGenerationPlan),
     scenes: scenes.map((scene) =>
       isPlainObject(scene) ? sanitizeScene(scene) : scene
     ),

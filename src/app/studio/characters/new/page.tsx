@@ -28,7 +28,7 @@ function StudioCharacterNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const guided = searchParams.get("guided") === "1";
+  const guided = searchParams.get("advanced") !== "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("character"));
   const prefillCharacter = prefill ? buildCharacterDetailFromPrefill(prefill) : undefined;
 
@@ -72,6 +72,7 @@ function StudioCharacterNewPageContent() {
             <StudioAssetCreationPage
               kind="character"
               guidedQueryParam={guided}
+              startInAdvancedMode={searchParams.get("advanced") === "1"}
               hasDecisionPrefill={Boolean(prefill)}
               onWizardSave={handleWizardSave}
             >

@@ -6,6 +6,7 @@ import {
 import type { InstantMode } from "@/lib/instant-premium-mode-types";
 import { resolveMotionHandoffExecutionPrefill } from "@/lib/motion-handoff-execution-prefill";
 import { mapHandoffToPersistedWizardState } from "@/lib/studio-motion-handoff-map";
+import { scheduleStudioWorkspaceStateSync } from "@/lib/studio-workspace-state-client";
 import type { MotionHandoffExecutionPrefill } from "@/types/motion-handoff-execution-prefill";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
 
@@ -29,6 +30,9 @@ export async function applyMotionHandoffImport(
     executionPrefill: prefill,
   });
   writePersistedWizardState(state);
+  scheduleStudioWorkspaceStateSync(payload.storyboardId, {
+    motionWizardDraft: state as unknown as Record<string, unknown>,
+  });
 }
 
 export { resolveMotionHandoffExecutionPrefill } from "@/lib/motion-handoff-execution-prefill";

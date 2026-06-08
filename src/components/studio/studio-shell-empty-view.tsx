@@ -59,6 +59,9 @@ export function StudioShellEmptyView() {
 
       <div className="border-t border-zinc-200/80 px-4 py-3 sm:px-6">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 text-xs text-zinc-500">
+          <Link href="/studio/my-studio" prefetch={false} className="font-semibold text-[#006D52] hover:underline">
+            {t("studio.shell.myStudio")}
+          </Link>
           <Link href="/studio/advanced" prefetch={false} className="font-semibold text-zinc-500 hover:text-zinc-700">
             {t("studio.shell.advancedLink")}
           </Link>

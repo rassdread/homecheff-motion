@@ -4,6 +4,7 @@ import type {
   InstantTransitionSeconds,
 } from "@/lib/instant-premium-mode-types";
 import type { InstantPremiumContinuityStrength, InstantPremiumStylePreset } from "@/lib/instant-premium-prompt";
+import { scheduleStudioWorkspaceStateSync } from "@/lib/studio-workspace-state-client";
 import type { SceneOverlayTemplate } from "@/lib/story-overlay-templates";
 import type { InstantPremiumChipId } from "@/lib/instant-premium-prompt";
 import type { TextImplyingChipId } from "@/lib/locked-text-layer";
@@ -402,12 +403,21 @@ export function readPersistedWizardState(): PersistedWizardState | null {
   }
 }
 
-export function writePersistedWizardState(state: PersistedWizardState): void {
+export function writePersistedWizardState(
+  state: PersistedWizardState,
+  options?: { skipServerSync?: boolean }
+): void {
   if (!storageAvailable()) {
     return;
   }
   try {
     window.localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(state));
+    const storyboardId = state.studioHandoff?.storyboardId?.trim();
+    if (storyboardId && !options?.skipServerSync) {
+      scheduleStudioWorkspaceStateSync(storyboardId, {
+        motionWizardDraft: state as unknown as Record<string, unknown>,
+      });
+    }
   } catch (error) {
     warnWizardStorageFailed("localStorage-write", {
       message: error instanceof Error ? error.message : String(error),

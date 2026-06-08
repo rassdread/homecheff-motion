@@ -62,6 +62,7 @@ import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory"
 import type { StudioSceneUpdateInput } from "@/lib/studio-scene-validation";
 import { resolveStudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
 import type { StudioWorkspaceLoadFailure } from "@/lib/studio-workspace-load-error";
+import { hydrateStudioWorkspaceStateFromServer } from "@/lib/studio-workspace-state-hydrate";
 import { StudioWorkspaceLoadError } from "@/components/studio/studio-workspace-load-error";
 
 type Props = {
@@ -128,6 +129,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
     setStoryboard(sbRes.data.storyboard);
     rememberRecentStoryboardId(storyboardId);
+    void hydrateStudioWorkspaceStateFromServer(storyboardId);
     setActiveSceneId((prev) => {
       if (prev && sbRes.data.storyboard.scenes.some((s) => s.id === prev)) {
         return prev;

@@ -28,7 +28,7 @@ function StudioLocationNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const guided = searchParams.get("guided") === "1";
+  const guided = searchParams.get("advanced") !== "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("location"));
   const prefillLocation = prefill ? buildLocationDetailFromPrefill(prefill) : undefined;
 
@@ -75,6 +75,7 @@ function StudioLocationNewPageContent() {
             <StudioAssetCreationPage
               kind="location"
               guidedQueryParam={guided}
+              startInAdvancedMode={searchParams.get("advanced") === "1"}
               hasDecisionPrefill={Boolean(prefill)}
               onWizardSave={handleWizardSave}
             >

@@ -9,16 +9,18 @@ import type {
   AssetCreationWizardStep,
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
+import { normalizeAssetCreateEntryPath } from "@/lib/studio-asset-create-entry-path";
 
 /** Ordered wizard steps for a given entry path (after kind is chosen). */
 export function wizardStepsForEntryPath(
   entryPath: AssetCreateEntryPath,
   options?: { includeKind?: boolean }
 ): AssetCreationWizardStep[] {
+  const normalizedPath = normalizeAssetCreateEntryPath(entryPath);
   const steps: AssetCreationWizardStep[] = options?.includeKind ? ["kind"] : [];
   steps.push("entry");
 
-  switch (entryPath) {
+  switch (normalizedPath) {
     case "design":
       steps.push("essentials", "readiness", "save");
       break;
@@ -28,7 +30,15 @@ export function wizardStepsForEntryPath(
       steps.push("input", "proposal", "essentials", "readiness", "save");
       break;
     case "existing_asset":
-      steps.push("input", "essentials", "readiness", "save");
+      steps.push(
+        "derive_source",
+        "derive_target_kind",
+        "derive_transform",
+        "derive_preview",
+        "reference",
+        "readiness",
+        "save"
+      );
       break;
     case "derive_from_reference":
       steps.push(
