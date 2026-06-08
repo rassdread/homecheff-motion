@@ -3959,6 +3959,8 @@ export const en: LocaleSchema = {
   "studio.voiceCenter.previewTextLabel": "Preview text",
   "studio.voiceCenter.previewTextHint":
     "Examples: Welcome to HomeCheff. · Today I'll show you something special. · I am Chef Sergio.",
+  "studio.voiceCenter.previewTextAutoHint":
+    "Preview text is automatically tailored to the character and story.",
   "studio.voiceCenter.draftPreviewBadge": "Draft preview",
   "studio.voiceCenter.previewFailed": "Voice preview failed. Try again.",
   "studio.voiceCenter.invalidVoiceHint":
@@ -3984,6 +3986,7 @@ export const en: LocaleSchema = {
     "Curated character voices mapped to real library entries — select manually.",
   "studio.voiceLibrary.libraryVoice": "Library voice",
   "studio.voiceLibrary.loading": "Loading voice library…",
+  "studio.voiceLibrary.loadingVoices": "Loading voices…",
   "studio.voiceLibrary.empty": "No voices match these filters.",
   "studio.voiceLibrary.select": "Use voice",
   "studio.voiceLibrary.selected": "Selected",

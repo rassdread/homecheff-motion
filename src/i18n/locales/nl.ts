@@ -3958,6 +3958,8 @@ export const nl = {
   "studio.voiceCenter.previewTextLabel": "Voorbeeldtekst",
   "studio.voiceCenter.previewTextHint":
     "Voorbeelden: Welkom bij HomeCheff. · Vandaag laat ik je iets bijzonders zien. · Ik ben Chef Sergio.",
+  "studio.voiceCenter.previewTextAutoHint":
+    "Previewtekst wordt automatisch aangepast aan personage en verhaal.",
   "studio.voiceCenter.draftPreviewBadge": "Conceptvoorbeeld",
   "studio.voiceCenter.previewFailed": "Stemvoorbeeld mislukt. Probeer het opnieuw.",
   "studio.voiceCenter.invalidVoiceHint":
@@ -3983,6 +3985,7 @@ export const nl = {
     "Gecureerde karakterstemmen gekoppeld aan echte bibliotheekitems — handmatig selecteren.",
   "studio.voiceLibrary.libraryVoice": "Bibliotheekstem",
   "studio.voiceLibrary.loading": "Stemmenbibliotheek laden…",
+  "studio.voiceLibrary.loadingVoices": "Stemmen worden geladen…",
   "studio.voiceLibrary.empty": "Geen stemmen voor deze filters.",
   "studio.voiceLibrary.select": "Stem gebruiken",
   "studio.voiceLibrary.selected": "Geselecteerd",

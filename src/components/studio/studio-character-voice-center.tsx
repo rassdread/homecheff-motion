@@ -39,6 +39,7 @@ import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voi
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
 import {
   StudioCharacterVoiceLibrarySection,
+  StudioVoicePersonaPresetsPanel,
   StudioVoiceRecommendationsPanel,
   type VoiceLibraryTab,
 } from "@/components/studio/studio-character-voice-library-section";
@@ -664,24 +665,9 @@ export function StudioCharacterVoiceCenter({
         t={t}
       />
 
-      <label className="mt-4 block text-xs font-medium text-violet-900">
-        {t("studio.voiceCenter.previewTextLabel")}
-        <textarea
-          className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-          rows={2}
-          value={resolvedPreviewText}
-          placeholder={defaultPreviewText}
-          onChange={(e) => {
-            setPreviewTextTouched(true);
-            setPreviewText(e.target.value);
-          }}
-        />
-        <span className="mt-1 block text-[11px] text-violet-700/90">
-          {t("studio.voiceCenter.previewTextHint")}
-        </span>
-      </label>
+      <p className="mt-4 text-xs text-violet-700/90">{t("studio.voiceCenter.previewTextAutoHint")}</p>
 
-      {voicePayload ?
+      {voicePayload && voiceLibrary?.voicesReady ?
         <StudioVoiceRecommendationsPanel
           payload={voicePayload}
           marketplaceContext={{
@@ -690,6 +676,21 @@ export function StudioCharacterVoiceCenter({
             language: value.voiceLanguage,
             gender: value.voiceGender,
           }}
+          selectedProfile={value.voiceProfile}
+          onSelectProfile={handleSelectProfile}
+          characterId={characterId}
+          characterName={characterName}
+          language={value.voiceLanguage}
+          previewText={resolvedPreviewText}
+          onPreviewError={setPreviewError}
+        />
+      : voiceLibrary?.loadingVoices ?
+        <p className="mt-6 text-sm text-violet-700">{t("studio.voiceLibrary.loadingVoices")}</p>
+      : null}
+
+      {voicePayload ?
+        <StudioVoicePersonaPresetsPanel
+          personaPresets={voicePayload.personaPresets}
           selectedProfile={value.voiceProfile}
           onSelectProfile={handleSelectProfile}
           characterId={characterId}
@@ -771,6 +772,23 @@ export function StudioCharacterVoiceCenter({
 
         {advancedLanguageOpen ?
           <div className="mt-3 space-y-4 rounded-xl border border-violet-100 bg-white/80 p-4">
+            <label className="block text-xs font-medium text-violet-900">
+              {t("studio.voiceCenter.previewTextLabel")}
+              <textarea
+                className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+                rows={2}
+                value={resolvedPreviewText}
+                placeholder={defaultPreviewText}
+                onChange={(e) => {
+                  setPreviewTextTouched(true);
+                  setPreviewText(e.target.value);
+                }}
+              />
+              <span className="mt-1 block text-[11px] text-violet-700/90">
+                {t("studio.voiceCenter.previewTextHint")}
+              </span>
+            </label>
+
             <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-violet-950">
               <input
                 type="checkbox"

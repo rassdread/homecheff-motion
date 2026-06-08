@@ -18,6 +18,8 @@ import {
 type VoiceLibraryContextValue = {
   payload: VoiceLibraryPayload | null;
   loading: boolean;
+  loadingVoices: boolean;
+  voicesReady: boolean;
   error: string;
   refresh: () => Promise<void>;
 };
@@ -39,10 +41,19 @@ function useVoiceLibraryStore(): VoiceLibraryContextValue {
     () => ({
       payload: snapshot.payload,
       loading: snapshot.loading,
+      loadingVoices: snapshot.loadingVoices,
+      voicesReady: snapshot.voicesReady,
       error: snapshot.error,
       refresh,
     }),
-    [snapshot.error, snapshot.loading, snapshot.payload, refresh]
+    [
+      snapshot.error,
+      snapshot.loading,
+      snapshot.loadingVoices,
+      snapshot.payload,
+      snapshot.voicesReady,
+      refresh,
+    ]
   );
 }
 

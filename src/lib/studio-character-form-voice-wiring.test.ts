@@ -113,6 +113,59 @@ describe("voice library discovery UX", () => {
     assert.match(src, /CharacterMainVoiceCard/);
   });
 
+  it("orders voice center: main voice, recommendations, persona presets, marketplace", () => {
+    const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
+    const src = readFileSync(centerPath, "utf8");
+    const renderBlock = src.slice(src.indexOf("export function StudioCharacterVoiceCenter"));
+    const mainIdx = renderBlock.indexOf("<CharacterMainVoiceCard");
+    const recIdx = renderBlock.indexOf("<StudioVoiceRecommendationsPanel");
+    const personaIdx = renderBlock.indexOf("<StudioVoicePersonaPresetsPanel");
+    const chooseIdx = renderBlock.indexOf("studio.voiceCenter.chooseVoice");
+    assert.ok(mainIdx >= 0 && recIdx > mainIdx);
+    assert.ok(personaIdx > recIdx);
+    assert.ok(chooseIdx > personaIdx);
+  });
+
+  it("keeps preview textarea in advanced language settings only", () => {
+    const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
+    const src = readFileSync(centerPath, "utf8");
+    assert.match(src, /studio\.voiceCenter\.previewTextAutoHint/);
+    const advancedIdx = src.indexOf("advancedLanguageOpen");
+    const textareaIdx = src.indexOf("studio.voiceCenter.previewTextLabel");
+    assert.ok(advancedIdx >= 0 && textareaIdx > advancedIdx);
+    const beforeAdvanced = src.slice(0, advancedIdx);
+    assert.doesNotMatch(beforeAdvanced, /studio\.voiceCenter\.previewTextLabel/);
+  });
+
+  it("persona preset cards expose preview button and requestCharacterVoicePreview", () => {
+    const sectionPath = join(
+      process.cwd(),
+      "src/components/studio/studio-character-voice-library-section.tsx"
+    );
+    const src = readFileSync(sectionPath, "utf8");
+    assert.match(src, /StudioVoicePersonaPresetsPanel/);
+    assert.match(src, /VoicePersonaPresetCard/);
+    assert.match(src, /requestCharacterVoicePreview/);
+    assert.match(src, /studio\.voiceCenter\.preview/);
+    assert.match(src, /VOICE_LIBRARY_ACCESS_DENIED/);
+    assert.match(src, /studio\.voiceLibrary\.ttsAccessDenied/);
+    const unavailableBlock = src.slice(src.indexOf("VoicePersonaPresetCard"));
+    assert.match(unavailableBlock, /!canSelect/);
+    assert.match(unavailableBlock, /canSelect \?/);
+  });
+
+  it("voice library API supports summary mode and client loads voices progressively", () => {
+    const routePath = join(process.cwd(), "src/app/api/studio/voice-library/route.ts");
+    const clientPath = join(process.cwd(), "src/lib/studio-voice-library-client.ts");
+    const routeSrc = readFileSync(routePath, "utf8");
+    const clientSrc = readFileSync(clientPath, "utf8");
+    assert.match(routeSrc, /summary/);
+    assert.match(routeSrc, /voices:\s*\[\]/);
+    assert.match(clientSrc, /summary=1/);
+    assert.match(clientSrc, /loadingVoices/);
+    assert.match(clientSrc, /voicesReady/);
+  });
+
   it("my voices tab shows discovery heading and clone workflow", () => {
     const myVoicesPath = join(process.cwd(), "src/components/studio/studio-my-voices-section.tsx");
     const src = readFileSync(myVoicesPath, "utf8");
@@ -258,6 +311,8 @@ describe("studio-character-form voice wiring i18n parity", () => {
     "studio.voiceLibrary.filter.accent",
     "studio.myVoices.discovery",
     "studio.myVoices.empty",
+    "studio.voiceCenter.previewTextAutoHint",
+    "studio.voiceLibrary.loadingVoices",
   ] as const;
 
   it("has nl/en keys for voice library discovery surfaces", () => {
