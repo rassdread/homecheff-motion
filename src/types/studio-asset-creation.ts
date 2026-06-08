@@ -20,6 +20,7 @@ export type AssetCreationWizardStep =
   | "derive_transform"
   | "derive_preview"
   | "choice"
+  | "source_transform"
   | "reference"
   | "input"
   | "proposal"

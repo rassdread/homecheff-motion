@@ -63,7 +63,7 @@ export function CustomerUsageDashboard({
       setReport(body.report);
       setFilter(nextFilter);
       setError(null);
-    } catch (err) {
+    } catch {
       setError(t("usage.loadError"));
     } finally {
       setLoading(false);
@@ -80,8 +80,30 @@ export function CustomerUsageDashboard({
 
   const summary = report?.summary;
 
+  function renderTypeLabel(renderType: string): string {
+    const key = RENDER_TYPE_LABEL_KEYS[renderType];
+    if (key) {
+      return t(key);
+    }
+    const safe = renderType?.trim() || "action";
+    return safe.replace(/_/g, " ");
+  }
+
+  function statusLabel(status: string): string {
+    const key = ROW_STATUS_LABEL_KEYS[status];
+    if (key) {
+      return t(key);
+    }
+    return status?.trim() || "—";
+  }
+
   return (
     <div className="space-y-6">
+      {error ?
+        <AppCard>
+          <p className="text-sm text-amber-800">{error}</p>
+        </AppCard>
+      : null}
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button
@@ -166,11 +188,7 @@ export function CustomerUsageDashboard({
                         "—"
                       )}
                     </td>
-                    <td className="py-2 pr-3">
-                      {RENDER_TYPE_LABEL_KEYS[row.renderType]
-                        ? t(RENDER_TYPE_LABEL_KEYS[row.renderType])
-                        : row.renderType.replace(/_/g, " ")}
-                    </td>
+                    <td className="py-2 pr-3">{renderTypeLabel(row.renderType)}</td>
                     <td className="py-2 pr-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
@@ -181,9 +199,7 @@ export function CustomerUsageDashboard({
                               : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
-                        {ROW_STATUS_LABEL_KEYS[row.status]
-                          ? t(ROW_STATUS_LABEL_KEYS[row.status])
-                          : row.status}
+                        {statusLabel(row.status)}
                       </span>
                     </td>
                     <td className="py-2 pr-3">

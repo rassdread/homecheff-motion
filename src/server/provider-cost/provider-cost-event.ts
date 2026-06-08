@@ -12,6 +12,7 @@ import { syncCustomerBillingFromCostEvent } from "@/server/billing/sync-billing-
 import {
   COST_ACTION,
   COST_UNIT,
+  INSTRUMENTATION_ONLY_ACTIONS,
   type CostActionType,
   type CostUnitType,
   unitsToTotalCostUsd,
@@ -268,7 +269,7 @@ export async function recordCostEvent(input: RecordCostEventInput): Promise<void
     },
   });
 
-  if (!input.skipBillingSync) {
+  if (!input.skipBillingSync && !INSTRUMENTATION_ONLY_ACTIONS.has(input.actionType)) {
     await syncCustomerBillingFromCostEvent(row.id).catch((err) => {
       console.error("[billing] syncCustomerBillingFromCostEvent", err);
     });

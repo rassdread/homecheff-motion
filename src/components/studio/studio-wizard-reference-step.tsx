@@ -26,6 +26,10 @@ import {
   recordWizardSourceReference,
   resolveWizardSourceReference,
 } from "@/lib/studio-asset-wizard-source-reference";
+import {
+  resolveTransformLabelForGeneration,
+  shouldSkipReferenceModeChoice,
+} from "@/lib/studio-asset-wizard-source-flow";
 import type { AssetReferenceMode } from "@/types/studio-asset-creation";
 import type { WizardChoiceStepDef } from "@/lib/studio-asset-wizard-choices";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -60,9 +64,18 @@ type Props = {
   draft: AssetWizardDraft;
   onDraftChange: (patch: DraftPatch) => void;
   onBackToChoices: () => void;
+  onBackToSourceTransform?: () => void;
+  onChangeSource?: () => void;
 };
 
-export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackToChoices }: Props) {
+export function StudioWizardReferenceStep({
+  kind,
+  draft,
+  onDraftChange,
+  onBackToChoices,
+  onBackToSourceTransform,
+  onChangeSource,
+}: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -75,6 +88,16 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
   const referenceMode = draft.referenceMode;
   const referenceImageUrl = draft.referenceImageUrl;
   const previewUrl = draft.generatedReferencePreviewUrl || referenceImageUrl;
+  const sourceFlow = shouldSkipReferenceModeChoice(draft);
+  const source = resolveWizardSourceReference(draft);
+
+  useEffect(() => {
+    if (sourceFlow && referenceMode !== "generate") {
+      queueMicrotask(() => {
+        onDraftChange({ referenceMode: "generate" });
+      });
+    }
+  }, [sourceFlow, referenceMode, onDraftChange]);
 
   useEffect(() => {
     void fetchAssetReferenceGenerationStatus().then((res) => {
@@ -87,6 +110,10 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
   }, []);
 
   const resolveTransformLabel = useCallback(() => {
+    const fromFlow = resolveTransformLabelForGeneration(draft);
+    if (fromFlow) {
+      return fromFlow;
+    }
     if (!draft.derivationTransformChoice) {
       return undefined;
     }
@@ -155,12 +182,16 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
       }
 
       const transformLabel = resolveTransformLabel();
+      const userPrompt =
+        draft.sourceTransformCustom.trim() ||
+        (draft.sourceTransformChoice === "custom" ? "" : undefined);
       const sourceReference =
         source ?
           {
             name: source.sourceReferenceName,
             imageUrl: source.sourceReferenceImageUrl,
             transformLabel,
+            userPrompt: userPrompt || undefined,
           }
         : undefined;
 
@@ -301,19 +332,28 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
     <div className="space-y-4">
       <StudioWizardSourceReferenceBanner draft={draft} />
 
-      <StudioWizardChoiceGrid
-        def={REFERENCE_CHOICE_DEF}
-        selectedId={referenceMode}
-        customText=""
-        onSelect={(id) => handleModeChange(id as AssetReferenceMode)}
-        onCustomTextChange={() => {}}
-        disabledOptionIds={disabledGenerate ? ["generate"] : []}
-        disabledHintKey={
-          disabledGenerate ? "studio.assetCreation.reference.generateUnavailable" : undefined
-        }
-      />
+      {sourceFlow ?
+        <div className="rounded-xl border border-[#0067B1]/25 bg-[#0067B1]/5 px-4 py-3">
+          <p className="text-sm font-semibold text-[#0067B1]">
+            {t("studio.assetCreation.sourceTransform.usingAsBasis")}
+          </p>
+          <p className="mt-1 text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+        </div>
+      : (
+        <StudioWizardChoiceGrid
+          def={REFERENCE_CHOICE_DEF}
+          selectedId={referenceMode}
+          customText=""
+          onSelect={(id) => handleModeChange(id as AssetReferenceMode)}
+          onCustomTextChange={() => {}}
+          disabledOptionIds={disabledGenerate ? ["generate"] : []}
+          disabledHintKey={
+            disabledGenerate ? "studio.assetCreation.reference.generateUnavailable" : undefined
+          }
+        />
+      )}
 
-      {referenceMode === "upload" ?
+      {!sourceFlow && referenceMode === "upload" ?
         <div className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
           <input
             ref={fileRef}
@@ -358,10 +398,12 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         </div>
       : null}
 
-      {referenceMode === "generate" ?
+      {(sourceFlow || referenceMode === "generate") ?
         <div className="space-y-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
-          {hasWizardSourceReference(draft) ?
-            <p className="text-sm text-zinc-700">{t("studio.assetCreation.reference.preserveStyleHint")}</p>
+          {sourceFlow && !draft.summaryPrompt.trim() ?
+            <p className="text-sm text-amber-700">
+              {t("studio.assetCreation.sourceTransform.summaryRequired")}
+            </p>
           : null}
           {draft.referenceGenerationStatus === "generating" ?
             <div className="space-y-3" role="status" aria-live="polite">
@@ -392,16 +434,46 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
             draft.referenceGenerationStatus === "accepted") &&
           previewUrl ?
             <div className="space-y-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewUrl}
-                alt=""
-                className="max-h-80 w-full rounded-xl object-contain shadow-sm"
-              />
+              {sourceFlow && source?.sourceReferenceImageUrl ?
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase text-zinc-500">
+                      {t("studio.assetCreation.sourceTransform.reviewSource")}
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={source.sourceReferenceImageUrl}
+                      alt=""
+                      className="max-h-64 w-full rounded-xl border border-zinc-200 object-contain bg-white"
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase text-zinc-500">
+                      {t("studio.assetCreation.sourceTransform.reviewVariant")}
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={previewUrl}
+                      alt=""
+                      className="max-h-64 w-full rounded-xl object-contain shadow-sm bg-white"
+                    />
+                  </div>
+                </div>
+              : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={previewUrl}
+                  alt=""
+                  className="max-h-80 w-full rounded-xl object-contain shadow-sm"
+                />
+              )}
+              {draft.summaryPrompt ?
+                <p className="text-sm text-zinc-700">{draft.summaryPrompt}</p>
+              : null}
               <p className="text-sm font-medium text-zinc-800">
                 {t("studio.assetCreation.reference.useOfficialQuestion")}
               </p>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <button
                   type="button"
                   disabled={draft.referenceGenerationStatus === "accepted"}
@@ -419,18 +491,37 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
                 >
                   {t("studio.assetCreation.reference.regenerate")}
                 </button>
-                <button
-                  type="button"
-                  onClick={onBackToChoices}
-                  className="min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
-                >
-                  {t("studio.assetCreation.reference.backToChoices")}
-                </button>
+                {onBackToSourceTransform ?
+                  <button
+                    type="button"
+                    onClick={onBackToSourceTransform}
+                    className="min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
+                  >
+                    {t("studio.assetCreation.sourceTransform.editPrompt")}
+                  </button>
+                : null}
+                {onChangeSource ?
+                  <button
+                    type="button"
+                    onClick={onChangeSource}
+                    className="min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
+                  >
+                    {t("studio.assetCreation.sourceTransform.changeSource")}
+                  </button>
+                : (
+                  <button
+                    type="button"
+                    onClick={onBackToChoices}
+                    className="min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
+                  >
+                    {t("studio.assetCreation.reference.backToChoices")}
+                  </button>
+                )}
               </div>
             </div>
           : null}
 
-          {draft.referenceGenerationStatus === "idle" && generationAvailable && !draft.summaryPrompt.trim() ?
+          {!sourceFlow && draft.referenceGenerationStatus === "idle" && generationAvailable && !draft.summaryPrompt.trim() ?
             <p className="text-sm text-amber-700">
               {t("studio.assetCreation.reference.summaryRequired")}
             </p>
@@ -438,7 +529,7 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         </div>
       : null}
 
-      {referenceMode === "skip" ?
+      {!sourceFlow && referenceMode === "skip" ?
         <p className="text-sm text-zinc-600">{t("studio.assetCreation.reference.skipHint")}</p>
       : null}
     </div>

@@ -12,6 +12,7 @@ export type AssetReferencePromptInput = {
   sourceReference?: {
     name: string;
     transformLabel?: string;
+    userPrompt?: string;
   };
 };
 
@@ -70,14 +71,20 @@ function sourceReferenceBlock(
     return "";
   }
   const transform = sourceReference.transformLabel?.trim();
+  const userPrompt = sourceReference.userPrompt?.trim();
   const roleLine =
-    transform ?
+    transform && userPrompt ?
+      `Use the uploaded source "${sourceReference.name}" as the style base. Create a ${transform} variant: ${userPrompt}.`
+    : transform ?
       `Create a ${transform} variant of the source reference "${sourceReference.name}".`
+    : userPrompt ?
+      `Use the uploaded source "${sourceReference.name}" as the style base: ${userPrompt}.`
     : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
   return [
     roleLine,
-    "Preserve the source shape language, color palette, brand style, and mascot identity.",
-    "Change only role, outfit, props, or context as described — do not redesign from scratch.",
+    "Preserve the source shape language, main colors, brand style, and mascot identity.",
+    "Keep the friendly visual DNA — change only role, outfit, props, or context as described.",
+    "Do not redesign from scratch.",
   ].join(" ");
 }
 

@@ -44,6 +44,10 @@ const ROLE_EMOJI: Record<string, string> = {
   night: "🌙",
   local: "📍",
   cinematic: "🎬",
+  winter: "❄️",
+  tropical: "🌴",
+  market: "🏪",
+  evening: "🌆",
   custom: "✨",
 };
 
@@ -167,6 +171,89 @@ export function buildDerivationTransformDef(
       titleKey: "studio.assetDerivation.transform.location.title",
       hintKey: "studio.assetDerivation.transform.location.hint",
       options: buildRoleOptions("derivation", "location", [], GENERIC_LOCATION_ROLE_IDS),
+      allowsCustom: true,
+    };
+  }
+  return null;
+}
+
+const SOURCE_CHARACTER_EXTRA_IDS = ["winter", "premium"] as const;
+const SOURCE_PROP_EXTRA_IDS = ["market", "seasonal"] as const;
+const SOURCE_LOCATION_EXTRA_IDS = ["tropical", "market", "evening"] as const;
+
+function sourceTransformOption(
+  kind: "character" | "prop" | "location",
+  id: string
+): WizardChoiceOption {
+  return {
+    id,
+    labelKey: `studio.assetCreation.sourceTransform.${kind}.${id}`,
+    emoji: ROLE_EMOJI[id],
+  };
+}
+
+export function buildSourceTransformChoiceDef(
+  kind: StudioAssetKind,
+  sources: AssetDerivationSourceListItem[]
+): WizardChoiceStepDef | null {
+  if (kind === "character") {
+    const recommended = detectRecommendedRoleIds(sources);
+    const options = buildRoleOptions("derivation", "character", recommended, GENERIC_CHARACTER_ROLE_IDS);
+    for (const id of SOURCE_CHARACTER_EXTRA_IDS) {
+      if (!options.some((o) => o.id === id)) {
+        options.splice(options.length - 1, 0, sourceTransformOption("character", id));
+      }
+    }
+    return {
+      id: "source_transform",
+      titleKey: "studio.assetCreation.sourceTransform.title",
+      hintKey:
+        recommended.length > 0
+          ? "studio.assetCreation.sourceTransform.hintRecommended"
+          : "studio.assetCreation.sourceTransform.hint",
+      options: options.map((o) => ({
+        ...o,
+        labelKey: o.labelKey.replace(
+          "studio.assetDerivation.transform.character.",
+          "studio.assetCreation.sourceTransform.character."
+        ),
+      })),
+      allowsCustom: true,
+    };
+  }
+  if (kind === "prop") {
+    const options = buildRoleOptions("derivation", "prop", [], GENERIC_PROP_ROLE_IDS);
+    for (const id of SOURCE_PROP_EXTRA_IDS) {
+      if (!options.some((o) => o.id === id)) {
+        options.splice(options.length - 1, 0, sourceTransformOption("prop", id));
+      }
+    }
+    return {
+      id: "source_transform",
+      titleKey: "studio.assetCreation.sourceTransform.title",
+      hintKey: "studio.assetCreation.sourceTransform.hint",
+      options: options.map((o) => ({
+        ...o,
+        labelKey: o.labelKey.replace("studio.assetDerivation.transform.prop.", "studio.assetCreation.sourceTransform.prop."),
+      })),
+      allowsCustom: true,
+    };
+  }
+  if (kind === "location") {
+    const options = buildRoleOptions("derivation", "location", [], GENERIC_LOCATION_ROLE_IDS);
+    for (const id of SOURCE_LOCATION_EXTRA_IDS) {
+      if (!options.some((o) => o.id === id)) {
+        options.splice(options.length - 1, 0, sourceTransformOption("location", id));
+      }
+    }
+    return {
+      id: "source_transform",
+      titleKey: "studio.assetCreation.sourceTransform.title",
+      hintKey: "studio.assetCreation.sourceTransform.hint",
+      options: options.map((o) => ({
+        ...o,
+        labelKey: o.labelKey.replace("studio.assetDerivation.transform.location.", "studio.assetCreation.sourceTransform.location."),
+      })),
       allowsCustom: true,
     };
   }

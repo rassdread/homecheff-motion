@@ -9,6 +9,10 @@ import type {
   AssetCreationWizardStep,
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
+import {
+  injectSourceReferenceWizardSteps,
+} from "@/lib/studio-asset-wizard-source-flow";
+import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { normalizeAssetCreateEntryPath } from "@/lib/studio-asset-create-entry-path";
 
 /** Ordered wizard steps for a given entry path (after kind is chosen). */
@@ -102,17 +106,25 @@ export function wizardStepSequenceForDraft(
     choiceBasedFlow: boolean;
     derivationFlow: boolean;
     derivationTargetKind?: StudioAssetKind | null;
+    sourceReferenceImageUrl?: string;
+    sourceReferenceStorageKey?: string;
+    referenceImageUrl?: string;
+    sourceTransformChoice?: string;
+    sourceTransformCustom?: string;
+    derivationSource?: AssetWizardDraft["derivationSource"];
   },
   options?: { includeKind?: boolean }
 ): AssetCreationWizardStep[] {
+  let steps: AssetCreationWizardStep[];
   if (draft.derivationFlow) {
     const target = draft.derivationTargetKind ?? draft.kind;
-    return wizardStepsForDerivationFlow(target === "world" ? "character" : target, options);
+    steps = wizardStepsForDerivationFlow(target === "world" ? "character" : target, options);
+  } else if (draft.choiceBasedFlow) {
+    steps = wizardStepsForChoiceFlow(draft.kind, options);
+  } else {
+    steps = wizardStepsForEntryPath(draft.entryPath, options);
   }
-  if (draft.choiceBasedFlow) {
-    return wizardStepsForChoiceFlow(draft.kind, options);
-  }
-  return wizardStepsForEntryPath(draft.entryPath, options);
+  return injectSourceReferenceWizardSteps(steps, draft as AssetWizardDraft);
 }
 
 export function choiceDefForWizardStep(

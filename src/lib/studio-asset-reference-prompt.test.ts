@@ -55,9 +55,14 @@ describe("studio-asset-reference-prompt", () => {
     const prompt = buildAssetReferenceGenerationPrompt({
       kind: "character",
       summaryPrompt: "Chef mascot variant.",
-      sourceReference: { name: "Globe Man", transformLabel: "Chef" },
+      sourceReference: {
+        name: "Globe Man",
+        transformLabel: "Garden",
+        userPrompt: "green cap and garden basket",
+      },
     });
     assert.ok(prompt.includes("Globe Man"));
-    assert.ok(prompt.includes("Preserve the source shape language"));
+    assert.ok(prompt.includes("green cap"));
+    assert.ok(prompt.toLowerCase().includes("preserve"));
   });
 });

@@ -76,6 +76,25 @@ export const UNIT_COST_USD: Record<string, number> = {
 
 export type CostAccuracy = "exact" | "estimated" | "pending";
 
+/** Actions that may appear on the user-facing /mijn-verbruik page. */
+export const CUSTOMER_FACING_BILLING_ACTIONS: ReadonlySet<string> = new Set([
+  COST_ACTION.VIDU_RENDER,
+  COST_ACTION.TEXT_RERENDER,
+  COST_ACTION.LANGUAGE_EXPORT,
+  COST_ACTION.VIDEO_EXPORT,
+  "full_export",
+]);
+
+export function isCustomerFacingBillingAction(actionType: string): boolean {
+  if (!actionType.trim()) {
+    return false;
+  }
+  if (INSTRUMENTATION_ONLY_ACTIONS.has(actionType as CostActionType)) {
+    return false;
+  }
+  return CUSTOMER_FACING_BILLING_ACTIONS.has(actionType);
+}
+
 export function resolveCostAccuracy(row: {
   isEstimated: boolean;
   unitsUsed: number | null;

@@ -69,6 +69,9 @@ export type AssetWizardDraft = {
   derivationTargetKind: StudioAssetKind | null;
   derivationTransformChoice: string;
   derivationTransformCustom: string;
+  /** Source-reference transformation (image_only / image_and_prompt). */
+  sourceTransformChoice: string;
+  sourceTransformCustom: string;
   derivationAccepted: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
@@ -113,6 +116,8 @@ export function emptyAssetWizardDraft(
     derivationTargetKind: null,
     derivationTransformChoice: "",
     derivationTransformCustom: "",
+    sourceTransformChoice: "",
+    sourceTransformCustom: "",
     derivationAccepted: false,
     fields: {},
   };

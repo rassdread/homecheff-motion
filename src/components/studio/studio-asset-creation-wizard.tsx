@@ -18,6 +18,7 @@ import { StudioAssetDerivationPreviewStep } from "@/components/studio/studio-ass
 import { StudioAssetDerivationSourceStep } from "@/components/studio/studio-asset-derivation-source-step";
 import { StudioAssetDerivationTransformStep } from "@/components/studio/studio-asset-derivation-transform-step";
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
+import { StudioWizardSourceTransformStep } from "@/components/studio/studio-wizard-source-transform-step";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   canAdvanceFromChoiceStep,
@@ -41,6 +42,9 @@ import {
   wizardStepsForChoiceFlow,
   wizardStepsForEntryPath,
 } from "@/lib/studio-asset-wizard-flow";
+import {
+  canAdvanceFromSourceTransformStep,
+} from "@/lib/studio-asset-wizard-source-flow";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { resolveWizardChoiceDef } from "@/lib/studio-asset-transformation-options";
@@ -207,6 +211,9 @@ export function StudioAssetCreationWizard({
     }
     if (step === "derive_preview") {
       return canAdvanceFromDerivePreview(activeDraft);
+    }
+    if (step === "source_transform") {
+      return canAdvanceFromSourceTransformStep(activeDraft);
     }
     if (step === "reference") {
       return canAdvanceFromReferenceStep(activeDraft.referenceMode, activeDraft.referenceImageUrl, {
@@ -391,6 +398,23 @@ export function StudioAssetCreationWizard({
         />
       : null}
 
+      {activeDraft && step === "source_transform" ?
+        <StudioWizardSourceTransformStep
+          kind={activeDraft.kind}
+          draft={activeDraft}
+          onDraftChange={updateDraft}
+          onChangeSource={() => {
+            const inputIdx = stepSequence.indexOf("input");
+            const deriveIdx = stepSequence.indexOf("derive_source");
+            if (inputIdx >= 0) {
+              setNavIndex(inputIdx);
+            } else if (deriveIdx >= 0) {
+              setNavIndex(deriveIdx);
+            }
+          }}
+        />
+      : null}
+
       {activeDraft && step === "reference" ?
         <StudioWizardReferenceStep
           kind={activeDraft.kind}
@@ -400,6 +424,21 @@ export function StudioAssetCreationWizard({
             const firstChoiceIdx = stepSequence.indexOf("choice");
             if (firstChoiceIdx >= 0) {
               setNavIndex(firstChoiceIdx);
+            }
+          }}
+          onBackToSourceTransform={() => {
+            const transformIdx = stepSequence.indexOf("source_transform");
+            if (transformIdx >= 0) {
+              setNavIndex(transformIdx);
+            }
+          }}
+          onChangeSource={() => {
+            const inputIdx = stepSequence.indexOf("input");
+            const deriveIdx = stepSequence.indexOf("derive_source");
+            if (deriveIdx >= 0) {
+              setNavIndex(deriveIdx);
+            } else if (inputIdx >= 0) {
+              setNavIndex(inputIdx);
             }
           }}
         />

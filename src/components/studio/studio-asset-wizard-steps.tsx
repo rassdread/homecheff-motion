@@ -17,6 +17,7 @@ import {
   worldFormValuesFromWizardDraft,
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
+import { hasWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { entryPathNeedsProposalStep } from "@/lib/studio-asset-wizard-flow";
 import {
   getClientImagePreprocessOptionsForRole,
@@ -87,8 +88,11 @@ export function StudioAssetWizardInputStep({
             storageKey: uploaded.workingStorageKey,
             name: file.name.replace(/\.[^.]+$/, ""),
           }),
-          referenceImageUrl: uploaded.workingImageUrl,
-          referenceStorageKey: uploaded.workingStorageKey,
+          referenceImageUrl:
+            path === "image_only" || path === "image_and_prompt" ? "" : uploaded.workingImageUrl,
+          referenceStorageKey:
+            path === "image_only" || path === "image_and_prompt" ? "" : uploaded.workingStorageKey,
+          referenceMode: path === "image_only" || path === "image_and_prompt" ? "generate" : d.referenceMode,
         }));
       } catch (e) {
         setUploadError(
@@ -151,7 +155,7 @@ export function StudioAssetWizardInputStep({
           >
             {uploading ? t("button.loading") : t("studio.assetCreation.input.uploadImage")}
           </button>
-          {draft.referenceImageUrl ?
+          {draft.sourceReferenceImageUrl || draft.referenceImageUrl ?
             <p className="text-xs text-emerald-800">{t("studio.assetCreation.input.imageReady")}</p>
           : null}
           {uploadError ?
@@ -720,10 +724,10 @@ export function canAdvanceFromInput(draft: AssetWizardDraft): boolean {
     return draft.promptText.trim().length > 0;
   }
   if (draft.entryPath === "image_only" || draft.entryPath === "existing_asset") {
-    return Boolean(draft.referenceImageUrl);
+    return hasWizardSourceReference(draft) || Boolean(draft.referenceImageUrl);
   }
   if (draft.entryPath === "image_and_prompt") {
-    return Boolean(draft.referenceImageUrl) && draft.promptText.trim().length > 0;
+    return (hasWizardSourceReference(draft) || Boolean(draft.referenceImageUrl)) && draft.promptText.trim().length > 0;
   }
   return true;
 }

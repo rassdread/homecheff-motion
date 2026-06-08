@@ -33,6 +33,7 @@ export async function generateStudioAssetReferenceApi(params: {
     name: string;
     imageUrl?: string;
     transformLabel?: string;
+    userPrompt?: string;
   };
 }) {
   return fetchSameOriginJson<GenerateAssetReferenceResponse>(

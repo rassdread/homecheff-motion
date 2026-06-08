@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { CustomerUsageDashboard } from "@/components/usage/customer-usage-dashboard";
 import { getActiveTranslator } from "@/i18n";
 import { getAuthenticatedUser } from "@/server/auth/session";
-import { loadUserBillingUsage } from "@/server/billing/customer-billing-events";
+import {
+  emptyUserUsageSummary,
+  loadUserBillingUsage,
+} from "@/server/billing/customer-billing-events";
+import type { CustomerUsageReport } from "@/types/customer-usage";
 
 export default async function MijnVerbruikPage() {
   const user = await getAuthenticatedUser();
@@ -11,7 +15,7 @@ export default async function MijnVerbruikPage() {
   }
 
   const t = await getActiveTranslator();
-  let initialReport = null;
+  let initialReport: CustomerUsageReport | null = null;
   let initialError: string | null = null;
 
   try {
@@ -23,6 +27,12 @@ export default async function MijnVerbruikPage() {
       filter: "last30Days" as const,
     };
   } catch {
+    initialReport = {
+      generatedAt: new Date().toISOString(),
+      summary: emptyUserUsageSummary("last30Days"),
+      rows: [],
+      filter: "last30Days",
+    };
     initialError = t("usage.loadError");
   }
 

@@ -25,6 +25,7 @@ export type GenerateAssetReferenceInput = {
     name: string;
     imageUrl?: string;
     transformLabel?: string;
+    userPrompt?: string;
   };
   derivation?: {
     styleDna: AssetStyleDna;
@@ -95,6 +96,7 @@ export async function generateAssetReference(
     ? {
         name: input.sourceReference.name.trim(),
         transformLabel: input.sourceReference.transformLabel?.trim(),
+        userPrompt: input.sourceReference.userPrompt?.trim(),
       }
     : undefined;
 

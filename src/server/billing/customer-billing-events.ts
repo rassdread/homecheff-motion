@@ -14,6 +14,8 @@ import type {
   VideoRenderType,
 } from "@/server/billing/video-pricing-config";
 import { PRICING_PLAN_V1 } from "@/server/billing/video-pricing-config";
+import { isCustomerFacingBillingAction } from "@/server/provider-cost/cost-event-types";
+import type { UserBillingRow, UserUsageSummary } from "@/types/customer-usage";
 
 export type CreateBillingEventInput = {
   userId: string;
@@ -126,9 +128,120 @@ function billingDataFromQuote(
   };
 }
 
-import type { UserBillingRow, UserUsageSummary } from "@/types/customer-usage";
-
 export type { UserBillingRow, UserUsageSummary };
+
+const VIDEO_RENDER_TYPES = new Set([
+  "transition_mode",
+  "story_mode",
+  "full_rerender",
+  "classic",
+  "concept_render",
+]);
+
+type BillingEventRecord = {
+  id: string;
+  createdAt: Date;
+  projectId: string | null;
+  providerCostEventId: string | null;
+  actionType: string;
+  renderType: string;
+  status: string;
+  netPriceEur: number;
+  grossPriceEur: number;
+  pricingRuleLabel: string | null;
+  isEstimated: boolean;
+  metadataJson: unknown;
+  project?: { title: string | null } | null;
+};
+
+function safeNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeString(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+/** Strip admin/internal fields and normalize nullable DB values for user APIs. */
+export function mapCustomerBillingEventToUserRow(event: BillingEventRecord): UserBillingRow {
+  const meta = (event.metadataJson as { creditsUsed?: unknown } | null) ?? {};
+  return {
+    id: event.id,
+    createdAt: event.createdAt.toISOString(),
+    projectId: event.projectId,
+    projectTitle: event.project?.title ?? null,
+    actionType: safeString(event.actionType, "vidu_render"),
+    renderType: safeString(event.renderType, "transition_mode"),
+    status: safeString(event.status, "completed"),
+    creditsUsed: safeNumber(meta.creditsUsed, 0),
+    netPriceEur: safeNumber(event.netPriceEur, 0),
+    grossPriceEur: safeNumber(event.grossPriceEur, 0),
+    pricingRuleLabel: event.pricingRuleLabel ?? null,
+    isEstimated: Boolean(event.isEstimated),
+  };
+}
+
+/** Keep newest row per providerCostEventId; drop instrumentation-only actions. */
+export function filterCustomerFacingBillingEvents<T extends BillingEventRecord>(
+  events: T[]
+): T[] {
+  const seenCostIds = new Set<string>();
+  const rows: T[] = [];
+
+  for (const event of events) {
+    if (!isCustomerFacingBillingAction(event.actionType)) {
+      continue;
+    }
+    const costId = event.providerCostEventId?.trim();
+    if (costId) {
+      if (seenCostIds.has(costId)) {
+        continue;
+      }
+      seenCostIds.add(costId);
+    }
+    rows.push(event);
+  }
+
+  return rows;
+}
+
+export function summarizeUserBillingRows(
+  rows: UserBillingRow[],
+  period: UserUsageSummary["period"]
+): UserUsageSummary {
+  const renderRows = rows.filter(
+    (row) =>
+      row.actionType === "vidu_render" ||
+      VIDEO_RENDER_TYPES.has(row.renderType)
+  );
+  const amountSpentEur =
+    Math.round(rows.reduce((sum, row) => sum + safeNumber(row.netPriceEur, 0), 0) * 100) / 100;
+  const creditsUsed = renderRows.reduce((sum, row) => sum + safeNumber(row.creditsUsed, 0), 0);
+
+  return {
+    period,
+    videoCount: renderRows.length,
+    creditsUsed,
+    amountSpentEur,
+    avgPricePerVideoEur:
+      renderRows.length > 0 ?
+        Math.round((amountSpentEur / renderRows.length) * 100) / 100
+      : 0,
+  };
+}
+
+export function emptyUserUsageSummary(
+  period: UserUsageSummary["period"]
+): UserUsageSummary {
+  return {
+    period,
+    videoCount: 0,
+    creditsUsed: 0,
+    amountSpentEur: 0,
+    avgPricePerVideoEur: 0,
+  };
+}
 
 function periodStart(period: UserUsageSummary["period"], now = new Date()): Date | null {
   if (period === "allTime") {
@@ -152,53 +265,32 @@ export async function loadUserBillingUsage(
   summary: UserUsageSummary;
   rows: UserBillingRow[];
 }> {
-  const since = periodStart(filter);
-  const events = await prisma.customerBillingEvent.findMany({
-    where: {
-      userId,
-      ...(since ? { createdAt: { gte: since } } : {}),
-    },
-    include: {
-      project: { select: { title: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 500,
-  });
+  try {
+    const since = periodStart(filter);
+    const events = await prisma.customerBillingEvent.findMany({
+      where: {
+        userId,
+        ...(since ? { createdAt: { gte: since } } : {}),
+      },
+      include: {
+        project: { select: { title: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
 
-  const rows: UserBillingRow[] = events.map((e) => {
-    const meta = (e.metadataJson as { creditsUsed?: number } | null) ?? {};
+    const visibleEvents = filterCustomerFacingBillingEvents(events);
+    const rows = visibleEvents.map(mapCustomerBillingEventToUserRow);
+
     return {
-      id: e.id,
-      createdAt: e.createdAt.toISOString(),
-      projectId: e.projectId,
-      projectTitle: e.project?.title ?? null,
-      actionType: e.actionType,
-      renderType: e.renderType,
-      status: e.status,
-      creditsUsed: meta.creditsUsed ?? 0,
-      netPriceEur: e.netPriceEur,
-      grossPriceEur: e.grossPriceEur,
-      pricingRuleLabel: e.pricingRuleLabel,
-      isEstimated: e.isEstimated,
+      summary: summarizeUserBillingRows(rows, filter),
+      rows,
     };
-  });
-
-  const videoActions = new Set(["vidu_render", "video_export"]);
-  const renderRows = rows.filter((r) => videoActions.has(r.actionType) || r.renderType.includes("mode"));
-  const amountSpentEur = Math.round(rows.reduce((s, r) => s + r.netPriceEur, 0) * 100) / 100;
-  const creditsUsed = renderRows.reduce((s, r) => s + r.creditsUsed, 0);
-
-  return {
-    summary: {
-      period: filter,
-      videoCount: renderRows.length,
-      creditsUsed,
-      amountSpentEur,
-      avgPricePerVideoEur:
-        renderRows.length > 0 ?
-          Math.round((amountSpentEur / renderRows.length) * 100) / 100
-        : 0,
-    },
-    rows,
-  };
+  } catch (err) {
+    console.error("[billing] loadUserBillingUsage", err);
+    return {
+      summary: emptyUserUsageSummary(filter),
+      rows: [],
+    };
+  }
 }
