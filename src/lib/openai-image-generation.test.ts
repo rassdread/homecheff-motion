@@ -1,11 +1,22 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import {
   buildOpenAiImageGenerationsBody,
   openAiImageGenerationSupportsResponseFormat,
+  prepareOpenAiImageGenerationsBody,
+  resolveOpenAiImageModel,
+  stripUnsafeOpenAiImageGenerationParams,
 } from "@/lib/openai-image-generation";
 
 describe("openai-image-generation", () => {
+  const originalStudioModel = process.env.STUDIO_SCENE_IMAGE_MODEL;
+  const originalOpenAiImageModel = process.env.OPENAI_IMAGE_MODEL;
+
+  afterEach(() => {
+    process.env.STUDIO_SCENE_IMAGE_MODEL = originalStudioModel;
+    process.env.OPENAI_IMAGE_MODEL = originalOpenAiImageModel;
+  });
+
   it("includes response_format only for dall-e models", () => {
     assert.equal(openAiImageGenerationSupportsResponseFormat("dall-e-3"), true);
     assert.equal(openAiImageGenerationSupportsResponseFormat("dall-e-2"), true);
@@ -40,5 +51,32 @@ describe("openai-image-generation", () => {
       size: "1024x1024",
     });
     assert.equal(body.response_format, "url");
+  });
+
+  it("prepareOpenAiImageGenerationsBody strips response_format for gpt-image models", () => {
+    const body = prepareOpenAiImageGenerationsBody({
+      model: "gpt-image-1",
+      prompt: "A mascot chef",
+      size: "1024x1024",
+    });
+    assert.equal("response_format" in body, false);
+    assert.equal(body.model, "gpt-image-1");
+  });
+
+  it("stripUnsafeOpenAiImageGenerationParams removes response_format even if manually injected", () => {
+    const stripped = stripUnsafeOpenAiImageGenerationParams({
+      model: "gpt-image-1.5",
+      prompt: "test",
+      n: 1,
+      size: "1024x1024",
+      response_format: "url",
+    });
+    assert.equal("response_format" in stripped, false);
+  });
+
+  it("resolveOpenAiImageModel falls back to OPENAI_IMAGE_MODEL", () => {
+    delete process.env.STUDIO_SCENE_IMAGE_MODEL;
+    process.env.OPENAI_IMAGE_MODEL = "gpt-image-1";
+    assert.equal(resolveOpenAiImageModel(), "gpt-image-1");
   });
 });

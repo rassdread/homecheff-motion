@@ -4,6 +4,8 @@ export type SceneImageGenerateInput = {
   imageRecordId: string;
   ownerId: string;
   seed?: string;
+  /** Server log context for OpenAI image generation diagnostics. */
+  logRoute?: string;
 };
 
 export type SceneImageGenerateResult = {

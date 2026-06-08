@@ -4,6 +4,8 @@ import {
   isAssetReferenceGenerationAvailable,
 } from "@/server/studio/studio-asset-reference-service";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { resolveOpenAiImageModel } from "@/lib/openai-image-generation";
+import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 const VALID_KINDS = new Set<StudioAssetKind>(["character", "prop", "location"]);
@@ -57,6 +59,20 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  console.info(
+    "[asset-references/generate]",
+    JSON.stringify({
+      route: "/api/studio/asset-references/generate",
+      helperPath: "POST route→generateAssetReference",
+      model: resolveOpenAiImageModel(),
+      providerId: getSelectedSceneImageProviderId(),
+      envStudioSceneImageModel: process.env.STUDIO_SCENE_IMAGE_MODEL?.trim() ?? null,
+      envOpenAiImageModel: process.env.OPENAI_IMAGE_MODEL?.trim() ?? null,
+      generationId: body.generationId ?? null,
+      kind,
+    })
+  );
 
   const result = await generateAssetReference(user, {
     kind,

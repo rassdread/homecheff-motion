@@ -1,6 +1,7 @@
 import type { SceneImageGenerateInput, SceneImageGenerateResult, SceneImageProvider } from "@/server/scene-image-providers/types";
 import {
-  buildOpenAiImageGenerationsBody,
+  fetchOpenAiImageGenerations,
+  prepareOpenAiImageGenerationsBody,
   resolveOpenAiImageModel,
 } from "@/lib/openai-image-generation";
 
@@ -41,21 +42,21 @@ export class OpenAiSceneImageProvider implements SceneImageProvider {
 
     const model = resolveOpenAiImageModel();
     const size = process.env.STUDIO_SCENE_IMAGE_SIZE?.trim() || "1024x1024";
+    const body = prepareOpenAiImageGenerationsBody({
+      model,
+      prompt: input.prompt,
+      size,
+      n: 1,
+    });
 
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const res = await fetchOpenAiImageGenerations({
+      apiKey,
+      body,
+      logContext: {
+        helperPath: "OpenAiSceneImageProvider.generate",
+        route: input.logRoute,
+        model,
       },
-      body: JSON.stringify(
-        buildOpenAiImageGenerationsBody({
-          model,
-          prompt: input.prompt,
-          size,
-          n: 1,
-        })
-      ),
     });
 
     const payload = (await res.json()) as OpenAiImageResponse;

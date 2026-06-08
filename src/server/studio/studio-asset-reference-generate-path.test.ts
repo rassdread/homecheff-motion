@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
-import { buildOpenAiImageGenerationsBody } from "@/lib/openai-image-generation";
+import { prepareOpenAiImageGenerationsBody } from "@/lib/openai-image-generation";
 import { generateImageBuffersFromPrompt } from "@/server/studio/studio-image-generation-core";
 
 describe("asset reference generate path", () => {
@@ -22,7 +22,7 @@ describe("asset reference generate path", () => {
     process.env.STUDIO_SCENE_IMAGE_MODEL = originalModel;
   });
 
-  it("generateImageBuffersFromPrompt does not send response_format for gpt-image models", async () => {
+  it("POST /api/studio/asset-references/generate path does not send response_format for gpt-image models", async () => {
     let requestBody: Record<string, unknown> | null = null;
     globalThis.fetch = mock.fn(async (_url, init) => {
       requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -38,13 +38,15 @@ describe("asset reference generate path", () => {
       prompt: "Garden mascot variant from Globe Man.",
       correlationId: "asset-ref-gen-1",
       ownerId: "user-1",
+      logRoute: "/api/studio/asset-references/generate",
     });
 
     assert.ok(requestBody);
     assert.equal("response_format" in requestBody!, false);
+    assert.equal(requestBody!.model, "gpt-image-1");
     assert.deepEqual(
       requestBody,
-      buildOpenAiImageGenerationsBody({
+      prepareOpenAiImageGenerationsBody({
         model: "gpt-image-1",
         prompt: "Garden mascot variant from Globe Man.",
         size: "1024x1024",

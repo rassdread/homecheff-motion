@@ -7,6 +7,7 @@ export async function generateImageBuffersFromPrompt(params: {
   correlationId: string;
   ownerId: string;
   seed?: string;
+  logRoute?: string;
 }): Promise<SceneImageGenerateResult> {
   const provider = getSceneImageProvider();
   return provider.generate({
@@ -15,5 +16,6 @@ export async function generateImageBuffersFromPrompt(params: {
     imageRecordId: params.correlationId,
     ownerId: params.ownerId,
     seed: params.seed,
+    logRoute: params.logRoute,
   });
 }

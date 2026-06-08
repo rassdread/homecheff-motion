@@ -7,6 +7,7 @@ import { isSceneImageProviderAvailable } from "@/lib/studio-regeneration-guard";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioAssetReferenceBuffers } from "@/server/studio/studio-asset-reference-blob";
 import { generateImageBuffersFromPrompt } from "@/server/studio/studio-image-generation-core";
+import { logOpenAiImageGenerationRequest, resolveOpenAiImageModel } from "@/lib/openai-image-generation";
 import {
   meterAssetDerivation,
   meterOpenAiSceneImage,
@@ -125,6 +126,19 @@ export async function generateAssetReference(
   };
 
   const providerId = getSelectedSceneImageProviderId();
+  const resolvedModel = resolveOpenAiImageModel();
+
+  logOpenAiImageGenerationRequest({
+    helperPath: "generateAssetReference→generateImageBuffersFromPrompt",
+    route: "/api/studio/asset-references/generate",
+    model: resolvedModel,
+    body: {
+      model: resolvedModel,
+      providerId,
+      feature: input.derivation ? "asset_derivation" : "asset_reference_generate",
+      generationId,
+    },
+  });
 
   try {
     const buffers = await generateImageBuffersFromPrompt({
@@ -132,6 +146,7 @@ export async function generateAssetReference(
       correlationId: generationId,
       ownerId: viewer.id,
       seed: promptSeed(generatedPrompt, generationId),
+      logRoute: "/api/studio/asset-references/generate",
     });
 
     const uploaded = await uploadStudioAssetReferenceBuffers({
