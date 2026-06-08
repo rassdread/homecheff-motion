@@ -17,6 +17,7 @@ import {
   buildWorldMemoryPromptLines,
 } from "@/lib/studio-memory-prompt";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
+import { formatSemanticIdentityRulesForExecution, collectHandoffIdentityGaps } from "@/lib/studio-identity-continuity";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type {
   StudioExecutionReadiness,
@@ -133,6 +134,7 @@ export function buildSceneExecutionPackage(
         memoryBundle: bundle,
       }),
     aiDirectorNotes: options.aiDirectorNotes?.trim() ?? "",
+    semanticIdentityRules: formatSemanticIdentityRulesForExecution(scene.semanticRecipe),
   };
 }
 
@@ -157,6 +159,7 @@ export function buildFinalExecutionPrompt(pkg: StudioSceneExecutionPackage): str
       : "",
     pkg.worldRules ? `World: ${pkg.worldRules}` : "",
     pkg.characterRules ? `Characters: ${pkg.characterRules}` : "",
+    pkg.semanticIdentityRules ? `Semantic identity: ${pkg.semanticIdentityRules}` : "",
     pkg.locationRules ? `Location: ${pkg.locationRules}` : "",
     pkg.propRules ? `Props: ${pkg.propRules}` : "",
     pkg.continuityRules ? `Continuity: ${pkg.continuityRules}` : "",
@@ -320,6 +323,14 @@ export function validateStudioExecutionContinuity(
       code: "studio_character_drift",
       message: drift,
       severity: "high",
+    });
+  }
+
+  for (const gap of collectHandoffIdentityGaps(payload).slice(0, 8)) {
+    warnings.push({
+      code: `identity_${gap.field}_missing`,
+      message: gap.message,
+      severity: gap.severity === "critical" ? "high" : "medium",
     });
   }
 

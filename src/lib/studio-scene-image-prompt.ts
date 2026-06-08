@@ -1,5 +1,7 @@
 import { parseAssetReferencesBundle } from "@/lib/studio-asset-canonical-references";
 import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
+import { parseAssetSemanticRecordFromNotes } from "@/lib/studio-asset-semantic-record";
+import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
 import { buildContinuityPrompt } from "@/lib/studio-prompt-continuity-builder";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -65,6 +67,31 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   return lines;
 }
 
+function buildSemanticIdentityLines(memoryBundle?: SceneMemoryBundle): string[] {
+  if (!memoryBundle) {
+    return [];
+  }
+  const lines: string[] = [];
+  for (const character of memoryBundle.characters) {
+    const { record } = parseAssetSemanticRecordFromNotes(character.referenceNotes);
+    if (!record?.brandIdentity && !record?.assetFamily && !record?.identityFingerprint) {
+      continue;
+    }
+    const parts = [
+      record.brandIdentity ? `Brand: ${record.brandIdentity}` : "",
+      record.assetFamily ? `Family: ${record.assetFamily}` : "",
+      record.identityFingerprint
+        ? `Identity: ${formatIdentityFingerprintSummary(record.identityFingerprint)}`
+        : "",
+      record.preserveRules?.length ? `Preserve: ${record.preserveRules.slice(0, 6).join(", ")}` : "",
+    ].filter(Boolean);
+    if (parts.length > 0) {
+      lines.push(`${character.name} semantic identity — ${parts.join(" · ")}`);
+    }
+  }
+  return lines;
+}
+
 function buildReferenceConsistencyLines(
   scene: SceneSnapshot,
   memoryBundle?: SceneMemoryBundle
@@ -109,7 +136,7 @@ function buildReferenceConsistencyLines(
     }
   }
 
-  return [...primaryLines, ...secondaryLines, ...buildSupportingReferenceLines(memoryBundle)];
+  return [...primaryLines, ...secondaryLines, ...buildSemanticIdentityLines(memoryBundle), ...buildSupportingReferenceLines(memoryBundle)];
 }
 
 /**

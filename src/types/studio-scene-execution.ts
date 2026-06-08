@@ -13,6 +13,8 @@ export type StudioSceneExecutionPackage = {
   propRules: string;
   continuityRules: string;
   aiDirectorNotes: string;
+  /** V26 semantic identity block distilled from scene semantic recipe. */
+  semanticIdentityRules: string;
 };
 
 /** Story-level execution summary for import UI. */

@@ -35,6 +35,10 @@ export type AssetSemanticRecord = {
   derivedFromAssetId?: string;
   /** Compact identity fingerprint for variant fidelity */
   identityFingerprint?: import("@/types/studio-asset-identity-preservation").AssetIdentityFingerprint;
+  /** Post-generation fidelity score when saved from transform flow */
+  variantFidelityOverall?: number;
+  /** Human-readable source name when derived from upload/library without asset id */
+  sourceReferenceName?: string;
 };
 
 export type AssetSemanticRecordKind = "character" | "prop" | "location" | "world";

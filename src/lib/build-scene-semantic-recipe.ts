@@ -49,6 +49,10 @@ function toPropRef(prop: StudioStoryboardSceneRow["props"][number]["prop"]): Sce
     visualStyle: record.visualStyle,
     keyFeatures: record.keyFeatures,
     preserveRules: record.preserveRules,
+    assetFamily: record.assetFamily,
+    identityFingerprintSummary: record.identityFingerprint
+      ? formatIdentityFingerprintSummary(record.identityFingerprint)
+      : undefined,
   };
 }
 

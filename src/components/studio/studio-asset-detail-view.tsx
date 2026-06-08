@@ -79,6 +79,36 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
             <dd className="mt-0.5">{collections.map((c) => t(c.labelKey as never)).join(" · ")}</dd>
           </div>
         : null}
+        {asset.semanticContinuity?.assetFamily ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.assetFamily")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.assetFamily}</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.brandIdentity ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.brandIdentity")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.brandIdentity}</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.derivedFromSourceName ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.basedOn")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.derivedFromSourceName}</dd>
+          </div>
+        : null}
+        {typeof asset.semanticContinuity?.identityScore === "number" ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityScore")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.identityScore}%</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.fingerprintHash ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.fingerprint")}</dt>
+            <dd className="mt-0.5 font-mono text-[11px]">{asset.semanticContinuity.fingerprintHash}</dd>
+          </div>
+        : null}
       </dl>
 
       {usage && usage.usedBy.length > 0 ?

@@ -80,6 +80,9 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     parentAssetId: raw.parentAssetId?.trim() || undefined,
     derivedFromAssetId: raw.derivedFromAssetId?.trim() || undefined,
     identityFingerprint: raw.identityFingerprint ?? undefined,
+    variantFidelityOverall:
+      typeof raw.variantFidelityOverall === "number" ? raw.variantFidelityOverall : undefined,
+    sourceReferenceName: raw.sourceReferenceName?.trim() || undefined,
   };
 }
 
@@ -142,14 +145,18 @@ export function buildAssetSemanticRecordFromVision(
 }
 
 export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft): AssetSemanticRecord | null {
-  if (draft.sourceVisionAnalysis) {
+  const sourceName = draft.sourceReferenceName?.trim() || draft.derivationSource?.assetName?.trim();
+  const visionAnalysis = draft.sourceVisionAnalysis;
+  if (visionAnalysis) {
     const lineage = resolveSemanticLineageFromDraft(draft);
-    return buildAssetSemanticRecordFromVision(draft.sourceVisionAnalysis, {
+    return buildAssetSemanticRecordFromVision(visionAnalysis, {
       roleContext: draft.fields.role ?? draft.derivationTransformChoice ?? undefined,
       worldContext: draft.fields.worldProfileId ?? undefined,
-      assetFamily: draft.sourceVisionAnalysis.assetFamily,
+      assetFamily: visionAnalysis.assetFamily,
       parentAssetId: lineage.parentAssetId,
       derivedFromAssetId: lineage.derivedFromAssetId,
+      sourceReferenceName: sourceName || undefined,
+      variantFidelityOverall: draft.variantFidelityScore?.overall,
       preserveRules:
         draft.sourceTransformPreserve.trim()
           ? draft.sourceTransformPreserve.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
@@ -166,7 +173,12 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
   }
 
   if (draft.derivationStyleDna) {
+    const lineage = resolveSemanticLineageFromDraft(draft);
     return buildAssetSemanticRecordFromStyleDna(draft.derivationStyleDna, {
+      parentAssetId: lineage.parentAssetId,
+      derivedFromAssetId: lineage.derivedFromAssetId,
+      sourceReferenceName: sourceName || undefined,
+      variantFidelityOverall: draft.variantFidelityScore?.overall,
       preserveRules: draft.sourceTransformPreserve
         ? draft.sourceTransformPreserve.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
         : undefined,
@@ -389,8 +401,16 @@ export function formatDirectorSemanticAssetLabel(
   if (record.objectType && record.objectType.toLowerCase() !== name.toLowerCase()) {
     parts.push(record.objectType);
   }
+  if (record.assetFamily) {
+    parts.push(`Family: ${record.assetFamily}`);
+  }
   if (record.brandIdentity) {
     parts.push(`Brand: ${record.brandIdentity}`);
+  }
+  if (record.identityFingerprint?.fingerprintHash) {
+    parts.push(`Fingerprint: ${record.identityFingerprint.fingerprintHash.slice(0, 8)}`);
+  } else if (record.identityFingerprint?.faceStructure) {
+    parts.push(`Identity: ${record.identityFingerprint.faceStructure}`);
   }
   if (record.shapeDna?.length) {
     parts.push(`Shape: ${record.shapeDna.slice(0, 3).join(", ")}`);
@@ -398,5 +418,32 @@ export function formatDirectorSemanticAssetLabel(
   if (record.visualStyle) {
     parts.push(`Style: ${record.visualStyle}`);
   }
+  if (record.sourceReferenceName) {
+    parts.push(`Based on: ${record.sourceReferenceName}`);
+  }
   return parts.join(" · ");
+}
+
+export function buildSemanticContinuitySnapshot(
+  record: AssetSemanticRecord | null | undefined
+): import("@/types/studio-media-asset").StudioAssetSemanticContinuity | null {
+  if (!record) {
+    return null;
+  }
+  const hasIdentity =
+    Boolean(record.brandIdentity?.trim()) ||
+    Boolean(record.assetFamily?.trim()) ||
+    Boolean(record.identityFingerprint?.fingerprintHash);
+  if (!hasIdentity) {
+    return null;
+  }
+  return {
+    brandIdentity: record.brandIdentity,
+    assetFamily: record.assetFamily,
+    fingerprintHash: record.identityFingerprint?.fingerprintHash,
+    identityScore: record.variantFidelityOverall,
+    derivedFromSourceName: record.sourceReferenceName,
+    derivedFromAssetId: record.derivedFromAssetId ?? record.parentAssetId,
+    visionSummary: record.visionSummary,
+  };
 }

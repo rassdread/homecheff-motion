@@ -201,7 +201,7 @@ function normalizeColors(raw: AssetReferenceVisionJson["colors"]): AssetVisionCo
 
 export function mapVisionJsonToAnalysis(
   json: AssetReferenceVisionJson,
-  context?: { sourceName?: string }
+  context?: { sourceName?: string; keyFeatures?: string[] }
 ): AssetVisionAnalysis {
   const objectType = normalizeVisionObjectType(json.objectType);
   const objectTypeLabel =
@@ -217,6 +217,7 @@ export function mapVisionJsonToAnalysis(
     rawBrand: json.brandIdentity,
     sourceName: context?.sourceName,
     objectType,
+    keyFeatures,
   });
 
   const assetFamily = inferAssetFamily({
@@ -275,7 +276,10 @@ export function mapVisionJsonToAnalysis(
     ),
   };
 
-  return applyKnownBrandDefaults(withFingerprint, context);
+  return applyKnownBrandDefaults(withFingerprint, {
+    sourceName: context?.sourceName,
+    keyFeatures,
+  });
 }
 
 export function mapVisionAnalysisToStyleDna(vision: AssetVisionAnalysis): AssetStyleDna {

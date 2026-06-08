@@ -67,10 +67,25 @@ export type BrandIdentityContext = {
   sourceId?: string;
   promptText?: string;
   objectType?: AssetVisionObjectType;
+  keyFeatures?: string[];
 };
 
+const GENERIC_SOURCE_NAME_RE =
+  /^(upload|reference|source(\s+image)?|variant|image|file|untitled)$/i;
+
+export function isGenericWizardSourceName(value: string | undefined): boolean {
+  const trimmed = value?.trim() ?? "";
+  return !trimmed || GENERIC_SOURCE_NAME_RE.test(trimmed);
+}
+
 export function buildBrandIdentitySearchText(params: BrandIdentityContext): string {
-  return [params.rawBrand, params.sourceName, params.sourceId, params.promptText]
+  return [
+    params.rawBrand,
+    params.sourceName,
+    params.sourceId,
+    params.promptText,
+    ...(params.keyFeatures ?? []),
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -173,6 +188,19 @@ export function inferBrandIdentityFromContext(params: BrandIdentityContext): str
     return sourceName;
   }
 
+  const featureText = (params.keyFeatures ?? []).join(" ");
+  if (
+    /globe/i.test(featureText) &&
+    params.objectType &&
+    CHARACTER_LIKE.includes(params.objectType)
+  ) {
+    return "HomeCheff Globe Mascot";
+  }
+
+  if (isUnknownBrandIdentity(raw)) {
+    return "Unknown brand asset";
+  }
+
   return raw || sourceName;
 }
 
@@ -185,6 +213,7 @@ export function applyKnownBrandDefaults(
     rawBrand: analysis.brandIdentity,
     sourceName: context?.sourceName,
     objectType: analysis.objectType,
+    keyFeatures: context?.keyFeatures ?? analysis.keyFeatures,
   });
   const profile = resolveHomeCheffGlobeBrandProfile(searchText);
   if (!profile) {
@@ -195,6 +224,7 @@ export function applyKnownBrandDefaults(
         sourceId: context.sourceId,
         promptText: context.promptText,
         objectType: analysis.objectType,
+        keyFeatures: context.keyFeatures ?? analysis.keyFeatures,
       });
       const family = inferAssetFamily({
         brandIdentity: inferred,
@@ -752,12 +782,12 @@ export function resolveSemanticLineageFromDraft(draft: AssetWizardDraft): {
   parentAssetId?: string;
   derivedFromAssetId?: string;
 } {
-  const sourceId = draft.derivationSource?.assetId;
-  if (!sourceId) {
-    return {};
+  const sourceId = draft.derivationSource?.assetId?.trim();
+  if (sourceId) {
+    return {
+      parentAssetId: sourceId,
+      derivedFromAssetId: sourceId,
+    };
   }
-  return {
-    parentAssetId: sourceId,
-    derivedFromAssetId: sourceId,
-  };
+  return {};
 }

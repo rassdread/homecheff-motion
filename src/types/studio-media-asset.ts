@@ -56,6 +56,18 @@ export type StudioAsset = {
   lastUsedAt?: string | null;
   generationId?: string;
   promptSummary?: string;
+  /** Semantic identity continuity snapshot from persisted asset record. */
+  semanticContinuity?: StudioAssetSemanticContinuity;
+};
+
+export type StudioAssetSemanticContinuity = {
+  brandIdentity?: string;
+  assetFamily?: string;
+  fingerprintHash?: string;
+  identityScore?: number;
+  derivedFromSourceName?: string;
+  derivedFromAssetId?: string;
+  visionSummary?: string;
 };
 
 export type StudioAssetCollection = {

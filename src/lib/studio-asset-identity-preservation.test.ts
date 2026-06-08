@@ -199,6 +199,34 @@ describe("studio-asset-identity-preservation", () => {
     assert.equal(profile!.assetFamily, "HomeCheff Mascots");
   });
 
+  it("infers HomeCheff Globe from vision keyFeatures when source name is generic upload", () => {
+    const vision = mapVisionJsonToAnalysis(
+      {
+        objectType: "Mascot",
+        visualStyle: "Flat cartoon logo mascot",
+        colors: [{ label: "Green", hex: "#006D52" }],
+        shapeLanguage: ["Round"],
+        keyFeatures: ["Globe body", "Chef hat", "White face"],
+        brandIdentity: "Unknown Brand Asset",
+        suggestedForbidden: [],
+        confidence: 0.8,
+      },
+      { sourceName: "upload" }
+    );
+    assert.equal(vision.brandIdentity, "HomeCheff Globe Mascot");
+    assert.equal(vision.assetFamily, "HomeCheff Mascots");
+  });
+
+  it("does not return unknown vision brand when heuristics fail", () => {
+    const brand = inferBrandIdentityFromContext({
+      rawBrand: "Unknown Brand Asset",
+      sourceName: "upload",
+      objectType: "mascot",
+    });
+    assert.equal(brand, "Unknown brand asset");
+    assert.notEqual(brand, "Unknown Brand Asset");
+  });
+
   it("buildFingerprintLockBlock enforces P1-P4 tiers", () => {
     const level1 = buildFingerprintLockBlock(1);
     assert.match(level1, /P1 LOCKED/i);

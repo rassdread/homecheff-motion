@@ -69,6 +69,9 @@ export type StudioRenderAuditMetadata = {
   semanticRecipeVersion?: number | null;
   promptLineageHashes?: string[];
   assetSemanticRecordIds?: string[];
+  brandIdentities?: string[];
+  assetFamilies?: string[];
+  identityFingerprintHashes?: string[];
 };
 
 export type StudioStalenessSeverity = "low" | "medium" | "high";

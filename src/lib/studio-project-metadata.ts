@@ -475,6 +475,52 @@ export function buildStudioRenderAuditMetadata(project: {
       })
     ),
   ];
+  const brandIdentities = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          recipe.brandIdentity,
+          ...recipe.characters.map((c) => c.brandIdentity),
+          ...recipe.props.map((p) => p.brandIdentity),
+        ].filter((v): v is string => Boolean(v?.trim()));
+      })
+    ),
+  ];
+  const assetFamilies = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          recipe.assetFamily,
+          ...recipe.characters.map((c) => c.assetFamily),
+          ...recipe.props.map((p) => p.assetFamily),
+        ].filter((v): v is string => Boolean(v?.trim()));
+      })
+    ),
+  ];
+  const identityFingerprintHashes = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          recipe.identityFingerprintSummary,
+          ...recipe.characters.map((c) => c.identityFingerprintSummary),
+        ]
+          .filter((v): v is string => Boolean(v?.trim()))
+          .map((summary) => summary.slice(0, 16));
+      })
+    ),
+  ];
 
   return {
     sourceStoryboardId: project.studioSourceStoryboardId,
@@ -491,6 +537,10 @@ export function buildStudioRenderAuditMetadata(project: {
     promptLineageHashes: promptLineageHashes.length > 0 ? promptLineageHashes : undefined,
     assetSemanticRecordIds:
       assetSemanticRecordIds.length > 0 ? assetSemanticRecordIds : undefined,
+    brandIdentities: brandIdentities.length > 0 ? brandIdentities : undefined,
+    assetFamilies: assetFamilies.length > 0 ? assetFamilies : undefined,
+    identityFingerprintHashes:
+      identityFingerprintHashes.length > 0 ? identityFingerprintHashes : undefined,
   };
 }
 

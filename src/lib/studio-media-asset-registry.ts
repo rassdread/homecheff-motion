@@ -4,6 +4,13 @@
 
 import { listStudioAudioAssets } from "@/lib/studio-audio-asset-library";
 import {
+  buildSemanticContinuitySnapshot,
+  extractAssetSemanticRecordFromCharacter,
+  extractAssetSemanticRecordFromLocation,
+  extractAssetSemanticRecordFromProp,
+} from "@/lib/studio-asset-semantic-record";
+import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
+import {
   assignCollectionsToAssets,
   buildBrandAssetRegistryEntries,
 } from "@/lib/studio-media-asset-collections";
@@ -22,6 +29,24 @@ const EPOCH = new Date(0).toISOString();
 
 export function studioAssetId(category: StudioAssetCategory, entityId: string): string {
   return `${category}:${entityId}`;
+}
+
+function inferReferenceImageOrigin(record: AssetSemanticRecord | null): StudioAsset["origin"] {
+  if (record?.derivedFromAssetId || record?.parentAssetId) {
+    return "derived";
+  }
+  if (record?.sourceReferenceName || record?.changeRules?.length) {
+    return "generated";
+  }
+  return "uploaded";
+}
+
+function withSemanticContinuity(
+  asset: StudioAsset,
+  record: AssetSemanticRecord | null
+): StudioAsset {
+  const snapshot = buildSemanticContinuitySnapshot(record);
+  return snapshot ? { ...asset, semanticContinuity: snapshot } : asset;
 }
 
 function audioCategoryToAssetCategory(
@@ -78,7 +103,8 @@ export function characterToRegistryAsset(
   character: StudioCharacterListItem,
   options?: { isSystem?: boolean }
 ): StudioAsset {
-  return {
+  const record = extractAssetSemanticRecordFromCharacter(character);
+  const asset: StudioAsset = {
     id: studioAssetId("character", character.id),
     name: character.name,
     category: "character",
@@ -87,6 +113,7 @@ export function characterToRegistryAsset(
       character.role,
       ...(character.isMascot ? ["mascot"] : []),
       ...(character.visualKeywords ? character.visualKeywords.split(/[,\s]+/).filter(Boolean) : []),
+      ...(record?.assetFamily ? [record.assetFamily] : []),
     ],
     owner: options?.isSystem ? "system" : character.ownerId,
     source: options?.isSystem ? "system" : "user",
@@ -99,13 +126,15 @@ export function characterToRegistryAsset(
     downloadUrl: character.referenceImageUrl || null,
     origin: "manual",
   };
+  return withSemanticContinuity(asset, record);
 }
 
 export function characterReferenceImageAsset(character: StudioCharacterListItem): StudioAsset | null {
   if (!character.referenceImageUrl?.trim()) {
     return null;
   }
-  return {
+  const record = extractAssetSemanticRecordFromCharacter(character);
+  const asset: StudioAsset = {
     id: studioAssetId("reference_image", `char_${character.id}`),
     name: `${character.name} Reference`,
     category: "reference_image",
@@ -120,8 +149,9 @@ export function characterReferenceImageAsset(character: StudioCharacterListItem)
     previewUrl: character.referenceImageUrl,
     collectionIds: [],
     downloadUrl: character.referenceImageUrl,
-    origin: "uploaded",
+    origin: inferReferenceImageOrigin(record),
   };
+  return withSemanticContinuity(asset, record);
 }
 
 export function characterMouthAssets(character: StudioCharacterListItem): StudioAsset[] {
@@ -154,7 +184,8 @@ export function characterMouthAssets(character: StudioCharacterListItem): Studio
 }
 
 export function locationToRegistryAsset(location: StudioLocationListItem): StudioAsset {
-  return {
+  const record = extractAssetSemanticRecordFromLocation(location);
+  const asset: StudioAsset = {
     id: studioAssetId("location", location.id),
     name: location.name,
     category: "location",
@@ -171,13 +202,15 @@ export function locationToRegistryAsset(location: StudioLocationListItem): Studi
     downloadUrl: location.referenceImageUrl || null,
     origin: "manual",
   };
+  return withSemanticContinuity(asset, record);
 }
 
 export function locationReferenceImageAsset(location: StudioLocationListItem): StudioAsset | null {
   if (!location.referenceImageUrl?.trim()) {
     return null;
   }
-  return {
+  const record = extractAssetSemanticRecordFromLocation(location);
+  const asset: StudioAsset = {
     id: studioAssetId("reference_image", `loc_${location.id}`),
     name: `${location.name} Reference`,
     category: "reference_image",
@@ -192,17 +225,19 @@ export function locationReferenceImageAsset(location: StudioLocationListItem): S
     previewUrl: location.referenceImageUrl,
     collectionIds: [],
     downloadUrl: location.referenceImageUrl,
-    origin: "uploaded",
+    origin: inferReferenceImageOrigin(record),
   };
+  return withSemanticContinuity(asset, record);
 }
 
 export function propToRegistryAsset(prop: StudioPropListItem): StudioAsset {
-  return {
+  const record = extractAssetSemanticRecordFromProp(prop);
+  const asset: StudioAsset = {
     id: studioAssetId("prop", prop.id),
     name: prop.name,
     category: "prop",
     description: prop.description || "",
-    tags: [prop.category, prop.slug],
+    tags: [prop.category, prop.slug, ...(record?.assetFamily ? [record.assetFamily] : [])],
     owner: prop.ownerId,
     source: "user",
     status: "active",
@@ -214,6 +249,7 @@ export function propToRegistryAsset(prop: StudioPropListItem): StudioAsset {
     downloadUrl: prop.referenceImageUrl || null,
     origin: "manual",
   };
+  return withSemanticContinuity(asset, record);
 }
 
 export function sceneImageToRegistryAsset(
