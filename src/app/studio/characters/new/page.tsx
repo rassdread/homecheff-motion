@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioCharacterForm,
@@ -21,9 +22,11 @@ import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefi
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 
-export default function StudioCharacterNewPage() {
+function StudioCharacterNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const guided = searchParams.get("guided") === "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("character"));
   const prefillCharacter = prefill ? buildCharacterDetailFromPrefill(prefill) : undefined;
 
@@ -59,18 +62,37 @@ export default function StudioCharacterNewPage() {
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-zinc-900">{t("studio.characters.createTitle")}</h1>
           <div className="mt-8">
-            <StudioCharacterForm
-              key={prefillCharacter?.id ?? "new-character"}
-              mode="create"
-              submitLabel={t("studio.characters.save")}
-              backHref="/studio/characters"
-              initial={prefillCharacter}
-              identityPrefill={prefill}
-              onSubmit={handleSubmit}
-            />
+            <StudioAssetCreationPage
+              kind="character"
+              guidedQueryParam={guided}
+              hasDecisionPrefill={Boolean(prefill)}
+            >
+              {(ctx) => (
+                <StudioCharacterForm
+                  key={`${prefillCharacter?.id ?? "new-character"}-${ctx.entryPath ?? "none"}-${ctx.proposalApplied}`}
+                  mode="create"
+                  submitLabel={t("studio.characters.save")}
+                  backHref="/studio/characters"
+                  initial={prefillCharacter}
+                  identityPrefill={prefill}
+                  wizardEntryPath={ctx.entryPath}
+                  wizardProposal={ctx.wizardProposal}
+                  wizardProposalApplied={ctx.proposalApplied}
+                  onSubmit={handleSubmit}
+                />
+              )}
+            </StudioAssetCreationPage>
           </div>
         </section>
       </main>
     </StudioAuthGate>
+  );
+}
+
+export default function StudioCharacterNewPage() {
+  return (
+    <Suspense fallback={<main className="flex-1 px-6 py-12 text-sm text-zinc-600">…</main>}>
+      <StudioCharacterNewPageContent />
+    </Suspense>
   );
 }

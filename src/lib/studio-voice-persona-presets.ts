@@ -43,6 +43,8 @@ export type VoicePersonaResolvedPreset = {
   matchingReason: string | null;
   matchedAccentId: string | null;
   matchedAccentLabelKey: string | null;
+  personaScore: number;
+  matchReasonKeys: string[];
   unavailableReasonKey?: string;
   unavailableSuggestionKey?: string;
 };
@@ -256,6 +258,29 @@ function resolvePresetVoice(
   return null;
 }
 
+function buildMatchReasonKeys(
+  preset: VoicePersonaPresetDefinition,
+  voice: VoiceLibraryEntry,
+  accentMatch: ReturnType<typeof evaluatePersonaAccentMatch>
+): string[] {
+  const keys: string[] = [];
+  if (accentMatch.matchedAccentLabelKey) {
+    keys.push("studio.voicePersona.matchReason.accent");
+  }
+  const gender = (voice.gender || voice.labels.gender || "").toLowerCase();
+  if (preset.gender && gender === preset.gender) {
+    keys.push("studio.voicePersona.matchReason.gender");
+  }
+  const name = voice.name.toLowerCase();
+  if (preset.matchHints.nameContains?.some((h) => name.includes(h.toLowerCase()))) {
+    keys.push("studio.voicePersona.matchReason.nameHint");
+  }
+  if (voice.description?.trim()) {
+    keys.push("studio.voicePersona.matchReason.metadata");
+  }
+  return keys;
+}
+
 function unavailablePreset(preset: VoicePersonaPresetDefinition): VoicePersonaResolvedPreset {
   return {
     id: preset.id,
@@ -271,6 +296,8 @@ function unavailablePreset(preset: VoicePersonaPresetDefinition): VoicePersonaRe
     matchingReason: null,
     matchedAccentId: null,
     matchedAccentLabelKey: null,
+    personaScore: 0,
+    matchReasonKeys: [],
     unavailableReasonKey: "studio.voicePersona.unavailable.noMatch",
     unavailableSuggestionKey: "studio.voicePersona.unavailable.browseOrClone",
   };
@@ -313,6 +340,8 @@ export function buildVoicePersonaPresets(catalog: VoiceLibraryCatalog): VoicePer
       matchingReason: accentMatch.matchingReason,
       matchedAccentId: accentMatch.matchedAccentId,
       matchedAccentLabelKey: accentMatch.matchedAccentLabelKey,
+      personaScore: score,
+      matchReasonKeys: buildMatchReasonKeys(preset, voice, accentMatch),
     });
   }
 

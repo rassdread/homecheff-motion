@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioWorldProfileForm,
+  studioWorldFormToCreatePayload,
   type StudioWorldProfileFormValues,
 } from "@/components/studio/studio-world-profile-form";
 import { useActiveTranslator } from "@/i18n/client";
@@ -30,7 +31,7 @@ export default function StudioEditWorldPage() {
   }, [load]);
 
   const handleSubmit = async (values: StudioWorldProfileFormValues) => {
-    const res = await updateStudioWorldApi(id, values);
+    const res = await updateStudioWorldApi(id, studioWorldFormToCreatePayload(values));
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.worlds.error.saveFailed"));
     }
@@ -47,6 +48,7 @@ export default function StudioEditWorldPage() {
           <h1 className="mt-4 text-3xl font-bold">{t("studio.worlds.editTitle")}</h1>
           {world ? (
             <StudioWorldProfileForm
+              mode="edit"
               initial={world}
               submitLabel={t("studio.worlds.saveChanges")}
               backHref={`/studio/worlds/${id}`}

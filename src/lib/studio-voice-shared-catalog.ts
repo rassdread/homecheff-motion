@@ -43,17 +43,20 @@ export type SharedVoicesFetchOptions = {
   fetchFn?: typeof fetch;
 };
 
-const DEFAULT_SHARED_VOICES_LIMIT = 500;
 const DEFAULT_PAGE_SIZE = 100;
 const MAX_PAGE_SIZE = 100;
 
-export function resolveSharedVoicesLimit(): number {
+/** `null` = fetch every page until ElevenLabs reports `has_more: false`. */
+export function resolveSharedVoicesLimit(): number | null {
   const raw = process.env.ELEVENLABS_SHARED_VOICES_MAX?.trim();
-  const parsed = raw ? Number.parseInt(raw, 10) : DEFAULT_SHARED_VOICES_LIMIT;
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return DEFAULT_SHARED_VOICES_LIMIT;
+  if (!raw || raw === "0" || raw === "unlimited" || raw === "all") {
+    return null;
   }
-  return Math.min(parsed, 2000);
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null;
+  }
+  return parsed;
 }
 
 const SHARED_ACCENT_ALIASES: Record<string, string> = {
@@ -70,6 +73,35 @@ const SHARED_ACCENT_ALIASES: Record<string, string> = {
   argentine: "latin american",
   gujarati: "indian",
   punjabi: "indian",
+  kiwi: "new zealand",
+  "new zealand": "new zealand",
+  nz: "new zealand",
+  scots: "scottish",
+  gaelic: "irish",
+  flemish: "flemish",
+  belgian: "flemish",
+  surinamese: "surinamese",
+  surinaams: "surinamese",
+  jamaica: "jamaican",
+  trinidadian: "caribbean",
+  barbadian: "caribbean",
+  nigerian: "nigerian",
+  "south african": "south african",
+  "south african english": "south african",
+  hindustani: "indian",
+  mandarin: "mandarin",
+  cantonese: "cantonese",
+  deutsch: "german",
+  german: "german",
+  russisch: "russian",
+  russian: "russian",
+  italiano: "italian",
+  castellano: "spanish",
+  português: "portuguese",
+  portuguese: "portuguese",
+  brasileiro: "brazilian",
+  quebecois: "canadian french",
+  "québécois": "canadian french",
 };
 
 /** Normalize marketplace accent labels (often "standard") into catalog-friendly values. */
@@ -244,8 +276,9 @@ export async function fetchElevenLabsSharedVoices(
   let page = 0;
   let paginationLimited = false;
 
-  while (voices.length < sharedVoicesLimit) {
-    const remaining = sharedVoicesLimit - voices.length;
+  while (sharedVoicesLimit === null || voices.length < sharedVoicesLimit) {
+    const remaining =
+      sharedVoicesLimit === null ? pageSize : sharedVoicesLimit - voices.length;
     const requestSize = Math.min(pageSize, remaining);
     const url = `https://api.elevenlabs.io/v1/shared-voices?page_size=${requestSize}&page=${page}`;
     const res = await fetchFn(url, {
@@ -269,7 +302,7 @@ export async function fetchElevenLabsSharedVoices(
     }
 
     for (const row of rows) {
-      if (voices.length >= sharedVoicesLimit) {
+      if (sharedVoicesLimit !== null && voices.length >= sharedVoicesLimit) {
         paginationLimited = true;
         break;
       }
@@ -279,7 +312,7 @@ export async function fetchElevenLabsSharedVoices(
       }
     }
 
-    if (voices.length >= sharedVoicesLimit) {
+    if (sharedVoicesLimit !== null && voices.length >= sharedVoicesLimit) {
       paginationLimited = Boolean(payload.has_more);
       break;
     }
@@ -293,6 +326,6 @@ export async function fetchElevenLabsSharedVoices(
     voices,
     fetched: voices.length,
     paginationLimited,
-    sharedVoicesLimit,
+    sharedVoicesLimit: sharedVoicesLimit ?? voices.length,
   };
 }

@@ -82,15 +82,18 @@ describe("voice library discovery UX", () => {
     assert.match(src, /disabled=\{previewBusyLang === lang\}/);
   });
 
-  it("library section shows discovery CTA and accent search copy first", () => {
+  it("library section shows unified marketplace filters and recommendations", () => {
     const sectionPath = join(
       process.cwd(),
       "src/components/studio/studio-character-voice-library-section.tsx"
     );
     const src = readFileSync(sectionPath, "utf8");
-    assert.match(src, /studio\.voiceLibrary\.discoverCta/);
-    assert.match(src, /studio\.voiceLibrary\.accentSearchCta/);
+    assert.match(src, /studio\.voiceLibrary\.recommendations/);
+    assert.match(src, /studio\.voiceLibrary\.activeFilters/);
+    assert.match(src, /VoiceMarketplaceAccentChips/);
     assert.match(src, /VoiceLibraryBrowsePanel/);
+    assert.doesNotMatch(src, /studio\.voiceLibrary\.filter\.accent/);
+    assert.doesNotMatch(src, /StudioVoiceLibraryAdminAuditPanel/);
     assert.doesNotMatch(src, /disabled=\{!voiceEnabled\}/);
     assert.doesNotMatch(src, /disabled=\{!_voiceEnabled\}/);
   });

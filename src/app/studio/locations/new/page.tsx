@@ -1,39 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioLocationForm,
+  studioLocationFormToCreatePayload,
   type StudioLocationFormValues,
 } from "@/components/studio/studio-location-form";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
-import { createStudioLocationApi } from "@/lib/studio-locations-client";
 import {
   buildLocationDetailFromPrefill,
   readIdentityPrefillForKind,
 } from "@/lib/studio-identity-builder-prefill-detail";
 import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
+import { createStudioLocationApi } from "@/lib/studio-locations-client";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 
-export default function StudioLocationNewPage() {
+function StudioLocationNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const guided = searchParams.get("guided") === "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("location"));
   const prefillLocation = prefill ? buildLocationDetailFromPrefill(prefill) : undefined;
 
   const handleSubmit = async (values: StudioLocationFormValues) => {
-    const res = await createStudioLocationApi({
-      name: values.name,
-      category: values.category,
-      description: values.description,
-      referenceImageUrl: values.referenceImageUrl,
-      referenceStorageKey: values.referenceStorageKey,
-    });
+    const res = await createStudioLocationApi(studioLocationFormToCreatePayload(values));
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.locations.error.saveFailed"));
     }
@@ -67,17 +65,36 @@ export default function StudioLocationNewPage() {
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-zinc-900">{t("studio.locations.createTitle")}</h1>
           <div className="mt-8">
-            <StudioLocationForm
-              key={prefillLocation?.id ?? "new-location"}
-              mode="create"
-              submitLabel={t("studio.locations.save")}
-              backHref="/studio/locations"
-              initial={prefillLocation}
-              onSubmit={handleSubmit}
-            />
+            <StudioAssetCreationPage
+              kind="location"
+              guidedQueryParam={guided}
+              hasDecisionPrefill={Boolean(prefill)}
+            >
+              {(ctx) => (
+                <StudioLocationForm
+                  key={`${prefillLocation?.id ?? "new-location"}-${ctx.entryPath ?? "none"}-${ctx.proposalApplied}`}
+                  mode="create"
+                  submitLabel={t("studio.locations.save")}
+                  backHref="/studio/locations"
+                  initial={prefillLocation}
+                  createEntryPath={ctx.entryPath}
+                  wizardProposal={ctx.wizardProposal}
+                  proposalApplied={ctx.proposalApplied}
+                  onSubmit={handleSubmit}
+                />
+              )}
+            </StudioAssetCreationPage>
           </div>
         </section>
       </main>
     </StudioAuthGate>
+  );
+}
+
+export default function StudioLocationNewPage() {
+  return (
+    <Suspense fallback={<main className="flex-1 px-6 py-12 text-sm text-zinc-600">…</main>}>
+      <StudioLocationNewPageContent />
+    </Suspense>
   );
 }

@@ -5,7 +5,13 @@
 
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
 
-export type VoiceAccentFamilyId = "english" | "dutch" | "spanish" | "french";
+export type VoiceAccentFamilyId =
+  | "english"
+  | "dutch"
+  | "spanish"
+  | "french"
+  | "german"
+  | "other";
 
 export type CanonicalAccentDefinition = {
   id: string;
@@ -17,7 +23,7 @@ export type CanonicalAccentDefinition = {
 
 /** Longer / more specific matchers are checked first via sortedAccentDefinitions(). */
 export const CANONICAL_ACCENT_DEFINITIONS: CanonicalAccentDefinition[] = [
-  { id: "spanish.latin_american", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.latin_american", matchers: ["latin american", "latino", "mexican", "colombian"] },
+  { id: "spanish.latin_american", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.latin_american", matchers: ["latin american", "latino", "mexican", "colombian", "argentinian"] },
   { id: "french.canadian", familyId: "french", labelKey: "studio.voiceLibrary.accent.french.canadian", matchers: ["canadian french", "quebec", "québécois"] },
   { id: "english.south_african", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.south_african", matchers: ["south african"] },
   { id: "english.british", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.british", matchers: ["british", "uk english", "english (uk)", "received pronunciation"] },
@@ -30,7 +36,20 @@ export const CANONICAL_ACCENT_DEFINITIONS: CanonicalAccentDefinition[] = [
   { id: "english.caribbean", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.caribbean", matchers: ["caribbean", "west indian"] },
   { id: "english.nigerian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.nigerian", matchers: ["nigerian", "nigeria"] },
   { id: "english.indian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.indian", matchers: ["indian", "india english"] },
+  { id: "english.new_zealand", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.new_zealand", matchers: ["new zealand", "kiwi", "nz english"] },
   { id: "english.italian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.italian", matchers: ["italian"] },
+  { id: "portuguese.brazilian", familyId: "other", labelKey: "studio.voiceLibrary.accent.portuguese.brazilian", matchers: ["brazilian", "português brasil", "portuguese brazil"] },
+  { id: "portuguese.european", familyId: "other", labelKey: "studio.voiceLibrary.accent.portuguese.european", matchers: ["portuguese", "european portuguese", "lisbon"] },
+  { id: "german.standard", familyId: "german", labelKey: "studio.voiceLibrary.accent.german.standard", matchers: ["german", "deutsch", "standard german"] },
+  { id: "russian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.russian.standard", matchers: ["russian", "русский"] },
+  { id: "italian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.italian.standard", matchers: ["italiano", "italian accent"] },
+  { id: "arabic.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.arabic.standard", matchers: ["arabic", "gulf", "egyptian arabic"] },
+  { id: "chinese.mandarin", familyId: "other", labelKey: "studio.voiceLibrary.accent.chinese.mandarin", matchers: ["mandarin", "chinese", "putonghua"] },
+  { id: "japanese.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.japanese.standard", matchers: ["japanese", "tokyo"] },
+  { id: "korean.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.korean.standard", matchers: ["korean", "seoul"] },
+  { id: "hindi.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.hindi.standard", matchers: ["hindi", "hindustani"] },
+  { id: "polish.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.polish.standard", matchers: ["polish", "polski"] },
+  { id: "swedish.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.swedish.standard", matchers: ["swedish", "svenska"] },
   { id: "dutch.surinaams", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.surinaams", matchers: ["surinamese", "surinaams", "suriname"] },
   { id: "dutch.vlaams", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.vlaams", matchers: ["flemish", "vlaams", "belgian dutch"] },
   { id: "dutch.nederlands", familyId: "dutch", labelKey: "studio.voiceLibrary.accent.dutch.nederlands", matchers: ["dutch", "nederlands", "netherlands"] },
@@ -58,6 +77,7 @@ export type VoiceLibraryFilterOptions = {
   genders: Array<{ value: string; labelKey: string; voiceCount: number }>;
   languages: Array<{ value: string; voiceCount: number }>;
   ages: Array<{ value: string; labelKey: string; voiceCount: number }>;
+  categories: Array<{ value: string; labelKey: string; voiceCount: number }>;
 };
 
 function normalizeRawAccent(raw: string): string {
@@ -128,10 +148,20 @@ const AGE_LABEL_KEYS: Record<string, string> = {
   old: "studio.voiceLibrary.filter.age.old",
 };
 
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  professional: "studio.voiceLibrary.category.professional",
+  high_quality: "studio.voiceLibrary.category.highQuality",
+  shared: "studio.voiceLibrary.category.shared",
+  cloned: "studio.voiceLibrary.category.cloned",
+  premade: "studio.voiceLibrary.category.premade",
+  default: "studio.voiceLibrary.category.premade",
+};
+
 export function buildVoiceLibraryFilterOptions(catalog: VoiceLibraryCatalog): VoiceLibraryFilterOptions {
   const genderCounts = countByField(catalog.voices, (v) => v.gender || v.labels.gender || "");
   const languageCounts = countByField(catalog.voices, (v) => v.language || v.labels.language || "");
   const ageCounts = countByField(catalog.voices, (v) => v.age || v.labels.age || "");
+  const categoryCounts = countByField(catalog.voices, (v) => v.category || "");
 
   return {
     accents: buildAccentFilters(catalog),
@@ -152,6 +182,13 @@ export function buildVoiceLibraryFilterOptions(catalog: VoiceLibraryCatalog): Vo
         labelKey: AGE_LABEL_KEYS[value] ?? "studio.voiceLibrary.filter.age.other",
         voiceCount,
       })),
+    categories: [...categoryCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({
+        value,
+        labelKey: CATEGORY_LABEL_KEYS[value] ?? "studio.voiceLibrary.category.other",
+        voiceCount,
+      })),
   };
 }
 
@@ -160,6 +197,7 @@ export type VoiceLibraryFilters = {
   gender?: string;
   language?: string;
   age?: string;
+  category?: string;
   query?: string;
 };
 
@@ -190,6 +228,12 @@ export function filterVoiceLibrary(
     if (filters.age) {
       const age = (voice.age || voice.labels.age || "").trim().toLowerCase();
       if (age !== filters.age.trim().toLowerCase()) {
+        return false;
+      }
+    }
+    if (filters.category) {
+      const category = (voice.category || "").trim().toLowerCase();
+      if (category !== filters.category.trim().toLowerCase()) {
         return false;
       }
     }

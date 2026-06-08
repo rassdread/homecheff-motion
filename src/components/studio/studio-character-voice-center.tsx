@@ -8,6 +8,12 @@ import {
   resolveDefaultCharacterPreviewText,
 } from "@/lib/studio-character-voice-preview-client";
 import {
+  buildStoryAwareVoicePreviewText,
+  type VoiceMarketplaceContext,
+} from "@/lib/studio-voice-marketplace";
+import { appendVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
+import type { VoiceSelectMeta } from "@/components/studio/studio-character-voice-library-section";
+import {
   STUDIO_VOICE_PROFILE_IDS,
   getVoiceProfilePreset,
   normalizeStudioVoiceProfileId,
@@ -86,6 +92,7 @@ type Props = {
   onChange: (next: CharacterVoiceFormState) => void;
   canModify?: boolean;
   isAdmin?: boolean;
+  marketplaceContext?: VoiceMarketplaceContext;
 };
 
 function normalizeVoiceProfileSelection(value: string): string {
@@ -218,6 +225,7 @@ export function StudioCharacterVoiceCenter({
   onChange,
   canModify = true,
   isAdmin = false,
+  marketplaceContext,
 }: Props) {
   const t = useActiveTranslator();
   const voiceLibrary = useOptionalVoiceLibrary();
@@ -231,10 +239,16 @@ export function StudioCharacterVoiceCenter({
   const [previewBusyLang, setPreviewBusyLang] = useState<VoiceCenterLanguage | null>(null);
   const [previewError, setPreviewError] = useState("");
   const [lastPreviewWasDraft, setLastPreviewWasDraft] = useState(false);
-  const defaultPreviewText = useMemo(
-    () => resolveDefaultCharacterPreviewText(characterName, value.voiceLanguage),
-    [characterName, value.voiceLanguage]
-  );
+  const defaultPreviewText = useMemo(() => {
+    if (marketplaceContext) {
+      return buildStoryAwareVoicePreviewText({
+        ...marketplaceContext,
+        characterName,
+        language: value.voiceLanguage,
+      });
+    }
+    return resolveDefaultCharacterPreviewText(characterName, value.voiceLanguage);
+  }, [characterName, value.voiceLanguage, marketplaceContext]);
   const [previewText, setPreviewText] = useState("");
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
   const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
@@ -297,16 +311,17 @@ export function StudioCharacterVoiceCenter({
   );
 
   const handleSelectProfile = useCallback(
-    (
-      profile: string,
-      meta?: { voiceName?: string; personaLabelKey?: string }
-    ) => {
+    (profile: string, meta?: VoiceSelectMeta) => {
       const validation = validateVoiceProfileForSynthesis(profile);
       if (!validation.ok) {
         setPreviewError(t("studio.voiceLibrary.unavailableVoice" as never));
         return;
       }
       setPreviewError("");
+      const voiceNotes =
+        meta?.selectionMemory
+          ? appendVoiceSelectionMemory(value.voiceNotes, meta.selectionMemory)
+          : value.voiceNotes;
       onChange({
         ...value,
         voiceEnabled: true,
@@ -314,6 +329,7 @@ export function StudioCharacterVoiceCenter({
         voiceDescription: meta?.personaLabelKey
           ? t(meta.personaLabelKey as never)
           : meta?.voiceName ?? value.voiceDescription,
+        voiceNotes,
       });
     },
     [onChange, t, value]
@@ -497,6 +513,12 @@ export function StudioCharacterVoiceCenter({
         language={value.voiceLanguage}
         canModify={canModify}
         isAdmin={isAdmin}
+        marketplaceContext={{
+          ...marketplaceContext,
+          characterName,
+          language: value.voiceLanguage,
+          gender: value.voiceGender,
+        }}
         onSelectProfile={handleSelectProfile}
       />
 

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioLocationForm,
+  studioLocationFormToCreatePayload,
   type StudioLocationFormValues,
 } from "@/components/studio/studio-location-form";
 import { useActiveTranslator } from "@/i18n/client";
@@ -55,15 +56,12 @@ export default function StudioLocationEditPage() {
     Boolean(session.user?.id && location && location.ownerId === session.user.id);
 
   const handleSubmit = async (values: StudioLocationFormValues) => {
+    const payload = studioLocationFormToCreatePayload(values);
+    const { referenceImageUrl, referenceStorageKey, ...identityPatch } = payload;
     const res = await updateStudioLocationApi(id, {
-      name: values.name,
-      category: values.category,
-      description: values.description,
+      ...identityPatch,
       ...(values.referenceImageUrl !== location?.referenceImageUrl
-        ? {
-            referenceImageUrl: values.referenceImageUrl,
-            referenceStorageKey: values.referenceStorageKey,
-          }
+        ? { referenceImageUrl, referenceStorageKey }
         : {}),
     });
     if (!res.ok) {

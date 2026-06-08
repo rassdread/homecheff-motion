@@ -48,6 +48,8 @@ import type {
 } from "@/lib/studio-character-validation";
 import type { ImagePrefillSlot } from "@/lib/studio-character-identity-image-prefill-client";
 import type { CharacterIdentityPrefillResult } from "@/types/studio-character-identity-prefill";
+import { mapEntryPathToCharacter } from "@/lib/studio-asset-prompt-prefill";
+import type { AssetCreateEntryPath, AssetPromptPrefillProposal } from "@/types/studio-asset-creation";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 import type { StudioCharacterDetail, StudioWorldProfileListItem } from "@/types/studio-api";
 
@@ -91,6 +93,9 @@ type StudioCharacterFormProps = {
   mode: "create" | "edit";
   initial?: StudioCharacterDetail;
   identityPrefill?: IdentityBuilderPrefill | null;
+  wizardEntryPath?: AssetCreateEntryPath | null;
+  wizardProposal?: AssetPromptPrefillProposal | null;
+  wizardProposalApplied?: boolean;
   submitLabel: string;
   onSubmit: (values: StudioCharacterFormValues) => Promise<void>;
   backHref: string;
@@ -360,6 +365,9 @@ export function StudioCharacterForm({
   mode,
   initial,
   identityPrefill = null,
+  wizardEntryPath = null,
+  wizardProposal = null,
+  wizardProposalApplied = false,
   submitLabel,
   onSubmit,
   backHref,
@@ -369,24 +377,39 @@ export function StudioCharacterForm({
   const session = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const identityBuilderRef = useRef<HTMLDivElement>(null);
-  const [values, setValues] = useState<StudioCharacterFormValues>(
-    initial ? fromDetail(initial) : emptyValues()
-  );
+  const [values, setValues] = useState<StudioCharacterFormValues>(() => {
+    const base = initial ? fromDetail(initial) : emptyValues();
+    if (mode === "create" && wizardProposal && wizardProposalApplied) {
+      return {
+        ...base,
+        identity: mergeCharacterIdentityForm(
+          base.identity,
+          wizardProposal.prefill as Partial<CharacterIdentityFormValues>
+        ),
+      };
+    }
+    return base;
+  });
   const [worlds, setWorlds] = useState<StudioWorldProfileListItem[]>([]);
   const [previewUrl, setPreviewUrl] = useState(initial?.referenceImageUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [createEntryPath, setCreateEntryPath] = useState<CharacterCreateEntryPath | null>(() =>
-    mode === "create" && identityPrefill ? "design" : null
-  );
+  const [createEntryPath, setCreateEntryPath] = useState<CharacterCreateEntryPath | null>(() => {
+    if (mode !== "create") return null;
+    if (wizardEntryPath) return mapEntryPathToCharacter(wizardEntryPath);
+    if (identityPrefill) return "design";
+    return null;
+  });
   const [imagePrefillSlots, setImagePrefillSlots] = useState<ImagePrefillSlot[]>([]);
   const [imagePrefillDescription, setImagePrefillDescription] = useState("");
   const [imagePrefillUsage, setImagePrefillUsage] = useState("");
   const [prefillAnalysis, setPrefillAnalysis] = useState<CharacterIdentityPrefillResult | null>(
     null
   );
-  const [prefillApplied, setPrefillApplied] = useState(false);
+  const [prefillApplied, setPrefillApplied] = useState(
+    () => mode === "create" && Boolean(wizardProposal && wizardProposalApplied)
+  );
   const [prefillSuggestion, setPrefillSuggestion] =
     useState<Partial<CharacterIdentityFormValues> | null>(null);
   const [promptPrefillText, setPromptPrefillText] = useState("");
@@ -605,6 +628,16 @@ export function StudioCharacterForm({
                 onChange={(voice) => setValues((v) => ({ ...v, voice }))}
                 canModify
                 isAdmin={isAdmin}
+                marketplaceContext={{
+                  characterName: values.identity.name,
+                  characterType: values.identity.characterType,
+                  personality: values.identity.personality,
+                  styleId: values.identity.visualStyle,
+                  clothing: values.identity.clothing,
+                  usageContext: values.identity.usageContext,
+                  language: values.voice.voiceLanguage,
+                  gender: values.voice.voiceGender,
+                }}
               />
             </UserVoiceLibraryProvider>
           </VoiceLibraryProvider>

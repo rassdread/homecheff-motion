@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import {
   StudioWorldProfileForm,
+  studioWorldFormToCreatePayload,
   type StudioWorldProfileFormValues,
 } from "@/components/studio/studio-world-profile-form";
 import { useActiveTranslator } from "@/i18n/client";
@@ -20,14 +22,16 @@ import { createStudioWorldApi } from "@/lib/studio-worlds-client";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
 
-export default function StudioNewWorldPage() {
+function StudioNewWorldPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const guided = searchParams.get("guided") === "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("world"));
   const prefillWorld = prefill ? buildWorldDetailFromPrefill(prefill) : undefined;
 
   const handleSubmit = async (values: StudioWorldProfileFormValues) => {
-    const res = await createStudioWorldApi(values);
+    const res = await createStudioWorldApi(studioWorldFormToCreatePayload(values));
     if (!res.ok) {
       throw new Error((res.data as { error?: string }).error ?? t("studio.worlds.error.saveFailed"));
     }
@@ -37,7 +41,7 @@ export default function StudioNewWorldPage() {
         storyboardId: prefill.storyboardId,
         kind: "world",
         createdEntityId: res.data.world.id,
-        createdName: values.name,
+        createdName: values.identity.name,
         decisionId: prefill.decisionId,
       });
       clearIdentityBuilderPrefill();
@@ -57,15 +61,37 @@ export default function StudioNewWorldPage() {
             ← {t("studio.worlds.backToLibrary")}
           </Link>
           <h1 className="mt-4 text-3xl font-bold text-zinc-900">{t("studio.worlds.createTitle")}</h1>
-          <StudioWorldProfileForm
-            key={prefillWorld?.id ?? "new-world"}
-            submitLabel={t("studio.worlds.save")}
-            backHref="/studio/worlds"
-            initial={prefillWorld}
-            onSubmit={handleSubmit}
-          />
+          <div className="mt-8">
+            <StudioAssetCreationPage
+              kind="world"
+              guidedQueryParam={guided}
+              hasDecisionPrefill={Boolean(prefill)}
+            >
+              {(ctx) => (
+                <StudioWorldProfileForm
+                  key={`${prefillWorld?.id ?? "new-world"}-${ctx.entryPath ?? "none"}-${ctx.proposalApplied}`}
+                  mode="create"
+                  submitLabel={t("studio.worlds.save")}
+                  backHref="/studio/worlds"
+                  initial={prefillWorld}
+                  createEntryPath={ctx.entryPath}
+                  wizardProposal={ctx.wizardProposal}
+                  proposalApplied={ctx.proposalApplied}
+                  onSubmit={handleSubmit}
+                />
+              )}
+            </StudioAssetCreationPage>
+          </div>
         </section>
       </main>
     </StudioAuthGate>
+  );
+}
+
+export default function StudioNewWorldPage() {
+  return (
+    <Suspense fallback={<main className="flex-1 px-6 py-12 text-sm text-zinc-600">…</main>}>
+      <StudioNewWorldPageContent />
+    </Suspense>
   );
 }

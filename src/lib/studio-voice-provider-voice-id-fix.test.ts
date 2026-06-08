@@ -111,15 +111,12 @@ describe("voice library provider voice id guards", () => {
       /formatLibraryVoiceProfileRef\(preset\.voiceId\)[\s\S]*disabled=\{!preset\.available\}/
     );
     assert.match(src, /const canSelect = preset\.available && Boolean\(preset\.voiceId\.trim\(\)\)/);
-    assert.match(src, /disabled=\{!canSelect\}/);
+    assert.match(src, /canSelect \?/);
   });
 
-  it("voice library section uses safe format for catalog rows", () => {
-    const sectionPath = join(
-      process.cwd(),
-      "src/components/studio/studio-character-voice-library-section.tsx"
-    );
-    const src = readFileSync(sectionPath, "utf8");
+  it("marketplace mapper uses safe format for catalog rows", () => {
+    const marketplacePath = join(process.cwd(), "src/lib/studio-voice-marketplace.ts");
+    const src = readFileSync(marketplacePath, "utf8");
     assert.match(src, /safeFormatLibraryVoiceProfileRef\(voice\.id\)/);
   });
 });

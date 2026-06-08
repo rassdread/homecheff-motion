@@ -254,7 +254,8 @@ describe("persona preset UI transparency", () => {
     );
     assert.match(src, /preset\.voiceName/);
     assert.match(src, /preset\.matchedAccentLabelKey/);
-    assert.match(src, /preset\.matchingReason/);
+    assert.match(src, /preset\.matchReasonKeys/);
+    assert.match(src, /preset\.personaScore/);
     assert.match(src, /preset\.unavailableSuggestionKey/);
   });
 });
