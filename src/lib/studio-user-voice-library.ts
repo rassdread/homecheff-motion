@@ -6,8 +6,10 @@ import { prisma } from "@/lib/prisma";
 import {
   formatClonedVoiceProfileRef,
   isClonedVoiceProfileRef,
+  isInvalidProviderVoiceProfileRef,
   parseVoiceProfileRef,
   resolveProviderVoiceIdFromProfile,
+  safeFormatClonedVoiceProfileRef,
 } from "@/lib/studio-voice-profile-ref";
 import {
   readUserVoiceCloneManifest,
@@ -22,10 +24,18 @@ import type {
 type CloneUsage = {
   characterIds: Set<string>;
   storyboardIds: Set<string>;
+  lastUsedAt: string | null;
 };
 
 function cloneIdFromProfile(voiceProfile: string): string | null {
+  if (isInvalidProviderVoiceProfileRef(voiceProfile)) {
+    return null;
+  }
   return resolveProviderVoiceIdFromProfile(voiceProfile);
+}
+
+function isInvalidStoredVoiceProfileRef(voiceProfile: string): boolean {
+  return isInvalidProviderVoiceProfileRef(voiceProfile);
 }
 
 function mergeCloneRecord(
@@ -33,7 +43,16 @@ function mergeCloneRecord(
   record: Omit<UserVoiceCloneRecord, "voiceProfileRef"> & { voiceProfileRef?: string },
   characterId?: string
 ): void {
-  const voiceProfileRef = record.voiceProfileRef ?? formatClonedVoiceProfileRef(record.cloneId);
+  if (!record.cloneId.trim()) {
+    return;
+  }
+  const voiceProfileRef =
+    record.voiceProfileRef?.trim() ||
+    safeFormatClonedVoiceProfileRef(record.cloneId) ||
+    undefined;
+  if (!voiceProfileRef || isInvalidStoredVoiceProfileRef(voiceProfileRef)) {
+    return;
+  }
   const existing = map.get(record.cloneId);
   if (existing) {
     if (record.name.trim() && (!existing.name || existing.name.startsWith("mock-clone"))) {
@@ -125,9 +144,27 @@ async function computeCloneUsage(ownerId: string): Promise<Map<string, CloneUsag
       id: true,
       voiceProfile: true,
       voiceProfilesJson: true,
+      updatedAt: true,
       sceneLinks: { select: { scene: { select: { storyboardId: true } } } },
     },
   });
+
+  const touchClone = (cloneId: string, characterId: string, storyboardIds: Set<string>, at: Date) => {
+    const entry = usage.get(cloneId) ?? {
+      characterIds: new Set<string>(),
+      storyboardIds: new Set<string>(),
+      lastUsedAt: null,
+    };
+    entry.characterIds.add(characterId);
+    for (const sbId of storyboardIds) {
+      entry.storyboardIds.add(sbId);
+    }
+    const iso = at.toISOString();
+    if (!entry.lastUsedAt || iso > entry.lastUsedAt) {
+      entry.lastUsedAt = iso;
+    }
+    usage.set(cloneId, entry);
+  };
 
   for (const character of characters) {
     const profiles = new Set<string>();
@@ -150,18 +187,13 @@ async function computeCloneUsage(ownerId: string): Promise<Map<string, CloneUsag
       if (!cloneId) {
         continue;
       }
-      const entry = usage.get(cloneId) ?? { characterIds: new Set(), storyboardIds: new Set() };
-      entry.characterIds.add(character.id);
-      for (const sbId of storyboardIds) {
-        entry.storyboardIds.add(sbId);
-      }
-      usage.set(cloneId, entry);
+      touchClone(cloneId, character.id, storyboardIds, character.updatedAt);
     }
   }
 
   const storyboards = await prisma.studioStoryboard.findMany({
     where: { ownerId },
-    select: { id: true, voiceProfile: true },
+    select: { id: true, voiceProfile: true, updatedAt: true },
   });
   for (const storyboard of storyboards) {
     if (!isClonedVoiceProfileRef(storyboard.voiceProfile)) {
@@ -171,8 +203,16 @@ async function computeCloneUsage(ownerId: string): Promise<Map<string, CloneUsag
     if (!cloneId) {
       continue;
     }
-    const entry = usage.get(cloneId) ?? { characterIds: new Set(), storyboardIds: new Set() };
+    const entry = usage.get(cloneId) ?? {
+      characterIds: new Set<string>(),
+      storyboardIds: new Set<string>(),
+      lastUsedAt: null,
+    };
     entry.storyboardIds.add(storyboard.id);
+    const iso = storyboard.updatedAt.toISOString();
+    if (!entry.lastUsedAt || iso > entry.lastUsedAt) {
+      entry.lastUsedAt = iso;
+    }
     usage.set(cloneId, entry);
   }
 
@@ -206,15 +246,18 @@ export async function buildUserVoiceLibrary(ownerId: string): Promise<UserVoiceL
       const usage = usageMap.get(record.cloneId) ?? {
         characterIds: new Set<string>(),
         storyboardIds: new Set<string>(),
+        lastUsedAt: null,
       };
       for (const id of record.characterIds) {
         usage.characterIds.add(id);
       }
+      const lastUsedAt = usage.lastUsedAt ?? record.createdAt;
       return {
         cloneId: record.cloneId,
         name: record.name,
         previewUrl: record.previewUrl,
         createdAt: record.createdAt,
+        lastUsedAt,
         language: record.language,
         status: record.status,
         voiceProfileRef: record.voiceProfileRef,

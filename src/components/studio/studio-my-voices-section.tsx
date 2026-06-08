@@ -6,7 +6,7 @@ import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voi
 import { StudioVoiceCloneWorkflow } from "@/components/studio/studio-voice-clone-workflow";
 import { useActiveTranslator } from "@/i18n/client";
 import { renameUserVoiceCloneApi } from "@/lib/studio-user-voice-library-client";
-import { formatClonedVoiceProfileRef, parseVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
+import { parseVoiceProfileRef, safeFormatClonedVoiceProfileRef } from "@/lib/studio-voice-profile-ref";
 import type { UserVoiceLibraryEntry } from "@/types/studio-user-voice-library";
 
 type Props = {
@@ -56,6 +56,11 @@ function MyVoiceRow({
             {t("studio.myVoices.usage", {
               characters: String(voice.characterCount),
               stories: String(voice.storyboardCount),
+            })}
+          </p>
+          <p className="mt-0.5 text-[11px] text-violet-600">
+            {t("studio.myVoices.lastUsed", {
+              date: new Date(voice.lastUsedAt).toLocaleDateString(),
             })}
           </p>
         </div>
@@ -144,19 +149,25 @@ export function StudioMyVoicesSection({
             {t("studio.myVoices.title")}
           </h4>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {voices.map((voice) => (
+            {voices.map((voice) => {
+              const cloneRef = safeFormatClonedVoiceProfileRef(voice.cloneId);
+              if (!cloneRef) {
+                return null;
+              }
+              return (
               <MyVoiceRow
                 key={voice.cloneId}
                 voice={voice}
                 selected={selectedCloneId === voice.cloneId}
                 onSelect={() =>
-                  onSelectProfile(formatClonedVoiceProfileRef(voice.cloneId), { voiceName: voice.name })
+                  onSelectProfile(cloneRef, { voiceName: voice.name })
                 }
                 onRename={(name) => {
                   void renameUserVoiceCloneApi(voice.cloneId, name).then(() => userVoices.refresh());
                 }}
               />
-            ))}
+            );
+            })}
           </div>
         </div>
       : null}

@@ -37,6 +37,7 @@ export type UserVoiceLibraryEntry = {
   storyboardCount: number;
   characterIds: string[];
   storyboardIds: string[];
+  lastUsedAt: string;
 };
 
 export type UserVoiceLibrary = {

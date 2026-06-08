@@ -54,12 +54,15 @@ export function validateVoiceSettings(params: {
   const ref = parseVoiceProfileRef(params.voiceProfile);
   if (ref.kind === "preset") {
     normalizeStudioVoiceProfileId(ref.profileId);
-  } else if (!ref.providerVoiceId) {
-    return {
-      ok: false,
-      code: "PROVIDER_VOICE_ID_REQUIRED",
-      message: "This voice is not available.",
-    };
+  } else if (ref.kind === "clone" || ref.kind === "library") {
+    const id = ref.providerVoiceId.trim().toLowerCase();
+    if (!id || id === "undefined" || id === "null") {
+      return {
+        ok: false,
+        code: "PROVIDER_VOICE_ID_REQUIRED",
+        message: "This voice is not available.",
+      };
+    }
   }
   normalizeStudioNarrationMode(params.narrationMode);
   if (!params.script.trim()) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
+import { StudioCharacterSummaryReadinessPanel } from "@/components/studio/studio-character-summary-readiness-panel";
 import {
   StudioCharacterIdentityBuilder,
   type CharacterCreateEntryPath,
@@ -525,6 +526,16 @@ export function StudioCharacterForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <StudioCharacterSummaryReadinessPanel
+        mode={mode}
+        identity={values.identity}
+        referenceImageUrl={values.referenceImageUrl}
+        voice={values.voice}
+        voiceStatus={voiceStatusFromForm(values.voice)}
+        worlds={worlds}
+        showCreationPhases={mode === "create"}
+      />
+
       {mode === "create" && createEntryPath === "existing_image" ? referenceImageCard : null}
 
       {identityBuilder}

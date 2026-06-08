@@ -165,10 +165,49 @@ describe("buildPerLanguageVoiceOverrideOptions", () => {
           storyboardCount: 0,
           characterIds: [],
           storyboardIds: [],
+          lastUsedAt: "2026-01-01T00:00:00.000Z",
         },
       ],
     });
     assert.ok(options.some((o) => o.value === formatClonedVoiceProfileRef("clone-1")));
+  });
+
+  it("does not throw when clone list contains empty cloneId", () => {
+    assert.doesNotThrow(() =>
+      buildPerLanguageVoiceOverrideOptions({
+        lang: "en",
+        t,
+        payload: null,
+        clones: [
+          {
+            cloneId: "",
+            name: "Broken",
+            language: "en",
+            createdAt: "",
+            lastUsedAt: "",
+            previewUrl: "",
+            status: "completed" as const,
+            voiceProfileRef: "clone:",
+            provider: "elevenlabs",
+            characterCount: 0,
+            storyboardCount: 0,
+            characterIds: [],
+            storyboardIds: [],
+          },
+        ],
+      })
+    );
+  });
+
+  it("skips invalid includeProfile refs", () => {
+    const options = buildPerLanguageVoiceOverrideOptions({
+      lang: "en",
+      t,
+      payload: null,
+      clones: undefined,
+      includeProfile: "library:",
+    });
+    assert.ok(!options.some((o) => o.value === "library:"));
   });
 
   it("preserves an existing override not in the default lists", () => {

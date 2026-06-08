@@ -8,6 +8,42 @@ import { getVoiceProfilePreset, normalizeStudioVoiceProfileId, type StudioVoiceP
 export const CLONED_VOICE_PROFILE_PREFIX = "clone:";
 export const LIBRARY_VOICE_PROFILE_PREFIX = "library:";
 
+export const DEFAULT_VOICE_PROFILE_FALLBACK = "warm_narrator" as const;
+
+function isEmptyProviderVoiceId(providerVoiceId: string): boolean {
+  const trimmed = providerVoiceId.trim();
+  if (!trimmed) {
+    return true;
+  }
+  const lower = trimmed.toLowerCase();
+  return lower === "undefined" || lower === "null";
+}
+
+/** True when value is library:/clone: with missing or junk provider id (e.g. stored `library:`). */
+export function isInvalidProviderVoiceProfileRef(value: string | undefined | null): boolean {
+  const raw = (value ?? "").trim();
+  if (!raw) {
+    return false;
+  }
+  const ref = parseVoiceProfileRef(raw);
+  if (ref.kind !== "clone" && ref.kind !== "library") {
+    return false;
+  }
+  return isEmptyProviderVoiceId(ref.providerVoiceId);
+}
+
+/** Use before persisting voiceProfile — never store invalid provider refs. */
+export function coerceVoiceProfileForStorage(
+  value: string | undefined | null,
+  fallback = DEFAULT_VOICE_PROFILE_FALLBACK
+): string {
+  const raw = (value ?? "").trim();
+  if (!raw || isInvalidProviderVoiceProfileRef(raw)) {
+    return fallback;
+  }
+  return normalizeStoredVoiceProfile(raw);
+}
+
 export type VoiceProfileRef =
   | { kind: "preset"; profileId: StudioVoiceProfileId; raw: string }
   | { kind: "clone"; providerVoiceId: string; raw: string }
@@ -56,7 +92,7 @@ export function validateVoiceProfileForSynthesis(
     };
   }
   const ref = parseVoiceProfileRef(raw);
-  if ((ref.kind === "clone" || ref.kind === "library") && !ref.providerVoiceId) {
+  if ((ref.kind === "clone" || ref.kind === "library") && isEmptyProviderVoiceId(ref.providerVoiceId)) {
     return {
       ok: false,
       code: "PROVIDER_VOICE_ID_REQUIRED",
@@ -118,6 +154,9 @@ export function resolvePlanningVoiceProfile(
   }
   const ref = parseVoiceProfileRef(raw);
   if (ref.kind === "clone" || ref.kind === "library") {
+    if (isEmptyProviderVoiceId(ref.providerVoiceId)) {
+      return fallback;
+    }
     return ref.raw;
   }
   return ref.profileId;
@@ -157,6 +196,9 @@ export function resolveVoiceProfileLabelKey(
 }
 
 export function characterHasExplicitVoiceChoice(voiceProfile: string | undefined | null): boolean {
+  if (isInvalidProviderVoiceProfileRef(voiceProfile)) {
+    return false;
+  }
   const ref = parseVoiceProfileRef(voiceProfile);
   if (ref.kind === "clone" || ref.kind === "library") {
     return true;

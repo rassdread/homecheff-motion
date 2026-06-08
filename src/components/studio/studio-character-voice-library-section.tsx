@@ -15,9 +15,9 @@ import {
   getVoiceProfilePreset,
 } from "@/lib/studio-voice-profiles";
 import {
-  formatLibraryVoiceProfileRef,
   isClonedVoiceProfileRef,
   parseVoiceProfileRef,
+  safeFormatClonedVoiceProfileRef,
   safeFormatLibraryVoiceProfileRef,
 } from "@/lib/studio-voice-profile-ref";
 import { VOICE_PERSONA_GROUP_LABEL_KEYS } from "@/lib/studio-voice-persona-presets";
@@ -382,7 +382,10 @@ export function StudioCharacterVoiceLibrarySection({
                         if (!canSelect) {
                           return;
                         }
-                        const profileRef = formatLibraryVoiceProfileRef(preset.voiceId);
+                        const profileRef = safeFormatLibraryVoiceProfileRef(preset.voiceId);
+                        if (!profileRef) {
+                          return;
+                        }
                         onSelectProfile(profileRef, {
                           voiceName: preset.voiceName,
                           personaLabelKey: preset.labelKey,

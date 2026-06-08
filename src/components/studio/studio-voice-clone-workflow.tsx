@@ -1,13 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import {
   createAudioFileObjectUrl,
   revokeAudioFileObjectUrl,
 } from "@/lib/studio-audio-preview-object-url";
 import { createUserVoiceCloneApi } from "@/lib/studio-user-voice-library-client";
+import {
+  analyzeCloneSampleDuration,
+  formatCloneDurationLabel,
+  qualityMeterBlocks,
+  type CloneSampleQualityAnalysis,
+} from "@/lib/studio-voice-clone-quality";
+import {
+  CLONE_SAMPLE_SCRIPT_BODY_KEYS,
+  CLONE_SAMPLE_SCRIPT_DURATION_KEYS,
+  CLONE_SAMPLE_SCRIPT_LABEL_KEYS,
+  CLONE_SAMPLE_SCRIPT_LENGTHS,
+  type CloneSampleScriptLength,
+} from "@/lib/studio-voice-clone-sample-scripts";
+
+const RECORDING_COACH_KEYS = [
+  "studio.voiceClone.coach.quietRoom",
+  "studio.voiceClone.coach.noMusic",
+  "studio.voiceClone.coach.noEcho",
+  "studio.voiceClone.coach.naturalVoice",
+  "studio.voiceClone.coach.minDuration",
+  "studio.voiceClone.coach.idealDuration",
+] as const;
 
 type Props = {
   voiceNameDefault: string;
@@ -20,6 +43,16 @@ type Props = {
     previewAudioUrl?: string | null;
   }) => void;
 };
+
+function readAudioDuration(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => resolve(Number.isFinite(audio.duration) ? audio.duration : 0);
+    audio.onerror = () => resolve(0);
+    audio.src = url;
+  });
+}
 
 export function StudioVoiceCloneWorkflow({
   voiceNameDefault,
@@ -41,6 +74,8 @@ export function StudioVoiceCloneWorkflow({
   const [sampleFile, setSampleFile] = useState<File | null>(null);
   const [samplePreviewUrl, setSamplePreviewUrl] = useState<string | null>(null);
   const [clonePreviewUrl, setClonePreviewUrl] = useState<string | null>(null);
+  const [scriptLength, setScriptLength] = useState<CloneSampleScriptLength>("normal");
+  const [sampleDurationSeconds, setSampleDurationSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -48,10 +83,33 @@ export function StudioVoiceCloneWorkflow({
     };
   }, [samplePreviewUrl]);
 
+  useEffect(() => {
+    if (!samplePreviewUrl) {
+      return;
+    }
+    let cancelled = false;
+    void readAudioDuration(samplePreviewUrl).then((duration) => {
+      if (!cancelled) {
+        setSampleDurationSeconds(duration);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [samplePreviewUrl]);
+
+  const qualityAnalysis = useMemo((): CloneSampleQualityAnalysis | null => {
+    if (sampleDurationSeconds == null) {
+      return null;
+    }
+    return analyzeCloneSampleDuration(sampleDurationSeconds);
+  }, [sampleDurationSeconds]);
+
   const setSample = (file: File | null) => {
     revokeAudioFileObjectUrl(samplePreviewUrl);
     setSampleFile(file);
     setClonePreviewUrl(null);
+    setSampleDurationSeconds(null);
     if (!file) {
       setSamplePreviewUrl(null);
       return;
@@ -129,7 +187,47 @@ export function StudioVoiceCloneWorkflow({
 
   return (
     <section className="rounded-xl border border-violet-200 bg-white p-4">
-      <h4 className="text-sm font-semibold text-violet-950">{t("studio.myVoices.newVoice")}</h4>
+      <div className="rounded-xl border border-sky-100 bg-sky-50/80 p-4">
+        <h4 className="text-sm font-semibold text-sky-950">{t("studio.voiceClone.coach.title")}</h4>
+        <p className="mt-1 text-xs text-sky-900">{t("studio.voiceClone.coach.subtitle")}</p>
+        <ul className="mt-3 space-y-1.5 text-xs text-sky-900">
+          {RECORDING_COACH_KEYS.map((key) => (
+            <li key={key} className="flex gap-2">
+              <span className="text-emerald-600">✓</span>
+              <span>{t(key as TranslationKey)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-4">
+        <h4 className="text-sm font-semibold text-violet-950">{t("studio.voiceClone.script.title")}</h4>
+        <p className="mt-1 text-xs text-violet-800">{t("studio.voiceClone.script.subtitle")}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {CLONE_SAMPLE_SCRIPT_LENGTHS.map((length) => (
+            <button
+              key={length}
+              type="button"
+              onClick={() => setScriptLength(length)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                scriptLength === length
+                  ? "border-violet-500 bg-violet-100 text-violet-950"
+                  : "border-violet-200 bg-white text-violet-800 hover:bg-violet-50"
+              }`}
+            >
+              {t(CLONE_SAMPLE_SCRIPT_LABEL_KEYS[length] as TranslationKey)}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] font-medium text-violet-700">
+          {t(CLONE_SAMPLE_SCRIPT_DURATION_KEYS[scriptLength] as TranslationKey)}
+        </p>
+        <div className="mt-2 rounded-lg border border-violet-100 bg-violet-50/50 p-3 text-xs leading-relaxed text-violet-950 whitespace-pre-wrap">
+          {t(CLONE_SAMPLE_SCRIPT_BODY_KEYS[scriptLength] as TranslationKey)}
+        </div>
+      </div>
+
+      <h4 className="mt-5 text-sm font-semibold text-violet-950">{t("studio.myVoices.newVoice")}</h4>
       <p className="mt-1 text-xs text-violet-800">{t("studio.myVoices.newVoiceHint")}</p>
 
       <label className="mt-3 block text-xs font-medium text-violet-950">
@@ -175,15 +273,36 @@ export function StudioVoiceCloneWorkflow({
       </div>
 
       {samplePreviewUrl ?
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           <p className="text-xs font-semibold text-violet-950">{t("studio.myVoices.samplePreview")}</p>
           <StudioAudioPreviewPlayer
             title={voiceName}
             audioUrl={samplePreviewUrl}
             source="voice_clone_sample"
             variant="compact"
-            className="mt-2 border-violet-100"
+            className="border-violet-100"
           />
+          {qualityAnalysis ?
+            <div className="rounded-lg border border-violet-100 bg-violet-50/60 p-3">
+              <p className="text-xs font-semibold text-violet-950">
+                {t("studio.voiceClone.quality.title")}
+              </p>
+              <p className="mt-1 text-xs text-violet-800">
+                {t("studio.voiceClone.quality.duration", {
+                  duration: formatCloneDurationLabel(qualityAnalysis.durationSeconds),
+                })}
+              </p>
+              <p className="mt-1 font-mono text-sm tracking-wider text-violet-900">
+                {qualityMeterBlocks(qualityAnalysis.filledBlocks)}{" "}
+                <span className="font-sans text-xs font-semibold">
+                  {t(qualityAnalysis.labelKey as TranslationKey)}
+                </span>
+              </p>
+              <p className="mt-1 text-[11px] text-violet-700">
+                {t(qualityAnalysis.hintKey as TranslationKey)}
+              </p>
+            </div>
+          : null}
         </div>
       : null}
 

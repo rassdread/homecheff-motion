@@ -13,11 +13,13 @@ import {
   normalizeStudioVoiceProfileId,
 } from "@/lib/studio-voice-profiles";
 import {
-  formatClonedVoiceProfileRef,
+  DEFAULT_VOICE_PROFILE_FALLBACK,
+  coerceVoiceProfileForStorage,
+  isInvalidProviderVoiceProfileRef,
   isClonedVoiceProfileRef,
   isLibraryVoiceProfileRef,
-  normalizeStoredVoiceProfile,
   parseVoiceProfileRef,
+  safeFormatClonedVoiceProfileRef,
   safeFormatLibraryVoiceProfileRef,
   validateVoiceProfileForSynthesis,
 } from "@/lib/studio-voice-profile-ref";
@@ -85,6 +87,9 @@ type Props = {
 };
 
 function normalizeVoiceProfileSelection(value: string): string {
+  if (isInvalidProviderVoiceProfileRef(value)) {
+    return DEFAULT_VOICE_PROFILE_FALLBACK;
+  }
   const ref = parseVoiceProfileRef(value);
   if (ref.kind === "clone" || ref.kind === "library") {
     return ref.raw;
@@ -148,7 +153,7 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
   const options: PerLanguageVoiceOverrideOption[] = [];
 
   const add = (value: string, label: string) => {
-    if (!value || seen.has(value)) {
+    if (!value || seen.has(value) || isInvalidProviderVoiceProfileRef(value)) {
       return;
     }
     seen.add(value);
@@ -181,12 +186,15 @@ export function buildPerLanguageVoiceOverrideOptions(params: {
 
   if (params.clones) {
     for (const clone of params.clones) {
-      add(formatClonedVoiceProfileRef(clone.cloneId), clone.name);
+      const ref = safeFormatClonedVoiceProfileRef(clone.cloneId);
+      if (ref) {
+        add(ref, clone.name);
+      }
     }
   }
 
   const includeProfile = params.includeProfile?.trim();
-  if (includeProfile && !seen.has(includeProfile)) {
+  if (includeProfile && !seen.has(includeProfile) && !isInvalidProviderVoiceProfileRef(includeProfile)) {
     add(
       includeProfile,
       resolveVoiceDisplayLabel({
@@ -228,6 +236,29 @@ export function StudioCharacterVoiceCenter({
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
   const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
 
+  const invalidMainVoice = isInvalidProviderVoiceProfileRef(value.voiceProfile);
+  const invalidLangOverrides = VOICE_CENTER_LANGUAGES.some((lang) => {
+    const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage];
+    return row?.voiceProfile ? isInvalidProviderVoiceProfileRef(row.voiceProfile) : false;
+  });
+  const showInvalidVoiceBanner = invalidMainVoice || invalidLangOverrides;
+
+  const applyDefaultVoiceFallback = useCallback(() => {
+    setPreviewError("");
+    onChange({
+      ...value,
+      voiceProfile: DEFAULT_VOICE_PROFILE_FALLBACK,
+      voiceProfilesByLanguage: Object.fromEntries(
+        Object.entries(value.voiceProfilesByLanguage).map(([lang, row]) => [
+          lang,
+          row?.voiceProfile && isInvalidProviderVoiceProfileRef(row.voiceProfile)
+            ? { ...row, voiceProfile: undefined }
+            : row,
+        ])
+      ) as CharacterVoiceProfilesByLanguage,
+    });
+  }, [onChange, value]);
+
   const profileRef = parseVoiceProfileRef(value.voiceProfile);
   const catalogVoiceName =
     profileRef.kind === "library" && voiceLibrary?.payload
@@ -259,7 +290,7 @@ export function StudioCharacterVoiceCenter({
       onChange({
         ...value,
         voiceEnabled: true,
-        voiceProfile: normalizeStoredVoiceProfile(profile),
+        voiceProfile: coerceVoiceProfileForStorage(profile),
         voiceDescription: meta?.personaLabelKey
           ? t(meta.personaLabelKey as never)
           : meta?.voiceName ?? value.voiceDescription,
@@ -301,12 +332,21 @@ export function StudioCharacterVoiceCenter({
     lang: VoiceCenterLanguage,
     patch: Partial<CharacterVoiceLanguageProfile>
   ) => {
+    const nextProfile = patch.voiceProfile;
+    if (nextProfile && isInvalidProviderVoiceProfileRef(nextProfile)) {
+      setPreviewError(t("studio.voiceLibrary.unavailableVoice" as never));
+      return;
+    }
     const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
     onChange({
       ...value,
       voiceProfilesByLanguage: {
         ...value.voiceProfilesByLanguage,
-        [lang]: { ...row, ...patch },
+        [lang]: {
+          ...row,
+          ...patch,
+          ...(nextProfile ? { voiceProfile: coerceVoiceProfileForStorage(nextProfile) } : {}),
+        },
       },
     });
   };
@@ -346,6 +386,24 @@ export function StudioCharacterVoiceCenter({
           {t("studio.voiceCenter.lockLabel")}
         </label>
       </div>
+
+      {showInvalidVoiceBanner ?
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-950">
+            {t("studio.voiceLibrary.unavailableVoice" as never)}
+          </p>
+          <p className="mt-1 text-xs text-amber-900">{t("studio.voiceCenter.invalidVoiceHint" as never)}</p>
+          {canModify ?
+            <button
+              type="button"
+              onClick={applyDefaultVoiceFallback}
+              className="mt-2 rounded-full border border-amber-300 bg-white px-4 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
+            >
+              {t("studio.voiceCenter.useDefaultVoice" as never)}
+            </button>
+          : null}
+        </div>
+      : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-medium text-violet-900">
@@ -485,13 +543,12 @@ export function StudioCharacterVoiceCenter({
                     className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
                     value={row.voiceProfile ?? ""}
                     disabled={!value.voiceEnabled}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const next = e.target.value;
                       updateLang(lang, {
-                        voiceProfile: e.target.value
-                          ? normalizeVoiceProfileSelection(e.target.value)
-                          : undefined,
-                      })
-                    }
+                        voiceProfile: next ? normalizeVoiceProfileSelection(next) : undefined,
+                      });
+                    }}
                   >
                     <option value="">{t("studio.characterVoice.languageProfileInherit")}</option>
                     {buildPerLanguageVoiceOverrideOptions({
