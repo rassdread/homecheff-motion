@@ -340,7 +340,13 @@ export function StudioCharacterVoiceCenter({
         setPreviewByLang((prev) => ({ ...prev, [lang]: result.audioUrl }));
         setLastPreviewWasDraft(result.isDraft);
       } catch (e) {
-        setPreviewError(e instanceof Error ? e.message : t("studio.voiceCenter.previewFailed"));
+        const code =
+          e && typeof e === "object" && "code" in e ? String((e as { code?: string }).code) : "";
+        if (code === "VOICE_LIBRARY_ACCESS_DENIED") {
+          setPreviewError(t("studio.voiceLibrary.ttsAccessDenied" as never));
+        } else {
+          setPreviewError(e instanceof Error ? e.message : t("studio.voiceCenter.previewFailed"));
+        }
       } finally {
         setPreviewBusyLang(null);
       }

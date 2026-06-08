@@ -124,6 +124,38 @@ export type ElevenLabsSynthesisResult = {
   characterCount: number;
 };
 
+export const ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_CODE = "VOICE_LIBRARY_ACCESS_DENIED";
+
+export const ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_EN =
+  "This voice is visible in the library but cannot be used with the current ElevenLabs access.";
+
+export const ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_NL =
+  "Deze stem is beschikbaar in de bibliotheek, maar kan niet worden gebruikt met je huidige ElevenLabs-toegang.";
+
+export function isElevenLabsVoiceAccessDenied(status: number, detail: string): boolean {
+  const normalized = detail.trim().toLowerCase();
+  if (status === 401 || status === 403) {
+    return true;
+  }
+  return (
+    normalized.includes("missing_permissions") ||
+    normalized.includes("voice_not_found") ||
+    normalized.includes("not available") ||
+    normalized.includes("subscription") ||
+    normalized.includes("quota") ||
+    normalized.includes("permission")
+  );
+}
+
+export class ElevenLabsVoiceAccessDeniedError extends Error {
+  readonly code = ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_CODE;
+
+  constructor(message = ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_EN) {
+    super(message);
+    this.name = "ElevenLabsVoiceAccessDeniedError";
+  }
+}
+
 export async function synthesizeElevenLabsSpeech(params: {
   request: ElevenLabsVoiceRequest;
   voiceProfile: string;
@@ -152,6 +184,9 @@ export async function synthesizeElevenLabsSpeech(params: {
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    if (isElevenLabsVoiceAccessDenied(res.status, detail)) {
+      throw new ElevenLabsVoiceAccessDeniedError();
+    }
     throw new Error(
       `ElevenLabs TTS failed (${res.status}): ${detail.slice(0, 200) || res.statusText}`
     );

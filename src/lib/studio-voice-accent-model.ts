@@ -20,7 +20,7 @@ export const CANONICAL_ACCENT_DEFINITIONS: CanonicalAccentDefinition[] = [
   { id: "spanish.latin_american", familyId: "spanish", labelKey: "studio.voiceLibrary.accent.spanish.latin_american", matchers: ["latin american", "latino", "mexican", "colombian"] },
   { id: "french.canadian", familyId: "french", labelKey: "studio.voiceLibrary.accent.french.canadian", matchers: ["canadian french", "quebec", "québécois"] },
   { id: "english.south_african", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.south_african", matchers: ["south african"] },
-  { id: "english.british", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.british", matchers: ["british", "uk english", "english (uk)"] },
+  { id: "english.british", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.british", matchers: ["british", "uk english", "english (uk)", "received pronunciation"] },
   { id: "english.australian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.australian", matchers: ["australian", "aussie"] },
   { id: "english.american", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.american", matchers: ["american", "us english", "usa"] },
   { id: "english.irish", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.irish", matchers: ["irish"] },

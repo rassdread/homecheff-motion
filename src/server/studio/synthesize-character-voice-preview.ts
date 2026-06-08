@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { buildVoiceRequest, validateVoiceSettings } from "@/lib/elevenlabs-voice";
+import {
+  buildVoiceRequest,
+  ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_CODE,
+  ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_EN,
+  ElevenLabsVoiceAccessDeniedError,
+  validateVoiceSettings,
+} from "@/lib/elevenlabs-voice";
 import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
 import { getVoiceProfilePreset } from "@/lib/studio-voice-profiles";
 import { validateVoiceProfileForSynthesis } from "@/lib/studio-voice-profile-ref";
@@ -120,6 +126,15 @@ export async function synthesizeCharacterVoicePreview(
       language,
     };
   } catch (err) {
+    if (err instanceof ElevenLabsVoiceAccessDeniedError) {
+      return {
+        error: serviceError(
+          ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_CODE,
+          ELEVENLABS_VOICE_LIBRARY_ACCESS_DENIED_EN,
+          403
+        ),
+      };
+    }
     const message = err instanceof Error ? err.message : "Voice preview failed.";
     return { error: serviceError("VOICE_PREVIEW_FAILED", message, 502) };
   }

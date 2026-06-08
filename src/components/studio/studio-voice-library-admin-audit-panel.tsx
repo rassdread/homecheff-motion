@@ -12,6 +12,7 @@ type AuditVoiceRow = {
   age: string;
   category: string;
   description: string;
+  catalogSource: string | null;
   canonicalAccentId: string | null;
 };
 
@@ -19,6 +20,14 @@ type AuditPayload = {
   source: string;
   fetchedAt: string;
   totalVoices: number;
+  accountVoices: number;
+  sharedVoices: number;
+  dedupeCount: number;
+  totalFetched: number;
+  accountFetched: number;
+  sharedFetched: number;
+  paginationLimited: boolean;
+  sharedVoicesLimit: number | null;
   top100: AuditVoiceRow[];
 };
 
@@ -75,7 +84,7 @@ export function StudioVoiceLibraryAdminAuditPanel() {
 
       {data ?
         <>
-          <dl className="mt-3 grid gap-2 text-xs text-amber-950 sm:grid-cols-2">
+          <dl className="mt-3 grid gap-2 text-xs text-amber-950 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.source")}</dt>
               <dd>{data.source}</dd>
@@ -83,6 +92,29 @@ export function StudioVoiceLibraryAdminAuditPanel() {
             <div>
               <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.total")}</dt>
               <dd>{data.totalVoices}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.accountVoices")}</dt>
+              <dd>{data.accountVoices}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.sharedVoices")}</dt>
+              <dd>{data.sharedVoices}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.dedupe")}</dt>
+              <dd>{data.dedupeCount}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">{t("studio.voiceLibrary.adminAudit.paginationLimited")}</dt>
+              <dd>
+                {data.paginationLimited
+                  ? t("studio.voiceLibrary.adminAudit.yes")
+                  : t("studio.voiceLibrary.adminAudit.no")}
+                {data.sharedVoicesLimit != null
+                  ? ` (${data.sharedFetched}/${data.sharedVoicesLimit})`
+                  : null}
+              </dd>
             </div>
           </dl>
           <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-amber-200 bg-white">
@@ -93,6 +125,7 @@ export function StudioVoiceLibraryAdminAuditPanel() {
                   <th className="px-2 py-1 font-semibold">{t("studio.voiceLibrary.adminAudit.col.accent")}</th>
                   <th className="px-2 py-1 font-semibold">{t("studio.voiceLibrary.adminAudit.col.lang")}</th>
                   <th className="px-2 py-1 font-semibold">{t("studio.voiceLibrary.adminAudit.col.category")}</th>
+                  <th className="px-2 py-1 font-semibold">{t("studio.voiceLibrary.adminAudit.col.source")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,6 +135,7 @@ export function StudioVoiceLibraryAdminAuditPanel() {
                     <td className="px-2 py-1">{row.accent || "—"}</td>
                     <td className="px-2 py-1">{row.language || "—"}</td>
                     <td className="px-2 py-1">{row.category || "—"}</td>
+                    <td className="px-2 py-1">{row.catalogSource || "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -42,6 +42,11 @@ export type VoiceLibraryStats = {
   languageCount: number;
   personaCount: number;
   personaAvailableCount: number;
+  totalFetched?: number;
+  accountFetched?: number;
+  sharedFetched?: number;
+  paginationLimited?: boolean;
+  dedupeCount?: number;
 };
 
 export function buildVoiceAccentCoverageReport(params: {
@@ -92,6 +97,7 @@ export function buildVoiceLibraryStats(params: {
   filterOptions: VoiceLibraryFilterOptions;
   personaPresets: VoicePersonaResolvedPreset[];
 }): VoiceLibraryStats {
+  const ingestion = params.catalog.ingestion;
   return {
     catalogSource: params.catalog.source,
     totalVoices: params.catalog.voices.length,
@@ -99,6 +105,11 @@ export function buildVoiceLibraryStats(params: {
     languageCount: params.filterOptions.languages.length,
     personaCount: params.personaPresets.length,
     personaAvailableCount: params.personaPresets.filter((p) => p.available).length,
+    totalFetched: ingestion?.totalFetched,
+    accountFetched: ingestion?.accountFetched,
+    sharedFetched: ingestion?.sharedFetched,
+    paginationLimited: ingestion?.paginationLimited,
+    dedupeCount: ingestion?.dedupeCount,
   };
 }
 
@@ -106,6 +117,12 @@ export function voiceCategoryBadgeLabelKey(category: string): string {
   const normalized = category.trim().toLowerCase();
   if (normalized === "professional") {
     return "studio.voiceLibrary.category.professional";
+  }
+  if (normalized === "high_quality" || normalized === "high quality") {
+    return "studio.voiceLibrary.category.highQuality";
+  }
+  if (normalized === "shared") {
+    return "studio.voiceLibrary.category.shared";
   }
   if (normalized === "cloned" || normalized === "clone") {
     return "studio.voiceLibrary.category.cloned";

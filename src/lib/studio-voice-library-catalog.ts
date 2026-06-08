@@ -1,11 +1,14 @@
 /**
- * ElevenLabs voice library catalog — GET /v1/voices consumption (no schema).
+ * ElevenLabs voice library catalog — /v1/voices + /v1/shared-voices (no schema).
  */
 
 import {
   CANONICAL_ACCENT_DEFINITIONS,
   classifyVoiceAccent,
 } from "@/lib/studio-voice-accent-model";
+import type { VoiceLibraryIngestionMeta } from "@/lib/studio-voice-shared-catalog";
+
+export type { VoiceLibraryIngestionMeta } from "@/lib/studio-voice-shared-catalog";
 
 export type VoiceLibraryEntry = {
   id: string;
@@ -25,6 +28,7 @@ export type VoiceLibraryCatalog = {
   source: "elevenlabs" | "mock";
   fetchedAt: string;
   voices: VoiceLibraryEntry[];
+  ingestion?: VoiceLibraryIngestionMeta;
 };
 
 export type ElevenLabsVerifiedLanguage = {
@@ -449,13 +453,11 @@ export function mockVoiceLibraryCatalog(): VoiceLibraryCatalog {
   };
 }
 
-async function fetchElevenLabsVoiceCatalog(): Promise<VoiceLibraryCatalog> {
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
-  if (!apiKey) {
-    return mockVoiceLibraryCatalog();
-  }
-
-  const res = await fetch("https://api.elevenlabs.io/v1/voices", {
+async function fetchElevenLabsAccountVoices(
+  apiKey: string,
+  fetchFn: typeof fetch = fetch
+): Promise<VoiceLibraryEntry[]> {
+  const res = await fetchFn("https://api.elevenlabs.io/v1/voices", {
     headers: { "xi-api-key": apiKey },
     next: { revalidate: 3600 },
   });
@@ -467,16 +469,77 @@ async function fetchElevenLabsVoiceCatalog(): Promise<VoiceLibraryCatalog> {
   }
 
   const payload = (await res.json()) as { voices?: ElevenLabsVoiceRow[] };
-  const voices = (payload.voices ?? [])
-    .map(mapElevenLabsVoice)
-    .filter((v): v is VoiceLibraryEntry => v !== null)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const accountVoices: VoiceLibraryEntry[] = [];
+  for (const row of payload.voices ?? []) {
+    const mapped = mapElevenLabsVoice(row);
+    if (!mapped) {
+      continue;
+    }
+    accountVoices.push({
+      ...mapped,
+      labels: {
+        ...mapped.labels,
+        catalog_source: mapped.labels.catalog_source || "account",
+      },
+    });
+  }
+  return accountVoices;
+}
+
+async function fetchElevenLabsVoiceCatalog(): Promise<VoiceLibraryCatalog> {
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  if (!apiKey) {
+    return mockVoiceLibraryCatalog();
+  }
+
+  const accountVoices = await fetchElevenLabsAccountVoices(apiKey);
+
+  let sharedVoices: VoiceLibraryEntry[] = [];
+  let sharedFetched = 0;
+  let paginationLimited = false;
+  let sharedVoicesLimit = 0;
+  const sources: VoiceLibraryIngestionMeta["sources"] = ["account"];
+  const { fetchElevenLabsSharedVoices, mergeAccountAndSharedVoices } = await import(
+    "@/lib/studio-voice-shared-catalog"
+  );
+
+  try {
+    const sharedResult = await fetchElevenLabsSharedVoices(apiKey);
+    sharedVoices = sharedResult.voices;
+    sharedFetched = sharedResult.fetched;
+    paginationLimited = sharedResult.paginationLimited;
+    sharedVoicesLimit = sharedResult.sharedVoicesLimit;
+    if (sharedFetched > 0) {
+      sources.push("shared");
+    }
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[voice-library] shared voices fetch failed; using account voices only:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  const merged = mergeAccountAndSharedVoices(accountVoices, sharedVoices);
+  const accountFetched = accountVoices.length;
+  const ingestion: VoiceLibraryIngestionMeta = {
+    sources,
+    accountFetched,
+    sharedFetched,
+    totalFetched: accountFetched + sharedFetched,
+    totalVisible: merged.voices.length,
+    dedupeCount: merged.dedupeCount,
+    paginationLimited,
+    sharedVoicesLimit,
+  };
 
   return {
     version: 1,
     source: "elevenlabs",
     fetchedAt: new Date().toISOString(),
-    voices,
+    voices: merged.voices,
+    ingestion,
   };
 }
 

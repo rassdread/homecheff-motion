@@ -49,12 +49,17 @@ describe("studio-voice-accent-coverage", () => {
     assert.ok(stats.personaCount > 0);
   });
 
-  it("maps category badges for premade professional and cloned", () => {
+  it("maps category badges for premade professional shared and cloned", () => {
     assert.equal(voiceCategoryBadgeLabelKey("premade"), "studio.voiceLibrary.category.premade");
     assert.equal(
       voiceCategoryBadgeLabelKey("professional"),
       "studio.voiceLibrary.category.professional"
     );
+    assert.equal(
+      voiceCategoryBadgeLabelKey("high_quality"),
+      "studio.voiceLibrary.category.highQuality"
+    );
+    assert.equal(voiceCategoryBadgeLabelKey("shared"), "studio.voiceLibrary.category.shared");
     assert.equal(voiceCategoryBadgeLabelKey("cloned"), "studio.voiceLibrary.category.cloned");
   });
 

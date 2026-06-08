@@ -1,4 +1,13 @@
 import { defaultCharacterVoicePreviewLine } from "@/lib/studio-character-voice";
+export class CharacterVoicePreviewError extends Error {
+  readonly code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "CharacterVoicePreviewError";
+    this.code = code;
+  }
+}
 
 export type CharacterVoicePreviewRequest = {
   characterId: string | null;
@@ -63,11 +72,10 @@ export async function requestCharacterVoicePreview(
   });
   const json: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    const msg =
-      json && typeof json === "object" && "error" in json
-        ? String((json as { error: unknown }).error)
-        : `HTTP ${res.status}`;
-    throw new Error(msg);
+    const body = json && typeof json === "object" ? (json as { error?: unknown; code?: unknown }) : {};
+    const msg = body.error ? String(body.error) : `HTTP ${res.status}`;
+    const code = body.code ? String(body.code) : undefined;
+    throw new CharacterVoicePreviewError(msg, code);
   }
   const url =
     json && typeof json === "object" && "audioUrl" in json
