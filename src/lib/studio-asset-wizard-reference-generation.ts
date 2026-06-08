@@ -9,6 +9,7 @@ import {
   buildSourceTransformSummaryPrompt,
   buildSourceTransformUserPrompt,
 } from "@/lib/studio-asset-transform-prompt";
+import { buildEnrichedAssetGenerationContext } from "@/lib/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 export type ReferenceGenerationOutcome =
@@ -36,6 +37,7 @@ export function buildReferenceGenerationPayload(
     ? buildSourceTransformSummaryPrompt(draft)
     : draft.summaryPrompt.trim();
   const userPrompt = source ? buildSourceTransformUserPrompt(draft) : undefined;
+  const visionPromptBlock = buildEnrichedAssetGenerationContext(draft);
   const styleDna = draft.derivationStyleDna;
   const derivationSource = draft.derivationSource;
 
@@ -49,6 +51,7 @@ export function buildReferenceGenerationPayload(
         preserveHint: draft.sourceTransformPreserve.trim() || undefined,
         changeHint: draft.sourceTransformChange.trim() || undefined,
         forbiddenHint: draft.sourceTransformForbidden.trim() || undefined,
+        visionHint: visionPromptBlock || undefined,
       }
     : undefined;
 
@@ -83,6 +86,7 @@ export async function runAssetReferenceGeneration(params: {
       : draft.referenceGenerationId;
 
   let styleDna = draft.derivationStyleDna;
+  let visionAnalysis = draft.sourceVisionAnalysis;
   let derivationSource = draft.derivationSource;
   const source = resolveWizardSourceReference(draft);
 
@@ -95,6 +99,7 @@ export async function runAssetReferenceGeneration(params: {
     });
     if (analyze.ok) {
       styleDna = analyze.data.styleDna;
+      visionAnalysis = analyze.data.visionAnalysis;
       if (!derivationSource) {
         derivationSource = {
           sourceType: "upload",
@@ -112,6 +117,7 @@ export async function runAssetReferenceGeneration(params: {
     {
       ...draft,
       derivationStyleDna: styleDna,
+      sourceVisionAnalysis: visionAnalysis,
       derivationSource,
       summaryPrompt: source
         ? buildSourceTransformSummaryPrompt(draft)

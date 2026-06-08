@@ -1,3 +1,6 @@
+import {
+  buildEnrichedAssetGenerationContext,
+} from "@/lib/studio-asset-vision-analysis";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { resolveTransformLabelForGeneration } from "@/lib/studio-asset-wizard-source-flow";
@@ -70,25 +73,32 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
 export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): string {
   const preview = buildTransformPromptPreviewFields(draft);
   const sourceName = preview.sourceName;
+  const contextBlock = buildEnrichedAssetGenerationContext(draft);
 
   const lines = [
+    contextBlock,
     `Using "${sourceName}" as the style base, create a ${preview.variantLabel} variant.`,
-  ];
+  ].filter(Boolean);
 
   if (preview.instruction) {
-    lines.push(preview.instruction);
+    lines.push(`User instruction: ${preview.instruction}`);
   }
 
   lines.push(`Preserve: ${preview.preserve}.`);
   lines.push(`Change: ${preview.change}.`);
 
-  if (preview.forbidden) {
-    lines.push(`Do not: ${preview.forbidden}.`);
-  } else {
-    lines.push("Preserve shape language, main colors, and brand identity — do not redesign from scratch.");
-  }
+  const forbidden =
+    preview.forbidden ||
+    formatForbiddenFromVision(draft) ||
+    "style break, color break, redesign from scratch";
+  lines.push(`Forbidden: ${forbidden}.`);
 
   return lines.join(" ");
+}
+
+function formatForbiddenFromVision(draft: AssetWizardDraft): string {
+  const forbidden = draft.sourceVisionAnalysis?.suggestedForbidden ?? [];
+  return forbidden.length ? forbidden.join(", ") : "";
 }
 
 function buildTransformPromptPreviewFields(draft: AssetWizardDraft) {
@@ -111,11 +121,15 @@ export function buildSourceTransformUserPrompt(draft: AssetWizardDraft): string 
   if (preview.instruction) {
     parts.push(preview.instruction);
   }
+  if (preview.preserve) {
+    parts.push(`Preserve: ${preview.preserve}.`);
+  }
   if (preview.change) {
     parts.push(`Change: ${preview.change}.`);
   }
-  if (preview.forbidden) {
-    parts.push(`Do not: ${preview.forbidden}.`);
+  const forbidden = preview.forbidden || formatForbiddenFromVision(draft);
+  if (forbidden) {
+    parts.push(`Forbidden: ${forbidden}.`);
   }
 
   return parts.join(" ").trim();

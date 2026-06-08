@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
-import {
-  analyzeAssetStyleDnaApi,
-  fetchAssetDerivationSources,
-} from "@/lib/studio-asset-derivation-client";
+import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import {
   getClientImagePreprocessOptionsForRole,
   preprocessImageFile,
@@ -41,7 +38,6 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
   const [loadingSources, setLoadingSources] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const jobIdRef = useRef(draft.referenceGenerationId || crypto.randomUUID());
 
   useEffect(() => {
     void fetchAssetDerivationSources().then((res) => {
@@ -52,8 +48,8 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
     });
   }, []);
 
-  const runStyleExtraction = useCallback(
-    async (source: AssetDerivationSource) => {
+  const selectSource = useCallback(
+    (source: AssetDerivationSource) => {
       onDraftChange({
         derivationSource: source,
         ...recordWizardSourceReference({
@@ -61,35 +57,10 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
           storageKey: source.referenceStorageKey,
           name: source.assetName,
         }),
-        derivationStyleDnaStatus: "loading",
-        derivationStyleDnaError: "",
-        derivationStyleDna: null,
-        referenceGenerationId: jobIdRef.current,
-      });
-
-      const res = await analyzeAssetStyleDnaApi({
-        imageUrl: source.referenceImageUrl,
-        sourceKind: source.sourceKind,
-        sourceName: source.assetName,
-        derivationJobId: jobIdRef.current,
-      });
-
-      if (!res.ok) {
-        onDraftChange({
-          derivationStyleDnaStatus: "failed",
-          derivationStyleDnaError:
-            (res.data as { error?: string }).error ?? t("studio.assetDerivation.source.analyzeFailed"),
-        });
-        return;
-      }
-
-      onDraftChange({
-        derivationStyleDna: res.data.styleDna,
-        derivationStyleDnaStatus: "ready",
         name: draft.name || `${source.assetName} variant`,
       });
     },
-    [draft.name, onDraftChange, t]
+    [draft.name, onDraftChange]
   );
 
   const handleUpload = useCallback(
@@ -110,22 +81,14 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
         formData.set("sizeBytes", String(file.size));
         formData.set("clientUploadId", clientUploadId);
         const uploaded = await postWizardImageUpload(formData);
-        const source: AssetDerivationSource = {
+        selectSource({
           sourceType: "upload",
           sourceKind: draft.kind,
           assetId: null,
           assetName: file.name.replace(/\.[^.]+$/, ""),
           referenceImageUrl: uploaded.workingImageUrl,
           referenceStorageKey: uploaded.workingStorageKey,
-        };
-        onDraftChange(
-          recordWizardSourceReference({
-            imageUrl: uploaded.workingImageUrl,
-            storageKey: uploaded.workingStorageKey,
-            name: source.assetName,
-          })
-        );
-        await runStyleExtraction(source);
+        });
       } catch (e) {
         setUploadError(
           e instanceof ImageUploadError ? e.message : t("studio.assetCreation.input.uploadFailed")
@@ -134,7 +97,7 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
         setUploading(false);
       }
     },
-    [draft.kind, runStyleExtraction, t]
+    [draft.kind, selectSource, t]
   );
 
   const source = draft.derivationSource;
@@ -156,7 +119,7 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
             <button
               key={`${item.assetId}-${item.referenceImageUrl}`}
               type="button"
-              onClick={() => void runStyleExtraction(toSource(item))}
+              onClick={() => selectSource(toSource(item))}
               className={`flex items-center gap-3 rounded-xl border p-3 text-left transition ${
                 source?.referenceImageUrl === item.referenceImageUrl
                   ? "border-[#0067B1] bg-blue-50/50"
@@ -207,24 +170,12 @@ export function StudioAssetDerivationSourceStep({ draft, onDraftChange }: Props)
         {uploadError ? <p className="mt-2 text-sm text-red-700">{uploadError}</p> : null}
       </div>
 
-      {draft.derivationStyleDnaStatus === "loading" ?
-        <p className="text-sm font-medium text-zinc-700" role="status">
-          {t("studio.assetDerivation.source.analyzing")}
-        </p>
-      : null}
-      {draft.derivationStyleDnaStatus === "failed" ?
-        <p className="text-sm text-red-700">{draft.derivationStyleDnaError}</p>
-      : null}
-      {draft.derivationStyleDnaStatus === "ready" && source ?
+      {source ?
         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm">
           <p className="font-semibold text-emerald-800">
-            {source.assetName} — {t("studio.assetDerivation.source.ready")}
+            {source.assetName} — {t("studio.assetDerivation.source.selected")}
           </p>
-          {draft.derivationStyleDna?.colorTheme ?
-            <p className="mt-1 text-emerald-900">
-              {t("studio.assetDerivation.source.colors")}: {draft.derivationStyleDna.colorTheme}
-            </p>
-          : null}
+          <p className="mt-1 text-emerald-900">{t("studio.assetDerivation.source.analyzeNext")}</p>
         </div>
       : null}
     </div>

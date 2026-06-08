@@ -1,7 +1,15 @@
-import { mapAnalysisToStyleDna } from "@/lib/studio-asset-style-dna";
-import { analyzeCharacterReferenceImagesWithOpenAi } from "@/server/studio/analyze-character-reference-images";
+import {
+  draftPatchFromVisionAnalysis,
+  mapVisionAnalysisToStyleDna,
+  mapVisionJsonToAnalysis,
+} from "@/lib/studio-asset-vision-analysis";
+import {
+  analyzeAssetReferenceVisionWithOpenAi,
+  resolveAssetVisionModel,
+} from "@/server/studio/analyze-asset-reference-vision";
 import { meterAssetDerivation } from "@/server/provider-cost/studio-cost-metering";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
+import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 import type { SessionUser } from "@/server/auth/session";
 
@@ -12,10 +20,15 @@ export type ExtractStyleDnaInput = {
   derivationJobId: string;
 };
 
+export type ExtractAssetVisionResult = {
+  styleDna: AssetStyleDna;
+  visionAnalysis: AssetVisionAnalysis;
+};
+
 export async function extractAssetStyleDna(
   viewer: Pick<SessionUser, "id">,
   input: ExtractStyleDnaInput
-): Promise<{ data: AssetStyleDna } | { error: string; code: string; status: number }> {
+): Promise<{ data: ExtractAssetVisionResult } | { error: string; code: string; status: number }> {
   const imageUrl = input.imageUrl.trim();
   if (!imageUrl) {
     return { error: "Reference image URL is required.", code: "IMAGE_REQUIRED", status: 400 };
@@ -30,21 +43,21 @@ export async function extractAssetStyleDna(
     };
   }
 
-  const model =
-    process.env.OPENAI_CHARACTER_IDENTITY_MODEL?.trim() ||
-    process.env.OPENAI_VISION_MODEL?.trim() ||
-    "gpt-4o-mini";
+  const model = resolveAssetVisionModel();
 
   try {
-    const analysis = await analyzeCharacterReferenceImagesWithOpenAi(
+    const json = await analyzeAssetReferenceVisionWithOpenAi(
       {
-        imageUrls: [imageUrl],
-        imageRoles: ["primary"],
-        userDescription: `Source ${input.sourceKind}: ${input.sourceName}. Extract style DNA for derivative asset.`,
-        intendedUsage: "Reference-derived asset creation",
+        imageUrl,
+        sourceKind: input.sourceKind,
+        sourceName: input.sourceName,
+        userDescription: `Extract universal vision analysis for derivative ${input.sourceKind} asset.`,
       },
       apiKey
     );
+
+    const visionAnalysis = mapVisionJsonToAnalysis(json);
+    const styleDna = mapVisionAnalysisToStyleDna(visionAnalysis);
 
     meterAssetDerivation({
       ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
@@ -55,7 +68,7 @@ export async function extractAssetStyleDna(
       model,
     });
 
-    return { data: mapAnalysisToStyleDna(analysis) };
+    return { data: { styleDna, visionAnalysis } };
   } catch (e) {
     meterAssetDerivation({
       ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
@@ -69,3 +82,5 @@ export async function extractAssetStyleDna(
     return { error: message, code: "EXTRACTION_FAILED", status: 502 };
   }
 }
+
+export { draftPatchFromVisionAnalysis, mapVisionAnalysisToStyleDna };

@@ -10,12 +10,18 @@ export function recordWizardSourceReference(params: {
   imageUrl: string;
   storageKey: string;
   name?: string;
-}): WizardSourceReference {
+}): WizardSourceReference & Partial<Pick<AssetWizardDraft, "sourceVisionAnalysis" | "sourceVisionAnalysisStatus" | "sourceVisionAnalysisError" | "derivationStyleDna" | "derivationStyleDnaStatus" | "derivationStyleDnaError">> {
   const imageUrl = params.imageUrl.trim();
   return {
     sourceReferenceImageUrl: imageUrl,
     sourceReferenceStorageKey: params.storageKey.trim(),
     sourceReferenceName: params.name?.trim() || "upload",
+    sourceVisionAnalysis: null,
+    sourceVisionAnalysisStatus: "idle",
+    sourceVisionAnalysisError: "",
+    derivationStyleDna: null,
+    derivationStyleDnaStatus: "idle",
+    derivationStyleDnaError: "",
   };
 }
 

@@ -16,6 +16,7 @@ export type AssetReferencePromptInput = {
     preserveHint?: string;
     changeHint?: string;
     forbiddenHint?: string;
+    visionHint?: string;
   };
 };
 
@@ -78,6 +79,7 @@ function sourceReferenceBlock(
   const preserve = sourceReference.preserveHint?.trim();
   const change = sourceReference.changeHint?.trim();
   const forbidden = sourceReference.forbiddenHint?.trim();
+  const vision = sourceReference.visionHint?.trim();
   const roleLine =
     transform && userPrompt ?
       `Use the uploaded source "${sourceReference.name}" as the style base. Create a ${transform} variant: ${userPrompt}.`
@@ -87,6 +89,7 @@ function sourceReferenceBlock(
       `Use the uploaded source "${sourceReference.name}" as the style base: ${userPrompt}.`
     : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
   const lines = [
+    vision,
     roleLine,
     preserve ? `Preserve: ${preserve}.` : "Preserve the source shape language, main colors, brand style, and mascot identity.",
     change ? `Change: ${change}.` : "Keep the friendly visual DNA — change only role, outfit, props, or context as described.",

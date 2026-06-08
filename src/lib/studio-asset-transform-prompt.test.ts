@@ -33,7 +33,7 @@ describe("studio-asset-transform-prompt", () => {
     assert.ok(summary.includes("Chef mascot"));
     assert.ok(summary.includes("Preserve: white face"));
     assert.ok(summary.includes("Change: chef role"));
-    assert.ok(summary.includes("Do not: no green skin"));
+    assert.ok(summary.includes("Forbidden: no green skin"));
   });
 
   it("builds user prompt payload with forbidden elements", () => {

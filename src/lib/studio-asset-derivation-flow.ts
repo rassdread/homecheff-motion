@@ -12,10 +12,7 @@ export function wizardStepsForDerivationFlow(
 }
 
 export function canAdvanceFromDeriveSource(draft: AssetWizardDraft): boolean {
-  return Boolean(
-    draft.derivationSource?.referenceImageUrl?.trim() &&
-      draft.derivationStyleDnaStatus === "ready"
-  );
+  return Boolean(draft.derivationSource?.referenceImageUrl?.trim());
 }
 
 export function canAdvanceFromDeriveTargetKind(draft: AssetWizardDraft): boolean {

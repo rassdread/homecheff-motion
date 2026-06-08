@@ -7,6 +7,7 @@ import {
   buildSourceTransformSummaryPrompt,
   shouldShowTransformPromptStep,
 } from "@/lib/studio-asset-transform-prompt";
+import { shouldShowAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 import { kindSupportsReferenceStep } from "@/lib/studio-asset-wizard-choices";
 
@@ -32,6 +33,9 @@ export function wizardStepLabelKeyForDraft(
   }
   if (step === "transform_prompt") {
     return "studio.assetCreation.wizard.step.transformPrompt";
+  }
+  if (step === "asset_vision") {
+    return "studio.assetCreation.wizard.step.assetVision";
   }
   return null;
 }
@@ -83,6 +87,31 @@ function insertReferenceStep(
 
   const readinessIdx = result.indexOf("readiness");
   result.splice(readinessIdx >= 0 ? readinessIdx : result.length, 0, "reference");
+  return result;
+}
+
+function insertAssetVisionStep(
+  steps: AssetCreationWizardStep[],
+  draft: AssetWizardDraft
+): AssetCreationWizardStep[] {
+  if (!shouldShowAssetVisionStep(draft) || steps.includes("asset_vision")) {
+    return steps;
+  }
+  const result = [...steps];
+
+  if (draft.derivationFlow) {
+    const sourceIdx = result.indexOf("derive_source");
+    const anchor = sourceIdx >= 0 ? sourceIdx + 1 : 0;
+    result.splice(anchor, 0, "asset_vision");
+    return result;
+  }
+
+  const proposalIdx = result.indexOf("proposal");
+  const inputIdx = result.indexOf("input");
+  const anchor = proposalIdx >= 0 ? proposalIdx + 1 : inputIdx >= 0 ? inputIdx + 1 : -1;
+  if (anchor > 0) {
+    result.splice(anchor, 0, "asset_vision");
+  }
   return result;
 }
 
@@ -166,7 +195,10 @@ export function injectSourceReferenceWizardSteps(
     result = insertReferenceStep(result, draft);
   }
 
-  return insertTransformPromptStep(insertSourceTransformStep(result, draft), draft);
+  return insertTransformPromptStep(
+    insertSourceTransformStep(insertAssetVisionStep(result, draft), draft),
+    draft
+  );
 }
 
 export type SourceReferenceFlowAuditRow = {

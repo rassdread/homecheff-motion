@@ -25,6 +25,7 @@ import type {
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
 import type { AssetDerivationSource, AssetStyleDna } from "@/types/studio-asset-derivation";
+import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioCharacterFormValues } from "@/components/studio/studio-character-form";
 import type { StudioPropFormValues } from "@/components/studio/studio-prop-form";
 import type { StudioLocationFormValues } from "@/components/studio/studio-location-form";
@@ -66,6 +67,10 @@ export type AssetWizardDraft = {
   derivationStyleDna: AssetStyleDna | null;
   derivationStyleDnaStatus: "idle" | "loading" | "ready" | "failed";
   derivationStyleDnaError: string;
+  /** Universal vision analysis (all asset types). */
+  sourceVisionAnalysis: AssetVisionAnalysis | null;
+  sourceVisionAnalysisStatus: "idle" | "loading" | "ready" | "failed";
+  sourceVisionAnalysisError: string;
   derivationTargetKind: StudioAssetKind | null;
   derivationTransformChoice: string;
   derivationTransformCustom: string;
@@ -118,6 +123,9 @@ export function emptyAssetWizardDraft(
     derivationStyleDna: null,
     derivationStyleDnaStatus: "idle",
     derivationStyleDnaError: "",
+    sourceVisionAnalysis: null,
+    sourceVisionAnalysisStatus: "idle",
+    sourceVisionAnalysisError: "",
     derivationTargetKind: null,
     derivationTransformChoice: "",
     derivationTransformCustom: "",

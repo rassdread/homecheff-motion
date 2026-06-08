@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { fetchAssetReferenceGenerationStatus } from "@/lib/studio-asset-reference-client";
+import { formatVisionColorsForDisplay } from "@/lib/studio-asset-vision-analysis";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
   draftPatchForGenerationFailure,
@@ -91,19 +92,37 @@ export function StudioWizardTransformPromptStep({
     if (defaultsAppliedRef.current) {
       return;
     }
-    if (draft.sourceTransformPreserve.trim() && draft.sourceTransformChange.trim()) {
+    if (
+      draft.sourceTransformPreserve.trim() &&
+      draft.sourceTransformChange.trim() &&
+      draft.sourceTransformForbidden.trim()
+    ) {
       defaultsAppliedRef.current = true;
       return;
     }
     defaultsAppliedRef.current = true;
     const variant = resolveVariantLabelForDraft(draft);
+    const vision = draft.sourceVisionAnalysis;
+    const preserveDefault =
+      draft.sourceTransformPreserve ||
+      (vision ? vision.suggestedPreserve.join(", ") : "") ||
+      defaultTransformPreserveText();
+    const changeDefault =
+      draft.sourceTransformChange ||
+      (vision ? vision.suggestedChange.join(", ") : "") ||
+      variant;
+    const forbiddenDefault =
+      draft.sourceTransformForbidden ||
+      (vision ? vision.suggestedForbidden.join(", ") : "");
     onDraftChange({
-      sourceTransformPreserve: draft.sourceTransformPreserve || defaultTransformPreserveText(),
-      sourceTransformChange: draft.sourceTransformChange || variant,
+      sourceTransformPreserve: preserveDefault,
+      sourceTransformChange: changeDefault,
+      sourceTransformForbidden: forbiddenDefault,
       ...syncTransformPromptDraft({
         ...draft,
-        sourceTransformPreserve: draft.sourceTransformPreserve || defaultTransformPreserveText(),
-        sourceTransformChange: draft.sourceTransformChange || variant,
+        sourceTransformPreserve: preserveDefault,
+        sourceTransformChange: changeDefault,
+        sourceTransformForbidden: forbiddenDefault,
       }),
     });
   }, [draft, onDraftChange]);
@@ -165,6 +184,64 @@ export function StudioWizardTransformPromptStep({
         </h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.transformPrompt.lead")}</p>
       </div>
+
+      {draft.sourceVisionAnalysis ?
+        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-sm">
+          <p className="font-semibold text-zinc-900">
+            {t("studio.assetCreation.transformPrompt.visionSummaryTitle")}
+          </p>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.assetVision.objectType")}
+              </dt>
+              <dd>{draft.sourceVisionAnalysis.objectTypeLabel}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.assetVision.visualStyle")}
+              </dt>
+              <dd>{draft.sourceVisionAnalysis.visualStyle || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.assetVision.brandIdentity")}
+              </dt>
+              <dd>{draft.sourceVisionAnalysis.brandIdentity}</dd>
+            </div>
+            {draft.sourceVisionAnalysis.colors.length ?
+              <div>
+                <dt className="text-xs font-semibold uppercase text-zinc-500">
+                  {t("studio.assetCreation.assetVision.brandColors")}
+                </dt>
+                <dd className="whitespace-pre-wrap">
+                  {formatVisionColorsForDisplay(draft.sourceVisionAnalysis.colors)}
+                </dd>
+              </div>
+            : null}
+          </dl>
+          <dl className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.transformPrompt.preserveLabel")}
+              </dt>
+              <dd>{draft.sourceTransformPreserve || draft.sourceVisionAnalysis.suggestedPreserve.join(", ")}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.transformPrompt.changeLabel")}
+              </dt>
+              <dd>{draft.sourceTransformChange || draft.sourceVisionAnalysis.suggestedChange.join(", ")}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.transformPrompt.forbiddenLabel")}
+              </dt>
+              <dd>{draft.sourceTransformForbidden || draft.sourceVisionAnalysis.suggestedForbidden.join(", ")}</dd>
+            </div>
+          </dl>
+        </div>
+      : null}
 
       <label className="block text-sm font-medium text-zinc-800">
         {t("studio.assetCreation.transformPrompt.instructionLabel")}

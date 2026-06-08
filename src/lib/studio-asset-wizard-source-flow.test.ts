@@ -42,10 +42,12 @@ describe("studio-asset-wizard-source-flow", () => {
     assert.equal(shouldSkipReferenceModeChoice(draft), true);
     assert.equal(shouldShowSourceTransformStep(draft), true);
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
+    const visionIdx = steps.indexOf("asset_vision");
     const transformIdx = steps.indexOf("source_transform");
     const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
-    assert.ok(transformIdx >= 0);
+    assert.ok(visionIdx >= 0);
+    assert.ok(transformIdx > visionIdx);
     assert.ok(promptIdx > transformIdx);
     assert.ok(refIdx > promptIdx);
   });
@@ -89,9 +91,11 @@ describe("studio-asset-wizard-source-flow", () => {
     draft.summaryPrompt = "Mascot variant.";
     steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const previewIdx = steps.indexOf("derive_preview");
+    const visionIdx = steps.indexOf("asset_vision");
     const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
-    assert.ok(previewIdx >= 0);
+    assert.ok(visionIdx >= 0);
+    assert.ok(previewIdx > steps.indexOf("derive_transform"));
     assert.ok(promptIdx > previewIdx);
     assert.ok(refIdx > promptIdx);
     assert.equal(shouldSkipReferenceModeChoice(draft), true);

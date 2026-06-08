@@ -18,6 +18,7 @@ import { StudioAssetDerivationPreviewStep } from "@/components/studio/studio-ass
 import { StudioAssetDerivationSourceStep } from "@/components/studio/studio-asset-derivation-source-step";
 import { StudioAssetDerivationTransformStep } from "@/components/studio/studio-asset-derivation-transform-step";
 import { StudioWizardTransformPromptStep } from "@/components/studio/studio-wizard-transform-prompt-step";
+import { StudioWizardAssetVisionStep } from "@/components/studio/studio-wizard-asset-vision-step";
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
 import { StudioWizardSourceTransformStep } from "@/components/studio/studio-wizard-source-transform-step";
 import { useActiveTranslator } from "@/i18n/client";
@@ -47,6 +48,7 @@ import {
   canAdvanceFromSourceTransformStep,
 } from "@/lib/studio-asset-wizard-source-flow";
 import { canAdvanceFromTransformPromptStep } from "@/lib/studio-asset-transform-prompt";
+import { canAdvanceFromAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { resolveWizardChoiceDef } from "@/lib/studio-asset-transformation-options";
@@ -216,6 +218,9 @@ export function StudioAssetCreationWizard({
     }
     if (step === "source_transform") {
       return canAdvanceFromSourceTransformStep(activeDraft);
+    }
+    if (step === "asset_vision") {
+      return canAdvanceFromAssetVisionStep(activeDraft);
     }
     if (step === "transform_prompt") {
       return canAdvanceFromTransformPromptStep(activeDraft);
@@ -404,6 +409,14 @@ export function StudioAssetCreationWizard({
         />
       : null}
 
+      {activeDraft && step === "asset_vision" ?
+        <StudioWizardAssetVisionStep
+          kind={activeDraft.kind}
+          draft={activeDraft}
+          onDraftChange={updateDraft}
+        />
+      : null}
+
       {activeDraft && step === "source_transform" ?
         <StudioWizardSourceTransformStep
           kind={activeDraft.kind}
@@ -433,9 +446,12 @@ export function StudioAssetCreationWizard({
             }
           }}
           onBack={() => {
+            const visionIdx = stepSequence.indexOf("asset_vision");
             const transformIdx = stepSequence.indexOf("source_transform");
             const derivePreviewIdx = stepSequence.indexOf("derive_preview");
-            if (transformIdx >= 0) {
+            if (visionIdx >= 0) {
+              setNavIndex(visionIdx);
+            } else if (transformIdx >= 0) {
               setNavIndex(transformIdx);
             } else if (derivePreviewIdx >= 0) {
               setNavIndex(derivePreviewIdx);
