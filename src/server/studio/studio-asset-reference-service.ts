@@ -1,10 +1,13 @@
 import { createHash } from "node:crypto";
 import { buildAssetReferenceGenerationPrompt } from "@/lib/studio-asset-reference-prompt";
+import { buildDerivationReferenceGenerationPrompt } from "@/lib/studio-asset-derivation-prompt";
+import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import { isSceneImageProviderAvailable } from "@/lib/studio-regeneration-guard";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import { uploadStudioAssetReferenceBuffers } from "@/server/studio/studio-asset-reference-blob";
 import { generateImageBuffersFromPrompt } from "@/server/studio/studio-image-generation-core";
 import {
+  meterAssetDerivation,
   meterOpenAiSceneImage,
   type StudioMeteringContext,
 } from "@/server/provider-cost/studio-cost-metering";
@@ -17,6 +20,12 @@ export type GenerateAssetReferenceInput = {
   choices?: Record<string, string>;
   customTexts?: Record<string, string>;
   generationId: string;
+  derivation?: {
+    styleDna: AssetStyleDna;
+    sourceName: string;
+    sourceKind: string;
+    sourceAssetId?: string | null;
+  };
 };
 
 export type GenerateAssetReferenceResult = {
@@ -71,16 +80,25 @@ export async function generateAssetReference(
     };
   }
 
-  const generatedPrompt = buildAssetReferenceGenerationPrompt({
-    kind: input.kind,
-    summaryPrompt: summary,
-    choices: input.choices,
-    customTexts: input.customTexts,
-  });
+  const generatedPrompt = input.derivation
+    ? buildDerivationReferenceGenerationPrompt({
+        kind: input.kind,
+        summaryPrompt: summary,
+        choices: input.choices,
+        customTexts: input.customTexts,
+        styleDna: input.derivation.styleDna,
+        sourceName: input.derivation.sourceName,
+      })
+    : buildAssetReferenceGenerationPrompt({
+        kind: input.kind,
+        summaryPrompt: summary,
+        choices: input.choices,
+        customTexts: input.customTexts,
+      });
 
   const meteringCtx: StudioMeteringContext = {
     userId: viewer.id,
-    feature: "asset_reference_generate",
+    feature: input.derivation ? "asset_derivation" : "asset_reference_generate",
     relatedJobId: generationId,
   };
 
@@ -104,14 +122,27 @@ export async function generateAssetReference(
       thumbContentType: "image/jpeg",
     });
 
-    meterOpenAiSceneImage({
-      ctx: meteringCtx,
-      status: "completed",
-      model: buffers.model,
-      size: buffers.size,
-      imageRecordId: generationId,
-      providerId: buffers.provider,
-    });
+    if (input.derivation) {
+      meterAssetDerivation({
+        ctx: meteringCtx,
+        phase: "generate",
+        status: "completed",
+        sourceKind: input.derivation.sourceKind,
+        targetKind: input.kind,
+        sourceAssetId: input.derivation.sourceAssetId,
+        sourceAssetName: input.derivation.sourceName,
+        model: buffers.model,
+      });
+    } else {
+      meterOpenAiSceneImage({
+        ctx: meteringCtx,
+        status: "completed",
+        model: buffers.model,
+        size: buffers.size,
+        imageRecordId: generationId,
+        providerId: buffers.provider,
+      });
+    }
 
     return {
       data: {
@@ -123,12 +154,24 @@ export async function generateAssetReference(
       },
     };
   } catch (e) {
-    meterOpenAiSceneImage({
-      ctx: meteringCtx,
-      status: "failed",
-      imageRecordId: generationId,
-      providerId,
-    });
+    if (input.derivation) {
+      meterAssetDerivation({
+        ctx: meteringCtx,
+        phase: "generate",
+        status: "failed",
+        sourceKind: input.derivation.sourceKind,
+        targetKind: input.kind,
+        sourceAssetId: input.derivation.sourceAssetId,
+        sourceAssetName: input.derivation.sourceName,
+      });
+    } else {
+      meterOpenAiSceneImage({
+        ctx: meteringCtx,
+        status: "failed",
+        imageRecordId: generationId,
+        providerId,
+      });
+    }
     const message = e instanceof Error ? e.message : "Asset reference generation failed.";
     return { error: message, code: "GENERATION_FAILED", status: 502 };
   }

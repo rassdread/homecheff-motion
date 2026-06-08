@@ -2,6 +2,7 @@
 
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
+import type { AssetDerivationRoiSummary } from "@/types/studio-asset-derivation";
 import type { StudioProfitabilityReport } from "@/types/studio-profitability";
 import { DataTable } from "@/components/admin/render-analytics/data-table";
 import { Metric } from "@/components/admin/render-analytics/metric";
@@ -9,11 +10,13 @@ import { usd } from "@/components/admin/render-analytics/format";
 
 type StudioProfitabilitySectionProps = {
   profitability: StudioProfitabilityReport;
+  assetDerivationRoi?: AssetDerivationRoiSummary;
   emptyLabel: string;
 };
 
 export function StudioProfitabilitySection({
   profitability,
+  assetDerivationRoi,
   emptyLabel,
 }: StudioProfitabilitySectionProps) {
   const t = useActiveTranslator();
@@ -318,6 +321,44 @@ export function StudioProfitabilitySection({
           emptyLabel={emptyLabel}
         />
       </AppCard>
+
+      {assetDerivationRoi ?
+        <AppCard>
+          <h2 className="text-lg font-semibold">{t("admin.profitability.assetDerivationRoi")}</h2>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric
+              label={t("admin.profitability.derivedAssets")}
+              value={String(assetDerivationRoi.derivedAssetCount)}
+            />
+            <Metric
+              label={t("admin.profitability.derivationAcceptRate")}
+              value={`${assetDerivationRoi.acceptanceRatePercent}%`}
+            />
+            <Metric
+              label={t("admin.profitability.avgDerivationCost")}
+              value={usd(assetDerivationRoi.avgCostUsd)}
+            />
+            <Metric
+              label={t("admin.profitability.avgTimeSaved")}
+              value={`${assetDerivationRoi.avgTimeSavedMinutes}m`}
+            />
+          </dl>
+          <h3 className="mt-5 text-sm font-semibold">{t("admin.profitability.topSourceAssets")}</h3>
+          <DataTable
+            headers={[
+              t("admin.profitability.label"),
+              t("admin.profitability.kind"),
+              t("admin.profitability.calls"),
+            ]}
+            rows={assetDerivationRoi.topSourceAssets.map((s) => [
+              s.name.slice(0, 32),
+              s.kind,
+              s.derivationCount,
+            ])}
+            emptyLabel={emptyLabel}
+          />
+        </AppCard>
+      : null}
 
       <AppCard>
         <h2 className="text-lg font-semibold">{t("admin.profitability.subscriptionSimulation")}</h2>

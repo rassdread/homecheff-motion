@@ -156,6 +156,8 @@ export type UserStudioInsightsReport = {
   languageExports: number;
   textRerenders: number;
   translations: number;
+  assetsDerived: number;
+  estimatedTimeSavedMinutes: number;
   estimatedProviderActions: number;
   withinLimits: boolean;
   limitHintKey: string | null;

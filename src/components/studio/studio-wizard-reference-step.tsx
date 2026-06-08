@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StudioWizardChoiceGrid } from "@/components/studio/studio-wizard-choice-grid";
 import { useActiveTranslator } from "@/i18n/client";
+import { recordAssetDerivationAcceptApi } from "@/lib/studio-asset-derivation-client";
 import {
   fetchAssetReferenceGenerationStatus,
   generateStudioAssetReferenceApi,
@@ -94,6 +95,15 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
         choices: draft.choices,
         customTexts: draft.customTexts,
         generationId,
+        derivation:
+          draft.derivationFlow && draft.derivationStyleDna && draft.derivationSource
+            ? {
+                styleDna: draft.derivationStyleDna,
+                sourceName: draft.derivationSource.assetName,
+                sourceKind: draft.derivationSource.sourceKind,
+                sourceAssetId: draft.derivationSource.assetId,
+              }
+            : undefined,
       });
 
       if (!res.ok) {
@@ -180,10 +190,24 @@ export function StudioWizardReferenceStep({ kind, draft, onDraftChange, onBackTo
   };
 
   const acceptGenerated = () => {
+    if (
+      draft.derivationFlow &&
+      draft.derivationSource &&
+      draft.referenceGenerationId
+    ) {
+      void recordAssetDerivationAcceptApi({
+        derivationJobId: draft.referenceGenerationId,
+        sourceKind: draft.derivationSource.sourceKind,
+        targetKind: kind,
+        sourceAssetId: draft.derivationSource.assetId,
+        sourceAssetName: draft.derivationSource.assetName,
+      });
+    }
     onDraftChange({
       referenceImageUrl: draft.generatedReferencePreviewUrl,
       referenceStorageKey: draft.generatedReferenceStorageKey,
       referenceGenerationStatus: "accepted",
+      derivationAccepted: draft.derivationFlow ? true : draft.derivationAccepted,
     });
   };
 

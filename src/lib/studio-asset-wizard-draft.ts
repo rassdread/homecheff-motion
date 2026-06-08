@@ -24,6 +24,7 @@ import type {
   AssetReferenceMode,
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
+import type { AssetDerivationSource, AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { StudioCharacterFormValues } from "@/components/studio/studio-character-form";
 import type { StudioPropFormValues } from "@/components/studio/studio-prop-form";
 import type { StudioLocationFormValues } from "@/components/studio/studio-location-form";
@@ -56,6 +57,15 @@ export type AssetWizardDraft = {
   /** Live summary built from choices (image gen + review + memory). */
   summaryPrompt: string;
   choiceBasedFlow: boolean;
+  derivationFlow: boolean;
+  derivationSource: AssetDerivationSource | null;
+  derivationStyleDna: AssetStyleDna | null;
+  derivationStyleDnaStatus: "idle" | "loading" | "ready" | "failed";
+  derivationStyleDnaError: string;
+  derivationTargetKind: StudioAssetKind | null;
+  derivationTransformChoice: string;
+  derivationTransformCustom: string;
+  derivationAccepted: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
 };
@@ -88,6 +98,15 @@ export function emptyAssetWizardDraft(
     customTexts: {},
     summaryPrompt: "",
     choiceBasedFlow: false,
+    derivationFlow: false,
+    derivationSource: null,
+    derivationStyleDna: null,
+    derivationStyleDnaStatus: "idle",
+    derivationStyleDnaError: "",
+    derivationTargetKind: null,
+    derivationTransformChoice: "",
+    derivationTransformCustom: "",
+    derivationAccepted: false,
     fields: {},
   };
 }
@@ -96,6 +115,15 @@ export function emptyChoiceBasedWizardDraft(kind: StudioAssetKind): AssetWizardD
   return {
     ...emptyAssetWizardDraft(kind, "design"),
     choiceBasedFlow: true,
+  };
+}
+
+export function emptyDerivationWizardDraft(kind: StudioAssetKind): AssetWizardDraft {
+  return {
+    ...emptyAssetWizardDraft(kind, "derive_from_reference"),
+    derivationFlow: true,
+    derivationTargetKind: kind === "world" ? "character" : kind,
+    referenceMode: "generate",
   };
 }
 

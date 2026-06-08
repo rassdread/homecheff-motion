@@ -50,6 +50,7 @@ const FEATURE_LABELS: Record<string, string> = {
   voice_clone: "Voice clones",
   scene_image: "Scene images",
   asset_reference: "Asset references",
+  asset_derivation: "Asset derivations",
   vision_qa: "Vision QA",
   translation: "Translations",
   motion_render: "Motion renders",
@@ -176,6 +177,9 @@ export function resolveProfitabilityFeatureKey(
   }
   if (feature === "asset_reference_generate") {
     return "asset_reference";
+  }
+  if (feature === "asset_derivation") {
+    return "asset_derivation";
   }
   if (
     feature?.startsWith("scene_image") ||

@@ -37,6 +37,11 @@ const ENTRY_OPTIONS: Array<{
     titleKey: "studio.assetCreation.entry.existingTitle",
     descriptionKey: "studio.assetCreation.entry.existingDescription",
   },
+  {
+    path: "derive_from_reference",
+    titleKey: "studio.assetCreation.entry.deriveTitle",
+    descriptionKey: "studio.assetCreation.entry.deriveDescription",
+  },
 ];
 
 export function StudioAssetCreateEntryChoice({ onSelect }: Props) {

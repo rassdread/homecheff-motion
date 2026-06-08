@@ -31,6 +31,12 @@ export async function POST(request: Request) {
     choices?: Record<string, string>;
     customTexts?: Record<string, string>;
     generationId?: string;
+    derivation?: {
+      styleDna: import("@/types/studio-asset-derivation").AssetStyleDna;
+      sourceName: string;
+      sourceKind: string;
+      sourceAssetId?: string | null;
+    };
   };
 
   try {
@@ -53,6 +59,7 @@ export async function POST(request: Request) {
     choices: body.choices ?? {},
     customTexts: body.customTexts ?? {},
     generationId: body.generationId ?? "",
+    derivation: body.derivation,
   });
 
   if ("error" in result) {

@@ -7,13 +7,18 @@ export type AssetCreateEntryPath =
   | "prompt_only"
   | "image_only"
   | "image_and_prompt"
-  | "existing_asset";
+  | "existing_asset"
+  | "derive_from_reference";
 
 export type AssetReferenceMode = "upload" | "generate" | "skip" | null;
 
 export type AssetCreationWizardStep =
   | "kind"
   | "entry"
+  | "derive_source"
+  | "derive_target_kind"
+  | "derive_transform"
+  | "derive_preview"
   | "choice"
   | "reference"
   | "input"

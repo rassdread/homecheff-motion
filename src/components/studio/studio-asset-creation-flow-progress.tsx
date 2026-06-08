@@ -8,6 +8,10 @@ import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-as
 const VISIBLE_LABELS: Record<AssetCreationWizardStep, string> = {
   kind: "studio.assetCreation.wizard.step.kind",
   entry: "studio.assetCreation.wizard.step.entry",
+  derive_source: "studio.assetCreation.wizard.step.deriveSource",
+  derive_target_kind: "studio.assetCreation.wizard.step.deriveTarget",
+  derive_transform: "studio.assetCreation.wizard.step.deriveTransform",
+  derive_preview: "studio.assetCreation.wizard.step.derivePreview",
   choice: "studio.assetCreation.wizard.step.choice",
   reference: "studio.assetCreation.wizard.step.reference",
   input: "studio.assetCreation.wizard.step.input",

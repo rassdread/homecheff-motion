@@ -3,6 +3,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { DERIVATION_TIME_SAVED_MINUTES } from "@/lib/studio-asset-style-dna";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
 import type { UserStudioInsightsReport } from "@/types/studio-profitability";
 
@@ -42,9 +43,20 @@ export async function buildUserStudioInsights(userId: string): Promise<UserStudi
   let voiceClones = 0;
   let motionRenders = 0;
   let translations = 0;
+  let assetsDerived = 0;
 
   for (const e of costEvents) {
     const feature = metaFeature(e.metadataJson);
+    if (feature === "asset_derivation") {
+      const phase =
+        e.metadataJson &&
+        typeof e.metadataJson === "object" &&
+        !Array.isArray(e.metadataJson) &&
+        (e.metadataJson as Record<string, unknown>).derivationPhase;
+      if (phase === "accept") {
+        assetsDerived += 1;
+      }
+    }
     if (feature === "asset_reference_generate") {
       assetReferencesGenerated += 1;
     } else if (
@@ -97,6 +109,8 @@ export async function buildUserStudioInsights(userId: string): Promise<UserStudi
     languageExports,
     textRerenders,
     translations,
+    assetsDerived,
+    estimatedTimeSavedMinutes: assetsDerived * DERIVATION_TIME_SAVED_MINUTES,
     estimatedProviderActions,
     withinLimits: true,
     limitHintKey: null,

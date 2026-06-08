@@ -24,6 +24,7 @@ export type StudioCostFeature =
   | "scene_image_regenerate_corrections"
   | "scene_image_bulk"
   | "asset_reference_generate"
+  | "asset_derivation"
   | "vision_scene_qa"
   | "vision_storyboard"
   | "character_reference_analysis"
@@ -370,6 +371,90 @@ export function meterElevenLabsClone(params: {
       skipBillingSync: true,
       metadataJson: baseMetadata(params.ctx, {
         providerVoiceId: params.providerVoiceId,
+        estimatedCostUsd: unitCost,
+      }),
+    })
+  );
+}
+
+export function meterAssetDerivation(params: {
+  ctx: StudioMeteringContext;
+  phase: "vision" | "generate" | "accept";
+  status: "completed" | "failed";
+  sourceKind?: string;
+  targetKind?: string;
+  sourceAssetId?: string | null;
+  sourceAssetName?: string;
+  imageCount?: number;
+  model?: string;
+  derivationAccepted?: boolean;
+}): void {
+  const actionType =
+    params.phase === "vision" ? COST_ACTION.OPENAI_CHARACTER_ANALYSIS : COST_ACTION.OPENAI_SCENE_IMAGE;
+  const unitCost =
+    params.phase === "vision"
+      ? estimateOpenAiVisionCostUsd(params.imageCount ?? 1)
+      : params.phase === "generate"
+        ? OPENAI_DALLE3_IMAGE_USD
+        : 0;
+
+  if (params.phase === "accept" && params.status === "completed") {
+    safeRecord(() =>
+      recordCostEvent({
+        provider: "internal",
+        actionType: COST_ACTION.INTERNAL_MERGE,
+        projectId: params.ctx.projectId,
+        userId: params.ctx.userId,
+        relatedJobId: params.ctx.relatedJobId,
+        status: "completed",
+        unitType: COST_UNIT.REQUEST,
+        unitsUsed: 0,
+        unitCostUsd: 0,
+        isEstimated: false,
+        skipBillingSync: true,
+        metadataJson: baseMetadata(params.ctx, {
+          derivationPhase: params.phase,
+          derivationAccepted: true,
+          sourceKind: params.sourceKind,
+          targetKind: params.targetKind,
+          sourceAssetId: params.sourceAssetId ?? undefined,
+          sourceAssetName: params.sourceAssetName,
+          derivationJobId: params.ctx.relatedJobId,
+        }),
+      })
+    );
+    return;
+  }
+
+  if (params.phase === "accept") {
+    return;
+  }
+
+  safeRecord(() =>
+    recordCostEvent({
+      provider: "openai",
+      actionType,
+      projectId: params.ctx.projectId,
+      userId: params.ctx.userId,
+      relatedJobId: params.ctx.relatedJobId,
+      status: params.status,
+      unitType: COST_UNIT.REQUEST,
+      unitsUsed: 1,
+      unitCostUsd: unitCost,
+      isEstimated: true,
+      estimateReason:
+        params.phase === "vision" ? "asset_derivation_vision" : "asset_derivation_generate",
+      skipBillingSync: true,
+      metadataJson: baseMetadata(params.ctx, {
+        derivationPhase: params.phase,
+        derivationAccepted: params.derivationAccepted ?? false,
+        sourceKind: params.sourceKind,
+        targetKind: params.targetKind,
+        sourceAssetId: params.sourceAssetId ?? undefined,
+        sourceAssetName: params.sourceAssetName,
+        derivationJobId: params.ctx.relatedJobId,
+        model: params.model,
+        imageCount: params.imageCount,
         estimatedCostUsd: unitCost,
       }),
     })

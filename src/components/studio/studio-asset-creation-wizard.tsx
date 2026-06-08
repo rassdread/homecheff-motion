@@ -14,6 +14,9 @@ import {
   StudioAssetWizardProposalStep,
   StudioAssetWizardReviewStep,
 } from "@/components/studio/studio-asset-wizard-steps";
+import { StudioAssetDerivationPreviewStep } from "@/components/studio/studio-asset-derivation-preview-step";
+import { StudioAssetDerivationSourceStep } from "@/components/studio/studio-asset-derivation-source-step";
+import { StudioAssetDerivationTransformStep } from "@/components/studio/studio-asset-derivation-transform-step";
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
 import { useActiveTranslator } from "@/i18n/client";
 import {
@@ -21,8 +24,15 @@ import {
   canAdvanceFromReferenceStep,
 } from "@/lib/studio-asset-wizard-choices";
 import {
+  canAdvanceFromDerivePreview,
+  canAdvanceFromDeriveSource,
+  canAdvanceFromDeriveTargetKind,
+  canAdvanceFromDeriveTransform,
+} from "@/lib/studio-asset-derivation-flow";
+import {
   emptyAssetWizardDraft,
   emptyChoiceBasedWizardDraft,
+  emptyDerivationWizardDraft,
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
 import {
@@ -72,9 +82,7 @@ export function StudioAssetCreationWizard({
   const t = useActiveTranslator();
   const [kind, setKind] = useState<StudioAssetKind>(initialKind);
   const [navIndex, setNavIndex] = useState(() => initialNavIndex(lockKind, choiceBasedFlow));
-  const [draft, setDraft] = useState<AssetWizardDraft | null>(() =>
-    choiceBasedFlow && lockKind ? emptyChoiceBasedWizardDraft(initialKind) : null
-  );
+  const [draft, setDraft] = useState<AssetWizardDraft | null>(null);
   const [skipWizardRemember, setSkipWizardRemember] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -82,6 +90,9 @@ export function StudioAssetCreationWizard({
   const stepSequence = useMemo(() => {
     if (draft) {
       return wizardStepSequenceForDraft(draft, { includeKind: !lockKind });
+    }
+    if (choiceBasedFlow && lockKind && !draft) {
+      return ["entry"] as AssetCreationWizardStep[];
     }
     if (choiceBasedFlow && lockKind) {
       return wizardStepsForChoiceFlow(kind, { includeKind: false });
@@ -138,11 +149,14 @@ export function StudioAssetCreationWizard({
 
   const handleEntrySelect = useCallback(
     (path: AssetCreateEntryPath) => {
-      const nextDraft = emptyAssetWizardDraft(kind, path);
+      const nextDraft =
+        path === "derive_from_reference"
+          ? emptyDerivationWizardDraft(kind)
+          : emptyAssetWizardDraft(kind, path);
       setDraft(nextDraft);
-      const steps = wizardStepsForEntryPath(path, { includeKind: !lockKind });
-      const entryIndex = steps.indexOf("entry");
-      setNavIndex(Math.min(entryIndex + 1, steps.length - 1));
+      const steps = wizardStepSequenceForDraft(nextDraft, { includeKind: !lockKind });
+      const firstStep = steps.indexOf("derive_source");
+      setNavIndex(firstStep >= 0 ? firstStep : Math.min(steps.indexOf("entry") + 1, steps.length - 1));
     },
     [kind, lockKind]
   );
@@ -160,11 +174,26 @@ export function StudioAssetCreationWizard({
   }, [navIndexClamped]);
 
   const canGoNext = useMemo(() => {
+    if (step === "entry" && choiceBasedFlow && !draft) {
+      return false;
+    }
     if (!activeDraft) {
       return false;
     }
     if (step === "choice" && activeChoiceDef) {
       return canAdvanceFromChoiceStep(activeChoiceDef, activeDraft.choices, activeDraft.customTexts);
+    }
+    if (step === "derive_source") {
+      return canAdvanceFromDeriveSource(activeDraft);
+    }
+    if (step === "derive_target_kind") {
+      return canAdvanceFromDeriveTargetKind(activeDraft);
+    }
+    if (step === "derive_transform") {
+      return canAdvanceFromDeriveTransform(activeDraft);
+    }
+    if (step === "derive_preview") {
+      return canAdvanceFromDerivePreview(activeDraft);
     }
     if (step === "reference") {
       return canAdvanceFromReferenceStep(activeDraft.referenceMode, activeDraft.referenceImageUrl, {
@@ -182,7 +211,7 @@ export function StudioAssetCreationWizard({
       return canAdvanceFromEssentials(activeDraft);
     }
     return step !== "save";
-  }, [activeDraft, step, activeChoiceDef]);
+  }, [activeDraft, step, activeChoiceDef, choiceBasedFlow, draft]);
 
   const handleAdvanced = useCallback(() => {
     const result = buildResult();
@@ -276,13 +305,8 @@ export function StudioAssetCreationWizard({
                 type="button"
                 onClick={() => {
                   setKind(option);
-                  if (choiceBasedFlow) {
-                    setDraft(emptyChoiceBasedWizardDraft(option));
-                    setNavIndex(lockKind ? 0 : 1);
-                  } else {
-                    setDraft(null);
-                    setNavIndex(1);
-                  }
+                  setDraft(null);
+                  setNavIndex(choiceBasedFlow && lockKind ? 0 : 1);
                 }}
                 className="min-h-[56px] rounded-2xl border border-zinc-200 px-4 py-3 text-left text-sm font-semibold hover:border-[#0067B1]/40 active:bg-zinc-50"
               >
@@ -295,6 +319,54 @@ export function StudioAssetCreationWizard({
 
       {step === "entry" && !choiceBasedFlow ?
         <StudioAssetCreateEntryChoice onSelect={handleEntrySelect} />
+      : null}
+
+      {step === "entry" && choiceBasedFlow && !draft ?
+        <div className="space-y-4">
+          <p className="text-sm font-semibold text-zinc-900">
+            {t("studio.assetCreation.entry.question")}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(emptyChoiceBasedWizardDraft(kind));
+                setNavIndex(0);
+              }}
+              className="rounded-2xl border border-zinc-200 bg-white p-5 text-left hover:border-[#0067B1]/40"
+            >
+              <p className="text-sm font-semibold">{t("studio.assetCreation.entry.designTitle")}</p>
+              <p className="mt-2 text-xs text-zinc-600">{t("studio.assetCreation.wizard.choiceLead")}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(emptyDerivationWizardDraft(kind));
+                setNavIndex(0);
+              }}
+              className="rounded-2xl border border-[#0067B1]/30 bg-blue-50/40 p-5 text-left hover:border-[#0067B1]/50"
+            >
+              <p className="text-sm font-semibold">{t("studio.assetCreation.entry.deriveTitle")}</p>
+              <p className="mt-2 text-xs text-zinc-600">{t("studio.assetCreation.entry.deriveDescription")}</p>
+            </button>
+          </div>
+        </div>
+      : null}
+
+      {activeDraft && step === "derive_source" ?
+        <StudioAssetDerivationSourceStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && (step === "derive_target_kind" || step === "derive_transform") ?
+        <StudioAssetDerivationTransformStep
+          draft={activeDraft}
+          step={step}
+          onDraftChange={updateDraft}
+        />
+      : null}
+
+      {activeDraft && step === "derive_preview" ?
+        <StudioAssetDerivationPreviewStep draft={activeDraft} onDraftChange={updateDraft} />
       : null}
 
       {activeDraft && step === "choice" && activeChoiceDef ?

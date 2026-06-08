@@ -129,6 +129,7 @@ export function RenderAnalyticsDashboard({
   const videoCosts = report.videoCosts;
   const billing = report.billing;
   const profitability = report.profitability;
+  const assetDerivationRoi = report.assetDerivationRoi;
 
   function accuracyLabel(accuracy: string): string {
     if (accuracy === "exact") {
@@ -449,7 +450,11 @@ export function RenderAnalyticsDashboard({
         />
       </AppCard>
 
-      <StudioProfitabilitySection profitability={profitability} emptyLabel={emptyLabel} />
+      <StudioProfitabilitySection
+        profitability={profitability}
+        assetDerivationRoi={assetDerivationRoi}
+        emptyLabel={emptyLabel}
+      />
 
       <AppCard>
         <h2 className="text-lg font-semibold">{t("admin.renderAnalytics.revenueOverview")}</h2>
