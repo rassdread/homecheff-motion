@@ -40,6 +40,7 @@ import {
   buildFacetedRegionOptions,
 } from "@/lib/studio-voice-geography-model";
 import type { UserVoiceLibraryEntry } from "@/types/studio-user-voice-library";
+import { resolveMarketplaceSearchQuery } from "@/lib/studio-voice-marketplace-search";
 
 export type VoiceMarketplaceContext = {
   characterName?: string;
@@ -253,8 +254,9 @@ function filterCloneEntries(
         return false;
       }
     }
-    if (filters.query) {
-      const q = filters.query.trim().toLowerCase();
+    const resolvedQuery = resolveMarketplaceSearchQuery(filters.query);
+    if (resolvedQuery) {
+      const q = resolvedQuery.toLowerCase();
       if (!clone.name.toLowerCase().includes(q)) {
         return false;
       }

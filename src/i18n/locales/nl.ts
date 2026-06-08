@@ -3991,6 +3991,7 @@ export const nl = {
   "studio.voiceLibrary.selected": "Geselecteerd",
   "studio.voiceLibrary.search": "Zoeken",
   "studio.voiceLibrary.searchPlaceholder": "Zoek op naam, accent, taal of beschrijving…",
+  "studio.voiceLibrary.searchPending": "Resultaten worden bijgewerkt…",
   "studio.voiceLibrary.previewFailed": "Voorbeeld niet beschikbaar voor deze stem.",
   "studio.voiceLibrary.unavailableVoice": "Deze stem is niet beschikbaar.",
   "studio.voiceLibrary.discoverByAccent": "Ontdek per accent",

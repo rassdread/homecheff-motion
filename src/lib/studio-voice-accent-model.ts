@@ -5,6 +5,7 @@
 
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
 import { voiceMatchesGeographyFilters } from "@/lib/studio-voice-geography-model";
+import { resolveMarketplaceSearchQuery } from "@/lib/studio-voice-marketplace-search";
 
 export type VoiceAccentFamilyId =
   | "english"
@@ -235,7 +236,7 @@ export function filterVoiceLibrary(
   catalog: VoiceLibraryCatalog,
   filters: VoiceLibraryFilters
 ): VoiceLibraryEntry[] {
-  const query = filters.query?.trim().toLowerCase() ?? "";
+  const query = (resolveMarketplaceSearchQuery(filters.query) ?? "").toLowerCase();
   return catalog.voices.filter((voice) => {
     if (!voiceMatchesGeographyFilters(voice, filters)) {
       return false;

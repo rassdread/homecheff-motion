@@ -1,6 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useDebouncedMarketplaceSearch } from "@/hooks/use-debounced-marketplace-search";
+import {
+  buildMarketplaceAppliedFilters,
+  resolveMarketplaceSearchQuery,
+} from "@/lib/studio-voice-marketplace-search";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
@@ -107,10 +112,14 @@ function VoiceMarketplaceActiveFilters({
   filters,
   setFilters,
   filterOptions,
+  appliedSearchQuery,
+  onClearSearch,
 }: {
   filters: VoiceLibraryFilters;
   setFilters: Dispatch<SetStateAction<VoiceLibraryFilters>>;
   filterOptions: VoiceLibraryFilterOptions;
+  appliedSearchQuery?: string;
+  onClearSearch?: () => void;
 }) {
   const t = useActiveTranslator();
   const chips: Array<{ key: keyof VoiceLibraryFilters; label: string }> = [];
@@ -160,8 +169,8 @@ function VoiceMarketplaceActiveFilters({
           : filters.category,
     });
   }
-  if (filters.query?.trim()) {
-    chips.push({ key: "query", label: `"${filters.query.trim()}"` });
+  if (appliedSearchQuery) {
+    chips.push({ key: "query", label: `"${appliedSearchQuery}"` });
   }
 
   if (chips.length === 0) {
@@ -175,7 +184,14 @@ function VoiceMarketplaceActiveFilters({
         <button
           key={chip.key}
           type="button"
-          onClick={() => setFilters((prev) => ({ ...prev, [chip.key]: undefined }))}
+          onClick={() => {
+            if (chip.key === "query") {
+              onClearSearch?.();
+              setFilters((prev) => ({ ...prev, query: undefined }));
+              return;
+            }
+            setFilters((prev) => ({ ...prev, [chip.key]: undefined }));
+          }}
           className="inline-flex min-h-[32px] items-center gap-1 rounded-full border border-violet-300 bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-900 hover:bg-violet-100"
         >
           {chip.label}
@@ -184,7 +200,10 @@ function VoiceMarketplaceActiveFilters({
       ))}
       <button
         type="button"
-        onClick={() => setFilters({})}
+        onClick={() => {
+          onClearSearch?.();
+          setFilters({});
+        }}
         className="text-xs font-semibold text-[#0067B1] hover:underline"
       >
         {t("studio.voiceLibrary.resetFilters")}
@@ -862,7 +881,22 @@ function VoiceLibraryBrowsePanel({
   const voicesPending =
     payload.catalog.voices.length === 0 &&
     (loadingVoices || (payload.stats?.totalVoices ?? 0) > 0);
-  const filterKey = JSON.stringify(filters);
+
+  const {
+    searchInput,
+    setSearchInput,
+    debouncedSearch,
+    flushSearch,
+    clearSearch,
+    isSearchPending,
+  } = useDebouncedMarketplaceSearch();
+
+  const appliedFilters = useMemo(
+    () => buildMarketplaceAppliedFilters(filters, debouncedSearch),
+    [filters, debouncedSearch]
+  );
+  const appliedSearchQuery = resolveMarketplaceSearchQuery(debouncedSearch);
+  const filterKey = JSON.stringify(appliedFilters);
 
   const clones = userVoiceLibrary?.library?.voices ?? [];
 
@@ -872,28 +906,28 @@ function VoiceLibraryBrowsePanel({
   );
 
   const facetedFilterOptions = useMemo(
-    () => buildFacetedMarketplaceFilterOptions(allEntries, filters),
-    [allEntries, filters]
+    () => buildFacetedMarketplaceFilterOptions(allEntries, appliedFilters),
+    [allEntries, appliedFilters]
   );
 
   const facetedAccentCoverage = useMemo(
-    () => buildFacetedAccentCoverage(allEntries, filters),
-    [allEntries, filters]
+    () => buildFacetedAccentCoverage(allEntries, appliedFilters),
+    [allEntries, appliedFilters]
   );
 
   const facetedCountryCoverage = useMemo(
-    () => buildFacetedCountryCoverage(allEntries, filters),
-    [allEntries, filters]
+    () => buildFacetedCountryCoverage(allEntries, appliedFilters),
+    [allEntries, appliedFilters]
   );
 
   const facetedRegionCoverage = useMemo(
-    () => buildFacetedRegionCoverage(allEntries, filters),
-    [allEntries, filters]
+    () => buildFacetedRegionCoverage(allEntries, appliedFilters),
+    [allEntries, appliedFilters]
   );
 
   const allFiltered = useMemo(
-    () => filterMarketplaceEntries(allEntries, filters),
-    [allEntries, filters]
+    () => filterMarketplaceEntries(allEntries, appliedFilters),
+    [allEntries, appliedFilters]
   );
 
   const [paging, setPaging] = useState({ filterKey, limit: BROWSE_PAGE_SIZE });
@@ -954,13 +988,33 @@ function VoiceLibraryBrowsePanel({
         <input
           type="search"
           className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-          value={filters.query ?? ""}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, query: e.target.value || undefined }))
-          }
+          value={searchInput}
+          onChange={(e) => {
+            const next = e.target.value;
+            if (!next) {
+              clearSearch();
+              return;
+            }
+            setSearchInput(next);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              flushSearch();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              clearSearch();
+            }
+          }}
           placeholder={t("studio.voiceLibrary.searchPlaceholder")}
         />
       </label>
+      {isSearchPending ?
+        <p className="mt-1 text-xs text-violet-600" aria-live="polite">
+          {t("studio.voiceLibrary.searchPending")}
+        </p>
+      : null}
 
       <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.filter.hierarchyHint")}</p>
 
@@ -1067,6 +1121,8 @@ function VoiceLibraryBrowsePanel({
         filters={filters}
         setFilters={setFilters}
         filterOptions={facetedFilterOptions}
+        appliedSearchQuery={appliedSearchQuery}
+        onClearSearch={clearSearch}
       />
 
       <p className="mt-4 text-xs font-medium text-violet-800">
