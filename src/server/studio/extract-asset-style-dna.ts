@@ -56,7 +56,7 @@ export async function extractAssetStyleDna(
       apiKey
     );
 
-    const visionAnalysis = mapVisionJsonToAnalysis(json);
+    const visionAnalysis = mapVisionJsonToAnalysis(json, { sourceName: input.sourceName });
     const styleDna = mapVisionAnalysisToStyleDna(visionAnalysis);
 
     meterAssetDerivation({

@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import {
+  resolveSemanticLineageFromDraft,
+} from "@/lib/studio-asset-identity-preservation";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -73,6 +76,10 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     worldContext: raw.worldContext?.trim() || undefined,
     roleContext: raw.roleContext?.trim() || undefined,
     updatedAt: raw.updatedAt?.trim() || undefined,
+    assetFamily: raw.assetFamily?.trim() || undefined,
+    parentAssetId: raw.parentAssetId?.trim() || undefined,
+    derivedFromAssetId: raw.derivedFromAssetId?.trim() || undefined,
+    identityFingerprint: raw.identityFingerprint ?? undefined,
   };
 }
 
@@ -105,6 +112,7 @@ export function buildAssetSemanticRecordFromVision(
     visualStyle: vision.visualStyle,
     shapeDna: vision.shapeLanguage,
     brandIdentity: vision.brandIdentity,
+    assetFamily: vision.assetFamily,
     primaryColors: vision.colors.map((c) => ({ label: c.label, hex: c.hex })),
     keyFeatures: vision.keyFeatures,
     preserveRules: vision.suggestedPreserve,
@@ -123,9 +131,11 @@ export function buildAssetSemanticRecordFromVision(
     visualKeywords: [
       vision.objectTypeLabel,
       vision.visualStyle,
+      vision.assetFamily,
       ...vision.shapeLanguage,
       ...vision.colors.map((c) => c.label),
     ].filter(Boolean),
+    identityFingerprint: vision.identityFingerprint,
     updatedAt: new Date().toISOString(),
     ...extras,
   });
@@ -133,9 +143,13 @@ export function buildAssetSemanticRecordFromVision(
 
 export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft): AssetSemanticRecord | null {
   if (draft.sourceVisionAnalysis) {
+    const lineage = resolveSemanticLineageFromDraft(draft);
     return buildAssetSemanticRecordFromVision(draft.sourceVisionAnalysis, {
       roleContext: draft.fields.role ?? draft.derivationTransformChoice ?? undefined,
       worldContext: draft.fields.worldProfileId ?? undefined,
+      assetFamily: draft.sourceVisionAnalysis.assetFamily,
+      parentAssetId: lineage.parentAssetId,
+      derivedFromAssetId: lineage.derivedFromAssetId,
       preserveRules:
         draft.sourceTransformPreserve.trim()
           ? draft.sourceTransformPreserve.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)

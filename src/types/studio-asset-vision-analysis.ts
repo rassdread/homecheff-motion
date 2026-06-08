@@ -45,6 +45,14 @@ export type AssetReferenceVisionJson = {
   suggestedForbidden?: string[] | string;
   confidence?: number;
   safetyNotes?: string[] | string;
+  assetFamily?: string;
+  characterLineage?: string;
+  brandRecognitionConfidence?: number;
+  faceStructure?: string;
+  outlineStyle?: string;
+  proportions?: string;
+  silhouette?: string;
+  accessoryPattern?: string;
 };
 
 export type AssetVisionAnalysis = {
@@ -62,4 +70,10 @@ export type AssetVisionAnalysis = {
   suggestedForbidden: string[];
   confidence: number;
   safetyNotes: string[];
+  /** e.g. HomeCheff Mascots */
+  assetFamily: string;
+  /** e.g. Primary Mascot, Brand Variant */
+  characterLineage: string;
+  brandRecognitionConfidence: number;
+  identityFingerprint: import("@/types/studio-asset-identity-preservation").AssetIdentityFingerprint;
 };

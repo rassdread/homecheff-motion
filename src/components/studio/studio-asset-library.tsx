@@ -14,18 +14,15 @@ import {
 } from "@/lib/studio-asset-library-client";
 import {
   applyAssetLibraryPreferences,
+  applyAssetLibraryFilters,
   ASSET_LIBRARY_USER_COLLECTIONS,
-  filterAssetsByCollectionPreset,
-  filterAssetsByOrigin,
-  matchesAssetLibraryTab,
-  searchStudioAssets,
-  sortStudioAssets,
   type AssetLibraryOriginFilter,
   type AssetLibrarySort,
   type AssetLibraryTab,
   type AssetLibraryViewMode,
   userOwnedAssetsOnly,
 } from "@/lib/studio-asset-library-filters";
+import { computeStudioAssetLibraryCounts } from "@/lib/studio-asset-library-counts";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -171,17 +168,30 @@ export function StudioAssetLibrary({
   }, [session.resolved, session.user, load, storyboardAssets]);
 
   const registry = storyboardAssets ?? userRegistry;
+  const userId = session.user?.id ?? "";
 
   const filtered = useMemo(() => {
-    const favoriteSet = new Set(favoriteIds);
-    const recentSet = new Set(recentIds);
-    let items = registry.filter((a) => matchesAssetLibraryTab(a, tab));
-    items = filterAssetsByCollectionPreset(items, collectionId, favoriteSet, recentSet);
-    items = filterAssetsByOrigin(items, originFilter);
-    items = searchStudioAssets(items, debouncedQuery);
-    items = sortStudioAssets(items, tab === "recent" ? "recent" : sort);
-    return items;
+    return applyAssetLibraryFilters(registry, {
+      tab,
+      collectionId,
+      originFilter,
+      query: debouncedQuery,
+      sort,
+      favoriteIds,
+      recentAssetIds: recentIds,
+    });
   }, [registry, tab, collectionId, originFilter, debouncedQuery, sort, favoriteIds, recentIds]);
+
+  const tabCounts = useMemo(() => {
+    if (!userId) {
+      return null;
+    }
+    return computeStudioAssetLibraryCounts(registry, {
+      userId,
+      favoriteIds,
+      recentAssetIds: recentIds,
+    }).byTab;
+  }, [registry, userId, favoriteIds, recentIds]);
 
   const selected =
     filtered.find((a) => a.id === selectedId) ?? registry.find((a) => a.id === selectedId) ?? null;
@@ -226,6 +236,7 @@ export function StudioAssetLibrary({
             }`}
           >
             {t(`studio.mediaAsset.tab.${id}` as never)}
+            {tabCounts && tabCounts[id] > 0 ? ` (${tabCounts[id]})` : ""}
           </button>
         ))}
       </div>

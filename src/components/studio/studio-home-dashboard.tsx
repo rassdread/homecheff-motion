@@ -171,22 +171,17 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <AssetCountLink
                 label={t("studio.myStudio.library.allAssets")}
-                count={
-                  report.assetCounts.characters +
-                  report.assetCounts.props +
-                  report.assetCounts.locations +
-                  report.assetCounts.worlds
-                }
+                count={report.libraryCounts.all}
                 href="/studio/assets"
               />
               <AssetCountLink
                 label={t("studio.myStudio.library.favorites")}
-                count={report.librarySummary.favoritesCount}
+                count={report.libraryCounts.byTab.favorites}
                 href="/studio/assets?filter=favorites"
               />
               <AssetCountLink
                 label={t("studio.myStudio.library.generated")}
-                count={report.assetReferencesGenerated}
+                count={report.libraryCounts.byTab.generated}
                 href="/studio/assets?tab=generated"
               />
               <AssetCountLink

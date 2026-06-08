@@ -67,6 +67,26 @@ function VisionResults({ analysis }: { analysis: AssetVisionAnalysis }) {
       <AnalysisSection title={t("studio.assetCreation.assetVision.brandIdentity" as never)}>
         {analysis.brandIdentity}
       </AnalysisSection>
+      <AnalysisSection title={t("studio.assetCreation.assetVision.assetFamily" as never)}>
+        {analysis.assetFamily || "—"}
+      </AnalysisSection>
+      <AnalysisSection title={t("studio.assetCreation.assetVision.characterLineage" as never)}>
+        {analysis.characterLineage || "—"}
+      </AnalysisSection>
+      <AnalysisSection title={t("studio.assetCreation.assetVision.brandRecognition" as never)}>
+        {Math.round(analysis.brandRecognitionConfidence * 100)}%
+      </AnalysisSection>
+      <AnalysisSection title={t("studio.assetCreation.assetVision.identityFingerprint" as never)}>
+        {analysis.identityFingerprint.fingerprintHash ?
+          [
+            analysis.identityFingerprint.faceStructure,
+            analysis.identityFingerprint.outlineStyle,
+            analysis.identityFingerprint.silhouette,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "—"
+        : "—"}
+      </AnalysisSection>
       <AnalysisSection title={t("studio.assetCreation.assetVision.suggestedPreserve" as never)}>
         {analysis.suggestedPreserve.join(", ")}
       </AnalysisSection>

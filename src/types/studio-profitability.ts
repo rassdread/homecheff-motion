@@ -172,6 +172,10 @@ export type UserStudioAssetCounts = {
   worlds: number;
 };
 
+import type { StudioAssetLibraryCounts } from "@/types/studio-asset-library-counts";
+
+export type { StudioAssetLibraryCounts };
+
 export type UserStudioActivityKind =
   | "project_created"
   | "storyboard_created"
@@ -210,6 +214,7 @@ export type StudioContinueWorkingItem = {
 
 export type UserStudioDashboardReport = UserStudioInsightsReport & {
   assetCounts: UserStudioAssetCounts;
+  libraryCounts: StudioAssetLibraryCounts;
   librarySummary: {
     favoritesCount: number;
     voiceFavoritesCount: number;

@@ -27,6 +27,14 @@ export type AssetSemanticRecord = {
   worldContext?: string;
   roleContext?: string;
   updatedAt?: string;
+  /** Semantic family grouping — e.g. HomeCheff Mascots */
+  assetFamily?: string;
+  /** Parent asset in library when derived from existing asset */
+  parentAssetId?: string;
+  /** Immediate derivation source asset id */
+  derivedFromAssetId?: string;
+  /** Compact identity fingerprint for variant fidelity */
+  identityFingerprint?: import("@/types/studio-asset-identity-preservation").AssetIdentityFingerprint;
 };
 
 export type AssetSemanticRecordKind = "character" | "prop" | "location" | "world";

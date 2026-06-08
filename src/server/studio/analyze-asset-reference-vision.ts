@@ -28,7 +28,7 @@ Return JSON only:
   ],
   "shapeLanguage": ["Rounded", "Friendly", "Premium", "Playful", "Geometric", "Organic", "etc"],
   "keyFeatures": ["list 3-8 distinctive visual elements visible in the image"],
-  "brandIdentity": "e.g. HomeCheff Globe Mascot or Unknown Brand Asset",
+  "brandIdentity": "e.g. HomeCheff Globe Mascot — use visible brand/name; infer mascot family name from distinctive features when logo/text visible; never 'Unknown' when clear brand markers exist",
   "materialHints": "materials if relevant (props/packaging)",
   "environmentHints": "environment/architecture/mood if location",
   "architectureHints": "",
@@ -38,6 +38,14 @@ Return JSON only:
   "suggestedChange": ["specific elements safe to change for this object type"],
   "suggestedForbidden": ["specific breaks to avoid — e.g. style break, color break, face change, logo removal, layout break"],
   "confidence": 0.0-1.0,
+  "assetFamily": "e.g. HomeCheff Mascots — group related variants under one family",
+  "characterLineage": "Primary Mascot | Role Variant | Edition Variant",
+  "brandRecognitionConfidence": 0.0-1.0,
+  "faceStructure": "face/head structure if character-like",
+  "outlineStyle": "line/outline style e.g. flat vector, bold outline",
+  "proportions": "body/head proportions e.g. friendly round, compact mascot",
+  "silhouette": "distinctive silhouette description",
+  "accessoryPattern": "recurring accessories or identity markers",
   "safetyNotes": ["copyright/trademark/real-person warnings if any"]
 }
 

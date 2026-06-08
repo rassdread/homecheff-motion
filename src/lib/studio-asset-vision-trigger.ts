@@ -2,6 +2,7 @@ import { analyzeAssetStyleDnaApi } from "@/lib/studio-asset-derivation-client";
 import { draftPatchFromVisionAnalysis } from "@/lib/studio-asset-vision-analysis";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
+import { resolveTransformLabelForGeneration } from "@/lib/studio-asset-wizard-source-flow";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 export async function triggerWizardSourceVisionAnalysis(params: {
@@ -49,7 +50,10 @@ export async function triggerWizardSourceVisionAnalysis(params: {
 
   return {
     ok: true,
-    patch: draftPatchFromVisionAnalysis(res.data.visionAnalysis),
+    patch: draftPatchFromVisionAnalysis(
+      res.data.visionAnalysis,
+      resolveTransformLabelForGeneration(params.draft)
+    ),
   };
 }
 

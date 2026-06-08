@@ -91,6 +91,11 @@ export type AssetWizardDraft = {
   sourceTransformChange: string;
   sourceTransformForbidden: string;
   derivationAccepted: boolean;
+  /** Post-generation variant fidelity vs source (source-image flows). */
+  variantFidelityScore: import("@/types/studio-asset-identity-preservation").VariantFidelityScore | null;
+  variantFidelityStatus: "idle" | "loading" | "ready" | "failed";
+  /** When true, next generation uses stricter preserve rules. */
+  variantRegenerationStrict: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
 };
@@ -144,6 +149,9 @@ export function emptyAssetWizardDraft(
     sourceTransformChange: "",
     sourceTransformForbidden: "",
     derivationAccepted: false,
+    variantFidelityScore: null,
+    variantFidelityStatus: "idle",
+    variantRegenerationStrict: false,
     fields: {},
   };
 }

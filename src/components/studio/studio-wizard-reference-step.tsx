@@ -367,6 +367,33 @@ export function StudioWizardReferenceStep({
               {draft.summaryPrompt ?
                 <p className="text-sm text-zinc-700">{draft.summaryPrompt}</p>
               : null}
+              {draft.variantFidelityScore ?
+                <div
+                  className={`rounded-xl border p-3 text-sm ${
+                    draft.variantFidelityScore.lowFidelity
+                      ? "border-amber-300 bg-amber-50 text-amber-900"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-900"
+                  }`}
+                >
+                  <p className="font-semibold">
+                    {t("studio.assetCreation.reference.fidelityTitle")} —{" "}
+                    {draft.variantFidelityScore.overall}%
+                  </p>
+                  <p className="mt-1 text-xs">
+                    {t("studio.assetCreation.reference.fidelityBreakdown", {
+                      identity: draft.variantFidelityScore.identityPreservation,
+                      color: draft.variantFidelityScore.colorPreservation,
+                      shape: draft.variantFidelityScore.shapePreservation,
+                      brand: draft.variantFidelityScore.brandPreservation,
+                    })}
+                  </p>
+                  {draft.variantFidelityScore.lowFidelity ?
+                    <p className="mt-2 text-xs font-medium">
+                      {t("studio.assetCreation.reference.fidelityLowWarning")}
+                    </p>
+                  : null}
+                </div>
+              : null}
               <p className="text-sm font-medium text-zinc-800">
                 {t("studio.assetCreation.reference.useOfficialQuestion")}
               </p>
@@ -383,7 +410,13 @@ export function StudioWizardReferenceStep({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void runGeneration(true)}
+                  onClick={() => {
+                    onDraftChange({
+                      variantRegenerationStrict:
+                        draft.variantFidelityScore?.lowFidelity ?? draft.variantRegenerationStrict,
+                    });
+                    void runGeneration(true);
+                  }}
                   className="min-h-[48px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
                 >
                   {t("studio.assetCreation.reference.regenerate")}

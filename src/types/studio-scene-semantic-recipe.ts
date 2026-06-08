@@ -13,6 +13,8 @@ export type SceneSemanticRecipeAssetRef = {
   keyFeatures?: string[];
   preserveRules?: string[];
   continuityNotes?: string;
+  assetFamily?: string;
+  identityFingerprintSummary?: string;
 };
 
 export type SceneCrossAssetRelation = {
@@ -56,4 +58,6 @@ export type SceneSemanticRecipe = {
   audio?: SceneAudioSemanticLayer;
   crossAssetRelations?: SceneCrossAssetRelation[];
   promptLineage?: ScenePromptLineage;
+  assetFamily?: string;
+  identityFingerprintSummary?: string;
 };

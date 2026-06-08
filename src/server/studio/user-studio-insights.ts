@@ -11,6 +11,7 @@ import type {
   UserStudioDashboardReport,
   UserStudioInsightsReport,
 } from "@/types/studio-profitability";
+import { loadUserStudioAssetRegistry } from "@/server/studio/load-user-studio-asset-registry";
 
 function metaFeature(metadataJson: unknown): string | null {
   if (!metadataJson || typeof metadataJson !== "object" || Array.isArray(metadataJson)) {
@@ -227,6 +228,14 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
     }),
   ]);
 
+  const { libraryCounts } = await loadUserStudioAssetRegistry(
+    { id: userId, role: "user" },
+    {
+      favoriteIds: libraryPrefs.favorites.map((f) => f.assetId),
+      recentAssetIds: libraryPrefs.recentAssets.map((r) => r.assetId),
+    }
+  );
+
   const activity: UserStudioActivityItem[] = [];
 
   for (const row of recentProjects) {
@@ -392,6 +401,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       locations,
       worlds,
     },
+    libraryCounts,
     librarySummary: {
       favoritesCount: libraryPrefs.favorites.length,
       voiceFavoritesCount: libraryPrefs.voiceFavorites.length,

@@ -5,6 +5,7 @@ import {
   extractAssetSemanticRecordFromWorld,
   hashSemanticText,
 } from "@/lib/studio-asset-semantic-record";
+import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
 import type { StudioStoryboardSceneRow } from "@/server/studio/studio-storyboard-service";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import {
@@ -31,6 +32,10 @@ function toCharacterRef(
     keyFeatures: record.keyFeatures,
     preserveRules: record.preserveRules,
     continuityNotes: record.continuityNotes,
+    assetFamily: record.assetFamily,
+    identityFingerprintSummary: record.identityFingerprint
+      ? formatIdentityFingerprintSummary(record.identityFingerprint)
+      : undefined,
   };
 }
 
@@ -200,6 +205,8 @@ export function buildSceneSemanticRecipe(params: {
     },
     crossAssetRelations: buildCrossAssetRelations({ characters, props, location, world }),
     promptLineage,
+    assetFamily: characters[0]?.assetFamily ?? props[0]?.assetFamily,
+    identityFingerprintSummary: characters[0]?.identityFingerprintSummary,
   };
 
   return {
@@ -220,6 +227,8 @@ export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe):
     recipe.world ? `World: ${recipe.world.name}.` : "",
     recipe.props.length ? `Props: ${recipe.props.map((p) => p.name).join(", ")}.` : "",
     recipe.preserveRules?.length ? `Preserve: ${recipe.preserveRules.join(", ")}.` : "",
+    recipe.assetFamily ? `Asset family: ${recipe.assetFamily}.` : "",
+    recipe.identityFingerprintSummary ? `Identity: ${recipe.identityFingerprintSummary}.` : "",
     recipe.continuityRules ? `Continuity: ${recipe.continuityRules}.` : "",
     recipe.keyFeatures?.length ? `Key features: ${recipe.keyFeatures.join(", ")}.` : "",
     recipe.audio?.sceneEnergy ? `Energy: ${recipe.audio.sceneEnergy}.` : "",

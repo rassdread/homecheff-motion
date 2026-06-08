@@ -10,6 +10,15 @@ import {
   buildAssetSemanticGenerationContext,
   buildAssetSemanticGenerationInputFromDraft,
 } from "@/lib/studio-asset-semantic-generation-context";
+import {
+  buildAutoForbiddenStyleRules,
+  buildCharacterVariantChangeRules,
+  buildCharacterVariantPreserveRules,
+  buildIdentityFingerprintFromVision,
+  inferAssetFamily,
+  inferBrandIdentityFromContext,
+  normalizeCharacterLineage,
+} from "@/lib/studio-asset-identity-preservation";
 
 export type VisionTransformationRules = {
   preserve: string[];
@@ -189,7 +198,10 @@ function normalizeColors(raw: AssetReferenceVisionJson["colors"]): AssetVisionCo
     .filter((c) => c.label);
 }
 
-export function mapVisionJsonToAnalysis(json: AssetReferenceVisionJson): AssetVisionAnalysis {
+export function mapVisionJsonToAnalysis(
+  json: AssetReferenceVisionJson,
+  context?: { sourceName?: string }
+): AssetVisionAnalysis {
   const objectType = normalizeVisionObjectType(json.objectType);
   const objectTypeLabel =
     json.objectType?.trim() ||
@@ -200,14 +212,35 @@ export function mapVisionJsonToAnalysis(json: AssetReferenceVisionJson): AssetVi
   const safetyNotes = asStringArray(json.safetyNotes);
   const rules = resolveVisionTransformationRules(objectType, json);
 
-  return {
+  const brandIdentity = inferBrandIdentityFromContext({
+    rawBrand: json.brandIdentity,
+    sourceName: context?.sourceName,
+    objectType,
+  });
+
+  const assetFamily = inferAssetFamily({
+    brandIdentity,
+    sourceName: context?.sourceName,
+    objectType,
+    rawFamily: json.assetFamily,
+  });
+
+  const characterLineage = normalizeCharacterLineage(json.characterLineage);
+  const brandRecognitionConfidence =
+    typeof json.brandRecognitionConfidence === "number" && Number.isFinite(json.brandRecognitionConfidence)
+      ? Math.min(1, Math.max(0, json.brandRecognitionConfidence))
+      : typeof json.confidence === "number" && Number.isFinite(json.confidence)
+        ? Math.min(1, Math.max(0, json.confidence))
+        : 0.6;
+
+  const baseAnalysis: AssetVisionAnalysis = {
     objectType,
     objectTypeLabel,
     visualStyle: json.visualStyle?.trim() ?? "",
     colors: normalizeColors(json.colors),
     shapeLanguage,
     keyFeatures,
-    brandIdentity: json.brandIdentity?.trim() || "Unknown brand asset",
+    brandIdentity,
     materialHints: json.materialHints?.trim() ?? "",
     environmentHints:
       [json.environmentHints, json.architectureHints, json.moodHints].filter(Boolean).join("; ").trim(),
@@ -219,6 +252,26 @@ export function mapVisionJsonToAnalysis(json: AssetReferenceVisionJson): AssetVi
         ? Math.min(1, Math.max(0, json.confidence))
         : 0.6,
     safetyNotes,
+    assetFamily,
+    characterLineage,
+    brandRecognitionConfidence,
+    identityFingerprint: { fingerprintHash: "" },
+  };
+
+  const forbidden = buildAutoForbiddenStyleRules(baseAnalysis);
+  const preserve =
+    CHARACTER_LIKE_TYPES.includes(objectType)
+      ? buildCharacterVariantPreserveRules(baseAnalysis)
+      : baseAnalysis.suggestedPreserve;
+
+  return {
+    ...baseAnalysis,
+    suggestedPreserve: preserve,
+    suggestedForbidden: forbidden,
+    identityFingerprint: buildIdentityFingerprintFromVision(
+      { ...baseAnalysis, suggestedPreserve: preserve, suggestedForbidden: forbidden },
+      json
+    ),
   };
 }
 
@@ -250,8 +303,15 @@ export function formatVisionColorsForDisplay(colors: AssetVisionColor[]): string
     .join("\n");
 }
 
-export function draftPatchFromVisionAnalysis(vision: AssetVisionAnalysis): Partial<AssetWizardDraft> {
+export function draftPatchFromVisionAnalysis(
+  vision: AssetVisionAnalysis,
+  variantLabel?: string
+): Partial<AssetWizardDraft> {
   const styleDna = mapVisionAnalysisToStyleDna(vision);
+  const changeRules = variantLabel?.trim()
+    ? buildCharacterVariantChangeRules(variantLabel, vision)
+    : vision.suggestedChange;
+
   return {
     sourceVisionAnalysis: vision,
     sourceVisionAnalysisStatus: "ready",
@@ -260,7 +320,7 @@ export function draftPatchFromVisionAnalysis(vision: AssetVisionAnalysis): Parti
     derivationStyleDnaStatus: "ready",
     derivationStyleDnaError: "",
     sourceTransformPreserve: formatTransformationRulesList(vision.suggestedPreserve),
-    sourceTransformChange: formatTransformationRulesList(vision.suggestedChange),
+    sourceTransformChange: formatTransformationRulesList(changeRules),
     sourceTransformForbidden: formatTransformationRulesList(vision.suggestedForbidden),
   };
 }

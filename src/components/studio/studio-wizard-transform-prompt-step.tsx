@@ -207,8 +207,22 @@ export function StudioWizardTransformPromptStep({
               <dt className="text-xs font-semibold uppercase text-zinc-500">
                 {t("studio.assetCreation.assetVision.brandIdentity")}
               </dt>
-              <dd>{draft.sourceVisionAnalysis.brandIdentity}</dd>
+              <dd>{preview.brandIdentity || draft.sourceVisionAnalysis.brandIdentity}</dd>
             </div>
+            <div>
+              <dt className="text-xs font-semibold uppercase text-zinc-500">
+                {t("studio.assetCreation.assetVision.assetFamily")}
+              </dt>
+              <dd>{preview.assetFamily || draft.sourceVisionAnalysis.assetFamily || "—"}</dd>
+            </div>
+            {preview.identityFingerprintSummary ?
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-semibold uppercase text-zinc-500">
+                  {t("studio.assetCreation.assetVision.identityFingerprint")}
+                </dt>
+                <dd>{preview.identityFingerprintSummary}</dd>
+              </div>
+            : null}
             {draft.sourceVisionAnalysis.colors.length ?
               <div>
                 <dt className="text-xs font-semibold uppercase text-zinc-500">

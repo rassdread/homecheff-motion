@@ -6,11 +6,16 @@ import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { clearWizardGeneratedReferenceOutput, resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { resolveTransformLabelForGeneration } from "@/lib/studio-asset-wizard-source-flow";
 import {
+  buildStricterPreservePatch,
+  computeVariantFidelityScore,
+} from "@/lib/studio-asset-identity-preservation";
+import {
   buildSourceTransformSummaryPrompt,
   buildSourceTransformUserPrompt,
 } from "@/lib/studio-asset-transform-prompt";
 import { buildAssetSemanticGenerationInputFromDraft } from "@/lib/studio-asset-semantic-generation-context";
 import { buildAssetSemanticGenerationContext } from "@/lib/studio-asset-semantic-generation-context";
+import type { VariantFidelityScore } from "@/types/studio-asset-identity-preservation";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 export type ReferenceGenerationOutcome =
@@ -19,6 +24,7 @@ export type ReferenceGenerationOutcome =
       referenceImageUrl: string;
       referenceStorageKey: string;
       generatedPrompt: string;
+      variantFidelityScore: VariantFidelityScore | null;
     }
   | {
       ok: false;
@@ -88,10 +94,14 @@ export async function runAssetReferenceGeneration(params: {
       ? crypto.randomUUID()
       : draft.referenceGenerationId;
 
-  let styleDna = draft.derivationStyleDna;
-  let visionAnalysis = draft.sourceVisionAnalysis;
-  let derivationSource = draft.derivationSource;
-  const source = resolveWizardSourceReference(draft);
+  const workingDraft = draft.variantRegenerationStrict
+    ? { ...draft, ...buildStricterPreservePatch(draft) }
+    : draft;
+
+  let styleDna = workingDraft.derivationStyleDna;
+  let visionAnalysis = workingDraft.sourceVisionAnalysis;
+  let derivationSource = workingDraft.derivationSource;
+  const source = resolveWizardSourceReference(workingDraft);
 
   if (source && !styleDna && source.sourceReferenceImageUrl) {
     const analyze = await analyzeAssetStyleDnaApi({
@@ -118,13 +128,13 @@ export async function runAssetReferenceGeneration(params: {
 
   const payload = buildReferenceGenerationPayload(
     {
-      ...draft,
+      ...workingDraft,
       derivationStyleDna: styleDna,
       sourceVisionAnalysis: visionAnalysis,
       derivationSource,
       summaryPrompt: source
-        ? buildSourceTransformSummaryPrompt(draft)
-        : draft.summaryPrompt,
+        ? buildSourceTransformSummaryPrompt(workingDraft)
+        : workingDraft.summaryPrompt,
     },
     kind,
     generationId
@@ -145,6 +155,22 @@ export async function runAssetReferenceGeneration(params: {
     };
   }
 
+  let variantFidelityScore: VariantFidelityScore | null = null;
+  if (source && visionAnalysis && res.data.referenceImageUrl) {
+    const fidelityAnalyze = await analyzeAssetStyleDnaApi({
+      imageUrl: res.data.referenceImageUrl,
+      sourceKind: kind,
+      sourceName: `${source.sourceReferenceName} variant`,
+      derivationJobId: generationId,
+    });
+    if (fidelityAnalyze.ok) {
+      variantFidelityScore = computeVariantFidelityScore({
+        source: visionAnalysis,
+        generated: fidelityAnalyze.data.visionAnalysis,
+      });
+    }
+  }
+
   return {
     generationId,
     outcome: {
@@ -152,6 +178,7 @@ export async function runAssetReferenceGeneration(params: {
       referenceImageUrl: res.data.referenceImageUrl,
       referenceStorageKey: res.data.referenceStorageKey,
       generatedPrompt: res.data.generatedPrompt,
+      variantFidelityScore,
     },
   };
 }
@@ -178,6 +205,9 @@ export function draftPatchForGenerationSuccess(
     generatedReferencePreviewUrl: outcome.referenceImageUrl,
     generatedReferenceStorageKey: outcome.referenceStorageKey,
     referenceGenerationPrompt: outcome.generatedPrompt,
+    variantFidelityScore: outcome.variantFidelityScore,
+    variantFidelityStatus: outcome.variantFidelityScore ? "ready" : "idle",
+    variantRegenerationStrict: outcome.variantFidelityScore?.lowFidelity ?? false,
   };
 }
 

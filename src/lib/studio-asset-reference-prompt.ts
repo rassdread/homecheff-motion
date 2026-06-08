@@ -82,19 +82,20 @@ function sourceReferenceBlock(
   const vision = sourceReference.visionHint?.trim();
   const roleLine =
     transform && userPrompt ?
-      `Use the uploaded source "${sourceReference.name}" as the style base. Create a ${transform} variant: ${userPrompt}.`
+      `Transform the existing "${sourceReference.name}" into a ${transform} version: ${userPrompt}. Same asset family and identity — not a new character.`
     : transform ?
-      `Create a ${transform} variant of the source reference "${sourceReference.name}".`
+      `Transform the existing "${sourceReference.name}" into a ${transform} version — same asset family and identity, not a new character.`
     : userPrompt ?
       `Use the uploaded source "${sourceReference.name}" as the style base: ${userPrompt}.`
     : `Create a new official reference variant based on the user's uploaded source "${sourceReference.name}".`;
   const lines = [
+    `SOURCE IMAGE FIDELITY (highest priority): Match "${sourceReference.name}" exactly.`,
     vision,
     roleLine,
-    preserve ? `Preserve: ${preserve}.` : "Preserve the source shape language, main colors, brand style, and mascot identity.",
-    change ? `Change: ${change}.` : "Keep the friendly visual DNA — change only role, outfit, props, or context as described.",
+    preserve ? `Preserve: ${preserve}.` : "Preserve the source face structure, proportions, silhouette, outline style, color palette, and brand identity.",
+    change ? `Change: ${change}.` : "Change only outfit, role accessories, and environment as described.",
     forbidden ? `Do not: ${forbidden}.` : "",
-    "Do not redesign from scratch.",
+    "Do not redesign from scratch. Do not create a new mascot.",
   ].filter(Boolean);
   return lines.join(" ");
 }

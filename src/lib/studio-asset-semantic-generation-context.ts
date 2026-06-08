@@ -59,11 +59,21 @@ export function buildAssetSemanticGenerationContext(input: AssetSemanticGenerati
 
   const lines = [
     objectType ? `Recognized as: ${objectType}.` : "",
+    record?.assetFamily ? `Asset family: ${record.assetFamily}.` : "",
     visualStyle ? `Visual style: ${visualStyle}.` : "",
     brandIdentity ? `Brand identity: ${brandIdentity}.` : "",
     shapeDna ? `Shape DNA: ${shapeDna}.` : "",
     colors ? `Brand colors: ${colors}.` : "",
     keyFeatures ? `Key features: ${keyFeatures}.` : "",
+    record?.identityFingerprint
+      ? `Identity fingerprint: ${[
+          record.identityFingerprint.faceStructure,
+          record.identityFingerprint.outlineStyle,
+          record.identityFingerprint.silhouette,
+        ]
+          .filter(Boolean)
+          .join(", ")}.`
+      : "",
     record?.worldContext ? `World context: ${record.worldContext}.` : "",
     record?.roleContext ? `Role context: ${record.roleContext}.` : "",
     preserve ? `Preserve: ${preserve}.` : "",

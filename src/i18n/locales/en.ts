@@ -4185,6 +4185,10 @@ export const en: LocaleSchema = {
   "studio.assetCreation.assetVision.shapeDna": "Shape language",
   "studio.assetCreation.assetVision.keyFeatures": "Key features",
   "studio.assetCreation.assetVision.brandIdentity": "Brand identity",
+  "studio.assetCreation.assetVision.assetFamily": "Asset family",
+  "studio.assetCreation.assetVision.characterLineage": "Character lineage",
+  "studio.assetCreation.assetVision.brandRecognition": "Brand recognition confidence",
+  "studio.assetCreation.assetVision.identityFingerprint": "Identity fingerprint",
   "studio.assetCreation.assetVision.suggestedPreserve": "Suggested preserve",
   "studio.assetCreation.assetVision.suggestedChange": "Suggested change",
   "studio.assetCreation.assetVision.suggestedForbidden": "Suggested forbidden",
@@ -4300,6 +4304,11 @@ export const en: LocaleSchema = {
   "studio.assetCreation.reference.useOfficialQuestion": "Use this image as the official reference?",
   "studio.assetCreation.reference.useOfficial": "Use as official reference",
   "studio.assetCreation.reference.regenerate": "Generate again",
+  "studio.assetCreation.reference.fidelityTitle": "Variant fidelity",
+  "studio.assetCreation.reference.fidelityBreakdown":
+    "Identity {identity}% · Color {color}% · Shape {shape}% · Brand {brand}%",
+  "studio.assetCreation.reference.fidelityLowWarning":
+    "Identity drift detected. Regenerating will apply stricter preserve rules.",
   "studio.assetCreation.reference.backToChoices": "Edit choices",
   "studio.assetCreation.reference.summaryRequired":
     "Complete the choice steps first so Studio can build a summary.",

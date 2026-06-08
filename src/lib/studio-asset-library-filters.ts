@@ -165,6 +165,29 @@ export function userOwnedAssetsOnly(assets: StudioAsset[], userId: string): Stud
   return assets.filter((a) => a.owner === userId || a.owner === "system");
 }
 
+/** Same filter pipeline as the asset library UI (search, collection, origin, sort). */
+export function applyAssetLibraryFilters(
+  registry: StudioAsset[],
+  params: {
+    tab: AssetLibraryTab;
+    collectionId?: string;
+    originFilter?: AssetLibraryOriginFilter;
+    query?: string;
+    sort?: AssetLibrarySort;
+    favoriteIds: string[];
+    recentAssetIds: string[];
+  }
+): StudioAsset[] {
+  const favoriteSet = new Set(params.favoriteIds);
+  const recentSet = new Set(params.recentAssetIds);
+  let items = registry.filter((a) => matchesAssetLibraryTab(a, params.tab));
+  items = filterAssetsByCollectionPreset(items, params.collectionId ?? "", favoriteSet, recentSet);
+  items = filterAssetsByOrigin(items, params.originFilter ?? "all");
+  items = searchStudioAssets(items, params.query ?? "");
+  items = sortStudioAssets(items, params.tab === "recent" ? "recent" : (params.sort ?? "updated_desc"));
+  return items;
+}
+
 export function categoryLabelKey(category: StudioAssetCategory | "world"): string {
   if (category === "world") {
     return "studio.mediaAsset.tab.world";

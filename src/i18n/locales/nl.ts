@@ -4184,6 +4184,10 @@ export const nl = {
   "studio.assetCreation.assetVision.shapeDna": "Vormtaal",
   "studio.assetCreation.assetVision.keyFeatures": "Belangrijke kenmerken",
   "studio.assetCreation.assetVision.brandIdentity": "Merkidentiteit",
+  "studio.assetCreation.assetVision.assetFamily": "Assetfamilie",
+  "studio.assetCreation.assetVision.characterLineage": "Karakterlijn",
+  "studio.assetCreation.assetVision.brandRecognition": "Merkenherkenning",
+  "studio.assetCreation.assetVision.identityFingerprint": "Identiteitsvingerafdruk",
   "studio.assetCreation.assetVision.suggestedPreserve": "Voorgesteld behouden",
   "studio.assetCreation.assetVision.suggestedChange": "Voorgesteld wijzigen",
   "studio.assetCreation.assetVision.suggestedForbidden": "Voorgesteld verboden",
@@ -4299,6 +4303,11 @@ export const nl = {
   "studio.assetCreation.reference.useOfficialQuestion": "Deze afbeelding als officiële referentie gebruiken?",
   "studio.assetCreation.reference.useOfficial": "Gebruik als officiële referentie",
   "studio.assetCreation.reference.regenerate": "Opnieuw genereren",
+  "studio.assetCreation.reference.fidelityTitle": "Variantgetrouwheid",
+  "studio.assetCreation.reference.fidelityBreakdown":
+    "Identiteit {identity}% · Kleur {color}% · Vorm {shape}% · Merk {brand}%",
+  "studio.assetCreation.reference.fidelityLowWarning":
+    "Identiteitsverlies gedetecteerd. Opnieuw genereren gebruikt strengere behoudregels.",
   "studio.assetCreation.reference.backToChoices": "Keuzes aanpassen",
   "studio.assetCreation.reference.summaryRequired":
     "Maak eerst de keuzestappen af zodat Studio een samenvatting kan bouwen.",

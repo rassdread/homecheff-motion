@@ -2,6 +2,11 @@ import {
   buildAssetSemanticGenerationInputFromDraft,
   buildAssetSemanticGenerationContext,
 } from "@/lib/studio-asset-semantic-generation-context";
+import {
+  buildSourceImageFidelityBlock,
+  buildVariantTransformationPromptBlock,
+  formatIdentityFingerprintSummary,
+} from "@/lib/studio-asset-identity-preservation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { resolveTransformLabelForGeneration } from "@/lib/studio-asset-wizard-source-flow";
@@ -40,6 +45,9 @@ export type TransformPromptPreview = {
   forbidden: string;
   instruction: string;
   compactPrompt: string;
+  brandIdentity: string;
+  assetFamily: string;
+  identityFingerprintSummary: string;
 };
 
 export function defaultTransformPreserveText(): string {
@@ -59,6 +67,7 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
   const change = draft.sourceTransformChange.trim() || variantLabel;
   const forbidden = draft.sourceTransformForbidden.trim();
   const compactPrompt = buildSourceTransformSummaryPrompt(draft);
+  const vision = draft.sourceVisionAnalysis;
 
   return {
     sourceName,
@@ -68,19 +77,38 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
     forbidden,
     instruction,
     compactPrompt,
+    brandIdentity: vision?.brandIdentity ?? "",
+    assetFamily: vision?.assetFamily ?? "",
+    identityFingerprintSummary: vision
+      ? formatIdentityFingerprintSummary(vision.identityFingerprint)
+      : "",
   };
 }
 
 export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): string {
   const preview = buildTransformPromptPreviewFields(draft);
   const sourceName = preview.sourceName;
+  const vision = draft.sourceVisionAnalysis;
+  const variantLabel = preview.variantLabel;
   const contextBlock = buildAssetSemanticGenerationContext(
     buildAssetSemanticGenerationInputFromDraft(draft)
   );
 
+  const variantBlock = buildVariantTransformationPromptBlock({
+    sourceName,
+    variantLabel,
+    brandIdentity: vision?.brandIdentity,
+    assetFamily: vision?.assetFamily,
+  });
+  const fidelityBlock = buildSourceImageFidelityBlock(sourceName);
+
   const lines = [
+    fidelityBlock,
+    variantBlock,
     contextBlock,
-    `Using "${sourceName}" as the style base, create a ${preview.variantLabel} variant.`,
+    vision?.identityFingerprint
+      ? `Identity fingerprint: ${formatIdentityFingerprintSummary(vision.identityFingerprint)}.`
+      : "",
   ].filter(Boolean);
 
   if (preview.instruction) {
