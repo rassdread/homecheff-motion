@@ -192,6 +192,22 @@ export type UserStudioActivityItem = {
   href: string | null;
 };
 
+export type StudioHomeRecentItem = {
+  id: string;
+  kind: "storyboard" | "character" | "prop" | "location" | "world";
+  title: string;
+  href: string;
+  at: string;
+};
+
+export type StudioContinueWorkingItem = {
+  id: string;
+  kind: "storyboard" | "character" | "prop" | "location" | "world";
+  title: string;
+  href: string;
+  updatedAt: string;
+};
+
 export type UserStudioDashboardReport = UserStudioInsightsReport & {
   assetCounts: UserStudioAssetCounts;
   librarySummary: {
@@ -199,4 +215,6 @@ export type UserStudioDashboardReport = UserStudioInsightsReport & {
     voiceFavoritesCount: number;
   };
   recentActivity: UserStudioActivityItem[];
+  recentStoryboards: StudioHomeRecentItem[];
+  continueWorking: StudioContinueWorkingItem[];
 };

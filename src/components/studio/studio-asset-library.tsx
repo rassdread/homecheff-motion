@@ -209,7 +209,7 @@ export function StudioAssetLibrary({
           <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
         </div>
         {layout === "page" ?
-          <Link href="/studio/my-studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+          <Link href="/studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
             ← {t("studio.mediaAsset.backToMyStudio")}
           </Link>
         : null}

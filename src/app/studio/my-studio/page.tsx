@@ -1,5 +1,6 @@
-import { StudioMyStudioPage } from "@/components/studio/studio-my-studio-page";
+import { redirect } from "next/navigation";
 
+/** Legacy route — consolidated into /studio home dashboard. */
 export default function MyStudioPage() {
-  return <StudioMyStudioPage />;
+  redirect("/studio");
 }

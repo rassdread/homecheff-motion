@@ -215,7 +215,7 @@ export function StudioAccountPage() {
                   {t("studio.actions.save")}
                 </button>
                 <Link
-                  href="/studio/my-studio"
+                  href="/studio"
                   className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                 >
                   {t("studio.account.backToMyStudio")}

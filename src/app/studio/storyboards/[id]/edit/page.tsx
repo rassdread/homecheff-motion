@@ -4,10 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useCallback, useEffect, useState } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
-import {
-  StudioStoryboardForm,
-  type StudioStoryboardFormValues,
-} from "@/components/studio/studio-storyboard-form";
+import { StudioStoryboardForm, type StudioStoryboardFormValues } from "@/components/studio/studio-storyboard-form";
+import { StudioStoryboardRelationshipsPanel } from "@/components/studio/studio-storyboard-relationships-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
@@ -95,6 +93,7 @@ export default function StudioStoryboardEditPage({ params }: PageProps) {
                 backHref={studioWorkspaceHref(id)}
                 onSubmit={handleSubmit}
               />
+              <StudioStoryboardRelationshipsPanel storyboardId={id} />
             </div>
           ) : (
             <p className="mt-8 text-sm text-red-700">

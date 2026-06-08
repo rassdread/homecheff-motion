@@ -7,6 +7,7 @@ import { ClientFormattedDateTime } from "@/components/ui/client-formatted-dateti
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioLocationCategoryBadge } from "@/components/studio/studio-location-category-badge";
 import { AppCard } from "@/components/ui/app-card";
+import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
@@ -159,6 +160,8 @@ export function StudioLocationDetailView({ locationId }: StudioLocationDetailVie
                   </p>
                 ) : null}
               </AppCard>
+
+              <StudioAssetUsagePanel kind="location" assetId={location.id} assetName={location.name} />
             </>
           ) : null}
         </section>

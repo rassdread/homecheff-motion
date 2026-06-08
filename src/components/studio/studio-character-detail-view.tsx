@@ -16,6 +16,7 @@ import {
   fetchStudioCharacter,
 } from "@/lib/studio-characters-client";
 import { StudioCharacterCanonicalOverviewPanel } from "@/components/studio/studio-character-canonical-overview-panel";
+import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
 import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
 import { buildCharacterHealthView } from "@/lib/studio-character-health";
 import type { StudioCharacterDetail } from "@/types/studio-api";
@@ -226,6 +227,7 @@ export function StudioCharacterDetailView({ characterId }: StudioCharacterDetail
                   </p>
                 ) : null}
               </AppCard>
+              <StudioAssetUsagePanel kind="character" assetId={character.id} assetName={character.name} />
               </>
               ) : null}
             </>

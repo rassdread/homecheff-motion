@@ -2,6 +2,7 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioAssetLibraryActions } from "@/components/studio/studio-asset-library-actions";
+import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
 import type { StudioAsset, StudioAssetUsageEntry } from "@/types/studio-media-asset";
 
@@ -91,6 +92,18 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
             ))}
           </ul>
         </div>
+      : null}
+
+      {asset.sourceRef.entityType === "character" ||
+      asset.sourceRef.entityType === "prop" ||
+      asset.sourceRef.entityType === "location" ||
+      asset.sourceRef.entityType === "world" ?
+        <StudioAssetUsagePanel
+          kind={asset.sourceRef.entityType}
+          assetId={asset.sourceRef.entityId}
+          assetName={asset.name}
+          compact
+        />
       : null}
 
       <StudioAssetLibraryActions

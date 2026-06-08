@@ -1,5 +1,6 @@
-import { StudioAdvancedHubPage } from "@/components/studio/studio-advanced-hub-page";
+import { redirect } from "next/navigation";
 
+/** Legacy advanced hub — consolidated into /studio home and libraries. */
 export default function StudioAdvancedPage() {
-  return <StudioAdvancedHubPage />;
+  redirect("/studio");
 }

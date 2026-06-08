@@ -140,6 +140,11 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
     recentWorlds,
     recentCostEvents,
     libraryPrefs,
+    continueStoryboards,
+    continueCharacters,
+    continueProps,
+    continueLocations,
+    continueWorlds,
   ] = await Promise.all([
     prisma.animationProject.count({ where: { ownerId: userId } }),
     prisma.studioStoryboard.count({ where: { ownerId: userId } }),
@@ -190,6 +195,36 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       take: 20,
     }),
     readAssetLibraryPreferencesManifest(userId),
+    prisma.studioStoryboard.findMany({
+      where: { ownerId: userId },
+      select: { id: true, title: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 6,
+    }),
+    prisma.studioCharacter.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioProp.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioLocation.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
+    prisma.studioWorldProfile.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+    }),
   ]);
 
   const activity: UserStudioActivityItem[] = [];
@@ -299,6 +334,54 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
 
   activity.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
+  const recentStoryboardItems = recentStoryboards.map((row) => ({
+    id: row.id,
+    kind: "storyboard" as const,
+    title: row.title?.trim() || "Storyboard",
+    href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+    at: row.createdAt.toISOString(),
+  }));
+
+  const continueItems = [
+    ...continueStoryboards.map((row) => ({
+      id: row.id,
+      kind: "storyboard" as const,
+      title: row.title?.trim() || "Storyboard",
+      href: `/studio?storyboardId=${encodeURIComponent(row.id)}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueCharacters.map((row) => ({
+      id: row.id,
+      kind: "character" as const,
+      title: row.name?.trim() || "Character",
+      href: `/studio/characters/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueProps.map((row) => ({
+      id: row.id,
+      kind: "prop" as const,
+      title: row.name?.trim() || "Prop",
+      href: `/studio/props/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueLocations.map((row) => ({
+      id: row.id,
+      kind: "location" as const,
+      title: row.name?.trim() || "Location",
+      href: `/studio/locations/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+    ...continueWorlds.map((row) => ({
+      id: row.id,
+      kind: "world" as const,
+      title: row.name?.trim() || "World",
+      href: `/studio/worlds/${row.id}`,
+      updatedAt: row.updatedAt.toISOString(),
+    })),
+  ]
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .slice(0, 8);
+
   return {
     ...insights,
     assetCounts: {
@@ -314,5 +397,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
       voiceFavoritesCount: libraryPrefs.voiceFavorites.length,
     },
     recentActivity: activity.slice(0, 12),
+    recentStoryboards: recentStoryboardItems,
+    continueWorking: continueItems,
   };
 }

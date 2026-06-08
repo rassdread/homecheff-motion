@@ -32,7 +32,7 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
         <div className="flex flex-wrap items-center gap-2">
           <MotionBuildDebugBadge className="hidden sm:block" />
           <Link
-            href="/studio/my-studio"
+            href="/studio"
             prefetch={false}
             className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
           >

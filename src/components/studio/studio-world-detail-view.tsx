@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StudioAssetMemoryTab } from "@/components/studio/studio-asset-memory-tab";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { AppCard } from "@/components/ui/app-card";
+import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
@@ -97,9 +98,12 @@ export function StudioWorldDetailView({ worldId }: StudioWorldDetailViewProps) {
                 ))}
               </div>
               {tab === "overview" ? (
-                <AppCard className="mt-6 p-6 text-sm text-zinc-800 whitespace-pre-wrap">
-                  {world.description || "—"}
-                </AppCard>
+                <>
+                  <AppCard className="mt-6 p-6 text-sm text-zinc-800 whitespace-pre-wrap">
+                    {world.description || "—"}
+                  </AppCard>
+                  <StudioAssetUsagePanel kind="world" assetId={world.id} assetName={world.name} />
+                </>
               ) : (
                 <StudioAssetMemoryTab
                   kind="world"
