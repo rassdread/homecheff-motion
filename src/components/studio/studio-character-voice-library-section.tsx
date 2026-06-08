@@ -1,23 +1,30 @@
 "use client";
 
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
 import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voice-library-provider";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
 import { useActiveTranslator } from "@/i18n/client";
 import {
-  buildVoiceAccentCoverageReport,
   buildVoiceLibraryStats,
   voiceCategoryBadgeLabelKey,
-  VOICE_DISCOVERY_ACCENT_IDS,
 } from "@/lib/studio-voice-accent-coverage";
 import {
   CANONICAL_ACCENT_DEFINITIONS,
+  type VoiceLibraryFilterOptions,
   type VoiceLibraryFilters,
 } from "@/lib/studio-voice-accent-model";
+import type { VoiceAccentCoverageRow } from "@/lib/studio-voice-accent-coverage";
 import { voiceLanguageLabelKey } from "@/lib/studio-voice-language-labels";
 import type { VoiceLibraryPayload } from "@/lib/studio-voice-library-client";
 import {
+  requestCharacterVoicePreview,
+} from "@/lib/studio-character-voice-preview-client";
+import {
+  buildFacetedAccentCoverage,
+  buildFacetedCountryCoverage,
+  buildFacetedMarketplaceFilterOptions,
+  buildFacetedRegionCoverage,
   buildMarketplaceEntries,
   buildVoiceRecommendations,
   computeVoiceCompatibilityScore,
@@ -26,6 +33,10 @@ import {
   type VoiceMarketplaceEntry,
   type VoiceRecommendation,
 } from "@/lib/studio-voice-marketplace";
+import {
+  voiceAccessTierLabelKey,
+  type VoiceGeographyFilterOption,
+} from "@/lib/studio-voice-geography-model";
 import { StudioMyVoicesSection } from "@/components/studio/studio-my-voices-section";
 import {
   STUDIO_VOICE_PROFILE_IDS,
@@ -62,6 +73,18 @@ type Props = {
   marketplaceContext?: VoiceMarketplaceContext;
 };
 
+export type StudioVoiceRecommendationsPanelProps = {
+  payload: VoiceLibraryPayload;
+  marketplaceContext: VoiceMarketplaceContext;
+  selectedProfile: string;
+  onSelectProfile: (profile: string, meta?: VoiceSelectMeta) => void;
+  characterId?: string | null;
+  characterName?: string;
+  language?: string;
+  previewText: string;
+  onPreviewError?: (message: string) => void;
+};
+
 function accentLabelForFilter(accentId: string, t: (key: never) => string): string {
   const def = CANONICAL_ACCENT_DEFINITIONS.find((d) => d.id === accentId);
   return def ? t(def.labelKey as never) : accentId;
@@ -70,15 +93,27 @@ function accentLabelForFilter(accentId: string, t: (key: never) => string): stri
 function VoiceMarketplaceActiveFilters({
   filters,
   setFilters,
-  payload,
+  filterOptions,
 }: {
   filters: VoiceLibraryFilters;
   setFilters: Dispatch<SetStateAction<VoiceLibraryFilters>>;
-  payload: VoiceLibraryPayload;
+  filterOptions: VoiceLibraryFilterOptions;
 }) {
   const t = useActiveTranslator();
   const chips: Array<{ key: keyof VoiceLibraryFilters; label: string }> = [];
 
+  if (filters.countryId) {
+    chips.push({
+      key: "countryId",
+      label: t(`studio.voiceLibrary.country.${filters.countryId}` as never),
+    });
+  }
+  if (filters.regionId) {
+    chips.push({
+      key: "regionId",
+      label: t(`studio.voiceLibrary.region.${filters.regionId}` as never),
+    });
+  }
   if (filters.accentId) {
     chips.push({ key: "accentId", label: accentLabelForFilter(filters.accentId, t) });
   }
@@ -87,24 +122,29 @@ function VoiceMarketplaceActiveFilters({
     chips.push({ key: "language", label: t(langKey as never) });
   }
   if (filters.gender) {
-    const gender = payload.filterOptions.genders.find((g) => g.value === filters.gender);
+    const gender = filterOptions.genders.find((g) => g.value === filters.gender);
     chips.push({
       key: "gender",
       label: gender ? t(gender.labelKey as never) : filters.gender,
     });
   }
   if (filters.age) {
-    const age = payload.filterOptions.ages.find((a) => a.value === filters.age);
+    const age = filterOptions.ages.find((a) => a.value === filters.age);
     chips.push({
       key: "age",
       label: age ? t(age.labelKey as never) : filters.age,
     });
   }
   if (filters.category) {
-    const cat = payload.filterOptions.categories?.find((c) => c.value === filters.category);
+    const cat = filterOptions.categories?.find((c) => c.value === filters.category);
     chips.push({
       key: "category",
-      label: cat ? t(cat.labelKey as never) : filters.category,
+      label:
+        filters.category === "my_clone"
+          ? t("studio.voiceLibrary.badge.myVoice" as never)
+          : cat
+          ? t(cat.labelKey as never)
+          : filters.category,
     });
   }
   if (filters.query?.trim()) {
@@ -140,23 +180,63 @@ function VoiceMarketplaceActiveFilters({
   );
 }
 
+function VoiceMarketplaceGeographyChips({
+  titleKey,
+  options,
+  activeValue,
+  onSelect,
+}: {
+  titleKey: string;
+  options: VoiceGeographyFilterOption[];
+  activeValue?: string;
+  onSelect: (value: string | undefined) => void;
+}) {
+  const t = useActiveTranslator();
+  if (options.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
+        {t(titleKey as never)}
+      </h4>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {options.map((row) => {
+          const active = activeValue === row.value;
+          return (
+            <button
+              key={row.value}
+              type="button"
+              onClick={() => onSelect(active ? undefined : row.value)}
+              className={`min-h-[40px] rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                active
+                  ? "border-violet-500 bg-violet-600 text-white"
+                  : row.voiceCount === 0
+                  ? "border-violet-100 bg-violet-50/50 text-violet-500"
+                  : "border-violet-200 bg-white text-violet-900 hover:bg-violet-50"
+              }`}
+            >
+              {t(row.labelKey as never)} ({row.voiceCount})
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function VoiceMarketplaceAccentChips({
-  payload,
+  accentCoverage,
   filters,
   setFilters,
 }: {
-  payload: VoiceLibraryPayload;
+  accentCoverage: VoiceAccentCoverageRow[];
   filters: VoiceLibraryFilters;
   setFilters: Dispatch<SetStateAction<VoiceLibraryFilters>>;
 }) {
   const t = useActiveTranslator();
-  const coverage =
-    payload.accentCoverage ??
-    buildVoiceAccentCoverageReport({
-      catalog: payload.catalog,
-      personaPresets: payload.personaPresets,
-      accentIds: VOICE_DISCOVERY_ACCENT_IDS,
-    });
+  const coverage = accentCoverage;
 
   return (
     <div className="mt-4">
@@ -197,14 +277,21 @@ function VoiceRecommendationCard({
   recommendation,
   selected,
   onSelect,
+  onPreview,
+  previewBusy,
+  ttsPreviewUrl,
 }: {
   recommendation: VoiceRecommendation;
   selected: boolean;
   onSelect: () => void;
+  onPreview: () => void;
+  previewBusy: boolean;
+  ttsPreviewUrl?: string;
 }) {
   const t = useActiveTranslator();
   const { entry, compatibilityScore, starRating } = recommendation;
   const stars = "★".repeat(starRating) + "☆".repeat(5 - starRating);
+  const [catalogPreviewError, setCatalogPreviewError] = useState(false);
 
   return (
     <article className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
@@ -220,15 +307,162 @@ function VoiceRecommendationCard({
             </p>
           : null}
         </div>
-        <button
-          type="button"
-          onClick={onSelect}
-          className="min-h-[40px] shrink-0 rounded-full border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-50"
-        >
-          {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
-        </button>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <button
+            type="button"
+            disabled={previewBusy}
+            onClick={onPreview}
+            className="min-h-[40px] rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {previewBusy ? t("button.loading") : t("studio.voiceCenter.preview")}
+          </button>
+          <button
+            type="button"
+            onClick={onSelect}
+            className="min-h-[40px] rounded-full border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-50"
+          >
+            {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
+          </button>
+        </div>
       </div>
+      {ttsPreviewUrl ?
+        <div className="mt-2">
+          <StudioAudioPreviewPlayer
+            title={entry.name}
+            audioUrl={ttsPreviewUrl}
+            source="voice_character"
+            variant="compact"
+            className="border-amber-200"
+          />
+        </div>
+      : null}
+      {entry.previewUrl && !catalogPreviewError ?
+        <div className="mt-2">
+          <StudioAudioPreviewPlayer
+            title={entry.name}
+            audioUrl={entry.previewUrl}
+            source="voice_library"
+            variant="compact"
+            className="border-amber-200"
+          />
+        </div>
+      : null}
+      {entry.previewUrl ?
+        <audio
+          className="hidden"
+          src={entry.previewUrl}
+          onError={() => setCatalogPreviewError(true)}
+          preload="none"
+        />
+      : null}
     </article>
+  );
+}
+
+function buildRecommendationSelectionMemory(
+  entry: VoiceMarketplaceEntry,
+  marketplaceContext: VoiceMarketplaceContext,
+  personaPresets: VoiceLibraryPayload["personaPresets"],
+  personaLabelKey?: string
+): VoiceSelectMeta {
+  const match = computeVoiceCompatibilityScore(entry, marketplaceContext, personaPresets);
+  const memory: VoiceSelectionMemory = {
+    selectedAt: new Date().toISOString(),
+    profileRef: entry.profileRef,
+    voiceName: entry.name,
+    compatibilityScore: match.score,
+    matchedAccentId: entry.accentCanonicalId,
+    matchedAccentLabelKey: entry.accentLabelKey,
+    personaPresetId: personaLabelKey ? null : match.personaPresetId,
+    personaLabelKey: personaLabelKey ?? match.personaLabelKey,
+    matchingReasons: match.reasons,
+  };
+  return {
+    voiceName: entry.name,
+    personaLabelKey,
+    selectionMemory: memory,
+  };
+}
+
+export function StudioVoiceRecommendationsPanel({
+  payload,
+  marketplaceContext,
+  selectedProfile,
+  onSelectProfile,
+  characterId,
+  characterName = "",
+  language = "en",
+  previewText,
+  onPreviewError,
+}: StudioVoiceRecommendationsPanelProps) {
+  const t = useActiveTranslator();
+  const userVoiceLibrary = useOptionalUserVoiceLibrary();
+  const clones = userVoiceLibrary?.library?.voices ?? [];
+  const [previewBusyId, setPreviewBusyId] = useState<string | null>(null);
+  const [ttsPreviewById, setTtsPreviewById] = useState<Record<string, string>>({});
+
+  const recommendations = useMemo(
+    () =>
+      buildVoiceRecommendations({
+        catalog: payload.catalog,
+        clones,
+        context: marketplaceContext,
+        personaPresets: payload.personaPresets,
+        limit: 6,
+      }),
+    [payload.catalog, payload.personaPresets, clones, marketplaceContext]
+  );
+
+  if (recommendations.length === 0) {
+    return null;
+  }
+
+  const handlePreview = async (entry: VoiceMarketplaceEntry) => {
+    setPreviewBusyId(entry.id);
+    try {
+      const result = await requestCharacterVoicePreview({
+        characterId: characterId ?? null,
+        characterName,
+        voiceProfile: entry.profileRef,
+        language,
+        sampleLine: previewText,
+      });
+      setTtsPreviewById((prev) => ({ ...prev, [entry.id]: result.audioUrl }));
+    } catch (e) {
+      onPreviewError?.(e instanceof Error ? e.message : t("studio.voiceCenter.previewFailed"));
+    } finally {
+      setPreviewBusyId(null);
+    }
+  };
+
+  return (
+    <section className="mt-6">
+      <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceLibrary.recommendations")}</h3>
+      <p className="mt-1 text-xs text-violet-700">{t("studio.voiceLibrary.recommendationsHint")}</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {recommendations.map((rec) => (
+          <VoiceRecommendationCard
+            key={rec.entry.id}
+            recommendation={rec}
+            selected={selectedProfile === rec.entry.profileRef}
+            previewBusy={previewBusyId === rec.entry.id}
+            ttsPreviewUrl={ttsPreviewById[rec.entry.id]}
+            onPreview={() => void handlePreview(rec.entry)}
+            onSelect={() =>
+              onSelectProfile(
+                rec.entry.profileRef,
+                buildRecommendationSelectionMemory(
+                  rec.entry,
+                  marketplaceContext,
+                  payload.personaPresets,
+                  rec.personaLabelKey ?? undefined
+                )
+              )
+            }
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -245,6 +479,7 @@ function VoiceMarketplaceCard({
 }) {
   const t = useActiveTranslator();
   const [previewError, setPreviewError] = useState(false);
+  const catalogAudioRef = useRef<HTMLAudioElement>(null);
 
   const accentLabel = entry.accentLabelKey
     ? t(entry.accentLabelKey as never)
@@ -256,6 +491,11 @@ function VoiceMarketplaceCard({
     entry.isMyVoice
       ? "studio.voiceLibrary.badge.myVoice"
       : voiceCategoryBadgeLabelKey(entry.category);
+  const accessKey = voiceAccessTierLabelKey(entry.accessTier);
+  const geo = entry.geography;
+  const countryLabel = geo.countryLabelKey ? t(geo.countryLabelKey as never) : null;
+  const regionLabel = geo.regionLabelKey ? t(geo.regionLabelKey as never) : null;
+  const geoLine = [countryLabel, regionLabel, accentLabel].filter(Boolean).join(" · ");
 
   return (
     <article
@@ -268,31 +508,58 @@ function VoiceMarketplaceCard({
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium uppercase text-violet-800">
               {t(categoryKey as never)}
             </span>
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-sky-900">
+              {t(accessKey as never)}
+            </span>
             {entry.isMyVoice ?
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-900">
                 {t("studio.voiceLibrary.badge.myVoice")}
               </span>
             : null}
           </div>
+          {geoLine ?
+            <p className="mt-1 text-xs font-medium text-violet-900">{geoLine}</p>
+          : null}
           <p className="mt-1 text-xs text-violet-800">
-            {[accentLabel, languageLabel, entry.gender, entry.age].filter(Boolean).join(" · ")}
+            {[languageLabel, entry.gender, entry.age].filter(Boolean).join(" · ")}
           </p>
+          {geo.locale ?
+            <p className="mt-0.5 text-[10px] text-violet-600">
+              {t("studio.voiceLibrary.card.locale", { locale: geo.locale })}
+            </p>
+          : null}
+          {geo.useCase ?
+            <p className="mt-0.5 text-[10px] text-violet-600">
+              {t("studio.voiceLibrary.card.useCase", { useCase: geo.useCase })}
+            </p>
+          : null}
           <p className="mt-0.5 text-[10px] uppercase tracking-wide text-violet-500">
             {t("studio.voiceLibrary.providerLabel", { provider: entry.provider })}
           </p>
           {compatibilityScore !== undefined ?
             <p className="mt-1 text-xs font-medium text-violet-700">
-              {t("studio.voiceLibrary.compatibilityScoreValue", { score: compatibilityScore })}
+              {t("studio.voiceLibrary.compatibilityScoreValue", { score: String(compatibilityScore) })}
             </p>
           : null}
         </div>
-        <button
-          type="button"
-          onClick={onSelect}
-          className="min-h-[44px] shrink-0 rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50"
-        >
-          {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
-        </button>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          {entry.previewUrl ?
+            <button
+              type="button"
+              onClick={() => void catalogAudioRef.current?.play()}
+              className="min-h-[40px] rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-900 hover:bg-violet-50"
+            >
+              {t("studio.voiceCenter.preview")}
+            </button>
+          : null}
+          <button
+            type="button"
+            onClick={onSelect}
+            className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50"
+          >
+            {selected ? t("studio.voiceLibrary.selected") : t("studio.voiceLibrary.select")}
+          </button>
+        </div>
       </div>
       {entry.previewUrl && !previewError ?
         <div className="mt-2">
@@ -309,6 +576,7 @@ function VoiceMarketplaceCard({
       : null}
       {entry.previewUrl ?
         <audio
+          ref={catalogAudioRef}
           className="hidden"
           src={entry.previewUrl}
           onError={() => setPreviewError(true)}
@@ -340,22 +608,35 @@ function VoiceLibraryBrowsePanel({
 
   const clones = userVoiceLibrary?.library?.voices ?? [];
 
-  const recommendations = useMemo(
-    () =>
-      buildVoiceRecommendations({
-        catalog: payload.catalog,
-        clones,
-        context: marketplaceContext,
-        personaPresets: payload.personaPresets,
-        limit: 6,
-      }),
-    [payload.catalog, payload.personaPresets, clones, marketplaceContext]
+  const allEntries = useMemo(
+    () => buildMarketplaceEntries(payload.catalog, clones),
+    [payload.catalog, clones]
   );
 
-  const allFiltered = useMemo(() => {
-    const entries = buildMarketplaceEntries(payload.catalog, clones);
-    return filterMarketplaceEntries(entries, filters);
-  }, [payload.catalog, clones, filters]);
+  const facetedFilterOptions = useMemo(
+    () => buildFacetedMarketplaceFilterOptions(allEntries, filters),
+    [allEntries, filters]
+  );
+
+  const facetedAccentCoverage = useMemo(
+    () => buildFacetedAccentCoverage(allEntries, filters),
+    [allEntries, filters]
+  );
+
+  const facetedCountryCoverage = useMemo(
+    () => buildFacetedCountryCoverage(allEntries, filters),
+    [allEntries, filters]
+  );
+
+  const facetedRegionCoverage = useMemo(
+    () => buildFacetedRegionCoverage(allEntries, filters),
+    [allEntries, filters]
+  );
+
+  const allFiltered = useMemo(
+    () => filterMarketplaceEntries(allEntries, filters),
+    [allEntries, filters]
+  );
 
   const [paging, setPaging] = useState({ filterKey, limit: BROWSE_PAGE_SIZE });
   const effectiveLimit = paging.filterKey === filterKey ? paging.limit : BROWSE_PAGE_SIZE;
@@ -371,23 +652,15 @@ function VoiceLibraryBrowsePanel({
     });
 
   const handleSelectEntry = (entry: VoiceMarketplaceEntry, personaLabelKey?: string) => {
-    const match = computeVoiceCompatibilityScore(entry, marketplaceContext, payload.personaPresets);
-    const memory: VoiceSelectionMemory = {
-      selectedAt: new Date().toISOString(),
-      profileRef: entry.profileRef,
-      voiceName: entry.name,
-      compatibilityScore: match.score,
-      matchedAccentId: entry.accentCanonicalId,
-      matchedAccentLabelKey: entry.accentLabelKey,
-      personaPresetId: personaLabelKey ? null : match.personaPresetId,
-      personaLabelKey: personaLabelKey ?? match.personaLabelKey,
-      matchingReasons: match.reasons,
-    };
-    onSelectProfile(entry.profileRef, {
-      voiceName: entry.name,
-      personaLabelKey,
-      selectionMemory: memory,
-    });
+    onSelectProfile(
+      entry.profileRef,
+      buildRecommendationSelectionMemory(
+        entry,
+        marketplaceContext,
+        payload.personaPresets,
+        personaLabelKey
+      )
+    );
   };
 
   return (
@@ -407,27 +680,6 @@ function VoiceLibraryBrowsePanel({
         : null}
       </div>
 
-      {recommendations.length > 0 ?
-        <div className="mt-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
-            {t("studio.voiceLibrary.recommendations")}
-          </h4>
-          <p className="mt-1 text-xs text-violet-700">{t("studio.voiceLibrary.recommendationsHint")}</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {recommendations.map((rec) => (
-              <VoiceRecommendationCard
-                key={rec.entry.id}
-                recommendation={rec}
-                selected={selectedProfile === rec.entry.profileRef}
-                onSelect={() =>
-                  handleSelectEntry(rec.entry, rec.personaLabelKey ?? undefined)
-                }
-              />
-            ))}
-          </div>
-        </div>
-      : null}
-
       <label className="mt-4 block text-xs font-medium text-violet-900">
         {t("studio.voiceLibrary.search")}
         <input
@@ -441,7 +693,35 @@ function VoiceLibraryBrowsePanel({
         />
       </label>
 
-      <VoiceMarketplaceAccentChips payload={payload} filters={filters} setFilters={setFilters} />
+      <p className="mt-4 text-xs text-violet-700">{t("studio.voiceLibrary.filter.hierarchyHint")}</p>
+
+      <VoiceMarketplaceGeographyChips
+        titleKey="studio.voiceLibrary.filter.country"
+        options={facetedCountryCoverage}
+        activeValue={filters.countryId}
+        onSelect={(value) =>
+          setFilters((prev) => ({
+            ...prev,
+            countryId: value,
+            regionId: !value || prev.countryId !== value ? undefined : prev.regionId,
+          }))
+        }
+      />
+
+      {filters.countryId || facetedRegionCoverage.length > 0 ?
+        <VoiceMarketplaceGeographyChips
+          titleKey="studio.voiceLibrary.filter.region"
+          options={facetedRegionCoverage}
+          activeValue={filters.regionId}
+          onSelect={(value) => setFilters((prev) => ({ ...prev, regionId: value }))}
+        />
+      : null}
+
+      <VoiceMarketplaceAccentChips
+        accentCoverage={facetedAccentCoverage}
+        filters={filters}
+        setFilters={setFilters}
+      />
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block text-xs font-medium text-violet-900">
@@ -454,7 +734,7 @@ function VoiceLibraryBrowsePanel({
             }
           >
             <option value="">{t("studio.voiceLibrary.filter.all")}</option>
-            {payload.filterOptions.languages.map((language) => (
+            {facetedFilterOptions.languages.map((language) => (
               <option key={language.value} value={language.value}>
                 {t(voiceLanguageLabelKey(language.value) as never)} ({language.voiceCount})
               </option>
@@ -471,7 +751,7 @@ function VoiceLibraryBrowsePanel({
             }
           >
             <option value="">{t("studio.voiceLibrary.filter.all")}</option>
-            {payload.filterOptions.genders.map((gender) => (
+            {facetedFilterOptions.genders.map((gender) => (
               <option key={gender.value} value={gender.value}>
                 {t(gender.labelKey as never)} ({gender.voiceCount})
               </option>
@@ -488,7 +768,7 @@ function VoiceLibraryBrowsePanel({
             }
           >
             <option value="">{t("studio.voiceLibrary.filter.all")}</option>
-            {payload.filterOptions.ages.map((age) => (
+            {facetedFilterOptions.ages.map((age) => (
               <option key={age.value} value={age.value}>
                 {t(age.labelKey as never)} ({age.voiceCount})
               </option>
@@ -505,17 +785,20 @@ function VoiceLibraryBrowsePanel({
             }
           >
             <option value="">{t("studio.voiceLibrary.filter.all")}</option>
-            {(payload.filterOptions.categories ?? []).map((category) => (
+            {(facetedFilterOptions.categories ?? []).map((category) => (
               <option key={category.value} value={category.value}>
                 {t(category.labelKey as never)} ({category.voiceCount})
               </option>
             ))}
-            <option value="my_clone">{t("studio.voiceLibrary.badge.myVoice")}</option>
           </select>
         </label>
       </div>
 
-      <VoiceMarketplaceActiveFilters filters={filters} setFilters={setFilters} payload={payload} />
+      <VoiceMarketplaceActiveFilters
+        filters={filters}
+        setFilters={setFilters}
+        filterOptions={facetedFilterOptions}
+      />
 
       <p className="mt-4 text-xs font-medium text-violet-800">
         {visibleEntries.length >= allFiltered.length

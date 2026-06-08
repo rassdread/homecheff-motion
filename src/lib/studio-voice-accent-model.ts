@@ -4,6 +4,7 @@
  */
 
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
+import { voiceMatchesGeographyFilters } from "@/lib/studio-voice-geography-model";
 
 export type VoiceAccentFamilyId =
   | "english"
@@ -193,6 +194,8 @@ export function buildVoiceLibraryFilterOptions(catalog: VoiceLibraryCatalog): Vo
 }
 
 export type VoiceLibraryFilters = {
+  countryId?: string;
+  regionId?: string;
   accentId?: string;
   gender?: string;
   language?: string;
@@ -207,6 +210,9 @@ export function filterVoiceLibrary(
 ): VoiceLibraryEntry[] {
   const query = filters.query?.trim().toLowerCase() ?? "";
   return catalog.voices.filter((voice) => {
+    if (!voiceMatchesGeographyFilters(voice, filters)) {
+      return false;
+    }
     if (filters.accentId) {
       const canonical = canonicalAccentForVoice(voice);
       if (!canonical || canonical.id !== filters.accentId) {

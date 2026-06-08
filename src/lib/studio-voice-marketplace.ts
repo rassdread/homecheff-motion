@@ -7,8 +7,13 @@ import {
   CANONICAL_ACCENT_DEFINITIONS,
   canonicalAccentForVoice,
   filterVoiceLibrary,
+  type VoiceLibraryFilterOptions,
   type VoiceLibraryFilters,
 } from "@/lib/studio-voice-accent-model";
+import {
+  VOICE_DISCOVERY_ACCENT_IDS,
+  type VoiceAccentCoverageRow,
+} from "@/lib/studio-voice-accent-coverage";
 import type { VoiceLibraryCatalog, VoiceLibraryEntry } from "@/lib/studio-voice-library-catalog";
 import { buildCharacterVoiceHintFromPrefill } from "@/lib/studio-character-identity-voice-hints";
 import type { CharacterIdentityFormValues } from "@/lib/studio-character-identity-fields";
@@ -24,6 +29,16 @@ import {
 } from "@/lib/studio-voice-persona-presets";
 import { voiceMatchesPersonaPreset } from "@/lib/studio-voice-persona-accent-match";
 import { normalizeVoiceLanguageCode } from "@/lib/studio-voice-language-labels";
+import {
+  resolveStoryCountryHints,
+  resolveVoiceAccessTier,
+  resolveVoiceGeography,
+  type VoiceAccessTier,
+  type VoiceGeography,
+  type VoiceGeographyFilterOption,
+  buildFacetedCountryOptions,
+  buildFacetedRegionOptions,
+} from "@/lib/studio-voice-geography-model";
 import type { UserVoiceLibraryEntry } from "@/types/studio-user-voice-library";
 
 export type VoiceMarketplaceContext = {
@@ -58,6 +73,8 @@ export type VoiceMarketplaceEntry = {
   previewUrl: string;
   provider: string;
   isMyVoice: boolean;
+  geography: VoiceGeography;
+  accessTier: VoiceAccessTier;
   libraryVoice?: VoiceLibraryEntry;
 };
 
@@ -131,7 +148,9 @@ function contextHaystack(ctx: VoiceMarketplaceContext): string {
 
 export function libraryEntryToMarketplaceEntry(voice: VoiceLibraryEntry): VoiceMarketplaceEntry {
   const canonical = canonicalAccentForVoice(voice);
+  const geography = resolveVoiceGeography(voice);
   const profileRef = safeFormatLibraryVoiceProfileRef(voice.id) ?? `library:${voice.id}`;
+  const category = voice.category || "shared";
   return {
     kind: "library",
     id: voice.id,
@@ -143,11 +162,16 @@ export function libraryEntryToMarketplaceEntry(voice: VoiceLibraryEntry): VoiceM
     language: voice.language || voice.labels.language || "",
     gender: voice.gender || voice.labels.gender || "",
     age: voice.age || voice.labels.age || "",
-    category: voice.category || "shared",
+    category,
     description: voice.description || "",
     previewUrl: voice.previewUrl || "",
     provider: "elevenlabs",
     isMyVoice: false,
+    geography,
+    accessTier: resolveVoiceAccessTier({
+      category,
+      catalogSource: geography.catalogSource,
+    }),
     libraryVoice: voice,
   };
 }
@@ -172,6 +196,17 @@ export function cloneEntryToMarketplaceEntry(clone: UserVoiceLibraryEntry): Voic
     previewUrl: clone.previewUrl,
     provider: clone.provider || "elevenlabs",
     isMyVoice: true,
+    geography: {
+      countryId: null,
+      countryLabelKey: null,
+      regionId: null,
+      regionLabelKey: null,
+      locale: null,
+      dialectRaw: "",
+      useCase: null,
+      catalogSource: null,
+    },
+    accessTier: "clone",
   };
 }
 
@@ -191,6 +226,9 @@ function filterCloneEntries(
   filters: VoiceLibraryFilters
 ): VoiceMarketplaceEntry[] {
   return cloneOnly.filter((clone) => {
+    if (filters.countryId || filters.regionId || filters.accentId) {
+      return false;
+    }
     if (filters.category && filters.category !== "my_clone") {
       return false;
     }
@@ -211,6 +249,184 @@ function filterCloneEntries(
     }
     return true;
   });
+}
+
+const FACET_GENDER_LABEL_KEYS: Record<string, string> = {
+  male: "studio.voiceLibrary.filter.gender.male",
+  female: "studio.voiceLibrary.filter.gender.female",
+  neutral: "studio.voiceLibrary.filter.gender.neutral",
+};
+
+const FACET_AGE_LABEL_KEYS: Record<string, string> = {
+  young: "studio.voiceLibrary.filter.age.young",
+  "middle aged": "studio.voiceLibrary.filter.age.middleAged",
+  middle_aged: "studio.voiceLibrary.filter.age.middleAged",
+  old: "studio.voiceLibrary.filter.age.old",
+};
+
+const FACET_CATEGORY_LABEL_KEYS: Record<string, string> = {
+  professional: "studio.voiceLibrary.category.professional",
+  high_quality: "studio.voiceLibrary.category.highQuality",
+  shared: "studio.voiceLibrary.category.shared",
+  cloned: "studio.voiceLibrary.category.cloned",
+  premade: "studio.voiceLibrary.category.premade",
+  default: "studio.voiceLibrary.category.premade",
+  my_clone: "studio.voiceLibrary.badge.myVoice",
+};
+
+function omitFilterDimension(
+  filters: VoiceLibraryFilters,
+  omit: keyof VoiceLibraryFilters
+): VoiceLibraryFilters {
+  const next = { ...filters };
+  delete next[omit];
+  return next;
+}
+
+function countMarketplaceField(
+  entries: VoiceMarketplaceEntry[],
+  pick: (entry: VoiceMarketplaceEntry) => string
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const value = pick(entry).trim().toLowerCase();
+    if (!value) {
+      continue;
+    }
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** Faceted filter counts — each dimension excludes its own active filter (Airbnb-style). */
+export function buildFacetedMarketplaceFilterOptions(
+  allEntries: VoiceMarketplaceEntry[],
+  filters: VoiceLibraryFilters
+): VoiceLibraryFilterOptions {
+  const genderEntries = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "gender")
+  );
+  const languageEntries = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "language")
+  );
+  const ageEntries = filterMarketplaceEntries(allEntries, omitFilterDimension(filters, "age"));
+  const categoryEntries = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "category")
+  );
+
+  const genderCounts = countMarketplaceField(genderEntries, (e) => e.gender);
+  const languageCounts = countMarketplaceField(languageEntries, (e) => e.language);
+  const ageCounts = countMarketplaceField(ageEntries, (e) => e.age);
+  const categoryCounts = countMarketplaceField(categoryEntries, (e) =>
+    e.isMyVoice ? "my_clone" : e.category
+  );
+
+  return {
+    accents: [],
+    genders: [...genderCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({
+        value,
+        labelKey: FACET_GENDER_LABEL_KEYS[value] ?? "studio.voiceLibrary.filter.gender.other",
+        voiceCount,
+      })),
+    languages: [...languageCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({ value, voiceCount })),
+    ages: [...ageCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({
+        value,
+        labelKey: FACET_AGE_LABEL_KEYS[value] ?? "studio.voiceLibrary.filter.age.other",
+        voiceCount,
+      })),
+    categories: [...categoryCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([value, voiceCount]) => ({
+        value,
+        labelKey: FACET_CATEGORY_LABEL_KEYS[value] ?? "studio.voiceLibrary.category.other",
+        voiceCount,
+      })),
+  };
+}
+
+/** Faceted accent chip counts from the currently filtered marketplace set. */
+function libraryVoicesFromEntries(entries: VoiceMarketplaceEntry[]): VoiceLibraryEntry[] {
+  return entries
+    .filter((e) => e.kind === "library" && e.libraryVoice)
+    .map((e) => e.libraryVoice!);
+}
+
+/** Faceted country options from the currently filtered marketplace set. */
+export function buildFacetedCountryCoverage(
+  allEntries: VoiceMarketplaceEntry[],
+  filters: VoiceLibraryFilters
+): VoiceGeographyFilterOption[] {
+  const withoutCountry = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "countryId")
+  );
+  return buildFacetedCountryOptions(libraryVoicesFromEntries(withoutCountry), filters.regionId);
+}
+
+/** Faceted region options — scoped to selected country when set. */
+export function buildFacetedRegionCoverage(
+  allEntries: VoiceMarketplaceEntry[],
+  filters: VoiceLibraryFilters
+): VoiceGeographyFilterOption[] {
+  const withoutRegion = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "regionId")
+  );
+  return buildFacetedRegionOptions(
+    libraryVoicesFromEntries(withoutRegion),
+    filters.countryId
+  );
+}
+
+export function buildFacetedAccentCoverage(
+  allEntries: VoiceMarketplaceEntry[],
+  filters: VoiceLibraryFilters,
+  accentIds: readonly string[] = VOICE_DISCOVERY_ACCENT_IDS
+): VoiceAccentCoverageRow[] {
+  const withoutAccent = filterMarketplaceEntries(
+    allEntries,
+    omitFilterDimension(filters, "accentId")
+  );
+  const voiceCounts = new Map<string, number>();
+  for (const entry of withoutAccent) {
+    if (!entry.accentCanonicalId) {
+      continue;
+    }
+    voiceCounts.set(
+      entry.accentCanonicalId,
+      (voiceCounts.get(entry.accentCanonicalId) ?? 0) + 1
+    );
+  }
+
+  const definitionById = new Map(CANONICAL_ACCENT_DEFINITIONS.map((d) => [d.id, d]));
+  return accentIds.map((accentId) => {
+    const def = definitionById.get(accentId);
+    return {
+      accentId,
+      labelKey: def?.labelKey ?? accentId,
+      voiceCount: voiceCounts.get(accentId) ?? 0,
+      personaPresetIds: [],
+      personaAvailableCount: 0,
+    };
+  });
+}
+
+export function findMarketplaceEntryByProfileRef(
+  profileRef: string,
+  catalog: VoiceLibraryCatalog,
+  clones: UserVoiceLibraryEntry[] = []
+): VoiceMarketplaceEntry | null {
+  const entries = buildMarketplaceEntries(catalog, clones);
+  return entries.find((e) => e.profileRef === profileRef) ?? null;
 }
 
 export function filterMarketplaceEntries(
@@ -281,6 +497,21 @@ export function computeVoiceCompatibilityScore(
     ...(identityHint.accentFilterHint ? [identityHint.accentFilterHint] : []),
     ...(ctx.accentHint ? [ctx.accentHint] : []),
   ];
+
+  const storyCountries = resolveStoryCountryHints(contextHaystack(ctx));
+  if (
+    entry.geography.countryId &&
+    storyCountries.includes(entry.geography.countryId)
+  ) {
+    score += 18;
+    reasons.push("story_country");
+  } else if (storyCountries.length > 0 && entry.geography.countryId) {
+    const relatedAccents = storyAccents.length > 0;
+    if (!relatedAccents) {
+      score = Math.max(0, score - 8);
+      reasons.push("country_mismatch");
+    }
+  }
 
   if (entry.accentCanonicalId && accentTargets.some((a) => a === entry.accentCanonicalId)) {
     score += 25;

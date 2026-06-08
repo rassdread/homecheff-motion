@@ -82,13 +82,17 @@ describe("voice library discovery UX", () => {
     assert.match(src, /disabled=\{previewBusyLang === lang\}/);
   });
 
-  it("library section shows unified marketplace filters and recommendations", () => {
+  it("library section shows unified marketplace filters and faceted counts", () => {
     const sectionPath = join(
       process.cwd(),
       "src/components/studio/studio-character-voice-library-section.tsx"
     );
     const src = readFileSync(sectionPath, "utf8");
-    assert.match(src, /studio\.voiceLibrary\.recommendations/);
+    assert.match(src, /buildFacetedMarketplaceFilterOptions/);
+    assert.match(src, /buildFacetedAccentCoverage/);
+    assert.match(src, /buildFacetedCountryCoverage/);
+    assert.match(src, /VoiceMarketplaceGeographyChips/);
+    assert.match(src, /StudioVoiceRecommendationsPanel/);
     assert.match(src, /studio\.voiceLibrary\.activeFilters/);
     assert.match(src, /VoiceMarketplaceAccentChips/);
     assert.match(src, /VoiceLibraryBrowsePanel/);
@@ -96,6 +100,17 @@ describe("voice library discovery UX", () => {
     assert.doesNotMatch(src, /StudioVoiceLibraryAdminAuditPanel/);
     assert.doesNotMatch(src, /disabled=\{!voiceEnabled\}/);
     assert.doesNotMatch(src, /disabled=\{!_voiceEnabled\}/);
+  });
+
+  it("voice center shows main voice, recommendations, and collapsed advanced language settings", () => {
+    const centerPath = join(process.cwd(), "src/components/studio/studio-character-voice-center.tsx");
+    const src = readFileSync(centerPath, "utf8");
+    assert.match(src, /studio\.voiceCenter\.mainVoiceTitle/);
+    assert.match(src, /StudioVoiceRecommendationsPanel/);
+    assert.match(src, /studio\.voiceCenter\.advancedLanguageTitle/);
+    assert.match(src, /studio\.voiceCenter\.sameVoiceForAllLanguages/);
+    assert.match(src, /advancedLanguageOpen/);
+    assert.match(src, /CharacterMainVoiceCard/);
   });
 
   it("my voices tab shows discovery heading and clone workflow", () => {
@@ -229,6 +244,9 @@ describe("buildPerLanguageVoiceOverrideOptions", () => {
 describe("studio-character-form voice wiring i18n parity", () => {
   const keys = [
     "studio.voiceCenter.chooseVoice",
+    "studio.voiceCenter.mainVoiceTitle",
+    "studio.voiceCenter.advancedLanguageTitle",
+    "studio.voiceCenter.sameVoiceForAllLanguages",
     "studio.voiceCenter.enableToUseHint",
     "studio.voiceCenter.browseBeforeEnableHint",
     "studio.voiceCenter.source.preset",

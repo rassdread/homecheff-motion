@@ -201,6 +201,9 @@ export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry |
     if (!previewUrl && verified.preview_url?.trim()) {
       previewUrl = verified.preview_url.trim();
     }
+    if (verified.locale?.trim()) {
+      labels.verified_locale = labels.verified_locale || verified.locale.trim();
+    }
   }
 
   if (!accent && row.description?.trim()) {

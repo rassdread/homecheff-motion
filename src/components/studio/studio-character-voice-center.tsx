@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { StudioAudioPreviewPlayer } from "@/components/studio/studio-audio-preview-player";
+import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   requestCharacterVoicePreview,
@@ -9,9 +10,13 @@ import {
 } from "@/lib/studio-character-voice-preview-client";
 import {
   buildStoryAwareVoicePreviewText,
+  computeVoiceCompatibilityScore,
+  findMarketplaceEntryByProfileRef,
   type VoiceMarketplaceContext,
+  type VoiceMarketplaceEntry,
 } from "@/lib/studio-voice-marketplace";
-import { appendVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
+import { voiceLanguageLabelKey } from "@/lib/studio-voice-language-labels";
+import { appendVoiceSelectionMemory, parseVoiceSelectionMemory } from "@/lib/studio-voice-selection-memory";
 import type { VoiceSelectMeta } from "@/components/studio/studio-character-voice-library-section";
 import {
   STUDIO_VOICE_PROFILE_IDS,
@@ -34,6 +39,7 @@ import { useOptionalUserVoiceLibrary } from "@/components/studio/studio-user-voi
 import type { UserVoiceLibrary } from "@/types/studio-user-voice-library";
 import {
   StudioCharacterVoiceLibrarySection,
+  StudioVoiceRecommendationsPanel,
   type VoiceLibraryTab,
 } from "@/components/studio/studio-character-voice-library-section";
 import { useOptionalVoiceLibrary } from "@/components/studio/studio-voice-library-provider";
@@ -128,6 +134,14 @@ function resolveVoiceDisplayLabel(params: {
   return params.t(preset.labelKey as never);
 }
 
+export function hasLanguageVoiceOverrides(
+  profiles: CharacterVoiceProfilesByLanguage
+): boolean {
+  return Object.values(profiles).some(
+    (row) => Boolean(row?.voiceProfile?.trim()) || Boolean(row?.voiceProvider?.trim())
+  );
+}
+
 function resolveLanguageVoice(
   value: CharacterVoiceFormState,
   lang: VoiceCenterLanguage
@@ -142,6 +156,123 @@ function resolveLanguageVoice(
     provider: row?.voiceProvider ?? value.voiceProvider,
     isOverride: Boolean(row?.voiceProfile || row?.voiceProvider),
   };
+}
+
+function CharacterMainVoiceCard({
+  voiceProfile,
+  voiceDescription,
+  voiceProvider,
+  voiceEnabled,
+  displayLabel,
+  marketplaceEntry,
+  compatibilityScore,
+  catalogPreviewUrl,
+  mainPreviewUrl,
+  lastPreviewWasDraft,
+  previewBusy,
+  onPreview,
+  t,
+}: {
+  voiceProfile: string;
+  voiceDescription: string;
+  voiceProvider: string;
+  voiceEnabled: boolean;
+  displayLabel: string;
+  marketplaceEntry: VoiceMarketplaceEntry | null;
+  compatibilityScore: number | null;
+  catalogPreviewUrl?: string;
+  mainPreviewUrl?: string;
+  lastPreviewWasDraft: boolean;
+  previewBusy: boolean;
+  onPreview: () => void;
+  t: (key: TranslationKey, p?: Record<string, string>) => string;
+}) {
+  const accentLabel = marketplaceEntry?.accentLabelKey
+    ? t(marketplaceEntry.accentLabelKey as never)
+    : marketplaceEntry?.accent || "—";
+  const languageLabel = marketplaceEntry?.language
+    ? t(voiceLanguageLabelKey(marketplaceEntry.language) as never)
+    : "—";
+
+  return (
+    <section className="mt-6 rounded-xl border border-violet-300 bg-violet-50/80 p-4 shadow-sm">
+      <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceCenter.mainVoiceTitle")}</h3>
+      <p className="mt-1 text-xs text-violet-800">{t("studio.voiceCenter.mainVoiceSubtitle")}</p>
+
+      <div className="mt-4 rounded-lg border border-violet-200 bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-base font-bold text-violet-950">{displayLabel}</p>
+              <span className="rounded-full bg-violet-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                {t("studio.voiceCenter.selectedVoiceBadge")}
+              </span>
+            </div>
+            {marketplaceEntry ?
+              <>
+                <p className="mt-2 text-xs text-violet-800">
+                  {[accentLabel, languageLabel, marketplaceEntry.gender, marketplaceEntry.age]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-wide text-violet-500">
+                  {t("studio.voiceLibrary.providerLabel", { provider: marketplaceEntry.provider })}
+                </p>
+                {compatibilityScore !== null ?
+                  <p className="mt-1 text-xs font-medium text-violet-700">
+                    {t("studio.voiceLibrary.compatibilityScoreValue", {
+                      score: String(compatibilityScore),
+                    })}
+                  </p>
+                : null}
+              </>
+            : <p className="mt-2 text-xs text-violet-700">
+                {voiceDescription.trim() || voiceProfile}
+              </p>
+            }
+            <p className="mt-1 text-[10px] text-violet-600">
+              {t("studio.characterVoice.provider")}: {voiceProvider || "elevenlabs"}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!voiceEnabled || previewBusy}
+            onClick={onPreview}
+            className="min-h-[44px] shrink-0 rounded-full border border-violet-400 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
+          >
+            {previewBusy ? t("button.loading") : t("studio.voiceCenter.preview")}
+          </button>
+        </div>
+
+        {mainPreviewUrl ?
+          <div className="mt-3 space-y-1">
+            {lastPreviewWasDraft ?
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                {t("studio.voiceCenter.draftPreviewBadge")}
+              </p>
+            : null}
+            <StudioAudioPreviewPlayer
+              title={t("studio.voiceCenter.lastPreview")}
+              audioUrl={mainPreviewUrl}
+              source="voice_character"
+              variant="compact"
+              className="border-violet-100"
+            />
+          </div>
+        : catalogPreviewUrl ?
+          <div className="mt-3">
+            <StudioAudioPreviewPlayer
+              title={displayLabel}
+              audioUrl={catalogPreviewUrl}
+              source="voice_library"
+              variant="compact"
+              className="border-violet-100"
+            />
+          </div>
+        : null}
+      </div>
+    </section>
+  );
 }
 
 export type PerLanguageVoiceOverrideOption = {
@@ -252,6 +383,59 @@ export function StudioCharacterVoiceCenter({
   const [previewText, setPreviewText] = useState("");
   const [previewTextTouched, setPreviewTextTouched] = useState(false);
   const resolvedPreviewText = previewTextTouched ? previewText : defaultPreviewText;
+  const [advancedLanguageOpen, setAdvancedLanguageOpen] = useState(false);
+  const [useSameVoiceForAllLanguages, setUseSameVoiceForAllLanguages] = useState(
+    () => !hasLanguageVoiceOverrides(value.voiceProfilesByLanguage)
+  );
+
+  const mainVoiceLang = (value.voiceLanguage as VoiceCenterLanguage) || "en";
+  const mainPreviewUrl = previewByLang[mainVoiceLang];
+  const mainPreviewBusy = previewBusyLang === mainVoiceLang;
+
+  const voicePayload = voiceLibrary?.payload ?? null;
+  const cloneVoices = userVoiceLibrary?.library?.voices;
+
+  const marketplaceEntry = useMemo(() => {
+    if (!voicePayload) {
+      return null;
+    }
+    return findMarketplaceEntryByProfileRef(
+      value.voiceProfile,
+      voicePayload.catalog,
+      cloneVoices ?? []
+    );
+  }, [voicePayload, value.voiceProfile, cloneVoices]);
+
+  const selectionMemory = useMemo(
+    () => parseVoiceSelectionMemory(value.voiceNotes),
+    [value.voiceNotes]
+  );
+
+  const mainCompatibilityScore = useMemo(() => {
+    if (!marketplaceEntry || !voicePayload) {
+      return selectionMemory?.compatibilityScore ?? null;
+    }
+    const ctx: VoiceMarketplaceContext = {
+      ...marketplaceContext,
+      characterName,
+      language: value.voiceLanguage,
+      gender: value.voiceGender,
+    };
+    const match = computeVoiceCompatibilityScore(
+      marketplaceEntry,
+      ctx,
+      voicePayload.personaPresets
+    );
+    return match.score;
+  }, [
+    marketplaceEntry,
+    voicePayload,
+    marketplaceContext,
+    characterName,
+    value.voiceLanguage,
+    value.voiceGender,
+    selectionMemory,
+  ]);
 
   const libraryAvailabilityLine =
     voiceLibraryTab === "persona" && voiceLibrary?.payload
@@ -462,10 +646,59 @@ export function StudioCharacterVoiceCenter({
             ))}
           </select>
         </label>
-        <p className="sm:col-span-2 text-xs text-violet-800">
-          {t("studio.voiceCenter.defaultActive", { voice: defaultProfileLabel })}
-        </p>
       </div>
+
+      <CharacterMainVoiceCard
+        voiceProfile={value.voiceProfile}
+        voiceDescription={value.voiceDescription}
+        voiceProvider={value.voiceProvider}
+        voiceEnabled={value.voiceEnabled}
+        displayLabel={defaultProfileLabel}
+        marketplaceEntry={marketplaceEntry}
+        compatibilityScore={mainCompatibilityScore}
+        catalogPreviewUrl={marketplaceEntry?.previewUrl}
+        mainPreviewUrl={mainPreviewUrl}
+        lastPreviewWasDraft={lastPreviewWasDraft}
+        previewBusy={mainPreviewBusy}
+        onPreview={() => void runPreview(mainVoiceLang)}
+        t={t}
+      />
+
+      <label className="mt-4 block text-xs font-medium text-violet-900">
+        {t("studio.voiceCenter.previewTextLabel")}
+        <textarea
+          className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+          rows={2}
+          value={resolvedPreviewText}
+          placeholder={defaultPreviewText}
+          onChange={(e) => {
+            setPreviewTextTouched(true);
+            setPreviewText(e.target.value);
+          }}
+        />
+        <span className="mt-1 block text-[11px] text-violet-700/90">
+          {t("studio.voiceCenter.previewTextHint")}
+        </span>
+      </label>
+
+      {voicePayload ?
+        <StudioVoiceRecommendationsPanel
+          payload={voicePayload}
+          marketplaceContext={{
+            ...marketplaceContext,
+            characterName,
+            language: value.voiceLanguage,
+            gender: value.voiceGender,
+          }}
+          selectedProfile={value.voiceProfile}
+          onSelectProfile={handleSelectProfile}
+          characterId={characterId}
+          characterName={characterName}
+          language={value.voiceLanguage}
+          previewText={resolvedPreviewText}
+          onPreviewError={setPreviewError}
+        />
+      : null}
 
       <div className="mt-6">
         <h3 className="text-sm font-bold text-violet-950">{t("studio.voiceCenter.chooseVoice")}</h3>
@@ -522,136 +755,164 @@ export function StudioCharacterVoiceCenter({
         onSelectProfile={handleSelectProfile}
       />
 
-      <label className="mt-4 block text-xs font-medium text-violet-900">
-        {t("studio.voiceCenter.previewTextLabel")}
-        <textarea
-          className="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-          rows={2}
-          value={resolvedPreviewText}
-          placeholder={defaultPreviewText}
-          onChange={(e) => {
-            setPreviewTextTouched(true);
-            setPreviewText(e.target.value);
-          }}
-        />
-        <span className="mt-1 block text-[11px] text-violet-700/90">
-          {t("studio.voiceCenter.previewTextHint")}
-        </span>
-      </label>
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setAdvancedLanguageOpen((open) => !open)}
+          className="flex min-h-[44px] w-full items-center gap-2 rounded-xl border border-violet-200 bg-white px-4 py-3 text-left text-sm font-semibold text-violet-950 hover:bg-violet-50/80"
+          aria-expanded={advancedLanguageOpen}
+        >
+          <span aria-hidden className="text-violet-600">
+            {advancedLanguageOpen ? "▼" : "▶"}
+          </span>
+          {t("studio.voiceCenter.advancedLanguageTitle")}
+        </button>
+        <p className="mt-1 px-1 text-xs text-violet-700">{t("studio.voiceCenter.advancedLanguageOptional")}</p>
 
-      <div className="mt-6 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-900">
-          {t("studio.voiceCenter.perLanguage")}
-        </h3>
-        {VOICE_CENTER_LANGUAGES.map((lang) => {
-          const resolved = resolveLanguageVoice(value, lang);
-          const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
-          const profileRef = parseVoiceProfileRef(resolved.profile);
-          const rowProfileRef = parseVoiceProfileRef(row.voiceProfile ?? "");
-          const langCatalogName =
-            profileRef.kind === "library" && voiceLibrary?.payload
-              ? voiceLibrary.payload.catalog.voices.find((v) => v.id === profileRef.providerVoiceId)
-                  ?.name
-              : undefined;
-          const rowCatalogName =
-            rowProfileRef.kind === "library" && voiceLibrary?.payload
-              ? voiceLibrary.payload.catalog.voices.find((v) => v.id === rowProfileRef.providerVoiceId)
-                  ?.name
-              : undefined;
-          const activeLabel = resolveVoiceDisplayLabel({
-            voiceProfile: resolved.profile,
-            voiceDescription: row.voiceDescription ?? value.voiceDescription,
-            t,
-            catalogVoiceName: langCatalogName,
-          });
-          const previewUrl = previewByLang[lang];
+        {advancedLanguageOpen ?
+          <div className="mt-3 space-y-4 rounded-xl border border-violet-100 bg-white/80 p-4">
+            <label className="flex min-h-[44px] items-center gap-2 text-sm font-medium text-violet-950">
+              <input
+                type="checkbox"
+                checked={useSameVoiceForAllLanguages}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setUseSameVoiceForAllLanguages(checked);
+                  if (checked) {
+                    onChange({ ...value, voiceProfilesByLanguage: {} });
+                  }
+                }}
+              />
+              {t("studio.voiceCenter.sameVoiceForAllLanguages")}
+            </label>
 
-          return (
-            <article
-              key={lang}
-              className="rounded-xl border border-violet-100 bg-white p-4 shadow-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold text-violet-950">{lang.toUpperCase()}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {resolved.isOverride ?
-                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-900">
-                      {t("studio.voiceCenter.customForLang")}
-                    </span>
-                  : null}
-                  {value.voiceLock ?
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
-                      {t("studio.voiceCenter.lockedShort")}
-                    </span>
-                  : null}
-                </div>
+            {!useSameVoiceForAllLanguages || isAdmin ?
+              <div className="space-y-3">
+                {isAdmin && useSameVoiceForAllLanguages ?
+                  <p className="text-xs text-violet-700">{t("studio.voiceCenter.adminOverridesHint")}</p>
+                : null}
+                {VOICE_CENTER_LANGUAGES.map((lang) => {
+                  const resolved = resolveLanguageVoice(value, lang);
+                  const row = value.voiceProfilesByLanguage[lang as StudioVoiceExecutionLanguage] ?? {};
+                  const profileRefLang = parseVoiceProfileRef(resolved.profile);
+                  const rowProfileRef = parseVoiceProfileRef(row.voiceProfile ?? "");
+                  const langCatalogName =
+                    profileRefLang.kind === "library" && voiceLibrary?.payload
+                      ? voiceLibrary.payload.catalog.voices.find(
+                          (v) => v.id === profileRefLang.providerVoiceId
+                        )?.name
+                      : undefined;
+                  const rowCatalogName =
+                    rowProfileRef.kind === "library" && voiceLibrary?.payload
+                      ? voiceLibrary.payload.catalog.voices.find(
+                          (v) => v.id === rowProfileRef.providerVoiceId
+                        )?.name
+                      : undefined;
+                  const activeLabel = resolveVoiceDisplayLabel({
+                    voiceProfile: resolved.profile,
+                    voiceDescription: row.voiceDescription ?? value.voiceDescription,
+                    t,
+                    catalogVoiceName: langCatalogName,
+                  });
+                  const previewUrl = previewByLang[lang];
+
+                  return (
+                    <article
+                      key={lang}
+                      className={`rounded-xl border bg-white p-4 shadow-sm ${
+                        isAdmin && useSameVoiceForAllLanguages
+                          ? "border-dashed border-violet-200 bg-violet-50/40"
+                          : "border-violet-100"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-violet-950">{lang.toUpperCase()}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {resolved.isOverride ?
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-900">
+                              {t("studio.voiceCenter.customForLang")}
+                            </span>
+                          : null}
+                          {value.voiceLock ?
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                              {t("studio.voiceCenter.lockedShort")}
+                            </span>
+                          : null}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-600">
+                        {t("studio.voiceCenter.activeVoice", { voice: activeLabel })}
+                      </p>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <label className="block text-xs text-violet-900">
+                          {t("studio.characterVoice.profile")}
+                          <select
+                            className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
+                            value={row.voiceProfile ?? ""}
+                            disabled={!value.voiceEnabled}
+                            onChange={(e) => {
+                              const next = e.target.value;
+                              if (next) {
+                                setUseSameVoiceForAllLanguages(false);
+                              }
+                              updateLang(lang, {
+                                voiceProfile: next ? normalizeVoiceProfileSelection(next) : undefined,
+                              });
+                            }}
+                          >
+                            <option value="">{t("studio.characterVoice.languageProfileInherit")}</option>
+                            {buildPerLanguageVoiceOverrideOptions({
+                              lang,
+                              t,
+                              payload: voiceLibrary?.payload ?? null,
+                              clones: userVoiceLibrary?.library?.voices,
+                              includeProfile: row.voiceProfile,
+                              catalogVoiceName: rowCatalogName,
+                            }).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="flex flex-col justify-end gap-2">
+                          <button
+                            type="button"
+                            disabled={previewBusyLang === lang}
+                            onClick={() => void runPreview(lang)}
+                            className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
+                          >
+                            {previewBusyLang === lang
+                              ? t("button.loading")
+                              : t("studio.voiceCenter.preview")}
+                          </button>
+                        </div>
+                      </div>
+
+                      {previewUrl ?
+                        <div className="mt-3 space-y-1">
+                          {lastPreviewWasDraft ?
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                              {t("studio.voiceCenter.draftPreviewBadge")}
+                            </p>
+                          : null}
+                          <StudioAudioPreviewPlayer
+                            title={t("studio.voiceCenter.lastPreview")}
+                            audioUrl={previewUrl}
+                            source="voice_character"
+                            variant="compact"
+                            className="border-violet-100"
+                          />
+                        </div>
+                      : null}
+                    </article>
+                  );
+                })}
               </div>
-              <p className="mt-1 text-xs text-zinc-600">
-                {t("studio.voiceCenter.activeVoice", { voice: activeLabel })}
-              </p>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <label className="block text-xs text-violet-900">
-                  {t("studio.characterVoice.profile")}
-                  <select
-                    className="mt-1 w-full min-h-[44px] rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm"
-                    value={row.voiceProfile ?? ""}
-                    disabled={!value.voiceEnabled}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      updateLang(lang, {
-                        voiceProfile: next ? normalizeVoiceProfileSelection(next) : undefined,
-                      });
-                    }}
-                  >
-                    <option value="">{t("studio.characterVoice.languageProfileInherit")}</option>
-                    {buildPerLanguageVoiceOverrideOptions({
-                      lang,
-                      t,
-                      payload: voiceLibrary?.payload ?? null,
-                      clones: userVoiceLibrary?.library?.voices,
-                      includeProfile: row.voiceProfile,
-                      catalogVoiceName: rowCatalogName,
-                    }).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="flex flex-col justify-end gap-2">
-                  <button
-                    type="button"
-                    disabled={previewBusyLang === lang}
-                    onClick={() => void runPreview(lang)}
-                    className="min-h-[44px] rounded-full border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
-                  >
-                    {previewBusyLang === lang
-                      ? t("button.loading")
-                      : t("studio.voiceCenter.preview")}
-                  </button>
-                </div>
-              </div>
-
-              {previewUrl ?
-                <div className="mt-3 space-y-1">
-                  {lastPreviewWasDraft ?
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-800">
-                      {t("studio.voiceCenter.draftPreviewBadge")}
-                    </p>
-                  : null}
-                  <StudioAudioPreviewPlayer
-                    title={t("studio.voiceCenter.lastPreview")}
-                    audioUrl={previewUrl}
-                    source="voice_character"
-                    variant="compact"
-                    className="border-violet-100"
-                  />
-                </div>
-              : null}
-            </article>
-          );
-        })}
+            : null}
+          </div>
+        : null}
       </div>
 
       {previewError ?

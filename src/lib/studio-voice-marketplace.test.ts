@@ -4,6 +4,9 @@ import { mockVoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
 import { buildVoicePersonaPresets } from "@/lib/studio-voice-persona-presets";
 import { resolveSharedVoicesLimit } from "@/lib/studio-voice-shared-catalog";
 import {
+  buildFacetedAccentCoverage,
+  buildFacetedMarketplaceFilterOptions,
+  buildMarketplaceEntries,
   buildStoryAwareVoicePreviewText,
   buildVoiceRecommendations,
   computeVoiceCompatibilityScore,
@@ -81,5 +84,23 @@ describe("studio-voice-marketplace", () => {
     const parsed = parseVoiceSelectionMemory(notes);
     assert.ok(parsed);
     assert.equal(parsed!.voiceName, entry.name);
+  });
+
+  it("recomputes faceted filter counts when a dimension is active", () => {
+    const catalog = mockVoiceLibraryCatalog();
+    const entries = buildMarketplaceEntries(catalog, []);
+    const baseline = buildFacetedMarketplaceFilterOptions(entries, {});
+    const withLanguage = buildFacetedMarketplaceFilterOptions(entries, { language: "en" });
+    const enBaseline = baseline.languages.find((l) => l.value === "en")?.voiceCount ?? 0;
+    const enFiltered = withLanguage.languages.find((l) => l.value === "en")?.voiceCount ?? 0;
+    assert.equal(enFiltered, enBaseline);
+    const totalGendersBaseline = baseline.genders.reduce((sum, g) => sum + g.voiceCount, 0);
+    const totalGendersFiltered = withLanguage.genders.reduce((sum, g) => sum + g.voiceCount, 0);
+    assert.ok(totalGendersFiltered <= totalGendersBaseline);
+    const accentBaseline = buildFacetedAccentCoverage(entries, {});
+    const accentWithLang = buildFacetedAccentCoverage(entries, { language: "en" });
+    const britishBaseline = accentBaseline.find((r) => r.accentId === "english.british")?.voiceCount ?? 0;
+    const britishFiltered = accentWithLang.find((r) => r.accentId === "english.british")?.voiceCount ?? 0;
+    assert.ok(britishFiltered <= britishBaseline);
   });
 });
