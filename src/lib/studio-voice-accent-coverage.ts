@@ -17,6 +17,7 @@ import {
 export const VOICE_DISCOVERY_ACCENT_IDS = [
   "english.british",
   "english.jamaican",
+  "english.nigerian",
   "english.australian",
   "english.irish",
   "english.scottish",
@@ -25,6 +26,8 @@ export const VOICE_DISCOVERY_ACCENT_IDS = [
   "dutch.vlaams",
   "dutch.surinaams",
   "english.caribbean",
+  "english.trinidadian",
+  "english.ghanaian",
 ] as const;
 
 export type VoiceAccentCoverageRow = {

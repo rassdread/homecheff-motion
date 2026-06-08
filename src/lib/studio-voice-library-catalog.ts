@@ -2,10 +2,11 @@
  * ElevenLabs voice library catalog — /v1/voices + /v1/shared-voices (no schema).
  */
 
-import {
-  CANONICAL_ACCENT_DEFINITIONS,
-  classifyVoiceAccent,
-} from "@/lib/studio-voice-accent-model";
+import { classifyVoiceAccent } from "@/lib/studio-voice-accent-model";
+import { applyVoiceMetadataRepair } from "@/lib/studio-voice-metadata-repair";
+
+export { inferAccentFromLocale } from "@/lib/studio-voice-locale-accent";
+export { parseAccentFromDescription } from "@/lib/studio-voice-accent-model";
 import type { VoiceLibraryIngestionMeta } from "@/lib/studio-voice-shared-catalog";
 
 export type { VoiceLibraryIngestionMeta } from "@/lib/studio-voice-shared-catalog";
@@ -76,79 +77,6 @@ export function normalizeLanguageCode(raw: string): string {
   return primary ?? value;
 }
 
-export function inferAccentFromLocale(locale: string): string {
-  const lc = locale.trim().toLowerCase();
-  if (!lc) {
-    return "";
-  }
-  if (lc === "nl-be" || lc.startsWith("nl-be")) {
-    return "flemish";
-  }
-  if (lc === "nl-nl" || lc.startsWith("nl-nl")) {
-    return "dutch";
-  }
-  if (lc === "en-gb" || lc.startsWith("en-gb")) {
-    return "british";
-  }
-  if (lc === "en-us" || lc.startsWith("en-us")) {
-    return "american";
-  }
-  if (lc === "en-au" || lc.startsWith("en-au")) {
-    return "australian";
-  }
-  if (lc === "en-ie" || lc.startsWith("en-ie")) {
-    return "irish";
-  }
-  if (lc.includes("scot")) {
-    return "scottish";
-  }
-  if (lc === "en-jm" || lc.startsWith("en-jm")) {
-    return "jamaican";
-  }
-  if (lc === "en-in" || lc.startsWith("en-in")) {
-    return "indian";
-  }
-  if (lc === "en-ng" || lc.startsWith("en-ng")) {
-    return "nigerian";
-  }
-  if (lc === "en-za" || lc.startsWith("en-za")) {
-    return "south african";
-  }
-  if (lc.startsWith("fr-ca") || lc.includes("quebec")) {
-    return "canadian french";
-  }
-  if (lc === "es-es") {
-    return "spanish";
-  }
-  if (lc.startsWith("es-") && (lc.includes("mx") || lc.includes("419") || lc.includes("ar"))) {
-    return "latin american";
-  }
-  return "";
-}
-
-function sortedAccentDefinitions() {
-  return [...CANONICAL_ACCENT_DEFINITIONS].sort((a, b) => {
-    const maxA = Math.max(...a.matchers.map((m) => m.length), 0);
-    const maxB = Math.max(...b.matchers.map((m) => m.length), 0);
-    return maxB - maxA;
-  });
-}
-
-export function parseAccentFromDescription(description: string): string {
-  const text = description.trim().toLowerCase();
-  if (!text || !classifyVoiceAccent(text)) {
-    return "";
-  }
-  for (const def of sortedAccentDefinitions()) {
-    for (const matcher of def.matchers) {
-      if (text.includes(matcher)) {
-        return matcher;
-      }
-    }
-  }
-  return "";
-}
-
 export function pickVerifiedLanguage(row: ElevenLabsVoiceRow): ElevenLabsVerifiedLanguage | null {
   const entries = row.verified_languages ?? [];
   if (entries.length === 0) {
@@ -195,19 +123,12 @@ export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry |
         normalizeLanguageCode(verified.language ?? "") ||
         normalizeLanguageCode(verified.locale ?? "");
     }
-    if (!accent && verified.locale?.trim()) {
-      accent = inferAccentFromLocale(verified.locale) || accent;
-    }
     if (!previewUrl && verified.preview_url?.trim()) {
       previewUrl = verified.preview_url.trim();
     }
     if (verified.locale?.trim()) {
       labels.verified_locale = labels.verified_locale || verified.locale.trim();
     }
-  }
-
-  if (!accent && row.description?.trim()) {
-    accent = parseAccentFromDescription(row.description);
   }
 
   if (!language && verified?.locale?.trim()) {
@@ -221,18 +142,21 @@ export function mapElevenLabsVoice(row: ElevenLabsVoiceRow): VoiceLibraryEntry |
     labels.language = labels.language || language;
   }
 
-  return {
-    id,
-    name: row.name?.trim() || id,
-    accent,
-    gender,
-    age,
-    language,
-    description: row.description?.trim() ?? "",
-    labels,
-    previewUrl,
-    category: row.category?.trim() ?? "premade",
-  };
+  return applyVoiceMetadataRepair(
+    {
+      id,
+      name: row.name?.trim() || id,
+      accent,
+      gender,
+      age,
+      language,
+      description: row.description?.trim() ?? "",
+      labels,
+      previewUrl,
+      category: row.category?.trim() ?? "premade",
+    },
+    row
+  );
 }
 
 export function isVoiceLanguageMetadataMissing(voice: VoiceLibraryEntry): boolean {

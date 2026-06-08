@@ -2,10 +2,10 @@
  * ElevenLabs shared/marketplace voices — GET /v1/shared-voices ingestion.
  */
 
+import { parseAccentFromDescription } from "@/lib/studio-voice-accent-model";
 import {
   mapElevenLabsVoice,
   normalizeLanguageCode,
-  parseAccentFromDescription,
   type ElevenLabsVerifiedLanguage,
   type ElevenLabsVoiceRow,
   type VoiceLibraryEntry,
@@ -83,9 +83,17 @@ const SHARED_ACCENT_ALIASES: Record<string, string> = {
   surinamese: "surinamese",
   surinaams: "surinamese",
   jamaica: "jamaican",
-  trinidadian: "caribbean",
-  barbadian: "caribbean",
+  trinidadian: "trinidadian",
+  barbadian: "barbadian",
+  guyanese: "guyanese",
+  ghanaian: "ghanaian",
+  kenyan: "kenyan",
+  pakistani: "pakistani",
+  welsh: "welsh",
   nigerian: "nigerian",
+  "swiss german": "swiss german",
+  ukrainian: "ukrainian",
+  romanian: "romanian",
   "south african": "south african",
   "south african english": "south african",
   hindustani: "indian",

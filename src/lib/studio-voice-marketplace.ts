@@ -122,6 +122,21 @@ const STORY_ACCENT_RULES: Array<{
     accentId: "dutch.vlaams",
     labelKey: "studio.voiceLibrary.accent.dutch.vlaams",
   },
+  {
+    keywords: ["nigeria", "nigerian", "lagos", "african market", "west africa"],
+    accentId: "english.nigerian",
+    labelKey: "studio.voiceLibrary.accent.english.nigerian",
+  },
+  {
+    keywords: ["ghana", "ghanaian", "accra"],
+    accentId: "english.ghanaian",
+    labelKey: "studio.voiceLibrary.accent.english.ghanaian",
+  },
+  {
+    keywords: ["trinidad", "trinidadian", "tobago"],
+    accentId: "english.trinidadian",
+    labelKey: "studio.voiceLibrary.accent.english.trinidadian",
+  },
 ];
 
 function definitionById(accentId: string) {

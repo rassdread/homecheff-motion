@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { canAccessAdmin, requireActiveUser } from "@/server/auth/permissions";
 import { buildVoiceLibraryCatalog } from "@/lib/studio-voice-library-catalog";
 import { canonicalAccentForVoice } from "@/lib/studio-voice-accent-model";
+import { buildVoiceMetadataRepairReport } from "@/lib/studio-voice-metadata-repair";
 
 export async function GET() {
   const user = await requireActiveUser();
@@ -40,6 +41,8 @@ export async function GET() {
       canonicalAccentId: canonicalAccentForVoice(voice)?.id ?? null,
     }));
 
+    const repairReport = buildVoiceMetadataRepairReport(catalog);
+
     return NextResponse.json({
       source: catalog.source,
       fetchedAt: catalog.fetchedAt,
@@ -53,6 +56,7 @@ export async function GET() {
       paginationLimited: ingestion?.paginationLimited ?? false,
       sharedVoicesLimit: ingestion?.sharedVoicesLimit ?? null,
       ingestionSources: ingestion?.sources ?? [catalog.source],
+      metadataRepair: repairReport,
       top100,
     });
   } catch (err) {

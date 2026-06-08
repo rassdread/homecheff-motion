@@ -36,16 +36,27 @@ export const CANONICAL_ACCENT_DEFINITIONS: CanonicalAccentDefinition[] = [
   { id: "english.jamaican", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.jamaican", matchers: ["jamaican"] },
   { id: "english.caribbean", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.caribbean", matchers: ["caribbean", "west indian"] },
   { id: "english.nigerian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.nigerian", matchers: ["nigerian", "nigeria"] },
+  { id: "english.trinidadian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.trinidadian", matchers: ["trinidadian", "trinidad"] },
+  { id: "english.barbadian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.barbadian", matchers: ["barbadian", "barbados"] },
+  { id: "english.guyanese", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.guyanese", matchers: ["guyanese", "guyana"] },
+  { id: "english.ghanaian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.ghanaian", matchers: ["ghanaian", "ghana"] },
+  { id: "english.kenyan", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.kenyan", matchers: ["kenyan", "kenya"] },
+  { id: "english.pakistani", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.pakistani", matchers: ["pakistani", "pakistan"] },
+  { id: "english.welsh", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.welsh", matchers: ["welsh", "cymru", "wales"] },
   { id: "english.indian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.indian", matchers: ["indian", "india english"] },
   { id: "english.new_zealand", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.new_zealand", matchers: ["new zealand", "kiwi", "nz english"] },
   { id: "english.italian", familyId: "english", labelKey: "studio.voiceLibrary.accent.english.italian", matchers: ["italian"] },
   { id: "portuguese.brazilian", familyId: "other", labelKey: "studio.voiceLibrary.accent.portuguese.brazilian", matchers: ["brazilian", "português brasil", "portuguese brazil"] },
   { id: "portuguese.european", familyId: "other", labelKey: "studio.voiceLibrary.accent.portuguese.european", matchers: ["portuguese", "european portuguese", "lisbon"] },
   { id: "german.standard", familyId: "german", labelKey: "studio.voiceLibrary.accent.german.standard", matchers: ["german", "deutsch", "standard german"] },
+  { id: "german.swiss", familyId: "german", labelKey: "studio.voiceLibrary.accent.german.swiss", matchers: ["swiss german", "schweizerdeutsch", "swiss"] },
   { id: "russian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.russian.standard", matchers: ["russian", "русский"] },
   { id: "italian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.italian.standard", matchers: ["italiano", "italian accent"] },
   { id: "arabic.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.arabic.standard", matchers: ["arabic", "gulf", "egyptian arabic"] },
   { id: "chinese.mandarin", familyId: "other", labelKey: "studio.voiceLibrary.accent.chinese.mandarin", matchers: ["mandarin", "chinese", "putonghua"] },
+  { id: "chinese.cantonese", familyId: "other", labelKey: "studio.voiceLibrary.accent.chinese.cantonese", matchers: ["cantonese", "yue", "hong kong"] },
+  { id: "ukrainian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.ukrainian.standard", matchers: ["ukrainian", "українська"] },
+  { id: "romanian.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.romanian.standard", matchers: ["romanian", "română"] },
   { id: "japanese.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.japanese.standard", matchers: ["japanese", "tokyo"] },
   { id: "korean.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.korean.standard", matchers: ["korean", "seoul"] },
   { id: "hindi.standard", familyId: "other", labelKey: "studio.voiceLibrary.accent.hindi.standard", matchers: ["hindi", "hindustani"] },
@@ -83,6 +94,22 @@ export type VoiceLibraryFilterOptions = {
 
 function normalizeRawAccent(raw: string): string {
   return raw.trim().toLowerCase();
+}
+
+/** Parse accent hints from free text (name, description). */
+export function parseAccentFromDescription(description: string): string {
+  const text = description.trim().toLowerCase();
+  if (!text || !classifyVoiceAccent(text)) {
+    return "";
+  }
+  for (const def of sortedAccentDefinitions()) {
+    for (const matcher of def.matchers) {
+      if (text.includes(matcher)) {
+        return matcher;
+      }
+    }
+  }
+  return "";
 }
 
 /** Map a raw ElevenLabs accent label to a canonical accent id, if known. */
