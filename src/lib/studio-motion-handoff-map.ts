@@ -286,6 +286,12 @@ export function enrichStudioContextForMotion(
           sceneIndex,
           sceneCount: payload.scenes.length,
           aiDirectorNotes: payload.executionPackage?.aiDirectorNotes,
+          storyMemory: {
+            characters: payload.characterMemory ?? [],
+            location: payload.locationMemory ?? null,
+            props: payload.propMemory ?? [],
+            world: payload.worldMemory ?? null,
+          },
         })
       : undefined;
   return {

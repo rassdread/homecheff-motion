@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
 import { buildScenePromptFromSceneRow } from "@/server/studio/studio-prompt-builder-service";
 import {
   buildSceneImageGenerationPrompt,
@@ -136,6 +137,11 @@ async function runSceneImageGeneration(params: {
 }): Promise<{ image: StudioSceneImageListItem } | { error: ServiceError }> {
   const styleProfile = normalizeStudioPromptStyleProfile(params.scene.storyboard.promptStyleProfile);
   const snapshot = toSceneSnapshot(params.scene);
+  const memoryBundle = buildSceneMemoryBundleFromSceneRow({
+    characters: params.scene.characters,
+    location: params.scene.location,
+    props: params.scene.props,
+  });
   const promptOutput = buildScenePromptFromSceneRow(params.scene, styleProfile);
   const boardRow = await prisma.studioStoryboard.findFirst({
     where: { id: params.scene.storyboardId },
@@ -150,6 +156,7 @@ async function runSceneImageGeneration(params: {
     : [];
   const defaultFullPrompt = buildSceneImageGenerationPrompt(snapshot, promptOutput, {
     identityDriftLines,
+    memoryBundle,
   });
   const fullPrompt = params.overrides?.fullPrompt ?? defaultFullPrompt;
   const generationVersion = await nextGenerationVersion(params.scene.id);
@@ -159,7 +166,7 @@ async function runSceneImageGeneration(params: {
     styleProfile,
     promptVersion: PROMPT_BUILDER_VERSION,
     generationVersion,
-    referenceAssets: buildSceneImageReferenceAssets(snapshot),
+    referenceAssets: buildSceneImageReferenceAssets(snapshot, memoryBundle),
   };
 
   await prisma.studioSceneImage.update({

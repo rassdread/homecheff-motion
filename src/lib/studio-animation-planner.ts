@@ -318,7 +318,7 @@ export function buildStudioAnimationPlan(input: StudioAnimationPlanInput): Studi
       worlds: input.worlds,
     });
 
-  buildStoryboardIdentityConsumption({
+  const identityConsumption = buildStoryboardIdentityConsumption({
     storyboard,
     libraries: {
       characters: input.characters ?? [],
@@ -415,6 +415,7 @@ export function buildStudioAnimationPlan(input: StudioAnimationPlanInput): Studi
     (productionPlan?.actionPlanning.totalActionSteps ?? actionStepCount) > 0
       ? `actions:${productionPlan?.actionPlanning.totalActionSteps ?? actionStepCount}`
       : "",
+    ...identityConsumption.directorContextLines,
   ].filter(Boolean);
 
   return {

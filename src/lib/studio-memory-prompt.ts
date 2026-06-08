@@ -1,7 +1,12 @@
+import { buildCharacterIdentityPromptLinesFromMemory } from "@/lib/studio-character-identity-prompt-lines";
 import { continuityStrengthPromptHint } from "@/lib/studio-continuity-strength";
 import { buildLocationIdentityMemoryPromptExtras } from "@/lib/studio-location-identity-visual-hints";
 import { buildPropIdentityMemoryPromptExtras } from "@/lib/studio-prop-identity-visual-hints";
-import { buildWorldIdentityMemoryPromptExtras } from "@/lib/studio-world-identity-visual-hints";
+import {
+  buildWorldIdentityMemoryPromptExtras,
+  buildWorldIdentityRenderStrategyHints,
+} from "@/lib/studio-world-identity-visual-hints";
+import { worldProfilePickToListItem } from "@/lib/studio-prompt-source-entities";
 import { parsePropAppearanceDetails } from "@/lib/studio-prop-identity-structured";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
@@ -35,6 +40,7 @@ export function buildCharacterMemoryPromptLines(
     if (character.personalityMemory.trim()) {
       block.push(`Personality: ${character.personalityMemory.trim()}.`);
     }
+    block.push(...buildCharacterIdentityPromptLinesFromMemory(character));
     if (character.visualKeywords.trim()) {
       block.push(`Visual keywords: ${character.visualKeywords.trim()}.`);
     }
@@ -101,15 +107,20 @@ export function buildWorldMemoryPromptLines(world: SceneMemoryBundle["world"]): 
     return [];
   }
   const block: string[] = [`Maintain ${world.name} world visual style.`];
-  block.push(...buildWorldIdentityMemoryPromptExtras({
-    id: world.id,
-    name: world.name,
-    description: world.description,
-    visualStyle: world.visualStyle,
-    tone: world.tone,
-    continuityRules: world.continuityRules,
-    continuityStrength: world.continuityStrength,
-  }));
+  block.push(...buildWorldIdentityMemoryPromptExtras(world));
+  block.push(
+    ...buildWorldIdentityRenderStrategyHints(
+      worldProfilePickToListItem({
+        id: world.id,
+        name: world.name,
+        description: world.description,
+        visualStyle: world.visualStyle,
+        tone: world.tone,
+        continuityRules: world.continuityRules,
+        continuityStrength: world.continuityStrength,
+      })
+    )
+  );
   block.push(continuityStrengthPromptHint(world.continuityStrength));
   return [block.join(" ")];
 }

@@ -172,6 +172,7 @@ export type StudioScenePromptInputOptions = {
   styleProfile?: StudioPromptStyleProfile | string;
   directorProfile?: string;
   sourceEntities?: PromptBuilderSourceEntities;
+  directorContextLines?: string[];
 };
 
 export function studioSceneDetailToPromptInput(
@@ -192,6 +193,7 @@ export function studioSceneDetailToPromptInput(
     memoryBundle: sceneDetailToMemoryBundle(scene, worlds),
     sceneDetail: scene,
     sourceEntities: options?.sourceEntities,
+    directorContextLines: options?.directorContextLines,
   };
 }
 

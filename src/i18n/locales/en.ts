@@ -2382,6 +2382,7 @@ export const en: LocaleSchema = {
   "studio.renderStrategy.reason.worldActionRules": "World rules favor action sequences",
   "studio.renderStrategy.reason.worldStoryRules": "World rules favor story montage",
   "studio.renderStrategy.reason.identityWorld": "Linked to {name} world identity",
+  "studio.renderStrategy.reason.worldRenderStrategy": "{name} render strategy: {hint}",
   "studio.renderStrategy.warning.missingImages": "{count} required image(s) missing for this approach",
   "studio.renderStrategy.warning.splitAdvice": "This action works better as multiple shots",
   "studio.renderStrategy.warning.fewScenes": "Add more scenes for a stronger story video",

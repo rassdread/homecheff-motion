@@ -13,8 +13,15 @@ import {
   normalizeStudioShotType,
   resolveSceneShotType,
 } from "@/lib/studio-scene-director";
+import {
+  buildCharacterMemoryPromptLines,
+  buildLocationMemoryPromptLines,
+  buildPropMemoryPromptLines,
+  buildWorldMemoryPromptLines,
+} from "@/lib/studio-memory-prompt";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type { CharacterAction } from "@/types/studio-character-blocking";
+import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 
 export const STUDIO_MOTION_INSTRUCTION_MAX_CHARS = 520;
 
@@ -83,6 +90,8 @@ export type StudioSceneMotionInstructionInput = {
   sceneIndex: number;
   sceneCount: number;
   aiDirectorNotes?: string;
+  /** Story-level memory from handoff — compact render context. */
+  storyMemory?: Pick<SceneMemoryBundle, "characters" | "location" | "props" | "world">;
 };
 
 export type StudioSceneMotionInstructions = {
@@ -242,6 +251,35 @@ function buildPropsLine(scene: MotionHandoffScene): string | null {
   return `Props: Keep ${list} visible and readable when on screen.`;
 }
 
+function buildMemoryContextLine(
+  scene: MotionHandoffScene,
+  storyMemory?: StudioSceneMotionInstructionInput["storyMemory"]
+): string | null {
+  if (!storyMemory) {
+    return null;
+  }
+  const sceneNames = new Set(scene.characters.map((c) => c.name.trim().toLowerCase()));
+  const characterLines = buildCharacterMemoryPromptLines(
+    storyMemory.characters.filter((c) => sceneNames.has(c.name.trim().toLowerCase()))
+  );
+  const locationLine =
+    storyMemory.location && scene.location?.id === storyMemory.location.id
+      ? buildLocationMemoryPromptLines(storyMemory.location)
+      : [];
+  const propIds = new Set(scene.props.map((p) => p.id));
+  const propLines = buildPropMemoryPromptLines(
+    storyMemory.props.filter((p) => propIds.has(p.id))
+  );
+  const worldLines = storyMemory.world ? buildWorldMemoryPromptLines(storyMemory.world) : [];
+  const combined = [...worldLines, ...characterLines, ...locationLine, ...propLines]
+    .join(" ")
+    .trim();
+  if (!combined) {
+    return null;
+  }
+  return `Identity: ${trimSentence(combined, 200)}`;
+}
+
 function buildLocationLine(scene: MotionHandoffScene): string | null {
   const loc = scene.location;
   if (!loc?.name.trim()) {
@@ -321,7 +359,7 @@ function packLines(lines: string[], maxChars: number): { lines: string[]; text: 
 export function buildStudioSceneMotionInstructions(
   input: StudioSceneMotionInstructionInput
 ): StudioSceneMotionInstructions {
-  const { scene, sceneIndex, sceneCount, aiDirectorNotes } = input;
+  const { scene, sceneIndex, sceneCount, aiDirectorNotes, storyMemory } = input;
   const usedFields: string[] = [];
   const ignoredFields = collectIgnoredAudioFields(scene);
 
@@ -377,6 +415,11 @@ export function buildStudioSceneMotionInstructions(
     candidateLines.push({ line: locationLine, field: "location" });
   } else if (scene.location) {
     ignoredFields.push("location");
+  }
+
+  const memoryLine = buildMemoryContextLine(scene, storyMemory);
+  if (memoryLine) {
+    candidateLines.push({ line: memoryLine, field: "characterMemory,worldMemory,locationMemory,propMemory" });
   }
 
   const arcLine = buildStoryArcLine(sceneIndex, sceneCount);
@@ -436,6 +479,14 @@ export function resolveStudioMotionInstructionsBySceneIndex(
       sceneIndex: i,
       sceneCount: Math.max(sceneCount, sorted.length),
       aiDirectorNotes: aiNotes,
+      storyMemory: handoff
+        ? {
+            characters: handoff.characterMemory ?? [],
+            location: handoff.locationMemory ?? null,
+            props: handoff.propMemory ?? [],
+            world: handoff.worldMemory ?? null,
+          }
+        : undefined,
     });
     return built.text.trim() ? built : null;
   });

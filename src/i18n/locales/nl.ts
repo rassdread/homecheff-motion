@@ -2381,6 +2381,7 @@ export const nl = {
   "studio.renderStrategy.reason.worldActionRules": "Wereldregels wijzen op actiereeks",
   "studio.renderStrategy.reason.worldStoryRules": "Wereldregels wijzen op verhaalmontage",
   "studio.renderStrategy.reason.identityWorld": "Gekoppeld aan wereldidentiteit {name}",
+  "studio.renderStrategy.reason.worldRenderStrategy": "{name} renderstrategie: {hint}",
   "studio.renderStrategy.warning.missingImages": "{count} vereiste beeld(en) ontbreken voor deze aanpak",
   "studio.renderStrategy.warning.splitAdvice": "Deze actie werkt beter als meerdere shots",
   "studio.renderStrategy.warning.fewScenes": "Voeg meer scènes toe voor een sterkere verhaalvideo",

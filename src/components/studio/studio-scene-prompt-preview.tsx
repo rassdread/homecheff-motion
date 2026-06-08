@@ -2,6 +2,10 @@
 
 import { useMemo } from "react";
 import { buildScenePromptFromInput } from "@/lib/studio-prompt-builder";
+import {
+  buildPromptSourceEntitiesFromSceneDetail,
+  buildSceneDirectorContextLines,
+} from "@/lib/studio-prompt-source-entities";
 import { studioSceneDetailToPromptInput } from "@/lib/studio-scene-to-prompt-input";
 import type { StudioDirectorProfile } from "@/lib/studio-director-profiles";
 import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profiles";
@@ -46,15 +50,24 @@ export function StudioScenePromptPreview({
   worlds = [],
 }: StudioScenePromptPreviewProps) {
   const t = useActiveTranslator();
-  const output = useMemo(
-    () =>
-      buildScenePromptFromInput(
-        studioSceneDetailToPromptInput(scene, styleProfile, directorProfile, {
-          sourceEntities: { characters, locations, props, worlds },
-        })
-      ),
-    [scene, styleProfile, directorProfile, characters, locations, props, worlds]
-  );
+  const output = useMemo(() => {
+    const sourceEntities = buildPromptSourceEntitiesFromSceneDetail(scene, worlds);
+    if (characters.length > 0) {
+      sourceEntities.characters = characters;
+    }
+    if (locations.length > 0) {
+      sourceEntities.locations = locations;
+    }
+    if (props.length > 0) {
+      sourceEntities.props = props;
+    }
+    return buildScenePromptFromInput(
+      studioSceneDetailToPromptInput(scene, styleProfile, directorProfile, {
+        sourceEntities,
+        directorContextLines: buildSceneDirectorContextLines(scene, sourceEntities),
+      })
+    );
+  }, [scene, styleProfile, directorProfile, characters, locations, props, worlds]);
 
   const tierLabel =
     output.metadata.qualityTier === "strong"

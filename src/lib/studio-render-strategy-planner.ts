@@ -7,6 +7,7 @@ import { resolveInstantPremiumOutputPlan } from "@/lib/instant-premium-output-pl
 import { buildStoryboardActionShotDistribution } from "@/lib/studio-action-shot-distribution";
 import { buildStoryboardActionIntelligence } from "@/lib/studio-character-capabilities";
 import { buildStoryboardIdentityConsumption } from "@/lib/studio-identity-consumption";
+import { buildWorldIdentityRenderStrategyHints } from "@/lib/studio-world-identity-visual-hints";
 import { sceneHasCompletedImage } from "@/lib/studio-movie-scene-image";
 import {
   actionVerbPatternsAsRegex,
@@ -496,6 +497,16 @@ export function buildStudioRenderStrategyPlan(
         reasonKey: "studio.renderStrategy.reason.identityWorld",
         reasonParams: { name: consumption.dominantWorldName },
       });
+    }
+    for (const world of input.worlds ?? []) {
+      const hints = buildWorldIdentityRenderStrategyHints(world);
+      if (hints.length > 0) {
+        reasons.push({
+          id: `world-render-strategy-${world.id}`,
+          reasonKey: "studio.renderStrategy.reason.worldRenderStrategy",
+          reasonParams: { name: world.name, hint: hints[0]!.replace(/^Render strategy: /, "").replace(/\.$/, "") },
+        });
+      }
     }
   }
 

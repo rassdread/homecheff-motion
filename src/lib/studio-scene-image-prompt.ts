@@ -1,8 +1,44 @@
+import { parseAssetReferencesBundle } from "@/lib/studio-asset-canonical-references";
+import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
 import { buildContinuityPrompt } from "@/lib/studio-prompt-continuity-builder";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
+import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 
-function buildReferenceConsistencyLines(scene: SceneSnapshot): string[] {
+function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string[] {
+  if (!memoryBundle) {
+    return [];
+  }
+  const lines: string[] = [];
+  for (const character of memoryBundle.characters) {
+    const { bundle } = parseCharacterReferencesBundle(character.referenceNotes);
+    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 3)) {
+      lines.push(
+        `${character.name}: use supporting ${ref.role} reference for ${ref.label || ref.role} consistency.`
+      );
+    }
+  }
+  if (memoryBundle.location) {
+    const { bundle } = parseAssetReferencesBundle(memoryBundle.location.continuityNotes);
+    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
+      lines.push(
+        `${memoryBundle.location.name}: supporting ${ref.role} reference for environment consistency.`
+      );
+    }
+  }
+  for (const prop of memoryBundle.props) {
+    const { bundle } = parseAssetReferencesBundle(prop.continuityNotes);
+    for (const ref of bundle.supporting.filter((r) => r.status === "active").slice(0, 2)) {
+      lines.push(`${prop.name}: supporting ${ref.role} reference for prop consistency.`);
+    }
+  }
+  return lines;
+}
+
+function buildReferenceConsistencyLines(
+  scene: SceneSnapshot,
+  memoryBundle?: SceneMemoryBundle
+): string[] {
   const lines: string[] = [];
 
   for (const character of scene.characters) {
@@ -42,7 +78,7 @@ function buildReferenceConsistencyLines(scene: SceneSnapshot): string[] {
     }
   }
 
-  return lines;
+  return [...lines, ...buildSupportingReferenceLines(memoryBundle)];
 }
 
 /**
@@ -51,9 +87,9 @@ function buildReferenceConsistencyLines(scene: SceneSnapshot): string[] {
 export function buildSceneImageGenerationPrompt(
   scene: SceneSnapshot,
   promptOutput: PromptBuilderOutput,
-  options?: { identityDriftLines?: string[] }
+  options?: { identityDriftLines?: string[]; memoryBundle?: SceneMemoryBundle }
 ): string {
-  const referenceLines = buildReferenceConsistencyLines(scene);
+  const referenceLines = buildReferenceConsistencyLines(scene, options?.memoryBundle);
   const continuity = buildContinuityPrompt({
     characters: scene.characters,
     location: scene.location,
@@ -74,13 +110,29 @@ export function buildSceneImageGenerationPrompt(
     .join("\n\n");
 }
 
-export function buildSceneImageReferenceAssets(scene: SceneSnapshot) {
+export function buildSceneImageReferenceAssets(
+  scene: SceneSnapshot,
+  memoryBundle?: SceneMemoryBundle
+) {
+  const characterMemoryById = new Map(
+    (memoryBundle?.characters ?? []).map((c) => [c.id, c])
+  );
   return {
-    characters: scene.characters.map((c) => ({
-      id: c.id,
-      name: c.name,
-      referenceImageUrl: c.referenceImageUrl?.trim() || null,
-    })),
+    characters: scene.characters.map((c) => {
+      const memory = characterMemoryById.get(c.id);
+      const supporting =
+        memory ?
+          parseCharacterReferencesBundle(memory.referenceNotes).bundle.supporting
+            .filter((r) => r.status === "active")
+            .map((r) => ({ role: r.role, imageUrl: r.imageUrl }))
+        : [];
+      return {
+        id: c.id,
+        name: c.name,
+        referenceImageUrl: c.referenceImageUrl?.trim() || null,
+        supportingReferences: supporting,
+      };
+    }),
     location: scene.location
       ? {
           id: scene.location.id,

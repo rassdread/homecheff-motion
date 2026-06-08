@@ -559,6 +559,7 @@ export function buildStudioProductionPlan(
     dominantWorld ? `world:${dominantWorld}` : "",
     totalActionSteps > 0 ? `actions:${totalActionSteps}` : "",
     assetPlanning.presentCount > 0 ? `assets:${assetPlanning.presentCount}` : "",
+    ...identityConsumption.directorContextLines,
   ].filter(Boolean);
 
   const estimatedAssetCount =

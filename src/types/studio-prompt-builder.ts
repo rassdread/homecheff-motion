@@ -9,7 +9,7 @@ import type { StudioPromptStyleProfile } from "@/lib/studio-prompt-style-profile
 import type { PromptBuilderSourceEntities } from "@/lib/studio-identity-prompt-context";
 import type { StudioSceneDetail } from "@/types/studio-api";
 
-export const PROMPT_BUILDER_VERSION = 3 as const;
+export const PROMPT_BUILDER_VERSION = 4 as const;
 
 /**
  * Normalized input for the Studio Prompt Builder engine.
@@ -34,8 +34,10 @@ export type PromptBuilderInput = {
   correctionRecommendations?: CorrectionRecommendation[];
   /** Identity Consumption: full library entities for identity-aware prompt sections. */
   sourceEntities?: PromptBuilderSourceEntities;
-  /** Scene detail for world identity resolution (client preview). */
+  /** Scene detail for world identity resolution (preview + production). */
   sceneDetail?: StudioSceneDetail;
+  /** Identity consumption director lines — generation context (parity with preview). */
+  directorContextLines?: string[];
 };
 
 export type PromptBuilderSections = {
@@ -51,6 +53,7 @@ export type PromptBuilderSections = {
   qualityInstructions: string;
   continuity: string;
   identity: string;
+  directorIdentity: string;
 };
 
 export type PromptBuilderOutput = {

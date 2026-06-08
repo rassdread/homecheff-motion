@@ -60,6 +60,10 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     input.sceneDetail && source
       ? buildScenePromptIdentitySection({ scene: input.sceneDetail, libraries: source })
       : "";
+  const directorIdentity = (input.directorContextLines ?? [])
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ");
 
   return {
     sceneContext: buildSceneContextSection(input),
@@ -80,6 +84,7 @@ export function buildPromptSections(input: PromptBuilderInput): PromptBuilderSec
     qualityInstructions: QUALITY_INSTRUCTIONS,
     continuity,
     identity,
+    directorIdentity,
   };
 }
 
@@ -89,6 +94,7 @@ export function buildScenePromptFromInput(input: PromptBuilderInput): PromptBuil
 
   const bodyParts = [
     sections.identity,
+    sections.directorIdentity,
     sections.location,
     sections.characters
       ? `${sections.characters}${sections.props ? `\n\nProps:\n${sections.props}` : ""}`
