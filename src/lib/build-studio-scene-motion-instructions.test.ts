@@ -6,8 +6,10 @@ import {
   STUDIO_MOTION_INSTRUCTION_MAX_CHARS,
 } from "@/lib/build-studio-scene-motion-instructions";
 import { buildInstantStoryModePromptDetailed } from "@/lib/instant-premium-prompt";
+import { formatSceneSemanticRecipeForMotion } from "@/lib/build-scene-semantic-recipe";
 import { MOTION_HANDOFF_PAYLOAD_VERSION } from "@/types/motion-handoff-payload";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
+import { SCENE_SEMANTIC_RECIPE_VERSION } from "@/types/studio-scene-semantic-recipe";
 import { promptVersionMetadata } from "@/test/motion-test-fixtures";
 
 function baseScene(overrides: Partial<MotionHandoffScene> = {}): MotionHandoffScene {
@@ -329,6 +331,50 @@ describe("buildStudioSceneMotionInstructions", () => {
     assert.equal(texts.length, 2);
     assert.ok(texts[0]?.includes("Safety:"));
     assert.ok(texts[1]?.includes("Camera:"));
+  });
+
+  it("prioritizes semantic recipe in motion instructions", () => {
+    const recipe = {
+      version: SCENE_SEMANTIC_RECIPE_VERSION,
+      recipeId: "abc",
+      sceneId: "sc-1",
+      narrativeGoal: "Chef presents community dish",
+      emotion: "warm_proud",
+      characters: [
+        {
+          assetId: "c1",
+          kind: "character" as const,
+          name: "Chef",
+          brandIdentity: "HomeCheff",
+          preserveRules: ["Chef hat"],
+        },
+      ],
+      props: [],
+    };
+    const scene = baseScene({
+      semanticRecipe: recipe,
+      characterBlocking: {
+        blockingSummary: "Chef center frame",
+        characterActions: [
+          {
+            characterId: "c1",
+            characterName: "Chef",
+            action: "PRESENTING",
+            isActiveSpeaker: true,
+            engagementLevel: "high",
+          },
+        ],
+        interaction: { interactionType: "NONE", participants: [] },
+      },
+    });
+    const result = buildStudioSceneMotionInstructions({
+      scene,
+      sceneIndex: 0,
+      sceneCount: 3,
+    });
+    assert.match(result.text, /Semantic:/);
+    assert.match(result.text, /HomeCheff/);
+    assert.ok(result.usedFields.includes("semanticRecipe"));
   });
 
   it("injects motion instructions into story mode prompt without replacing execution block", () => {

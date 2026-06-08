@@ -73,6 +73,10 @@ function sanitizeScene(scene: Record<string, unknown>): Record<string, unknown> 
       copy[key] = truncateExecutionString(value);
       continue;
     }
+    if (key === "semanticRecipe" && isPlainObject(value)) {
+      copy[key] = stripLargeStrings(value);
+      continue;
+    }
     if (key === "sceneExecutionPackage" && isPlainObject(value)) {
       const pkg = { ...value };
       if (typeof pkg.prompt === "string") {

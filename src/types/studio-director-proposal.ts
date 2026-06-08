@@ -20,6 +20,8 @@ export type ProposedNewAsset = {
 export type ProposedAssetRef = {
   existingId: string;
   name: string;
+  /** Rich semantic label for director UX (object type, brand, style). */
+  semanticLabel?: string;
 };
 
 export type ProposedSceneAudio = {

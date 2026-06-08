@@ -19,7 +19,10 @@ import {
   resolveViduSegmentDurationsFromStoryboard,
 } from "@/lib/story-overlay-templates";
 import { resolveExecutionPromptsBySceneIndex } from "@/lib/studio-scene-execution";
-import { resolveStudioMotionInstructionTextsBySceneIndex } from "@/lib/build-studio-scene-motion-instructions";
+import {
+  resolveStudioMotionInstructionTextsBySceneIndex,
+  resolveStudioSemanticRecipeTextsBySceneIndex,
+} from "@/lib/build-studio-scene-motion-instructions";
 import { parseMotionHandoffPayloadForStorage } from "@/lib/studio-motion-handoff-storage";
 import {
   buildInstantStoryModePromptDetailed,
@@ -318,6 +321,9 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
     const studioMotionInstructions = storedHandoff
       ? resolveStudioMotionInstructionTextsBySceneIndex(storedHandoff, imageCount)
       : undefined;
+    const studioSemanticRecipes = storedHandoff
+      ? resolveStudioSemanticRecipeTextsBySceneIndex(storedHandoff, imageCount)
+      : undefined;
     const storyDetailed = buildInstantStoryModePromptDetailed({
       userIntent: instantStoredIntent.text || null,
       imageCount,
@@ -329,6 +335,7 @@ export async function startTransitionJob(transitionId: string): Promise<Animatio
       continuityStrength: parseStoredStoryContinuityStrength(transition.project.instantUserIntent),
       studioExecutionPrompts,
       studioMotionInstructions,
+      studioSemanticRecipes,
     });
     const budgetedStory = buildStoryModeBudgetedViduPrompt({
       projectId: transition.projectId,

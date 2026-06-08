@@ -9,7 +9,8 @@ import {
   buildSourceTransformSummaryPrompt,
   buildSourceTransformUserPrompt,
 } from "@/lib/studio-asset-transform-prompt";
-import { buildEnrichedAssetGenerationContext } from "@/lib/studio-asset-vision-analysis";
+import { buildAssetSemanticGenerationInputFromDraft } from "@/lib/studio-asset-semantic-generation-context";
+import { buildAssetSemanticGenerationContext } from "@/lib/studio-asset-semantic-generation-context";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 export type ReferenceGenerationOutcome =
@@ -37,7 +38,9 @@ export function buildReferenceGenerationPayload(
     ? buildSourceTransformSummaryPrompt(draft)
     : draft.summaryPrompt.trim();
   const userPrompt = source ? buildSourceTransformUserPrompt(draft) : undefined;
-  const visionPromptBlock = buildEnrichedAssetGenerationContext(draft);
+  const visionPromptBlock = buildAssetSemanticGenerationContext(
+    buildAssetSemanticGenerationInputFromDraft(draft)
+  );
   const styleDna = draft.derivationStyleDna;
   const derivationSource = draft.derivationSource;
 

@@ -145,7 +145,7 @@ describe("studio-voice-execution V31", () => {
         entriesJson: [{ start: 0, end: 3, text: "Hello", sceneId: "scene-1" }],
       },
     });
-    assert.equal(payload.version, 25);
+    assert.equal(payload.version, 26);
     assert.ok(payload.voiceMetadata?.ready);
     assert.equal(payload.subtitleAvailability, true);
     assert.ok(payload.subtitleTrack?.srt.includes("Hello"));

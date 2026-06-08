@@ -26,6 +26,7 @@ import {
   buildWorldIdentityRenderStrategyHints,
   resolveWorldIdentityShotHint,
 } from "@/lib/studio-world-identity-visual-hints";
+import { formatSceneSemanticRecipeForMotion } from "@/lib/build-scene-semantic-recipe";
 import type { MotionHandoffPayload, MotionHandoffScene } from "@/types/motion-handoff-payload";
 import type { CharacterAction } from "@/types/studio-character-blocking";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -452,6 +453,21 @@ export function buildStudioSceneMotionInstructions(
 
   const candidateLines: MotionInstructionCandidate[] = [];
 
+  const semanticRecipe = scene.semanticRecipe;
+  if (semanticRecipe) {
+    const recipeLine = trimSentence(
+      `Semantic: ${formatSceneSemanticRecipeForMotion(semanticRecipe)}`,
+      200
+    );
+    if (recipeLine) {
+      candidateLines.push({
+        line: recipeLine,
+        field: "semanticRecipe",
+        dropPriority: 0,
+      });
+    }
+  }
+
   const worldStrategyLine = buildWorldStrategyMotionLine(storyMemory);
   if (worldStrategyLine) {
     candidateLines.push({
@@ -604,4 +620,22 @@ export function resolveStudioMotionInstructionTextsBySceneIndex(
   return resolveStudioMotionInstructionsBySceneIndex(handoff, sceneCount).map((row) =>
     row?.text.trim() ? row.text : null
   );
+}
+
+export function resolveStudioSemanticRecipeTextsBySceneIndex(
+  handoff: MotionHandoffPayload | null | undefined,
+  sceneCount: number
+): Array<string | null> {
+  if (!handoff || handoff.version < 26 || handoff.scenes.length === 0) {
+    return Array.from({ length: sceneCount }, () => null);
+  }
+  const sorted = [...handoff.scenes].sort((a, b) => a.order - b.order);
+  return Array.from({ length: sceneCount }, (_, i) => {
+    const recipe = sorted[i]?.semanticRecipe;
+    if (!recipe) {
+      return null;
+    }
+    const text = formatSceneSemanticRecipeForMotion(recipe).trim();
+    return text || null;
+  });
 }

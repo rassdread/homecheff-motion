@@ -1,4 +1,5 @@
 import type { StudioContinuityStrength } from "@/lib/studio-continuity-strength";
+import type { SceneSemanticRecipe } from "@/types/studio-scene-semantic-recipe";
 import type { SceneSnapshot } from "@/types/studio-scene-snapshot";
 import type { StudioSceneContextMetadata } from "@/types/studio-scene-context";
 import type { PromptVersionMetadata } from "@/types/studio-prompt-builder";
@@ -234,7 +235,7 @@ export type MotionRenderStrategyHandoffPlan = {
   warnings: RenderStrategyReason[];
 };
 
-export const MOTION_HANDOFF_PAYLOAD_VERSION = 25 as const;
+export const MOTION_HANDOFF_PAYLOAD_VERSION = 26 as const;
 
 /**
  * Single source of truth for Studio → Motion wizard import.
@@ -295,6 +296,8 @@ export type MotionHandoffScene = SceneSnapshot & {
   characterBlocking?: SceneCharacterBlocking;
   /** V46: Studio-generated text beats for Motion overlay defaults. */
   studioTextBeats?: MotionSceneTextBeatsHandoff;
+  /** V26: compact lossless semantic recipe for Motion consumption. */
+  semanticRecipe?: SceneSemanticRecipe;
 };
 
 export type MotionHandoffPayload = {

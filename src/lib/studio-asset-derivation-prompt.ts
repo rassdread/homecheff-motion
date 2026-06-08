@@ -1,4 +1,9 @@
 import { buildAssetReferenceGenerationPrompt } from "@/lib/studio-asset-reference-prompt";
+import {
+  buildAssetSemanticGenerationContext,
+  type AssetSemanticGenerationInput,
+} from "@/lib/studio-asset-semantic-generation-context";
+import { buildAssetSemanticRecordFromStyleDna } from "@/lib/studio-asset-semantic-record";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -10,10 +15,24 @@ export type DerivationReferencePromptInput = {
   styleDna: AssetStyleDna;
   sourceName: string;
   transformLabel?: string;
+  preserveHint?: string;
+  changeHint?: string;
+  forbiddenHint?: string;
+  userPrompt?: string;
 };
 
-/** Extends asset reference prompt with style DNA from source reference. */
+/** Extends asset reference prompt with unified semantic context from source. */
 export function buildDerivationReferenceGenerationPrompt(input: DerivationReferencePromptInput): string {
+  const semanticInput: AssetSemanticGenerationInput = {
+    semanticRecord: buildAssetSemanticRecordFromStyleDna(input.styleDna),
+    styleDna: input.styleDna,
+    preserveRules: input.preserveHint,
+    changeRules: input.changeHint,
+    forbiddenRules: input.forbiddenHint,
+    userInstruction: input.userPrompt,
+  };
+  const semanticBlock = buildAssetSemanticGenerationContext(semanticInput);
+
   const base = buildAssetReferenceGenerationPrompt({
     kind: input.kind,
     summaryPrompt: input.summaryPrompt,
@@ -22,23 +41,13 @@ export function buildDerivationReferenceGenerationPrompt(input: DerivationRefere
     sourceReference: {
       name: input.sourceName,
       transformLabel: input.transformLabel,
+      userPrompt: input.userPrompt,
+      preserveHint: input.preserveHint,
+      changeHint: input.changeHint,
+      forbiddenHint: input.forbiddenHint,
+      visionHint: semanticBlock,
     },
   });
 
-  const dnaBlock = [
-    `STYLE DNA from source "${input.sourceName}" (preserve these traits):`,
-    input.styleDna.visualStyle ? `Visual style: ${input.styleDna.visualStyle}` : "",
-    input.styleDna.colorTheme ? `Color theme: ${input.styleDna.colorTheme}` : "",
-    input.styleDna.shapeLanguage ? `Shape language: ${input.styleDna.shapeLanguage}` : "",
-    input.styleDna.brandIdentity ? `Brand identity: ${input.styleDna.brandIdentity}` : "",
-    input.styleDna.mascotTraits ? `Mascot traits: ${input.styleDna.mascotTraits}` : "",
-    input.styleDna.outfitHints ?
-      `Reference outfit (adapt for new role, do not copy exactly): ${input.styleDna.outfitHints}`
-    : "",
-    "Keep recognizable brand continuity from the source reference.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  return `${base}\n\n${dnaBlock}`;
+  return semanticBlock ? `${semanticBlock}\n\n${base}` : base;
 }

@@ -4,6 +4,12 @@
  */
 
 import {
+  extractAssetSemanticRecordFromCharacter,
+  extractAssetSemanticRecordFromLocation,
+  extractAssetSemanticRecordFromProp,
+  formatDirectorSemanticAssetLabel,
+} from "@/lib/studio-asset-semantic-record";
+import {
   DEFAULT_AI_DIRECTOR_STYLE_STRENGTH,
   interpretAiDirectorPrompt,
   normalizeAiDirectorStyleStrength,
@@ -295,8 +301,35 @@ function pickBestAsset<T extends { id: string; name: string }>(
   return bestScore >= MIN_MATCH_SCORE ? best : null;
 }
 
-function toAssetRef(item: { id: string; name: string }): ProposedAssetRef {
-  return { existingId: item.id, name: item.name };
+function toAssetRef(item: { id: string; name: string }, semanticLabel?: string): ProposedAssetRef {
+  return { existingId: item.id, name: item.name, semanticLabel };
+}
+
+function toCharacterAssetRef(character: StudioCharacterListItem): ProposedAssetRef {
+  const record = extractAssetSemanticRecordFromCharacter(character);
+  return {
+    existingId: character.id,
+    name: character.name,
+    semanticLabel: formatDirectorSemanticAssetLabel(character.name, record),
+  };
+}
+
+function toLocationAssetRef(location: StudioLocationListItem): ProposedAssetRef {
+  const record = extractAssetSemanticRecordFromLocation(location);
+  return {
+    existingId: location.id,
+    name: location.name,
+    semanticLabel: formatDirectorSemanticAssetLabel(location.name, record),
+  };
+}
+
+function toPropAssetRef(prop: StudioPropListItem): ProposedAssetRef {
+  const record = extractAssetSemanticRecordFromProp(prop);
+  return {
+    existingId: prop.id,
+    name: prop.name,
+    semanticLabel: formatDirectorSemanticAssetLabel(prop.name, record),
+  };
 }
 
 function suggestNewAsset(
@@ -606,20 +639,20 @@ function assignAssetsToScene(params: {
       continue;
     }
     if (!characterRefs.some((c) => c.existingId === character.id)) {
-      characterRefs.push(toAssetRef(character));
+      characterRefs.push(toCharacterAssetRef(character));
       params.usedCharacterIds.add(character.id);
     }
   }
 
   const propRefs: ProposedAssetRef[] = [];
   if (prop && !params.usedPropIds.has(prop.id)) {
-    propRefs.push(toAssetRef(prop));
+    propRefs.push(toPropAssetRef(prop));
     params.usedPropIds.add(prop.id);
   } else if (prop) {
-    propRefs.push(toAssetRef(prop));
+    propRefs.push(toPropAssetRef(prop));
   }
 
-  let locationRef = location ? toAssetRef(location) : null;
+  let locationRef = location ? toLocationAssetRef(location) : null;
   if (!locationRef) {
     const recurringLocation = detectRecurringLocation({
       idea: params.idea,

@@ -14,7 +14,8 @@ import {
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
-import { characterFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { characterFormValuesFromWizardDraft, wizardSemanticCreateExtras } from "@/lib/studio-asset-wizard-draft";
+import { applySemanticRecordToCharacterFields, buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
 import { createStudioCharacterApi } from "@/lib/studio-characters-client";
 import {
   buildCharacterDetailFromPrefill,
@@ -57,7 +58,40 @@ function StudioCharacterNewPageContent() {
 
   const handleWizardSave = async (result: AssetCreationWizardResult) => {
     const values = characterFormValuesFromWizardDraft(result.draft);
-    await handleSubmit(values);
+    const semanticRecord = buildAssetSemanticRecordFromWizardDraft(result.draft);
+    const memoryFields = semanticRecord
+      ? applySemanticRecordToCharacterFields(semanticRecord, {})
+      : null;
+    const res = await createStudioCharacterApi({
+      ...studioCharacterFormToCreatePayload(values),
+      ...wizardSemanticCreateExtras(result.draft),
+      ...(memoryFields
+        ? {
+            appearanceMemory: memoryFields.appearanceMemory,
+            visualKeywords: memoryFields.visualKeywords,
+            continuityNotes: memoryFields.continuityNotes,
+          }
+        : {}),
+    });
+    if (!res.ok) {
+      throw new Error((res.data as { error?: string }).error ?? t("studio.characters.error.saveFailed"));
+    }
+
+    if (prefill?.storyboardId) {
+      completeAssetLifecycleAfterCreate({
+        storyboardId: prefill.storyboardId,
+        kind: "character",
+        createdEntityId: res.data.character.id,
+        createdName: values.identity.name,
+        decisionId: prefill.decisionId,
+      });
+      clearIdentityBuilderPrefill();
+      router.push(studioWorkspaceHref(prefill.storyboardId));
+      return;
+    }
+
+    clearIdentityBuilderPrefill();
+    router.push(`/studio/characters/${res.data.character.id}`);
   };
 
   return (

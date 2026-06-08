@@ -26,6 +26,14 @@ import type {
 } from "@/types/studio-asset-creation";
 import type { AssetDerivationSource, AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
+import {
+  applySemanticRecordToCharacterFields,
+  applySemanticRecordToLocationFields,
+  applySemanticRecordToPropFields,
+  buildAssetSemanticRecordFromWizardDraft,
+  serializeAssetSemanticRecordToNotes,
+} from "@/lib/studio-asset-semantic-record";
+import { ASSET_SEMANTIC_MARKER } from "@/types/studio-asset-semantic-record";
 import type { StudioCharacterFormValues } from "@/components/studio/studio-character-form";
 import type { StudioPropFormValues } from "@/components/studio/studio-prop-form";
 import type { StudioLocationFormValues } from "@/components/studio/studio-location-form";
@@ -261,6 +269,20 @@ export function characterFormValuesFromWizardDraft(draft: AssetWizardDraft): Stu
     worldProfileId: draft.fields.worldProfileId ?? identity.worldProfileId,
   });
 
+  const semanticRecord = buildAssetSemanticRecordFromWizardDraft(draft);
+  if (semanticRecord) {
+    const persisted = applySemanticRecordToCharacterFields(semanticRecord, {
+      appearanceMemory: identity.appearanceMemory,
+    });
+    identity = mergeCharacterIdentityForm(identity, {
+      appearanceMemory: persisted.appearanceMemory,
+      shapeLanguage: semanticRecord.shapeDna?.[0] ?? identity.shapeLanguage,
+      visualStyle: semanticRecord.visualStyle || identity.visualStyle,
+      colorTheme:
+        semanticRecord.primaryColors?.map((c) => c.label).join(", ") || identity.colorTheme,
+    });
+  }
+
   const voice = emptyCharacterVoice();
   if (draft.fields.voiceProfile) {
     voice.voiceEnabled = true;
@@ -305,6 +327,21 @@ export function propFormValuesFromWizardDraft(draft: AssetWizardDraft): StudioPr
   identity.name = draft.name || identity.name;
   identity.description = draft.description || identity.description;
 
+  const semanticRecord = buildAssetSemanticRecordFromWizardDraft(draft);
+  if (semanticRecord) {
+    const persisted = applySemanticRecordToPropFields(semanticRecord, {
+      appearanceMemory: identity.appearanceMemory,
+      brandingRules: identity.forbiddenElements,
+    });
+    identity = mergePropIdentityForm(identity, {
+      appearanceMemory: persisted.appearanceMemory,
+      shapeLanguage: semanticRecord.shapeDna?.join(", ") || identity.shapeLanguage,
+      colorTheme: semanticRecord.primaryColors?.map((c) => c.label).join(", ") || identity.colorTheme,
+      forbiddenElements: persisted.brandingRules,
+      usageContext: persisted.continuityNotes || identity.usageContext,
+    });
+  }
+
   return {
     name: draft.name,
     category: (draft.fields.category as StudioPropCategory) ?? "brand_asset",
@@ -341,6 +378,20 @@ export function locationFormValuesFromWizardDraft(draft: AssetWizardDraft): Stud
   }
   identity.name = draft.name || identity.name;
   identity.description = draft.description || identity.description;
+
+  const semanticRecord = buildAssetSemanticRecordFromWizardDraft(draft);
+  if (semanticRecord) {
+    const persisted = applySemanticRecordToLocationFields(semanticRecord, {
+      worldMemory: identity.worldMemory,
+      visualIdentity: identity.visualIdentity,
+    });
+    identity = mergeLocationIdentityForm(identity, {
+      worldMemory: persisted.worldMemory,
+      visualIdentity: persisted.visualIdentity,
+      visualStyle: semanticRecord.visualStyle || identity.visualStyle,
+      usageContext: persisted.continuityNotes || identity.usageContext,
+    });
+  }
 
   return {
     name: draft.name,
@@ -391,8 +442,44 @@ export function worldFormValuesFromWizardDraft(draft: AssetWizardDraft): StudioW
   identity.name = draft.name || identity.name;
   identity.description = draft.description || identity.description;
 
+  const semanticRecord = buildAssetSemanticRecordFromWizardDraft(draft);
+  if (semanticRecord) {
+    identity = mergeWorldIdentityForm(identity, {
+      visualStyle: semanticRecord.visualStyle || identity.visualStyle,
+      shapeLanguage: semanticRecord.shapeDna?.join(", ") || identity.shapeLanguage,
+      brandRules: semanticRecord.preserveRules?.join(", ") || identity.brandRules,
+    });
+  }
+
   return {
     continuityStrength: (draft.fields.continuityStrength as StudioContinuityStrength) ?? "medium",
     identity,
   };
+}
+
+/** Serialized semantic marker for create API payloads (referenceNotes / continuityNotes). */
+export function wizardSemanticCreateExtras(draft: AssetWizardDraft): {
+  referenceNotes?: string;
+  continuityNotes?: string;
+  brandingRules?: string;
+} {
+  const record = buildAssetSemanticRecordFromWizardDraft(draft);
+  if (!record) {
+    return {};
+  }
+  if (draft.kind === "character") {
+    return {
+      referenceNotes: serializeAssetSemanticRecordToNotes("", record),
+    };
+  }
+  if (draft.kind === "prop") {
+    return {
+      continuityNotes: serializeAssetSemanticRecordToNotes("", record),
+      brandingRules: record.brandIdentity ?? "",
+    };
+  }
+  if (draft.kind === "location") {
+    return { continuityNotes: serializeAssetSemanticRecordToNotes("", record) };
+  }
+  return {};
 }

@@ -65,6 +65,10 @@ export type StudioRenderAuditMetadata = {
   averageVisionScore: number | null;
   averageConsistencyScore: number | null;
   suggestStudioRefresh?: boolean;
+  /** V26: compact semantic recipe lineage for debugging renders. */
+  semanticRecipeVersion?: number | null;
+  promptLineageHashes?: string[];
+  assetSemanticRecordIds?: string[];
 };
 
 export type StudioStalenessSeverity = "low" | "medium" | "high";

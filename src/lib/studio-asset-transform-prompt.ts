@@ -1,6 +1,7 @@
 import {
-  buildEnrichedAssetGenerationContext,
-} from "@/lib/studio-asset-vision-analysis";
+  buildAssetSemanticGenerationInputFromDraft,
+  buildAssetSemanticGenerationContext,
+} from "@/lib/studio-asset-semantic-generation-context";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { resolveTransformLabelForGeneration } from "@/lib/studio-asset-wizard-source-flow";
@@ -73,7 +74,9 @@ export function buildTransformPromptPreview(draft: AssetWizardDraft): TransformP
 export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): string {
   const preview = buildTransformPromptPreviewFields(draft);
   const sourceName = preview.sourceName;
-  const contextBlock = buildEnrichedAssetGenerationContext(draft);
+  const contextBlock = buildAssetSemanticGenerationContext(
+    buildAssetSemanticGenerationInputFromDraft(draft)
+  );
 
   const lines = [
     contextBlock,

@@ -30,6 +30,7 @@ export type GenerateAssetReferenceInput = {
     preserveHint?: string;
     changeHint?: string;
     forbiddenHint?: string;
+    visionHint?: string;
   };
   derivation?: {
     styleDna: AssetStyleDna;
@@ -104,6 +105,7 @@ export async function generateAssetReference(
         preserveHint: input.sourceReference.preserveHint?.trim(),
         changeHint: input.sourceReference.changeHint?.trim(),
         forbiddenHint: input.sourceReference.forbiddenHint?.trim(),
+        visionHint: input.sourceReference.visionHint?.trim(),
       }
     : undefined;
 
@@ -116,6 +118,10 @@ export async function generateAssetReference(
         styleDna: input.derivation.styleDna,
         sourceName: input.derivation.sourceName,
         transformLabel: sourceRef?.transformLabel,
+        preserveHint: sourceRef?.preserveHint,
+        changeHint: sourceRef?.changeHint,
+        forbiddenHint: sourceRef?.forbiddenHint,
+        userPrompt: sourceRef?.userPrompt,
       })
     : buildAssetReferenceGenerationPrompt({
         kind: input.kind,

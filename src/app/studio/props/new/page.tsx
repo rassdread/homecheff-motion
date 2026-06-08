@@ -19,7 +19,7 @@ import {
   readIdentityPrefillForKind,
 } from "@/lib/studio-identity-builder-prefill-detail";
 import { clearIdentityBuilderPrefill } from "@/lib/studio-identity-builder-prefill-storage";
-import { propFormValuesFromWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { propFormValuesFromWizardDraft, wizardSemanticCreateExtras } from "@/lib/studio-asset-wizard-draft";
 import { createStudioPropApi } from "@/lib/studio-props-client";
 import { studioWorkspaceHref } from "@/lib/studio-workspace-href";
 import type { IdentityBuilderPrefill } from "@/types/studio-asset-decision";
@@ -57,7 +57,29 @@ function StudioPropNewPageContent() {
 
   const handleWizardSave = async (result: AssetCreationWizardResult) => {
     const values = propFormValuesFromWizardDraft(result.draft);
-    await handleSubmit(values);
+    const res = await createStudioPropApi({
+      ...studioPropFormToCreatePayload(values),
+      ...wizardSemanticCreateExtras(result.draft),
+    });
+    if (!res.ok) {
+      throw new Error((res.data as { error?: string }).error ?? t("studio.props.error.saveFailed"));
+    }
+
+    if (prefill?.storyboardId) {
+      completeAssetLifecycleAfterCreate({
+        storyboardId: prefill.storyboardId,
+        kind: "prop",
+        createdEntityId: res.data.prop.id,
+        createdName: values.name,
+        decisionId: prefill.decisionId,
+      });
+      clearIdentityBuilderPrefill();
+      router.push(studioWorkspaceHref(prefill.storyboardId));
+      return;
+    }
+
+    clearIdentityBuilderPrefill();
+    router.push(`/studio/props/${res.data.prop.id}`);
   };
 
   return (

@@ -143,7 +143,7 @@ function minimalHandoff(): MotionHandoffPayload {
 
 describe("Studio V41 — Provider Execution Framework", () => {
   it("handoff payload version is 21", () => {
-    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 25);
+    assert.equal(MOTION_HANDOFF_PAYLOAD_VERSION, 26);
   });
 
   it("provider registry lists voice, music, sound, image, and video providers", () => {

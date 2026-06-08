@@ -10,6 +10,7 @@ import type { PersistedWizardState } from "@/lib/instant-premium-wizard-storage"
 import type { MotionStudioIntelligenceSnapshot } from "@/types/motion-studio-intelligence";
 import { buildMotionStudioIntelligenceSnapshot } from "@/lib/build-motion-studio-intelligence";
 import type { MotionHandoffPayload } from "@/types/motion-handoff-payload";
+import { SCENE_SEMANTIC_RECIPE_VERSION } from "@/types/studio-scene-semantic-recipe";
 import {
   buildMotionStudioAudioExportFromHandoff,
   mergeMotionAudioExportIntoHandoffStorage,
@@ -437,6 +438,7 @@ export function buildStudioRenderAuditMetadata(project: {
   studioHandoffVersion: number | null;
   studioIntelligenceJson: unknown;
   studioIntelligenceStatus: string | null;
+  studioHandoffJson?: unknown;
 }): StudioRenderAuditMetadata {
   const stored = parseStoredIntelligence(project.studioIntelligenceJson);
   const status = resolveStudioIntelligenceStatus(project);
@@ -449,6 +451,31 @@ export function buildStudioRenderAuditMetadata(project: {
   const avg = (nums: number[]) =>
     nums.length === 0 ? null : Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
 
+  const handoff =
+    project.studioHandoffJson && typeof project.studioHandoffJson === "object"
+      ? (project.studioHandoffJson as MotionHandoffPayload)
+      : null;
+  const scenes = handoff?.scenes ?? [];
+  const promptLineageHashes = scenes
+    .map((scene) => scene.semanticRecipe?.promptLineage?.promptHash)
+    .filter((hash): hash is string => Boolean(hash?.trim()));
+  const assetSemanticRecordIds = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          ...recipe.characters.map((c) => c.assetId),
+          ...recipe.props.map((p) => p.assetId),
+          ...(recipe.location ? [recipe.location.assetId] : []),
+          ...(recipe.world ? [recipe.world.assetId] : []),
+        ];
+      })
+    ),
+  ];
+
   return {
     sourceStoryboardId: project.studioSourceStoryboardId,
     handoffVersion: project.studioHandoffVersion,
@@ -459,6 +486,11 @@ export function buildStudioRenderAuditMetadata(project: {
     averageCharacterIdentityScore: stored?.overallCharacterIdentityScore ?? null,
     averageVisionScore: avg(visionScores),
     averageConsistencyScore: avg(consistencyScores),
+    semanticRecipeVersion:
+      handoff && handoff.version >= 26 ? SCENE_SEMANTIC_RECIPE_VERSION : null,
+    promptLineageHashes: promptLineageHashes.length > 0 ? promptLineageHashes : undefined,
+    assetSemanticRecordIds:
+      assetSemanticRecordIds.length > 0 ? assetSemanticRecordIds : undefined,
   };
 }
 

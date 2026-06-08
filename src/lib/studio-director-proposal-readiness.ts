@@ -9,6 +9,7 @@ import {
 } from "@/lib/studio-unified-readiness";
 import { normalizeStudioSceneEnergy } from "@/lib/studio-scene-director";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
+import type { StudioLocationListItem, StudioPropListItem } from "@/types/studio-api";
 import type {
   DirectorProposalRenderReadiness,
   ProposedScene,
@@ -19,9 +20,15 @@ export function buildProposalAppliedStoryboard(
   base: StudioStoryboardDetail,
   proposal: StudioDirectorProposal,
   characters: StudioCharacterListItem[],
-  t: ProposalTextResolver
+  t: ProposalTextResolver,
+  assets?: {
+    locations?: StudioLocationListItem[];
+    props?: StudioPropListItem[];
+  }
 ): StudioStoryboardDetail {
   const characterById = new Map(characters.map((c) => [c.id, c]));
+  const locationById = new Map((assets?.locations ?? []).map((l) => [l.id, l]));
+  const propById = new Map((assets?.props ?? []).map((p) => [p.id, p]));
 
   return {
     ...base,
@@ -87,9 +94,13 @@ export function buildProposalAppliedStoryboard(
         soundEnvironmentOverride: scene.sceneAudio.soundEnvironment,
         soundAmbientOverride: scene.sceneAudio.soundAmbient,
         locationId: scene.locationRef?.existingId ?? null,
-        location: null,
+        location: scene.locationRef
+          ? (locationById.get(scene.locationRef.existingId) ?? null)
+          : null,
         characters: linkedCharacters,
-        props: [],
+        props: scene.propRefs
+          .map((ref) => propById.get(ref.existingId))
+          .filter((p): p is StudioPropListItem => Boolean(p)),
       } as StudioSceneDetail;
     }),
   };
@@ -108,7 +119,8 @@ export function buildProposalRenderReadiness(params: {
     params.baseStoryboard,
     params.proposal,
     params.characters,
-    params.t
+    params.t,
+    { locations: params.locations, props: params.props }
   );
   const unified = buildStudioUnifiedReadiness({
     storyboard: projected,

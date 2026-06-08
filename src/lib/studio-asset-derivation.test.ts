@@ -91,7 +91,7 @@ describe("studio-asset-derivation", () => {
       styleDna: mapAnalysisToStyleDna({ visualStyle: "cartoon", colorTheme: "blue" }),
       sourceName: "Globe Man",
     });
-    assert.ok(prompt.includes("STYLE DNA"));
+    assert.ok(prompt.includes("Shape DNA") || prompt.includes("Visual style"));
     assert.ok(prompt.includes("Globe Man"));
     assert.ok(prompt.includes("cartoon"));
   });

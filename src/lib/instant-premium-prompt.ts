@@ -394,6 +394,8 @@ export type BuildInstantStoryModePromptInput = {
   studioExecutionPrompts?: Array<string | null>;
   /** V45: Studio motion direction lines per scene (blocking, composition, arc). */
   studioMotionInstructions?: Array<string | null>;
+  /** V26: compact semantic recipe text per scene (lossless identity + continuity). */
+  studioSemanticRecipes?: Array<string | null>;
 };
 
 export type BuildInstantStoryModePromptResult = {
@@ -527,6 +529,10 @@ export function buildInstantStoryModePromptDetailed(
     const studioMotion = input.studioMotionInstructions?.[i]?.trim();
     if (studioMotion) {
       parts.push(`Studio motion direction: ${studioMotion.replace(/\n/g, "; ")}`);
+    }
+    const studioSemantic = input.studioSemanticRecipes?.[i]?.trim();
+    if (studioSemantic) {
+      parts.push(`Studio semantic recipe: ${studioSemantic}`);
     }
     const context =
       parts.length > 0 ? parts.join("; ") : "visual continuity from the keyframe only";

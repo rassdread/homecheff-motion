@@ -6,6 +6,10 @@ import type {
   AssetVisionObjectType,
 } from "@/types/studio-asset-vision-analysis";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import {
+  buildAssetSemanticGenerationContext,
+  buildAssetSemanticGenerationInputFromDraft,
+} from "@/lib/studio-asset-semantic-generation-context";
 
 export type VisionTransformationRules = {
   preserve: string[];
@@ -279,21 +283,7 @@ export function buildStyleDnaPromptBlock(styleDna: AssetStyleDna | null | undefi
 }
 
 export function buildEnrichedAssetGenerationContext(draft: AssetWizardDraft): string {
-  const vision = draft.sourceVisionAnalysis;
-  const styleDna = draft.derivationStyleDna;
-
-  return [
-    buildVisionAnalysisPromptBlock(vision),
-    buildStyleDnaPromptBlock(styleDna),
-    vision?.brandIdentity && !styleDna?.brandIdentity
-      ? `Brand identity: ${vision.brandIdentity}.`
-      : "",
-    vision?.shapeLanguage.length && !styleDna?.shapeLanguage
-      ? `Shape DNA: ${vision.shapeLanguage.join(", ")}.`
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return buildAssetSemanticGenerationContext(buildAssetSemanticGenerationInputFromDraft(draft));
 }
 
 export function buildVisionAnalysisPromptBlock(vision: AssetVisionAnalysis | null | undefined): string {

@@ -28,6 +28,10 @@ import { parseVisionConsistencyReport } from "@/lib/studio-vision-report-parse";
 import { buildStoryboardVisionReport } from "@/lib/studio-vision-timeline";
 import { buildStoryboardCharacterConsistencyReport } from "@/lib/studio-character-timeline";
 import { buildSceneMemoryBundleFromSceneRow } from "@/lib/studio-scene-memory-bundle";
+import {
+  buildScenePromptLineage,
+  buildSceneSemanticRecipe,
+} from "@/lib/build-scene-semantic-recipe";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import { attachVoiceToHandoffPayload } from "@/lib/attach-voice-handoff";
 import { attachMusicToHandoffPayload } from "@/lib/attach-music-handoff";
@@ -111,7 +115,6 @@ function toHandoffScene(
   directorProfile: string
 ): MotionHandoffScene {
   const snapshot = toSceneSnapshot(row);
-  const built = buildScenePromptFromSceneRow(row, styleProfile, directorProfile);
   const imageHandoff = resolveStudioSceneImageHandoff({
     storyboardId,
     sceneId: row.id,
@@ -129,6 +132,37 @@ function toHandoffScene(
   const selectedImageRow = row.selectedSceneImageId
     ? row.sceneImages.find((img) => img.id === row.selectedSceneImageId)
     : row.sceneImages.find((img) => img.status === "completed");
+
+  const selectedPrompt = selectedImageRow?.generatedPrompt?.trim() ?? "";
+  const built = buildScenePromptFromSceneRow(row, styleProfile, directorProfile);
+  const generatedPrompt = selectedPrompt || built.metadata.generatedPrompt;
+  const promptOutput: PromptBuilderOutput =
+    selectedPrompt
+      ? {
+          ...built,
+          prompt: selectedPrompt,
+          metadata: {
+            ...built.metadata,
+            generatedPrompt: selectedPrompt,
+          },
+        }
+      : built;
+
+  const memoryBundle = buildSceneMemoryBundleFromSceneRow(row);
+  const promptLineage = buildScenePromptLineage({
+    sceneId: row.id,
+    selectedSceneImageId: imageHandoff.selectedSceneImageId,
+    generatedPrompt: promptOutput.metadata.generatedPrompt,
+    promptVersion: selectedImageRow?.promptVersion ?? null,
+    summarySource: selectedPrompt ? "selected_scene_image" : "rebuilt",
+  });
+  const semanticRecipe = buildSceneSemanticRecipe({
+    row,
+    memoryBundle,
+    generatedPrompt,
+    promptLineage,
+    visualStyleProfile: styleProfile,
+  });
   const sceneConsistencyReport = selectedImageRow
     ? parseSceneConsistencyReport(selectedImageRow.consistencyReport)
     : null;
@@ -160,14 +194,14 @@ function toHandoffScene(
     studioContext: buildStudioContext(
       storyboardId,
       snapshot,
-      built,
+      promptOutput,
       imageHandoff,
       directorProfile
     ),
-    generatedPrompt: built.metadata.generatedPrompt,
-    stylePrompt: built.stylePrompt,
-    continuityPrompt: built.continuityPrompt,
-    promptVersion: built.metadata,
+    generatedPrompt: promptOutput.metadata.generatedPrompt,
+    stylePrompt: promptOutput.stylePrompt,
+    continuityPrompt: promptOutput.continuityPrompt,
+    promptVersion: promptOutput.metadata,
     sceneConsistencyScore: selectedImageRow?.consistencyScore ?? null,
     sceneConsistencyReport,
     sceneConsistencyRecommendations: selectedImageRow
@@ -193,6 +227,7 @@ function toHandoffScene(
     selectedImageRecommended: selectedListItem
       ? isRecommendedSceneImage(selectedListItem, mappedSceneImages)
       : false,
+    semanticRecipe,
   };
 }
 
