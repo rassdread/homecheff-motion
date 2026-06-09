@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
+import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 
 function shortenEmail(email: string, maxLen = 30): string {
   if (email.length <= maxLen) {
@@ -63,6 +64,7 @@ export function AppShellUserBar() {
   }
 
   if (!session.user) {
+    const suiteNav = isHomeCheffProductSuiteNavEnabled();
     return (
       <div className="flex flex-shrink-0 items-center gap-2">
         <Link
@@ -73,11 +75,11 @@ export function AppShellUserBar() {
           {t("nav.login")}
         </Link>
         <Link
-          href="/signup"
+          href={suiteNav ? "/signup?next=%2Feditor" : "/signup"}
           prefetch={false}
           className="rounded-full border border-[#006D52]/30 bg-gradient-to-r from-[#006D52] to-[#0067B1] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
         >
-          {t("nav.getStarted")}
+          {t(suiteNav ? "universe.public.startCreating" : "nav.getStarted")}
         </Link>
       </div>
     );

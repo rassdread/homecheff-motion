@@ -1,6 +1,7 @@
 "use client";
 
 import { UNIVERSE_BRAND } from "@/lib/universe-home-config";
+import { UNIVERSE_GLOBE_SPHERICAL_CLASS } from "@/lib/universe-public-landing";
 
 type UniverseGlobeProps = {
   reducedMotion?: boolean;
@@ -8,151 +9,152 @@ type UniverseGlobeProps = {
 };
 
 export function UniverseGlobe({ reducedMotion = false, size = "hero" }: UniverseGlobeProps) {
-  const dim = size === "hero" ? "min(42vw, 380px)" : "148px";
-  const inner = size === "hero" ? "94%" : "132px";
+  const dim = size === "hero" ? "min(46vw, 420px)" : "160px";
 
   return (
     <div
-      className="relative flex items-center justify-center"
-      style={{ width: dim, height: dim }}
+      className={`${UNIVERSE_GLOBE_SPHERICAL_CLASS} relative flex items-center justify-center`}
+      style={{ width: dim, height: dim, aspectRatio: "1 / 1" }}
       aria-hidden
     >
-      {/* Atmospheric glow rings */}
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{
-            width: `calc(${dim} + ${i * 48}px)`,
-            height: `calc(${dim} + ${i * 48}px)`,
-            background: `radial-gradient(circle, ${i % 2 === 0 ? UNIVERSE_BRAND.blue : UNIVERSE_BRAND.green}${["55", "44", "33", "22"][i]} 0%, transparent 70%)`,
-            animation: reducedMotion ? undefined : `universe-glow-pulse ${5.5 + i}s ease-in-out ${i * 0.6}s infinite`,
-            opacity: 0.5 - i * 0.1,
-          }}
-        />
-      ))}
-
+      {/* 1. Outer atmosphere glow */}
       <div
-        className="relative rounded-full"
+        className="absolute rounded-full"
         style={{
-          width: inner,
-          height: inner,
-          perspective: "900px",
+          width: "108%",
+          height: "108%",
+          background: `radial-gradient(circle, ${UNIVERSE_BRAND.blue}55 0%, ${UNIVERSE_BRAND.green}33 42%, transparent 72%)`,
+          animation: reducedMotion ? undefined : "universe-glow-pulse 7s ease-in-out infinite",
+        }}
+      />
+
+      {/* Spherical body container — strict 1:1 circle */}
+      <div
+        className="relative overflow-hidden rounded-full"
+        style={{
+          width: "88%",
+          height: "88%",
+          aspectRatio: "1 / 1",
           animation: reducedMotion ? undefined : "universe-float 8s ease-in-out infinite",
+          boxShadow: `0 0 60px ${UNIVERSE_BRAND.blue}66, 0 0 100px ${UNIVERSE_BRAND.green}33`,
         }}
       >
+        {/* 2. Ocean base */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            transformStyle: "preserve-3d",
-            animation: reducedMotion ? undefined : "universe-globe-spin 56s linear infinite",
-            willChange: "transform",
+            background: `radial-gradient(circle at 35% 30%, #1a8fc4 0%, ${UNIVERSE_BRAND.blue} 38%, #043a5c 72%, #021828 100%)`,
+          }}
+        />
+
+        {/* 3. Rotating continent layer */}
+        <div
+          className="absolute inset-0 overflow-hidden rounded-full"
+          style={{
+            animation: reducedMotion ? undefined : "universe-continent-drift 90s linear infinite",
           }}
         >
-          {/* Glass sphere body */}
-          <div
-            className="absolute inset-0 overflow-hidden rounded-full border border-white/25"
-            style={{
-              background: `radial-gradient(circle at 28% 22%, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 16%, transparent 38%),
-                radial-gradient(circle at 72% 78%, ${UNIVERSE_BRAND.green}66 0%, ${UNIVERSE_BRAND.blue}77 42%, #031220 82%)`,
-              boxShadow: `inset 0 0 48px rgba(255,255,255,0.15), 0 0 80px ${UNIVERSE_BRAND.blue}55, 0 0 120px ${UNIVERSE_BRAND.green}33`,
-            }}
-          >
-            {/* Rotating continents */}
-            <svg
-              className="absolute inset-0 h-full w-full opacity-80"
-              viewBox="0 0 200 200"
-              style={{
-                animation: reducedMotion ? undefined : "universe-continent-drift 80s linear infinite",
-              }}
-            >
-              <ellipse cx="70" cy="85" rx="28" ry="18" fill={`${UNIVERSE_BRAND.green}99`} />
-              <ellipse cx="130" cy="110" rx="22" ry="14" fill={`${UNIVERSE_BRAND.green}77`} />
-              <ellipse cx="95" cy="130" rx="18" ry="10" fill={`${UNIVERSE_BRAND.blue}88`} />
-              <path
-                d="M45 60 Q60 50 75 58 Q55 70 45 60"
-                fill={`${UNIVERSE_BRAND.green}66`}
-              />
-            </svg>
-
-            {/* Cloud layers */}
-            {!reducedMotion &&
-              [0, 1].map((i) => (
-                <div
-                  key={i}
-                  className="absolute inset-[12%] rounded-full opacity-40"
-                  style={{
-                    background: `radial-gradient(ellipse at ${30 + i * 20}% ${40 + i * 10}%, rgba(255,255,255,0.35) 0%, transparent 50%)`,
-                    animation: `universe-cloud-drift ${10 + i * 3}s ease-in-out ${i}s infinite`,
-                  }}
-                />
-              ))}
-          </div>
-
-          {/* Atmosphere haze */}
-          <div
-            className="absolute -inset-[6%] rounded-full opacity-50"
-            style={{
-              background: `radial-gradient(circle, transparent 55%, ${UNIVERSE_BRAND.blue}33 75%, transparent 85%)`,
-            }}
-          />
-
-          {/* Equator energy band */}
-          <div
-            className="absolute left-1/2 top-1/2 h-[58%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{
-              background: `conic-gradient(from 200deg, ${UNIVERSE_BRAND.green}, ${UNIVERSE_BRAND.blue}, ${UNIVERSE_BRAND.green})`,
-              WebkitMaskImage: "radial-gradient(circle, black 56%, transparent 62%)",
-              maskImage: "radial-gradient(circle, black 56%, transparent 62%)",
-              opacity: 0.9,
-            }}
-          />
+          <svg className="h-full w-full" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">
+            <circle cx="100" cy="100" r="98" fill={`${UNIVERSE_BRAND.blue}22`} />
+            {/* HomeCheff-style land masses — green/teal, not stretched */}
+            <path
+              d="M55 78 C62 62 78 58 92 66 C98 72 96 82 88 88 C76 94 62 90 55 78 Z"
+              fill={`${UNIVERSE_BRAND.green}dd`}
+            />
+            <path
+              d="M108 52 C128 48 142 58 148 72 C152 84 140 92 124 88 C112 82 104 68 108 52 Z"
+              fill={`${UNIVERSE_BRAND.green}bb`}
+            />
+            <path
+              d="M118 108 C132 102 148 110 152 124 C154 136 138 142 122 138 C110 132 112 118 118 108 Z"
+              fill="#0a8a6fdd"
+            />
+            <path
+              d="M72 118 C84 112 98 118 102 130 C104 140 88 146 76 140 C66 134 64 124 72 118 Z"
+              fill={`${UNIVERSE_BRAND.green}99`}
+            />
+            <ellipse cx="138" cy="148" rx="14" ry="9" fill={`${UNIVERSE_BRAND.green}88`} />
+          </svg>
         </div>
-      </div>
 
-      {/* Ecosystem light routes */}
-      {!reducedMotion && (
-        <svg
-          className="absolute inset-0 h-full w-full"
-          viewBox="0 0 200 200"
-          aria-hidden
-        >
-          {[0, 1, 2, 3, 4].map((i) => {
-            const angle = (i * 72 * Math.PI) / 180;
-            const x2 = 100 + Math.cos(angle) * 88;
-            const y2 = 100 + Math.sin(angle) * 88;
-            return (
-              <line
-                key={i}
-                x1="100"
-                y1="100"
-                x2={x2}
-                y2={y2}
-                stroke={i % 2 === 0 ? UNIVERSE_BRAND.blue : UNIVERSE_BRAND.green}
-                strokeWidth="0.8"
-                strokeDasharray="4 8"
-                opacity="0.35"
-                style={{ animation: `universe-energy-pulse ${3 + i * 0.5}s ease-in-out infinite` }}
-              />
-            );
-          })}
-        </svg>
-      )}
+        {/* 4. Cloud / haze layer */}
+        <div
+          className="absolute inset-0 rounded-full opacity-45 mix-blend-screen"
+          style={{
+            background: `radial-gradient(circle at 40% 35%, rgba(255,255,255,0.35) 0%, transparent 45%),
+              radial-gradient(circle at 65% 55%, rgba(255,255,255,0.2) 0%, transparent 40%)`,
+            animation: reducedMotion ? undefined : "universe-cloud-drift 14s ease-in-out infinite",
+          }}
+        />
 
-      {/* Energy pulses */}
-      {!reducedMotion &&
-        [0, 1, 2].map((i) => (
+        {/* 5. Ecosystem route layer */}
+        {!reducedMotion && (
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 200">
+            {[0, 1, 2, 3, 4].map((i) => {
+              const angle = (i * 72 * Math.PI) / 180;
+              const x2 = 100 + Math.cos(angle) * 78;
+              const y2 = 100 + Math.sin(angle) * 78;
+              return (
+                <line
+                  key={i}
+                  x1="100"
+                  y1="100"
+                  x2={x2}
+                  y2={y2}
+                  stroke={i % 2 === 0 ? UNIVERSE_BRAND.green : "#ffffff"}
+                  strokeWidth="0.6"
+                  strokeDasharray="3 6"
+                  opacity="0.45"
+                  style={{ animation: `universe-energy-pulse ${3.5 + i * 0.4}s ease-in-out infinite` }}
+                />
+              );
+            })}
+          </svg>
+        )}
+
+        {/* 6. Surface light points */}
+        {[
+          { x: "38%", y: "42%" },
+          { x: "58%", y: "36%" },
+          { x: "72%", y: "58%" },
+          { x: "48%", y: "68%" },
+        ].map((pt, i) => (
           <span
             key={i}
-            className="absolute rounded-full border border-white/20"
+            className="absolute h-1 w-1 rounded-full bg-white/80"
             style={{
-              width: `calc(${dim} + ${60 + i * 36}px)`,
-              height: `calc(${dim} + ${60 + i * 36}px)`,
-              animation: `universe-glow-pulse ${4 + i * 1.2}s ease-in-out ${i * 0.9}s infinite`,
-              opacity: 0.2,
+              left: pt.x,
+              top: pt.y,
+              animation: reducedMotion ? undefined : `universe-glow-pulse ${2 + i * 0.5}s ease-in-out infinite`,
             }}
           />
         ))}
+
+        {/* 7. Glass reflection layer */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `radial-gradient(circle at 28% 22%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.08) 18%, transparent 42%)`,
+          }}
+        />
+
+        {/* 8. Shadow terminator edge */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `linear-gradient(105deg, transparent 42%, rgba(0,0,0,0.45) 78%, rgba(0,0,0,0.65) 100%)`,
+          }}
+        />
+
+        {/* Atmosphere rim */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            boxShadow: `inset 0 0 20px rgba(255,255,255,0.15), inset 0 -8px 24px rgba(0,0,0,0.25)`,
+            border: "1px solid rgba(255,255,255,0.22)",
+          }}
+        />
+      </div>
     </div>
   );
 }

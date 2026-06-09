@@ -1,23 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
-import {
-  resolveUniverseWelcomeMessages,
-  resolveUniverseWelcomeName,
-} from "@/lib/universe-home-config";
+import { resolveUniverseWelcomeName } from "@/lib/universe-home-config";
+import { resolveUniverseWelcomeMessagesPublic } from "@/lib/universe-public-landing";
 
 type UniverseDynamicWelcomeProps = {
   email?: string;
+  isAuthenticated: boolean;
   reducedMotion?: boolean;
 };
 
 const ROTATE_MS = 5200;
 
-export function UniverseDynamicWelcome({ email, reducedMotion = false }: UniverseDynamicWelcomeProps) {
+/** Rotating welcome line for signed-in users only */
+export function UniverseDynamicWelcome({
+  email,
+  isAuthenticated,
+  reducedMotion = false,
+}: UniverseDynamicWelcomeProps) {
   const t = useActiveTranslator();
-  const messages = useMemo(() => resolveUniverseWelcomeMessages(email), [email]);
+  const messages = useMemo(
+    () => resolveUniverseWelcomeMessagesPublic(email, isAuthenticated),
+    [email, isAuthenticated]
+  );
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<"in" | "out">("in");
 
@@ -26,10 +32,10 @@ export function UniverseDynamicWelcome({ email, reducedMotion = false }: Univers
   const text =
     key === "universe.welcome.back" && welcomeName
       ? t(key, { name: welcomeName })
-      : t(key);
+      : t(key as never);
 
   useEffect(() => {
-    if (reducedMotion || messages.length <= 1) {
+    if (!isAuthenticated || reducedMotion || messages.length <= 1) {
       return;
     }
     const timer = window.setInterval(() => {
@@ -40,23 +46,24 @@ export function UniverseDynamicWelcome({ email, reducedMotion = false }: Univers
       }, 420);
     }, ROTATE_MS);
     return () => window.clearInterval(timer);
-  }, [messages.length, reducedMotion]);
+  }, [isAuthenticated, messages.length, reducedMotion]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
-    <header className="relative z-20 mb-2 text-center sm:mb-4">
-      <p
-        key={`${key}-${index}`}
-        className="text-base font-medium tracking-wide text-white/85 sm:text-lg"
-        style={{
-          animation:
-            reducedMotion || phase === "in"
-              ? "universe-welcome-in 0.6s ease-out forwards"
-              : "universe-welcome-out 0.4s ease-in forwards",
-        }}
-      >
-        {text}
-      </p>
-      <h1 className="sr-only">{t("universe.title")}</h1>
-    </header>
+    <p
+      key={`${key}-${index}`}
+      className="mb-2 text-center text-sm font-medium text-white/75"
+      style={{
+        animation:
+          reducedMotion || phase === "in"
+            ? "universe-welcome-in 0.6s ease-out forwards"
+            : "universe-welcome-out 0.4s ease-in forwards",
+      }}
+    >
+      {text}
+    </p>
   );
 }

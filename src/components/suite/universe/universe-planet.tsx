@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import type { UniversePlanetConfig } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
+import { UniversePlanetIdentityRing } from "@/components/suite/universe/universe-planet-identity-ring";
 import { UniversePlanetPreview } from "@/components/suite/universe/universe-planet-preview";
 import { UniversePlanetSatellites } from "@/components/suite/universe/universe-planet-satellites";
 import { UniversePlanetWorld } from "@/components/suite/universe/universe-planet-world";
@@ -49,6 +50,15 @@ export function UniversePlanet({
 
   return (
     <div className="group relative flex flex-col items-center" style={style}>
+      {variant === "orbit" && (
+        <UniversePlanetIdentityRing
+          planetId={planet.id}
+          active={active}
+          reducedMotion={reducedMotion}
+          variant="orbit"
+        />
+      )}
+
       <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
 
       <button
@@ -90,6 +100,15 @@ export function UniversePlanet({
           />
         )}
       </button>
+
+      <p
+        className={`pointer-events-none mt-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] ${
+          active ? "text-white" : "text-white/80"
+        } ${variant === "orbit" ? "block" : "hidden"}`}
+        aria-hidden={variant !== "orbit"}
+      >
+        {t(planet.titleKey)}
+      </p>
 
       {variant === "orbit" && (
         <UniversePlanetPreview

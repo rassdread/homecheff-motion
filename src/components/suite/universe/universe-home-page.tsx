@@ -5,55 +5,51 @@ import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseDynamicWelcome } from "@/components/suite/universe/universe-dynamic-welcome";
 import { UniverseEcosystemStory } from "@/components/suite/universe/universe-ecosystem-story";
+import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
 import { UniverseOrbitSystem } from "@/components/suite/universe/universe-orbit-system";
 import { UniverseQuickActions } from "@/components/suite/universe/universe-quick-actions";
 import { UniverseTunnelOverlay } from "@/components/suite/universe/universe-tunnel-overlay";
-import { useAuthActionHref } from "@/hooks/use-auth-action-href";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useUniverseParallax } from "@/hooks/use-universe-parallax";
-import { useActiveTranslator } from "@/i18n/client";
 import type { UniversePlanetConfig, UniversePlanetId } from "@/lib/universe-home-config";
+import {
+  resolveUniversePlanetHrefs,
+  resolveUniverseQuickActionHref,
+} from "@/lib/universe-public-landing";
+import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
 import "./universe-home.css";
 
 const TUNNEL_DURATION_MS = 820;
 
 export function UniverseHomePage() {
-  const t = useActiveTranslator();
   const router = useRouter();
   const session = useAuthSession();
+  const isAuthenticated = Boolean(session.resolved && session.user);
   const reducedMotion = useReducedMotion();
   const parallax = useUniverseParallax(!reducedMotion);
 
-  const editorHref = useAuthActionHref("/editor");
-  const studioHref = useAuthActionHref("/studio");
-  const motionHref = useAuthActionHref("/animate/instant");
-  const publishHref = useAuthActionHref("/publish");
-  const libraryHref = useAuthActionHref("/library");
-  const storyHref = useAuthActionHref("/studio/storyboards/new");
-
-  const planetHrefs = useMemo<Record<UniversePlanetId, string>>(
-    () => ({
-      editor: editorHref,
-      studio: studioHref,
-      motion: motionHref,
-      publish: publishHref,
-      library: libraryHref,
-    }),
-    [editorHref, studioHref, motionHref, publishHref, libraryHref]
+  const planetHrefs = useMemo(
+    () => resolveUniversePlanetHrefs(isAuthenticated),
+    [isAuthenticated]
   );
 
-  const quickHrefs = useMemo(
-    () => ({
-      createCharacter: editorHref,
-      createStory: storyHref,
-      animateImages: motionHref,
-      publishVideo: publishHref,
-      openLibrary: libraryHref,
-    }),
-    [editorHref, storyHref, motionHref, publishHref, libraryHref]
-  );
+  const quickHrefs = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const action of UNIVERSE_QUICK_ACTIONS) {
+      if (action.id === "createCharacter") map[action.id] = resolveUniverseQuickActionHref("/editor", isAuthenticated);
+      else if (action.id === "createStory")
+        map[action.id] = resolveUniverseQuickActionHref("/studio/storyboards/new", isAuthenticated);
+      else if (action.id === "animateImages")
+        map[action.id] = resolveUniverseQuickActionHref("/animate/instant", isAuthenticated);
+      else if (action.id === "publishVideo")
+        map[action.id] = resolveUniverseQuickActionHref("/publish", isAuthenticated);
+      else if (action.id === "openLibrary")
+        map[action.id] = resolveUniverseQuickActionHref("/library", isAuthenticated);
+    }
+    return map;
+  }, [isAuthenticated]);
 
   const [hoveredPlanet, setHoveredPlanet] = useState<UniversePlanetId | null>(null);
   const [focusedPlanet, setFocusedPlanet] = useState<UniversePlanetId | null>(null);
@@ -96,10 +92,17 @@ export function UniverseHomePage() {
       <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
       <div className="relative z-10 flex flex-col items-center px-2 pb-8 pt-4 sm:px-4 sm:pt-6">
-        <UniverseDynamicWelcome email={session.user?.email} reducedMotion={reducedMotion} />
-        <p className="mb-2 text-center text-[11px] tracking-wide text-white/35 sm:text-xs">
-          {t("universe.subtitle")}
-        </p>
+        <UniverseHeroCopy
+          isAuthenticated={isAuthenticated}
+          email={session.user?.email}
+          reducedMotion={reducedMotion}
+        />
+
+        <UniverseDynamicWelcome
+          email={session.user?.email}
+          isAuthenticated={isAuthenticated}
+          reducedMotion={reducedMotion}
+        />
 
         <div className="hidden w-full md:block">
           <UniverseOrbitSystem
@@ -120,6 +123,7 @@ export function UniverseHomePage() {
             hoveredPlanet={hoveredPlanet}
             focusedPlanet={focusedPlanet}
             reducedMotion={reducedMotion}
+            isAuthenticated={isAuthenticated}
             onHover={setHoveredPlanet}
             onFocus={setFocusedPlanet}
             onSelect={handlePlanetSelect}

@@ -41,7 +41,7 @@ export function UniverseBackground({ reducedMotion = false, parallax }: Universe
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(168deg, ${UNIVERSE_BRAND.deepBlue} 0%, #052038 22%, #073552 48%, #0a4a58 72%, ${UNIVERSE_BRAND.green}18 100%)`,
+          background: `linear-gradient(168deg, ${UNIVERSE_BRAND.deepBlue} 0%, #062a4a 20%, #073552 45%, #0a5568 70%, ${UNIVERSE_BRAND.green}22 100%)`,
         }}
       />
 
@@ -60,7 +60,7 @@ export function UniverseBackground({ reducedMotion = false, parallax }: Universe
         className="absolute inset-0"
         style={{
           transform: `translate3d(${px * 8}px, ${py * 6}px, 0)`,
-          background: `radial-gradient(circle at 50% 42%, transparent 0%, ${UNIVERSE_BRAND.deepBlue}99 68%)`,
+          background: `radial-gradient(circle at 50% 42%, transparent 0%, ${UNIVERSE_BRAND.deepBlue}88 68%)`,
         }}
       />
 

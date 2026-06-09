@@ -37,7 +37,7 @@ export function UniverseOrbitSystem({
   const py = parallax?.y ?? 0;
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(96vw,820px)]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(98vw,880px)]">
       <UniversePipeline hoveredPlanet={hoveredPlanet} />
 
       <div
