@@ -83,6 +83,9 @@ function VisionResults({ analysis }: { analysis: AssetVisionAnalysis }) {
             analysis.identityFingerprint.faceStructure,
             analysis.identityFingerprint.outlineStyle,
             analysis.identityFingerprint.silhouette,
+            analysis.identityFingerprint.identityShapeMarkers?.length
+              ? analysis.identityFingerprint.identityShapeMarkers.join(", ")
+              : "",
           ]
             .filter(Boolean)
             .join(" · ") || "—"

@@ -4257,6 +4257,16 @@ export const en: LocaleSchema = {
     "Franchise-grade character continuity — face, silhouette, and brand markers stay locked.",
   "studio.assetCreation.identityProfile.info.master_character.use":
     "Lead mascots, franchise characters, recurring brand figures",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkersTitle": "Identity shape markers",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkersLead":
+    "Signature head forms and brand silhouette regions are preserved like facial structure — they are not treated as hair.",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleMascotHead": "Mascot head shapes",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleCrown": "Crown silhouettes",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleTopShape": "Signature top shapes",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleAntenna": "Antennae",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleEars": "Ears",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleHorns": "Horns",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleBrandedHead": "Branded head forms",
   "studio.assetCreation.assetVision.title": "Studio found this",
   "studio.assetCreation.assetVision.lead":
     "Studio analyzed your source image before generating a variant. Review what was recognized, then continue.",
@@ -5241,6 +5251,10 @@ export const en: LocaleSchema = {
   "studio.mediaAsset.action.favorite": "Favorite",
   "studio.mediaAsset.action.makeVariant": "Make variant",
   "studio.mediaAsset.detail.origin": "Origin",
+  "studio.mediaAsset.detail.referenceStatus": "Reference status",
+  "studio.mediaAsset.referenceStatus.draft": "Draft — not yet official",
+  "studio.mediaAsset.referenceStatus.accepted": "Accepted official reference",
+  "studio.mediaAsset.referenceStatus.rejected": "Rejected",
   "studio.mediaAsset.detail.prompt": "Prompt",
   "studio.mediaAsset.detail.updated": "Updated",
   "studio.mediaAsset.admin.storageKey": "Storage key",

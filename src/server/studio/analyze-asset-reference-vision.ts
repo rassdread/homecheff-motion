@@ -49,8 +49,13 @@ Return JSON only:
   "safetyNotes": ["copyright/trademark/real-person warnings if any"]
 }
 
+Identity shape markers (mascots & brand characters):
+- Upper-head color regions, crown shapes, horns, antennae, ears, forehead silhouettes, and brand-specific head forms are identity shape markers — NOT hair.
+- Do not label these as "hair", "hairstyle", or "hair color" unless the subject is a realistic human photograph.
+- Role headwear (chef hat, garden hat, cap, helmet, crown, safety gear) may be listed as accessories — not as hair.
+
 Transformation guidance by object type:
-- Character/Mascot: preserve face, colors, brand identity, shape language; change outfit, role, accessories, environment; forbid style/color/face breaks.
+- Character/Mascot: preserve face, colors, brand identity, shape language, identity shape markers; change outfit, role, accessories, environment; forbid style/color/face breaks and treating brand head forms as hair.
 - Packaging: preserve logo, branding, shape; change edition, format, context; forbid logo removal and brand break.
 - Logo: preserve symbol, brand colors, identity; change presentation, 3D version, dark variant; forbid symbol/color/identity breaks.
 - Location: preserve architecture, layout; change season, time of day, mood; forbid layout/architecture breaks.

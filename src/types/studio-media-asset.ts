@@ -28,6 +28,8 @@ export type StudioAssetVisibility =
 
 export type StudioAssetStatus = "active" | "draft" | "archived";
 
+export type StudioReferenceAcceptance = "draft" | "accepted" | "rejected";
+
 export type StudioAssetSourceRef = {
   entityType: "character" | "location" | "prop" | "world" | "scene_image" | "audio_catalog" | "voice_preset" | "brand_catalog";
   entityId: string;
@@ -56,6 +58,8 @@ export type StudioAsset = {
   lastUsedAt?: string | null;
   generationId?: string;
   promptSummary?: string;
+  /** Wizard blob reference acceptance state (generated tab). */
+  referenceAcceptance?: StudioReferenceAcceptance;
   /** Semantic identity continuity snapshot from persisted asset record. */
   semanticContinuity?: StudioAssetSemanticContinuity;
 };

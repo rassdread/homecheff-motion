@@ -51,6 +51,7 @@ export async function loadUserStudioAssetRegistry(
       referenceStorageKey: item.referenceStorageKey,
       thumbnailUrl: item.thumbnailUrl,
       sourceAssetName: item.sourceAssetName,
+      sourceAssetId: item.sourceAssetId,
       origin: item.origin,
       ownerId: viewer.id,
     }));

@@ -1,5 +1,6 @@
 import { resolvePublicBlobUrlByPathname } from "@/lib/vercel-blob-config";
 import { prisma } from "@/lib/prisma";
+import { listUserGeneratedReferenceManifest } from "@/server/studio/studio-user-generated-reference-manifest-blob";
 import type { GeneratedReferenceHistoryItem } from "@/types/studio-asset-library-preferences";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -57,11 +58,67 @@ async function resolveGeneratedReferenceUrls(params: {
   return { referenceImageUrl: null, referenceStorageKey: null, thumbnailUrl: null };
 }
 
-export async function listUserGeneratedReferences(params: {
+function toHistoryItem(params: {
+  generationId: string;
+  kind: string;
+  createdAt: string;
+  promptSummary: string;
+  referenceImageUrl: string;
+  referenceStorageKey: string | null;
+  thumbnailUrl: string | null;
+  sourceAssetName: string | null;
+  sourceAssetId: string | null;
+  origin: "generated" | "derived";
+  costEventId?: string;
+  provider?: string | null;
+}): GeneratedReferenceHistoryItem {
+  return {
+    generationId: params.generationId,
+    kind: params.kind,
+    createdAt: params.createdAt,
+    promptSummary: params.promptSummary,
+    referenceImageUrl: params.referenceImageUrl,
+    referenceStorageKey: params.referenceStorageKey,
+    thumbnailUrl: params.thumbnailUrl,
+    sourceAssetName: params.sourceAssetName,
+    sourceAssetId: params.sourceAssetId,
+    origin: params.origin,
+    costEventId: params.costEventId ?? params.generationId,
+    provider: params.provider ?? null,
+  };
+}
+
+function mergeHistoryItems(items: GeneratedReferenceHistoryItem[]): GeneratedReferenceHistoryItem[] {
+  const byId = new Map<string, GeneratedReferenceHistoryItem>();
+  for (const item of items) {
+    if (!item.referenceImageUrl?.trim()) {
+      continue;
+    }
+    const existing = byId.get(item.generationId);
+    if (!existing) {
+      byId.set(item.generationId, item);
+      continue;
+    }
+    byId.set(item.generationId, {
+      ...existing,
+      ...item,
+      referenceImageUrl: item.referenceImageUrl || existing.referenceImageUrl,
+      referenceStorageKey: item.referenceStorageKey ?? existing.referenceStorageKey,
+      thumbnailUrl: item.thumbnailUrl ?? existing.thumbnailUrl,
+      promptSummary: item.promptSummary || existing.promptSummary,
+      sourceAssetName: item.sourceAssetName ?? existing.sourceAssetName,
+      sourceAssetId: item.sourceAssetId ?? existing.sourceAssetId,
+    });
+  }
+  return [...byId.values()].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+  );
+}
+
+async function listGeneratedReferencesFromCostEvents(params: {
   userId: string;
-  limit?: number;
+  limit: number;
 }): Promise<GeneratedReferenceHistoryItem[]> {
-  const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
   const events = await prisma.providerCostEvent.findMany({
     where: {
       userId: params.userId,
@@ -75,7 +132,7 @@ export async function listUserGeneratedReferences(params: {
       provider: true,
     },
     orderBy: { createdAt: "desc" },
-    take: limit * 3,
+    take: params.limit * 3,
   });
 
   const items: GeneratedReferenceHistoryItem[] = [];
@@ -99,39 +156,84 @@ export async function listUserGeneratedReferences(params: {
       metaField(e.metadataJson, "assetKind") ??
       metaField(e.metadataJson, "targetKind") ??
       "character";
-    const urls = await resolveGeneratedReferenceUrls({
-      ownerId: params.userId,
-      generationId,
-      kind,
-    });
+
+    const metaUrl = metaField(e.metadataJson, "referenceImageUrl");
+    const metaKey = metaField(e.metadataJson, "referenceStorageKey");
+    const metaThumb = metaField(e.metadataJson, "thumbnailUrl");
+
+    const urls =
+      metaUrl
+        ? {
+            referenceImageUrl: metaUrl,
+            referenceStorageKey: metaKey,
+            thumbnailUrl: metaThumb ?? metaUrl,
+          }
+        : await resolveGeneratedReferenceUrls({
+            ownerId: params.userId,
+            generationId,
+            kind,
+          });
+
     if (!urls.referenceImageUrl) {
       continue;
     }
 
-    items.push({
-      generationId,
-      kind,
-      createdAt: e.createdAt.toISOString(),
-      promptSummary:
-        metaField(e.metadataJson, "promptSummary") ??
-        metaField(e.metadataJson, "sourceAssetName") ??
-        "Generated reference",
-      referenceImageUrl: urls.referenceImageUrl,
-      referenceStorageKey: urls.referenceStorageKey,
-      thumbnailUrl: urls.thumbnailUrl,
-      sourceAssetName: metaField(e.metadataJson, "sourceAssetName"),
-      sourceAssetId: metaField(e.metadataJson, "sourceAssetId"),
-      origin: feature === "asset_derivation" ? "derived" : "generated",
-      costEventId: e.id,
-      provider: e.provider,
-    });
+    items.push(
+      toHistoryItem({
+        generationId,
+        kind,
+        createdAt: e.createdAt.toISOString(),
+        promptSummary:
+          metaField(e.metadataJson, "promptSummary") ??
+          metaField(e.metadataJson, "sourceAssetName") ??
+          "Generated reference",
+        referenceImageUrl: urls.referenceImageUrl,
+        referenceStorageKey: urls.referenceStorageKey,
+        thumbnailUrl: urls.thumbnailUrl,
+        sourceAssetName: metaField(e.metadataJson, "sourceAssetName"),
+        sourceAssetId: metaField(e.metadataJson, "sourceAssetId"),
+        origin: feature === "asset_derivation" ? "derived" : "generated",
+        costEventId: e.id,
+        provider: e.provider,
+      })
+    );
 
-    if (items.length >= limit) {
+    if (items.length >= params.limit) {
       break;
     }
   }
 
   return items;
+}
+
+export async function listUserGeneratedReferences(params: {
+  userId: string;
+  limit?: number;
+}): Promise<GeneratedReferenceHistoryItem[]> {
+  const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
+
+  const manifestRows = await listUserGeneratedReferenceManifest(params.userId);
+  const fromManifest = manifestRows.map((row) =>
+    toHistoryItem({
+      generationId: row.generationId,
+      kind: row.kind,
+      createdAt: row.createdAt,
+      promptSummary: row.promptSummary,
+      referenceImageUrl: row.referenceImageUrl,
+      referenceStorageKey: row.referenceStorageKey,
+      thumbnailUrl: row.thumbnailUrl,
+      sourceAssetName: row.sourceAssetName,
+      sourceAssetId: row.sourceAssetId,
+      origin: row.origin,
+    })
+  );
+
+  const fromEvents = await listGeneratedReferencesFromCostEvents({
+    userId: params.userId,
+    limit,
+  });
+
+  return mergeHistoryItems([...fromManifest, ...fromEvents]).slice(0, limit);
 }
 
 export function generatedReferenceToRegistryId(generationId: string): string {

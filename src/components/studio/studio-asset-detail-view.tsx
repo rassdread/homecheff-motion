@@ -59,6 +59,14 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
             <dd className="mt-0.5">{t(`studio.mediaAsset.origin.${asset.origin}` as never)}</dd>
           </div>
         : null}
+        {asset.referenceAcceptance ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.referenceStatus")}</dt>
+            <dd className="mt-0.5">
+              {t(`studio.mediaAsset.referenceStatus.${asset.referenceAcceptance}` as never)}
+            </dd>
+          </div>
+        : null}
         {asset.promptSummary ?
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.prompt")}</dt>

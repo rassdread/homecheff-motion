@@ -117,6 +117,7 @@ export function characterToRegistryAsset(
     ],
     owner: options?.isSystem ? "system" : character.ownerId,
     source: options?.isSystem ? "system" : "user",
+    visibility: options?.isSystem ? undefined : "user_owned",
     status: "active",
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
@@ -142,6 +143,7 @@ export function characterReferenceImageAsset(character: StudioCharacterListItem)
     tags: ["reference", "character", character.slug],
     owner: character.ownerId,
     source: "user",
+    visibility: "user_owned",
     status: "active",
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
@@ -150,6 +152,7 @@ export function characterReferenceImageAsset(character: StudioCharacterListItem)
     collectionIds: [],
     downloadUrl: character.referenceImageUrl,
     origin: inferReferenceImageOrigin(record),
+    referenceAcceptance: "accepted",
   };
   return withSemanticContinuity(asset, record);
 }
@@ -303,20 +306,27 @@ export function generatedReferenceToRegistryAsset(item: {
   referenceStorageKey: string | null;
   thumbnailUrl: string | null;
   sourceAssetName: string | null;
+  sourceAssetId?: string | null;
   origin: "generated" | "derived";
   ownerId: string;
+  referenceAcceptance?: import("@/types/studio-media-asset").StudioReferenceAcceptance;
 }): StudioAsset {
+  const lineage =
+    item.sourceAssetName
+      ? `Derived from ${item.sourceAssetName}`
+      : item.origin === "derived"
+        ? "Derived variant"
+        : "Studio generated reference";
   return {
     id: studioAssetId("reference_image", `gen_${item.generationId}`),
     name: item.promptSummary.slice(0, 80) || "Generated reference",
     category: "reference_image",
-    description: item.sourceAssetName
-      ? `From ${item.sourceAssetName}`
-      : item.promptSummary,
-    tags: ["generated", item.kind, item.origin],
+    description: [lineage, item.promptSummary].filter(Boolean).join(" — "),
+    tags: ["generated", item.kind, item.origin, item.referenceAcceptance ?? "draft"],
     owner: item.ownerId,
     source: "user",
-    status: "active",
+    visibility: "user_owned",
+    status: (item.referenceAcceptance ?? "draft") === "draft" ? "draft" : "active",
     createdAt: item.createdAt,
     updatedAt: item.createdAt,
     sourceRef: { entityType: "scene_image", entityId: item.generationId },
@@ -327,6 +337,12 @@ export function generatedReferenceToRegistryAsset(item: {
     origin: item.origin,
     generationId: item.generationId,
     promptSummary: item.promptSummary,
+    referenceAcceptance: item.referenceAcceptance ?? "draft",
+    semanticContinuity: item.sourceAssetId
+      ? { derivedFromAssetId: item.sourceAssetId, derivedFromSourceName: item.sourceAssetName ?? undefined }
+      : item.sourceAssetName
+        ? { derivedFromSourceName: item.sourceAssetName }
+        : undefined,
   };
 }
 

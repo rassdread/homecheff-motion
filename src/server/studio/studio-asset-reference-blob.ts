@@ -1,3 +1,4 @@
+import { registerUserGeneratedReference } from "@/server/studio/studio-user-generated-reference-manifest-blob";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -16,6 +17,10 @@ export async function uploadStudioAssetReferenceBuffers(params: {
   thumbnailBuffer: Buffer;
   imageContentType: string;
   thumbContentType: string;
+  promptSummary?: string;
+  sourceAssetName?: string | null;
+  sourceAssetId?: string | null;
+  origin?: "generated" | "derived";
 }): Promise<{ referenceImageUrl: string; referenceStorageKey: string; thumbnailUrl: string }> {
   const folder = KIND_FOLDER[params.kind];
   const base = `studio/${params.ownerId}/wizard-references/${folder}/${params.generationId}`;
@@ -44,9 +49,25 @@ export async function uploadStudioAssetReferenceBuffers(params: {
     },
   });
 
-  return {
+  const result = {
     referenceImageUrl: main.url,
     referenceStorageKey: main.pathname,
     thumbnailUrl: thumb.url,
   };
+
+  await registerUserGeneratedReference({
+    generationId: params.generationId,
+    ownerId: params.ownerId,
+    kind: params.kind,
+    createdAt: new Date().toISOString(),
+    promptSummary: params.promptSummary?.trim() || "Generated reference",
+    referenceImageUrl: result.referenceImageUrl,
+    referenceStorageKey: result.referenceStorageKey,
+    thumbnailUrl: result.thumbnailUrl,
+    sourceAssetName: params.sourceAssetName ?? null,
+    sourceAssetId: params.sourceAssetId ?? null,
+    origin: params.origin ?? "generated",
+  });
+
+  return result;
 }

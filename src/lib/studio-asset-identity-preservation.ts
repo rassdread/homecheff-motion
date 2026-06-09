@@ -5,6 +5,11 @@ import {
   resolveVariantFidelityThresholdsForProfile,
   rulesToCommaSeparated,
 } from "@/lib/studio-asset-identity-profile";
+import {
+  buildIdentityShapeMarkerEnforcementBlock,
+  buildIdentityShapeMarkersPromptLine,
+  formatIdentityShapeMarkersSummary,
+} from "@/lib/studio-asset-identity-shape-markers";
 import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
 import { hashSemanticText } from "@/lib/studio-asset-semantic-record";
 import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
@@ -128,6 +133,7 @@ const PRESERVE_PRIORITY_1 = [
   "silhouette",
   "outline style",
   "proportions",
+  "identity shape markers",
 ];
 
 const PRESERVE_PRIORITY_2 = [
@@ -362,6 +368,9 @@ export function buildIdentityFingerprintFromVision(
       json?.accessoryPattern?.trim() ||
       vision.keyFeatures.filter((f) => /hat|apron|spoon|tool|accessory|glove/i.test(f)).join(", ") ||
       undefined,
+    identityShapeMarkers: vision.identityFingerprint.identityShapeMarkers?.length
+      ? vision.identityFingerprint.identityShapeMarkers
+      : undefined,
   };
 
   fingerprint.fingerprintHash = hashSemanticText(JSON.stringify(fingerprint));
@@ -375,6 +384,7 @@ export function formatIdentityFingerprintSummary(fingerprint: AssetIdentityFinge
     fingerprint.proportions ? `Proportions: ${fingerprint.proportions}` : "",
     fingerprint.colorDna ? `Colors: ${fingerprint.colorDna}` : "",
     fingerprint.silhouette ? `Silhouette: ${fingerprint.silhouette}` : "",
+    formatIdentityShapeMarkersSummary(fingerprint),
     fingerprint.accessoryPattern ? `Accessories: ${fingerprint.accessoryPattern}` : "",
   ]
     .filter(Boolean)
@@ -554,6 +564,15 @@ export function buildIdentityEnforcementPromptBlocks(params: {
   const profileGuidance = resolveIdentityProfileMotionGuidance(params.identityProfileLevel);
   if (profileGuidance) {
     blocks.push(`Identity profile: ${profileGuidance}`);
+  }
+
+  const shapeMarkerBlock = buildIdentityShapeMarkerEnforcementBlock(params.identityProfileLevel);
+  if (shapeMarkerBlock) {
+    blocks.push(shapeMarkerBlock);
+  }
+  const shapeMarkerLine = buildIdentityShapeMarkersPromptLine(vision?.identityFingerprint);
+  if (shapeMarkerLine) {
+    blocks.push(shapeMarkerLine);
   }
 
   return blocks.filter(Boolean);

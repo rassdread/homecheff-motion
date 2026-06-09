@@ -4256,6 +4256,16 @@ export const nl = {
     "Franchise-continuïteit — gezicht, silhouet en merkmarkers blijven vast.",
   "studio.assetCreation.identityProfile.info.master_character.use":
     "Hoofdmascottes, franchisepersonages, terugkerende merkfiguren",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkersTitle": "Identiteitsvorm-markers",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkersLead":
+    "Kenmerkende hoofdvormen en merksilhouetregio's worden behouden zoals gelaatsstructuur — ze worden niet als haar behandeld.",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleMascotHead": "Mascot-hoofdvormen",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleCrown": "Kroonsilhouetten",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleTopShape": "Kenmerkende bovenkantvormen",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleAntenna": "Antennes",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleEars": "Oren",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleHorns": "Hoorns",
+  "studio.assetCreation.identityProfile.info.identityShapeMarkers.exampleBrandedHead": "Merkgebonden hoofdvormen",
   "studio.assetCreation.assetVision.title": "Studio heeft dit gevonden",
   "studio.assetCreation.assetVision.lead":
     "Studio analyseert je bronafbeelding voordat er een variant wordt gegenereerd. Controleer wat herkend is en ga verder.",
@@ -5240,6 +5250,10 @@ export const nl = {
   "studio.mediaAsset.action.favorite": "Favoriet",
   "studio.mediaAsset.action.makeVariant": "Maak variant",
   "studio.mediaAsset.detail.origin": "Bron",
+  "studio.mediaAsset.detail.referenceStatus": "Referentiestatus",
+  "studio.mediaAsset.referenceStatus.draft": "Concept — nog niet officieel",
+  "studio.mediaAsset.referenceStatus.accepted": "Geaccepteerde officiële referentie",
+  "studio.mediaAsset.referenceStatus.rejected": "Afgewezen",
   "studio.mediaAsset.detail.prompt": "Prompt",
   "studio.mediaAsset.detail.updated": "Bijgewerkt",
   "studio.mediaAsset.admin.storageKey": "Storage key",

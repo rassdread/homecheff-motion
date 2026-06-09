@@ -9,6 +9,8 @@ export type AssetIdentityFingerprint = {
   brandIdentity?: string;
   silhouette?: string;
   accessoryPattern?: string;
+  /** P1 locked brand/mascot head forms — not hair */
+  identityShapeMarkers?: string[];
   fingerprintHash?: string;
 };
 

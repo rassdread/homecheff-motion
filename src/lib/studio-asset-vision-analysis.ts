@@ -20,6 +20,7 @@ import {
   inferBrandIdentityFromContext,
   normalizeCharacterLineage,
 } from "@/lib/studio-asset-identity-preservation";
+import { applyVisionIdentityShapeMarkerNormalization } from "@/lib/studio-asset-identity-shape-markers";
 
 export type VisionTransformationRules = {
   preserve: string[];
@@ -276,10 +277,19 @@ export function mapVisionJsonToAnalysis(
     ),
   };
 
-  return applyKnownBrandDefaults(withFingerprint, {
+  const withBrandDefaults = applyKnownBrandDefaults(withFingerprint, {
     sourceName: context?.sourceName,
     keyFeatures,
   });
+
+  const withShapeMarkers = applyVisionIdentityShapeMarkerNormalization(withBrandDefaults, json, {
+    sourceName: context?.sourceName,
+  });
+
+  return {
+    ...withShapeMarkers,
+    identityFingerprint: buildIdentityFingerprintFromVision(withShapeMarkers, json),
+  };
 }
 
 export function mapVisionAnalysisToStyleDna(vision: AssetVisionAnalysis): AssetStyleDna {

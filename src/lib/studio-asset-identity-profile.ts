@@ -55,14 +55,19 @@ export const IDENTITY_PROFILE_CONFIGS: Record<IdentityProfileLevel, IdentityProf
       "brand identity",
       "shape language",
       "identity markers",
+      "identity shape markers",
     ],
-    changeAllowance: ["presentation", "context", "edition", "format"],
+    changeAllowance: ["presentation", "context", "edition", "format", "role headwear"],
     forbiddenBoost: [
       "brand break",
       "logo removal",
       "symbol change",
       "color break",
       "unrecognizable brand asset",
+      "realistic hair",
+      "new hairstyle",
+      "human hair rendering",
+      "character redesign",
     ],
   },
   master_character: {
@@ -78,8 +83,9 @@ export const IDENTITY_PROFILE_CONFIGS: Record<IdentityProfileLevel, IdentityProf
       "color palette",
       "brand identity",
       "identity markers",
+      "identity shape markers",
     ],
-    changeAllowance: ["outfit", "role", "role accessories", "accessories"],
+    changeAllowance: ["outfit", "role", "role accessories", "accessories", "role headwear"],
     forbiddenBoost: [
       "new character",
       "redesigned face",
@@ -88,6 +94,10 @@ export const IDENTITY_PROFILE_CONFIGS: Record<IdentityProfileLevel, IdentityProf
       "style break",
       "color break",
       "missing source identity",
+      "realistic hair",
+      "new hairstyle",
+      "human hair rendering",
+      "character redesign",
     ],
   },
 };
@@ -99,9 +109,9 @@ const TYPE_BASE_RULES: Record<IdentityAssetType, IdentityProfileRules> = {
     forbidden: ["face change", "style break", "new character"],
   },
   mascot: {
-    preserve: ["face", "colors", "brand identity", "silhouette", "shape language"],
-    change: ["outfit", "role", "accessories", "context"],
-    forbidden: ["new mascot", "face redesign", "style break", "color break"],
+    preserve: ["face", "colors", "brand identity", "silhouette", "shape language", "identity shape markers"],
+    change: ["outfit", "role", "accessories", "context", "role headwear"],
+    forbidden: ["new mascot", "face redesign", "style break", "color break", "realistic hair"],
   },
   logo: {
     preserve: ["symbol", "brand colors", "identity", "shape language"],
@@ -526,6 +536,11 @@ export function buildIdentityProfileRules(params: {
   }
   if (config.creativityWeight <= 0.25) {
     forbidden.push("creative reinterpretation");
+  }
+
+  const shapeMarkers = vision?.identityFingerprint.identityShapeMarkers ?? [];
+  if (shapeMarkers.length) {
+    preserve.push("identity shape markers", ...shapeMarkers);
   }
 
   return {

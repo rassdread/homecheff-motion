@@ -223,6 +223,10 @@ export async function generateAssetReference(
       thumbnailBuffer: buffers.thumbnailBuffer,
       imageContentType: buffers.contentType,
       thumbContentType: "image/jpeg",
+      promptSummary: summary.slice(0, 240),
+      sourceAssetName: sourceRef?.name ?? input.derivation?.sourceName ?? null,
+      sourceAssetId: input.derivation?.sourceAssetId ?? null,
+      origin: input.derivation ? "derived" : "generated",
     });
 
     if (input.derivation) {
@@ -250,6 +254,9 @@ export async function generateAssetReference(
           assetKind: input.kind,
           promptSummary: summary.slice(0, 240),
           sourceAssetName: sourceRef?.name,
+          referenceImageUrl: uploaded.referenceImageUrl,
+          referenceStorageKey: uploaded.referenceStorageKey,
+          thumbnailUrl: uploaded.thumbnailUrl,
         },
       });
     }

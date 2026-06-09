@@ -143,6 +143,7 @@ export function StudioAssetLibrary({
               referenceStorageKey: item.referenceStorageKey,
               thumbnailUrl: item.thumbnailUrl,
               sourceAssetName: item.sourceAssetName,
+              sourceAssetId: item.sourceAssetId,
               origin: item.origin,
               ownerId: userId,
             }))

@@ -49,6 +49,33 @@ function ProfileInfoContent({ level }: { level: IdentityProfileLevel }) {
         </p>
         <p className="mt-1">{t(`studio.assetCreation.identityProfile.info.${level}.use` as never)}</p>
       </div>
+      {level === "master_character" || level === "brand_lock" ?
+        <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
+            {t("studio.assetCreation.identityProfile.info.identityShapeMarkersTitle")}
+          </p>
+          <p className="mt-1 text-sm text-zinc-700">
+            {t("studio.assetCreation.identityProfile.info.identityShapeMarkersLead")}
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-zinc-600">
+            {(
+              [
+                "exampleMascotHead",
+                "exampleCrown",
+                "exampleTopShape",
+                "exampleAntenna",
+                "exampleEars",
+                "exampleHorns",
+                "exampleBrandedHead",
+              ] as const
+            ).map((key) => (
+              <li key={key}>
+                {t(`studio.assetCreation.identityProfile.info.identityShapeMarkers.${key}` as never)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      : null}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { stampUserOwnedRegistryAssets } from "@/lib/studio-asset-registry-visibility";
 import { assignCollectionsToAssets } from "@/lib/studio-media-asset-collections";
 import { buildStudioAssetRegistry } from "@/lib/studio-media-asset-registry";
 import { filterUserLibraryAssets } from "@/lib/studio-asset-visibility";
@@ -32,6 +33,7 @@ export function assembleUserStudioAssetRegistry(params: {
     referenceStorageKey: string | null;
     thumbnailUrl: string | null;
     sourceAssetName: string | null;
+    sourceAssetId?: string | null;
     origin: "generated" | "derived";
     ownerId: string;
   }>;
@@ -60,12 +62,15 @@ export function assembleUserStudioAssetRegistry(params: {
     userId: params.userId,
   });
 
-  const extended = assignCollectionsToAssets([
-    ...base,
-    ...buildUserUploadRegistryAssets(uniqueUploads, params.userId),
-    ...buildUserAudioLibraryRegistryAssets(params.userAudioAssets ?? [], params.userId),
-    ...buildUserVoiceCloneRegistryAssets(params.userVoiceClones ?? [], params.userId),
-  ]);
+  const extended = stampUserOwnedRegistryAssets(
+    assignCollectionsToAssets([
+      ...base,
+      ...buildUserUploadRegistryAssets(uniqueUploads, params.userId),
+      ...buildUserAudioLibraryRegistryAssets(params.userAudioAssets ?? [], params.userId),
+      ...buildUserVoiceCloneRegistryAssets(params.userVoiceClones ?? [], params.userId),
+    ]),
+    params.userId
+  );
 
   return filterUserLibraryAssets(extended, {
     userId: params.userId,

@@ -45,7 +45,7 @@ export function matchesAssetLibraryTab(asset: StudioAsset, tab: AssetLibraryTab)
     return asset.origin === "generated";
   }
   if (tab === "derived") {
-    return asset.origin === "derived";
+    return asset.origin === "derived" || Boolean(asset.semanticContinuity?.derivedFromAssetId);
   }
   if (tab === "world") {
     return asset.sourceRef.entityType === "world";
@@ -91,7 +91,9 @@ export function filterAssetsByCollectionPreset(
     return assets.filter((a) => a.origin === "uploaded" || a.origin === "manual");
   }
   if (collectionId === "derived") {
-    return assets.filter((a) => a.origin === "derived");
+    return assets.filter(
+      (a) => a.origin === "derived" || Boolean(a.semanticContinuity?.derivedFromAssetId)
+    );
   }
   return assets.filter((a) => a.collectionIds.includes(collectionId));
 }

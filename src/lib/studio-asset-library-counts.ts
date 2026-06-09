@@ -89,8 +89,10 @@ export function computeStudioAssetLibraryCounts(
     all: withPrefs.filter((a) => matchesAssetLibraryTab(a, "all")).length,
     userOwned: withPrefs.filter((a) => isUserOwnedRegistryAsset(a, params.userId)).length,
     systemOwned: withPrefs.filter((a) => isSystemOwnedRegistryAsset(a)).length,
-    generatedOnly: withPrefs.filter((a) => a.origin === "generated" && isBlobGeneratedReferenceAsset(a)).length,
-    derivedOnly: withPrefs.filter((a) => a.origin === "derived" && isBlobGeneratedReferenceAsset(a)).length,
+    generatedOnly: withPrefs.filter((a) => a.origin === "generated").length,
+    derivedOnly: withPrefs.filter(
+      (a) => a.origin === "derived" || Boolean(a.semanticContinuity?.derivedFromAssetId)
+    ).length,
     acceptedReferences: withPrefs.filter((a) => isAcceptedReferenceAsset(a)).length,
     drafts: withPrefs.filter((a) => a.status === "draft").length,
     savedEntities,
