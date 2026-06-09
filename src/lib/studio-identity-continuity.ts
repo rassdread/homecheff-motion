@@ -62,6 +62,7 @@ const CORE_IDENTITY_FIELDS = [
   "brandIdentity",
   "assetFamily",
   "identityFingerprint",
+  "identityProfile",
 ] as const;
 
 function scorePresence(present: number, total: number): number {
@@ -107,6 +108,30 @@ export function auditAssetSemanticRecord(
       stage,
       severity: "warning",
       message: "Identity fingerprint missing — motion may treat asset as generic.",
+    });
+  }
+  if (!record.identityProfile?.trim()) {
+    gaps.push({
+      field: "identityProfile",
+      stage,
+      severity: "warning",
+      message: "Identity profile missing — preservation strictness may default to generic rules.",
+    });
+  }
+  if (!record.identityAssetType?.trim()) {
+    gaps.push({
+      field: "identityAssetType",
+      stage,
+      severity: "warning",
+      message: "Identity asset type missing — asset type and profile may be conflated downstream.",
+    });
+  }
+  if (!record.identityImportance?.trim() && record.identityProfile?.trim()) {
+    gaps.push({
+      field: "identityImportance",
+      stage,
+      severity: "warning",
+      message: "Identity importance missing — downstream stages cannot rank preservation priority.",
     });
   }
   if (
@@ -165,6 +190,87 @@ export function auditSceneSemanticRecipe(
       message: "No identity fingerprint summary in scene semantic recipe.",
     });
   }
+  const recipeRefs = [
+    ...recipe.characters,
+    ...recipe.props,
+    ...(recipe.location ? [recipe.location] : []),
+    ...(recipe.world ? [recipe.world] : []),
+  ];
+  if (!recipeRefs.some((ref) => ref.identityProfile?.trim())) {
+    gaps.push({
+      field: "identityProfile",
+      stage,
+      severity: "warning",
+      message: "No identity profile in scene semantic recipe — motion cannot apply profile-specific continuity.",
+    });
+  }
+  if (!recipeRefs.some((ref) => ref.identityImportance?.trim())) {
+    gaps.push({
+      field: "identityImportance",
+      stage,
+      severity: "warning",
+      message: "No identity importance in scene semantic recipe — motion cannot rank preservation priority.",
+    });
+  }
+  if (!recipeRefs.some((ref) => ref.identityAssetType?.trim())) {
+    gaps.push({
+      field: "identityAssetType",
+      stage,
+      severity: "warning",
+      message: "No identity asset type in scene semantic recipe — type and profile may be conflated in motion.",
+    });
+  }
+  const motionText = formatSceneSemanticRecipeForMotion(recipe);
+  if (recipeRefs.some((ref) => ref.identityProfile?.trim()) && !/Profile guidance:/i.test(motionText)) {
+    gaps.push({
+      field: "identityProfileGuidance",
+      stage,
+      severity: "warning",
+      message: "Scene semantic recipe has identity profiles but no motion guidance text.",
+    });
+  }
+  return gaps;
+}
+
+export function auditRenderIdentityLineage(audit: {
+  identityProfiles?: string[];
+  identityImportanceLevels?: string[];
+  identityAssetTypes?: string[];
+} | null | undefined): IdentityContinuityGap[] {
+  const gaps: IdentityContinuityGap[] = [];
+  if (!audit) {
+    gaps.push({
+      field: "renderAudit",
+      stage: "render",
+      severity: "warning",
+      message: "Render audit metadata missing — identity lineage cannot be traced.",
+    });
+    return gaps;
+  }
+  if (!audit.identityProfiles?.length) {
+    gaps.push({
+      field: "identityProfiles",
+      stage: "render",
+      severity: "warning",
+      message: "Render lineage missing identity profiles.",
+    });
+  }
+  if (!audit.identityImportanceLevels?.length) {
+    gaps.push({
+      field: "identityImportanceLevels",
+      stage: "render",
+      severity: "warning",
+      message: "Render lineage missing identity importance levels.",
+    });
+  }
+  if (!audit.identityAssetTypes?.length) {
+    gaps.push({
+      field: "identityAssetTypes",
+      stage: "render",
+      severity: "warning",
+      message: "Render lineage missing identity asset types.",
+    });
+  }
   return gaps;
 }
 
@@ -191,8 +297,12 @@ export function computeSemanticContinuityScore(params: {
     recordCount
   );
   const identityPreservation = scorePresence(
-    records.filter((r) => r.identityFingerprint?.fingerprintHash || r.identityFingerprint?.faceStructure)
-      .length,
+    records.filter(
+      (r) =>
+        r.identityFingerprint?.fingerprintHash ||
+        r.identityFingerprint?.faceStructure ||
+        r.identityProfile?.trim()
+    ).length,
     recordCount
   );
   const brandPreservation = scorePresence(
@@ -229,7 +339,12 @@ export function computeSemanticContinuityScore(params: {
               r.brandIdentity ||
               r.assetFamily ||
               r.identityFingerprintSummary ||
-              r.characters.some((c) => c.identityFingerprintSummary)
+              r.characters.some(
+                (c) =>
+                  c.identityFingerprintSummary ||
+                  c.identityProfile ||
+                  c.identityImportance
+              )
           ).length,
           recipes.length
         );
@@ -314,6 +429,9 @@ export function hasCoreIdentityFields(record: AssetSemanticRecord | null | undef
       return Boolean(
         record.identityFingerprint?.fingerprintHash || record.identityFingerprint?.faceStructure
       );
+    }
+    if (field === "identityProfile") {
+      return Boolean(record.identityProfile?.trim());
     }
     return Boolean(record[field as "brandIdentity" | "assetFamily"]?.trim());
   });

@@ -85,6 +85,34 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
             <dd className="mt-0.5">{asset.semanticContinuity.assetFamily}</dd>
           </div>
         : null}
+        {asset.semanticContinuity?.identityAssetType ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityAssetType")}</dt>
+            <dd className="mt-0.5">
+              {t(
+                `studio.assetCreation.identityProfile.assetType.${asset.semanticContinuity.identityAssetType}` as never
+              )}
+            </dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.identityProfile ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityProfile")}</dt>
+            <dd className="mt-0.5">
+              {t(`studio.assetCreation.identityProfile.level.${asset.semanticContinuity.identityProfile}` as never)}
+            </dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.identityImportance ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityImportance")}</dt>
+            <dd className="mt-0.5">
+              {t(
+                `studio.assetCreation.identityProfile.importance.${asset.semanticContinuity.identityImportance}` as never
+              )}
+            </dd>
+          </div>
+        : null}
         {asset.semanticContinuity?.brandIdentity ?
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.brandIdentity")}</dt>

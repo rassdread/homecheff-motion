@@ -74,6 +74,9 @@ export function buildAssetSemanticGenerationContext(input: AssetSemanticGenerati
           .filter(Boolean)
           .join(", ")}.`
       : "",
+    record?.identityAssetType ? `Asset type: ${record.identityAssetType}.` : "",
+    record?.identityProfile ? `Identity profile: ${record.identityProfile}.` : "",
+    record?.identityImportance ? `Identity importance: ${record.identityImportance}.` : "",
     record?.worldContext ? `World context: ${record.worldContext}.` : "",
     record?.roleContext ? `Role context: ${record.roleContext}.` : "",
     preserve ? `Preserve: ${preserve}.` : "",

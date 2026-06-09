@@ -124,6 +124,7 @@ async function scoreVariantFidelity(params: {
   generatedImageUrl: string;
   kind: StudioAssetKind;
   generationId: string;
+  profileLevel?: AssetWizardDraft["identityProfileLevel"];
 }): Promise<VariantFidelityScore | null> {
   const fidelityAnalyze = await analyzeAssetStyleDnaApi({
     imageUrl: params.generatedImageUrl,
@@ -137,6 +138,7 @@ async function scoreVariantFidelity(params: {
   return computeVariantFidelityScore({
     source: params.sourceVision,
     generated: fidelityAnalyze.data.visionAnalysis,
+    profileLevel: params.profileLevel,
   });
 }
 
@@ -219,6 +221,7 @@ export async function runAssetReferenceGeneration(params: {
       generatedImageUrl: res.data.referenceImageUrl,
       kind,
       generationId,
+      profileLevel: workingDraft.identityProfileLevel,
     });
 
     if (
@@ -240,6 +243,7 @@ export async function runAssetReferenceGeneration(params: {
           generatedImageUrl: retryRes.data.referenceImageUrl,
           kind,
           generationId,
+          profileLevel: strictDraft.identityProfileLevel,
         });
         return {
           generationId,

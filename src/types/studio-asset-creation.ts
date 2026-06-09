@@ -22,6 +22,7 @@ export type AssetCreationWizardStep =
   | "choice"
   | "source_transform"
   | "asset_vision"
+  | "identity_profile"
   | "transform_prompt"
   | "reference"
   | "input"

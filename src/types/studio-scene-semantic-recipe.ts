@@ -15,6 +15,9 @@ export type SceneSemanticRecipeAssetRef = {
   continuityNotes?: string;
   assetFamily?: string;
   identityFingerprintSummary?: string;
+  identityAssetType?: string;
+  identityProfile?: string;
+  identityImportance?: string;
 };
 
 export type SceneCrossAssetRelation = {

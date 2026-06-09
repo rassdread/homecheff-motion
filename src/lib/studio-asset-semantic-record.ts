@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import {
   resolveSemanticLineageFromDraft,
 } from "@/lib/studio-asset-identity-preservation";
+import {
+  formatIdentityProfileDirectorLabel,
+  resolveIdentityImportanceLabel,
+} from "@/lib/studio-asset-identity-profile";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -83,6 +87,9 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     variantFidelityOverall:
       typeof raw.variantFidelityOverall === "number" ? raw.variantFidelityOverall : undefined,
     sourceReferenceName: raw.sourceReferenceName?.trim() || undefined,
+    identityAssetType: raw.identityAssetType?.trim() || undefined,
+    identityProfile: raw.identityProfile ?? undefined,
+    identityImportance: raw.identityImportance?.trim() || undefined,
   };
 }
 
@@ -157,6 +164,11 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
       derivedFromAssetId: lineage.derivedFromAssetId,
       sourceReferenceName: sourceName || undefined,
       variantFidelityOverall: draft.variantFidelityScore?.overall,
+      identityAssetType: draft.identityAssetType || undefined,
+      identityProfile: draft.identityProfileLevel || undefined,
+      identityImportance: draft.identityProfileLevel
+        ? resolveIdentityImportanceLabel(draft.identityProfileLevel)
+        : undefined,
       preserveRules:
         draft.sourceTransformPreserve.trim()
           ? draft.sourceTransformPreserve.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
@@ -179,6 +191,11 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
       derivedFromAssetId: lineage.derivedFromAssetId,
       sourceReferenceName: sourceName || undefined,
       variantFidelityOverall: draft.variantFidelityScore?.overall,
+      identityAssetType: draft.identityAssetType || undefined,
+      identityProfile: draft.identityProfileLevel || undefined,
+      identityImportance: draft.identityProfileLevel
+        ? resolveIdentityImportanceLabel(draft.identityProfileLevel)
+        : undefined,
       preserveRules: draft.sourceTransformPreserve
         ? draft.sourceTransformPreserve.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
         : undefined,
@@ -421,6 +438,10 @@ export function formatDirectorSemanticAssetLabel(
   if (record.sourceReferenceName) {
     parts.push(`Based on: ${record.sourceReferenceName}`);
   }
+  const profileLabel = formatIdentityProfileDirectorLabel(record);
+  if (profileLabel) {
+    parts.push(profileLabel);
+  }
   return parts.join(" · ");
 }
 
@@ -433,7 +454,9 @@ export function buildSemanticContinuitySnapshot(
   const hasIdentity =
     Boolean(record.brandIdentity?.trim()) ||
     Boolean(record.assetFamily?.trim()) ||
-    Boolean(record.identityFingerprint?.fingerprintHash);
+    Boolean(record.identityFingerprint?.fingerprintHash) ||
+    Boolean(record.identityProfile) ||
+    Boolean(record.identityAssetType);
   if (!hasIdentity) {
     return null;
   }
@@ -445,5 +468,8 @@ export function buildSemanticContinuitySnapshot(
     derivedFromSourceName: record.sourceReferenceName,
     derivedFromAssetId: record.derivedFromAssetId ?? record.parentAssetId,
     visionSummary: record.visionSummary,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
   };
 }

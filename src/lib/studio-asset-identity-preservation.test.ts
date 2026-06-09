@@ -243,6 +243,13 @@ describe("studio-asset-identity-preservation", () => {
     assert.equal(resolveVariantFidelityRecoveryTier(30), "identity_failure");
   });
 
+  it("resolveVariantFidelityRecoveryTier tightens for master_character profile", () => {
+    assert.equal(resolveVariantFidelityRecoveryTier(88, "master_character"), "warning");
+    assert.equal(resolveVariantFidelityRecoveryTier(88), "ok");
+    assert.equal(resolveVariantFidelityRecoveryTier(70, "relaxed"), "ok");
+    assert.equal(resolveVariantFidelityRecoveryTier(70), "warning");
+  });
+
   it("source image fidelity block lists full priority order", () => {
     const block = buildSourceImageFidelityBlock("Globe Man");
     assert.match(block, /asset family/i);

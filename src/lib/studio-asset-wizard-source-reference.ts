@@ -97,6 +97,9 @@ export function clearWizardSourceReference(): Partial<AssetWizardDraft> {
     referenceImageUrl: "",
     referenceStorageKey: "",
     derivationAccepted: false,
+    identityAssetType: "",
+    identityProfileLevel: "",
+    identityProfileConfirmed: false,
   };
 }
 

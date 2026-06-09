@@ -4170,6 +4170,90 @@ export const nl = {
   "studio.assetCreation.wizard.step.sourceTransform": "Transformatie",
   "studio.assetCreation.wizard.step.transformPrompt": "Prompt",
   "studio.assetCreation.wizard.step.assetVision": "Analyse",
+  "studio.assetCreation.wizard.step.identityProfile": "Identiteit",
+  "studio.assetCreation.identityProfile.title": "Identiteitsbehoud",
+  "studio.assetCreation.identityProfile.lead":
+    "Kies welk type asset dit is en hoe streng Studio de identiteit moet behouden tijdens generatie.",
+  "studio.assetCreation.identityProfile.assetTypeQuestion": "Wat voor asset is dit?",
+  "studio.assetCreation.identityProfile.profileQuestion": "Hoe belangrijk is identiteitsbehoud?",
+  "studio.assetCreation.identityProfile.importanceHint": "Identiteitsbelang: {importance}",
+  "studio.assetCreation.identityProfile.rulesPreview": "Voorgestelde regels op basis van je profiel",
+  "studio.assetCreation.identityProfile.rulesEditable": "Je kunt deze op de volgende promptstap nog verfijnen.",
+  "studio.assetCreation.identityProfile.confirm": "Identiteitsprofiel bevestigen",
+  "studio.assetCreation.identityProfile.confirmed": "Identiteitsprofiel bevestigd — ga verder wanneer je klaar bent.",
+  "studio.assetCreation.identityProfile.assetType.character": "Personage",
+  "studio.assetCreation.identityProfile.assetType.mascot": "Mascotte",
+  "studio.assetCreation.identityProfile.assetType.logo": "Logo",
+  "studio.assetCreation.identityProfile.assetType.packaging": "Verpakking",
+  "studio.assetCreation.identityProfile.assetType.product": "Product",
+  "studio.assetCreation.identityProfile.assetType.location": "Locatie",
+  "studio.assetCreation.identityProfile.assetType.world": "Wereld",
+  "studio.assetCreation.identityProfile.assetType.vehicle": "Voertuig",
+  "studio.assetCreation.identityProfile.assetType.person": "Persoon",
+  "studio.assetCreation.identityProfile.assetType.animal": "Dier",
+  "studio.assetCreation.identityProfile.assetType.building": "Gebouw",
+  "studio.assetCreation.identityProfile.assetType.other": "Overig",
+  "studio.assetCreation.identityProfile.level.relaxed": "Ontspannen",
+  "studio.assetCreation.identityProfile.level.balanced": "Gebalanceerd",
+  "studio.assetCreation.identityProfile.level.strict": "Streng",
+  "studio.assetCreation.identityProfile.level.brand_lock": "Brand lock",
+  "studio.assetCreation.identityProfile.level.master_character": "Master character",
+  "studio.assetCreation.identityProfile.importance.flexible": "Flexibel",
+  "studio.assetCreation.identityProfile.importance.balanced": "Gebalanceerd",
+  "studio.assetCreation.identityProfile.importance.important": "Belangrijk",
+  "studio.assetCreation.identityProfile.importance.critical": "Kritiek",
+  "studio.assetCreation.identityProfile.typeVsProfileTitle": "Assettype en identiteitsprofiel zijn verschillend",
+  "studio.assetCreation.identityProfile.typeExplanation":
+    "Assettype beschrijft wat de afbeelding is (mascotte, logo, locatie, enz.).",
+  "studio.assetCreation.identityProfile.profileExplanation":
+    "Het identiteitsprofiel bepaalt hoeveel van die identiteit behouden moet blijven tijdens transformaties.",
+  "studio.assetCreation.identityProfile.recommendationTitle": "Aanbevolen",
+  "studio.assetCreation.identityProfile.recommendation.master_character_brand_mascot":
+    "Deze afbeelding lijkt een terugkerende merkmascotte te bevatten. Studio heeft een hoge herkenningsscore voor identiteit, asset family en merkcontinuïteit vastgesteld.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_logo":
+    "Deze afbeelding lijkt een logo of merkteken te bevatten. Studio beveelt maximale merkbescherming aan.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_packaging":
+    "Deze afbeelding lijkt verpakking of merkontwerp te zijn. Studio beveelt aan logo, kleuren en merkmarkers vast te zetten.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_brand_asset":
+    "Deze afbeelding lijkt een merkasset te zijn. Studio beveelt brand lock aan voor logo's, kleuren en identiteitsmarkers.",
+  "studio.assetCreation.identityProfile.recommendation.strict_subject":
+    "Dit onderwerp moet goed herkenbaar blijven — personages, producten, voertuigen of dieren.",
+  "studio.assetCreation.identityProfile.recommendation.balanced_environment":
+    "Dit lijkt een plek of wereld. Studio adviseert gebalanceerd behoud zodat sfeer en context veilig kunnen wijzigen.",
+  "studio.assetCreation.identityProfile.recommendation.relaxed_exploration":
+    "Dit asset leent zich voor creatieve verkenning — moodboards, concepten en nieuwe richtingen.",
+  "studio.assetCreation.identityProfile.recommendation.default":
+    "Studio analyseerde je bron en stelt dit profiel voor op basis van assettype en vision-signalen.",
+  "studio.assetCreation.identityProfile.recommendationOverrideHint":
+    "Je koos een ander profiel — dat is prima als je doel afwijkt van de standaardsuggestie.",
+  "studio.assetCreation.identityProfile.summaryAssetType": "Assettype",
+  "studio.assetCreation.identityProfile.summaryProfile": "Identiteitsprofiel",
+  "studio.assetCreation.identityProfile.summaryWeights": "Behoud {preserve} · Creativiteit {creativity}",
+  "studio.assetCreation.identityProfile.info.buttonLabel": "Over profiel {profile}",
+  "studio.assetCreation.identityProfile.info.preserveLabel": "Behoud",
+  "studio.assetCreation.identityProfile.info.creativityLabel": "Creativiteit",
+  "studio.assetCreation.identityProfile.info.recommendedUse": "Aanbevolen gebruik",
+  "studio.assetCreation.identityProfile.info.masterCharacterPreserveRange": "95–100%",
+  "studio.assetCreation.identityProfile.info.relaxed.description":
+    "Maximale creatieve vrijheid. Identiteit is een startpunt, geen slot.",
+  "studio.assetCreation.identityProfile.info.relaxed.use":
+    "Concepting, moodboards, nieuwe richtingen, inspiratie",
+  "studio.assetCreation.identityProfile.info.balanced.description":
+    "Gebalanceerde afweging tussen herkenbare identiteit en creatieve variatie.",
+  "studio.assetCreation.identityProfile.info.balanced.use":
+    "Locaties, gebouwen, werelden",
+  "studio.assetCreation.identityProfile.info.strict.description":
+    "Sterk identiteitsbehoud voor onderwerpen die duidelijk herkenbaar moeten blijven.",
+  "studio.assetCreation.identityProfile.info.strict.use":
+    "Personages, producten, voertuigen, dieren",
+  "studio.assetCreation.identityProfile.info.brand_lock.description":
+    "Bijna volledige merkbescherming voor logo's, verpakkingen en bedrijfsidentiteit.",
+  "studio.assetCreation.identityProfile.info.brand_lock.use":
+    "Logo's, verpakkingen, merkactiva, bedrijfsidentiteit",
+  "studio.assetCreation.identityProfile.info.master_character.description":
+    "Franchise-continuïteit — gezicht, silhouet en merkmarkers blijven vast.",
+  "studio.assetCreation.identityProfile.info.master_character.use":
+    "Hoofdmascottes, franchisepersonages, terugkerende merkfiguren",
   "studio.assetCreation.assetVision.title": "Studio heeft dit gevonden",
   "studio.assetCreation.assetVision.lead":
     "Studio analyseert je bronafbeelding voordat er een variant wordt gegenereerd. Controleer wat herkend is en ga verder.",
@@ -5312,6 +5396,9 @@ export const nl = {
   "studio.mediaAsset.detail.collections": "Collecties",
   "studio.mediaAsset.detail.assetFamily": "Assetfamilie",
   "studio.mediaAsset.detail.brandIdentity": "Merkidentiteit",
+  "studio.mediaAsset.detail.identityAssetType": "Type",
+  "studio.mediaAsset.detail.identityProfile": "Identiteitsprofiel",
+  "studio.mediaAsset.detail.identityImportance": "Identiteitsbelang",
   "studio.mediaAsset.detail.basedOn": "Gebaseerd op",
   "studio.mediaAsset.detail.identityScore": "Identiteitsscore",
   "studio.mediaAsset.detail.fingerprint": "Identiteitsvingerafdruk",

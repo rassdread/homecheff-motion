@@ -18,6 +18,9 @@ function sampleRecord(): AssetSemanticRecord {
     version: 1,
     brandIdentity: "HomeCheff Globe Mascot",
     assetFamily: "HomeCheff Mascots",
+    identityAssetType: "mascot",
+    identityProfile: "master_character",
+    identityImportance: "critical",
     visionSummary: "Flat mascot",
     identityFingerprint: { fingerprintHash: "abc123def456" },
     sourceReferenceName: "Globe Man",
@@ -55,7 +58,16 @@ describe("studio-identity-continuity", () => {
       version: 1,
       recipeId: "r1",
       sceneId: "s1",
-      characters: [{ assetId: "c1", kind: "character", name: "Chef", brandIdentity: "HomeCheff" }],
+      characters: [
+        {
+          assetId: "c1",
+          kind: "character",
+          name: "Chef",
+          brandIdentity: "HomeCheff",
+          identityProfile: "master_character",
+          identityImportance: "critical",
+        },
+      ],
       props: [],
       brandIdentity: "HomeCheff Globe Mascot",
       assetFamily: "HomeCheff Mascots",
@@ -64,6 +76,8 @@ describe("studio-identity-continuity", () => {
     const text = formatSemanticIdentityRulesForExecution(recipe);
     assert.match(text, /HomeCheff Mascots/);
     assert.match(text, /Brand identity/);
+    assert.match(text, /Identity profile/);
+    assert.match(text, /Profile guidance/);
   });
 
   it("computeSemanticContinuityScore improves with semantic records and handoff", () => {

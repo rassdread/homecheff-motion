@@ -5,7 +5,9 @@ import {
   extractAssetSemanticRecordFromWorld,
   hashSemanticText,
 } from "@/lib/studio-asset-semantic-record";
+import { resolveIdentityProfileMotionGuidance } from "@/lib/studio-asset-identity-profile";
 import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
+import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
 import type { StudioStoryboardSceneRow } from "@/server/studio/studio-storyboard-service";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
 import {
@@ -36,6 +38,9 @@ function toCharacterRef(
     identityFingerprintSummary: record.identityFingerprint
       ? formatIdentityFingerprintSummary(record.identityFingerprint)
       : undefined,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
   };
 }
 
@@ -53,6 +58,9 @@ function toPropRef(prop: StudioStoryboardSceneRow["props"][number]["prop"]): Sce
     identityFingerprintSummary: record.identityFingerprint
       ? formatIdentityFingerprintSummary(record.identityFingerprint)
       : undefined,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
   };
 }
 
@@ -68,6 +76,9 @@ function toLocationRef(
     keyFeatures: record.keyFeatures,
     preserveRules: record.preserveRules,
     continuityNotes: record.continuityNotes,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
   };
 }
 
@@ -85,6 +96,9 @@ function toWorldRef(
     visualStyle: record.visualStyle ?? world.visualStyle,
     preserveRules: record.preserveRules,
     continuityNotes: world.continuityRules,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
   };
 }
 
@@ -220,6 +234,36 @@ export function buildSceneSemanticRecipe(params: {
   };
 }
 
+function collectRecipeAssetRefs(recipe: SceneSemanticRecipe): SceneSemanticRecipeAssetRef[] {
+  return [
+    ...recipe.characters,
+    ...recipe.props,
+    ...(recipe.location ? [recipe.location] : []),
+    ...(recipe.world ? [recipe.world] : []),
+  ];
+}
+
+function collectIdentityProfileMotionGuidance(recipe: SceneSemanticRecipe): string[] {
+  const profiles = new Map<string, IdentityProfileLevel>();
+  for (const ref of collectRecipeAssetRefs(recipe)) {
+    if (ref.identityProfile) {
+      profiles.set(ref.identityProfile, ref.identityProfile as IdentityProfileLevel);
+    }
+  }
+  return [...profiles.values()]
+    .map((level) => resolveIdentityProfileMotionGuidance(level))
+    .filter(Boolean)
+    .map((guidance) => `Profile guidance: ${guidance}`);
+}
+
+function formatRecipeIdentityAssetTypes(recipe: SceneSemanticRecipe): string {
+  const refs = collectRecipeAssetRefs(recipe).filter((ref) => ref.identityAssetType?.trim());
+  if (refs.length === 0) {
+    return "";
+  }
+  return `Asset types: ${refs.map((ref) => `${ref.name}=${ref.identityAssetType}`).join(", ")}.`;
+}
+
 export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe): string {
   const lines = [
     recipe.narrativeGoal ? `Goal: ${recipe.narrativeGoal}.` : "",
@@ -235,6 +279,20 @@ export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe):
     recipe.brandIdentity ? `Brand identity: ${recipe.brandIdentity}.` : "",
     recipe.assetFamily ? `Asset family: ${recipe.assetFamily}.` : "",
     recipe.identityFingerprintSummary ? `Identity: ${recipe.identityFingerprintSummary}.` : "",
+    collectRecipeAssetRefs(recipe).some((ref) => ref.identityProfile)
+      ? `Identity profile: ${collectRecipeAssetRefs(recipe)
+          .filter((ref) => ref.identityProfile)
+          .map((ref) => `${ref.name}=${ref.identityProfile}`)
+          .join(", ")}.`
+      : "",
+    collectRecipeAssetRefs(recipe).some((ref) => ref.identityImportance)
+      ? `Identity importance: ${collectRecipeAssetRefs(recipe)
+          .filter((ref) => ref.identityImportance)
+          .map((ref) => `${ref.name}=${ref.identityImportance}`)
+          .join(", ")}.`
+      : "",
+    formatRecipeIdentityAssetTypes(recipe),
+    ...collectIdentityProfileMotionGuidance(recipe),
     recipe.continuityRules ? `Continuity: ${recipe.continuityRules}.` : "",
     recipe.keyFeatures?.length ? `Key features: ${recipe.keyFeatures.join(", ")}.` : "",
     recipe.audio?.sceneEnergy ? `Energy: ${recipe.audio.sceneEnergy}.` : "",

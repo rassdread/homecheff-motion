@@ -521,6 +521,54 @@ export function buildStudioRenderAuditMetadata(project: {
       })
     ),
   ];
+  const identityProfiles = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          ...recipe.characters.map((c) => c.identityProfile),
+          ...recipe.props.map((p) => p.identityProfile),
+          ...(recipe.location ? [recipe.location.identityProfile] : []),
+          ...(recipe.world ? [recipe.world.identityProfile] : []),
+        ].filter((v): v is string => Boolean(v?.trim()));
+      })
+    ),
+  ];
+  const identityImportanceLevels = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          ...recipe.characters.map((c) => c.identityImportance),
+          ...recipe.props.map((p) => p.identityImportance),
+          ...(recipe.location ? [recipe.location.identityImportance] : []),
+          ...(recipe.world ? [recipe.world.identityImportance] : []),
+        ].filter((v): v is string => Boolean(v?.trim()));
+      })
+    ),
+  ];
+  const identityAssetTypes = [
+    ...new Set(
+      scenes.flatMap((scene) => {
+        const recipe = scene.semanticRecipe;
+        if (!recipe) {
+          return [];
+        }
+        return [
+          ...recipe.characters.map((c) => c.identityAssetType),
+          ...recipe.props.map((p) => p.identityAssetType),
+          ...(recipe.location ? [recipe.location.identityAssetType] : []),
+          ...(recipe.world ? [recipe.world.identityAssetType] : []),
+        ].filter((v): v is string => Boolean(v?.trim()));
+      })
+    ),
+  ];
 
   return {
     sourceStoryboardId: project.studioSourceStoryboardId,
@@ -541,6 +589,10 @@ export function buildStudioRenderAuditMetadata(project: {
     assetFamilies: assetFamilies.length > 0 ? assetFamilies : undefined,
     identityFingerprintHashes:
       identityFingerprintHashes.length > 0 ? identityFingerprintHashes : undefined,
+    identityProfiles: identityProfiles.length > 0 ? identityProfiles : undefined,
+    identityImportanceLevels:
+      identityImportanceLevels.length > 0 ? identityImportanceLevels : undefined,
+    identityAssetTypes: identityAssetTypes.length > 0 ? identityAssetTypes : undefined,
   };
 }
 

@@ -116,6 +116,7 @@ export function buildSourceTransformSummaryPrompt(draft: AssetWizardDraft): stri
       : undefined,
     strictRegeneration: draft.variantRegenerationStrict,
     identityLockLevel: draft.variantRegenerationStrict ? 2 : 1,
+    identityProfileLevel: draft.identityProfileLevel || undefined,
   });
 }
 

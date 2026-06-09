@@ -220,10 +220,12 @@ describe("studio-asset-vision-analysis", () => {
     };
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const visionIdx = steps.indexOf("asset_vision");
+    const profileIdx = steps.indexOf("identity_profile");
     const transformIdx = steps.indexOf("source_transform");
     const promptIdx = steps.indexOf("transform_prompt");
     assert.ok(visionIdx >= 0);
-    assert.ok(transformIdx > visionIdx);
+    assert.equal(profileIdx, visionIdx + 1);
+    assert.ok(transformIdx > profileIdx);
     assert.ok(promptIdx > transformIdx);
   });
 
@@ -240,10 +242,12 @@ describe("studio-asset-vision-analysis", () => {
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const sourceIdx = steps.indexOf("derive_source");
     const visionIdx = steps.indexOf("asset_vision");
+    const profileIdx = steps.indexOf("identity_profile");
     const targetIdx = steps.indexOf("derive_target_kind");
     assert.ok(sourceIdx >= 0);
     assert.ok(visionIdx === sourceIdx + 1);
-    assert.ok(targetIdx > visionIdx);
+    assert.equal(profileIdx, visionIdx + 1);
+    assert.ok(targetIdx > profileIdx);
   });
 
   it("enriches transform summary and generation payload with vision analysis", () => {

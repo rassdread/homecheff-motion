@@ -68,6 +68,9 @@ export type StudioAssetSemanticContinuity = {
   derivedFromSourceName?: string;
   derivedFromAssetId?: string;
   visionSummary?: string;
+  identityAssetType?: string;
+  identityProfile?: string;
+  identityImportance?: string;
 };
 
 export type StudioAssetCollection = {

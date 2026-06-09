@@ -1,7 +1,9 @@
 import { parseAssetReferencesBundle } from "@/lib/studio-asset-canonical-references";
 import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
 import { parseAssetSemanticRecordFromNotes } from "@/lib/studio-asset-semantic-record";
+import { buildIdentityProfileConsumptionLines } from "@/lib/studio-asset-identity-profile";
 import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
+import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import { buildContinuityPrompt } from "@/lib/studio-prompt-continuity-builder";
 import type { PromptBuilderOutput } from "@/types/studio-prompt-builder";
 import type { SceneMemoryBundle } from "@/types/studio-memory-snapshots";
@@ -67,6 +69,37 @@ function buildSupportingReferenceLines(memoryBundle?: SceneMemoryBundle): string
   return lines;
 }
 
+function hasSemanticIdentityRecord(record: AssetSemanticRecord | null | undefined): boolean {
+  if (!record) {
+    return false;
+  }
+  return Boolean(
+    record.brandIdentity?.trim() ||
+      record.assetFamily?.trim() ||
+      record.identityFingerprint?.fingerprintHash ||
+      record.identityFingerprint?.faceStructure ||
+      record.identityProfile?.trim() ||
+      record.identityAssetType?.trim() ||
+      record.preserveRules?.length
+  );
+}
+
+function buildSemanticIdentityLine(name: string, record: AssetSemanticRecord): string | null {
+  const parts = [
+    ...buildIdentityProfileConsumptionLines(record),
+    record.brandIdentity ? `Brand: ${record.brandIdentity}` : "",
+    record.assetFamily ? `Family: ${record.assetFamily}` : "",
+    record.identityFingerprint
+      ? `Identity: ${formatIdentityFingerprintSummary(record.identityFingerprint)}`
+      : "",
+    record.preserveRules?.length ? `Preserve: ${record.preserveRules.slice(0, 6).join(", ")}` : "",
+  ].filter(Boolean);
+  if (parts.length === 0) {
+    return null;
+  }
+  return `${name} semantic identity — ${parts.join(" · ")}`;
+}
+
 function buildSemanticIdentityLines(memoryBundle?: SceneMemoryBundle): string[] {
   if (!memoryBundle) {
     return [];
@@ -74,19 +107,31 @@ function buildSemanticIdentityLines(memoryBundle?: SceneMemoryBundle): string[] 
   const lines: string[] = [];
   for (const character of memoryBundle.characters) {
     const { record } = parseAssetSemanticRecordFromNotes(character.referenceNotes);
-    if (!record?.brandIdentity && !record?.assetFamily && !record?.identityFingerprint) {
+    if (!hasSemanticIdentityRecord(record)) {
       continue;
     }
-    const parts = [
-      record.brandIdentity ? `Brand: ${record.brandIdentity}` : "",
-      record.assetFamily ? `Family: ${record.assetFamily}` : "",
-      record.identityFingerprint
-        ? `Identity: ${formatIdentityFingerprintSummary(record.identityFingerprint)}`
-        : "",
-      record.preserveRules?.length ? `Preserve: ${record.preserveRules.slice(0, 6).join(", ")}` : "",
-    ].filter(Boolean);
-    if (parts.length > 0) {
-      lines.push(`${character.name} semantic identity — ${parts.join(" · ")}`);
+    const line = buildSemanticIdentityLine(character.name, record!);
+    if (line) {
+      lines.push(line);
+    }
+  }
+  if (memoryBundle.location) {
+    const { record } = parseAssetSemanticRecordFromNotes(memoryBundle.location.continuityNotes);
+    if (hasSemanticIdentityRecord(record)) {
+      const line = buildSemanticIdentityLine(memoryBundle.location.name, record!);
+      if (line) {
+        lines.push(line);
+      }
+    }
+  }
+  for (const prop of memoryBundle.props) {
+    const { record } = parseAssetSemanticRecordFromNotes(prop.continuityNotes);
+    if (!hasSemanticIdentityRecord(record)) {
+      continue;
+    }
+    const line = buildSemanticIdentityLine(prop.name, record!);
+    if (line) {
+      lines.push(line);
     }
   }
   return lines;

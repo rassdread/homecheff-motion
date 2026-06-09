@@ -8,6 +8,7 @@ import {
   shouldShowTransformPromptStep,
 } from "@/lib/studio-asset-transform-prompt";
 import { shouldShowAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
+import { hasConfirmedIdentityProfile } from "@/lib/studio-asset-identity-profile";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 import { kindSupportsReferenceStep } from "@/lib/studio-asset-wizard-choices";
 
@@ -36,6 +37,9 @@ export function wizardStepLabelKeyForDraft(
   }
   if (step === "asset_vision") {
     return "studio.assetCreation.wizard.step.assetVision";
+  }
+  if (step === "identity_profile") {
+    return "studio.assetCreation.wizard.step.identityProfile";
   }
   return null;
 }
@@ -113,6 +117,30 @@ function insertAssetVisionStep(
     result.splice(anchor, 0, "asset_vision");
   }
   return result;
+}
+
+function insertIdentityProfileStep(
+  steps: AssetCreationWizardStep[],
+  draft: AssetWizardDraft
+): AssetCreationWizardStep[] {
+  if (!shouldShowIdentityProfileStep(draft) || steps.includes("identity_profile")) {
+    return steps;
+  }
+  const result = [...steps];
+  const visionIdx = result.indexOf("asset_vision");
+  if (visionIdx < 0) {
+    return result;
+  }
+  result.splice(visionIdx + 1, 0, "identity_profile");
+  return result;
+}
+
+export function shouldShowIdentityProfileStep(draft: AssetWizardDraft): boolean {
+  return shouldShowAssetVisionStep(draft);
+}
+
+export function canAdvanceFromIdentityProfileStep(draft: AssetWizardDraft): boolean {
+  return hasConfirmedIdentityProfile(draft);
 }
 
 function insertTransformPromptStep(
@@ -196,7 +224,7 @@ export function injectSourceReferenceWizardSteps(
   }
 
   return insertTransformPromptStep(
-    insertSourceTransformStep(insertAssetVisionStep(result, draft), draft),
+    insertSourceTransformStep(insertIdentityProfileStep(insertAssetVisionStep(result, draft), draft), draft),
     draft
   );
 }

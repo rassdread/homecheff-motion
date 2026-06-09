@@ -17,6 +17,7 @@ const VISIBLE_LABELS: Record<AssetCreationWizardStep, string> = {
   choice: "studio.assetCreation.wizard.step.choice",
   source_transform: "studio.assetCreation.wizard.step.sourceTransform",
   asset_vision: "studio.assetCreation.wizard.step.assetVision",
+  identity_profile: "studio.assetCreation.wizard.step.identityProfile",
   transform_prompt: "studio.assetCreation.wizard.step.transformPrompt",
   reference: "studio.assetCreation.wizard.step.reference",
   input: "studio.assetCreation.wizard.step.input",

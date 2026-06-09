@@ -27,9 +27,15 @@ import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-rea
 import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
 import { buildDirectorMemorySuggestions, memoryBoostForAsset } from "@/lib/studio-director-proposal-memory";
 import {
+  blocksReplacementAssetSuggestion,
+  resolveDirectorIdentityProfileGuidance,
+  scoreIdentityProfileDirectorBoost,
+} from "@/lib/studio-asset-identity-profile";
+import {
   biasShotTypeFromIdentity,
   buildSceneIdentityConsumption,
   buildStoryboardIdentityConsumption,
+  mergeDirectorContextLines,
 } from "@/lib/studio-identity-consumption";
 import { buildStudioRenderStrategyPlan } from "@/lib/studio-render-strategy-planner";
 import { toMotionRenderStrategyHandoffPlan } from "@/lib/studio-render-strategy-handoff";
@@ -250,6 +256,7 @@ export function scoreAssetMatch(
 
 function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: string[]): number {
   const haystack = toSearchHaystack(toIdentitySpec(character));
+  const record = extractAssetSemanticRecordFromCharacter(character);
   let score = scoreAssetMatch(
     haystack.name,
     haystack.description,
@@ -260,6 +267,7 @@ function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: s
   if (character.isMascot && promptTokens.some((t) => /mascot|chef|character|personage/.test(t))) {
     score += 2;
   }
+  score += scoreIdentityProfileDirectorBoost(record.identityProfile);
   return score;
 }
 
@@ -305,31 +313,86 @@ function toAssetRef(item: { id: string; name: string }, semanticLabel?: string):
   return { existingId: item.id, name: item.name, semanticLabel };
 }
 
+function toProposedAssetRef(
+  item: { id: string; name: string },
+  record: ReturnType<typeof extractAssetSemanticRecordFromCharacter>,
+  semanticLabel: string
+): ProposedAssetRef {
+  return {
+    existingId: item.id,
+    name: item.name,
+    semanticLabel,
+    identityAssetType: record.identityAssetType,
+    identityProfile: record.identityProfile,
+    identityImportance: record.identityImportance,
+  };
+}
+
 function toCharacterAssetRef(character: StudioCharacterListItem): ProposedAssetRef {
   const record = extractAssetSemanticRecordFromCharacter(character);
-  return {
-    existingId: character.id,
-    name: character.name,
-    semanticLabel: formatDirectorSemanticAssetLabel(character.name, record),
-  };
+  return toProposedAssetRef(
+    character,
+    record,
+    formatDirectorSemanticAssetLabel(character.name, record)
+  );
 }
 
 function toLocationAssetRef(location: StudioLocationListItem): ProposedAssetRef {
   const record = extractAssetSemanticRecordFromLocation(location);
-  return {
-    existingId: location.id,
-    name: location.name,
-    semanticLabel: formatDirectorSemanticAssetLabel(location.name, record),
-  };
+  return toProposedAssetRef(
+    location,
+    record,
+    formatDirectorSemanticAssetLabel(location.name, record)
+  );
 }
 
 function toPropAssetRef(prop: StudioPropListItem): ProposedAssetRef {
   const record = extractAssetSemanticRecordFromProp(prop);
-  return {
-    existingId: prop.id,
-    name: prop.name,
-    semanticLabel: formatDirectorSemanticAssetLabel(prop.name, record),
+  return toProposedAssetRef(prop, record, formatDirectorSemanticAssetLabel(prop.name, record));
+}
+
+function collectIdentityProfileDirectorLines(
+  libraries: {
+    characters: StudioCharacterListItem[];
+    locations: StudioLocationListItem[];
+    props: StudioPropListItem[];
+  }
+): string[] {
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  const addLine = (line: string) => {
+    const key = line.trim();
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    lines.push(key);
   };
+
+  for (const character of libraries.characters) {
+    const record = extractAssetSemanticRecordFromCharacter(character);
+    if (!record.identityProfile) {
+      continue;
+    }
+    addLine(
+      `${character.name}: ${resolveDirectorIdentityProfileGuidance(record.identityProfile)}`
+    );
+  }
+  for (const location of libraries.locations) {
+    const record = extractAssetSemanticRecordFromLocation(location);
+    if (!record.identityProfile) {
+      continue;
+    }
+    addLine(`${location.name}: ${resolveDirectorIdentityProfileGuidance(record.identityProfile)}`);
+  }
+  for (const prop of libraries.props) {
+    const record = extractAssetSemanticRecordFromProp(prop);
+    if (!record.identityProfile) {
+      continue;
+    }
+    addLine(`${prop.name}: ${resolveDirectorIdentityProfileGuidance(record.identityProfile)}`);
+  }
+  return lines.slice(0, 12);
 }
 
 function suggestNewAsset(
@@ -677,6 +740,9 @@ function assignAssetsToScene(params: {
   });
 
   const proposedCharacters: ProposedNewAsset[] = (() => {
+    if (characterRefs.some((ref) => blocksReplacementAssetSuggestion(ref.identityProfile))) {
+      return [];
+    }
     if (characterRefs.length > 0) {
       return [];
     }
@@ -1231,6 +1297,11 @@ export function buildDirectorProposal(params: {
     libraries: identityLibraries,
     memory: params.projectMemory,
   });
+  const profileDirectorLines = collectIdentityProfileDirectorLines(identityLibraries);
+  identityConsumption.directorContextLines = mergeDirectorContextLines(
+    identityConsumption.directorContextLines,
+    profileDirectorLines
+  );
   const narrationMode = normalizeStudioNarrationMode(params.storyboard.narrationMode || "narrator");
   const voiceReport = analyzeVoiceDirector({
     ...mockStoryboard,

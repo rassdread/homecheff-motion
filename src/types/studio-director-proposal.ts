@@ -22,6 +22,9 @@ export type ProposedAssetRef = {
   name: string;
   /** Rich semantic label for director UX (object type, brand, style). */
   semanticLabel?: string;
+  identityAssetType?: string;
+  identityProfile?: string;
+  identityImportance?: string;
 };
 
 export type ProposedSceneAudio = {

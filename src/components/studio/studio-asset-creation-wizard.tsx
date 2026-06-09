@@ -19,6 +19,7 @@ import { StudioAssetDerivationSourceStep } from "@/components/studio/studio-asse
 import { StudioAssetDerivationTransformStep } from "@/components/studio/studio-asset-derivation-transform-step";
 import { StudioWizardTransformPromptStep } from "@/components/studio/studio-wizard-transform-prompt-step";
 import { StudioWizardAssetVisionStep } from "@/components/studio/studio-wizard-asset-vision-step";
+import { StudioWizardIdentityProfileStep } from "@/components/studio/studio-wizard-identity-profile-step";
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
 import { StudioWizardSourceTransformStep } from "@/components/studio/studio-wizard-source-transform-step";
 import { useActiveTranslator } from "@/i18n/client";
@@ -45,6 +46,7 @@ import {
   wizardStepsForEntryPath,
 } from "@/lib/studio-asset-wizard-flow";
 import {
+  canAdvanceFromIdentityProfileStep,
   canAdvanceFromSourceTransformStep,
 } from "@/lib/studio-asset-wizard-source-flow";
 import { canAdvanceFromTransformPromptStep } from "@/lib/studio-asset-transform-prompt";
@@ -222,6 +224,9 @@ export function StudioAssetCreationWizard({
     }
     if (step === "asset_vision") {
       return canAdvanceFromAssetVisionStep(activeDraft);
+    }
+    if (step === "identity_profile") {
+      return canAdvanceFromIdentityProfileStep(activeDraft);
     }
     if (step === "transform_prompt") {
       return canAdvanceFromTransformPromptStep(activeDraft);
@@ -418,6 +423,10 @@ export function StudioAssetCreationWizard({
         />
       : null}
 
+      {activeDraft && step === "identity_profile" ?
+        <StudioWizardIdentityProfileStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
       {activeDraft && step === "source_transform" ?
         <StudioWizardSourceTransformStep
           kind={activeDraft.kind}
@@ -448,10 +457,13 @@ export function StudioAssetCreationWizard({
             }
           }}
           onBack={() => {
+            const profileIdx = stepSequence.indexOf("identity_profile");
             const visionIdx = stepSequence.indexOf("asset_vision");
             const transformIdx = stepSequence.indexOf("source_transform");
             const derivePreviewIdx = stepSequence.indexOf("derive_preview");
-            if (visionIdx >= 0) {
+            if (profileIdx >= 0) {
+              setNavIndex(profileIdx);
+            } else if (visionIdx >= 0) {
               setNavIndex(visionIdx);
             } else if (transformIdx >= 0) {
               setNavIndex(transformIdx);

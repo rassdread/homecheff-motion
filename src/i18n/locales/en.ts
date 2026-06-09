@@ -4171,6 +4171,90 @@ export const en: LocaleSchema = {
   "studio.assetCreation.wizard.step.sourceTransform": "Transform",
   "studio.assetCreation.wizard.step.transformPrompt": "Prompt",
   "studio.assetCreation.wizard.step.assetVision": "Analysis",
+  "studio.assetCreation.wizard.step.identityProfile": "Identity",
+  "studio.assetCreation.identityProfile.title": "Identity preservation",
+  "studio.assetCreation.identityProfile.lead":
+    "Choose what kind of asset this is and how strictly Studio must preserve its identity during generation.",
+  "studio.assetCreation.identityProfile.assetTypeQuestion": "What kind of asset is this?",
+  "studio.assetCreation.identityProfile.profileQuestion": "How important is identity preservation?",
+  "studio.assetCreation.identityProfile.importanceHint": "Identity importance: {importance}",
+  "studio.assetCreation.identityProfile.rulesPreview": "Suggested rules from your profile",
+  "studio.assetCreation.identityProfile.rulesEditable": "You can fine-tune these on the next prompt step.",
+  "studio.assetCreation.identityProfile.confirm": "Confirm identity profile",
+  "studio.assetCreation.identityProfile.confirmed": "Identity profile confirmed — continue when ready.",
+  "studio.assetCreation.identityProfile.assetType.character": "Character",
+  "studio.assetCreation.identityProfile.assetType.mascot": "Mascot",
+  "studio.assetCreation.identityProfile.assetType.logo": "Logo",
+  "studio.assetCreation.identityProfile.assetType.packaging": "Packaging",
+  "studio.assetCreation.identityProfile.assetType.product": "Product",
+  "studio.assetCreation.identityProfile.assetType.location": "Location",
+  "studio.assetCreation.identityProfile.assetType.world": "World",
+  "studio.assetCreation.identityProfile.assetType.vehicle": "Vehicle",
+  "studio.assetCreation.identityProfile.assetType.person": "Person",
+  "studio.assetCreation.identityProfile.assetType.animal": "Animal",
+  "studio.assetCreation.identityProfile.assetType.building": "Building",
+  "studio.assetCreation.identityProfile.assetType.other": "Other",
+  "studio.assetCreation.identityProfile.level.relaxed": "Relaxed",
+  "studio.assetCreation.identityProfile.level.balanced": "Balanced",
+  "studio.assetCreation.identityProfile.level.strict": "Strict",
+  "studio.assetCreation.identityProfile.level.brand_lock": "Brand lock",
+  "studio.assetCreation.identityProfile.level.master_character": "Master character",
+  "studio.assetCreation.identityProfile.importance.flexible": "Flexible",
+  "studio.assetCreation.identityProfile.importance.balanced": "Balanced",
+  "studio.assetCreation.identityProfile.importance.important": "Important",
+  "studio.assetCreation.identityProfile.importance.critical": "Critical",
+  "studio.assetCreation.identityProfile.typeVsProfileTitle": "Asset type and identity profile are different",
+  "studio.assetCreation.identityProfile.typeExplanation":
+    "Asset type describes what the image is (mascot, logo, location, etc.).",
+  "studio.assetCreation.identityProfile.profileExplanation":
+    "Identity profile controls how much of that identity must be preserved during transformations.",
+  "studio.assetCreation.identityProfile.recommendationTitle": "Recommended",
+  "studio.assetCreation.identityProfile.recommendation.master_character_brand_mascot":
+    "This image appears to contain a recurring brand mascot. Studio detected high recognition for identity, asset family, and brand continuity.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_logo":
+    "This image appears to contain a logo or brand mark. Studio recommends maximum brand protection.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_packaging":
+    "This image appears to be packaging or branded product design. Studio recommends locking logo, colors, and brand markers.",
+  "studio.assetCreation.identityProfile.recommendation.brand_lock_brand_asset":
+    "This image appears to be a brand asset. Studio recommends strict brand lock for logos, colors, and identity markers.",
+  "studio.assetCreation.identityProfile.recommendation.strict_subject":
+    "This subject needs high recognizability — characters, products, vehicles, or animals should stay clearly identifiable.",
+  "studio.assetCreation.identityProfile.recommendation.balanced_environment":
+    "This looks like a place or world. Studio suggests balanced preservation so mood and context can change safely.",
+  "studio.assetCreation.identityProfile.recommendation.relaxed_exploration":
+    "This asset suits creative exploration — moodboards, concepts, and new directions.",
+  "studio.assetCreation.identityProfile.recommendation.default":
+    "Studio analyzed your source and suggests this profile based on asset type and vision signals.",
+  "studio.assetCreation.identityProfile.recommendationOverrideHint":
+    "You chose a different profile — that is fine when your goal differs from the default suggestion.",
+  "studio.assetCreation.identityProfile.summaryAssetType": "Asset type",
+  "studio.assetCreation.identityProfile.summaryProfile": "Identity profile",
+  "studio.assetCreation.identityProfile.summaryWeights": "Preserve {preserve} · Creativity {creativity}",
+  "studio.assetCreation.identityProfile.info.buttonLabel": "About {profile} profile",
+  "studio.assetCreation.identityProfile.info.preserveLabel": "Preserve",
+  "studio.assetCreation.identityProfile.info.creativityLabel": "Creativity",
+  "studio.assetCreation.identityProfile.info.recommendedUse": "Recommended use",
+  "studio.assetCreation.identityProfile.info.masterCharacterPreserveRange": "95–100%",
+  "studio.assetCreation.identityProfile.info.relaxed.description":
+    "Maximum creative freedom. Identity is a starting point, not a lock.",
+  "studio.assetCreation.identityProfile.info.relaxed.use":
+    "Concepting, moodboards, new directions, inspiration",
+  "studio.assetCreation.identityProfile.info.balanced.description":
+    "Balanced trade-off between recognizable identity and creative variation.",
+  "studio.assetCreation.identityProfile.info.balanced.use":
+    "Locations, buildings, worlds",
+  "studio.assetCreation.identityProfile.info.strict.description":
+    "Strong identity lock for subjects that must stay clearly recognizable.",
+  "studio.assetCreation.identityProfile.info.strict.use":
+    "Characters, products, vehicles, animals",
+  "studio.assetCreation.identityProfile.info.brand_lock.description":
+    "Near-total brand protection for logos, packaging, and corporate identity.",
+  "studio.assetCreation.identityProfile.info.brand_lock.use":
+    "Logos, packaging, brand assets, corporate identity",
+  "studio.assetCreation.identityProfile.info.master_character.description":
+    "Franchise-grade character continuity — face, silhouette, and brand markers stay locked.",
+  "studio.assetCreation.identityProfile.info.master_character.use":
+    "Lead mascots, franchise characters, recurring brand figures",
   "studio.assetCreation.assetVision.title": "Studio found this",
   "studio.assetCreation.assetVision.lead":
     "Studio analyzed your source image before generating a variant. Review what was recognized, then continue.",
@@ -5313,6 +5397,9 @@ export const en: LocaleSchema = {
   "studio.mediaAsset.detail.collections": "Collections",
   "studio.mediaAsset.detail.assetFamily": "Asset family",
   "studio.mediaAsset.detail.brandIdentity": "Brand identity",
+  "studio.mediaAsset.detail.identityAssetType": "Type",
+  "studio.mediaAsset.detail.identityProfile": "Identity profile",
+  "studio.mediaAsset.detail.identityImportance": "Identity importance",
   "studio.mediaAsset.detail.basedOn": "Based on",
   "studio.mediaAsset.detail.identityScore": "Identity score",
   "studio.mediaAsset.detail.fingerprint": "Identity fingerprint",

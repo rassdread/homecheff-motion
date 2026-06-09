@@ -72,6 +72,9 @@ export type StudioRenderAuditMetadata = {
   brandIdentities?: string[];
   assetFamilies?: string[];
   identityFingerprintHashes?: string[];
+  identityProfiles?: string[];
+  identityImportanceLevels?: string[];
+  identityAssetTypes?: string[];
 };
 
 export type StudioStalenessSeverity = "low" | "medium" | "high";

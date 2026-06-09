@@ -48,11 +48,13 @@ describe("studio-asset-wizard-source-flow", () => {
     assert.equal(shouldShowSourceTransformStep(draft), true);
     const steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const visionIdx = steps.indexOf("asset_vision");
+    const profileIdx = steps.indexOf("identity_profile");
     const transformIdx = steps.indexOf("source_transform");
     const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
     assert.ok(visionIdx >= 0);
-    assert.ok(transformIdx > visionIdx);
+    assert.equal(profileIdx, visionIdx + 1);
+    assert.ok(transformIdx > profileIdx);
     assert.ok(promptIdx > transformIdx);
     assert.ok(refIdx > promptIdx);
   });
@@ -97,9 +99,11 @@ describe("studio-asset-wizard-source-flow", () => {
     steps = wizardStepSequenceForDraft(draft, { includeKind: false });
     const previewIdx = steps.indexOf("derive_preview");
     const visionIdx = steps.indexOf("asset_vision");
+    const profileIdx = steps.indexOf("identity_profile");
     const promptIdx = steps.indexOf("transform_prompt");
     const refIdx = steps.indexOf("reference");
     assert.ok(visionIdx >= 0);
+    assert.equal(profileIdx, visionIdx + 1);
     assert.ok(previewIdx > steps.indexOf("derive_transform"));
     assert.ok(promptIdx > previewIdx);
     assert.ok(refIdx > promptIdx);

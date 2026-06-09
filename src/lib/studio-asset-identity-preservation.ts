@@ -1,4 +1,11 @@
+import {
+  buildIdentityProfileRules,
+  resolveIdentityProfileMotionGuidance,
+  resolveVariantFidelityThresholdsForProfile,
+  rulesToCommaSeparated,
+} from "@/lib/studio-asset-identity-profile";
 import { hashSemanticText } from "@/lib/studio-asset-semantic-record";
+import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type {
   AssetIdentityFingerprint,
@@ -450,14 +457,18 @@ export function resolveIdentityLockLevel(params: {
   return 1;
 }
 
-export function resolveVariantFidelityRecoveryTier(overall: number): VariantFidelityRecoveryTier {
-  if (overall < VARIANT_FIDELITY_IDENTITY_FAILURE_THRESHOLD) {
+export function resolveVariantFidelityRecoveryTier(
+  overall: number,
+  profileLevel?: IdentityProfileLevel | ""
+): VariantFidelityRecoveryTier {
+  const thresholds = resolveVariantFidelityThresholdsForProfile(profileLevel);
+  if (overall < thresholds.identityFailure) {
     return "identity_failure";
   }
-  if (overall < VARIANT_FIDELITY_STRICT_REGENERATE_THRESHOLD) {
+  if (overall < thresholds.strictRegenerate) {
     return "strict_regenerate";
   }
-  if (overall < VARIANT_FIDELITY_WARNING_THRESHOLD) {
+  if (overall < thresholds.warning) {
     return "warning";
   }
   return "ok";
@@ -489,6 +500,7 @@ export function buildIdentityEnforcementPromptBlocks(params: {
   assetFamily?: string;
   strictRegeneration?: boolean;
   identityLockLevel?: AssetIdentityLockLevel;
+  identityProfileLevel?: IdentityProfileLevel | "";
 }): string[] {
   const vision = params.vision;
   const lockLevel = resolveIdentityLockLevel({
@@ -537,6 +549,11 @@ export function buildIdentityEnforcementPromptBlocks(params: {
     })
   );
 
+  const profileGuidance = resolveIdentityProfileMotionGuidance(params.identityProfileLevel);
+  if (profileGuidance) {
+    blocks.push(`Identity profile: ${profileGuidance}`);
+  }
+
   return blocks.filter(Boolean);
 }
 
@@ -552,6 +569,7 @@ export function buildSourceTransformEnforcementPrompt(params: {
   identityFingerprintSummary?: string;
   strictRegeneration?: boolean;
   identityLockLevel?: AssetIdentityLockLevel;
+  identityProfileLevel?: IdentityProfileLevel | "";
 }): string {
   const vision = params.vision;
   const brandIdentity = resolveEffectiveBrandIdentity({
@@ -570,6 +588,7 @@ export function buildSourceTransformEnforcementPrompt(params: {
       assetFamily: vision?.assetFamily,
       strictRegeneration: params.strictRegeneration,
       identityLockLevel: params.identityLockLevel,
+      identityProfileLevel: params.identityProfileLevel,
     }),
     params.semanticContext?.trim() ?? "",
     params.identityFingerprintSummary
@@ -693,6 +712,7 @@ function stringSimilarity(a: string, b: string): number {
 export function computeVariantFidelityScore(params: {
   source: AssetVisionAnalysis;
   generated: AssetVisionAnalysis;
+  profileLevel?: IdentityProfileLevel | "";
 }): VariantFidelityScore {
   const { source, generated } = params;
 
@@ -716,6 +736,8 @@ export function computeVariantFidelityScore(params: {
       familyPreservation * 0.15
   );
 
+  const thresholds = resolveVariantFidelityThresholdsForProfile(params.profileLevel);
+
   return {
     identityPreservation,
     colorPreservation,
@@ -723,13 +745,44 @@ export function computeVariantFidelityScore(params: {
     brandPreservation,
     familyPreservation,
     overall,
-    lowFidelity: overall < VARIANT_FIDELITY_WARNING_THRESHOLD,
-    recoveryTier: resolveVariantFidelityRecoveryTier(overall),
+    lowFidelity: overall < thresholds.warning,
+    recoveryTier: resolveVariantFidelityRecoveryTier(overall, params.profileLevel),
   };
 }
 
 export function buildStricterPreservePatch(draft: AssetWizardDraft): Partial<AssetWizardDraft> {
   const vision = draft.sourceVisionAnalysis;
+  if (draft.identityAssetType && draft.identityProfileLevel) {
+    const rules = buildIdentityProfileRules({
+      assetType: draft.identityAssetType,
+      profileLevel: draft.identityProfileLevel,
+      vision,
+    });
+    const text = rulesToCommaSeparated(rules);
+    return {
+      sourceTransformPreserve: text.preserve,
+      sourceTransformChange: text.change,
+      sourceTransformForbidden: [
+        text.forbidden,
+        "face redesign",
+        "new mascot",
+        "color palette change",
+        "proportion change",
+        "outline style change",
+      ]
+        .filter(Boolean)
+        .join(", "),
+      sourceTransformInstruction: [
+        draft.sourceTransformInstruction.trim(),
+        STRICT_REGENERATION_IDENTITY_INSTRUCTION,
+        "Strict variant: preserve exact face, proportions, silhouette, and brand identity from source.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      variantRegenerationStrict: true,
+    };
+  }
+
   const preserve = buildCharacterVariantPreserveRules(vision).join(", ");
   const forbidden = buildAutoForbiddenStyleRules(
     vision ?? {

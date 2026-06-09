@@ -26,6 +26,10 @@ import type {
 } from "@/types/studio-asset-creation";
 import type { AssetDerivationSource, AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
+import type {
+  IdentityAssetType,
+  IdentityProfileLevel,
+} from "@/types/studio-asset-identity-profile";
 import {
   applySemanticRecordToCharacterFields,
   applySemanticRecordToLocationFields,
@@ -79,6 +83,10 @@ export type AssetWizardDraft = {
   sourceVisionAnalysis: AssetVisionAnalysis | null;
   sourceVisionAnalysisStatus: "idle" | "loading" | "ready" | "failed";
   sourceVisionAnalysisError: string;
+  /** Universal identity profile — confirmed after vision analysis. */
+  identityAssetType: IdentityAssetType | "";
+  identityProfileLevel: IdentityProfileLevel | "";
+  identityProfileConfirmed: boolean;
   derivationTargetKind: StudioAssetKind | null;
   derivationTransformChoice: string;
   derivationTransformCustom: string;
@@ -139,6 +147,9 @@ export function emptyAssetWizardDraft(
     sourceVisionAnalysis: null,
     sourceVisionAnalysisStatus: "idle",
     sourceVisionAnalysisError: "",
+    identityAssetType: "",
+    identityProfileLevel: "",
+    identityProfileConfirmed: false,
     derivationTargetKind: null,
     derivationTransformChoice: "",
     derivationTransformCustom: "",

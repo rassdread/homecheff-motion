@@ -39,6 +39,12 @@ export type AssetSemanticRecord = {
   variantFidelityOverall?: number;
   /** Human-readable source name when derived from upload/library without asset id */
   sourceReferenceName?: string;
+  /** Universal identity profile asset type (character, logo, packaging, …) */
+  identityAssetType?: string;
+  /** Identity preservation profile level */
+  identityProfile?: import("@/types/studio-asset-identity-profile").IdentityProfileLevel;
+  /** Human-readable identity importance (flexible, balanced, important, critical) */
+  identityImportance?: string;
 };
 
 export type AssetSemanticRecordKind = "character" | "prop" | "location" | "world";
