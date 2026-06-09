@@ -12,11 +12,14 @@ type Props = {
   selectedLayerId: string | null;
   selectedPlacementId: string | null;
   showBodyGuide?: boolean;
+  humanFirst?: boolean;
   onSelectLayer: (layerId: string) => void;
   onSelectPlacement: (placementId: string) => void;
   onMoveLayer: (layerId: string, x: number, y: number) => void;
   onMovePlacement: (placementId: string, x: number, y: number) => void;
   onResizePlacement: (placementId: string, width: number, height: number) => void;
+  onScaleLayer?: (layerId: string, scale: number) => void;
+  onRotateLayer?: (layerId: string, rotation: number) => void;
 };
 
 export function EditorCanvasPreview({
@@ -24,18 +27,25 @@ export function EditorCanvasPreview({
   selectedLayerId,
   selectedPlacementId,
   showBodyGuide = false,
+  humanFirst = false,
   onSelectLayer,
   onSelectPlacement,
   onMoveLayer,
   onMovePlacement,
   onResizePlacement,
+  onScaleLayer,
+  onRotateLayer,
 }: Props) {
   const t = useActiveTranslator();
   const visibleLayers = renderableEditorLayers({ objects: document.objects });
   const placements = visibleEditorPlacements(document).sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-inner">
+    <div
+      className={`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-zinc-100 shadow-inner ${
+        humanFirst ? "border border-zinc-300/80 ring-1 ring-black/5" : "border border-zinc-200"
+      }`}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
       {showBodyGuide && document.bodyDesigner ?
@@ -44,21 +54,25 @@ export function EditorCanvasPreview({
       {visibleLayers.map((layer) => {
         const selected = selectedLayerId === layer.id && !selectedPlacementId;
         const canMove = isEditorOperationAllowed(layer, "move");
-        const estimated = layer.metadata?.estimatedBounds;
-        const lowConfidence = (layer.confidence ?? 1) < 0.55;
+        const canScale = isEditorOperationAllowed(layer, "scale");
+        const canRotate = isEditorOperationAllowed(layer, "rotate");
+        const estimated = !humanFirst && layer.metadata?.estimatedBounds;
+        const lowConfidence = !humanFirst && (layer.confidence ?? 1) < 0.55;
         const { x, y, scale, rotation } = layer.transform;
         return (
           <div
             key={layer.id}
-            className={`absolute touch-none ${canMove ? "cursor-move" : "cursor-pointer"}`}
+            className={`absolute touch-none ${canMove ? "cursor-move" : "cursor-pointer"} ${
+              humanFirst && !selected ? "opacity-0 hover:opacity-100 focus-within:opacity-100" : ""
+            }`}
             style={{
               left: `${x * 100}%`,
               top: `${y * 100}%`,
               transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`,
               width: `${layer.bounds.width * 100}%`,
               height: `${layer.bounds.height * 100}%`,
-              opacity: lowConfidence ? 0.72 : 0.85,
-              zIndex: 1,
+              opacity: humanFirst ? (selected ? 1 : undefined) : lowConfidence ? 0.72 : 0.85,
+              zIndex: selected ? 5 : 1,
             }}
             onPointerDown={(event) => {
               onSelectLayer(layer.id);
@@ -91,20 +105,77 @@ export function EditorCanvasPreview({
             }}
           >
             <div
-              className={`h-full w-full rounded-lg border-2 ${
+              className={`h-full w-full rounded-lg border-2 transition-colors ${
                 selected
                   ? "border-[#0067B1] bg-[#0067B1]/10"
                   : layer.locked
-                    ? "border-dashed border-zinc-500/70 bg-zinc-300/10"
+                    ? "border-dashed border-zinc-400/50 bg-transparent"
                     : estimated
                       ? "border-amber-500/60 bg-amber-300/10"
-                      : "border-emerald-500/50 bg-emerald-300/10"
+                      : humanFirst
+                        ? "border-white/70 bg-white/10 shadow-sm backdrop-blur-[1px]"
+                        : "border-emerald-500/50 bg-emerald-300/10"
               }`}
             >
-              <span className="absolute -top-5 left-0 max-w-full truncate text-[10px] font-semibold text-zinc-800">
-                {layer.label}
-              </span>
+              {(selected || !humanFirst) && (
+                <span className="absolute -top-5 left-0 max-w-full truncate text-[10px] font-semibold text-zinc-800">
+                  {layer.label}
+                </span>
+              )}
             </div>
+            {humanFirst && selected && canScale && onScaleLayer ?
+              <button
+                type="button"
+                aria-label={t("editor.human.action.resize")}
+                className="absolute -bottom-3 -right-3 h-10 w-10 rounded-full border-2 border-[#0067B1] bg-white shadow"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  const startY = event.clientY;
+                  const originScale = scale;
+                  const onMoveEvent = (moveEvent: PointerEvent) => {
+                    const dy = (moveEvent.clientY - startY) / 200;
+                    onScaleLayer(layer.id, Math.min(2.5, Math.max(0.2, originScale + dy)));
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("pointermove", onMoveEvent);
+                    window.removeEventListener("pointerup", onUp);
+                  };
+                  window.addEventListener("pointermove", onMoveEvent);
+                  window.addEventListener("pointerup", onUp);
+                }}
+              />
+            : null}
+            {humanFirst && selected && canRotate && onRotateLayer ?
+              <button
+                type="button"
+                aria-label={t("editor.human.toolbar.rotate")}
+                className="absolute -top-3 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full border-2 border-[#0067B1] bg-white text-[10px] shadow"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  const rect = event.currentTarget.parentElement?.getBoundingClientRect();
+                  if (!rect) {
+                    return;
+                  }
+                  const cx = rect.left + rect.width / 2;
+                  const cy = rect.top + rect.height / 2;
+                  const onMoveEvent = (moveEvent: PointerEvent) => {
+                    const angle =
+                      (Math.atan2(moveEvent.clientY - cy, moveEvent.clientX - cx) * 180) / Math.PI;
+                    onRotateLayer(layer.id, angle);
+                  };
+                  const onUp = () => {
+                    window.removeEventListener("pointermove", onMoveEvent);
+                    window.removeEventListener("pointerup", onUp);
+                  };
+                  window.addEventListener("pointermove", onMoveEvent);
+                  window.addEventListener("pointerup", onUp);
+                }}
+              >
+                ↻
+              </button>
+            : null}
           </div>
         );
       })}
@@ -113,6 +184,7 @@ export function EditorCanvasPreview({
           key={placement.id}
           placement={placement}
           selected={selectedPlacementId === placement.id}
+          humanFirst={humanFirst}
           t={t}
           onSelect={() => onSelectPlacement(placement.id)}
           onMove={(x, y) => onMovePlacement(placement.id, x, y)}
@@ -126,6 +198,7 @@ export function EditorCanvasPreview({
 function PlacementOverlay({
   placement,
   selected,
+  humanFirst,
   t,
   onSelect,
   onMove,
@@ -133,6 +206,7 @@ function PlacementOverlay({
 }: {
   placement: EditorPlacementItem;
   selected: boolean;
+  humanFirst?: boolean;
   t: ReturnType<typeof useActiveTranslator>;
   onSelect: () => void;
   onMove: (x: number, y: number) => void;
@@ -188,12 +262,14 @@ function PlacementOverlay({
         className={`h-full w-full object-contain ${selected ? "ring-2 ring-[#0067B1]" : ""}`}
         draggable={false}
       />
-      <span className="absolute -top-5 left-0 flex max-w-full items-center gap-1 truncate text-[10px] font-semibold text-[#0067B1]">
-        {placement.sourceName}
-        {placement.exactnessMode === "pixel_overlay" ?
-          <span className="rounded bg-blue-100 px-1 text-[8px] uppercase">{t("editor.placement.exactBadge")}</span>
-        : null}
-      </span>
+      {(!humanFirst || selected) && (
+        <span className="absolute -top-5 left-0 flex max-w-full items-center gap-1 truncate text-[10px] font-semibold text-[#0067B1]">
+          {placement.sourceName}
+          {!humanFirst && placement.exactnessMode === "pixel_overlay" ?
+            <span className="rounded bg-blue-100 px-1 text-[8px] uppercase">{t("editor.placement.exactBadge")}</span>
+          : null}
+        </span>
+      )}
       {!locked ?
         <button
           type="button"

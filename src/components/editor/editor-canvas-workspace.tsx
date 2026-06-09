@@ -2,15 +2,19 @@
 
 import { useMemo, useState } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
+import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
+import { EditorFloatingToolbar } from "@/components/editor/editor-floating-toolbar";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
+import { EditorObjectActionMenu } from "@/components/editor/editor-object-action-menu";
 import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-placement-properties-panel";
 import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-panel";
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
+import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
@@ -37,6 +41,15 @@ import {
   documentSupportsBodyDesigner,
   inferEditorObjectType,
 } from "@/lib/editor-body-designer";
+import {
+  defaultEditorUiMode,
+  layerSupportsHumanBodyEdit,
+  markEditorLayerAnimationReady,
+  resolveEditorAiSuggestions,
+  resolveEditorHumanActions,
+  type EditorHumanActionId,
+  type EditorUiMode,
+} from "@/lib/editor-human-first";
 import { DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -63,6 +76,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [mobileSheet, setMobileSheet] = useState<"target" | "properties" | "add" | null>(null);
   const [replacePlacementId, setReplacePlacementId] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [uiMode, setUiMode] = useState<EditorUiMode>(defaultEditorUiMode());
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showVisualBody, setShowVisualBody] = useState(false);
 
   const selectedLayer = useMemo(
     () => document.objects.find((o) => o.id === selectedLayerId) ?? null,
@@ -87,6 +103,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setSelectedPlacementId(null);
     setPanelMode("layer");
     setCustomTarget(false);
+    if (uiMode === "visual") {
+      setShowActionMenu(true);
+    }
   };
 
   const selectPlacement = (placementId: string) => {
@@ -159,6 +178,103 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const compositionPreview = formatEditorCompositionGraphPreview(document);
+
+  const humanActions = useMemo(
+    () => resolveEditorHumanActions(selectedLayer),
+    [selectedLayer]
+  );
+  const aiSuggestions = useMemo(
+    () => resolveEditorAiSuggestions(document, selectedLayer),
+    [document, selectedLayer]
+  );
+
+  const handleHumanAction = (actionId: EditorHumanActionId) => {
+    if (!selectedLayerId && actionId !== "more") {
+      return;
+    }
+    const config = humanActions.find((a) => a.id === actionId);
+
+    if (actionId === "more") {
+      setUiMode("advanced");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "adjust_body" && layerSupportsHumanBodyEdit(document, selectedLayer)) {
+      setShowVisualBody(true);
+      setPanelMode("body");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "attach_logo") {
+      setCustomTarget(false);
+      setShowAddPlacement(true);
+      setMobileSheet("add");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "prepare_animation" && selectedLayerId) {
+      persist(markEditorLayerAnimationReady(document, selectedLayerId));
+      setSaveMessage(t("editor.human.animationReady"));
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "expand" && selectedLayerId) {
+      const layer = document.objects.find((o) => o.id === selectedLayerId);
+      if (layer) {
+        persist(
+          patchEditorLayerTransform(document, selectedLayerId, {
+            scale: Math.min(2.5, layer.transform.scale + 0.15),
+          })
+        );
+      }
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "edit_appearance") {
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "replace") {
+      handleOperation("replace");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "remove") {
+      handleOperation("delete");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "move") {
+      setShowActionMenu(false);
+      return;
+    }
+    if (config?.operation) {
+      handleOperation(config.operation);
+    }
+    setShowActionMenu(false);
+  };
+
+  const handleSuggestion = (suggestionId: string) => {
+    if (!selectedLayerId) {
+      return;
+    }
+    if (suggestionId === "animation_ready" || suggestionId === "animate") {
+      persist(markEditorLayerAnimationReady(document, selectedLayerId));
+      setSaveMessage(t("editor.human.animationReady"));
+      return;
+    }
+    if (suggestionId === "remove_bg") {
+      handleOperation("replace");
+      return;
+    }
+    if (suggestionId === "attach" || suggestionId === "duplicate") {
+      setShowAddPlacement(true);
+      return;
+    }
+    if (suggestionId === "poster" || suggestionId === "marketing" || suggestionId === "social") {
+      setSaveMessage(t("editor.human.suggest.applied"));
+    }
+  };
 
   const targetLayerForAdd = customTarget ? null : selectedLayer;
 
@@ -252,15 +368,39 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
-          <header className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {t("suite.breadcrumb.editor")} / {t("editor.canvas.breadcrumb")}
-            </p>
-            <h1 className="mt-1 text-xl font-bold text-slate-900">{document.name}</h1>
-            <p className="text-sm text-zinc-600">{t(`editor.canvas.step.${document.workflowStep}` as never)}</p>
+          <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("suite.breadcrumb.editor")} / {t("editor.canvas.breadcrumb")}
+              </p>
+              <h1 className="mt-1 text-xl font-bold text-slate-900">{document.name}</h1>
+              <p className="text-sm text-zinc-600">
+                {uiMode === "visual"
+                  ? t("editor.human.modeVisual")
+                  : t(`editor.canvas.step.${document.workflowStep}` as never)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUiMode(uiMode === "visual" ? "advanced" : "visual");
+                setShowActionMenu(false);
+                setShowVisualBody(false);
+              }}
+              className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+            >
+              {uiMode === "visual"
+                ? t("editor.human.openAdvanced")
+                : t("editor.human.backToVisual")}
+            </button>
           </header>
 
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          {uiMode === "visual" ?
+            <p className="mb-3 text-sm text-zinc-600">{t("editor.human.lead")}</p>
+          : null}
+
+          {uiMode === "advanced" ?
+            <div className="mb-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => {
@@ -298,6 +438,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               {t("editor.placement.propertiesTitle")}
             </button>
           </div>
+          : null}
 
           <EditorToolbar
             onBack={onBack}
@@ -337,13 +478,130 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             </p>
           : null}
 
-          {!showReview && compositionPreview.length > 0 ?
+          {!showReview && uiMode === "advanced" && compositionPreview.length > 0 ?
             <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700">
               {compositionPreview.join("\n")}
             </pre>
           : null}
 
-          {!showReview ?
+          {!showReview && uiMode === "visual" ?
+            <div className="mt-4 space-y-4">
+              <div className="relative mx-auto w-full max-w-4xl">
+                <EditorFloatingToolbar
+                  visible={Boolean(selectedLayer && !selectedPlacementId)}
+                  onAction={handleHumanAction}
+                />
+                <EditorCanvasPreview
+                  document={document}
+                  selectedLayerId={selectedLayerId}
+                  selectedPlacementId={selectedPlacementId}
+                  showBodyGuide={showVisualBody}
+                  humanFirst
+                  onSelectLayer={selectLayer}
+                  onSelectPlacement={selectPlacement}
+                  onMoveLayer={(layerId, x, y) => persist(patchEditorLayerTransform(document, layerId, { x, y }))}
+                  onMovePlacement={(placementId, x, y) =>
+                    persist(
+                      patchEditorPlacement(document, placementId, {
+                        canvasTransform: {
+                          ...document.placements.find((p) => p.id === placementId)!.canvasTransform,
+                          x,
+                          y,
+                        },
+                      })
+                    )
+                  }
+                  onResizePlacement={(placementId, width, height) =>
+                    persist(patchEditorPlacement(document, placementId, { canvasWidth: width, canvasHeight: height }))
+                  }
+                  onScaleLayer={(layerId, scale) =>
+                    persist(patchEditorLayerTransform(document, layerId, { scale }))
+                  }
+                  onRotateLayer={(layerId, rotation) =>
+                    persist(patchEditorLayerTransform(document, layerId, { rotation }))
+                  }
+                />
+                {showActionMenu && selectedLayer && !selectedPlacementId ?
+                  <div className="absolute left-4 top-16 z-30 sm:left-8">
+                    <EditorObjectActionMenu
+                      actions={humanActions}
+                      objectLabel={selectedLayer.label}
+                      onAction={handleHumanAction}
+                      onClose={() => setShowActionMenu(false)}
+                    />
+                  </div>
+                : null}
+              </div>
+
+              {selectedLayer && !selectedPlacementId ?
+                <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
+              : null}
+
+              {showVisualBody && layerSupportsHumanBodyEdit(document, selectedLayer) ?
+                <div className="mx-auto max-w-md">
+                  <EditorVisualBodyPanel
+                    value={bodyDesigner}
+                    objectType={objectType}
+                    onChange={(next) => persist({ ...document, bodyDesigner: next })}
+                    onClose={() => setShowVisualBody(false)}
+                  />
+                </div>
+              : null}
+
+              {(showAddPlacement || replacePlacementId) ?
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+                  <p className="mb-2 text-sm font-semibold text-zinc-900">{t("editor.human.attachLogoTitle")}</p>
+                  <EditorAddPlacementPanel
+                    targetLayer={targetLayerForAdd}
+                    customTarget={customTarget}
+                    onAdd={(placement) => {
+                      if (replacePlacementId) {
+                        persist(
+                          patchEditorPlacement(document, replacePlacementId, {
+                            ...placement,
+                            id: replacePlacementId,
+                            linkedObjectId: placement.linkedObjectId,
+                            targetLabel: placement.targetLabel,
+                          })
+                        );
+                        setReplacePlacementId(null);
+                      } else {
+                        handleAddPlacement(placement);
+                      }
+                      setShowAddPlacement(false);
+                    }}
+                    onClose={() => {
+                      setShowAddPlacement(false);
+                      setReplacePlacementId(null);
+                    }}
+                  />
+                </div>
+              : null}
+
+              <div className="flex flex-wrap gap-2 lg:hidden">
+                <button
+                  type="button"
+                  onClick={() => setMobileSheet("target")}
+                  className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+                >
+                  {t("editor.human.tapToSelect")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomTarget(false);
+                    setShowAddPlacement(true);
+                    setMobileSheet("add");
+                  }}
+                  className="min-h-11 rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  {t("editor.human.action.attachLogo")}
+                </button>
+              </div>
+            </div>
+          : null}
+
+          {!showReview && uiMode === "advanced" ?
             <div className="mt-4 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_280px]">
             <div className="order-2 hidden lg:block lg:order-1">
               <EditorLayerTree
@@ -380,6 +638,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 selectedLayerId={selectedLayerId}
                 selectedPlacementId={selectedPlacementId}
                 showBodyGuide={panelMode === "body"}
+                humanFirst={false}
                 onSelectLayer={selectLayer}
                 onSelectPlacement={selectPlacement}
                 onMoveLayer={(layerId, x, y) => persist(patchEditorLayerTransform(document, layerId, { x, y }))}
@@ -406,11 +665,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           </div>
           : null}
 
-          {!showReview ?
+          {!showReview && uiMode === "advanced" ?
             <EditorPlacementQaPanel document={document} />
           : null}
 
-          {!showReview && (showAddPlacement || replacePlacementId) ?
+          {!showReview && uiMode === "advanced" && (showAddPlacement || replacePlacementId) ?
             <div className="mt-4 hidden rounded-2xl border border-zinc-200 bg-white p-4 lg:block">
               <EditorAddPlacementPanel
                 targetLayer={targetLayerForAdd}
