@@ -17,14 +17,18 @@ import {
   worldFormValuesFromWizardDraft,
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
-import { hasWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { entryPathNeedsProposalStep } from "@/lib/studio-asset-wizard-flow";
 import {
   getClientImagePreprocessOptionsForRole,
   preprocessImageFile,
 } from "@/lib/image-preprocess";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
-import { recordWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
+import {
+  applyWizardSourceSelection,
+  clearWizardSourceReference,
+  hasWizardSourceReference,
+  resolveWizardSourceReference,
+} from "@/lib/studio-asset-wizard-source-reference";
 import { buildLocationReadinessView } from "@/lib/studio-location-readiness";
 import { buildPropReadinessView } from "@/lib/studio-prop-readiness";
 import { buildWorldReadinessView } from "@/lib/studio-world-readiness";
@@ -83,11 +87,17 @@ export function StudioAssetWizardInputStep({
         const uploaded = await postWizardImageUpload(formData);
         onDraftChange((d) => ({
           ...d,
-          ...recordWizardSourceReference({
-            imageUrl: uploaded.workingImageUrl,
-            storageKey: uploaded.workingStorageKey,
-            name: file.name.replace(/\.[^.]+$/, ""),
-          }),
+          ...applyWizardSourceSelection(
+            {
+              sourceType: "upload",
+              sourceKind: d.kind,
+              assetId: null,
+              assetName: file.name.replace(/\.[^.]+$/, ""),
+              referenceImageUrl: uploaded.workingImageUrl,
+              referenceStorageKey: uploaded.workingStorageKey,
+            },
+            d
+          ),
           referenceImageUrl:
             path === "image_only" || path === "image_and_prompt" ? "" : uploaded.workingImageUrl,
           referenceStorageKey:
@@ -100,10 +110,16 @@ export function StudioAssetWizardInputStep({
         );
       } finally {
         setUploading(false);
+        if (fileRef.current) {
+          fileRef.current.value = "";
+        }
       }
     },
-    [onDraftChange, t]
+    [onDraftChange, path, t]
   );
+
+  const hasSource = hasWizardSourceReference(draft);
+  const resolvedSource = resolveWizardSourceReference(draft);
 
   return (
     <div className="space-y-4">
@@ -147,17 +163,47 @@ export function StudioAssetWizardInputStep({
               }
             }}
           />
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            className="min-h-[44px] rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold"
-          >
-            {uploading ? t("button.loading") : t("studio.assetCreation.input.uploadImage")}
-          </button>
-          {draft.sourceReferenceImageUrl || draft.referenceImageUrl ?
-            <p className="text-xs text-emerald-800">{t("studio.assetCreation.input.imageReady")}</p>
-          : null}
+          {hasSource && resolvedSource ?
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm">
+              <p className="font-semibold text-emerald-800">
+                {resolvedSource.sourceReferenceName} — {t("studio.assetDerivation.source.selected")}
+              </p>
+              {resolvedSource.sourceReferenceImageUrl ?
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={resolvedSource.sourceReferenceImageUrl}
+                  alt=""
+                  className="mt-3 max-h-40 w-full rounded-lg object-contain"
+                />
+              : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                  className="min-h-[44px] rounded-xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-[#0067B1] disabled:opacity-50"
+                >
+                  {uploading ? t("button.loading") : t("studio.assetDerivation.source.newUpload")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDraftChange(clearWizardSourceReference())}
+                  className="min-h-[44px] rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700"
+                >
+                  {t("studio.assetDerivation.source.remove")}
+                </button>
+              </div>
+            </div>
+          : (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="min-h-[44px] rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold"
+            >
+              {uploading ? t("button.loading") : t("studio.assetCreation.input.uploadImage")}
+            </button>
+          )}
           {uploadError ?
             <p className="text-xs text-red-700">{uploadError}</p>
           : null}

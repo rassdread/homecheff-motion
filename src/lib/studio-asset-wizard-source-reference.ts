@@ -1,4 +1,5 @@
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import type { AssetDerivationSource } from "@/types/studio-asset-derivation";
 
 export type WizardSourceReference = {
   sourceReferenceImageUrl: string;
@@ -69,6 +70,57 @@ export function hasWizardSourceReference(draft: AssetWizardDraft): boolean {
     return true;
   }
   return Boolean(draft.derivationSource?.assetId);
+}
+
+/** Drop the current style-base source and all vision/generation derived from it. */
+export function clearWizardSourceReference(): Partial<AssetWizardDraft> {
+  return {
+    sourceReferenceImageUrl: "",
+    sourceReferenceStorageKey: "",
+    sourceReferenceName: "",
+    derivationSource: null,
+    sourceVisionAnalysis: null,
+    sourceVisionAnalysisStatus: "idle",
+    sourceVisionAnalysisError: "",
+    derivationStyleDna: null,
+    derivationStyleDnaStatus: "idle",
+    derivationStyleDnaError: "",
+    variantFidelityScore: null,
+    variantFidelityStatus: "idle",
+    variantRegenerationStrict: false,
+    referenceGenerationStatus: "idle",
+    referenceGenerationError: "",
+    referenceGenerationId: "",
+    generatedReferencePreviewUrl: "",
+    generatedReferenceStorageKey: "",
+    referenceGenerationPrompt: "",
+    referenceImageUrl: "",
+    referenceStorageKey: "",
+    derivationAccepted: false,
+  };
+}
+
+/** Replace the wizard source image and reset downstream analysis/generation from the prior source. */
+export function applyWizardSourceSelection(
+  source: AssetDerivationSource,
+  draft: AssetWizardDraft
+): Partial<AssetWizardDraft> {
+  return {
+    ...clearWizardSourceReference(),
+    derivationSource: source,
+    ...recordWizardSourceReference({
+      imageUrl: source.referenceImageUrl,
+      storageKey: source.referenceStorageKey,
+      name: source.assetName,
+    }),
+    ...clearWizardGeneratedReferenceOutput({
+      ...draft,
+      referenceMode: draft.referenceMode ?? "generate",
+    }),
+    name: draft.name || `${source.assetName} variant`,
+    summaryPrompt: draft.derivationFlow ? "" : draft.summaryPrompt,
+    referenceMode: draft.referenceMode ?? "generate",
+  };
 }
 
 /** Clear generated output fields only — keep sourceReference intact. */

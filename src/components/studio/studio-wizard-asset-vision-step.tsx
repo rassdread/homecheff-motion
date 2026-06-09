@@ -9,6 +9,7 @@ import {
   visionAnalysisLoadingPatch,
 } from "@/lib/studio-asset-vision-trigger";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { resolveWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -104,6 +105,12 @@ export function StudioWizardAssetVisionStep({ kind, draft, onDraftChange }: Prop
   const t = useActiveTranslator();
   const jobIdRef = useRef(draft.referenceGenerationId || crypto.randomUUID());
   const startedRef = useRef(false);
+  const sourceImageUrl = resolveWizardSourceReference(draft)?.sourceReferenceImageUrl ?? "";
+
+  useEffect(() => {
+    startedRef.current = false;
+    jobIdRef.current = crypto.randomUUID();
+  }, [sourceImageUrl]);
 
   const runAnalysis = useCallback(async () => {
     onDraftChange({

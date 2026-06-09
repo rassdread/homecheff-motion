@@ -4,7 +4,12 @@ import { buildAssetReferenceGenerationPrompt } from "@/lib/studio-asset-referenc
 import { buildSourceTransformChoiceDef } from "@/lib/studio-asset-transformation-options";
 import { emptyAssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { wizardStepSequenceForDraft } from "@/lib/studio-asset-wizard-flow";
-import { recordWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
+import {
+  applyWizardSourceSelection,
+  clearWizardSourceReference,
+  hasWizardSourceReference,
+  recordWizardSourceReference,
+} from "@/lib/studio-asset-wizard-source-reference";
 import {
   auditSourceReferenceFlows,
   buildSourceTransformSummaryPrompt,
@@ -220,6 +225,116 @@ describe("studio-asset-wizard-source-flow", () => {
     assert.ok(buildSourceTransformChoiceDef("prop", []));
     assert.ok(buildSourceTransformChoiceDef("location", []));
     assert.equal(buildSourceTransformChoiceDef("world", []), null);
+  });
+
+  it("clearWizardSourceReference drops source and vision without losing wizard kind/name", () => {
+    let draft = draftWithSource("derive_from_reference");
+    draft.name = "Chef variant";
+    draft.sourceVisionAnalysisStatus = "ready";
+    draft.derivationStyleDnaStatus = "ready";
+    draft = { ...draft, ...clearWizardSourceReference() };
+    assert.equal(hasWizardSourceReference(draft), false);
+    assert.equal(draft.kind, "character");
+    assert.equal(draft.name, "Chef variant");
+    assert.equal(draft.sourceVisionAnalysisStatus, "idle");
+    assert.equal(draft.derivationStyleDnaStatus, "idle");
+  });
+
+  it("applyWizardSourceSelection replaces stale vision from a prior library asset", () => {
+    let draft = emptyDerivationWizardDraft("character");
+    draft = {
+      ...draft,
+      ...applyWizardSourceSelection(
+        {
+          sourceType: "library_asset",
+          sourceKind: "character",
+          assetId: "asset-a",
+          assetName: "Globe Man",
+          referenceImageUrl: "https://example.com/globe-a.png",
+          referenceStorageKey: "uploads/globe-a.png",
+        },
+        draft
+      ),
+    };
+    draft.sourceVisionAnalysisStatus = "ready";
+    draft.sourceVisionAnalysis = {
+      objectType: "mascot",
+      objectTypeLabel: "Mascot",
+      visualStyle: "flat",
+      colors: [],
+      shapeLanguage: [],
+      keyFeatures: [],
+      brandIdentity: "Globe Man",
+      materialHints: "",
+      environmentHints: "",
+      suggestedPreserve: [],
+      suggestedChange: [],
+      suggestedForbidden: [],
+      confidence: 0.9,
+      safetyNotes: [],
+      assetFamily: "",
+      characterLineage: "",
+      brandRecognitionConfidence: 0.9,
+      identityFingerprint: { fingerprintHash: "old-hash" },
+    };
+
+    draft = {
+      ...draft,
+      ...applyWizardSourceSelection(
+        {
+          sourceType: "library_asset",
+          sourceKind: "character",
+          assetId: "asset-b",
+          assetName: "Chef Mascot",
+          referenceImageUrl: "https://example.com/chef-b.png",
+          referenceStorageKey: "uploads/chef-b.png",
+        },
+        draft
+      ),
+    };
+
+    assert.equal(draft.derivationSource?.assetId, "asset-b");
+    assert.equal(draft.sourceReferenceImageUrl, "https://example.com/chef-b.png");
+    assert.equal(draft.sourceReferenceName, "Chef Mascot");
+    assert.equal(draft.sourceVisionAnalysisStatus, "idle");
+    assert.equal(draft.sourceVisionAnalysis, null);
+    assert.equal(draft.derivationStyleDnaStatus, "idle");
+    assert.equal(draft.referenceGenerationStatus, "idle");
+  });
+
+  it("library to upload switch clears prior asset id", () => {
+    let draft = emptyDerivationWizardDraft("character");
+    draft = {
+      ...draft,
+      ...applyWizardSourceSelection(
+        {
+          sourceType: "library_asset",
+          sourceKind: "character",
+          assetId: "asset-a",
+          assetName: "Globe Man",
+          referenceImageUrl: "https://example.com/globe.png",
+          referenceStorageKey: "uploads/globe.png",
+        },
+        draft
+      ),
+    };
+    draft = {
+      ...draft,
+      ...applyWizardSourceSelection(
+        {
+          sourceType: "upload",
+          sourceKind: "character",
+          assetId: null,
+          assetName: "new-upload",
+          referenceImageUrl: "https://example.com/new.png",
+          referenceStorageKey: "uploads/new.png",
+        },
+        draft
+      ),
+    };
+    assert.equal(draft.derivationSource?.sourceType, "upload");
+    assert.equal(draft.derivationSource?.assetId, null);
+    assert.equal(draft.sourceReferenceName, "new-upload");
   });
 
   it("audit table marks image paths with generateDirect when source exists", () => {

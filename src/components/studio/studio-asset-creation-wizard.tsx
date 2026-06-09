@@ -49,6 +49,7 @@ import {
 } from "@/lib/studio-asset-wizard-source-flow";
 import { canAdvanceFromTransformPromptStep } from "@/lib/studio-asset-transform-prompt";
 import { canAdvanceFromAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
+import { clearWizardSourceReference } from "@/lib/studio-asset-wizard-source-reference";
 import { writeSkipAssetCreationWizard } from "@/lib/studio-asset-creation-preference";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { resolveWizardChoiceDef } from "@/lib/studio-asset-transformation-options";
@@ -423,12 +424,13 @@ export function StudioAssetCreationWizard({
           draft={activeDraft}
           onDraftChange={updateDraft}
           onChangeSource={() => {
-            const inputIdx = stepSequence.indexOf("input");
+            updateDraft(clearWizardSourceReference());
             const deriveIdx = stepSequence.indexOf("derive_source");
-            if (inputIdx >= 0) {
-              setNavIndex(inputIdx);
-            } else if (deriveIdx >= 0) {
+            const inputIdx = stepSequence.indexOf("input");
+            if (deriveIdx >= 0) {
               setNavIndex(deriveIdx);
+            } else if (inputIdx >= 0) {
+              setNavIndex(inputIdx);
             }
           }}
         />
@@ -486,8 +488,9 @@ export function StudioAssetCreationWizard({
             }
           }}
           onChangeSource={() => {
-            const inputIdx = stepSequence.indexOf("input");
+            updateDraft(clearWizardSourceReference());
             const deriveIdx = stepSequence.indexOf("derive_source");
+            const inputIdx = stepSequence.indexOf("input");
             if (deriveIdx >= 0) {
               setNavIndex(deriveIdx);
             } else if (inputIdx >= 0) {
