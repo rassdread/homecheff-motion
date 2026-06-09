@@ -1,5 +1,6 @@
 import type { EditorSavePayload } from "@/lib/editor-canvas-export";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import { notifyStudioLibraryRefresh } from "@/lib/studio-library-refresh";
 
 const LOCAL_SAVED_KEY = "hc-editor-library-saved-v1";
 
@@ -16,6 +17,8 @@ export type EditorLibraryPersistResult = {
   mode: EditorSaveMode;
   persistedTo: "server" | "local_fallback";
   assetId: string | null;
+  entityKind?: "character" | "prop" | "location" | "upload";
+  libraryHref?: string;
   messageKey: string;
   savedAt: string;
 };
@@ -89,15 +92,23 @@ export async function persistEditorSave(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ mode, payload }),
+      body: JSON.stringify({ mode, payload, sourceKind: document.sourceKind }),
     });
     if (res.ok) {
-      const body = (await res.json()) as { assetId?: string; persistedTo?: string };
+      const body = (await res.json()) as {
+        assetId?: string;
+        persistedTo?: string;
+        entityKind?: EditorLibraryPersistResult["entityKind"];
+        libraryHref?: string;
+      };
+      notifyStudioLibraryRefresh({ assetId: body.assetId, entityKind: body.entityKind });
       return {
         ok: true,
         mode,
         persistedTo: body.persistedTo === "server" ? "server" : "local_fallback",
         assetId: body.assetId ?? payload.sourceAssetId,
+        entityKind: body.entityKind,
+        libraryHref: body.libraryHref,
         messageKey: "editor.review.save.success",
         savedAt: new Date().toISOString(),
       };
@@ -118,10 +129,10 @@ export function resolveEditorSaveMode(
   if (action === "new") {
     return "new_asset";
   }
-  if (action === "edited_copy" || document.sourceAssetId) {
+  if (action === "edited_copy") {
     return "edited_copy";
   }
-  if (action === "canonical" || document.sourceKind === "canonical") {
+  if (action === "canonical") {
     return "canonical_base";
   }
   if (action === "animation_ready") {

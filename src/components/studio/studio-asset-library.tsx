@@ -29,6 +29,7 @@ import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
+import { subscribeStudioLibraryRefresh } from "@/lib/studio-library-refresh";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
 import {
   StudioCanonicalBaseBadge,
@@ -198,6 +199,15 @@ export function StudioAssetLibrary({
       void load();
     });
   }, [session.resolved, session.user, load, storyboardAssets]);
+
+  useEffect(() => {
+    if (storyboardAssets) {
+      return;
+    }
+    return subscribeStudioLibraryRefresh(() => {
+      void load();
+    });
+  }, [load, storyboardAssets]);
 
   const registry = storyboardAssets ?? userRegistry;
   const userId = session.user?.id ?? "";

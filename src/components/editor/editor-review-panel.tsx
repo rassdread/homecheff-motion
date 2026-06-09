@@ -8,6 +8,8 @@ import { useActiveTranslator } from "@/i18n/client";
 import { buildEditorDownloadFilename, markEditorDocumentDraftSaved } from "@/lib/editor-canvas-session";
 import { exportEditorCanvasWithPlacements } from "@/lib/editor-placement-export";
 import { buildEditorReviewSummary } from "@/lib/editor-review";
+import { EditorOutputProfilePanel } from "@/components/editor/editor-output-profile-panel";
+import type { ProductionOutputProfileId } from "@/lib/production-output-profiles";
 import { persistEditorSave, resolveEditorSaveMode } from "@/lib/editor-library-persist";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -18,11 +20,19 @@ type Props = {
   onDiscard: () => void;
 };
 
+function resultLibraryHref(document: EditorCanvasDocument): string {
+  if (document.sourceAssetId) {
+    return `/library/creative/characters/${encodeURIComponent(document.sourceAssetId)}`;
+  }
+  return "/library";
+}
+
 export function EditorReviewPanel({ document, onContinueEditing, onSaved, onDiscard }: Props) {
   const t = useActiveTranslator();
   const summary = useMemo(() => buildEditorReviewSummary(document), [document]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [outputProfile, setOutputProfile] = useState<ProductionOutputProfileId>("animation_ready");
 
   const handleDownload = async () => {
     setBusy("download");
@@ -50,8 +60,9 @@ export function EditorReviewPanel({ document, onContinueEditing, onSaved, onDisc
     const result = await persistEditorSave(document, summary.payload, mode);
     const saved = markEditorDocumentDraftSaved({
       ...document,
+      sourceAssetId: result.assetId ?? document.sourceAssetId,
       workflowStep: "save_asset",
-      status: action === "draft" ? "draft_saved" : "draft_saved",
+      status: "draft_saved",
     });
     onSaved(saved);
     setMessage(t(result.messageKey as never));
@@ -117,6 +128,10 @@ export function EditorReviewPanel({ document, onContinueEditing, onSaved, onDisc
           ))}
         </ul>
       : null}
+
+      <div className="mt-4">
+        <EditorOutputProfilePanel value={outputProfile} onChange={setOutputProfile} />
+      </div>
 
       {message ?
         <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</p>
@@ -199,7 +214,7 @@ export function EditorReviewPanel({ document, onContinueEditing, onSaved, onDisc
         >
           {t("editor.review.discard")}
         </button>
-        <Link href="/library" className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900">
+        <Link href={resultLibraryHref(document)} className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900">
           {t("editor.review.openLibrary")}
         </Link>
       </div>
