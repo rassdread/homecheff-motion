@@ -9,6 +9,7 @@ import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-botto
 import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-placement-properties-panel";
 import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-panel";
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
+import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
@@ -61,6 +62,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [customTarget, setCustomTarget] = useState(false);
   const [mobileSheet, setMobileSheet] = useState<"target" | "properties" | "add" | null>(null);
   const [replacePlacementId, setReplacePlacementId] = useState<string | null>(null);
+  const [showReview, setShowReview] = useState(false);
 
   const selectedLayer = useMemo(
     () => document.objects.find((o) => o.id === selectedLayerId) ?? null,
@@ -297,21 +299,52 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             </button>
           </div>
 
-          <EditorToolbar onBack={onBack} onDownload={() => void handleDownload()} onSaveDraft={handleSaveDraft} saving={saving} />
+          <EditorToolbar
+            onBack={onBack}
+            onDownload={() => void handleDownload()}
+            onSaveDraft={handleSaveDraft}
+            onReview={() => {
+              persist({ ...document, workflowStep: "review" });
+              setShowReview(true);
+            }}
+            saving={saving}
+          />
 
-          {saveMessage ?
+          {showReview ?
+            <div className="mt-4">
+              <EditorReviewPanel
+                document={document}
+                onContinueEditing={() => {
+                  setShowReview(false);
+                  persist({ ...document, workflowStep: "visual_editor" });
+                }}
+                onSaved={(saved) => {
+                  persist(saved);
+                  setSaveMessage(t("editor.review.save.success"));
+                }}
+                onDiscard={() => {
+                  if (window.confirm(t("editor.review.discardConfirm"))) {
+                    onBack();
+                  }
+                }}
+              />
+            </div>
+          : null}
+
+          {!showReview && saveMessage ?
             <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
               {saveMessage}
             </p>
           : null}
 
-          {compositionPreview.length > 0 ?
+          {!showReview && compositionPreview.length > 0 ?
             <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700">
               {compositionPreview.join("\n")}
             </pre>
           : null}
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_280px]">
+          {!showReview ?
+            <div className="mt-4 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)_280px]">
             <div className="order-2 hidden lg:block lg:order-1">
               <EditorLayerTree
                 layers={document.objects}
@@ -371,10 +404,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               {propertiesPanel}
             </div>
           </div>
+          : null}
 
-          <EditorPlacementQaPanel document={document} />
+          {!showReview ?
+            <EditorPlacementQaPanel document={document} />
+          : null}
 
-          {(showAddPlacement || replacePlacementId) ?
+          {!showReview && (showAddPlacement || replacePlacementId) ?
             <div className="mt-4 hidden rounded-2xl border border-zinc-200 bg-white p-4 lg:block">
               <EditorAddPlacementPanel
                 targetLayer={targetLayerForAdd}

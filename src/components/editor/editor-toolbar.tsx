@@ -7,10 +7,11 @@ type Props = {
   onSaveDraft: () => void;
   onDownload: () => void;
   onBack: () => void;
+  onReview?: () => void;
   saving?: boolean;
 };
 
-export function EditorToolbar({ onSaveDraft, onDownload, onBack, saving = false }: Props) {
+export function EditorToolbar({ onSaveDraft, onDownload, onBack, onReview, saving = false }: Props) {
   const t = useActiveTranslator();
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
@@ -22,6 +23,15 @@ export function EditorToolbar({ onSaveDraft, onDownload, onBack, saving = false 
         {t("editor.canvas.back")}
       </button>
       <div className="flex flex-wrap gap-2">
+        {onReview ?
+          <button
+            type="button"
+            onClick={onReview}
+            className="min-h-[40px] rounded-full border border-[#0067B1]/30 bg-[#0067B1]/5 px-4 text-sm font-semibold text-[#0067B1]"
+          >
+            {t("editor.review.openReview")}
+          </button>
+        : null}
         <button
           type="button"
           onClick={onDownload}
