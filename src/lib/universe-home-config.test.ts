@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  UNIVERSE_ORBIT_RADIUS_PERCENT,
   UNIVERSE_PIPELINE,
   UNIVERSE_PLANETS,
   UNIVERSE_QUICK_ACTIONS,
+  UNIVERSE_WELCOME_KEYS,
   resolveUniverseOrbitPosition,
   resolveUniversePipelineHighlight,
   resolveUniversePipelineSegmentActive,
+  resolveUniverseWelcomeMessages,
   resolveUniverseWelcomeName,
 } from "@/lib/universe-home-config";
 
@@ -47,9 +50,21 @@ describe("universe home config", () => {
 
   it("orbit positions stay within canvas bounds", () => {
     for (const planet of UNIVERSE_PLANETS) {
-      const pos = resolveUniverseOrbitPosition(planet.orbitAngle, 22);
-      assert.ok(pos.x >= 20 && pos.x <= 80);
-      assert.ok(pos.y >= 20 && pos.y <= 80);
+      const pos = resolveUniverseOrbitPosition(planet.orbitAngle, UNIVERSE_ORBIT_RADIUS_PERCENT);
+      assert.ok(pos.x >= 18 && pos.x <= 82);
+      assert.ok(pos.y >= 18 && pos.y <= 82);
+    }
+  });
+
+  it("welcome messages include personalized line when email present", () => {
+    const msgs = resolveUniverseWelcomeMessages("sergio@homecheff.eu");
+    assert.equal(msgs[0], "universe.welcome.back");
+    assert.ok(UNIVERSE_WELCOME_KEYS.every((k) => msgs.includes(k)));
+  });
+
+  it("each planet defines preview metrics", () => {
+    for (const planet of UNIVERSE_PLANETS) {
+      assert.equal(planet.metricsKeys.length, 3);
     }
   });
 

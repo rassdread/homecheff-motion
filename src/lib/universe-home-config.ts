@@ -8,6 +8,15 @@ export const UNIVERSE_BRAND = {
   teal: "#0a4d5c",
 } as const;
 
+/** Planet orbit radius as % from center — tuned for hero globe scale */
+export const UNIVERSE_ORBIT_RADIUS_PERCENT = 30;
+
+export const UNIVERSE_WELCOME_KEYS = [
+  "universe.welcome.create",
+  "universe.welcome.ready",
+  "universe.welcome.universe",
+] as const satisfies readonly TranslationKey[];
+
 export type UniversePlanetId = "editor" | "studio" | "motion" | "publish" | "library";
 
 export type UniversePlanetConfig = {
@@ -23,6 +32,7 @@ export type UniversePlanetConfig = {
   actionKey: TranslationKey;
   themeKey: TranslationKey;
   capabilityKeys: TranslationKey[];
+  metricsKeys: [TranslationKey, TranslationKey, TranslationKey];
 };
 
 /** Creative pipeline — Library sits outside the main flow */
@@ -41,10 +51,15 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     themeKey: "universe.planet.editor.theme",
     capabilityKeys: [
       "universe.capability.editor.photoEditing",
-      "universe.capability.editor.characterCreation",
+      "universe.capability.editor.characterDesign",
       "universe.capability.editor.backgroundRemoval",
-      "universe.capability.editor.assetDesign",
       "universe.capability.editor.referencePlacement",
+      "universe.capability.editor.posterDesign",
+    ],
+    metricsKeys: [
+      "universe.preview.metric.assets",
+      "universe.preview.metric.edits",
+      "universe.preview.metric.exports",
     ],
   },
   {
@@ -65,6 +80,11 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
       "universe.capability.studio.directorAi",
       "universe.capability.studio.voicePlanning",
     ],
+    metricsKeys: [
+      "universe.preview.metric.stories",
+      "universe.preview.metric.scenes",
+      "universe.preview.metric.worlds",
+    ],
   },
   {
     id: "motion",
@@ -80,8 +100,13 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
       "universe.capability.motion.photoToVideo",
       "universe.capability.motion.characterAnimation",
       "universe.capability.motion.cameraMotion",
-      "universe.capability.motion.sceneMotion",
       "universe.capability.motion.lipSync",
+      "universe.capability.motion.effects",
+    ],
+    metricsKeys: [
+      "universe.preview.metric.projects",
+      "universe.preview.metric.videos",
+      "universe.preview.metric.exports",
     ],
   },
   {
@@ -100,6 +125,11 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
       "universe.capability.publish.branding",
       "universe.capability.publish.cta",
       "universe.capability.publish.socialExport",
+    ],
+    metricsKeys: [
+      "universe.preview.metric.drafts",
+      "universe.preview.metric.renders",
+      "universe.preview.metric.exports",
     ],
   },
   {
@@ -120,8 +150,23 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
       "universe.capability.library.videos",
       "universe.capability.library.audio",
     ],
+    metricsKeys: [
+      "universe.preview.metric.uploads",
+      "universe.preview.metric.generated",
+      "universe.preview.metric.collections",
+    ],
   },
 ];
+
+export function resolveUniverseWelcomeMessages(
+  email: string | undefined
+): TranslationKey[] {
+  const name = resolveUniverseWelcomeName(email);
+  if (name) {
+    return ["universe.welcome.back", ...UNIVERSE_WELCOME_KEYS];
+  }
+  return [...UNIVERSE_WELCOME_KEYS];
+}
 
 export type UniverseQuickActionId =
   | "createCharacter"

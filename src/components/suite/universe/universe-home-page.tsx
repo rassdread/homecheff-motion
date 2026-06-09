@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
+import { UniverseDynamicWelcome } from "@/components/suite/universe/universe-dynamic-welcome";
+import { UniverseEcosystemStory } from "@/components/suite/universe/universe-ecosystem-story";
 import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
 import { UniverseOrbitSystem } from "@/components/suite/universe/universe-orbit-system";
 import { UniverseQuickActions } from "@/components/suite/universe/universe-quick-actions";
@@ -10,27 +12,26 @@ import { UniverseTunnelOverlay } from "@/components/suite/universe/universe-tunn
 import { useAuthActionHref } from "@/hooks/use-auth-action-href";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useUniverseParallax } from "@/hooks/use-universe-parallax";
 import { useActiveTranslator } from "@/i18n/client";
-import {
-  resolveUniverseWelcomeName,
-  type UniversePlanetConfig,
-  type UniversePlanetId,
-} from "@/lib/universe-home-config";
+import type { UniversePlanetConfig, UniversePlanetId } from "@/lib/universe-home-config";
 import "./universe-home.css";
 
-const TUNNEL_DURATION_MS = 680;
+const TUNNEL_DURATION_MS = 820;
 
 export function UniverseHomePage() {
   const t = useActiveTranslator();
   const router = useRouter();
   const session = useAuthSession();
   const reducedMotion = useReducedMotion();
+  const parallax = useUniverseParallax(!reducedMotion);
 
   const editorHref = useAuthActionHref("/editor");
   const studioHref = useAuthActionHref("/studio");
   const motionHref = useAuthActionHref("/animate/instant");
   const publishHref = useAuthActionHref("/publish");
   const libraryHref = useAuthActionHref("/library");
+  const storyHref = useAuthActionHref("/studio/storyboards/new");
 
   const planetHrefs = useMemo<Record<UniversePlanetId, string>>(
     () => ({
@@ -43,7 +44,6 @@ export function UniverseHomePage() {
     [editorHref, studioHref, motionHref, publishHref, libraryHref]
   );
 
-  const storyHref = useAuthActionHref("/studio/storyboards/new");
   const quickHrefs = useMemo(
     () => ({
       createCharacter: editorHref,
@@ -58,11 +58,6 @@ export function UniverseHomePage() {
   const [hoveredPlanet, setHoveredPlanet] = useState<UniversePlanetId | null>(null);
   const [focusedPlanet, setFocusedPlanet] = useState<UniversePlanetId | null>(null);
   const [tunnelPlanet, setTunnelPlanet] = useState<UniversePlanetConfig | null>(null);
-
-  const welcomeName = resolveUniverseWelcomeName(session.user?.email);
-  const welcomeLine = welcomeName
-    ? t("universe.welcome.back", { name: welcomeName })
-    : t("universe.welcome.create");
 
   const navigateWithTunnel = useCallback(
     (href: string, planet?: UniversePlanetConfig) => {
@@ -93,40 +88,33 @@ export function UniverseHomePage() {
   );
 
   useEffect(() => {
-    return () => {
-      setTunnelPlanet(null);
-    };
+    return () => setTunnelPlanet(null);
   }, []);
 
   return (
-    <main className="universe-animate relative flex min-h-[calc(100dvh-4rem)] flex-1 flex-col overflow-hidden text-white">
-      <UniverseBackground reducedMotion={reducedMotion} />
+    <main className="universe-animate relative flex min-h-[calc(100dvh-4rem)] flex-1 flex-col overflow-x-hidden overflow-y-auto text-white">
+      <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
-      <div className="relative z-10 flex flex-1 flex-col items-center px-4 pb-10 pt-8 sm:px-6 sm:pt-10">
-        <header className="mb-6 text-center sm:mb-8">
-          <p
-            className="text-sm font-medium tracking-wide text-white/70 sm:text-base"
-            style={{ animation: reducedMotion ? undefined : "universe-float 8s ease-in-out infinite" }}
-          >
-            {welcomeLine}
-          </p>
-          <h1 className="sr-only">{t("universe.title")}</h1>
-          <p className="mt-2 text-xs text-white/40 sm:text-sm">{t("universe.subtitle")}</p>
-        </header>
+      <div className="relative z-10 flex flex-col items-center px-2 pb-8 pt-4 sm:px-4 sm:pt-6">
+        <UniverseDynamicWelcome email={session.user?.email} reducedMotion={reducedMotion} />
+        <p className="mb-2 text-center text-[11px] tracking-wide text-white/35 sm:text-xs">
+          {t("universe.subtitle")}
+        </p>
 
-        <div className="hidden w-full flex-1 md:block">
+        <div className="hidden w-full md:block">
           <UniverseOrbitSystem
             hrefs={planetHrefs}
             hoveredPlanet={hoveredPlanet}
             focusedPlanet={focusedPlanet}
             reducedMotion={reducedMotion}
+            parallax={parallax}
             onHover={setHoveredPlanet}
             onFocus={setFocusedPlanet}
             onSelect={handlePlanetSelect}
           />
         </div>
 
-        <div className="w-full flex-1 md:hidden">
+        <div className="w-full md:hidden">
           <UniverseMobileStack
             hrefs={planetHrefs}
             hoveredPlanet={hoveredPlanet}
@@ -138,9 +126,11 @@ export function UniverseHomePage() {
           />
         </div>
 
-        <div className="mt-8 w-full sm:mt-10">
+        <div className="mt-6 w-full sm:mt-8">
           <UniverseQuickActions hrefs={quickHrefs} onNavigate={handleQuickNavigate} />
         </div>
+
+        <UniverseEcosystemStory reducedMotion={reducedMotion} />
       </div>
 
       {tunnelPlanet && (

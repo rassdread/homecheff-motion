@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import type { UniverseParallaxOffset } from "@/hooks/use-universe-parallax";
 import { UNIVERSE_BRAND } from "@/lib/universe-home-config";
 
 type UniverseBackgroundProps = {
   reducedMotion?: boolean;
+  parallax?: UniverseParallaxOffset;
 };
 
 type Particle = {
@@ -14,58 +16,90 @@ type Particle = {
   size: number;
   delay: string;
   duration: string;
+  layer: "far" | "mid" | "near";
 };
 
-export function UniverseBackground({ reducedMotion = false }: UniverseBackgroundProps) {
+export function UniverseBackground({ reducedMotion = false, parallax }: UniverseBackgroundProps) {
   const particles = useMemo<Particle[]>(() => {
-    return Array.from({ length: 36 }, (_, i) => ({
+    return Array.from({ length: 52 }, (_, i) => ({
       id: i,
-      left: `${8 + ((i * 17) % 84)}%`,
-      top: `${6 + ((i * 23) % 88)}%`,
-      size: 1 + (i % 3),
-      delay: `${(i * 0.37) % 5}s`,
-      duration: `${6 + (i % 5) * 1.4}s`,
+      left: `${4 + ((i * 19) % 92)}%`,
+      top: `${3 + ((i * 27) % 94)}%`,
+      size: 1 + (i % 4),
+      delay: `${(i * 0.31) % 6}s`,
+      duration: `${5 + (i % 6) * 1.2}s`,
+      layer: i % 3 === 0 ? "far" : i % 3 === 1 ? "mid" : "near",
     }));
   }, []);
 
+  const px = parallax?.x ?? 0;
+  const py = parallax?.y ?? 0;
+
   return (
-    <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      aria-hidden
-    >
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      {/* Base gradient */}
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(ellipse 120% 80% at 50% 20%, ${UNIVERSE_BRAND.blue}55 0%, transparent 55%),
-            radial-gradient(ellipse 90% 70% at 80% 80%, ${UNIVERSE_BRAND.green}33 0%, transparent 50%),
-            linear-gradient(165deg, ${UNIVERSE_BRAND.deepBlue} 0%, #062a4a 28%, #0a3d52 58%, ${UNIVERSE_BRAND.green}22 100%)`,
+          background: `linear-gradient(168deg, ${UNIVERSE_BRAND.deepBlue} 0%, #052038 22%, #073552 48%, #0a4a58 72%, ${UNIVERSE_BRAND.green}18 100%)`,
         }}
       />
+
+      {/* Far nebula layer */}
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0 opacity-70"
         style={{
-          background: `radial-gradient(circle at 50% 45%, transparent 0%, ${UNIVERSE_BRAND.deepBlue}cc 72%)`,
+          transform: `translate3d(${px * 4}px, ${py * 3}px, 0)`,
+          background: `radial-gradient(ellipse 80% 50% at 30% 25%, ${UNIVERSE_BRAND.blue}44 0%, transparent 55%),
+            radial-gradient(ellipse 60% 45% at 75% 70%, ${UNIVERSE_BRAND.green}28 0%, transparent 50%)`,
         }}
       />
+
+      {/* Mid atmosphere */}
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate3d(${px * 8}px, ${py * 6}px, 0)`,
+          background: `radial-gradient(circle at 50% 42%, transparent 0%, ${UNIVERSE_BRAND.deepBlue}99 68%)`,
+        }}
+      />
+
+      {/* Star + dust particles */}
       {!reducedMotion &&
-        particles.map((p) => (
-          <span
-            key={p.id}
-            className="absolute rounded-full bg-white/30"
-            style={{
-              left: p.left,
-              top: p.top,
-              width: p.size,
-              height: p.size,
-              animation: `universe-particle-drift ${p.duration} ease-in-out ${p.delay} infinite`,
-              willChange: "transform, opacity",
-            }}
-          />
-        ))}
+        particles.map((p) => {
+          const mult = p.layer === "far" ? 2 : p.layer === "mid" ? 6 : 12;
+          return (
+            <span
+              key={p.id}
+              className="absolute rounded-full"
+              style={{
+                left: p.left,
+                top: p.top,
+                width: p.size,
+                height: p.size,
+                background:
+                  p.layer === "near" ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)",
+                transform: `translate3d(${px * mult}px, ${py * mult * 0.7}px, 0)`,
+                animation: `universe-particle-drift ${p.duration} ease-in-out ${p.delay} infinite`,
+                willChange: "transform, opacity",
+              }}
+            />
+          );
+        })}
+
+      {/* Foreground light dust */}
       <div
-        className="absolute inset-x-0 bottom-0 h-1/3"
+        className="absolute inset-0 opacity-30"
         style={{
-          background: `linear-gradient(to top, ${UNIVERSE_BRAND.deepBlue}ee, transparent)`,
+          transform: `translate3d(${px * 14}px, ${py * 10}px, 0)`,
+          background: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 55%)`,
+        }}
+      />
+
+      <div
+        className="absolute inset-x-0 bottom-0 h-2/5"
+        style={{
+          background: `linear-gradient(to top, ${UNIVERSE_BRAND.deepBlue}f5, transparent)`,
         }}
       />
     </div>

@@ -3,7 +3,9 @@
 import type { CSSProperties } from "react";
 import type { UniversePlanetConfig } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
-import { UniversePlanetIcon } from "@/components/suite/universe/universe-planet-icon";
+import { UniversePlanetPreview } from "@/components/suite/universe/universe-planet-preview";
+import { UniversePlanetSatellites } from "@/components/suite/universe/universe-planet-satellites";
+import { UniversePlanetWorld } from "@/components/suite/universe/universe-planet-world";
 
 type UniversePlanetProps = {
   planet: UniversePlanetConfig;
@@ -32,30 +34,22 @@ export function UniversePlanet({
 }: UniversePlanetProps) {
   const t = useActiveTranslator();
   const active = hovered || focused;
-  const accentBg = planet.accentSecondary
-    ? `linear-gradient(135deg, ${planet.accent}cc, ${planet.accentSecondary}aa)`
-    : `linear-gradient(135deg, ${planet.accent}dd, ${planet.accent}88)`;
 
-  const sizeClass = variant === "orbit" ? "h-[72px] w-[72px] sm:h-[80px] sm:w-[80px]" : "h-16 w-16";
+  const sizeClass =
+    variant === "orbit" ? "h-[100px] w-[100px] sm:h-[110px] sm:w-[110px]" : "h-[88px] w-[88px]";
+
+  const sphereBg = planet.accentSecondary
+    ? `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35) 0%, transparent 40%),
+       radial-gradient(circle at 65% 75%, ${planet.accentSecondary}aa 0%, ${planet.accent}cc 45%, #041428 85%)`
+    : `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35) 0%, transparent 40%),
+       radial-gradient(circle at 65% 75%, ${planet.accent}cc 0%, #041428 85%)`;
+
+  const previewPlacement =
+    planet.orbitAngle > 90 && planet.orbitAngle < 270 ? "side" : "below";
 
   return (
     <div className="group relative flex flex-col items-center" style={style}>
-      {!reducedMotion &&
-        planet.capabilityKeys.slice(0, 4).map((key, i) => (
-          <span
-            key={key}
-            className="pointer-events-none absolute left-1/2 top-1/2 -z-10 rounded-full bg-white/25 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100"
-            style={{
-              width: 4,
-              height: 4,
-              animation: active ? `universe-star-orbit ${14 + i * 2}s linear infinite` : undefined,
-              animationDelay: `${i * 0.6}s`,
-              ["--star-radius" as string]: `${38 + i * 10}px`,
-              transformOrigin: "center center",
-            }}
-            aria-hidden
-          />
-        ))}
+      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
 
       <button
         type="button"
@@ -64,42 +58,58 @@ export function UniversePlanet({
         onMouseLeave={() => onHover(null)}
         onFocus={() => onFocus(planet.id)}
         onBlur={() => onFocus(null)}
-        className={`relative flex ${sizeClass} items-center justify-center rounded-full border border-white/25 text-white shadow-lg outline-none transition-transform duration-300 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${
-          active ? "scale-110" : "scale-100 hover:scale-105"
+        className={`relative ${sizeClass} rounded-full outline-none transition-transform duration-500 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${
+          active ? "scale-[1.15] z-10" : "scale-100 hover:scale-105"
         }`}
         style={{
-          background: accentBg,
-          boxShadow: active
-            ? `0 0 32px ${planet.accent}88, inset 0 1px 0 rgba(255,255,255,0.25)`
-            : `0 8px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2)`,
           willChange: "transform",
+          boxShadow: active
+            ? `0 0 48px ${planet.accent}99, inset 0 2px 0 rgba(255,255,255,0.25)`
+            : `0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18)`,
         }}
         aria-label={`${t(planet.titleKey)} — ${t(planet.descriptionKey)}`}
       >
-        <UniversePlanetIcon id={planet.id} className="h-6 w-6 sm:h-7 sm:w-7" />
+        <div
+          className="absolute inset-0 overflow-hidden rounded-full border border-white/25"
+          style={{ background: sphereBg }}
+        >
+          <UniversePlanetWorld
+            id={planet.id}
+            active={active}
+            reducedMotion={reducedMotion}
+            accent={planet.accent}
+          />
+        </div>
         {active && (
           <span
-            className="absolute inset-0 rounded-full border border-white/30"
-            style={{ animation: reducedMotion ? undefined : "universe-glow-pulse 2.5s ease-in-out infinite" }}
+            className="absolute -inset-1 rounded-full border border-white/20"
+            style={{
+              animation: reducedMotion ? undefined : "universe-glow-pulse 2.2s ease-in-out infinite",
+            }}
             aria-hidden
           />
         )}
       </button>
 
-      <div
-        className={`pointer-events-none absolute z-20 w-52 rounded-2xl border border-white/15 bg-[#041428]/90 p-3 text-left shadow-2xl backdrop-blur-md transition-all duration-300 ${
-          active ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-        } ${variant === "orbit" ? "top-[calc(100%+10px)]" : "top-[calc(100%+8px)] left-1/2 -translate-x-1/2"}`}
-        role="tooltip"
-        aria-hidden={!active}
-      >
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">
-          {t(planet.themeKey)}
-        </p>
-        <p className="mt-0.5 text-sm font-semibold text-white">{t(planet.titleKey)}</p>
-        <p className="mt-1 text-xs leading-relaxed text-white/70">{t(planet.descriptionKey)}</p>
-        <p className="mt-2 text-[11px] font-medium text-emerald-200/90">{t(planet.actionKey)} →</p>
-      </div>
+      {variant === "orbit" && (
+        <UniversePlanetPreview
+          planet={planet}
+          active={active}
+          onOpen={() => onSelect(planet)}
+          placement={previewPlacement}
+        />
+      )}
+
+      {variant === "card" && active && (
+        <div className="mt-3 w-full">
+          <UniversePlanetPreview
+            planet={planet}
+            active={active}
+            onOpen={() => onSelect(planet)}
+            placement="below"
+          />
+        </div>
+      )}
 
       <span className="sr-only">{href}</span>
     </div>
