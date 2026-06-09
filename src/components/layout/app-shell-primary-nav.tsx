@@ -31,7 +31,15 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: "/studio",
     labelKey: "nav.studio",
-    match: (pathname) => pathname === "/studio" || pathname.startsWith("/studio/"),
+    match: (pathname) =>
+      (pathname === "/studio" || pathname.startsWith("/studio/")) &&
+      !pathname.startsWith("/studio/assets"),
+  },
+  {
+    href: "/studio/assets",
+    labelKey: "nav.assets",
+    match: (pathname) => pathname === "/studio/assets" || pathname.startsWith("/studio/assets/"),
+    authOnly: true,
   },
   {
     href: "/animate/instant",

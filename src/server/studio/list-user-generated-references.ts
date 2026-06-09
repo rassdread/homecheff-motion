@@ -1,5 +1,6 @@
 import { resolvePublicBlobUrlByPathname } from "@/lib/vercel-blob-config";
 import { prisma } from "@/lib/prisma";
+import { filterManifestGeneratedRefs } from "@/server/studio/studio-asset-lifecycle-service";
 import { listUserGeneratedReferenceManifest } from "@/server/studio/studio-user-generated-reference-manifest-blob";
 import type { GeneratedReferenceHistoryItem } from "@/types/studio-asset-library-preferences";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -71,6 +72,11 @@ function toHistoryItem(params: {
   origin: "generated" | "derived";
   costEventId?: string;
   provider?: string | null;
+  hideFromLibrary?: boolean;
+  hiddenAt?: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
+  lifecycleStatus?: import("@/types/studio-asset-lifecycle").AssetLifecycleManifestStatus;
 }): GeneratedReferenceHistoryItem {
   return {
     generationId: params.generationId,
@@ -85,6 +91,11 @@ function toHistoryItem(params: {
     origin: params.origin,
     costEventId: params.costEventId ?? params.generationId,
     provider: params.provider ?? null,
+    hideFromLibrary: params.hideFromLibrary,
+    hiddenAt: params.hiddenAt,
+    archivedAt: params.archivedAt,
+    deletedAt: params.deletedAt,
+    lifecycleStatus: params.lifecycleStatus,
   };
 }
 
@@ -212,7 +223,7 @@ export async function listUserGeneratedReferences(params: {
 }): Promise<GeneratedReferenceHistoryItem[]> {
   const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
 
-  const manifestRows = await listUserGeneratedReferenceManifest(params.userId);
+  const manifestRows = filterManifestGeneratedRefs(await listUserGeneratedReferenceManifest(params.userId));
   const fromManifest = manifestRows.map((row) =>
     toHistoryItem({
       generationId: row.generationId,
@@ -225,6 +236,11 @@ export async function listUserGeneratedReferences(params: {
       sourceAssetName: row.sourceAssetName,
       sourceAssetId: row.sourceAssetId,
       origin: row.origin,
+      hideFromLibrary: row.hideFromLibrary,
+      hiddenAt: row.hiddenAt,
+      archivedAt: row.archivedAt,
+      deletedAt: row.deletedAt,
+      lifecycleStatus: row.lifecycleStatus,
     })
   );
 

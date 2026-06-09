@@ -50,9 +50,12 @@ const TABS: AssetLibraryTab[] = [
 
 type Props = {
   layout?: "page" | "embedded";
+  hubMode?: boolean;
   storyboardAssets?: StudioAsset[];
   initialTab?: AssetLibraryTab;
   initialCollection?: string;
+  initialOrigin?: AssetLibraryOriginFilter;
+  onRegistryChange?: () => void;
 };
 
 function parseInitialTab(value: string | null): AssetLibraryTab {
@@ -64,9 +67,12 @@ function parseInitialTab(value: string | null): AssetLibraryTab {
 
 export function StudioAssetLibrary({
   layout = "page",
+  hubMode = false,
   storyboardAssets,
   initialTab,
   initialCollection,
+  initialOrigin,
+  onRegistryChange,
 }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
@@ -86,7 +92,7 @@ export function StudioAssetLibrary({
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
   const [collectionId, setCollectionId] = useState(initialCollection ?? "");
-  const [originFilter, setOriginFilter] = useState<AssetLibraryOriginFilter>("all");
+  const [originFilter, setOriginFilter] = useState<AssetLibraryOriginFilter>(initialOrigin ?? "all");
   const [sort, setSort] = useState<AssetLibrarySort>("updated_desc");
   const [viewMode, setViewMode] = useState<AssetLibraryViewMode>("grid");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -146,6 +152,11 @@ export function StudioAssetLibrary({
               sourceAssetId: item.sourceAssetId,
               origin: item.origin,
               ownerId: userId,
+              hideFromLibrary: item.hideFromLibrary,
+              hiddenAt: item.hiddenAt,
+              archivedAt: item.archivedAt,
+              deletedAt: item.deletedAt,
+              lifecycleStatus: item.lifecycleStatus,
             }))
         : [];
 
@@ -232,8 +243,12 @@ export function StudioAssetLibrary({
     <div className={layout === "page" ? "" : "rounded-xl border border-slate-200 bg-slate-50/50 p-4"}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{t("studio.mediaAsset.title")}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
+          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+            {hubMode ? t("studio.assetsHub.browseSection") : t("studio.mediaAsset.title")}
+          </h2>
+          {!hubMode ?
+            <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
+          : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {isAdmin ?
@@ -247,9 +262,14 @@ export function StudioAssetLibrary({
               {t("studio.mediaAsset.showSystemAssets")}
             </label>
           : null}
-          {layout === "page" ?
-            <Link href="/studio" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
-              ← {t("studio.mediaAsset.backToMyStudio")}
+          {layout === "page" && !hubMode ?
+            <Link href="/studio/assets" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+              ← {t("studio.assetsHub.backToHub")}
+            </Link>
+          : null}
+          {layout === "page" && hubMode ?
+            <Link href="/studio/assets/browse" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+              {t("studio.assetsHub.browseAll")}
             </Link>
           : null}
         </div>
@@ -425,8 +445,13 @@ export function StudioAssetLibrary({
             <StudioAssetDetailView
               asset={selected}
               isAdmin={isAdmin}
+              userId={userId}
               onClose={() => setSelectedId(null)}
               onFavoriteChange={handleFavoriteChange}
+              onLifecycleChange={() => {
+                void load();
+                onRegistryChange?.();
+              }}
             />
           : (
             <p className="hidden text-sm text-slate-500 lg:block">{t("studio.mediaAsset.selectHint")}</p>
@@ -436,7 +461,7 @@ export function StudioAssetLibrary({
     </div>
   );
 
-  if (layout === "embedded") {
+  if (layout === "embedded" || hubMode) {
     return inner;
   }
 

@@ -1,3 +1,4 @@
+import { isRegistryAssetHiddenFromLibrary } from "@/lib/studio-asset-registry-lifecycle";
 import type { StudioAssetPickerContext, StudioAssetVisibility, UserLibraryFilterOptions } from "@/types/studio-asset-visibility";
 import type { StudioAsset, StudioAssetCategory } from "@/types/studio-media-asset";
 
@@ -132,6 +133,9 @@ export function filterUserLibraryAssets(
 ): StudioAsset[] {
   const context = options.pickerContext ?? "library_all";
   return assets.filter((asset) => {
+    if (isRegistryAssetHiddenFromLibrary(asset) && !(options.showSystemAssets && options.isAdmin)) {
+      return false;
+    }
     if (!isVisibleInUserLibrary(asset, options)) {
       return false;
     }

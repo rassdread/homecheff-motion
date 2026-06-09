@@ -177,12 +177,12 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
               <AssetCountLink
                 label={t("studio.myStudio.library.favorites")}
                 count={report.libraryCounts.byTab.favorites}
-                href="/studio/assets?filter=favorites"
+                href="/studio/assets/browse?filter=favorites"
               />
               <AssetCountLink
                 label={t("studio.myStudio.library.generated")}
                 count={report.libraryCounts.byTab.generated}
-                href="/studio/assets?tab=generated"
+                href="/studio/assets/library/generated"
               />
               <AssetCountLink
                 label={t("studio.myStudio.library.storyboards")}

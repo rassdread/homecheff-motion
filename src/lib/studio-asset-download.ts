@@ -6,8 +6,15 @@ export function assetDownloadFilename(name: string, url: string): string {
   return `${base}.${ext}`;
 }
 
-export function buildAssetDownloadHref(url: string, filename: string): string {
+export function buildAssetDownloadHref(
+  url: string,
+  filename: string,
+  storageKey?: string | null
+): string {
   const params = new URLSearchParams({ url, filename });
+  if (storageKey?.trim()) {
+    params.set("storageKey", storageKey.trim());
+  }
   return `/api/studio/asset-library/download?${params.toString()}`;
 }
 
@@ -23,8 +30,24 @@ export async function copyAssetLinkToClipboard(url: string): Promise<boolean> {
   }
 }
 
+export function hasDownloadableAsset(asset: {
+  previewUrl?: string | null;
+  downloadUrl?: string | null;
+  category?: string;
+}): boolean {
+  const url = asset.downloadUrl?.trim() || asset.previewUrl?.trim();
+  if (!url) {
+    return false;
+  }
+  if (asset.category === "voice" && asset.downloadUrl?.includes("elevenlabs")) {
+    return false;
+  }
+  return true;
+}
+
+/** @deprecated Use hasDownloadableAsset */
 export function hasDownloadableImage(asset: { previewUrl?: string | null; downloadUrl?: string | null }): boolean {
-  return Boolean(asset.downloadUrl?.trim() || asset.previewUrl?.trim());
+  return hasDownloadableAsset(asset);
 }
 
 export function resolveAssetDownloadUrl(asset: {

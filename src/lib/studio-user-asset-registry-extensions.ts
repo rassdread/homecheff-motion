@@ -41,6 +41,13 @@ export function buildUserUploadRegistryAssets(
       storageKey: upload.storageKey,
       collectionIds: [],
       origin: "uploaded",
+      lifecycle: {
+        hideFromLibrary: upload.hideFromLibrary,
+        hiddenAt: upload.hiddenAt,
+        archivedAt: upload.archivedAt,
+        deletedAt: upload.deletedAt,
+        lifecycleStatus: upload.lifecycleStatus,
+      },
     };
   });
 }

@@ -1,3 +1,5 @@
+import type { AssetLifecycleManifestFields } from "@/types/studio-asset-lifecycle";
+
 /** Blob manifest for wizard-generated reference images (no Prisma migration). */
 
 export type UserGeneratedReferenceRecord = {
@@ -12,7 +14,7 @@ export type UserGeneratedReferenceRecord = {
   sourceAssetName: string | null;
   sourceAssetId: string | null;
   origin: "generated" | "derived";
-};
+} & AssetLifecycleManifestFields;
 
 export type UserGeneratedReferenceManifest = {
   version: 1;

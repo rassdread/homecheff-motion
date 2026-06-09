@@ -310,6 +310,11 @@ export function generatedReferenceToRegistryAsset(item: {
   origin: "generated" | "derived";
   ownerId: string;
   referenceAcceptance?: import("@/types/studio-media-asset").StudioReferenceAcceptance;
+  hideFromLibrary?: boolean;
+  hiddenAt?: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
+  lifecycleStatus?: import("@/types/studio-asset-lifecycle").AssetLifecycleManifestStatus;
 }): StudioAsset {
   const lineage =
     item.sourceAssetName
@@ -343,6 +348,13 @@ export function generatedReferenceToRegistryAsset(item: {
       : item.sourceAssetName
         ? { derivedFromSourceName: item.sourceAssetName }
         : undefined,
+    lifecycle: {
+      hideFromLibrary: item.hideFromLibrary,
+      hiddenAt: item.hiddenAt,
+      archivedAt: item.archivedAt,
+      deletedAt: item.deletedAt,
+      lifecycleStatus: item.lifecycleStatus,
+    },
   };
 }
 

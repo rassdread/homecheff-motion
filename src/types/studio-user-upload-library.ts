@@ -1,3 +1,5 @@
+import type { AssetLifecycleManifestFields } from "@/types/studio-asset-lifecycle";
+
 /** User-uploaded files reusable across Studio flows (blob manifest). */
 
 export type UserLibraryUploadAssetType =
@@ -24,7 +26,7 @@ export type UserLibraryUploadRecord = {
   createdAt: string;
   originContext?: string;
   usedIn?: string[];
-};
+} & AssetLifecycleManifestFields;
 
 export type UserLibraryUploadManifest = {
   version: 1;

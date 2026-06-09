@@ -31,6 +31,8 @@ export type AssetLibraryPreferencesManifest = {
   recentVoices: VoiceLibraryRecent[];
 };
 
+import type { AssetLifecycleManifestFields } from "@/types/studio-asset-lifecycle";
+
 export type GeneratedReferenceHistoryItem = {
   generationId: string;
   kind: string;
@@ -44,7 +46,7 @@ export type GeneratedReferenceHistoryItem = {
   origin: "generated" | "derived";
   costEventId: string;
   provider: string | null;
-};
+} & AssetLifecycleManifestFields;
 
 export type AssetLibraryPreferencesResponse = {
   favorites: string[];

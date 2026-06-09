@@ -1,3 +1,5 @@
+import type { AssetLifecycleManifestFields } from "@/types/studio-asset-lifecycle";
+
 /** Studio V40 — unified media asset registry. */
 
 export const STUDIO_ASSET_CATEGORIES = [
@@ -62,6 +64,8 @@ export type StudioAsset = {
   referenceAcceptance?: StudioReferenceAcceptance;
   /** Semantic identity continuity snapshot from persisted asset record. */
   semanticContinuity?: StudioAssetSemanticContinuity;
+  /** Blob manifest or entity lifecycle state (hide/archive/delete). */
+  lifecycle?: AssetLifecycleManifestFields;
 };
 
 export type StudioAssetSemanticContinuity = {

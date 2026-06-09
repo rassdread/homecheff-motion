@@ -2,6 +2,7 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import { StudioAssetLibraryActions } from "@/components/studio/studio-asset-library-actions";
+import { StudioAssetLifecycleActions } from "@/components/studio/studio-asset-lifecycle-actions";
 import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
 import type { StudioAsset, StudioAssetUsageEntry } from "@/types/studio-media-asset";
@@ -10,11 +11,21 @@ type Props = {
   asset: StudioAsset;
   usage?: StudioAssetUsageEntry | null;
   isAdmin?: boolean;
+  userId?: string;
   onClose?: () => void;
   onFavoriteChange?: (assetId: string, favorite: boolean) => void;
+  onLifecycleChange?: () => void;
 };
 
-export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavoriteChange }: Props) {
+export function StudioAssetDetailView({
+  asset,
+  usage,
+  isAdmin,
+  userId,
+  onClose,
+  onFavoriteChange,
+  onLifecycleChange,
+}: Props) {
   const t = useActiveTranslator();
   const collections = STUDIO_ASSET_COLLECTIONS.filter((c) => asset.collectionIds.includes(c.id));
 
@@ -195,6 +206,13 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
         isAdmin={isAdmin}
         onFavoriteChange={onFavoriteChange}
       />
+      {userId ?
+        <StudioAssetLifecycleActions
+          asset={asset}
+          userId={userId}
+          onRemoved={onLifecycleChange}
+        />
+      : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { stampUserOwnedRegistryAssets } from "@/lib/studio-asset-registry-visibility";
 import { assignCollectionsToAssets } from "@/lib/studio-media-asset-collections";
 import { buildStudioAssetRegistry } from "@/lib/studio-media-asset-registry";
+import { filterVisibleRegistryAssets } from "@/lib/studio-asset-registry-lifecycle";
 import { filterUserLibraryAssets } from "@/lib/studio-asset-visibility";
 import {
   buildUserAudioLibraryRegistryAssets,
@@ -36,6 +37,11 @@ export function assembleUserStudioAssetRegistry(params: {
     sourceAssetId?: string | null;
     origin: "generated" | "derived";
     ownerId: string;
+    hideFromLibrary?: boolean;
+    hiddenAt?: string | null;
+    archivedAt?: string | null;
+    deletedAt?: string | null;
+    lifecycleStatus?: import("@/types/studio-asset-lifecycle").AssetLifecycleManifestStatus;
   }>;
   userUploads?: UserLibraryUploadRecord[];
   userAudioAssets?: UserAudioLibraryAsset[];
@@ -72,7 +78,13 @@ export function assembleUserStudioAssetRegistry(params: {
     params.userId
   );
 
-  return filterUserLibraryAssets(extended, {
+  const visible = filterVisibleRegistryAssets(extended, {
+    showHidden: params.showSystemAssets,
+    showArchived: params.showSystemAssets,
+    isAdmin: params.isAdmin,
+  });
+
+  return filterUserLibraryAssets(visible, {
     userId: params.userId,
     isAdmin: params.isAdmin,
     showSystemAssets: params.showSystemAssets,

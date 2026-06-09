@@ -41,7 +41,7 @@ export async function readUserGeneratedReferenceManifest(
   }
 }
 
-async function writeManifest(manifest: UserGeneratedReferenceManifest): Promise<void> {
+export async function writeUserGeneratedReferenceManifest(manifest: UserGeneratedReferenceManifest): Promise<void> {
   const pathname = manifestPathname(manifest.ownerId);
   await uploadPublicBlob({
     pathname,
@@ -68,7 +68,7 @@ export async function registerUserGeneratedReference(
     manifest.references.unshift(record);
   }
   manifest.references = manifest.references.slice(0, 200);
-  await writeManifest(manifest);
+  await writeUserGeneratedReferenceManifest(manifest);
   return record;
 }
 

@@ -91,7 +91,11 @@ export function StudioAssetLibraryActions({ asset, isAdmin, onFavoriteChange }: 
     <div className="mt-4 flex flex-wrap gap-2">
       {hasDownloadableImage(asset) && downloadUrl ?
         <a
-          href={buildAssetDownloadHref(downloadUrl, assetDownloadFilename(asset.name, downloadUrl))}
+          href={buildAssetDownloadHref(
+            downloadUrl,
+            assetDownloadFilename(asset.name, downloadUrl),
+            asset.storageKey
+          )}
           className="inline-flex min-h-[44px] items-center rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-4 py-2 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/10"
           onClick={handleOpen}
         >

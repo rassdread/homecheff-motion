@@ -41,7 +41,7 @@ export async function readUserUploadLibraryManifest(
   }
 }
 
-async function writeManifest(manifest: UserLibraryUploadManifest): Promise<void> {
+export async function writeUserUploadLibraryManifest(manifest: UserLibraryUploadManifest): Promise<void> {
   const pathname = manifestPathname(manifest.ownerId);
   await uploadPublicBlob({
     pathname,
@@ -88,7 +88,7 @@ export async function registerUserLibraryUpload(params: {
 
   manifest.uploads.unshift(record);
   manifest.uploads = manifest.uploads.slice(0, 200);
-  await writeManifest(manifest);
+  await writeUserUploadLibraryManifest(manifest);
   return record;
 }
 

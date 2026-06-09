@@ -317,7 +317,7 @@ export async function buildUserStudioDashboard(userId: string): Promise<UserStud
         at: e.createdAt.toISOString(),
         kind: "asset_derived",
         title: "Reference image generated",
-        href: "/studio/assets?tab=generated",
+        href: "/studio/assets/library/generated",
       });
     } else if (feature === "asset_derivation") {
       activity.push({
