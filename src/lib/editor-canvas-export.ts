@@ -1,5 +1,6 @@
-import { buildCompositionGraphFromDraft } from "@/lib/studio-asset-composition-graph";
+import { buildEditorCompositionGraphFromDocument } from "@/lib/editor-composition-graph";
 import { extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
+import { editorPlacementToReferencePlacement } from "@/lib/editor-placement-canvas";
 import type { EditorCanvasDocument, EditorSemanticLayer } from "@/types/homecheff-visual-editor";
 import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import type { CompositionGraphNode } from "@/types/studio-asset-generation-workbench";
@@ -18,25 +19,26 @@ export type EditorSavePayload = {
   editorObjects: EditorCanvasDocument["objects"];
   compositionGraph: CompositionGraphNode[];
   layerOperations: EditorCanvasDocument["layerOperations"];
+  referencePlacements: EditorCanvasDocument["placements"];
+  placementCount: number;
 };
 
 export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSavePayload {
   const editableLayers = document.objects.filter((o) => o.layerType !== "background" && o.visible);
   const semanticLayers = document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
-  const compositionSummary = editableLayers
+  const referencePlacements = document.placements.map((p) => editorPlacementToReferencePlacement(p as import("@/types/homecheff-visual-editor").EditorPlacementItem));
+  const compositionGraph = buildEditorCompositionGraphFromDocument(document);
+
+  const layerSummary = editableLayers
     .map(
       (l) =>
         `${l.label} (${l.category ?? "unknown"}) @ ${Math.round(l.transform.x * 100)}%,${Math.round(l.transform.y * 100)}%`
     )
     .join("; ");
-
-  const draftLike = {
-    referencePlacements: document.placements,
-    name: document.name,
-    sourceReferenceName: document.name,
-  } as unknown as Parameters<typeof buildCompositionGraphFromDraft>[0];
-  const compositionGraph =
-    document.placements.length > 0 ? buildCompositionGraphFromDraft(draftLike) : [];
+  const placementSummary = document.placements
+    .map((p) => `${p.sourceName} → ${p.targetLabel ?? "custom"}`)
+    .join("; ");
+  const compositionSummary = [layerSummary, placementSummary].filter(Boolean).join(" | ");
 
   return {
     sessionId: document.sessionId,
@@ -52,6 +54,7 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
       preserveRules: semanticLayers
         .filter((l) => l.metadata?.identityRelevance === "identity_marker")
         .map((l) => l.label),
+      referencePlacements,
     },
     compositionSummary,
     objectCount: editableLayers.length,
@@ -60,6 +63,8 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
     editorObjects: document.objects,
     compositionGraph,
     layerOperations: document.layerOperations ?? [],
+    referencePlacements,
+    placementCount: document.placements.length,
   };
 }
 

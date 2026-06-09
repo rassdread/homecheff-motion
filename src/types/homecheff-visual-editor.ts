@@ -95,6 +95,35 @@ export type PlacementCanvasItem = AssetReferencePlacement & {
   canvasTransform: EditorCanvasTransform;
   linkedObjectId?: string;
   canvasLocked: boolean;
+  opacity?: number;
+  zIndex?: number;
+  exactnessMode?: EditorPlacementExactnessMode;
+  visible?: boolean;
+  targetLabel?: string;
+  customTarget?: boolean;
+  canvasWidth?: number;
+  canvasHeight?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const EDITOR_PLACEMENT_EXACTNESS_MODES = [
+  "prompt_only",
+  "image_reference",
+  "pixel_overlay",
+  "hybrid",
+] as const;
+
+export type EditorPlacementExactnessMode = (typeof EDITOR_PLACEMENT_EXACTNESS_MODES)[number];
+
+/** Full editor placement canvas model (alias of extended PlacementCanvasItem). */
+export type EditorPlacementItem = PlacementCanvasItem & {
+  opacity: number;
+  zIndex: number;
+  exactnessMode: EditorPlacementExactnessMode;
+  visible: boolean;
+  targetLabel: string;
+  customTarget: boolean;
 };
 
 export type EditorCanvasBounds = {

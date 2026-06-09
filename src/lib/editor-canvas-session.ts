@@ -5,6 +5,7 @@ import {
 } from "@/lib/homecheff-visual-editor-foundation";
 import { seedEditorLayersFromVision, extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
 import { buildEditorSemanticLayersFromVision } from "@/lib/editor-semantic-layers-from-vision";
+import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type {
@@ -244,14 +245,17 @@ export function patchEditorLayerTransform(
   if (!target || !isEditorOperationAllowed(target, "move")) {
     return document;
   }
-  return saveEditorCanvasDocument({
+  const nextTarget = {
+    ...target,
+    transform: { ...target.transform, ...transform },
+  };
+  const withTarget = saveEditorCanvasDocument({
     ...document,
-    objects: document.objects.map((layer) =>
-      layer.id === layerId && !layer.locked
-        ? { ...layer, transform: { ...layer.transform, ...transform } }
-        : layer
-    ),
+    objects: document.objects.map((layer) => (layer.id === layerId ? nextTarget : layer)),
   });
+  return saveEditorCanvasDocument(
+    syncLinkedPlacementsOnTargetMove(withTarget, layerId, target, nextTarget)
+  );
 }
 
 export function patchEditorLayerFields(
