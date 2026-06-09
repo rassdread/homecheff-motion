@@ -101,6 +101,22 @@
  * - Pass reference images into Vidu multi-image prompts
  * - Character memory / packs — see `docs/studio-character-engine-future.md`
  * - Render-version snapshots may store scene image `generationVersion` per export
+ *
+ * ## V11 (HomeCheff AI Suite — Phase 5)
+ *
+ * Five-product platform architecture (Editor · Studio · Motion · Publish · Library):
+ *
+ * - Types: `@/types/homecheff-product-suite`, `homecheff-visual-editor`, `homecheff-presentation-suite`
+ * - Registry: `@/lib/homecheff-product-suite` — workflows, audit, billing foundation
+ * - Navigation: `@/lib/homecheff-primary-nav-config` (opt-in via `NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV`)
+ * - Editor foundation: object manipulation, body designer, placement canvas (`homecheff-visual-editor-foundation`)
+ * - Presentation foundation: safe areas, feature map (`homecheff-presentation-foundation`)
+ * - Studio integrated flow: Editor → Studio → Motion → Presentation (single UX inside Studio)
+ * - Assets hub sections unchanged (`studio-asset-hub-sections`) — shared by all products
+ * - Composition graph + reference placement from Universal Asset Generation Workbench
+ * - No new providers, render pipeline, motion pipeline, or Prisma migrations
+ *
+ * Docs: `docs/homecheff-ai-suite-architecture-phase5-report.md`, `docs/product-suite-naming-refinement-report.md`
  */
 
-export const STUDIO_INTEGRATION_ARCHITECTURE_VERSION = "v1" as const;
+export const STUDIO_INTEGRATION_ARCHITECTURE_VERSION = "v11-phase5" as const;

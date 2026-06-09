@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useActiveTranslator } from "@/i18n/client";
-import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
+import { resolvePrimaryNavItems } from "@/lib/homecheff-primary-nav-config";
 import { isStudioProductionModeEnabled } from "@/lib/studio-production-mode-flag";
 
 function navLinkClass(active: boolean): string {
@@ -15,67 +16,13 @@ function navLinkClass(active: boolean): string {
   }`;
 }
 
-type NavItem = {
-  href: string;
-  labelKey: TranslationKey;
-  match: (pathname: string) => boolean;
-  authOnly?: boolean;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/maak",
-    labelKey: "nav.create",
-    match: (pathname) => pathname === "/maak" || pathname.startsWith("/maak/"),
-  },
-  {
-    href: "/studio",
-    labelKey: "nav.studio",
-    match: (pathname) =>
-      (pathname === "/studio" || pathname.startsWith("/studio/")) &&
-      !pathname.startsWith("/studio/assets"),
-  },
-  {
-    href: "/studio/assets",
-    labelKey: "nav.assets",
-    match: (pathname) => pathname === "/studio/assets" || pathname.startsWith("/studio/assets/"),
-    authOnly: true,
-  },
-  {
-    href: "/animate/instant",
-    labelKey: "nav.motion",
-    match: (pathname) =>
-      isStudioProductionModeEnabled()
-        ? pathname === "/animate/instant" || pathname.startsWith("/animate/instant/")
-        : pathname === "/animate/instant" ||
-          pathname.startsWith("/animate/instant/") ||
-          pathname === "/animate" ||
-          pathname.startsWith("/animate/"),
-  },
-  {
-    href: "/videos",
-    labelKey: "nav.myVideos",
-    match: (pathname) => pathname === "/videos" || pathname.startsWith("/videos/"),
-    authOnly: true,
-  },
-  {
-    href: "/pricing",
-    labelKey: "nav.pricing",
-    match: (pathname) => pathname === "/pricing" || pathname.startsWith("/pricing/"),
-  },
-  {
-    href: "/about",
-    labelKey: "nav.about",
-    match: (pathname) => pathname === "/about" || pathname.startsWith("/about/"),
-  },
-];
-
 export function AppShellPrimaryNav() {
   const t = useActiveTranslator();
   const session = useAuthSession();
   const pathname = usePathname();
 
-  const visibleItems = NAV_ITEMS.filter((item) => {
+  const navItems = resolvePrimaryNavItems(isHomeCheffProductSuiteNavEnabled());
+  const visibleItems = navItems.filter((item) => {
     if (item.authOnly && !(session.resolved && session.user)) {
       return false;
     }

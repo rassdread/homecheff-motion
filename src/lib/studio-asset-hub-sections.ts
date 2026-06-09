@@ -1,6 +1,7 @@
 import type { AssetLibraryTab } from "@/lib/studio-asset-library-filters";
 import type { AssetLibraryOriginFilter } from "@/lib/studio-asset-library-filters";
 
+/** Assets product taxonomy — shared by Editor, Studio, Motion, Presentation */
 export type AssetsHubGroup = "media" | "creative" | "library";
 
 export type AssetsHubSection =

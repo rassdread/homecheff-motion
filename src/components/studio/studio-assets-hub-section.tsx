@@ -50,7 +50,7 @@ export function StudioAssetsHubSection({ section }: Props) {
                 {t("studio.assetsHub.videos.openLibrary")}
               </Link>
               <Link
-                href="/studio/assets"
+                href="/library"
                 className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-6 py-2 text-sm font-semibold text-slate-800"
               >
                 ← {t("studio.assetsHub.backToHub")}
@@ -89,17 +89,29 @@ export function StudioAssetsHubSection({ section }: Props) {
 
 function HubSectionHeader({ section }: { section: AssetsHubSectionDef }) {
   const t = useActiveTranslator();
+  const groupLabelKey =
+    section.group === "media"
+      ? "suite.breadcrumb.media"
+      : section.group === "creative"
+        ? "suite.breadcrumb.creative"
+        : "suite.breadcrumb.uploads";
   return (
     <header>
+      <nav className="text-sm text-slate-600" aria-label="Breadcrumb">
+        <Link href="/library" className="font-medium text-[#006D52] hover:underline">
+          {t("suite.breadcrumb.library")}
+        </Link>
+        <span className="mx-1.5">/</span>
+        <span>{t(groupLabelKey as never)}</span>
+        <span className="mx-1.5">/</span>
+        <span className="font-medium text-slate-900">{t(section.labelKey as never)}</span>
+      </nav>
       <Link
-        href="/studio/assets"
-        className="text-sm font-medium text-[#006D52] hover:underline"
+        href="/library"
+        className="mt-3 inline-block text-sm font-medium text-[#006D52] hover:underline"
       >
         ← {t("studio.assetsHub.backToHub")}
       </Link>
-      <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {t(`studio.assetsHub.group.${section.group}` as never)}
-      </p>
       <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
         {t(section.labelKey as never)}
       </h1>
