@@ -15,6 +15,7 @@ export type PublishOverlayStyle = {
   backgroundColor?: string;
   fontWeight?: string;
   textAlign?: "left" | "center" | "right";
+  rotation?: number;
 };
 
 export type PublishOverlaySafeAreaStatus = "ok" | "warning" | "fail";

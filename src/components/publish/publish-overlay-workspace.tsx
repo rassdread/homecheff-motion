@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { PublishOverlayDraggable } from "@/components/publish/publish-overlay-draggable";
 import {
   addPublishOverlay,
   duplicatePublishOverlay,
@@ -21,9 +22,11 @@ type Props = {
 export function PublishOverlayWorkspace({ project, onProjectChange, onBack }: Props) {
   const t = useActiveTranslator();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(project.overlays[0]?.id ?? null);
   const [currentTime, setCurrentTime] = useState(0);
   const [saveMsg, setSaveMsg] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
   const selected = project.overlays.find((o) => o.id === selectedId) ?? null;
 
   const persist = (next: PublishProject) => {
@@ -49,6 +52,41 @@ export function PublishOverlayWorkspace({ project, onProjectChange, onBack }: Pr
           </button>
           <button
             type="button"
+            disabled={exportBusy}
+            onClick={async () => {
+              setExportBusy(true);
+              persist(project);
+              try {
+                const res = await fetch("/api/publish/export", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ project }),
+                });
+                if (!res.ok) {
+                  setSaveMsg(t("publish.exportFallback"));
+                  return;
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const link = window.document.createElement("a");
+                link.href = url;
+                link.download = `${project.name}-publish.mp4`;
+                link.click();
+                URL.revokeObjectURL(url);
+                setSaveMsg(t("publish.exportSuccess"));
+              } catch {
+                setSaveMsg(t("publish.exportFallback"));
+              } finally {
+                setExportBusy(false);
+              }
+            }}
+            className="rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900 disabled:opacity-60"
+          >
+            {exportBusy ? t("button.loading") : t("publish.export")}
+          </button>
+          <button
+            type="button"
             onClick={() => {
               persist(project);
               setSaveMsg(t("publish.saveDraftSuccess"));
@@ -64,7 +102,11 @@ export function PublishOverlayWorkspace({ project, onProjectChange, onBack }: Pr
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div>
-          <div className="relative aspect-video overflow-hidden rounded-2xl border border-zinc-200 bg-black">
+          <div
+            ref={canvasRef}
+            className="relative aspect-video overflow-hidden rounded-2xl border border-zinc-200 bg-black"
+            onClick={() => setSelectedId(null)}
+          >
             <video
               ref={videoRef}
               src={project.videoUrl}
@@ -73,27 +115,17 @@ export function PublishOverlayWorkspace({ project, onProjectChange, onBack }: Pr
               onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
             />
             <div className="pointer-events-none absolute inset-[5%] border border-dashed border-white/30" aria-hidden />
+            <div className="pointer-events-none absolute inset-x-[10%] top-1/2 h-px bg-white/20" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-[10%] left-1/2 w-px bg-white/20" aria-hidden />
             {visibleOverlays.map((o) => (
-              <div
+              <PublishOverlayDraggable
                 key={o.id}
-                className={`pointer-events-auto absolute cursor-move border-2 px-2 py-1 text-white ${
-                  selectedId === o.id ? "border-[#0067B1]" : "border-transparent"
-                } ${o.safeAreaStatus === "fail" ? "ring-2 ring-red-500" : o.safeAreaStatus === "warning" ? "ring-2 ring-amber-400" : ""}`}
-                style={{
-                  left: `${o.x * 100}%`,
-                  top: `${o.y * 100}%`,
-                  width: `${o.width * 100}%`,
-                  minHeight: `${o.height * 100}%`,
-                  zIndex: o.zIndex,
-                  fontSize: o.style.fontSize,
-                  color: o.style.color,
-                  backgroundColor: o.style.backgroundColor ?? "rgba(0,0,0,0.45)",
-                  textAlign: o.style.textAlign,
-                }}
-                onMouseDown={() => setSelectedId(o.id)}
-              >
-                {o.text}
-              </div>
+                overlay={o}
+                selected={selectedId === o.id}
+                containerRef={canvasRef}
+                onSelect={() => setSelectedId(o.id)}
+                onPatch={(patch) => persist(patchPublishOverlay(project, o.id, patch))}
+              />
             ))}
           </div>
 
