@@ -103,11 +103,7 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
     {
       href: resolveProductHref("editor"),
       labelKey: "suite.nav.editor",
-      match: (pathname) =>
-        pathname === "/editor" ||
-        pathname.startsWith("/editor/") ||
-        pathname === "/maak" ||
-        pathname.startsWith("/maak/"),
+      match: (pathname) => pathname === "/editor" || pathname.startsWith("/editor/"),
       productId: "editor",
     },
     {

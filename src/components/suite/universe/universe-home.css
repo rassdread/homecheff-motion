@@ -1,0 +1,111 @@
+@keyframes universe-globe-spin {
+  from {
+    transform: rotateY(0deg) rotateX(8deg);
+  }
+  to {
+    transform: rotateY(360deg) rotateX(8deg);
+  }
+}
+
+@keyframes universe-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes universe-counter-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes universe-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes universe-particle-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(12px, -28px, 0);
+    opacity: 0.1;
+  }
+}
+
+@keyframes universe-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes universe-star-orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--star-radius, 42px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--star-radius, 42px)) rotate(-360deg);
+  }
+}
+
+@keyframes universe-tunnel-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+    filter: blur(8px);
+  }
+  40% {
+    opacity: 1;
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(2.8);
+    filter: blur(0);
+  }
+}
+
+@keyframes universe-tunnel-streak {
+  0% {
+    transform: translateY(120%) scaleY(0.4);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-140%) scaleY(1.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .universe-animate,
+  .universe-animate * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
