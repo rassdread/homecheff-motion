@@ -17,8 +17,7 @@ import {
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
 import { buildEditorDownloadFilename } from "@/lib/editor-canvas-session";
-import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
-import type { EditorObjectOperation } from "@/types/homecheff-visual-editor";
+import type { EditorCanvasDocument, EditorObjectOperation } from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -56,11 +55,29 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
+  const parentLabel =
+    selectedLayer?.parentObjectId
+      ? (document.objects.find((o) => o.id === selectedLayer.parentObjectId)?.label ?? null)
+      : null;
+
+  const handleToggleVisibility = (layerId: string) => {
+    persist(applyEditorLayerOperation(document, layerId, "visibility"));
+  };
+
+  const handleToggleLock = (layerId: string) => {
+    persist(applyEditorLayerOperation(document, layerId, "lock"));
+  };
+
   const handleSaveDraft = () => {
     setSaving(true);
-    const payload = buildEditorSavePayload(document);
-    markEditorDocumentDraftSaved(document);
-    setSaveMessage(t("editor.canvas.saveDraftSuccess", { count: String(payload.objectCount) }));
+    const saved = markEditorDocumentDraftSaved(document);
+    const payload = buildEditorSavePayload(saved);
+    persist(saved);
+    setSaveMessage(
+      t("editor.canvas.saveDraftSuccess", {
+        count: String(payload.semanticLayers.filter((l) => l.type !== "background").length),
+      })
+    );
     setSaving(false);
   };
 
@@ -104,6 +121,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 layers={document.objects}
                 selectedLayerId={selectedLayerId}
                 onSelect={setSelectedLayerId}
+                onToggleVisibility={handleToggleVisibility}
+                onToggleLock={handleToggleLock}
               />
             </div>
             <div className="order-1 lg:order-2">
@@ -118,6 +137,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             <div className="order-3">
               <EditorPropertiesPanel
                 layer={selectedLayer}
+                parentLabel={parentLabel}
                 onOperation={handleOperation}
                 onPatch={(patch) => {
                   if (!selectedLayerId) {
@@ -134,6 +154,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               layers={document.objects}
               selectedLayerId={selectedLayerId}
               onSelect={setSelectedLayerId}
+              onToggleVisibility={handleToggleVisibility}
+              onToggleLock={handleToggleLock}
             />
           </div>
         </section>

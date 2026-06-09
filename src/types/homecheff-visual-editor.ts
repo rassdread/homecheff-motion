@@ -104,10 +104,86 @@ export type EditorCanvasBounds = {
   height: number;
 };
 
+export const EDITOR_SEMANTIC_LAYER_CATEGORIES = [
+  "character",
+  "body",
+  "face",
+  "clothing",
+  "accessory",
+  "logo",
+  "product",
+  "package",
+  "label",
+  "prop",
+  "environment",
+  "background",
+  "text",
+  "brand_element",
+  "unknown",
+] as const;
+
+export type EditorSemanticLayerCategory = (typeof EDITOR_SEMANTIC_LAYER_CATEGORIES)[number];
+
+export const EDITOR_SEMANTIC_LAYER_SOURCES = [
+  "vision",
+  "semantic_record",
+  "fingerprint",
+  "manual",
+  "generated",
+  "composition_graph",
+] as const;
+
+export type EditorSemanticLayerSource = (typeof EDITOR_SEMANTIC_LAYER_SOURCES)[number];
+
+export type EditorIdentityRelevance =
+  | "identity_marker"
+  | "protected_brand_element"
+  | "editable_accessory"
+  | "removable_object"
+  | "placement_target"
+  | "none";
+
+export type EditorSemanticLayerMetadata = {
+  estimatedBounds?: boolean;
+  identityRelevance?: EditorIdentityRelevance;
+  taxonomyKey?: string;
+  rawFeature?: string;
+};
+
+export type EditorSemanticLayer = {
+  id: string;
+  label: string;
+  type: string;
+  category: EditorSemanticLayerCategory;
+  bounds: EditorCanvasBounds;
+  confidence: number;
+  visible: boolean;
+  locked: boolean;
+  editable: boolean;
+  source: EditorSemanticLayerSource;
+  parentId?: string;
+  children: string[];
+  metadata?: EditorSemanticLayerMetadata;
+};
+
+export type EditorLayerActionEligibility = Record<EditorObjectOperation, boolean>;
+
+export type EditorLayerOperationAudit = {
+  layerId: string;
+  operation: EditorObjectOperation;
+  at: string;
+};
+
 export type EditorCanvasLayer = EditorCanvasObject & {
   bounds: EditorCanvasBounds;
   layerType: "background" | "semantic" | "placement" | "overlay";
   confidence?: number;
+  semanticType?: string;
+  category?: EditorSemanticLayerCategory;
+  layerSource?: EditorSemanticLayerSource;
+  editable?: boolean;
+  children?: string[];
+  metadata?: EditorSemanticLayerMetadata;
 };
 
 export type EditorCanvasDocument = {
@@ -122,6 +198,8 @@ export type EditorCanvasDocument = {
   placements: PlacementCanvasItem[];
   bodyDesigner?: CharacterBodyDesignerParams;
   visionAnalysisHash?: string;
+  semanticLayers?: EditorSemanticLayer[];
+  layerOperations?: EditorLayerOperationAudit[];
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

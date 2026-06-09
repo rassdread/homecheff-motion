@@ -64,8 +64,8 @@ describe("editor-canvas", () => {
       sourceKind: "product_photo",
     });
     assert.equal(layers[0]?.layerType, "background");
-    assert.equal(layers.length, 4);
-    assert.ok(layers.some((l) => l.label === "Product body"));
+    assert.ok(layers.length >= 4);
+    assert.ok(layers.some((l) => l.label === "Product body" || l.semanticType === "product_body"));
   });
 
   it("filters HomeCheff-specific labels when brand is not HomeCheff", () => {

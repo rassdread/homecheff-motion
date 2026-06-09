@@ -3,12 +3,15 @@ import {
   applyEditorObjectOperation,
   createEmptyVisualEditorSession,
 } from "@/lib/homecheff-visual-editor-foundation";
-import { seedEditorLayersFromVision } from "@/lib/editor-canvas-layers";
+import { seedEditorLayersFromVision, extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
+import { buildEditorSemanticLayersFromVision } from "@/lib/editor-semantic-layers-from-vision";
+import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type {
   EditorCanvasDocument,
   EditorCanvasLayer,
   EditorCanvasTransform,
+  EditorLayerOperationAudit,
   EditorObjectOperation,
   EditorSourceKind,
 } from "@/types/homecheff-visual-editor";
@@ -52,7 +55,12 @@ export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocumen
 }
 
 export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
-  const next = { ...document, updatedAt: new Date().toISOString() };
+  const semanticLayers = document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
+  const next = {
+    ...document,
+    semanticLayers,
+    updatedAt: new Date().toISOString(),
+  };
   const store = readStore();
   store[next.sessionId] = next;
   writeStore(store);
@@ -165,8 +173,14 @@ export async function runEditorVisionAndObjectDetection(
   if (!res.ok) {
     return { ...document, workflowStep: "visual_editor", updatedAt: new Date().toISOString() };
   }
+  const semanticLayers = buildEditorSemanticLayersFromVision({
+    vision: res.data.visionAnalysis,
+    styleDna: res.data.styleDna,
+    sourceKind: document.sourceKind,
+  });
   const layers = seedEditorLayersFromVision({
     vision: res.data.visionAnalysis,
+    styleDna: res.data.styleDna,
     sourceKind: document.sourceKind,
     preserveBackground: document.objects.find((o) => o.id === "background"),
   });
@@ -175,6 +189,7 @@ export async function runEditorVisionAndObjectDetection(
     workflowStep: "visual_editor",
     visionAnalysisHash: res.data.visionAnalysis.identityFingerprint.fingerprintHash,
     objects: layers,
+    semanticLayers,
   });
 }
 
@@ -184,6 +199,17 @@ export function applyEditorLayerOperation(
   operation: EditorObjectOperation,
   patch?: Partial<EditorCanvasLayer>
 ): EditorCanvasDocument {
+  const target = document.objects.find((layer) => layer.id === layerId);
+  if (!target || !isEditorOperationAllowed(target, operation)) {
+    return document;
+  }
+
+  const audit: EditorLayerOperationAudit = {
+    layerId,
+    operation,
+    at: new Date().toISOString(),
+  };
+
   const objects = document.objects.flatMap((layer) => {
     if (layer.id !== layerId) {
       return [layer];
@@ -193,11 +219,20 @@ export function applyEditorLayerOperation(
     }
     if (operation === "duplicate") {
       const duplicated = applyEditorObjectOperation(layer, operation, patch) as EditorCanvasLayer;
-      return [layer, { ...duplicated, id: `${layer.id}_copy_${Date.now()}` }];
+      return [layer, { ...duplicated, id: `${layer.id}_copy_${Date.now()}`, layerSource: "manual" as const }];
     }
-    return [applyEditorObjectOperation(layer, operation, patch) as EditorCanvasLayer];
+    const nextLayer = applyEditorObjectOperation(layer, operation, patch) as EditorCanvasLayer;
+    if (operation === "rename") {
+      return [{ ...nextLayer, layerSource: "manual" as const }];
+    }
+    return [nextLayer];
   });
-  return { ...document, objects };
+
+  return saveEditorCanvasDocument({
+    ...document,
+    objects,
+    layerOperations: [...(document.layerOperations ?? []), audit],
+  });
 }
 
 export function patchEditorLayerTransform(
@@ -205,14 +240,18 @@ export function patchEditorLayerTransform(
   layerId: string,
   transform: Partial<EditorCanvasTransform>
 ): EditorCanvasDocument {
-  return {
+  const target = document.objects.find((layer) => layer.id === layerId);
+  if (!target || !isEditorOperationAllowed(target, "move")) {
+    return document;
+  }
+  return saveEditorCanvasDocument({
     ...document,
     objects: document.objects.map((layer) =>
       layer.id === layerId && !layer.locked
         ? { ...layer, transform: { ...layer.transform, ...transform } }
         : layer
     ),
-  };
+  });
 }
 
 export function patchEditorLayerFields(
@@ -220,10 +259,25 @@ export function patchEditorLayerFields(
   layerId: string,
   patch: Partial<EditorCanvasLayer>
 ): EditorCanvasDocument {
-  return {
+  const target = document.objects.find((layer) => layer.id === layerId);
+  if (!target) {
+    return document;
+  }
+  if (patch.label !== undefined && !isEditorOperationAllowed(target, "rename")) {
+    return document;
+  }
+  return saveEditorCanvasDocument({
     ...document,
-    objects: document.objects.map((layer) => (layer.id === layerId ? { ...layer, ...patch } : layer)),
-  };
+    objects: document.objects.map((layer) =>
+      layer.id === layerId
+        ? {
+            ...layer,
+            ...patch,
+            layerSource: patch.label ? ("manual" as const) : layer.layerSource,
+          }
+        : layer
+    ),
+  });
 }
 
 export function markEditorDocumentDraftSaved(document: EditorCanvasDocument): EditorCanvasDocument {
