@@ -1,9 +1,8 @@
 import {
+  UNIVERSE_Z_CAPABILITY,
   UNIVERSE_Z_GLOBE,
   UNIVERSE_Z_PLANET,
-  UNIVERSE_Z_PORTAL,
   UNIVERSE_Z_RING,
-  UNIVERSE_Z_SATELLITE,
 } from "@/lib/universe-planet-ux";
 
 /** Globe render debug layers for visual QA (?universeDebug=ocean|continents|nodes|full) */
@@ -47,8 +46,7 @@ export const UNIVERSE_GLOBE_HERO_MAX_PX = 320;
 export function validateUniverseLayerOrder(): boolean {
   return (
     UNIVERSE_Z_ORBIT_PLANETS > UNIVERSE_Z_GLOBE_WRAPPER &&
-    UNIVERSE_Z_SATELLITE > UNIVERSE_Z_PORTAL &&
-    UNIVERSE_Z_PORTAL > UNIVERSE_Z_PLANET &&
+    UNIVERSE_Z_CAPABILITY > UNIVERSE_Z_PLANET &&
     UNIVERSE_Z_PLANET > UNIVERSE_Z_RING &&
     UNIVERSE_Z_RING > UNIVERSE_Z_GLOBE
   );

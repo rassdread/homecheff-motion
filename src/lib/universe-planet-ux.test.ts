@@ -8,8 +8,7 @@ import {
   UNIVERSE_PLANET_CLUSTER_CLASS,
   UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS,
   UNIVERSE_PLANET_IDENTITY_RING_CLASS,
-  UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
-  UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+  UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
   UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS,
   UNIVERSE_PLANET_RING_SVG_FONT_SIZE,
   UNIVERSE_PLANET_RING_SVG_SCALE_PERCENT,
@@ -34,11 +33,10 @@ describe("universe planet ux", () => {
     assert.ok(UNIVERSE_PLANET_RING_SVG_SCALE_PERCENT >= 680);
     assert.match(UNIVERSE_PLANET_SATELLITE_CLASS, /satellite/);
     assert.equal(UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS, "universe-planet-preview-portal");
-    assert.ok(UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX >= 300);
-    assert.ok(UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX >= 400);
+    assert.ok(UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX >= 260);
   });
 
-  it("hover close delay is within grace window for portal interaction", () => {
+  it("hover close delay supports hover grace window", () => {
     assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS >= 150);
     assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS <= 250);
   });
@@ -65,13 +63,12 @@ describe("universe planet ux", () => {
     }
   });
 
-  it("portal preview includes hover bridge and portal enter handlers", () => {
+  it("portal preview content helpers remain for metadata", () => {
     const previewSource = readFileSync(
       "src/components/suite/universe/universe-planet-preview.tsx",
       "utf8"
     );
-    assert.match(previewSource, /onPortalEnter/);
-    assert.match(previewSource, /resolveUniversePortalBridgeClass/);
+    assert.match(previewSource, /resolveUniversePlanetPreviewContent/);
   });
 
   it("portal CTA routes auth-aware", () => {
@@ -80,13 +77,14 @@ describe("universe planet ux", () => {
     assert.equal(resolveUniversePlanetHref(editor.href, true), "/editor");
   });
 
-  it("mobile expanded card renders inline portal with CTA", () => {
+  it("mobile expanded card uses inline chips and CTA not portal", () => {
     const mobileSource = readFileSync(
       "src/components/suite/universe/universe-mobile-stack.tsx",
       "utf8"
     );
-    assert.match(mobileSource, /layout="inline"/);
-    assert.match(mobileSource, /onOpen=\{\(\) => onSelect\(planet\)\}/);
+    assert.doesNotMatch(mobileSource, /UniversePlanetPreview/);
+    assert.match(mobileSource, /onSelect\(planet\)/);
+    assert.match(mobileSource, /planet\.actionKey/);
     assert.doesNotMatch(mobileSource, /planet\.titleKey\}/);
   });
 

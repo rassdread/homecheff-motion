@@ -72,7 +72,10 @@ export function UniverseOrbitSystem({
             key={planet.id}
             className="absolute"
             style={{
-              zIndex: UNIVERSE_Z_ORBIT_PLANETS,
+              zIndex:
+                hoveredPlanet === planet.id || focusedPlanet === planet.id
+                  ? UNIVERSE_Z_ORBIT_PLANETS + 20
+                  : UNIVERSE_Z_ORBIT_PLANETS,
               left: `${pos.x}%`,
               top: `${pos.y}%`,
               transform: `translate(calc(-50% + ${px * 10}px), calc(-50% + ${py * 8}px))`,

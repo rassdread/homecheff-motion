@@ -16,7 +16,7 @@ import {
   UNIVERSE_Z_PLANET,
   UNIVERSE_Z_PORTAL,
   UNIVERSE_Z_RING,
-  UNIVERSE_Z_SATELLITE,
+  UNIVERSE_Z_CAPABILITY,
   resolveSaturnRingVariant,
   resolveUniversePortalPlacement,
   resolveUniversePortalPositionClass,
@@ -69,9 +69,8 @@ describe("universe v4 saturn rings and smart portals", () => {
     }
   });
 
-  it("layer hierarchy: satellites above portal above planet above ring", () => {
-    assert.ok(UNIVERSE_Z_SATELLITE > UNIVERSE_Z_PORTAL);
-    assert.ok(UNIVERSE_Z_PORTAL > UNIVERSE_Z_PLANET);
+  it("layer hierarchy: capabilities above planet above ring", () => {
+    assert.ok(UNIVERSE_Z_CAPABILITY > UNIVERSE_Z_PLANET);
     assert.ok(UNIVERSE_Z_PLANET > UNIVERSE_Z_RING);
     assert.ok(UNIVERSE_Z_RING > UNIVERSE_Z_GLOBE);
     const orbitSource = readFileSync(
@@ -83,8 +82,8 @@ describe("universe v4 saturn rings and smart portals", () => {
   });
 
   it("hover expansion scale is premium range", () => {
-    assert.ok(UNIVERSE_PLANET_HOVER_SCALE >= 1.18);
-    assert.ok(UNIVERSE_PLANET_HOVER_SCALE <= 1.25);
+    assert.ok(UNIVERSE_PLANET_HOVER_SCALE >= 1.25);
+    assert.ok(UNIVERSE_PLANET_HOVER_SCALE <= 1.35);
   });
 
   it("Earth continents include all major landmasses", () => {
@@ -119,13 +118,14 @@ describe("universe v4 saturn rings and smart portals", () => {
     assert.match(overlaySource, /focused/);
   });
 
-  it("mobile uses inline portal without duplicate title labels", () => {
+  it("mobile uses inline expand with chips and CTA not portal", () => {
     const mobileSource = readFileSync(
       "src/components/suite/universe/universe-mobile-stack.tsx",
       "utf8"
     );
     assert.match(mobileSource, /UniversePlanetIdentityRing/);
-    assert.match(mobileSource, /layout="inline"/);
+    assert.doesNotMatch(mobileSource, /UniversePlanetPreview/);
+    assert.match(mobileSource, /onSelect\(planet\)/);
     assert.doesNotMatch(mobileSource, /planet\.titleKey\}/);
   });
 });

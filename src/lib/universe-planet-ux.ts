@@ -15,20 +15,52 @@ export const UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS = "universe-planet-preview-por
 export const UNIVERSE_PLANET_CLUSTER_CLASS = "universe-planet-cluster";
 export const UNIVERSE_PLANET_STATIC_LABEL_CLASS = "universe-planet-static-label";
 
-/** Visual layer hierarchy (spec V4) */
+/** Visual layer hierarchy (V5 — no portal layer) */
 export const UNIVERSE_Z_GLOBE = 10;
 export const UNIVERSE_Z_RING = 70;
 export const UNIVERSE_Z_PLANET = 80;
+export const UNIVERSE_Z_PLANET_ACTIVE = 85;
+export const UNIVERSE_Z_CAPABILITY = 90;
+/** @deprecated Portals removed in V5 */
 export const UNIVERSE_Z_PORTAL = 90;
-export const UNIVERSE_Z_SATELLITE = 100;
+/** @deprecated Use UNIVERSE_Z_CAPABILITY */
+export const UNIVERSE_Z_SATELLITE = 90;
 
-/** Hover expansion scale */
-export const UNIVERSE_PLANET_HOVER_SCALE = 1.22;
+/** Hover expansion scale — V5 spec: 130% */
+export const UNIVERSE_PLANET_HOVER_SCALE = 1.3;
 export const UNIVERSE_PLANET_HOVER_TRANSITION_MS = 350;
 
-/** Orbit cluster hit area — keeps portal hover inside the group */
-export const UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX = 340;
-export const UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX = 440;
+/** Compact orbit cluster — no portal hover zone */
+export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX = 280;
+
+/** Fixed radial slots for capability pills (degrees from top, radius px) */
+const CAPABILITY_SLOTS: { angleDeg: number; radiusPx: number }[] = [
+  { angleDeg: -90, radiusPx: 108 },
+  { angleDeg: -35, radiusPx: 102 },
+  { angleDeg: 15, radiusPx: 108 },
+  { angleDeg: 55, radiusPx: 102 },
+  { angleDeg: 130, radiusPx: 108 },
+  { angleDeg: 175, radiusPx: 102 },
+  { angleDeg: -145, radiusPx: 108 },
+  { angleDeg: -55, radiusPx: 102 },
+];
+
+export function resolveCapabilityRadialSlot(
+  index: number,
+  _total: number
+): { x: number; y: number } {
+  const slot = CAPABILITY_SLOTS[index % CAPABILITY_SLOTS.length]!;
+  const rad = (slot.angleDeg * Math.PI) / 180;
+  return {
+    x: Math.cos(rad) * slot.radiusPx,
+    y: Math.sin(rad) * slot.radiusPx,
+  };
+}
+
+/** @deprecated Portals removed in V5 */
+export const UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX = UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX;
+/** @deprecated Portals removed in V5 */
+export const UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX = UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX;
 
 export type UniversePortalPlacement = "above" | "below" | "left" | "right";
 

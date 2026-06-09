@@ -4,18 +4,15 @@ import type { CSSProperties } from "react";
 import type { UniversePlanetConfig } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
 import { UniversePlanetIdentityRing } from "@/components/suite/universe/universe-planet-identity-ring";
-import { UniversePlanetPreview } from "@/components/suite/universe/universe-planet-preview";
 import { UniversePlanetSatellites } from "@/components/suite/universe/universe-planet-satellites";
 import { UniversePlanetWorld } from "@/components/suite/universe/universe-planet-world";
 import {
   UNIVERSE_PLANET_CLUSTER_CLASS,
   UNIVERSE_PLANET_HOVER_SCALE,
   UNIVERSE_PLANET_HOVER_TRANSITION_MS,
-  UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
-  UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+  UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
   UNIVERSE_Z_PLANET,
-  UNIVERSE_Z_SATELLITE,
-  resolveUniversePortalPlacement,
+  UNIVERSE_Z_PLANET_ACTIVE,
 } from "@/lib/universe-planet-ux";
 
 type UniversePlanetProps = {
@@ -30,7 +27,6 @@ type UniversePlanetProps = {
   onSelect: (planet: UniversePlanetConfig) => void;
   style?: CSSProperties;
   variant?: "orbit" | "card";
-  showCardPreview?: boolean;
 };
 
 export function UniversePlanet({
@@ -45,7 +41,6 @@ export function UniversePlanet({
   onSelect,
   style,
   variant = "orbit",
-  showCardPreview = true,
 }: UniversePlanetProps) {
   const t = useActiveTranslator();
   const active = hovered || focused;
@@ -59,17 +54,6 @@ export function UniversePlanet({
     : `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35) 0%, transparent 40%),
        radial-gradient(circle at 65% 75%, ${planet.accent}cc 0%, #041428 85%)`;
 
-  const portalPlacement =
-    variant === "orbit" ? resolveUniversePortalPlacement(planet.orbitAngle) : "below";
-
-  const handleClusterEnter = () => {
-    onHoverStart(planet.id);
-  };
-
-  const handleClusterLeave = () => {
-    onHoverEnd();
-  };
-
   const hoverScale = active ? UNIVERSE_PLANET_HOVER_SCALE : 1;
   const transitionMs = UNIVERSE_PLANET_HOVER_TRANSITION_MS;
 
@@ -82,15 +66,15 @@ export function UniversePlanet({
         ...style,
         ...(variant === "orbit"
           ? {
-              width: UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
-              height: UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
-              minWidth: UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
-              minHeight: UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
+              width: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
+              height: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
+              minWidth: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
+              minHeight: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
             }
           : undefined),
       }}
-      onMouseEnter={handleClusterEnter}
-      onMouseLeave={handleClusterLeave}
+      onMouseEnter={() => onHoverStart(planet.id)}
+      onMouseLeave={onHoverEnd}
       onFocus={(event) => {
         if (event.currentTarget.contains(event.target as Node)) {
           onFocus(planet.id);
@@ -115,14 +99,14 @@ export function UniversePlanet({
       <button
         type="button"
         onClick={() => onSelect(planet)}
-        className={`universe-planet-sphere relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${sizeClass}`}
+        className={`universe-planet-sphere relative cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${sizeClass}`}
         style={{
-          zIndex: UNIVERSE_Z_PLANET,
-          transform: `scale(${hoverScale})`,
+          zIndex: active ? UNIVERSE_Z_PLANET_ACTIVE : UNIVERSE_Z_PLANET,
+          transform: `scale(${hoverScale}) translateZ(${active ? 12 : 0}px)`,
           transition: `transform ${transitionMs}ms cubic-bezier(0.34, 1.25, 0.64, 1), box-shadow ${transitionMs}ms ease`,
           willChange: "transform",
           boxShadow: active
-            ? `0 0 56px ${planet.accent}aa, inset 0 2px 0 rgba(255,255,255,0.28)`
+            ? `0 0 64px ${planet.accent}bb, inset 0 2px 0 rgba(255,255,255,0.3)`
             : `0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18)`,
         }}
         aria-label={`${t(planet.titleKey)} — ${t(planet.descriptionKey)}`}
@@ -140,7 +124,7 @@ export function UniversePlanet({
         </div>
         {active && (
           <span
-            className="absolute -inset-1 rounded-full border border-white/20"
+            className="absolute -inset-1 rounded-full border border-white/25"
             style={{
               animation: reducedMotion ? undefined : "universe-glow-pulse 2.2s ease-in-out infinite",
             }}
@@ -159,30 +143,7 @@ export function UniversePlanet({
         />
       )}
 
-      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
-
-      {variant === "orbit" && (
-        <UniversePlanetPreview
-          planet={planet}
-          active={active}
-          onOpen={() => onSelect(planet)}
-          onPortalEnter={handleClusterEnter}
-          onPortalLeave={handleClusterLeave}
-          placement={portalPlacement}
-        />
-      )}
-
-      {variant === "card" && active && showCardPreview && (
-        <div className="mt-3 w-full">
-          <UniversePlanetPreview
-            planet={planet}
-            active={active}
-            onOpen={() => onSelect(planet)}
-            placement="below"
-            layout="inline"
-          />
-        </div>
-      )}
+      <UniversePlanetSatellites planet={planet} active={active} />
 
       <span className="sr-only">{href}</span>
     </div>

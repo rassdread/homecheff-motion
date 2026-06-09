@@ -3,14 +3,12 @@
 import { UniverseGlobe } from "@/components/suite/universe/universe-globe";
 import { UniversePlanet } from "@/components/suite/universe/universe-planet";
 import { UniversePlanetIdentityRing } from "@/components/suite/universe/universe-planet-identity-ring";
-import { UniversePlanetPreview } from "@/components/suite/universe/universe-planet-preview";
 import {
   UNIVERSE_PLANETS,
   type UniversePlanetConfig,
   type UniversePlanetId,
 } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
-import { resolveUniversePlanetPreviewContent } from "@/lib/universe-planet-ux";
 
 type UniverseMobileStackProps = {
   hrefs: Record<UniversePlanetId, string>;
@@ -53,7 +51,6 @@ export function UniverseMobileStack({
       <div className="flex w-full flex-col gap-4">
         {UNIVERSE_PLANETS.map((planet, index) => {
           const expanded = expandedPlanet === planet.id;
-          const preview = resolveUniversePlanetPreviewContent(planet.id);
 
           return (
             <div
@@ -81,7 +78,6 @@ export function UniverseMobileStack({
                   onFocus={onFocus}
                   onSelect={onSelect}
                   variant="card"
-                  showCardPreview={false}
                 />
                 <button
                   type="button"
@@ -92,28 +88,33 @@ export function UniverseMobileStack({
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50">
                     {t(planet.themeKey)}
                   </p>
-                  <p className="mt-1 text-sm leading-relaxed text-white/72">{t(preview.descriptionKey)}</p>
-                  <ul className="mt-2 flex flex-wrap gap-2">
-                    {planet.capabilityKeys.slice(0, 3).map((key) => (
+                  <p className="mt-1 text-sm leading-relaxed text-white/72">{t(planet.descriptionKey)}</p>
+                </button>
+              </div>
+
+              {expanded && (
+                <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                  <ul className="flex flex-wrap gap-2">
+                    {planet.capabilityKeys.slice(0, 5).map((key) => (
                       <li
                         key={key}
-                        className="rounded-full border border-white/18 bg-white/10 px-3.5 py-1.5 text-[clamp(12px,3.5vw,15px)] font-semibold text-white/85"
+                        className="rounded-full border border-white/20 bg-white/12 px-3.5 py-1.5 text-[clamp(12px,3.5vw,14px)] font-semibold text-white/90"
                       >
                         {t(key)}
                       </li>
                     ))}
                   </ul>
-                </button>
-              </div>
-
-              {expanded && (
-                <UniversePlanetPreview
-                  planet={planet}
-                  active={expanded}
-                  onOpen={() => onSelect(planet)}
-                  layout="inline"
-                  placement="below"
-                />
+                  <button
+                    type="button"
+                    onClick={() => onSelect(planet)}
+                    className="w-full rounded-full py-3 text-sm font-semibold text-white transition hover:opacity-95"
+                    style={{
+                      background: `linear-gradient(135deg, ${planet.accent}, ${planet.accentSecondary ?? planet.accent})`,
+                    }}
+                  >
+                    {t(planet.actionKey)}
+                  </button>
+                </div>
               )}
             </div>
           );
