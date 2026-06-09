@@ -1,5 +1,6 @@
 "use client";
 
+import { EditorBodyGuideOverlay } from "@/components/editor/editor-body-guide-overlay";
 import { useActiveTranslator } from "@/i18n/client";
 import { renderableEditorLayers } from "@/lib/editor-canvas-layers";
 import { visibleEditorPlacements } from "@/lib/editor-placement-canvas";
@@ -10,6 +11,7 @@ type Props = {
   document: EditorCanvasDocument;
   selectedLayerId: string | null;
   selectedPlacementId: string | null;
+  showBodyGuide?: boolean;
   onSelectLayer: (layerId: string) => void;
   onSelectPlacement: (placementId: string) => void;
   onMoveLayer: (layerId: string, x: number, y: number) => void;
@@ -21,6 +23,7 @@ export function EditorCanvasPreview({
   document,
   selectedLayerId,
   selectedPlacementId,
+  showBodyGuide = false,
   onSelectLayer,
   onSelectPlacement,
   onMoveLayer,
@@ -35,6 +38,9 @@ export function EditorCanvasPreview({
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-inner">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
+      {showBodyGuide && document.bodyDesigner ?
+        <EditorBodyGuideOverlay params={document.bodyDesigner} layers={document.objects} />
+      : null}
       {visibleLayers.map((layer) => {
         const selected = selectedLayerId === layer.id && !selectedPlacementId;
         const canMove = isEditorOperationAllowed(layer, "move");

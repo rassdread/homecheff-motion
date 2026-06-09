@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
+import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
@@ -31,7 +32,11 @@ import {
   reorderEditorPlacementZIndex,
 } from "@/lib/editor-placement-canvas";
 import { exportEditorCanvasWithPlacements } from "@/lib/editor-placement-export";
-import type { EditorCanvasDocument, EditorObjectOperation, EditorPlacementItem } from "@/types/homecheff-visual-editor";
+import {
+  documentSupportsBodyDesigner,
+  inferEditorObjectType,
+} from "@/lib/editor-body-designer";
+import { DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS } from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -39,7 +44,9 @@ type Props = {
   onDocumentChange: (document: EditorCanvasDocument) => void;
 };
 
-type PanelMode = "layer" | "placement";
+import type { EditorCanvasDocument, EditorObjectOperation, EditorPlacementItem } from "@/types/homecheff-visual-editor";
+
+type PanelMode = "layer" | "placement" | "body";
 
 export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Props) {
   const t = useActiveTranslator();
@@ -63,7 +70,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     () => document.placements.find((p) => p.id === selectedPlacementId) ?? null,
     [document.placements, selectedPlacementId]
   );
-  const targetLayerForAdd = customTarget ? null : selectedLayer;
+  const objectType = inferEditorObjectType(document);
+  const supportsBodyDesigner = documentSupportsBodyDesigner(document);
+  const bodyDesigner = document.bodyDesigner ?? DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS;
 
   const persist = (next: EditorCanvasDocument) => {
     const saved = saveEditorCanvasDocument(next);
@@ -149,8 +158,35 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
   const compositionPreview = formatEditorCompositionGraphPreview(document);
 
+  const targetLayerForAdd = customTarget ? null : selectedLayer;
+
+  const rightPanelTabs = (
+    <div className="mb-2 flex flex-wrap gap-1">
+      {(["layer", "placement", "body"] as PanelMode[]).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          disabled={mode === "body" && !supportsBodyDesigner}
+          onClick={() => setPanelMode(mode)}
+          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase ${
+            panelMode === mode ? "bg-[#0067B1] text-white" : "border border-zinc-200 text-zinc-700"
+          } disabled:opacity-40`}
+        >
+          {t(`editor.panel.${mode}` as never)}
+        </button>
+      ))}
+    </div>
+  );
+
   const propertiesPanel =
-    panelMode === "placement" ?
+    panelMode === "body" && supportsBodyDesigner ?
+      <EditorBodyDesignerPanel
+        value={bodyDesigner}
+        objectType={objectType}
+        onChange={(next) => persist({ ...document, bodyDesigner: next })}
+        onReset={() => persist({ ...document, bodyDesigner: DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS })}
+      />
+    : panelMode === "placement" ?
       <EditorPlacementPropertiesPanel
         placement={(selectedPlacement as EditorPlacementItem) ?? null}
         onPatch={(patch) => {
@@ -310,6 +346,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 document={document}
                 selectedLayerId={selectedLayerId}
                 selectedPlacementId={selectedPlacementId}
+                showBodyGuide={panelMode === "body"}
                 onSelectLayer={selectLayer}
                 onSelectPlacement={selectPlacement}
                 onMoveLayer={(layerId, x, y) => persist(patchEditorLayerTransform(document, layerId, { x, y }))}
@@ -329,7 +366,10 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 }
               />
             </div>
-            <div className="order-3 hidden lg:block">{propertiesPanel}</div>
+            <div className="order-3 hidden lg:block">
+              {rightPanelTabs}
+              {propertiesPanel}
+            </div>
           </div>
 
           <EditorPlacementQaPanel document={document} />
@@ -386,6 +426,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           title={t("editor.placement.propertiesTitle")}
           onClose={() => setMobileSheet(null)}
         >
+          {rightPanelTabs}
           {propertiesPanel}
         </EditorMobileBottomSheet>
 

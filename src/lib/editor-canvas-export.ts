@@ -1,4 +1,5 @@
 import { buildEditorCompositionGraphFromDocument } from "@/lib/editor-composition-graph";
+import { bodyDesignerToCharacterConstructionProfile, buildEditorBodyDesignerPromptBlock } from "@/lib/editor-body-designer";
 import { extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
 import { editorPlacementToReferencePlacement } from "@/lib/editor-placement-canvas";
 import type { EditorCanvasDocument, EditorSemanticLayer } from "@/types/homecheff-visual-editor";
@@ -21,6 +22,8 @@ export type EditorSavePayload = {
   layerOperations: EditorCanvasDocument["layerOperations"];
   referencePlacements: EditorCanvasDocument["placements"];
   placementCount: number;
+  bodyDesignerProfile?: EditorCanvasDocument["bodyDesigner"];
+  bodyDesignerPromptBlock: string;
 };
 
 export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSavePayload {
@@ -55,6 +58,9 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
         .filter((l) => l.metadata?.identityRelevance === "identity_marker")
         .map((l) => l.label),
       referencePlacements,
+      characterConstructionProfile: document.bodyDesigner
+        ? bodyDesignerToCharacterConstructionProfile(document.bodyDesigner)
+        : undefined,
     },
     compositionSummary,
     objectCount: editableLayers.length,
@@ -65,6 +71,8 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
     layerOperations: document.layerOperations ?? [],
     referencePlacements,
     placementCount: document.placements.length,
+    bodyDesignerProfile: document.bodyDesigner,
+    bodyDesignerPromptBlock: buildEditorBodyDesignerPromptBlock(document),
   };
 }
 
