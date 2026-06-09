@@ -18,7 +18,8 @@ type UniverseOrbitSystemProps = {
   focusedPlanet: UniversePlanetId | null;
   reducedMotion?: boolean;
   parallax?: UniverseParallaxOffset;
-  onHover: (id: UniversePlanetId | null) => void;
+  onHoverStart: (id: UniversePlanetId) => void;
+  onHoverEnd: () => void;
   onFocus: (id: UniversePlanetId | null) => void;
   onSelect: (planet: UniversePlanetConfig) => void;
 };
@@ -29,7 +30,8 @@ export function UniverseOrbitSystem({
   focusedPlanet,
   reducedMotion = false,
   parallax,
-  onHover,
+  onHoverStart,
+  onHoverEnd,
   onFocus,
   onSelect,
 }: UniverseOrbitSystemProps) {
@@ -37,12 +39,12 @@ export function UniverseOrbitSystem({
   const py = parallax?.y ?? 0;
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(98vw,880px)]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(98vw,880px)] overflow-visible">
       <UniversePipeline hoveredPlanet={hoveredPlanet} />
 
       <div
-            className="absolute left-1/2 top-1/2 z-[2]"
-            style={{ transform: `translate(calc(-50% + ${px * 6}px), calc(-50% + ${py * 4}px))` }}
+        className="absolute left-1/2 top-1/2 z-[2]"
+        style={{ transform: `translate(calc(-50% + ${px * 6}px), calc(-50% + ${py * 4}px))` }}
       >
         <UniverseGlobe reducedMotion={reducedMotion} size="hero" />
       </div>
@@ -65,7 +67,8 @@ export function UniverseOrbitSystem({
               hovered={hoveredPlanet === planet.id}
               focused={focusedPlanet === planet.id}
               reducedMotion={reducedMotion}
-              onHover={onHover}
+              onHoverStart={onHoverStart}
+              onHoverEnd={onHoverEnd}
               onFocus={onFocus}
               onSelect={onSelect}
               variant="orbit"

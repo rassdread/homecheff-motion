@@ -241,6 +241,39 @@
   }
 }
 
+.universe-planet-orbit-cluster {
+  overflow: visible;
+}
+
+.universe-planet-ring-text {
+  paint-order: stroke fill;
+  stroke: rgba(4, 20, 40, 0.55);
+  stroke-width: 0.35px;
+}
+
+.universe-planet-satellite {
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes universe-map-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.universe-globe-map-layer {
+  animation: universe-map-scroll 120s linear infinite;
+}
+
+.universe-globe-latitude line,
+.universe-globe-longitude line {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 0.35;
+}
+
 .universe-globe-spherical {
   aspect-ratio: 1 / 1;
 }

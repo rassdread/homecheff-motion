@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseDynamicWelcome } from "@/components/suite/universe/universe-dynamic-welcome";
@@ -18,6 +18,7 @@ import {
   resolveUniversePlanetHrefs,
   resolveUniverseQuickActionHref,
 } from "@/lib/universe-public-landing";
+import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS } from "@/lib/universe-planet-ux";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
 import "./universe-home.css";
 
@@ -29,6 +30,7 @@ export function UniverseHomePage() {
   const isAuthenticated = Boolean(session.resolved && session.user);
   const reducedMotion = useReducedMotion();
   const parallax = useUniverseParallax(!reducedMotion);
+  const hoverCloseTimer = useRef<number | undefined>(undefined);
 
   const planetHrefs = useMemo(
     () => resolveUniversePlanetHrefs(isAuthenticated),
@@ -55,6 +57,29 @@ export function UniverseHomePage() {
   const [focusedPlanet, setFocusedPlanet] = useState<UniversePlanetId | null>(null);
   const [tunnelPlanet, setTunnelPlanet] = useState<UniversePlanetConfig | null>(null);
 
+  const clearHoverCloseTimer = useCallback(() => {
+    if (hoverCloseTimer.current !== undefined) {
+      window.clearTimeout(hoverCloseTimer.current);
+      hoverCloseTimer.current = undefined;
+    }
+  }, []);
+
+  const handlePlanetHoverStart = useCallback(
+    (id: UniversePlanetId) => {
+      clearHoverCloseTimer();
+      setHoveredPlanet(id);
+    },
+    [clearHoverCloseTimer]
+  );
+
+  const handlePlanetHoverEnd = useCallback(() => {
+    clearHoverCloseTimer();
+    hoverCloseTimer.current = window.setTimeout(() => {
+      setHoveredPlanet(null);
+      hoverCloseTimer.current = undefined;
+    }, UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS);
+  }, [clearHoverCloseTimer]);
+
   const navigateWithTunnel = useCallback(
     (href: string, planet?: UniversePlanetConfig) => {
       if (reducedMotion || !planet) {
@@ -71,9 +96,10 @@ export function UniverseHomePage() {
 
   const handlePlanetSelect = useCallback(
     (planet: UniversePlanetConfig) => {
+      clearHoverCloseTimer();
       navigateWithTunnel(planetHrefs[planet.id], planet);
     },
-    [navigateWithTunnel, planetHrefs]
+    [clearHoverCloseTimer, navigateWithTunnel, planetHrefs]
   );
 
   const handleQuickNavigate = useCallback(
@@ -84,8 +110,20 @@ export function UniverseHomePage() {
   );
 
   useEffect(() => {
-    return () => setTunnelPlanet(null);
-  }, []);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        clearHoverCloseTimer();
+        setHoveredPlanet(null);
+        setFocusedPlanet(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      clearHoverCloseTimer();
+      setTunnelPlanet(null);
+    };
+  }, [clearHoverCloseTimer]);
 
   return (
     <main className="universe-animate relative flex min-h-[calc(100dvh-4rem)] flex-1 flex-col overflow-x-hidden overflow-y-auto text-white">
@@ -111,7 +149,8 @@ export function UniverseHomePage() {
             focusedPlanet={focusedPlanet}
             reducedMotion={reducedMotion}
             parallax={parallax}
-            onHover={setHoveredPlanet}
+            onHoverStart={handlePlanetHoverStart}
+            onHoverEnd={handlePlanetHoverEnd}
             onFocus={setFocusedPlanet}
             onSelect={handlePlanetSelect}
           />
@@ -120,11 +159,11 @@ export function UniverseHomePage() {
         <div className="w-full md:hidden">
           <UniverseMobileStack
             hrefs={planetHrefs}
-            hoveredPlanet={hoveredPlanet}
+            expandedPlanet={hoveredPlanet}
             focusedPlanet={focusedPlanet}
             reducedMotion={reducedMotion}
-            isAuthenticated={isAuthenticated}
-            onHover={setHoveredPlanet}
+            onExpand={handlePlanetHoverStart}
+            onCollapse={handlePlanetHoverEnd}
             onFocus={setFocusedPlanet}
             onSelect={handlePlanetSelect}
           />

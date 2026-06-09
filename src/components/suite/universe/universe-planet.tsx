@@ -7,6 +7,11 @@ import { UniversePlanetIdentityRing } from "@/components/suite/universe/universe
 import { UniversePlanetPreview } from "@/components/suite/universe/universe-planet-preview";
 import { UniversePlanetSatellites } from "@/components/suite/universe/universe-planet-satellites";
 import { UniversePlanetWorld } from "@/components/suite/universe/universe-planet-world";
+import {
+  UNIVERSE_PLANET_CLUSTER_CLASS,
+  UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
+  UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+} from "@/lib/universe-planet-ux";
 
 type UniversePlanetProps = {
   planet: UniversePlanetConfig;
@@ -14,11 +19,13 @@ type UniversePlanetProps = {
   hovered: boolean;
   focused: boolean;
   reducedMotion?: boolean;
-  onHover: (id: UniversePlanetConfig["id"] | null) => void;
+  onHoverStart: (id: UniversePlanetConfig["id"]) => void;
+  onHoverEnd: () => void;
   onFocus: (id: UniversePlanetConfig["id"] | null) => void;
   onSelect: (planet: UniversePlanetConfig) => void;
   style?: CSSProperties;
   variant?: "orbit" | "card";
+  showCardPreview?: boolean;
 };
 
 export function UniversePlanet({
@@ -27,11 +34,13 @@ export function UniversePlanet({
   hovered,
   focused,
   reducedMotion = false,
-  onHover,
+  onHoverStart,
+  onHoverEnd,
   onFocus,
   onSelect,
   style,
   variant = "orbit",
+  showCardPreview = true,
 }: UniversePlanetProps) {
   const t = useActiveTranslator();
   const active = hovered || focused;
@@ -48,8 +57,43 @@ export function UniversePlanet({
   const previewPlacement =
     planet.orbitAngle > 90 && planet.orbitAngle < 270 ? "side" : "below";
 
+  const handleClusterEnter = () => {
+    onHoverStart(planet.id);
+  };
+
+  const handleClusterLeave = () => {
+    onHoverEnd();
+  };
+
   return (
-    <div className="group relative flex flex-col items-center" style={style}>
+    <div
+      className={`${UNIVERSE_PLANET_CLUSTER_CLASS} group relative flex flex-col items-center justify-center overflow-visible ${
+        variant === "orbit" ? "universe-planet-orbit-cluster" : ""
+      }`}
+      style={{
+        ...style,
+        ...(variant === "orbit"
+          ? {
+              width: UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+              height: UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
+              minWidth: UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+              minHeight: UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
+            }
+          : undefined),
+      }}
+      onMouseEnter={handleClusterEnter}
+      onMouseLeave={handleClusterLeave}
+      onFocus={(event) => {
+        if (event.currentTarget.contains(event.target as Node)) {
+          onFocus(planet.id);
+        }
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+          onFocus(null);
+        }
+      }}
+    >
       {variant === "orbit" && (
         <UniversePlanetIdentityRing
           planetId={planet.id}
@@ -64,11 +108,7 @@ export function UniversePlanet({
       <button
         type="button"
         onClick={() => onSelect(planet)}
-        onMouseEnter={() => onHover(planet.id)}
-        onMouseLeave={() => onHover(null)}
-        onFocus={() => onFocus(planet.id)}
-        onBlur={() => onFocus(null)}
-        className={`relative ${sizeClass} rounded-full outline-none transition-transform duration-500 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${
+        className={`relative z-[2] ${sizeClass} rounded-full outline-none transition-transform duration-500 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${
           active ? "scale-[1.15] z-10" : "scale-100 hover:scale-105"
         }`}
         style={{
@@ -101,25 +141,18 @@ export function UniversePlanet({
         )}
       </button>
 
-      <p
-        className={`pointer-events-none mt-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] ${
-          active ? "text-white" : "text-white/80"
-        } ${variant === "orbit" ? "block" : "hidden"}`}
-        aria-hidden={variant !== "orbit"}
-      >
-        {t(planet.titleKey)}
-      </p>
-
       {variant === "orbit" && (
         <UniversePlanetPreview
           planet={planet}
           active={active}
           onOpen={() => onSelect(planet)}
+          onPortalEnter={handleClusterEnter}
+          onPortalLeave={handleClusterLeave}
           placement={previewPlacement}
         />
       )}
 
-      {variant === "card" && active && (
+      {variant === "card" && active && showCardPreview && (
         <div className="mt-3 w-full">
           <UniversePlanetPreview
             planet={planet}
