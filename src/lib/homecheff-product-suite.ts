@@ -106,7 +106,7 @@ export function resolveProductHref(id: HomeCheffProductId): string {
 /** Internal destination after alias redirect */
 export function resolveProductInternalHref(id: HomeCheffProductId): string {
   if (id === "presentation") {
-    return resolvePublishEntryPath();
+    return "/publish";
   }
   if (id === "assets") {
     return LIBRARY_HUB_BASE_PATH;

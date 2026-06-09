@@ -22,10 +22,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/library", destination: "/studio/assets", permanent: false },
       { source: "/library/:path*", destination: "/studio/assets/:path*", permanent: false },
-      { source: "/publish", destination: "/videos", permanent: false },
-      { source: "/publish/:path*", destination: "/videos", permanent: false },
       { source: "/presentation", destination: "/publish", permanent: false },
-      { source: "/presentation/:path*", destination: "/publish", permanent: false },
+      { source: "/presentation/:path*", destination: "/publish/:path*", permanent: false },
       { source: "/create", destination: "/maak", permanent: false },
       { source: "/create/:path*", destination: "/maak", permanent: false },
       { source: "/beheer", destination: "/admin", permanent: false },

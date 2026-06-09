@@ -67,7 +67,7 @@ describe("homecheff-product-suite", () => {
     assert.equal(resolveProductHref("editor"), "/editor");
     assert.equal(resolveProductHref("presentation"), "/publish");
     assert.equal(resolveProductHref("assets"), "/library");
-    assert.equal(resolveProductInternalHref("presentation"), "/videos");
+    assert.equal(resolveProductInternalHref("presentation"), "/publish");
     assert.equal(resolveProductInternalHref("assets"), "/studio/assets");
   });
 
@@ -142,9 +142,9 @@ describe("homecheff-suite-route-aliases", () => {
     assert.ok(isLibraryAliasPath("/library/media/videos"));
   });
 
-  it("publish alias resolves to videos entry", () => {
-    assert.equal(resolvePublishEntryPath(), "/videos");
-    assert.equal(publishAliasToEntryPath("/publish"), "/videos");
+  it("publish alias resolves to publish entry", () => {
+    assert.equal(resolvePublishEntryPath(), "/publish");
+    assert.equal(publishAliasToEntryPath("/publish"), "/publish");
     assert.equal(publishAliasToEntryPath("/presentation"), "/publish");
     assert.ok(isPublishAliasPath("/presentation"));
   });

@@ -3,7 +3,7 @@
  */
 
 export const LIBRARY_HUB_BASE_PATH = "/studio/assets";
-export const PUBLISH_ENTRY_PATH = "/videos";
+export const PUBLISH_ENTRY_PATH = "/publish";
 
 export function resolveLibraryHubPath(segments: string[] = []): string {
   if (segments.length === 0) {
@@ -44,7 +44,7 @@ export function publishAliasToEntryPath(pathname: string): string {
     return pathname === "/presentation" ? "/publish" : pathname.replace(/^\/presentation/, "/publish");
   }
   if (pathname === "/publish" || pathname.startsWith("/publish/")) {
-    return resolvePublishEntryPath();
+    return pathname;
   }
   return resolvePublishEntryPath();
 }
