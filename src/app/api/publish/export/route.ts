@@ -1,0 +1,32 @@
+import { readFile } from "node:fs/promises";
+import { NextResponse } from "next/server";
+import { requireActiveUser } from "@/server/auth/permissions";
+import { loadPublishProjectFromBody } from "@/server/publish/publish-export-body";
+import { exportPublishProjectVideo } from "@/server/publish/publish-video-export-service";
+
+export async function POST(request: Request) {
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
+  }
+
+  const project = await loadPublishProjectFromBody(request);
+  if (!project) {
+    return NextResponse.json({ error: "Invalid publish project" }, { status: 400 });
+  }
+
+  const result = await exportPublishProjectVideo(project);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error, fallback: "draft_saved" }, { status: 503 });
+  }
+
+  const bytes = await readFile(result.outputPath);
+  return new NextResponse(bytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "video/mp4",
+      "Content-Disposition": `attachment; filename="${project.name.replace(/[^a-z0-9-_]+/gi, "-")}-publish.mp4"`,
+      "X-Publish-Layer-Count": String(result.layerCount),
+    },
+  });
+}
