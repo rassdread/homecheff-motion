@@ -125,6 +125,24 @@ export function StudioAssetDetailView({ asset, usage, isAdmin, onClose, onFavori
             <dd className="mt-0.5">{asset.semanticContinuity.derivedFromSourceName}</dd>
           </div>
         : null}
+        {typeof asset.semanticContinuity?.animationReadinessScore === "number" ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.animationReady")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.animationReadinessScore}%</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.bodySummary ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.bodyType")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.bodySummary}</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.postureSummary ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.posture")}</dt>
+            <dd className="mt-0.5">{asset.semanticContinuity.postureSummary}</dd>
+          </div>
+        : null}
         {typeof asset.semanticContinuity?.identityScore === "number" ?
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityScore")}</dt>

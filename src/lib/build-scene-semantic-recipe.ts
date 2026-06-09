@@ -5,6 +5,11 @@ import {
   extractAssetSemanticRecordFromWorld,
   hashSemanticText,
 } from "@/lib/studio-asset-semantic-record";
+import {
+  formatBodySummary,
+  formatCharacterConstructionSummary,
+  formatPostureSummary,
+} from "@/lib/studio-asset-animation-readiness";
 import { resolveIdentityProfileMotionGuidance } from "@/lib/studio-asset-identity-profile";
 import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
 import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
@@ -41,6 +46,10 @@ function toCharacterRef(
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    animationReadinessScore: record.animationReadinessScore,
+    characterConstructionSummary: formatCharacterConstructionSummary(record.characterConstructionProfile),
+    postureSummary: formatPostureSummary(record.characterConstructionProfile),
+    bodySummary: formatBodySummary(record.characterConstructionProfile),
   };
 }
 
@@ -256,6 +265,29 @@ function collectIdentityProfileMotionGuidance(recipe: SceneSemanticRecipe): stri
     .map((guidance) => `Profile guidance: ${guidance}`);
 }
 
+function collectAnimationReadinessMotionLines(recipe: SceneSemanticRecipe): string[] {
+  const lines: string[] = [];
+  const scores = collectRecipeAssetRefs(recipe)
+    .filter((ref) => typeof ref.animationReadinessScore === "number")
+    .map((ref) => `${ref.name}=${ref.animationReadinessScore}%`);
+  if (scores.length) {
+    lines.push(`Animation readiness: ${scores.join(", ")}.`);
+  }
+  for (const ref of collectRecipeAssetRefs(recipe)) {
+    const summary = [
+      ref.characterConstructionSummary,
+      ref.bodySummary ? `Body: ${ref.bodySummary}` : "",
+      ref.postureSummary ? `Posture: ${ref.postureSummary}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    if (summary) {
+      lines.push(`Character construction (${ref.name}): ${summary}.`);
+    }
+  }
+  return lines.filter(Boolean);
+}
+
 function formatRecipeIdentityAssetTypes(recipe: SceneSemanticRecipe): string {
   const refs = collectRecipeAssetRefs(recipe).filter((ref) => ref.identityAssetType?.trim());
   if (refs.length === 0) {
@@ -292,6 +324,7 @@ export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe):
           .join(", ")}.`
       : "",
     formatRecipeIdentityAssetTypes(recipe),
+    ...collectAnimationReadinessMotionLines(recipe),
     ...collectIdentityProfileMotionGuidance(recipe),
     recipe.continuityRules ? `Continuity: ${recipe.continuityRules}.` : "",
     recipe.keyFeatures?.length ? `Key features: ${recipe.keyFeatures.join(", ")}.` : "",

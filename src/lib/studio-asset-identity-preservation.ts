@@ -1,9 +1,11 @@
+import { buildConstructionContinuityPromptBlock } from "@/lib/studio-asset-animation-readiness";
 import {
   buildIdentityProfileRules,
   resolveIdentityProfileMotionGuidance,
   resolveVariantFidelityThresholdsForProfile,
   rulesToCommaSeparated,
 } from "@/lib/studio-asset-identity-profile";
+import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
 import { hashSemanticText } from "@/lib/studio-asset-semantic-record";
 import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
@@ -752,6 +754,10 @@ export function computeVariantFidelityScore(params: {
 
 export function buildStricterPreservePatch(draft: AssetWizardDraft): Partial<AssetWizardDraft> {
   const vision = draft.sourceVisionAnalysis;
+  const semanticRecord = buildAssetSemanticRecordFromWizardDraft(draft);
+  const constructionBlock = buildConstructionContinuityPromptBlock(
+    semanticRecord?.characterConstructionProfile
+  );
   if (draft.identityAssetType && draft.identityProfileLevel) {
     const rules = buildIdentityProfileRules({
       assetType: draft.identityAssetType,
@@ -775,6 +781,7 @@ export function buildStricterPreservePatch(draft: AssetWizardDraft): Partial<Ass
       sourceTransformInstruction: [
         draft.sourceTransformInstruction.trim(),
         STRICT_REGENERATION_IDENTITY_INSTRUCTION,
+        constructionBlock,
         "Strict variant: preserve exact face, proportions, silhouette, and brand identity from source.",
       ]
         .filter(Boolean)
@@ -823,6 +830,7 @@ export function buildStricterPreservePatch(draft: AssetWizardDraft): Partial<Ass
     sourceTransformInstruction: [
       draft.sourceTransformInstruction.trim(),
       STRICT_REGENERATION_IDENTITY_INSTRUCTION,
+      constructionBlock,
       "Strict variant: preserve exact face, proportions, silhouette, and brand identity from source.",
     ]
       .filter(Boolean)

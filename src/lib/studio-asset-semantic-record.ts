@@ -3,6 +3,12 @@ import {
   resolveSemanticLineageFromDraft,
 } from "@/lib/studio-asset-identity-preservation";
 import {
+  buildCharacterConstructionProfile,
+  formatBodySummary,
+  formatCharacterConstructionSummary,
+  formatPostureSummary,
+} from "@/lib/studio-asset-animation-readiness";
+import {
   formatIdentityProfileDirectorLabel,
   resolveIdentityImportanceLabel,
 } from "@/lib/studio-asset-identity-profile";
@@ -90,6 +96,12 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     identityAssetType: raw.identityAssetType?.trim() || undefined,
     identityProfile: raw.identityProfile ?? undefined,
     identityImportance: raw.identityImportance?.trim() || undefined,
+    characterConstructionProfile: raw.characterConstructionProfile ?? undefined,
+    animationReadinessScore:
+      typeof raw.animationReadinessScore === "number" ? raw.animationReadinessScore : undefined,
+    animationPreparationActions: Array.isArray(raw.animationPreparationActions)
+      ? raw.animationPreparationActions.map(String).filter(Boolean)
+      : undefined,
   };
 }
 
@@ -151,9 +163,26 @@ export function buildAssetSemanticRecordFromVision(
   });
 }
 
+function animationPreparationExtrasFromDraft(
+  draft: AssetWizardDraft
+): Partial<AssetSemanticRecord> {
+  const construction = buildCharacterConstructionProfile(draft);
+  if (!construction && !draft.animationReadinessAnalysis) {
+    return {};
+  }
+  return {
+    characterConstructionProfile: construction ?? undefined,
+    animationReadinessScore: draft.animationReadinessAnalysis?.score,
+    animationPreparationActions: draft.animationPreparationActions.length
+      ? draft.animationPreparationActions
+      : undefined,
+  };
+}
+
 export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft): AssetSemanticRecord | null {
   const sourceName = draft.sourceReferenceName?.trim() || draft.derivationSource?.assetName?.trim();
   const visionAnalysis = draft.sourceVisionAnalysis;
+  const animationExtras = animationPreparationExtrasFromDraft(draft);
   if (visionAnalysis) {
     const lineage = resolveSemanticLineageFromDraft(draft);
     return buildAssetSemanticRecordFromVision(visionAnalysis, {
@@ -181,6 +210,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
         draft.sourceTransformForbidden.trim()
           ? draft.sourceTransformForbidden.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
           : undefined,
+      ...animationExtras,
     });
   }
 
@@ -205,6 +235,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
       forbiddenRules: draft.sourceTransformForbidden
         ? draft.sourceTransformForbidden.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
         : undefined,
+      ...animationExtras,
     });
   }
 
@@ -471,5 +502,9 @@ export function buildSemanticContinuitySnapshot(
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    animationReadinessScore: record.animationReadinessScore,
+    characterConstructionSummary: formatCharacterConstructionSummary(record.characterConstructionProfile),
+    postureSummary: formatPostureSummary(record.characterConstructionProfile),
+    bodySummary: formatBodySummary(record.characterConstructionProfile),
   };
 }

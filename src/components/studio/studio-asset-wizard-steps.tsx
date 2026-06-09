@@ -65,7 +65,10 @@ export function StudioAssetWizardInputStep({
   const showPrompt =
     path === "prompt_only" || path === "image_and_prompt";
   const showImage =
-    path === "image_only" || path === "image_and_prompt" || path === "existing_asset";
+    path === "image_only" ||
+    path === "image_and_prompt" ||
+    path === "existing_asset" ||
+    path === "prepare_for_animation";
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -792,6 +795,13 @@ export function canAdvanceFromEssentials(draft: AssetWizardDraft): boolean {
 export function canSaveWizardDraft(draft: AssetWizardDraft): boolean {
   if (!draft.name.trim()) {
     return false;
+  }
+  if (draft.entryPath === "prepare_for_animation") {
+    return Boolean(
+      draft.animationReadinessConfirmed &&
+        (draft.referenceImageUrl || draft.sourceReferenceImageUrl) &&
+        (draft.referenceStorageKey || draft.sourceReferenceStorageKey)
+    );
   }
   if (draft.kind === "world") {
     return true;

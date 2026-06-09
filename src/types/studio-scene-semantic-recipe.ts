@@ -18,6 +18,10 @@ export type SceneSemanticRecipeAssetRef = {
   identityAssetType?: string;
   identityProfile?: string;
   identityImportance?: string;
+  animationReadinessScore?: number;
+  characterConstructionSummary?: string;
+  postureSummary?: string;
+  bodySummary?: string;
 };
 
 export type SceneCrossAssetRelation = {

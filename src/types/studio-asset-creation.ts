@@ -8,7 +8,8 @@ export type AssetCreateEntryPath =
   | "image_only"
   | "image_and_prompt"
   | "existing_asset"
-  | "derive_from_reference";
+  | "derive_from_reference"
+  | "prepare_for_animation";
 
 export type AssetReferenceMode = "upload" | "generate" | "skip" | null;
 
@@ -23,6 +24,8 @@ export type AssetCreationWizardStep =
   | "source_transform"
   | "asset_vision"
   | "identity_profile"
+  | "character_construction"
+  | "animation_readiness"
   | "transform_prompt"
   | "reference"
   | "input"

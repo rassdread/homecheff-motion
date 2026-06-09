@@ -9,6 +9,8 @@ import {
 } from "@/lib/studio-asset-transform-prompt";
 import { shouldShowAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
 import { hasConfirmedIdentityProfile } from "@/lib/studio-asset-identity-profile";
+import { isPrepareForAnimationFlow } from "@/lib/studio-asset-wizard-preparation-flow";
+import { wizardStepLabelKeyForPreparation } from "@/lib/studio-asset-wizard-preparation-flow";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
 import { kindSupportsReferenceStep } from "@/lib/studio-asset-wizard-choices";
 
@@ -41,10 +43,17 @@ export function wizardStepLabelKeyForDraft(
   if (step === "identity_profile") {
     return "studio.assetCreation.wizard.step.identityProfile";
   }
+  const preparationLabel = wizardStepLabelKeyForPreparation(step);
+  if (preparationLabel) {
+    return preparationLabel;
+  }
   return null;
 }
 
 function shouldIncludeReferenceStep(draft: AssetWizardDraft): boolean {
+  if (isPrepareForAnimationFlow(draft)) {
+    return false;
+  }
   if (!kindSupportsReferenceStep(draft.kind)) {
     return false;
   }

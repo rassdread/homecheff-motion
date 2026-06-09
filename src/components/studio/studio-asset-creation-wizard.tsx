@@ -37,8 +37,16 @@ import {
   emptyAssetWizardDraft,
   emptyChoiceBasedWizardDraft,
   emptyDerivationWizardDraft,
+  emptyPrepareForAnimationWizardDraft,
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
+import {
+  canAdvanceFromAnimationReadinessStep,
+  canAdvanceFromCharacterConstructionStep,
+  finalizePrepareForAnimationDraft,
+} from "@/lib/studio-asset-wizard-preparation-flow";
+import { StudioWizardAnimationReadinessStep } from "@/components/studio/studio-wizard-animation-readiness-step";
+import { StudioWizardCharacterConstructionStep } from "@/components/studio/studio-wizard-character-construction-step";
 import {
   choiceDefForWizardStep,
   wizardStepSequenceForDraft,
@@ -228,6 +236,12 @@ export function StudioAssetCreationWizard({
     if (step === "identity_profile") {
       return canAdvanceFromIdentityProfileStep(activeDraft);
     }
+    if (step === "character_construction") {
+      return canAdvanceFromCharacterConstructionStep(activeDraft);
+    }
+    if (step === "animation_readiness") {
+      return canAdvanceFromAnimationReadinessStep(activeDraft);
+    }
     if (step === "transform_prompt") {
       return canAdvanceFromTransformPromptStep(activeDraft);
     }
@@ -257,9 +271,14 @@ export function StudioAssetCreationWizard({
   }, [buildResult, onAdvancedEdit]);
 
   const handleSave = useCallback(async () => {
-    const result = buildResult();
+    let result = buildResult();
     if (!result) {
       return;
+    }
+    if (result.draft.entryPath === "prepare_for_animation") {
+      const finalized = { ...result.draft, ...finalizePrepareForAnimationDraft(result.draft) };
+      result = { ...result, draft: finalized };
+      setDraft(finalized);
     }
     setSaving(true);
     setSaveError("");
@@ -386,6 +405,21 @@ export function StudioAssetCreationWizard({
               <p className="text-sm font-semibold">{t("studio.assetCreation.entry.deriveTitle")}</p>
               <p className="mt-2 text-xs text-zinc-600">{t("studio.assetCreation.entry.deriveDescription")}</p>
             </button>
+            {kind === "character" ?
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(emptyPrepareForAnimationWizardDraft(kind));
+                  setNavIndex(0);
+                }}
+                className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 text-left hover:border-emerald-400 sm:col-span-2"
+              >
+                <p className="text-sm font-semibold">{t("studio.assetCreation.entry.prepareAnimationTitle")}</p>
+                <p className="mt-2 text-xs text-zinc-600">
+                  {t("studio.assetCreation.entry.prepareAnimationDescription")}
+                </p>
+              </button>
+            : null}
           </div>
         </div>
       : null}
@@ -425,6 +459,14 @@ export function StudioAssetCreationWizard({
 
       {activeDraft && step === "identity_profile" ?
         <StudioWizardIdentityProfileStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && step === "character_construction" ?
+        <StudioWizardCharacterConstructionStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && step === "animation_readiness" ?
+        <StudioWizardAnimationReadinessStep draft={activeDraft} onDraftChange={updateDraft} />
       : null}
 
       {activeDraft && step === "source_transform" ?

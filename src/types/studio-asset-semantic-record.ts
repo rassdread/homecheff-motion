@@ -45,6 +45,12 @@ export type AssetSemanticRecord = {
   identityProfile?: import("@/types/studio-asset-identity-profile").IdentityProfileLevel;
   /** Human-readable identity importance (flexible, balanced, important, critical) */
   identityImportance?: string;
+  /** Animation-ready character construction profile */
+  characterConstructionProfile?: import("@/types/studio-asset-animation-readiness").CharacterConstructionProfile;
+  /** 0–100 animation readiness score */
+  animationReadinessScore?: number;
+  /** Selected preparation actions (remove background, standard pose, …) */
+  animationPreparationActions?: string[];
 };
 
 export type AssetSemanticRecordKind = "character" | "prop" | "location" | "world";

@@ -75,6 +75,7 @@ export type StudioRenderAuditMetadata = {
   identityProfiles?: string[];
   identityImportanceLevels?: string[];
   identityAssetTypes?: string[];
+  animationReadinessScores?: Array<{ name: string; score: number }>;
 };
 
 export type StudioStalenessSeverity = "low" | "medium" | "high";

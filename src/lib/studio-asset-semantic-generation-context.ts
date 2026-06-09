@@ -1,5 +1,6 @@
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
+import { buildConstructionContinuityPromptBlock } from "@/lib/studio-asset-animation-readiness";
 import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
 import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -77,6 +78,10 @@ export function buildAssetSemanticGenerationContext(input: AssetSemanticGenerati
     record?.identityAssetType ? `Asset type: ${record.identityAssetType}.` : "",
     record?.identityProfile ? `Identity profile: ${record.identityProfile}.` : "",
     record?.identityImportance ? `Identity importance: ${record.identityImportance}.` : "",
+    typeof record?.animationReadinessScore === "number"
+      ? `Animation readiness: ${record.animationReadinessScore}%.`
+      : "",
+    buildConstructionContinuityPromptBlock(record?.characterConstructionProfile),
     record?.worldContext ? `World context: ${record.worldContext}.` : "",
     record?.roleContext ? `Role context: ${record.roleContext}.` : "",
     preserve ? `Preserve: ${preserve}.` : "",

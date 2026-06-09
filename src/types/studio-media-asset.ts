@@ -70,6 +70,10 @@ export type StudioAssetSemanticContinuity = {
   visionSummary?: string;
   identityAssetType?: string;
   identityProfile?: string;
+  animationReadinessScore?: number;
+  characterConstructionSummary?: string;
+  postureSummary?: string;
+  bodySummary?: string;
   identityImportance?: string;
 };
 

@@ -9,6 +9,7 @@ import type {
   AssetCreationWizardStep,
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
+import { injectPreparationWizardSteps } from "@/lib/studio-asset-wizard-preparation-flow";
 import {
   injectSourceReferenceWizardSteps,
 } from "@/lib/studio-asset-wizard-source-flow";
@@ -32,6 +33,9 @@ export function wizardStepsForEntryPath(
     case "image_only":
     case "image_and_prompt":
       steps.push("input", "proposal", "essentials", "readiness", "save");
+      break;
+    case "prepare_for_animation":
+      steps.push("input", "essentials", "save");
       break;
     case "existing_asset":
       steps.push(
@@ -97,6 +101,10 @@ export function entryPathNeedsProposalStep(path: AssetCreateEntryPath): boolean 
   return path === "prompt_only" || path === "image_only" || path === "image_and_prompt";
 }
 
+export function entryPathIsImageOnlyUpload(path: AssetCreateEntryPath): boolean {
+  return path === "image_only" || path === "prepare_for_animation";
+}
+
 export function wizardStepSequenceForDraft(
   draft: {
     kind: StudioAssetKind;
@@ -122,7 +130,10 @@ export function wizardStepSequenceForDraft(
   } else {
     steps = wizardStepsForEntryPath(draft.entryPath, options);
   }
-  return injectSourceReferenceWizardSteps(steps, draft as AssetWizardDraft);
+  return injectPreparationWizardSteps(
+    injectSourceReferenceWizardSteps(steps, draft as AssetWizardDraft),
+    draft as AssetWizardDraft
+  );
 }
 
 export function choiceDefForWizardStep(

@@ -569,6 +569,15 @@ export function buildStudioRenderAuditMetadata(project: {
       })
     ),
   ];
+  const animationReadinessScores = scenes.flatMap((scene) => {
+    const recipe = scene.semanticRecipe;
+    if (!recipe) {
+      return [];
+    }
+    return recipe.characters
+      .filter((c) => typeof c.animationReadinessScore === "number")
+      .map((c) => ({ name: c.name, score: c.animationReadinessScore as number }));
+  });
 
   return {
     sourceStoryboardId: project.studioSourceStoryboardId,
@@ -593,6 +602,8 @@ export function buildStudioRenderAuditMetadata(project: {
     identityImportanceLevels:
       identityImportanceLevels.length > 0 ? identityImportanceLevels : undefined,
     identityAssetTypes: identityAssetTypes.length > 0 ? identityAssetTypes : undefined,
+    animationReadinessScores:
+      animationReadinessScores.length > 0 ? animationReadinessScores : undefined,
   };
 }
 

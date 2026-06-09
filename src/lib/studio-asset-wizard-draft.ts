@@ -30,6 +30,10 @@ import type {
   IdentityAssetType,
   IdentityProfileLevel,
 } from "@/types/studio-asset-identity-profile";
+import type {
+  AnimationReadinessAnalysis,
+  CharacterConstructionProfile,
+} from "@/types/studio-asset-animation-readiness";
 import {
   applySemanticRecordToCharacterFields,
   applySemanticRecordToLocationFields,
@@ -106,6 +110,12 @@ export type AssetWizardDraft = {
   variantRegenerationStrict: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
+  /** Animation-ready preparation flow (prepare_for_animation entry). */
+  characterConstruction: Partial<CharacterConstructionProfile>;
+  characterConstructionConfirmed: boolean;
+  animationReadinessAnalysis: AnimationReadinessAnalysis | null;
+  animationPreparationActions: string[];
+  animationReadinessConfirmed: boolean;
 };
 
 export function emptyAssetWizardDraft(
@@ -164,6 +174,18 @@ export function emptyAssetWizardDraft(
     variantFidelityStatus: "idle",
     variantRegenerationStrict: false,
     fields: {},
+    characterConstruction: {},
+    characterConstructionConfirmed: false,
+    animationReadinessAnalysis: null,
+    animationPreparationActions: [],
+    animationReadinessConfirmed: false,
+  };
+}
+
+export function emptyPrepareForAnimationWizardDraft(kind: StudioAssetKind): AssetWizardDraft {
+  return {
+    ...emptyAssetWizardDraft(kind, "prepare_for_animation"),
+    referenceMode: "upload",
   };
 }
 
