@@ -71,7 +71,7 @@ export function resolvePlanLabelKey(planId: string): string {
 }
 
 export function isNavVisibleForModule(moduleId: HomeCheffProductId, suiteNavEnabled: boolean): boolean {
-  if (!suiteNav) {
+  if (!suiteNavEnabled) {
     return moduleId !== "editor";
   }
   return true;

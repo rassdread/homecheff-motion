@@ -8,7 +8,7 @@ import {
   summarizeQaItems,
 } from "@/lib/professional-qa-layer";
 import { createPublishProject } from "@/lib/publish-overlay-session";
-import { addPublishOverlay, createDefaultPublishOverlay } from "@/lib/publish-overlay-timeline";
+import { addPublishOverlay } from "@/lib/publish-overlay-timeline";
 import { createEditorDocumentFromUpload } from "@/lib/editor-canvas-session";
 
 describe("professional-qa-layer phase 8", () => {
@@ -31,7 +31,7 @@ describe("professional-qa-layer phase 8", () => {
   });
 
   it("warns on short duration", () => {
-    let project = addPublishOverlay(createPublishProject({ name: "P", videoUrl: "x" }), "text");
+    const project = addPublishOverlay(createPublishProject({ name: "P", videoUrl: "x" }), "text");
     project.overlays[0].endTime = 0.3;
     const items = buildPublishQaItems(project);
     assert.ok(items.some((i) => i.messageKey === "qa.publish.shortDuration"));
@@ -123,7 +123,7 @@ describe("suite-acceptance-flows phase 12", () => {
   it("Flow E — standalone publish project", () => {
     const project = createPublishProject({ name: "Standalone", videoUrl: "blob:video", source: "standalone" });
     assert.equal(project.source, "standalone");
-    let withSub = addPublishOverlay(project, "subtitle");
+    const withSub = addPublishOverlay(project, "subtitle");
     assert.ok(withSub.overlays.length >= 1);
   });
 
