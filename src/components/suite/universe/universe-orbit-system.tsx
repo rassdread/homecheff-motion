@@ -25,6 +25,7 @@ type UniverseOrbitSystemProps = {
   reducedMotion?: boolean;
   parallax?: UniverseParallaxOffset;
   globeDebugLayer?: UniverseGlobeDebugLayer | null;
+  globeProjectionDebug?: boolean;
   onHoverStart: (id: UniversePlanetId) => void;
   onHoverEnd: () => void;
   onFocus: (id: UniversePlanetId | null) => void;
@@ -38,6 +39,7 @@ export function UniverseOrbitSystem({
   reducedMotion = false,
   parallax,
   globeDebugLayer = null,
+  globeProjectionDebug = false,
   onHoverStart,
   onHoverEnd,
   onFocus,
@@ -61,7 +63,12 @@ export function UniverseOrbitSystem({
         }}
       >
         <div className="pointer-events-auto">
-          <UniverseGlobe reducedMotion={reducedMotion} size="hero" debugLayer={globeDebugLayer} />
+          <UniverseGlobe
+            reducedMotion={reducedMotion}
+            size="hero"
+            debugLayer={globeDebugLayer}
+            projectionDebug={globeProjectionDebug}
+          />
         </div>
       </div>
 

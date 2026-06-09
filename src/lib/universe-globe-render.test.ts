@@ -50,7 +50,7 @@ describe("universe globe render audit", () => {
     );
     assert.match(overlaySource, /ECOSYSTEM_HUBS/);
     assert.match(overlaySource, /ECOSYSTEM_ROUTES/);
-    assert.match(overlaySource, /universe-globe-route-pulse/);
+    assert.match(overlaySource, /projectHubToGlobe|projectLatLonToGlobePoint/);
   });
 
   it("globe debug layers resolve from query param", () => {

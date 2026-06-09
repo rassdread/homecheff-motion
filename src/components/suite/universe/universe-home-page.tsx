@@ -20,6 +20,7 @@ import {
 } from "@/lib/universe-public-landing";
 import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS } from "@/lib/universe-planet-ux";
 import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
+import { resolveUniverseGlobeProjectionDebug } from "@/lib/universe-globe-projection";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
 import "./universe-home.css";
 
@@ -33,6 +34,14 @@ export function UniverseHomePage() {
     }
     return resolveUniverseGlobeDebugLayer(
       new URLSearchParams(window.location.search).get("universeDebug")
+    );
+  });
+  const [globeProjectionDebug] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return resolveUniverseGlobeProjectionDebug(
+      new URLSearchParams(window.location.search).get("globeProjectionDebug")
     );
   });
   const session = useAuthSession();
@@ -159,6 +168,7 @@ export function UniverseHomePage() {
             reducedMotion={reducedMotion}
             parallax={parallax}
             globeDebugLayer={globeDebugLayer}
+            globeProjectionDebug={globeProjectionDebug}
             onHoverStart={handlePlanetHoverStart}
             onHoverEnd={handlePlanetHoverEnd}
             onFocus={setFocusedPlanet}

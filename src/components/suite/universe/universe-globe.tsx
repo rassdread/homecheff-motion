@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { GlobeEcosystemOverlay } from "@/components/suite/universe/universe-globe-ecosystem-overlay";
+import { useUniverseGlobeRotation } from "@/hooks/use-universe-globe-rotation";
 import { UNIVERSE_BRAND } from "@/lib/universe-home-config";
 import {
   EARTH_CONTINENT_PATHS,
   EARTH_MAP_HEIGHT,
   EARTH_MAP_WIDTH,
 } from "@/lib/universe-globe-earth";
+import { resolveGlobeMapTranslatePercent } from "@/lib/universe-globe-projection";
 import {
   shouldShowGlobeContinents,
   shouldShowGlobeEcosystem,
@@ -20,6 +22,7 @@ type UniverseGlobeProps = {
   reducedMotion?: boolean;
   size?: "hero" | "compact";
   debugLayer?: UniverseGlobeDebugLayer | null;
+  projectionDebug?: boolean;
 };
 
 function EarthContinentMap({ visible }: { visible: boolean }) {
@@ -84,8 +87,11 @@ export function UniverseGlobe({
   reducedMotion = false,
   size = "hero",
   debugLayer = null,
+  projectionDebug = false,
 }: UniverseGlobeProps) {
   const [focused, setFocused] = useState(false);
+  const rotationDeg = useUniverseGlobeRotation(reducedMotion, focused);
+  const mapTranslatePct = resolveGlobeMapTranslatePercent(rotationDeg);
   const dim = size === "hero" ? `min(34vw, ${UNIVERSE_GLOBE_HERO_MAX_PX}px)` : "160px";
   const showContinents = shouldShowGlobeContinents(debugLayer);
   const showEcosystem = shouldShowGlobeEcosystem(debugLayer);
@@ -102,8 +108,8 @@ export function UniverseGlobe({
       onBlur={() => setFocused(false)}
       tabIndex={0}
       data-universe-globe-debug={debugLayer ?? "full"}
+      data-universe-globe-rotation={rotationDeg.toFixed(1)}
     >
-      {/* Atmosphere — contained, does not extend over planets */}
       <div
         className="pointer-events-none absolute rounded-full"
         style={{
@@ -124,7 +130,6 @@ export function UniverseGlobe({
           boxShadow: `0 0 40px ${UNIVERSE_BRAND.blue}77, inset 0 -12px 32px rgba(0,0,0,0.35)`,
         }}
       >
-        {/* Ocean */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
@@ -132,19 +137,21 @@ export function UniverseGlobe({
           }}
         />
 
-        {/* Rotating continent map */}
         {showContinents && (
           <div className="absolute inset-0 overflow-hidden rounded-full">
             <div
-              className={`absolute inset-y-0 left-0 flex h-full ${reducedMotion ? "" : "universe-globe-map-layer"}`}
-              style={{ width: "200%" }}
+              className="absolute inset-y-0 left-0 flex h-full"
+              style={{
+                width: "200%",
+                transform: `translateX(${mapTranslatePct}%)`,
+                willChange: reducedMotion ? undefined : "transform",
+              }}
             >
               <EarthContinentMap visible />
             </div>
           </div>
         )}
 
-        {/* Spherical meridian grid */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden>
           {[20, 35, 50, 65, 80].map((x) => (
             <ellipse
@@ -172,12 +179,15 @@ export function UniverseGlobe({
           ))}
         </svg>
 
-        {/* Ecosystem nodes + routes overlay */}
         {showEcosystem && (
-          <GlobeEcosystemOverlay focused={focused} reducedMotion={reducedMotion} />
+          <GlobeEcosystemOverlay
+            focused={focused}
+            reducedMotion={reducedMotion}
+            rotationDeg={rotationDeg}
+            projectionDebug={projectionDebug}
+          />
         )}
 
-        {/* Light clouds */}
         <div
           className="pointer-events-none absolute inset-0 rounded-full opacity-22 mix-blend-screen"
           style={{
@@ -186,7 +196,6 @@ export function UniverseGlobe({
           }}
         />
 
-        {/* Terminator */}
         <div
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{
@@ -194,7 +203,6 @@ export function UniverseGlobe({
           }}
         />
 
-        {/* Atmosphere rim */}
         <div
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{

@@ -88,8 +88,7 @@ export function UniversePlanetWorld({
             ["--world-orbit" as string]: `${active ? 44 + i * 4 : 32 + i * 3}px`,
             animation: reducedMotion
               ? undefined
-              : `universe-world-orbit ${orbitSpeed} linear infinite`,
-            animationDelay: `${i * 0.4}s`,
+              : `universe-world-orbit ${orbitSpeed} linear ${i * 0.4}s infinite`,
             opacity,
             transformOrigin: "center center",
           }}

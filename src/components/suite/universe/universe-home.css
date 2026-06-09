@@ -362,6 +362,13 @@
   }
 }
 
+.universe-globe-debug-text {
+  fill: rgba(255, 220, 120, 0.95);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/** @deprecated Map rotation driven by JS — see resolveGlobeMapTranslatePercent */
 .universe-globe-map-layer {
   animation: universe-map-scroll 140s linear infinite;
 }
