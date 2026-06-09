@@ -1,3 +1,7 @@
+import {
+  buildAnimationPreparationSuggestions,
+  defaultSelectedActionsFromSuggestions,
+} from "@/lib/studio-asset-animation-suggestions";
 import { isAnimationReadyEvolutionFlow } from "@/lib/studio-asset-character-evolution";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
@@ -54,18 +58,20 @@ export function seedAnimationReadinessAnalysis(draft: AssetWizardDraft): Partial
     return {};
   }
   const construction = buildCharacterConstructionProfile(draft);
+  const suggestions = buildAnimationPreparationSuggestions({
+    vision: draft.sourceVisionAnalysis,
+    construction,
+  });
   return {
     animationReadinessAnalysis: analyzeAnimationReadiness({
       vision: draft.sourceVisionAnalysis,
       construction,
     }),
+    animationPreparationSuggestions: suggestions,
     animationPreparationActions:
       draft.animationPreparationActions.length > 0
         ? draft.animationPreparationActions
-        : analyzeAnimationReadiness({
-            vision: draft.sourceVisionAnalysis,
-            construction,
-          }).recommendedActions,
+        : defaultSelectedActionsFromSuggestions(suggestions),
   };
 }
 

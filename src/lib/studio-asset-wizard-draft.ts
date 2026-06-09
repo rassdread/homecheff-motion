@@ -34,11 +34,18 @@ import type {
   AnimationReadinessAnalysis,
   CharacterConstructionProfile,
 } from "@/types/studio-asset-animation-readiness";
+import { defaultSemanticLayers } from "@/lib/studio-asset-composition-graph";
 import {
   DEFAULT_CANONICAL_EVOLUTION_CONSTRUCTION,
   type CanonicalEvolutionConstruction,
   type CharacterEvolutionChoice,
 } from "@/types/studio-asset-character-evolution";
+import type {
+  AssetReferencePlacement,
+  CharacterStyleCardId,
+  DynamicAccessoryItem,
+  SemanticLayerState,
+} from "@/types/studio-asset-generation-workbench";
 import {
   applySemanticRecordToCharacterFields,
   applySemanticRecordToLocationFields,
@@ -119,6 +126,15 @@ export type AssetWizardDraft = {
   /** Character evolution choice (variant / canonical base / animation ready). */
   characterEvolutionChoice: CharacterEvolutionChoice | "";
   canonicalEvolutionConstruction: CanonicalEvolutionConstruction;
+  /** Workbench character style card */
+  characterStyleCard: CharacterStyleCardId | "";
+  characterStyleCustom: string;
+  /** Reference placement for exact logos/icons */
+  referencePlacements: AssetReferencePlacement[];
+  dynamicAccessories: DynamicAccessoryItem[];
+  semanticLayers: SemanticLayerState[];
+  animationPreparationSuggestions: import("@/types/studio-asset-generation-workbench").AnimationPreparationSuggestion[];
+  placementQaResult: import("@/types/studio-asset-generation-workbench").PlacementQaResult | null;
   /** Animation-ready preparation flow (prepare_for_animation entry). */
   characterConstruction: Partial<CharacterConstructionProfile>;
   characterConstructionConfirmed: boolean;
@@ -186,6 +202,13 @@ export function emptyAssetWizardDraft(
     fields: {},
     characterEvolutionChoice: "",
     canonicalEvolutionConstruction: { ...DEFAULT_CANONICAL_EVOLUTION_CONSTRUCTION },
+    characterStyleCard: "",
+    characterStyleCustom: "",
+    referencePlacements: [],
+    dynamicAccessories: [],
+    semanticLayers: defaultSemanticLayers(),
+    animationPreparationSuggestions: [],
+    placementQaResult: null,
     characterConstruction: {},
     characterConstructionConfirmed: false,
     animationReadinessAnalysis: null,

@@ -1,7 +1,11 @@
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { buildConstructionContinuityPromptBlock } from "@/lib/studio-asset-animation-readiness";
+import { buildCharacterStylePromptBlock } from "@/lib/studio-asset-character-style-cards";
+import { buildCompositionGraphPromptBlock } from "@/lib/studio-asset-composition-graph";
 import { buildCanonicalEvolutionPromptBlock } from "@/lib/studio-asset-character-evolution";
+import { buildDynamicAccessoriesPromptBlock } from "@/lib/studio-asset-dynamic-accessories";
+import { buildPlacementPromptBlock } from "@/lib/studio-asset-reference-placement";
 import { buildIdentityShapeMarkersPromptLine } from "@/lib/studio-asset-identity-shape-markers";
 import type { CanonicalEvolutionConstruction } from "@/types/studio-asset-character-evolution";
 import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
@@ -99,9 +103,37 @@ export function buildAssetSemanticGenerationContext(input: AssetSemanticGenerati
       : record?.identityAssetType === "canonical_character_base"
         ? "Canonical Character Base: neutral animation-ready character without profession, tools, or campaign elements."
         : "",
+    record?.characterStyleCard
+      ? buildCharacterStylePromptBlock(
+          record.characterStyleCard as import("@/types/studio-asset-generation-workbench").CharacterStyleCardId,
+          record.characterStyleCustom
+        )
+      : "",
+    record?.dynamicAccessories?.length
+      ? buildDynamicAccessoriesPromptBlock(record.dynamicAccessories)
+      : "",
+    record?.referencePlacements?.length
+      ? buildPlacementPromptBlock(record.referencePlacements)
+      : "",
+    record?.referencePlacements?.length ? buildCompositionGraphPromptBlockFromRecord(record) : "",
   ].filter(Boolean);
 
   return lines.join(" ");
+}
+
+function buildCompositionGraphPromptBlockFromRecord(
+  record: import("@/types/studio-asset-semantic-record").AssetSemanticRecord
+): string {
+  if (!record.referencePlacements?.length) {
+    return "";
+  }
+  const draftLike = {
+    referencePlacements: record.referencePlacements,
+    sourceReferenceName: record.sourceReferenceName ?? "",
+    name: record.sourceReferenceName ?? "",
+    semanticLayers: record.semanticLayers ?? [],
+  } as import("@/lib/studio-asset-wizard-draft").AssetWizardDraft;
+  return buildCompositionGraphPromptBlock(draftLike);
 }
 
 export function buildAssetSemanticGenerationInputFromDraft(

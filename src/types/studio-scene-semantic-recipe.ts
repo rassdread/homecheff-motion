@@ -26,6 +26,7 @@ export type SceneSemanticRecipeAssetRef = {
   characterConstructionSummary?: string;
   postureSummary?: string;
   bodySummary?: string;
+  referencePlacementSummary?: string;
 };
 
 export type SceneCrossAssetRelation = {

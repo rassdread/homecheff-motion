@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import {
@@ -213,8 +214,9 @@ export function StudioWizardCharacterConstructionStep({ draft, onDraftChange }: 
     <div className="space-y-5">
       <StudioWizardSourceReferenceBanner draft={draft} />
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           {t("studio.assetCreation.characterConstruction.title")}
+          <StudioWizardInfoButton infoKey="studio.workbench.info.bodyConstruction" />
         </h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.characterConstruction.lead")}</p>
       </div>

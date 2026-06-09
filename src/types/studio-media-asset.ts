@@ -86,6 +86,8 @@ export type StudioAssetSemanticContinuity = {
   postureSummary?: string;
   bodySummary?: string;
   identityImportance?: string;
+  referencePlacements?: import("@/types/studio-asset-generation-workbench").AssetReferencePlacement[];
+  characterStyleCard?: string;
 };
 
 export type StudioAssetCollection = {

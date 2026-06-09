@@ -3,6 +3,7 @@
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { buildCanonicalEvolutionSummaryPrompt } from "@/lib/studio-asset-character-evolution";
+import { seedDynamicAccessoriesFromDraft } from "@/lib/studio-asset-dynamic-accessories";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type {
   CanonicalEvolutionBuildChoice,
@@ -11,8 +12,8 @@ import type {
   CanonicalEvolutionEyesChoice,
   CanonicalEvolutionMouthChoice,
   CanonicalEvolutionPostureChoice,
-  CanonicalEvolutionStripAccessories,
 } from "@/types/studio-asset-character-evolution";
+import type { DynamicAccessoryAction } from "@/types/studio-asset-generation-workbench";
 
 type DraftPatch = Partial<AssetWizardDraft> | ((d: AssetWizardDraft) => AssetWizardDraft);
 
@@ -55,31 +56,13 @@ function ChipGroup<T extends string>({
   );
 }
 
-function CheckboxRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border border-zinc-200 px-3 py-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-zinc-300"
-      />
-      <span className="text-zinc-800">{label}</span>
-    </label>
-  );
-}
-
 export function StudioWizardCanonicalEvolutionConstructionStep({ draft, onDraftChange }: Props) {
   const t = useActiveTranslator();
   const construction = draft.canonicalEvolutionConstruction;
+  const dynamicAccessories =
+    draft.dynamicAccessories.length > 0
+      ? draft.dynamicAccessories
+      : seedDynamicAccessoriesFromDraft(draft);
 
   const patchConstruction = (patch: {
     eyes?: typeof construction.eyes;
@@ -88,15 +71,10 @@ export function StudioWizardCanonicalEvolutionConstructionStep({ draft, onDraftC
     bodyConstruction?: typeof construction.bodyConstruction;
     posture?: typeof construction.posture;
     build?: typeof construction.build;
-    stripAccessories?: Partial<CanonicalEvolutionStripAccessories>;
   }) => {
     const nextConstruction = {
       ...construction,
       ...patch,
-      stripAccessories: {
-        ...construction.stripAccessories,
-        ...patch.stripAccessories,
-      },
     };
     const summaryPrompt = buildCanonicalEvolutionSummaryPrompt(nextConstruction, draft.name);
     onDraftChange({
@@ -214,36 +192,40 @@ export function StudioWizardCanonicalEvolutionConstructionStep({ draft, onDraftC
         />
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4">
-        <h4 className="text-sm font-semibold text-zinc-900">
-          {t("studio.assetCreation.canonicalEvolutionConstruction.accessoriesSection")}
-        </h4>
-        <p className="text-xs text-zinc-600">
-          {t("studio.assetCreation.canonicalEvolutionConstruction.accessoriesLead")}
-        </p>
-        <div className="space-y-2">
-          <CheckboxRow
-            label={t("studio.assetCreation.canonicalEvolutionConstruction.strip.globe")}
-            checked={construction.stripAccessories.globe}
-            onChange={(checked) => patchConstruction({ stripAccessories: { globe: checked } })}
-          />
-          <CheckboxRow
-            label={t("studio.assetCreation.canonicalEvolutionConstruction.strip.tools")}
-            checked={construction.stripAccessories.tools}
-            onChange={(checked) => patchConstruction({ stripAccessories: { tools: checked } })}
-          />
-          <CheckboxRow
-            label={t("studio.assetCreation.canonicalEvolutionConstruction.strip.chef")}
-            checked={construction.stripAccessories.chefAttributes}
-            onChange={(checked) => patchConstruction({ stripAccessories: { chefAttributes: checked } })}
-          />
-          <CheckboxRow
-            label={t("studio.assetCreation.canonicalEvolutionConstruction.strip.garden")}
-            checked={construction.stripAccessories.gardenAttributes}
-            onChange={(checked) => patchConstruction({ stripAccessories: { gardenAttributes: checked } })}
-          />
-        </div>
-      </section>
+      {dynamicAccessories.length > 0 ?
+        <section className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50/50 p-4">
+          <h4 className="text-sm font-semibold text-zinc-900">
+            {t("studio.workbench.accessories.title")}
+          </h4>
+          <p className="text-xs text-zinc-600">{t("studio.workbench.accessories.lead")}</p>
+          <div className="space-y-2">
+            {dynamicAccessories.map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm">
+                <span className="font-medium capitalize">{item.label}</span>
+                {(["keep", "remove", "replace", "identity_marker"] as DynamicAccessoryAction[]).map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={() => {
+                      const next = dynamicAccessories.map((a) =>
+                        a.id === item.id ? { ...a, action } : a
+                      );
+                      onDraftChange({ dynamicAccessories: next });
+                    }}
+                    className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                      item.action === action
+                        ? "border-[#0067B1] bg-[#0067B1]/10 text-[#0067B1]"
+                        : "border-zinc-300 text-zinc-600"
+                    }`}
+                  >
+                    {t(`studio.workbench.accessories.action.${action}` as never)}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      : null}
     </div>
   );
 }

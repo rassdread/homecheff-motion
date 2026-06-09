@@ -21,8 +21,13 @@ import {
 import { buildAssetSemanticGenerationInputFromDraft } from "@/lib/studio-asset-semantic-generation-context";
 import { buildAssetSemanticGenerationContext } from "@/lib/studio-asset-semantic-generation-context";
 import { auditGeneratedIdentityVariant } from "@/lib/studio-asset-identity-variant-audit";
+import {
+  auditReferencePlacements,
+  mergePlacementQaIntoVariantAudit,
+} from "@/lib/studio-asset-placement-qa";
 import { resolveIdentityImportanceLabel } from "@/lib/studio-asset-identity-profile";
 import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
+import type { PlacementQaResult } from "@/types/studio-asset-generation-workbench";
 import type { GeneratedIdentityVariantAudit } from "@/types/studio-asset-identity-variant-audit";
 import type { VariantFidelityScore } from "@/types/studio-asset-identity-preservation";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -36,6 +41,7 @@ export type ReferenceGenerationOutcome =
       generatedPrompt: string;
       variantFidelityScore: VariantFidelityScore | null;
       variantIdentityAudit: GeneratedIdentityVariantAudit | null;
+      placementQaResult: PlacementQaResult | null;
       generationMode?: AssetImageGenerationMode;
       identityFailure?: boolean;
       autoRecovered?: boolean;
@@ -131,9 +137,11 @@ async function scoreVariantFidelity(params: {
   kind: StudioAssetKind;
   generationId: string;
   profileLevel?: AssetWizardDraft["identityProfileLevel"];
+  generatedPrompt?: string;
 }): Promise<{
   fidelity: VariantFidelityScore | null;
   audit: GeneratedIdentityVariantAudit | null;
+  placementQa: PlacementQaResult | null;
 }> {
   const fidelityAnalyze = await analyzeAssetStyleDnaApi({
     imageUrl: params.generatedImageUrl,
@@ -142,14 +150,14 @@ async function scoreVariantFidelity(params: {
     derivationJobId: params.generationId,
   });
   if (!fidelityAnalyze.ok) {
-    return { fidelity: null, audit: null };
+    return { fidelity: null, audit: null, placementQa: null };
   }
   const fidelity = computeVariantFidelityScore({
     source: params.sourceVision,
     generated: fidelityAnalyze.data.visionAnalysis,
     profileLevel: params.profileLevel,
   });
-  const audit = auditGeneratedIdentityVariant({
+  let audit = auditGeneratedIdentityVariant({
     sourceSemanticRecord: buildAssetSemanticRecordFromWizardDraft(params.draft),
     sourceVisionAnalysis: params.sourceVision,
     generatedVisionAnalysis: fidelityAnalyze.data.visionAnalysis,
@@ -159,7 +167,18 @@ async function scoreVariantFidelity(params: {
       : undefined,
     sourceName: params.sourceName,
   });
-  return { fidelity, audit };
+  let placementQa: PlacementQaResult | null = null;
+  if (params.draft.referencePlacements.length > 0) {
+    placementQa = auditReferencePlacements({
+      placements: params.draft.referencePlacements,
+      generatedPrompt: params.generatedPrompt ?? params.draft.summaryPrompt,
+      variantAudit: audit,
+    });
+    if (audit) {
+      audit = mergePlacementQaIntoVariantAudit(audit, placementQa);
+    }
+  }
+  return { fidelity, audit, placementQa };
 }
 
 export async function runAssetReferenceGeneration(params: {
@@ -233,6 +252,7 @@ export async function runAssetReferenceGeneration(params: {
 
   let variantFidelityScore: VariantFidelityScore | null = null;
   let variantIdentityAudit: GeneratedIdentityVariantAudit | null = null;
+  let placementQaResult: PlacementQaResult | null = null;
   let autoRecovered = false;
 
   if (source && visionAnalysis && res.data.referenceImageUrl) {
@@ -244,9 +264,11 @@ export async function runAssetReferenceGeneration(params: {
       kind,
       generationId,
       profileLevel: workingDraft.identityProfileLevel,
+      generatedPrompt: res.data.generatedPrompt,
     });
     variantFidelityScore = scored.fidelity;
     variantIdentityAudit = scored.audit;
+    placementQaResult = scored.placementQa;
 
     if (
       (variantFidelityScore?.recoveryTier === "strict_regenerate" ||
@@ -270,6 +292,7 @@ export async function runAssetReferenceGeneration(params: {
           kind,
           generationId,
           profileLevel: strictDraft.identityProfileLevel,
+          generatedPrompt: retryRes.data.generatedPrompt,
         });
         return {
           generationId,
@@ -280,6 +303,7 @@ export async function runAssetReferenceGeneration(params: {
             generatedPrompt: retryRes.data.generatedPrompt,
             variantFidelityScore: retryScored.fidelity,
             variantIdentityAudit: retryScored.audit,
+            placementQaResult: retryScored.placementQa,
             generationMode: retryRes.data.generationMode,
             identityFailure:
               retryScored.fidelity?.recoveryTier === "identity_failure" ||
@@ -300,6 +324,7 @@ export async function runAssetReferenceGeneration(params: {
       generatedPrompt: res.data.generatedPrompt,
       variantFidelityScore,
       variantIdentityAudit,
+      placementQaResult,
       generationMode: res.data.generationMode,
       identityFailure:
         variantFidelityScore?.recoveryTier === "identity_failure" ||
@@ -334,6 +359,7 @@ export function draftPatchForGenerationSuccess(
     referenceGenerationPrompt: outcome.generatedPrompt,
     variantFidelityScore: outcome.variantFidelityScore,
     variantIdentityAudit: outcome.variantIdentityAudit,
+    placementQaResult: outcome.placementQaResult,
     variantFidelityStatus: outcome.variantFidelityScore ? "ready" : "idle",
     variantRegenerationStrict:
       recoveryTier === "strict_regenerate" ||

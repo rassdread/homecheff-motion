@@ -11,6 +11,7 @@ import {
   formatCharacterConstructionSummary,
   formatPostureSummary,
 } from "@/lib/studio-asset-animation-readiness";
+import { formatPlacementSummary } from "@/lib/studio-asset-reference-placement";
 import { scoreMotionCharacterReferencePreference } from "@/lib/studio-asset-character-evolution";
 import { resolveIdentityProfileMotionGuidance } from "@/lib/studio-asset-identity-profile";
 import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
@@ -53,6 +54,9 @@ function toCharacterRef(
     characterConstructionSummary: formatCharacterConstructionSummary(record.characterConstructionProfile),
     postureSummary: formatPostureSummary(record.characterConstructionProfile),
     bodySummary: formatBodySummary(record.characterConstructionProfile),
+    referencePlacementSummary: record.referencePlacements?.length
+      ? record.referencePlacements.map(formatPlacementSummary).join("; ")
+      : undefined,
   };
 }
 
@@ -339,6 +343,12 @@ export function formatSceneSemanticRecipeForMotion(recipe: SceneSemanticRecipe):
           .filter((ref) => ref.identityImportance)
           .map((ref) => `${ref.name}=${ref.identityImportance}`)
           .join(", ")}.`
+      : "",
+    recipe.characters.some((c) => c.referencePlacementSummary)
+      ? `Reference placements: ${recipe.characters
+          .filter((c) => c.referencePlacementSummary)
+          .map((c) => `${c.name}: ${c.referencePlacementSummary}`)
+          .join("; ")}. Exact brand placements must remain visible and undistorted.`
       : "",
     formatRecipeIdentityAssetTypes(recipe),
     ...collectAnimationReadinessMotionLines(recipe),

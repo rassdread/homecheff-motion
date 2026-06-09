@@ -21,6 +21,7 @@ import {
 } from "@/lib/studio-asset-wizard-reference-generation";
 import { buildTransformPromptPreview } from "@/lib/studio-asset-transform-prompt";
 import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
+import { StudioWizardGenerationProgress } from "@/components/studio/studio-wizard-generation-progress";
 import { StudioVariantQualityPanel } from "@/components/studio/studio-variant-quality-panel";
 import {
   clearWizardGeneratedReferenceOutput,
@@ -311,7 +312,7 @@ export function StudioWizardReferenceStep({
 
           {draft.referenceGenerationStatus === "generating" ?
             <div className="space-y-3" role="status" aria-live="polite">
-              <div className="h-48 animate-pulse rounded-xl bg-zinc-200" />
+              <StudioWizardGenerationProgress activeStepId="generate_image" />
               <p className="text-center text-sm font-medium text-zinc-700">
                 {t("studio.assetCreation.reference.generating")}
               </p>
@@ -377,6 +378,7 @@ export function StudioWizardReferenceStep({
               {draft.variantIdentityAudit ?
                 <StudioVariantQualityPanel
                   audit={draft.variantIdentityAudit}
+                  placementQa={draft.placementQaResult}
                   onRegenerate={() => {
                     onDraftChange({
                       variantRegenerationStrict: true,

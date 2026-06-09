@@ -40,10 +40,12 @@ import {
   emptyPrepareForAnimationWizardDraft,
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
+import { canAdvanceFromCharacterStyleStep } from "@/lib/studio-asset-character-style-cards";
 import {
   canAdvanceFromCanonicalEvolutionConstructionStep,
   canAdvanceFromCharacterEvolutionStep,
 } from "@/lib/studio-asset-character-evolution";
+import { canAdvanceFromReferencePlacementStep } from "@/lib/studio-asset-reference-placement";
 import {
   canAdvanceFromAnimationReadinessStep,
   canAdvanceFromCharacterConstructionStep,
@@ -53,6 +55,9 @@ import {
 import { StudioWizardAnimationReadinessStep } from "@/components/studio/studio-wizard-animation-readiness-step";
 import { StudioWizardCanonicalEvolutionConstructionStep } from "@/components/studio/studio-wizard-canonical-evolution-construction-step";
 import { StudioWizardCharacterEvolutionStep } from "@/components/studio/studio-wizard-character-evolution-step";
+import { StudioWizardCharacterStyleStep } from "@/components/studio/studio-wizard-character-style-step";
+import { StudioWizardPlacementPreviewStep } from "@/components/studio/studio-wizard-placement-preview-step";
+import { StudioWizardReferencePlacementStep } from "@/components/studio/studio-wizard-reference-placement-step";
 import { StudioWizardCharacterConstructionStep } from "@/components/studio/studio-wizard-character-construction-step";
 import {
   choiceDefForWizardStep,
@@ -248,6 +253,15 @@ export function StudioAssetCreationWizard({
     }
     if (step === "canonical_evolution_construction") {
       return canAdvanceFromCanonicalEvolutionConstructionStep(activeDraft);
+    }
+    if (step === "character_style") {
+      return canAdvanceFromCharacterStyleStep(activeDraft);
+    }
+    if (step === "reference_placement") {
+      return canAdvanceFromReferencePlacementStep(activeDraft);
+    }
+    if (step === "placement_preview") {
+      return true;
     }
     if (step === "character_construction") {
       return canAdvanceFromCharacterConstructionStep(activeDraft);
@@ -483,6 +497,22 @@ export function StudioAssetCreationWizard({
           draft={activeDraft}
           onDraftChange={updateDraft}
         />
+      : null}
+
+      {activeDraft && step === "character_style" ?
+        <StudioWizardCharacterStyleStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && step === "reference_placement" ?
+        <StudioWizardReferencePlacementStep
+          draft={activeDraft}
+          librarySources={derivationSources}
+          onDraftChange={updateDraft}
+        />
+      : null}
+
+      {activeDraft && step === "placement_preview" ?
+        <StudioWizardPlacementPreviewStep draft={activeDraft} />
       : null}
 
       {activeDraft && step === "character_construction" ?

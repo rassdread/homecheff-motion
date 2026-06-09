@@ -1,4 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { semanticRecordUsesPlacementSource } from "@/lib/studio-asset-reference-placement";
+import {
+  extractAssetSemanticRecordFromCharacter,
+  extractAssetSemanticRecordFromLocation,
+  extractAssetSemanticRecordFromProp,
+} from "@/lib/studio-asset-semantic-record";
+import { ASSET_SEMANTIC_MARKER } from "@/types/studio-asset-semantic-record";
 import type { AssetRegistryUsageRef, AssetRegistryUsageReport } from "@/types/studio-asset-lifecycle";
 import type { StudioAssetKind } from "@/types/studio-asset-lifecycle";
 
@@ -102,6 +109,56 @@ export async function getRegistryAssetUsage(params: {
           href: sb.href,
         });
       }
+    }
+  }
+
+  const [placementCharacters, placementProps, placementLocations] = await Promise.all([
+    prisma.studioCharacter.findMany({
+      where: { ownerId: params.userId, referenceNotes: { contains: ASSET_SEMANTIC_MARKER } },
+      select: { id: true, name: true, referenceNotes: true },
+    }),
+    prisma.studioProp.findMany({
+      where: { ownerId: params.userId, continuityNotes: { contains: ASSET_SEMANTIC_MARKER } },
+      select: { id: true, name: true, continuityNotes: true },
+    }),
+    prisma.studioLocation.findMany({
+      where: { ownerId: params.userId, continuityNotes: { contains: ASSET_SEMANTIC_MARKER } },
+      select: { id: true, name: true, continuityNotes: true },
+    }),
+  ]);
+
+  const placementSource = { assetId: params.assetId, storageKey: params.storageKey };
+  for (const character of placementCharacters) {
+    const record = extractAssetSemanticRecordFromCharacter(character);
+    if (semanticRecordUsesPlacementSource(record, placementSource)) {
+      pushRef(refs, {
+        entityType: "character",
+        entityId: character.id,
+        entityName: character.name,
+        href: `/studio/characters/${encodeURIComponent(character.id)}`,
+      });
+    }
+  }
+  for (const prop of placementProps) {
+    const record = extractAssetSemanticRecordFromProp(prop);
+    if (semanticRecordUsesPlacementSource(record, placementSource)) {
+      pushRef(refs, {
+        entityType: "prop",
+        entityId: prop.id,
+        entityName: prop.name,
+        href: `/studio/props/${encodeURIComponent(prop.id)}`,
+      });
+    }
+  }
+  for (const location of placementLocations) {
+    const record = extractAssetSemanticRecordFromLocation(location);
+    if (semanticRecordUsesPlacementSource(record, placementSource)) {
+      pushRef(refs, {
+        entityType: "location",
+        entityId: location.id,
+        entityName: location.name,
+        href: `/studio/locations/${encodeURIComponent(location.id)}`,
+      });
     }
   }
 

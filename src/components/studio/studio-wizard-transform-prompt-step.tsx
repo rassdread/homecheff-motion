@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { fetchAssetReferenceGenerationStatus } from "@/lib/studio-asset-reference-client";
 import { formatVisionColorsForDisplay } from "@/lib/studio-asset-vision-analysis";
 import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
+import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
@@ -182,8 +183,9 @@ export function StudioWizardTransformPromptStep({
       <StudioWizardSourceReferenceBanner draft={draft} />
 
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
           {t("studio.assetCreation.transformPrompt.title")}
+          <StudioWizardInfoButton infoKey="studio.workbench.info.preserveChangeForbidden" />
         </h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.transformPrompt.lead")}</p>
       </div>

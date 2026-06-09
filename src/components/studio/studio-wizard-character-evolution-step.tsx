@@ -1,5 +1,6 @@
 "use client";
 
+import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { applyCharacterEvolutionChoice } from "@/lib/studio-asset-character-evolution";
@@ -40,8 +41,9 @@ export function StudioWizardCharacterEvolutionStep({ draft, onDraftChange }: Pro
     <div className="space-y-4">
       <StudioWizardSourceReferenceBanner draft={draft} />
       <div>
-        <h3 className="text-base font-semibold text-zinc-900">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-zinc-900">
           {t("studio.assetCreation.characterEvolution.title")}
+          <StudioWizardInfoButton infoKey="studio.workbench.info.canonicalCharacterBase" />
         </h3>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.characterEvolution.lead")}</p>
       </div>

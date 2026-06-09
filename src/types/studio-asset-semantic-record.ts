@@ -56,6 +56,15 @@ export type AssetSemanticRecord = {
   animationReadinessScore?: number;
   /** Selected preparation actions (remove background, standard pose, …) */
   animationPreparationActions?: string[];
+  /** Character style card selection */
+  characterStyleCard?: string;
+  characterStyleCustom?: string;
+  /** Reference placement assets for exact logo/icon placement */
+  referencePlacements?: import("@/types/studio-asset-generation-workbench").AssetReferencePlacement[];
+  /** Dynamic accessory extraction decisions */
+  dynamicAccessories?: import("@/types/studio-asset-generation-workbench").DynamicAccessoryItem[];
+  /** Semantic layer lock/hide state */
+  semanticLayers?: import("@/types/studio-asset-generation-workbench").SemanticLayerState[];
 };
 
 export type AssetSemanticRecordKind = "character" | "prop" | "location" | "world";

@@ -110,7 +110,30 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     animationPreparationActions: Array.isArray(raw.animationPreparationActions)
       ? raw.animationPreparationActions.map(String).filter(Boolean)
       : undefined,
+    characterStyleCard: raw.characterStyleCard?.trim() || undefined,
+    characterStyleCustom: raw.characterStyleCustom?.trim() || undefined,
+    referencePlacements: Array.isArray(raw.referencePlacements) ? raw.referencePlacements : undefined,
+    dynamicAccessories: Array.isArray(raw.dynamicAccessories) ? raw.dynamicAccessories : undefined,
+    semanticLayers: Array.isArray(raw.semanticLayers) ? raw.semanticLayers : undefined,
   };
+}
+
+function workbenchExtrasFromDraft(draft: AssetWizardDraft): Partial<AssetSemanticRecord> {
+  const extras: Partial<AssetSemanticRecord> = {};
+  if (draft.characterStyleCard) {
+    extras.characterStyleCard = draft.characterStyleCard;
+    extras.characterStyleCustom = draft.characterStyleCustom.trim() || undefined;
+  }
+  if (draft.referencePlacements.length > 0) {
+    extras.referencePlacements = draft.referencePlacements;
+  }
+  if (draft.dynamicAccessories.length > 0) {
+    extras.dynamicAccessories = draft.dynamicAccessories;
+  }
+  if (draft.semanticLayers.length > 0) {
+    extras.semanticLayers = draft.semanticLayers;
+  }
+  return extras;
 }
 
 export function serializeAssetSemanticRecordToNotes(
@@ -223,6 +246,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
   const sourceName = draft.sourceReferenceName?.trim() || draft.derivationSource?.assetName?.trim();
   const visionAnalysis = draft.sourceVisionAnalysis;
   const animationExtras = animationPreparationExtrasFromDraft(draft);
+  const workbenchExtras = workbenchExtrasFromDraft(draft);
   if (visionAnalysis) {
     const lineage = resolveSemanticLineageFromDraft(draft);
     return buildAssetSemanticRecordFromVision(visionAnalysis, {
@@ -251,6 +275,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
           ? draft.sourceTransformForbidden.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
           : undefined,
       ...animationExtras,
+      ...workbenchExtras,
     });
   }
 
@@ -276,6 +301,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
         ? draft.sourceTransformForbidden.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
         : undefined,
       ...animationExtras,
+      ...workbenchExtras,
     });
   }
 
@@ -549,5 +575,7 @@ export function buildSemanticContinuitySnapshot(
     characterConstructionSummary: formatCharacterConstructionSummary(record.characterConstructionProfile),
     postureSummary: formatPostureSummary(record.characterConstructionProfile),
     bodySummary: formatBodySummary(record.characterConstructionProfile),
+    referencePlacements: record.referencePlacements,
+    characterStyleCard: record.characterStyleCard,
   };
 }

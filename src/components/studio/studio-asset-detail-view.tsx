@@ -9,6 +9,7 @@ import {
   listDerivedCharacterRoleVariants,
 } from "@/lib/studio-asset-character-evolution";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
+import { formatPlacementSummary } from "@/lib/studio-asset-reference-placement";
 import { StudioCanonicalBaseBadge } from "@/components/studio/studio-variant-quality-panel";
 import type { StudioAsset, StudioAssetUsageEntry } from "@/types/studio-media-asset";
 
@@ -176,6 +177,25 @@ export function StudioAssetDetailView({
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.basedOn")}</dt>
             <dd className="mt-0.5">{asset.semanticContinuity.derivedFromSourceName}</dd>
+          </div>
+        : null}
+        {asset.semanticContinuity?.referencePlacements && asset.semanticContinuity.referencePlacements.length > 0 ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.workbench.placement.detailTitle")}</dt>
+            <dd className="mt-1 flex flex-wrap gap-2">
+              {asset.semanticContinuity.referencePlacements.map((placement) =>
+                onSelectAsset && placement.assetId ?
+                  <button
+                    key={placement.id}
+                    type="button"
+                    onClick={() => onSelectAsset(placement.assetId!)}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    {formatPlacementSummary(placement)}
+                  </button>
+                : <span key={placement.id} className="text-xs text-slate-700">{formatPlacementSummary(placement)}</span>
+              )}
+            </dd>
           </div>
         : null}
         {derivedRoles.length > 0 ?

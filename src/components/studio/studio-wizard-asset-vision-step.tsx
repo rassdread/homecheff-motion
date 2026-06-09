@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
 import { formatVisionColorsForDisplay } from "@/lib/studio-asset-vision-analysis";
@@ -24,13 +25,18 @@ type Props = {
 function AnalysisSection({
   title,
   children,
+  infoKey,
 }: {
   title: string;
   children: ReactNode;
+  infoKey?: string;
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</p>
+      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {title}
+        {infoKey ? <StudioWizardInfoButton infoKey={infoKey} /> : null}
+      </p>
       <div className="mt-2 text-sm text-zinc-900">{children}</div>
     </div>
   );
@@ -77,7 +83,10 @@ function VisionResults({ analysis }: { analysis: AssetVisionAnalysis }) {
       <AnalysisSection title={t("studio.assetCreation.assetVision.brandRecognition" as never)}>
         {Math.round(analysis.brandRecognitionConfidence * 100)}%
       </AnalysisSection>
-      <AnalysisSection title={t("studio.assetCreation.assetVision.identityFingerprint" as never)}>
+      <AnalysisSection
+        title={t("studio.assetCreation.assetVision.identityFingerprint" as never)}
+        infoKey="studio.workbench.info.shapeMarkers"
+      >
         {analysis.identityFingerprint.fingerprintHash ?
           [
             analysis.identityFingerprint.faceStructure,

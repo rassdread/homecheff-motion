@@ -6,10 +6,12 @@ import {
   identityScoreBadgeClass,
   resolveIdentityScoreBadgeTone,
 } from "@/lib/studio-asset-identity-variant-audit";
+import type { PlacementQaResult } from "@/types/studio-asset-generation-workbench";
 import type { GeneratedIdentityVariantAudit } from "@/types/studio-asset-identity-variant-audit";
 
 type Props = {
   audit: GeneratedIdentityVariantAudit;
+  placementQa?: PlacementQaResult | null;
   onRegenerate?: () => void;
   onViewPrompt?: () => void;
   onAcceptAnyway?: () => void;
@@ -38,8 +40,29 @@ function AuditItemRow({
   );
 }
 
+function PlacementQaRow({
+  status,
+  label,
+  messageKey,
+}: {
+  status: "pass" | "warning" | "fail";
+  label: string;
+  messageKey: string;
+}) {
+  const t = useActiveTranslator();
+  const icon = status === "pass" ? "✓" : status === "warning" ? "⚠" : "✗";
+  const color =
+    status === "pass" ? "text-emerald-800" : status === "warning" ? "text-amber-900" : "text-red-800";
+  return (
+    <li className={`text-sm ${color}`}>
+      {icon} {label} — {t(messageKey as never)}
+    </li>
+  );
+}
+
 export function StudioVariantQualityPanel({
   audit,
+  placementQa,
   onRegenerate,
   onViewPrompt,
   onAcceptAnyway,
@@ -77,6 +100,38 @@ export function StudioVariantQualityPanel({
           <AuditItemRow key={`${item.messageKey}-${item.detail ?? ""}`} kind="lost" messageKey={item.messageKey} detail={item.detail} />
         ))}
       </ul>
+
+      {placementQa && placementQa.items.length > 0 ?
+        <div className="mt-4 rounded-lg border border-current/15 bg-white/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide opacity-80">
+            {t("studio.variantQuality.placementQa.title")}
+          </p>
+          <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <dt className="font-medium">{t("studio.variantQuality.placementQa.placementAccuracy")}</dt>
+              <dd>{placementQa.placementAccuracy}%</dd>
+            </div>
+            <div>
+              <dt className="font-medium">{t("studio.variantQuality.placementQa.brandAccuracy")}</dt>
+              <dd>{placementQa.brandAccuracy}%</dd>
+            </div>
+            <div>
+              <dt className="font-medium">{t("studio.variantQuality.placementQa.referenceAccuracy")}</dt>
+              <dd>{placementQa.referenceAccuracy}%</dd>
+            </div>
+          </dl>
+          <ul className="mt-2 space-y-1">
+            {placementQa.items.map((item) => (
+              <PlacementQaRow
+                key={item.placementId}
+                status={item.status}
+                label={item.label}
+                messageKey={item.messageKey}
+              />
+            ))}
+          </ul>
+        </div>
+      : null}
 
       {audit.recoveryRequired ?
         <p className="mt-3 text-sm font-medium">{t("studio.variantQuality.recoveryRequired")}</p>

@@ -1,3 +1,4 @@
+import { seedDynamicAccessoriesFromDraft } from "@/lib/studio-asset-dynamic-accessories";
 import { extractAssetSemanticRecordFromCharacter } from "@/lib/studio-asset-semantic-record";
 import { isBrandMascotVision } from "@/lib/studio-asset-identity-profile";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
@@ -104,6 +105,7 @@ export function applyCharacterEvolutionChoice(
 
     return {
       characterEvolutionChoice: choice,
+      dynamicAccessories: seedDynamicAccessoriesFromDraft(draft),
       identityAssetType: CANONICAL_CHARACTER_BASE_ASSET_TYPE as IdentityAssetType,
       identityProfileLevel: CANONICAL_EVOLUTION_PROFILE,
       identityProfileConfirmed: true,

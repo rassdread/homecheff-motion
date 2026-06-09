@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
+import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { ANIMATION_PREPARATION_ACTIONS } from "@/lib/studio-asset-animation-readiness";
 import { seedAnimationReadinessAnalysis } from "@/lib/studio-asset-wizard-preparation-flow";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
@@ -46,10 +47,14 @@ export function StudioWizardAnimationReadinessStep({ draft, onDraftChange }: Pro
       <StudioWizardSourceReferenceBanner draft={draft} />
 
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">
-          {t("studio.assetCreation.animationReadiness.title")}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-zinc-900">
+            {t("studio.assetCreation.animationReadiness.title")}
+          </h2>
+          <StudioWizardInfoButton infoKey="studio.workbench.info.animationReady" />
+        </div>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.assetCreation.animationReadiness.lead")}</p>
+        <p className="mt-1 text-xs text-zinc-500">{t("studio.workbench.animationSuggest.lead")}</p>
       </div>
 
       {analysis ?
@@ -107,12 +112,22 @@ export function StudioWizardAnimationReadinessStep({ draft, onDraftChange }: Pro
               {t("studio.assetCreation.animationReadiness.actionsTitle")}
             </p>
             <div className="space-y-2">
-              {ANIMATION_PREPARATION_ACTIONS.map((action) => {
-                const recommended = analysis.recommendedActions.includes(action.id);
-                const selected = draft.animationPreparationActions.includes(action.id);
+              {(draft.animationPreparationSuggestions.length > 0
+                ? draft.animationPreparationSuggestions
+                : ANIMATION_PREPARATION_ACTIONS.map((action) => ({
+                    actionId: action.id,
+                    recommended: analysis.recommendedActions.includes(action.id),
+                    confidence: analysis.recommendedActions.includes(action.id) ? 0.8 : 0.3,
+                    reasonKey: "studio.workbench.animationSuggest.reason.default",
+                  }))
+              ).map((suggestion) => {
+                const actionMeta = ANIMATION_PREPARATION_ACTIONS.find((a) => a.id === suggestion.actionId);
+                const labelKey =
+                  actionMeta?.labelKey ?? (`studio.workbench.animationPrep.action.${suggestion.actionId}` as const);
+                const selected = draft.animationPreparationActions.includes(suggestion.actionId);
                 return (
                   <label
-                    key={action.id}
+                    key={suggestion.actionId}
                     className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${
                       selected ? "border-[#0067B1] bg-[#0067B1]/5" : "border-zinc-200"
                     }`}
@@ -120,14 +135,16 @@ export function StudioWizardAnimationReadinessStep({ draft, onDraftChange }: Pro
                     <input
                       type="checkbox"
                       checked={selected}
-                      onChange={() => toggleAction(action.id)}
+                      onChange={() => toggleAction(suggestion.actionId)}
                       className="mt-0.5"
                     />
                     <span>
-                      <span className="font-semibold text-zinc-900">{t(action.labelKey as never)}</span>
-                      {recommended ?
+                      <span className="font-semibold text-zinc-900">{t(labelKey as never)}</span>
+                      {suggestion.recommended ?
                         <span className="ml-2 text-xs font-medium text-[#0067B1]">
-                          {t("studio.assetCreation.animationReadiness.recommended")}
+                          {t("studio.workbench.animationSuggest.recommended", {
+                            confidence: String(Math.round(suggestion.confidence * 100)),
+                          })}
                         </span>
                       : null}
                     </span>

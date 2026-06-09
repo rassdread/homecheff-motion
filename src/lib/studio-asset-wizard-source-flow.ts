@@ -10,6 +10,7 @@ import {
 import { shouldShowAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
 import { hasConfirmedIdentityProfile } from "@/lib/studio-asset-identity-profile";
 import { wizardStepLabelKeyForEvolution } from "@/lib/studio-asset-wizard-evolution-flow";
+import { wizardStepLabelKeyForWorkbench } from "@/lib/studio-asset-wizard-workbench-flow";
 import { isPrepareForAnimationFlow } from "@/lib/studio-asset-wizard-preparation-flow";
 import { wizardStepLabelKeyForPreparation } from "@/lib/studio-asset-wizard-preparation-flow";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
@@ -51,6 +52,10 @@ export function wizardStepLabelKeyForDraft(
   const evolutionLabel = wizardStepLabelKeyForEvolution(step);
   if (evolutionLabel) {
     return evolutionLabel;
+  }
+  const workbenchLabel = wizardStepLabelKeyForWorkbench(step);
+  if (workbenchLabel) {
+    return workbenchLabel;
   }
   return null;
 }
