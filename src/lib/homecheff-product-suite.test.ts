@@ -64,6 +64,7 @@ describe("homecheff-product-suite", () => {
   });
 
   it("resolves user-facing suite hrefs for Publish and Library", () => {
+    assert.equal(resolveProductHref("editor"), "/editor");
     assert.equal(resolveProductHref("presentation"), "/publish");
     assert.equal(resolveProductHref("assets"), "/library");
     assert.equal(resolveProductInternalHref("presentation"), "/videos");

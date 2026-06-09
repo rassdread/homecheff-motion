@@ -13,6 +13,7 @@ export function MaakChoicePage() {
   const photosHref = useAuthActionHref("/animate/instant");
   const storiesHref = useAuthActionHref("/studio/storyboards");
   const studioHref = useAuthActionHref("/studio");
+  const editorHref = useAuthActionHref("/editor");
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -44,14 +45,18 @@ export function MaakChoicePage() {
             </Link>
           </AppCard>
 
-          <AppCard className="border-zinc-200 bg-zinc-50/80 p-6 sm:p-8">
+          <AppCard className="border-[#0067B1]/20 bg-white p-6 sm:p-8">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <h2 className="text-xl font-bold text-zinc-900">{t("maak.edit.title")}</h2>
-              <span className="rounded-full bg-zinc-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
-                {t("maak.edit.comingSoon")}
-              </span>
             </div>
             <p className="mt-2 text-sm leading-relaxed text-zinc-600">{t("maak.edit.body")}</p>
+            <Link
+              href={editorHref}
+              prefetch={false}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full border border-[#0067B1]/30 bg-[#0067B1]/5 px-6 py-3 text-sm font-semibold text-[#0067B1] transition-colors hover:bg-[#0067B1]/10 sm:w-auto"
+            >
+              {t("suite.nav.editor")}
+            </Link>
           </AppCard>
 
           <AppCard className="border-[#0067B1]/20 bg-white p-6 sm:p-8">

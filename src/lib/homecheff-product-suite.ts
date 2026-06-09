@@ -92,7 +92,7 @@ export function resolveProductHref(id: HomeCheffProductId): string {
     return "/";
   }
   if (id === "editor") {
-    return "/maak";
+    return "/editor";
   }
   if (id === "presentation") {
     return "/publish";

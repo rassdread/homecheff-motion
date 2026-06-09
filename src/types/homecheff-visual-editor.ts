@@ -97,9 +97,40 @@ export type PlacementCanvasItem = AssetReferencePlacement & {
   canvasLocked: boolean;
 };
 
+export type EditorCanvasBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type EditorCanvasLayer = EditorCanvasObject & {
+  bounds: EditorCanvasBounds;
+  layerType: "background" | "semantic" | "placement" | "overlay";
+  confidence?: number;
+};
+
+export type EditorCanvasDocument = {
+  sessionId: string;
+  name: string;
+  sourceKind: EditorSourceKind;
+  sourceAssetId: string | null;
+  backgroundUrl: string;
+  backgroundStorageKey?: string;
+  workflowStep: EditorWorkflowStepId;
+  objects: EditorCanvasLayer[];
+  placements: PlacementCanvasItem[];
+  bodyDesigner?: CharacterBodyDesignerParams;
+  visionAnalysisHash?: string;
+  status: "editing" | "draft_saved";
+  updatedAt: string;
+  createdAt: string;
+};
+
 export type VisualEditorSession = {
   sessionId: string;
   sourceAssetId: string | null;
+  backgroundUrl?: string;
   objects: EditorCanvasObject[];
   placements: PlacementCanvasItem[];
   bodyDesigner?: CharacterBodyDesignerParams;
