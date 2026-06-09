@@ -52,18 +52,44 @@ export function latLonToMapCoords(lat: number, lon: number): { x: number; y: num
   };
 }
 
-export function resolveHubById(id: string): EcosystemHub | undefined {
-  return ECOSYSTEM_HUBS.find((hub) => hub.id === id);
+export function resolveHubNodeRadius(tier: EcosystemHubTier): number {
+  if (tier === 1) return 3.2;
+  if (tier === 2) return 2.2;
+  return 1.6;
 }
 
-export function resolveHubNodeRadius(tier: EcosystemHubTier): number {
-  if (tier === 1) return 4.2;
-  if (tier === 2) return 2.8;
-  return 2;
+export function resolveHubGlowRadius(tier: EcosystemHubTier): number {
+  if (tier === 1) return 7;
+  if (tier === 2) return 5;
+  return 4;
+}
+
+export function resolveHubById(id: string): EcosystemHub | undefined {
+  return ECOSYSTEM_HUBS.find((hub) => hub.id === id);
 }
 
 export function allEcosystemRoutesResolve(): boolean {
   return ECOSYSTEM_ROUTES.every(
     (route) => resolveHubById(route.from) && resolveHubById(route.to)
   );
+}
+
+export function latLonToSphereOverlay(
+  lat: number,
+  lon: number,
+  centerLon = 10
+): { leftPct: number; topPct: number; visible: boolean } {
+  const λ = ((lon - centerLon) * Math.PI) / 180;
+  const φ = (lat * Math.PI) / 180;
+  const x = Math.cos(φ) * Math.sin(λ);
+  const y = -Math.sin(φ);
+  const z = Math.cos(φ) * Math.cos(λ);
+  if (z < 0.05) {
+    return { leftPct: 50, topPct: 50, visible: false };
+  }
+  return {
+    leftPct: 50 + x * 44,
+    topPct: 50 + y * 44,
+    visible: true,
+  };
 }

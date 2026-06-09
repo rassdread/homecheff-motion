@@ -394,6 +394,55 @@
   pointer-events: none;
 }
 
+.universe-globe-hub-label-overlay {
+  font-size: 2.8px;
+  fill: rgba(255, 255, 255, 0.92);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.universe-globe-ecosystem-overlay {
+  z-index: 3;
+}
+
+@keyframes universe-globe-route-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    stroke-dashoffset: 8;
+  }
+  50% {
+    opacity: 0.85;
+    stroke-dashoffset: 0;
+  }
+}
+
+.universe-globe-route-pulse {
+  animation: universe-globe-route-pulse 4.5s ease-in-out infinite;
+}
+
+@keyframes universe-globe-hub-pulse {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.42;
+    transform: scale(1.08);
+  }
+}
+
+.universe-globe-hub-pulse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: universe-globe-hub-pulse 3.2s ease-in-out infinite;
+}
+
+.universe-globe-root {
+  isolation: isolate;
+}
+
 .universe-globe-spherical {
   aspect-ratio: 1 / 1;
 }

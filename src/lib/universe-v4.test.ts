@@ -74,6 +74,12 @@ describe("universe v4 saturn rings and smart portals", () => {
     assert.ok(UNIVERSE_Z_PORTAL > UNIVERSE_Z_PLANET);
     assert.ok(UNIVERSE_Z_PLANET > UNIVERSE_Z_RING);
     assert.ok(UNIVERSE_Z_RING > UNIVERSE_Z_GLOBE);
+    const orbitSource = readFileSync(
+      "src/components/suite/universe/universe-orbit-system.tsx",
+      "utf8"
+    );
+    assert.match(orbitSource, /UNIVERSE_Z_ORBIT_PLANETS/);
+    assert.match(orbitSource, /UNIVERSE_Z_GLOBE_WRAPPER/);
   });
 
   it("hover expansion scale is premium range", () => {
@@ -89,6 +95,8 @@ describe("universe v4 saturn rings and smart portals", () => {
     assert.ok(ids.includes("africa"));
     assert.ok(ids.includes("asia"));
     assert.ok(ids.includes("australia"));
+    assert.ok(ids.includes("antarctica"));
+    assert.ok(ids.includes("arctic"));
   });
 
   it("ecosystem network resolves all routes and tier-1 hubs", () => {
@@ -102,9 +110,13 @@ describe("universe v4 saturn rings and smart portals", () => {
 
   it("globe shows ecosystem layer and focus labels", () => {
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
-    assert.match(globeSource, /ECOSYSTEM_HUBS/);
-    assert.match(globeSource, /showLabels=\{focused\}/);
-    assert.match(globeSource, /EARTH_CONTINENT_PATHS/);
+    const overlaySource = readFileSync(
+      "src/components/suite/universe/universe-globe-ecosystem-overlay.tsx",
+      "utf8"
+    );
+    assert.match(globeSource, /GlobeEcosystemOverlay/);
+    assert.match(overlaySource, /ECOSYSTEM_HUBS/);
+    assert.match(overlaySource, /focused/);
   });
 
   it("mobile uses inline portal without duplicate title labels", () => {

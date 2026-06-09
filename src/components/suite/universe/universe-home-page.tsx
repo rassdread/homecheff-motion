@@ -19,6 +19,7 @@ import {
   resolveUniverseQuickActionHref,
 } from "@/lib/universe-public-landing";
 import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS } from "@/lib/universe-planet-ux";
+import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
 import "./universe-home.css";
 
@@ -26,6 +27,14 @@ const TUNNEL_DURATION_MS = 820;
 
 export function UniverseHomePage() {
   const router = useRouter();
+  const [globeDebugLayer] = useState<UniverseGlobeDebugLayer | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return resolveUniverseGlobeDebugLayer(
+      new URLSearchParams(window.location.search).get("universeDebug")
+    );
+  });
   const session = useAuthSession();
   const isAuthenticated = Boolean(session.resolved && session.user);
   const reducedMotion = useReducedMotion();
@@ -149,6 +158,7 @@ export function UniverseHomePage() {
             focusedPlanet={focusedPlanet}
             reducedMotion={reducedMotion}
             parallax={parallax}
+            globeDebugLayer={globeDebugLayer}
             onHoverStart={handlePlanetHoverStart}
             onHoverEnd={handlePlanetHoverEnd}
             onFocus={setFocusedPlanet}
