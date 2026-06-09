@@ -76,6 +76,11 @@ export type StudioRenderAuditMetadata = {
   identityImportanceLevels?: string[];
   identityAssetTypes?: string[];
   animationReadinessScores?: Array<{ name: string; score: number }>;
+  /** Average variant identity audit scores from scene semantic recipes. */
+  identityScore?: number | null;
+  familyScore?: number | null;
+  brandScore?: number | null;
+  shapeMarkerScore?: number | null;
 };
 
 export type StudioStalenessSeverity = "low" | "medium" | "high";

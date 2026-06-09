@@ -140,5 +140,8 @@ export function clearWizardGeneratedReferenceOutput(
       draft.referenceMode === "upload" ? draft.referenceImageUrl : "",
     referenceStorageKey:
       draft.referenceMode === "upload" ? draft.referenceStorageKey : "",
+    variantFidelityScore: null,
+    variantIdentityAudit: null,
+    variantFidelityStatus: "idle",
   };
 }

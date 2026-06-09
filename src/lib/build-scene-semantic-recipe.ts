@@ -4,6 +4,7 @@ import {
   extractAssetSemanticRecordFromProp,
   extractAssetSemanticRecordFromWorld,
   hashSemanticText,
+  variantAuditScoresFromRecord,
 } from "@/lib/studio-asset-semantic-record";
 import {
   formatBodySummary,
@@ -46,6 +47,7 @@ function toCharacterRef(
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    ...variantAuditScoresFromRecord(record),
     animationReadinessScore: record.animationReadinessScore,
     characterConstructionSummary: formatCharacterConstructionSummary(record.characterConstructionProfile),
     postureSummary: formatPostureSummary(record.characterConstructionProfile),
@@ -70,6 +72,10 @@ function toPropRef(prop: StudioStoryboardSceneRow["props"][number]["prop"]): Sce
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    variantIdentityScore: record.variantIdentityScore ?? record.variantFidelityOverall,
+    variantFamilyScore: record.variantFamilyScore,
+    variantBrandScore: record.variantBrandScore,
+    variantShapeMarkerScore: record.variantShapeMarkerScore,
   };
 }
 
@@ -88,6 +94,7 @@ function toLocationRef(
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    ...variantAuditScoresFromRecord(record),
   };
 }
 
@@ -108,6 +115,7 @@ function toWorldRef(
     identityAssetType: record.identityAssetType,
     identityProfile: record.identityProfile,
     identityImportance: record.identityImportance,
+    ...variantAuditScoresFromRecord(record),
   };
 }
 

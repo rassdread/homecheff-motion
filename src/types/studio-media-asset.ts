@@ -73,6 +73,9 @@ export type StudioAssetSemanticContinuity = {
   assetFamily?: string;
   fingerprintHash?: string;
   identityScore?: number;
+  familyScore?: number;
+  brandScore?: number;
+  shapeMarkerScore?: number;
   derivedFromSourceName?: string;
   derivedFromAssetId?: string;
   visionSummary?: string;

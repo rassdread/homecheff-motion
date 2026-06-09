@@ -41,6 +41,7 @@ import type {
   StudioWorldProfileSummary,
 } from "@/types/studio-api";
 import type { IdentitySpec, IdentitySpecKind } from "@/types/studio-identity-spec";
+import { buildVariantIdentityDirectorWarnings } from "@/lib/studio-asset-identity-variant-audit";
 import type { StudioProjectMemorySnapshot } from "@/types/studio-project-memory";
 
 export type IdentityConsumptionCompletenessStatus = "complete" | "almost" | "missing";
@@ -627,18 +628,25 @@ export function buildStoryboardIdentityConsumption(params: {
   const linkedSpecs = collectStoryboardLinkedSpecs(params.storyboard, params.libraries);
   const assetSummaries = linkedSpecs.map(summarizeIdentitySpec);
 
-  const completenessChecks = assetSummaries.map((asset) => ({
-    id: asset.id,
-    messageKey:
-      asset.completenessStatus === "complete" ?
-        "studio.identityConsumption.completeness.complete"
-      : asset.completenessStatus === "almost" ?
-        "studio.identityConsumption.completeness.almost"
-      : "studio.identityConsumption.completeness.missing",
-    passed: asset.completenessStatus === "complete",
-    assetName: asset.name,
-    kind: asset.kind,
-  }));
+  const completenessChecks = [
+    ...assetSummaries.map((asset) => ({
+      id: asset.id,
+      messageKey:
+        asset.completenessStatus === "complete" ?
+          "studio.identityConsumption.completeness.complete"
+        : asset.completenessStatus === "almost" ?
+          "studio.identityConsumption.completeness.almost"
+        : "studio.identityConsumption.completeness.missing",
+      passed: asset.completenessStatus === "complete",
+      assetName: asset.name,
+      kind: asset.kind,
+    })),
+    ...buildVariantIdentityDirectorWarnings({
+      characters: params.libraries.characters,
+      props: params.libraries.props,
+      locations: params.libraries.locations,
+    }),
+  ];
 
   const consistencyChecks = buildConsistencyChecks(linkedSpecs, params.libraries);
   const trends = buildIdentityMemoryTrends(params);

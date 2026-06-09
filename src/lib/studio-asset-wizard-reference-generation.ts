@@ -20,6 +20,10 @@ import {
 } from "@/lib/studio-asset-transform-prompt";
 import { buildAssetSemanticGenerationInputFromDraft } from "@/lib/studio-asset-semantic-generation-context";
 import { buildAssetSemanticGenerationContext } from "@/lib/studio-asset-semantic-generation-context";
+import { auditGeneratedIdentityVariant } from "@/lib/studio-asset-identity-variant-audit";
+import { resolveIdentityImportanceLabel } from "@/lib/studio-asset-identity-profile";
+import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
+import type { GeneratedIdentityVariantAudit } from "@/types/studio-asset-identity-variant-audit";
 import type { VariantFidelityScore } from "@/types/studio-asset-identity-preservation";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 import type { AssetImageGenerationMode } from "@/types/studio-asset-image-generation";
@@ -31,6 +35,7 @@ export type ReferenceGenerationOutcome =
       referenceStorageKey: string;
       generatedPrompt: string;
       variantFidelityScore: VariantFidelityScore | null;
+      variantIdentityAudit: GeneratedIdentityVariantAudit | null;
       generationMode?: AssetImageGenerationMode;
       identityFailure?: boolean;
       autoRecovered?: boolean;
@@ -119,13 +124,17 @@ export function buildReferenceGenerationPayload(
 }
 
 async function scoreVariantFidelity(params: {
+  draft: AssetWizardDraft;
   sourceVision: NonNullable<AssetWizardDraft["sourceVisionAnalysis"]>;
   sourceName: string;
   generatedImageUrl: string;
   kind: StudioAssetKind;
   generationId: string;
   profileLevel?: AssetWizardDraft["identityProfileLevel"];
-}): Promise<VariantFidelityScore | null> {
+}): Promise<{
+  fidelity: VariantFidelityScore | null;
+  audit: GeneratedIdentityVariantAudit | null;
+}> {
   const fidelityAnalyze = await analyzeAssetStyleDnaApi({
     imageUrl: params.generatedImageUrl,
     sourceKind: params.kind,
@@ -133,13 +142,24 @@ async function scoreVariantFidelity(params: {
     derivationJobId: params.generationId,
   });
   if (!fidelityAnalyze.ok) {
-    return null;
+    return { fidelity: null, audit: null };
   }
-  return computeVariantFidelityScore({
+  const fidelity = computeVariantFidelityScore({
     source: params.sourceVision,
     generated: fidelityAnalyze.data.visionAnalysis,
     profileLevel: params.profileLevel,
   });
+  const audit = auditGeneratedIdentityVariant({
+    sourceSemanticRecord: buildAssetSemanticRecordFromWizardDraft(params.draft),
+    sourceVisionAnalysis: params.sourceVision,
+    generatedVisionAnalysis: fidelityAnalyze.data.visionAnalysis,
+    identityProfile: params.profileLevel,
+    identityImportance: params.draft.identityProfileLevel
+      ? resolveIdentityImportanceLabel(params.draft.identityProfileLevel)
+      : undefined,
+    sourceName: params.sourceName,
+  });
+  return { fidelity, audit };
 }
 
 export async function runAssetReferenceGeneration(params: {
@@ -212,10 +232,12 @@ export async function runAssetReferenceGeneration(params: {
   }
 
   let variantFidelityScore: VariantFidelityScore | null = null;
+  let variantIdentityAudit: GeneratedIdentityVariantAudit | null = null;
   let autoRecovered = false;
 
   if (source && visionAnalysis && res.data.referenceImageUrl) {
-    variantFidelityScore = await scoreVariantFidelity({
+    const scored = await scoreVariantFidelity({
+      draft: payloadDraft,
       sourceVision: visionAnalysis,
       sourceName: source.sourceReferenceName,
       generatedImageUrl: res.data.referenceImageUrl,
@@ -223,9 +245,12 @@ export async function runAssetReferenceGeneration(params: {
       generationId,
       profileLevel: workingDraft.identityProfileLevel,
     });
+    variantFidelityScore = scored.fidelity;
+    variantIdentityAudit = scored.audit;
 
     if (
-      variantFidelityScore?.recoveryTier === "strict_regenerate" &&
+      (variantFidelityScore?.recoveryTier === "strict_regenerate" ||
+        variantIdentityAudit?.recoveryRequired) &&
       !workingDraft.variantRegenerationStrict
     ) {
       const strictDraft = {
@@ -237,7 +262,8 @@ export async function runAssetReferenceGeneration(params: {
       const retryRes = await generateStudioAssetReferenceApi(retryPayload);
       if (retryRes.ok && retryRes.data.referenceImageUrl) {
         autoRecovered = true;
-        const retryScore = await scoreVariantFidelity({
+        const retryScored = await scoreVariantFidelity({
+          draft: strictDraft,
           sourceVision: visionAnalysis,
           sourceName: source.sourceReferenceName,
           generatedImageUrl: retryRes.data.referenceImageUrl,
@@ -252,9 +278,12 @@ export async function runAssetReferenceGeneration(params: {
             referenceImageUrl: retryRes.data.referenceImageUrl,
             referenceStorageKey: retryRes.data.referenceStorageKey,
             generatedPrompt: retryRes.data.generatedPrompt,
-            variantFidelityScore: retryScore,
+            variantFidelityScore: retryScored.fidelity,
+            variantIdentityAudit: retryScored.audit,
             generationMode: retryRes.data.generationMode,
-            identityFailure: retryScore?.recoveryTier === "identity_failure",
+            identityFailure:
+              retryScored.fidelity?.recoveryTier === "identity_failure" ||
+              retryScored.audit?.recoveryRequired === true,
             autoRecovered: true,
           },
         };
@@ -270,8 +299,11 @@ export async function runAssetReferenceGeneration(params: {
       referenceStorageKey: res.data.referenceStorageKey,
       generatedPrompt: res.data.generatedPrompt,
       variantFidelityScore,
+      variantIdentityAudit,
       generationMode: res.data.generationMode,
-      identityFailure: variantFidelityScore?.recoveryTier === "identity_failure",
+      identityFailure:
+        variantFidelityScore?.recoveryTier === "identity_failure" ||
+        variantIdentityAudit?.recoveryRequired === true,
       autoRecovered,
     },
   };
@@ -301,10 +333,12 @@ export function draftPatchForGenerationSuccess(
     generatedReferenceStorageKey: outcome.referenceStorageKey,
     referenceGenerationPrompt: outcome.generatedPrompt,
     variantFidelityScore: outcome.variantFidelityScore,
+    variantIdentityAudit: outcome.variantIdentityAudit,
     variantFidelityStatus: outcome.variantFidelityScore ? "ready" : "idle",
     variantRegenerationStrict:
       recoveryTier === "strict_regenerate" ||
       recoveryTier === "identity_failure" ||
+      outcome.variantIdentityAudit?.recoveryRequired === true ||
       outcome.autoRecovered === true,
   };
 }

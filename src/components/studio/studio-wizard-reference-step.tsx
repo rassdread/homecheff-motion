@@ -21,6 +21,7 @@ import {
 } from "@/lib/studio-asset-wizard-reference-generation";
 import { buildTransformPromptPreview } from "@/lib/studio-asset-transform-prompt";
 import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
+import { StudioVariantQualityPanel } from "@/components/studio/studio-variant-quality-panel";
 import {
   clearWizardGeneratedReferenceOutput,
   hasWizardSourceReference,
@@ -373,7 +374,19 @@ export function StudioWizardReferenceStep({
               {draft.summaryPrompt ?
                 <p className="text-sm text-zinc-700">{draft.summaryPrompt}</p>
               : null}
-              {draft.variantFidelityScore ?
+              {draft.variantIdentityAudit ?
+                <StudioVariantQualityPanel
+                  audit={draft.variantIdentityAudit}
+                  onRegenerate={() => {
+                    onDraftChange({
+                      variantRegenerationStrict: true,
+                    });
+                    void runGeneration(true);
+                  }}
+                  onViewPrompt={onBackToSourceTransform}
+                  onAcceptAnyway={acceptGenerated}
+                />
+              : draft.variantFidelityScore ?
                 <div
                   className={`rounded-xl border p-3 text-sm ${
                     draft.variantFidelityScore.recoveryTier === "identity_failure"
@@ -387,24 +400,6 @@ export function StudioWizardReferenceStep({
                     {t("studio.assetCreation.reference.fidelityTitle")} —{" "}
                     {draft.variantFidelityScore.overall}%
                   </p>
-                  <p className="mt-1 text-xs">
-                    {t("studio.assetCreation.reference.fidelityBreakdown", {
-                      identity: draft.variantFidelityScore.identityPreservation,
-                      color: draft.variantFidelityScore.colorPreservation,
-                      shape: draft.variantFidelityScore.shapePreservation,
-                      brand: draft.variantFidelityScore.brandPreservation,
-                      family: draft.variantFidelityScore.familyPreservation,
-                    })}
-                  </p>
-                  {draft.variantFidelityScore.recoveryTier === "identity_failure" ?
-                    <p className="mt-2 text-xs font-medium">
-                      {t("studio.assetCreation.reference.fidelityIdentityFailure")}
-                    </p>
-                  : draft.variantFidelityScore.lowFidelity ?
-                    <p className="mt-2 text-xs font-medium">
-                      {t("studio.assetCreation.reference.fidelityLowWarning")}
-                    </p>
-                  : null}
                 </div>
               : null}
               {identityPreview ?

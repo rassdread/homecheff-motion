@@ -30,6 +30,7 @@ import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
+import { StudioIdentityScoreBadge } from "@/components/studio/studio-variant-quality-panel";
 import type { StudioAsset } from "@/types/studio-media-asset";
 
 const TABS: AssetLibraryTab[] = [
@@ -398,9 +399,17 @@ export function StudioAssetLibrary({
                       </span>
                     )}
                     <span className="truncate text-sm font-semibold text-slate-900">{asset.name}</span>
-                    <span className="truncate text-xs text-slate-500">
-                      {asset.isFavorite ? "★ " : ""}
-                      {t(`studio.mediaAsset.source.${asset.source}` as never)}
+                    <span className="mt-1 flex flex-wrap items-center gap-1">
+                      {typeof asset.semanticContinuity?.identityScore === "number" ?
+                        <StudioIdentityScoreBadge
+                          score={asset.semanticContinuity.identityScore}
+                          profileLevel={asset.semanticContinuity.identityProfile}
+                        />
+                      : null}
+                      <span className="truncate text-xs text-slate-500">
+                        {asset.isFavorite ? "★ " : ""}
+                        {t(`studio.mediaAsset.source.${asset.source}` as never)}
+                      </span>
                     </span>
                   </button>
                 ))

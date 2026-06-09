@@ -105,6 +105,7 @@ export type AssetWizardDraft = {
   derivationAccepted: boolean;
   /** Post-generation variant fidelity vs source (source-image flows). */
   variantFidelityScore: import("@/types/studio-asset-identity-preservation").VariantFidelityScore | null;
+  variantIdentityAudit: import("@/types/studio-asset-identity-variant-audit").GeneratedIdentityVariantAudit | null;
   variantFidelityStatus: "idle" | "loading" | "ready" | "failed";
   /** When true, next generation uses stricter preserve rules. */
   variantRegenerationStrict: boolean;
@@ -171,6 +172,7 @@ export function emptyAssetWizardDraft(
     sourceTransformForbidden: "",
     derivationAccepted: false,
     variantFidelityScore: null,
+    variantIdentityAudit: null,
     variantFidelityStatus: "idle",
     variantRegenerationStrict: false,
     fields: {},

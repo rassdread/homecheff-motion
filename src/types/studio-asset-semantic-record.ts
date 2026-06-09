@@ -37,6 +37,11 @@ export type AssetSemanticRecord = {
   identityFingerprint?: import("@/types/studio-asset-identity-preservation").AssetIdentityFingerprint;
   /** Post-generation fidelity score when saved from transform flow */
   variantFidelityOverall?: number;
+  /** Identity variant audit sub-scores (post-generation QA). */
+  variantIdentityScore?: number;
+  variantFamilyScore?: number;
+  variantBrandScore?: number;
+  variantShapeMarkerScore?: number;
   /** Human-readable source name when derived from upload/library without asset id */
   sourceReferenceName?: string;
   /** Universal identity profile asset type (character, logo, packaging, …) */

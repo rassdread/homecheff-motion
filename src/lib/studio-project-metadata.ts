@@ -579,6 +579,26 @@ export function buildStudioRenderAuditMetadata(project: {
       .map((c) => ({ name: c.name, score: c.animationReadinessScore as number }));
   });
 
+  const variantScoreRows = scenes.flatMap((scene) => {
+    const recipe = scene.semanticRecipe;
+    if (!recipe) {
+      return [];
+    }
+    return [
+      ...recipe.characters,
+      ...recipe.props,
+      ...(recipe.location ? [recipe.location] : []),
+      ...(recipe.world ? [recipe.world] : []),
+    ].filter((ref) => typeof ref.variantIdentityScore === "number");
+  });
+
+  const avgVariant = (pick: (ref: (typeof variantScoreRows)[number]) => number | undefined) => {
+    const nums = variantScoreRows
+      .map(pick)
+      .filter((v): v is number => typeof v === "number");
+    return nums.length === 0 ? null : Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+  };
+
   return {
     sourceStoryboardId: project.studioSourceStoryboardId,
     handoffVersion: project.studioHandoffVersion,
@@ -604,6 +624,10 @@ export function buildStudioRenderAuditMetadata(project: {
     identityAssetTypes: identityAssetTypes.length > 0 ? identityAssetTypes : undefined,
     animationReadinessScores:
       animationReadinessScores.length > 0 ? animationReadinessScores : undefined,
+    identityScore: avgVariant((ref) => ref.variantIdentityScore),
+    familyScore: avgVariant((ref) => ref.variantFamilyScore),
+    brandScore: avgVariant((ref) => ref.variantBrandScore),
+    shapeMarkerScore: avgVariant((ref) => ref.variantShapeMarkerScore),
   };
 }
 

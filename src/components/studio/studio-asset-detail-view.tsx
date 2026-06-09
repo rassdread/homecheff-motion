@@ -166,6 +166,15 @@ export function StudioAssetDetailView({
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.identityScore")}</dt>
             <dd className="mt-0.5">{asset.semanticContinuity.identityScore}%</dd>
+            {typeof asset.semanticContinuity.familyScore === "number" ?
+              <p className="mt-1 text-[11px] text-slate-500">
+                {t("studio.variantQuality.detailScores", {
+                  family: String(asset.semanticContinuity.familyScore),
+                  brand: String(asset.semanticContinuity.brandScore ?? "—"),
+                  shape: String(asset.semanticContinuity.shapeMarkerScore ?? "—"),
+                })}
+              </p>
+            : null}
           </div>
         : null}
         {asset.semanticContinuity?.fingerprintHash ?

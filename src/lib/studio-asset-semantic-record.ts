@@ -92,6 +92,14 @@ function normalizeAssetSemanticRecord(raw: Partial<AssetSemanticRecord>): AssetS
     identityFingerprint: raw.identityFingerprint ?? undefined,
     variantFidelityOverall:
       typeof raw.variantFidelityOverall === "number" ? raw.variantFidelityOverall : undefined,
+    variantIdentityScore:
+      typeof raw.variantIdentityScore === "number" ? raw.variantIdentityScore : undefined,
+    variantFamilyScore:
+      typeof raw.variantFamilyScore === "number" ? raw.variantFamilyScore : undefined,
+    variantBrandScore:
+      typeof raw.variantBrandScore === "number" ? raw.variantBrandScore : undefined,
+    variantShapeMarkerScore:
+      typeof raw.variantShapeMarkerScore === "number" ? raw.variantShapeMarkerScore : undefined,
     sourceReferenceName: raw.sourceReferenceName?.trim() || undefined,
     identityAssetType: raw.identityAssetType?.trim() || undefined,
     identityProfile: raw.identityProfile ?? undefined,
@@ -179,6 +187,38 @@ function animationPreparationExtrasFromDraft(
   };
 }
 
+export function variantAuditScoresFromRecord(record: AssetSemanticRecord): {
+  variantIdentityScore?: number;
+  variantFamilyScore?: number;
+  variantBrandScore?: number;
+  variantShapeMarkerScore?: number;
+} {
+  return {
+    variantIdentityScore: record.variantIdentityScore ?? record.variantFidelityOverall,
+    variantFamilyScore: record.variantFamilyScore,
+    variantBrandScore: record.variantBrandScore,
+    variantShapeMarkerScore: record.variantShapeMarkerScore,
+  };
+}
+
+function variantAuditExtrasFromDraft(draft: AssetWizardDraft): Pick<
+  AssetSemanticRecord,
+  | "variantFidelityOverall"
+  | "variantIdentityScore"
+  | "variantFamilyScore"
+  | "variantBrandScore"
+  | "variantShapeMarkerScore"
+> {
+  const audit = draft.variantIdentityAudit;
+  return {
+    variantFidelityOverall: audit?.identityScore ?? draft.variantFidelityScore?.overall,
+    variantIdentityScore: audit?.identityScore,
+    variantFamilyScore: audit?.familyScore,
+    variantBrandScore: audit?.brandScore,
+    variantShapeMarkerScore: audit?.shapeMarkerScore,
+  };
+}
+
 export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft): AssetSemanticRecord | null {
   const sourceName = draft.sourceReferenceName?.trim() || draft.derivationSource?.assetName?.trim();
   const visionAnalysis = draft.sourceVisionAnalysis;
@@ -192,7 +232,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
       parentAssetId: lineage.parentAssetId,
       derivedFromAssetId: lineage.derivedFromAssetId,
       sourceReferenceName: sourceName || undefined,
-      variantFidelityOverall: draft.variantFidelityScore?.overall,
+      ...variantAuditExtrasFromDraft(draft),
       identityAssetType: draft.identityAssetType || undefined,
       identityProfile: draft.identityProfileLevel || undefined,
       identityImportance: draft.identityProfileLevel
@@ -220,7 +260,7 @@ export function buildAssetSemanticRecordFromWizardDraft(draft: AssetWizardDraft)
       parentAssetId: lineage.parentAssetId,
       derivedFromAssetId: lineage.derivedFromAssetId,
       sourceReferenceName: sourceName || undefined,
-      variantFidelityOverall: draft.variantFidelityScore?.overall,
+      ...variantAuditExtrasFromDraft(draft),
       identityAssetType: draft.identityAssetType || undefined,
       identityProfile: draft.identityProfileLevel || undefined,
       identityImportance: draft.identityProfileLevel
@@ -495,7 +535,10 @@ export function buildSemanticContinuitySnapshot(
     brandIdentity: record.brandIdentity,
     assetFamily: record.assetFamily,
     fingerprintHash: record.identityFingerprint?.fingerprintHash,
-    identityScore: record.variantFidelityOverall,
+    identityScore: record.variantIdentityScore ?? record.variantFidelityOverall,
+    familyScore: record.variantFamilyScore,
+    brandScore: record.variantBrandScore,
+    shapeMarkerScore: record.variantShapeMarkerScore,
     derivedFromSourceName: record.sourceReferenceName,
     derivedFromAssetId: record.derivedFromAssetId ?? record.parentAssetId,
     visionSummary: record.visionSummary,

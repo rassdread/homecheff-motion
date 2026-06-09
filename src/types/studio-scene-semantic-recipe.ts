@@ -18,6 +18,10 @@ export type SceneSemanticRecipeAssetRef = {
   identityAssetType?: string;
   identityProfile?: string;
   identityImportance?: string;
+  variantIdentityScore?: number;
+  variantFamilyScore?: number;
+  variantBrandScore?: number;
+  variantShapeMarkerScore?: number;
   animationReadinessScore?: number;
   characterConstructionSummary?: string;
   postureSummary?: string;
