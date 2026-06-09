@@ -58,7 +58,7 @@ export function isModuleAccessible(moduleId: SuiteModuleId): boolean {
 export function resolveSuiteFeatureFlags(): SuiteFeatureFlag[] {
   const suiteNav = isHomeCheffProductSuiteNavEnabled();
   return [
-    { id: "suite_nav", enabled: suiteNav, moduleId: "suite" },
+    { id: "suite_nav", enabled: isHomeCheffProductSuiteNavEnabled(), moduleId: "suite" },
     { id: "editor_body_designer", enabled: true, moduleId: "editor" },
     { id: "publish_overlay_timeline", enabled: true, moduleId: "presentation" },
     { id: "professional_qa_layer", enabled: true, moduleId: "suite" },

@@ -94,9 +94,23 @@ describe("homecheff-product-suite", () => {
     }
   });
 
-  it("suite nav flag is disabled by default", () => {
+  it("suite nav flag is enabled by default", () => {
     const prev = process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV;
     delete process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV;
+    try {
+      assert.equal(isHomeCheffProductSuiteNavEnabled(), true);
+    } finally {
+      if (prev === undefined) {
+        delete process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV;
+      } else {
+        process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV = prev;
+      }
+    }
+  });
+
+  it("suite nav can be disabled explicitly", () => {
+    const prev = process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV;
+    process.env.NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV = "false";
     try {
       assert.equal(isHomeCheffProductSuiteNavEnabled(), false);
     } finally {

@@ -96,6 +96,11 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
 
   return [
     {
+      href: "/maak",
+      labelKey: "suite.nav.home",
+      match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
+    },
+    {
       href: resolveProductHref("editor"),
       labelKey: "suite.nav.editor",
       match: (pathname) =>
