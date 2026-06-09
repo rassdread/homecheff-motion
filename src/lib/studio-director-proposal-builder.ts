@@ -27,6 +27,10 @@ import { buildProposalRenderReadiness } from "@/lib/studio-director-proposal-rea
 import { enrichDirectorProposalWithConsistency } from "@/lib/studio-director-proposal-enrichment";
 import { buildDirectorMemorySuggestions, memoryBoostForAsset } from "@/lib/studio-director-proposal-memory";
 import {
+  isCanonicalCharacterBaseRecord,
+  scoreMotionCharacterReferencePreference,
+} from "@/lib/studio-asset-character-evolution";
+import {
   blocksReplacementAssetSuggestion,
   resolveDirectorIdentityProfileGuidance,
   scoreIdentityProfileDirectorBoost,
@@ -266,6 +270,9 @@ function scoreCharacterMatch(character: StudioCharacterListItem, promptTokens: s
   );
   if (character.isMascot && promptTokens.some((t) => /mascot|chef|character|personage/.test(t))) {
     score += 2;
+  }
+  if (isCanonicalCharacterBaseRecord(record)) {
+    score += scoreMotionCharacterReferencePreference(record);
   }
   score += scoreIdentityProfileDirectorBoost(record.identityProfile);
   return score;

@@ -100,6 +100,7 @@ export function clearWizardSourceReference(): Partial<AssetWizardDraft> {
     identityAssetType: "",
     identityProfileLevel: "",
     identityProfileConfirmed: false,
+    characterEvolutionChoice: "",
   };
 }
 

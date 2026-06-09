@@ -206,3 +206,12 @@ export function StudioIdentityScoreBadge({
     </span>
   );
 }
+
+export function StudioCanonicalBaseBadge() {
+  const t = useActiveTranslator();
+  return (
+    <span className="inline-flex min-h-[28px] items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800">
+      {t("studio.characterEvolution.badge.canonicalBase")}
+    </span>
+  );
+}

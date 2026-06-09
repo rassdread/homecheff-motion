@@ -4,11 +4,18 @@ import { useActiveTranslator } from "@/i18n/client";
 import { StudioAssetLibraryActions } from "@/components/studio/studio-asset-library-actions";
 import { StudioAssetLifecycleActions } from "@/components/studio/studio-asset-lifecycle-actions";
 import { StudioAssetUsagePanel } from "@/components/studio/studio-asset-usage-panel";
+import {
+  findCanonicalBaseSourceAsset,
+  listDerivedCharacterRoleVariants,
+} from "@/lib/studio-asset-character-evolution";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
+import { StudioCanonicalBaseBadge } from "@/components/studio/studio-variant-quality-panel";
 import type { StudioAsset, StudioAssetUsageEntry } from "@/types/studio-media-asset";
 
 type Props = {
   asset: StudioAsset;
+  allAssets?: StudioAsset[];
+  onSelectAsset?: (assetId: string) => void;
   usage?: StudioAssetUsageEntry | null;
   isAdmin?: boolean;
   userId?: string;
@@ -19,6 +26,8 @@ type Props = {
 
 export function StudioAssetDetailView({
   asset,
+  allAssets = [],
+  onSelectAsset,
   usage,
   isAdmin,
   userId,
@@ -28,6 +37,11 @@ export function StudioAssetDetailView({
 }: Props) {
   const t = useActiveTranslator();
   const collections = STUDIO_ASSET_COLLECTIONS.filter((c) => asset.collectionIds.includes(c.id));
+  const isCanonicalBase = asset.semanticContinuity?.identityAssetType === "canonical_character_base";
+  const sourceAsset =
+    isCanonicalBase ? findCanonicalBaseSourceAsset(allAssets, asset) : null;
+  const derivedRoles =
+    isCanonicalBase ? listDerivedCharacterRoleVariants(allAssets, asset.id) : [];
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
@@ -39,6 +53,11 @@ export function StudioAssetDetailView({
               : t(`studio.mediaAsset.tab.${asset.category}` as never)}
           </p>
           <h3 className="mt-1 text-base font-semibold text-slate-900">{asset.name}</h3>
+          {isCanonicalBase ?
+            <div className="mt-2">
+              <StudioCanonicalBaseBadge />
+            </div>
+          : null}
         </div>
         {onClose ?
           <button
@@ -138,10 +157,44 @@ export function StudioAssetDetailView({
             <dd className="mt-0.5">{asset.semanticContinuity.brandIdentity}</dd>
           </div>
         : null}
-        {asset.semanticContinuity?.derivedFromSourceName ?
+        {sourceAsset ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.characterEvolution.detail.source")}</dt>
+            <dd className="mt-0.5">
+              {onSelectAsset ?
+                <button
+                  type="button"
+                  onClick={() => onSelectAsset(sourceAsset.id)}
+                  className="font-medium text-[#0067B1] hover:underline"
+                >
+                  {sourceAsset.name}
+                </button>
+              : sourceAsset.name}
+            </dd>
+          </div>
+        : asset.semanticContinuity?.derivedFromSourceName ?
           <div>
             <dt className="font-medium text-slate-900">{t("studio.mediaAsset.detail.basedOn")}</dt>
             <dd className="mt-0.5">{asset.semanticContinuity.derivedFromSourceName}</dd>
+          </div>
+        : null}
+        {derivedRoles.length > 0 ?
+          <div>
+            <dt className="font-medium text-slate-900">{t("studio.characterEvolution.detail.derivedRoles")}</dt>
+            <dd className="mt-1 flex flex-wrap gap-2">
+              {derivedRoles.map((role) =>
+                onSelectAsset ?
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => onSelectAsset(role.id)}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-slate-100"
+                  >
+                    {role.name}
+                  </button>
+                : <span key={role.id} className="text-xs text-slate-700">{role.name}</span>
+              )}
+            </dd>
           </div>
         : null}
         {typeof asset.semanticContinuity?.animationReadinessScore === "number" ?

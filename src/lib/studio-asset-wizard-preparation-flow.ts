@@ -1,3 +1,4 @@
+import { isAnimationReadyEvolutionFlow } from "@/lib/studio-asset-character-evolution";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import {
   analyzeAnimationReadiness,
@@ -7,7 +8,7 @@ import { hasWizardSourceReference } from "@/lib/studio-asset-wizard-source-refer
 import type { AssetCreationWizardStep } from "@/types/studio-asset-creation";
 
 export function isPrepareForAnimationFlow(draft: AssetWizardDraft): boolean {
-  return draft.entryPath === "prepare_for_animation";
+  return draft.entryPath === "prepare_for_animation" || isAnimationReadyEvolutionFlow(draft);
 }
 
 export function shouldShowCharacterConstructionStep(draft: AssetWizardDraft): boolean {

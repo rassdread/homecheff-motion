@@ -70,6 +70,41 @@ export const IDENTITY_PROFILE_CONFIGS: Record<IdentityProfileLevel, IdentityProf
       "character redesign",
     ],
   },
+  canonical_evolution: {
+    level: "canonical_evolution",
+    identityWeight: 0.88,
+    creativityWeight: 0.15,
+    preserveBoost: [
+      "brand identity",
+      "brand colors",
+      "face structure",
+      "silhouette",
+      "identity shape markers",
+      "head shape",
+      "family DNA",
+      "fingerprint markers",
+    ],
+    changeAllowance: [
+      "eyes",
+      "mouth",
+      "hands",
+      "arms",
+      "expressions",
+      "animation suitability",
+      "clothing details",
+      "body details",
+    ],
+    forbiddenBoost: [
+      "brand break",
+      "shape marker break",
+      "family recognition break",
+      "color DNA break",
+      "profession",
+      "role tools",
+      "campaign elements",
+      "role accessories",
+    ],
+  },
   master_character: {
     level: "master_character",
     identityWeight: 1,
@@ -107,6 +142,36 @@ const TYPE_BASE_RULES: Record<IdentityAssetType, IdentityProfileRules> = {
     preserve: ["face", "colors", "brand identity", "shape language"],
     change: ["outfit", "role", "accessories", "environment"],
     forbidden: ["face change", "style break", "new character"],
+  },
+  canonical_character_base: {
+    preserve: [
+      "brand identity",
+      "brand colors",
+      "face structure",
+      "silhouette",
+      "identity shape markers",
+      "head shape",
+      "family DNA",
+      "fingerprint markers",
+    ],
+    change: [
+      "eyes",
+      "mouth",
+      "hands",
+      "arms",
+      "expressions",
+      "animation suitability",
+      "clothing details",
+      "body details",
+    ],
+    forbidden: [
+      "profession",
+      "role tools",
+      "campaign elements",
+      "brand break",
+      "shape marker break",
+      "color DNA break",
+    ],
   },
   mascot: {
     preserve: ["face", "colors", "brand identity", "silhouette", "shape language", "identity shape markers"],
@@ -288,6 +353,9 @@ export function formatIdentityWeightPercent(level: IdentityProfileLevel): number
   if (level === "master_character") {
     return 98;
   }
+  if (level === "canonical_evolution") {
+    return 88;
+  }
   return Math.round(IDENTITY_PROFILE_CONFIGS[level].identityWeight * 100);
 }
 
@@ -354,6 +422,8 @@ export function resolveVariantFidelityThresholdsForProfile(
       return { warning: 88, strictRegenerate: 72, identityFailure: 55 };
     case "master_character":
       return { warning: 92, strictRegenerate: 80, identityFailure: 65 };
+    case "canonical_evolution":
+      return { warning: 90, strictRegenerate: 78, identityFailure: 62 };
     default:
       return {
         warning: VARIANT_FIDELITY_WARNING_THRESHOLD,
@@ -367,6 +437,8 @@ export function resolveIdentityProfileMotionGuidance(level?: IdentityProfileLeve
   switch (level) {
     case "master_character":
       return "Maximum character continuity — preserve face, silhouette, and brand identity across every scene.";
+    case "canonical_evolution":
+      return "Canonical evolution — preserve brand DNA and shape markers while using the animation-ready neutral character base for all role variants.";
     case "brand_lock":
       return "Brand protection mode — logos, colors, and brand markers must remain intact.";
     case "strict":
@@ -389,7 +461,7 @@ export type IdentityProfileConsumptionFields = {
 export function blocksReplacementAssetSuggestion(
   profile?: IdentityProfileLevel | string | ""
 ): boolean {
-  return profile === "master_character";
+  return profile === "master_character" || profile === "canonical_evolution";
 }
 
 export function scoreIdentityProfileDirectorBoost(
@@ -398,6 +470,8 @@ export function scoreIdentityProfileDirectorBoost(
   switch (profile) {
     case "master_character":
       return 5;
+    case "canonical_evolution":
+      return 6;
     case "brand_lock":
       return 3;
     case "strict":
@@ -415,6 +489,8 @@ export function resolveDirectorIdentityProfileGuidance(
   switch (level) {
     case "master_character":
       return "Director: maximum identity continuity — do not replace or redesign this asset; reuse the existing reference in every scene.";
+    case "canonical_evolution":
+      return "Director: use the Canonical Character Base as the official source for all new role variants — prevents character drift from the brand mascot.";
     case "brand_lock":
       return "Director: brand protection — preserve logos, colors, and brand markers in all scene planning.";
     case "strict":
@@ -480,6 +556,7 @@ export function resolveIdentityImportanceLabel(level: IdentityProfileLevel): str
       return "important";
     case "brand_lock":
     case "master_character":
+    case "canonical_evolution":
       return "critical";
     default:
       return "balanced";

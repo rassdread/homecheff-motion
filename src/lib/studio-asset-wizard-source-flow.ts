@@ -9,6 +9,7 @@ import {
 } from "@/lib/studio-asset-transform-prompt";
 import { shouldShowAssetVisionStep } from "@/lib/studio-asset-vision-analysis";
 import { hasConfirmedIdentityProfile } from "@/lib/studio-asset-identity-profile";
+import { wizardStepLabelKeyForEvolution } from "@/lib/studio-asset-wizard-evolution-flow";
 import { isPrepareForAnimationFlow } from "@/lib/studio-asset-wizard-preparation-flow";
 import { wizardStepLabelKeyForPreparation } from "@/lib/studio-asset-wizard-preparation-flow";
 import type { AssetCreationWizardStep, StudioAssetKind } from "@/types/studio-asset-creation";
@@ -46,6 +47,10 @@ export function wizardStepLabelKeyForDraft(
   const preparationLabel = wizardStepLabelKeyForPreparation(step);
   if (preparationLabel) {
     return preparationLabel;
+  }
+  const evolutionLabel = wizardStepLabelKeyForEvolution(step);
+  if (evolutionLabel) {
+    return evolutionLabel;
   }
   return null;
 }
@@ -184,6 +189,12 @@ function insertSourceTransformStep(
 
 /** Dedicated transformation prompt step (not covered by derive_transform). */
 export function shouldShowSourceTransformStep(draft: AssetWizardDraft): boolean {
+  if (
+    draft.characterEvolutionChoice === "canonical_character_base" ||
+    draft.characterEvolutionChoice === "animation_ready_character"
+  ) {
+    return false;
+  }
   if (!hasUpfrontSourceReference(draft)) {
     return false;
   }

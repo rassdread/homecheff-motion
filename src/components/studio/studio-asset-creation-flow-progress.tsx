@@ -18,6 +18,8 @@ const VISIBLE_LABELS: Record<AssetCreationWizardStep, string> = {
   source_transform: "studio.assetCreation.wizard.step.sourceTransform",
   asset_vision: "studio.assetCreation.wizard.step.assetVision",
   identity_profile: "studio.assetCreation.wizard.step.identityProfile",
+  character_evolution: "studio.assetCreation.wizard.step.characterEvolution",
+  canonical_evolution_construction: "studio.assetCreation.wizard.step.canonicalEvolutionConstruction",
   character_construction: "studio.assetCreation.wizard.step.characterConstruction",
   animation_readiness: "studio.assetCreation.wizard.step.animationReadiness",
   transform_prompt: "studio.assetCreation.wizard.step.transformPrompt",

@@ -1,7 +1,9 @@
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import { buildConstructionContinuityPromptBlock } from "@/lib/studio-asset-animation-readiness";
+import { buildCanonicalEvolutionPromptBlock } from "@/lib/studio-asset-character-evolution";
 import { buildIdentityShapeMarkersPromptLine } from "@/lib/studio-asset-identity-shape-markers";
+import type { CanonicalEvolutionConstruction } from "@/types/studio-asset-character-evolution";
 import { buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
 import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -15,6 +17,7 @@ export type AssetSemanticGenerationInput = {
   semanticRecord?: AssetSemanticRecord | null;
   visionAnalysis?: AssetVisionAnalysis | null;
   styleDna?: AssetStyleDna | null;
+  canonicalEvolutionConstruction?: CanonicalEvolutionConstruction;
 };
 
 function joinRules(rules: string[] | string | undefined): string {
@@ -91,6 +94,11 @@ export function buildAssetSemanticGenerationContext(input: AssetSemanticGenerati
     forbidden ? `Forbidden: ${forbidden}.` : "",
     styleDna?.mascotTraits ? `Character traits: ${styleDna.mascotTraits}.` : "",
     styleDna?.outfitHints ? `Outfit hints: ${styleDna.outfitHints}.` : "",
+    input.canonicalEvolutionConstruction
+      ? buildCanonicalEvolutionPromptBlock(input.canonicalEvolutionConstruction)
+      : record?.identityAssetType === "canonical_character_base"
+        ? "Canonical Character Base: neutral animation-ready character without profession, tools, or campaign elements."
+        : "",
   ].filter(Boolean);
 
   return lines.join(" ");
@@ -107,6 +115,10 @@ export function buildAssetSemanticGenerationInputFromDraft(
     changeRules: draft.sourceTransformChange,
     forbiddenRules: draft.sourceTransformForbidden,
     userInstruction: draft.sourceTransformInstruction,
+    canonicalEvolutionConstruction:
+      draft.characterEvolutionChoice === "canonical_character_base"
+        ? draft.canonicalEvolutionConstruction
+        : undefined,
   };
 }
 

@@ -9,6 +9,7 @@ import type {
   AssetCreationWizardStep,
   StudioAssetKind,
 } from "@/types/studio-asset-creation";
+import { injectEvolutionWizardSteps } from "@/lib/studio-asset-wizard-evolution-flow";
 import { injectPreparationWizardSteps } from "@/lib/studio-asset-wizard-preparation-flow";
 import {
   injectSourceReferenceWizardSteps,
@@ -131,7 +132,10 @@ export function wizardStepSequenceForDraft(
     steps = wizardStepsForEntryPath(draft.entryPath, options);
   }
   return injectPreparationWizardSteps(
-    injectSourceReferenceWizardSteps(steps, draft as AssetWizardDraft),
+    injectEvolutionWizardSteps(
+      injectSourceReferenceWizardSteps(steps, draft as AssetWizardDraft),
+      draft as AssetWizardDraft
+    ),
     draft as AssetWizardDraft
   );
 }

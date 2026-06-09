@@ -31,7 +31,9 @@ function ProfileInfoContent({ level }: { level: IdentityProfileLevel }) {
             {t("studio.assetCreation.identityProfile.info.preserveLabel")}
           </dt>
           <dd className="mt-1 text-base font-semibold text-zinc-900">
-            {level === "master_character"
+            {level === "canonical_evolution"
+              ? t("studio.assetCreation.identityProfile.info.canonicalEvolutionPreserveRange")
+              : level === "master_character"
               ? t("studio.assetCreation.identityProfile.info.masterCharacterPreserveRange")
               : `${identityPct}%`}
           </dd>
@@ -49,7 +51,7 @@ function ProfileInfoContent({ level }: { level: IdentityProfileLevel }) {
         </p>
         <p className="mt-1">{t(`studio.assetCreation.identityProfile.info.${level}.use` as never)}</p>
       </div>
-      {level === "master_character" || level === "brand_lock" ?
+      {level === "master_character" || level === "canonical_evolution" || level === "brand_lock" ?
         <div className="rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#0067B1]">
             {t("studio.assetCreation.identityProfile.info.identityShapeMarkersTitle")}

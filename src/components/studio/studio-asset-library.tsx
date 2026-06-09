@@ -30,7 +30,10 @@ import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { STUDIO_ASSET_COLLECTIONS } from "@/lib/studio-media-asset-collections";
-import { StudioIdentityScoreBadge } from "@/components/studio/studio-variant-quality-panel";
+import {
+  StudioCanonicalBaseBadge,
+  StudioIdentityScoreBadge,
+} from "@/components/studio/studio-variant-quality-panel";
 import type { StudioAsset } from "@/types/studio-media-asset";
 
 const TABS: AssetLibraryTab[] = [
@@ -400,6 +403,9 @@ export function StudioAssetLibrary({
                     )}
                     <span className="truncate text-sm font-semibold text-slate-900">{asset.name}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-1">
+                      {asset.semanticContinuity?.identityAssetType === "canonical_character_base" ?
+                        <StudioCanonicalBaseBadge />
+                      : null}
                       {typeof asset.semanticContinuity?.identityScore === "number" ?
                         <StudioIdentityScoreBadge
                           score={asset.semanticContinuity.identityScore}
@@ -453,6 +459,8 @@ export function StudioAssetLibrary({
           {selected ?
             <StudioAssetDetailView
               asset={selected}
+              allAssets={filtered}
+              onSelectAsset={setSelectedId}
               isAdmin={isAdmin}
               userId={userId}
               onClose={() => setSelectedId(null)}

@@ -35,6 +35,11 @@ import type {
   CharacterConstructionProfile,
 } from "@/types/studio-asset-animation-readiness";
 import {
+  DEFAULT_CANONICAL_EVOLUTION_CONSTRUCTION,
+  type CanonicalEvolutionConstruction,
+  type CharacterEvolutionChoice,
+} from "@/types/studio-asset-character-evolution";
+import {
   applySemanticRecordToCharacterFields,
   applySemanticRecordToLocationFields,
   applySemanticRecordToPropFields,
@@ -111,6 +116,9 @@ export type AssetWizardDraft = {
   variantRegenerationStrict: boolean;
   /** Essentials-step fields (kind-specific). */
   fields: Record<string, string | null>;
+  /** Character evolution choice (variant / canonical base / animation ready). */
+  characterEvolutionChoice: CharacterEvolutionChoice | "";
+  canonicalEvolutionConstruction: CanonicalEvolutionConstruction;
   /** Animation-ready preparation flow (prepare_for_animation entry). */
   characterConstruction: Partial<CharacterConstructionProfile>;
   characterConstructionConfirmed: boolean;
@@ -176,6 +184,8 @@ export function emptyAssetWizardDraft(
     variantFidelityStatus: "idle",
     variantRegenerationStrict: false,
     fields: {},
+    characterEvolutionChoice: "",
+    canonicalEvolutionConstruction: { ...DEFAULT_CANONICAL_EVOLUTION_CONSTRUCTION },
     characterConstruction: {},
     characterConstructionConfirmed: false,
     animationReadinessAnalysis: null,

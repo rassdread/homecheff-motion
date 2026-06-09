@@ -41,11 +41,18 @@ import {
   type AssetWizardDraft,
 } from "@/lib/studio-asset-wizard-draft";
 import {
+  canAdvanceFromCanonicalEvolutionConstructionStep,
+  canAdvanceFromCharacterEvolutionStep,
+} from "@/lib/studio-asset-character-evolution";
+import {
   canAdvanceFromAnimationReadinessStep,
   canAdvanceFromCharacterConstructionStep,
   finalizePrepareForAnimationDraft,
+  isPrepareForAnimationFlow,
 } from "@/lib/studio-asset-wizard-preparation-flow";
 import { StudioWizardAnimationReadinessStep } from "@/components/studio/studio-wizard-animation-readiness-step";
+import { StudioWizardCanonicalEvolutionConstructionStep } from "@/components/studio/studio-wizard-canonical-evolution-construction-step";
+import { StudioWizardCharacterEvolutionStep } from "@/components/studio/studio-wizard-character-evolution-step";
 import { StudioWizardCharacterConstructionStep } from "@/components/studio/studio-wizard-character-construction-step";
 import {
   choiceDefForWizardStep,
@@ -236,6 +243,12 @@ export function StudioAssetCreationWizard({
     if (step === "identity_profile") {
       return canAdvanceFromIdentityProfileStep(activeDraft);
     }
+    if (step === "character_evolution") {
+      return canAdvanceFromCharacterEvolutionStep(activeDraft);
+    }
+    if (step === "canonical_evolution_construction") {
+      return canAdvanceFromCanonicalEvolutionConstructionStep(activeDraft);
+    }
     if (step === "character_construction") {
       return canAdvanceFromCharacterConstructionStep(activeDraft);
     }
@@ -275,7 +288,7 @@ export function StudioAssetCreationWizard({
     if (!result) {
       return;
     }
-    if (result.draft.entryPath === "prepare_for_animation") {
+    if (isPrepareForAnimationFlow(result.draft)) {
       const finalized = { ...result.draft, ...finalizePrepareForAnimationDraft(result.draft) };
       result = { ...result, draft: finalized };
       setDraft(finalized);
@@ -459,6 +472,17 @@ export function StudioAssetCreationWizard({
 
       {activeDraft && step === "identity_profile" ?
         <StudioWizardIdentityProfileStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && step === "character_evolution" ?
+        <StudioWizardCharacterEvolutionStep draft={activeDraft} onDraftChange={updateDraft} />
+      : null}
+
+      {activeDraft && step === "canonical_evolution_construction" ?
+        <StudioWizardCanonicalEvolutionConstructionStep
+          draft={activeDraft}
+          onDraftChange={updateDraft}
+        />
       : null}
 
       {activeDraft && step === "character_construction" ?

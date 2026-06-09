@@ -4,6 +4,7 @@ export const IDENTITY_PROFILE_LEVELS = [
   "relaxed",
   "balanced",
   "strict",
+  "canonical_evolution",
   "brand_lock",
   "master_character",
 ] as const;
@@ -12,6 +13,7 @@ export type IdentityProfileLevel = (typeof IDENTITY_PROFILE_LEVELS)[number];
 
 export const IDENTITY_ASSET_TYPES = [
   "character",
+  "canonical_character_base",
   "mascot",
   "logo",
   "packaging",

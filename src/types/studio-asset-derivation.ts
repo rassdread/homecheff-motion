@@ -44,6 +44,8 @@ export type AssetDerivationSourceListItem = {
   referenceStorageKey: string;
   thumbnailUrl: string;
   canonicalRole?: string;
+  identityAssetType?: string;
+  isCanonicalCharacterBase?: boolean;
 };
 
 export type AssetDerivationRoiSummary = {

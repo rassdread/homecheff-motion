@@ -1,3 +1,5 @@
+import { isCanonicalCharacterBaseRecord } from "@/lib/studio-asset-character-evolution";
+import { extractAssetSemanticRecordFromCharacter } from "@/lib/studio-asset-semantic-record";
 import { parseCharacterReferencesBundle } from "@/lib/studio-character-canonical-references";
 import { parseAssetReferencesBundle } from "@/lib/studio-asset-canonical-references";
 import { listStudioCharacters } from "@/server/studio/studio-character-service";
@@ -38,15 +40,19 @@ export async function listAssetDerivationSources(
   const items: AssetDerivationSourceListItem[] = [];
 
   for (const c of characters) {
+    const semanticRecord = extractAssetSemanticRecordFromCharacter(c);
+    const isCanonicalBase = isCanonicalCharacterBaseRecord(semanticRecord);
     if (c.referenceImageUrl?.trim()) {
       items.push({
         sourceType: "library_asset",
         kind: "character",
         assetId: c.id,
-        name: c.name,
+        name: isCanonicalBase ? `${c.name} (Canonical Base)` : c.name,
         referenceImageUrl: c.referenceImageUrl,
         referenceStorageKey: "",
         thumbnailUrl: c.referenceImageUrl,
+        identityAssetType: semanticRecord.identityAssetType,
+        isCanonicalCharacterBase: isCanonicalBase,
       });
     }
     const { bundle } = parseCharacterReferencesBundle(c.referenceNotes ?? null);

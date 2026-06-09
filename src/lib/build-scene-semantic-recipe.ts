@@ -11,6 +11,7 @@ import {
   formatCharacterConstructionSummary,
   formatPostureSummary,
 } from "@/lib/studio-asset-animation-readiness";
+import { scoreMotionCharacterReferencePreference } from "@/lib/studio-asset-character-evolution";
 import { resolveIdentityProfileMotionGuidance } from "@/lib/studio-asset-identity-profile";
 import { formatIdentityFingerprintSummary } from "@/lib/studio-asset-identity-preservation";
 import type { IdentityProfileLevel } from "@/types/studio-asset-identity-profile";
@@ -197,7 +198,15 @@ export function buildSceneSemanticRecipe(params: {
 }): SceneSemanticRecipe {
   const { row, memoryBundle, generatedPrompt, promptLineage, visualStyleProfile } = params;
 
-  const characters = row.characters.map((link) => toCharacterRef(link.character));
+  const characters = row.characters
+    .map((link) => ({
+      ref: toCharacterRef(link.character),
+      preference: scoreMotionCharacterReferencePreference(
+        extractAssetSemanticRecordFromCharacter(link.character)
+      ),
+    }))
+    .sort((a, b) => b.preference - a.preference)
+    .map((entry) => entry.ref);
   const props = row.props.map((link) => toPropRef(link.prop));
   const location = row.location ? toLocationRef(row.location) : undefined;
   const worldProfile =

@@ -220,7 +220,7 @@ export function StudioWizardIdentityProfileStep({ draft, onDraftChange }: Props)
           {t("studio.assetCreation.identityProfile.profileQuestion")}
         </p>
         <div className="flex flex-wrap gap-2">
-          {IDENTITY_PROFILE_LEVELS.map((id) => {
+          {IDENTITY_PROFILE_LEVELS.filter((id) => id !== "canonical_evolution").map((id) => {
             const active = draft.identityProfileLevel === id;
             return (
               <div key={id} className="inline-flex items-center gap-1">

@@ -24,6 +24,8 @@ export type AssetCreationWizardStep =
   | "source_transform"
   | "asset_vision"
   | "identity_profile"
+  | "character_evolution"
+  | "canonical_evolution_construction"
   | "character_construction"
   | "animation_readiness"
   | "transform_prompt"
