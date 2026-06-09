@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { SuiteFlowActions } from "@/components/suite/suite-flow-actions";
+import { buildEditorSaveNextActions } from "@/lib/suite-flow-handoffs";
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { buildEditorDownloadFilename, markEditorDocumentDraftSaved } from "@/lib/editor-canvas-session";
@@ -200,6 +202,13 @@ export function EditorReviewPanel({ document, onContinueEditing, onSaved, onDisc
         <Link href="/library" className="min-h-11 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900">
           {t("editor.review.openLibrary")}
         </Link>
+      </div>
+
+      <div className="mt-4">
+        <SuiteFlowActions
+          titleKey="suite.flow.editorSavedTitle"
+          actions={buildEditorSaveNextActions({ sessionId: document.sessionId, assetId: document.sourceAssetId })}
+        />
       </div>
     </div>
   );
