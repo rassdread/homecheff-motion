@@ -4,7 +4,11 @@ import type { UniversePlanetConfig } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
 import {
   UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS,
+  UNIVERSE_Z_PORTAL,
   resolveUniversePlanetPreviewContent,
+  resolveUniversePortalBridgeClass,
+  resolveUniversePortalPositionClass,
+  type UniversePortalPlacement,
 } from "@/lib/universe-planet-ux";
 
 type UniversePlanetPreviewProps = {
@@ -13,7 +17,7 @@ type UniversePlanetPreviewProps = {
   onOpen: () => void;
   onPortalEnter?: () => void;
   onPortalLeave?: () => void;
-  placement?: "below" | "side";
+  placement?: UniversePortalPlacement;
   layout?: "floating" | "inline";
 };
 
@@ -30,11 +34,9 @@ export function UniversePlanetPreview({
   const content = resolveUniversePlanetPreviewContent(planet.id);
 
   const positionClass =
-    layout === "inline"
-      ? "relative w-full mt-4"
-      : placement === "side"
-        ? "left-[calc(100%+8px)] top-1/2 -translate-y-1/2"
-        : "left-1/2 top-[calc(100%-6px)] -translate-x-1/2";
+    layout === "inline" ? "relative w-full mt-4" : resolveUniversePortalPositionClass(placement);
+
+  const bridgeClass = layout === "floating" ? resolveUniversePortalBridgeClass(placement) : "";
 
   const visibilityClass =
     layout === "inline"
@@ -49,14 +51,19 @@ export function UniversePlanetPreview({
     <>
       {layout === "floating" && active && (
         <div
-          className="absolute left-1/2 top-full z-[35] h-5 w-[min(20rem,78vw)] -translate-x-1/2"
+          className={`absolute ${bridgeClass}`}
+          style={{ zIndex: UNIVERSE_Z_PORTAL - 1 }}
           aria-hidden
           onMouseEnter={onPortalEnter}
           onMouseLeave={onPortalLeave}
         />
       )}
       <div
-        className={`${UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS} ${layout === "floating" ? "absolute z-40 w-[min(22rem,82vw)]" : "relative z-10 w-full"} transition-all duration-300 ${positionClass} ${visibilityClass}`}
+        className={`${UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS} ${layout === "floating" ? "absolute w-[min(22rem,82vw)]" : "relative w-full"} transition-all duration-350 ${positionClass} ${visibilityClass}`}
+        style={{
+          zIndex: UNIVERSE_Z_PORTAL,
+          transitionTimingFunction: "cubic-bezier(0.34, 1.15, 0.64, 1)",
+        }}
         role="dialog"
         aria-hidden={!active}
         aria-label={t(content.titleKey)}

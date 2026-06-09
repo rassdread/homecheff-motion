@@ -9,8 +9,13 @@ import { UniversePlanetSatellites } from "@/components/suite/universe/universe-p
 import { UniversePlanetWorld } from "@/components/suite/universe/universe-planet-world";
 import {
   UNIVERSE_PLANET_CLUSTER_CLASS,
+  UNIVERSE_PLANET_HOVER_SCALE,
+  UNIVERSE_PLANET_HOVER_TRANSITION_MS,
   UNIVERSE_PLANET_ORBIT_CLUSTER_HEIGHT_PX,
   UNIVERSE_PLANET_ORBIT_CLUSTER_WIDTH_PX,
+  UNIVERSE_Z_PLANET,
+  UNIVERSE_Z_SATELLITE,
+  resolveUniversePortalPlacement,
 } from "@/lib/universe-planet-ux";
 
 type UniversePlanetProps = {
@@ -54,8 +59,8 @@ export function UniversePlanet({
     : `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35) 0%, transparent 40%),
        radial-gradient(circle at 65% 75%, ${planet.accent}cc 0%, #041428 85%)`;
 
-  const previewPlacement =
-    planet.orbitAngle > 90 && planet.orbitAngle < 270 ? "side" : "below";
+  const portalPlacement =
+    variant === "orbit" ? resolveUniversePortalPlacement(planet.orbitAngle) : "below";
 
   const handleClusterEnter = () => {
     onHoverStart(planet.id);
@@ -65,10 +70,13 @@ export function UniversePlanet({
     onHoverEnd();
   };
 
+  const hoverScale = active ? UNIVERSE_PLANET_HOVER_SCALE : 1;
+  const transitionMs = UNIVERSE_PLANET_HOVER_TRANSITION_MS;
+
   return (
     <div
       className={`${UNIVERSE_PLANET_CLUSTER_CLASS} group relative flex flex-col items-center justify-center overflow-visible ${
-        variant === "orbit" ? "universe-planet-orbit-cluster" : ""
+        variant === "orbit" ? "universe-planet-orbit-cluster universe-planet-3d-scene" : ""
       }`}
       style={{
         ...style,
@@ -100,21 +108,21 @@ export function UniversePlanet({
           active={active}
           reducedMotion={reducedMotion}
           variant="orbit"
+          layer="back"
         />
       )}
-
-      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
 
       <button
         type="button"
         onClick={() => onSelect(planet)}
-        className={`relative z-[2] ${sizeClass} rounded-full outline-none transition-transform duration-500 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${
-          active ? "scale-[1.15] z-10" : "scale-100 hover:scale-105"
-        }`}
+        className={`universe-planet-sphere relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${sizeClass}`}
         style={{
+          zIndex: UNIVERSE_Z_PLANET,
+          transform: `scale(${hoverScale})`,
+          transition: `transform ${transitionMs}ms cubic-bezier(0.34, 1.25, 0.64, 1), box-shadow ${transitionMs}ms ease`,
           willChange: "transform",
           boxShadow: active
-            ? `0 0 48px ${planet.accent}99, inset 0 2px 0 rgba(255,255,255,0.25)`
+            ? `0 0 56px ${planet.accent}aa, inset 0 2px 0 rgba(255,255,255,0.28)`
             : `0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18)`,
         }}
         aria-label={`${t(planet.titleKey)} — ${t(planet.descriptionKey)}`}
@@ -142,13 +150,25 @@ export function UniversePlanet({
       </button>
 
       {variant === "orbit" && (
+        <UniversePlanetIdentityRing
+          planetId={planet.id}
+          active={active}
+          reducedMotion={reducedMotion}
+          variant="orbit"
+          layer="front"
+        />
+      )}
+
+      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
+
+      {variant === "orbit" && (
         <UniversePlanetPreview
           planet={planet}
           active={active}
           onOpen={() => onSelect(planet)}
           onPortalEnter={handleClusterEnter}
           onPortalLeave={handleClusterLeave}
-          placement={previewPlacement}
+          placement={portalPlacement}
         />
       )}
 
@@ -159,6 +179,7 @@ export function UniversePlanet({
             active={active}
             onOpen={() => onSelect(planet)}
             placement="below"
+            layout="inline"
           />
         </div>
       )}

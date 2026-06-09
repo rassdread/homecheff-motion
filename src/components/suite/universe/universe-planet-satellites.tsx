@@ -2,7 +2,7 @@
 
 import type { UniversePlanetConfig } from "@/lib/universe-home-config";
 import { useActiveTranslator } from "@/i18n/client";
-import { UNIVERSE_PLANET_SATELLITE_CLASS } from "@/lib/universe-planet-ux";
+import { UNIVERSE_PLANET_SATELLITE_CLASS, UNIVERSE_Z_SATELLITE } from "@/lib/universe-planet-ux";
 
 type UniversePlanetSatellitesProps = {
   planet: UniversePlanetConfig;
@@ -22,7 +22,11 @@ export function UniversePlanetSatellites({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-[4] overflow-visible" aria-hidden>
+    <div
+      className="pointer-events-none absolute inset-0 overflow-visible"
+      style={{ zIndex: UNIVERSE_Z_SATELLITE }}
+      aria-hidden
+    >
       {planet.capabilityKeys.map((key, i) => (
         <div
           key={key}

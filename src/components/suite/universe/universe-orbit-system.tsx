@@ -43,7 +43,7 @@ export function UniverseOrbitSystem({
       <UniversePipeline hoveredPlanet={hoveredPlanet} />
 
       <div
-        className="absolute left-1/2 top-1/2 z-[2]"
+        className="absolute left-1/2 top-1/2 z-[10]"
         style={{ transform: `translate(calc(-50% + ${px * 6}px), calc(-50% + ${py * 4}px))` }}
       >
         <UniverseGlobe reducedMotion={reducedMotion} size="hero" />
