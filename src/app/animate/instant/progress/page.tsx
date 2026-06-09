@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
+import { MotionPublishHandoff } from "@/components/motion/motion-publish-handoff";
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
@@ -571,6 +572,7 @@ export default function InstantPremiumProgressPage() {
                 ) : null}
                 <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
               </div>
+              <MotionPublishHandoff projectId={effectiveProjectId} videoUrl={snapshot.finalVideoUrl} />
               <InstantRecoveryActionButtons
                 snapshot={snapshot}
                 hideVideoRepair={videoRepair.showRepairCard}
