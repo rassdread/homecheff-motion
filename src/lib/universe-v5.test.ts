@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { loginHref } from "@/lib/auth-login-href";
 import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
-import { allRequiredContinentsPresent } from "@/lib/universe-globe-earth";
+import { worldMapAssetConfigured } from "@/lib/universe-globe-earth";
 import { ECOSYSTEM_HUBS } from "@/lib/universe-globe-ecosystem";
 import { validateUniverseLayerOrder } from "@/lib/universe-globe-render";
 import { resolveUniversePlanetHref } from "@/lib/universe-public-landing";
@@ -11,7 +11,6 @@ import {
   UNIVERSE_PLANET_HOVER_SCALE,
   UNIVERSE_PLANET_PREVIEW_PORTAL_CLASS,
   UNIVERSE_Z_CAPABILITY,
-  resolveCapabilityRadialSlot,
 } from "@/lib/universe-planet-ux";
 
 describe("universe v5 clean planet interaction", () => {
@@ -49,16 +48,13 @@ describe("universe v5 clean planet interaction", () => {
     assert.equal(UNIVERSE_PLANET_HOVER_SCALE, 1.3);
   });
 
-  it("capability labels use fixed radial slots not orbit animation", () => {
+  it("capability labels use rotating orbit on hover", () => {
     const satSource = readFileSync(
       "src/components/suite/universe/universe-planet-satellites.tsx",
       "utf8"
     );
-    assert.match(satSource, /resolveCapabilityRadialSlot/);
-    assert.doesNotMatch(satSource, /universe-satellite-orbit/);
-    const a = resolveCapabilityRadialSlot(0, 5);
-    const b = resolveCapabilityRadialSlot(1, 5);
-    assert.notDeepEqual(a, b);
+    assert.match(satSource, /universe-capability-orbit-spin/);
+    assert.doesNotMatch(satSource, /resolveCapabilityRadialSlot/);
   });
 
   it("layer order has no portal above planets", () => {
@@ -77,10 +73,10 @@ describe("universe v5 clean planet interaction", () => {
     assert.match(pipelineSource, /resolveUniversePipelineHighlight/);
   });
 
-  it("globe continent layer present", () => {
-    assert.equal(allRequiredContinentsPresent(), true);
+  it("globe uses real world map texture", () => {
+    assert.equal(worldMapAssetConfigured(), true);
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
-    assert.match(globeSource, /EarthContinentMap|EARTH_CONTINENT_PATHS/);
+    assert.match(globeSource, /WorldMapTexture/);
   });
 
   it("ecosystem nodes render", () => {

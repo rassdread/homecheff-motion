@@ -103,7 +103,7 @@ describe("universe planet ux", () => {
   it("globe uses spherical class and earth map layer", () => {
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
     assert.match(globeSource, /universe-globe-spherical|UNIVERSE_GLOBE_SPHERICAL_CLASS/);
-    assert.match(globeSource, /universe-globe-map-layer|EARTH_CONTINENT_PATHS/);
+    assert.match(globeSource, /WorldMapTexture|universe-globe-world-map/);
     assert.match(globeSource, /aspectRatio.*1.*1/);
   });
 });

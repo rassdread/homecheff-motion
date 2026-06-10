@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
-import { EARTH_CONTINENT_PATHS } from "@/lib/universe-globe-earth";
+import { WORLD_MAP_ASSET_PATH, worldMapAssetConfigured } from "@/lib/universe-globe-earth";
 import {
   ECOSYSTEM_HUBS,
   ECOSYSTEM_ROUTES,
@@ -23,18 +23,17 @@ import {
 } from "@/lib/universe-planet-ux";
 
 describe("universe v4 saturn rings and smart portals", () => {
-  it("renders Saturn ring classes instead of textPath spinner", () => {
+  it("renders Saturn ring with SVG textPath on front arc", () => {
     const ringSource = readFileSync("src/components/suite/universe/universe-saturn-ring.tsx", "utf8");
     assert.equal(UNIVERSE_PLANET_SATURN_RING_CLASS, "universe-saturn-ring");
     assert.equal(UNIVERSE_PLANET_SATURN_SCENE_CLASS, "universe-saturn-scene");
-    assert.match(ringSource, /universe-saturn-band-back/);
+    assert.match(ringSource, /textPath/);
     assert.match(ringSource, /universe-saturn-band-front/);
-    assert.doesNotMatch(ringSource, /textPath/);
   });
 
-  it("ring text stays upright via label track counter-tilt", () => {
+  it("ring 3D tilt and clip paths remain", () => {
     const css = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
-    assert.match(css, /universe-saturn-label-track/);
+    assert.match(css, /universe-saturn-ring-text/);
     assert.match(css, /rotateX\(-68deg\)/);
     assert.match(css, /universe-saturn-y-spin/);
   });
@@ -86,16 +85,9 @@ describe("universe v4 saturn rings and smart portals", () => {
     assert.ok(UNIVERSE_PLANET_HOVER_SCALE <= 1.35);
   });
 
-  it("Earth continents include all major landmasses", () => {
-    const ids = EARTH_CONTINENT_PATHS.map((c) => c.id);
-    assert.ok(ids.includes("north-america"));
-    assert.ok(ids.includes("south-america"));
-    assert.ok(ids.includes("europe"));
-    assert.ok(ids.includes("africa"));
-    assert.ok(ids.includes("asia"));
-    assert.ok(ids.includes("australia"));
-    assert.ok(ids.includes("antarctica"));
-    assert.ok(ids.includes("arctic"));
+  it("Earth map uses Natural Earth public-domain asset", () => {
+    assert.equal(worldMapAssetConfigured(), true);
+    assert.equal(WORLD_MAP_ASSET_PATH, "/universe/world-map-natural-earth-110m.svg");
   });
 
   it("ecosystem network resolves all routes and tier-1 hubs", () => {

@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import { GlobeEcosystemOverlay } from "@/components/suite/universe/universe-globe-ecosystem-overlay";
+import { WorldMapTexture } from "@/components/suite/universe/world-map-texture";
 import { useUniverseGlobeRotation } from "@/hooks/use-universe-globe-rotation";
 import { UNIVERSE_BRAND } from "@/lib/universe-home-config";
-import {
-  EARTH_CONTINENT_PATHS,
-  EARTH_MAP_HEIGHT,
-  EARTH_MAP_WIDTH,
-} from "@/lib/universe-globe-earth";
 import { resolveGlobeMapTranslatePercent } from "@/lib/universe-globe-projection";
 import {
   shouldShowGlobeContinents,
@@ -24,64 +20,6 @@ type UniverseGlobeProps = {
   debugLayer?: UniverseGlobeDebugLayer | null;
   projectionDebug?: boolean;
 };
-
-function EarthContinentMap({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-
-  return (
-    <svg
-      viewBox={`0 0 ${EARTH_MAP_WIDTH} ${EARTH_MAP_HEIGHT}`}
-      className="h-full w-[200%] min-w-[200%]"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden
-    >
-      {EARTH_CONTINENT_PATHS.map((continent) => (
-        <path
-          key={continent.id}
-          d={continent.d}
-          fill={continent.fill}
-          opacity={continent.opacity ?? 0.94}
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth="0.15"
-        />
-      ))}
-      <g transform={`translate(${EARTH_MAP_WIDTH}, 0)`}>
-        {EARTH_CONTINENT_PATHS.map((continent) => (
-          <path
-            key={`dup-${continent.id}`}
-            d={continent.d}
-            fill={continent.fill}
-            opacity={continent.opacity ?? 0.94}
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth="0.15"
-          />
-        ))}
-      </g>
-      {[30, 60, 90, 120, 150].map((y) => (
-        <line
-          key={`lat-${y}`}
-          x1="0"
-          y1={y}
-          x2={EARTH_MAP_WIDTH * 2}
-          y2={y}
-          stroke="rgba(255,255,255,0.07)"
-          strokeWidth="0.2"
-        />
-      ))}
-      {[0, 45, 90, 135, 180, 225, 270, 315, 360, 405, 450, 495, 540, 585, 630, 675, 720].map((x) => (
-        <line
-          key={`lon-${x}`}
-          x1={x}
-          y1="0"
-          x2={x}
-          y2={EARTH_MAP_HEIGHT}
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="0.2"
-        />
-      ))}
-    </svg>
-  );
-}
 
 export function UniverseGlobe({
   reducedMotion = false,
@@ -140,14 +78,14 @@ export function UniverseGlobe({
         {showContinents && (
           <div className="absolute inset-0 overflow-hidden rounded-full">
             <div
-              className="absolute inset-y-0 left-0 flex h-full"
+              className="absolute inset-y-0 left-0 h-full"
               style={{
                 width: "200%",
                 transform: `translateX(${mapTranslatePct}%)`,
                 willChange: reducedMotion ? undefined : "transform",
               }}
             >
-              <EarthContinentMap visible />
+              <WorldMapTexture visible />
             </div>
           </div>
         )}

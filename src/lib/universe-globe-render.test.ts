@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import {
-  EARTH_REQUIRED_CONTINENT_IDS,
-  allRequiredContinentsPresent,
-} from "@/lib/universe-globe-earth";
+import { worldMapAssetConfigured } from "@/lib/universe-globe-earth";
 import { ECOSYSTEM_HUBS, allEcosystemRoutesResolve } from "@/lib/universe-globe-ecosystem";
 import {
   UNIVERSE_GLOBE_HERO_MAX_PX,
@@ -34,11 +31,8 @@ describe("universe globe render audit", () => {
     assert.ok(UNIVERSE_GLOBE_HERO_MAX_PX <= 340);
   });
 
-  it("Earth map includes all required continents", () => {
-    assert.equal(allRequiredContinentsPresent(), true);
-    for (const id of EARTH_REQUIRED_CONTINENT_IDS) {
-      assert.ok(EARTH_REQUIRED_CONTINENT_IDS.includes(id));
-    }
+  it("Earth map asset is configured", () => {
+    assert.equal(worldMapAssetConfigured(), true);
   });
 
   it("ecosystem overlay renders all hubs and routes", () => {
@@ -64,7 +58,7 @@ describe("universe globe render audit", () => {
   it("globe uses separate continent map and ecosystem overlay", () => {
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
     assert.match(globeSource, /GlobeEcosystemOverlay/);
-    assert.match(globeSource, /EarthContinentMap/);
+    assert.match(globeSource, /WorldMapTexture/);
     assert.match(globeSource, /UNIVERSE_GLOBE_HERO_MAX_PX/);
   });
 });
