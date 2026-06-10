@@ -842,6 +842,86 @@ export type EditorV6ProductivityState = {
   showAlignmentGuides?: boolean;
 };
 
+/** Editor V7 — AI command bar, intent plans, skills, history. */
+export const EDITOR_V7_COMMAND_ACTION_TYPES = [
+  "detect_object",
+  "magic_replace",
+  "background_remove",
+  "background_tool",
+  "remove_object",
+  "poster_template",
+  "social_preset",
+  "motion_ready",
+  "quick_motion_gif",
+  "print_export",
+  "logo_placement",
+  "brand_kit",
+  "cutout",
+  "animate",
+  "align",
+  "translate_text",
+  "improve_composition",
+  "preserve_object",
+  "studio_story",
+  "publish_social",
+] as const;
+
+export type EditorV7CommandActionType = (typeof EDITOR_V7_COMMAND_ACTION_TYPES)[number];
+
+export const EDITOR_V7_SKILLS = [
+  "restaurant_poster",
+  "marketplace_product",
+  "motion_ready_asset",
+  "logo_placement",
+  "background_cleanup",
+  "social_media_post",
+  "menu_design",
+  "print_ready_export",
+] as const;
+
+export type EditorV7SkillId = (typeof EDITOR_V7_SKILLS)[number];
+
+export type EditorV7CommandPlanStep = {
+  id: string;
+  actionType: EditorV7CommandActionType;
+  labelKey: string;
+  objectLayerId?: string;
+  objectLabel?: string;
+  params?: Record<string, string>;
+  preserveLabels?: string[];
+  status: "pending" | "done" | "skipped";
+};
+
+export type EditorV7CommandPlan = {
+  id: string;
+  prompt: string;
+  steps: EditorV7CommandPlanStep[];
+  skillId?: EditorV7SkillId;
+  createdAt: string;
+};
+
+export type EditorV7CommandHistoryEntry = {
+  id: string;
+  prompt: string;
+  planId: string;
+  appliedAt: string;
+  status: "applied" | "undone" | "failed";
+};
+
+export type EditorV7ContextualSuggestion = {
+  id: string;
+  labelKey: string;
+  prompt: string;
+};
+
+export type EditorV7AssistantState = {
+  activePlan?: EditorV7CommandPlan;
+  previewMode?: boolean;
+  history: EditorV7CommandHistoryEntry[];
+  historyCursor: number;
+  sidebarCollapsed?: boolean;
+};
+
 export type EditorStudioHandoffScore = {
   score: number;
   labelKey: string;
@@ -885,6 +965,7 @@ export type EditorCanvasDocument = {
   hierarchicalSelection?: EditorHierarchicalSelectionState;
   studioMotionHandoff?: EditorStudioMotionHandoff;
   productivityState?: EditorV6ProductivityState;
+  assistantState?: EditorV7AssistantState;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

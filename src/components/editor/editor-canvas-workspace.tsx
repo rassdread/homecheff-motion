@@ -23,6 +23,9 @@ import { EditorLibraryDragPanel } from "@/components/editor/editor-library-drag-
 import { EditorMagicReplacePanel } from "@/components/editor/editor-magic-replace-panel";
 import { EditorMotionPreviewBar } from "@/components/editor/editor-motion-preview-bar";
 import { EditorPosterBuilderPanel } from "@/components/editor/editor-poster-builder-panel";
+import { EditorActionPlanPreview } from "@/components/editor/editor-action-plan-preview";
+import { EditorAssistantSidebar } from "@/components/editor/editor-assistant-sidebar";
+import { EditorCommandBar } from "@/components/editor/editor-command-bar";
 import { EditorQuickActionBar } from "@/components/editor/editor-quick-action-bar";
 import { EditorQuickMotionPanel } from "@/components/editor/editor-quick-motion-panel";
 import { EditorSocialKitPanel } from "@/components/editor/editor-social-kit-panel";
@@ -108,6 +111,20 @@ import {
   type EditorWorkspaceMode,
 } from "@/types/homecheff-visual-editor";
 import { openDualComposer } from "@/lib/editor-dual-composer";
+import { buildEditorCommandPlan } from "@/lib/editor-v7-action-plan";
+import {
+  attachActivePlan,
+  canRedoCommandHistory,
+  canUndoCommandHistory,
+  clearActivePlan,
+  duplicateHistoryEntry,
+  recordAppliedCommand,
+  redoCommandHistory,
+  rerunHistoryPrompt,
+  toggleAssistantSidebar,
+  undoCommandHistory,
+} from "@/lib/editor-v7-command-history";
+import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
 import {
@@ -128,7 +145,10 @@ import {
   distributeDocumentLayers,
 } from "@/lib/editor-v6-alignment";
 import { applyBackgroundToolIntent, backgroundToolPrompt } from "@/lib/editor-v6-background-tools";
+import { defaultHomeCheffBrandKit, insertBrandKitItemOnCanvas } from "@/lib/editor-v6-brand-kit";
 import { dropLibraryAssetOnCanvas, type LibraryDragPayload } from "@/lib/editor-v6-library-drag";
+import { applyPosterTemplate } from "@/lib/editor-v6-poster-builder";
+import { applySocialPreset } from "@/lib/editor-v6-social-kit";
 import { attachMotionPreview } from "@/lib/editor-v6-motion-preview";
 import {
   applySegmentCutoutToDocument,
@@ -137,7 +157,12 @@ import {
 import type {
   EditorAlignmentAction,
   EditorBackgroundToolId,
+  EditorPosterTemplate,
+  EditorSocialPreset,
+  EditorV6MotionPreviewPreset,
   EditorV6QuickAction,
+  EditorV7CommandPlan,
+  EditorV7CommandPlanStep,
 } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -927,6 +952,199 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     persist(alignDocumentLayer(document, selectedLayerId, action));
   };
 
+  const v7Suggestions = useMemo(
+    () => resolveContextualCommandSuggestions(document),
+    [document]
+  );
+  const v7ActivePlan = document.assistantState?.activePlan;
+
+  const executeV7PlanStep = async (step: EditorV7CommandPlanStep) => {
+    if (step.actionType === "detect_object" || step.actionType === "preserve_object") {
+      return;
+    }
+    if (step.objectLayerId) {
+      selectLayer(step.objectLayerId);
+    }
+    switch (step.actionType) {
+      case "magic_replace": {
+        const layer = document.objects.find((o) => o.id === step.objectLayerId) ?? selectedLayer;
+        if (layer) {
+          const prompt =
+            step.params?.prompt ??
+            (step.params?.replacement
+              ? `Replace ${step.params.target ?? layer.label} with ${step.params.replacement}`
+              : undefined);
+          await runMaskedEdit("replace", layer, prompt);
+        }
+        break;
+      }
+      case "remove_object": {
+        const layer = document.objects.find((o) => o.id === step.objectLayerId) ?? selectedLayer;
+        if (layer) {
+          await runMaskedEdit("delete", layer);
+        }
+        break;
+      }
+      case "background_remove":
+        handleBackgroundTool("remove");
+        break;
+      case "background_tool":
+        handleBackgroundTool((step.params?.tool ?? "blur") as EditorBackgroundToolId);
+        break;
+      case "logo_placement":
+        setShowAddPlacement(true);
+        setSaveMessage(t("editor.v7.plan.addLogo" as never));
+        break;
+      case "brand_kit": {
+        let next = document;
+        for (const item of defaultHomeCheffBrandKit().filter((i) => i.kind === "logo" || i.kind === "background")) {
+          next = insertBrandKitItemOnCanvas(next, item);
+        }
+        persist(next);
+        break;
+      }
+      case "poster_template":
+        persist(applyPosterTemplate(document, (step.params?.template ?? "restaurant") as EditorPosterTemplate));
+        break;
+      case "social_preset":
+        persist(applySocialPreset(document, (step.params?.preset ?? "instagram_post") as EditorSocialPreset));
+        break;
+      case "motion_ready":
+        persist({
+          ...document,
+          workspaceMode: "export",
+          exportSettings: { ...document.exportSettings, profile: "motion_ready" },
+        });
+        setSaveMessage(t("editor.v7.plan.motionReady" as never));
+        break;
+      case "quick_motion_gif":
+        setWorkspaceMode("quick_motion");
+        break;
+      case "print_export":
+        persist({
+          ...document,
+          workspaceMode: "export",
+          exportSettings: { ...document.exportSettings, profile: "print_ready" },
+        });
+        break;
+      case "cutout":
+        await handleOneClickCutout();
+        break;
+      case "animate": {
+        const layerId = step.objectLayerId ?? selectedLayerId;
+        if (layerId) {
+          persist(
+            attachMotionPreview(
+              document,
+              layerId,
+              (step.params?.preset ?? "rotate") as EditorV6MotionPreviewPreset
+            )
+          );
+          setMotionPreviewEnabled(true);
+        }
+        break;
+      }
+      case "align":
+        handleAlignment((step.params?.action ?? "center") as EditorAlignmentAction);
+        break;
+      case "translate_text":
+        setSaveMessage(t("editor.v7.plan.translateText" as never));
+        break;
+      case "studio_story":
+        window.open("/studio/storyboards/new", "_blank", "noopener,noreferrer");
+        break;
+      case "publish_social":
+        persist(applySocialPreset(document, "instagram_post"));
+        break;
+      case "improve_composition":
+        handleAlignment("center");
+        break;
+      default:
+        break;
+    }
+  };
+
+  const executeV7Plan = async (plan: EditorV7CommandPlan) => {
+    setV6Busy(true);
+    try {
+      for (const step of plan.steps) {
+        await executeV7PlanStep(step);
+      }
+      persist(recordAppliedCommand(document, plan));
+      setSaveMessage(t("editor.v7.plan.applied" as never));
+    } finally {
+      setV6Busy(false);
+    }
+  };
+
+  const handleV7CommandSubmit = (prompt: string) => {
+    const plan = buildEditorCommandPlan(document, prompt);
+    persist(attachActivePlan(document, plan, true));
+  };
+
+  const handleV7PlanApply = () => {
+    if (!v7ActivePlan) {
+      return;
+    }
+    void executeV7Plan(v7ActivePlan);
+  };
+
+  const handleV7PlanPreview = () => {
+    if (!v7ActivePlan) {
+      return;
+    }
+    persist({ ...attachActivePlan(document, v7ActivePlan, true), assistantState: document.assistantState });
+    setSaveMessage(t("editor.v7.plan.previewReady" as never));
+  };
+
+  const handleV7PlanEdit = () => {
+    if (!v7ActivePlan) {
+      return;
+    }
+    persist(clearActivePlan(document));
+  };
+
+  const handleV7PlanCancel = () => {
+    persist(clearActivePlan(document));
+  };
+
+  const handleV7UndoCommand = () => {
+    if (!canUndoCommandHistory(document)) {
+      return;
+    }
+    persist(undoCommandHistory(document));
+    persist(undoEditorDocument(document));
+  };
+
+  const handleV7RedoCommand = () => {
+    if (!canRedoCommandHistory(document)) {
+      return;
+    }
+    persist(redoCommandHistory(document));
+  };
+
+  const handleV7RerunCommand = (entryId: string) => {
+    const prompt = rerunHistoryPrompt(document, entryId);
+    if (prompt) {
+      handleV7CommandSubmit(prompt);
+    }
+  };
+
+  const handleV7DuplicateCommand = (entryId: string) => {
+    const entry = duplicateHistoryEntry(document, entryId);
+    if (entry) {
+      const state = document.assistantState ?? { history: [], historyCursor: -1 };
+      persist({
+        ...document,
+        assistantState: {
+          ...state,
+          history: [...state.history, entry],
+          historyCursor: state.history.length,
+        },
+      });
+    }
+  };
+
   const handleLibraryAssetDrop = (payload: LibraryDragPayload) => {
     persist(dropLibraryAssetOnCanvas(document, payload));
     setSaveMessage(t("editor.v6.library.dropped" as never));
@@ -1285,7 +1503,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           : null}
 
           {!showReview && uiMode === "visual" ?
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+              <div className="min-w-0 flex-1 space-y-4">
               <EditorHumanObjectList
                 layers={document.objects}
                 selectedLayerId={selectedLayerId}
@@ -1307,6 +1526,21 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 <EditorSocialKitPanel document={document} onDocumentChange={persist} />
               </div>
               <EditorHandoffScorePanel document={document} />
+              <EditorCommandBar
+                busy={v6Busy || saving}
+                suggestions={v7Suggestions}
+                onSubmit={handleV7CommandSubmit}
+              />
+              {v7ActivePlan && document.assistantState?.previewMode ?
+                <EditorActionPlanPreview
+                  plan={v7ActivePlan}
+                  busy={v6Busy || saving}
+                  onPreview={handleV7PlanPreview}
+                  onApply={handleV7PlanApply}
+                  onEdit={handleV7PlanEdit}
+                  onCancel={handleV7PlanCancel}
+                />
+              : null}
               <div className="relative mx-auto w-full max-w-4xl">
                 <EditorFloatingToolbar
                   visible={Boolean(selectedLayer && !selectedPlacementId)}
@@ -1538,6 +1772,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   {t("editor.human.action.attachLogo")}
                 </button>
               </div>
+              </div>
+              <EditorAssistantSidebar
+                document={document}
+                collapsed={document.assistantState?.sidebarCollapsed}
+                onToggleCollapse={() => persist(toggleAssistantSidebar(document))}
+                onSuggestion={handleV7CommandSubmit}
+                onUndoCommand={handleV7UndoCommand}
+                onRedoCommand={handleV7RedoCommand}
+                onRerunCommand={handleV7RerunCommand}
+                onDuplicateCommand={handleV7DuplicateCommand}
+              />
             </div>
           : null}
 
