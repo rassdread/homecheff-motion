@@ -195,7 +195,7 @@ export function resolveEditorMaskSuggestions(layer: EditorCanvasLayer | null): E
   }
   const suggestions: EditorHumanSuggestion[] = [];
   if (isApproximateEditorSelection(layer)) {
-    suggestions.push({ id: "refine_selection", labelKey: "editor.mask.refineAi" });
+    suggestions.push({ id: "refine_selection", labelKey: "editor.sam2.preciseSelect" });
     suggestions.push({ id: "outline_manual", labelKey: "editor.mask.outlineManual" });
   }
   suggestions.push({ id: "remove_bg", labelKey: "editor.human.suggest.removeBackground" });

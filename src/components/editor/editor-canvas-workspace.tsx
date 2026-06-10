@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
@@ -13,6 +13,8 @@ import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-place
 import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-panel";
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
+import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
+import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
 import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
@@ -64,7 +66,11 @@ import {
   createMaskSelectionShape,
   detachObjectCutoutLayer,
 } from "@/lib/editor-object-mask";
-import { buildEditorMaskActionContext } from "@/lib/editor-mask-actions";
+import {
+  buildEditorMaskActionContext,
+  editorMaskActionRequiresAiBackend,
+} from "@/lib/editor-mask-actions";
+import { syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import type { EditorShapePoint } from "@/types/homecheff-visual-editor";
 import { DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS } from "@/types/homecheff-visual-editor";
 
@@ -97,6 +103,21 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [showVisualBody, setShowVisualBody] = useState(false);
   const [lassoActive, setLassoActive] = useState(false);
   const [refiningSelection, setRefiningSelection] = useState(false);
+  const [sam2Available, setSam2Available] = useState<boolean | null>(null);
+  const [preciseSelectActive, setPreciseSelectActive] = useState(false);
+  const [preciseSelectMode, setPreciseSelectMode] = useState<PreciseSelectMode>("initial");
+  const [sam2PositivePoints, setSam2PositivePoints] = useState<EditorShapePoint[]>([]);
+  const [sam2NegativePoints, setSam2NegativePoints] = useState<EditorShapePoint[]>([]);
+  const [sam2RefineVisible, setSam2RefineVisible] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/editor/segment/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { sam2PreciseSelection?: string } | null) => {
+        setSam2Available(data?.sam2PreciseSelection === "available");
+      })
+      .catch(() => setSam2Available(false));
+  }, []);
 
   const selectedLayer = useMemo(
     () => document.objects.find((o) => o.id === selectedLayerId) ?? null,
@@ -139,10 +160,18 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const maskContext = buildEditorMaskActionContext(layer, operation);
     if (operation === "replace" && layer) {
       const plan = planEditorSmartReplace({ layer });
-      setSaveMessage(plan.message);
+      setSaveMessage(
+        editorMaskActionRequiresAiBackend(layer, operation)
+          ? t("editor.sam2.actionAiVariant")
+          : plan.message
+      );
     } else if (operation === "delete" && layer) {
       const plan = planEditorSmartRemove(layer);
-      setSaveMessage(plan.message);
+      setSaveMessage(
+        editorMaskActionRequiresAiBackend(layer, operation)
+          ? t("editor.sam2.actionAiVariant")
+          : plan.message
+      );
     } else if (maskContext?.usesMask && (operation === "delete" || operation === "replace")) {
       setSaveMessage(t("editor.mask.actionUsesShape" as never));
     }
@@ -336,22 +365,106 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const handleRefineAiSelection = () => {
-    void runEditorSegmentation("refine", (result) => {
-      if (!selectedLayerId || !selectedLayer) {
+  const applySam2ShapeToLayer = (
+    result: {
+      maskUrl?: string;
+      cutoutUrl?: string;
+      polygon: EditorShapePoint[];
+      boundingBox: { x: number; y: number; width: number; height: number };
+      confidence: number;
+      maskStorageKey?: string;
+    },
+    layerId: string,
+    layer: NonNullable<typeof selectedLayer>
+  ) => {
+    const shape = createMaskSelectionShape({
+      bounds: result.boundingBox,
+      maskUrl: result.maskUrl,
+      maskStorageKey: result.maskStorageKey,
+      cutoutUrl: result.cutoutUrl,
+      polygon: result.polygon,
+      confidence: result.confidence,
+      segmentationSource: "sam2",
+    });
+    let next = applyEditorSelectionShape(layer, shape);
+    if (result.cutoutUrl) {
+      next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
+    }
+    const patched = patchEditorLayerFields(document, layerId, next);
+    persist({
+      ...patched,
+      detectedObjects: syncDetectedObjectsOnDocument(patched.objects, document.detectedObjects),
+    });
+    setSam2RefineVisible(true);
+    setSaveMessage(t("editor.sam2.success"));
+  };
+
+  const runSam2ClickSegment = async (clickPoint: EditorShapePoint) => {
+    if (!selectedLayerId || !selectedLayer) {
+      return;
+    }
+    setRefiningSelection(true);
+    try {
+      const res = await fetch("/api/editor/segment/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          clickPoint,
+          positivePoints: sam2PositivePoints,
+          negativePoints: sam2NegativePoints,
+          targetBounds: selectedLayer.bounds,
+          objectHint: selectedLayer.label,
+          editorObjectId: selectedLayerId,
+          sessionId: document.sessionId,
+          createCutout: true,
+        }),
+      });
+      if (res.status === 503) {
+        setSaveMessage(t("editor.sam2.unavailable"));
+        setPreciseSelectActive(false);
         return;
       }
-      const shape = createMaskSelectionShape({
-        bounds: result.boundingBox,
-        maskUrl: result.maskUrl,
-        polygon: result.polygon,
-        confidence: result.confidence,
-        segmentationSource: result.segmentationSource,
-      });
-      persist(
-        patchEditorLayerFields(document, selectedLayerId, applyEditorSelectionShape(selectedLayer, shape))
-      );
-    });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as { error?: string } | null;
+        setSaveMessage(err?.error ?? t("editor.sam2.failed"));
+        return;
+      }
+      const result = (await res.json()) as Parameters<typeof applySam2ShapeToLayer>[0];
+      applySam2ShapeToLayer(result, selectedLayerId, selectedLayer);
+      setPreciseSelectActive(false);
+      setPreciseSelectMode("initial");
+    } catch {
+      setSaveMessage(t("editor.sam2.failed"));
+    } finally {
+      setRefiningSelection(false);
+    }
+  };
+
+  const handlePreciseSelectClick = (point: EditorShapePoint, mode: PreciseSelectMode) => {
+    if (mode === "add") {
+      setSam2PositivePoints((prev) => [...prev, point]);
+    } else if (mode === "remove") {
+      setSam2NegativePoints((prev) => [...prev, point]);
+    }
+    void runSam2ClickSegment(point);
+  };
+
+  const handleStartPreciseSelect = () => {
+    if (sam2Available === false) {
+      setSaveMessage(t("editor.sam2.unavailable"));
+      return;
+    }
+    setLassoActive(false);
+    setSam2PositivePoints([]);
+    setSam2NegativePoints([]);
+    setPreciseSelectMode("initial");
+    setPreciseSelectActive(true);
+  };
+
+  const handleUseApproximateSelection = () => {
+    setSaveMessage(t("editor.sam2.approximateKept"));
   };
 
   const handleRemoveBackground = () => {
@@ -395,7 +508,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
     if (suggestionId === "refine_selection") {
-      handleRefineAiSelection();
+      handleStartPreciseSelect();
       return;
     }
     if (suggestionId === "outline_manual") {
@@ -685,6 +798,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   lassoActive={lassoActive}
                   onLassoComplete={handleLassoComplete}
                   onLassoCancel={() => setLassoActive(false)}
+                  preciseSelectActive={preciseSelectActive}
+                  preciseSelectMode={preciseSelectMode}
+                  preciseSelectLoading={refiningSelection}
+                  onPreciseSelectClick={handlePreciseSelectClick}
+                  onPreciseSelectCancel={() => setPreciseSelectActive(false)}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -700,13 +818,51 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
               {selectedLayer && !selectedPlacementId ?
                 <>
+                  {sam2Available !== null ?
+                    <p className="text-xs text-zinc-500">
+                      {sam2Available
+                        ? t("editor.sam2.statusAvailable")
+                        : t("editor.sam2.statusUnavailableDev")}
+                    </p>
+                  : null}
                   <EditorSelectionToolsPanel
                     layer={selectedLayer}
                     refining={refiningSelection}
-                    onRefineAi={handleRefineAiSelection}
-                    onStartLasso={() => setLassoActive(true)}
+                    sam2Available={sam2Available}
+                    onPreciseSelect={handleStartPreciseSelect}
+                    onStartLasso={() => {
+                      setPreciseSelectActive(false);
+                      setLassoActive(true);
+                    }}
+                    onUseApproximate={handleUseApproximateSelection}
                     onRemoveBackground={handleRemoveBackground}
                     onDetachObject={handleRemoveBackground}
+                  />
+                  <EditorRefinePointsPanel
+                    visible={
+                      sam2RefineVisible &&
+                      selectedLayer.selectionShape?.segmentationSource === "sam2"
+                    }
+                    refining={refiningSelection}
+                    onAddPoint={() => {
+                      setPreciseSelectMode("add");
+                      setPreciseSelectActive(true);
+                    }}
+                    onRemovePoint={() => {
+                      setPreciseSelectMode("remove");
+                      setPreciseSelectActive(true);
+                    }}
+                    onReset={() => {
+                      setSam2PositivePoints([]);
+                      setSam2NegativePoints([]);
+                      setSam2RefineVisible(false);
+                      setPreciseSelectActive(false);
+                    }}
+                    onAccept={() => {
+                      setSam2RefineVisible(false);
+                      setPreciseSelectActive(false);
+                      setSaveMessage(t("editor.sam2.accepted"));
+                    }}
                   />
                   <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
                 </>

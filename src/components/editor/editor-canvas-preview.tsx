@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { EditorBodyGuideOverlay } from "@/components/editor/editor-body-guide-overlay";
+import {
+  EditorPreciseSelectOverlay,
+  type PreciseSelectMode,
+} from "@/components/editor/editor-precise-select-overlay";
 import { EditorRefineLassoOverlay } from "@/components/editor/editor-refine-lasso-overlay";
 import { EditorSelectionOutline } from "@/components/editor/editor-selection-outline";
 import { useActiveTranslator } from "@/i18n/client";
@@ -32,6 +36,11 @@ type Props = {
   lassoActive?: boolean;
   onLassoComplete?: (points: EditorShapePoint[]) => void;
   onLassoCancel?: () => void;
+  preciseSelectActive?: boolean;
+  preciseSelectMode?: PreciseSelectMode;
+  preciseSelectLoading?: boolean;
+  onPreciseSelectClick?: (point: EditorShapePoint, mode: PreciseSelectMode) => void;
+  onPreciseSelectCancel?: () => void;
 };
 
 export function EditorCanvasPreview({
@@ -50,6 +59,11 @@ export function EditorCanvasPreview({
   lassoActive = false,
   onLassoComplete,
   onLassoCancel,
+  preciseSelectActive = false,
+  preciseSelectMode = "initial",
+  preciseSelectLoading = false,
+  onPreciseSelectClick,
+  onPreciseSelectCancel,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -69,7 +83,7 @@ export function EditorCanvasPreview({
         humanFirst ? "border border-zinc-300/80 ring-1 ring-black/5" : "border border-zinc-200"
       }`}
       onPointerMove={(event) => {
-        if (!humanFirst || lassoActive) {
+        if (!humanFirst || lassoActive || preciseSelectActive) {
           return;
         }
         const rect = event.currentTarget.getBoundingClientRect();
@@ -78,7 +92,7 @@ export function EditorCanvasPreview({
       }}
       onPointerLeave={() => setHoveredLayerId(null)}
       onPointerDown={(event) => {
-        if (!humanFirst || lassoActive || selectedPlacementId) {
+        if (!humanFirst || lassoActive || preciseSelectActive || selectedPlacementId) {
           return;
         }
         const target = event.target as HTMLElement;
@@ -110,6 +124,15 @@ export function EditorCanvasPreview({
           active={lassoActive}
           onComplete={onLassoComplete}
           onCancel={onLassoCancel}
+        />
+      : null}
+      {preciseSelectActive && onPreciseSelectClick && onPreciseSelectCancel ?
+        <EditorPreciseSelectOverlay
+          active={preciseSelectActive}
+          mode={preciseSelectMode}
+          loading={preciseSelectLoading}
+          onCanvasClick={onPreciseSelectClick}
+          onCancel={onPreciseSelectCancel}
         />
       : null}
       {showBodyGuide && document.bodyDesigner ?

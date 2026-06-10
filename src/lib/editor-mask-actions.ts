@@ -53,3 +53,39 @@ export function editorAnimationBoundaryUsesMask(layer: EditorCanvasLayer | null)
       layer.selectionShape.selectionMode === "manual"
   );
 }
+
+export type EditorMaskActionExecutionState =
+  | "ready"
+  | "uses_mask_metadata"
+  | "ai_variant_pending"
+  | "approximate_warning";
+
+export function resolveEditorMaskActionExecutionState(
+  layer: EditorCanvasLayer | null,
+  operation: EditorObjectOperation
+): EditorMaskActionExecutionState {
+  if (!layer) {
+    return "approximate_warning";
+  }
+  const ctx = buildEditorMaskActionContext(layer, operation);
+  if (!ctx) {
+    return "approximate_warning";
+  }
+  if (ctx.usesMask && ["move", "scale", "rotate"].includes(operation)) {
+    return "ready";
+  }
+  if (ctx.usesMask && (operation === "replace" || operation === "delete")) {
+    return "ai_variant_pending";
+  }
+  if (ctx.usesMask) {
+    return "uses_mask_metadata";
+  }
+  return ctx.approximateWarning ? "approximate_warning" : "ready";
+}
+
+export function editorMaskActionRequiresAiBackend(
+  layer: EditorCanvasLayer | null,
+  operation: EditorObjectOperation
+): boolean {
+  return resolveEditorMaskActionExecutionState(layer, operation) === "ai_variant_pending";
+}
