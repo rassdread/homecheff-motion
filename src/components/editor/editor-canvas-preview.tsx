@@ -14,11 +14,23 @@ import { visibleEditorPlacements } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import { buildEditorObjectsFromLayers } from "@/lib/editor-object-detection";
 import {
+  hoverPartsAtPoint,
+  pickHierarchicalAtPoint,
+} from "@/lib/editor-hierarchical-selection";
+import {
   clientPointToNormalized,
   pickTopEditorObjectAtPoint,
 } from "@/lib/editor-object-picking";
 import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
-import type { EditorCanvasDocument, EditorPlacementItem, EditorShapePoint } from "@/types/homecheff-visual-editor";
+import { EditorMotionPreviewOverlay } from "@/components/editor/editor-motion-preview-overlay";
+import { EditorPartSelectionOverlay } from "@/components/editor/editor-part-selection-overlay";
+import type {
+  EditorCanvasDocument,
+  EditorHierarchicalSelectionState,
+  EditorObjectHierarchy,
+  EditorPlacementItem,
+  EditorShapePoint,
+} from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -41,6 +53,11 @@ type Props = {
   preciseSelectLoading?: boolean;
   onPreciseSelectClick?: (point: EditorShapePoint, mode: PreciseSelectMode) => void;
   onPreciseSelectCancel?: () => void;
+  hierarchicalSelection?: EditorHierarchicalSelectionState;
+  objectHierarchies?: Record<string, EditorObjectHierarchy>;
+  onHierarchicalPick?: (layerId: string, partId: string | null) => void;
+  selectedPartId?: string | null;
+  motionPreviewEnabled?: boolean;
 };
 
 export function EditorCanvasPreview({
@@ -64,18 +81,40 @@ export function EditorCanvasPreview({
   preciseSelectLoading = false,
   onPreciseSelectClick,
   onPreciseSelectCancel,
+  hierarchicalSelection,
+  objectHierarchies,
+  onHierarchicalPick,
+  selectedPartId = null,
+  motionPreviewEnabled = false,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
+  const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const visibleLayers = renderableEditorLayers({ objects: document.objects });
   const placements = visibleEditorPlacements(document).sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
   const detectedObjects =
     document.detectedObjects ?? buildEditorObjectsFromLayers(document.objects);
+  const hierarchies = objectHierarchies ?? document.objectHierarchies ?? {};
+  const selection = hierarchicalSelection ?? document.hierarchicalSelection;
 
   const pickAtClient = (clientX: number, clientY: number, rect: DOMRect) => {
     const point = clientPointToNormalized(clientX, clientY, rect);
-    return pickTopEditorObjectAtPoint(point, detectedObjects);
+    if (selection && onHierarchicalPick) {
+      const result = pickHierarchicalAtPoint(point, detectedObjects, hierarchies, selection);
+      if (result) {
+        return { layerId: result.rootObject.layerId, partId: result.part?.id ?? null, result };
+      }
+    }
+    const hit = pickTopEditorObjectAtPoint(point, detectedObjects);
+    return hit ? { layerId: hit.object.layerId, partId: null as string | null, result: null } : null;
   };
+
+  const activeHierarchy =
+    selection?.rootObjectId ? hierarchies[selection.rootObjectId] : undefined;
+  const selectedPart =
+    selectedPartId && activeHierarchy
+      ? activeHierarchy.parts.find((p) => p.id === selectedPartId)
+      : null;
 
   return (
     <div
@@ -88,7 +127,14 @@ export function EditorCanvasPreview({
         }
         const rect = event.currentTarget.getBoundingClientRect();
         const hit = pickAtClient(event.clientX, event.clientY, rect);
-        setHoveredLayerId(hit?.object.layerId ?? null);
+        setHoveredLayerId(hit?.layerId ?? null);
+        if (selection?.mode === "part" && activeHierarchy) {
+          const point = clientPointToNormalized(event.clientX, event.clientY, rect);
+          const hovered = hoverPartsAtPoint(point, activeHierarchy);
+          setHoveredPartId(hovered[0]?.id ?? null);
+        } else {
+          setHoveredPartId(null);
+        }
       }}
       onPointerLeave={() => setHoveredLayerId(null)}
       onPointerDown={(event) => {
@@ -102,7 +148,11 @@ export function EditorCanvasPreview({
         const rect = event.currentTarget.getBoundingClientRect();
         const hit = pickAtClient(event.clientX, event.clientY, rect);
         if (hit) {
-          onSelectLayer(hit.object.layerId);
+          if (onHierarchicalPick) {
+            onHierarchicalPick(hit.layerId, hit.partId);
+          } else {
+            onSelectLayer(hit.layerId);
+          }
         }
       }}
     >
@@ -113,11 +163,25 @@ export function EditorCanvasPreview({
           <EditorSelectionOutline
             key={`outline-${layer.id}`}
             layer={layer}
-            selected={selectedLayerId === layer.id}
-            hovered={hoveredLayerId === layer.id}
+            selected={selectedLayerId === layer.id && !selectedPartId}
+            hovered={hoveredLayerId === layer.id && !hoveredPartId}
             humanFirst={humanFirst}
           />
         ))}
+        {selection?.mode === "part" && activeHierarchy ?
+          <EditorPartSelectionOverlay
+            parts={activeHierarchy.parts}
+            hoveredPartId={hoveredPartId}
+            selectedPartId={selectedPartId}
+          />
+        : null}
+        {motionPreviewEnabled && selectedPart ?
+          <EditorMotionPreviewOverlay
+            bounds={selectedPart.bbox}
+            profile={selectedPart.animationProfile}
+            label={selectedPart.label}
+          />
+        : null}
       </div>
       {lassoActive && onLassoComplete && onLassoCancel ?
         <EditorRefineLassoOverlay

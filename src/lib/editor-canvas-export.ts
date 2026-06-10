@@ -2,7 +2,8 @@ import { buildEditorCompositionGraphFromDocument } from "@/lib/editor-compositio
 import { bodyDesignerToCharacterConstructionProfile, buildEditorBodyDesignerPromptBlock } from "@/lib/editor-body-designer";
 import { extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
 import { editorPlacementToReferencePlacement } from "@/lib/editor-placement-canvas";
-import type { EditorCanvasDocument, EditorSemanticLayer } from "@/types/homecheff-visual-editor";
+import { buildStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
+import type { EditorCanvasDocument, EditorSemanticLayer, EditorStudioMotionHandoff } from "@/types/homecheff-visual-editor";
 import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import type { CompositionGraphNode } from "@/types/studio-asset-generation-workbench";
 
@@ -24,6 +25,9 @@ export type EditorSavePayload = {
   placementCount: number;
   bodyDesignerProfile?: EditorCanvasDocument["bodyDesigner"];
   bodyDesignerPromptBlock: string;
+  studioMotionHandoff?: EditorStudioMotionHandoff;
+  objectHierarchies?: EditorCanvasDocument["objectHierarchies"];
+  partLibraryAssets?: EditorCanvasDocument["partLibraryAssets"];
 };
 
 export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSavePayload {
@@ -73,6 +77,9 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
     placementCount: document.placements.length,
     bodyDesignerProfile: document.bodyDesigner,
     bodyDesignerPromptBlock: buildEditorBodyDesignerPromptBlock(document),
+    studioMotionHandoff: document.studioMotionHandoff ?? buildStudioMotionHandoff(document),
+    objectHierarchies: document.objectHierarchies,
+    partLibraryAssets: document.partLibraryAssets,
   };
 }
 

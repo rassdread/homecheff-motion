@@ -11,6 +11,9 @@ import {
   undoEditorDocument,
 } from "@/lib/editor-non-destructive";
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
+import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
+import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
+import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
 import { buildEditorSemanticLayersFromHybrid } from "@/lib/editor-hybrid-detection";
@@ -69,19 +72,33 @@ export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocumen
 
 function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocument {
   const semanticLayers = document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
-  const detectedObjects = syncDetectedObjectsOnDocument(
+  let detectedObjects = syncDetectedObjectsOnDocument(
     document.objects,
     document.detectedObjects
   );
+  const objectHierarchies =
+    document.objectHierarchies ??
+    buildDocumentObjectHierarchies(detectedObjects, document.objects, semanticLayers);
+  detectedObjects = detectedObjects.map((obj) => {
+    const hierarchy = objectHierarchies[obj.id];
+    return hierarchy ? attachPartsToEditorObject(obj, hierarchy) : obj;
+  });
   const textLayers = document.textLayers ?? extractEditorTextLayers(document.objects);
   const motionPreparations =
     document.motionPreparations ?? buildEditorMotionPreparations(detectedObjects, document.objects);
-  return {
+  const hierarchicalSelection =
+    document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
+  const withHandoff = attachStudioMotionHandoff({
     ...ensureEditorNonDestructiveState(document),
     semanticLayers,
     detectedObjects,
     textLayers,
     motionPreparations,
+    objectHierarchies,
+    hierarchicalSelection,
+  });
+  return {
+    ...withHandoff,
     updatedAt: new Date().toISOString(),
   };
 }

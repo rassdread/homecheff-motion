@@ -40,6 +40,13 @@ import { findEditorObjectByLayerId } from "@/lib/editor-object-detection";
 import { planEditorSmartRemove } from "@/lib/editor-smart-remove";
 import { planEditorSmartReplace } from "@/lib/editor-smart-replace";
 import {
+  createDefaultHierarchicalSelection,
+  enterPartSelectionMode,
+  exitPartSelectionMode,
+} from "@/lib/editor-hierarchical-selection";
+import { savePartToLibrary } from "@/lib/editor-part-library";
+import { partSupportsHierarchy } from "@/lib/editor-part-hierarchy";
+import {
   executeEditorMaskedRemoveApi,
   executeEditorMaskedReplaceApi,
 } from "@/lib/editor-vision-v3-client";
@@ -120,6 +127,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [sam2PositivePoints, setSam2PositivePoints] = useState<EditorShapePoint[]>([]);
   const [sam2NegativePoints, setSam2NegativePoints] = useState<EditorShapePoint[]>([]);
   const [sam2RefineVisible, setSam2RefineVisible] = useState(false);
+  const [motionPreviewEnabled, setMotionPreviewEnabled] = useState(false);
+
+  const hierarchicalSelection =
+    document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
+  const selectedPartId = hierarchicalSelection.selectedPartId;
 
   useEffect(() => {
     void fetch("/api/editor/segment/status")
@@ -148,7 +160,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     return saved;
   };
 
-  const selectLayer = (layerId: string) => {
+  const selectLayer = (layerId: string, partId: string | null = null) => {
     setSelectedLayerId(layerId);
     setSelectedPlacementId(null);
     setPanelMode("layer");
@@ -156,6 +168,88 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     if (uiMode === "visual") {
       setShowActionMenu(true);
     }
+    if (partId) {
+      const rootObject = document.detectedObjects?.find((o) => o.layerId === layerId);
+      if (rootObject) {
+        persist({
+          ...document,
+          hierarchicalSelection: {
+            mode: "part",
+            rootObjectId: rootObject.id,
+            selectedPartId: partId,
+          },
+        });
+      }
+    }
+  };
+
+  const handleHierarchicalPick = (layerId: string, partId: string | null) => {
+    const rootObject = (document.detectedObjects ?? []).find((o) => o.layerId === layerId);
+    if (!rootObject) {
+      selectLayer(layerId);
+      return;
+    }
+
+    const current = document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
+
+    if (partId) {
+      const hierarchy = document.objectHierarchies?.[rootObject.id];
+      const part = hierarchy?.parts.find((p) => p.id === partId);
+      persist({
+        ...document,
+        hierarchicalSelection: {
+          mode: "part",
+          rootObjectId: rootObject.id,
+          selectedPartId: partId,
+        },
+      });
+      setSelectedLayerId(layerId);
+      if (part) {
+        setSaveMessage(t("editor.visionV4.partSelected" as never, { name: part.label }));
+      }
+      return;
+    }
+
+    if (
+      current.rootObjectId === rootObject.id &&
+      current.mode === "object" &&
+      partSupportsHierarchy(rootObject)
+    ) {
+      persist({
+        ...document,
+        hierarchicalSelection: enterPartSelectionMode(current, rootObject.id),
+      });
+      setSelectedLayerId(layerId);
+      setSaveMessage(t("editor.visionV4.partModeHint" as never));
+      return;
+    }
+
+    persist({
+      ...document,
+      hierarchicalSelection: {
+        mode: "object",
+        rootObjectId: rootObject.id,
+        selectedPartId: null,
+      },
+    });
+    setSelectedLayerId(layerId);
+    setShowActionMenu(true);
+  };
+
+  const handleSavePartToLibrary = () => {
+    if (!hierarchicalSelection.rootObjectId || !selectedPartId) {
+      return;
+    }
+    persist(savePartToLibrary(document, hierarchicalSelection.rootObjectId, selectedPartId));
+    setSaveMessage(t("editor.visionV4.partSaved" as never));
+  };
+
+  const handleExitPartMode = () => {
+    persist({
+      ...document,
+      hierarchicalSelection: exitPartSelectionMode(hierarchicalSelection),
+    });
+    setMotionPreviewEnabled(false);
   };
 
   const selectPlacement = (placementId: string) => {
@@ -914,6 +1008,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   preciseSelectLoading={refiningSelection}
                   onPreciseSelectClick={handlePreciseSelectClick}
                   onPreciseSelectCancel={() => setPreciseSelectActive(false)}
+                  hierarchicalSelection={hierarchicalSelection}
+                  objectHierarchies={document.objectHierarchies}
+                  onHierarchicalPick={handleHierarchicalPick}
+                  selectedPartId={selectedPartId}
+                  motionPreviewEnabled={motionPreviewEnabled}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -929,6 +1028,38 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
               {selectedLayer && !selectedPlacementId ?
                 <>
+                  {hierarchicalSelection.mode === "part" ?
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
+                      <span>{t("editor.visionV4.partModeActive" as never)}</span>
+                      {selectedPartId ?
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-md bg-violet-600 px-2 py-1 text-xs font-medium text-white"
+                            onClick={() => setMotionPreviewEnabled((v) => !v)}
+                          >
+                            {motionPreviewEnabled
+                              ? t("editor.visionV4.stopPreview" as never)
+                              : t("editor.visionV4.previewAnimation" as never)}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium"
+                            onClick={handleSavePartToLibrary}
+                          >
+                            {t("editor.visionV4.savePart" as never)}
+                          </button>
+                        </>
+                      : null}
+                      <button
+                        type="button"
+                        className="rounded-md border border-violet-300 px-2 py-1 text-xs font-medium"
+                        onClick={handleExitPartMode}
+                      >
+                        {t("editor.visionV4.exitPartMode" as never)}
+                      </button>
+                    </div>
+                  : null}
                   {sam2Available !== null ?
                     <p className="text-xs text-zinc-500">
                       {sam2Available

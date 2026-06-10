@@ -284,6 +284,124 @@ export type EditorObjectCategory = (typeof EDITOR_OBJECT_CATEGORIES)[number];
  * Unified detected object model — every analysis result becomes a stored EditorObject.
  * Maps 1:1 with canvas layers but carries explicit geometry for picking and editing.
  */
+/** Controllable part categories for hierarchical object editing (Editor Vision V4). */
+export const EDITOR_PART_CATEGORIES = [
+  "root",
+  "head",
+  "face",
+  "hair",
+  "torso",
+  "left_arm",
+  "right_arm",
+  "left_hand",
+  "right_hand",
+  "legs",
+  "clothing",
+  "accessory",
+  "logo",
+  "globe",
+  "tie",
+  "prop",
+] as const;
+
+export type EditorPartCategory = (typeof EDITOR_PART_CATEGORIES)[number];
+
+export const EDITOR_OBJECT_ANIMATION_PROFILES = [
+  "none",
+  "float",
+  "rotate",
+  "pulse",
+  "wave",
+  "follow_path",
+  "orbit",
+  "bounce",
+] as const;
+
+export type EditorObjectAnimationProfile = (typeof EDITOR_OBJECT_ANIMATION_PROFILES)[number];
+
+export const EDITOR_PART_ANIMATION_PROFILES = [
+  "none",
+  "nod",
+  "wave",
+  "spin",
+  "rotate",
+  "bob",
+  "sway",
+] as const;
+
+export type EditorPartAnimationProfile = (typeof EDITOR_PART_ANIMATION_PROFILES)[number];
+
+export const EDITOR_CHARACTER_EXPRESSIONS = [
+  "neutral",
+  "happy",
+  "focused",
+  "surprised",
+  "confident",
+] as const;
+
+export type EditorCharacterExpression = (typeof EDITOR_CHARACTER_EXPRESSIONS)[number];
+
+/** A controllable sub-part of an editor object (arm, face, logo, globe, etc.). */
+export type EditorObjectPart = {
+  id: string;
+  label: string;
+  partCategory: EditorPartCategory;
+  parentPartId?: string;
+  childPartIds: string[];
+  bbox: EditorCanvasBounds;
+  polygon?: EditorShapePoint[];
+  mask?: string;
+  maskStorageKey?: string;
+  cutoutUrl?: string;
+  confidence: number;
+  visible: boolean;
+  locked: boolean;
+  transform: EditorCanvasTransform;
+  animationProfile: EditorPartAnimationProfile;
+  expression?: EditorCharacterExpression;
+  estimatedBounds?: boolean;
+};
+
+export type EditorObjectHierarchy = {
+  rootObjectId: string;
+  rootLayerId: string;
+  rootLabel: string;
+  parts: EditorObjectPart[];
+};
+
+export type EditorHierarchicalSelectionState = {
+  mode: "object" | "part";
+  rootObjectId: string | null;
+  selectedPartId: string | null;
+};
+
+export type EditorPartLibraryAsset = {
+  id: string;
+  label: string;
+  partCategory: EditorPartCategory;
+  parentObjectLabel: string;
+  parentObjectId: string;
+  parentLayerId: string;
+  assetType: "part" | "logo" | "cutout";
+  cutoutUrl?: string;
+  maskUrl?: string;
+  maskStorageKey?: string;
+  boundingBox: EditorCanvasBounds;
+  animationProfile?: EditorPartAnimationProfile;
+  createdAt: string;
+};
+
+export type EditorStudioMotionHandoff = {
+  sessionId: string;
+  hierarchies: EditorObjectHierarchy[];
+  transforms: Record<string, EditorCanvasTransform>;
+  animationProfiles: Record<string, EditorObjectAnimationProfile | EditorPartAnimationProfile>;
+  expressions: Record<string, EditorCharacterExpression>;
+  partLibraryAssets: EditorPartLibraryAsset[];
+  cutoutAssets: EditorCutoutAsset[];
+  motionPreparations: EditorMotionPreparation[];
+};
+
 export type EditorObject = {
   id: string;
   label: string;
@@ -298,6 +416,14 @@ export type EditorObject = {
   layerId: string;
   visible: boolean;
   locked: boolean;
+  /** Controllable sub-parts when object supports part hierarchy. */
+  parts?: EditorObjectPart[];
+  partCategory?: EditorPartCategory;
+  rootObjectId?: string;
+  animationProfile?: EditorObjectAnimationProfile;
+  expression?: EditorCharacterExpression;
+  /** Non-destructive local transform offset for object/part control. */
+  localTransform?: EditorCanvasTransform;
 };
 
 export const EDITOR_HISTORY_ACTION_TYPES = [
@@ -453,6 +579,11 @@ export type EditorCanvasDocument = {
   editJobs?: EditorMaskEditJob[];
   visionMetrics?: EditorVisionMetricsSnapshot;
   detectionMeta?: EditorDetectionMeta;
+  /** Part hierarchies keyed by root EditorObject id. */
+  objectHierarchies?: Record<string, EditorObjectHierarchy>;
+  partLibraryAssets?: EditorPartLibraryAsset[];
+  hierarchicalSelection?: EditorHierarchicalSelectionState;
+  studioMotionHandoff?: EditorStudioMotionHandoff;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;
