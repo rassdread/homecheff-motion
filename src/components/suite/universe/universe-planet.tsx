@@ -27,6 +27,7 @@ type UniversePlanetProps = {
   onSelect: (planet: UniversePlanetConfig) => void;
   style?: CSSProperties;
   variant?: "orbit" | "card";
+  orbitDebug?: boolean;
 };
 
 export function UniversePlanet({
@@ -41,6 +42,7 @@ export function UniversePlanet({
   onSelect,
   style,
   variant = "orbit",
+  orbitDebug = false,
 }: UniversePlanetProps) {
   const t = useActiveTranslator();
   const active = hovered || focused;
@@ -143,7 +145,12 @@ export function UniversePlanet({
         />
       )}
 
-      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
+      <UniversePlanetSatellites
+        planet={planet}
+        active={active}
+        reducedMotion={reducedMotion}
+        orbitDebug={orbitDebug}
+      />
 
       <span className="sr-only">{href}</span>
     </div>

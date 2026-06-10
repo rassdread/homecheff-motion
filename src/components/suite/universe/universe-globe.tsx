@@ -53,7 +53,7 @@ export function UniverseGlobe({
         style={{
           width: "102%",
           height: "102%",
-          background: `radial-gradient(circle, ${UNIVERSE_BRAND.blue}44 0%, ${UNIVERSE_BRAND.green}22 42%, transparent 72%)`,
+          background: `radial-gradient(circle, ${UNIVERSE_BRAND.blue}55 0%, ${UNIVERSE_BRAND.green}33 42%, transparent 72%)`,
           animation: reducedMotion ? undefined : "universe-glow-pulse 7s ease-in-out infinite",
         }}
       />
@@ -69,9 +69,9 @@ export function UniverseGlobe({
         }}
       >
         <div
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0 rounded-full universe-globe-ocean"
           style={{
-            background: `radial-gradient(circle at 32% 28%, #2aa8d8 0%, ${UNIVERSE_BRAND.blue} 32%, #0a5a8a 58%, #032840 100%)`,
+            background: `radial-gradient(circle at 32% 28%, ${UNIVERSE_BRAND.blue} 0%, #0067B1 38%, #004e88 62%, #022840 100%)`,
           }}
         />
 
@@ -99,7 +99,7 @@ export function UniverseGlobe({
               rx={Math.abs(50 - x) * 0.55 + 8}
               ry={48}
               fill="none"
-              stroke="rgba(255,255,255,0.07)"
+              stroke="rgba(0,103,177,0.14)"
               strokeWidth="0.25"
             />
           ))}
@@ -111,7 +111,7 @@ export function UniverseGlobe({
               rx={48}
               ry={Math.abs(50 - y) * 0.85 + 6}
               fill="none"
-              stroke="rgba(255,255,255,0.05)"
+              stroke="rgba(0,109,82,0.1)"
               strokeWidth="0.2"
             />
           ))}
@@ -127,9 +127,9 @@ export function UniverseGlobe({
         )}
 
         <div
-          className="pointer-events-none absolute inset-0 rounded-full opacity-22 mix-blend-screen"
+          className="pointer-events-none absolute inset-0 rounded-full opacity-[0.07] mix-blend-soft-light"
           style={{
-            background: `radial-gradient(circle at 38% 32%, rgba(255,255,255,0.28) 0%, transparent 38%)`,
+            background: `radial-gradient(circle at 38% 32%, rgba(255,255,255,0.22) 0%, transparent 34%)`,
             animation: reducedMotion ? undefined : "universe-cloud-drift 16s ease-in-out infinite",
           }}
         />
@@ -144,8 +144,8 @@ export function UniverseGlobe({
         <div
           className="pointer-events-none absolute inset-0 rounded-full"
           style={{
-            boxShadow: `inset 0 0 24px rgba(135,195,255,0.16), inset 0 -10px 26px rgba(0,0,0,0.26)`,
-            border: "1.5px solid rgba(135,195,255,0.28)",
+            boxShadow: `inset 0 0 24px rgba(0,103,177,0.22), inset 0 -10px 26px rgba(0,0,0,0.32)`,
+            border: `1.5px solid rgba(0,109,82,0.35)`,
           }}
         />
       </div>

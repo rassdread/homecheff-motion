@@ -333,46 +333,22 @@
 }
 
 .universe-globe-world-map {
-  opacity: 0.94;
+  opacity: 0.97;
   mix-blend-mode: multiply;
-  filter: sepia(0.35) saturate(2.8) hue-rotate(108deg) brightness(0.92) contrast(1.05);
+  filter: brightness(0.62) sepia(1) saturate(4.2) hue-rotate(122deg) contrast(1.2);
+}
+
+.universe-globe-ocean {
+  background-color: #0067b1;
 }
 
 .universe-capability-orbit {
   transform-style: preserve-3d;
 }
 
-.universe-capability-orbit-spinner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-}
-
-.universe-capability-orbit-spin {
-  animation: universe-capability-orbit-spin 25s linear infinite;
-}
-
-.universe-capability-orbit-label-upright {
-  display: inline-block;
-  animation: universe-capability-orbit-counter 25s linear infinite;
-}
-
-@keyframes universe-capability-orbit-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes universe-capability-orbit-counter {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(-360deg);
-  }
+.universe-capability-orbit-label {
+  transform-origin: center center;
+  will-change: transform, opacity;
 }
 
 @keyframes universe-saturn-y-spin {

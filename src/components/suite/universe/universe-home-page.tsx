@@ -18,7 +18,7 @@ import {
   resolveUniversePlanetHrefs,
   resolveUniverseQuickActionHref,
 } from "@/lib/universe-public-landing";
-import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, resolveUniversePlanetVisualDebug } from "@/lib/universe-planet-ux";
+import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, resolveUniverseOrbitDebug, resolveUniversePlanetVisualDebug } from "@/lib/universe-planet-ux";
 import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
 import { resolveUniverseGlobeProjectionDebug } from "@/lib/universe-globe-projection";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
@@ -42,6 +42,14 @@ export function UniverseHomePage() {
     }
     return resolveUniversePlanetVisualDebug(
       new URLSearchParams(window.location.search).get("universePlanetDebug")
+    );
+  });
+  const [orbitDebug] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return resolveUniverseOrbitDebug(
+      new URLSearchParams(window.location.search).get("universeOrbitDebug")
     );
   });
   const [globeProjectionDebug] = useState(() => {
@@ -179,6 +187,7 @@ export function UniverseHomePage() {
             parallax={parallax}
             globeDebugLayer={globeDebugLayer}
             globeProjectionDebug={globeProjectionDebug}
+            orbitDebug={orbitDebug}
             onHoverStart={handlePlanetHoverStart}
             onHoverEnd={handlePlanetHoverEnd}
             onFocus={setFocusedPlanet}

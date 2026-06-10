@@ -35,11 +35,61 @@ export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX = 280;
 
 /** Rotating capability orbit — 20–30s per revolution */
 export const UNIVERSE_CAPABILITY_ORBIT_DURATION_S = 25;
-export const UNIVERSE_CAPABILITY_ORBIT_RADIUS_PX = 114;
+/** @deprecated Use ellipse radii below */
+export const UNIVERSE_CAPABILITY_ORBIT_RADIUS_PX = 168;
+
+/** Elliptical capability orbit — desktop hero scale */
+export const UNIVERSE_CAPABILITY_ORBIT_X_RADIUS_PX = 168;
+export const UNIVERSE_CAPABILITY_ORBIT_Y_RADIUS_PX = 98;
 
 export function resolveCapabilityOrbitAngleDeg(index: number, total: number): number {
   if (total <= 0) return 0;
   return (360 / total) * index - 90;
+}
+
+export type CapabilityEllipsePosition = {
+  x: number;
+  y: number;
+  /** 0 = back/top, 1 = front/bottom */
+  depth: number;
+};
+
+export function resolveCapabilityEllipsePosition(
+  angleDeg: number,
+  xRadius = UNIVERSE_CAPABILITY_ORBIT_X_RADIUS_PX,
+  yRadius = UNIVERSE_CAPABILITY_ORBIT_Y_RADIUS_PX
+): CapabilityEllipsePosition {
+  const rad = (angleDeg * Math.PI) / 180;
+  const x = Math.cos(rad) * xRadius;
+  const y = Math.sin(rad) * yRadius;
+  const depth = (Math.sin(rad) + 1) / 2;
+  return { x, y, depth };
+}
+
+export function resolveCapabilityLabelDepthStyle(depth: number): {
+  opacity: number;
+  scale: number;
+  zIndex: number;
+  filter?: string;
+} {
+  if (depth < 0.38) {
+    const t = depth / 0.38;
+    return {
+      opacity: 0.22 + t * 0.18,
+      scale: 0.86 + t * 0.06,
+      zIndex: 1,
+      filter: depth < 0.2 ? "blur(0.4px)" : undefined,
+    };
+  }
+  return {
+    opacity: 0.94 + (depth - 0.38) * 0.1,
+    scale: 1,
+    zIndex: 3,
+  };
+}
+
+export function resolveUniverseOrbitDebug(raw: string | null | undefined): boolean {
+  return raw === "1" || raw === "true";
 }
 
 /** @deprecated Static radial slots removed — use rotating capability orbit */

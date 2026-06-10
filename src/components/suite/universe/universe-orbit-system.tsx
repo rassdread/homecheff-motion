@@ -26,6 +26,7 @@ type UniverseOrbitSystemProps = {
   parallax?: UniverseParallaxOffset;
   globeDebugLayer?: UniverseGlobeDebugLayer | null;
   globeProjectionDebug?: boolean;
+  orbitDebug?: boolean;
   onHoverStart: (id: UniversePlanetId) => void;
   onHoverEnd: () => void;
   onFocus: (id: UniversePlanetId | null) => void;
@@ -40,6 +41,7 @@ export function UniverseOrbitSystem({
   parallax,
   globeDebugLayer = null,
   globeProjectionDebug = false,
+  orbitDebug = false,
   onHoverStart,
   onHoverEnd,
   onFocus,
@@ -99,6 +101,7 @@ export function UniverseOrbitSystem({
               onFocus={onFocus}
               onSelect={onSelect}
               variant="orbit"
+              orbitDebug={orbitDebug}
             />
           </div>
         );

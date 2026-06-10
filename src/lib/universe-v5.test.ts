@@ -53,8 +53,8 @@ describe("universe v5 clean planet interaction", () => {
       "src/components/suite/universe/universe-planet-satellites.tsx",
       "utf8"
     );
-    assert.match(satSource, /universe-capability-orbit-spin/);
-    assert.doesNotMatch(satSource, /resolveCapabilityRadialSlot/);
+    assert.match(satSource, /resolveCapabilityEllipsePosition/);
+    assert.doesNotMatch(satSource, /universe-capability-orbit-spin/);
   });
 
   it("layer order has no portal above planets", () => {

@@ -27,13 +27,13 @@ describe("universe v6 rotating capability orbits", () => {
     assert.doesNotMatch(planetSource, /planet\.titleKey\}\s*<\/p>/);
   });
 
-  it("capability labels use rotating orbit not static radial slots", () => {
+  it("capability labels orbit via ellipse position animation", () => {
     const satSource = readFileSync(
       "src/components/suite/universe/universe-planet-satellites.tsx",
       "utf8"
     );
-    assert.match(satSource, /universe-capability-orbit-spin/);
-    assert.match(satSource, /universe-capability-orbit-label-upright/);
+    assert.match(satSource, /resolveCapabilityEllipsePosition/);
+    assert.match(satSource, /useCapabilityOrbitAngle/);
     assert.match(satSource, /resolveCapabilityOrbitAngleDeg/);
     assert.doesNotMatch(satSource, /resolveCapabilityRadialSlot/);
   });
@@ -60,16 +60,16 @@ describe("universe v6 rotating capability orbits", () => {
       "utf8"
     );
     assert.match(mobileSource, /capabilityKeys\.slice/);
-    assert.doesNotMatch(mobileSource, /universe-capability-orbit-spin/);
+    assert.doesNotMatch(mobileSource, /useCapabilityOrbitAngle/);
   });
 
-  it("reduced motion disables orbit spin animation class", () => {
+  it("reduced motion disables orbit angle animation", () => {
     const satSource = readFileSync(
       "src/components/suite/universe/universe-planet-satellites.tsx",
       "utf8"
     );
     assert.match(satSource, /reducedMotion/);
-    assert.match(satSource, /universe-capability-orbit-spin/);
+    assert.match(satSource, /useCapabilityOrbitAngle/);
   });
 
   it("planet visual debug resolves from query param", () => {
