@@ -1,3 +1,4 @@
+import { profileToV7Suggestions } from "@/lib/editor-asset-recommendations";
 import { computeStudioHandoffScore } from "@/lib/editor-v6-handoff-score";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
 import type { EditorCanvasDocument, EditorV7ContextualSuggestion } from "@/types/homecheff-visual-editor";
@@ -5,6 +6,10 @@ import type { EditorCanvasDocument, EditorV7ContextualSuggestion } from "@/types
 export function resolveContextualCommandSuggestions(
   document: EditorCanvasDocument
 ): EditorV7ContextualSuggestion[] {
+  const fromProfile = profileToV7Suggestions(document.assetProfile);
+  if (fromProfile.length > 0) {
+    return fromProfile.slice(0, 6);
+  }
   const suggestions: EditorV7ContextualSuggestion[] = [];
   const types = new Set(
     document.objects

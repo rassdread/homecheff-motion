@@ -968,6 +968,8 @@ export type EditorCanvasDocument = {
   assistantState?: EditorV7AssistantState;
   /** Post-upload flow: edit | combine | motion_prepare | export */
   editorFlowMode?: "edit" | "combine" | "motion_prepare" | "export";
+  /** HomeCheff asset intelligence — recommendations, routing, readiness. */
+  assetProfile?: import("@/types/editor-asset-profile").EditorAssetProfile;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

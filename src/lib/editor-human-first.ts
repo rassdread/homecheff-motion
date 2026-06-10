@@ -209,6 +209,12 @@ export function resolveEditorAiSuggestions(
   document: EditorCanvasDocument,
   layer: EditorCanvasLayer | null
 ): EditorHumanSuggestion[] {
+  if (document.assetProfile?.recommendedActions.length) {
+    return document.assetProfile.recommendedActions.map((rec) => ({
+      id: rec.id,
+      labelKey: rec.labelKey as import("@/i18n").TranslationKey,
+    }));
+  }
   if (!layer) {
     return [];
   }

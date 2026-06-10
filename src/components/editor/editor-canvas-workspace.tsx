@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
+import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asset-recommendations-panel";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorFloatingToolbar } from "@/components/editor/editor-floating-toolbar";
@@ -1420,7 +1421,65 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setSaveMessage(t("editor.v6.library.dropped" as never));
   };
 
+  const handleAssetRecommendation = (actionId: string, prompt?: string) => {
+    if (prompt) {
+      void handleV7CommandSubmit(prompt);
+      return;
+    }
+    if (actionId === "motion_ready" || actionId === "animation_ready") {
+      persist({
+        ...document,
+        workspaceMode: "export",
+        exportSettings: { ...document.exportSettings, profile: "motion_ready" },
+      });
+      setSaveMessage(t("editor.v7.plan.motionReady" as never));
+      return;
+    }
+    if (actionId === "make_transparent" || actionId === "remove_background" || actionId === "transparent_logo") {
+      handleBackgroundTool("remove");
+      return;
+    }
+    if (actionId === "create_cutout") {
+      void handleOneClickCutout();
+      return;
+    }
+    if (actionId === "add_to_brand_kit") {
+      setShowReview(true);
+      return;
+    }
+    if (actionId === "print_export" || actionId === "social_export" || actionId === "duplicate_format") {
+      setAdvancedExportOpen(true);
+      return;
+    }
+    if (actionId === "add_to_studio" || actionId === "use_in_motion") {
+      window.open(
+        actionId === "use_in_motion"
+          ? `/animate/instant?editorSession=${encodeURIComponent(document.sessionId)}`
+          : `/studio/storyboards/new?editorSession=${encodeURIComponent(document.sessionId)}`,
+        "_blank"
+      );
+      return;
+    }
+    if (actionId === "save_as_mascot" || actionId === "save_to_library" || actionId === "marketplace_listing") {
+      setShowReview(true);
+      return;
+    }
+    if (actionId === "add_homecheff_logo") {
+      setShowAddPlacement(true);
+      return;
+    }
+    handleSuggestion(actionId);
+  };
+
   const handleSuggestion = (suggestionId: string) => {
+    if (
+      suggestionId === "motion_ready" ||
+      suggestionId === "make_transparent" ||
+      suggestionId === "remove_background"
+    ) {
+      handleAssetRecommendation(suggestionId);
+      return;
+    }
     if (!selectedLayerId) {
       return;
     }
@@ -1737,6 +1796,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   </button>
                 ))}
               </div>
+
+              {document.assetProfile ?
+                <EditorAssetRecommendationsPanel
+                  profile={document.assetProfile}
+                  onAction={handleAssetRecommendation}
+                />
+              : null}
 
               <EditorMagicEditBar
                 busy={v6Busy || saving}

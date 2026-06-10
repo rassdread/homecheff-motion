@@ -13,6 +13,7 @@ import {
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
 import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
+import { buildEditorAssetProfile, refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
@@ -100,10 +101,10 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     importedLayers: document.importedLayers ?? [],
     libraryExports: document.libraryExports ?? [],
   });
-  return {
+  return refreshEditorAssetProfile({
     ...withHandoff,
     updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
@@ -242,9 +243,9 @@ export async function runEditorVisionAndObjectDetection(
   const detectedObjects = buildEditorObjectsFromLayers(layers, {
     visionObjectType: res.data.visionAnalysis.objectType,
   });
-  return saveEditorCanvasDocument({
+  const analyzed = {
     ...document,
-    workflowStep: "visual_editor",
+    workflowStep: "visual_editor" as const,
     visionAnalysisHash: res.data.visionAnalysis.identityFingerprint.fingerprintHash,
     objects: layers,
     semanticLayers,
@@ -253,7 +254,12 @@ export async function runEditorVisionAndObjectDetection(
     motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
     detectionMeta: hybrid.meta,
     visionMetrics: getEditorVisionMetricsSnapshot(),
-  });
+    assetProfile: buildEditorAssetProfile(
+      { ...document, objects: layers, detectedObjects },
+      res.data.visionAnalysis
+    ),
+  };
+  return saveEditorCanvasDocument(analyzed);
 }
 
 export function applyEditorLayerOperation(
