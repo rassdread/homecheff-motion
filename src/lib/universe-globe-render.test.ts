@@ -61,4 +61,24 @@ describe("universe globe render audit", () => {
     assert.match(globeSource, /WorldMapTexture/);
     assert.match(globeSource, /UNIVERSE_GLOBE_HERO_MAX_PX/);
   });
+
+  it("ecosystem overlay uses fixed surface markers without travel packets", () => {
+    const overlaySource = readFileSync(
+      "src/components/suite/universe/universe-globe-ecosystem-overlay.tsx",
+      "utf8"
+    );
+    assert.doesNotMatch(overlaySource, /animateMotion/);
+    assert.doesNotMatch(overlaySource, /globe-route-pulse|globe-hub-pulse/);
+    assert.match(overlaySource, /resolveGlobeNodeLabelOpacity/);
+    assert.match(overlaySource, /\.sort\(\(a, b\) => a\.point\.z - b\.point\.z\)/);
+  });
+
+  it("globe uses HomeCheff brand ocean and land colors", () => {
+    const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
+    const cssSource = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
+    assert.match(globeSource, /#0067B1/i);
+    assert.match(globeSource, /rgba\(0,109,82/);
+    assert.match(cssSource, /#0067b1/i);
+    assert.doesNotMatch(globeSource, /universe-float/);
+  });
 });

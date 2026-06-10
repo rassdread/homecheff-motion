@@ -16,7 +16,8 @@ describe("universe v7 brand globe and upright orbit labels", () => {
     assert.match(globeSource, /#0067B1/);
     assert.match(globeSource, /universe-globe-ocean/);
     assert.match(css, /universe-globe-world-map/);
-    assert.match(css, /hue-rotate\(122deg\)/);
+    assert.match(css, /hue-rotate\(128deg\)/);
+    assert.match(css, /brightness\(0\.52\)/);
     assert.doesNotMatch(globeSource, /opacity-22 mix-blend-screen/);
   });
 

@@ -53,15 +53,15 @@ export function latLonToMapCoords(lat: number, lon: number): { x: number; y: num
 }
 
 export function resolveHubNodeRadius(tier: EcosystemHubTier): number {
-  if (tier === 1) return 3.2;
-  if (tier === 2) return 2.2;
-  return 1.6;
+  if (tier === 1) return 1.35;
+  if (tier === 2) return 1.05;
+  return 0.8;
 }
 
 export function resolveHubGlowRadius(tier: EcosystemHubTier): number {
-  if (tier === 1) return 7;
-  if (tier === 2) return 5;
-  return 4;
+  if (tier === 1) return 2.4;
+  if (tier === 2) return 1.9;
+  return 1.5;
 }
 
 export function resolveHubById(id: string): EcosystemHub | undefined {

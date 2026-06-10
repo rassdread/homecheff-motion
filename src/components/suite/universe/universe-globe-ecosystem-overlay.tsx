@@ -25,7 +25,6 @@ type GlobeEcosystemOverlayProps = {
 
 export function GlobeEcosystemOverlay({
   focused,
-  reducedMotion,
   rotationDeg,
   projectionDebug = false,
 }: GlobeEcosystemOverlayProps) {
@@ -34,24 +33,17 @@ export function GlobeEcosystemOverlay({
     point: projectHubToGlobe(hub.lat, hub.lon, rotationDeg),
   }));
 
-  const visibleHubs = hubProjections.filter(({ point }) => point.visible && point.opacity > 0.08);
+  const visibleHubs = hubProjections
+    .filter(({ point }) => point.visible && point.opacity > 0.12)
+    .sort((a, b) => a.point.z - b.point.z);
 
   return (
     <svg
-      className="universe-globe-ecosystem-overlay pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+      className="universe-globe-ecosystem-overlay pointer-events-none absolute inset-0 h-full w-full overflow-hidden"
       viewBox="0 0 100 100"
       aria-hidden={!focused}
+      data-universe-globe-rotation={rotationDeg.toFixed(1)}
     >
-      <defs>
-        <filter id="globe-hub-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="0.8" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
       {projectionDebug && (
         <g className="universe-globe-projection-debug" opacity="0.85">
           {[0, 15, 30, 45, 60, 75, 90].map((lat) => {
@@ -92,109 +84,80 @@ export function GlobeEcosystemOverlay({
         </g>
       )}
 
-      {ECOSYSTEM_ROUTES.map((route, i) => {
-        const from = resolveHubById(route.from);
-        const to = resolveHubById(route.to);
-        if (!from || !to) return null;
-        const a = projectHubToGlobe(from.lat, from.lon, rotationDeg);
-        const b = projectHubToGlobe(to.lat, to.lon, rotationDeg);
-        if (!shouldDrawGlobeRoute(a, b)) return null;
-        const routeOpacity = resolveGlobeRouteOpacity(a, b);
-        return (
-          <path
-            key={`${route.from}-${route.to}`}
-            d={buildGlobeRoutePath(a, b)}
-            fill="none"
-            stroke={i % 2 === 0 ? UNIVERSE_BRAND.green : UNIVERSE_BRAND.blue}
-            strokeWidth="0.35"
-            strokeDasharray="1.2 1.8"
-            opacity={routeOpacity}
-            style={
-              reducedMotion
-                ? undefined
-                : { animation: `universe-globe-route-pulse 4.5s ease-in-out ${i * 0.35}s infinite` }
-            }
-          />
-        );
-      })}
-
-      {!reducedMotion &&
-        ECOSYSTEM_ROUTES.slice(0, 4).map((route, i) => {
+      <g className="universe-globe-routes">
+        {ECOSYSTEM_ROUTES.map((route) => {
           const from = resolveHubById(route.from);
           const to = resolveHubById(route.to);
           if (!from || !to) return null;
           const a = projectHubToGlobe(from.lat, from.lon, rotationDeg);
           const b = projectHubToGlobe(to.lat, to.lon, rotationDeg);
           if (!shouldDrawGlobeRoute(a, b)) return null;
-          const path = buildGlobeRoutePath(a, b);
+          const routeOpacity = resolveGlobeRouteOpacity(a, b);
           return (
-            <circle key={`packet-${route.from}-${route.to}`} r="0.55" fill="#ffffff" opacity={0.85}>
-              <animateMotion dur={`${5 + i}s`} repeatCount="indefinite" path={path} />
-            </circle>
+            <path
+              key={`${route.from}-${route.to}`}
+              d={buildGlobeRoutePath(a, b)}
+              fill="none"
+              stroke={UNIVERSE_BRAND.green}
+              strokeWidth="0.16"
+              strokeLinecap="round"
+              opacity={routeOpacity}
+            />
           );
         })}
+      </g>
 
-      {visibleHubs.map(({ hub, point }) => {
-        const r = resolveHubNodeRadius(hub.tier) * 0.55 * point.scale;
-        const glow = resolveHubGlowRadius(hub.tier) * 0.55 * point.scale;
-        const labelOpacity = resolveGlobeNodeLabelOpacity(point, focused, hub.tier);
+      <g className="universe-globe-hubs">
+        {visibleHubs.map(({ hub, point }) => {
+          const r = resolveHubNodeRadius(hub.tier) * point.scale;
+          const glow = resolveHubGlowRadius(hub.tier) * point.scale;
+          const labelOpacity = resolveGlobeNodeLabelOpacity(point, focused, hub.tier);
+          const fill = hub.tier === 1 ? UNIVERSE_BRAND.green : UNIVERSE_BRAND.blue;
 
-        return (
-          <g key={hub.id} filter="url(#globe-hub-glow)" opacity={point.opacity}>
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={glow}
-              fill={hub.tier === 1 ? UNIVERSE_BRAND.green : UNIVERSE_BRAND.blue}
-              opacity="0.28"
-              className={hub.tier === 1 && !reducedMotion ? "universe-globe-hub-pulse" : undefined}
-            />
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={r}
-              fill={hub.tier === 1 ? UNIVERSE_BRAND.green : UNIVERSE_BRAND.blue}
-              stroke="rgba(255,255,255,0.75)"
-              strokeWidth="0.2"
-            />
-            {labelOpacity > 0 && (
-              <text
-                x={point.x}
-                y={point.y - r - 1.2}
-                textAnchor="middle"
-                className="universe-globe-hub-label-overlay"
-                opacity={labelOpacity}
-              >
-                {hub.tier === 1 ? `★ ${hub.name}` : hub.name}
-              </text>
-            )}
-            {projectionDebug && (
-              <text
-                x={point.x}
-                y={point.y + r + 2.5}
-                textAnchor="middle"
-                className="universe-globe-debug-text"
-                fontSize="1.8"
-                opacity="0.9"
-              >
-                {hub.name} z={point.z.toFixed(2)}
-              </text>
-            )}
-          </g>
-        );
-      })}
-
-      {projectionDebug &&
-        hubProjections.map(({ hub, point }) => (
-          <circle
-            key={`debug-${hub.id}`}
-            cx={point.x}
-            cy={point.y}
-            r="0.4"
-            fill={point.visible ? "#00ff88" : "#ff4466"}
-            opacity={point.visible ? 0.9 : 0.35}
-          />
-        ))}
+          return (
+            <g key={hub.id} opacity={point.opacity}>
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={glow}
+                fill={fill}
+                opacity="0.16"
+              />
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={r}
+                fill={fill}
+                stroke="rgba(255,255,255,0.45)"
+                strokeWidth="0.12"
+              />
+              {labelOpacity > 0 && (
+                <text
+                  x={point.x}
+                  y={point.y - r - 1.1}
+                  textAnchor="middle"
+                  className="universe-globe-hub-label-overlay"
+                  opacity={labelOpacity}
+                >
+                  {hub.name}
+                </text>
+              )}
+              {projectionDebug && (
+                <text
+                  x={point.x}
+                  y={point.y + r + 2.2}
+                  textAnchor="middle"
+                  className="universe-globe-debug-text"
+                  fontSize="1.6"
+                  opacity="0.9"
+                >
+                  {hub.name} z={point.z.toFixed(2)}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 }

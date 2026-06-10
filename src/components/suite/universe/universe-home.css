@@ -333,13 +333,33 @@
 }
 
 .universe-globe-world-map {
-  opacity: 0.97;
+  opacity: 1;
   mix-blend-mode: multiply;
-  filter: brightness(0.62) sepia(1) saturate(4.2) hue-rotate(122deg) contrast(1.2);
+  filter: brightness(0.52) sepia(1) saturate(5.5) hue-rotate(128deg) contrast(1.28);
 }
 
 .universe-globe-ocean {
   background-color: #0067b1;
+}
+
+.universe-globe-ecosystem-overlay {
+  z-index: 2;
+}
+
+.universe-globe-sphere {
+  isolation: isolate;
+}
+
+.universe-globe-haze {
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+}
+
+.universe-globe-hub-label-overlay {
+  font-size: 2.4px;
+  fill: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .universe-capability-orbit {
@@ -403,20 +423,6 @@
   animation: universe-map-scroll 140s linear infinite;
 }
 
-@keyframes universe-ecosystem-packet {
-  0% {
-    offset-distance: 0%;
-    opacity: 0.2;
-  }
-  40% {
-    opacity: 0.85;
-  }
-  100% {
-    offset-distance: 100%;
-    opacity: 0.15;
-  }
-}
-
 .universe-globe-latitude line,
 .universe-globe-longitude line {
   stroke: rgba(255, 255, 255, 0.1);
@@ -429,51 +435,6 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   pointer-events: none;
-}
-
-.universe-globe-hub-label-overlay {
-  font-size: 2.8px;
-  fill: rgba(255, 255, 255, 0.92);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.universe-globe-ecosystem-overlay {
-  z-index: 3;
-}
-
-@keyframes universe-globe-route-pulse {
-  0%,
-  100% {
-    opacity: 0.45;
-    stroke-dashoffset: 8;
-  }
-  50% {
-    opacity: 0.85;
-    stroke-dashoffset: 0;
-  }
-}
-
-.universe-globe-route-pulse {
-  animation: universe-globe-route-pulse 4.5s ease-in-out infinite;
-}
-
-@keyframes universe-globe-hub-pulse {
-  0%,
-  100% {
-    opacity: 0.22;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.42;
-    transform: scale(1.08);
-  }
-}
-
-.universe-globe-hub-pulse {
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: universe-globe-hub-pulse 3.2s ease-in-out infinite;
 }
 
 .universe-globe-root {

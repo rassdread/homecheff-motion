@@ -49,45 +49,52 @@ export function UniverseGlobe({
       data-universe-globe-rotation={rotationDeg.toFixed(1)}
     >
       <div
-        className="pointer-events-none absolute rounded-full"
+        className="pointer-events-none absolute rounded-full universe-globe-atmosphere-glow"
         style={{
           width: "102%",
           height: "102%",
-          background: `radial-gradient(circle, ${UNIVERSE_BRAND.blue}55 0%, ${UNIVERSE_BRAND.green}33 42%, transparent 72%)`,
+          background: `radial-gradient(circle, rgba(0,103,177,0.42) 0%, rgba(0,109,82,0.18) 48%, transparent 72%)`,
           animation: reducedMotion ? undefined : "universe-glow-pulse 7s ease-in-out infinite",
         }}
       />
 
       <div
-        className="relative overflow-hidden rounded-full"
+        className="universe-globe-sphere relative overflow-hidden rounded-full"
         style={{
           width: "92%",
           height: "92%",
           aspectRatio: "1 / 1",
-          animation: reducedMotion ? undefined : "universe-float 8s ease-in-out infinite",
-          boxShadow: `0 0 40px ${UNIVERSE_BRAND.blue}77, inset 0 -12px 32px rgba(0,0,0,0.35)`,
+          boxShadow: `0 0 36px rgba(0,103,177,0.55), 0 0 18px rgba(0,109,82,0.25), inset 0 -12px 32px rgba(0,0,0,0.38)`,
         }}
       >
         <div
           className="absolute inset-0 rounded-full universe-globe-ocean"
           style={{
-            background: `radial-gradient(circle at 32% 28%, ${UNIVERSE_BRAND.blue} 0%, #0067B1 38%, #004e88 62%, #022840 100%)`,
+            background: `radial-gradient(circle at 34% 30%, #005a94 0%, #0067B1 40%, #004a7f 66%, #011a2e 100%)`,
           }}
         />
 
         {showContinents && (
           <div className="absolute inset-0 overflow-hidden rounded-full">
             <div
-              className="absolute inset-y-0 left-0 h-full"
+              className="absolute inset-y-0 left-0 h-full will-change-transform"
               style={{
                 width: "200%",
                 transform: `translateX(${mapTranslatePct}%)`,
-                willChange: reducedMotion ? undefined : "transform",
               }}
             >
               <WorldMapTexture visible />
             </div>
           </div>
+        )}
+
+        {showEcosystem && (
+          <GlobeEcosystemOverlay
+            focused={focused}
+            reducedMotion={reducedMotion}
+            rotationDeg={rotationDeg}
+            projectionDebug={projectionDebug}
+          />
         )}
 
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden>
@@ -99,8 +106,8 @@ export function UniverseGlobe({
               rx={Math.abs(50 - x) * 0.55 + 8}
               ry={48}
               fill="none"
-              stroke="rgba(0,103,177,0.14)"
-              strokeWidth="0.25"
+              stroke="rgba(0,103,177,0.1)"
+              strokeWidth="0.2"
             />
           ))}
           {[30, 40, 50, 60, 70].map((y) => (
@@ -111,41 +118,31 @@ export function UniverseGlobe({
               rx={48}
               ry={Math.abs(50 - y) * 0.85 + 6}
               fill="none"
-              stroke="rgba(0,109,82,0.1)"
-              strokeWidth="0.2"
+              stroke="rgba(0,109,82,0.08)"
+              strokeWidth="0.16"
             />
           ))}
         </svg>
 
-        {showEcosystem && (
-          <GlobeEcosystemOverlay
-            focused={focused}
-            reducedMotion={reducedMotion}
-            rotationDeg={rotationDeg}
-            projectionDebug={projectionDebug}
-          />
-        )}
-
         <div
-          className="pointer-events-none absolute inset-0 rounded-full opacity-[0.07] mix-blend-soft-light"
+          className="pointer-events-none absolute inset-0 rounded-full universe-globe-haze"
           style={{
-            background: `radial-gradient(circle at 38% 32%, rgba(255,255,255,0.22) 0%, transparent 34%)`,
-            animation: reducedMotion ? undefined : "universe-cloud-drift 16s ease-in-out infinite",
+            background: `radial-gradient(circle at 36% 30%, rgba(255,255,255,0.08) 0%, transparent 28%)`,
           }}
         />
 
         <div
-          className="pointer-events-none absolute inset-0 rounded-full"
+          className="pointer-events-none absolute inset-0 rounded-full universe-globe-terminator"
           style={{
-            background: `linear-gradient(108deg, transparent 38%, rgba(0,0,0,0.32) 72%, rgba(0,0,0,0.55) 100%)`,
+            background: `linear-gradient(108deg, transparent 40%, rgba(0,0,0,0.28) 74%, rgba(0,0,0,0.5) 100%)`,
           }}
         />
 
         <div
-          className="pointer-events-none absolute inset-0 rounded-full"
+          className="pointer-events-none absolute inset-0 rounded-full universe-globe-rim"
           style={{
-            boxShadow: `inset 0 0 24px rgba(0,103,177,0.22), inset 0 -10px 26px rgba(0,0,0,0.32)`,
-            border: `1.5px solid rgba(0,109,82,0.35)`,
+            boxShadow: `inset 0 0 20px rgba(0,103,177,0.24), inset 0 -8px 22px rgba(0,0,0,0.34)`,
+            border: `1.5px solid rgba(0,109,82,0.4)`,
           }}
         />
       </div>

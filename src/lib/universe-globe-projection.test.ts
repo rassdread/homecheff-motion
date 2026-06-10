@@ -14,6 +14,7 @@ import {
   distanceBetweenProjectedPoints,
   projectLatLonToGlobePoint,
   resolveGlobeMapTranslatePercent,
+  resolveGlobeNodeLabelOpacity,
   resolveUniverseGlobeProjectionDebug,
   shouldDrawGlobeRoute,
 } from "@/lib/universe-globe-projection";
@@ -139,6 +140,13 @@ describe("universe globe geo projection", () => {
     assert.equal(resolveUniverseGlobeProjectionDebug("1"), true);
     assert.equal(resolveUniverseGlobeProjectionDebug("projection"), true);
     assert.equal(resolveUniverseGlobeProjectionDebug("false"), false);
+  });
+
+  it("hub labels only appear when globe is focused", () => {
+    const point = projectLatLonToGlobePoint({ lat: 51.9244, lon: 4.4777, rotationDeg: 4.5 });
+    assert.equal(resolveGlobeNodeLabelOpacity(point, false, 1), 0);
+    assert.equal(resolveGlobeNodeLabelOpacity(point, false, 2), 0);
+    assert.ok(resolveGlobeNodeLabelOpacity(point, true, 1) > 0);
   });
 
   it("globe and overlay share rotation-driven projection", () => {

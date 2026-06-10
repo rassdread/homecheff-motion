@@ -97,7 +97,7 @@ export function buildGlobeRoutePath(
 ): string {
   const midX = (from.x + to.x) / 2;
   const midY = (from.y + to.y) / 2;
-  const lift = 0.38;
+  const lift = 0.18;
   const ctrlX = UNIVERSE_GLOBE_VIEW_CENTER + (midX - UNIVERSE_GLOBE_VIEW_CENTER) * (1 - lift);
   const ctrlY = UNIVERSE_GLOBE_VIEW_CENTER + (midY - UNIVERSE_GLOBE_VIEW_CENTER) * (1 - lift);
   return `M ${from.x} ${from.y} Q ${ctrlX} ${ctrlY} ${to.x} ${to.y}`;
@@ -107,20 +107,16 @@ export function resolveGlobeRouteOpacity(
   from: GlobeProjectedPoint,
   to: GlobeProjectedPoint
 ): number {
-  return Math.min(from.opacity, to.opacity) * 0.85;
+  return Math.min(from.opacity, to.opacity) * 0.32;
 }
 
 export function resolveGlobeNodeLabelOpacity(
   point: GlobeProjectedPoint,
   focused: boolean,
-  tier: 1 | 2 | 3
+  _tier: 1 | 2 | 3
 ): number {
-  if (!point.visible || point.opacity < 0.2) return 0;
-  if (!focused) {
-    return tier === 1 ? point.opacity * 0.35 : 0;
-  }
-  if (tier === 1) return Math.min(1, point.opacity);
-  return Math.min(0.92, point.opacity * 0.88);
+  if (!focused || !point.visible || point.opacity < 0.28) return 0;
+  return Math.min(0.9, point.opacity * 0.85);
 }
 
 export function distanceBetweenProjectedPoints(
