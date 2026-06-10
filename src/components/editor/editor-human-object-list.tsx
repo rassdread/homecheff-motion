@@ -6,6 +6,7 @@ import {
   isTechnicalSubPartLayer,
   layersForHumanFirstTree,
 } from "@/lib/editor-ux-cleanup";
+import type { TranslationKey } from "@/i18n";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -14,11 +15,23 @@ type Props = {
   onSelect: (layerId: string) => void;
 };
 
+function chipLabelForLayer(
+  layer: import("@/types/homecheff-visual-editor").EditorCanvasLayer,
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string
+): string {
+  if (layer.metadata?.bootstrapRegion) {
+    return layer.label;
+  }
+  return t(humanFirstObjectLabelKey(layer));
+}
+
 export function EditorHumanObjectList({ layers, selectedLayerId, onSelect }: Props) {
   const t = useActiveTranslator();
-  const visible = layersForHumanFirstTree(layers).filter(
+  const objectLayers = layersForHumanFirstTree(layers).filter(
     (layer) => layer.layerType !== "background" && !isTechnicalSubPartLayer(layer)
   );
+  const backgroundLayer = layers.find((layer) => layer.layerType === "background");
+  const visible = backgroundLayer ? [...objectLayers, backgroundLayer] : objectLayers;
 
   if (visible.length === 0) {
     return null;
@@ -39,7 +52,7 @@ export function EditorHumanObjectList({ layers, selectedLayerId, onSelect }: Pro
                 : "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
             }`}
           >
-            {t(humanFirstObjectLabelKey(layer))}
+            {chipLabelForLayer(layer, t)}
           </button>
         );
       })}

@@ -66,11 +66,15 @@ export function bboxHitTest(point: EditorShapePoint, object: EditorObject): bool
   return pointInBounds(point, object.bbox);
 }
 
+function isPickableEditorObject(object: EditorObject): boolean {
+  return object.category !== "background" && object.layerId !== "background";
+}
+
 function hitTestObject(
   point: EditorShapePoint,
   object: EditorObject
 ): EditorPickResult | null {
-  if (!object.visible) {
+  if (!object.visible || !isPickableEditorObject(object)) {
     return null;
   }
   if (maskHitTest(point, object)) {

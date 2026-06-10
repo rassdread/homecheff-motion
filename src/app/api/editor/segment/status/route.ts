@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { segmentationProviderAvailable } from "@/lib/premium-foreground-segmentation";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { isReplicateConfigured } from "@/server/admin/replicate-client";
 import { getSam2ServiceStatus } from "@/server/editor/sam2-click-segment";
 
 export const runtime = "nodejs";
@@ -21,6 +22,12 @@ export async function GET() {
     recentFailureRate: status.recentFailureRate ?? null,
     lastHealthCheckAt: status.lastHealthCheckAt ?? null,
     rembgAvailable: segmentationProviderAvailable("rembg"),
+    replicateConfigured: isReplicateConfigured(),
+    replicateSam3Available: isReplicateConfigured(),
+    autoMaskProviderAvailable:
+      status.available ||
+      segmentationProviderAvailable("rembg") ||
+      isReplicateConfigured(),
     fallbacks: status.fallbacks,
   });
 }

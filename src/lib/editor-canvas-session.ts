@@ -1,9 +1,8 @@
-import { analyzeAssetStyleDnaApi } from "@/lib/studio-asset-derivation-client";
 import {
   applyEditorObjectOperation,
   createEmptyVisualEditorSession,
 } from "@/lib/homecheff-visual-editor-foundation";
-import { seedEditorLayersFromVision, extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
+import { extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
 import {
   commitEditorHistory,
   ensureEditorNonDestructiveState,
@@ -13,13 +12,11 @@ import {
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
 import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
-import { buildEditorAssetProfile, refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
+import { refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
-import { buildEditorSemanticLayersFromHybrid } from "@/lib/editor-hybrid-detection";
-import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
-import { detectEditorObjectsApi } from "@/lib/editor-vision-v3-client";
+import { bootstrapEditorObjectDetection } from "@/lib/editor-detection-bootstrap";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
@@ -214,51 +211,7 @@ export function createEditorDocumentFromLibrarySource(
 export async function runEditorVisionAndObjectDetection(
   document: EditorCanvasDocument
 ): Promise<EditorCanvasDocument> {
-  const res = await analyzeAssetStyleDnaApi({
-    imageUrl: document.backgroundUrl,
-    sourceKind: "character",
-    sourceName: document.name,
-    derivationJobId: document.sessionId,
-  });
-  if (!res.ok) {
-    return { ...document, workflowStep: "visual_editor", updatedAt: new Date().toISOString() };
-  }
-  const onnxResult = await detectEditorObjectsApi(document.backgroundUrl);
-  const hybrid = buildEditorSemanticLayersFromHybrid({
-    vision: res.data.visionAnalysis,
-    styleDna: res.data.styleDna,
-    sourceKind: document.sourceKind,
-    onnxDetections: onnxResult.detections,
-    detectorKind: onnxResult.detectorKind,
-  });
-  const semanticLayers = hybrid.layers;
-  const layers = seedEditorLayersFromVision({
-    vision: res.data.visionAnalysis,
-    styleDna: res.data.styleDna,
-    sourceKind: document.sourceKind,
-    preserveBackground: document.objects.find((o) => o.id === "background"),
-    onnxDetections: onnxResult.detections,
-    detectorKind: onnxResult.detectorKind,
-  });
-  const detectedObjects = buildEditorObjectsFromLayers(layers, {
-    visionObjectType: res.data.visionAnalysis.objectType,
-  });
-  const analyzed = {
-    ...document,
-    workflowStep: "visual_editor" as const,
-    visionAnalysisHash: res.data.visionAnalysis.identityFingerprint.fingerprintHash,
-    objects: layers,
-    semanticLayers,
-    detectedObjects,
-    textLayers: extractEditorTextLayers(layers),
-    motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
-    detectionMeta: hybrid.meta,
-    visionMetrics: getEditorVisionMetricsSnapshot(),
-    assetProfile: buildEditorAssetProfile(
-      { ...document, objects: layers, detectedObjects },
-      res.data.visionAnalysis
-    ),
-  };
+  const analyzed = await bootstrapEditorObjectDetection(document);
   return saveEditorCanvasDocument(analyzed);
 }
 

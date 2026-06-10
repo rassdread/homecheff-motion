@@ -69,6 +69,7 @@ type Props = {
   selectedCompositorId?: string | null;
   onSelectCompositorLayer?: (compositorId: string) => void;
   onMoveCompositorLayer?: (compositorId: string, x: number, y: number) => void;
+  onEmptyCanvasClick?: (point: EditorShapePoint) => void;
 };
 
 export function EditorCanvasPreview({
@@ -102,6 +103,7 @@ export function EditorCanvasPreview({
   selectedCompositorId = null,
   onSelectCompositorLayer,
   onMoveCompositorLayer,
+  onEmptyCanvasClick,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -197,7 +199,9 @@ export function EditorCanvasPreview({
             partId: hit.partId,
             clickPoint: hit.clickPoint,
           });
+          return;
         }
+        onEmptyCanvasClick?.(clientPointToNormalized(event.clientX, event.clientY, rect));
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

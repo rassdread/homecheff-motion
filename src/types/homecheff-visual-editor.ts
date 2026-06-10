@@ -218,6 +218,7 @@ export type EditorSemanticLayerMetadata = {
   selectionMode?: EditorSelectionMode;
   identityRelevance?: EditorIdentityRelevance;
   taxonomyKey?: string;
+  bootstrapRegion?: boolean;
   rawFeature?: string;
 };
 
@@ -549,10 +550,13 @@ export type EditorVisionMetricsSnapshot = {
 };
 
 export type EditorDetectionMeta = {
-  source: "onnx" | "vision" | "hybrid";
+  source: "onnx" | "vision" | "hybrid" | "brand_sheet" | "onnx_only" | "heuristic";
   detectorKind?: string;
   count: number;
   onnxAvailable: boolean;
+  bootstrapAttempted?: boolean;
+  noObjectsFound?: boolean;
+  userMessageKey?: string;
 };
 
 /** Editor V5 workspace modes — what the user wants to make. */

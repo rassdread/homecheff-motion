@@ -408,6 +408,22 @@ export const nl = {
   "editor.selectionFix.refining": "Nauwkeurige selectie maken…",
   "editor.selectionFix.ready": "Selectie gereed — je kunt nu bewerken.",
   "editor.selectionFix.refine": "Selectie verfijnen",
+
+  "editor.detectionBootstrap.noObjects":
+    "Geen objecten gevonden — klik zelf om nauwkeurig te selecteren.",
+  "editor.detectionBootstrap.providerStatus":
+    "Providers: SAM2 {sam2} · rembg {rembg} · Replicate {replicate} · auto-mask {autoMask}",
+
+  "editor.clickSegment.promptTitle": "Wil je dit onderdeel selecteren?",
+  "editor.clickSegment.promptHint": "Klik op {x}%, {y}% — kies hoe je wilt selecteren.",
+  "editor.clickSegment.selectObject": "Selecteer dit object",
+  "editor.clickSegment.selectWithPrompt": "Selecteer: {prompt}",
+  "editor.clickSegment.outline": "Zelf omlijnen",
+  "editor.clickSegment.dismiss": "Annuleren",
+  "editor.clickSegment.pickLabel": "Selectie",
+  "editor.clickSegment.providerUnavailable":
+    "Nauwkeurige selectie is niet beschikbaar — configureer SAM2, rembg of Replicate.",
+  "editor.clickSegment.failed": "Dit gebied kon niet worden gesegmenteerd. Probeer een andere prompt of omlijn zelf.",
   "editor.backgroundRemove.success": "Achtergrond verwijderd — je afbeelding is bijgewerkt.",
   "editor.backgroundRemove.failed": "Achtergrond verwijderen mislukt. Probeer opnieuw of omlijn het onderwerp zelf.",
   "editor.assetIntel.recommendedTitle": "Aanbevolen voor dit asset",

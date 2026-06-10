@@ -412,6 +412,22 @@ export const en: LocaleSchema = {
   "editor.selectionFix.refining": "Making a precise selection…",
   "editor.selectionFix.ready": "Selection ready — you can edit now.",
   "editor.selectionFix.refine": "Refine selection",
+
+  "editor.detectionBootstrap.noObjects":
+    "No objects found — click to select precisely.",
+  "editor.detectionBootstrap.providerStatus":
+    "Providers: SAM2 {sam2} · rembg {rembg} · Replicate {replicate} · auto-mask {autoMask}",
+
+  "editor.clickSegment.promptTitle": "Select this part?",
+  "editor.clickSegment.promptHint": "Click at {x}%, {y}% — choose how to select.",
+  "editor.clickSegment.selectObject": "Select this object",
+  "editor.clickSegment.selectWithPrompt": "Select: {prompt}",
+  "editor.clickSegment.outline": "Outline yourself",
+  "editor.clickSegment.dismiss": "Cancel",
+  "editor.clickSegment.pickLabel": "Selection",
+  "editor.clickSegment.providerUnavailable":
+    "Precise selection is unavailable — configure SAM2, rembg, or Replicate.",
+  "editor.clickSegment.failed": "Could not segment this area. Try another prompt or outline.",
   "editor.backgroundRemove.success": "Background removed — your image is updated.",
   "editor.backgroundRemove.failed": "Could not remove the background. Try again or outline the subject yourself.",
   "editor.assetIntel.recommendedTitle": "Recommended for this asset",
