@@ -350,6 +350,11 @@ export async function detectWithObjectDetector(imagePath: string): Promise<Objec
     return { detections: [] };
   }
 
+  return detectObjectsForEditor(imagePath);
+}
+
+/** Editor analysis — runs ONNX detection when model/runtime is available (no safe-zone flag). */
+export async function detectObjectsForEditor(imagePath: string): Promise<ObjectDetectionResult> {
   try {
     return await withTimeout(runObjectDetection(imagePath), DETECTOR_TIMEOUT_MS);
   } catch (error) {

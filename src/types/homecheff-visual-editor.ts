@@ -194,6 +194,7 @@ export type EditorSemanticLayerCategory = (typeof EDITOR_SEMANTIC_LAYER_CATEGORI
 
 export const EDITOR_SEMANTIC_LAYER_SOURCES = [
   "vision",
+  "onnx_detector",
   "semantic_record",
   "fingerprint",
   "manual",
@@ -366,10 +367,66 @@ export type EditorMotionPreparation = {
   objectId: string;
   layerId: string;
   cutoutUrl?: string;
+  maskUrl?: string;
+  polygon?: EditorShapePoint[];
   depthHint: number;
   motionRegion: EditorCanvasBounds;
+  animationRegion?: EditorCanvasBounds;
   safeAnimationBounds: EditorCanvasBounds;
   ready: boolean;
+};
+
+export type EditorCutoutAsset = {
+  id: string;
+  objectId: string;
+  layerId: string;
+  label: string;
+  cutoutUrl: string;
+  maskUrl?: string;
+  maskStorageKey?: string;
+  polygon?: EditorShapePoint[];
+  boundingBox: EditorCanvasBounds;
+  createdAt: string;
+};
+
+export const EDITOR_MASK_EDIT_JOB_STATUSES = [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+] as const;
+
+export type EditorMaskEditJobStatus = (typeof EDITOR_MASK_EDIT_JOB_STATUSES)[number];
+
+export type EditorMaskEditJob = {
+  id: string;
+  layerId: string;
+  operation: "remove" | "replace";
+  status: EditorMaskEditJobStatus;
+  progress: number;
+  message?: string;
+  resultUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EditorVisionMetricsSnapshot = {
+  detectionCount: number;
+  maskCount: number;
+  segmentationSuccessRate: number;
+  averageSegmentationMs: number;
+  openAiEditSuccessRate: number;
+  failedObjectEdits: number;
+  onnxDetectionCount?: number;
+  hybridMergeCount?: number;
+  updatedAt: string;
+};
+
+export type EditorDetectionMeta = {
+  source: "onnx" | "vision" | "hybrid";
+  detectorKind?: string;
+  count: number;
+  onnxAvailable: boolean;
 };
 
 export type EditorCanvasDocument = {
@@ -392,6 +449,10 @@ export type EditorCanvasDocument = {
   nonDestructive?: EditorNonDestructiveState;
   history?: EditorHistoryState;
   motionPreparations?: EditorMotionPreparation[];
+  cutoutAssets?: EditorCutoutAsset[];
+  editJobs?: EditorMaskEditJob[];
+  visionMetrics?: EditorVisionMetricsSnapshot;
+  detectionMeta?: EditorDetectionMeta;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

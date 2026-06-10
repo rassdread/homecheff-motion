@@ -1,8 +1,10 @@
+import { buildEditorSemanticLayersFromHybrid } from "@/lib/editor-hybrid-detection";
 import {
   buildEditorSemanticLayersFromVision,
   canvasLayerToSemanticLayer,
   semanticLayerToCanvasLayer,
 } from "@/lib/editor-semantic-layers-from-vision";
+import type { ObjectDetection } from "@/server/animation-export/local-vision/object-detector-types";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetSemanticRecord } from "@/types/studio-asset-semantic-record";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -18,14 +20,31 @@ export function seedEditorLayersFromVision(params: {
   styleDna?: AssetStyleDna | null;
   semanticRecord?: Partial<AssetSemanticRecord> | null;
   preserveBackground?: EditorCanvasLayer;
+  onnxDetections?: ObjectDetection[];
+  detectorKind?: string;
 }): EditorCanvasLayer[] {
-  const semanticLayers = buildEditorSemanticLayersFromVision({
-    vision: params.vision,
-    styleDna: params.styleDna,
-    semanticRecord: params.semanticRecord,
-    identityFingerprint: params.vision.identityFingerprint,
-    sourceKind: params.sourceKind,
-  });
+  const hybrid =
+    params.onnxDetections && params.onnxDetections.length > 0
+      ? buildEditorSemanticLayersFromHybrid({
+          vision: params.vision,
+          styleDna: params.styleDna,
+          semanticRecord: params.semanticRecord,
+          identityFingerprint: params.vision.identityFingerprint,
+          sourceKind: params.sourceKind,
+          onnxDetections: params.onnxDetections,
+          detectorKind: params.detectorKind,
+        })
+      : null;
+
+  const semanticLayers =
+    hybrid?.layers ??
+    buildEditorSemanticLayersFromVision({
+      vision: params.vision,
+      styleDna: params.styleDna,
+      semanticRecord: params.semanticRecord,
+      identityFingerprint: params.vision.identityFingerprint,
+      sourceKind: params.sourceKind,
+    });
 
   const previewUrl = params.preserveBackground?.previewUrl ?? "";
   const canvasLayers = semanticLayers.map((layer) =>

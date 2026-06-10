@@ -151,6 +151,8 @@ export type OpenAiImageEditParams = {
   imageBuffer: Buffer;
   imageFilename?: string;
   imageContentType?: string;
+  maskBuffer?: Buffer;
+  maskFilename?: string;
   inputFidelity?: "high" | "low";
   n?: number;
 };
@@ -166,6 +168,11 @@ export function buildOpenAiImageEditFormData(params: OpenAiImageEditParams): For
   form.append("size", params.size);
   form.append("n", String(params.n ?? 1));
   form.append("image", blob, params.imageFilename ?? "source.png");
+  if (params.maskBuffer) {
+    const maskBytes = new Uint8Array(params.maskBuffer);
+    const maskBlob = new Blob([maskBytes], { type: "image/png" });
+    form.append("mask", maskBlob, params.maskFilename ?? "mask.png");
+  }
   if (
     params.inputFidelity &&
     openAiImageEditSupportsInputFidelity(params.model)
@@ -180,6 +187,7 @@ export type OpenAiImageEditLogContext = {
   route?: string;
   model: string;
   hasSourceImage: boolean;
+  hasMask?: boolean;
   inputFidelity?: "high" | "low" | null;
 };
 
@@ -191,6 +199,7 @@ export function logOpenAiImageEditRequest(context: OpenAiImageEditLogContext): v
       helperPath: context.helperPath,
       model: context.model,
       hasSourceImage: context.hasSourceImage,
+      hasMask: context.hasMask ?? false,
       inputFidelity: context.inputFidelity ?? null,
       timestamp: new Date().toISOString(),
     })
@@ -231,6 +240,7 @@ export async function fetchOpenAiImageEdits(params: {
     route: params.logContext?.route,
     model,
     hasSourceImage: true,
+    hasMask: Boolean(editParams.maskBuffer),
     inputFidelity: editParams.inputFidelity ?? null,
   });
 

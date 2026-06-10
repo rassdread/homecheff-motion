@@ -13,7 +13,9 @@ import {
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
-import { buildEditorSemanticLayersFromVision } from "@/lib/editor-semantic-layers-from-vision";
+import { buildEditorSemanticLayersFromHybrid } from "@/lib/editor-hybrid-detection";
+import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
+import { detectEditorObjectsApi } from "@/lib/editor-vision-v3-client";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
@@ -198,16 +200,22 @@ export async function runEditorVisionAndObjectDetection(
   if (!res.ok) {
     return { ...document, workflowStep: "visual_editor", updatedAt: new Date().toISOString() };
   }
-  const semanticLayers = buildEditorSemanticLayersFromVision({
+  const onnxResult = await detectEditorObjectsApi(document.backgroundUrl);
+  const hybrid = buildEditorSemanticLayersFromHybrid({
     vision: res.data.visionAnalysis,
     styleDna: res.data.styleDna,
     sourceKind: document.sourceKind,
+    onnxDetections: onnxResult.detections,
+    detectorKind: onnxResult.detectorKind,
   });
+  const semanticLayers = hybrid.layers;
   const layers = seedEditorLayersFromVision({
     vision: res.data.visionAnalysis,
     styleDna: res.data.styleDna,
     sourceKind: document.sourceKind,
     preserveBackground: document.objects.find((o) => o.id === "background"),
+    onnxDetections: onnxResult.detections,
+    detectorKind: onnxResult.detectorKind,
   });
   const detectedObjects = buildEditorObjectsFromLayers(layers, {
     visionObjectType: res.data.visionAnalysis.objectType,
@@ -221,6 +229,8 @@ export async function runEditorVisionAndObjectDetection(
     detectedObjects,
     textLayers: extractEditorTextLayers(layers),
     motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
+    detectionMeta: hybrid.meta,
+    visionMetrics: getEditorVisionMetricsSnapshot(),
   });
 }
 

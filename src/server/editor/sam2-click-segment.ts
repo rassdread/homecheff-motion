@@ -1,5 +1,15 @@
 import { extractMaskContourFromPng } from "@/lib/editor-mask-contour";
 import {
+  buildSam2ProductionStatus,
+  DEFAULT_SAM2_PRODUCTION_CONFIG,
+  enqueueSam2Request,
+  recordSam2RequestOutcome,
+  resizeImageBufferForSam2,
+  runSam2HealthCheck,
+  withSam2Retry,
+  type Sam2ProductionStatus,
+} from "@/lib/editor-sam2-production";
+import {
   auditSam2Availability,
   buildSam2RemotePoints,
   isSam2SegmentationAvailable,
@@ -7,6 +17,7 @@ import {
   SAM2_UNAVAILABLE_USER_MESSAGE,
   type Sam2ClickSegmentRequest,
 } from "@/lib/editor-sam2-segmentation";
+import { recordEditorVisionMetric } from "@/lib/editor-vision-metrics";
 import { validateEditorSegmentImageSource } from "@/server/editor/editor-image-ownership";
 import { editorMaskStoragePath } from "@/server/editor/editor-mask-storage";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
@@ -59,7 +70,7 @@ async function callSam2Remote(input: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(DEFAULT_SAM2_PRODUCTION_CONFIG.requestTimeoutMs),
   });
 
   if (!res.ok) {
@@ -111,9 +122,14 @@ export async function segmentEditorClickWithSam2(params: {
     };
   }
 
-  const meta = await sharp(sourceBuffer).metadata();
-  const width = Math.max(1, meta.width ?? 1);
-  const height = Math.max(1, meta.height ?? 1);
+  const resized = await resizeImageBufferForSam2(sourceBuffer);
+  const width = resized.width;
+  const height = resized.height;
+  const imageBase64ForSam2 = resized.scaled
+    ? `data:image/png;base64,${resized.buffer.toString("base64")}`
+    : validated.source === "base64"
+      ? validated.imageBase64
+      : undefined;
 
   const points = buildSam2RemotePoints({
     clickPoint: params.request.clickPoint,
@@ -121,18 +137,36 @@ export async function segmentEditorClickWithSam2(params: {
     negativePoints: params.request.negativePoints,
   });
 
+  const segmentStarted = Date.now();
   let remote: ReturnType<typeof parseSam2RemoteResponse>;
   try {
-    remote = await callSam2Remote({
-      imageUrl: validated.source === "url" ? validated.imageUrl : undefined,
-      imageBase64: validated.source === "base64" ? validated.imageBase64 : undefined,
-      width,
-      height,
-      points,
-      targetBounds: params.request.targetBounds,
-      objectHint: params.request.objectHint,
+    remote = await enqueueSam2Request(() =>
+      withSam2Retry(() =>
+        callSam2Remote({
+          imageUrl:
+            resized.scaled || validated.source !== "url" ? undefined : validated.imageUrl,
+          imageBase64: imageBase64ForSam2,
+          width,
+          height,
+          points,
+          targetBounds: params.request.targetBounds,
+          objectHint: params.request.objectHint,
+        })
+      )
+    );
+    recordSam2RequestOutcome(true, Date.now() - segmentStarted);
+    recordEditorVisionMetric({
+      type: "segmentation",
+      success: true,
+      durationMs: Date.now() - segmentStarted,
     });
   } catch (error) {
+    recordSam2RequestOutcome(false, Date.now() - segmentStarted);
+    recordEditorVisionMetric({
+      type: "segmentation",
+      success: false,
+      durationMs: Date.now() - segmentStarted,
+    });
     return {
       ok: false,
       code: "REMOTE",
@@ -211,6 +245,8 @@ export async function segmentEditorClickWithSam2(params: {
     }
   }
 
+  recordEditorVisionMetric({ type: "mask_created" });
+
   const shape: EditorObjectShape = {
     selectionMode: "mask",
     boundingBox,
@@ -227,6 +263,23 @@ export async function segmentEditorClickWithSam2(params: {
   return { ok: true, shape, maskUrl, cutoutUrl };
 }
 
-export function getSam2ServiceStatus() {
-  return auditSam2Availability();
+let cachedSam2Status: Sam2ProductionStatus | null = null;
+let cachedSam2StatusAt = 0;
+
+export function getSam2ServiceStatus(): Sam2ProductionStatus {
+  const availability = auditSam2Availability();
+  const now = Date.now();
+  if (cachedSam2Status && now - cachedSam2StatusAt < 30_000) {
+    return cachedSam2Status;
+  }
+  const endpoint = process.env.SAM2_SEGMENTATION_URL?.trim();
+  if (endpoint) {
+    void runSam2HealthCheck(endpoint, availability).then((status) => {
+      cachedSam2Status = status;
+      cachedSam2StatusAt = Date.now();
+    });
+  }
+  cachedSam2Status = buildSam2ProductionStatus(availability);
+  cachedSam2StatusAt = now;
+  return cachedSam2Status;
 }

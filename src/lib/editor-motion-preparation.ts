@@ -1,5 +1,6 @@
 import { editorAnimationBoundaryUsesMask } from "@/lib/editor-mask-actions";
-import { boundsToPolygon } from "@/lib/editor-object-mask";
+import { editorLayerHasMaskTruth } from "@/lib/editor-mask-first";
+import { boundsFromPolygon, boundsToPolygon } from "@/lib/editor-object-mask";
 import type {
   EditorCanvasLayer,
   EditorMotionPreparation,
@@ -43,16 +44,23 @@ export function prepareEditorMotionForObject(
   object: EditorObject,
   layer: EditorCanvasLayer | null
 ): EditorMotionPreparation {
-  const usesMask = layer ? editorAnimationBoundaryUsesMask(layer) : Boolean(object.mask);
-  const motionRegion = object.bbox;
-  const polygon = object.polygon ?? boundsToPolygon(object.bbox);
+  const hasMask = layer ? editorLayerHasMaskTruth(layer) : Boolean(object.mask);
+  const usesMask = layer ? editorAnimationBoundaryUsesMask(layer) || hasMask : Boolean(object.mask);
+  const polygon =
+    layer?.selectionShape?.polygon ?? object.polygon ?? boundsToPolygon(object.bbox);
+  const motionRegion =
+    hasMask && polygon.length >= 3 ? boundsFromPolygon(polygon) : object.bbox;
+  const animationRegion = hasMask ? motionRegion : undefined;
 
   return {
     objectId: object.id,
     layerId: object.layerId,
     cutoutUrl: layer?.selectionShape?.cutoutUrl,
+    maskUrl: layer?.selectionShape?.maskUrl ?? object.mask,
+    polygon: polygon.length >= 3 ? polygon : undefined,
     depthHint: depthHintForCategory(object.category),
     motionRegion,
+    animationRegion,
     safeAnimationBounds: safeAnimationBounds(motionRegion),
     ready: usesMask || polygon.length >= 4,
   };

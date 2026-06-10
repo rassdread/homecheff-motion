@@ -35,8 +35,14 @@ import {
   undoEditorDocument,
 } from "@/lib/editor-canvas-session";
 import { editorCanRedo, editorCanUndo } from "@/lib/editor-non-destructive";
+import { buildEditorCutoutAsset, upsertEditorCutoutAsset } from "@/lib/editor-cutout-layers";
+import { findEditorObjectByLayerId } from "@/lib/editor-object-detection";
 import { planEditorSmartRemove } from "@/lib/editor-smart-remove";
 import { planEditorSmartReplace } from "@/lib/editor-smart-replace";
+import {
+  executeEditorMaskedRemoveApi,
+  executeEditorMaskedReplaceApi,
+} from "@/lib/editor-vision-v3-client";
 import { formatEditorCompositionGraphPreview } from "@/lib/editor-composition-graph";
 import {
   addEditorPlacement,
@@ -80,7 +86,12 @@ type Props = {
   onDocumentChange: (document: EditorCanvasDocument) => void;
 };
 
-import type { EditorCanvasDocument, EditorObjectOperation, EditorPlacementItem } from "@/types/homecheff-visual-editor";
+import type {
+  EditorCanvasDocument,
+  EditorCanvasLayer,
+  EditorObjectOperation,
+  EditorPlacementItem,
+} from "@/types/homecheff-visual-editor";
 
 type PanelMode = "layer" | "placement" | "body";
 
@@ -152,12 +163,95 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setPanelMode("placement");
   };
 
+  const runMaskedEdit = async (
+    operation: "delete" | "replace",
+    layer: EditorCanvasLayer
+  ) => {
+    const plan =
+      operation === "delete"
+        ? planEditorSmartRemove(layer)
+        : planEditorSmartReplace({ layer });
+    const maskUrl = plan.maskUrl;
+    if (!maskUrl || !plan.ready) {
+      setSaveMessage(plan.message);
+      return;
+    }
+
+    setSaving(true);
+    setSaveMessage(
+      operation === "delete"
+        ? t("editor.visionV3.removing" as never)
+        : t("editor.visionV3.replacing" as never)
+    );
+
+    try {
+      const api =
+        operation === "delete"
+          ? await executeEditorMaskedRemoveApi({
+              sessionId: document.sessionId,
+              layerId: layer.id,
+              imageUrl: document.backgroundUrl,
+              maskUrl,
+              objectLabel: layer.label,
+              backgroundStorageKey: document.backgroundStorageKey,
+            })
+          : await executeEditorMaskedReplaceApi({
+              sessionId: document.sessionId,
+              layerId: layer.id,
+              imageUrl: document.backgroundUrl,
+              maskUrl,
+              objectLabel: layer.label,
+              prompt: `Replace ${layer.label} with an improved version`,
+              backgroundStorageKey: document.backgroundStorageKey,
+            });
+
+      if (!api.ok || !api.resultUrl) {
+        setSaveMessage(api.error ?? plan.message);
+        return;
+      }
+
+      const editJobs = [...(document.editJobs ?? []), api.job];
+      let next: EditorCanvasDocument = {
+        ...document,
+        backgroundUrl: api.resultUrl,
+        editJobs,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (operation === "delete") {
+        next = applyEditorLayerOperation(next, layer.id, "delete");
+        setSelectedLayerId(next.objects.find((o) => o.layerType !== "background")?.id ?? null);
+      }
+
+      persist(next);
+      setSaveMessage(
+        operation === "delete"
+          ? t("editor.visionV3.removeSuccess" as never)
+          : t("editor.visionV3.replaceSuccess" as never)
+      );
+    } catch {
+      setSaveMessage(t("editor.visionV3.editFailed" as never));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleOperation = (operation: EditorObjectOperation) => {
     if (!selectedLayerId) {
       return;
     }
     const layer = document.objects.find((o) => o.id === selectedLayerId) ?? null;
     const maskContext = buildEditorMaskActionContext(layer, operation);
+
+    if (operation === "delete" && layer?.selectionShape?.maskUrl) {
+      void runMaskedEdit("delete", layer);
+      return;
+    }
+    if (operation === "replace" && layer?.selectionShape?.maskUrl) {
+      void runMaskedEdit("replace", layer);
+      return;
+    }
+
     if (operation === "replace" && layer) {
       const plan = planEditorSmartReplace({ layer });
       setSaveMessage(
@@ -391,9 +485,26 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
     }
     const patched = patchEditorLayerFields(document, layerId, next);
+    const detectedObjects = syncDetectedObjectsOnDocument(patched.objects, document.detectedObjects);
+    const editorObject = findEditorObjectByLayerId(detectedObjects, layerId);
+    const cutoutAssets =
+      result.cutoutUrl && editorObject
+        ? upsertEditorCutoutAsset(
+            document.cutoutAssets,
+            buildEditorCutoutAsset({
+              object: editorObject,
+              layer: next,
+              cutoutUrl: result.cutoutUrl,
+              maskUrl: result.maskUrl,
+              maskStorageKey: result.maskStorageKey,
+              polygon: result.polygon,
+            })
+          )
+        : document.cutoutAssets;
     persist({
       ...patched,
-      detectedObjects: syncDetectedObjectsOnDocument(patched.objects, document.detectedObjects),
+      detectedObjects,
+      cutoutAssets,
     });
     setSam2RefineVisible(true);
     setSaveMessage(t("editor.sam2.success"));
