@@ -19,6 +19,8 @@ import { segmentEditorLayer } from "@/server/editor/segment-editor-layer";
 import {
   EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
   EDITOR_CLICK_ROUTE_DEADLINE_MS,
+  EDITOR_JOB_CLICK_DEADLINE_MS,
+  EDITOR_JOB_REPLICATE_TIMEOUT_MS,
   EDITOR_REFINE_REPLICATE_TIMEOUT_MS,
   segmentEditorImageWithReplicateSam3,
 } from "@/server/editor/replicate-sam3-editor-segment";
@@ -81,6 +83,8 @@ export type SegmentByClickInput = {
   sessionId?: string;
   createCutout?: boolean;
   requestId?: string;
+  /** Async job — extended Replicate + route deadlines (no sync 28s cap). */
+  asyncJob?: boolean;
 };
 
 export type SegmentByPromptInput = {
@@ -114,8 +118,8 @@ function logEditorSegmentTrace(
   });
 }
 
-function segmentClickDeadlineExceeded(startedMs: number): boolean {
-  return Date.now() - startedMs > EDITOR_CLICK_ROUTE_DEADLINE_MS;
+function segmentClickDeadlineExceeded(startedMs: number, maxMs: number): boolean {
+  return Date.now() - startedMs > maxMs;
 }
 
 async function loadSourceImageBuffer(input: {
@@ -359,6 +363,7 @@ async function finalizeReplicateSam3Segment(input: {
   clickPoint?: EditorShapePoint;
   requestId?: string;
   clickStartedMs?: number;
+  routeDeadlineMs?: number;
 }): Promise<
   | { ok: true; result: EditorSegmentationProviderResult; shape: EditorObjectShape; maskUrl: string; cutoutUrl?: string }
   | { ok: false; code: EditorSegmentErrorCode; message: string }
@@ -371,9 +376,10 @@ async function finalizeReplicateSam3Segment(input: {
     };
   }
 
+  const routeDeadlineMs = input.routeDeadlineMs ?? EDITOR_CLICK_ROUTE_DEADLINE_MS;
   if (
     input.clickStartedMs &&
-    segmentClickDeadlineExceeded(input.clickStartedMs)
+    segmentClickDeadlineExceeded(input.clickStartedMs, routeDeadlineMs)
   ) {
     return {
       ok: false,
@@ -545,6 +551,10 @@ export async function segmentByClick(
   const createCutout = input.createCutout !== false;
   const requestId = input.requestId?.trim() || "none";
   const clickStartedMs = Date.now();
+  const routeDeadlineMs = input.asyncJob ? EDITOR_JOB_CLICK_DEADLINE_MS : EDITOR_CLICK_ROUTE_DEADLINE_MS;
+  const replicateTimeoutMs = input.asyncJob
+    ? EDITOR_JOB_REPLICATE_TIMEOUT_MS
+    : EDITOR_CLICK_REPLICATE_TIMEOUT_MS;
   const prompt = resolveEditorSegmentPrompt({
     category: input.category,
     semanticType: input.semanticType,
@@ -561,18 +571,23 @@ export async function segmentByClick(
       createCutout,
       sessionId,
       objectId,
+      asyncJob: Boolean(input.asyncJob),
     },
     requestId
   );
 
   try {
     if (isReplicateConfigured() && input.imageUrl) {
-      logEditorSegmentTrace("replicate_click_start", { imageUrl: input.imageUrl, prompt }, requestId);
+      logEditorSegmentTrace(
+        "replicate_prediction_start",
+        { imageUrl: input.imageUrl, prompt, replicateTimeoutMs },
+        requestId
+      );
       const rep = await segmentEditorImageWithReplicateSam3({
         imageUrl: input.imageUrl,
         prompt,
         clickPoint: input.clickPoint,
-        timeoutMs: EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
+        timeoutMs: replicateTimeoutMs,
       });
       if (!rep.ok) {
         logEditorSegmentTrace(
@@ -586,7 +601,7 @@ export async function segmentByClick(
         );
         return segmentFailure(mapReplicateErrorToCode(rep.error), rep.error);
       }
-      if (segmentClickDeadlineExceeded(clickStartedMs)) {
+      if (segmentClickDeadlineExceeded(clickStartedMs, routeDeadlineMs)) {
         logEditorSegmentTrace(
           "click_deadline_after_replicate",
           { totalMs: Date.now() - clickStartedMs },
@@ -598,7 +613,7 @@ export async function segmentByClick(
         );
       }
       logEditorSegmentTrace(
-        "replicate_click_completed",
+        "replicate_prediction_complete",
         {
           predictionId: rep.result.predictionId,
           replicatePredictionMs: rep.result.runtimeMs,
@@ -607,6 +622,7 @@ export async function segmentByClick(
         },
         requestId
       );
+      const finalizeStarted = Date.now();
       const finalized = await finalizeReplicateSam3Segment({
         userId: input.userId,
         sessionId,
@@ -618,7 +634,13 @@ export async function segmentByClick(
         clickPoint: input.clickPoint,
         requestId,
         clickStartedMs,
+        routeDeadlineMs,
       });
+      logEditorSegmentTrace(
+        "finalize_ms",
+        { ms: Date.now() - finalizeStarted, totalMs: Date.now() - clickStartedMs },
+        requestId
+      );
       if (finalized.ok) {
         logEditorSegmentTrace(
           "click_success",

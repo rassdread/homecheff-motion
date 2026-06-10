@@ -140,7 +140,7 @@ describe("Analyze method mismatch", () => {
       "utf8"
     );
     assert.match(workspace, /runPromptSubLayerSegmentation/);
-    assert.match(workspace, /postEditorSegmentClick/);
+    assert.match(workspace, /startEditorSegmentClickJob/);
     assert.doesNotMatch(workspace, /analyzeAssetStyleDnaApi/);
     assert.doesNotMatch(workspace, /asset-derivation\/analyze/);
   });

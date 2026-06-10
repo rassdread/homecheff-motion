@@ -76,6 +76,7 @@ type Props = {
   onEmptyCanvasClick?: (point: EditorShapePoint) => void;
   onApproximateLayerClick?: (point: EditorShapePoint, parentLayerId: string) => void;
   segmenting?: boolean;
+  segmentMessageKey?: string | null;
   clickFeedbackPoint?: EditorShapePoint | null;
   showSelectionHelp?: boolean;
 };
@@ -114,6 +115,7 @@ export function EditorCanvasPreview({
   onEmptyCanvasClick,
   onApproximateLayerClick,
   segmenting = false,
+  segmentMessageKey = null,
   clickFeedbackPoint = null,
   showSelectionHelp = true,
 }: Props) {
@@ -218,6 +220,10 @@ export function EditorCanvasPreview({
         const hit = pickAtClient(event.clientX, event.clientY, rect);
         if (hit) {
           const layer = document.objects.find((o) => o.id === hit.layerId);
+          if (layer?.layerType === "background") {
+            onEmptyCanvasClick?.(hit.clickPoint);
+            return;
+          }
           const preciseSubLayer =
             layer &&
             isPromptCreatedSubLayer(layer) &&
@@ -343,7 +349,9 @@ export function EditorCanvasPreview({
           aria-live="polite"
         >
           <p className="rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white shadow-lg animate-pulse">
-            {t("editor.canvas.selecting" as never)}
+            {segmentMessageKey
+              ? t(segmentMessageKey as never)
+              : t("editor.canvas.selecting" as never)}
           </p>
         </div>
       : null}
@@ -420,6 +428,16 @@ export function EditorCanvasPreview({
               const clickPoint = parentRect
                 ? clientPointToNormalized(event.clientX, event.clientY, parentRect)
                 : undefined;
+              if (
+                humanFirst &&
+                layer.layerType !== "background" &&
+                !editorLayerHasPreciseShape(layer) &&
+                clickPoint &&
+                onApproximateLayerClick
+              ) {
+                onApproximateLayerClick(clickPoint, layer.id);
+                return;
+              }
               onSelectLayer(layer.id, { clickPoint });
               if (!canMove) {
                 return;

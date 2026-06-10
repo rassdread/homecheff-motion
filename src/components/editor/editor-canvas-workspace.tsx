@@ -7,6 +7,7 @@ import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asse
 import { EditorVisionSummaryPanel } from "@/components/editor/editor-vision-summary-panel";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorClickSegmentPrompt } from "@/components/editor/editor-click-segment-prompt";
+import { EditorClickTraceDebugPanel } from "@/components/editor/editor-click-trace-debug-panel";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorHumanObjectList } from "@/components/editor/editor-human-object-list";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
@@ -98,6 +99,7 @@ import {
   type EditorHumanActionId,
   type EditorUiMode,
 } from "@/lib/editor-human-first";
+import { shouldOpenClickSegmentPromptForLayer } from "@/lib/editor-canvas-click-routing";
 import {
   applyEditorSelectionShape,
   applyRefinedPolygonToLayer,
@@ -134,6 +136,11 @@ import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
 import { parseCompositorLayerId } from "@/lib/editor-compositor";
 import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
 import { postEditorSegmentClick } from "@/lib/editor-segment-click-client";
+import {
+  EDITOR_SEGMENT_JOB_COLD_START_MS,
+  pollEditorSegmentClickJob,
+  startEditorSegmentClickJob,
+} from "@/lib/editor-segment-click-job-client";
 import { editorSegmentErrorMessageKey } from "@/lib/editor-segment-client-errors";
 import {
   deriveSegmentationUiState,
@@ -272,6 +279,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [lastClickFeedbackPoint, setLastClickFeedbackPoint] = useState<EditorShapePoint | null>(
     null
   );
+  const [clickDebugHandler, setClickDebugHandler] = useState<string | null>(null);
+  const [clickDebugApiStatus, setClickDebugApiStatus] = useState<string | null>(null);
+  const [clickDebugPickedLayerId, setClickDebugPickedLayerId] = useState<string | null>(null);
+  const [segmentCanvasMessageKey, setSegmentCanvasMessageKey] = useState<string | null>(null);
+  const [activeSegmentJobId, setActiveSegmentJobId] = useState<string | null>(null);
   const bootstrapRanRef = useRef(false);
   const photoEditPanelRef = useRef<HTMLDivElement>(null);
   const exportPanelRef = useRef<HTMLDivElement>(null);
@@ -458,6 +470,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           sessionId: document.sessionId,
           createCutout: true,
         });
+        setClickDebugApiStatus(`segment/click ${res.status}`);
         if (res.ok) {
           clearSegmentFailure();
           const result = (await res.json()) as EditorSegmentApiShape;
@@ -575,10 +588,23 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const layer = nextDocument.objects.find((o) => o.id === layerId) ?? null;
     if (clickPoint) {
       setLastClickFeedbackPoint(clickPoint);
+      setClickDebugPickedLayerId(layerId);
+    }
+    if (
+      clickPoint &&
+      layer &&
+      uiMode === "visual" &&
+      shouldOpenClickSegmentPromptForLayer(layer)
+    ) {
+      setClickDebugHandler("selectLayer→openClickSegmentPrompt");
+      openClickSegmentPrompt(clickPoint, layer.id);
+      return;
     }
     if (layer && shouldAutoAcquireMask(layer)) {
+      setClickDebugHandler("selectLayer→tryAutoAcquireMask");
       void tryAutoAcquireMask(layer, clickPoint);
     } else if (layer) {
+      setClickDebugHandler("selectLayer→selectOnly");
       setSaveMessage(t(autoMaskProgressMessageKey("selecting") as never));
     }
   };
@@ -642,10 +668,14 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const handleEmptyCanvasClick = (point: EditorShapePoint) => {
+    setClickDebugHandler("emptyCanvasClick→openClickSegmentPrompt");
+    setClickDebugPickedLayerId(null);
     openClickSegmentPrompt(point);
   };
 
   const handleApproximateLayerClick = (point: EditorShapePoint, parentLayerId: string) => {
+    setClickDebugHandler("approximateLayerClick→openClickSegmentPrompt");
+    setClickDebugPickedLayerId(parentLayerId);
     openClickSegmentPrompt(point, parentLayerId);
   };
 
@@ -682,7 +712,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         labelOverride: input.labelOverride,
       });
 
-      const { response: res } = await postEditorSegmentClick({
+      setClickDebugHandler(`runPromptSubLayerSegmentation(${input.prompt})→async`);
+      setSegmentCanvasMessageKey("editor.segmentJob.running");
+      const started = await startEditorSegmentClickJob({
         imageUrl: document.backgroundUrl,
         backgroundStorageKey: document.backgroundStorageKey,
         clickPoint: input.point,
@@ -693,21 +725,51 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         sessionId: document.sessionId,
         createCutout: true,
       });
+      if (!started.ok) {
+        setSegmentCanvasMessageKey(null);
+        reportSegmentFailure(started.code);
+        setClickDebugApiStatus(`start failed ${started.code ?? ""}`);
+        return;
+      }
+      setActiveSegmentJobId(started.jobId);
+      setClickDebugApiStatus(`job queued ${started.jobId}`);
 
-      if (!res.ok) {
-        const err = (await res.json().catch(() => null)) as { code?: string } | null;
-        reportSegmentFailure(err?.code);
+      const polled = await pollEditorSegmentClickJob(started.jobId, {
+        onStatus: (status, elapsedMs) => {
+          setClickDebugApiStatus(`job ${status.status} ${elapsedMs}ms`);
+          if (
+            elapsedMs >= EDITOR_SEGMENT_JOB_COLD_START_MS &&
+            (status.status === "queued" || status.status === "running")
+          ) {
+            setSegmentCanvasMessageKey("editor.segmentJob.coldStart");
+          } else if (status.status === "queued" || status.status === "running") {
+            setSegmentCanvasMessageKey("editor.segmentJob.running");
+          }
+        },
+      });
+      setActiveSegmentJobId(null);
+      setSegmentCanvasMessageKey(null);
+
+      if (!polled.ok) {
+        reportSegmentFailure(polled.code);
+        setClickDebugApiStatus(
+          `job ${polled.timedOut ? "client_timeout" : polled.code ?? "failed"}`
+        );
         return;
       }
 
-      const result = (await res.json()) as EditorSegmentApiShape & { maskUrl?: string };
+      const result = polled.result;
       if (!result.maskUrl) {
         reportSegmentFailure("replicate_prediction_failed");
         return;
       }
 
       clearSegmentFailure();
-      const withSegment = applySegmentToSubObjectLayer(childStub, result);
+      setClickDebugApiStatus(`job ready mask=${Boolean(result.maskUrl)}`);
+      const withSegment = applySegmentToSubObjectLayer(
+        childStub,
+        result as EditorSegmentApiShape
+      );
       const objects = attachSubObjectLayer(document.objects, withSegment);
       const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
       persist({
@@ -724,7 +786,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       setSaveMessage(t(segmentPromptSuccessMessageKey(input.prompt) as never));
       return withSegment;
     } catch {
-      setSaveMessage(t("editor.clickSegment.failed" as never));
+      setSegmentCanvasMessageKey(null);
+      setActiveSegmentJobId(null);
+      reportSegmentFailure("segmentation_internal_error");
     } finally {
       setRefiningSelection(false);
     }
@@ -2180,6 +2244,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
               {isAdmin ?
                 <>
+                  <EditorClickTraceDebugPanel
+                    lastClickPoint={lastClickFeedbackPoint}
+                    pickedLayerId={clickDebugPickedLayerId ?? selectedLayerId}
+                    pickedLayerLabel={
+                      document.objects.find(
+                        (o) => o.id === (clickDebugPickedLayerId ?? selectedLayerId)
+                      )?.label ?? null
+                    }
+                    promptVisible={Boolean(clickSegmentPoint)}
+                    segmentationState={segmentationUiState}
+                    segmenting={refiningSelection || clickSegmentBusy}
+                    lastApiStatus={
+                      activeSegmentJobId
+                        ? `${clickDebugApiStatus ?? ""} jobId=${activeSegmentJobId}`
+                        : clickDebugApiStatus
+                    }
+                    lastHandler={clickDebugHandler}
+                  />
                   <p className="text-xs text-zinc-500">
                     {t("editor.detectionBootstrap.providerStatus" as never, {
                       sam2: sam2Available ? "OK" : "—",
@@ -2193,17 +2275,6 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                     primaryProvider={replicateAvailable ? "replicate_sam3" : sam2Available ? "sam2" : rembgAvailable ? "rembg" : null}
                   />
                 </>
-              : null}
-
-              {clickSegmentPoint ?
-                <EditorClickSegmentPrompt
-                  clickPoint={clickSegmentPoint}
-                  busy={clickSegmentBusy}
-                  onSelectObject={() => void handleClickSegmentObject()}
-                  onSelectWithPrompt={(prompt) => void handleClickSegmentPrompt(prompt)}
-                  onOutline={handleClickSegmentOutline}
-                  onDismiss={dismissClickSegmentPrompt}
-                />
               : null}
 
               <EditorContextualActionBar
@@ -2264,10 +2335,23 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   selectedCompositorId={selectedCompositorId}
                   onSelectCompositorLayer={handleSelectCompositorLayer}
                   onMoveCompositorLayer={handleMoveCompositorLayer}
-                  segmenting={refiningSelection || clickSegmentBusy}
+                  segmenting={refiningSelection || clickSegmentBusy || Boolean(activeSegmentJobId)}
+                  segmentMessageKey={segmentCanvasMessageKey}
                   clickFeedbackPoint={lastClickFeedbackPoint}
-                  showSelectionHelp={segmentationUiState !== "mask_ready"}
+                  showSelectionHelp={segmentationUiState !== "mask_ready" && !clickSegmentPoint}
                 />
+                {clickSegmentPoint ?
+                  <div className="absolute bottom-2 left-2 right-2 z-40 max-h-[min(50vh,320px)] overflow-y-auto">
+                    <EditorClickSegmentPrompt
+                      clickPoint={clickSegmentPoint}
+                      busy={clickSegmentBusy || refiningSelection}
+                      onSelectObject={() => void handleClickSegmentObject()}
+                      onSelectWithPrompt={(prompt) => void handleClickSegmentPrompt(prompt)}
+                      onOutline={handleClickSegmentOutline}
+                      onDismiss={dismissClickSegmentPrompt}
+                    />
+                  </div>
+                : null}
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
                     <EditorObjectActionMenu

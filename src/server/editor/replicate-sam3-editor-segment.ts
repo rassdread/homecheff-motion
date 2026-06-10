@@ -100,10 +100,14 @@ export function pickSam3MaskIndexAtClick(input: {
   return bestClickIdx >= 0 ? bestClickIdx : bestScoreIdx;
 }
 
-/** Keep under serverless gateway budget; finalize (fetch + blob) needs ~6–8s headroom. */
+/** Sync route: keep under serverless gateway budget. */
 export const EDITOR_CLICK_REPLICATE_TIMEOUT_MS = 20_000;
 export const EDITOR_REFINE_REPLICATE_TIMEOUT_MS = 22_000;
 export const EDITOR_CLICK_ROUTE_DEADLINE_MS = 28_000;
+
+/** Async job: allow cold start + finalize without blocking HTTP. */
+export const EDITOR_JOB_REPLICATE_TIMEOUT_MS = 75_000;
+export const EDITOR_JOB_CLICK_DEADLINE_MS = 120_000;
 
 export async function segmentEditorImageWithReplicateSam3(params: {
   imageUrl: string;

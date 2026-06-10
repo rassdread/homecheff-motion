@@ -144,7 +144,8 @@ describe("Globe Man real user selection e2e (simulated)", () => {
     const workspace = read("src/components/editor/editor-canvas-workspace.tsx");
     const preview = read("src/components/editor/editor-canvas-preview.tsx");
     assert.match(workspace, /EditorVisionSummaryPanel/);
-    assert.match(workspace, /postEditorSegmentClick/);
+    assert.match(workspace, /startEditorSegmentClickJob/);
+    assert.match(workspace, /pollEditorSegmentClickJob/);
     assert.match(workspace, /segmentationUiState/);
     assert.match(preview, /editor\.canvas\.clickToSelect/);
     assert.match(preview, /editor\.canvas\.selecting/);
