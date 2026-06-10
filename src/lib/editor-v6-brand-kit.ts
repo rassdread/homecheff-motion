@@ -2,6 +2,25 @@ import { brand } from "@/lib/brand";
 import { dropLibraryAssetOnCanvas, type LibraryDragPayload } from "@/lib/editor-v6-library-drag";
 import type { EditorBrandKitItem, EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
+const BRAND_KIT_PUBLIC_PATHS = new Set([
+  "/brand/homecheff-logo.svg",
+  "/brand/garden-chef-mascot.svg",
+]);
+
+export function brandKitItemHasRenderablePreview(item: EditorBrandKitItem): boolean {
+  if (item.kind === "color" || item.kind === "gradient" || item.kind === "font" || item.kind === "background") {
+    return true;
+  }
+  if (!item.previewUrl) {
+    return false;
+  }
+  return BRAND_KIT_PUBLIC_PATHS.has(item.previewUrl);
+}
+
+export function resolveVisibleBrandKitItems(items?: EditorBrandKitItem[]): EditorBrandKitItem[] {
+  return (items ?? defaultHomeCheffBrandKit()).filter(brandKitItemHasRenderablePreview);
+}
+
 export function defaultHomeCheffBrandKit(): EditorBrandKitItem[] {
   return [
     {
@@ -46,7 +65,7 @@ export function defaultHomeCheffBrandKit(): EditorBrandKitItem[] {
       kind: "mascot",
       label: "Garden Chef",
       value: "mascot",
-      previewUrl: "/brand/garden-chef-mascot.png",
+      previewUrl: "/brand/garden-chef-mascot.svg",
     },
   ];
 }

@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { EditorPostUploadModePicker } from "@/components/editor/editor-post-upload-mode-picker";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
+import {
+  applyPostUploadMode,
+  type EditorPostUploadMode,
+} from "@/lib/editor-start-flow";
 import {
   createEditorDocumentFromLibrarySource,
   createEditorDocumentFromUpload,
@@ -14,8 +19,6 @@ import {
   runEditorVisionAndObjectDetection,
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
-import { EditorIntentPicker } from "@/components/editor/editor-intent-picker";
-import { resolveWorkspaceModeFromIntent, type EditorUserIntent } from "@/lib/editor-workspace-modes";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -32,14 +35,16 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const [showLibrary, setShowLibrary] = useState(false);
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
+  const [pendingDocument, setPendingDocument] = useState<EditorCanvasDocument | null>(null);
+  const [showRecent, setShowRecent] = useState(false);
 
-  const [pendingIntent, setPendingIntent] = useState<EditorUserIntent | null>(null);
-
-  const openWithVision = async (document: EditorCanvasDocument) => {
-    saveEditorCanvasDocument(document);
+  const finishOpen = async (document: EditorCanvasDocument, mode: EditorPostUploadMode) => {
+    const withMode = applyPostUploadMode(document, mode);
+    saveEditorCanvasDocument(withMode);
     setRecent(listRecentEditorDocuments());
-    const analyzed = await runEditorVisionAndObjectDetection(document);
+    const analyzed = await runEditorVisionAndObjectDetection(withMode);
     onOpenDocument(analyzed);
+    setPendingDocument(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -51,9 +56,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
         name: file.name.replace(/\.[^.]+$/, ""),
         backgroundUrl: uploaded.workingImageUrl,
         backgroundStorageKey: uploaded.workingStorageKey,
-        workspaceMode: pendingIntent ? resolveWorkspaceModeFromIntent(pendingIntent) : "photo_edit",
       });
-      await openWithVision(doc);
+      setPendingDocument(doc);
     } catch {
       setError(t("editor.start.uploadFailed"));
     } finally {
@@ -74,20 +78,32 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     setShowLibrary(true);
   };
 
+  if (pendingDocument) {
+    return (
+      <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
+        <main className={`flex-1 ${brand.softGradientBg}`}>
+          <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+            <EditorPostUploadModePicker
+              imageName={pendingDocument.name}
+              busy={uploading}
+              onSelectMode={(mode) => void finishOpen(pendingDocument, mode)}
+            />
+          </section>
+        </main>
+      </StudioAuthGate>
+    );
+  }
+
   return (
-    <StudioAuthGate
-      authTitleKey="editor.start.authTitle"
-      authBodyKey="editor.start.authBody"
-    >
+    <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
           <p className="text-xs font-semibold uppercase tracking-widest text-[#0067B1]">
             {t("suite.nav.editor")}
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{t("editor.start.title")}</h1>
-          <p className="mt-2 text-sm text-slate-600">{t("editor.start.lead")}</p>
-
-          <EditorIntentPicker onSelect={setPendingIntent} />
+          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
+            {t("editor.startFlow.title" as never)}
+          </h1>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <button
@@ -97,7 +113,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
               className="min-h-[120px] rounded-2xl border border-[#0067B1]/30 bg-white p-5 text-left shadow-sm hover:bg-[#0067B1]/5"
             >
               <p className="font-semibold text-slate-900">{t("editor.start.upload")}</p>
-              <p className="mt-1 text-sm text-slate-600">{t("editor.start.uploadHint")}</p>
+              <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.uploadHint" as never)}</p>
             </button>
             <button
               type="button"
@@ -106,7 +122,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
               className="min-h-[120px] rounded-2xl border border-[#006D52]/30 bg-white p-5 text-left shadow-sm hover:bg-[#006D52]/5"
             >
               <p className="font-semibold text-slate-900">{t("editor.start.chooseLibrary")}</p>
-              <p className="mt-1 text-sm text-slate-600">{t("editor.start.chooseLibraryHint")}</p>
+              <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.libraryHint" as never)}</p>
             </button>
           </div>
 
@@ -128,22 +144,30 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
           : null}
 
           {recent.length > 0 ?
-            <div className="mt-10">
-              <h2 className="text-sm font-semibold text-slate-900">{t("editor.start.recent")}</h2>
-              <ul className="mt-3 space-y-2">
-                {recent.map((doc) => (
-                  <li key={doc.sessionId}>
-                    <button
-                      type="button"
-                      onClick={() => onOpenDocument(doc)}
-                      className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm hover:bg-zinc-50"
-                    >
-                      <span className="font-medium">{doc.name}</span>
-                      <span className="text-xs text-zinc-500">{doc.status}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-8 text-center">
+              <button
+                type="button"
+                onClick={() => setShowRecent((v) => !v)}
+                className="text-sm font-semibold text-[#0067B1] hover:underline"
+              >
+                {t("editor.startFlow.continueRecent" as never)}
+              </button>
+              {showRecent ?
+                <ul className="mt-3 space-y-2 text-left">
+                  {recent.map((doc) => (
+                    <li key={doc.sessionId}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenDocument(doc)}
+                        className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm hover:bg-zinc-50"
+                      >
+                        <span className="font-medium">{doc.name}</span>
+                        <span className="text-xs text-zinc-500">{doc.status}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              : null}
             </div>
           : null}
 
@@ -162,12 +186,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                       type="button"
                       className="flex w-full items-center gap-3 rounded-lg border border-zinc-100 px-3 py-2 text-left hover:bg-zinc-50"
                       onClick={() => {
-                        void openWithVision({
-                          ...createEditorDocumentFromLibrarySource(source),
-                          workspaceMode: pendingIntent
-                            ? resolveWorkspaceModeFromIntent(pendingIntent)
-                            : "photo_edit",
-                        });
+                        setPendingDocument(createEditorDocumentFromLibrarySource(source));
                         setShowLibrary(false);
                       }}
                     >
@@ -180,12 +199,6 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
               </ul>
             </div>
           : null}
-
-          <p className="mt-8 text-center text-xs text-zinc-500">
-            <Link href="/library" className="font-semibold text-[#006D52] hover:underline">
-              {t("editor.start.openLibrary")}
-            </Link>
-          </p>
         </section>
       </main>
     </StudioAuthGate>

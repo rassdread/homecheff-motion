@@ -46,6 +46,7 @@ export function modeShowsQuickMotion(mode: EditorWorkspaceMode): boolean {
   return mode === "quick_motion";
 }
 
+/** @deprecated Use modeShowsExportHub from editor-ux-v7-workspace */
 export function modeShowsExportPanel(mode: EditorWorkspaceMode): boolean {
-  return mode === "export" || mode === "quick_motion";
+  return mode === "export";
 }

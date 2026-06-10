@@ -1,7 +1,7 @@
 "use client";
 
 import { useActiveTranslator } from "@/i18n/client";
-import { defaultHomeCheffBrandKit, insertBrandKitItemOnCanvas } from "@/lib/editor-v6-brand-kit";
+import { insertBrandKitItemOnCanvas, resolveVisibleBrandKitItems } from "@/lib/editor-v6-brand-kit";
 import type { EditorBrandKitItem, EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 
 export function EditorBrandKitPanel({ document, onDocumentChange }: Props) {
   const t = useActiveTranslator();
-  const items = defaultHomeCheffBrandKit();
+  const items = resolveVisibleBrandKitItems();
 
   const handleInsert = (item: EditorBrandKitItem) => {
     onDocumentChange(insertBrandKitItemOnCanvas(document, item));

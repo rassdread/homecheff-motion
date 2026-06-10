@@ -25,8 +25,8 @@ import { EditorMotionPreviewBar } from "@/components/editor/editor-motion-previe
 import { EditorPosterBuilderPanel } from "@/components/editor/editor-poster-builder-panel";
 import { EditorActionPlanPreview } from "@/components/editor/editor-action-plan-preview";
 import { EditorAssistantSidebar } from "@/components/editor/editor-assistant-sidebar";
-import { EditorCommandBar } from "@/components/editor/editor-command-bar";
-import { EditorQuickActionBar } from "@/components/editor/editor-quick-action-bar";
+import { EditorContextualActionBar } from "@/components/editor/editor-contextual-action-bar";
+import { EditorMagicEditBar } from "@/components/editor/editor-magic-edit-bar";
 import { EditorQuickMotionPanel } from "@/components/editor/editor-quick-motion-panel";
 import { EditorSocialKitPanel } from "@/components/editor/editor-social-kit-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
@@ -125,14 +125,27 @@ import {
   undoCommandHistory,
 } from "@/lib/editor-v7-command-history";
 import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions";
+import { persistCutoutToLibrary } from "@/lib/editor-cutout-library-persist";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
+import { EDITOR_MODE_LABEL_KEYS } from "@/lib/editor-workspace-modes";
+import type {
+  EditorUxV7NoSelectionAction,
+  EditorUxV7ObjectAction,
+} from "@/lib/editor-ux-v7-contextual";
 import {
-  EDITOR_MODE_LABEL_KEYS,
-  modeShowsComposer,
-  modeShowsExportPanel,
-  modeShowsQuickMotion,
-} from "@/lib/editor-workspace-modes";
+  modeShowsAlignmentTools,
+  modeShowsBrandKit,
+  modeShowsComposePanels,
+  modeShowsExportAdvancedPanels,
+  modeShowsExportHub,
+  modeShowsGifExportPanel,
+  modeShowsLibraryPanels,
+  modeShowsMotionPreparePanels,
+  modeShowsMotionPreviewBar,
+  modeShowsPhotoEditObjectPanels,
+  workspaceModeForNoSelectionAction,
+} from "@/lib/editor-ux-v7-workspace";
 import {
   editorAdminCanShowAiAnalysis,
   humanFirstObjectLabelKey,
@@ -160,7 +173,6 @@ import type {
   EditorPosterTemplate,
   EditorSocialPreset,
   EditorV6MotionPreviewPreset,
-  EditorV6QuickAction,
   EditorV7CommandPlan,
   EditorV7CommandPlanStep,
 } from "@/types/homecheff-visual-editor";
@@ -824,7 +836,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const plan = planOneClickCutout(document, selectedLayerId);
     if (!plan.needsSegmentation) {
       persist(plan.document);
-      setSaveMessage(t("editor.v6.cutout.saved" as never));
+      if (plan.downloadUrl) {
+        const saved = await persistCutoutToLibrary(plan.document, plan.downloadUrl);
+        setSaveMessage(t(saved.messageKey as never));
+      } else {
+        setSaveMessage(t("editor.v6.cutout.saved" as never));
+      }
       return;
     }
     setV6Busy(true);
@@ -867,40 +884,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         polygon: result.polygon,
       });
       persist(withLibrary.document);
-      setSaveMessage(t("editor.v6.cutout.saved" as never));
+      const saved = await persistCutoutToLibrary(withLibrary.document, result.cutoutUrl);
+      setSaveMessage(t(saved.messageKey as never));
     } catch {
       setSaveMessage(t("editor.v6.cutout.failed" as never));
     } finally {
       setV6Busy(false);
-    }
-  };
-
-  const handleV6QuickAction = (action: EditorV6QuickAction) => {
-    if (!selectedLayerId || !selectedLayer) {
-      return;
-    }
-    switch (action) {
-      case "replace":
-        setShowMagicReplace(true);
-        break;
-      case "remove":
-        void handleOperation("delete");
-        break;
-      case "duplicate":
-        void handleOperation("duplicate");
-        break;
-      case "animate":
-        persist(attachMotionPreview(document, selectedLayerId, "float"));
-        setMotionPreviewEnabled(true);
-        break;
-      case "save":
-        setShowReview(true);
-        break;
-      case "cutout":
-        void handleOneClickCutout();
-        break;
-      default:
-        break;
     }
   };
 
@@ -1142,6 +1131,63 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           historyCursor: state.history.length,
         },
       });
+    }
+  };
+
+  const handleUxV7NoSelectionAction = (action: EditorUxV7NoSelectionAction) => {
+    const mode = workspaceModeForNoSelectionAction(action);
+    if (mode && action !== "background") {
+      setWorkspaceMode(mode);
+    }
+    if (action === "background") {
+      const bgLayer = document.objects.find((o) => o.layerType === "background");
+      if (bgLayer) {
+        selectLayer(bgLayer.id);
+      }
+    }
+  };
+
+  const handleUxV7ObjectAction = (action: EditorUxV7ObjectAction) => {
+    if (!selectedLayer || !selectedLayerId) {
+      return;
+    }
+    switch (action) {
+      case "replace":
+        setShowMagicReplace(true);
+        break;
+      case "remove":
+        void handleOperation("delete");
+        break;
+      case "cutout":
+        void handleOneClickCutout();
+        break;
+      case "animate":
+        persist(attachMotionPreview(document, selectedLayerId, "float"));
+        setMotionPreviewEnabled(true);
+        break;
+      case "duplicate":
+        void handleOperation("duplicate");
+        break;
+      case "resize":
+        setSaveMessage(t("editor.uxV7.hint.resize" as never));
+        break;
+      case "move":
+        setSaveMessage(t("editor.uxV7.hint.move" as never));
+        break;
+      case "background_replace":
+        handleBackgroundTool("replace");
+        break;
+      case "background_remove":
+        handleBackgroundTool("remove");
+        break;
+      case "background_expand":
+        handleBackgroundTool("expand");
+        break;
+      case "background_blur":
+        handleBackgroundTool("blur");
+        break;
+      default:
+        break;
     }
   };
 
@@ -1396,76 +1442,22 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             saving={saving}
           />
 
-          {!showReview ?
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {EDITOR_WORKSPACE_MODES.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setWorkspaceMode(mode)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                      workspaceMode === mode
-                        ? "bg-[#0067B1] text-white"
-                        : "border border-zinc-300 bg-white text-zinc-800"
-                    }`}
-                  >
-                    {t(EDITOR_MODE_LABEL_KEYS[mode] as never)}
-                  </button>
-                ))}
-              </div>
-
-              {modeShowsComposer(workspaceMode) ?
-                <div className="space-y-2">
-                  <input
-                    ref={composerSourceRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        void handleComposerSourceUpload(file);
-                      }
-                      e.target.value = "";
-                    }}
-                  />
-                  <button
-                    type="button"
-                    disabled={composerUploading}
-                    onClick={() => composerSourceRef.current?.click()}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 disabled:opacity-50"
-                  >
-                    {composerUploading
-                      ? t("editor.v5.composer.uploading" as never)
-                      : t("editor.v5.composer.addSource" as never)}
-                  </button>
-                  <EditorDualComposerPanel document={document} onDocumentChange={persist} />
-                </div>
-              : null}
-
-              {modeShowsQuickMotion(workspaceMode) ?
-                <EditorQuickMotionPanel document={document} onDocumentChange={persist} />
-              : null}
-
-              {modeShowsExportPanel(workspaceMode) ?
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setAdvancedExportOpen((v) => !v)}
-                    className="text-xs font-medium text-zinc-600 underline"
-                  >
-                    {advancedExportOpen
-                      ? t("editor.v5.export.hideAdvanced" as never)
-                      : t("editor.v5.export.showAdvanced" as never)}
-                  </button>
-                  <EditorExportHubPanel
-                    document={document}
-                    onDocumentChange={persist}
-                    advancedOpen={advancedExportOpen}
-                  />
-                </div>
-              : null}
+          {!showReview && uiMode === "advanced" ?
+            <div className="mt-4 flex flex-wrap gap-2">
+              {EDITOR_WORKSPACE_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setWorkspaceMode(mode)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    workspaceMode === mode
+                      ? "bg-[#0067B1] text-white"
+                      : "border border-zinc-300 bg-white text-zinc-800"
+                  }`}
+                >
+                  {t(EDITOR_MODE_LABEL_KEYS[mode] as never)}
+                </button>
+              ))}
             </div>
           : null}
 
@@ -1504,29 +1496,25 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
           {!showReview && uiMode === "visual" ?
             <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
-              <div className="min-w-0 flex-1 space-y-4">
-              <EditorHumanObjectList
-                layers={document.objects}
-                selectedLayerId={selectedLayerId}
-                onSelect={selectLayer}
-              />
-              {selectedLayer && !selectedPlacementId ?
-                <EditorQuickActionBar
-                  layer={selectedLayer}
-                  busy={v6Busy || saving}
-                  onAction={handleV6QuickAction}
-                />
-              : null}
-              <div className="grid gap-4 lg:grid-cols-2">
-                <EditorLibraryDragPanel document={document} onDocumentChange={persist} />
-                <EditorBrandKitPanel document={document} onDocumentChange={persist} />
+              <div className="min-w-0 flex-1 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {EDITOR_WORKSPACE_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setWorkspaceMode(mode)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      workspaceMode === mode
+                        ? "bg-[#0067B1] text-white"
+                        : "border border-zinc-300 bg-white text-zinc-800"
+                    }`}
+                  >
+                    {t(EDITOR_MODE_LABEL_KEYS[mode] as never)}
+                  </button>
+                ))}
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <EditorPosterBuilderPanel document={document} onDocumentChange={persist} />
-                <EditorSocialKitPanel document={document} onDocumentChange={persist} />
-              </div>
-              <EditorHandoffScorePanel document={document} />
-              <EditorCommandBar
+
+              <EditorMagicEditBar
                 busy={v6Busy || saving}
                 suggestions={v7Suggestions}
                 onSubmit={handleV7CommandSubmit}
@@ -1541,9 +1529,23 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   onCancel={handleV7PlanCancel}
                 />
               : null}
+
+              <EditorHumanObjectList
+                layers={document.objects}
+                selectedLayerId={selectedLayerId}
+                onSelect={selectLayer}
+              />
+
+              <EditorContextualActionBar
+                layer={selectedLayer && !selectedPlacementId ? selectedLayer : null}
+                busy={v6Busy || saving}
+                onNoSelectionAction={handleUxV7NoSelectionAction}
+                onObjectAction={handleUxV7ObjectAction}
+              />
+
               <div className="relative mx-auto w-full max-w-4xl">
                 <EditorFloatingToolbar
-                  visible={Boolean(selectedLayer && !selectedPlacementId)}
+                  visible={false}
                   layer={selectedLayer}
                   onAction={handleHumanAction}
                 />
@@ -1604,15 +1606,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 : null}
               </div>
 
-              {selectedLayer && !selectedPlacementId ?
+              {selectedLayer && !selectedPlacementId && modeShowsPhotoEditObjectPanels(workspaceMode, document) ?
                 <>
-                  <EditorMotionPreviewBar
-                    document={document}
-                    layerId={selectedLayerId!}
-                    onDocumentChange={persist}
-                    onPreviewChange={setMotionPreviewEnabled}
-                  />
-                  <EditorAlignmentToolbar onAlign={handleAlignment} />
                   {showMagicReplace ?
                     <EditorMagicReplacePanel
                       document={document}
@@ -1707,8 +1702,107 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                       setSaveMessage(t("editor.sam2.accepted"));
                     }}
                   />
-                  <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
+                  {showAiAnalysis ?
+                    <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
+                  : null}
                 </>
+              : null}
+
+              {modeShowsMotionPreparePanels(document) ?
+                <div className="space-y-3">
+                  <EditorHandoffScorePanel document={document} />
+                  {selectedLayer && selectedLayerId ?
+                    <EditorMotionPreviewBar
+                      document={document}
+                      layerId={selectedLayerId}
+                      onDocumentChange={persist}
+                      onPreviewChange={setMotionPreviewEnabled}
+                    />
+                  : null}
+                </div>
+              : null}
+
+              {modeShowsComposePanels(workspaceMode, document) ?
+                <div className="space-y-3">
+                  <input
+                    ref={composerSourceRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void handleComposerSourceUpload(file);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={composerUploading}
+                    onClick={() => composerSourceRef.current?.click()}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 disabled:opacity-50"
+                  >
+                    {composerUploading
+                      ? t("editor.v5.composer.uploading" as never)
+                      : t("editor.v5.composer.addSource" as never)}
+                  </button>
+                  <EditorDualComposerPanel document={document} onDocumentChange={persist} />
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {modeShowsLibraryPanels(workspaceMode, document) ?
+                      <EditorLibraryDragPanel document={document} onDocumentChange={persist} />
+                    : null}
+                    {modeShowsBrandKit(workspaceMode, document) ?
+                      <EditorBrandKitPanel document={document} onDocumentChange={persist} />
+                    : null}
+                  </div>
+                </div>
+              : null}
+
+              {modeShowsGifExportPanel(workspaceMode, document) ?
+                <div className="space-y-3">
+                  <EditorQuickMotionPanel document={document} onDocumentChange={persist} />
+                  {selectedLayer && selectedLayerId && modeShowsMotionPreviewBar(workspaceMode, document) ?
+                    <EditorMotionPreviewBar
+                      document={document}
+                      layerId={selectedLayerId}
+                      onDocumentChange={persist}
+                      onPreviewChange={setMotionPreviewEnabled}
+                    />
+                  : null}
+                </div>
+              : null}
+
+              {modeShowsExportAdvancedPanels(workspaceMode, document) ?
+                <div className="space-y-3">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <EditorPosterBuilderPanel document={document} onDocumentChange={persist} />
+                    <EditorSocialKitPanel document={document} onDocumentChange={persist} />
+                  </div>
+                  <EditorHandoffScorePanel document={document} />
+                  {modeShowsAlignmentTools(workspaceMode, document) ?
+                    <EditorAlignmentToolbar onAlign={handleAlignment} />
+                  : null}
+                </div>
+              : null}
+
+              {modeShowsExportHub(workspaceMode, document) ?
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedExportOpen((v) => !v)}
+                    className="text-xs font-medium text-zinc-600 underline"
+                  >
+                    {advancedExportOpen
+                      ? t("editor.v5.export.hideAdvanced" as never)
+                      : t("editor.v5.export.showAdvanced" as never)}
+                  </button>
+                  <EditorExportHubPanel
+                    document={document}
+                    onDocumentChange={persist}
+                    advancedOpen={advancedExportOpen}
+                  />
+                </div>
               : null}
 
               {showVisualBody && layerSupportsHumanBodyEdit(document, selectedLayer) ?

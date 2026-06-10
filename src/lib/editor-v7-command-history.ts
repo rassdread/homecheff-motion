@@ -13,7 +13,7 @@ export function defaultAssistantState(): EditorV7AssistantState {
   return {
     history: [],
     historyCursor: -1,
-    sidebarCollapsed: false,
+    sidebarCollapsed: true,
     previewMode: false,
   };
 }

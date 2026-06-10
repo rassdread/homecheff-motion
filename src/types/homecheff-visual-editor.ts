@@ -966,6 +966,8 @@ export type EditorCanvasDocument = {
   studioMotionHandoff?: EditorStudioMotionHandoff;
   productivityState?: EditorV6ProductivityState;
   assistantState?: EditorV7AssistantState;
+  /** Post-upload flow: edit | combine | motion_prepare | export */
+  editorFlowMode?: "edit" | "combine" | "motion_prepare" | "export";
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;
