@@ -143,7 +143,7 @@ export function UniversePlanet({
         />
       )}
 
-      <UniversePlanetSatellites planet={planet} active={active} />
+      <UniversePlanetSatellites planet={planet} active={active} reducedMotion={reducedMotion} />
 
       <span className="sr-only">{href}</span>
     </div>

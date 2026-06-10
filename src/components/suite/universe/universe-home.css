@@ -321,6 +321,60 @@
   white-space: nowrap;
 }
 
+.universe-saturn-ring-svg {
+  pointer-events: none;
+}
+
+.universe-saturn-ring-text {
+  text-transform: uppercase;
+  paint-order: stroke fill;
+  stroke: rgba(4, 20, 40, 0.55);
+  stroke-width: 0.35px;
+}
+
+.universe-globe-world-map {
+  opacity: 0.94;
+  mix-blend-mode: multiply;
+  filter: sepia(0.35) saturate(2.8) hue-rotate(108deg) brightness(0.92) contrast(1.05);
+}
+
+.universe-capability-orbit {
+  transform-style: preserve-3d;
+}
+
+.universe-capability-orbit-spinner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.universe-capability-orbit-spin {
+  animation: universe-capability-orbit-spin 25s linear infinite;
+}
+
+.universe-capability-orbit-label-upright {
+  display: inline-block;
+  animation: universe-capability-orbit-counter 25s linear infinite;
+}
+
+@keyframes universe-capability-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes universe-capability-orbit-counter {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
 @keyframes universe-saturn-y-spin {
   from {
     transform: rotateY(0deg);

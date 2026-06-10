@@ -33,27 +33,25 @@ export const UNIVERSE_PLANET_HOVER_TRANSITION_MS = 350;
 /** Compact orbit cluster — no portal hover zone */
 export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX = 280;
 
-/** Fixed radial slots for capability pills (degrees from top, radius px) */
-const CAPABILITY_SLOTS: { angleDeg: number; radiusPx: number }[] = [
-  { angleDeg: -90, radiusPx: 108 },
-  { angleDeg: -35, radiusPx: 102 },
-  { angleDeg: 15, radiusPx: 108 },
-  { angleDeg: 55, radiusPx: 102 },
-  { angleDeg: 130, radiusPx: 108 },
-  { angleDeg: 175, radiusPx: 102 },
-  { angleDeg: -145, radiusPx: 108 },
-  { angleDeg: -55, radiusPx: 102 },
-];
+/** Rotating capability orbit — 20–30s per revolution */
+export const UNIVERSE_CAPABILITY_ORBIT_DURATION_S = 25;
+export const UNIVERSE_CAPABILITY_ORBIT_RADIUS_PX = 114;
 
+export function resolveCapabilityOrbitAngleDeg(index: number, total: number): number {
+  if (total <= 0) return 0;
+  return (360 / total) * index - 90;
+}
+
+/** @deprecated Static radial slots removed — use rotating capability orbit */
 export function resolveCapabilityRadialSlot(
   index: number,
-  _total: number
+  total: number
 ): { x: number; y: number } {
-  const slot = CAPABILITY_SLOTS[index % CAPABILITY_SLOTS.length]!;
-  const rad = (slot.angleDeg * Math.PI) / 180;
+  const angleDeg = resolveCapabilityOrbitAngleDeg(index, total);
+  const rad = (angleDeg * Math.PI) / 180;
   return {
-    x: Math.cos(rad) * slot.radiusPx,
-    y: Math.sin(rad) * slot.radiusPx,
+    x: Math.cos(rad) * UNIVERSE_CAPABILITY_ORBIT_RADIUS_PX,
+    y: Math.sin(rad) * UNIVERSE_CAPABILITY_ORBIT_RADIUS_PX,
   };
 }
 
@@ -235,4 +233,15 @@ export function allUniversePlanetsHavePreviewContent(): boolean {
       content.previewChipKeys.length === 3
     );
   });
+}
+
+/** Dev visual test — ?universePlanetDebug=editor|studio|... */
+export function resolveUniversePlanetVisualDebug(
+  raw: string | null | undefined
+): UniversePlanetId | null {
+  if (!raw) return null;
+  if (UNIVERSE_PLANETS.some((p) => p.id === raw)) {
+    return raw as UniversePlanetId;
+  }
+  return null;
 }

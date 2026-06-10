@@ -18,7 +18,7 @@ import {
   resolveUniversePlanetHrefs,
   resolveUniverseQuickActionHref,
 } from "@/lib/universe-public-landing";
-import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS } from "@/lib/universe-planet-ux";
+import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, resolveUniversePlanetVisualDebug } from "@/lib/universe-planet-ux";
 import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
 import { resolveUniverseGlobeProjectionDebug } from "@/lib/universe-globe-projection";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
@@ -34,6 +34,14 @@ export function UniverseHomePage() {
     }
     return resolveUniverseGlobeDebugLayer(
       new URLSearchParams(window.location.search).get("universeDebug")
+    );
+  });
+  const [planetVisualDebug] = useState<UniversePlanetId | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    return resolveUniversePlanetVisualDebug(
+      new URLSearchParams(window.location.search).get("universePlanetDebug")
     );
   });
   const [globeProjectionDebug] = useState(() => {
@@ -73,6 +81,8 @@ export function UniverseHomePage() {
 
   const [hoveredPlanet, setHoveredPlanet] = useState<UniversePlanetId | null>(null);
   const [focusedPlanet, setFocusedPlanet] = useState<UniversePlanetId | null>(null);
+  const effectiveHoveredPlanet = planetVisualDebug ?? hoveredPlanet;
+  const effectiveFocusedPlanet = planetVisualDebug ?? focusedPlanet;
   const [tunnelPlanet, setTunnelPlanet] = useState<UniversePlanetConfig | null>(null);
 
   const clearHoverCloseTimer = useCallback(() => {
@@ -163,8 +173,8 @@ export function UniverseHomePage() {
         <div className="hidden w-full md:block">
           <UniverseOrbitSystem
             hrefs={planetHrefs}
-            hoveredPlanet={hoveredPlanet}
-            focusedPlanet={focusedPlanet}
+            hoveredPlanet={effectiveHoveredPlanet}
+            focusedPlanet={effectiveFocusedPlanet}
             reducedMotion={reducedMotion}
             parallax={parallax}
             globeDebugLayer={globeDebugLayer}
@@ -179,8 +189,8 @@ export function UniverseHomePage() {
         <div className="w-full md:hidden">
           <UniverseMobileStack
             hrefs={planetHrefs}
-            expandedPlanet={hoveredPlanet}
-            focusedPlanet={focusedPlanet}
+            expandedPlanet={effectiveHoveredPlanet}
+            focusedPlanet={effectiveFocusedPlanet}
             reducedMotion={reducedMotion}
             onExpand={handlePlanetHoverStart}
             onCollapse={handlePlanetHoverEnd}

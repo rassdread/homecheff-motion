@@ -192,8 +192,9 @@ export function UniverseSaturnRingFront({
   reducedMotion?: boolean;
 }) {
   const label = resolveUniversePlanetLabel(planetId);
-  const ringText = `${label} • ${label} • ${label} • ${label} • `;
+  const ringText = `${label} • ${label} • ${label} • ${label} • ${label} • `;
   const ringVariant = resolveSaturnRingVariant(planetId);
+  const pathId = `universe-saturn-ring-path-${planetId}`;
 
   return (
     <div
@@ -213,20 +214,30 @@ export function UniverseSaturnRingFront({
             }}
           >
             <div className="universe-saturn-band-inner" style={{ borderColor: `${ringVariant.accent}88` }} />
-            <div className="universe-saturn-label-track">
-              <span
-                className="universe-saturn-label"
-                style={{
-                  background: ringVariant.accentSecondary
-                    ? `linear-gradient(90deg, #fff, ${ringVariant.accentSecondary})`
-                    : undefined,
-                  WebkitBackgroundClip: ringVariant.accentSecondary ? "text" : undefined,
-                  WebkitTextFillColor: ringVariant.accentSecondary ? "transparent" : undefined,
-                }}
+            <svg
+              className="universe-saturn-ring-svg absolute inset-0 h-full w-full overflow-visible"
+              viewBox="0 0 200 200"
+              aria-hidden
+            >
+              <defs>
+                <path
+                  id={pathId}
+                  d="M 24 102 A 76 20 0 1 1 176 102"
+                  fill="none"
+                />
+              </defs>
+              <text
+                className="universe-saturn-ring-text"
+                fill="rgba(255,255,255,0.95)"
+                fontSize="10.5"
+                fontWeight="700"
+                letterSpacing="0.28em"
               >
-                {ringText}
-              </span>
-            </div>
+                <textPath href={`#${pathId}`} startOffset="0%">
+                  {ringText}
+                </textPath>
+              </text>
+            </svg>
           </div>
         </div>
       </div>
