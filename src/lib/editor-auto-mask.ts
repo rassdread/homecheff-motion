@@ -50,10 +50,27 @@ export function pickAutoMaskStrategy(sam2Available: boolean, rembgAvailable: boo
 
 export function autoMaskUserMessageKey(strategy: AutoMaskStrategy, success: boolean): string {
   if (success) {
-    return "editor.autoMask.success";
+    return "editor.selectionFix.ready";
   }
   if (strategy === "none") {
     return "editor.autoMask.unavailable";
   }
   return "editor.autoMask.failed";
+}
+
+export function autoMaskProgressMessageKey(
+  phase: "selecting" | "refining" | "ready" | "unavailable" | "failed"
+): string {
+  switch (phase) {
+    case "selecting":
+      return "editor.selectionFix.selecting";
+    case "refining":
+      return "editor.selectionFix.refining";
+    case "ready":
+      return "editor.selectionFix.ready";
+    case "unavailable":
+      return "editor.autoMask.unavailable";
+    case "failed":
+      return "editor.autoMask.failed";
+  }
 }

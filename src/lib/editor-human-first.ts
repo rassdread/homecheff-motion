@@ -49,6 +49,7 @@ export type EditorHumanActionId =
   | "attach_logo"
   | "expand"
   | "animate"
+  | "refine_selection"
   | "more";
 
 export type EditorHumanAction = {

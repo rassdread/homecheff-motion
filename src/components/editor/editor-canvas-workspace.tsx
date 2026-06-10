@@ -131,11 +131,16 @@ import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
 import { parseCompositorLayerId } from "@/lib/editor-compositor";
 import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
 import {
+  autoMaskProgressMessageKey,
   autoMaskUserMessageKey,
-  layerBoundsCenter,
   pickAutoMaskStrategy,
   shouldAutoAcquireMask,
 } from "@/lib/editor-auto-mask";
+import {
+  normalizeSelectLayerOptions,
+  resolveAutoMaskClickPoint,
+  type SelectLayerOptions,
+} from "@/lib/editor-selection-pipeline";
 import { applyBackgroundRemovalResult, findPrimarySubjectLayer } from "@/lib/editor-background-remove";
 import { useEditorProjectPersist } from "@/hooks/use-editor-project-persist";
 import { updateImportedLayer } from "@/lib/editor-imported-layers";
@@ -308,19 +313,25 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const tryAutoAcquireMask = async (layer: NonNullable<typeof selectedLayer>) => {
+  const tryAutoAcquireMask = async (
+    layer: NonNullable<typeof selectedLayer>,
+    userClickPoint?: EditorShapePoint | null
+  ) => {
     if (!shouldAutoAcquireMask(layer) || autoMaskInFlightRef.current === layer.id) {
       return;
     }
     const strategy = pickAutoMaskStrategy(sam2Available === true, rembgAvailable);
+    setSaveMessage(t(autoMaskProgressMessageKey("selecting") as never));
     if (strategy === "none") {
+      setSaveMessage(t(autoMaskProgressMessageKey("unavailable") as never));
       return;
     }
     autoMaskInFlightRef.current = layer.id;
     setRefiningSelection(true);
+    setSaveMessage(t(autoMaskProgressMessageKey("refining") as never));
     try {
       if (strategy === "sam2") {
-        const clickPoint = layerBoundsCenter(layer);
+        const clickPoint = resolveAutoMaskClickPoint(layer, userClickPoint);
         const res = await fetch("/api/editor/segment/click", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -386,7 +397,55 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const selectLayer = (layerId: string, partId: string | null = null) => {
+  const selectLayer = (
+    layerId: string,
+    options?: SelectLayerOptions | string | null
+  ) => {
+    const { partId, clickPoint } = normalizeSelectLayerOptions(options);
+    let nextDocument = document;
+    const rootObject = (document.detectedObjects ?? []).find((o) => o.layerId === layerId);
+    const current = document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
+
+    if (rootObject) {
+      if (partId) {
+        const hierarchy = document.objectHierarchies?.[rootObject.id];
+        const part = hierarchy?.parts.find((p) => p.id === partId);
+        nextDocument = {
+          ...document,
+          hierarchicalSelection: {
+            mode: "part",
+            rootObjectId: rootObject.id,
+            selectedPartId: partId,
+          },
+        };
+        if (part) {
+          setSaveMessage(t("editor.visionV4.partSelected" as never, { name: part.label }));
+        }
+      } else if (
+        current.rootObjectId === rootObject.id &&
+        current.mode === "object" &&
+        partSupportsHierarchy(rootObject)
+      ) {
+        nextDocument = {
+          ...document,
+          hierarchicalSelection: enterPartSelectionMode(current, rootObject.id),
+        };
+        setSaveMessage(t("editor.visionV4.partModeHint" as never));
+      } else {
+        nextDocument = {
+          ...document,
+          hierarchicalSelection: {
+            mode: "object",
+            rootObjectId: rootObject.id,
+            selectedPartId: null,
+          },
+        };
+      }
+      if (nextDocument !== document) {
+        nextDocument = persist(nextDocument);
+      }
+    }
+
     setSelectedLayerId(layerId);
     setSelectedPlacementId(null);
     setPanelMode("layer");
@@ -394,76 +453,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     if (uiMode === "visual") {
       setShowActionMenu(true);
     }
-    const layer = document.objects.find((o) => o.id === layerId) ?? null;
+
+    const layer = nextDocument.objects.find((o) => o.id === layerId) ?? null;
     if (layer && shouldAutoAcquireMask(layer)) {
-      void tryAutoAcquireMask(layer);
+      void tryAutoAcquireMask(layer, clickPoint);
+    } else if (layer) {
+      setSaveMessage(t(autoMaskProgressMessageKey("selecting") as never));
     }
-    if (partId) {
-      const rootObject = document.detectedObjects?.find((o) => o.layerId === layerId);
-      if (rootObject) {
-        persist({
-          ...document,
-          hierarchicalSelection: {
-            mode: "part",
-            rootObjectId: rootObject.id,
-            selectedPartId: partId,
-          },
-        });
-      }
-    }
-  };
-
-  const handleHierarchicalPick = (layerId: string, partId: string | null) => {
-    const rootObject = (document.detectedObjects ?? []).find((o) => o.layerId === layerId);
-    if (!rootObject) {
-      selectLayer(layerId);
-      return;
-    }
-
-    const current = document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
-
-    if (partId) {
-      const hierarchy = document.objectHierarchies?.[rootObject.id];
-      const part = hierarchy?.parts.find((p) => p.id === partId);
-      persist({
-        ...document,
-        hierarchicalSelection: {
-          mode: "part",
-          rootObjectId: rootObject.id,
-          selectedPartId: partId,
-        },
-      });
-      setSelectedLayerId(layerId);
-      if (part) {
-        setSaveMessage(t("editor.visionV4.partSelected" as never, { name: part.label }));
-      }
-      return;
-    }
-
-    if (
-      current.rootObjectId === rootObject.id &&
-      current.mode === "object" &&
-      partSupportsHierarchy(rootObject)
-    ) {
-      persist({
-        ...document,
-        hierarchicalSelection: enterPartSelectionMode(current, rootObject.id),
-      });
-      setSelectedLayerId(layerId);
-      setSaveMessage(t("editor.visionV4.partModeHint" as never));
-      return;
-    }
-
-    persist({
-      ...document,
-      hierarchicalSelection: {
-        mode: "object",
-        rootObjectId: rootObject.id,
-        selectedPartId: null,
-      },
-    });
-    setSelectedLayerId(layerId);
-    setShowActionMenu(true);
   };
 
   const handleSavePartToLibrary = () => {
@@ -721,6 +717,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           })
         );
       }
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "refine_selection") {
+      handleStartPreciseSelect();
       setShowActionMenu(false);
       return;
     }
@@ -1370,6 +1371,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
     switch (action) {
+      case "refine_selection":
+        handleStartPreciseSelect();
+        break;
       case "replace": {
         const gate = evaluateEditorMaskGate(selectedLayer);
         if (!gate.allowed) {
@@ -1878,8 +1882,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   onPreciseSelectCancel={() => setPreciseSelectActive(false)}
                   hierarchicalSelection={hierarchicalSelection}
                   objectHierarchies={document.objectHierarchies}
-                  onHierarchicalPick={handleHierarchicalPick}
                   selectedPartId={selectedPartId}
+                  selectionRefining={refiningSelection}
                   motionPreviewEnabled={motionPreviewEnabled}
                   onLibraryAssetDrop={handleLibraryAssetDrop}
                   showAlignmentGuides={document.productivityState?.showAlignmentGuides}

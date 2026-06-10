@@ -396,16 +396,26 @@ function mockMascotLayer(): EditorCanvasLayer {
   };
 }
 
-export function canvasClickUsesHierarchicalPick(): boolean {
+export function canvasClickUsesUnifiedSelectLayer(): boolean {
   const preview = readFileSync(
     join(process.cwd(), "src/components/editor/editor-canvas-preview.tsx"),
     "utf8"
   );
-  return preview.includes("onHierarchicalPick(hit.layerId");
+  return (
+    preview.includes("onSelectLayer(hit.layerId") &&
+    preview.includes("clickPoint") &&
+    !preview.includes("onHierarchicalPick")
+  );
 }
 
+/** @deprecated Fixed in Selection Fix Sprint — canvas click now uses selectLayer */
+export function canvasClickUsesHierarchicalPick(): boolean {
+  return !canvasClickUsesUnifiedSelectLayer();
+}
+
+/** @deprecated Fixed in Selection Fix Sprint */
 export function canvasClickBypassesAutoMask(): boolean {
-  return canvasClickUsesHierarchicalPick() && autoMaskOnlyInSelectLayer();
+  return !canvasClickUsesUnifiedSelectLayer();
 }
 
 /** True when tryAutoAcquireMask appears only inside selectLayer, not handleHierarchicalPick. */
@@ -438,7 +448,19 @@ export function approximateOutlineHidden(): boolean {
     join(process.cwd(), "src/components/editor/editor-selection-outline.tsx"),
     "utf8"
   );
-  return source.includes("!approximate") && source.includes("return null");
+  return source.includes("showContour = Boolean(contour") && source.includes("return null");
+}
+
+export function approximateOutlineVisibleAfterFix(): boolean {
+  return !approximateOutlineHidden() && selectionOutlineShowsApproximateFromFix();
+}
+
+function selectionOutlineShowsApproximateFromFix(): boolean {
+  const source = readFileSync(
+    join(process.cwd(), "src/components/editor/editor-selection-outline.tsx"),
+    "utf8"
+  );
+  return source.includes("boundsToPolygon(layer.bounds)") && source.includes("strokeDasharray={approximate");
 }
 
 export function computeSelectionRealityScore(): SelectionRealityScore {

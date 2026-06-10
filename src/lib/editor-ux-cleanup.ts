@@ -8,6 +8,10 @@ import {
   type EditorObjectKind,
   type EditorUiMode,
 } from "@/lib/editor-human-first";
+import {
+  humanActionRequiresPixelMask,
+  layerShowsRefineAction,
+} from "@/lib/editor-selection-pipeline";
 import { isTechnicalEditorTerm, sanitizeEditorUserLabel } from "@/lib/editor-part-human-labels";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 
@@ -105,6 +109,7 @@ const ACTION_READINESS: Partial<Record<EditorHumanActionId, EditReadiness>> = {
   attach_logo: "partially_works",
   expand: "placeholder",
   animate: "partially_works",
+  refine_selection: "works_live",
   more: "works_live",
 };
 
@@ -237,6 +242,26 @@ export function filterHumanVisibleActions(actions: EditorHumanAction[]): EditorH
   );
 }
 
+function gateHumanActions(layer: EditorCanvasLayer, picked: EditorHumanAction[]): EditorHumanAction[] {
+  const gated = picked.filter((action) => {
+    if (humanActionRequiresPixelMask(action.id)) {
+      return !layerShowsRefineAction(layer);
+    }
+    return true;
+  });
+  if (layerShowsRefineAction(layer)) {
+    return [
+      {
+        id: "refine_selection",
+        labelKey: "editor.selectionFix.refine",
+        icon: "✨",
+      },
+      ...gated,
+    ];
+  }
+  return gated;
+}
+
 export function resolveContextualHumanActions(layer: EditorCanvasLayer | null): EditorHumanAction[] {
   if (!layer) {
     return [];
@@ -251,17 +276,23 @@ export function resolveContextualHumanActions(layer: EditorCanvasLayer | null): 
       "remove",
     ];
     const picked = actions.filter((a) => characterActions.includes(a.id));
-    return filterHumanVisibleActions(picked);
+    return filterHumanVisibleActions(gateHumanActions(layer, picked));
   }
   if (resolveHumanFirstObjectType(layer) === "text") {
     return filterHumanVisibleActions(
-      actions.filter((a) => ["move", "resize", "remove"].includes(a.id))
+      gateHumanActions(
+        layer,
+        actions.filter((a) => ["move", "resize", "remove"].includes(a.id))
+      )
     );
   }
   if (kind === "logo") {
     return filterHumanVisibleActions(
-      actions.filter((a) =>
-        ["logo_replace", "logo_move", "logo_resize", "remove"].includes(a.id)
+      gateHumanActions(
+        layer,
+        actions.filter((a) =>
+          ["logo_replace", "logo_move", "logo_resize", "remove"].includes(a.id)
+        )
       )
     );
   }
@@ -272,7 +303,7 @@ export function resolveContextualHumanActions(layer: EditorCanvasLayer | null): 
       )
     );
   }
-  return filterHumanVisibleActions(actions);
+  return filterHumanVisibleActions(gateHumanActions(layer, actions));
 }
 
 export function resolveContextualToolbarActionIds(

@@ -64,16 +64,32 @@ describe("Editor UX V7", () => {
     assert.ok(actions.includes("export"));
   });
 
-  it("character object shows replace remove cutout duplicate (animate hidden until compositor GIF)", () => {
+  it("character without mask shows refine cutout duplicate (not replace)", () => {
     const actions = resolveUxV7ObjectActions(mockLayer());
+    assert.deepEqual(actions, ["refine_selection", "cutout", "duplicate"]);
+  });
+
+  it("character with mask shows replace remove cutout duplicate", () => {
+    const actions = resolveUxV7ObjectActions(
+      mockLayer({
+        selectionShape: {
+          selectionMode: "mask",
+          maskUrl: "https://example.com/mask.png",
+          boundingBox: { x: 0.2, y: 0.2, width: 0.35, height: 0.45 },
+          confidence: 0.9,
+          segmentationSource: "sam2",
+        },
+        metadata: { estimatedBounds: false, approximateSelection: false },
+      })
+    );
     assert.deepEqual(actions, ["replace", "remove", "cutout", "duplicate"]);
   });
 
-  it("logo object shows replace resize move remove", () => {
+  it("logo without mask shows refine resize move (not replace)", () => {
     const actions = resolveUxV7ObjectActions(
       mockLayer({ label: "Logo", category: "logo", semanticType: "logo" })
     );
-    assert.deepEqual(actions, ["replace", "resize", "move", "remove"]);
+    assert.deepEqual(actions, ["refine_selection", "resize", "move"]);
   });
 
   it("background object shows background tools only", () => {

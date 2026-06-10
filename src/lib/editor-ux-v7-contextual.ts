@@ -1,6 +1,10 @@
 import type { TranslationKey } from "@/i18n";
 import { isUxV7ObjectActionHidden } from "@/lib/editor-broken-features";
 import { resolveEditorObjectKind } from "@/lib/editor-human-first";
+import {
+  layerShowsRefineAction,
+  uxV7ActionAllowed,
+} from "@/lib/editor-selection-pipeline";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 
@@ -15,6 +19,7 @@ export const EDITOR_UX_V7_NO_SELECTION_ACTIONS = [
 export type EditorUxV7NoSelectionAction = (typeof EDITOR_UX_V7_NO_SELECTION_ACTIONS)[number];
 
 export const EDITOR_UX_V7_OBJECT_ACTIONS = [
+  "refine_selection",
   "replace",
   "remove",
   "cutout",
@@ -39,6 +44,7 @@ export const EDITOR_UX_V7_NO_SELECTION_LABEL_KEYS: Record<EditorUxV7NoSelectionA
 };
 
 export const EDITOR_UX_V7_OBJECT_ACTION_LABEL_KEYS: Record<EditorUxV7ObjectAction, TranslationKey> = {
+  refine_selection: "editor.selectionFix.refine",
   replace: "editor.uxV7.action.replace",
   remove: "editor.uxV7.action.remove",
   cutout: "editor.uxV7.action.cutout",
@@ -79,6 +85,17 @@ function filterVisibleUxV7Actions(actions: EditorUxV7ObjectAction[]): EditorUxV7
   return actions.filter((action) => !isUxV7ObjectActionHidden(action));
 }
 
+function gateUxV7Actions(
+  layer: EditorCanvasLayer,
+  actions: EditorUxV7ObjectAction[]
+): EditorUxV7ObjectAction[] {
+  const gated = actions.filter((action) => uxV7ActionAllowed(layer, action));
+  if (layerShowsRefineAction(layer)) {
+    return ["refine_selection", ...gated];
+  }
+  return gated;
+}
+
 export function resolveUxV7ObjectActions(layer: EditorCanvasLayer | null): EditorUxV7ObjectAction[] {
   if (!layer) {
     return [];
@@ -87,29 +104,31 @@ export function resolveUxV7ObjectActions(layer: EditorCanvasLayer | null): Edito
   const humanType = resolveHumanFirstObjectType(layer);
   const kind = resolveEditorObjectKind(layer);
 
+  let base: EditorUxV7ObjectAction[];
   if (layer.layerType === "background" || humanType === "background") {
-    return filterVisibleUxV7Actions(BACKGROUND_ACTIONS);
-  }
-  if (humanType === "logo" || kind === "logo") {
-    return filterVisibleUxV7Actions(LOGO_ACTIONS);
-  }
-  if (humanType === "text") {
-    return filterVisibleUxV7Actions(TEXT_ACTIONS);
-  }
-  if (
+    base = filterVisibleUxV7Actions(BACKGROUND_ACTIONS);
+  } else if (humanType === "logo" || kind === "logo") {
+    base = filterVisibleUxV7Actions(LOGO_ACTIONS);
+  } else if (humanType === "text") {
+    base = filterVisibleUxV7Actions(TEXT_ACTIONS);
+  } else if (
     humanType === "character" ||
     humanType === "globe" ||
     kind === "person" ||
     kind === "character" ||
     kind === "mascot"
   ) {
-    return filterVisibleUxV7Actions(CHARACTER_ACTIONS);
+    base = filterVisibleUxV7Actions(CHARACTER_ACTIONS);
+  } else {
+    base = filterVisibleUxV7Actions(["replace", "remove", "duplicate"]);
   }
-  return filterVisibleUxV7Actions(["replace", "remove", "duplicate"]);
+  return gateUxV7Actions(layer, base);
 }
 
 export function uxV7ObjectActionIcon(action: EditorUxV7ObjectAction): string {
   switch (action) {
+    case "refine_selection":
+      return "✨";
     case "replace":
     case "background_replace":
       return "🔄";

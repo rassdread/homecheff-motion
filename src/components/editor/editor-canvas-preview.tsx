@@ -41,7 +41,10 @@ type Props = {
   selectedPlacementId: string | null;
   showBodyGuide?: boolean;
   humanFirst?: boolean;
-  onSelectLayer: (layerId: string) => void;
+  onSelectLayer: (
+    layerId: string,
+    options?: { partId?: string | null; clickPoint?: EditorShapePoint }
+  ) => void;
   onSelectPlacement: (placementId: string) => void;
   onMoveLayer: (layerId: string, x: number, y: number) => void;
   onMovePlacement: (placementId: string, x: number, y: number) => void;
@@ -58,8 +61,8 @@ type Props = {
   onPreciseSelectCancel?: () => void;
   hierarchicalSelection?: EditorHierarchicalSelectionState;
   objectHierarchies?: Record<string, EditorObjectHierarchy>;
-  onHierarchicalPick?: (layerId: string, partId: string | null) => void;
   selectedPartId?: string | null;
+  selectionRefining?: boolean;
   motionPreviewEnabled?: boolean;
   onLibraryAssetDrop?: (payload: LibraryDragPayload) => void;
   showAlignmentGuides?: boolean;
@@ -91,8 +94,8 @@ export function EditorCanvasPreview({
   onPreciseSelectCancel,
   hierarchicalSelection,
   objectHierarchies,
-  onHierarchicalPick,
   selectedPartId = null,
+  selectionRefining = false,
   motionPreviewEnabled = false,
   onLibraryAssetDrop,
   showAlignmentGuides = false,
@@ -112,14 +115,26 @@ export function EditorCanvasPreview({
 
   const pickAtClient = (clientX: number, clientY: number, rect: DOMRect) => {
     const point = clientPointToNormalized(clientX, clientY, rect);
-    if (selection && onHierarchicalPick) {
+    if (selection) {
       const result = pickHierarchicalAtPoint(point, detectedObjects, hierarchies, selection);
       if (result) {
-        return { layerId: result.rootObject.layerId, partId: result.part?.id ?? null, result };
+        return {
+          layerId: result.rootObject.layerId,
+          partId: result.part?.id ?? null,
+          clickPoint: point,
+          result,
+        };
       }
     }
     const hit = pickTopEditorObjectAtPoint(point, detectedObjects);
-    return hit ? { layerId: hit.object.layerId, partId: null as string | null, result: null } : null;
+    return hit
+      ? {
+          layerId: hit.object.layerId,
+          partId: null as string | null,
+          clickPoint: point,
+          result: null,
+        }
+      : null;
   };
 
   const activeHierarchy =
@@ -178,11 +193,10 @@ export function EditorCanvasPreview({
         const rect = event.currentTarget.getBoundingClientRect();
         const hit = pickAtClient(event.clientX, event.clientY, rect);
         if (hit) {
-          if (onHierarchicalPick) {
-            onHierarchicalPick(hit.layerId, hit.partId);
-          } else {
-            onSelectLayer(hit.layerId);
-          }
+          onSelectLayer(hit.layerId, {
+            partId: hit.partId,
+            clickPoint: hit.clickPoint,
+          });
         }
       }}
     >
@@ -204,6 +218,7 @@ export function EditorCanvasPreview({
             selected={selectedLayerId === layer.id && !selectedPartId}
             hovered={hoveredLayerId === layer.id && !hoveredPartId}
             humanFirst={humanFirst}
+            refining={selectionRefining && selectedLayerId === layer.id && !selectedPartId}
           />
         ))}
         {selection?.mode === "part" && activeHierarchy ?
@@ -285,14 +300,22 @@ export function EditorCanvasPreview({
         const canScale = isEditorOperationAllowed(layer, "scale");
         const canRotate = isEditorOperationAllowed(layer, "rotate");
         const approximate = isApproximateEditorSelection(layer);
+        const refining = selectionRefining && selected;
+        const precise = !approximate;
         const estimated = approximate || (!humanFirst && layer.metadata?.estimatedBounds);
         const lowConfidence = !humanFirst && (layer.confidence ?? 1) < 0.55;
+        const borderClass =
+          refining
+            ? "border-2 border-dashed border-zinc-400 animate-pulse"
+            : precise
+              ? "border-2 border-emerald-500"
+              : "border-2 border-dashed border-zinc-400";
         const { x, y, scale, rotation } = layer.transform;
         return (
           <div
             key={layer.id}
             data-editor-transform-handle
-            className={`absolute touch-none ${canMove ? "cursor-move" : "cursor-pointer"}`}
+            className={`absolute touch-none rounded-lg ${borderClass} ${canMove ? "cursor-move" : "cursor-pointer"}`}
             style={{
               left: `${x * 100}%`,
               top: `${y * 100}%`,
@@ -304,7 +327,11 @@ export function EditorCanvasPreview({
             }}
             onPointerDown={(event) => {
               event.stopPropagation();
-              onSelectLayer(layer.id);
+              const parentRect = event.currentTarget.parentElement?.getBoundingClientRect();
+              const clickPoint = parentRect
+                ? clientPointToNormalized(event.clientX, event.clientY, parentRect)
+                : undefined;
+              onSelectLayer(layer.id, { clickPoint });
               if (!canMove) {
                 return;
               }

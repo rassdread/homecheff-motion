@@ -10,8 +10,9 @@ import {
   SELECTION_MODE_FREQUENCY,
   UX_FAILURE_ANALYSIS,
   approximateOutlineHidden,
-  autoMaskOnlyInSelectLayer,
+  approximateOutlineVisibleAfterFix,
   canvasClickBypassesAutoMask,
+  canvasClickUsesUnifiedSelectLayer,
   computeSelectionRealityScore,
   freshMascotBlockedFromPixelEdit,
   freshMascotClickUsesPolygonRectangleHit,
@@ -33,10 +34,9 @@ describe("Editor Selection Reality Audit", () => {
     assert.ok(SELECTION_MODE_FREQUENCY[0]!.percent >= 50);
   });
 
-  it("canvas click bypasses auto-mask acquisition", () => {
-    assert.equal(canvasClickBypassesAutoMask(), true);
-    assert.equal(autoMaskOnlyInSelectLayer(), true);
-    assert.equal(AUTO_MASK_REALITY.triggersOnCanvasClick, false);
+  it("canvas click uses unified selectLayer after fix sprint", () => {
+    assert.equal(canvasClickBypassesAutoMask(), false);
+    assert.equal(canvasClickUsesUnifiedSelectLayer(), true);
   });
 
   it("fresh mascot click hits polygon-rectangle on approximate layer", () => {
@@ -44,8 +44,9 @@ describe("Editor Selection Reality Audit", () => {
     assert.equal(freshMascotBlockedFromPixelEdit(), true);
   });
 
-  it("approximate selection hides SVG contour", () => {
-    assert.equal(approximateOutlineHidden(), true);
+  it("approximate selection shows grey SVG contour after fix sprint", () => {
+    assert.equal(approximateOutlineHidden(), false);
+    assert.equal(approximateOutlineVisibleAfterFix(), true);
   });
 
   it("globe man detection matrix covers eight parts", () => {

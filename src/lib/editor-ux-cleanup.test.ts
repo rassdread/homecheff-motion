@@ -87,8 +87,10 @@ describe("Editor UX Cleanup V1", () => {
     const characterActions = resolveContextualHumanActions(character).map((a) => a.id);
     const logoActions = resolveContextualHumanActions(logo).map((a) => a.id);
     assert.equal(characterActions.includes("edit_appearance"), false);
-    assert.ok(characterActions.includes("remove"));
-    assert.ok(logoActions.includes("logo_replace"));
+    assert.ok(characterActions.includes("refine_selection"));
+    assert.ok(!characterActions.includes("remove"));
+    assert.ok(logoActions.includes("refine_selection"));
+    assert.ok(!logoActions.includes("logo_replace"));
     assert.ok(!logoActions.includes("edit_appearance"));
   });
 
