@@ -1,4 +1,9 @@
+import {
+  pickPromptSubObjectAtPoint,
+  realSubLayerCategoriesAtPoint,
+} from "@/lib/editor-sub-object-layer";
 import { maskHitTest, pickTopEditorObjectAtPoint, polygonHitTest, bboxHitTest } from "@/lib/editor-object-picking";
+import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 import type {
   EditorHierarchicalSelectionState,
   EditorObject,
@@ -78,13 +83,36 @@ function partHitTest(point: EditorShapePoint, part: EditorObjectPart): boolean {
 
 export function pickPartAtPoint(
   point: EditorShapePoint,
-  hierarchy: EditorObjectHierarchy
+  hierarchy: EditorObjectHierarchy,
+  options?: { blockedCategories?: Set<string> }
 ): EditorObjectPart | null {
   const visible = hierarchy.parts.filter((p) => p.visible);
   const hits = visible.filter((p) => partHitTest(point, p));
-  if (hits.length === 0) return null;
-  hits.sort((a, b) => a.bbox.width * a.bbox.height - b.bbox.width * b.bbox.height);
-  return hits[0] ?? null;
+  if (hits.length === 0) {
+    return null;
+  }
+  const blocked = options?.blockedCategories;
+  const filtered = hits.filter((part) => {
+    if (!part.estimatedBounds) {
+      return true;
+    }
+    if (blocked?.has(part.partCategory)) {
+      return false;
+    }
+    const hasNonEstimated = hits.some(
+      (other) => !other.estimatedBounds && other.partCategory === part.partCategory
+    );
+    return !hasNonEstimated;
+  });
+  const candidates = filtered.length > 0 ? filtered : hits;
+  candidates.sort((a, b) => {
+    const estimatedDiff = Number(a.estimatedBounds) - Number(b.estimatedBounds);
+    if (estimatedDiff !== 0) {
+      return estimatedDiff;
+    }
+    return a.bbox.width * a.bbox.height - b.bbox.width * b.bbox.height;
+  });
+  return candidates[0] ?? null;
 }
 
 export function hoverPartsAtPoint(
@@ -103,19 +131,32 @@ export function pickHierarchicalAtPoint(
   point: EditorShapePoint,
   objects: EditorObject[],
   hierarchies: Record<string, EditorObjectHierarchy>,
-  selection: EditorHierarchicalSelectionState
+  selection: EditorHierarchicalSelectionState,
+  layers?: EditorCanvasLayer[]
 ): HierarchicalPickResult | null {
+  const promptSubObject =
+    layers ? pickPromptSubObjectAtPoint(point, objects, layers) : null;
+  if (promptSubObject) {
+    return { rootObject: promptSubObject, part: null, mode: "object" };
+  }
+
   if (selection.mode === "part" && selection.rootObjectId) {
     const root = objects.find((o) => o.id === selection.rootObjectId);
     const hierarchy = hierarchies[selection.rootObjectId];
     if (root && hierarchy) {
-      const part = pickPartAtPoint(point, hierarchy);
+      const blockedCategories =
+        layers ?
+          new Set([...realSubLayerCategoriesAtPoint(point, objects, layers)])
+        : undefined;
+      const part = pickPartAtPoint(point, hierarchy, { blockedCategories });
       return { rootObject: root, part, mode: "part" };
     }
   }
 
   const hit = pickTopEditorObjectAtPoint(point, objects);
-  if (!hit) return null;
+  if (!hit) {
+    return null;
+  }
   return { rootObject: hit.object, part: null, mode: "object" };
 }
 

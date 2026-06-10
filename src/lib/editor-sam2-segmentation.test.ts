@@ -53,7 +53,7 @@ describe("editor SAM2 click-to-segment", () => {
     const route = readFileSync("src/app/api/editor/segment/click/route.ts", "utf8");
     assert.match(route, /clickPoint/);
     assert.match(route, /requireActiveUser/);
-    assert.match(route, /SAM2_UNAVAILABLE/);
+    assert.match(route, /segmentByClick/);
   });
 
   it("clampNormalizedPoint maps client coordinates", () => {

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { segmentationProviderAvailable } from "@/lib/premium-foreground-segmentation";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { isReplicateConfigured } from "@/server/admin/replicate-client";
 import { getSam2ServiceStatus } from "@/server/editor/sam2-click-segment";
+import { getEditorSegmentationProviderStatus } from "@/server/editor/editor-segmentation-provider";
 
 export const runtime = "nodejs";
 
@@ -13,6 +12,8 @@ export async function GET() {
   }
 
   const status = getSam2ServiceStatus();
+  const providers = getEditorSegmentationProviderStatus();
+
   return NextResponse.json({
     sam2PreciseSelection: status.available ? "available" : "unavailable",
     sam2Health: status.health,
@@ -21,13 +22,12 @@ export async function GET() {
     averageLatencyMs: status.averageLatencyMs ?? null,
     recentFailureRate: status.recentFailureRate ?? null,
     lastHealthCheckAt: status.lastHealthCheckAt ?? null,
-    rembgAvailable: segmentationProviderAvailable("rembg"),
-    replicateConfigured: isReplicateConfigured(),
-    replicateSam3Available: isReplicateConfigured(),
-    autoMaskProviderAvailable:
-      status.available ||
-      segmentationProviderAvailable("rembg") ||
-      isReplicateConfigured(),
+    rembgAvailable: providers.rembg,
+    replicateConfigured: providers.replicate,
+    replicateSam3Available: providers.replicate,
+    primarySegmentProvider: providers.primary,
+    autoMaskProviderAvailable: providers.primary !== "none",
+    providerPriority: ["replicate_sam3", "sam2", "rembg", "heuristic"],
     fallbacks: status.fallbacks,
   });
 }

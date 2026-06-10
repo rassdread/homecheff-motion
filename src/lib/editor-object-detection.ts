@@ -1,4 +1,5 @@
-import { boundsToPolygon } from "@/lib/editor-object-mask";
+import { boundsToPolygon, editorLayerHasPreciseShape } from "@/lib/editor-object-mask";
+import { isPromptCreatedSubLayer, promptToPartCategory } from "@/lib/editor-sub-object-layer";
 import { classifyEditorSemanticFeature } from "@/lib/editor-semantic-layer-taxonomy";
 import type { AssetVisionObjectType } from "@/types/studio-asset-vision-analysis";
 import type {
@@ -73,6 +74,20 @@ function resolveObjectCategory(
   return "unknown";
 }
 
+function layerZIndexBoost(layer: EditorCanvasLayer): number {
+  let boost = 0;
+  if (layer.parentObjectId) {
+    boost += 100;
+  }
+  if (editorLayerHasPreciseShape(layer) && layer.selectionShape?.selectionMode === "mask") {
+    boost += 150;
+  }
+  if (isPromptCreatedSubLayer(layer) && editorLayerHasPreciseShape(layer)) {
+    boost += 250;
+  }
+  return boost;
+}
+
 function layerToEditorObject(
   layer: EditorCanvasLayer,
   zIndex: number,
@@ -80,6 +95,7 @@ function layerToEditorObject(
 ): EditorObject {
   const shape = layer.selectionShape;
   const polygon = shape?.polygon ?? boundsToPolygon(layer.bounds);
+  const segmentPrompt = layer.metadata?.segmentPrompt;
   return {
     id: `obj_${layer.id}`,
     layerId: layer.id,
@@ -90,8 +106,9 @@ function layerToEditorObject(
     polygon,
     bbox: shape?.boundingBox ?? layer.bounds,
     category: resolveObjectCategory(layer, visionObjectType),
-    zIndex,
-    parentId: layer.parentObjectId,
+    zIndex: zIndex + layerZIndexBoost(layer),
+    parentId: layer.parentObjectId ?? layer.metadata?.parentLayerId,
+    partCategory: segmentPrompt ? promptToPartCategory(segmentPrompt) : undefined,
     visible: layer.visible,
     locked: layer.locked,
   };

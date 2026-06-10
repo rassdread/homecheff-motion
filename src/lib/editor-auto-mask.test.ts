@@ -30,10 +30,11 @@ describe("editor-auto-mask", () => {
     assert.equal(shouldAutoAcquireMask(mockLayer({ layerType: "background" })), false);
   });
 
-  it("prefers SAM2 over rembg", () => {
-    assert.equal(pickAutoMaskStrategy(true, true), "sam2");
-    assert.equal(pickAutoMaskStrategy(false, true), "rembg");
-    assert.equal(pickAutoMaskStrategy(false, false), "none");
+  it("prefers Replicate over SAM2 over rembg", () => {
+    assert.equal(pickAutoMaskStrategy(true, true, true), "replicate");
+    assert.equal(pickAutoMaskStrategy(false, true, true), "sam2");
+    assert.equal(pickAutoMaskStrategy(false, false, true), "rembg");
+    assert.equal(pickAutoMaskStrategy(false, false, false), "none");
   });
 
   it("computes bbox center for click segment", () => {

@@ -21,7 +21,11 @@ import {
   clientPointToNormalized,
   pickTopEditorObjectAtPoint,
 } from "@/lib/editor-object-picking";
-import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
+import {
+  editorLayerHasPreciseShape,
+  isApproximateEditorSelection,
+} from "@/lib/editor-object-mask";
+import { isPromptCreatedSubLayer } from "@/lib/editor-sub-object-layer";
 import { animationProfileFromV6Preset } from "@/lib/editor-v6-motion-preview";
 import type { LibraryDragPayload } from "@/lib/editor-v6-library-drag";
 import { EditorCompositorOverlays } from "@/components/editor/editor-compositor-overlays";
@@ -70,6 +74,7 @@ type Props = {
   onSelectCompositorLayer?: (compositorId: string) => void;
   onMoveCompositorLayer?: (compositorId: string, x: number, y: number) => void;
   onEmptyCanvasClick?: (point: EditorShapePoint) => void;
+  onApproximateLayerClick?: (point: EditorShapePoint, parentLayerId: string) => void;
 };
 
 export function EditorCanvasPreview({
@@ -104,6 +109,7 @@ export function EditorCanvasPreview({
   onSelectCompositorLayer,
   onMoveCompositorLayer,
   onEmptyCanvasClick,
+  onApproximateLayerClick,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -118,7 +124,13 @@ export function EditorCanvasPreview({
   const pickAtClient = (clientX: number, clientY: number, rect: DOMRect) => {
     const point = clientPointToNormalized(clientX, clientY, rect);
     if (selection) {
-      const result = pickHierarchicalAtPoint(point, detectedObjects, hierarchies, selection);
+      const result = pickHierarchicalAtPoint(
+        point,
+        detectedObjects,
+        hierarchies,
+        selection,
+        document.objects
+      );
       if (result) {
         return {
           layerId: result.rootObject.layerId,
@@ -195,6 +207,27 @@ export function EditorCanvasPreview({
         const rect = event.currentTarget.getBoundingClientRect();
         const hit = pickAtClient(event.clientX, event.clientY, rect);
         if (hit) {
+          const layer = document.objects.find((o) => o.id === hit.layerId);
+          const preciseSubLayer =
+            layer &&
+            isPromptCreatedSubLayer(layer) &&
+            editorLayerHasPreciseShape(layer);
+          const approximateParent = layer && isApproximateEditorSelection(layer);
+          const estimatedTemplatePart = hit.partId && hit.result?.part?.estimatedBounds;
+
+          if (preciseSubLayer || (layer && editorLayerHasPreciseShape(layer) && !approximateParent)) {
+            onSelectLayer(hit.layerId, {
+              partId: null,
+              clickPoint: hit.clickPoint,
+            });
+            return;
+          }
+
+          if (approximateParent || estimatedTemplatePart) {
+            onApproximateLayerClick?.(hit.clickPoint, hit.layerId);
+            return;
+          }
+
           onSelectLayer(hit.layerId, {
             partId: hit.partId,
             clickPoint: hit.clickPoint,

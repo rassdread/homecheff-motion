@@ -12,7 +12,7 @@ type Props = {
   busy?: boolean;
 };
 
-const PROMPT_SUGGESTIONS = ["logo", "globe", "person", "text", "product"] as const;
+const PROMPT_SUGGESTIONS = ["logo", "globe", "tie", "person", "text", "product"] as const;
 
 export function EditorClickSegmentPrompt({
   clickPoint,

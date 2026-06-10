@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
-import { segmentEditorLayer } from "@/server/editor/segment-editor-layer";
+import { requireActiveUser } from "@/server/auth/permissions";
+import {
+  removeBackground,
+  segmentByPrompt,
+} from "@/server/editor/editor-segmentation-provider";
 import type { EditorCanvasBounds } from "@/types/homecheff-visual-editor";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 type SegmentBody = {
   sourceUrl?: string;
   sessionId?: string;
   mode?: "refine" | "remove_background";
   targetBounds?: EditorCanvasBounds;
+  objectHint?: string;
+  prompt?: string;
 };
 
 export async function POST(request: Request) {
+  const user = await requireActiveUser();
+  if (user instanceof NextResponse) {
+    return user;
+  }
+
   let body: SegmentBody;
   try {
     body = (await request.json()) as SegmentBody;
@@ -26,16 +38,48 @@ export async function POST(request: Request) {
 
   const mode = body.mode === "remove_background" ? "remove_background" : "refine";
   const sessionId = body.sessionId?.trim() || "anonymous";
-  const uploadPathPrefix = `editor/segments/${sessionId}`;
 
   try {
-    const result = await segmentEditorLayer({
-      sourceUrl,
-      uploadPathPrefix,
-      mode,
-      targetBounds: body.targetBounds,
+    if (mode === "remove_background") {
+      const result = await removeBackground({
+        userId: user.id,
+        sourceUrl,
+        sessionId,
+        subjectPrompt: body.prompt ?? body.objectHint ?? "person",
+        targetBounds: body.targetBounds,
+      });
+      return NextResponse.json({
+        ...result,
+        providerUsed: result.providerUsed,
+      });
+    }
+
+    const promptResult = await segmentByPrompt({
+      userId: user.id,
+      imageUrl: sourceUrl,
+      prompt: body.prompt ?? body.objectHint ?? "person",
+      sessionId,
+      editorObjectId: "refine",
+      createCutout: false,
     });
-    return NextResponse.json(result);
+
+    if (!promptResult.ok) {
+      return NextResponse.json({ error: promptResult.error }, { status: 503 });
+    }
+
+    const { result } = promptResult;
+    return NextResponse.json({
+      maskUrl: result.maskUrl,
+      cutoutUrl: result.cutoutUrl,
+      polygon: result.polygon,
+      boundingBox: result.boundingBox,
+      confidence: result.confidence,
+      segmentationSource: result.segmentationSource,
+      alphaMask: result.alphaMask,
+      providerUsed: result.providerUsed,
+      predictionId: result.predictionId,
+      runtimeMs: result.runtimeMs,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Segmentation failed.";
     return NextResponse.json({ error: message }, { status: 500 });

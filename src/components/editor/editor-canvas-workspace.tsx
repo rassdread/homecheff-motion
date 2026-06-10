@@ -144,6 +144,18 @@ import {
   resolveAutoMaskClickPoint,
   type SelectLayerOptions,
 } from "@/lib/editor-selection-pipeline";
+import {
+  applyEditorSegmentApiShape,
+  type EditorSegmentApiShape,
+} from "@/lib/editor-apply-segment-result";
+import {
+  applySegmentToSubObjectLayer,
+  attachSubObjectLayer,
+  createSubObjectLayer,
+  resolveParentLayerAtClick,
+  segmentPromptSuccessMessageKey,
+} from "@/lib/editor-sub-object-layer";
+import { EditorSelectionVerificationPanel } from "@/components/admin/editor-selection-verification-panel";
 import { applyBackgroundRemovalResult, findPrimarySubjectLayer } from "@/lib/editor-background-remove";
 import { useEditorProjectPersist } from "@/hooks/use-editor-project-persist";
 import { updateImportedLayer } from "@/lib/editor-imported-layers";
@@ -240,6 +252,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [replicateAvailable, setReplicateAvailable] = useState(false);
   const [autoMaskProviderAvailable, setAutoMaskProviderAvailable] = useState(false);
   const [clickSegmentPoint, setClickSegmentPoint] = useState<EditorShapePoint | null>(null);
+  const [clickSegmentParentLayerId, setClickSegmentParentLayerId] = useState<string | null>(null);
   const [clickSegmentBusy, setClickSegmentBusy] = useState(false);
   const bootstrapRanRef = useRef(false);
   const autoMaskInFlightRef = useRef<string | null>(null);
@@ -360,7 +373,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     if (!shouldAutoAcquireMask(layer) || autoMaskInFlightRef.current === layer.id) {
       return;
     }
-    const strategy = pickAutoMaskStrategy(sam2Available === true, rembgAvailable);
+    const strategy = pickAutoMaskStrategy(
+      replicateAvailable,
+      sam2Available === true,
+      rembgAvailable
+    );
     setSaveMessage(t(autoMaskProgressMessageKey("selecting") as never));
     if (strategy === "none") {
       setSaveMessage(t(autoMaskProgressMessageKey("unavailable") as never));
@@ -370,7 +387,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setRefiningSelection(true);
     setSaveMessage(t(autoMaskProgressMessageKey("refining") as never));
     try {
-      if (strategy === "sam2") {
+      if (strategy === "replicate" || strategy === "sam2") {
         const clickPoint = resolveAutoMaskClickPoint(layer, userClickPoint);
         const res = await fetch("/api/editor/segment/click", {
           method: "POST",
@@ -381,14 +398,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             clickPoint,
             targetBounds: layer.bounds,
             objectHint: layer.label,
+            category: layer.category,
+            semanticType: layer.semanticType,
+            label: layer.label,
             editorObjectId: layer.id,
             sessionId: document.sessionId,
             createCutout: true,
           }),
         });
         if (res.ok) {
-          const result = (await res.json()) as Parameters<typeof applySam2ShapeToLayer>[0];
-          applySam2ShapeToLayer(result, layer.id, layer);
+          const result = (await res.json()) as EditorSegmentApiShape;
+          applySegmentShapeToLayer(result, layer.id, layer);
           setSaveMessage(t(autoMaskUserMessageKey(strategy, true) as never));
           return;
         }
@@ -549,25 +569,120 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     return next.objects.find((o) => o.id === layer.id) ?? layer;
   };
 
-  const handleEmptyCanvasClick = (point: EditorShapePoint) => {
+  const openClickSegmentPrompt = (point: EditorShapePoint, parentLayerId?: string | null) => {
     setClickSegmentPoint(point);
+    setClickSegmentParentLayerId(parentLayerId ?? null);
+  };
+
+  const dismissClickSegmentPrompt = () => {
+    setClickSegmentPoint(null);
+    setClickSegmentParentLayerId(null);
+  };
+
+  const handleEmptyCanvasClick = (point: EditorShapePoint) => {
+    openClickSegmentPrompt(point);
+  };
+
+  const handleApproximateLayerClick = (point: EditorShapePoint, parentLayerId: string) => {
+    openClickSegmentPrompt(point, parentLayerId);
+  };
+
+  const runPromptSubLayerSegmentation = async (input: {
+    point: EditorShapePoint;
+    prompt: string;
+    parentLayerId: string | null;
+    labelOverride?: string;
+  }) => {
+    if (!autoMaskProviderAvailable && !replicateAvailable) {
+      setSaveMessage(t("editor.clickSegment.providerUnavailable" as never));
+      return;
+    }
+
+    const parentLayer =
+      input.parentLayerId ?
+        (document.objects.find((o) => o.id === input.parentLayerId) ?? null)
+      : resolveParentLayerAtClick(
+          document.objects,
+          input.point,
+          document.detectedObjects ?? []
+        );
+
+    const childStub = createSubObjectLayer({
+      point: input.point,
+      prompt: input.prompt,
+      sourceKind: document.sourceKind,
+      sourceAssetId: document.sourceAssetId,
+      backgroundStorageKey: document.backgroundStorageKey,
+      backgroundUrl: document.backgroundUrl,
+      parentLayer,
+      labelOverride: input.labelOverride,
+    });
+
+    const res = await fetch("/api/editor/segment/click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageUrl: document.backgroundUrl,
+        backgroundStorageKey: document.backgroundStorageKey,
+        clickPoint: input.point,
+        objectHint: input.prompt,
+        targetBounds: parentLayer?.bounds,
+        editorObjectId: childStub.id,
+        parentLayerId: parentLayer?.id,
+        sessionId: document.sessionId,
+        createCutout: true,
+      }),
+    });
+
+    if (!res.ok) {
+      setSaveMessage(t("editor.clickSegment.failed" as never));
+      return;
+    }
+
+    const result = (await res.json()) as EditorSegmentApiShape & { maskUrl?: string };
+    if (!result.maskUrl) {
+      setSaveMessage(t("editor.clickSegment.failed" as never));
+      return;
+    }
+
+    const withSegment = applySegmentToSubObjectLayer(childStub, result);
+    const objects = attachSubObjectLayer(document.objects, withSegment);
+    const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
+    const next = persist({
+      ...document,
+      objects,
+      detectedObjects,
+      hierarchicalSelection: {
+        mode: "object",
+        rootObjectId: `obj_${withSegment.id}`,
+        selectedPartId: null,
+      },
+    });
+    setSelectedLayerId(withSegment.id);
+    setSaveMessage(t(segmentPromptSuccessMessageKey(input.prompt) as never));
+    return next.objects.find((o) => o.id === withSegment.id) ?? withSegment;
   };
 
   const handleClickSegmentObject = async () => {
     if (!clickSegmentPoint) {
       return;
     }
-    if (!autoMaskProviderAvailable && !replicateAvailable) {
-      setSaveMessage(t("editor.clickSegment.providerUnavailable" as never));
-      setClickSegmentPoint(null);
-      return;
-    }
     setClickSegmentBusy(true);
     const point = clickSegmentPoint;
-    setClickSegmentPoint(null);
-    const layer = addClickPickLayer(point, t("editor.clickSegment.pickLabel" as never));
-    await tryAutoAcquireMask(layer, point);
-    setClickSegmentBusy(false);
+    const parentLayerId = clickSegmentParentLayerId;
+    dismissClickSegmentPrompt();
+    try {
+      await runPromptSubLayerSegmentation({
+        point,
+        prompt: "object",
+        parentLayerId,
+        labelOverride: t("editor.clickSegment.pickLabel" as never),
+      });
+    } catch {
+      setSaveMessage(t("editor.clickSegment.failed" as never));
+    } finally {
+      setClickSegmentBusy(false);
+    }
   };
 
   const handleClickSegmentPrompt = async (prompt: string) => {
@@ -576,66 +691,10 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
     setClickSegmentBusy(true);
     const point = clickSegmentPoint;
-    setClickSegmentPoint(null);
+    const parentLayerId = clickSegmentParentLayerId;
+    dismissClickSegmentPrompt();
     try {
-      if (replicateAvailable) {
-        const res = await fetch("/api/editor/segment/prompt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl: document.backgroundUrl,
-            prompt,
-          }),
-        });
-        if (res.ok) {
-          const result = (await res.json()) as {
-            maskUrl?: string;
-            boundingBox?: { x: number; y: number; width: number; height: number } | null;
-            polygon?: EditorShapePoint[];
-            confidence?: number;
-          };
-          const bounds = result.boundingBox ?? {
-            x: Math.max(0, point.x - 0.1),
-            y: Math.max(0, point.y - 0.1),
-            width: 0.2,
-            height: 0.2,
-          };
-          const layer: EditorCanvasLayer = {
-            ...createClickPickLayer(point, prompt),
-            bounds,
-            label: prompt.charAt(0).toUpperCase() + prompt.slice(1),
-            transform: {
-              x: bounds.x + bounds.width / 2,
-              y: bounds.y + bounds.height / 2,
-              scale: 1,
-              rotation: 0,
-            },
-          };
-          const objects = [...document.objects, layer];
-          const shape = createMaskSelectionShape({
-            bounds,
-            maskUrl: result.maskUrl,
-            polygon: result.polygon ?? [],
-            confidence: result.confidence ?? 0.7,
-            segmentationSource: "rembg",
-          });
-          const withShape = applyEditorSelectionShape(layer, shape);
-          const detectedObjects = syncDetectedObjectsOnDocument(
-            objects.map((o) => (o.id === layer.id ? withShape : o)),
-            document.detectedObjects
-          );
-          persist({
-            ...document,
-            objects: objects.map((o) => (o.id === layer.id ? withShape : o)),
-            detectedObjects,
-          });
-          setSelectedLayerId(layer.id);
-          setSaveMessage(t("editor.selectionFix.ready" as never));
-          return;
-        }
-      }
-      const layer = addClickPickLayer(point, prompt);
-      await tryAutoAcquireMask(layer, point);
+      await runPromptSubLayerSegmentation({ point, prompt, parentLayerId });
     } catch {
       setSaveMessage(t("editor.clickSegment.failed" as never));
     } finally {
@@ -644,7 +703,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const handleClickSegmentOutline = () => {
-    setClickSegmentPoint(null);
+    dismissClickSegmentPrompt();
     setLassoActive(true);
   };
 
@@ -988,31 +1047,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const applySam2ShapeToLayer = (
-    result: {
-      maskUrl?: string;
-      cutoutUrl?: string;
-      polygon: EditorShapePoint[];
-      boundingBox: { x: number; y: number; width: number; height: number };
-      confidence: number;
-      maskStorageKey?: string;
-    },
+  const applySegmentShapeToLayer = (
+    result: EditorSegmentApiShape,
     layerId: string,
-    layer: NonNullable<typeof selectedLayer>
+    layer: EditorCanvasLayer
   ) => {
-    const shape = createMaskSelectionShape({
-      bounds: result.boundingBox,
-      maskUrl: result.maskUrl,
-      maskStorageKey: result.maskStorageKey,
-      cutoutUrl: result.cutoutUrl,
-      polygon: result.polygon,
-      confidence: result.confidence,
-      segmentationSource: "sam2",
-    });
-    let next = applyEditorSelectionShape(layer, shape);
-    if (result.cutoutUrl) {
-      next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
-    }
+    const next = applyEditorSegmentApiShape(layer, result);
     const patched = patchEditorLayerFields(document, layerId, next);
     const detectedObjects = syncDetectedObjectsOnDocument(patched.objects, document.detectedObjects);
     const editorObject = findEditorObjectByLayerId(detectedObjects, layerId);
@@ -1036,7 +1076,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       cutoutAssets,
     });
     setSam2RefineVisible(true);
-    setSaveMessage(t("editor.sam2.success"));
+    const provider = result.providerUsed ?? result.segmentationSource ?? "sam2";
+    setSaveMessage(
+      provider === "replicate_sam3"
+        ? t("editor.replicate.segmentSuccess" as never)
+        : t("editor.sam2.success")
+    );
   };
 
   const runSam2ClickSegment = async (clickPoint: EditorShapePoint) => {
@@ -1056,13 +1101,20 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           negativePoints: sam2NegativePoints,
           targetBounds: selectedLayer.bounds,
           objectHint: selectedLayer.label,
+          category: selectedLayer.category,
+          semanticType: selectedLayer.semanticType,
+          label: selectedLayer.label,
           editorObjectId: selectedLayerId,
           sessionId: document.sessionId,
           createCutout: true,
         }),
       });
       if (res.status === 503) {
-        setSaveMessage(t("editor.sam2.unavailable"));
+        setSaveMessage(
+          replicateAvailable
+            ? t("editor.replicate.unavailable" as never)
+            : t("editor.sam2.unavailable")
+        );
         setPreciseSelectActive(false);
         return;
       }
@@ -1071,8 +1123,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         setSaveMessage(err?.error ?? t("editor.sam2.failed"));
         return;
       }
-      const result = (await res.json()) as Parameters<typeof applySam2ShapeToLayer>[0];
-      applySam2ShapeToLayer(result, selectedLayerId, selectedLayer);
+      const result = (await res.json()) as EditorSegmentApiShape;
+      applySegmentShapeToLayer(result, selectedLayerId, selectedLayer);
       setPreciseSelectActive(false);
       setPreciseSelectMode("initial");
     } catch {
@@ -1092,7 +1144,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const handleStartPreciseSelect = () => {
-    if (sam2Available === false) {
+    if (!replicateAvailable && sam2Available === false) {
       setSaveMessage(t("editor.sam2.unavailable"));
       return;
     }
@@ -1191,6 +1243,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           clickPoint,
           targetBounds: selectedLayer.bounds,
           objectHint: selectedLayer.label,
+          category: selectedLayer.category,
+          semanticType: selectedLayer.semanticType,
+          label: selectedLayer.label,
           editorObjectId: selectedLayerId,
           sessionId: document.sessionId,
           createCutout: true,
@@ -1200,17 +1255,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         setSaveMessage(t("editor.v6.cutout.failed" as never));
         return;
       }
-      const result = (await res.json()) as {
-        cutoutUrl?: string;
-        maskUrl?: string;
-        maskStorageKey?: string;
-        polygon?: EditorShapePoint[];
-      };
+      const result = (await res.json()) as EditorSegmentApiShape;
       if (!result.cutoutUrl) {
         setSaveMessage(t("editor.v6.cutout.failed" as never));
         return;
       }
-      applySam2ShapeToLayer(result as Parameters<typeof applySam2ShapeToLayer>[0], selectedLayerId, selectedLayer);
+      applySegmentShapeToLayer(result as EditorSegmentApiShape, selectedLayerId, selectedLayer);
       const latest = loadEditorCanvasDocument(document.sessionId) ?? document;
       const withLibrary = applySegmentCutoutToDocument(latest, selectedLayerId, {
         cutoutUrl: result.cutoutUrl,
@@ -2023,14 +2073,20 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               />
 
               {isAdmin ?
-                <p className="text-xs text-zinc-500">
-                  {t("editor.detectionBootstrap.providerStatus" as never, {
-                    sam2: sam2Available ? "OK" : "—",
-                    rembg: rembgAvailable ? "OK" : "—",
-                    replicate: replicateAvailable ? "OK" : "—",
-                    autoMask: autoMaskProviderAvailable ? "OK" : "—",
-                  })}
-                </p>
+                <>
+                  <p className="text-xs text-zinc-500">
+                    {t("editor.detectionBootstrap.providerStatus" as never, {
+                      sam2: sam2Available ? "OK" : "—",
+                      rembg: rembgAvailable ? "OK" : "—",
+                      replicate: replicateAvailable ? "OK" : "—",
+                      autoMask: autoMaskProviderAvailable ? "OK" : "—",
+                    })}
+                  </p>
+                  <EditorSelectionVerificationPanel
+                    layer={selectedLayer}
+                    primaryProvider={replicateAvailable ? "replicate_sam3" : sam2Available ? "sam2" : rembgAvailable ? "rembg" : null}
+                  />
+                </>
               : null}
 
               {clickSegmentPoint ?
@@ -2040,7 +2096,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   onSelectObject={() => void handleClickSegmentObject()}
                   onSelectWithPrompt={(prompt) => void handleClickSegmentPrompt(prompt)}
                   onOutline={handleClickSegmentOutline}
-                  onDismiss={() => setClickSegmentPoint(null)}
+                  onDismiss={dismissClickSegmentPrompt}
                 />
               : null}
 
@@ -2065,6 +2121,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   humanFirst
                   onSelectLayer={selectLayer}
                   onEmptyCanvasClick={handleEmptyCanvasClick}
+                  onApproximateLayerClick={handleApproximateLayerClick}
                   onSelectPlacement={selectPlacement}
                   onMoveLayer={(layerId, x, y) => persist(patchEditorLayerTransform(document, layerId, { x, y }))}
                   onMovePlacement={(placementId, x, y) =>
@@ -2436,6 +2493,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 humanFirst={false}
                 onSelectLayer={selectLayer}
                 onEmptyCanvasClick={handleEmptyCanvasClick}
+                onApproximateLayerClick={handleApproximateLayerClick}
                 onSelectPlacement={selectPlacement}
                 onMoveLayer={(layerId, x, y) => persist(patchEditorLayerTransform(document, layerId, { x, y }))}
                 onMovePlacement={(placementId, x, y) =>

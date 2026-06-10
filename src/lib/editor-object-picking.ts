@@ -1,6 +1,14 @@
 import { boundsToPolygon } from "@/lib/editor-object-mask";
 import type { EditorCanvasBounds, EditorObject, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
+function bboxArea(bbox: EditorCanvasBounds): number {
+  return bbox.width * bbox.height;
+}
+
+function isPromptCreatedSubObject(object: EditorObject): boolean {
+  return Boolean(object.parentId && object.mask);
+}
+
 export type EditorPickHitMethod = "mask" | "polygon" | "bbox" | "none";
 
 export type EditorPickResult = {
@@ -121,6 +129,17 @@ export function pickTopEditorObjectAtPoint(
     const methodDiff = METHOD_PRIORITY[b.method] - METHOD_PRIORITY[a.method];
     if (methodDiff !== 0) {
       return methodDiff;
+    }
+    const aPromptSub = isPromptCreatedSubObject(a.object);
+    const bPromptSub = isPromptCreatedSubObject(b.object);
+    if (aPromptSub !== bPromptSub) {
+      return aPromptSub ? -1 : 1;
+    }
+    if (a.method === "mask" && b.method === "mask") {
+      const areaDiff = bboxArea(a.object.bbox) - bboxArea(b.object.bbox);
+      if (areaDiff !== 0) {
+        return areaDiff;
+      }
     }
     const zDiff = b.object.zIndex - a.object.zIndex;
     if (zDiff !== 0) {

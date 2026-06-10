@@ -53,6 +53,17 @@ export function auditEditorSegmentationProviders(): EditorSegmentationStrategy {
       productionReady: true,
     },
     {
+      provider: "replicate_sam3",
+      qualityScore: 8,
+      speedScore: 5,
+      costScore: 6,
+      providesMasks: true,
+      providesPolygons: true,
+      providesMultiObject: true,
+      notes: "Replicate SAM3 text-prompt segmentation — primary production path when REPLICATE_API_TOKEN set",
+      productionReady: envSet("REPLICATE_API_TOKEN"),
+    },
+    {
       provider: "rembg",
       qualityScore: 7,
       speedScore: 6,
@@ -60,7 +71,7 @@ export function auditEditorSegmentationProviders(): EditorSegmentationStrategy {
       providesMasks: true,
       providesPolygons: true,
       providesMultiObject: false,
-      notes: "Full-image alpha mask via REMBG_API_URL — good for foreground/background split",
+      notes: "Full-image alpha mask via REMBG_API_URL — fallback after Replicate",
       productionReady: envSet("REMBG_API_URL"),
     },
     {
@@ -114,8 +125,13 @@ export function auditEditorSegmentationProviders(): EditorSegmentationStrategy {
   const fastest = [...providers].sort((a, b) => b.speedScore - a.speedScore)[0];
   const lowestCost = [...providers].sort((a, b) => b.costScore - a.costScore)[0];
 
+  const replicateReady = envSet("REPLICATE_API_TOKEN");
   const rembgReady = envSet("REMBG_API_URL");
-  const recommended: EditorSegmentationSource = rembgReady ? "rembg" : "heuristic";
+  const recommended: EditorSegmentationSource = replicateReady
+    ? "replicate_sam3"
+    : rembgReady
+      ? "rembg"
+      : "heuristic";
 
   return {
     recommended,
@@ -127,8 +143,10 @@ export function auditEditorSegmentationProviders(): EditorSegmentationStrategy {
       ? "manual"
       : (bestQuality?.provider as EditorSegmentationSource) ?? "manual",
     providers,
-    productionPath: rembgReady
-      ? "Vision labels (multi-object) → heuristic bboxes → rembg on refine/remove → manual lasso fallback"
-      : "Vision labels (multi-object) → heuristic bboxes → manual lasso for precision (no rembg cost)",
+    productionPath: replicateReady
+      ? "Vision labels → Replicate SAM3 on select/click/prompt → SAM2/REMBG fallback → manual lasso"
+      : rembgReady
+        ? "Vision labels → heuristic bboxes → rembg on refine/remove → manual lasso fallback"
+        : "Vision labels → heuristic bboxes → manual lasso for precision",
   };
 }

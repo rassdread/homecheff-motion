@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { clampNormalizedPoint } from "@/lib/editor-sam2-segmentation";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { segmentEditorClickWithSam2 } from "@/server/editor/sam2-click-segment";
+import { segmentByClick } from "@/server/editor/editor-segmentation-provider";
 import type { EditorCanvasBounds, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 type ClickBody = {
   imageUrl?: string;
@@ -15,6 +16,9 @@ type ClickBody = {
   positivePoints?: EditorShapePoint[];
   negativePoints?: EditorShapePoint[];
   objectHint?: string;
+  category?: string;
+  semanticType?: string;
+  label?: string;
   editorObjectId?: string;
   sessionId?: string;
   createCutout?: boolean;
@@ -56,39 +60,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "clickPoint { x, y } is required (normalized 0–1)." }, { status: 400 });
   }
 
-  const result = await segmentEditorClickWithSam2({
+  const result = await segmentByClick({
     userId: user.id,
     backgroundStorageKey: body.backgroundStorageKey,
-    request: {
-      imageUrl: body.imageUrl,
-      imageBase64: body.imageBase64,
-      clickPoint,
-      targetBounds: body.targetBounds,
-      positivePoints: parsePoints(body.positivePoints),
-      negativePoints: parsePoints(body.negativePoints),
-      objectHint: body.objectHint,
-      editorObjectId: body.editorObjectId,
-      sessionId: body.sessionId,
-      createCutout: body.createCutout,
-    },
+    imageUrl: body.imageUrl,
+    imageBase64: body.imageBase64,
+    clickPoint,
+    targetBounds: body.targetBounds,
+    positivePoints: parsePoints(body.positivePoints),
+    negativePoints: parsePoints(body.negativePoints),
+    objectHint: body.objectHint,
+    category: body.category,
+    semanticType: body.semanticType,
+    label: body.label,
+    editorObjectId: body.editorObjectId,
+    sessionId: body.sessionId,
+    createCutout: body.createCutout,
   });
 
   if (!result.ok) {
-    const status =
-      result.code === "SAM2_UNAVAILABLE" ? 503
-      : result.code === "VALIDATION" ? 400
-      : 502;
+    const status = result.code === "SEGMENT_UNAVAILABLE" ? 503 : 502;
     return NextResponse.json(
       {
         error: result.message,
         code: result.code,
-        fallbacks: ["manual_lasso", "rembg_foreground", "approximate_box"],
+        fallbacks: result.fallbacks,
       },
       { status }
     );
   }
 
-  const { shape } = result;
+  const { shape, result: providerResult } = result;
   return NextResponse.json({
     selectionMode: shape.selectionMode,
     maskUrl: shape.maskUrl,
@@ -99,5 +101,8 @@ export async function POST(request: Request) {
     confidence: shape.confidence,
     maskStorageKey: shape.maskStorageKey,
     alphaMask: shape.alphaMask,
+    providerUsed: providerResult.providerUsed,
+    predictionId: providerResult.predictionId,
+    runtimeMs: providerResult.runtimeMs,
   });
 }

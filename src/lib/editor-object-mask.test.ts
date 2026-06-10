@@ -134,6 +134,6 @@ describe("editor object mask selection", () => {
 
   it("segment API route exists", () => {
     const route = readFileSync("src/app/api/editor/segment/route.ts", "utf8");
-    assert.match(route, /segmentEditorLayer/);
+    assert.match(route, /segmentByPrompt|removeBackground/);
   });
 });

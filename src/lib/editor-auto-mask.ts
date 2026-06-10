@@ -13,7 +13,7 @@ const AUTO_MASK_OBJECT_TYPES = new Set([
   "text",
 ]);
 
-export type AutoMaskStrategy = "sam2" | "rembg" | "none";
+export type AutoMaskStrategy = "replicate" | "sam2" | "rembg" | "none";
 
 export function layerBoundsCenter(layer: EditorCanvasLayer): EditorShapePoint {
   const b = layer.bounds;
@@ -38,7 +38,14 @@ export function shouldAutoAcquireMask(layer: EditorCanvasLayer | null | undefine
   return layer.layerType === "semantic";
 }
 
-export function pickAutoMaskStrategy(sam2Available: boolean, rembgAvailable: boolean): AutoMaskStrategy {
+export function pickAutoMaskStrategy(
+  replicateAvailable: boolean,
+  sam2Available: boolean,
+  rembgAvailable: boolean
+): AutoMaskStrategy {
+  if (replicateAvailable) {
+    return "replicate";
+  }
   if (sam2Available) {
     return "sam2";
   }

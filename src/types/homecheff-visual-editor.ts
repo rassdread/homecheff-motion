@@ -142,6 +142,7 @@ export const EDITOR_SEGMENTATION_SOURCES = [
   "heuristic",
   "rembg",
   "sam2",
+  "replicate_sam3",
   "manual",
 ] as const;
 
@@ -200,6 +201,7 @@ export const EDITOR_SEMANTIC_LAYER_SOURCES = [
   "manual",
   "generated",
   "composition_graph",
+  "segment_prompt",
 ] as const;
 
 export type EditorSemanticLayerSource = (typeof EDITOR_SEMANTIC_LAYER_SOURCES)[number];
@@ -220,6 +222,14 @@ export type EditorSemanticLayerMetadata = {
   taxonomyKey?: string;
   bootstrapRegion?: boolean;
   rawFeature?: string;
+  /** True when layer was created from EditorClickSegmentPrompt segmentation. */
+  promptCreatedSubLayer?: boolean;
+  segmentPrompt?: string;
+  parentLayerId?: string;
+  /** Admin debug — last segmentation provider that produced the mask. */
+  lastSegmentProvider?: string;
+  lastSegmentPredictionId?: string;
+  lastSegmentRuntimeMs?: number;
 };
 
 export type EditorSemanticLayer = {
