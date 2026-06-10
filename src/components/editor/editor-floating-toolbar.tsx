@@ -1,40 +1,41 @@
 "use client";
 
 import type { TranslationKey } from "@/i18n";
+import { resolveContextualToolbarActionIds } from "@/lib/editor-ux-cleanup";
 import type { EditorHumanActionId } from "@/lib/editor-human-first";
 import { useActiveTranslator } from "@/i18n/client";
-
-const TOOLBAR_ACTIONS: EditorHumanActionId[] = [
-  "edit_appearance",
-  "replace",
-  "remove",
-  "prepare_animation",
-  "background_replace",
-  "duplicate",
-  "more",
-];
+import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 
 type Props = {
   visible: boolean;
+  layer: EditorCanvasLayer | null;
   onAction: (actionId: EditorHumanActionId) => void;
 };
 
-export function EditorFloatingToolbar({ visible, onAction }: Props) {
+const LABELS: Partial<Record<EditorHumanActionId, TranslationKey>> = {
+  edit_appearance: "editor.human.toolbar.edit",
+  replace: "editor.human.toolbar.replace",
+  remove: "editor.human.toolbar.remove",
+  prepare_animation: "editor.human.toolbar.animate",
+  background_replace: "editor.human.action.replaceBackground",
+  background_cleanup: "editor.human.action.cleanup",
+  duplicate: "editor.human.action.duplicate",
+  logo_replace: "editor.human.action.replace",
+  logo_move: "editor.human.action.move",
+  logo_resize: "editor.human.action.resize",
+  move: "editor.human.action.move",
+  resize: "editor.human.action.resize",
+  more: "editor.human.toolbar.more",
+};
+
+export function EditorFloatingToolbar({ visible, layer, onAction }: Props) {
   const t = useActiveTranslator();
 
-  if (!visible) {
+  if (!visible || !layer) {
     return null;
   }
 
-  const labels: Record<string, TranslationKey> = {
-    edit_appearance: "editor.human.toolbar.edit",
-    replace: "editor.human.toolbar.replace",
-    remove: "editor.human.toolbar.remove",
-    prepare_animation: "editor.human.toolbar.animate",
-    background_replace: "editor.human.action.replaceBackground",
-    duplicate: "editor.human.action.duplicate",
-    more: "editor.human.toolbar.more",
-  };
+  const actions = resolveContextualToolbarActionIds(layer);
 
   return (
     <div
@@ -42,14 +43,14 @@ export function EditorFloatingToolbar({ visible, onAction }: Props) {
       role="toolbar"
       aria-label={t("editor.human.toolbar.label")}
     >
-      {TOOLBAR_ACTIONS.map((id) => (
+      {actions.map((id) => (
         <button
           key={id}
           type="button"
           onClick={() => onAction(id)}
           className="rounded-full px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0067B1]"
         >
-          {t(labels[id]!)}
+          {t(LABELS[id] ?? ("editor.human.toolbar.more" as TranslationKey))}
         </button>
       ))}
     </div>

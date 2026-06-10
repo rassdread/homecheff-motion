@@ -6,6 +6,7 @@ import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorFloatingToolbar } from "@/components/editor/editor-floating-toolbar";
+import { EditorHumanObjectList } from "@/components/editor/editor-human-object-list";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
 import { EditorObjectActionMenu } from "@/components/editor/editor-object-action-menu";
@@ -22,6 +23,7 @@ import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { buildEditorSavePayload } from "@/lib/editor-canvas-export";
@@ -73,6 +75,7 @@ import {
   markEditorLayerAnimationReady,
   resolveEditorAiSuggestions,
   resolveEditorHumanActions,
+  resolveEditorObjectKind,
   type EditorHumanActionId,
   type EditorUiMode,
 } from "@/lib/editor-human-first";
@@ -102,6 +105,13 @@ import {
   modeShowsExportPanel,
   modeShowsQuickMotion,
 } from "@/lib/editor-workspace-modes";
+import {
+  editorAdminCanShowAiAnalysis,
+  humanFirstObjectLabelKey,
+  kindUsesSelectionTools,
+  resolveContextualHumanActions,
+  resolveHumanFirstObjectType,
+} from "@/lib/editor-ux-cleanup";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -120,6 +130,8 @@ type PanelMode = "layer" | "placement" | "body";
 
 export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Props) {
   const t = useActiveTranslator();
+  const session = useAuthSession();
+  const isAdmin = session.user?.role === "admin";
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(
     document.objects.find((o) => o.layerType !== "background")?.id ?? null
   );
@@ -145,6 +157,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [sam2RefineVisible, setSam2RefineVisible] = useState(false);
   const [motionPreviewEnabled, setMotionPreviewEnabled] = useState(false);
   const [advancedExportOpen, setAdvancedExportOpen] = useState(false);
+  const [showAiAnalysis, setShowAiAnalysis] = useState(false);
   const [composerUploading, setComposerUploading] = useState(false);
   const composerSourceRef = useRef<HTMLInputElement>(null);
 
@@ -471,7 +484,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const compositionPreview = formatEditorCompositionGraphPreview(document);
 
   const humanActions = useMemo(
-    () => resolveEditorHumanActions(selectedLayer),
+    () => resolveContextualHumanActions(selectedLayer),
     [selectedLayer]
   );
   const aiSuggestions = useMemo(
@@ -483,7 +496,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     if (!selectedLayerId && actionId !== "more") {
       return;
     }
-    const config = humanActions.find((a) => a.id === actionId);
+    const config = resolveEditorHumanActions(selectedLayer).find((a) => a.id === actionId);
 
     if (actionId === "more") {
       setUiMode("advanced");
@@ -868,6 +881,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           }
           persist(patchEditorLayerFields(document, selectedLayerId, patch));
         }}
+        showAiAnalysis={showAiAnalysis}
       />;
 
   return (
@@ -886,19 +900,36 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   : t(`editor.canvas.step.${document.workflowStep}` as never)}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setUiMode(uiMode === "visual" ? "advanced" : "visual");
-                setShowActionMenu(false);
-                setShowVisualBody(false);
-              }}
-              className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
-            >
-              {uiMode === "visual"
-                ? t("editor.human.openAdvanced")
-                : t("editor.human.backToVisual")}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {editorAdminCanShowAiAnalysis(isAdmin) ?
+                <button
+                  type="button"
+                  onClick={() => setShowAiAnalysis((v) => !v)}
+                  className={`min-h-11 rounded-full px-4 py-2 text-sm font-semibold ${
+                    showAiAnalysis
+                      ? "bg-violet-600 text-white"
+                      : "border border-violet-300 bg-white text-violet-800"
+                  }`}
+                >
+                  {showAiAnalysis
+                    ? t("editor.ux.aiAnalysis.hide" as never)
+                    : t("editor.ux.aiAnalysis.show" as never)}
+                </button>
+              : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setUiMode(uiMode === "visual" ? "advanced" : "visual");
+                  setShowActionMenu(false);
+                  setShowVisualBody(false);
+                }}
+                className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+              >
+                {uiMode === "visual"
+                  ? t("editor.human.openAdvanced")
+                  : t("editor.human.backToVisual")}
+              </button>
+            </div>
           </header>
 
           {uiMode === "visual" ?
@@ -1076,7 +1107,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             </p>
           : null}
 
-          {!showReview && uiMode === "advanced" && compositionPreview.length > 0 ?
+          {!showReview && uiMode === "advanced" && showAiAnalysis && compositionPreview.length > 0 ?
             <pre className="mt-3 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700">
               {compositionPreview.join("\n")}
             </pre>
@@ -1084,9 +1115,15 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
           {!showReview && uiMode === "visual" ?
             <div className="mt-4 space-y-4">
+              <EditorHumanObjectList
+                layers={document.objects}
+                selectedLayerId={selectedLayerId}
+                onSelect={selectLayer}
+              />
               <div className="relative mx-auto w-full max-w-4xl">
                 <EditorFloatingToolbar
                   visible={Boolean(selectedLayer && !selectedPlacementId)}
+                  layer={selectedLayer}
                   onAction={handleHumanAction}
                 />
                 <EditorCanvasPreview
@@ -1136,7 +1173,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
                     <EditorObjectActionMenu
                       actions={humanActions}
-                      objectLabel={selectedLayer.label}
+                      objectLabel={t(humanFirstObjectLabelKey(selectedLayer))}
                       onAction={handleHumanAction}
                       onClose={() => setShowActionMenu(false)}
                     />
@@ -1178,26 +1215,31 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                       </button>
                     </div>
                   : null}
-                  {sam2Available !== null ?
+                  {showAiAnalysis && sam2Available !== null ?
                     <p className="text-xs text-zinc-500">
                       {sam2Available
                         ? t("editor.sam2.statusAvailable")
                         : t("editor.sam2.statusUnavailableDev")}
                     </p>
                   : null}
-                  <EditorSelectionToolsPanel
-                    layer={selectedLayer}
-                    refining={refiningSelection}
-                    sam2Available={sam2Available}
-                    onPreciseSelect={handleStartPreciseSelect}
-                    onStartLasso={() => {
-                      setPreciseSelectActive(false);
-                      setLassoActive(true);
-                    }}
-                    onUseApproximate={handleUseApproximateSelection}
-                    onRemoveBackground={handleRemoveBackground}
-                    onDetachObject={handleRemoveBackground}
-                  />
+                  {resolveHumanFirstObjectType(selectedLayer) !== "logo" &&
+                  resolveHumanFirstObjectType(selectedLayer) !== "text" &&
+                  kindUsesSelectionTools(resolveEditorObjectKind(selectedLayer)) ?
+                    <EditorSelectionToolsPanel
+                      layer={selectedLayer}
+                      refining={refiningSelection}
+                      sam2Available={sam2Available}
+                      showAiAnalysis={showAiAnalysis}
+                      onPreciseSelect={handleStartPreciseSelect}
+                      onStartLasso={() => {
+                        setPreciseSelectActive(false);
+                        setLassoActive(true);
+                      }}
+                      onUseApproximate={handleUseApproximateSelection}
+                      onRemoveBackground={handleRemoveBackground}
+                      onDetachObject={handleRemoveBackground}
+                    />
+                  : null}
                   <EditorRefinePointsPanel
                     visible={
                       sam2RefineVisible &&
@@ -1303,6 +1345,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 onToggleLock={(id) => persist(applyEditorLayerOperation(document, id, "lock"))}
                 onRename={(id, label) => persist(renameEditorLayerInDocument(document, id, label))}
                 onReorder={(id, direction) => persist(reorderEditorLayerInDocument(document, id, direction))}
+                humanFirst={!showAiAnalysis}
+                showAiAnalysis={showAiAnalysis}
               />
               {document.placements.length > 0 ?
                 <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
@@ -1408,6 +1452,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             onToggleLock={(id) => persist(applyEditorLayerOperation(document, id, "lock"))}
             onRename={(id, label) => persist(renameEditorLayerInDocument(document, id, label))}
             onReorder={(id, direction) => persist(reorderEditorLayerInDocument(document, id, direction))}
+            humanFirst={!showAiAnalysis}
+            showAiAnalysis={showAiAnalysis}
           />
         </EditorMobileBottomSheet>
 

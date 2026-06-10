@@ -8,6 +8,7 @@ type Props = {
   layer: EditorCanvasLayer | null;
   refining: boolean;
   sam2Available: boolean | null;
+  showAiAnalysis?: boolean;
   onPreciseSelect: () => void;
   onStartLasso: () => void;
   onUseApproximate: () => void;
@@ -19,6 +20,7 @@ export function EditorSelectionToolsPanel({
   layer,
   refining,
   sam2Available,
+  showAiAnalysis = false,
   onPreciseSelect,
   onStartLasso,
   onUseApproximate,
@@ -35,13 +37,13 @@ export function EditorSelectionToolsPanel({
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-      <p className="text-sm text-zinc-700">{t("editor.mask.lead")}</p>
+      <p className="text-sm text-zinc-700">{t("editor.ux.selection.lead" as never)}</p>
       {approximate ?
         <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {t("editor.mask.approximateHint")}
         </p>
       : null}
-      {sam2Available === false ?
+      {showAiAnalysis && sam2Available === false ?
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           {t("editor.sam2.unavailable")}
         </p>
@@ -53,7 +55,7 @@ export function EditorSelectionToolsPanel({
           onClick={onPreciseSelect}
           className="min-h-10 rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white hover:bg-[#005a9c] disabled:opacity-50"
         >
-          {t("editor.sam2.preciseSelect")}
+          {t("editor.ux.selection.refine" as never)}
         </button>
         <button
           type="button"
@@ -61,7 +63,7 @@ export function EditorSelectionToolsPanel({
           onClick={onRemoveBackground}
           className="min-h-10 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 disabled:opacity-50"
         >
-          {t("editor.mask.removeBackground")}
+          {t("editor.ux.selection.removeBackground" as never)}
         </button>
         <button
           type="button"
@@ -69,7 +71,7 @@ export function EditorSelectionToolsPanel({
           onClick={onStartLasso}
           className="min-h-10 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
         >
-          {t("editor.mask.outlineManual")}
+          {t("editor.ux.selection.outline" as never)}
         </button>
         {approximate ?
           <button
@@ -87,7 +89,7 @@ export function EditorSelectionToolsPanel({
           onClick={onDetachObject}
           className="min-h-10 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
         >
-          {t("editor.mask.detachObject")}
+          {t("editor.ux.selection.detach" as never)}
         </button>
       </div>
     </div>

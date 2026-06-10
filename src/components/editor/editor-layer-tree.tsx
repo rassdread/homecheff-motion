@@ -3,7 +3,14 @@
 import { useActiveTranslator } from "@/i18n/client";
 import { buildEditorSemanticLayerTree } from "@/lib/editor-semantic-layer-tree";
 import { groupEditorLayerTree, type EditorLayerTreeNode } from "@/lib/editor-layer-tree-build";
-import { editorSemanticCategoryLabelKey, editorSemanticSourceLabelKey } from "@/lib/editor-semantic-layer-taxonomy";
+import { editorSemanticCategoryLabelKey } from "@/lib/editor-semantic-layer-taxonomy";
+import {
+  humanFirstDisplayLabel,
+  humanFirstObjectLabelKey,
+  isTechnicalSubPartLayer,
+  layersForHumanFirstTree,
+  shouldShowTechnicalMetadata,
+} from "@/lib/editor-ux-cleanup";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -15,14 +22,9 @@ type Props = {
   onRename?: (layerId: string, label: string) => void;
   onReorder?: (layerId: string, direction: "up" | "down") => void;
   semanticTree?: boolean;
+  humanFirst?: boolean;
+  showAiAnalysis?: boolean;
 };
-
-function confidenceBadge(confidence: number | undefined): string {
-  if (confidence === undefined) {
-    return "—";
-  }
-  return `${Math.round(confidence * 100)}%`;
-}
 
 function LayerRow({
   node,
@@ -33,6 +35,8 @@ function LayerRow({
   onToggleLock,
   onRename,
   onReorder,
+  humanFirst,
+  showTechnical,
   t,
 }: {
   node: EditorLayerTreeNode;
@@ -43,21 +47,31 @@ function LayerRow({
   onToggleLock: (layerId: string) => void;
   onRename?: (layerId: string, label: string) => void;
   onReorder?: (layerId: string, direction: "up" | "down") => void;
+  humanFirst: boolean;
+  showTechnical: boolean;
   t: ReturnType<typeof useActiveTranslator>;
 }) {
   const { layer } = node;
   const selected = selectedLayerId === layer.id;
-  const estimated = layer.metadata?.estimatedBounds;
   const canRename = onRename && layer.layerType !== "background" && !layer.locked;
+  const displayLabel = humanFirst
+    ? layer.layerType === "background"
+      ? t("editor.ux.object.background")
+      : t(humanFirstObjectLabelKey(layer))
+    : humanFirstDisplayLabel(layer);
+
+  if (humanFirst && isTechnicalSubPartLayer(layer)) {
+    return null;
+  }
 
   return (
     <>
       <li>
         <div
           className={`flex items-center gap-1 rounded-lg px-1 py-1 ${selected ? "bg-[#0067B1]/10" : "hover:bg-zinc-50"}`}
-          style={{ paddingLeft: `${depth * 12 + 4}px` }}
+          style={{ paddingLeft: `${humanFirst ? 4 : depth * 12 + 4}px` }}
         >
-          {canRename ?
+          {canRename && !humanFirst ?
             <input
               type="text"
               defaultValue={layer.label}
@@ -81,22 +95,11 @@ function LayerRow({
               onClick={() => onSelect(layer.id)}
               className={`min-w-0 flex-1 truncate text-left text-sm ${selected ? "text-[#0067B1]" : "text-zinc-800"}`}
             >
-              {layer.label}
+              {displayLabel}
             </button>}
-          <span
-            className="shrink-0 rounded bg-zinc-100 px-1 text-[9px] font-semibold uppercase text-zinc-500"
-            title={t("editor.semantic.confidence")}
-          >
-            {confidenceBadge(layer.confidence)}
-          </span>
-          {layer.layerSource ?
-            <span className="hidden shrink-0 rounded bg-slate-100 px-1 text-[9px] uppercase text-slate-600 sm:inline">
-              {t(editorSemanticSourceLabelKey(layer.layerSource))}
-            </span>
-          : null}
-          {estimated ?
-            <span className="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-semibold uppercase text-amber-800">
-              {t("editor.semantic.estimated")}
+          {showTechnical && layer.confidence !== undefined ?
+            <span className="shrink-0 rounded bg-zinc-100 px-1 text-[9px] font-semibold uppercase text-zinc-500">
+              {`${Math.round(layer.confidence * 100)}%`}
             </span>
           : null}
           <button
@@ -115,7 +118,7 @@ function LayerRow({
           >
             {layer.locked ? "🔒" : "🔓"}
           </button>
-          {onReorder && layer.layerType !== "background" ?
+          {onReorder && layer.layerType !== "background" && !humanFirst ?
             <>
               <button
                 type="button"
@@ -137,20 +140,24 @@ function LayerRow({
           : null}
         </div>
       </li>
-      {node.children.map((child) => (
-        <LayerRow
-          key={child.layer.id}
-          node={child}
-          depth={depth + 1}
-          selectedLayerId={selectedLayerId}
-          onSelect={onSelect}
-          onToggleVisibility={onToggleVisibility}
-          onToggleLock={onToggleLock}
-          onRename={onRename}
-          onReorder={onReorder}
-          t={t}
-        />
-      ))}
+      {!humanFirst
+        ? node.children.map((child) => (
+            <LayerRow
+              key={child.layer.id}
+              node={child}
+              depth={depth + 1}
+              selectedLayerId={selectedLayerId}
+              onSelect={onSelect}
+              onToggleVisibility={onToggleVisibility}
+              onToggleLock={onToggleLock}
+              onRename={onRename}
+              onReorder={onReorder}
+              humanFirst={humanFirst}
+              showTechnical={showTechnical}
+              t={t}
+            />
+          ))
+        : null}
     </>
   );
 }
@@ -164,20 +171,27 @@ export function EditorLayerTree({
   onRename,
   onReorder,
   semanticTree = true,
+  humanFirst = true,
+  showAiAnalysis = false,
 }: Props) {
   const t = useActiveTranslator();
-  const groups = groupEditorLayerTree(layers);
-  const semantic = buildEditorSemanticLayerTree(layers);
+  const showTechnical = shouldShowTechnicalMetadata(showAiAnalysis);
+  const treeLayers = humanFirst ? layersForHumanFirstTree(layers) : layers;
+  const groups = groupEditorLayerTree(treeLayers);
+  const semantic = buildEditorSemanticLayerTree(treeLayers);
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {semanticTree ? semantic.rootLabel : t("editor.canvas.layersTitle")}
+        {humanFirst ? t("editor.ux.objectListTitle") : semanticTree ? semantic.rootLabel : t("editor.canvas.layersTitle")}
       </p>
       <div className="mt-2 max-h-[420px] space-y-3 overflow-y-auto">
         {semanticTree ?
           <ul className="space-y-0.5">
-            {semantic.nodes.map((node) => (
+            {(humanFirst
+              ? treeLayers.map((layer) => ({ layer, children: [] as EditorLayerTreeNode[] }))
+              : semantic.nodes
+            ).map((node) => (
               <LayerRow
                 key={node.layer.id}
                 node={node}
@@ -188,6 +202,8 @@ export function EditorLayerTree({
                 onToggleLock={onToggleLock}
                 onRename={onRename}
                 onReorder={onReorder}
+                humanFirst={humanFirst}
+                showTechnical={showTechnical}
                 t={t}
               />
             ))}
@@ -209,6 +225,8 @@ export function EditorLayerTree({
                     onToggleLock={onToggleLock}
                     onRename={onRename}
                     onReorder={onReorder}
+                    humanFirst={humanFirst}
+                    showTechnical={showTechnical}
                     t={t}
                   />
                 ))}
