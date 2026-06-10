@@ -20,6 +20,7 @@ import { EditorBackgroundToolsPanel } from "@/components/editor/editor-backgroun
 import { EditorBrandKitPanel } from "@/components/editor/editor-brand-kit-panel";
 import { EditorHandoffScorePanel } from "@/components/editor/editor-handoff-score-panel";
 import { EditorLibraryDragPanel } from "@/components/editor/editor-library-drag-panel";
+import { EditorMaskGateDialog } from "@/components/editor/editor-mask-gate-dialog";
 import { EditorMagicReplacePanel } from "@/components/editor/editor-magic-replace-panel";
 import { EditorMotionPreviewBar } from "@/components/editor/editor-motion-preview-bar";
 import { EditorPosterBuilderPanel } from "@/components/editor/editor-poster-builder-panel";
@@ -125,6 +126,10 @@ import {
   undoCommandHistory,
 } from "@/lib/editor-v7-command-history";
 import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions";
+import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
+import { parseCompositorLayerId } from "@/lib/editor-compositor";
+import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
+import { updateImportedLayer } from "@/lib/editor-imported-layers";
 import { persistCutoutToLibrary } from "@/lib/editor-cutout-library-persist";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
@@ -224,6 +229,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [showAiAnalysis, setShowAiAnalysis] = useState(false);
   const [v6Busy, setV6Busy] = useState(false);
   const [showMagicReplace, setShowMagicReplace] = useState(false);
+  const [maskGateOpen, setMaskGateOpen] = useState(false);
+  const [selectedCompositorId, setSelectedCompositorId] = useState<string | null>(null);
   const [composerUploading, setComposerUploading] = useState(false);
   const composerSourceRef = useRef<HTMLInputElement>(null);
 
@@ -463,13 +470,21 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const layer = document.objects.find((o) => o.id === selectedLayerId) ?? null;
     const maskContext = buildEditorMaskActionContext(layer, operation);
 
-    if (operation === "delete" && layer?.selectionShape?.maskUrl) {
-      void runMaskedEdit("delete", layer);
-      return;
-    }
-    if (operation === "replace" && layer?.selectionShape?.maskUrl) {
-      void runMaskedEdit("replace", layer);
-      return;
+    if ((operation === "delete" || operation === "replace") && layer) {
+      const gate = evaluateEditorMaskGate(layer);
+      if (!gate.allowed) {
+        setMaskGateOpen(true);
+        setSaveMessage(t(gate.reasonKey ?? "editor.maskGate.needRefine"));
+        return;
+      }
+      if (operation === "delete") {
+        void runMaskedEdit("delete", layer);
+        return;
+      }
+      if (operation === "replace") {
+        setShowMagicReplace(true);
+        return;
+      }
     }
 
     if (operation === "replace" && layer) {
@@ -901,7 +916,71 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setShowMagicReplace(false);
   };
 
+  const handleSelectCompositorLayer = (compositorId: string) => {
+    setSelectedCompositorId(compositorId);
+    const parsed = parseCompositorLayerId(compositorId);
+    if (!parsed) {
+      return;
+    }
+    if (parsed.kind === "placement") {
+      selectPlacement(parsed.sourceId);
+      return;
+    }
+    setSelectedPlacementId(null);
+    setPanelMode("layer");
+  };
+
+  const handleMoveCompositorLayer = (compositorId: string, x: number, y: number) => {
+    const parsed = parseCompositorLayerId(compositorId);
+    if (!parsed) {
+      return;
+    }
+    if (parsed.kind === "placement") {
+      persist(
+        patchEditorPlacement(document, parsed.sourceId, {
+          canvasTransform: {
+            ...document.placements.find((p) => p.id === parsed.sourceId)!.canvasTransform,
+            x,
+            y,
+          },
+        })
+      );
+      return;
+    }
+    if (parsed.kind === "imported" || parsed.kind === "cutout") {
+      let importedId: string | undefined;
+      if (parsed.kind === "imported") {
+        importedId = parsed.sourceId;
+      } else {
+        const cutout = document.cutoutAssets?.find((asset) => asset.id === parsed.sourceId);
+        importedId = document.importedLayers?.find(
+          (layer) => layer.cutoutUrl && layer.cutoutUrl === cutout?.cutoutUrl
+        )?.id;
+      }
+      if (!importedId) {
+        return;
+      }
+      persist(
+        updateImportedLayer(document, importedId, {
+          transform: {
+            ...(document.importedLayers?.find((l) => l.id === importedId)?.transform ?? {
+              x: 0.5,
+              y: 0.5,
+              scale: 1,
+              rotation: 0,
+            }),
+            x,
+            y,
+          },
+        })
+      );
+    }
+  };
+
   const handleBackgroundTool = (toolId: EditorBackgroundToolId) => {
+    if (isBackgroundToolHidden(toolId)) {
+      return;
+    }
     const bgLayer = document.objects.find((o) => o.layerType === "background");
     if (bgLayer) {
       selectLayer(bgLayer.id);
@@ -917,6 +996,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const prompt = backgroundToolPrompt(toolId);
     const bg = document.objects.find((o) => o.layerType === "background");
     if (prompt && bg) {
+      const gate = evaluateEditorMaskGate(bg);
+      if (!gate.allowed) {
+        setMaskGateOpen(true);
+        setSaveMessage(t(gate.reasonKey ?? "editor.maskGate.needRefine"));
+        return;
+      }
       void runMaskedEdit("replace", bg, prompt);
     }
   };
@@ -1152,9 +1237,16 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
     switch (action) {
-      case "replace":
+      case "replace": {
+        const gate = evaluateEditorMaskGate(selectedLayer);
+        if (!gate.allowed) {
+          setMaskGateOpen(true);
+          setSaveMessage(t(gate.reasonKey ?? "editor.maskGate.needRefine"));
+          break;
+        }
         setShowMagicReplace(true);
         break;
+      }
       case "remove":
         void handleOperation("delete");
         break;
@@ -1593,6 +1685,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   motionPreviewEnabled={motionPreviewEnabled}
                   onLibraryAssetDrop={handleLibraryAssetDrop}
                   showAlignmentGuides={document.productivityState?.showAlignmentGuides}
+                  selectedCompositorId={selectedCompositorId}
+                  onSelectCompositorLayer={handleSelectCompositorLayer}
+                  onMoveCompositorLayer={handleMoveCompositorLayer}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -1939,6 +2034,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 onResizePlacement={(placementId, width, height) =>
                   persist(patchEditorPlacement(document, placementId, { canvasWidth: width, canvasHeight: height }))
                 }
+                selectedCompositorId={selectedCompositorId}
+                onSelectCompositorLayer={handleSelectCompositorLayer}
+                onMoveCompositorLayer={handleMoveCompositorLayer}
               />
             </div>
             <div className="order-3 hidden lg:block">
@@ -2028,6 +2126,18 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           />
         </EditorMobileBottomSheet>
       </main>
+      <EditorMaskGateDialog
+        open={maskGateOpen}
+        onRefine={() => {
+          setMaskGateOpen(false);
+          handleStartPreciseSelect();
+        }}
+        onLasso={() => {
+          setMaskGateOpen(false);
+          setLassoActive(true);
+        }}
+        onCancel={() => setMaskGateOpen(false)}
+      />
     </StudioAuthGate>
   );
 }

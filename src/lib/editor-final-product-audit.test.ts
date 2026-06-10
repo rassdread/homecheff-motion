@@ -12,7 +12,7 @@ import {
   UX_COMPLEXITY_AUDIT,
   canvasPreviewRendersImportedLayers,
   editorProjectDeleteExists,
-  exportUsesBackgroundOnly,
+  exportUsesCompositorState,
   motionBootstrapWiredInApp,
   replaceReadinessIsPartial,
 } from "@/lib/editor-final-product-audit";
@@ -54,12 +54,12 @@ describe("Editor Final Product Audit", () => {
     assert.equal(isPreImageStartIntentHidden("combine_images"), true);
   });
 
-  it("canvas preview does not render importedLayers (brand kit invisible)", () => {
-    assert.equal(canvasPreviewRendersImportedLayers(), false);
+  it("canvas preview renders importedLayers via compositor", () => {
+    assert.equal(canvasPreviewRendersImportedLayers(), true);
   });
 
-  it("server export composites backgroundUrl only", () => {
-    assert.equal(exportUsesBackgroundOnly(), true);
+  it("server export uses compositor state", () => {
+    assert.equal(exportUsesCompositorState(), true);
   });
 
   it("replace is partially_works per UX cleanup readiness", () => {
@@ -70,8 +70,8 @@ describe("Editor Final Product Audit", () => {
     assert.equal(editorProjectDeleteExists(), false);
   });
 
-  it("motion bootstrap not wired in instant page", () => {
-    assert.equal(motionBootstrapWiredInApp(), false);
+  it("motion bootstrap wired in instant page", () => {
+    assert.equal(motionBootstrapWiredInApp(), true);
   });
 
   it("studio handoff link includes editorSession", () => {

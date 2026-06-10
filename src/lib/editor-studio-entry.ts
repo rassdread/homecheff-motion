@@ -1,4 +1,5 @@
 import { loadEditorCanvasDocument } from "@/lib/editor-canvas-session";
+import { buildEditorCompositorLayers } from "@/lib/editor-compositor";
 import type { EditorCanvasDocument, EditorStudioMotionHandoff } from "@/types/homecheff-visual-editor";
 
 export type EditorStudioEntry = {
@@ -8,6 +9,8 @@ export type EditorStudioEntry = {
   handoff: EditorStudioMotionHandoff | undefined;
   primaryImageUrl: string;
   cutoutUrls: string[];
+  compositorLayerUrls: string[];
+  placementUrls: string[];
 };
 
 export function resolveEditorStudioEntry(sessionId: string | null | undefined): EditorStudioEntry | null {
@@ -28,6 +31,14 @@ export function resolveEditorStudioEntry(sessionId: string | null | undefined): 
       .filter((url): url is string => Boolean(url)),
   ].filter((url, index, arr) => arr.indexOf(url) === index);
 
+  const compositorLayers = buildEditorCompositorLayers(document);
+  const compositorLayerUrls = compositorLayers
+    .filter((layer) => layer.kind !== "background" && layer.imageUrl)
+    .map((layer) => layer.imageUrl);
+  const placementUrls = document.placements
+    .map((placement) => placement.previewUrl)
+    .filter((url): url is string => Boolean(url));
+
   return {
     sessionId: trimmed,
     document,
@@ -35,5 +46,7 @@ export function resolveEditorStudioEntry(sessionId: string | null | undefined): 
     handoff,
     primaryImageUrl: document.backgroundUrl,
     cutoutUrls,
+    compositorLayerUrls,
+    placementUrls,
   };
 }

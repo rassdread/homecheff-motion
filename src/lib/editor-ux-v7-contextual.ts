@@ -1,4 +1,5 @@
 import type { TranslationKey } from "@/i18n";
+import { isUxV7ObjectActionHidden } from "@/lib/editor-broken-features";
 import { resolveEditorObjectKind } from "@/lib/editor-human-first";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
@@ -74,6 +75,10 @@ export function resolveUxV7NoSelectionActions(): EditorUxV7NoSelectionAction[] {
   return [...EDITOR_UX_V7_NO_SELECTION_ACTIONS];
 }
 
+function filterVisibleUxV7Actions(actions: EditorUxV7ObjectAction[]): EditorUxV7ObjectAction[] {
+  return actions.filter((action) => !isUxV7ObjectActionHidden(action));
+}
+
 export function resolveUxV7ObjectActions(layer: EditorCanvasLayer | null): EditorUxV7ObjectAction[] {
   if (!layer) {
     return [];
@@ -83,13 +88,13 @@ export function resolveUxV7ObjectActions(layer: EditorCanvasLayer | null): Edito
   const kind = resolveEditorObjectKind(layer);
 
   if (layer.layerType === "background" || humanType === "background") {
-    return BACKGROUND_ACTIONS;
+    return filterVisibleUxV7Actions(BACKGROUND_ACTIONS);
   }
   if (humanType === "logo" || kind === "logo") {
-    return LOGO_ACTIONS;
+    return filterVisibleUxV7Actions(LOGO_ACTIONS);
   }
   if (humanType === "text") {
-    return TEXT_ACTIONS;
+    return filterVisibleUxV7Actions(TEXT_ACTIONS);
   }
   if (
     humanType === "character" ||
@@ -98,9 +103,9 @@ export function resolveUxV7ObjectActions(layer: EditorCanvasLayer | null): Edito
     kind === "character" ||
     kind === "mascot"
   ) {
-    return CHARACTER_ACTIONS;
+    return filterVisibleUxV7Actions(CHARACTER_ACTIONS);
   }
-  return ["replace", "remove", "duplicate"];
+  return filterVisibleUxV7Actions(["replace", "remove", "duplicate"]);
 }
 
 export function uxV7ObjectActionIcon(action: EditorUxV7ObjectAction): string {

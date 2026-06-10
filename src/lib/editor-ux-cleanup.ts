@@ -1,4 +1,5 @@
 import type { TranslationKey } from "@/i18n";
+import { isHumanActionHidden } from "@/lib/editor-broken-features";
 import {
   resolveEditorHumanActions,
   resolveEditorObjectKind,
@@ -231,7 +232,9 @@ export function editorAdminCanShowAiAnalysis(isAdmin: boolean): boolean {
 }
 
 export function filterHumanVisibleActions(actions: EditorHumanAction[]): EditorHumanAction[] {
-  return actions.filter((action) => shouldShowActionInHumanUi(action.id));
+  return actions.filter(
+    (action) => shouldShowActionInHumanUi(action.id) && !isHumanActionHidden(action.id)
+  );
 }
 
 export function resolveContextualHumanActions(layer: EditorCanvasLayer | null): EditorHumanAction[] {

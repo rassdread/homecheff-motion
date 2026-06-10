@@ -19,6 +19,9 @@ export function EditorStudioEntryBanner({ editorSessionId }: Props) {
 
   const cutoutCount = entry.cutoutUrls.length;
   const layerCount = entry.document.objects.length;
+  const compositorCount = entry.compositorLayerUrls.length;
+  const placementCount = entry.placementUrls.length;
+  const importedCount = entry.document.importedLayers?.length ?? 0;
 
   return (
     <div className="mx-auto mb-4 w-full max-w-5xl rounded-2xl border border-[#0067B1]/25 bg-[#0067B1]/5 px-4 py-3 sm:px-5">
@@ -27,6 +30,9 @@ export function EditorStudioEntryBanner({ editorSessionId }: Props) {
       </p>
       <p className="mt-1 text-sm text-slate-600">
         {entry.document.name} · {layerCount} layers
+        {compositorCount > 0 ? ` · ${compositorCount} compositor overlays` : ""}
+        {importedCount > 0 ? ` · ${importedCount} imported` : ""}
+        {placementCount > 0 ? ` · ${placementCount} placements` : ""}
         {cutoutCount > 0 ? ` · ${cutoutCount} cutouts` : ""}
       </p>
       <div className="mt-2 flex flex-wrap gap-2 text-sm">
@@ -36,7 +42,7 @@ export function EditorStudioEntryBanner({ editorSessionId }: Props) {
         >
           {t("editor.start.recent")}
         </Link>
-        {cutoutCount > 0 ?
+        {entry.primaryImageUrl ?
           <Link
             href={`/animate/instant?editorSession=${encodeURIComponent(entry.sessionId)}`}
             className="font-medium text-[#0067B1] hover:underline"

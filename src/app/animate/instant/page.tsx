@@ -25,6 +25,8 @@ import { InstantWizardFooter } from "@/components/instant/instant-wizard-footer"
 import { InstantWizardResetDialog } from "@/components/instant/instant-wizard-reset-dialog";
 import { InstantWizardShell } from "@/components/instant/instant-wizard-shell";
 import { InstantWizardToast } from "@/components/instant/instant-wizard-toast";
+import { EditorMotionBootstrapBridge } from "@/components/editor/editor-motion-bootstrap-bridge";
+import { EditorMotionBootstrapApply } from "@/components/instant/editor-motion-bootstrap-apply";
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
 import { useInstantOcrAutoScan } from "@/hooks/use-instant-ocr-auto-scan";
 import { useInstantWizardPersist } from "@/hooks/use-instant-wizard-persist";
@@ -1556,6 +1558,13 @@ export default function InstantPremiumPage() {
 
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
+      <EditorMotionBootstrapBridge />
+      <EditorMotionBootstrapApply
+        sceneSlots={sceneSlots}
+        setSceneSlots={setSceneSlots}
+        transitionSeconds={transitionSeconds}
+        instantMode={instantMode}
+      />
       <div className="mx-auto w-full max-w-xl px-4 py-8 sm:max-w-2xl sm:px-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

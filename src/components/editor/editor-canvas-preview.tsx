@@ -24,6 +24,7 @@ import {
 import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
 import { animationProfileFromV6Preset } from "@/lib/editor-v6-motion-preview";
 import type { LibraryDragPayload } from "@/lib/editor-v6-library-drag";
+import { EditorCompositorOverlays } from "@/components/editor/editor-compositor-overlays";
 import { EditorMotionPreviewOverlay } from "@/components/editor/editor-motion-preview-overlay";
 import { EditorPartSelectionOverlay } from "@/components/editor/editor-part-selection-overlay";
 import type {
@@ -62,6 +63,9 @@ type Props = {
   motionPreviewEnabled?: boolean;
   onLibraryAssetDrop?: (payload: LibraryDragPayload) => void;
   showAlignmentGuides?: boolean;
+  selectedCompositorId?: string | null;
+  onSelectCompositorLayer?: (compositorId: string) => void;
+  onMoveCompositorLayer?: (compositorId: string, x: number, y: number) => void;
 };
 
 export function EditorCanvasPreview({
@@ -92,6 +96,9 @@ export function EditorCanvasPreview({
   motionPreviewEnabled = false,
   onLibraryAssetDrop,
   showAlignmentGuides = false,
+  selectedCompositorId = null,
+  onSelectCompositorLayer,
+  onMoveCompositorLayer,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -181,6 +188,14 @@ export function EditorCanvasPreview({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
+      <div className="absolute inset-0">
+        <EditorCompositorOverlays
+          document={document}
+          selectedCompositorId={selectedCompositorId}
+          onSelectCompositorLayer={onSelectCompositorLayer}
+          onMoveCompositorLayer={onMoveCompositorLayer}
+        />
+      </div>
       <div className="pointer-events-none absolute inset-0">
         {visibleLayers.map((layer) => (
           <EditorSelectionOutline
@@ -252,7 +267,19 @@ export function EditorCanvasPreview({
       {visibleLayers.map((layer) => {
         const selected = selectedLayerId === layer.id && !selectedPlacementId;
         if (humanFirst && !selected) {
-          return null;
+          return (
+            <div
+              key={`ghost-${layer.id}`}
+              className="pointer-events-none absolute rounded-lg border border-dashed border-amber-400/40"
+              style={{
+                left: `${layer.bounds.x * 100}%`,
+                top: `${layer.bounds.y * 100}%`,
+                width: `${layer.bounds.width * 100}%`,
+                height: `${layer.bounds.height * 100}%`,
+                opacity: 0.45,
+              }}
+            />
+          );
         }
         const canMove = isEditorOperationAllowed(layer, "move");
         const canScale = isEditorOperationAllowed(layer, "scale");

@@ -369,13 +369,16 @@ export function canvasPreviewRendersImportedLayers(): boolean {
     join(process.cwd(), "src/components/editor/editor-canvas-preview.tsx"),
     "utf8"
   );
-  return source.includes("importedLayers");
+  return source.includes("EditorCompositorOverlays");
 }
 
 export function motionBootstrapWiredInApp(): boolean {
   try {
     const instantPage = readFileSync(join(process.cwd(), "src/app/animate/instant/page.tsx"), "utf8");
-    return instantPage.includes("resolveEditorMotionBootstrap") || instantPage.includes("editorSession");
+    return (
+      instantPage.includes("EditorMotionBootstrapBridge") &&
+      instantPage.includes("EditorMotionBootstrapApply")
+    );
   } catch {
     return false;
   }
@@ -386,9 +389,14 @@ export function editorProjectDeleteExists(): boolean {
   return /deleteEditor|removeEditor.*Session|deleteSession/.test(sessionSource);
 }
 
-export function exportUsesBackgroundOnly(): boolean {
+export function exportUsesCompositorState(): boolean {
   const source = readFileSync(join(process.cwd(), "src/server/editor/render-editor-export.ts"), "utf8");
-  return source.includes("fetchImageBuffer(document.backgroundUrl)") && !source.includes("composite");
+  return source.includes("renderEditorCompositionPng");
+}
+
+/** @deprecated Use exportUsesCompositorState — inverted after Source of Truth sprint */
+export function exportUsesBackgroundOnly(): boolean {
+  return !exportUsesCompositorState();
 }
 
 export function replaceReadinessIsPartial(): boolean {

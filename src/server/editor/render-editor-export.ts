@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import sharp from "sharp";
 import { resolvePrintSettings, printDimensionsPixels } from "@/lib/editor-print-export";
 import { resolveProductionOutputSpec } from "@/lib/production-output-profiles";
+import { renderEditorCompositionPng } from "@/server/editor/render-editor-composition";
 import { isBlobTokenConfigured, uploadPublicBlob } from "@/lib/vercel-blob-config";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -63,11 +64,11 @@ export async function renderEditorProductionFiles(
   const spec = resolveProductionOutputSpec("web_ready");
   const width = document.exportSettings?.production?.width ?? spec.recommendedWidth;
   const height = document.exportSettings?.production?.height ?? spec.recommendedHeight;
-  const source = await fetchImageBuffer(document.backgroundUrl);
+  const composed = await renderEditorCompositionPng(document, width, height);
   const files: EditorRenderedFile[] = [];
 
   for (const format of formats) {
-    let pipeline = sharp(source).resize(width, height, { fit: "inside", withoutEnlargement: false });
+    let pipeline = sharp(composed);
     if (format === "jpg") {
       pipeline = pipeline.jpeg({ quality: 90 });
     } else if (format === "webp") {
@@ -92,19 +93,15 @@ export async function renderEditorProductionFiles(
 export async function renderEditorPrintPng(document: EditorCanvasDocument): Promise<EditorRenderedFile> {
   const settings = resolvePrintSettings(document);
   const dims = printDimensionsPixels(settings);
-  const source = await fetchImageBuffer(document.backgroundUrl);
-  const buffer = await sharp(source)
-    .resize(dims.width, dims.height, { fit: "cover" })
-    .png()
-    .toBuffer();
+  const buffer = await renderEditorCompositionPng(document, dims.width, dims.height);
   return uploadRendered(document.sessionId, "print", buffer, "image/png", "png");
 }
 
 export async function renderEditorGif(document: EditorCanvasDocument): Promise<EditorRenderedFile> {
   const width = document.quickMotionConfig?.width ?? 512;
   const height = document.quickMotionConfig?.height ?? 512;
-  const source = await fetchImageBuffer(document.backgroundUrl);
-  const frame = await sharp(source).resize(width, height, { fit: "inside" }).png().toBuffer();
+  const composed = await renderEditorCompositionPng(document, width, height);
+  const frame = await sharp(composed).resize(width, height, { fit: "inside" }).png().toBuffer();
   const gifBuffer = await sharp(frame, { animated: false }).gif().toBuffer();
   return uploadRendered(document.sessionId, "quick_motion", gifBuffer, "image/gif", "gif");
 }

@@ -86,7 +86,8 @@ describe("Editor UX Cleanup V1", () => {
     const logo = mockLayer({ label: "Brand Logo", category: "logo" });
     const characterActions = resolveContextualHumanActions(character).map((a) => a.id);
     const logoActions = resolveContextualHumanActions(logo).map((a) => a.id);
-    assert.ok(characterActions.includes("edit_appearance"));
+    assert.equal(characterActions.includes("edit_appearance"), false);
+    assert.ok(characterActions.includes("remove"));
     assert.ok(logoActions.includes("logo_replace"));
     assert.ok(!logoActions.includes("edit_appearance"));
   });

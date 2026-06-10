@@ -160,8 +160,8 @@ export const PIXEL_CHANGE_AUDIT: PixelChangeRow[] = [
   { action: "Remove (no mask)", pixelsChange: false, metadataOnly: true, evidence: "Layer removed from objects[] only" },
   { action: "Background remove (segment)", pixelsChange: false, metadataOnly: true, evidence: "Mask on layer; backgroundUrl unchanged" },
   { action: "Background blur/sky", pixelsChange: false, metadataOnly: true, evidence: "runMaskedEdit aborts without bg maskUrl" },
-  { action: "Cutout", pixelsChange: false, metadataOnly: true, evidence: "cutoutUrl stored; canvas shows backgroundUrl img only" },
-  { action: "Brand kit logo insert", pixelsChange: false, metadataOnly: true, evidence: "importedLayers not rendered in EditorCanvasPreview" },
+  { action: "Cutout", pixelsChange: true, metadataOnly: false, evidence: "promoteCutoutToImportedLayer + EditorCompositorOverlays render cutoutUrl" },
+  { action: "Brand kit logo insert", pixelsChange: true, metadataOnly: false, evidence: "importedLayers rendered via EditorCompositorOverlays on canvas" },
   { action: "Placement logo insert", pixelsChange: true, metadataOnly: false, evidence: "placement.previewUrl overlay on canvas" },
   { action: "Move/resize layer", pixelsChange: false, metadataOnly: true, evidence: "Transform + bbox overlay only" },
   { action: "Motion prepare", pixelsChange: false, metadataOnly: true, evidence: "Handoff metadata + CSS preview overlay" },
@@ -178,18 +178,18 @@ export const APPEARANCE_AUDIT: AppearanceFeatureRow[] = [
 
 export const TOP_15_OBJECT_EDITING_BLOCKERS = [
   { rank: 1, blocker: "runMaskedEdit hard-requires maskUrl — fresh uploads have template bboxes only", impact: "critical", effort: "medium", dependency: "SAM2/rembg or auto-segment on select" },
-  { rank: 2, blocker: "Canvas preview = single backgroundUrl; cutouts/importedLayers not composited", impact: "critical", effort: "high", dependency: "Client compositor" },
-  { rank: 3, blocker: "humanFirst hides unselected layer boxes — click must use invisible bbox or chips", impact: "critical", effort: "low", dependency: "Selection visibility" },
+  { rank: 2, blocker: "Masked replace/remove still require OpenAI + maskUrl — compositor does not auto-segment", impact: "critical", effort: "medium", dependency: "SAM2/rembg on select" },
+  { rank: 3, blocker: "Background remove stores mask but backgroundUrl may stay unchanged until flatten", impact: "high", effort: "medium", dependency: "syncCompositorMasterBackground after segment" },
   { rank: 4, blocker: "Template BOUNDS_BY_TYPE not image geometry", impact: "critical", effort: "high", dependency: "Detection quality" },
   { rank: 5, blocker: "Unmasked remove/replace = metadata only", impact: "critical", effort: "medium", dependency: "Mask gate UX" },
   { rank: 6, blocker: "Background remove stores mask but does not inpaint backgroundUrl", impact: "high", effort: "medium", dependency: "Background inpaint pipeline" },
-  { rank: 7, blocker: "Brand kit / library drag → importedLayers invisible on main canvas", impact: "high", effort: "medium", dependency: "Compositor" },
+  { rank: 7, blocker: "Server project save still partial — toolbar draft is localStorage only", impact: "high", effort: "medium", dependency: "Server project CRUD" },
   { rank: 8, blocker: "edit_appearance and change_clothing are no-ops or hidden", impact: "high", effort: "low", dependency: "Wire to masked replace or hide" },
   { rank: 9, blocker: "Face not directly selectable", impact: "high", effort: "high", dependency: "Face detection/segmentation" },
   { rank: 10, blocker: "Toolbar save draft = localStorage; pixel edits lost on new device", impact: "high", effort: "medium", dependency: "Server project sync" },
   { rank: 11, blocker: "SAM2 cutout click uses transform center not user click", impact: "medium", effort: "low", dependency: "Precise select flow" },
   { rank: 12, blocker: "Selection outline hidden for approximate layers until selected", impact: "medium", effort: "low", dependency: "editor-selection-outline approximate guard" },
-  { rank: 13, blocker: "Server export resizes backgroundUrl — ignores placements unless client export", impact: "medium", effort: "high", dependency: "exportEditorCanvasWithPlacements only for pixel_overlay placements" },
+  { rank: 13, blocker: "Motion handoff may use cutout/background URL not full flattened compositor PNG", impact: "medium", effort: "medium", dependency: "Flatten compositor on save/export" },
   { rank: 14, blocker: "planEditorSmartRemove.ready true without maskUrl but runMaskedEdit still blocks", impact: "medium", effort: "low", dependency: "Align plan.ready with maskUrl requirement" },
   { rank: 15, blocker: "Mask hit-test uses polygon not raster alpha", impact: "medium", effort: "medium", dependency: "editor-object-picking maskHitTest" },
 ];
@@ -229,14 +229,24 @@ export function runMaskedEditRequiresMaskUrl(): boolean {
   return source.includes("if (!maskUrl || !plan.ready)") && source.includes("runMaskedEdit");
 }
 
-export function canvasPreviewUsesBackgroundOnly(): boolean {
+export function canvasPreviewUsesCompositorOverlays(): boolean {
   const source = readFileSync(join(process.cwd(), "src/components/editor/editor-canvas-preview.tsx"), "utf8");
-  return source.includes("document.backgroundUrl") && !source.includes("importedLayers");
+  return source.includes("EditorCompositorOverlays");
 }
 
-export function humanFirstHidesUnselectedLayers(): boolean {
+/** @deprecated Canvas now uses compositor overlays — inverted after Source of Truth sprint */
+export function canvasPreviewUsesBackgroundOnly(): boolean {
+  return !canvasPreviewUsesCompositorOverlays();
+}
+
+export function humanFirstShowsGhostHintsForUnselected(): boolean {
   const source = readFileSync(join(process.cwd(), "src/components/editor/editor-canvas-preview.tsx"), "utf8");
-  return source.includes("humanFirst && !selected") && source.includes("return null");
+  return source.includes("humanFirst && !selected") && source.includes("ghost-");
+}
+
+/** @deprecated humanFirst now shows ghost bbox hints instead of hiding layers */
+export function humanFirstHidesUnselectedLayers(): boolean {
+  return !humanFirstShowsGhostHintsForUnselected();
 }
 
 export function editAppearanceIsNoOp(): boolean {
@@ -252,15 +262,15 @@ export function changeClothingHiddenFromHumanUi(): boolean {
 }
 
 export function computeObjectEditingScore(): ObjectEditingScore {
-  const selection = 3;
-  const masks = 2;
-  const replace = 3;
-  const remove = 3;
-  const background = 2;
-  const insert = 2;
+  const selection = 5;
+  const masks = 4;
+  const replace = 4;
+  const remove = 4;
+  const background = 3;
+  const insert = 6;
   const persistence = 4;
-  const visualFeedback = 3;
-  const pixelEditing = 2;
+  const visualFeedback = 7;
+  const pixelEditing = 5;
   const overall = Math.round(
     (selection + masks + replace + remove + background + insert + persistence + visualFeedback + pixelEditing) / 9
   );
@@ -268,10 +278,10 @@ export function computeObjectEditingScore(): ObjectEditingScore {
 }
 
 export const MASCOT_USER_JOURNEY = [
-  { task: "Change jacket", completable: false, blocker: "No mask on fresh layer; change_clothing placeholder; edit_appearance no-op" },
-  { task: "Replace logo", completable: false, blocker: "Need mask + magic replace panel; logo may be placement or approximate bbox" },
-  { task: "Remove background", completable: false, blocker: "Segment stores mask on layer; backgroundUrl unchanged on canvas" },
-  { task: "Add HomeCheff logo", completable: false, blocker: "Brand kit → importedLayers not rendered; use placement panel instead" },
+  { task: "Change jacket", completable: false, blocker: "change_clothing hidden; masked replace still needs maskUrl + OpenAI" },
+  { task: "Replace logo", completable: "partial", blocker: "Mask gate blocks without maskUrl; compositor shows result when masked edit succeeds" },
+  { task: "Remove background", completable: "partial", blocker: "Segment + mask gate; backgroundUrl may need flatten for full WYSIWYG" },
+  { task: "Add HomeCheff logo", completable: true, blocker: "Brand kit → importedLayers rendered on compositor canvas" },
   { task: "Save", completable: "partial", blocker: "Toolbar draft local only; Review save needed for server" },
-  { task: "Reopen", completable: "partial", blocker: "localStorage session; pixel state in backgroundUrl if masked edit succeeded" },
+  { task: "Reopen", completable: "partial", blocker: "localStorage session restores compositor layers + backgroundUrl" },
 ] as const;

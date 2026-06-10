@@ -64,9 +64,9 @@ describe("Editor UX V7", () => {
     assert.ok(actions.includes("export"));
   });
 
-  it("character object shows replace remove cutout animate duplicate", () => {
+  it("character object shows replace remove cutout duplicate (animate hidden until compositor GIF)", () => {
     const actions = resolveUxV7ObjectActions(mockLayer());
-    assert.deepEqual(actions, ["replace", "remove", "cutout", "animate", "duplicate"]);
+    assert.deepEqual(actions, ["replace", "remove", "cutout", "duplicate"]);
   });
 
   it("logo object shows replace resize move remove", () => {
@@ -86,7 +86,7 @@ describe("Editor UX V7", () => {
       })
     );
     assert.ok(actions.includes("background_remove"));
-    assert.ok(actions.includes("background_blur"));
+    assert.equal(actions.includes("background_blur"), false);
     assert.equal(actions.includes("cutout"), false);
   });
 

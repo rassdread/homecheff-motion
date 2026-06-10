@@ -1,4 +1,5 @@
 import { buildEditorSavePayload } from "@/lib/editor-canvas-export";
+import { promoteCutoutToImportedLayer } from "@/lib/editor-compositor";
 import { buildEditorCutoutAsset, editorCutoutReady, upsertEditorCutoutAsset } from "@/lib/editor-cutout-layers";
 import { appendLibraryExport } from "@/lib/editor-library-categories";
 import { findEditorObjectByLayerId } from "@/lib/editor-object-detection";
@@ -59,6 +60,17 @@ export function applySegmentCutoutToDocument(
     cutoutAssets: cutout ? upsertEditorCutoutAsset(document.cutoutAssets, cutout) : document.cutoutAssets,
     updatedAt: new Date().toISOString(),
   };
+
+  next = promoteCutoutToImportedLayer(next, {
+    cutoutUrl: result.cutoutUrl,
+    label: layer.label,
+    layerId,
+    maskUrl: result.maskUrl,
+    dropPoint: {
+      x: nextLayer.transform.x,
+      y: nextLayer.transform.y,
+    },
+  });
 
   next = appendLibraryExport(next, {
     category: "cutout",

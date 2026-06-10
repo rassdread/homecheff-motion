@@ -5,6 +5,8 @@ import { useState } from "react";
 import { EditorCanvasWorkspace } from "@/components/editor/editor-canvas-workspace";
 import { EditorStartScreen } from "@/components/editor/editor-start-screen";
 import { loadEditorCanvasDocument } from "@/lib/editor-canvas-session";
+import { confirmLeaveEditorProject, editorProjectHasUnsavedVisualChanges } from "@/lib/editor-project-model";
+import { useActiveTranslator } from "@/i18n/client";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 function resolveEditorDocument(
@@ -21,6 +23,7 @@ function resolveEditorDocument(
 }
 
 export function EditorProductPage() {
+  const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session") ?? "";
@@ -33,6 +36,12 @@ export function EditorProductPage() {
   };
 
   const handleBack = () => {
+    if (document && editorProjectHasUnsavedVisualChanges(document)) {
+      const ok = confirmLeaveEditorProject(t("editor.project.unsavedWarning" as never));
+      if (!ok) {
+        return;
+      }
+    }
     setDocumentOverride(null);
     router.replace("/editor");
   };
