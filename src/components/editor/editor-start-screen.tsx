@@ -14,6 +14,8 @@ import {
   runEditorVisionAndObjectDetection,
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
+import { EditorIntentPicker } from "@/components/editor/editor-intent-picker";
+import { resolveWorkspaceModeFromIntent, type EditorUserIntent } from "@/lib/editor-workspace-modes";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -31,6 +33,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
 
+  const [pendingIntent, setPendingIntent] = useState<EditorUserIntent | null>(null);
+
   const openWithVision = async (document: EditorCanvasDocument) => {
     saveEditorCanvasDocument(document);
     setRecent(listRecentEditorDocuments());
@@ -47,6 +51,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
         name: file.name.replace(/\.[^.]+$/, ""),
         backgroundUrl: uploaded.workingImageUrl,
         backgroundStorageKey: uploaded.workingStorageKey,
+        workspaceMode: pendingIntent ? resolveWorkspaceModeFromIntent(pendingIntent) : "photo_edit",
       });
       await openWithVision(doc);
     } catch {
@@ -81,6 +86,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
           </p>
           <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{t("editor.start.title")}</h1>
           <p className="mt-2 text-sm text-slate-600">{t("editor.start.lead")}</p>
+
+          <EditorIntentPicker onSelect={setPendingIntent} />
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <button
@@ -155,7 +162,12 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                       type="button"
                       className="flex w-full items-center gap-3 rounded-lg border border-zinc-100 px-3 py-2 text-left hover:bg-zinc-50"
                       onClick={() => {
-                        void openWithVision(createEditorDocumentFromLibrarySource(source));
+                        void openWithVision({
+                          ...createEditorDocumentFromLibrarySource(source),
+                          workspaceMode: pendingIntent
+                            ? resolveWorkspaceModeFromIntent(pendingIntent)
+                            : "photo_edit",
+                        });
                         setShowLibrary(false);
                       }}
                     >

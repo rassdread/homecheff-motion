@@ -555,6 +555,180 @@ export type EditorDetectionMeta = {
   onnxAvailable: boolean;
 };
 
+/** Editor V5 workspace modes — what the user wants to make. */
+export const EDITOR_WORKSPACE_MODES = [
+  "photo_edit",
+  "compose",
+  "quick_motion",
+  "export",
+] as const;
+
+export type EditorWorkspaceMode = (typeof EDITOR_WORKSPACE_MODES)[number];
+
+export const EDITOR_BLEND_MODES = [
+  "normal",
+  "multiply",
+  "screen",
+  "overlay",
+] as const;
+
+export type EditorBlendMode = (typeof EDITOR_BLEND_MODES)[number];
+
+/** Imported cutout layer dropped from source into target composition. */
+export type EditorImportedLayer = {
+  id: string;
+  label: string;
+  sourceAssetId: string | null;
+  sourceImageUrl: string;
+  sourceStorageKey?: string;
+  maskUrl?: string;
+  cutoutUrl?: string;
+  maskStorageKey?: string;
+  transform: EditorCanvasTransform;
+  zIndex: number;
+  blendMode: EditorBlendMode;
+  opacity: number;
+  shadow: boolean;
+  softEdge: number;
+  locked: boolean;
+  visible: boolean;
+  flippedX: boolean;
+  flippedY: boolean;
+  matchLighting: boolean;
+  matchColor: boolean;
+  createdAt: string;
+};
+
+export type EditorDualComposerState = {
+  sourceImageUrl?: string;
+  sourceStorageKey?: string;
+  sourceAssetId?: string | null;
+  sourceName?: string;
+  targetSessionId: string;
+  active: boolean;
+};
+
+export const EDITOR_QUICK_MOTION_PRESETS = [
+  "float",
+  "pulse",
+  "rotate",
+  "bounce",
+  "reveal",
+  "orbit",
+  "wiggle",
+  "logo_pop",
+  "globe_spin",
+] as const;
+
+export type EditorQuickMotionPreset = (typeof EDITOR_QUICK_MOTION_PRESETS)[number];
+
+export const EDITOR_QUICK_MOTION_FORMATS = ["gif", "webp", "mp4"] as const;
+
+export type EditorQuickMotionFormat = (typeof EDITOR_QUICK_MOTION_FORMATS)[number];
+
+export type EditorQuickMotionConfig = {
+  preset: EditorQuickMotionPreset;
+  format: EditorQuickMotionFormat;
+  durationSec: number;
+  loop: boolean;
+  fps: number;
+  width: number;
+  height: number;
+  transparentBackground: boolean;
+  quality: number;
+  targetLayerId?: string;
+  targetImportedLayerId?: string;
+};
+
+export const EDITOR_EXPORT_PROFILES = [
+  "motion_ready",
+  "production_ready",
+  "print_ready",
+] as const;
+
+export type EditorExportProfileId = (typeof EDITOR_EXPORT_PROFILES)[number];
+
+export const EDITOR_PRINT_DPI_OPTIONS = [150, 300, 600] as const;
+
+export type EditorPrintDpi = (typeof EDITOR_PRINT_DPI_OPTIONS)[number];
+
+export const EDITOR_PRINT_UNITS = ["px", "cm", "mm", "inch"] as const;
+
+export type EditorPrintUnit = (typeof EDITOR_PRINT_UNITS)[number];
+
+export const EDITOR_PRINT_SIZE_PRESETS = [
+  "a4",
+  "a3",
+  "a2",
+  "a1",
+  "square_poster",
+  "instagram_poster",
+  "custom",
+] as const;
+
+export type EditorPrintSizePreset = (typeof EDITOR_PRINT_SIZE_PRESETS)[number];
+
+export type EditorPrintExportSettings = {
+  dpi: EditorPrintDpi;
+  unit: EditorPrintUnit;
+  preset: EditorPrintSizePreset;
+  width: number;
+  height: number;
+  bleedMm: number;
+  safeMarginMm: number;
+  formats: Array<"png" | "jpg" | "pdf" | "svg">;
+  retinaScale: 1 | 2 | 3;
+};
+
+export type EditorProductionExportSettings = {
+  formats: Array<"png" | "jpg" | "webp" | "svg" | "pdf">;
+  transparentBackground: boolean;
+  retinaScale: 1 | 2 | 3;
+  quality: number;
+  width: number;
+  height: number;
+};
+
+export type EditorExportSettings = {
+  profile: EditorExportProfileId;
+  production?: EditorProductionExportSettings;
+  print?: EditorPrintExportSettings;
+};
+
+export const EDITOR_LIBRARY_EXPORT_CATEGORIES = [
+  "edited_image",
+  "composition",
+  "cutout",
+  "gif",
+  "motion_ready",
+  "print_ready",
+] as const;
+
+export type EditorLibraryExportCategory = (typeof EDITOR_LIBRARY_EXPORT_CATEGORIES)[number];
+
+export type EditorLibraryExportRecord = {
+  id: string;
+  category: EditorLibraryExportCategory;
+  label: string;
+  url?: string;
+  format?: string;
+  profile?: EditorExportProfileId;
+  createdAt: string;
+  metadata?: Record<string, string | number | boolean>;
+};
+
+export type EditorPosterUpscaleStatus = "good" | "acceptable" | "needs_upscale" | "unavailable";
+
+export type EditorPosterUpscaleAssessment = {
+  status: EditorPosterUpscaleStatus;
+  sourceWidth: number;
+  sourceHeight: number;
+  requiredWidth: number;
+  requiredHeight: number;
+  messageKey: string;
+  providerAvailable: boolean;
+};
+
 export type EditorCanvasDocument = {
   sessionId: string;
   name: string;
@@ -563,6 +737,12 @@ export type EditorCanvasDocument = {
   backgroundUrl: string;
   backgroundStorageKey?: string;
   workflowStep: EditorWorkflowStepId;
+  workspaceMode?: EditorWorkspaceMode;
+  composerState?: EditorDualComposerState;
+  importedLayers?: EditorImportedLayer[];
+  quickMotionConfig?: EditorQuickMotionConfig;
+  exportSettings?: EditorExportSettings;
+  libraryExports?: EditorLibraryExportRecord[];
   objects: EditorCanvasLayer[];
   placements: PlacementCanvasItem[];
   bodyDesigner?: CharacterBodyDesignerParams;

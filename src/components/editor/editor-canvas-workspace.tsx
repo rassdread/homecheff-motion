@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
@@ -12,6 +12,9 @@ import { EditorObjectActionMenu } from "@/components/editor/editor-object-action
 import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-placement-properties-panel";
 import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-panel";
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
+import { EditorDualComposerPanel } from "@/components/editor/editor-dual-composer-panel";
+import { EditorExportHubPanel } from "@/components/editor/editor-export-hub-panel";
+import { EditorQuickMotionPanel } from "@/components/editor/editor-quick-motion-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
@@ -85,7 +88,20 @@ import {
 } from "@/lib/editor-mask-actions";
 import { syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import type { EditorShapePoint } from "@/types/homecheff-visual-editor";
-import { DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS } from "@/types/homecheff-visual-editor";
+import {
+  DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS,
+  EDITOR_WORKSPACE_MODES,
+  type EditorWorkspaceMode,
+} from "@/types/homecheff-visual-editor";
+import { openDualComposer } from "@/lib/editor-dual-composer";
+import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
+import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
+import {
+  EDITOR_MODE_LABEL_KEYS,
+  modeShowsComposer,
+  modeShowsExportPanel,
+  modeShowsQuickMotion,
+} from "@/lib/editor-workspace-modes";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -128,6 +144,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [sam2NegativePoints, setSam2NegativePoints] = useState<EditorShapePoint[]>([]);
   const [sam2RefineVisible, setSam2RefineVisible] = useState(false);
   const [motionPreviewEnabled, setMotionPreviewEnabled] = useState(false);
+  const [advancedExportOpen, setAdvancedExportOpen] = useState(false);
+  const [composerUploading, setComposerUploading] = useState(false);
+  const composerSourceRef = useRef<HTMLInputElement>(null);
+
+  const workspaceMode: EditorWorkspaceMode = document.workspaceMode ?? "photo_edit";
 
   const hierarchicalSelection =
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
@@ -158,6 +179,30 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     const saved = saveEditorCanvasDocument(next);
     onDocumentChange(saved);
     return saved;
+  };
+
+  const setWorkspaceMode = (mode: EditorWorkspaceMode) => {
+    let next: EditorCanvasDocument = { ...document, workspaceMode: mode };
+    if (mode === "quick_motion" && !next.quickMotionConfig) {
+      next = attachQuickMotionConfig(next, {});
+    }
+    persist(next);
+  };
+
+  const handleComposerSourceUpload = async (file: File) => {
+    setComposerUploading(true);
+    try {
+      const uploaded = await uploadEditorSourceImage(file);
+      persist(
+        openDualComposer(document, {
+          imageUrl: uploaded.workingImageUrl,
+          storageKey: uploaded.workingStorageKey,
+          name: file.name.replace(/\.[^.]+$/, ""),
+        })
+      );
+    } finally {
+      setComposerUploading(false);
+    }
   };
 
   const selectLayer = (layerId: string, partId: string | null = null) => {
@@ -930,6 +975,79 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             }}
             saving={saving}
           />
+
+          {!showReview ?
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {EDITOR_WORKSPACE_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setWorkspaceMode(mode)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      workspaceMode === mode
+                        ? "bg-[#0067B1] text-white"
+                        : "border border-zinc-300 bg-white text-zinc-800"
+                    }`}
+                  >
+                    {t(EDITOR_MODE_LABEL_KEYS[mode] as never)}
+                  </button>
+                ))}
+              </div>
+
+              {modeShowsComposer(workspaceMode) ?
+                <div className="space-y-2">
+                  <input
+                    ref={composerSourceRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        void handleComposerSourceUpload(file);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={composerUploading}
+                    onClick={() => composerSourceRef.current?.click()}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 disabled:opacity-50"
+                  >
+                    {composerUploading
+                      ? t("editor.v5.composer.uploading" as never)
+                      : t("editor.v5.composer.addSource" as never)}
+                  </button>
+                  <EditorDualComposerPanel document={document} onDocumentChange={persist} />
+                </div>
+              : null}
+
+              {modeShowsQuickMotion(workspaceMode) ?
+                <EditorQuickMotionPanel document={document} onDocumentChange={persist} />
+              : null}
+
+              {modeShowsExportPanel(workspaceMode) ?
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedExportOpen((v) => !v)}
+                    className="text-xs font-medium text-zinc-600 underline"
+                  >
+                    {advancedExportOpen
+                      ? t("editor.v5.export.hideAdvanced" as never)
+                      : t("editor.v5.export.showAdvanced" as never)}
+                  </button>
+                  <EditorExportHubPanel
+                    document={document}
+                    onDocumentChange={persist}
+                    advancedOpen={advancedExportOpen}
+                  />
+                </div>
+              : null}
+            </div>
+          : null}
 
           {showReview ?
             <div className="mt-4">

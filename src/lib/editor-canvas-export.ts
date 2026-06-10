@@ -28,6 +28,12 @@ export type EditorSavePayload = {
   studioMotionHandoff?: EditorStudioMotionHandoff;
   objectHierarchies?: EditorCanvasDocument["objectHierarchies"];
   partLibraryAssets?: EditorCanvasDocument["partLibraryAssets"];
+  workspaceMode?: EditorCanvasDocument["workspaceMode"];
+  importedLayers?: EditorCanvasDocument["importedLayers"];
+  quickMotionConfig?: EditorCanvasDocument["quickMotionConfig"];
+  exportSettings?: EditorCanvasDocument["exportSettings"];
+  libraryExports?: EditorCanvasDocument["libraryExports"];
+  composerState?: EditorCanvasDocument["composerState"];
 };
 
 export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSavePayload {
@@ -80,6 +86,12 @@ export function buildEditorSavePayload(document: EditorCanvasDocument): EditorSa
     studioMotionHandoff: document.studioMotionHandoff ?? buildStudioMotionHandoff(document),
     objectHierarchies: document.objectHierarchies,
     partLibraryAssets: document.partLibraryAssets,
+    workspaceMode: document.workspaceMode,
+    importedLayers: document.importedLayers,
+    quickMotionConfig: document.quickMotionConfig,
+    exportSettings: document.exportSettings,
+    libraryExports: document.libraryExports,
+    composerState: document.composerState,
   };
 }
 

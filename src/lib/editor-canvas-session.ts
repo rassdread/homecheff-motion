@@ -96,6 +96,9 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     motionPreparations,
     objectHierarchies,
     hierarchicalSelection,
+    workspaceMode: document.workspaceMode ?? "photo_edit",
+    importedLayers: document.importedLayers ?? [],
+    libraryExports: document.libraryExports ?? [],
   });
   return {
     ...withHandoff,
@@ -121,6 +124,7 @@ export function createEditorDocumentFromUpload(params: {
   name: string;
   backgroundUrl: string;
   backgroundStorageKey?: string;
+  workspaceMode?: import("@/types/homecheff-visual-editor").EditorWorkspaceMode;
 }): EditorCanvasDocument {
   const sessionId = createEditorSessionId();
   const now = new Date().toISOString();
@@ -149,6 +153,7 @@ export function createEditorDocumentFromUpload(params: {
       },
     ],
     placements: [],
+    workspaceMode: params.workspaceMode ?? "photo_edit",
     status: "editing",
     createdAt: now,
     updatedAt: now,

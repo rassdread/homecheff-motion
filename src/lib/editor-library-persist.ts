@@ -10,7 +10,12 @@ export type EditorSaveMode =
   | "new_asset"
   | "edited_copy"
   | "canonical_base"
-  | "animation_ready";
+  | "animation_ready"
+  | "composition"
+  | "cutout"
+  | "gif_asset"
+  | "print_export"
+  | "motion_ready_export";
 
 export type EditorLibraryPersistResult = {
   ok: boolean;
