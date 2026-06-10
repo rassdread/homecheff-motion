@@ -22,6 +22,8 @@ import {
   pickTopEditorObjectAtPoint,
 } from "@/lib/editor-object-picking";
 import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
+import { animationProfileFromV6Preset } from "@/lib/editor-v6-motion-preview";
+import type { LibraryDragPayload } from "@/lib/editor-v6-library-drag";
 import { EditorMotionPreviewOverlay } from "@/components/editor/editor-motion-preview-overlay";
 import { EditorPartSelectionOverlay } from "@/components/editor/editor-part-selection-overlay";
 import type {
@@ -58,6 +60,8 @@ type Props = {
   onHierarchicalPick?: (layerId: string, partId: string | null) => void;
   selectedPartId?: string | null;
   motionPreviewEnabled?: boolean;
+  onLibraryAssetDrop?: (payload: LibraryDragPayload) => void;
+  showAlignmentGuides?: boolean;
 };
 
 export function EditorCanvasPreview({
@@ -86,6 +90,8 @@ export function EditorCanvasPreview({
   onHierarchicalPick,
   selectedPartId = null,
   motionPreviewEnabled = false,
+  onLibraryAssetDrop,
+  showAlignmentGuides = false,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -137,6 +143,23 @@ export function EditorCanvasPreview({
         }
       }}
       onPointerLeave={() => setHoveredLayerId(null)}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("application/x-homecheff-library-asset")) {
+          event.preventDefault();
+        }
+      }}
+      onDrop={(event) => {
+        const raw = event.dataTransfer.getData("application/x-homecheff-library-asset");
+        if (!raw || !onLibraryAssetDrop) {
+          return;
+        }
+        event.preventDefault();
+        try {
+          onLibraryAssetDrop(JSON.parse(raw) as LibraryDragPayload);
+        } catch {
+          // ignore invalid payload
+        }
+      }}
       onPointerDown={(event) => {
         if (!humanFirst || lassoActive || preciseSelectActive || selectedPlacementId) {
           return;
@@ -181,6 +204,30 @@ export function EditorCanvasPreview({
             profile={selectedPart.animationProfile}
             label={selectedPart.label}
           />
+        : null}
+        {document.productivityState?.motionPreviewLayerId &&
+        document.productivityState.motionPreviewPreset &&
+        selectedLayerId === document.productivityState.motionPreviewLayerId ?
+          (() => {
+            const layer = document.objects.find((o) => o.id === selectedLayerId);
+            if (!layer) {
+              return null;
+            }
+            return (
+              <EditorMotionPreviewOverlay
+                bounds={layer.bounds}
+                profile={animationProfileFromV6Preset(document.productivityState!.motionPreviewPreset!)}
+                label={layer.label}
+                active
+              />
+            );
+          })()
+        : null}
+        {showAlignmentGuides ?
+          <>
+            <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px bg-[#0067B1]/30" />
+            <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full bg-[#0067B1]/30" />
+          </>
         : null}
       </div>
       {lassoActive && onLassoComplete && onLassoCancel ?

@@ -729,6 +729,126 @@ export type EditorPosterUpscaleAssessment = {
   providerAvailable: boolean;
 };
 
+/** Editor V6 productivity — quick actions, previews, templates. */
+export const EDITOR_V6_QUICK_ACTIONS = [
+  "replace",
+  "remove",
+  "cutout",
+  "save",
+  "animate",
+  "duplicate",
+] as const;
+
+export type EditorV6QuickAction = (typeof EDITOR_V6_QUICK_ACTIONS)[number];
+
+export const EDITOR_V6_MOTION_PREVIEW_PRESETS = [
+  "float",
+  "rotate",
+  "pulse",
+  "bounce",
+  "orbit",
+  "reveal",
+  "wave",
+] as const;
+
+export type EditorV6MotionPreviewPreset = (typeof EDITOR_V6_MOTION_PREVIEW_PRESETS)[number];
+
+export const EDITOR_POSTER_TEMPLATES = [
+  "a4",
+  "a3",
+  "a2",
+  "a1",
+  "instagram",
+  "flyer",
+  "menu",
+  "event",
+  "restaurant",
+  "marketplace",
+] as const;
+
+export type EditorPosterTemplate = (typeof EDITOR_POSTER_TEMPLATES)[number];
+
+export const EDITOR_SOCIAL_PRESETS = [
+  "instagram_post",
+  "instagram_story",
+  "tiktok_cover",
+  "youtube_thumbnail",
+  "facebook_post",
+  "linkedin_post",
+  "x_post",
+  "pinterest",
+] as const;
+
+export type EditorSocialPreset = (typeof EDITOR_SOCIAL_PRESETS)[number];
+
+export const EDITOR_BRAND_KIT_ITEM_KINDS = [
+  "logo",
+  "color",
+  "font",
+  "gradient",
+  "background",
+  "mascot",
+] as const;
+
+export type EditorBrandKitItemKind = (typeof EDITOR_BRAND_KIT_ITEM_KINDS)[number];
+
+export type EditorBrandKitItem = {
+  id: string;
+  kind: EditorBrandKitItemKind;
+  label: string;
+  value: string;
+  previewUrl?: string;
+};
+
+export type EditorMagicReplacePreview = {
+  layerId: string;
+  prompt?: string;
+  replacementImageUrl?: string;
+  ready: boolean;
+  messageKey: string;
+};
+
+export const EDITOR_BACKGROUND_TOOL_IDS = [
+  "remove",
+  "blur",
+  "replace",
+  "expand",
+  "transparent_export",
+  "sky",
+  "gradient",
+  "brand_background",
+] as const;
+
+export type EditorBackgroundToolId = (typeof EDITOR_BACKGROUND_TOOL_IDS)[number];
+
+export const EDITOR_ALIGNMENT_ACTIONS = [
+  "center",
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "distribute_h",
+  "distribute_v",
+] as const;
+
+export type EditorAlignmentAction = (typeof EDITOR_ALIGNMENT_ACTIONS)[number];
+
+export type EditorV6ProductivityState = {
+  motionPreviewPreset?: EditorV6MotionPreviewPreset;
+  motionPreviewLayerId?: string;
+  posterTemplate?: EditorPosterTemplate;
+  socialPreset?: EditorSocialPreset;
+  magicReplacePreview?: EditorMagicReplacePreview;
+  showAlignmentGuides?: boolean;
+};
+
+export type EditorStudioHandoffScore = {
+  score: number;
+  labelKey: string;
+  checks: Array<{ id: string; ok: boolean; labelKey: string }>;
+  warnings: Array<{ id: string; labelKey: string }>;
+};
+
 export type EditorCanvasDocument = {
   sessionId: string;
   name: string;
@@ -764,6 +884,7 @@ export type EditorCanvasDocument = {
   partLibraryAssets?: EditorPartLibraryAsset[];
   hierarchicalSelection?: EditorHierarchicalSelectionState;
   studioMotionHandoff?: EditorStudioMotionHandoff;
+  productivityState?: EditorV6ProductivityState;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

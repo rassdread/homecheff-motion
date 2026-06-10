@@ -15,7 +15,17 @@ import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
 import { EditorDualComposerPanel } from "@/components/editor/editor-dual-composer-panel";
 import { EditorExportHubPanel } from "@/components/editor/editor-export-hub-panel";
+import { EditorAlignmentToolbar } from "@/components/editor/editor-alignment-toolbar";
+import { EditorBackgroundToolsPanel } from "@/components/editor/editor-background-tools-panel";
+import { EditorBrandKitPanel } from "@/components/editor/editor-brand-kit-panel";
+import { EditorHandoffScorePanel } from "@/components/editor/editor-handoff-score-panel";
+import { EditorLibraryDragPanel } from "@/components/editor/editor-library-drag-panel";
+import { EditorMagicReplacePanel } from "@/components/editor/editor-magic-replace-panel";
+import { EditorMotionPreviewBar } from "@/components/editor/editor-motion-preview-bar";
+import { EditorPosterBuilderPanel } from "@/components/editor/editor-poster-builder-panel";
+import { EditorQuickActionBar } from "@/components/editor/editor-quick-action-bar";
 import { EditorQuickMotionPanel } from "@/components/editor/editor-quick-motion-panel";
+import { EditorSocialKitPanel } from "@/components/editor/editor-social-kit-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
@@ -36,6 +46,7 @@ import {
   renameEditorLayerInDocument,
   reorderEditorLayerInDocument,
   saveEditorCanvasDocument,
+  loadEditorCanvasDocument,
   buildEditorDownloadFilename,
   undoEditorDocument,
 } from "@/lib/editor-canvas-session";
@@ -112,6 +123,22 @@ import {
   resolveContextualHumanActions,
   resolveHumanFirstObjectType,
 } from "@/lib/editor-ux-cleanup";
+import {
+  alignDocumentLayer,
+  distributeDocumentLayers,
+} from "@/lib/editor-v6-alignment";
+import { applyBackgroundToolIntent, backgroundToolPrompt } from "@/lib/editor-v6-background-tools";
+import { dropLibraryAssetOnCanvas, type LibraryDragPayload } from "@/lib/editor-v6-library-drag";
+import { attachMotionPreview } from "@/lib/editor-v6-motion-preview";
+import {
+  applySegmentCutoutToDocument,
+  planOneClickCutout,
+} from "@/lib/editor-v6-one-click-cutout";
+import type {
+  EditorAlignmentAction,
+  EditorBackgroundToolId,
+  EditorV6QuickAction,
+} from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -158,6 +185,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [motionPreviewEnabled, setMotionPreviewEnabled] = useState(false);
   const [advancedExportOpen, setAdvancedExportOpen] = useState(false);
   const [showAiAnalysis, setShowAiAnalysis] = useState(false);
+  const [v6Busy, setV6Busy] = useState(false);
+  const [showMagicReplace, setShowMagicReplace] = useState(false);
   const [composerUploading, setComposerUploading] = useState(false);
   const composerSourceRef = useRef<HTMLInputElement>(null);
 
@@ -317,12 +346,14 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
   const runMaskedEdit = async (
     operation: "delete" | "replace",
-    layer: EditorCanvasLayer
+    layer: EditorCanvasLayer,
+    prompt?: string,
+    replacementImageUrl?: string
   ) => {
     const plan =
       operation === "delete"
         ? planEditorSmartRemove(layer)
-        : planEditorSmartReplace({ layer });
+        : planEditorSmartReplace({ layer, prompt, replacementImageUrl });
     const maskUrl = plan.maskUrl;
     if (!maskUrl || !plan.ready) {
       setSaveMessage(plan.message);
@@ -353,7 +384,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               imageUrl: document.backgroundUrl,
               maskUrl,
               objectLabel: layer.label,
-              prompt: `Replace ${layer.label} with an improved version`,
+              prompt: prompt?.trim() || `Replace ${layer.label} with an improved version`,
               backgroundStorageKey: document.backgroundStorageKey,
             });
 
@@ -761,6 +792,146 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setSaveMessage(t("editor.mask.lasso.applied"));
   };
 
+  const handleOneClickCutout = async () => {
+    if (!selectedLayerId || !selectedLayer) {
+      return;
+    }
+    const plan = planOneClickCutout(document, selectedLayerId);
+    if (!plan.needsSegmentation) {
+      persist(plan.document);
+      setSaveMessage(t("editor.v6.cutout.saved" as never));
+      return;
+    }
+    setV6Busy(true);
+    try {
+      const clickPoint = { x: selectedLayer.transform.x, y: selectedLayer.transform.y };
+      const res = await fetch("/api/editor/segment/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          clickPoint,
+          targetBounds: selectedLayer.bounds,
+          objectHint: selectedLayer.label,
+          editorObjectId: selectedLayerId,
+          sessionId: document.sessionId,
+          createCutout: true,
+        }),
+      });
+      if (!res.ok) {
+        setSaveMessage(t("editor.v6.cutout.failed" as never));
+        return;
+      }
+      const result = (await res.json()) as {
+        cutoutUrl?: string;
+        maskUrl?: string;
+        maskStorageKey?: string;
+        polygon?: EditorShapePoint[];
+      };
+      if (!result.cutoutUrl) {
+        setSaveMessage(t("editor.v6.cutout.failed" as never));
+        return;
+      }
+      applySam2ShapeToLayer(result as Parameters<typeof applySam2ShapeToLayer>[0], selectedLayerId, selectedLayer);
+      const latest = loadEditorCanvasDocument(document.sessionId) ?? document;
+      const withLibrary = applySegmentCutoutToDocument(latest, selectedLayerId, {
+        cutoutUrl: result.cutoutUrl,
+        maskUrl: result.maskUrl,
+        maskStorageKey: result.maskStorageKey,
+        polygon: result.polygon,
+      });
+      persist(withLibrary.document);
+      setSaveMessage(t("editor.v6.cutout.saved" as never));
+    } catch {
+      setSaveMessage(t("editor.v6.cutout.failed" as never));
+    } finally {
+      setV6Busy(false);
+    }
+  };
+
+  const handleV6QuickAction = (action: EditorV6QuickAction) => {
+    if (!selectedLayerId || !selectedLayer) {
+      return;
+    }
+    switch (action) {
+      case "replace":
+        setShowMagicReplace(true);
+        break;
+      case "remove":
+        void handleOperation("delete");
+        break;
+      case "duplicate":
+        void handleOperation("duplicate");
+        break;
+      case "animate":
+        persist(attachMotionPreview(document, selectedLayerId, "float"));
+        setMotionPreviewEnabled(true);
+        break;
+      case "save":
+        setShowReview(true);
+        break;
+      case "cutout":
+        void handleOneClickCutout();
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleMagicReplaceApply = (input: { prompt?: string; replacementImageUrl?: string }) => {
+    if (!selectedLayer) {
+      return;
+    }
+    void runMaskedEdit("replace", selectedLayer, input.prompt, input.replacementImageUrl);
+    setShowMagicReplace(false);
+  };
+
+  const handleBackgroundTool = (toolId: EditorBackgroundToolId) => {
+    const bgLayer = document.objects.find((o) => o.layerType === "background");
+    if (bgLayer) {
+      selectLayer(bgLayer.id);
+    }
+    const intent = applyBackgroundToolIntent(document, toolId);
+    if (intent.document !== document) {
+      persist(intent.document);
+    }
+    if (toolId === "remove") {
+      handleRemoveBackground();
+      return;
+    }
+    const prompt = backgroundToolPrompt(toolId);
+    const bg = document.objects.find((o) => o.layerType === "background");
+    if (prompt && bg) {
+      void runMaskedEdit("replace", bg, prompt);
+    }
+  };
+
+  const handleAlignment = (action: EditorAlignmentAction) => {
+    if (!selectedLayerId) {
+      if (action === "distribute_h") {
+        persist(distributeDocumentLayers(document, "h"));
+      } else if (action === "distribute_v") {
+        persist(distributeDocumentLayers(document, "v"));
+      }
+      return;
+    }
+    if (action === "distribute_h") {
+      persist(distributeDocumentLayers(document, "h"));
+      return;
+    }
+    if (action === "distribute_v") {
+      persist(distributeDocumentLayers(document, "v"));
+      return;
+    }
+    persist(alignDocumentLayer(document, selectedLayerId, action));
+  };
+
+  const handleLibraryAssetDrop = (payload: LibraryDragPayload) => {
+    persist(dropLibraryAssetOnCanvas(document, payload));
+    setSaveMessage(t("editor.v6.library.dropped" as never));
+  };
+
   const handleSuggestion = (suggestionId: string) => {
     if (!selectedLayerId) {
       return;
@@ -1120,6 +1291,22 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 selectedLayerId={selectedLayerId}
                 onSelect={selectLayer}
               />
+              {selectedLayer && !selectedPlacementId ?
+                <EditorQuickActionBar
+                  layer={selectedLayer}
+                  busy={v6Busy || saving}
+                  onAction={handleV6QuickAction}
+                />
+              : null}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <EditorLibraryDragPanel document={document} onDocumentChange={persist} />
+                <EditorBrandKitPanel document={document} onDocumentChange={persist} />
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <EditorPosterBuilderPanel document={document} onDocumentChange={persist} />
+                <EditorSocialKitPanel document={document} onDocumentChange={persist} />
+              </div>
+              <EditorHandoffScorePanel document={document} />
               <div className="relative mx-auto w-full max-w-4xl">
                 <EditorFloatingToolbar
                   visible={Boolean(selectedLayer && !selectedPlacementId)}
@@ -1168,6 +1355,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   onHierarchicalPick={handleHierarchicalPick}
                   selectedPartId={selectedPartId}
                   motionPreviewEnabled={motionPreviewEnabled}
+                  onLibraryAssetDrop={handleLibraryAssetDrop}
+                  showAlignmentGuides={document.productivityState?.showAlignmentGuides}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -1183,6 +1372,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
               {selectedLayer && !selectedPlacementId ?
                 <>
+                  <EditorMotionPreviewBar
+                    document={document}
+                    layerId={selectedLayerId!}
+                    onDocumentChange={persist}
+                    onPreviewChange={setMotionPreviewEnabled}
+                  />
+                  <EditorAlignmentToolbar onAlign={handleAlignment} />
+                  {showMagicReplace ?
+                    <EditorMagicReplacePanel
+                      document={document}
+                      layer={selectedLayer}
+                      onDocumentChange={persist}
+                      onApply={handleMagicReplaceApply}
+                    />
+                  : null}
+                  {selectedLayer.layerType === "background" ?
+                    <EditorBackgroundToolsPanel onSelect={handleBackgroundTool} />
+                  : null}
                   {hierarchicalSelection.mode === "part" ?
                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900">
                       <span>{t("editor.visionV4.partModeActive" as never)}</span>
