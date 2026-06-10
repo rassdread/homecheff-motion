@@ -129,6 +129,14 @@ import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions
 import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
 import { parseCompositorLayerId } from "@/lib/editor-compositor";
 import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
+import {
+  autoMaskUserMessageKey,
+  layerBoundsCenter,
+  pickAutoMaskStrategy,
+  shouldAutoAcquireMask,
+} from "@/lib/editor-auto-mask";
+import { applyBackgroundRemovalResult, findPrimarySubjectLayer } from "@/lib/editor-background-remove";
+import { useEditorProjectPersist } from "@/hooks/use-editor-project-persist";
 import { updateImportedLayer } from "@/lib/editor-imported-layers";
 import { persistCutoutToLibrary } from "@/lib/editor-cutout-library-persist";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
@@ -219,6 +227,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [lassoActive, setLassoActive] = useState(false);
   const [refiningSelection, setRefiningSelection] = useState(false);
   const [sam2Available, setSam2Available] = useState<boolean | null>(null);
+  const [rembgAvailable, setRembgAvailable] = useState(false);
+  const autoMaskInFlightRef = useRef<string | null>(null);
   const [preciseSelectActive, setPreciseSelectActive] = useState(false);
   const [preciseSelectMode, setPreciseSelectMode] = useState<PreciseSelectMode>("initial");
   const [sam2PositivePoints, setSam2PositivePoints] = useState<EditorShapePoint[]>([]);
@@ -243,11 +253,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   useEffect(() => {
     void fetch("/api/editor/segment/status")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { sam2PreciseSelection?: string } | null) => {
+      .then((data: { sam2PreciseSelection?: string; rembgAvailable?: boolean } | null) => {
         setSam2Available(data?.sam2PreciseSelection === "available");
+        setRembgAvailable(Boolean(data?.rembgAvailable));
       })
       .catch(() => setSam2Available(false));
   }, []);
+
+  const { persistNow: persistProjectNow } = useEditorProjectPersist({
+    document,
+    enabled: Boolean(session.user),
+  });
 
   const selectedLayer = useMemo(
     () => document.objects.find((o) => o.id === selectedLayerId) ?? null,
@@ -291,6 +307,84 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
+  const tryAutoAcquireMask = async (layer: NonNullable<typeof selectedLayer>) => {
+    if (!shouldAutoAcquireMask(layer) || autoMaskInFlightRef.current === layer.id) {
+      return;
+    }
+    const strategy = pickAutoMaskStrategy(sam2Available === true, rembgAvailable);
+    if (strategy === "none") {
+      return;
+    }
+    autoMaskInFlightRef.current = layer.id;
+    setRefiningSelection(true);
+    try {
+      if (strategy === "sam2") {
+        const clickPoint = layerBoundsCenter(layer);
+        const res = await fetch("/api/editor/segment/click", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: document.backgroundUrl,
+            backgroundStorageKey: document.backgroundStorageKey,
+            clickPoint,
+            targetBounds: layer.bounds,
+            objectHint: layer.label,
+            editorObjectId: layer.id,
+            sessionId: document.sessionId,
+            createCutout: true,
+          }),
+        });
+        if (res.ok) {
+          const result = (await res.json()) as Parameters<typeof applySam2ShapeToLayer>[0];
+          applySam2ShapeToLayer(result, layer.id, layer);
+          setSaveMessage(t(autoMaskUserMessageKey(strategy, true) as never));
+          return;
+        }
+      }
+      const res = await fetch("/api/editor/segment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceUrl: document.backgroundUrl,
+          sessionId: document.sessionId,
+          mode: "refine",
+          targetBounds: layer.bounds,
+        }),
+      });
+      if (res.ok) {
+        const result = (await res.json()) as {
+          maskUrl?: string;
+          cutoutUrl?: string;
+          polygon: EditorShapePoint[];
+          boundingBox: { x: number; y: number; width: number; height: number };
+          confidence: number;
+          segmentationSource: "rembg" | "heuristic";
+        };
+        const shape = createMaskSelectionShape({
+          bounds: result.boundingBox,
+          maskUrl: result.maskUrl,
+          cutoutUrl: result.cutoutUrl,
+          polygon: result.polygon,
+          confidence: result.confidence,
+          segmentationSource: result.segmentationSource,
+        });
+        let next = applyEditorSelectionShape(layer, shape);
+        if (result.cutoutUrl) {
+          next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
+        }
+        persist(patchEditorLayerFields(document, layer.id, next));
+        setSaveMessage(t(autoMaskUserMessageKey("rembg", Boolean(result.maskUrl)) as never));
+        return;
+      }
+      setSaveMessage(t(autoMaskUserMessageKey(strategy, false) as never));
+    } catch {
+      setSaveMessage(t(autoMaskUserMessageKey(strategy, false) as never));
+    } finally {
+      setRefiningSelection(false);
+      autoMaskInFlightRef.current = null;
+    }
+  };
+
   const selectLayer = (layerId: string, partId: string | null = null) => {
     setSelectedLayerId(layerId);
     setSelectedPlacementId(null);
@@ -298,6 +392,10 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setCustomTarget(false);
     if (uiMode === "visual") {
       setShowActionMenu(true);
+    }
+    const layer = document.objects.find((o) => o.id === layerId) ?? null;
+    if (layer && shouldAutoAcquireMask(layer)) {
+      void tryAutoAcquireMask(layer);
     }
     if (partId) {
       const rootObject = document.detectedObjects?.find((o) => o.layerId === layerId);
@@ -511,11 +609,19 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     setSaving(true);
     const saved = markEditorDocumentDraftSaved(document);
     const payload = buildEditorSavePayload(saved);
     persist(saved);
+    if (session.user) {
+      const ok = await persistProjectNow();
+      if (!ok) {
+        setSaveMessage(t("editor.project.saveFailed" as never));
+        setSaving(false);
+        return;
+      }
+    }
     setSaveMessage(
       t("editor.placement.saveDraftSuccess", {
         layers: String(payload.semanticLayers.filter((l) => l.type !== "background").length),
@@ -814,24 +920,50 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const handleRemoveBackground = () => {
-    void runEditorSegmentation("remove_background", (result) => {
-      if (!selectedLayerId || !selectedLayer) {
-        return;
+    const subject = findPrimarySubjectLayer(document);
+    const targetBounds = subject?.bounds ?? { x: 0, y: 0, width: 1, height: 1 };
+    setV6Busy(true);
+    void (async () => {
+      setRefiningSelection(true);
+      try {
+        const res = await fetch("/api/editor/segment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceUrl: document.backgroundUrl,
+            sessionId: document.sessionId,
+            mode: "remove_background",
+            targetBounds,
+          }),
+        });
+        if (!res.ok) {
+          setSaveMessage(t("editor.backgroundRemove.failed" as never));
+          return;
+        }
+        const result = (await res.json()) as {
+          maskUrl?: string;
+          cutoutUrl?: string;
+          polygon: EditorShapePoint[];
+        };
+        if (!result.cutoutUrl) {
+          setSaveMessage(t("editor.backgroundRemove.failed" as never));
+          return;
+        }
+        const next = applyBackgroundRemovalResult(document, {
+          cutoutUrl: result.cutoutUrl,
+          maskUrl: result.maskUrl,
+          polygon: result.polygon,
+        });
+        persist(next);
+        const saved = await persistCutoutToLibrary(next, result.cutoutUrl);
+        setSaveMessage(t(saved.messageKey as never));
+      } catch {
+        setSaveMessage(t("editor.backgroundRemove.failed" as never));
+      } finally {
+        setRefiningSelection(false);
+        setV6Busy(false);
       }
-      const shape = createMaskSelectionShape({
-        bounds: result.boundingBox,
-        maskUrl: result.maskUrl,
-        cutoutUrl: result.cutoutUrl,
-        polygon: result.polygon,
-        confidence: result.confidence,
-        segmentationSource: result.segmentationSource,
-      });
-      let next = applyEditorSelectionShape(selectedLayer, shape);
-      if (result.cutoutUrl) {
-        next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
-      }
-      persist(patchEditorLayerFields(document, selectedLayerId, next));
-    });
+    })();
   };
 
   const handleLassoComplete = (points: EditorShapePoint[]) => {

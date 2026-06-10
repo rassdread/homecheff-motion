@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EditorCanvasWorkspace } from "@/components/editor/editor-canvas-workspace";
 import { EditorStartScreen } from "@/components/editor/editor-start-screen";
-import { loadEditorCanvasDocument } from "@/lib/editor-canvas-session";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { fetchEditorProject } from "@/lib/editor-project-client";
+import { loadEditorCanvasDocument, saveEditorCanvasDocument } from "@/lib/editor-canvas-session";
 import { confirmLeaveEditorProject, editorProjectHasUnsavedVisualChanges } from "@/lib/editor-project-model";
 import { useActiveTranslator } from "@/i18n/client";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -26,9 +28,33 @@ export function EditorProductPage() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const auth = useAuthSession();
   const sessionId = searchParams.get("session") ?? "";
   const [documentOverride, setDocumentOverride] = useState<EditorCanvasDocument | null>(null);
+  const [hydrating, setHydrating] = useState(false);
   const document = resolveEditorDocument(sessionId, documentOverride);
+
+  useEffect(() => {
+    if (!sessionId || !auth.user) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setHydrating(true);
+      const result = await fetchEditorProject(sessionId);
+      if (cancelled) {
+        return;
+      }
+      if (result.ok && result.project) {
+        const saved = saveEditorCanvasDocument(result.project);
+        setDocumentOverride(saved);
+      }
+      setHydrating(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user?.id, sessionId]);
 
   const openDocument = (doc: EditorCanvasDocument) => {
     setDocumentOverride(doc);
@@ -45,6 +71,14 @@ export function EditorProductPage() {
     setDocumentOverride(null);
     router.replace("/editor");
   };
+
+  if (sessionId && hydrating && !document) {
+    return (
+      <main className="flex flex-1 items-center justify-center p-8 text-sm text-zinc-600">
+        {t("editor.project.loading" as never)}
+      </main>
+    );
+  }
 
   if (sessionId && document) {
     return (

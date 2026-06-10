@@ -27,19 +27,28 @@ export function useEditorMotionBootstrapApply({
   const appliedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!bootstrap?.imageUrl) {
+    if (!bootstrap?.imageUrls.length) {
       return;
     }
-    const applyKey = `${bootstrap.sessionId}:${bootstrap.imageUrl}`;
+    const applyKey = `${bootstrap.sessionId}:${bootstrap.imageUrls.join("|")}`;
     if (appliedKeyRef.current === applyKey) {
       return;
     }
-    const image = mapEditorMotionBootstrapToWizardImage(bootstrap);
-    if (!image) {
+    const images = bootstrap.imageUrls
+      .map((url, index) =>
+        mapEditorMotionBootstrapToWizardImage({
+          ...bootstrap,
+          imageUrl: url,
+          sessionId: bootstrap.sessionId,
+          assetId: index > 0 ? `${bootstrap.assetId ?? "layer"}-${index}` : bootstrap.assetId,
+        })
+      )
+      .filter((image): image is NonNullable<typeof image> => Boolean(image));
+    if (images.length === 0) {
       return;
     }
-    const alreadyAttached = sceneSlots.some(
-      (slot) => slot.image?.remoteWorkingUrl === bootstrap.imageUrl
+    const alreadyAttached = images.every((image) =>
+      sceneSlots.some((slot) => slot.image?.remoteWorkingUrl === image.remoteWorkingUrl)
     );
     if (alreadyAttached) {
       appliedKeyRef.current = applyKey;
@@ -47,7 +56,7 @@ export function useEditorMotionBootstrapApply({
     }
     setSceneSlots((prev) =>
       syncAutoEmotionsForSceneSlots(
-        assignImagesToSceneSlots(prev, [image], transitionSeconds),
+        assignImagesToSceneSlots(prev, images, transitionSeconds),
         instantMode
       )
     );

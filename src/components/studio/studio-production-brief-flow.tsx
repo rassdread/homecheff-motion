@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { resolveEditorStudioEntry } from "@/lib/editor-studio-entry";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
@@ -297,6 +299,8 @@ function StoryPreview({ brief }: { brief: StudioProductionBrief }) {
 
 export function StudioProductionBriefFlow() {
   const t = useActiveTranslator();
+  const searchParams = useSearchParams();
+  const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
   const [step, setStep] = useState<FlowStep>("idea");
   const [idea, setIdea] = useState("");
   const [brief, setBrief] = useState<StudioProductionBrief | null>(null);
@@ -318,6 +322,30 @@ export function StudioProductionBriefFlow() {
   useEffect(() => {
     saveAssetDecisionRegistry(decisionRegistry);
   }, [decisionRegistry]);
+
+  useEffect(() => {
+    if (!editorSessionId) {
+      return;
+    }
+    const entry = resolveEditorStudioEntry(editorSessionId);
+    if (!entry) {
+      return;
+    }
+    const referenceLines = [
+      entry.primaryImageUrl,
+      ...entry.compositorLayerUrls,
+      ...entry.placementUrls,
+    ].filter(Boolean);
+    const seed = [
+      entry.document.name,
+      "",
+      "Imported from HomeCheff Editor:",
+      ...referenceLines.map((url) => `- ${url}`),
+    ].join("\n");
+    queueMicrotask(() => {
+      setIdea((prev) => (prev.trim() ? prev : seed));
+    });
+  }, [editorSessionId]);
 
   useEffect(() => {
     let cancelled = false;

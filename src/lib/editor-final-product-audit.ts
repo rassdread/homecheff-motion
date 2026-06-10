@@ -385,8 +385,15 @@ export function motionBootstrapWiredInApp(): boolean {
 }
 
 export function editorProjectDeleteExists(): boolean {
-  const sessionSource = readFileSync(join(process.cwd(), "src/lib/editor-canvas-session.ts"), "utf8");
-  return /deleteEditor|removeEditor.*Session|deleteSession/.test(sessionSource);
+  try {
+    const route = readFileSync(
+      join(process.cwd(), "src/app/api/editor/projects/[id]/route.ts"),
+      "utf8"
+    );
+    return route.includes("deleteEditorCanvasProject");
+  } catch {
+    return false;
+  }
 }
 
 export function exportUsesCompositorState(): boolean {

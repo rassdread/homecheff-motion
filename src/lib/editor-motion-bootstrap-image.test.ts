@@ -12,7 +12,7 @@ describe("editor-motion-bootstrap-image", () => {
     });
     assert.ok(image);
     assert.equal(image?.remoteWorkingUrl, "https://example.com/editor-export.png");
-    assert.equal(image?.id, "editor-sess-1-main");
+    assert.ok(image?.id.startsWith("editor-sess-1-main"));
   });
 
   it("returns null for invalid url", () => {

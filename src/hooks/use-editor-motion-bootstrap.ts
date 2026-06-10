@@ -8,10 +8,14 @@ export const EDITOR_MOTION_BOOTSTRAP_STORAGE_KEY = "hc-editor-motion-bootstrap-v
 
 export type EditorMotionBootstrapPayload = {
   imageUrl: string;
+  imageUrls: string[];
   label: string;
   sessionId: string;
   assetId?: string;
   source: "editor_session" | "editor_asset";
+  cutoutUrls: string[];
+  placementUrls: string[];
+  compositorLayerUrls: string[];
 };
 
 export function useEditorMotionBootstrap(): EditorMotionBootstrapPayload | null {
@@ -34,10 +38,14 @@ export function useEditorMotionBootstrap(): EditorMotionBootstrapPayload | null 
     }
     const payload: EditorMotionBootstrapPayload = {
       imageUrl: bootstrap.imageUrl,
+      imageUrls: bootstrap.imageUrls,
       label: bootstrap.label,
       sessionId: bootstrap.sessionId,
       assetId: bootstrap.assetId,
       source: bootstrap.source,
+      cutoutUrls: bootstrap.cutoutUrls,
+      placementUrls: bootstrap.placementUrls,
+      compositorLayerUrls: bootstrap.compositorLayerUrls,
     };
     window.sessionStorage.setItem(EDITOR_MOTION_BOOTSTRAP_STORAGE_KEY, JSON.stringify(payload));
   }, [bootstrap]);

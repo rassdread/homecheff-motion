@@ -11,7 +11,7 @@ export function mapEditorMotionBootstrapToWizardImage(
     return null;
   }
   return {
-    id: `editor-${bootstrap.sessionId || "asset"}-${bootstrap.assetId ?? "main"}`,
+    id: `editor-${bootstrap.sessionId || "asset"}-${bootstrap.assetId ?? "main"}-${url.slice(-12)}`,
     originalFileName: `${bootstrap.label || "Editor"}.png`,
     mimeType: "image/png",
     sizeBytes: 1,

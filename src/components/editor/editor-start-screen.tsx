@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
 import { EditorPostUploadModePicker } from "@/components/editor/editor-post-upload-mode-picker";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
@@ -28,6 +29,7 @@ type Props = {
 
 export function EditorStartScreen({ onOpenDocument }: Props) {
   const t = useActiveTranslator();
+  const auth = useAuthSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [loadingSources, setLoadingSources] = useState(false);
@@ -35,12 +37,36 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const [showLibrary, setShowLibrary] = useState(false);
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
+
+  useEffect(() => {
+    if (!auth.user) {
+      return;
+    }
+    void fetchEditorProjects({ status: "active", limit: 8 }).then(async (result) => {
+      if (!result.ok || result.projects.length === 0) {
+        setRecent(listRecentEditorDocuments());
+        return;
+      }
+      await Promise.all(
+        result.projects.map(async (row) => {
+          const remote = await fetchEditorProject(row.id);
+          if (remote.ok && remote.project) {
+            saveEditorCanvasDocument(remote.project);
+          }
+        })
+      );
+      setRecent(listRecentEditorDocuments());
+    });
+  }, [auth.user]);
   const [pendingDocument, setPendingDocument] = useState<EditorCanvasDocument | null>(null);
   const [showRecent, setShowRecent] = useState(false);
 
   const finishOpen = async (document: EditorCanvasDocument, mode: EditorPostUploadMode) => {
     const withMode = applyPostUploadMode(document, mode);
     saveEditorCanvasDocument(withMode);
+    if (auth.user) {
+      await createEditorProject(withMode);
+    }
     setRecent(listRecentEditorDocuments());
     const analyzed = await runEditorVisionAndObjectDetection(withMode);
     onOpenDocument(analyzed);
@@ -158,7 +184,19 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                     <li key={doc.sessionId}>
                       <button
                         type="button"
-                        onClick={() => onOpenDocument(doc)}
+                        onClick={() => {
+                          if (auth.user) {
+                            void fetchEditorProject(doc.sessionId).then((remote) => {
+                              if (remote.ok && remote.project) {
+                                onOpenDocument(saveEditorCanvasDocument(remote.project));
+                                return;
+                              }
+                              onOpenDocument(doc);
+                            });
+                            return;
+                          }
+                          onOpenDocument(doc);
+                        }}
                         className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm hover:bg-zinc-50"
                       >
                         <span className="font-medium">{doc.name}</span>

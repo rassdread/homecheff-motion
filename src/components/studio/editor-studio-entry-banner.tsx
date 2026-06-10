@@ -37,6 +37,12 @@ export function EditorStudioEntryBanner({ editorSessionId }: Props) {
       </p>
       <div className="mt-2 flex flex-wrap gap-2 text-sm">
         <Link
+          href={`/studio/storyboards/new?editorSession=${encodeURIComponent(entry.sessionId)}`}
+          className="font-medium text-[#0067B1] hover:underline"
+        >
+          {t("suite.flow.useInStudio")}
+        </Link>
+        <Link
           href={`/editor?session=${encodeURIComponent(entry.sessionId)}`}
           className="font-medium text-[#0067B1] hover:underline"
         >

@@ -310,6 +310,22 @@ model User {
   studioWorldProfiles  StudioWorldProfile[]
   studioStoryboards    StudioStoryboard[]
   studioJobs           StudioJob[]
+  editorCanvasProjects EditorCanvasProject[]
+}
+
+/** Persisted HomeCheff Editor canvas project (compositor state, layers, handoff). */
+model EditorCanvasProject {
+  id         String    @id
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  status     String    @default("active")
+  payload    Json
+  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime  @default(now())
+  archivedAt DateTime?
+
+  @@index([ownerId, status, updatedAt])
 }
 
 /** Shared visual universe for characters, locations and props (Studio V10). */

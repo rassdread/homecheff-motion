@@ -66,8 +66,8 @@ describe("Editor Final Product Audit", () => {
     assert.equal(replaceReadinessIsPartial(), true);
   });
 
-  it("no editor project delete API in session module", () => {
-    assert.equal(editorProjectDeleteExists(), false);
+  it("editor project delete API exists", () => {
+    assert.equal(editorProjectDeleteExists(), true);
   });
 
   it("motion bootstrap wired in instant page", () => {
