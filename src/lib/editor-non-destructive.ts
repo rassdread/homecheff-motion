@@ -9,7 +9,7 @@ import type {
   EditorNonDestructiveState,
 } from "@/types/homecheff-visual-editor";
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 15;
 
 function createHistoryEntry(
   action: EditorHistoryActionType,

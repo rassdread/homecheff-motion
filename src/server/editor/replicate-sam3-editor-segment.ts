@@ -100,10 +100,14 @@ export function pickSam3MaskIndexAtClick(input: {
   return bestClickIdx >= 0 ? bestClickIdx : bestScoreIdx;
 }
 
+export const EDITOR_CLICK_REPLICATE_TIMEOUT_MS = 55_000;
+export const EDITOR_REFINE_REPLICATE_TIMEOUT_MS = 50_000;
+
 export async function segmentEditorImageWithReplicateSam3(params: {
   imageUrl: string;
   prompt: string;
   clickPoint?: EditorShapePoint;
+  timeoutMs?: number;
 }): Promise<{ ok: true; result: EditorSam3SegmentResult } | { ok: false; error: string }> {
   if (!isReplicateConfigured()) {
     return { ok: false, error: "Replicate is not configured" };
@@ -132,7 +136,7 @@ export async function segmentEditorImageWithReplicateSam3(params: {
   }
 
   const finished = await waitForReplicatePrediction(createRes.prediction.id, {
-    timeoutMs: 120_000,
+    timeoutMs: params.timeoutMs ?? 120_000,
   });
 
   if (!finished.ok) {

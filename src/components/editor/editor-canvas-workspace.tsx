@@ -50,7 +50,7 @@ import {
   redoEditorDocument,
   renameEditorLayerInDocument,
   reorderEditorLayerInDocument,
-  saveEditorCanvasDocument,
+  saveEditorCanvasDocumentWithStatus,
   loadEditorCanvasDocument,
   buildEditorDownloadFilename,
   undoEditorDocument,
@@ -132,6 +132,7 @@ import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions
 import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
 import { parseCompositorLayerId } from "@/lib/editor-compositor";
 import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
+import { editorSegmentErrorMessageKey } from "@/lib/editor-segment-client-errors";
 import {
   autoMaskProgressMessageKey,
   autoMaskUserMessageKey,
@@ -336,8 +337,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const bodyDesigner = document.bodyDesigner ?? DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS;
 
   const persist = (next: EditorCanvasDocument) => {
-    const saved = saveEditorCanvasDocument(next);
+    const { document: saved, storageWarning } = saveEditorCanvasDocumentWithStatus(next);
     onDocumentChange(saved);
+    if (storageWarning === "quota_exceeded") {
+      setSaveMessage(t("editor.storage.quotaPartialSave" as never));
+    }
     return saved;
   };
 
@@ -411,41 +415,46 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           setSaveMessage(t(autoMaskUserMessageKey(strategy, true) as never));
           return;
         }
-      }
-      const res = await fetch("/api/editor/segment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceUrl: document.backgroundUrl,
-          sessionId: document.sessionId,
-          mode: "refine",
-          targetBounds: layer.bounds,
-        }),
-      });
-      if (res.ok) {
-        const result = (await res.json()) as {
-          maskUrl?: string;
-          cutoutUrl?: string;
-          polygon: EditorShapePoint[];
-          boundingBox: { x: number; y: number; width: number; height: number };
-          confidence: number;
-          segmentationSource: "rembg" | "heuristic";
-        };
-        const shape = createMaskSelectionShape({
-          bounds: result.boundingBox,
-          maskUrl: result.maskUrl,
-          cutoutUrl: result.cutoutUrl,
-          polygon: result.polygon,
-          confidence: result.confidence,
-          segmentationSource: result.segmentationSource,
-        });
-        let next = applyEditorSelectionShape(layer, shape);
-        if (result.cutoutUrl) {
-          next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
-        }
-        persist(patchEditorLayerFields(document, layer.id, next));
-        setSaveMessage(t(autoMaskUserMessageKey("rembg", Boolean(result.maskUrl)) as never));
+        const err = (await res.json().catch(() => null)) as { code?: string } | null;
+        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
         return;
+      }
+      if (strategy === "rembg") {
+        const res = await fetch("/api/editor/segment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceUrl: document.backgroundUrl,
+            sessionId: document.sessionId,
+            mode: "refine",
+            targetBounds: layer.bounds,
+          }),
+        });
+        if (res.ok) {
+          const result = (await res.json()) as {
+            maskUrl?: string;
+            cutoutUrl?: string;
+            polygon: EditorShapePoint[];
+            boundingBox: { x: number; y: number; width: number; height: number };
+            confidence: number;
+            segmentationSource: "rembg" | "heuristic";
+          };
+          const shape = createMaskSelectionShape({
+            bounds: result.boundingBox,
+            maskUrl: result.maskUrl,
+            cutoutUrl: result.cutoutUrl,
+            polygon: result.polygon,
+            confidence: result.confidence,
+            segmentationSource: result.segmentationSource,
+          });
+          let next = applyEditorSelectionShape(layer, shape);
+          if (result.cutoutUrl) {
+            next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
+          }
+          persist(patchEditorLayerFields(document, layer.id, next));
+          setSaveMessage(t(autoMaskUserMessageKey("rembg", Boolean(result.maskUrl)) as never));
+          return;
+        }
       }
       setSaveMessage(t(autoMaskUserMessageKey(strategy, false) as never));
     } catch {
@@ -597,69 +606,77 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
 
-    const parentLayer =
-      input.parentLayerId ?
-        (document.objects.find((o) => o.id === input.parentLayerId) ?? null)
-      : resolveParentLayerAtClick(
-          document.objects,
-          input.point,
-          document.detectedObjects ?? []
-        );
+    setRefiningSelection(true);
+    try {
+      const parentLayer =
+        input.parentLayerId ?
+          (document.objects.find((o) => o.id === input.parentLayerId) ?? null)
+        : resolveParentLayerAtClick(
+            document.objects,
+            input.point,
+            document.detectedObjects ?? []
+          );
 
-    const childStub = createSubObjectLayer({
-      point: input.point,
-      prompt: input.prompt,
-      sourceKind: document.sourceKind,
-      sourceAssetId: document.sourceAssetId,
-      backgroundStorageKey: document.backgroundStorageKey,
-      backgroundUrl: document.backgroundUrl,
-      parentLayer,
-      labelOverride: input.labelOverride,
-    });
-
-    const res = await fetch("/api/editor/segment/click", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        imageUrl: document.backgroundUrl,
+      const childStub = createSubObjectLayer({
+        point: input.point,
+        prompt: input.prompt,
+        sourceKind: document.sourceKind,
+        sourceAssetId: document.sourceAssetId,
         backgroundStorageKey: document.backgroundStorageKey,
-        clickPoint: input.point,
-        objectHint: input.prompt,
-        targetBounds: parentLayer?.bounds,
-        editorObjectId: childStub.id,
-        parentLayerId: parentLayer?.id,
-        sessionId: document.sessionId,
-        createCutout: true,
-      }),
-    });
+        backgroundUrl: document.backgroundUrl,
+        parentLayer,
+        labelOverride: input.labelOverride,
+      });
 
-    if (!res.ok) {
+      const res = await fetch("/api/editor/segment/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          clickPoint: input.point,
+          objectHint: input.prompt,
+          targetBounds: parentLayer?.bounds,
+          editorObjectId: childStub.id,
+          parentLayerId: parentLayer?.id,
+          sessionId: document.sessionId,
+          createCutout: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => null)) as { code?: string } | null;
+        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
+        return;
+      }
+
+      const result = (await res.json()) as EditorSegmentApiShape & { maskUrl?: string };
+      if (!result.maskUrl) {
+        setSaveMessage(t("editor.clickSegment.failed" as never));
+        return;
+      }
+
+      const withSegment = applySegmentToSubObjectLayer(childStub, result);
+      const objects = attachSubObjectLayer(document.objects, withSegment);
+      const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
+      persist({
+        ...document,
+        objects,
+        detectedObjects,
+        hierarchicalSelection: {
+          mode: "object",
+          rootObjectId: `obj_${withSegment.id}`,
+          selectedPartId: null,
+        },
+      });
+      setSelectedLayerId(withSegment.id);
+      setSaveMessage(t(segmentPromptSuccessMessageKey(input.prompt) as never));
+      return withSegment;
+    } catch {
       setSaveMessage(t("editor.clickSegment.failed" as never));
-      return;
+    } finally {
+      setRefiningSelection(false);
     }
-
-    const result = (await res.json()) as EditorSegmentApiShape & { maskUrl?: string };
-    if (!result.maskUrl) {
-      setSaveMessage(t("editor.clickSegment.failed" as never));
-      return;
-    }
-
-    const withSegment = applySegmentToSubObjectLayer(childStub, result);
-    const objects = attachSubObjectLayer(document.objects, withSegment);
-    const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
-    const next = persist({
-      ...document,
-      objects,
-      detectedObjects,
-      hierarchicalSelection: {
-        mode: "object",
-        rootObjectId: `obj_${withSegment.id}`,
-        selectedPartId: null,
-      },
-    });
-    setSelectedLayerId(withSegment.id);
-    setSaveMessage(t(segmentPromptSuccessMessageKey(input.prompt) as never));
-    return next.objects.find((o) => o.id === withSegment.id) ?? withSegment;
   };
 
   const handleClickSegmentObject = async () => {
@@ -1108,18 +1125,10 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           createCutout: true,
         }),
       });
-      if (res.status === 503) {
-        setSaveMessage(
-          replicateAvailable
-            ? t("editor.replicate.unavailable" as never)
-            : t("editor.sam2.unavailable")
-        );
-        setPreciseSelectActive(false);
-        return;
-      }
       if (!res.ok) {
-        const err = (await res.json().catch(() => null)) as { error?: string } | null;
-        setSaveMessage(err?.error ?? t("editor.sam2.failed"));
+        const err = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
+        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
+        setPreciseSelectActive(false);
         return;
       }
       const result = (await res.json()) as EditorSegmentApiShape;

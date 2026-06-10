@@ -21,6 +21,13 @@ import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
+import {
+  EDITOR_CANVAS_SESSIONS_KEY,
+  pruneEditorSessionStore,
+  safeSetLocalStorage,
+  serializeEditorSessionStore,
+  stripDocumentForStorage,
+} from "@/lib/editor-local-storage";
 import type {
   EditorCanvasDocument,
   EditorCanvasLayer,
@@ -30,8 +37,13 @@ import type {
   EditorSourceKind,
 } from "@/types/homecheff-visual-editor";
 
-const STORAGE_KEY = "hc-editor-canvas-sessions-v1";
+const STORAGE_KEY = EDITOR_CANVAS_SESSIONS_KEY;
 const RECENT_LIMIT = 8;
+
+export type EditorCanvasSaveResult = {
+  document: EditorCanvasDocument;
+  storageWarning?: "quota_exceeded";
+};
 
 function slugLabel(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "layer";
@@ -57,11 +69,36 @@ function readStore(): Record<string, EditorCanvasDocument> {
   }
 }
 
-function writeStore(store: Record<string, EditorCanvasDocument>): void {
+function writeStore(store: Record<string, EditorCanvasDocument>, activeSessionId?: string): EditorCanvasSaveResult["storageWarning"] {
   if (typeof window === "undefined") {
-    return;
+    return undefined;
   }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+
+  let payload = serializeEditorSessionStore(
+    Object.fromEntries(
+      Object.entries(store).map(([id, doc]) => [id, stripDocumentForStorage(doc)])
+    )
+  );
+  let result = safeSetLocalStorage(STORAGE_KEY, payload);
+  if (result.ok) {
+    return undefined;
+  }
+
+  if (result.reason === "quota_exceeded") {
+    const pruned = pruneEditorSessionStore(store, activeSessionId);
+    payload = serializeEditorSessionStore(pruned);
+    result = safeSetLocalStorage(STORAGE_KEY, payload);
+    if (result.ok) {
+      Object.keys(store).forEach((key) => {
+        if (!(key in pruned)) {
+          delete store[key];
+        }
+      });
+      return "quota_exceeded";
+    }
+  }
+
+  return "quota_exceeded";
 }
 
 export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocument | null {
@@ -104,12 +141,22 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
   });
 }
 
-export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
+function persistEditorDocument(document: EditorCanvasDocument): EditorCanvasSaveResult {
   const next = enrichEditorDocument(document);
   const store = readStore();
   store[next.sessionId] = next;
-  writeStore(store);
-  return next;
+  const storageWarning = writeStore(store, next.sessionId);
+  return { document: next, storageWarning };
+}
+
+export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
+  return persistEditorDocument(document).document;
+}
+
+export function saveEditorCanvasDocumentWithStatus(
+  document: EditorCanvasDocument
+): EditorCanvasSaveResult {
+  return persistEditorDocument(document);
 }
 
 export function listRecentEditorDocuments(limit = RECENT_LIMIT): EditorCanvasDocument[] {

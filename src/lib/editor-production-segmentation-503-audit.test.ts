@@ -14,36 +14,37 @@ function read(rel: string): string {
 }
 
 describe("production segmentation 503 audit", () => {
-  it("click route maps SEGMENT_UNAVAILABLE to 503", () => {
+  it("click route maps error codes via segmentErrorHttpStatus", () => {
     const route = read("src/app/api/editor/segment/click/route.ts");
-    assert.match(route, /result\.code === "SEGMENT_UNAVAILABLE" \? 503 : 502/);
+    assert.match(route, /segmentErrorHttpStatus\(result\.code\)/);
     assert.match(route, /code: result\.code/);
     assert.match(route, /fallbacks: result\.fallbacks/);
   });
 
-  it("segment route returns 503 only on refine segmentByPrompt failure", () => {
+  it("segment route maps refine failures via segmentErrorHttpStatus", () => {
     const route = read("src/app/api/editor/segment/route.ts");
-    const promptFailIdx = route.indexOf('status: 503');
-    const removeBgIdx = route.indexOf('removeBackground');
+    const statusIdx = route.indexOf("segmentErrorHttpStatus(code)");
+    const removeBgIdx = route.indexOf("removeBackground");
     assert.ok(removeBgIdx > 0);
-    assert.ok(promptFailIdx > removeBgIdx, "503 should be in refine branch after remove_background handler");
+    assert.ok(statusIdx > removeBgIdx, "refine error mapping should follow remove_background handler");
     assert.match(route, /if \(!promptResult\.ok\)/);
   });
 
   it("segmentByClick terminal failure is SEGMENT_UNAVAILABLE", () => {
     const provider = read("src/server/editor/editor-segmentation-provider.ts");
-    assert.match(provider, /code: "SEGMENT_UNAVAILABLE"/);
-    const repIdx = provider.indexOf("if (isReplicateConfigured() && input.imageUrl)");
-    const sam2Idx = provider.indexOf("if (isSam2SegmentationAvailable())");
-    const rembgIdx = provider.indexOf('segmentationProviderAvailable("rembg") && input.imageUrl');
-    assert.ok(repIdx > 0 && sam2Idx > repIdx && rembgIdx > sam2Idx);
+    assert.match(provider, /SEGMENT_UNAVAILABLE/);
+    const clickFn = provider.indexOf("export async function segmentByClick");
+    const repIdx = provider.indexOf("if (isReplicateConfigured() && input.imageUrl)", clickFn);
+    const sam2Idx = provider.indexOf("if (isSam2SegmentationAvailable())", clickFn);
+    const rembgIdx = provider.indexOf('segmentationProviderAvailable("rembg") && input.imageUrl', clickFn);
+    assert.ok(clickFn > 0 && repIdx > clickFn && sam2Idx > repIdx && rembgIdx > sam2Idx);
   });
 
-  it("replicate success requires maskUrl and persistMaskAndCutout", () => {
+  it("replicate success finalizes via persistMaskAndCutout", () => {
     const provider = read("src/server/editor/editor-segmentation-provider.ts");
-    assert.match(provider, /if \(rep\.ok && rep\.result\.maskUrl\)/);
+    assert.match(provider, /finalizeReplicateSam3Segment/);
+    assert.match(provider, /replicate_mask_format_unsupported/);
     assert.match(provider, /persistMaskAndCutout/);
-    assert.match(provider, /phase: "persist_failed"/);
     const blob = read("src/lib/vercel-blob-config.ts");
     assert.match(blob, /if \(!token\)/);
     assert.match(blob, /EXPORT_UPLOAD_AUTH_FAILED/);
@@ -60,7 +61,8 @@ describe("production segmentation 503 audit", () => {
     assert.match(status, /replicateConfigured: providers\.replicate/);
     assert.match(status, /replicateSam3Available: providers\.replicate/);
     assert.doesNotMatch(status, /fetchReplicateSam3Model/);
-    assert.doesNotMatch(status, /isBlobTokenConfigured/);
+    assert.match(status, /blobStorageConfigured/);
+    assert.match(status, /isBlobTokenConfigured/);
   });
 
   it("globe flow posts to segment click with objectHint globe", () => {
@@ -75,7 +77,7 @@ describe("production segmentation 503 audit", () => {
   it("removeBackground falls back to heuristic without rembg env", () => {
     const layer = read("src/server/editor/segment-editor-layer.ts");
     assert.match(layer, /REMBG_API_URL/);
-    assert.match(layer, /segmentationSource: "heuristic"/);
+    assert.match(layer, /segmentationSource: "rembg" \| "heuristic"/);
     const provider = read("src/server/editor/editor-segmentation-provider.ts");
     const removeIdx = provider.indexOf("export async function removeBackground");
     const segmentLayerIdx = provider.indexOf("segmentEditorLayer", removeIdx);

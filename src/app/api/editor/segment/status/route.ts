@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isBlobTokenConfigured } from "@/lib/vercel-blob-config";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { getSam2ServiceStatus } from "@/server/editor/sam2-click-segment";
 import { getEditorSegmentationProviderStatus } from "@/server/editor/editor-segmentation-provider";
@@ -27,6 +28,7 @@ export async function GET() {
     replicateSam3Available: providers.replicate,
     primarySegmentProvider: providers.primary,
     autoMaskProviderAvailable: providers.primary !== "none",
+    blobStorageConfigured: isBlobTokenConfigured(),
     providerPriority: ["replicate_sam3", "sam2", "rembg", "heuristic"],
     fallbacks: status.fallbacks,
   });

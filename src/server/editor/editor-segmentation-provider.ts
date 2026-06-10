@@ -6,12 +6,21 @@ import {
   intersectBounds,
   refineSelectionPolygonFromBounds,
 } from "@/lib/editor-object-mask";
+import {
+  classifyBlobPersistError,
+  mapReplicateErrorToCode,
+  type EditorSegmentErrorCode,
+} from "@/lib/editor-segmentation-errors";
 import { resolveEditorSegmentPrompt } from "@/lib/editor-segmentation-prompt";
 import { segmentationProviderAvailable } from "@/lib/premium-foreground-segmentation";
 import { isReplicateConfigured } from "@/server/admin/replicate-client";
 import { editorMaskStoragePath } from "@/server/editor/editor-mask-storage";
 import { segmentEditorLayer } from "@/server/editor/segment-editor-layer";
-import { segmentEditorImageWithReplicateSam3 } from "@/server/editor/replicate-sam3-editor-segment";
+import {
+  EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
+  EDITOR_REFINE_REPLICATE_TIMEOUT_MS,
+  segmentEditorImageWithReplicateSam3,
+} from "@/server/editor/replicate-sam3-editor-segment";
 import {
   segmentEditorClickWithSam2,
   type Sam2ClickSegmentResult,
@@ -84,22 +93,40 @@ export type RemoveBackgroundInput = {
   targetBounds?: EditorCanvasBounds;
 };
 
+const SEGMENT_RESPONSE_MAX_BYTES = 512_000;
+
+function logEditorSegmentTrace(phase: string, detail: Record<string, unknown>): void {
+  console.info("[editor-segmentation]", { phase, ...detail });
+}
+
 async function loadSourceImageBuffer(input: {
   imageUrl?: string;
   imageBase64?: string;
-}): Promise<Buffer> {
-  if (input.imageBase64) {
-    const base64 = input.imageBase64.replace(/^data:image\/[a-z+]+;base64,/i, "");
-    return Buffer.from(base64, "base64");
+}): Promise<{ ok: true; buffer: Buffer } | { ok: false; code: "image_fetch_failed"; message: string }> {
+  try {
+    if (input.imageBase64) {
+      const base64 = input.imageBase64.replace(/^data:image\/[a-z+]+;base64,/i, "");
+      return { ok: true, buffer: Buffer.from(base64, "base64") };
+    }
+    if (!input.imageUrl) {
+      return { ok: false, code: "image_fetch_failed", message: "Missing image source." };
+    }
+    const res = await fetch(input.imageUrl, { cache: "no-store" });
+    if (!res.ok) {
+      return {
+        ok: false,
+        code: "image_fetch_failed",
+        message: `Could not fetch image (${res.status}).`,
+      };
+    }
+    return { ok: true, buffer: Buffer.from(await res.arrayBuffer()) };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "image_fetch_failed",
+      message: error instanceof Error ? error.message : "Could not fetch image.",
+    };
   }
-  if (!input.imageUrl) {
-    throw new Error("Missing image source.");
-  }
-  const res = await fetch(input.imageUrl, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Could not fetch image (${res.status}).`);
-  }
-  return Buffer.from(await res.arrayBuffer());
 }
 
 function normalizeBox(
@@ -196,13 +223,54 @@ async function persistMaskAndCutout(params: {
   return { maskUrl: uploadedMask.url, cutoutUrl, maskStorageKey: maskPath };
 }
 
-async function maskBufferFromUrl(maskUrl: string): Promise<Buffer | null> {
-  const res = await fetch(maskUrl, { cache: "no-store" });
-  if (!res.ok) {
-    return null;
+async function maskBufferFromMaskRef(
+  maskRef: string
+): Promise<{ ok: true; buffer: Buffer } | { ok: false; code: "mask_fetch_failed"; message: string }> {
+  try {
+    if (maskRef.startsWith("data:")) {
+      const base64 = maskRef.replace(/^data:image\/[a-z+]+;base64,/i, "");
+      const buffer = Buffer.from(base64, "base64");
+      if (buffer.length < 100) {
+        return { ok: false, code: "mask_fetch_failed", message: "Mask data URI was too small." };
+      }
+      return { ok: true, buffer };
+    }
+    const res = await fetch(maskRef, { cache: "no-store" });
+    if (!res.ok) {
+      return {
+        ok: false,
+        code: "mask_fetch_failed",
+        message: `Could not fetch mask (${res.status}).`,
+      };
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 100) {
+      return { ok: false, code: "mask_fetch_failed", message: "Mask payload was too small." };
+    }
+    return { ok: true, buffer };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "mask_fetch_failed",
+      message: error instanceof Error ? error.message : "Could not fetch mask.",
+    };
   }
-  const buffer = Buffer.from(await res.arrayBuffer());
-  return buffer.length >= 100 ? buffer : null;
+}
+
+function segmentFailure(
+  code: EditorSegmentErrorCode,
+  message: string
+): { ok: false; code: EditorSegmentErrorCode; message: string; fallbacks: string[] } {
+  return {
+    ok: false,
+    code,
+    message,
+    fallbacks: ["manual_lasso", "rembg_foreground", "approximate_box"],
+  };
+}
+
+export function estimateSegmentResponseBytes(payload: Record<string, unknown>): number {
+  return Buffer.byteLength(JSON.stringify(payload), "utf8");
 }
 
 function providerResultToShape(
@@ -237,11 +305,103 @@ export function getEditorSegmentationProviderStatus(): EditorSegmentationProvide
   return { replicate, sam2, rembg, primary };
 }
 
+async function finalizeReplicateSam3Segment(input: {
+  userId: string;
+  sessionId: string;
+  objectId: string;
+  imageUrl: string;
+  rep: Extract<Awaited<ReturnType<typeof segmentEditorImageWithReplicateSam3>>, { ok: true }>;
+  createCutout: boolean;
+  targetBounds?: EditorCanvasBounds;
+  clickPoint?: EditorShapePoint;
+}): Promise<
+  | { ok: true; result: EditorSegmentationProviderResult; shape: EditorObjectShape; maskUrl: string; cutoutUrl?: string }
+  | { ok: false; code: EditorSegmentErrorCode; message: string }
+> {
+  if (!input.rep.result.maskUrl) {
+    return {
+      ok: false,
+      code: "replicate_mask_format_unsupported",
+      message: "Replicate returned a mask format that could not be used.",
+    };
+  }
+
+  const sourceLoaded = await loadSourceImageBuffer({ imageUrl: input.imageUrl });
+  if (!sourceLoaded.ok) {
+    return { ok: false, code: sourceLoaded.code, message: sourceLoaded.message };
+  }
+
+  const maskLoaded = await maskBufferFromMaskRef(input.rep.result.maskUrl);
+  if (!maskLoaded.ok) {
+    return { ok: false, code: maskLoaded.code, message: maskLoaded.message };
+  }
+
+  try {
+    const sourceBuffer = sourceLoaded.buffer;
+    const maskBuffer = maskLoaded.buffer;
+    const meta = await sharp(sourceBuffer).metadata();
+    const width = Math.max(1, meta.width ?? 1);
+    const height = Math.max(1, meta.height ?? 1);
+    const contour = await extractMaskContourFromPng(maskBuffer);
+    let boundingBox =
+      normalizeBox(input.rep.result.boundingBox, width, height) ??
+      contour.boundingBox ??
+      input.targetBounds ??
+      { x: 0.2, y: 0.2, width: 0.6, height: 0.6 };
+    if (contour.polygon.length < 3 && input.clickPoint) {
+      const clickBox = clickBoundsAroundPoint(input.clickPoint, 0.24);
+      boundingBox =
+        input.targetBounds ? intersectBounds(clickBox, input.targetBounds) : clickBox;
+    }
+    const polygon =
+      contour.polygon.length >= 3
+        ? contour.polygon
+        : refineSelectionPolygonFromBounds(boundingBox);
+    const persisted = await persistMaskAndCutout({
+      userId: input.userId,
+      sessionId: input.sessionId,
+      objectId: input.objectId,
+      sourceBuffer,
+      maskBuffer,
+      createCutout: input.createCutout,
+      provider: "replicate_sam3",
+    });
+    const result: EditorSegmentationProviderResult = {
+      maskUrl: persisted.maskUrl,
+      cutoutUrl: persisted.cutoutUrl,
+      polygon,
+      boundingBox,
+      confidence: input.rep.result.confidence ?? 0.88,
+      segmentationSource: "replicate_sam3",
+      alphaMask: true,
+      providerUsed: "replicate_sam3",
+      predictionId: input.rep.result.predictionId,
+      runtimeMs: input.rep.result.runtimeMs,
+      maskStorageKey: persisted.maskStorageKey,
+    };
+    const shape = providerResultToShape(result, persisted.maskStorageKey);
+    return {
+      ok: true,
+      result,
+      shape,
+      maskUrl: persisted.maskUrl,
+      cutoutUrl: persisted.cutoutUrl,
+    };
+  } catch (error) {
+    const code = classifyBlobPersistError(error);
+    return {
+      ok: false,
+      code,
+      message: error instanceof Error ? error.message : "Could not persist segmentation mask.",
+    };
+  }
+}
+
 export async function segmentByPrompt(
   input: SegmentByPromptInput
 ): Promise<
   | { ok: true; result: EditorSegmentationProviderResult; shape: EditorObjectShape }
-  | { ok: false; error: string; providerAttempted: EditorSegmentProviderId }
+  | { ok: false; error: string; code?: EditorSegmentErrorCode; providerAttempted: EditorSegmentProviderId }
 > {
   const sessionId = input.sessionId?.trim() || "anonymous";
   const objectId = input.editorObjectId?.trim() || "object";
@@ -249,50 +409,42 @@ export async function segmentByPrompt(
   const createCutout = input.createCutout !== false;
 
   if (isReplicateConfigured()) {
-    const rep = await segmentEditorImageWithReplicateSam3({ imageUrl: input.imageUrl, prompt });
-    if (rep.ok && rep.result.maskUrl) {
-      const sourceBuffer = await loadSourceImageBuffer({ imageUrl: input.imageUrl });
-      const maskBuffer = await maskBufferFromUrl(rep.result.maskUrl);
-      if (maskBuffer) {
-        const meta = await sharp(sourceBuffer).metadata();
-        const width = Math.max(1, meta.width ?? 1);
-        const height = Math.max(1, meta.height ?? 1);
-        const contour = await extractMaskContourFromPng(maskBuffer);
-        const boundingBox =
-          normalizeBox(rep.result.boundingBox, width, height) ??
-          contour.boundingBox ??
-          { x: 0.2, y: 0.2, width: 0.6, height: 0.6 };
-        const polygon =
-          contour.polygon.length >= 3
-            ? contour.polygon
-            : refineSelectionPolygonFromBounds(boundingBox);
-        const persisted = await persistMaskAndCutout({
-          userId: input.userId,
-          sessionId,
-          objectId,
-          sourceBuffer,
-          maskBuffer,
-          createCutout,
-          provider: "replicate_sam3",
-        });
-        const result: EditorSegmentationProviderResult = {
-          maskUrl: persisted.maskUrl,
-          cutoutUrl: persisted.cutoutUrl,
-          polygon,
-          boundingBox,
-          confidence: rep.result.confidence ?? 0.88,
-          segmentationSource: "replicate_sam3",
-          alphaMask: true,
-          providerUsed: "replicate_sam3",
-          predictionId: rep.result.predictionId,
-          runtimeMs: rep.result.runtimeMs,
-          maskStorageKey: persisted.maskStorageKey,
-        };
-        return { ok: true, result, shape: providerResultToShape(result, persisted.maskStorageKey) };
-      }
+    logEditorSegmentTrace("replicate_prompt_start", { imageUrl: Boolean(input.imageUrl), prompt });
+    const rep = await segmentEditorImageWithReplicateSam3({
+      imageUrl: input.imageUrl,
+      prompt,
+      timeoutMs: EDITOR_REFINE_REPLICATE_TIMEOUT_MS,
+    });
+    if (!rep.ok) {
+      return {
+        ok: false,
+        error: rep.error,
+        code: mapReplicateErrorToCode(rep.error),
+        providerAttempted: "replicate_sam3",
+      };
     }
-    if (!rep.ok && rep.error === "Replicate is not configured") {
-      return { ok: false, error: rep.error, providerAttempted: "replicate_sam3" };
+    if (rep.ok) {
+      const finalized = await finalizeReplicateSam3Segment({
+        userId: input.userId,
+        sessionId,
+        objectId,
+        imageUrl: input.imageUrl,
+        rep,
+        createCutout,
+      });
+      if (finalized.ok) {
+        return {
+          ok: true,
+          result: finalized.result,
+          shape: finalized.shape,
+        };
+      }
+      return {
+        ok: false,
+        error: finalized.message,
+        code: finalized.code,
+        providerAttempted: "replicate_sam3",
+      };
     }
   }
 
@@ -320,7 +472,7 @@ export async function segmentByClick(
   input: SegmentByClickInput
 ): Promise<
   | { ok: true; result: EditorSegmentationProviderResult; shape: EditorObjectShape; maskUrl: string; cutoutUrl?: string }
-  | { ok: false; code: string; message: string; fallbacks: string[] }
+  | { ok: false; code: EditorSegmentErrorCode; message: string; fallbacks: string[] }
 > {
   const sessionId = input.sessionId?.trim() || "anonymous";
   const objectId = input.editorObjectId?.trim() || "object";
@@ -332,76 +484,61 @@ export async function segmentByClick(
     objectHint: input.objectHint,
   });
 
-  if (isReplicateConfigured() && input.imageUrl) {
-    const rep = await segmentEditorImageWithReplicateSam3({
-      imageUrl: input.imageUrl,
-      prompt,
-      clickPoint: input.clickPoint,
-    });
-    if (rep.ok && rep.result.maskUrl) {
-      try {
-        const sourceBuffer = await loadSourceImageBuffer({ imageUrl: input.imageUrl });
-        const maskBuffer = await maskBufferFromUrl(rep.result.maskUrl);
-        if (maskBuffer) {
-          const meta = await sharp(sourceBuffer).metadata();
-          const width = Math.max(1, meta.width ?? 1);
-          const height = Math.max(1, meta.height ?? 1);
-          const contour = await extractMaskContourFromPng(maskBuffer);
-          let boundingBox =
-            normalizeBox(rep.result.boundingBox, width, height) ??
-            contour.boundingBox ??
-            input.targetBounds ??
-            { x: 0.2, y: 0.2, width: 0.6, height: 0.6 };
-          if (contour.polygon.length < 3) {
-            const clickBox = clickBoundsAroundPoint(input.clickPoint, 0.24);
-            boundingBox =
-              input.targetBounds ?
-                intersectBounds(clickBox, input.targetBounds)
-              : clickBox;
-          }
-          const polygon =
-            contour.polygon.length >= 3
-              ? contour.polygon
-              : refineSelectionPolygonFromBounds(boundingBox);
-          const persisted = await persistMaskAndCutout({
-            userId: input.userId,
-            sessionId,
-            objectId,
-            sourceBuffer,
-            maskBuffer,
-            createCutout,
-            provider: "replicate_sam3",
-          });
-          const result: EditorSegmentationProviderResult = {
-            maskUrl: persisted.maskUrl,
-            cutoutUrl: persisted.cutoutUrl,
-            polygon,
-            boundingBox,
-            confidence: rep.result.confidence ?? 0.88,
-            segmentationSource: "replicate_sam3",
-            alphaMask: true,
-            providerUsed: "replicate_sam3",
-            predictionId: rep.result.predictionId,
-            runtimeMs: rep.result.runtimeMs,
-            maskStorageKey: persisted.maskStorageKey,
-          };
-          const shape = providerResultToShape(result, persisted.maskStorageKey);
-          return {
-            ok: true,
-            result,
-            shape,
-            maskUrl: persisted.maskUrl,
-            cutoutUrl: persisted.cutoutUrl,
-          };
-        }
-      } catch (error) {
-        console.info("[editor-segmentation]", {
-          provider: "replicate_sam3",
-          phase: "persist_failed",
-          error: error instanceof Error ? error.message : String(error),
-        });
+  logEditorSegmentTrace("click_start", {
+    imageUrlPresent: Boolean(input.imageUrl),
+    prompt,
+    createCutout,
+    sessionId,
+    objectId,
+  });
+
+  try {
+    if (isReplicateConfigured() && input.imageUrl) {
+      logEditorSegmentTrace("replicate_click_start", { imageUrl: input.imageUrl, prompt });
+      const rep = await segmentEditorImageWithReplicateSam3({
+        imageUrl: input.imageUrl,
+        prompt,
+        clickPoint: input.clickPoint,
+        timeoutMs: EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
+      });
+      if (!rep.ok) {
+        logEditorSegmentTrace("replicate_click_failed", { error: rep.error });
+        return segmentFailure(mapReplicateErrorToCode(rep.error), rep.error);
       }
+      logEditorSegmentTrace("replicate_click_completed", {
+        predictionId: rep.result.predictionId,
+        maskFormat: rep.result.maskUrl?.startsWith("data:") ? "data_uri" : rep.result.maskUrl ? "url" : "missing",
+        runtimeMs: rep.result.runtimeMs,
+      });
+      const finalized = await finalizeReplicateSam3Segment({
+        userId: input.userId,
+        sessionId,
+        objectId,
+        imageUrl: input.imageUrl,
+        rep,
+        createCutout,
+        targetBounds: input.targetBounds,
+        clickPoint: input.clickPoint,
+      });
+      if (finalized.ok) {
+        logEditorSegmentTrace("click_success", {
+          provider: "replicate_sam3",
+          maskUrl: Boolean(finalized.maskUrl),
+          cutoutUrl: Boolean(finalized.cutoutUrl),
+        });
+        return finalized;
+      }
+      logEditorSegmentTrace("click_finalize_failed", { code: finalized.code, message: finalized.message });
+      return segmentFailure(finalized.code, finalized.message);
     }
+  } catch (error) {
+    logEditorSegmentTrace("click_internal_error", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return segmentFailure(
+      "segmentation_internal_error",
+      error instanceof Error ? error.message : "Segmentation failed."
+    );
   }
 
   if (isSam2SegmentationAvailable()) {
@@ -444,36 +581,41 @@ export async function segmentByClick(
   }
 
   if (segmentationProviderAvailable("rembg") && input.imageUrl) {
-    const uploadPathPrefix = `editor/segments/${sessionId}`;
-    const rembgResult = await segmentEditorLayer({
-      sourceUrl: input.imageUrl,
-      uploadPathPrefix,
-      mode: "refine",
-      targetBounds: input.targetBounds,
-    });
-    if (rembgResult.maskUrl) {
-      const result: EditorSegmentationProviderResult = {
-        ...rembgResult,
-        providerUsed: "rembg",
-        segmentationSource: rembgResult.segmentationSource,
-      };
-      const shape = providerResultToShape(result);
-      return {
-        ok: true,
-        result,
-        shape,
-        maskUrl: rembgResult.maskUrl ?? "",
-        cutoutUrl: rembgResult.cutoutUrl,
-      };
+    try {
+      const uploadPathPrefix = `editor/segments/${sessionId}`;
+      const rembgResult = await segmentEditorLayer({
+        sourceUrl: input.imageUrl,
+        uploadPathPrefix,
+        mode: "refine",
+        targetBounds: input.targetBounds,
+      });
+      if (rembgResult.maskUrl) {
+        const result: EditorSegmentationProviderResult = {
+          ...rembgResult,
+          providerUsed: "rembg",
+          segmentationSource: rembgResult.segmentationSource,
+        };
+        const shape = providerResultToShape(result);
+        return {
+          ok: true,
+          result,
+          shape,
+          maskUrl: rembgResult.maskUrl ?? "",
+          cutoutUrl: rembgResult.cutoutUrl,
+        };
+      }
+    } catch (error) {
+      return segmentFailure(
+        "image_fetch_failed",
+        error instanceof Error ? error.message : "Could not fetch editor image."
+      );
     }
   }
 
-  return {
-    ok: false,
-    code: "SEGMENT_UNAVAILABLE",
-    message: "Could not generate a precise mask. Try manual outline or check provider configuration.",
-    fallbacks: ["manual_lasso", "rembg_foreground", "approximate_box"],
-  };
+  return segmentFailure(
+    "SEGMENT_UNAVAILABLE",
+    "Could not generate a precise mask. Try manual outline or check provider configuration."
+  );
 }
 
 export async function removeBackground(
@@ -488,46 +630,20 @@ export async function removeBackground(
     const rep = await segmentEditorImageWithReplicateSam3({
       imageUrl: input.sourceUrl,
       prompt: subjectPrompt,
+      timeoutMs: EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
     });
-    if (rep.ok && rep.result.maskUrl) {
-      const sourceBuffer = await loadSourceImageBuffer({ imageUrl: input.sourceUrl });
-      const maskBuffer = await maskBufferFromUrl(rep.result.maskUrl);
-      if (maskBuffer) {
-        const meta = await sharp(sourceBuffer).metadata();
-        const width = Math.max(1, meta.width ?? 1);
-        const height = Math.max(1, meta.height ?? 1);
-        const contour = await extractMaskContourFromPng(maskBuffer);
-        const boundingBox =
-          normalizeBox(rep.result.boundingBox, width, height) ??
-          contour.boundingBox ??
-          input.targetBounds ??
-          { x: 0, y: 0, width: 1, height: 1 };
-        const polygon =
-          contour.polygon.length >= 3
-            ? contour.polygon
-            : refineSelectionPolygonFromBounds(boundingBox);
-        const persisted = await persistMaskAndCutout({
-          userId: input.userId,
-          sessionId,
-          objectId: "background-remove",
-          sourceBuffer,
-          maskBuffer,
-          createCutout: true,
-          provider: "replicate_sam3",
-        });
-        return {
-          maskUrl: persisted.maskUrl,
-          cutoutUrl: persisted.cutoutUrl,
-          polygon,
-          boundingBox,
-          confidence: rep.result.confidence ?? 0.85,
-          segmentationSource: "replicate_sam3",
-          alphaMask: true,
-          providerUsed: "replicate_sam3",
-          predictionId: rep.result.predictionId,
-          runtimeMs: rep.result.runtimeMs,
-          maskStorageKey: persisted.maskStorageKey,
-        };
+    if (rep.ok) {
+      const finalized = await finalizeReplicateSam3Segment({
+        userId: input.userId,
+        sessionId,
+        objectId: "background-remove",
+        imageUrl: input.sourceUrl,
+        rep,
+        createCutout: true,
+        targetBounds: input.targetBounds,
+      });
+      if (finalized.ok) {
+        return finalized.result;
       }
     }
   }

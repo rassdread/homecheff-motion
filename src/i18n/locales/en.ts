@@ -428,6 +428,17 @@ export const en: LocaleSchema = {
   "editor.clickSegment.providerUnavailable":
     "Precise selection is unavailable — configure SAM2, rembg, or Replicate.",
   "editor.clickSegment.failed": "Could not segment this area. Try another prompt or outline.",
+  "editor.clickSegment.error.imageFetchFailed": "Could not load the image for segmentation. Check that the upload URL is reachable.",
+  "editor.clickSegment.error.replicateTimeout": "Segmentation timed out. Try again in a moment.",
+  "editor.clickSegment.error.replicatePredictionFailed": "Replicate could not segment this area. Try another prompt or outline.",
+  "editor.clickSegment.error.replicateMaskFormat": "Replicate returned an unsupported mask format.",
+  "editor.clickSegment.error.maskFetchFailed": "Could not download the segmentation mask.",
+  "editor.clickSegment.error.blobUploadFailed": "Mask could not be saved to storage. Check BLOB_READ_WRITE_TOKEN.",
+  "editor.clickSegment.error.cutoutGenerationFailed": "Cutout could not be generated from the mask.",
+  "editor.clickSegment.error.responseTooLarge": "Segmentation result was too large. Try a smaller image or outline manually.",
+  "editor.clickSegment.error.unavailable": "No segmentation provider is available. Configure Replicate, SAM2, or rembg.",
+  "editor.storage.quotaPartialSave":
+    "Your edit is still visible, but it could not be fully saved locally. Close other editor tabs or clear old sessions.",
   "editor.clickSegment.selectedGlobe": "Globe selected",
   "editor.clickSegment.selectedLogo": "Logo selected",
   "editor.clickSegment.selectedTie": "Tie selected",

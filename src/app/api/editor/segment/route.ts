@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { segmentErrorHttpStatus } from "@/lib/editor-segmentation-errors";
 import { requireActiveUser } from "@/server/auth/permissions";
 import {
+  estimateSegmentResponseBytes,
   removeBackground,
   segmentByPrompt,
 } from "@/server/editor/editor-segmentation-provider";
@@ -28,12 +30,12 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as SegmentBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body.", code: "invalid_json" }, { status: 400 });
   }
 
   const sourceUrl = body.sourceUrl?.trim();
   if (!sourceUrl) {
-    return NextResponse.json({ error: "sourceUrl is required." }, { status: 400 });
+    return NextResponse.json({ error: "sourceUrl is required.", code: "missing_source_url" }, { status: 400 });
   }
 
   const mode = body.mode === "remove_background" ? "remove_background" : "refine";
@@ -48,10 +50,17 @@ export async function POST(request: Request) {
         subjectPrompt: body.prompt ?? body.objectHint ?? "person",
         targetBounds: body.targetBounds,
       });
-      return NextResponse.json({
+      const payload = {
         ...result,
         providerUsed: result.providerUsed,
-      });
+      };
+      if (estimateSegmentResponseBytes(payload) > 512_000) {
+        return NextResponse.json(
+          { error: "Segmentation response was too large.", code: "response_payload_too_large" },
+          { status: segmentErrorHttpStatus("response_payload_too_large") }
+        );
+      }
+      return NextResponse.json(payload);
     }
 
     const promptResult = await segmentByPrompt({
@@ -64,11 +73,15 @@ export async function POST(request: Request) {
     });
 
     if (!promptResult.ok) {
-      return NextResponse.json({ error: promptResult.error }, { status: 503 });
+      const code = promptResult.code ?? "SEGMENT_UNAVAILABLE";
+      return NextResponse.json(
+        { error: promptResult.error, code },
+        { status: segmentErrorHttpStatus(code) }
+      );
     }
 
     const { result } = promptResult;
-    return NextResponse.json({
+    const payload = {
       maskUrl: result.maskUrl,
       cutoutUrl: result.cutoutUrl,
       polygon: result.polygon,
@@ -79,9 +92,20 @@ export async function POST(request: Request) {
       providerUsed: result.providerUsed,
       predictionId: result.predictionId,
       runtimeMs: result.runtimeMs,
-    });
+    };
+    if (estimateSegmentResponseBytes(payload) > 512_000) {
+      return NextResponse.json(
+        { error: "Segmentation response was too large.", code: "response_payload_too_large" },
+        { status: segmentErrorHttpStatus("response_payload_too_large") }
+      );
+    }
+    return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Segmentation failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[editor-segment]", { mode, error: message });
+    return NextResponse.json(
+      { error: message, code: "segmentation_internal_error" },
+      { status: 500 }
+    );
   }
 }

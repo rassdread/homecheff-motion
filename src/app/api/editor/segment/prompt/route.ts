@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { segmentErrorHttpStatus } from "@/lib/editor-segmentation-errors";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { segmentByPrompt } from "@/server/editor/editor-segmentation-provider";
 
@@ -41,8 +42,11 @@ export async function POST(request: Request) {
   });
 
   if (!result.ok) {
-    const status = result.error.includes("not configured") ? 503 : 422;
-    return NextResponse.json({ ok: false, error: result.error }, { status });
+    const code = result.code ?? (result.error.includes("not configured") ? "SEGMENT_UNAVAILABLE" : "replicate_prediction_failed");
+    return NextResponse.json(
+      { ok: false, error: result.error, code },
+      { status: segmentErrorHttpStatus(code) }
+    );
   }
 
   const { result: seg, shape } = result;

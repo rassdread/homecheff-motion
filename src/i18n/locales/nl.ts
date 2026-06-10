@@ -424,6 +424,17 @@ export const nl = {
   "editor.clickSegment.providerUnavailable":
     "Nauwkeurige selectie is niet beschikbaar — configureer SAM2, rembg of Replicate.",
   "editor.clickSegment.failed": "Dit gebied kon niet worden gesegmenteerd. Probeer een andere prompt of omlijn zelf.",
+  "editor.clickSegment.error.imageFetchFailed": "De afbeelding kon niet worden geladen voor segmentatie. Controleer of de upload-URL bereikbaar is.",
+  "editor.clickSegment.error.replicateTimeout": "Segmentatie duurde te lang. Probeer het zo opnieuw.",
+  "editor.clickSegment.error.replicatePredictionFailed": "Replicate kon dit gebied niet segmenteren. Probeer een andere prompt of omlijn zelf.",
+  "editor.clickSegment.error.replicateMaskFormat": "Replicate gaf een niet-ondersteund maskerformaat terug.",
+  "editor.clickSegment.error.maskFetchFailed": "Het segmentatiemasker kon niet worden gedownload.",
+  "editor.clickSegment.error.blobUploadFailed": "Masker kon niet worden opgeslagen in storage. Controleer BLOB_READ_WRITE_TOKEN.",
+  "editor.clickSegment.error.cutoutGenerationFailed": "Uitsnede kon niet worden gemaakt van het masker.",
+  "editor.clickSegment.error.responseTooLarge": "Segmentatieresultaat was te groot. Probeer een kleinere afbeelding of omlijn handmatig.",
+  "editor.clickSegment.error.unavailable": "Geen segmentatieprovider beschikbaar. Configureer Replicate, SAM2 of rembg.",
+  "editor.storage.quotaPartialSave":
+    "Concept kon lokaal niet volledig worden opgeslagen, maar je bewerking blijft zichtbaar.",
   "editor.clickSegment.selectedGlobe": "Wereldbol geselecteerd",
   "editor.clickSegment.selectedLogo": "Logo geselecteerd",
   "editor.clickSegment.selectedTie": "Stropdas geselecteerd",
