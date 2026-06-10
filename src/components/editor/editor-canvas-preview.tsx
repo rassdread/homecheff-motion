@@ -75,6 +75,9 @@ type Props = {
   onMoveCompositorLayer?: (compositorId: string, x: number, y: number) => void;
   onEmptyCanvasClick?: (point: EditorShapePoint) => void;
   onApproximateLayerClick?: (point: EditorShapePoint, parentLayerId: string) => void;
+  segmenting?: boolean;
+  clickFeedbackPoint?: EditorShapePoint | null;
+  showSelectionHelp?: boolean;
 };
 
 export function EditorCanvasPreview({
@@ -110,6 +113,9 @@ export function EditorCanvasPreview({
   onMoveCompositorLayer,
   onEmptyCanvasClick,
   onApproximateLayerClick,
+  segmenting = false,
+  clickFeedbackPoint = null,
+  showSelectionHelp = true,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -157,12 +163,16 @@ export function EditorCanvasPreview({
     selectedPartId && activeHierarchy
       ? activeHierarchy.parts.find((p) => p.id === selectedPartId)
       : null;
+  const hoveredLayer =
+    hoveredLayerId ? document.objects.find((o) => o.id === hoveredLayerId) : null;
+  const interactiveCanvas =
+    humanFirst && !lassoActive && !preciseSelectActive && !selectedPlacementId;
 
   return (
     <div
       className={`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-zinc-100 shadow-inner ${
         humanFirst ? "border border-zinc-300/80 ring-1 ring-black/5" : "border border-zinc-200"
-      }`}
+      } ${interactiveCanvas ? "cursor-pointer" : ""}`}
       onPointerMove={(event) => {
         if (!humanFirst || lassoActive || preciseSelectActive) {
           return;
@@ -315,6 +325,48 @@ export function EditorCanvasPreview({
       : null}
       {showBodyGuide && document.bodyDesigner ?
         <EditorBodyGuideOverlay params={document.bodyDesigner} layers={document.objects} />
+      : null}
+      {showSelectionHelp && interactiveCanvas && !segmenting ?
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-3"
+          role="status"
+        >
+          <p className="rounded-full bg-black/55 px-4 py-1.5 text-center text-sm font-medium text-white shadow-lg">
+            {t("editor.canvas.clickToSelect" as never)}
+          </p>
+        </div>
+      : null}
+      {segmenting ?
+        <div
+          className="pointer-events-none absolute left-1/2 top-4 z-30 -translate-x-1/2"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white shadow-lg animate-pulse">
+            {t("editor.canvas.selecting" as never)}
+          </p>
+        </div>
+      : null}
+      {clickFeedbackPoint ?
+        <div
+          className="pointer-events-none absolute z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#0067B1] shadow-md"
+          style={{
+            left: `${clickFeedbackPoint.x * 100}%`,
+            top: `${clickFeedbackPoint.y * 100}%`,
+          }}
+          aria-hidden
+        />
+      : null}
+      {humanFirst && hoveredLayer && !segmenting ?
+        <div
+          className="pointer-events-none absolute z-20 max-w-[70%] truncate rounded-md bg-black/65 px-2 py-1 text-xs font-medium text-white"
+          style={{
+            left: `${hoveredLayer.bounds.x * 100}%`,
+            top: `${Math.max(0, hoveredLayer.bounds.y * 100 - 6)}%`,
+          }}
+        >
+          {hoveredLayer.label}
+        </div>
       : null}
       {visibleLayers.map((layer) => {
         const selected = selectedLayerId === layer.id && !selectedPlacementId;

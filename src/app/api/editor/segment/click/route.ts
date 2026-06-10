@@ -9,7 +9,8 @@ import {
 import type { EditorCanvasBounds, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
 export const runtime = "nodejs";
-export const maxDuration = 120;
+/** Matches EDITOR_CLICK_ROUTE_DEADLINE_MS + small handler margin. */
+export const maxDuration = 30;
 
 type ClickBody = {
   imageUrl?: string;
@@ -67,6 +68,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const requestId = crypto.randomUUID();
+
   try {
     const result = await segmentByClick({
       userId: user.id,
@@ -84,6 +87,7 @@ export async function POST(request: Request) {
       editorObjectId: body.editorObjectId,
       sessionId: body.sessionId,
       createCutout: body.createCutout,
+      requestId,
     });
 
     if (!result.ok) {
@@ -127,7 +131,7 @@ export async function POST(request: Request) {
     return NextResponse.json(payload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Segmentation failed.";
-    console.error("[editor-segment-click]", { error: message });
+    console.error("[editor-segmentation]", { requestId, phase: "route_error", error: message });
     return NextResponse.json(
       {
         error: message,

@@ -134,7 +134,7 @@ describe("Replicate globe selection trace", () => {
       join(ROOT, "src/components/editor/editor-canvas-workspace.tsx"),
       "utf8"
     );
-    assert.match(workspace, /\/api\/editor\/segment\/click/);
+    assert.match(workspace, /postEditorSegmentClick/);
     assert.match(workspace, /objectHint: input\.prompt/);
     assert.match(workspace, /clickPoint: input\.point/);
   });

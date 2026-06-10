@@ -100,8 +100,10 @@ export function pickSam3MaskIndexAtClick(input: {
   return bestClickIdx >= 0 ? bestClickIdx : bestScoreIdx;
 }
 
-export const EDITOR_CLICK_REPLICATE_TIMEOUT_MS = 55_000;
-export const EDITOR_REFINE_REPLICATE_TIMEOUT_MS = 50_000;
+/** Keep under serverless gateway budget; finalize (fetch + blob) needs ~6–8s headroom. */
+export const EDITOR_CLICK_REPLICATE_TIMEOUT_MS = 20_000;
+export const EDITOR_REFINE_REPLICATE_TIMEOUT_MS = 22_000;
+export const EDITOR_CLICK_ROUTE_DEADLINE_MS = 28_000;
 
 export async function segmentEditorImageWithReplicateSam3(params: {
   imageUrl: string;

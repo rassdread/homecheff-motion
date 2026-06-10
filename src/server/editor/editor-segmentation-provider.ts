@@ -18,6 +18,7 @@ import { editorMaskStoragePath } from "@/server/editor/editor-mask-storage";
 import { segmentEditorLayer } from "@/server/editor/segment-editor-layer";
 import {
   EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
+  EDITOR_CLICK_ROUTE_DEADLINE_MS,
   EDITOR_REFINE_REPLICATE_TIMEOUT_MS,
   segmentEditorImageWithReplicateSam3,
 } from "@/server/editor/replicate-sam3-editor-segment";
@@ -26,6 +27,11 @@ import {
   type Sam2ClickSegmentResult,
 } from "@/server/editor/sam2-click-segment";
 import { isSam2SegmentationAvailable } from "@/lib/editor-sam2-segmentation";
+import {
+  EDITOR_SEGMENT_IMAGE_FETCH_TIMEOUT_MS,
+  EDITOR_SEGMENT_MASK_FETCH_TIMEOUT_MS,
+  fetchWithEditorSegmentTimeout,
+} from "@/lib/editor-segment-fetch";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import type {
   EditorCanvasBounds,
@@ -74,6 +80,7 @@ export type SegmentByClickInput = {
   editorObjectId?: string;
   sessionId?: string;
   createCutout?: boolean;
+  requestId?: string;
 };
 
 export type SegmentByPromptInput = {
@@ -95,8 +102,20 @@ export type RemoveBackgroundInput = {
 
 const SEGMENT_RESPONSE_MAX_BYTES = 512_000;
 
-function logEditorSegmentTrace(phase: string, detail: Record<string, unknown>): void {
-  console.info("[editor-segmentation]", { phase, ...detail });
+function logEditorSegmentTrace(
+  phase: string,
+  detail: Record<string, unknown>,
+  requestId?: string
+): void {
+  console.info("[editor-segmentation]", {
+    requestId: requestId ?? "none",
+    phase,
+    ...detail,
+  });
+}
+
+function segmentClickDeadlineExceeded(startedMs: number): boolean {
+  return Date.now() - startedMs > EDITOR_CLICK_ROUTE_DEADLINE_MS;
 }
 
 async function loadSourceImageBuffer(input: {
@@ -111,7 +130,11 @@ async function loadSourceImageBuffer(input: {
     if (!input.imageUrl) {
       return { ok: false, code: "image_fetch_failed", message: "Missing image source." };
     }
-    const res = await fetch(input.imageUrl, { cache: "no-store" });
+    const imageFetchStarted = Date.now();
+    const res = await fetchWithEditorSegmentTimeout(
+      input.imageUrl,
+      EDITOR_SEGMENT_IMAGE_FETCH_TIMEOUT_MS
+    );
     if (!res.ok) {
       return {
         ok: false,
@@ -119,12 +142,22 @@ async function loadSourceImageBuffer(input: {
         message: `Could not fetch image (${res.status}).`,
       };
     }
-    return { ok: true, buffer: Buffer.from(await res.arrayBuffer()) };
+    const buffer = Buffer.from(await res.arrayBuffer());
+    logEditorSegmentTrace("image_fetch_ms", {
+      ms: Date.now() - imageFetchStarted,
+      bytes: buffer.length,
+    });
+    return { ok: true, buffer };
   } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
     return {
       ok: false,
       code: "image_fetch_failed",
-      message: error instanceof Error ? error.message : "Could not fetch image.",
+      message: aborted
+        ? "Image fetch timed out."
+        : error instanceof Error
+          ? error.message
+          : "Could not fetch image.",
     };
   }
 }
@@ -235,7 +268,11 @@ async function maskBufferFromMaskRef(
       }
       return { ok: true, buffer };
     }
-    const res = await fetch(maskRef, { cache: "no-store" });
+    const maskFetchStarted = Date.now();
+    const res = await fetchWithEditorSegmentTimeout(
+      maskRef,
+      EDITOR_SEGMENT_MASK_FETCH_TIMEOUT_MS
+    );
     if (!res.ok) {
       return {
         ok: false,
@@ -247,12 +284,18 @@ async function maskBufferFromMaskRef(
     if (buffer.length < 100) {
       return { ok: false, code: "mask_fetch_failed", message: "Mask payload was too small." };
     }
+    logEditorSegmentTrace("mask_fetch_ms", { ms: Date.now() - maskFetchStarted, bytes: buffer.length });
     return { ok: true, buffer };
   } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
     return {
       ok: false,
       code: "mask_fetch_failed",
-      message: error instanceof Error ? error.message : "Could not fetch mask.",
+      message: aborted
+        ? "Mask fetch timed out."
+        : error instanceof Error
+          ? error.message
+          : "Could not fetch mask.",
     };
   }
 }
@@ -314,6 +357,8 @@ async function finalizeReplicateSam3Segment(input: {
   createCutout: boolean;
   targetBounds?: EditorCanvasBounds;
   clickPoint?: EditorShapePoint;
+  requestId?: string;
+  clickStartedMs?: number;
 }): Promise<
   | { ok: true; result: EditorSegmentationProviderResult; shape: EditorObjectShape; maskUrl: string; cutoutUrl?: string }
   | { ok: false; code: EditorSegmentErrorCode; message: string }
@@ -323,6 +368,17 @@ async function finalizeReplicateSam3Segment(input: {
       ok: false,
       code: "replicate_mask_format_unsupported",
       message: "Replicate returned a mask format that could not be used.",
+    };
+  }
+
+  if (
+    input.clickStartedMs &&
+    segmentClickDeadlineExceeded(input.clickStartedMs)
+  ) {
+    return {
+      ok: false,
+      code: "replicate_timeout",
+      message: "Segmentation took too long before finalize. Try again.",
     };
   }
 
@@ -357,6 +413,7 @@ async function finalizeReplicateSam3Segment(input: {
       contour.polygon.length >= 3
         ? contour.polygon
         : refineSelectionPolygonFromBounds(boundingBox);
+    const blobStarted = Date.now();
     const persisted = await persistMaskAndCutout({
       userId: input.userId,
       sessionId: input.sessionId,
@@ -366,6 +423,15 @@ async function finalizeReplicateSam3Segment(input: {
       createCutout: input.createCutout,
       provider: "replicate_sam3",
     });
+    logEditorSegmentTrace(
+      "blob_upload_ms",
+      {
+        ms: Date.now() - blobStarted,
+        createCutout: input.createCutout,
+        totalMs: input.clickStartedMs ? Date.now() - input.clickStartedMs : undefined,
+      },
+      input.requestId
+    );
     const result: EditorSegmentationProviderResult = {
       maskUrl: persisted.maskUrl,
       cutoutUrl: persisted.cutoutUrl,
@@ -477,6 +543,8 @@ export async function segmentByClick(
   const sessionId = input.sessionId?.trim() || "anonymous";
   const objectId = input.editorObjectId?.trim() || "object";
   const createCutout = input.createCutout !== false;
+  const requestId = input.requestId?.trim() || "none";
+  const clickStartedMs = Date.now();
   const prompt = resolveEditorSegmentPrompt({
     category: input.category,
     semanticType: input.semanticType,
@@ -484,17 +552,22 @@ export async function segmentByClick(
     objectHint: input.objectHint,
   });
 
-  logEditorSegmentTrace("click_start", {
-    imageUrlPresent: Boolean(input.imageUrl),
-    prompt,
-    createCutout,
-    sessionId,
-    objectId,
-  });
+  logEditorSegmentTrace(
+    "click_start",
+    {
+      provider: "replicate_sam3",
+      imageUrlPresent: Boolean(input.imageUrl),
+      prompt,
+      createCutout,
+      sessionId,
+      objectId,
+    },
+    requestId
+  );
 
   try {
     if (isReplicateConfigured() && input.imageUrl) {
-      logEditorSegmentTrace("replicate_click_start", { imageUrl: input.imageUrl, prompt });
+      logEditorSegmentTrace("replicate_click_start", { imageUrl: input.imageUrl, prompt }, requestId);
       const rep = await segmentEditorImageWithReplicateSam3({
         imageUrl: input.imageUrl,
         prompt,
@@ -502,14 +575,38 @@ export async function segmentByClick(
         timeoutMs: EDITOR_CLICK_REPLICATE_TIMEOUT_MS,
       });
       if (!rep.ok) {
-        logEditorSegmentTrace("replicate_click_failed", { error: rep.error });
+        logEditorSegmentTrace(
+          "replicate_click_failed",
+          {
+            error: rep.error,
+            failureCode: mapReplicateErrorToCode(rep.error),
+            totalMs: Date.now() - clickStartedMs,
+          },
+          requestId
+        );
         return segmentFailure(mapReplicateErrorToCode(rep.error), rep.error);
       }
-      logEditorSegmentTrace("replicate_click_completed", {
-        predictionId: rep.result.predictionId,
-        maskFormat: rep.result.maskUrl?.startsWith("data:") ? "data_uri" : rep.result.maskUrl ? "url" : "missing",
-        runtimeMs: rep.result.runtimeMs,
-      });
+      if (segmentClickDeadlineExceeded(clickStartedMs)) {
+        logEditorSegmentTrace(
+          "click_deadline_after_replicate",
+          { totalMs: Date.now() - clickStartedMs },
+          requestId
+        );
+        return segmentFailure(
+          "replicate_timeout",
+          "Segmentation took too long. Try again."
+        );
+      }
+      logEditorSegmentTrace(
+        "replicate_click_completed",
+        {
+          predictionId: rep.result.predictionId,
+          replicatePredictionMs: rep.result.runtimeMs,
+          maskFormat: rep.result.maskUrl?.startsWith("data:") ? "data_uri" : rep.result.maskUrl ? "url" : "missing",
+          totalMs: Date.now() - clickStartedMs,
+        },
+        requestId
+      );
       const finalized = await finalizeReplicateSam3Segment({
         userId: input.userId,
         sessionId,
@@ -519,22 +616,42 @@ export async function segmentByClick(
         createCutout,
         targetBounds: input.targetBounds,
         clickPoint: input.clickPoint,
+        requestId,
+        clickStartedMs,
       });
       if (finalized.ok) {
-        logEditorSegmentTrace("click_success", {
-          provider: "replicate_sam3",
-          maskUrl: Boolean(finalized.maskUrl),
-          cutoutUrl: Boolean(finalized.cutoutUrl),
-        });
+        logEditorSegmentTrace(
+          "click_success",
+          {
+            provider: "replicate_sam3",
+            maskUrl: Boolean(finalized.maskUrl),
+            cutoutUrl: Boolean(finalized.cutoutUrl),
+            totalMs: Date.now() - clickStartedMs,
+          },
+          requestId
+        );
         return finalized;
       }
-      logEditorSegmentTrace("click_finalize_failed", { code: finalized.code, message: finalized.message });
+      logEditorSegmentTrace(
+        "click_finalize_failed",
+        {
+          code: finalized.code,
+          message: finalized.message,
+          totalMs: Date.now() - clickStartedMs,
+        },
+        requestId
+      );
       return segmentFailure(finalized.code, finalized.message);
     }
   } catch (error) {
-    logEditorSegmentTrace("click_internal_error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logEditorSegmentTrace(
+      "click_internal_error",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        totalMs: Date.now() - clickStartedMs,
+      },
+      requestId
+    );
     return segmentFailure(
       "segmentation_internal_error",
       error instanceof Error ? error.message : "Segmentation failed."

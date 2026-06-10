@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asset-recommendations-panel";
+import { EditorVisionSummaryPanel } from "@/components/editor/editor-vision-summary-panel";
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorClickSegmentPrompt } from "@/components/editor/editor-click-segment-prompt";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
@@ -132,7 +133,13 @@ import { resolveContextualCommandSuggestions } from "@/lib/editor-v7-suggestions
 import { isBackgroundToolHidden } from "@/lib/editor-broken-features";
 import { parseCompositorLayerId } from "@/lib/editor-compositor";
 import { evaluateEditorMaskGate } from "@/lib/editor-mask-gate";
+import { postEditorSegmentClick } from "@/lib/editor-segment-click-client";
 import { editorSegmentErrorMessageKey } from "@/lib/editor-segment-client-errors";
+import {
+  deriveSegmentationUiState,
+  segmentationStateAllowsRetry,
+  segmentationStateMessageKey,
+} from "@/lib/editor-segmentation-state";
 import {
   autoMaskProgressMessageKey,
   autoMaskUserMessageKey,
@@ -226,6 +233,13 @@ import type {
 
 type PanelMode = "layer" | "placement" | "body";
 
+const EDITOR_MODE_ALREADY_ACTIVE_KEYS: Record<EditorWorkspaceMode, string> = {
+  photo_edit: "editor.modeAlreadyActive.photoEdit",
+  compose: "editor.modeAlreadyActive.compose",
+  quick_motion: "editor.modeAlreadyActive.gif",
+  export: "editor.modeAlreadyActive.export",
+};
+
 export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
@@ -254,7 +268,15 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [clickSegmentPoint, setClickSegmentPoint] = useState<EditorShapePoint | null>(null);
   const [clickSegmentParentLayerId, setClickSegmentParentLayerId] = useState<string | null>(null);
   const [clickSegmentBusy, setClickSegmentBusy] = useState(false);
+  const [segmentFailureCode, setSegmentFailureCode] = useState<string | null>(null);
+  const [lastClickFeedbackPoint, setLastClickFeedbackPoint] = useState<EditorShapePoint | null>(
+    null
+  );
   const bootstrapRanRef = useRef(false);
+  const photoEditPanelRef = useRef<HTMLDivElement>(null);
+  const exportPanelRef = useRef<HTMLDivElement>(null);
+  const composePanelRef = useRef<HTMLDivElement>(null);
+  const quickMotionPanelRef = useRef<HTMLDivElement>(null);
   const autoMaskInFlightRef = useRef<string | null>(null);
   const [preciseSelectActive, setPreciseSelectActive] = useState(false);
   const [preciseSelectMode, setPreciseSelectMode] = useState<PreciseSelectMode>("initial");
@@ -345,13 +367,44 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     return saved;
   };
 
-  const setWorkspaceMode = (mode: EditorWorkspaceMode) => {
+  const scrollToPanelRef = (ref: RefObject<HTMLDivElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const setWorkspaceMode = (mode: EditorWorkspaceMode, options?: { scroll?: boolean }) => {
     let next: EditorCanvasDocument = { ...document, workspaceMode: mode };
     if (mode === "quick_motion" && !next.quickMotionConfig) {
       next = attachQuickMotionConfig(next, {});
     }
     persist(next);
+    if (options?.scroll) {
+      if (mode === "photo_edit") {
+        scrollToPanelRef(photoEditPanelRef);
+      } else if (mode === "compose") {
+        scrollToPanelRef(composePanelRef);
+      } else if (mode === "quick_motion") {
+        scrollToPanelRef(quickMotionPanelRef);
+      } else if (mode === "export") {
+        scrollToPanelRef(exportPanelRef);
+      }
+    }
   };
+
+  const reportSegmentFailure = (code?: string) => {
+    setSegmentFailureCode(code ?? "segmentation_internal_error");
+    setSaveMessage(t(editorSegmentErrorMessageKey(code) as never));
+  };
+
+  const clearSegmentFailure = () => setSegmentFailureCode(null);
+
+  const segmentationUiState = deriveSegmentationUiState({
+    clickSegmentPoint,
+    clickSegmentBusy,
+    refiningSelection,
+    selectedLayer,
+    lastFailureCode: segmentFailureCode,
+  });
+  const segmentationStatusKey = segmentationStateMessageKey(segmentationUiState);
 
   const handleComposerSourceUpload = async (file: File) => {
     setComposerUploading(true);
@@ -392,31 +445,28 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     try {
       if (strategy === "replicate" || strategy === "sam2") {
         const clickPoint = resolveAutoMaskClickPoint(layer, userClickPoint);
-        const res = await fetch("/api/editor/segment/click", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl: document.backgroundUrl,
-            backgroundStorageKey: document.backgroundStorageKey,
-            clickPoint,
-            targetBounds: layer.bounds,
-            objectHint: layer.label,
-            category: layer.category,
-            semanticType: layer.semanticType,
-            label: layer.label,
-            editorObjectId: layer.id,
-            sessionId: document.sessionId,
-            createCutout: true,
-          }),
+        const { response: res } = await postEditorSegmentClick({
+          imageUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          clickPoint,
+          targetBounds: layer.bounds,
+          objectHint: layer.label,
+          category: layer.category,
+          semanticType: layer.semanticType,
+          label: layer.label,
+          editorObjectId: layer.id,
+          sessionId: document.sessionId,
+          createCutout: true,
         });
         if (res.ok) {
+          clearSegmentFailure();
           const result = (await res.json()) as EditorSegmentApiShape;
           applySegmentShapeToLayer(result, layer.id, layer);
           setSaveMessage(t(autoMaskUserMessageKey(strategy, true) as never));
           return;
         }
         const err = (await res.json().catch(() => null)) as { code?: string } | null;
-        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
+        reportSegmentFailure(err?.code);
         return;
       }
       if (strategy === "rembg") {
@@ -523,6 +573,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
 
     const layer = nextDocument.objects.find((o) => o.id === layerId) ?? null;
+    if (clickPoint) {
+      setLastClickFeedbackPoint(clickPoint);
+    }
     if (layer && shouldAutoAcquireMask(layer)) {
       void tryAutoAcquireMask(layer, clickPoint);
     } else if (layer) {
@@ -580,6 +633,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const openClickSegmentPrompt = (point: EditorShapePoint, parentLayerId?: string | null) => {
     setClickSegmentPoint(point);
     setClickSegmentParentLayerId(parentLayerId ?? null);
+    setLastClickFeedbackPoint(point);
   };
 
   const dismissClickSegmentPrompt = () => {
@@ -628,34 +682,31 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         labelOverride: input.labelOverride,
       });
 
-      const res = await fetch("/api/editor/segment/click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: document.backgroundUrl,
-          backgroundStorageKey: document.backgroundStorageKey,
-          clickPoint: input.point,
-          objectHint: input.prompt,
-          targetBounds: parentLayer?.bounds,
-          editorObjectId: childStub.id,
-          parentLayerId: parentLayer?.id,
-          sessionId: document.sessionId,
-          createCutout: true,
-        }),
+      const { response: res } = await postEditorSegmentClick({
+        imageUrl: document.backgroundUrl,
+        backgroundStorageKey: document.backgroundStorageKey,
+        clickPoint: input.point,
+        objectHint: input.prompt,
+        targetBounds: parentLayer?.bounds,
+        editorObjectId: childStub.id,
+        parentLayerId: parentLayer?.id,
+        sessionId: document.sessionId,
+        createCutout: true,
       });
 
       if (!res.ok) {
         const err = (await res.json().catch(() => null)) as { code?: string } | null;
-        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
+        reportSegmentFailure(err?.code);
         return;
       }
 
       const result = (await res.json()) as EditorSegmentApiShape & { maskUrl?: string };
       if (!result.maskUrl) {
-        setSaveMessage(t("editor.clickSegment.failed" as never));
+        reportSegmentFailure("replicate_prediction_failed");
         return;
       }
 
+      clearSegmentFailure();
       const withSegment = applySegmentToSubObjectLayer(childStub, result);
       const objects = attachSubObjectLayer(document.objects, withSegment);
       const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
@@ -1106,37 +1157,35 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
     setRefiningSelection(true);
     try {
-      const res = await fetch("/api/editor/segment/click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: document.backgroundUrl,
-          backgroundStorageKey: document.backgroundStorageKey,
-          clickPoint,
-          positivePoints: sam2PositivePoints,
-          negativePoints: sam2NegativePoints,
-          targetBounds: selectedLayer.bounds,
-          objectHint: selectedLayer.label,
-          category: selectedLayer.category,
-          semanticType: selectedLayer.semanticType,
-          label: selectedLayer.label,
-          editorObjectId: selectedLayerId,
-          sessionId: document.sessionId,
-          createCutout: true,
-        }),
+      setLastClickFeedbackPoint(clickPoint);
+      const { response: res } = await postEditorSegmentClick({
+        imageUrl: document.backgroundUrl,
+        backgroundStorageKey: document.backgroundStorageKey,
+        clickPoint,
+        positivePoints: sam2PositivePoints,
+        negativePoints: sam2NegativePoints,
+        targetBounds: selectedLayer.bounds,
+        objectHint: selectedLayer.label,
+        category: selectedLayer.category,
+        semanticType: selectedLayer.semanticType,
+        label: selectedLayer.label,
+        editorObjectId: selectedLayerId,
+        sessionId: document.sessionId,
+        createCutout: true,
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
-        setSaveMessage(t(editorSegmentErrorMessageKey(err?.code) as never));
+        reportSegmentFailure(err?.code);
         setPreciseSelectActive(false);
         return;
       }
+      clearSegmentFailure();
       const result = (await res.json()) as EditorSegmentApiShape;
       applySegmentShapeToLayer(result, selectedLayerId, selectedLayer);
       setPreciseSelectActive(false);
       setPreciseSelectMode("initial");
     } catch {
-      setSaveMessage(t("editor.sam2.failed"));
+      reportSegmentFailure("segmentation_internal_error");
     } finally {
       setRefiningSelection(false);
     }
@@ -1242,32 +1291,30 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setV6Busy(true);
     try {
       const clickPoint = { x: selectedLayer.transform.x, y: selectedLayer.transform.y };
-      const res = await fetch("/api/editor/segment/click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: document.backgroundUrl,
-          backgroundStorageKey: document.backgroundStorageKey,
-          clickPoint,
-          targetBounds: selectedLayer.bounds,
-          objectHint: selectedLayer.label,
-          category: selectedLayer.category,
-          semanticType: selectedLayer.semanticType,
-          label: selectedLayer.label,
-          editorObjectId: selectedLayerId,
-          sessionId: document.sessionId,
-          createCutout: true,
-        }),
+      const { response: res } = await postEditorSegmentClick({
+        imageUrl: document.backgroundUrl,
+        backgroundStorageKey: document.backgroundStorageKey,
+        clickPoint,
+        targetBounds: selectedLayer.bounds,
+        objectHint: selectedLayer.label,
+        category: selectedLayer.category,
+        semanticType: selectedLayer.semanticType,
+        label: selectedLayer.label,
+        editorObjectId: selectedLayerId,
+        sessionId: document.sessionId,
+        createCutout: true,
       });
       if (!res.ok) {
-        setSaveMessage(t("editor.v6.cutout.failed" as never));
+        const err = (await res.json().catch(() => null)) as { code?: string } | null;
+        reportSegmentFailure(err?.code);
         return;
       }
       const result = (await res.json()) as EditorSegmentApiShape;
       if (!result.cutoutUrl) {
-        setSaveMessage(t("editor.v6.cutout.failed" as never));
+        reportSegmentFailure("cutout_generation_failed");
         return;
       }
+      clearSegmentFailure();
       applySegmentShapeToLayer(result as EditorSegmentApiShape, selectedLayerId, selectedLayer);
       const latest = loadEditorCanvasDocument(document.sessionId) ?? document;
       const withLibrary = applySegmentCutoutToDocument(latest, selectedLayerId, {
@@ -1280,7 +1327,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       const saved = await persistCutoutToLibrary(withLibrary.document, result.cutoutUrl);
       setSaveMessage(t(saved.messageKey as never));
     } catch {
-      setSaveMessage(t("editor.v6.cutout.failed" as never));
+      reportSegmentFailure("segmentation_internal_error");
     } finally {
       setV6Busy(false);
     }
@@ -1599,14 +1646,29 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
   const handleUxV7NoSelectionAction = (action: EditorUxV7NoSelectionAction) => {
     const mode = workspaceModeForNoSelectionAction(action);
-    if (mode && action !== "background") {
-      setWorkspaceMode(mode);
-    }
     if (action === "background") {
       const bgLayer = document.objects.find((o) => o.layerType === "background");
       if (bgLayer) {
         selectLayer(bgLayer.id);
       }
+      scrollToPanelRef(photoEditPanelRef);
+      return;
+    }
+    if (mode) {
+      if (workspaceMode === mode) {
+        setSaveMessage(t(EDITOR_MODE_ALREADY_ACTIVE_KEYS[mode] as never));
+        scrollToPanelRef(
+          mode === "photo_edit"
+            ? photoEditPanelRef
+            : mode === "compose"
+              ? composePanelRef
+              : mode === "quick_motion"
+                ? quickMotionPanelRef
+                : exportPanelRef
+        );
+        return;
+      }
+      setWorkspaceMode(mode, { scroll: true });
     }
   };
 
@@ -2045,11 +2107,47 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 ))}
               </div>
 
+              <EditorVisionSummaryPanel document={document} />
+
               {document.assetProfile ?
                 <EditorAssetRecommendationsPanel
                   profile={document.assetProfile}
                   onAction={handleAssetRecommendation}
                 />
+              : null}
+
+              {segmentationStatusKey && segmentationUiState !== "idle" ?
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    segmentationUiState === "segmenting"
+                      ? "border-[#0067B1]/30 bg-[#0067B1]/5 text-[#0067B1]"
+                      : segmentationUiState === "mask_ready"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        : segmentationStateAllowsRetry(segmentationUiState)
+                          ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-800"
+                  }`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p>{t(segmentationStatusKey as never)}</p>
+                  {segmentationStateAllowsRetry(segmentationUiState) ?
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-semibold text-[#0067B1] hover:underline"
+                      onClick={() => {
+                        clearSegmentFailure();
+                        if (lastClickFeedbackPoint) {
+                          openClickSegmentPrompt(lastClickFeedbackPoint, clickSegmentParentLayerId);
+                        } else if (selectedLayer) {
+                          void tryAutoAcquireMask(selectedLayer, lastClickFeedbackPoint);
+                        }
+                      }}
+                    >
+                      {t("editor.segmentState.retry" as never)}
+                    </button>
+                  : null}
+                </div>
               : null}
 
               <EditorMagicEditBar
@@ -2111,6 +2209,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               <EditorContextualActionBar
                 layer={selectedLayer && !selectedPlacementId ? selectedLayer : null}
                 busy={v6Busy || saving}
+                workspaceMode={workspaceMode}
                 onNoSelectionAction={handleUxV7NoSelectionAction}
                 onObjectAction={handleUxV7ObjectAction}
               />
@@ -2165,6 +2264,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   selectedCompositorId={selectedCompositorId}
                   onSelectCompositorLayer={handleSelectCompositorLayer}
                   onMoveCompositorLayer={handleMoveCompositorLayer}
+                  segmenting={refiningSelection || clickSegmentBusy}
+                  clickFeedbackPoint={lastClickFeedbackPoint}
+                  showSelectionHelp={segmentationUiState !== "mask_ready"}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -2179,7 +2281,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               </div>
 
               {selectedLayer && !selectedPlacementId && modeShowsPhotoEditObjectPanels(workspaceMode) ?
-                <>
+                <div ref={photoEditPanelRef} className="space-y-3">
                   {showMagicReplace ?
                     <EditorMagicReplacePanel
                       document={document}
@@ -2237,6 +2339,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                       layer={selectedLayer}
                       refining={refiningSelection}
                       sam2Available={sam2Available}
+                      replicateAvailable={replicateAvailable}
+                      rembgAvailable={rembgAvailable}
                       showAiAnalysis={showAiAnalysis}
                       onPreciseSelect={handleStartPreciseSelect}
                       onStartLasso={() => {
@@ -2277,7 +2381,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   {showAiAnalysis ?
                     <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
                   : null}
-                </>
+                </div>
               : null}
 
               {modeShowsMotionPreparePanels(document) ?
@@ -2295,7 +2399,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               : null}
 
               {modeShowsComposePanels(workspaceMode) ?
-                <div className="space-y-3">
+                <div ref={composePanelRef} className="space-y-3">
                   <input
                     ref={composerSourceRef}
                     type="file"
@@ -2332,7 +2436,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               : null}
 
               {modeShowsQuickMotionPanel(workspaceMode) ?
-                <div className="space-y-3">
+                <div ref={quickMotionPanelRef} className="space-y-3">
                   <EditorQuickMotionPanel document={document} onDocumentChange={persist} />
                   {selectedLayer && selectedLayerId && modeShowsMotionPreviewBar(workspaceMode, document) ?
                     <EditorMotionPreviewBar
@@ -2359,7 +2463,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               : null}
 
               {modeShowsExportHub(workspaceMode) ?
-                <div className="space-y-2">
+                <div ref={exportPanelRef} className="space-y-2">
                   <button
                     type="button"
                     onClick={() => setAdvancedExportOpen((v) => !v)}

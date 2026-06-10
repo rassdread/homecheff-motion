@@ -11,11 +11,13 @@ import {
   type EditorUxV7NoSelectionAction,
   type EditorUxV7ObjectAction,
 } from "@/lib/editor-ux-v7-contextual";
-import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
+import { workspaceModeForNoSelectionAction } from "@/lib/editor-ux-v7-workspace";
+import type { EditorCanvasLayer, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
 type Props = {
   layer: EditorCanvasLayer | null;
   busy?: boolean;
+  workspaceMode?: EditorWorkspaceMode;
   onNoSelectionAction: (action: EditorUxV7NoSelectionAction) => void;
   onObjectAction: (action: EditorUxV7ObjectAction) => void;
 };
@@ -23,6 +25,7 @@ type Props = {
 export function EditorContextualActionBar({
   layer,
   busy,
+  workspaceMode = "photo_edit",
   onNoSelectionAction,
   onObjectAction,
 }: Props) {
@@ -36,22 +39,30 @@ export function EditorContextualActionBar({
           {t("editor.uxV7.contextual.title" as never)}
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {actions.map((action) => (
+          {actions.map((action) => {
+            const targetMode = workspaceModeForNoSelectionAction(action);
+            const isActive = targetMode === workspaceMode;
+            return (
             <button
               key={action}
               type="button"
               disabled={busy}
               onClick={() => onNoSelectionAction(action)}
-              className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl bg-zinc-50 px-2 py-3 text-center hover:bg-[#0067B1]/10 disabled:opacity-50"
+              className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-center disabled:opacity-50 ${
+                isActive
+                  ? "bg-[#0067B1] text-white ring-2 ring-[#0067B1]/30"
+                  : "bg-zinc-50 hover:bg-[#0067B1]/10"
+              }`}
             >
               <span className="text-xl" aria-hidden>
                 {uxV7NoSelectionIcon(action)}
               </span>
-              <span className="text-xs font-semibold text-slate-900">
+              <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-slate-900"}`}>
                 {t(EDITOR_UX_V7_NO_SELECTION_LABEL_KEYS[action] as never)}
               </span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
