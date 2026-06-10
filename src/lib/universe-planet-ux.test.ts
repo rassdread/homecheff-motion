@@ -37,8 +37,8 @@ describe("universe planet ux", () => {
   });
 
   it("hover close delay supports hover grace window", () => {
-    assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS >= 150);
-    assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS <= 250);
+    assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS >= 500);
+    assert.ok(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS <= 500);
   });
 
   it("ring labels render for all products via preview content ids", () => {

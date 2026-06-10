@@ -30,20 +30,20 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
   const subheadline = t(resolveUniversePublicSubheadlineKey(isAuthenticated));
 
   return (
-    <header className="relative z-20 mb-3 max-w-2xl text-center sm:mb-5">
+    <header className="universe-hero-copy relative z-20 max-w-xl text-left">
       <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/45 sm:text-xs">
         {t("universe.public.suiteLabel")}
       </p>
       <h1
-        className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl"
+        className="mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-[1.75rem]"
         style={{
           animation: reducedMotion ? undefined : "universe-welcome-in 0.6s ease-out forwards",
         }}
       >
         {headline}
       </h1>
-      <p className="mt-2 text-sm text-white/70 sm:text-base">{subheadline}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+      <p className="mt-2 text-sm text-white/72 sm:text-base">{subheadline}</p>
+      <div className="mt-4 flex flex-wrap items-center justify-start gap-2">
         <Link
           href={resolveUniversePrimaryCtaHref(isAuthenticated)}
           prefetch={false}
@@ -59,6 +59,9 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
           {t(resolveUniverseSecondaryCtaKey(isAuthenticated))}
         </Link>
       </div>
+      {isAuthenticated && (
+        <p className="mt-5 text-sm font-medium text-white/58">{t("universe.welcome.universe")}</p>
+      )}
     </header>
   );
 }

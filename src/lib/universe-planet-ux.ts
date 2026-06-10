@@ -4,8 +4,10 @@ import {
   type UniversePlanetId,
 } from "@/lib/universe-home-config";
 
-/** Grace period before closing hover portal when pointer leaves planet group */
-export const UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS = 200;
+/** Grace period before closing hover when pointer leaves planet group */
+export const UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS = 500;
+/** Minimum time a planet stays active once hovered */
+export const UNIVERSE_PLANET_HOVER_LOCK_MS = 500;
 
 export const UNIVERSE_PLANET_IDENTITY_RING_CLASS = "universe-planet-identity-ring";
 export const UNIVERSE_PLANET_SATURN_RING_CLASS = "universe-saturn-ring";
@@ -29,6 +31,14 @@ export const UNIVERSE_Z_SATELLITE = 90;
 /** Hover expansion scale — V5 spec: 130% */
 export const UNIVERSE_PLANET_HOVER_SCALE = 1.3;
 export const UNIVERSE_PLANET_HOVER_TRANSITION_MS = 350;
+
+/** Hero planet icon — readable without hover */
+export const UNIVERSE_PLANET_ICON_SIZE_MOBILE_PX = 32;
+export const UNIVERSE_PLANET_ICON_SIZE_TABLET_PX = 40;
+export const UNIVERSE_PLANET_ICON_SIZE_DESKTOP_PX = 48;
+export const UNIVERSE_PLANET_ICON_CLASS = "h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12";
+
+export const UNIVERSE_PLANET_NAME_LABEL_CLASS = "universe-planet-name-label";
 
 /** Compact orbit cluster — no portal hover zone */
 export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX = 280;
@@ -68,22 +78,17 @@ export function resolveCapabilityEllipsePosition(
 
 export function resolveCapabilityLabelDepthStyle(depth: number): {
   opacity: number;
-  scale: number;
   zIndex: number;
-  filter?: string;
 } {
   if (depth < 0.38) {
     const t = depth / 0.38;
     return {
-      opacity: 0.22 + t * 0.18,
-      scale: 0.86 + t * 0.06,
+      opacity: 0.28 + t * 0.22,
       zIndex: 1,
-      filter: depth < 0.2 ? "blur(0.4px)" : undefined,
     };
   }
   return {
-    opacity: 0.94 + (depth - 0.38) * 0.1,
-    scale: 1,
+    opacity: 0.92 + (depth - 0.38) * 0.08,
     zIndex: 3,
   };
 }

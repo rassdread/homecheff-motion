@@ -4,7 +4,7 @@ import { useState } from "react";
 import { GlobeEcosystemOverlay } from "@/components/suite/universe/universe-globe-ecosystem-overlay";
 import { WorldMapTexture } from "@/components/suite/universe/world-map-texture";
 import { useUniverseGlobeRotation } from "@/hooks/use-universe-globe-rotation";
-import { UNIVERSE_BRAND } from "@/lib/universe-home-config";
+import { UNIVERSE_GLOBE_OCEAN_COLOR } from "@/lib/universe-globe-earth";
 import { resolveGlobeMapTranslatePercent } from "@/lib/universe-globe-projection";
 import {
   shouldShowGlobeContinents,
@@ -51,9 +51,9 @@ export function UniverseGlobe({
       <div
         className="pointer-events-none absolute rounded-full universe-globe-atmosphere-glow"
         style={{
-          width: "102%",
-          height: "102%",
-          background: `radial-gradient(circle, rgba(0,103,177,0.42) 0%, rgba(0,109,82,0.18) 48%, transparent 72%)`,
+          width: "104%",
+          height: "104%",
+          background: `radial-gradient(circle, rgba(0,103,177,0.38) 0%, rgba(0,103,177,0.14) 42%, transparent 68%)`,
           animation: reducedMotion ? undefined : "universe-glow-pulse 7s ease-in-out infinite",
         }}
       />
@@ -64,13 +64,13 @@ export function UniverseGlobe({
           width: "92%",
           height: "92%",
           aspectRatio: "1 / 1",
-          boxShadow: `0 0 36px rgba(0,103,177,0.55), 0 0 18px rgba(0,109,82,0.25), inset 0 -12px 32px rgba(0,0,0,0.38)`,
+          boxShadow: `0 0 34px rgba(0,103,177,0.48), inset 0 -12px 32px rgba(0,0,0,0.38)`,
         }}
       >
         <div
           className="absolute inset-0 rounded-full universe-globe-ocean"
           style={{
-            background: `radial-gradient(circle at 34% 30%, #005a94 0%, #0067B1 40%, #004a7f 66%, #011a2e 100%)`,
+            background: `radial-gradient(circle at 34% 28%, #0078c8 0%, ${UNIVERSE_GLOBE_OCEAN_COLOR} 38%, #005994 72%, #013a66 100%)`,
           }}
         />
 
@@ -118,7 +118,7 @@ export function UniverseGlobe({
               rx={48}
               ry={Math.abs(50 - y) * 0.85 + 6}
               fill="none"
-              stroke="rgba(0,109,82,0.08)"
+              stroke="rgba(0,103,177,0.06)"
               strokeWidth="0.16"
             />
           ))}
@@ -141,8 +141,8 @@ export function UniverseGlobe({
         <div
           className="pointer-events-none absolute inset-0 rounded-full universe-globe-rim"
           style={{
-            boxShadow: `inset 0 0 20px rgba(0,103,177,0.24), inset 0 -8px 22px rgba(0,0,0,0.34)`,
-            border: `1.5px solid rgba(0,109,82,0.4)`,
+            boxShadow: `inset 0 0 18px rgba(0,103,177,0.28), inset 0 -8px 22px rgba(0,0,0,0.34)`,
+            border: `1.5px solid rgba(0,103,177,0.38)`,
           }}
         />
       </div>

@@ -10,21 +10,22 @@ import {
 } from "@/lib/universe-planet-ux";
 
 describe("universe v6 rotating capability orbits", () => {
-  it("product name ring text renders for every planet via SVG textPath", () => {
+  it("decorative Saturn ring renders without product name textPath", () => {
     const ringSource = readFileSync("src/components/suite/universe/universe-saturn-ring.tsx", "utf8");
-    assert.match(ringSource, /textPath/);
-    assert.match(ringSource, /universe-saturn-ring-text/);
+    assert.doesNotMatch(ringSource, /textPath/);
+    assert.match(ringSource, /universe-saturn-band-front/);
     for (const planet of UNIVERSE_PLANETS) {
       const label = resolveUniversePlanetLabel(planet.id);
       assert.ok(label.length > 0);
     }
   });
 
-  it("product ring visible in default state (front arc always mounted)", () => {
+  it("product name on planet label and decorative ring always mounted", () => {
     const planetSource = readFileSync("src/components/suite/universe/universe-planet.tsx", "utf8");
     assert.match(planetSource, /layer="front"/);
     assert.match(planetSource, /UniversePlanetIdentityRing/);
-    assert.doesNotMatch(planetSource, /planet\.titleKey\}\s*<\/p>/);
+    assert.match(planetSource, /planet\.titleKey/);
+    assert.match(planetSource, /UNIVERSE_PLANET_NAME_LABEL_CLASS/);
   });
 
   it("capability labels orbit via ellipse position animation", () => {

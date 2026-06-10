@@ -23,17 +23,16 @@ import {
 } from "@/lib/universe-planet-ux";
 
 describe("universe v4 saturn rings and smart portals", () => {
-  it("renders Saturn ring with SVG textPath on front arc", () => {
+  it("renders decorative Saturn ring without product name text", () => {
     const ringSource = readFileSync("src/components/suite/universe/universe-saturn-ring.tsx", "utf8");
     assert.equal(UNIVERSE_PLANET_SATURN_RING_CLASS, "universe-saturn-ring");
     assert.equal(UNIVERSE_PLANET_SATURN_SCENE_CLASS, "universe-saturn-scene");
-    assert.match(ringSource, /textPath/);
+    assert.doesNotMatch(ringSource, /textPath/);
     assert.match(ringSource, /universe-saturn-band-front/);
   });
 
   it("ring 3D tilt and clip paths remain", () => {
     const css = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
-    assert.match(css, /universe-saturn-ring-text/);
     assert.match(css, /rotateX\(-68deg\)/);
     assert.match(css, /universe-saturn-y-spin/);
   });
@@ -115,9 +114,8 @@ describe("universe v4 saturn rings and smart portals", () => {
       "src/components/suite/universe/universe-mobile-stack.tsx",
       "utf8"
     );
-    assert.match(mobileSource, /UniversePlanetIdentityRing/);
+    assert.match(mobileSource, /UniversePlanet/);
     assert.doesNotMatch(mobileSource, /UniversePlanetPreview/);
     assert.match(mobileSource, /onSelect\(planet\)/);
-    assert.doesNotMatch(mobileSource, /planet\.titleKey\}/);
   });
 });

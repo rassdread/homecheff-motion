@@ -76,9 +76,15 @@ describe("universe globe render audit", () => {
   it("globe uses HomeCheff brand ocean and land colors", () => {
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
     const cssSource = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
-    assert.match(globeSource, /#0067B1/i);
-    assert.match(globeSource, /rgba\(0,109,82/);
+    const textureSource = readFileSync(
+      "src/components/suite/universe/world-map-texture.tsx",
+      "utf8"
+    );
+    assert.match(globeSource, /UNIVERSE_GLOBE_OCEAN_COLOR|#0067B1/i);
+    assert.match(textureSource, /WORLD_MAP_LAND_ASSET_PATH/);
     assert.match(cssSource, /#0067b1/i);
+    assert.doesNotMatch(cssSource, /hue-rotate\(128deg\)/);
+    assert.doesNotMatch(cssSource, /mix-blend-mode:\s*multiply/);
     assert.doesNotMatch(globeSource, /universe-float/);
   });
 });

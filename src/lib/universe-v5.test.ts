@@ -62,10 +62,12 @@ describe("universe v5 clean planet interaction", () => {
     assert.equal(UNIVERSE_Z_CAPABILITY, 90);
   });
 
-  it("ring-only labels — no duplicate planet title", () => {
+  it("single product name label on planet — no ring text duplicate", () => {
     const planetSource = readFileSync("src/components/suite/universe/universe-planet.tsx", "utf8");
-    assert.doesNotMatch(planetSource, /planet\.titleKey\}\s*<\/p>/);
+    const ringSource = readFileSync("src/components/suite/universe/universe-saturn-ring.tsx", "utf8");
+    assert.match(planetSource, /UNIVERSE_PLANET_NAME_LABEL_CLASS/);
     assert.match(planetSource, /UniversePlanetIdentityRing/);
+    assert.doesNotMatch(ringSource, /textPath/);
   });
 
   it("pipeline route highlight module exists", () => {

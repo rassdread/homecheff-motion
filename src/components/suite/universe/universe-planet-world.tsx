@@ -16,7 +16,7 @@ export function UniversePlanetWorld({
   accent,
 }: UniversePlanetWorldProps) {
   const orbitSpeed = active ? "7s" : "16s";
-  const opacity = active ? 1 : 0.72;
+  const opacity = active ? 0.72 : 0.42;
 
   const elements = (() => {
     switch (id) {

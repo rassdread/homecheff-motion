@@ -13,11 +13,16 @@ describe("universe v7 brand globe and upright orbit labels", () => {
   it("globe uses HomeCheff brand ocean and land tint", () => {
     const globeSource = readFileSync("src/components/suite/universe/universe-globe.tsx", "utf8");
     const css = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
-    assert.match(globeSource, /#0067B1/);
+    const textureSource = readFileSync(
+      "src/components/suite/universe/world-map-texture.tsx",
+      "utf8"
+    );
+    assert.match(globeSource, /#0067B1|UNIVERSE_GLOBE_OCEAN_COLOR/);
     assert.match(globeSource, /universe-globe-ocean/);
+    assert.match(textureSource, /WORLD_MAP_LAND_ASSET_PATH/);
     assert.match(css, /universe-globe-world-map/);
-    assert.match(css, /hue-rotate\(128deg\)/);
-    assert.match(css, /brightness\(0\.52\)/);
+    assert.doesNotMatch(css, /hue-rotate\(128deg\)/);
+    assert.doesNotMatch(css, /mix-blend-mode:\s*multiply/);
     assert.doesNotMatch(globeSource, /opacity-22 mix-blend-screen/);
   });
 
@@ -49,12 +54,12 @@ describe("universe v7 brand globe and upright orbit labels", () => {
     }
   });
 
-  it("backside labels fade and scale down", () => {
+  it("backside labels fade without scale oscillation", () => {
     const back = resolveCapabilityLabelDepthStyle(0.1);
     const front = resolveCapabilityLabelDepthStyle(0.9);
     assert.ok(back.opacity < front.opacity);
-    assert.ok(back.scale < front.scale);
-    assert.ok(back.opacity >= 0.2 && back.opacity <= 0.35);
+    assert.ok(back.opacity >= 0.28 && back.opacity <= 0.5);
+    assert.ok(!("scale" in back));
   });
 
   it("orbit debug param resolves", () => {

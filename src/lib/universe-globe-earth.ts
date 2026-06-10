@@ -11,8 +11,14 @@
 
 export const WORLD_MAP_ASSET_PATH = "/universe/world-map-natural-earth-110m.svg";
 
+/** Land silhouettes only — transparent ocean, #006D52 fill (derived from WORLD_MAP_ASSET_PATH) */
+export const WORLD_MAP_LAND_ASSET_PATH = "/universe/world-map-homecheff-land.svg";
+
 export const WORLD_MAP_WIDTH = 800;
 export const WORLD_MAP_HEIGHT = 400;
+
+export const UNIVERSE_GLOBE_OCEAN_COLOR = "#0067B1";
+export const UNIVERSE_GLOBE_LAND_COLOR = "#006D52";
 
 export const WORLD_MAP_SOURCE = {
   name: "NED_worldmap_110m.svg",

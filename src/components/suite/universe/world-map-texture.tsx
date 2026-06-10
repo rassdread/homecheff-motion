@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  WORLD_MAP_ASSET_PATH,
   WORLD_MAP_HEIGHT,
+  WORLD_MAP_LAND_ASSET_PATH,
   WORLD_MAP_WIDTH,
 } from "@/lib/universe-globe-earth";
 
@@ -10,7 +10,7 @@ type WorldMapTextureProps = {
   visible: boolean;
 };
 
-/** Public-domain Natural Earth equirectangular land/ocean map — duplicated for seamless rotation */
+/** HomeCheff land layer — green continents on transparent ocean (ocean is a separate sphere layer) */
 export function WorldMapTexture({ visible }: WorldMapTextureProps) {
   if (!visible) return null;
 
@@ -22,7 +22,7 @@ export function WorldMapTexture({ visible }: WorldMapTextureProps) {
       {[0, 1].map((copy) => (
         <img
           key={copy}
-          src={WORLD_MAP_ASSET_PATH}
+          src={WORLD_MAP_LAND_ASSET_PATH}
           alt=""
           width={WORLD_MAP_WIDTH}
           height={WORLD_MAP_HEIGHT}

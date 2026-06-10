@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
-import { UniverseDynamicWelcome } from "@/components/suite/universe/universe-dynamic-welcome";
 import { UniverseEcosystemStory } from "@/components/suite/universe/universe-ecosystem-story";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
@@ -18,7 +17,12 @@ import {
   resolveUniversePlanetHrefs,
   resolveUniverseQuickActionHref,
 } from "@/lib/universe-public-landing";
-import { UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, resolveUniverseOrbitDebug, resolveUniversePlanetVisualDebug } from "@/lib/universe-planet-ux";
+import {
+  UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS,
+  UNIVERSE_PLANET_HOVER_LOCK_MS,
+  resolveUniverseOrbitDebug,
+  resolveUniversePlanetVisualDebug,
+} from "@/lib/universe-planet-ux";
 import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
 import { resolveUniverseGlobeProjectionDebug } from "@/lib/universe-globe-projection";
 import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
@@ -65,6 +69,7 @@ export function UniverseHomePage() {
   const reducedMotion = useReducedMotion();
   const parallax = useUniverseParallax(!reducedMotion);
   const hoverCloseTimer = useRef<number | undefined>(undefined);
+  const hoverOpenedAt = useRef<number>(0);
 
   const planetHrefs = useMemo(
     () => resolveUniversePlanetHrefs(isAuthenticated),
@@ -103,6 +108,7 @@ export function UniverseHomePage() {
   const handlePlanetHoverStart = useCallback(
     (id: UniversePlanetId) => {
       clearHoverCloseTimer();
+      hoverOpenedAt.current = Date.now();
       setHoveredPlanet(id);
     },
     [clearHoverCloseTimer]
@@ -110,10 +116,13 @@ export function UniverseHomePage() {
 
   const handlePlanetHoverEnd = useCallback(() => {
     clearHoverCloseTimer();
+    const elapsed = Date.now() - hoverOpenedAt.current;
+    const lockRemaining = Math.max(0, UNIVERSE_PLANET_HOVER_LOCK_MS - elapsed);
+    const waitMs = Math.max(UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS, lockRemaining);
     hoverCloseTimer.current = window.setTimeout(() => {
       setHoveredPlanet(null);
       hoverCloseTimer.current = undefined;
-    }, UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS);
+    }, waitMs);
   }, [clearHoverCloseTimer]);
 
   const navigateWithTunnel = useCallback(
@@ -165,34 +174,32 @@ export function UniverseHomePage() {
     <main className="universe-animate relative flex min-h-[calc(100dvh-4rem)] flex-1 flex-col overflow-x-hidden overflow-y-auto text-white">
       <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
-      <div className="relative z-10 flex flex-col items-center px-2 pb-8 pt-4 sm:px-4 sm:pt-6">
-        <UniverseHeroCopy
-          isAuthenticated={isAuthenticated}
-          email={session.user?.email}
-          reducedMotion={reducedMotion}
-        />
+      <div className="relative z-10 mx-auto w-full max-w-[min(100%,1440px)] px-3 pb-4 pt-3 sm:px-5 sm:pt-4">
+        <div className="universe-home-hero-orbit flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+          <div className="universe-hero-column w-full shrink-0 lg:max-w-md xl:max-w-lg">
+            <UniverseHeroCopy
+              isAuthenticated={isAuthenticated}
+              email={session.user?.email}
+              reducedMotion={reducedMotion}
+            />
+          </div>
 
-        <UniverseDynamicWelcome
-          email={session.user?.email}
-          isAuthenticated={isAuthenticated}
-          reducedMotion={reducedMotion}
-        />
-
-        <div className="hidden w-full md:block">
-          <UniverseOrbitSystem
-            hrefs={planetHrefs}
-            hoveredPlanet={effectiveHoveredPlanet}
-            focusedPlanet={effectiveFocusedPlanet}
-            reducedMotion={reducedMotion}
-            parallax={parallax}
-            globeDebugLayer={globeDebugLayer}
-            globeProjectionDebug={globeProjectionDebug}
-            orbitDebug={orbitDebug}
-            onHoverStart={handlePlanetHoverStart}
-            onHoverEnd={handlePlanetHoverEnd}
-            onFocus={setFocusedPlanet}
-            onSelect={handlePlanetSelect}
-          />
+          <div className="universe-orbit-column hidden min-w-0 flex-1 md:block">
+            <UniverseOrbitSystem
+              hrefs={planetHrefs}
+              hoveredPlanet={effectiveHoveredPlanet}
+              focusedPlanet={effectiveFocusedPlanet}
+              reducedMotion={reducedMotion}
+              parallax={parallax}
+              globeDebugLayer={globeDebugLayer}
+              globeProjectionDebug={globeProjectionDebug}
+              orbitDebug={orbitDebug}
+              onHoverStart={handlePlanetHoverStart}
+              onHoverEnd={handlePlanetHoverEnd}
+              onFocus={setFocusedPlanet}
+              onSelect={handlePlanetSelect}
+            />
+          </div>
         </div>
 
         <div className="w-full md:hidden">
@@ -208,11 +215,10 @@ export function UniverseHomePage() {
           />
         </div>
 
-        <div className="mt-6 w-full sm:mt-8">
+        <div className="universe-dashboard-section">
           <UniverseQuickActions hrefs={quickHrefs} onNavigate={handleQuickNavigate} />
+          <UniverseEcosystemStory reducedMotion={reducedMotion} />
         </div>
-
-        <UniverseEcosystemStory reducedMotion={reducedMotion} />
       </div>
 
       {tunnelPlanet && (

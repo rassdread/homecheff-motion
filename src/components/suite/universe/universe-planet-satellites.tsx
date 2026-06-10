@@ -6,7 +6,6 @@ import { useActiveTranslator } from "@/i18n/client";
 import {
   UNIVERSE_CAPABILITY_ORBIT_X_RADIUS_PX,
   UNIVERSE_CAPABILITY_ORBIT_Y_RADIUS_PX,
-  UNIVERSE_PLANET_HOVER_SCALE,
   UNIVERSE_PLANET_SATELLITE_CLASS,
   UNIVERSE_Z_CAPABILITY,
   resolveCapabilityEllipsePosition,
@@ -59,7 +58,6 @@ export function UniversePlanetSatellites({
         height: orbitHeight,
         marginLeft: -orbitWidth / 2,
         marginTop: -orbitHeight / 2,
-        transform: `scale(${UNIVERSE_PLANET_HOVER_SCALE})`,
         transformOrigin: "center center",
       }}
       aria-hidden
@@ -88,15 +86,14 @@ export function UniversePlanetSatellites({
       {sorted.map(({ key, pos, depthStyle }) => (
         <span
           key={key}
-          className={`${UNIVERSE_PLANET_SATELLITE_CLASS} universe-capability-orbit-label universe-glass absolute left-1/2 top-1/2 inline-block max-w-[11rem] whitespace-nowrap rounded-full border px-4 py-2 text-[clamp(13px,1.65vw,16px)] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.5)]`}
+          className={`${UNIVERSE_PLANET_SATELLITE_CLASS} universe-capability-orbit-label universe-glass pointer-events-none absolute left-1/2 top-1/2 inline-block max-w-[11rem] whitespace-nowrap rounded-full border px-4 py-2 text-[clamp(13px,1.65vw,16px)] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.5)]`}
           style={{
             borderColor: `${planet.accent}88`,
             boxShadow: `0 0 18px ${planet.accent}44, 0 8px 28px rgba(0,0,0,0.45)`,
-            transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) scale(${depthStyle.scale})`,
+            transform: `translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px))`,
             opacity: depthStyle.opacity,
             zIndex: depthStyle.zIndex,
-            filter: depthStyle.filter,
-            transition: reducedMotion ? undefined : "opacity 280ms ease, transform 120ms linear",
+            transition: reducedMotion ? undefined : "opacity 320ms ease",
           }}
         >
           {t(key)}

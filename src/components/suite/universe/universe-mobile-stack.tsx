@@ -2,7 +2,6 @@
 
 import { UniverseGlobe } from "@/components/suite/universe/universe-globe";
 import { UniversePlanet } from "@/components/suite/universe/universe-planet";
-import { UniversePlanetIdentityRing } from "@/components/suite/universe/universe-planet-identity-ring";
 import {
   UNIVERSE_PLANETS,
   type UniversePlanetConfig,
@@ -60,13 +59,7 @@ export function UniverseMobileStack({
                 transform: reducedMotion ? undefined : `translateX(${(index % 2 === 0 ? -1 : 1) * 6}px)`,
               }}
             >
-              <UniversePlanetIdentityRing
-                planetId={planet.id}
-                active={expanded}
-                reducedMotion={reducedMotion}
-                variant="band"
-              />
-              <div className="mt-3 flex items-start gap-4">
+              <div className="flex items-start gap-4">
                 <UniversePlanet
                   planet={planet}
                   href={hrefs[planet.id]}

@@ -250,6 +250,56 @@
   perspective: 520px;
 }
 
+.universe-home-hero-orbit {
+  align-items: flex-start;
+}
+
+.universe-orbit-column {
+  margin-top: -2rem;
+  transform: translateX(2.5rem);
+}
+
+@media (min-width: 1024px) {
+  .universe-orbit-column {
+    margin-top: -7.5rem;
+    transform: translateX(5rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .universe-orbit-column {
+    transform: translateX(6.25rem);
+  }
+}
+
+.universe-dashboard-section {
+  margin-top: -9.375rem;
+  padding-top: 0.25rem;
+}
+
+@media (max-width: 767px) {
+  .universe-dashboard-section {
+    margin-top: 1rem;
+  }
+}
+
+.universe-planet-name-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.3rem 0.75rem;
+  font-size: clamp(11px, 1.35vw, 13px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
 /* ── Saturn product rings (V4) ── */
 .universe-saturn-y-rotator {
   position: absolute;
@@ -264,7 +314,7 @@
 }
 
 .universe-saturn-active {
-  transform: scale(1.06);
+  filter: brightness(1.08);
 }
 
 .universe-saturn-tilt {
@@ -278,18 +328,19 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.35);
+  border: 3.5px solid rgba(255, 255, 255, 0.48);
   transform-style: preserve-3d;
 }
 
 .universe-saturn-band-back {
-  opacity: 0.45;
+  opacity: 0.55;
   clip-path: inset(0 0 52% 0);
-  filter: blur(0.3px);
+  filter: blur(0.2px);
 }
 
 .universe-saturn-band-front {
   clip-path: inset(48% 0 0 0);
+  opacity: 1;
 }
 
 .universe-saturn-band-inner {
@@ -328,14 +379,59 @@
 .universe-saturn-ring-text {
   text-transform: uppercase;
   paint-order: stroke fill;
-  stroke: rgba(4, 20, 40, 0.55);
+}
+
+.universe-saturn-ring-text-front {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: rgba(4, 20, 40, 0.72);
+  stroke-width: 0.55px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
+}
+
+.universe-saturn-ring-text-back {
+  fill: rgba(255, 255, 255, 0.36);
+  stroke: rgba(4, 20, 40, 0.35);
   stroke-width: 0.35px;
+}
+
+.universe-planet-hero-icon {
+  color: rgba(255, 255, 255, 0.96);
+  opacity: 0.94;
+  filter:
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.42))
+    drop-shadow(0 0 18px rgba(0, 103, 177, 0.35))
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
+  transition:
+    opacity 350ms ease,
+    transform 350ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    filter 350ms ease;
+}
+
+.universe-planet-hero-icon-active {
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 14px rgba(255, 255, 255, 0.55))
+    drop-shadow(0 0 22px rgba(0, 103, 177, 0.45))
+    drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+}
+
+.universe-planet-cluster:hover .universe-planet-hero-icon {
+  animation: universe-planet-icon-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes universe-planet-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
 }
 
 .universe-globe-world-map {
   opacity: 1;
-  mix-blend-mode: multiply;
-  filter: brightness(0.52) sepia(1) saturate(5.5) hue-rotate(128deg) contrast(1.28);
+  pointer-events: none;
 }
 
 .universe-globe-ocean {
@@ -351,7 +447,7 @@
 }
 
 .universe-globe-haze {
-  opacity: 0.55;
+  opacity: 0.32;
   mix-blend-mode: soft-light;
 }
 
@@ -456,5 +552,9 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .universe-planet-cluster:hover .universe-planet-hero-icon {
+    animation: none !important;
   }
 }

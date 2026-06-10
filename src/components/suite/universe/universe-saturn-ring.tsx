@@ -1,7 +1,6 @@
 "use client";
 
 import type { UniversePlanetId } from "@/lib/universe-home-config";
-import { resolveUniversePlanetLabel } from "@/lib/universe-public-landing";
 import {
   UNIVERSE_PLANET_SATURN_RING_CLASS,
   UNIVERSE_PLANET_SATURN_SCENE_CLASS,
@@ -104,7 +103,6 @@ function SaturnRingDecorations({
     );
   }
 
-  /* archive */
   return (
     <>
       {[0, 72, 144, 216, 288].map((deg, i) => (
@@ -124,60 +122,50 @@ function SaturnRingDecorations({
   );
 }
 
+/** Decorative Saturn ring — depth/atmosphere only, no product name text */
 export function UniverseSaturnRing({
   planetId,
   active = false,
   reducedMotion = false,
   variant = "orbit",
 }: Props) {
-  const label = resolveUniversePlanetLabel(planetId);
   const ringVariant = resolveSaturnRingVariant(planetId);
 
   if (variant === "band") {
     return (
-      <div className="flex w-full justify-center" aria-hidden={false}>
-        <span
-          className={`${UNIVERSE_PLANET_SATURN_RING_CLASS} rounded-full border px-5 py-1.5 text-[clamp(14px,4vw,20px)] font-bold uppercase tracking-[0.2em] ${
-            active
-              ? "border-white/45 bg-white/18 text-white"
-              : "border-white/25 bg-white/10 text-white/85"
-          }`}
-          style={{ borderColor: active ? ringVariant.accent : undefined }}
-        >
-          {label}
-        </span>
-      </div>
+      <div
+        className={`${UNIVERSE_PLANET_SATURN_RING_CLASS} mx-auto mb-2 h-1.5 w-16 rounded-full opacity-70`}
+        style={{
+          background: `linear-gradient(90deg, transparent, ${ringVariant.accent}88, transparent)`,
+        }}
+        aria-hidden
+      />
     );
   }
 
   return (
-    <>
-      {/* Rear ring segment — behind planet (z 70) */}
+    <div
+      className={`${UNIVERSE_PLANET_SATURN_SCENE_CLASS} pointer-events-none absolute inset-0 flex items-center justify-center`}
+      style={{ zIndex: UNIVERSE_Z_RING, perspective: 520 }}
+      aria-hidden
+    >
       <div
-        className={`${UNIVERSE_PLANET_SATURN_SCENE_CLASS} pointer-events-none absolute inset-0 flex items-center justify-center`}
-        style={{ zIndex: UNIVERSE_Z_RING, perspective: 520 }}
-        aria-hidden={false}
+        className={`universe-saturn-y-rotator universe-saturn-y-rotator-back ${reducedMotion ? "" : "universe-saturn-spin"} ${active ? "universe-saturn-active" : ""}`}
       >
-        <div
-          className={`universe-saturn-y-rotator universe-saturn-y-rotator-back ${reducedMotion ? "" : "universe-saturn-spin"} ${active ? "universe-saturn-active" : ""}`}
-        >
-          <div className="universe-saturn-tilt">
-            <div
-              className={`${UNIVERSE_PLANET_SATURN_RING_CLASS} universe-saturn-band universe-saturn-band-back`}
-              style={{
-                borderColor: ringVariant.accent,
-                boxShadow: `0 0 16px ${ringVariant.accent}55, inset 0 0 10px ${ringVariant.accent}33`,
-              }}
-            >
-              <div className="universe-saturn-band-inner" style={{ borderColor: `${ringVariant.accent}66` }} />
-              <SaturnRingDecorations planetId={planetId} accent={ringVariant.accent} reducedMotion={reducedMotion} />
-            </div>
+        <div className="universe-saturn-tilt">
+          <div
+            className={`${UNIVERSE_PLANET_SATURN_RING_CLASS} universe-saturn-band universe-saturn-band-back`}
+            style={{
+              borderColor: ringVariant.accent,
+              boxShadow: `0 0 12px ${ringVariant.accent}44, inset 0 0 8px ${ringVariant.accent}22`,
+            }}
+          >
+            <div className="universe-saturn-band-inner" style={{ borderColor: `${ringVariant.accent}55` }} />
+            <SaturnRingDecorations planetId={planetId} accent={ringVariant.accent} reducedMotion={reducedMotion} />
           </div>
         </div>
       </div>
-
-      {/* Front ring segment — rendered after planet via sibling in parent */}
-    </>
+    </div>
   );
 }
 
@@ -191,16 +179,13 @@ export function UniverseSaturnRingFront({
   active?: boolean;
   reducedMotion?: boolean;
 }) {
-  const label = resolveUniversePlanetLabel(planetId);
-  const ringText = `${label} • ${label} • ${label} • ${label} • ${label} • `;
   const ringVariant = resolveSaturnRingVariant(planetId);
-  const pathId = `universe-saturn-ring-path-${planetId}`;
 
   return (
     <div
       className={`${UNIVERSE_PLANET_SATURN_SCENE_CLASS} pointer-events-none absolute inset-0 flex items-center justify-center`}
       style={{ zIndex: UNIVERSE_Z_RING + 5, perspective: 520 }}
-      aria-hidden={false}
+      aria-hidden
     >
       <div
         className={`universe-saturn-y-rotator universe-saturn-y-rotator-front ${reducedMotion ? "" : "universe-saturn-spin"} ${active ? "universe-saturn-active" : ""}`}
@@ -210,38 +195,13 @@ export function UniverseSaturnRingFront({
             className={`${UNIVERSE_PLANET_SATURN_RING_CLASS} universe-saturn-band universe-saturn-band-front`}
             style={{
               borderColor: ringVariant.accent,
-              boxShadow: `0 0 20px ${ringVariant.accent}77, inset 0 0 12px ${ringVariant.accent}44`,
+              boxShadow: `0 0 22px ${ringVariant.accent}88, inset 0 0 14px ${ringVariant.accent}55`,
             }}
           >
-            <div className="universe-saturn-band-inner" style={{ borderColor: `${ringVariant.accent}88` }} />
-            <svg
-              className="universe-saturn-ring-svg absolute inset-0 h-full w-full overflow-visible"
-              viewBox="0 0 200 200"
-              aria-hidden
-            >
-              <defs>
-                <path
-                  id={pathId}
-                  d="M 24 102 A 76 20 0 1 1 176 102"
-                  fill="none"
-                />
-              </defs>
-              <text
-                className="universe-saturn-ring-text"
-                fill="rgba(255,255,255,0.95)"
-                fontSize="10.5"
-                fontWeight="700"
-                letterSpacing="0.28em"
-              >
-                <textPath href={`#${pathId}`} startOffset="0%">
-                  {ringText}
-                </textPath>
-              </text>
-            </svg>
+            <div className="universe-saturn-band-inner" style={{ borderColor: `${ringVariant.accent}99` }} />
           </div>
         </div>
       </div>
-      <span className="sr-only">{label}</span>
     </div>
   );
 }
