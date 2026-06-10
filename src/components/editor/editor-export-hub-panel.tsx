@@ -7,6 +7,7 @@ import { buildMotionReadyExportBundle } from "@/lib/editor-motion-ready-export";
 import { buildPrintReadyExportBundle } from "@/lib/editor-print-export";
 import { assessPosterUpscaleNeeds } from "@/lib/editor-poster-upscale";
 import { buildProductionReadyExportBundle } from "@/lib/editor-production-export";
+import { triggerBrowserDownload } from "@/lib/editor-export-download";
 import { formatEpsLimitationNote } from "@/lib/production-output-profiles";
 import type { EditorCanvasDocument, EditorExportProfileId } from "@/types/homecheff-visual-editor";
 
@@ -38,20 +39,30 @@ export function EditorExportHubPanel({ document, onDocumentChange, advancedOpen 
         credentials: "include",
         body: JSON.stringify({ document }),
       });
-      const body = (await res.json()) as { ok?: boolean; bundle?: unknown; upscale?: unknown };
-      if (!body.ok) {
-        setMessage(t("editor.v5.export.failed" as never));
+      const body = (await res.json()) as {
+        ok?: boolean;
+        bundle?: unknown;
+        upscale?: unknown;
+        downloadUrl?: string;
+        error?: string;
+        status?: string;
+      };
+      if (!body.ok || !body.downloadUrl) {
+        setMessage(body.error ?? t("editor.v5.export.failed" as never));
         return;
       }
+      const ext = profile === "print_ready" ? "png" : profile === "motion_ready" ? "json" : "png";
+      triggerBrowserDownload(body.downloadUrl, `${document.name}-${profile}.${ext}`);
       const next = appendLibraryExport(document, {
         category: categoryForExportProfile(profile),
         label: `${document.name} — ${profile}`,
         profile,
-        format: profile,
+        format: ext,
+        url: body.downloadUrl,
         metadata: { advanced: advancedOpen },
       });
       onDocumentChange(next);
-      setMessage(t("editor.v5.export.ready" as never));
+      setMessage(t("editor.v5.export.downloadReady" as never));
     } catch {
       setMessage(t("editor.v5.export.failed" as never));
     } finally {

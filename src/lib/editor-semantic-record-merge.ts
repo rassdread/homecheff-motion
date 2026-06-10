@@ -19,6 +19,8 @@ export function buildEditorMergedSemanticRecord(params: {
     version: ASSET_SEMANTIC_RECORD_VERSION,
     ...existing,
     ...patch,
+    editorStudioHandoff: payload.studioMotionHandoff ?? existing?.editorStudioHandoff,
+    createdInEditor: true,
     updatedAt: now,
     referencePlacements: payload.referencePlacements,
     keyFeatures: [...(patch.keyFeatures ?? existing?.keyFeatures ?? []), ...layerLabels].filter(

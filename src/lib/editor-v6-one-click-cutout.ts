@@ -65,7 +65,8 @@ export function applySegmentCutoutToDocument(
     label: `${layer.label} — cutout`,
     profile: "production_ready",
     format: "png",
-    metadata: { transparent: true },
+    url: result.cutoutUrl,
+    metadata: result.maskUrl ? { transparent: true, maskUrl: result.maskUrl } : { transparent: true },
   });
 
   return {
@@ -89,6 +90,7 @@ export function planOneClickCutout(
       label: `${existing.label}`,
       profile: "production_ready",
       format: "png",
+      url: existing.cutoutUrl,
       metadata: { reusable: true },
     });
     return {

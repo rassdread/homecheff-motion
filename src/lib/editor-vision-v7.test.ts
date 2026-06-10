@@ -191,6 +191,7 @@ describe("Editor Vision V7", () => {
     const state = defaultAssistantState();
     assert.deepEqual(state.history, []);
     assert.equal(state.historyCursor, -1);
+    assert.equal(state.sidebarCollapsed, true);
     assert.equal(planSummaryObjectTypes(mockDocument([mockLayer()])).includes("globe"), true);
   });
 });

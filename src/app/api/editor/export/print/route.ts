@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { assessPosterUpscaleNeeds } from "@/lib/editor-poster-upscale";
 import { buildPrintReadyExportBundle } from "@/lib/editor-print-export";
+import { assessPosterUpscaleNeeds } from "@/lib/editor-poster-upscale";
+import { renderEditorPrintPng } from "@/server/editor/render-editor-export";
 import { requireActiveUser } from "@/server/auth/permissions";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -19,8 +20,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (!body.document?.sessionId) {
-    return NextResponse.json({ error: "document with sessionId is required." }, { status: 400 });
+  if (!body.document?.sessionId || !body.document.backgroundUrl) {
+    return NextResponse.json({ error: "document with sessionId and backgroundUrl is required." }, { status: 400 });
   }
 
   const bundle = buildPrintReadyExportBundle(body.document);
@@ -30,5 +31,19 @@ export async function POST(request: Request) {
     body.sourceHeight ?? 1080
   );
 
-  return NextResponse.json({ ok: true, bundle, upscale });
+  try {
+    const file = await renderEditorPrintPng(body.document);
+    return NextResponse.json({
+      ok: true,
+      bundle,
+      upscale,
+      files: [file],
+      downloadUrl: file.url,
+      status: "ready",
+      pdfNote: "PDF export uses print-ready PNG — open in design tool for PDF.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Print export failed.";
+    return NextResponse.json({ ok: false, bundle, upscale, error: message, status: "failed" }, { status: 502 });
+  }
 }

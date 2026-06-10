@@ -61,6 +61,10 @@ export type AssetSemanticRecord = {
   characterStyleCustom?: string;
   /** Reference placement assets for exact logo/icon placement */
   referencePlacements?: import("@/types/studio-asset-generation-workbench").AssetReferencePlacement[];
+  /** Editor → Studio motion handoff snapshot */
+  editorStudioHandoff?: import("@/types/homecheff-visual-editor").EditorStudioMotionHandoff;
+  /** Created in HomeCheff Editor */
+  createdInEditor?: boolean;
   /** Dynamic accessory extraction decisions */
   dynamicAccessories?: import("@/types/studio-asset-generation-workbench").DynamicAccessoryItem[];
   /** Semantic layer lock/hide state */

@@ -11,12 +11,20 @@ export function buildEditorSaveNextActions(params: {
   sessionId: string;
   assetId?: string | null;
 }): SuiteFlowAction[] {
-  const q = params.sessionId ? `?session=${encodeURIComponent(params.sessionId)}` : "";
+  const editorQ = params.sessionId ? `?editorSession=${encodeURIComponent(params.sessionId)}` : "";
+  const motionParams = new URLSearchParams();
+  if (params.sessionId) {
+    motionParams.set("editorSession", params.sessionId);
+  }
+  if (params.assetId) {
+    motionParams.set("editorAsset", params.assetId);
+  }
+  const motionQ = motionParams.toString() ? `?${motionParams.toString()}` : "";
   return [
-    { id: "use-studio", labelKey: "suite.flow.useInStudio", href: "/studio", productId: "studio" },
-    { id: "animate-motion", labelKey: "suite.flow.animateInMotion", href: "/animate/instant", productId: "motion" },
+    { id: "use-studio", labelKey: "suite.flow.useInStudio", href: `/studio${editorQ}`, productId: "studio" },
+    { id: "animate-motion", labelKey: "suite.flow.animateInMotion", href: `/animate/instant${motionQ}`, productId: "motion" },
     { id: "open-library", labelKey: "suite.flow.openLibrary", href: params.assetId ? `/library/creative/characters/${params.assetId}` : "/library", productId: "assets" },
-    { id: "download", labelKey: "suite.flow.download", href: `/editor${q}`, productId: "editor" },
+    { id: "download", labelKey: "suite.flow.download", href: `/editor${editorQ}`, productId: "editor" },
   ];
 }
 

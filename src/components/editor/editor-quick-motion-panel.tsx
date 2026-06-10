@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { appendLibraryExport } from "@/lib/editor-library-categories";
+import { triggerBrowserDownload } from "@/lib/editor-export-download";
 import { attachQuickMotionConfig, planQuickMotionExport } from "@/lib/editor-quick-gif";
 import { EDITOR_QUICK_MOTION_PRESETS } from "@/types/homecheff-visual-editor";
 import type { EditorCanvasDocument, EditorQuickMotionPreset } from "@/types/homecheff-visual-editor";
@@ -29,18 +31,27 @@ export function EditorQuickMotionPanel({ document, onDocumentChange }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ sessionId: document.sessionId, config: document.quickMotionConfig }),
+        body: JSON.stringify({ document, config: document.quickMotionConfig }),
       });
-      const body = (await res.json()) as { ok?: boolean; job?: { frameCount: number; format: string } };
-      if (body.ok && body.job) {
-        setMessage(
-          t("editor.v5.quickMotion.exportQueued" as never, {
-            frames: String(body.job.frameCount),
-            format: body.job.format.toUpperCase(),
+      const body = (await res.json()) as {
+        ok?: boolean;
+        downloadUrl?: string;
+        status?: string;
+        error?: string;
+      };
+      if (body.ok && body.downloadUrl) {
+        triggerBrowserDownload(body.downloadUrl, `${document.name}.gif`);
+        onDocumentChange(
+          appendLibraryExport(document, {
+            category: "gif",
+            label: `${document.name} — GIF`,
+            format: "gif",
+            url: body.downloadUrl,
           })
         );
+        setMessage(t("editor.v5.export.downloadReady" as never));
       } else {
-        setMessage(t("editor.v5.quickMotion.exportFailed" as never));
+        setMessage(body.error ?? t("editor.v5.quickMotion.exportFailed" as never));
       }
     } catch {
       setMessage(t("editor.v5.quickMotion.exportFailed" as never));

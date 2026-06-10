@@ -225,7 +225,14 @@ export async function persistEditorSaveToLibrary(params: {
 }): Promise<EditorLibraryPersistResponse | PersistError> {
   const { ownerId, viewer, mode, payload, sourceKind } = params;
 
-  if (mode === "draft") {
+  if (
+    mode === "draft" ||
+    mode === "cutout" ||
+    mode === "gif_asset" ||
+    mode === "motion_ready_export" ||
+    mode === "print_export" ||
+    mode === "composition"
+  ) {
     return persistAsUpload(ownerId, payload, mode);
   }
 

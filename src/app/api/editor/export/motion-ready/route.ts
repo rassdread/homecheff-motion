@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildMotionReadyExportBundle } from "@/lib/editor-motion-ready-export";
+import { renderMotionReadyManifest } from "@/server/editor/render-editor-export";
 import { requireActiveUser } from "@/server/auth/permissions";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -23,5 +24,19 @@ export async function POST(request: Request) {
   }
 
   const bundle = buildMotionReadyExportBundle(body.document);
-  return NextResponse.json({ ok: true, bundle });
+  try {
+    const rendered = await renderMotionReadyManifest(body.document);
+    return NextResponse.json({
+      ok: true,
+      bundle,
+      manifestUrl: rendered.manifestUrl,
+      files: rendered.files,
+      cutoutUrls: rendered.cutoutUrls,
+      downloadUrl: rendered.manifestUrl,
+      status: "ready",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Motion export failed.";
+    return NextResponse.json({ ok: false, bundle, error: message, status: "failed" }, { status: 502 });
+  }
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { planQuickMotionExport } from "@/lib/editor-quick-gif";
+import { renderEditorGif } from "@/server/editor/render-editor-export";
 import { requireActiveUser } from "@/server/auth/permissions";
-import type { EditorQuickMotionConfig } from "@/types/homecheff-visual-editor";
+import type { EditorCanvasDocument, EditorQuickMotionConfig } from "@/types/homecheff-visual-editor";
 
 export const runtime = "nodejs";
 
@@ -11,34 +12,38 @@ export async function POST(request: Request) {
     return user;
   }
 
-  let body: { sessionId?: string; config?: Partial<EditorQuickMotionConfig> };
+  let body: { document?: EditorCanvasDocument; sessionId?: string; config?: Partial<EditorQuickMotionConfig> };
   try {
     body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (!body.sessionId?.trim()) {
-    return NextResponse.json({ error: "sessionId is required." }, { status: 400 });
+  const document = body.document;
+  if (!document?.sessionId || !document.backgroundUrl) {
+    return NextResponse.json({ error: "document with sessionId and backgroundUrl is required." }, { status: 400 });
   }
 
-  const job = planQuickMotionExport(
-    {
-      sessionId: body.sessionId,
-      name: "Quick motion",
-      sourceKind: "upload",
-      sourceAssetId: null,
-      backgroundUrl: "",
-      workflowStep: "visual_editor",
-      objects: [],
-      placements: [],
-      status: "editing",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      quickMotionConfig: body.config as EditorQuickMotionConfig | undefined,
-    },
-    body.config
-  );
-
-  return NextResponse.json({ ok: true, job });
+  const job = planQuickMotionExport(document, body.config);
+  try {
+    const file = await renderEditorGif(document);
+    return NextResponse.json({
+      ok: true,
+      job: { ...job, status: "ready" as const, downloadUrl: file.url },
+      file,
+      downloadUrl: file.url,
+      status: "ready",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "GIF export failed.";
+    return NextResponse.json(
+      {
+        ok: false,
+        job: { ...job, status: "failed" as const, message },
+        error: message,
+        status: "failed",
+      },
+      { status: 502 }
+    );
+  }
 }
