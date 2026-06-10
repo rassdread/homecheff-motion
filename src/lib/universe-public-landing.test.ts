@@ -32,13 +32,13 @@ describe("universe v3 public landing", () => {
   });
 
   it("public headline key differs from signed-in", () => {
-    assert.equal(resolveUniversePublicHeadlineKey(false), "universe.public.headline");
+    assert.equal(resolveUniversePublicHeadlineKey(false), "universe.hero.welcomeSignedOut");
     assert.equal(resolveUniversePublicHeadlineKey(true), "universe.welcome.signedInHeadline");
   });
 
   it("signed-out welcome messages exclude personal greeting", () => {
     const msgs = resolveUniverseWelcomeMessagesPublic("sergio@homecheff.eu", false);
-    assert.deepEqual(msgs, ["universe.public.headline"]);
+    assert.deepEqual(msgs, ["universe.hero.welcomeSignedOut"]);
   });
 
   it("signed-in welcome messages include personal greeting", () => {

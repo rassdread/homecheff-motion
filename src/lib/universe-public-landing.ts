@@ -4,6 +4,16 @@ import { UNIVERSE_PLANETS, resolveUniverseWelcomeMessages, type UniversePlanetId
 import type { HomeCheffProductId } from "@/types/homecheff-product-suite";
 
 export const UNIVERSE_GLOBE_SPHERICAL_CLASS = "universe-globe-spherical";
+export const UNIVERSE_HOW_IT_WORKS_PATH = "/hoe-het-werkt";
+
+export const UNIVERSE_HERO_HIGHLIGHT_KEYS = [
+  "universe.hero.highlight.voiceovers",
+  "universe.hero.highlight.music",
+  "universe.hero.highlight.languages",
+  "universe.hero.highlight.subtitles",
+  "universe.hero.highlight.branding",
+  "universe.hero.highlight.ctas",
+] as const satisfies readonly TranslationKey[];
 
 export function resolveUniversePlanetHref(href: string, isAuthenticated: boolean): string {
   return isAuthenticated ? href : loginHref(href);
@@ -24,19 +34,29 @@ export function resolveUniverseQuickActionHref(href: string, isAuthenticated: bo
 }
 
 export function resolveUniversePublicHeadlineKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated ? "universe.welcome.signedInHeadline" : "universe.public.headline";
+  return isAuthenticated ? "universe.welcome.signedInHeadline" : "universe.hero.welcomeSignedOut";
 }
 
 export function resolveUniversePublicSubheadlineKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated ? "universe.welcome.create" : "universe.public.subheadline";
+  return isAuthenticated ? "universe.hero.signedInReady" : "universe.hero.leadA";
 }
 
-export function resolveUniversePrimaryCtaHref(isAuthenticated: boolean): string {
+export function resolveUniverseStartProjectHref(isAuthenticated: boolean): string {
   return isAuthenticated ? "/editor" : loginHref("/editor");
 }
 
+export function resolveUniverseHowItWorksHref(): string {
+  return UNIVERSE_HOW_IT_WORKS_PATH;
+}
+
+export function resolveUniversePrimaryCtaHref(isAuthenticated: boolean): string {
+  return resolveUniverseStartProjectHref(isAuthenticated);
+}
+
 export function resolveUniversePrimaryCtaKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated ? "universe.public.continueCreating" : "universe.public.startCreating";
+  return isAuthenticated
+    ? "universe.public.continueCreating"
+    : "universe.hero.cta.startProject";
 }
 
 export function resolveUniverseSecondaryCtaHref(isAuthenticated: boolean): string {
@@ -44,7 +64,7 @@ export function resolveUniverseSecondaryCtaHref(isAuthenticated: boolean): strin
 }
 
 export function resolveUniverseSecondaryCtaKey(isAuthenticated: boolean): TranslationKey {
-  return isAuthenticated ? "universe.quick.openLibrary" : "nav.login";
+  return isAuthenticated ? "universe.quick.openLibrary" : "universe.hero.cta.signIn";
 }
 
 export function resolveSuiteNavHref(
@@ -68,12 +88,16 @@ export function resolveUniversePlanetLabel(planetId: UniversePlanetId): string {
   return planetId.toUpperCase();
 }
 
+export function resolveUniversePlanetShortKey(planetId: UniversePlanetId): TranslationKey {
+  return `universe.planet.${planetId}.short` as TranslationKey;
+}
+
 export function resolveUniverseWelcomeMessagesPublic(
   email: string | undefined,
   isAuthenticated: boolean
 ): TranslationKey[] {
   if (!isAuthenticated) {
-    return ["universe.public.headline"];
+    return ["universe.hero.welcomeSignedOut"];
   }
   return resolveUniverseWelcomeMessages(email);
 }

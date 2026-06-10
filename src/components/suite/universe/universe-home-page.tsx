@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
-import { UniverseEcosystemStory } from "@/components/suite/universe/universe-ecosystem-story";
+import { UniverseProductionLine } from "@/components/suite/universe/universe-production-line";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
 import { UniverseOrbitSystem } from "@/components/suite/universe/universe-orbit-system";
@@ -216,8 +216,8 @@ export function UniverseHomePage() {
         </div>
 
         <div className="universe-dashboard-section">
+          <UniverseProductionLine />
           <UniverseQuickActions hrefs={quickHrefs} onNavigate={handleQuickNavigate} />
-          <UniverseEcosystemStory reducedMotion={reducedMotion} />
         </div>
       </div>
 

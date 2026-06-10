@@ -11,7 +11,8 @@ describe("universe v8 layout and hover stability", () => {
     const heroSource = readFileSync("src/components/suite/universe/universe-hero-copy.tsx", "utf8");
     assert.match(heroSource, /text-left/);
     assert.match(heroSource, /justify-start/);
-    assert.match(heroSource, /universe\.welcome\.universe/);
+    assert.match(heroSource, /universe\.hero\.tagline/);
+    assert.match(heroSource, /universe\.hero\.signedInReady/);
     assert.doesNotMatch(heroSource, /text-center/);
   });
 

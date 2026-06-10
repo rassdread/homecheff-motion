@@ -50,11 +50,11 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     actionKey: "suite.home.editor.action",
     themeKey: "universe.planet.editor.theme",
     capabilityKeys: [
-      "universe.capability.editor.photoEditing",
-      "universe.capability.editor.characterDesign",
-      "universe.capability.editor.backgroundRemoval",
-      "universe.capability.editor.referencePlacement",
-      "universe.capability.editor.posterDesign",
+      "universe.capability.editor.photos",
+      "universe.capability.editor.characters",
+      "universe.capability.editor.logos",
+      "universe.capability.editor.posters",
+      "universe.capability.editor.assets",
     ],
     metricsKeys: [
       "universe.preview.metric.assets",
@@ -74,11 +74,11 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     actionKey: "suite.home.studio.action",
     themeKey: "universe.planet.studio.theme",
     capabilityKeys: [
-      "universe.capability.studio.storyboards",
-      "universe.capability.studio.characters",
+      "universe.capability.studio.story",
+      "universe.capability.studio.scenes",
       "universe.capability.studio.worlds",
       "universe.capability.studio.directorAi",
-      "universe.capability.studio.voicePlanning",
+      "universe.capability.studio.planning",
     ],
     metricsKeys: [
       "universe.preview.metric.stories",
@@ -97,10 +97,10 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     actionKey: "suite.home.motion.action",
     themeKey: "universe.planet.motion.theme",
     capabilityKeys: [
-      "universe.capability.motion.photoToVideo",
-      "universe.capability.motion.characterAnimation",
+      "universe.capability.motion.animation",
       "universe.capability.motion.cameraMotion",
       "universe.capability.motion.lipSync",
+      "universe.capability.motion.rendering",
       "universe.capability.motion.effects",
     ],
     metricsKeys: [
@@ -120,11 +120,11 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     actionKey: "suite.home.publish.action",
     themeKey: "universe.planet.publish.theme",
     capabilityKeys: [
+      "universe.capability.publish.languages",
+      "universe.capability.publish.voiceover",
       "universe.capability.publish.subtitles",
-      "universe.capability.publish.overlays",
       "universe.capability.publish.branding",
-      "universe.capability.publish.cta",
-      "universe.capability.publish.socialExport",
+      "universe.capability.publish.exports",
     ],
     metricsKeys: [
       "universe.preview.metric.drafts",
@@ -145,10 +145,10 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
     themeKey: "universe.planet.library.theme",
     capabilityKeys: [
       "universe.capability.library.uploads",
-      "universe.capability.library.generated",
-      "universe.capability.library.derived",
+      "universe.capability.library.assets",
       "universe.capability.library.videos",
       "universe.capability.library.audio",
+      "universe.capability.library.versions",
     ],
     metricsKeys: [
       "universe.preview.metric.uploads",

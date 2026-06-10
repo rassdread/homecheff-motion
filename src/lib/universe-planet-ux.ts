@@ -204,9 +204,9 @@ const PREVIEW_BY_PLANET: Record<UniversePlanetId, UniversePlanetPreviewContent> 
       { labelKey: "universe.preview.metric.designs", sampleKey: "universe.preview.sample.designs" },
     ],
     previewChipKeys: [
-      "universe.capability.editor.photoEditing",
-      "universe.capability.editor.characterDesign",
-      "universe.capability.editor.posterDesign",
+      "universe.capability.editor.photos",
+      "universe.capability.editor.characters",
+      "universe.capability.editor.posters",
     ],
   },
   studio: {
@@ -219,9 +219,9 @@ const PREVIEW_BY_PLANET: Record<UniversePlanetId, UniversePlanetPreviewContent> 
       { labelKey: "universe.preview.metric.scenes", sampleKey: "universe.preview.sample.scenes" },
     ],
     previewChipKeys: [
-      "universe.capability.studio.storyboards",
+      "universe.capability.studio.story",
+      "universe.capability.studio.scenes",
       "universe.capability.studio.worlds",
-      "universe.capability.studio.characters",
     ],
   },
   motion: {
@@ -234,7 +234,7 @@ const PREVIEW_BY_PLANET: Record<UniversePlanetId, UniversePlanetPreviewContent> 
       { labelKey: "universe.preview.metric.lipSync", sampleKey: "universe.preview.sample.lipSync" },
     ],
     previewChipKeys: [
-      "universe.capability.motion.photoToVideo",
+      "universe.capability.motion.animation",
       "universe.capability.motion.cameraMotion",
       "universe.capability.motion.lipSync",
     ],
@@ -249,8 +249,8 @@ const PREVIEW_BY_PLANET: Record<UniversePlanetId, UniversePlanetPreviewContent> 
       { labelKey: "universe.preview.metric.exports", sampleKey: "universe.preview.sample.exports" },
     ],
     previewChipKeys: [
-      "universe.capability.publish.subtitles",
-      "universe.capability.publish.overlays",
+      "universe.capability.publish.languages",
+      "universe.capability.publish.voiceover",
       "universe.capability.publish.branding",
     ],
   },
@@ -265,8 +265,8 @@ const PREVIEW_BY_PLANET: Record<UniversePlanetId, UniversePlanetPreviewContent> 
     ],
     previewChipKeys: [
       "universe.capability.library.uploads",
-      "universe.capability.library.generated",
-      "universe.capability.library.videos",
+      "universe.capability.library.assets",
+      "universe.capability.library.versions",
     ],
   },
 };
