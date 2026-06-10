@@ -316,6 +316,8 @@ export function buildEditorSemanticLayersFromVision(
         rawFeature: seed.label,
         identityRelevance,
         estimatedBounds: estimated || confidence < LOW_CONFIDENCE_THRESHOLD,
+        approximateSelection: estimated || confidence < LOW_CONFIDENCE_THRESHOLD,
+        selectionMode: "box",
       },
     };
 

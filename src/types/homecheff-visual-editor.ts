@@ -133,6 +133,45 @@ export type EditorCanvasBounds = {
   height: number;
 };
 
+export const EDITOR_SELECTION_MODES = ["mask", "polygon", "box", "manual"] as const;
+
+export type EditorSelectionMode = (typeof EDITOR_SELECTION_MODES)[number];
+
+export const EDITOR_SEGMENTATION_SOURCES = [
+  "vision_estimate",
+  "heuristic",
+  "rembg",
+  "sam2",
+  "manual",
+] as const;
+
+export type EditorSegmentationSource = (typeof EDITOR_SEGMENTATION_SOURCES)[number];
+
+/** Normalized point on the canvas image (0–1). */
+export type EditorShapePoint = {
+  x: number;
+  y: number;
+};
+
+/**
+ * Optional shape data for precise object selection beyond bounding boxes.
+ * `boundingBox` mirrors layer `bounds` in image-normalized coordinates.
+ */
+export type EditorObjectShape = {
+  selectionMode: EditorSelectionMode;
+  boundingBox: EditorCanvasBounds;
+  polygon?: EditorShapePoint[];
+  maskUrl?: string;
+  maskStorageKey?: string;
+  /** Compact mask payload (e.g. base64 PNG) when URL is not persisted. */
+  maskData?: string;
+  alphaMask?: boolean;
+  segmentationSource?: EditorSegmentationSource;
+  confidence?: number;
+  editableShape?: boolean;
+  cutoutUrl?: string;
+};
+
 export const EDITOR_SEMANTIC_LAYER_CATEGORIES = [
   "character",
   "body",
@@ -174,6 +213,8 @@ export type EditorIdentityRelevance =
 
 export type EditorSemanticLayerMetadata = {
   estimatedBounds?: boolean;
+  approximateSelection?: boolean;
+  selectionMode?: EditorSelectionMode;
   identityRelevance?: EditorIdentityRelevance;
   taxonomyKey?: string;
   rawFeature?: string;
@@ -213,6 +254,8 @@ export type EditorCanvasLayer = EditorCanvasObject & {
   editable?: boolean;
   children?: string[];
   metadata?: EditorSemanticLayerMetadata;
+  /** Precise selection shape — preferred over bounds-only when present. */
+  selectionShape?: EditorObjectShape;
 };
 
 export type EditorCanvasDocument = {

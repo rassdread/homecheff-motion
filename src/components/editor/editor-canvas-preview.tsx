@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { EditorBodyGuideOverlay } from "@/components/editor/editor-body-guide-overlay";
+import { EditorRefineLassoOverlay } from "@/components/editor/editor-refine-lasso-overlay";
+import { EditorSelectionOutline } from "@/components/editor/editor-selection-outline";
 import { useActiveTranslator } from "@/i18n/client";
 import { renderableEditorLayers } from "@/lib/editor-canvas-layers";
 import { visibleEditorPlacements } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
-import type { EditorCanvasDocument, EditorPlacementItem } from "@/types/homecheff-visual-editor";
+import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
+import type { EditorCanvasDocument, EditorPlacementItem, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -20,6 +24,9 @@ type Props = {
   onResizePlacement: (placementId: string, width: number, height: number) => void;
   onScaleLayer?: (layerId: string, scale: number) => void;
   onRotateLayer?: (layerId: string, rotation: number) => void;
+  lassoActive?: boolean;
+  onLassoComplete?: (points: EditorShapePoint[]) => void;
+  onLassoCancel?: () => void;
 };
 
 export function EditorCanvasPreview({
@@ -35,8 +42,12 @@ export function EditorCanvasPreview({
   onResizePlacement,
   onScaleLayer,
   onRotateLayer,
+  lassoActive = false,
+  onLassoComplete,
+  onLassoCancel,
 }: Props) {
   const t = useActiveTranslator();
+  const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
   const visibleLayers = renderableEditorLayers({ objects: document.objects });
   const placements = visibleEditorPlacements(document).sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
 
@@ -48,6 +59,24 @@ export function EditorCanvasPreview({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
+      <div className="pointer-events-none absolute inset-0">
+        {visibleLayers.map((layer) => (
+          <EditorSelectionOutline
+            key={`outline-${layer.id}`}
+            layer={layer}
+            selected={selectedLayerId === layer.id}
+            hovered={hoveredLayerId === layer.id}
+            humanFirst={humanFirst}
+          />
+        ))}
+      </div>
+      {lassoActive && onLassoComplete && onLassoCancel ?
+        <EditorRefineLassoOverlay
+          active={lassoActive}
+          onComplete={onLassoComplete}
+          onCancel={onLassoCancel}
+        />
+      : null}
       {showBodyGuide && document.bodyDesigner ?
         <EditorBodyGuideOverlay params={document.bodyDesigner} layers={document.objects} />
       : null}
@@ -56,7 +85,8 @@ export function EditorCanvasPreview({
         const canMove = isEditorOperationAllowed(layer, "move");
         const canScale = isEditorOperationAllowed(layer, "scale");
         const canRotate = isEditorOperationAllowed(layer, "rotate");
-        const estimated = !humanFirst && layer.metadata?.estimatedBounds;
+        const approximate = isApproximateEditorSelection(layer);
+        const estimated = approximate || (!humanFirst && layer.metadata?.estimatedBounds);
         const lowConfidence = !humanFirst && (layer.confidence ?? 1) < 0.55;
         const { x, y, scale, rotation } = layer.transform;
         return (
@@ -74,6 +104,8 @@ export function EditorCanvasPreview({
               opacity: humanFirst ? (selected ? 1 : undefined) : lowConfidence ? 0.72 : 0.85,
               zIndex: selected ? 5 : 1,
             }}
+            onMouseEnter={() => setHoveredLayerId(layer.id)}
+            onMouseLeave={() => setHoveredLayerId((id) => (id === layer.id ? null : id))}
             onPointerDown={(event) => {
               onSelectLayer(layer.id);
               if (!canMove) {
@@ -106,20 +138,27 @@ export function EditorCanvasPreview({
           >
             <div
               className={`h-full w-full rounded-lg border-2 transition-colors ${
-                selected
-                  ? "border-[#0067B1] bg-[#0067B1]/10"
-                  : layer.locked
-                    ? "border-dashed border-zinc-400/50 bg-transparent"
-                    : estimated
-                      ? "border-amber-500/60 bg-amber-300/10"
-                      : humanFirst
-                        ? "border-white/70 bg-white/10 shadow-sm backdrop-blur-[1px]"
-                        : "border-emerald-500/50 bg-emerald-300/10"
+                approximate
+                  ? selected
+                    ? "border-amber-500 bg-amber-300/10"
+                    : "border-dashed border-amber-400/70 bg-amber-200/5"
+                  : selected
+                    ? "border-[#0067B1] bg-[#0067B1]/10"
+                    : layer.locked
+                      ? "border-dashed border-zinc-400/50 bg-transparent"
+                      : estimated
+                        ? "border-amber-500/60 bg-amber-300/10"
+                        : humanFirst
+                          ? "border-white/70 bg-white/10 shadow-sm backdrop-blur-[1px]"
+                          : "border-emerald-500/50 bg-emerald-300/10"
               }`}
             >
               {(selected || !humanFirst) && (
                 <span className="absolute -top-5 left-0 max-w-full truncate text-[10px] font-semibold text-zinc-800">
                   {layer.label}
+                  {approximate && selected ?
+                    <span className="ml-1 font-normal text-amber-700">({t("editor.mask.approximateBadge")})</span>
+                  : null}
                 </span>
               )}
             </div>

@@ -2,6 +2,11 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import { resolveEditorLayerActionEligibility } from "@/lib/editor-layer-action-eligibility";
+import {
+  editorLayerHasPreciseShape,
+  editorLayerSelectionMode,
+  isApproximateEditorSelection,
+} from "@/lib/editor-object-mask";
 import { editorSemanticCategoryLabelKey, editorSemanticSourceLabelKey } from "@/lib/editor-semantic-layer-taxonomy";
 import type { EditorCanvasLayer } from "@/types/homecheff-visual-editor";
 import type { EditorObjectOperation } from "@/types/homecheff-visual-editor";
@@ -85,8 +90,33 @@ export function EditorPropertiesPanel({ layer, parentLabel, onOperation, onPatch
             <dd className="font-medium text-zinc-900">{parentLabel}</dd>
           </div>
         : null}
-        {layer.metadata?.estimatedBounds ?
+        {layer.metadata?.estimatedBounds || isApproximateEditorSelection(layer) ?
           <p className="rounded-lg bg-amber-50 px-2 py-1 text-amber-900">{t("editor.semantic.estimatedHint")}</p>
+        : null}
+        <div className="flex justify-between gap-2 border-t border-zinc-100 pt-2">
+          <dt>{t("editor.mask.advanced.selectionMode")}</dt>
+          <dd className="font-medium text-zinc-900">{editorLayerSelectionMode(layer)}</dd>
+        </div>
+        {layer.selectionShape?.segmentationSource ?
+          <div className="flex justify-between gap-2">
+            <dt>{t("editor.mask.advanced.segmentationSource")}</dt>
+            <dd className="font-medium text-zinc-900">{layer.selectionShape.segmentationSource}</dd>
+          </div>
+        : null}
+        {layer.selectionShape?.polygon ?
+          <div className="flex justify-between gap-2">
+            <dt>{t("editor.mask.advanced.polygonPoints")}</dt>
+            <dd className="font-medium text-zinc-900">{layer.selectionShape.polygon.length}</dd>
+          </div>
+        : null}
+        {layer.selectionShape?.maskUrl ?
+          <div className="flex justify-between gap-2">
+            <dt>{t("editor.mask.advanced.maskUrl")}</dt>
+            <dd className="max-w-[10rem] truncate font-medium text-zinc-900">{layer.selectionShape.maskUrl}</dd>
+          </div>
+        : null}
+        {editorLayerHasPreciseShape(layer) ?
+          <p className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-900">{t("editor.mask.advanced.precise")}</p>
         : null}
       </dl>
 

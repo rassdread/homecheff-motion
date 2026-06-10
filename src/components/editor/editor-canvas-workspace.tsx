@@ -13,6 +13,7 @@ import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-place
 import { EditorPlacementQaPanel } from "@/components/editor/editor-placement-qa-panel";
 import { EditorPropertiesPanel } from "@/components/editor/editor-properties-panel";
 import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
+import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
@@ -50,6 +51,14 @@ import {
   type EditorHumanActionId,
   type EditorUiMode,
 } from "@/lib/editor-human-first";
+import {
+  applyEditorSelectionShape,
+  applyRefinedPolygonToLayer,
+  createMaskSelectionShape,
+  detachObjectCutoutLayer,
+} from "@/lib/editor-object-mask";
+import { buildEditorMaskActionContext } from "@/lib/editor-mask-actions";
+import type { EditorShapePoint } from "@/types/homecheff-visual-editor";
 import { DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -79,6 +88,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [uiMode, setUiMode] = useState<EditorUiMode>(defaultEditorUiMode());
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showVisualBody, setShowVisualBody] = useState(false);
+  const [lassoActive, setLassoActive] = useState(false);
+  const [refiningSelection, setRefiningSelection] = useState(false);
 
   const selectedLayer = useMemo(
     () => document.objects.find((o) => o.id === selectedLayerId) ?? null,
@@ -116,6 +127,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const handleOperation = (operation: EditorObjectOperation) => {
     if (!selectedLayerId) {
       return;
+    }
+    const layer = document.objects.find((o) => o.id === selectedLayerId) ?? null;
+    const maskContext = buildEditorMaskActionContext(layer, operation);
+    if (maskContext?.usesMask && (operation === "delete" || operation === "replace")) {
+      setSaveMessage(t("editor.mask.actionUsesShape" as never));
     }
     const next = applyEditorLayerOperation(document, selectedLayerId, operation);
     persist(next);
@@ -254,6 +270,95 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     setShowActionMenu(false);
   };
 
+  const runEditorSegmentation = async (
+    mode: "refine" | "remove_background",
+    onResult: (result: {
+      maskUrl?: string;
+      cutoutUrl?: string;
+      polygon: EditorShapePoint[];
+      boundingBox: { x: number; y: number; width: number; height: number };
+      confidence: number;
+      segmentationSource: "rembg" | "heuristic";
+    }) => void
+  ) => {
+    if (!selectedLayerId || !selectedLayer) {
+      return;
+    }
+    setRefiningSelection(true);
+    try {
+      const res = await fetch("/api/editor/segment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceUrl: document.backgroundUrl,
+          sessionId: document.sessionId,
+          mode,
+          targetBounds: selectedLayer.bounds,
+        }),
+      });
+      if (!res.ok) {
+        setSaveMessage(t("editor.mask.refineFailed"));
+        return;
+      }
+      const result = (await res.json()) as Parameters<typeof onResult>[0];
+      onResult(result);
+      setSaveMessage(t("editor.mask.refineSuccess"));
+    } catch {
+      setSaveMessage(t("editor.mask.refineFailed"));
+    } finally {
+      setRefiningSelection(false);
+    }
+  };
+
+  const handleRefineAiSelection = () => {
+    void runEditorSegmentation("refine", (result) => {
+      if (!selectedLayerId || !selectedLayer) {
+        return;
+      }
+      const shape = createMaskSelectionShape({
+        bounds: result.boundingBox,
+        maskUrl: result.maskUrl,
+        polygon: result.polygon,
+        confidence: result.confidence,
+        segmentationSource: result.segmentationSource,
+      });
+      persist(
+        patchEditorLayerFields(document, selectedLayerId, applyEditorSelectionShape(selectedLayer, shape))
+      );
+    });
+  };
+
+  const handleRemoveBackground = () => {
+    void runEditorSegmentation("remove_background", (result) => {
+      if (!selectedLayerId || !selectedLayer) {
+        return;
+      }
+      const shape = createMaskSelectionShape({
+        bounds: result.boundingBox,
+        maskUrl: result.maskUrl,
+        cutoutUrl: result.cutoutUrl,
+        polygon: result.polygon,
+        confidence: result.confidence,
+        segmentationSource: result.segmentationSource,
+      });
+      let next = applyEditorSelectionShape(selectedLayer, shape);
+      if (result.cutoutUrl) {
+        next = detachObjectCutoutLayer(next, result.cutoutUrl, result.maskUrl);
+      }
+      persist(patchEditorLayerFields(document, selectedLayerId, next));
+    });
+  };
+
+  const handleLassoComplete = (points: EditorShapePoint[]) => {
+    if (!selectedLayerId || !selectedLayer) {
+      return;
+    }
+    const next = applyRefinedPolygonToLayer(selectedLayer, points, { segmentationSource: "manual" });
+    persist(patchEditorLayerFields(document, selectedLayerId, next));
+    setLassoActive(false);
+    setSaveMessage(t("editor.mask.lasso.applied"));
+  };
+
   const handleSuggestion = (suggestionId: string) => {
     if (!selectedLayerId) {
       return;
@@ -263,8 +368,20 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       setSaveMessage(t("editor.human.animationReady"));
       return;
     }
+    if (suggestionId === "refine_selection") {
+      handleRefineAiSelection();
+      return;
+    }
+    if (suggestionId === "outline_manual") {
+      setLassoActive(true);
+      return;
+    }
+    if (suggestionId === "detach_object") {
+      handleRemoveBackground();
+      return;
+    }
     if (suggestionId === "remove_bg") {
-      handleOperation("replace");
+      handleRemoveBackground();
       return;
     }
     if (suggestionId === "attach" || suggestionId === "duplicate") {
@@ -520,6 +637,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   onRotateLayer={(layerId, rotation) =>
                     persist(patchEditorLayerTransform(document, layerId, { rotation }))
                   }
+                  lassoActive={lassoActive}
+                  onLassoComplete={handleLassoComplete}
+                  onLassoCancel={() => setLassoActive(false)}
                 />
                 {showActionMenu && selectedLayer && !selectedPlacementId ?
                   <div className="absolute left-4 top-16 z-30 sm:left-8">
@@ -534,7 +654,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               </div>
 
               {selectedLayer && !selectedPlacementId ?
-                <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
+                <>
+                  <EditorSelectionToolsPanel
+                    layer={selectedLayer}
+                    refining={refiningSelection}
+                    onRefineAi={handleRefineAiSelection}
+                    onStartLasso={() => setLassoActive(true)}
+                    onRemoveBackground={handleRemoveBackground}
+                    onDetachObject={handleRemoveBackground}
+                  />
+                  <EditorAiSuggestions suggestions={aiSuggestions} onSelect={handleSuggestion} />
+                </>
               : null}
 
               {showVisualBody && layerSupportsHumanBodyEdit(document, selectedLayer) ?

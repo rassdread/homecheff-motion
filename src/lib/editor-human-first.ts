@@ -1,6 +1,7 @@
 import type { TranslationKey } from "@/i18n";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import { documentSupportsBodyDesigner, inferEditorObjectType } from "@/lib/editor-body-designer";
+import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
 import type {
   EditorCanvasDocument,
   EditorCanvasLayer,
@@ -188,6 +189,22 @@ export function resolveEditorHumanActions(layer: EditorCanvasLayer | null): Edit
   });
 }
 
+export function resolveEditorMaskSuggestions(layer: EditorCanvasLayer | null): EditorHumanSuggestion[] {
+  if (!layer || layer.layerType === "background") {
+    return [];
+  }
+  const suggestions: EditorHumanSuggestion[] = [];
+  if (isApproximateEditorSelection(layer)) {
+    suggestions.push({ id: "refine_selection", labelKey: "editor.mask.refineAi" });
+    suggestions.push({ id: "outline_manual", labelKey: "editor.mask.outlineManual" });
+  }
+  suggestions.push({ id: "remove_bg", labelKey: "editor.human.suggest.removeBackground" });
+  if (!isApproximateEditorSelection(layer)) {
+    suggestions.push({ id: "detach_object", labelKey: "editor.mask.detachObject" });
+  }
+  return suggestions;
+}
+
 export function resolveEditorAiSuggestions(
   document: EditorCanvasDocument,
   layer: EditorCanvasLayer | null
@@ -197,9 +214,11 @@ export function resolveEditorAiSuggestions(
   }
   const kind = resolveEditorObjectKind(layer);
   const objectType = inferEditorObjectType(document);
+  const maskSuggestions = resolveEditorMaskSuggestions(layer);
 
   if (kind === "mascot" || kind === "character") {
     return [
+      ...maskSuggestions,
       { id: "garden_version", labelKey: "editor.human.suggest.gardenVersion" },
       { id: "animation_ready", labelKey: "editor.human.suggest.animationReady" },
       { id: "canonical", labelKey: "editor.human.suggest.canonicalCharacter" },
@@ -208,7 +227,7 @@ export function resolveEditorAiSuggestions(
   }
   if (kind === "product" || objectType === "product" || objectType === "packaging") {
     return [
-      { id: "remove_bg", labelKey: "editor.human.suggest.removeBackground" },
+      ...maskSuggestions,
       { id: "poster", labelKey: "editor.human.suggest.createPoster" },
       { id: "marketing", labelKey: "editor.human.suggest.marketingVersion" },
       { id: "social", labelKey: "editor.human.suggest.socialAsset" },
@@ -226,7 +245,11 @@ export function resolveEditorAiSuggestions(
       { id: "expand", labelKey: "editor.human.suggest.expandBackground" },
     ];
   }
-  return [{ id: "animate", labelKey: "editor.human.suggest.prepareAnimation" }];
+  return [...maskSuggestions, { id: "animate", labelKey: "editor.human.suggest.prepareAnimation" }];
+}
+
+export function editorHumanUiHidesMaskTerminology(mode: EditorUiMode): boolean {
+  return mode === "visual";
 }
 
 export function layerSupportsHumanBodyEdit(
