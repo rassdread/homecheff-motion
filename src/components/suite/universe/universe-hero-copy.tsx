@@ -5,6 +5,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { resolveUniverseWelcomeName } from "@/lib/universe-home-config";
 import {
   UNIVERSE_HERO_HIGHLIGHT_KEYS,
+  UNIVERSE_HERO_PIPELINE_KEYS,
   resolveUniverseHowItWorksHref,
   resolveUniversePrimaryCtaHref,
   resolveUniversePrimaryCtaKey,
@@ -49,17 +50,26 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
         <>
           <p className="mt-2 text-sm font-medium text-white/82 sm:text-base">{t("universe.hero.leadA")}</p>
           <p className="text-sm font-medium text-white/82 sm:text-base">{t("universe.hero.leadB")}</p>
+          <p className="mt-1 text-xs font-medium tracking-wide text-white/55">{t("universe.hero.taglineAlt")}</p>
         </>
       )}
 
-      <p className="mt-4 text-sm leading-relaxed text-white/68 sm:text-[0.95rem]">{t("universe.hero.body")}</p>
+      <div className="mt-4 space-y-0.5">
+        {UNIVERSE_HERO_PIPELINE_KEYS.map((key) => (
+          <p key={key} className="text-sm font-medium text-white/82 sm:text-[0.95rem]">
+            {t(key)}
+          </p>
+        ))}
+      </div>
 
       <p className="mt-4 text-sm font-semibold text-white/88">
         {t("universe.hero.oneProject")}{" "}
         <span className="text-white/55">{t("universe.hero.unlimitedVersions")}</span>
       </p>
 
-      <ul className="mt-4 grid gap-1.5 sm:grid-cols-2">
+      <p className="mt-4 text-sm font-semibold text-white/80">{t("universe.hero.adaptIntro")}</p>
+
+      <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
         {UNIVERSE_HERO_HIGHLIGHT_KEYS.map((key) => (
           <li key={key} className="flex items-center gap-2 text-sm text-white/78">
             <span className="text-[#5eb8e8]" aria-hidden>
@@ -69,6 +79,8 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
           </li>
         ))}
       </ul>
+
+      <p className="mt-3 text-sm text-white/62">{t("universe.hero.adaptFooter")}</p>
 
       <div className="mt-6 flex flex-wrap items-center justify-start gap-2">
         <Link

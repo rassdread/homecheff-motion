@@ -5,6 +5,14 @@ import type { HomeCheffProductId } from "@/types/homecheff-product-suite";
 
 export const UNIVERSE_GLOBE_SPHERICAL_CLASS = "universe-globe-spherical";
 export const UNIVERSE_HOW_IT_WORKS_PATH = "/hoe-het-werkt";
+export const UNIVERSE_WHY_STUDIO_PATH = "/hoe-werkt-studio";
+
+export const UNIVERSE_HERO_PIPELINE_KEYS = [
+  "universe.hero.pipeline.images",
+  "universe.hero.pipeline.stories",
+  "universe.hero.pipeline.scenes",
+  "universe.hero.pipeline.publish",
+] as const satisfies readonly TranslationKey[];
 
 export const UNIVERSE_HERO_HIGHLIGHT_KEYS = [
   "universe.hero.highlight.voiceovers",
@@ -46,7 +54,11 @@ export function resolveUniverseStartProjectHref(isAuthenticated: boolean): strin
 }
 
 export function resolveUniverseHowItWorksHref(): string {
-  return UNIVERSE_HOW_IT_WORKS_PATH;
+  return UNIVERSE_WHY_STUDIO_PATH;
+}
+
+export function resolveUniverseWhyStudioHref(): string {
+  return UNIVERSE_WHY_STUDIO_PATH;
 }
 
 export function resolveUniversePrimaryCtaHref(isAuthenticated: boolean): string {

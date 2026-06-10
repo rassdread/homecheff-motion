@@ -6,6 +6,7 @@ import { UNIVERSE_PLANETS } from "@/lib/universe-home-config";
 import {
   UNIVERSE_HERO_HIGHLIGHT_KEYS,
   UNIVERSE_HOW_IT_WORKS_PATH,
+  resolveUniverseHowItWorksHref,
   resolveUniversePlanetHref,
   resolveUniversePrimaryCtaHref,
   resolveUniversePublicHeadlineKey,
@@ -18,7 +19,7 @@ describe("universe production line messaging", () => {
   it("homepage hero shows AI production line copy", () => {
     const heroSource = readFileSync("src/components/suite/universe/universe-hero-copy.tsx", "utf8");
     assert.match(heroSource, /universe\.hero\.tagline/);
-    assert.match(heroSource, /universe\.hero\.body/);
+    assert.match(heroSource, /UNIVERSE_HERO_PIPELINE_KEYS/);
     assert.match(heroSource, /universe\.hero\.oneProject/);
     assert.match(heroSource, /UNIVERSE_HERO_HIGHLIGHT_KEYS/);
     assert.doesNotMatch(heroSource, /Maak assets\. Bouw verhalen/);
@@ -57,6 +58,7 @@ describe("universe production line messaging", () => {
 
   it("how-it-works page renders at dedicated route", () => {
     assert.equal(UNIVERSE_HOW_IT_WORKS_PATH, "/hoe-het-werkt");
+    assert.equal(resolveUniverseHowItWorksHref(), "/hoe-werkt-studio");
     const pageSource = readFileSync("src/app/hoe-het-werkt/page.tsx", "utf8");
     const componentSource = readFileSync(
       "src/components/suite/universe/universe-how-it-works-page.tsx",

@@ -11,6 +11,7 @@ const SUITE_HOME_CARDS = [
     id: "editor",
     hrefKey: "/editor",
     titleKey: "suite.home.editor.title",
+    subtitleKey: "universe.planet.editor.short",
     exampleKey: "suite.home.editor.example",
     outputKey: "suite.home.editor.output",
     actionKey: "suite.home.editor.action",
@@ -20,6 +21,7 @@ const SUITE_HOME_CARDS = [
     id: "studio",
     hrefKey: "/studio",
     titleKey: "suite.home.studio.title",
+    subtitleKey: "universe.planet.studio.short",
     exampleKey: "suite.home.studio.example",
     outputKey: "suite.home.studio.output",
     actionKey: "suite.home.studio.action",
@@ -29,6 +31,7 @@ const SUITE_HOME_CARDS = [
     id: "motion",
     hrefKey: "/animate/instant",
     titleKey: "suite.home.motion.title",
+    subtitleKey: "universe.planet.motion.short",
     exampleKey: "suite.home.motion.example",
     outputKey: "suite.home.motion.output",
     actionKey: "suite.home.motion.action",
@@ -38,6 +41,7 @@ const SUITE_HOME_CARDS = [
     id: "publish",
     hrefKey: "/publish",
     titleKey: "suite.home.publish.title",
+    subtitleKey: "universe.planet.publish.short",
     exampleKey: "suite.home.publish.example",
     outputKey: "suite.home.publish.output",
     actionKey: "suite.home.publish.action",
@@ -47,6 +51,7 @@ const SUITE_HOME_CARDS = [
     id: "library",
     hrefKey: "/library",
     titleKey: "suite.home.library.title",
+    subtitleKey: "universe.planet.library.short",
     exampleKey: "suite.home.library.example",
     outputKey: "suite.home.library.output",
     actionKey: "suite.home.library.action",
@@ -85,6 +90,7 @@ export function SuiteHomePage() {
             <AppCard key={card.id} className={`flex h-full flex-col p-6 sm:p-7 ${card.accent}`}>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t(card.outputKey as never)}</p>
               <h2 className="mt-2 text-xl font-bold text-zinc-900">{t(card.titleKey as never)}</h2>
+              <p className="mt-1 text-sm font-medium text-[#006D52]">{t(card.subtitleKey as never)}</p>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-zinc-600">{t(card.exampleKey as never)}</p>
               <Link
                 href={hrefs[card.id]}

@@ -25,7 +25,7 @@ export function AppShell({ children }: AppShellProps) {
               />
             </div>
             <span className="text-sm font-semibold tracking-tight text-zinc-900">
-              {brand.productName}
+              {brand.studioProductName}
             </span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
