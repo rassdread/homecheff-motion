@@ -1,0 +1,16 @@
+# Render Blueprint — HomeCheff rembg service
+# Dashboard → New → Blueprint → point at this file (or deploy rembg-service/ as root).
+
+services:
+  - type: web
+    name: homecheff-rembg
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    plan: starter
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: REMBG_MAX_BYTES
+        value: "20971520"
