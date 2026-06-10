@@ -7,10 +7,10 @@ import { useActiveTranslator } from "@/i18n/client";
 const TOOLBAR_ACTIONS: EditorHumanActionId[] = [
   "edit_appearance",
   "replace",
-  "expand",
-  "move",
-  "prepare_animation",
   "remove",
+  "prepare_animation",
+  "background_replace",
+  "duplicate",
   "more",
 ];
 
@@ -29,10 +29,10 @@ export function EditorFloatingToolbar({ visible, onAction }: Props) {
   const labels: Record<string, TranslationKey> = {
     edit_appearance: "editor.human.toolbar.edit",
     replace: "editor.human.toolbar.replace",
-    expand: "editor.human.toolbar.expand",
-    move: "editor.human.toolbar.move",
-    prepare_animation: "editor.human.toolbar.animate",
     remove: "editor.human.toolbar.remove",
+    prepare_animation: "editor.human.toolbar.animate",
+    background_replace: "editor.human.action.replaceBackground",
+    duplicate: "editor.human.action.duplicate",
     more: "editor.human.toolbar.more",
   };
 

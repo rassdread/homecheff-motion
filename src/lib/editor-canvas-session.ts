@@ -4,7 +4,17 @@ import {
   createEmptyVisualEditorSession,
 } from "@/lib/homecheff-visual-editor-foundation";
 import { seedEditorLayersFromVision, extractEditorSemanticLayers } from "@/lib/editor-canvas-layers";
+import {
+  commitEditorHistory,
+  ensureEditorNonDestructiveState,
+  redoEditorDocument,
+  undoEditorDocument,
+} from "@/lib/editor-non-destructive";
+import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
+import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
+import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
 import { buildEditorSemanticLayersFromVision } from "@/lib/editor-semantic-layers-from-vision";
+import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
@@ -55,13 +65,27 @@ export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocumen
   return readStore()[sessionId] ?? null;
 }
 
-export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
+function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocument {
   const semanticLayers = document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
-  const next = {
-    ...document,
+  const detectedObjects = syncDetectedObjectsOnDocument(
+    document.objects,
+    document.detectedObjects
+  );
+  const textLayers = document.textLayers ?? extractEditorTextLayers(document.objects);
+  const motionPreparations =
+    document.motionPreparations ?? buildEditorMotionPreparations(detectedObjects, document.objects);
+  return {
+    ...ensureEditorNonDestructiveState(document),
     semanticLayers,
+    detectedObjects,
+    textLayers,
+    motionPreparations,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
+  const next = enrichEditorDocument(document);
   const store = readStore();
   store[next.sessionId] = next;
   writeStore(store);
@@ -185,12 +209,18 @@ export async function runEditorVisionAndObjectDetection(
     sourceKind: document.sourceKind,
     preserveBackground: document.objects.find((o) => o.id === "background"),
   });
+  const detectedObjects = buildEditorObjectsFromLayers(layers, {
+    visionObjectType: res.data.visionAnalysis.objectType,
+  });
   return saveEditorCanvasDocument({
     ...document,
     workflowStep: "visual_editor",
     visionAnalysisHash: res.data.visionAnalysis.identityFingerprint.fingerprintHash,
     objects: layers,
     semanticLayers,
+    detectedObjects,
+    textLayers: extractEditorTextLayers(layers),
+    motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
   });
 }
 
@@ -229,11 +259,43 @@ export function applyEditorLayerOperation(
     return [nextLayer];
   });
 
-  return saveEditorCanvasDocument({
+  const historyAction =
+    operation === "delete"
+      ? ("remove" as const)
+      : operation === "scale"
+        ? ("resize" as const)
+        : operation === "move"
+          ? ("move" as const)
+          : operation === "replace"
+            ? ("replace" as const)
+            : operation === "rename"
+              ? ("rename" as const)
+              : operation === "visibility"
+                ? ("visibility" as const)
+                : operation === "lock"
+                  ? ("lock" as const)
+                  : operation === "duplicate"
+                    ? ("duplicate" as const)
+                    : undefined;
+
+  const nextDoc = {
     ...document,
     objects,
     layerOperations: [...(document.layerOperations ?? []), audit],
-  });
+    detectedObjects: syncDetectedObjectsOnDocument(objects, document.detectedObjects),
+    textLayers: extractEditorTextLayers(objects),
+    motionPreparations: buildEditorMotionPreparations(
+      syncDetectedObjectsOnDocument(objects, document.detectedObjects),
+      objects
+    ),
+  };
+
+  if (historyAction) {
+    return saveEditorCanvasDocument(
+      commitEditorHistory(document, nextDoc, historyAction, `${historyAction} ${target.label}`, layerId)
+    );
+  }
+  return saveEditorCanvasDocument(nextDoc);
 }
 
 export function patchEditorLayerTransform(
@@ -295,6 +357,38 @@ export function markEditorDocumentDraftSaved(document: EditorCanvasDocument): Ed
 export function buildEditorDownloadFilename(document: EditorCanvasDocument): string {
   return `${slugLabel(document.name)}-editor-${document.sessionId.slice(0, 8)}.png`;
 }
+
+export function reorderEditorLayerInDocument(
+  document: EditorCanvasDocument,
+  layerId: string,
+  direction: "up" | "down"
+): EditorCanvasDocument {
+  const objects = reorderEditorLayers(document.objects, layerId, direction);
+  const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
+  const next = {
+    ...document,
+    objects,
+    detectedObjects,
+  };
+  return saveEditorCanvasDocument(
+    commitEditorHistory(document, next, "reorder", `reorder ${layerId}`, layerId)
+  );
+}
+
+export function renameEditorLayerInDocument(
+  document: EditorCanvasDocument,
+  layerId: string,
+  label: string
+): EditorCanvasDocument {
+  const objects = renameEditorLayer(document.objects, layerId, label);
+  const detectedObjects = syncDetectedObjectsOnDocument(objects, document.detectedObjects);
+  const next = { ...document, objects, detectedObjects };
+  return saveEditorCanvasDocument(
+    commitEditorHistory(document, next, "rename", `rename ${label}`, layerId)
+  );
+}
+
+export { undoEditorDocument, redoEditorDocument };
 
 export function toVisualEditorSession(document: EditorCanvasDocument) {
   const base = createEmptyVisualEditorSession(document.sourceAssetId);

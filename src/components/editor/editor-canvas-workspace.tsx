@@ -25,9 +25,16 @@ import {
   markEditorDocumentDraftSaved,
   patchEditorLayerFields,
   patchEditorLayerTransform,
+  redoEditorDocument,
+  renameEditorLayerInDocument,
+  reorderEditorLayerInDocument,
   saveEditorCanvasDocument,
   buildEditorDownloadFilename,
+  undoEditorDocument,
 } from "@/lib/editor-canvas-session";
+import { editorCanRedo, editorCanUndo } from "@/lib/editor-non-destructive";
+import { planEditorSmartRemove } from "@/lib/editor-smart-remove";
+import { planEditorSmartReplace } from "@/lib/editor-smart-replace";
 import { formatEditorCompositionGraphPreview } from "@/lib/editor-composition-graph";
 import {
   addEditorPlacement,
@@ -130,7 +137,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
     const layer = document.objects.find((o) => o.id === selectedLayerId) ?? null;
     const maskContext = buildEditorMaskActionContext(layer, operation);
-    if (maskContext?.usesMask && (operation === "delete" || operation === "replace")) {
+    if (operation === "replace" && layer) {
+      const plan = planEditorSmartReplace({ layer });
+      setSaveMessage(plan.message);
+    } else if (operation === "delete" && layer) {
+      const plan = planEditorSmartRemove(layer);
+      setSaveMessage(plan.message);
+    } else if (maskContext?.usesMask && (operation === "delete" || operation === "replace")) {
       setSaveMessage(t("editor.mask.actionUsesShape" as never));
     }
     const next = applyEditorLayerOperation(document, selectedLayerId, operation);
@@ -257,6 +270,19 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
     if (actionId === "remove") {
       handleOperation("delete");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "duplicate") {
+      handleOperation("duplicate");
+      setShowActionMenu(false);
+      return;
+    }
+    if (actionId === "background_replace") {
+      const bg = document.objects.find((o) => o.layerType === "background");
+      if (bg) {
+        selectLayer(bg.id);
+      }
       setShowActionMenu(false);
       return;
     }
@@ -557,6 +583,25 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           </div>
           : null}
 
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={!editorCanUndo(document)}
+              onClick={() => persist(undoEditorDocument(document))}
+              className="min-h-9 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 disabled:opacity-40"
+            >
+              {t("editor.history.undo")}
+            </button>
+            <button
+              type="button"
+              disabled={!editorCanRedo(document)}
+              onClick={() => persist(redoEditorDocument(document))}
+              className="min-h-9 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 disabled:opacity-40"
+            >
+              {t("editor.history.redo")}
+            </button>
+          </div>
+
           <EditorToolbar
             onBack={onBack}
             onDownload={() => void handleDownload()}
@@ -740,6 +785,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 onSelect={selectLayer}
                 onToggleVisibility={(id) => persist(applyEditorLayerOperation(document, id, "visibility"))}
                 onToggleLock={(id) => persist(applyEditorLayerOperation(document, id, "lock"))}
+                onRename={(id, label) => persist(renameEditorLayerInDocument(document, id, label))}
+                onReorder={(id, direction) => persist(reorderEditorLayerInDocument(document, id, direction))}
               />
               {document.placements.length > 0 ?
                 <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
@@ -843,6 +890,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             }}
             onToggleVisibility={(id) => persist(applyEditorLayerOperation(document, id, "visibility"))}
             onToggleLock={(id) => persist(applyEditorLayerOperation(document, id, "lock"))}
+            onRename={(id, label) => persist(renameEditorLayerInDocument(document, id, label))}
+            onReorder={(id, direction) => persist(reorderEditorLayerInDocument(document, id, direction))}
           />
         </EditorMobileBottomSheet>
 

@@ -258,6 +258,120 @@ export type EditorCanvasLayer = EditorCanvasObject & {
   selectionShape?: EditorObjectShape;
 };
 
+/** High-level object categories for multi-object detection (Editor Vision V2). */
+export const EDITOR_OBJECT_CATEGORIES = [
+  "person",
+  "face",
+  "mascot",
+  "logo",
+  "text",
+  "product",
+  "clothing",
+  "animal",
+  "food",
+  "vehicle",
+  "screen",
+  "foreground",
+  "background",
+  "prop",
+  "unknown",
+] as const;
+
+export type EditorObjectCategory = (typeof EDITOR_OBJECT_CATEGORIES)[number];
+
+/**
+ * Unified detected object model — every analysis result becomes a stored EditorObject.
+ * Maps 1:1 with canvas layers but carries explicit geometry for picking and editing.
+ */
+export type EditorObject = {
+  id: string;
+  label: string;
+  confidence: number;
+  mask?: string;
+  maskStorageKey?: string;
+  polygon?: EditorShapePoint[];
+  bbox: EditorCanvasBounds;
+  category: EditorObjectCategory;
+  zIndex: number;
+  parentId?: string;
+  layerId: string;
+  visible: boolean;
+  locked: boolean;
+};
+
+export const EDITOR_HISTORY_ACTION_TYPES = [
+  "move",
+  "resize",
+  "replace",
+  "remove",
+  "animate",
+  "background_remove",
+  "visibility",
+  "lock",
+  "rename",
+  "reorder",
+  "duplicate",
+] as const;
+
+export type EditorHistoryActionType = (typeof EDITOR_HISTORY_ACTION_TYPES)[number];
+
+export type EditorHistoryEntry = {
+  id: string;
+  action: EditorHistoryActionType;
+  layerId?: string;
+  label: string;
+  at: string;
+  reversible: boolean;
+};
+
+export type EditorHistoryState = {
+  past: EditorCanvasDocument[];
+  future: EditorCanvasDocument[];
+  timeline: EditorHistoryEntry[];
+};
+
+/** Per-layer non-destructive edit state — original image is never overwritten. */
+export type EditorNonDestructiveLayerState = {
+  layerId: string;
+  originalPreviewUrl: string;
+  originalStorageKey?: string;
+  maskUrl?: string;
+  cutoutUrl?: string;
+  transform: EditorCanvasTransform;
+  actions: EditorHistoryEntry[];
+};
+
+export type EditorNonDestructiveState = {
+  backgroundOriginalUrl: string;
+  backgroundOriginalStorageKey?: string;
+  layers: Record<string, EditorNonDestructiveLayerState>;
+};
+
+/** Editable text layer detected separately from visual objects. */
+export type EditorTextLayer = {
+  id: string;
+  content: string;
+  bbox: EditorCanvasBounds;
+  mask?: string;
+  language?: string;
+  confidence: number;
+  layerId?: string;
+  fontFamily?: string;
+  visible: boolean;
+  locked: boolean;
+};
+
+/** Motion preparation artifacts per object. */
+export type EditorMotionPreparation = {
+  objectId: string;
+  layerId: string;
+  cutoutUrl?: string;
+  depthHint: number;
+  motionRegion: EditorCanvasBounds;
+  safeAnimationBounds: EditorCanvasBounds;
+  ready: boolean;
+};
+
 export type EditorCanvasDocument = {
   sessionId: string;
   name: string;
@@ -272,6 +386,12 @@ export type EditorCanvasDocument = {
   visionAnalysisHash?: string;
   semanticLayers?: EditorSemanticLayer[];
   layerOperations?: EditorLayerOperationAudit[];
+  /** All detected objects from vision/analysis — not only the selected one. */
+  detectedObjects?: EditorObject[];
+  textLayers?: EditorTextLayer[];
+  nonDestructive?: EditorNonDestructiveState;
+  history?: EditorHistoryState;
+  motionPreparations?: EditorMotionPreparation[];
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

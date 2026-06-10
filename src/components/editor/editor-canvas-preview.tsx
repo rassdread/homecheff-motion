@@ -8,6 +8,11 @@ import { useActiveTranslator } from "@/i18n/client";
 import { renderableEditorLayers } from "@/lib/editor-canvas-layers";
 import { visibleEditorPlacements } from "@/lib/editor-placement-canvas";
 import { isEditorOperationAllowed } from "@/lib/editor-layer-action-eligibility";
+import { buildEditorObjectsFromLayers } from "@/lib/editor-object-detection";
+import {
+  clientPointToNormalized,
+  pickTopEditorObjectAtPoint,
+} from "@/lib/editor-object-picking";
 import { isApproximateEditorSelection } from "@/lib/editor-object-mask";
 import type { EditorCanvasDocument, EditorPlacementItem, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
@@ -50,12 +55,42 @@ export function EditorCanvasPreview({
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
   const visibleLayers = renderableEditorLayers({ objects: document.objects });
   const placements = visibleEditorPlacements(document).sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+  const detectedObjects =
+    document.detectedObjects ?? buildEditorObjectsFromLayers(document.objects);
+
+  const pickAtClient = (clientX: number, clientY: number, rect: DOMRect) => {
+    const point = clientPointToNormalized(clientX, clientY, rect);
+    return pickTopEditorObjectAtPoint(point, detectedObjects);
+  };
 
   return (
     <div
       className={`relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-zinc-100 shadow-inner ${
         humanFirst ? "border border-zinc-300/80 ring-1 ring-black/5" : "border border-zinc-200"
       }`}
+      onPointerMove={(event) => {
+        if (!humanFirst || lassoActive) {
+          return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        const hit = pickAtClient(event.clientX, event.clientY, rect);
+        setHoveredLayerId(hit?.object.layerId ?? null);
+      }}
+      onPointerLeave={() => setHoveredLayerId(null)}
+      onPointerDown={(event) => {
+        if (!humanFirst || lassoActive || selectedPlacementId) {
+          return;
+        }
+        const target = event.target as HTMLElement;
+        if (target.closest("[data-editor-transform-handle]")) {
+          return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        const hit = pickAtClient(event.clientX, event.clientY, rect);
+        if (hit) {
+          onSelectLayer(hit.object.layerId);
+        }
+      }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
@@ -82,6 +117,9 @@ export function EditorCanvasPreview({
       : null}
       {visibleLayers.map((layer) => {
         const selected = selectedLayerId === layer.id && !selectedPlacementId;
+        if (humanFirst && !selected) {
+          return null;
+        }
         const canMove = isEditorOperationAllowed(layer, "move");
         const canScale = isEditorOperationAllowed(layer, "scale");
         const canRotate = isEditorOperationAllowed(layer, "rotate");
@@ -92,21 +130,19 @@ export function EditorCanvasPreview({
         return (
           <div
             key={layer.id}
-            className={`absolute touch-none ${canMove ? "cursor-move" : "cursor-pointer"} ${
-              humanFirst && !selected ? "opacity-0 hover:opacity-100 focus-within:opacity-100" : ""
-            }`}
+            data-editor-transform-handle
+            className={`absolute touch-none ${canMove ? "cursor-move" : "cursor-pointer"}`}
             style={{
               left: `${x * 100}%`,
               top: `${y * 100}%`,
               transform: `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`,
               width: `${layer.bounds.width * 100}%`,
               height: `${layer.bounds.height * 100}%`,
-              opacity: humanFirst ? (selected ? 1 : undefined) : lowConfidence ? 0.72 : 0.85,
+              opacity: humanFirst ? 1 : lowConfidence ? 0.72 : 0.85,
               zIndex: selected ? 5 : 1,
             }}
-            onMouseEnter={() => setHoveredLayerId(layer.id)}
-            onMouseLeave={() => setHoveredLayerId((id) => (id === layer.id ? null : id))}
             onPointerDown={(event) => {
+              event.stopPropagation();
               onSelectLayer(layer.id);
               if (!canMove) {
                 return;
@@ -165,6 +201,7 @@ export function EditorCanvasPreview({
             {humanFirst && selected && canScale && onScaleLayer ?
               <button
                 type="button"
+                data-editor-transform-handle
                 aria-label={t("editor.human.action.resize")}
                 className="absolute -bottom-3 -right-3 h-10 w-10 rounded-full border-2 border-[#0067B1] bg-white shadow"
                 onPointerDown={(event) => {
@@ -188,6 +225,7 @@ export function EditorCanvasPreview({
             {humanFirst && selected && canRotate && onRotateLayer ?
               <button
                 type="button"
+                data-editor-transform-handle
                 aria-label={t("editor.human.toolbar.rotate")}
                 className="absolute -top-3 left-1/2 h-8 w-8 -translate-x-1/2 rounded-full border-2 border-[#0067B1] bg-white text-[10px] shadow"
                 onPointerDown={(event) => {
