@@ -1,4 +1,7 @@
-import { analyzeAssetStyleDnaApi } from "@/lib/studio-asset-derivation-client";
+import {
+  analyzeAssetStyleDnaApi,
+  type AnalyzeAssetStyleDnaApiResult,
+} from "@/lib/studio-asset-derivation-client";
 import { seedEditorLayersFromVision } from "@/lib/editor-canvas-layers";
 import { semanticLayerToCanvasLayer } from "@/lib/editor-semantic-layers-from-vision";
 import { buildEditorSemanticLayersFromHybrid } from "@/lib/editor-hybrid-detection";
@@ -12,6 +15,7 @@ import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { detectEditorObjectsApi } from "@/lib/editor-vision-v3-client";
 import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
+import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type {
   EditorCanvasDocument,
@@ -26,6 +30,32 @@ function countNonBackgroundLayers(layers: EditorCanvasLayer[]): number {
 
 export function documentNeedsDetectionBootstrap(document: EditorCanvasDocument): boolean {
   return countNonBackgroundLayers(document.objects) === 0;
+}
+
+/**
+ * Vision analyze is optional for Editor bootstrap — 4xx/405/network failures fall back to
+ * heuristic/brand-sheet layers; Replicate prompt segmentation does not depend on this call.
+ */
+export function resolveEditorBootstrapVision(
+  document: EditorCanvasDocument,
+  visionRes: AnalyzeAssetStyleDnaApiResult
+): {
+  vision: AssetVisionAnalysis;
+  styleDna: AssetStyleDna | null;
+  visionAnalyzeOk: boolean;
+} {
+  if (visionRes.ok) {
+    return {
+      vision: visionRes.data.visionAnalysis,
+      styleDna: visionRes.data.styleDna,
+      visionAnalyzeOk: true,
+    };
+  }
+  return {
+    vision: createFallbackVision(document),
+    styleDna: null,
+    visionAnalyzeOk: false,
+  };
 }
 
 function createFallbackVision(document: EditorCanvasDocument): AssetVisionAnalysis {
@@ -125,10 +155,9 @@ export async function bootstrapEditorObjectDetection(
     derivationJobId: document.sessionId,
   });
 
-  const vision = visionRes.ok ? visionRes.data.visionAnalysis : createFallbackVision(document);
-  const styleDna = visionRes.ok ? visionRes.data.styleDna : null;
+  const { vision, styleDna, visionAnalyzeOk } = resolveEditorBootstrapVision(document, visionRes);
 
-  if (visionRes.ok) {
+  if (visionAnalyzeOk) {
     const hybrid = buildEditorSemanticLayersFromHybrid({
       vision,
       styleDna,
@@ -226,12 +255,12 @@ export async function bootstrapEditorObjectDetection(
   if (
     isBrandSheetLayout({
       name: document.name,
-      vision: visionRes.ok ? vision : null,
+      vision: visionAnalyzeOk ? vision : null,
       featureCount: vision.keyFeatures.length,
     })
   ) {
     const semanticLayers = buildBrandSheetSemanticLayers({
-      vision: visionRes.ok ? vision : null,
+      vision: visionAnalyzeOk ? vision : null,
       sourceKind: document.sourceKind,
     });
     return buildLayersFromSemantic(document, semanticLayers, vision, {

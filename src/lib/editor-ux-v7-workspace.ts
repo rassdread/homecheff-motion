@@ -1,56 +1,56 @@
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
-function flowMode(document: EditorCanvasDocument): EditorCanvasDocument["editorFlowMode"] {
-  return document.editorFlowMode ?? "edit";
-}
-
-export function modeShowsComposePanels(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  if (document && flowMode(document) !== "combine") {
-    return false;
-  }
+/** Active workspace tab is the source of truth for panel visibility. */
+export function modeShowsComposePanels(mode: EditorWorkspaceMode): boolean {
   return mode === "compose";
 }
 
-export function modeShowsGifExportPanel(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return mode === "export" && document?.editorFlowMode === "export";
+export function modeShowsQuickMotionPanel(mode: EditorWorkspaceMode): boolean {
+  return mode === "quick_motion";
 }
 
-export function modeShowsExportHub(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return mode === "export" && (document?.editorFlowMode === "export" || !document?.editorFlowMode);
+/** @deprecated Use modeShowsQuickMotionPanel — GIF tools live on the quick_motion tab. */
+export function modeShowsGifExportPanel(mode: EditorWorkspaceMode): boolean {
+  return modeShowsQuickMotionPanel(mode);
 }
 
-export function modeShowsExportAdvancedPanels(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return mode === "export" && (document?.editorFlowMode === "export" || !document?.editorFlowMode);
+export function modeShowsExportHub(mode: EditorWorkspaceMode): boolean {
+  return mode === "export";
 }
 
+export function modeShowsExportAdvancedPanels(mode: EditorWorkspaceMode): boolean {
+  return mode === "export";
+}
+
+/** Extra panels when user chose Motion voorbereiden at open (any tab). */
 export function modeShowsMotionPreparePanels(document: EditorCanvasDocument): boolean {
   return document.editorFlowMode === "motion_prepare";
 }
 
-export function modeShowsPhotoEditObjectPanels(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  if (document?.editorFlowMode === "export" || document?.editorFlowMode === "combine") {
-    return false;
-  }
-  return mode === "photo_edit" || mode === "compose";
+export function modeShowsPhotoEditObjectPanels(mode: EditorWorkspaceMode): boolean {
+  return mode === "photo_edit";
 }
 
-export function modeShowsLibraryPanels(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return modeShowsComposePanels(mode, document);
+export function modeShowsLibraryPanels(mode: EditorWorkspaceMode): boolean {
+  return modeShowsComposePanels(mode);
 }
 
-export function modeShowsBrandKit(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return modeShowsComposePanels(mode, document);
+export function modeShowsBrandKit(mode: EditorWorkspaceMode): boolean {
+  return modeShowsComposePanels(mode);
 }
 
-export function modeShowsMotionPreviewBar(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  if (document && flowMode(document) === "motion_prepare") {
+export function modeShowsMotionPreviewBar(
+  mode: EditorWorkspaceMode,
+  document?: EditorCanvasDocument
+): boolean {
+  if (document?.editorFlowMode === "motion_prepare") {
     return true;
   }
   return mode === "quick_motion";
 }
 
-export function modeShowsAlignmentTools(mode: EditorWorkspaceMode, document?: EditorCanvasDocument): boolean {
-  return modeShowsExportAdvancedPanels(mode, document);
+export function modeShowsAlignmentTools(mode: EditorWorkspaceMode): boolean {
+  return modeShowsExportAdvancedPanels(mode);
 }
 
 export function workspaceModeForNoSelectionAction(

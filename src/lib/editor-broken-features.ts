@@ -17,7 +17,12 @@ export const HIDDEN_HUMAN_ACTIONS = new Set<EditorHumanActionId>([
   "new_role",
 ]);
 
-export const HIDDEN_UX_V7_OBJECT_ACTIONS = new Set<EditorUxV7ObjectAction>(["background_blur", "animate"]);
+export const HIDDEN_UX_V7_OBJECT_ACTIONS = new Set<EditorUxV7ObjectAction>([
+  "background_blur",
+  "animate",
+  "resize",
+  "move",
+]);
 
 export const HIDDEN_BACKGROUND_TOOLS = new Set<EditorBackgroundToolId>(["blur", "sky"]);
 

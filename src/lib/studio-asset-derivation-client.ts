@@ -1,7 +1,18 @@
-import { fetchSameOriginJson } from "@/lib/client-api-fetch";
+import { fetchSameOriginJson, type SameOriginJsonResult } from "@/lib/client-api-fetch";
 import type { AssetDerivationSourceListItem, AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
+
+/** Route `src/app/api/studio/asset-derivation/analyze/route.ts` exports POST only. */
+export const ANALYZE_ASSET_DERIVATION_HTTP_METHOD = "POST" as const;
+
+export type AnalyzeAssetStyleDnaApiSuccess = {
+  ok: true;
+  styleDna: AssetStyleDna;
+  visionAnalysis: AssetVisionAnalysis;
+};
+
+export type AnalyzeAssetStyleDnaApiResult = SameOriginJsonResult<AnalyzeAssetStyleDnaApiSuccess>;
 
 export async function fetchAssetDerivationSources() {
   return fetchSameOriginJson<{ ok: true; sources: AssetDerivationSourceListItem[] }>(
@@ -29,15 +40,11 @@ export async function analyzeAssetStyleDnaApi(params: {
   sourceKind: StudioAssetKind;
   sourceName: string;
   derivationJobId: string;
-}) {
-  return fetchSameOriginJson<{
-    ok: true;
-    styleDna: AssetStyleDna;
-    visionAnalysis: AssetVisionAnalysis;
-  }>(
+}): Promise<AnalyzeAssetStyleDnaApiResult> {
+  return fetchSameOriginJson<AnalyzeAssetStyleDnaApiSuccess>(
     "/api/studio/asset-derivation/analyze",
     {
-      method: "POST",
+      method: ANALYZE_ASSET_DERIVATION_HTTP_METHOD,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     }

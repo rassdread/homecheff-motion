@@ -163,13 +163,54 @@ export function createMaskSelectionShape(input: {
   };
 }
 
+export function boundsCenter(bounds: EditorCanvasBounds): EditorShapePoint {
+  return {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+  };
+}
+
+export function intersectBounds(
+  a: EditorCanvasBounds,
+  b: EditorCanvasBounds
+): EditorCanvasBounds {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  return {
+    x,
+    y,
+    width: Math.max(0.02, right - x),
+    height: Math.max(0.02, bottom - y),
+  };
+}
+
+export function clickBoundsAroundPoint(
+  point: EditorShapePoint,
+  size = 0.2
+): EditorCanvasBounds {
+  return {
+    x: Math.max(0, Math.min(1 - size, point.x - size / 2)),
+    y: Math.max(0, Math.min(1 - size, point.y - size / 2)),
+    width: size,
+    height: size,
+  };
+}
+
 export function applyEditorSelectionShape(
   layer: EditorCanvasLayer,
   shape: EditorObjectShape
 ): EditorCanvasLayer {
+  const center = boundsCenter(shape.boundingBox);
   return {
     ...layer,
     bounds: shape.boundingBox,
+    transform: {
+      ...layer.transform,
+      x: center.x,
+      y: center.y,
+    },
     selectionShape: shape,
     metadata: {
       ...layer.metadata,

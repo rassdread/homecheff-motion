@@ -7,7 +7,6 @@ import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asse
 import { EditorBodyDesignerPanel } from "@/components/editor/editor-body-designer-panel";
 import { EditorClickSegmentPrompt } from "@/components/editor/editor-click-segment-prompt";
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
-import { EditorFloatingToolbar } from "@/components/editor/editor-floating-toolbar";
 import { EditorHumanObjectList } from "@/components/editor/editor-human-object-list";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
@@ -173,7 +172,7 @@ import {
   modeShowsComposePanels,
   modeShowsExportAdvancedPanels,
   modeShowsExportHub,
-  modeShowsGifExportPanel,
+  modeShowsQuickMotionPanel,
   modeShowsLibraryPanels,
   modeShowsMotionPreparePanels,
   modeShowsMotionPreviewBar,
@@ -2108,11 +2107,6 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               />
 
               <div className="relative mx-auto w-full max-w-4xl">
-                <EditorFloatingToolbar
-                  visible={false}
-                  layer={selectedLayer}
-                  onAction={handleHumanAction}
-                />
                 <EditorCanvasPreview
                   document={document}
                   selectedLayerId={selectedLayerId}
@@ -2175,7 +2169,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 : null}
               </div>
 
-              {selectedLayer && !selectedPlacementId && modeShowsPhotoEditObjectPanels(workspaceMode, document) ?
+              {selectedLayer && !selectedPlacementId && modeShowsPhotoEditObjectPanels(workspaceMode) ?
                 <>
                   {showMagicReplace ?
                     <EditorMagicReplacePanel
@@ -2291,7 +2285,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 </div>
               : null}
 
-              {modeShowsComposePanels(workspaceMode, document) ?
+              {modeShowsComposePanels(workspaceMode) ?
                 <div className="space-y-3">
                   <input
                     ref={composerSourceRef}
@@ -2318,17 +2312,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   </button>
                   <EditorDualComposerPanel document={document} onDocumentChange={persist} />
                   <div className="grid gap-4 lg:grid-cols-2">
-                    {modeShowsLibraryPanels(workspaceMode, document) ?
+                    {modeShowsLibraryPanels(workspaceMode) ?
                       <EditorLibraryDragPanel document={document} onDocumentChange={persist} />
                     : null}
-                    {modeShowsBrandKit(workspaceMode, document) ?
+                    {modeShowsBrandKit(workspaceMode) ?
                       <EditorBrandKitPanel document={document} onDocumentChange={persist} />
                     : null}
                   </div>
                 </div>
               : null}
 
-              {modeShowsGifExportPanel(workspaceMode, document) ?
+              {modeShowsQuickMotionPanel(workspaceMode) ?
                 <div className="space-y-3">
                   <EditorQuickMotionPanel document={document} onDocumentChange={persist} />
                   {selectedLayer && selectedLayerId && modeShowsMotionPreviewBar(workspaceMode, document) ?
@@ -2342,20 +2336,20 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 </div>
               : null}
 
-              {modeShowsExportAdvancedPanels(workspaceMode, document) ?
+              {modeShowsExportAdvancedPanels(workspaceMode) ?
                 <div className="space-y-3">
                   <div className="grid gap-4 lg:grid-cols-2">
                     <EditorPosterBuilderPanel document={document} onDocumentChange={persist} />
                     <EditorSocialKitPanel document={document} onDocumentChange={persist} />
                   </div>
                   <EditorHandoffScorePanel document={document} />
-                  {modeShowsAlignmentTools(workspaceMode, document) ?
+                  {modeShowsAlignmentTools(workspaceMode) ?
                     <EditorAlignmentToolbar onAlign={handleAlignment} />
                   : null}
                 </div>
               : null}
 
-              {modeShowsExportHub(workspaceMode, document) ?
+              {modeShowsExportHub(workspaceMode) ?
                 <div className="space-y-2">
                   <button
                     type="button"
@@ -2522,7 +2516,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           </div>
           : null}
 
-          {!showReview && uiMode === "advanced" ?
+          {!showReview && uiMode === "advanced" && isAdmin && showAiAnalysis ?
             <EditorPlacementQaPanel document={document} />
           : null}
 

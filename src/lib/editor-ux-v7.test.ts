@@ -85,11 +85,11 @@ describe("Editor UX V7", () => {
     assert.deepEqual(actions, ["replace", "remove", "cutout", "duplicate"]);
   });
 
-  it("logo without mask shows refine resize move (not replace)", () => {
+  it("logo without mask shows refine only (resize/move hidden — hint-only)", () => {
     const actions = resolveUxV7ObjectActions(
       mockLayer({ label: "Logo", category: "logo", semanticType: "logo" })
     );
-    assert.deepEqual(actions, ["refine_selection", "resize", "move"]);
+    assert.deepEqual(actions, ["refine_selection"]);
   });
 
   it("background object shows background tools only", () => {
@@ -106,31 +106,29 @@ describe("Editor UX V7", () => {
     assert.equal(actions.includes("cutout"), false);
   });
 
-  it("photo edit workspace hides export advanced panels", () => {
-    const document = mockDocument();
-    assert.equal(modeShowsPhotoEditObjectPanels("photo_edit", document), true);
-    assert.equal(modeShowsExportAdvancedPanels("photo_edit", document), false);
-    assert.equal(modeShowsGifExportPanel("photo_edit", document), false);
-    assert.equal(modeShowsComposePanels("photo_edit", document), false);
+  it("photo edit tab shows object panels only on photo_edit", () => {
+    assert.equal(modeShowsPhotoEditObjectPanels("photo_edit"), true);
+    assert.equal(modeShowsPhotoEditObjectPanels("compose"), false);
+    assert.equal(modeShowsExportAdvancedPanels("photo_edit"), false);
+    assert.equal(modeShowsGifExportPanel("photo_edit"), false);
+    assert.equal(modeShowsComposePanels("photo_edit"), false);
   });
 
-  it("export workspace shows poster social alignment and hub", () => {
-    const document = applyPostUploadMode(mockDocument(), "export");
-    assert.equal(modeShowsExportAdvancedPanels("export", document), true);
-    assert.equal(modeShowsAlignmentTools("export", document), true);
-    assert.equal(modeShowsExportHub("export", document), true);
-    assert.equal(modeShowsExportHub("quick_motion", document), false);
+  it("export tab shows poster social alignment and hub", () => {
+    assert.equal(modeShowsExportAdvancedPanels("export"), true);
+    assert.equal(modeShowsAlignmentTools("export"), true);
+    assert.equal(modeShowsExportHub("export"), true);
+    assert.equal(modeShowsExportHub("quick_motion"), false);
   });
 
-  it("export flow shows gif export panel only in export mode", () => {
-    const document = applyPostUploadMode(mockDocument(), "export");
-    assert.equal(modeShowsGifExportPanel("export", document), true);
-    assert.equal(modeShowsExportAdvancedPanels("quick_motion", document), false);
+  it("gif panel shows on quick_motion tab not export tab", () => {
+    assert.equal(modeShowsGifExportPanel("quick_motion"), true);
+    assert.equal(modeShowsGifExportPanel("export"), false);
+    assert.equal(modeShowsExportAdvancedPanels("quick_motion"), false);
   });
 
-  it("compose workspace shows library panels", () => {
-    const document = applyPostUploadMode(mockDocument(), "combine");
-    assert.equal(modeShowsComposePanels("compose", document), true);
+  it("compose tab shows library panels regardless of start flow", () => {
+    assert.equal(modeShowsComposePanels("compose"), true);
     assert.equal(workspaceModeForNoSelectionAction("add_object"), "compose");
   });
 

@@ -4,6 +4,7 @@ import {
   isReplicateConfigured,
   waitForReplicatePrediction,
 } from "@/server/admin/replicate-client";
+import type { EditorCanvasBounds, EditorShapePoint } from "@/types/homecheff-visual-editor";
 
 export type EditorSam3SegmentResult = {
   maskUrl: string | null;
@@ -22,9 +23,87 @@ function maskToUrl(mask: unknown): string | null {
   return null;
 }
 
+export function normalizeSam3Box(
+  box: number[] | null | undefined,
+  imageWidth?: number | null,
+  imageHeight?: number | null
+): EditorCanvasBounds | null {
+  if (!box || box.length < 4) {
+    return null;
+  }
+  const [a, b, c, d] = box;
+  const looksNormalized = a <= 1 && b <= 1 && c <= 1 && d <= 1;
+  if (looksNormalized) {
+    return { x: a, y: b, width: c, height: d };
+  }
+  const width = Math.max(1, imageWidth ?? 1);
+  const height = Math.max(1, imageHeight ?? 1);
+  if (c > a && d > b) {
+    return {
+      x: a / width,
+      y: b / height,
+      width: (c - a) / width,
+      height: (d - b) / height,
+    };
+  }
+  return {
+    x: a / width,
+    y: b / height,
+    width: c / width,
+    height: d / height,
+  };
+}
+
+function pointInBounds(point: EditorShapePoint, bounds: EditorCanvasBounds): boolean {
+  return (
+    point.x >= bounds.x &&
+    point.x <= bounds.x + bounds.width &&
+    point.y >= bounds.y &&
+    point.y <= bounds.y + bounds.height
+  );
+}
+
+/** Prefer multimask candidate whose bbox contains the click; else highest score. */
+export function pickSam3MaskIndexAtClick(input: {
+  scores: number[];
+  boxes?: number[][] | null;
+  clickPoint?: EditorShapePoint;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
+}): number {
+  const scores = input.scores;
+  if (scores.length === 0) {
+    return 0;
+  }
+  let bestScoreIdx = 0;
+  for (let i = 1; i < scores.length; i += 1) {
+    if ((scores[i] ?? 0) > (scores[bestScoreIdx] ?? 0)) {
+      bestScoreIdx = i;
+    }
+  }
+  if (!input.clickPoint || !input.boxes?.length) {
+    return bestScoreIdx;
+  }
+  let bestClickIdx = -1;
+  let bestClickScore = -1;
+  for (let i = 0; i < scores.length; i += 1) {
+    const bbox = normalizeSam3Box(input.boxes[i], input.imageWidth, input.imageHeight);
+    if (!bbox || !pointInBounds(input.clickPoint, bbox)) {
+      continue;
+    }
+    const score = scores[i] ?? 0;
+    if (score > bestClickScore) {
+      bestClickIdx = i;
+      bestClickScore = score;
+    }
+  }
+  return bestClickIdx >= 0 ? bestClickIdx : bestScoreIdx;
+}
+
 export async function segmentEditorImageWithReplicateSam3(params: {
   imageUrl: string;
   prompt: string;
+  clickPoint?: EditorShapePoint;
 }): Promise<{ ok: true; result: EditorSam3SegmentResult } | { ok: false; error: string }> {
   if (!isReplicateConfigured()) {
     return { ok: false, error: "Replicate is not configured" };
@@ -71,15 +150,18 @@ export async function segmentEditorImageWithReplicateSam3(params: {
     pred_boxes?: number[][];
     pred_polygons?: number[][][][];
     visualization?: string;
+    orig_img_w?: number;
+    orig_img_h?: number;
   };
 
   const scores = o.pred_scores ?? [];
-  let bestIdx = 0;
-  for (let i = 1; i < scores.length; i += 1) {
-    if (scores[i] > scores[bestIdx]) {
-      bestIdx = i;
-    }
-  }
+  const bestIdx = pickSam3MaskIndexAtClick({
+    scores,
+    boxes: o.pred_boxes,
+    clickPoint: params.clickPoint,
+    imageWidth: o.orig_img_w,
+    imageHeight: o.orig_img_h,
+  });
 
   return {
     ok: true,

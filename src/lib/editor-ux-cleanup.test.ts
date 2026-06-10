@@ -114,6 +114,16 @@ describe("Editor UX Cleanup V1", () => {
     assert.equal(tree.length, 2);
   });
 
+  it("prompt-created globe sub-layer stays visible in human-first chips", () => {
+    const globe = mockLayer({
+      id: "sub_globe_1",
+      label: "Globe",
+      parentObjectId: "semantic_0_globe_man",
+      metadata: { promptCreatedSubLayer: true },
+    });
+    assert.equal(isTechnicalSubPartLayer(globe), false);
+  });
+
   it("live edit controls update canvas", () => {
     const background = mockLayer({
       id: "background",

@@ -3,7 +3,10 @@ import {
   type EditorSegmentApiShape,
 } from "@/lib/editor-apply-segment-result";
 import {
+  boundsCenter,
+  clickBoundsAroundPoint,
   editorLayerHasPreciseShape,
+  intersectBounds,
   isApproximateEditorSelection,
 } from "@/lib/editor-object-mask";
 import { maskHitTest, pickTopEditorObjectAtPoint } from "@/lib/editor-object-picking";
@@ -64,15 +67,6 @@ export function segmentPromptSuccessMessageKey(prompt: string): string {
   return keys[normalized] ?? "editor.clickSegment.selectedObject";
 }
 
-function clickBoundsAroundPoint(point: EditorShapePoint, size = 0.2) {
-  return {
-    x: Math.max(0, Math.min(1 - size, point.x - size / 2)),
-    y: Math.max(0, Math.min(1 - size, point.y - size / 2)),
-    width: size,
-    height: size,
-  };
-}
-
 export function resolveParentLayerAtClick(
   objects: EditorCanvasLayer[],
   point: EditorShapePoint,
@@ -111,7 +105,11 @@ export function createSubObjectLayer(input: {
   const prompt = normalizeEditorSegmentPrompt(input.prompt);
   const label = input.labelOverride ?? promptToDisplayLabel(prompt);
   const parent = input.parentLayer ?? null;
-  const bounds = parent ? { ...parent.bounds } : clickBoundsAroundPoint(input.point);
+  const bounds =
+    parent ?
+      intersectBounds(clickBoundsAroundPoint(input.point, 0.28), parent.bounds)
+    : clickBoundsAroundPoint(input.point);
+  const center = boundsCenter(bounds);
   const id = `sub_${prompt}_${Date.now()}`;
 
   return {
@@ -122,8 +120,8 @@ export function createSubObjectLayer(input: {
     storageKey: input.backgroundStorageKey ?? "",
     previewUrl: input.backgroundUrl,
     transform: {
-      x: bounds.x + bounds.width / 2,
-      y: bounds.y + bounds.height / 2,
+      x: center.x,
+      y: center.y,
       scale: 1,
       rotation: 0,
     },

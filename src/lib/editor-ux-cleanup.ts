@@ -166,6 +166,9 @@ export function humanFirstObjectLabelKey(layer: EditorCanvasLayer): TranslationK
 }
 
 export function isTechnicalSubPartLayer(layer: EditorCanvasLayer): boolean {
+  if (layer.metadata?.promptCreatedSubLayer) {
+    return false;
+  }
   if (layer.parentObjectId) {
     return true;
   }

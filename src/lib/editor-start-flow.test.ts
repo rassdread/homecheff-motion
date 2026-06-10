@@ -74,15 +74,14 @@ describe("Editor start flow", () => {
     const motionDoc = applyPostUploadMode(mockDocument(), "motion_prepare");
     const exportDoc = applyPostUploadMode(mockDocument(), "export");
 
-    assert.equal(modeShowsPhotoEditObjectPanels("photo_edit", editDoc), true);
-    assert.equal(modeShowsComposePanels("compose", combineDoc), true);
-    assert.equal(modeShowsComposePanels("compose", editDoc), false);
+    assert.equal(modeShowsPhotoEditObjectPanels("photo_edit"), true);
+    assert.equal(modeShowsComposePanels("compose"), true);
     assert.equal(modeShowsMotionPreparePanels(motionDoc), true);
     assert.equal(modeShowsMotionPreparePanels(editDoc), false);
-    assert.equal(modeShowsExportHub("export", exportDoc), true);
-    assert.equal(modeShowsExportAdvancedPanels("export", exportDoc), true);
-    assert.equal(modeShowsGifExportPanel("export", exportDoc), true);
-    assert.equal(modeShowsExportHub("export", editDoc), false);
+    assert.equal(modeShowsExportHub("export"), true);
+    assert.equal(modeShowsExportAdvancedPanels("export"), true);
+    assert.equal(modeShowsGifExportPanel("quick_motion"), true);
+    assert.equal(modeShowsGifExportPanel("export"), false);
   });
 });
 

@@ -2,6 +2,8 @@ import { extractMaskContourFromPng } from "@/lib/editor-mask-contour";
 import {
   boundsFromPolygon,
   boundsToPolygon,
+  clickBoundsAroundPoint,
+  intersectBounds,
   refineSelectionPolygonFromBounds,
 } from "@/lib/editor-object-mask";
 import { resolveEditorSegmentPrompt } from "@/lib/editor-segmentation-prompt";
@@ -334,6 +336,7 @@ export async function segmentByClick(
     const rep = await segmentEditorImageWithReplicateSam3({
       imageUrl: input.imageUrl,
       prompt,
+      clickPoint: input.clickPoint,
     });
     if (rep.ok && rep.result.maskUrl) {
       try {
@@ -349,8 +352,12 @@ export async function segmentByClick(
             contour.boundingBox ??
             input.targetBounds ??
             { x: 0.2, y: 0.2, width: 0.6, height: 0.6 };
-          if (input.targetBounds && contour.polygon.length < 3) {
-            boundingBox = input.targetBounds;
+          if (contour.polygon.length < 3) {
+            const clickBox = clickBoundsAroundPoint(input.clickPoint, 0.24);
+            boundingBox =
+              input.targetBounds ?
+                intersectBounds(clickBox, input.targetBounds)
+              : clickBox;
           }
           const polygon =
             contour.polygon.length >= 3
