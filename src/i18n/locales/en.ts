@@ -445,6 +445,11 @@ export const en: LocaleSchema = {
   "editor.instructionStudio.v2.approval.draft": "Draft",
   "editor.instructionStudio.v2.approval.approved": "Approved",
   "editor.instructionStudio.v2.approval.archived": "Archived",
+  "editor.instructionStudio.v2.objectFeed.lowConfidenceNotice":
+    "I can't recognize everything precisely yet, but you can still describe a part.",
+  "editor.instructionStudio.v2.objectFeed.debugTitle": "Object feed (admin)",
+  "editor.instructionStudio.v2.objectFeed.source": "Source",
+  "editor.instructionStudio.v2.objectFeed.count": "Object count",
   "editor.instructionStudio.v2.category.character": "Character",
   "editor.instructionStudio.v2.category.logo": "Logo",
   "editor.instructionStudio.v2.category.text": "Text",

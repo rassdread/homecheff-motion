@@ -441,6 +441,11 @@ export const nl = {
   "editor.instructionStudio.v2.approval.draft": "Concept",
   "editor.instructionStudio.v2.approval.approved": "Goedgekeurd",
   "editor.instructionStudio.v2.approval.archived": "Gearchiveerd",
+  "editor.instructionStudio.v2.objectFeed.lowConfidenceNotice":
+    "Ik herken nog niet alles precies, maar je kunt wel een onderdeel beschrijven.",
+  "editor.instructionStudio.v2.objectFeed.debugTitle": "Object feed (admin)",
+  "editor.instructionStudio.v2.objectFeed.source": "Bron",
+  "editor.instructionStudio.v2.objectFeed.count": "Aantal objecten",
   "editor.instructionStudio.v2.category.character": "Personage",
   "editor.instructionStudio.v2.category.logo": "Logo",
   "editor.instructionStudio.v2.category.text": "Tekst",

@@ -15,6 +15,7 @@ import {
   resolveEditorInstructionHandoff,
 } from "@/lib/editor-instruction-handoff";
 import { listInstructionObjectsV2 } from "@/lib/editor-instruction-object-v2";
+import { buildInstructionObjectsFromDocument } from "@/lib/editor-instruction-object-feed";
 import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-builder";
 import {
   appendBrandReference,
@@ -259,5 +260,77 @@ describe("editor instruction studio v2", () => {
   it("identifies branding actions", () => {
     assert.equal(isBrandingAction("add_logo"), true);
     assert.equal(isBrandingAction("remove"), false);
+  });
+
+  it("feeds Globe Man mascot objects when document only has background layer", () => {
+    const doc = createEditorDocumentFromUpload({
+      name: "Globe Man.png",
+      backgroundUrl: "https://example.com/globe-man.png",
+    });
+    const { objects, meta } = buildInstructionObjectsFromDocument(doc);
+    const labels = objects.map((o) => o.label);
+    assert.ok(labels.includes("Character / Globe Man"));
+    assert.ok(labels.includes("Globe"));
+    assert.ok(labels.includes("Clothing / suit"));
+    assert.ok(labels.includes("Tie"));
+    assert.ok(labels.includes("Background"));
+    assert.equal(meta.source, "heuristic");
+    assert.equal(meta.lowConfidence, true);
+  });
+
+  it("Globe Man dropdown includes category-specific actions", () => {
+    const doc = createEditorDocumentFromUpload({
+      name: "globe-man.png",
+      backgroundUrl: "https://example.com/globe-man.png",
+    });
+    const objects = listInstructionObjectsV2(doc);
+    const globe = objects.find((o) => o.label === "Globe");
+    const clothing = objects.find((o) => o.label === "Clothing / suit");
+    const background = objects.find((o) => o.label === "Background");
+    assert.ok(globe);
+    assert.ok(clothing);
+    assert.ok(background);
+    assert.ok(globe!.suggestedActions.includes("replace"));
+    assert.ok(globe!.suggestedActions.includes("remove"));
+    assert.ok(globe!.suggestedActions.includes("change_color"));
+    assert.ok(clothing!.suggestedActions.includes("add_logo"));
+    assert.ok(clothing!.suggestedActions.includes("replace_logo"));
+    assert.ok(clothing!.suggestedActions.includes("change_color"));
+    assert.ok(background!.suggestedActions.includes("replace"));
+    assert.ok(background!.suggestedActions.includes("transparent"));
+  });
+
+  it("uses detectedObjects when canvas layers are background-only", () => {
+    const doc = createEditorDocumentFromUpload({
+      name: "product.png",
+      backgroundUrl: "https://example.com/product.png",
+    });
+    doc.detectedObjects = [
+      {
+        id: "obj_bottle",
+        label: "Bottle",
+        confidence: 0.91,
+        bbox: { x: 0.3, y: 0.2, width: 0.2, height: 0.5 },
+        category: "product",
+        zIndex: 2,
+        layerId: "layer_bottle",
+        visible: true,
+        locked: false,
+      },
+    ];
+    const objects = listInstructionObjectsV2(doc);
+    assert.ok(objects.some((o) => o.label === "Bottle"));
+    assert.ok(objects.some((o) => o.category === "background"));
+  });
+
+  it("shows main subject fallback instead of background-only for uploads", () => {
+    const doc = createEditorDocumentFromUpload({
+      name: "my-photo.jpg",
+      backgroundUrl: "https://example.com/photo.jpg",
+    });
+    const { objects, meta } = buildInstructionObjectsFromDocument(doc);
+    assert.ok(objects.some((o) => o.label === "Main subject"));
+    assert.ok(objects.some((o) => o.category === "background"));
+    assert.equal(meta.lowConfidence, true);
   });
 });

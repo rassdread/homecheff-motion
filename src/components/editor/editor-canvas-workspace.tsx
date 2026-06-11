@@ -2168,6 +2168,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             <EditorInstructionStudioWorkspace
               document={document}
               busy={v6Busy || saving}
+              isAdmin={isAdmin}
               onDocumentChange={persist}
               onSave={() => void handleSaveDraft()}
             />

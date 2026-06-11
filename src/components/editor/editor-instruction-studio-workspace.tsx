@@ -26,7 +26,7 @@ import {
 import {
   defaultSelectionForObject,
   findInstructionObjectV2,
-  listInstructionObjectsV2,
+  getInstructionObjectFeed,
 } from "@/lib/editor-instruction-object-v2";
 import {
   buildEditorInstructionPromptV2,
@@ -67,6 +67,7 @@ import type {
 type Props = {
   document: EditorCanvasDocument;
   busy?: boolean;
+  isAdmin?: boolean;
   onDocumentChange: (document: EditorCanvasDocument) => void;
   onSave?: () => void;
 };
@@ -74,6 +75,7 @@ type Props = {
 export function EditorInstructionStudioWorkspace({
   document,
   busy = false,
+  isAdmin = false,
   onDocumentChange,
   onSave,
 }: Props) {
@@ -85,7 +87,10 @@ export function EditorInstructionStudioWorkspace({
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const objectsV2 = useMemo(() => listInstructionObjectsV2(document), [document]);
+  const { objects: objectsV2, meta: objectFeedMeta } = useMemo(
+    () => getInstructionObjectFeed(document),
+    [document]
+  );
   const variants = listInstructionVariants(document);
   const legacyReadOnly = isLegacyCanvasEditorDocument(document);
   const previewVariant = previewInstructionVariant(document);
@@ -411,7 +416,30 @@ export function EditorInstructionStudioWorkspace({
                 </li>
               ))}
             </ul>
+            {objectFeedMeta.lowConfidence ?
+              <p className="mt-2 text-xs text-amber-700">
+                {t("editor.instructionStudio.v2.objectFeed.lowConfidenceNotice" as never)}
+              </p>
+            : null}
           </section>
+
+          {isAdmin ?
+            <section className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
+              <p className="font-semibold text-zinc-800">
+                {t("editor.instructionStudio.v2.objectFeed.debugTitle" as never)}
+              </p>
+              <p>
+                {t("editor.instructionStudio.v2.objectFeed.source" as never)}:{" "}
+                {objectFeedMeta.source}
+                {objectFeedMeta.sourcesUsed.length > 1 ?
+                  ` (${objectFeedMeta.sourcesUsed.join(", ")})`
+                : ""}
+              </p>
+              <p>
+                {t("editor.instructionStudio.v2.objectFeed.count" as never)}: {objectFeedMeta.count}
+              </p>
+            </section>
+          : null}
 
           <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900">

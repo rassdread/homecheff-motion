@@ -77,6 +77,25 @@ export const EDITOR_INSTRUCTION_ACTIONS = [
 
 export type EditorInstructionAction = (typeof EDITOR_INSTRUCTION_ACTIONS)[number];
 
+export const EDITOR_INSTRUCTION_OBJECT_SOURCES = [
+  "instructionObjects",
+  "assetProfile",
+  "detectedObjects",
+  "objects",
+  "semanticLayers",
+  "heuristic",
+  "fallback",
+] as const;
+
+export type EditorInstructionObjectSource = (typeof EDITOR_INSTRUCTION_OBJECT_SOURCES)[number];
+
+export type EditorInstructionObjectFeedMeta = {
+  source: EditorInstructionObjectSource | "mixed";
+  count: number;
+  lowConfidence: boolean;
+  sourcesUsed: EditorInstructionObjectSource[];
+};
+
 export type EditorInstructionObjectV2 = {
   id: string;
   label: string;
@@ -85,6 +104,7 @@ export type EditorInstructionObjectV2 = {
   description: string;
   suggestedActions: EditorInstructionDynamicAction[];
   layerId?: string;
+  source?: EditorInstructionObjectSource;
 };
 
 export type EditorInstructionSliders = {
@@ -187,6 +207,8 @@ export type EditorInstructionStudioState = {
   /** UI preview selection (may be draft) */
   previewVariantId?: string | null;
   selection?: Partial<EditorInstructionSelection>;
+  /** Explicit object feed override — highest priority for instruction UI */
+  instructionObjects?: EditorInstructionObjectV2[];
   brandReferences?: BrandReferenceAsset[];
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;
