@@ -30,11 +30,17 @@ export function isPublishAliasPath(pathname: string): boolean {
 }
 
 export function libraryAliasToHubPath(pathname: string): string {
-  if (pathname === "/library") {
+  if (pathname === "/library/start") {
     return LIBRARY_HUB_BASE_PATH;
   }
+  if (pathname.startsWith("/library/start/")) {
+    return `${LIBRARY_HUB_BASE_PATH}${pathname.slice("/library/start".length)}`;
+  }
+  if (pathname === "/library") {
+    return "/library";
+  }
   if (pathname.startsWith("/library/")) {
-    return `${LIBRARY_HUB_BASE_PATH}${pathname.slice("/library".length)}`;
+    return pathname;
   }
   return LIBRARY_HUB_BASE_PATH;
 }

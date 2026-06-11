@@ -49,8 +49,8 @@
 
 .studio-header-glow {
   box-shadow:
-    0 1px 0 0 color-mix(in srgb, var(--studio-blue) 25%, transparent),
-    0 8px 32px -12px color-mix(in srgb, var(--studio-blue) 35%, transparent);
+    0 1px 0 0 color-mix(in srgb, var(--studio-blue) 20%, transparent),
+    0 6px 26px -12px color-mix(in srgb, var(--studio-blue) 28%, transparent);
 }
 
 .studio-glass-dark {

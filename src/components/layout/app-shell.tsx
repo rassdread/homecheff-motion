@@ -18,32 +18,32 @@ export function AppShell({ children }: AppShellProps) {
       <I18nHydrationSync />
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
-        <nav className={`${studioVisual.headerInner} !flex-col gap-3 lg:!flex-row lg:!items-center`}>
-          <div className="flex w-full items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-3">
-                <div className={studioVisual.logoMark}>
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
-                  />
-                </div>
-                <span className={studioVisual.logoText}>{brand.studioProductName}</span>
-              </Link>
-              <LanguageSwitch />
-            </div>
-            <div className="hidden shrink-0 lg:block">
-              <AppShellUserBar />
+        <nav className={`${studioVisual.headerInner} relative !flex !flex-row !items-center`}>
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-2.5">
+              <div className={studioVisual.logoMark}>
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
+                />
+              </div>
+              <span className={studioVisual.logoText}>{brand.studioProductName}</span>
+            </Link>
+            <LanguageSwitch />
+          </div>
+
+          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 lg:block">
+            <div className="pointer-events-auto">
+              <AppShellPrimaryNav variant="desktop" />
             </div>
           </div>
 
-          <div className="hidden w-full justify-center lg:flex lg:flex-1">
-            <AppShellPrimaryNav variant="desktop" />
-          </div>
-
-          <div className="w-full lg:hidden">
-            <AppShellPrimaryNav variant="mobile" />
-            <div className="mt-3 border-t border-white/10 pt-3">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="hidden lg:block">
               <AppShellUserBar />
+            </div>
+            <div className="relative flex items-center gap-2 lg:hidden">
+              <AppShellUserBar />
+              <AppShellPrimaryNav variant="mobile" />
             </div>
           </div>
         </nav>

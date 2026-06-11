@@ -1,28 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 import { studioVisual } from "@/lib/studio-visual-tokens";
-
-function shortenEmail(email: string, maxLen = 30): string {
-  if (email.length <= maxLen) {
-    return email;
-  }
-  const at = email.indexOf("@");
-  if (at < 1) {
-    return `${email.slice(0, maxLen - 1)}…`;
-  }
-  const local = email.slice(0, at);
-  const domain = email.slice(at + 1);
-  if (local.length <= 12) {
-    return `${local}@${domain.slice(0, 8)}…`;
-  }
-  return `${local.slice(0, 10)}…@${domain}`;
-}
 
 function roleBadgeClass(role: string): string {
   if (role === "admin") {
@@ -47,6 +31,8 @@ function roleLabelKey(role: string): "nav.role.admin" | "nav.role.power" | "nav.
 export function AppShellUserBar() {
   const t = useActiveTranslator();
   const session = useAuthSession();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -57,6 +43,19 @@ export function AppShellUserBar() {
     invalidateAuthSessionCache();
     window.location.href = "/login";
   }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
 
   if (!session.resolved) {
     return (
@@ -85,40 +84,57 @@ export function AppShellUserBar() {
     );
   }
 
-  const { email, role, isActive } = session.user;
+  const { email, role } = session.user;
   const normalizedRole = role === "admin" || role === "power" ? role : "user";
-
-  const displayName = email.split("@")[0] ?? email;
+  const displayName = (email.split("@")[0] ?? email).replace(/^\w/, (c) => c.toUpperCase());
 
   return (
-    <div
-      className="flex max-w-full flex-shrink-0 flex-col items-stretch gap-2 sm:max-w-none sm:flex-row sm:items-center sm:justify-end"
-      data-testid="app-shell-user-bar"
-    >
-      <div className="min-w-0 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-right backdrop-blur-sm">
-        <p className="truncate text-sm font-semibold text-white">{displayName}</p>
-        <p
-          className={`truncate text-xs text-white/85 ${!isActive ? "opacity-50" : ""}`}
-          title={email}
-        >
-          {email}
-        </p>
+    <div ref={rootRef} className="relative flex-shrink-0" data-testid="app-shell-user-bar">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className={studioVisual.userPill}
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        <span className="max-w-[8rem] truncate font-semibold text-white">{displayName}</span>
         <span
-          className={`mt-1 inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-xs ${roleBadgeClass(normalizedRole)}`}
+          className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleBadgeClass(normalizedRole)}`}
         >
           {t(roleLabelKey(normalizedRole))}
         </span>
-      </div>
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {normalizedRole === "admin" ?
-          <Link href="/admin" prefetch={false} className={studioVisual.btnGhost}>
-            {t("nav.admin")}
-          </Link>
-        : null}
-        <button type="button" onClick={() => void handleLogout()} className={studioVisual.btnGhost}>
-          {t("nav.logout")}
-        </button>
-      </div>
+        <span className="text-white/60" aria-hidden>
+          ▼
+        </span>
+      </button>
+
+      {open ?
+        <div
+          className={`absolute right-0 z-50 mt-2 min-w-[14rem] ${studioVisual.userDropdown}`}
+          role="menu"
+        >
+          <p className="truncate px-3 py-2 text-xs text-white/70" title={email}>
+            {email}
+          </p>
+          {normalizedRole === "admin" ?
+            <Link
+              href="/admin"
+              prefetch={false}
+              className={studioVisual.userDropdownItem}
+              onClick={() => setOpen(false)}
+            >
+              {t("nav.admin")}
+            </Link>
+          : null}
+          <button
+            type="button"
+            className={`${studioVisual.userDropdownItem} w-full text-left`}
+            onClick={() => void handleLogout()}
+          >
+            {t("nav.logout")}
+          </button>
+        </div>
+      : null}
     </div>
   );
 }

@@ -151,8 +151,9 @@ describe("homecheff-suite-route-aliases", () => {
   it("library alias resolves to assets hub", () => {
     assert.equal(resolveLibraryHubPath(), "/studio/assets");
     assert.equal(resolveLibraryHubPath(["media", "videos"]), "/studio/assets/media/videos");
-    assert.equal(libraryAliasToHubPath("/library"), "/studio/assets");
-    assert.equal(libraryAliasToHubPath("/library/creative/characters"), "/studio/assets/creative/characters");
+    assert.equal(libraryAliasToHubPath("/library/start"), "/studio/assets");
+    assert.equal(libraryAliasToHubPath("/library/start/creative/characters"), "/studio/assets/creative/characters");
+    assert.equal(libraryAliasToHubPath("/library"), "/library");
     assert.ok(isLibraryAliasPath("/library/media/videos"));
   });
 

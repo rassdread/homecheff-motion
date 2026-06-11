@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { PublishProductPage } from "@/components/publish/publish-product-page";
+import { PublishLandingRoute } from "@/components/suite/publish-landing-route";
 
 export default function PublishRoutePage() {
-  return (
-    <Suspense fallback={null}>
-      <PublishProductPage />
-    </Suspense>
-  );
+  return <PublishLandingRoute />;
 }

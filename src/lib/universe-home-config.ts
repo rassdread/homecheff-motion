@@ -89,7 +89,7 @@ export const UNIVERSE_PLANETS: UniversePlanetConfig[] = [
   {
     id: "motion",
     productId: "motion",
-    href: "/animate/instant",
+    href: "/motion",
     orbitAngle: 54,
     accent: UNIVERSE_BRAND.blue,
     titleKey: "suite.home.motion.title",

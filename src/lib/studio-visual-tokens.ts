@@ -11,24 +11,24 @@ export const studioVisual = {
   /** Full-page cinematic background for product routes */
   pageBg:
     "studio-page-bg min-h-[calc(100dvh-4rem)] flex-1 text-zinc-100",
-  /** Sticky dark glass header */
+  /** Sticky dark glass header — compact V4 */
   header:
-    "sticky top-0 z-30 border-b border-white/10 bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_8px_32px_-12px_rgba(0,103,177,0.35)]",
-  headerInner: "mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-3.5 lg:px-10",
+    "sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)]",
+  headerInner:
+    "mx-auto grid w-full max-w-7xl grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 min-h-[60px] sm:px-6 sm:min-h-[68px] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:px-8 lg:min-h-[76px] lg:py-3",
   logoMark:
-    "relative h-8 w-8 overflow-hidden rounded-lg border border-white/20 shadow-[0_0_12px_rgba(0,109,82,0.35)]",
-  logoText: "text-sm font-semibold tracking-tight text-white",
+    "relative h-7 w-7 overflow-hidden rounded-lg border border-white/[0.17] shadow-[0_0_10px_rgba(0,109,82,0.3)] sm:h-8 sm:w-8",
+  logoText: "text-xs font-semibold tracking-tight text-white sm:text-sm",
   /** Nav pills */
   navInactive:
-    "inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/12 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/75 transition-all hover:border-white/20 hover:bg-white/10 hover:text-white sm:min-h-0 sm:px-3 sm:py-2 sm:text-xs lg:px-4 lg:text-sm",
+    "inline-flex h-9 shrink-0 items-center rounded-full border border-white/[0.10] bg-white/5 px-3 text-xs font-medium text-white/80 transition-all hover:border-white/[0.17] hover:bg-white/10 hover:text-white lg:px-4 lg:text-sm",
   navActive:
-    "inline-flex min-h-11 shrink-0 items-center rounded-full border border-[#006D52]/50 bg-gradient-to-r from-[#006D52]/25 to-[#0067B1]/25 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-[0_0_16px_rgba(0,103,177,0.35)] sm:min-h-0 sm:px-3 sm:py-2 sm:text-xs lg:px-4 lg:text-sm",
+    "inline-flex h-9 shrink-0 items-center rounded-full border border-[#006D52]/45 bg-gradient-to-r from-[#006D52]/25 to-[#0067B1]/25 px-3 text-xs font-semibold text-white shadow-[0_0_13px_rgba(0,103,177,0.28)] lg:px-4 lg:text-sm",
   /** Language switch */
   langSwitch:
-    "flex items-center rounded-full border border-white/15 bg-white/8 p-0.5 backdrop-blur-sm",
-  langOptionActive: "rounded-full bg-gradient-to-r from-[#006D52] to-[#0067B1] px-2.5 py-1 text-[11px] font-semibold text-white sm:text-xs",
-  langOptionInactive:
-    "rounded-full px-2.5 py-1 text-[11px] font-semibold text-white/65 transition-colors hover:bg-white/10 hover:text-white sm:text-xs",
+    "flex items-center rounded-full border border-white/[0.13] bg-white/[0.07] p-0.5 backdrop-blur-sm",
+  langOptionActive: "",
+  langOptionInactive: "",
   /** User bar */
   userEmail: "truncate text-xs text-white/60 sm:text-sm",
   btnGhost:
@@ -43,6 +43,16 @@ export const studioVisual = {
     "shrink-0 rounded-full border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/60 sm:text-xs",
   roleBadgePower:
     "shrink-0 rounded-full border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200 sm:text-xs",
+  userPill:
+    "inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.13] bg-white/[0.07] px-3 py-1.5 text-xs backdrop-blur-sm transition-colors hover:bg-white/10",
+  userDropdown:
+    "overflow-hidden rounded-xl border border-white/[0.13] bg-[#041428]/95 py-1 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
+  userDropdownItem:
+    "block px-3 py-2 text-sm text-white/90 transition-colors hover:bg-white/10",
+  mobileMenuButton:
+    "inline-flex h-9 items-center rounded-full border border-white/[0.13] bg-white/[0.07] px-3 text-xs font-semibold text-white backdrop-blur-sm",
+  mobileNavDrawer:
+    "absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-white/[0.13] bg-[#041428]/95 p-3 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
   /** Cards */
   cardLight:
     "rounded-2xl border border-white/15 bg-white/[0.94] p-6 text-zinc-900 shadow-[0_16px_48px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md",
@@ -71,4 +81,14 @@ export const studioVisual = {
   /** Eyebrow / section labels on dark pages */
   eyebrow: "text-xs font-semibold uppercase tracking-wider text-[#006D52]",
   eyebrowOnDark: "text-xs font-semibold uppercase tracking-wider text-emerald-300/90",
+  fusionCategorySection:
+    "rounded-2xl border border-white/[0.10] bg-white/[0.04] p-5 backdrop-blur-sm sm:p-6",
+  fusionCategoryDivider:
+    "mt-4 h-px w-full bg-gradient-to-r from-[#006D52] via-white/20 to-[#0067B1]",
+  fusionCard:
+    "relative rounded-2xl border border-white/20 bg-white/[0.97] p-5 text-left shadow-[0_10px_30px_-18px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:border-[#0067B1]/35 disabled:opacity-50",
+  fusionCardSelected:
+    "relative rounded-2xl border border-transparent bg-white p-5 text-left shadow-[0_14px_36px_-16px_rgba(0,103,177,0.45)] ring-2 ring-transparent [background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(135deg,#006D52,#0067B1)_border-box] transition hover:-translate-y-0.5 disabled:opacity-50",
+  fusionBadge:
+    "shrink-0 rounded-full bg-gradient-to-r from-[#006D52]/15 to-[#0067B1]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0067B1]",
 } as const;

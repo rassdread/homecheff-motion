@@ -20,8 +20,8 @@ const nextConfig: NextConfig = {
   ],
   async redirects() {
     return [
-      { source: "/library", destination: "/studio/assets", permanent: false },
-      { source: "/library/:path*", destination: "/studio/assets/:path*", permanent: false },
+      { source: "/library/start", destination: "/studio/assets", permanent: false },
+      { source: "/library/start/:path*", destination: "/studio/assets/:path*", permanent: false },
       { source: "/presentation", destination: "/publish", permanent: false },
       { source: "/presentation/:path*", destination: "/publish/:path*", permanent: false },
       { source: "/create", destination: "/maak", permanent: false },

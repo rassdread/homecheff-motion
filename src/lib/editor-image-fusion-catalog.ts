@@ -21,6 +21,7 @@ export type EditorFusionIntentDefinition = {
   defaultPreservation: EditorFusionPreservationRule[];
   isSimulation?: boolean;
   legacy?: boolean;
+  badge?: "popular" | "recommended" | "new" | "premium";
 };
 
 export const FUTURE_IDENTITY_DISCLAIMER =
@@ -38,6 +39,7 @@ const PEOPLE: EditorFusionIntentDefinition[] = [
     ],
     defaultFusionStrength: 85,
     defaultPreservation: ["face", "hair", "identity", "expression", "body_proportions", "pose"],
+    badge: "popular",
   },
   {
     id: "person_outfit",
@@ -63,6 +65,7 @@ const PEOPLE: EditorFusionIntentDefinition[] = [
     ],
     defaultFusionStrength: 50,
     defaultPreservation: ["identity", "illustration_style"],
+    badge: "recommended",
   },
   {
     id: "character_upgrade",
@@ -259,6 +262,7 @@ const FUTURE: EditorFusionIntentDefinition[] = [
     defaultFusionStrength: 60,
     defaultPreservation: ["face", "identity", "distinctive_features"],
     isSimulation: true,
+    badge: "new",
   },
   {
     id: "life_timeline",
@@ -269,6 +273,7 @@ const FUTURE: EditorFusionIntentDefinition[] = [
     defaultFusionStrength: 55,
     defaultPreservation: ["face", "identity"],
     isSimulation: true,
+    badge: "premium",
   },
   {
     id: "genetic_blend",

@@ -315,7 +315,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   return (
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
+        <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
           <p className={studioVisual.eyebrowOnDark}>{t("suite.nav.editor")}</p>
 
           {phase.kind === "workflow" ?

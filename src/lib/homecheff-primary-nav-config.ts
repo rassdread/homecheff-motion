@@ -73,18 +73,26 @@ export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
 
 /** Five-product suite navigation — opt-in via NEXT_PUBLIC_HOMECHEFF_PRODUCT_SUITE_NAV */
 export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
-  const motionMatch = (pathname: string) =>
-    isStudioProductionModeEnabled()
-      ? pathname === "/animate/instant" || pathname.startsWith("/animate/instant/")
-      : pathname === "/animate/instant" ||
-        pathname.startsWith("/animate/instant/") ||
-        pathname === "/animate" ||
-        pathname.startsWith("/animate/");
-
   const libraryMatch = (pathname: string) =>
     isLibraryAliasPath(pathname) ||
     pathname === "/studio/assets" ||
     pathname.startsWith("/studio/assets/");
+
+  const motionMatch = (pathname: string) =>
+    pathname === "/motion" ||
+    pathname.startsWith("/motion/") ||
+    (isStudioProductionModeEnabled()
+      ? pathname === "/animate/instant" || pathname.startsWith("/animate/instant/")
+      : pathname === "/animate/instant" ||
+        pathname.startsWith("/animate/instant/") ||
+        pathname === "/animate" ||
+        pathname.startsWith("/animate/"));
+
+  const usageMatch = (pathname: string) =>
+    pathname === "/usage" ||
+    pathname.startsWith("/usage/") ||
+    pathname === "/mijn-verbruik" ||
+    pathname.startsWith("/mijn-verbruik/");
 
   const publishMatch = (pathname: string) =>
     pathname === "/publish" ||
@@ -115,7 +123,7 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       productId: "studio",
     },
     {
-      href: "/animate/instant",
+      href: "/motion",
       labelKey: "suite.nav.motion",
       match: motionMatch,
       productId: "motion",
@@ -138,6 +146,12 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       href: "/pricing",
       labelKey: "nav.pricing",
       match: (pathname) => pathname === "/pricing" || pathname.startsWith("/pricing/"),
+    },
+    {
+      href: "/usage",
+      labelKey: "nav.usage",
+      match: usageMatch,
+      authOnly: true,
     },
   ];
 }
