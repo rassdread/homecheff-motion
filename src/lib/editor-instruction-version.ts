@@ -1,9 +1,11 @@
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type {
+  EditorInstructionChangePlanItem,
   EditorInstructionReference,
   EditorInstructionSelection,
   EditorInstructionVariant,
   EditorInstructionVariantGenerationStatus,
+  EditorInstructionOutputTarget,
 } from "@/types/editor-instruction-studio";
 
 export function createInstructionVariantId(): string {
@@ -125,6 +127,8 @@ export function createPendingInstructionVariant(params: {
   instruction: EditorInstructionSelection;
   prompt: string;
   references?: EditorInstructionReference[];
+  changePlan?: EditorInstructionChangePlanItem[];
+  outputTarget?: EditorInstructionOutputTarget;
   provider?: string;
   userNote?: string;
   name?: string;
@@ -139,9 +143,11 @@ export function createPendingInstructionVariant(params: {
     sourceImageId: params.sourceImageId,
     parentVariantId: params.parentVariantId ?? null,
     instruction: params.instruction,
+    changePlan: params.changePlan,
     references: params.references,
     prompt: params.prompt,
     provider: params.provider,
+    outputTarget: params.outputTarget,
     status: "pending",
     approvalStatus: "draft",
     userNote: params.userNote,

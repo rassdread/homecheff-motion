@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     imageUrl?: string;
     prompt?: string;
     instruction?: Partial<EditorInstructionSelection>;
+    changePlan?: import("@/types/editor-instruction-studio").EditorInstructionChangePlanItem[];
     references?: EditorInstructionReference[];
     variantName?: string;
     parentVariantId?: string | null;
@@ -60,12 +61,37 @@ export async function POST(request: Request) {
   const imageUrl = body.imageUrl?.trim();
   const prompt = body.prompt?.trim();
   const normalizedInstruction = body.instruction ? normalizeInstruction(body.instruction) : null;
+  const changePlan = body.changePlan?.length ? body.changePlan : undefined;
 
-  if (!sessionId || !imageUrl || !prompt || !normalizedInstruction) {
+  if (!sessionId || !imageUrl || !prompt || (!normalizedInstruction && !changePlan)) {
     return NextResponse.json(
-      { error: "sessionId, imageUrl, prompt, and instruction.objectKey/category/action are required." },
+      {
+        error:
+          "sessionId, imageUrl, prompt, and instruction or changePlan are required.",
+      },
       { status: 400 }
     );
+  }
+
+  const instruction =
+    normalizedInstruction ??
+    (changePlan
+      ? {
+          objectKey: changePlan[0]!.objectId,
+          objectLabel: changePlan[0]!.objectLabel,
+          category: changePlan[0]!.objectCategory,
+          action: changePlan[0]!.action,
+          sliders: {
+            ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS,
+            changeStrength: changePlan[0]!.strength,
+            preserveStyle: changePlan[0]!.preserveStyle,
+            brandPreservation: changePlan[0]!.preserveBrand,
+          },
+        }
+      : null);
+
+  if (!instruction) {
+    return NextResponse.json({ error: "Invalid instruction payload." }, { status: 400 });
   }
 
   const result = await executeEditorInstructionVariant({
@@ -73,7 +99,7 @@ export async function POST(request: Request) {
     sessionId,
     imageUrl,
     prompt,
-    instruction: normalizedInstruction,
+    instruction,
     references: body.references,
   });
 
@@ -91,11 +117,16 @@ export async function POST(request: Request) {
     provider: result.provider,
     model: result.model,
     costEstimateUsd: result.costEstimateUsd,
-    instruction: normalizedInstruction,
+    instruction,
+    changePlan: body.changePlan,
     references: body.references,
     prompt,
     sourceImageUrl: imageUrl,
     variantName: body.variantName,
-    versionNote: body.variantName ?? `Variant: ${normalizedInstruction.action} ${normalizedInstruction.objectLabel}`,
+    versionNote:
+      body.variantName ??
+      (changePlan
+        ? `Change plan (${changePlan.length} edits)`
+        : `Variant: ${instruction.action} ${instruction.objectLabel}`),
   });
 }

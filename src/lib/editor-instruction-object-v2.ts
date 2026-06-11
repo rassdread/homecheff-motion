@@ -13,7 +13,7 @@ export {
   buildInstructionObjectsFromDocument,
   buildGlobeManHeuristicObjects,
   isGlobeManMascotImage,
-  isAnalysisOnlyTrait,
+  isStyleTrait,
   cleanRawObjectFeed,
   dedupeAndMergeObjects,
   normalizeDisplayLabel,
@@ -29,7 +29,7 @@ export function getInstructionObjectFeedMeta(document: EditorCanvasDocument): Ed
 }
 
 export function listInstructionObjectsV2(document: EditorCanvasDocument): EditorInstructionObjectV2[] {
-  return buildInstructionObjectsFromDocument(document).objects;
+  return buildInstructionObjectsFromDocument(document).editableObjects;
 }
 
 export function findInstructionObjectV2(

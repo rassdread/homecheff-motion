@@ -1,4 +1,5 @@
 import type {
+  EditorInstructionChangePlanItem,
   EditorInstructionReference,
   EditorInstructionSelection,
 } from "@/types/editor-instruction-studio";
@@ -25,6 +26,7 @@ export async function executeEditorInstructionVariantApi(input: {
   imageUrl: string;
   prompt: string;
   instruction: EditorInstructionSelection;
+  changePlan?: EditorInstructionChangePlanItem[];
   references?: EditorInstructionReference[];
   variantName?: string;
   parentVariantId?: string | null;

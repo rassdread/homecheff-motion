@@ -1,10 +1,12 @@
 import { actionsForInstructionCategory } from "@/lib/editor-instruction-actions";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
+import { attachBoundsToObjects } from "@/lib/editor-instruction-object-bounds";
 import type {
   EditorInstructionObjectCategory,
   EditorInstructionObjectFeedMeta,
   EditorInstructionObjectSource,
   EditorInstructionObjectV2,
+  EditorInstructionStyleTrait,
 } from "@/types/editor-instruction-studio";
 import type {
   EditorCanvasDocument,
@@ -15,12 +17,16 @@ import type {
 import type { EditorAssetProfile } from "@/types/editor-asset-profile";
 
 export type InstructionObjectFeedResult = {
+  /** Editable objects for dropdown (alias: objects) */
+  editableObjects: EditorInstructionObjectV2[];
+  /** @deprecated use editableObjects */
   objects: EditorInstructionObjectV2[];
+  styleTraits: EditorInstructionStyleTrait[];
   meta: EditorInstructionObjectFeedMeta;
 };
 
-const ANALYSIS_TRAIT_PATTERN =
-  /body\s*shape|rounded\s*body|body\s*proportions|character\s*proportions|face\s*shape|identity\s*shape|shape\s*marker|silhouette|estimated\s*bounds|approximate\s*selection|taxonomy|proportion|marker/i;
+const STYLE_TRAIT_PATTERN =
+  /head\s*shape|body\s*shape|rounded\s*body|body\s*proportions|character\s*proportions|face\s*shape|outline\s*style|color\s*palette|brand\s*colors?|line\s*weight|facial\s*features|simple\s*facial|signature\s*mascot|mascot\s*head|identity\s*shape|shape\s*marker|silhouette|estimated\s*bounds|approximate\s*selection|taxonomy|proportion|marker/i;
 
 const CATEGORY_SORT_ORDER: Record<EditorInstructionObjectCategory, number> = {
   character: 0,
@@ -47,8 +53,22 @@ function slugifyId(label: string): string {
     .slice(0, 48);
 }
 
+export function isStyleTrait(label: string): boolean {
+  return STYLE_TRAIT_PATTERN.test(label.trim());
+}
+
 export function isAnalysisOnlyTrait(label: string): boolean {
-  return ANALYSIS_TRAIT_PATTERN.test(label.trim());
+  return isStyleTrait(label);
+}
+
+function isEditableObject(obj: EditorInstructionObjectV2): boolean {
+  if (isStyleTrait(obj.label)) {
+    return false;
+  }
+  if (obj.label === "Main subject") {
+    return true;
+  }
+  return obj.category !== "other" || /face|apron|coat|globe man/i.test(obj.label);
 }
 
 function normalizeDedupeKey(label: string, category: EditorInstructionObjectCategory): string {
@@ -76,6 +96,12 @@ function normalizeDedupeKey(label: string, category: EditorInstructionObjectCate
   }
   if (/globe man|globeman|mascot/.test(text)) {
     return "character_globe_man";
+  }
+  if (/\bface\b/.test(text)) {
+    return "face";
+  }
+  if (/lab coat|white coat|labcoat/.test(text)) {
+    return "lab_coat";
   }
   return `${category}:${text}`;
 }
@@ -106,9 +132,15 @@ export function normalizeDisplayLabel(
     if (/shoe|shoes|footwear/.test(lower)) {
       return "Shoes";
     }
+    if (/lab coat|labcoat|white coat/.test(lower)) {
+      return "White lab coat";
+    }
     if (/^(suit|jacket|clothing|uniform|outfit)\b/.test(lower)) {
       return "Suit / Clothing";
     }
+  }
+  if (/\bface\b/.test(lower)) {
+    return "Face";
   }
   if (category === "character" && /mascot|character|chef|person|figure/.test(lower)) {
     if (/globe man|globeman/.test(lower)) {
@@ -145,6 +177,12 @@ function inferCategoryFromText(
   }
   if (/shoe|shoes|footwear/.test(text)) {
     return "clothing";
+  }
+  if (/lab coat|labcoat|white coat/.test(text)) {
+    return "clothing";
+  }
+  if (/\bface\b/.test(text)) {
+    return "character";
   }
   if (/apron|shirt|jacket|hat|clothing|uniform|outfit|suit|pants|trousers/.test(text)) {
     return "clothing";
@@ -322,6 +360,7 @@ export function isGlobeManMascotImage(document: EditorCanvasDocument): boolean {
 export function buildGlobeManHeuristicObjects(): EditorInstructionObjectV2[] {
   const specs: Array<{ label: string; category: EditorInstructionObjectCategory; confidence: number }> = [
     { label: "Character / Globe Man", category: "character", confidence: 0.58 },
+    { label: "Face", category: "character", confidence: 0.54 },
     { label: "Globe", category: "tool", confidence: 0.55 },
     { label: "Suit / Clothing", category: "clothing", confidence: 0.55 },
     { label: "Tie", category: "clothing", confidence: 0.52 },
@@ -349,7 +388,7 @@ export function cleanRawObjectFeed(raw: EditorInstructionObjectV2[]): RawSplit {
   const editable: EditorInstructionObjectV2[] = [];
 
   for (const obj of raw) {
-    if (isAnalysisOnlyTrait(obj.label)) {
+    if (isStyleTrait(obj.label)) {
       traits.push(obj.label.trim());
       continue;
     }
@@ -408,7 +447,8 @@ function findLogoInRaw(raw: EditorInstructionObjectV2[]): EditorInstructionObjec
 
 function applyGlobeManFeed(
   raw: EditorInstructionObjectV2[],
-  sourcesUsed: EditorInstructionObjectSource[]
+  sourcesUsed: EditorInstructionObjectSource[],
+  document: EditorCanvasDocument
 ): InstructionObjectFeedResult {
   const { traits } = cleanRawObjectFeed(raw);
   const logo = findLogoInRaw(raw);
@@ -445,16 +485,16 @@ function applyGlobeManFeed(
     ? sourcesUsed
     : [...sourcesUsed, "heuristic"];
 
-  return {
+  return splitFeedResult(
     objects,
-    meta: {
+    {
       source: sourcesUsed.includes("heuristic") ? "heuristic" : "mixed",
-      count: objects.length,
       rawCount: raw.length,
       lowConfidence: true,
       sourcesUsed: mergedSources,
     },
-  };
+    document
+  );
 }
 
 function documentHasLikelyForegroundSubject(document: EditorCanvasDocument): boolean {
@@ -560,23 +600,61 @@ function resolvePrimarySource(sourcesUsed: EditorInstructionObjectSource[]): Edi
   return "mixed";
 }
 
+function splitFeedResult(
+  objects: EditorInstructionObjectV2[],
+  meta: Omit<EditorInstructionObjectFeedMeta, "count" | "traitCount">,
+  document: EditorCanvasDocument
+): InstructionObjectFeedResult {
+  const styleTraits: EditorInstructionStyleTrait[] = [];
+  const seenTraits = new Set<string>();
+
+  for (const obj of objects) {
+    for (const trait of obj.traits ?? []) {
+      const key = trait.toLowerCase();
+      if (!seenTraits.has(key)) {
+        seenTraits.add(key);
+        styleTraits.push({
+          id: `trait_${slugifyId(trait)}`,
+          label: trait,
+          source: obj.source,
+        });
+      }
+    }
+  }
+
+  const editableOnly = dedupeAndMergeObjects(objects.filter(isEditableObject));
+  const editableObjects = attachBoundsToObjects(editableOnly, document);
+
+  return {
+    editableObjects,
+    objects: editableObjects,
+    styleTraits,
+    meta: {
+      ...meta,
+      count: editableObjects.length,
+      traitCount: styleTraits.length,
+    },
+  };
+}
+
 function finalizeFeed(
   objects: EditorInstructionObjectV2[],
   rawCount: number,
   sourcesUsed: EditorInstructionObjectSource[],
-  lowConfidence: boolean
+  lowConfidence: boolean,
+  document: EditorCanvasDocument
 ): InstructionObjectFeedResult {
   const cleaned = ensureBackground(dedupeAndMergeObjects(objects), sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
-  return {
-    objects: cleaned,
-    meta: {
+  return splitFeedResult(
+    cleaned,
+    {
       source: resolvePrimarySource(sourcesUsed),
-      count: cleaned.length,
       rawCount,
       lowConfidence,
       sourcesUsed: [...new Set(sourcesUsed)],
     },
-  };
+    document
+  );
 }
 
 /**
@@ -590,23 +668,23 @@ export function buildInstructionObjectsFromDocument(
   if (explicit?.length) {
     const { editable } = cleanRawObjectFeed(explicit);
     const objects = ensureBackground(editable, "instructionObjects");
-    return {
+    return splitFeedResult(
       objects,
-      meta: {
+      {
         source: "instructionObjects",
-        count: objects.length,
         rawCount: explicit.length,
         lowConfidence: false,
         sourcesUsed: ["instructionObjects"],
       },
-    };
+      document
+    );
   }
 
   const { raw, sourcesUsed } = collectRawCandidates(document);
   const rawCount = raw.length;
 
   if (isGlobeManMascotImage(document)) {
-    return applyGlobeManFeed(raw, sourcesUsed);
+    return applyGlobeManFeed(raw, sourcesUsed, document);
   }
 
   if (rawCount === 0) {
@@ -623,28 +701,28 @@ export function buildInstructionObjectsFromDocument(
         ],
         "fallback"
       );
-      return {
+      return splitFeedResult(
         objects,
-        meta: {
+        {
           source: "fallback",
-          count: objects.length,
           rawCount: 0,
           lowConfidence: true,
           sourcesUsed: ["fallback"],
         },
-      };
+        document
+      );
     }
     const objects = ensureBackground([], "fallback");
-    return {
+    return splitFeedResult(
       objects,
-      meta: {
+      {
         source: "fallback",
-        count: objects.length,
         rawCount: 0,
         lowConfidence: false,
         sourcesUsed: ["fallback"],
       },
-    };
+      document
+    );
   }
 
   const { editable } = cleanRawObjectFeed(raw);
@@ -670,5 +748,5 @@ export function buildInstructionObjectsFromDocument(
     objects = ensureBackground(objects, sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
   }
 
-  return finalizeFeed(objects, rawCount, sourcesUsed, lowConfidence);
+  return finalizeFeed(objects, rawCount, sourcesUsed, lowConfidence, document);
 }

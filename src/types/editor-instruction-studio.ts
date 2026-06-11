@@ -91,12 +91,29 @@ export type EditorInstructionObjectSource = (typeof EDITOR_INSTRUCTION_OBJECT_SO
 
 export type EditorInstructionObjectFeedMeta = {
   source: EditorInstructionObjectSource | "mixed";
-  /** Cleaned user-facing object count */
+  /** Cleaned editable object count (user-facing) */
   count: number;
+  /** Style trait count */
+  traitCount: number;
   /** Raw candidates before cleanup (admin debug) */
   rawCount: number;
   lowConfidence: boolean;
   sourcesUsed: EditorInstructionObjectSource[];
+};
+
+export type EditorInstructionObjectBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** true when bounds come from detected layer geometry */
+  exact: boolean;
+};
+
+export type EditorInstructionStyleTrait = {
+  id: string;
+  label: string;
+  source?: EditorInstructionObjectSource;
 };
 
 export type EditorInstructionObjectV2 = {
@@ -108,8 +125,71 @@ export type EditorInstructionObjectV2 = {
   suggestedActions: EditorInstructionDynamicAction[];
   layerId?: string;
   source?: EditorInstructionObjectSource;
-  /** Analysis traits grouped onto this object (e.g. body proportions on Character) */
+  /** Analysis traits grouped onto this object (prompt metadata, not dropdown entries) */
   traits?: string[];
+  bounds?: EditorInstructionObjectBounds;
+};
+
+export type EditorInstructionChangePlanItemStatus = "pending" | "applied" | "skipped";
+
+export type EditorInstructionChangePlanItem = {
+  id: string;
+  objectId: string;
+  objectLabel: string;
+  objectCategory: EditorInstructionObjectCategory;
+  action: EditorInstructionDynamicAction;
+  instruction: string;
+  replacement?: string;
+  color?: string;
+  customPrompt?: string;
+  logoReferenceId?: string;
+  styleReferenceId?: string;
+  productReferenceId?: string;
+  brandingPlacementHint?: string;
+  strength: number;
+  preserveStyle: number;
+  preserveBrand: number;
+  order: number;
+  status: EditorInstructionChangePlanItemStatus;
+};
+
+export const EDITOR_INSTRUCTION_OUTPUT_TARGETS = [
+  "social",
+  "web",
+  "motion",
+  "print",
+] as const;
+
+export type EditorInstructionOutputTarget = (typeof EDITOR_INSTRUCTION_OUTPUT_TARGETS)[number];
+
+export const EDITOR_INSTRUCTION_PRINT_PRESETS = [
+  "a4",
+  "a5",
+  "a3",
+  "poster",
+  "flyer",
+  "sticker",
+  "label",
+  "menu_card",
+  "packaging_mockup",
+] as const;
+
+export type EditorInstructionPrintPreset = (typeof EDITOR_INSTRUCTION_PRINT_PRESETS)[number];
+
+export type EditorInstructionPrintExportRecord = {
+  id: string;
+  variantId: string;
+  preset: EditorInstructionPrintPreset;
+  widthPx: number;
+  heightPx: number;
+  dpi: number;
+  bleedMm: number;
+  safeMarginMm: number;
+  exportUrl?: string;
+  format: "png" | "pdf" | "tiff";
+  warnings: string[];
+  qualityScore: number;
+  createdAt: string;
 };
 
 export type EditorInstructionSliders = {
@@ -182,6 +262,8 @@ export type EditorInstructionVariant = {
   resultUrl?: string;
   resultStorageKey?: string;
   instruction: EditorInstructionSelection;
+  /** Full multi-step plan when variant was generated from a change plan */
+  changePlan?: EditorInstructionChangePlanItem[];
   references?: EditorInstructionReference[];
   prompt: string;
   provider?: string;
@@ -192,6 +274,8 @@ export type EditorInstructionVariant = {
   userNote?: string;
   versionNote?: string;
   presetId?: string;
+  outputTarget?: EditorInstructionOutputTarget;
+  printExports?: EditorInstructionPrintExportRecord[];
   createdAt: string;
   updatedAt: string;
   error?: string;
@@ -214,6 +298,11 @@ export type EditorInstructionStudioState = {
   selection?: Partial<EditorInstructionSelection>;
   /** Explicit object feed override — highest priority for instruction UI */
   instructionObjects?: EditorInstructionObjectV2[];
+  /** Multi-step edits queued before variant generation */
+  changePlan?: EditorInstructionChangePlanItem[];
+  /** AI Director natural-language input */
+  directorPrompt?: string;
+  outputTarget?: EditorInstructionOutputTarget;
   brandReferences?: BrandReferenceAsset[];
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;

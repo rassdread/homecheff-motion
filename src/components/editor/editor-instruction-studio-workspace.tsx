@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
+import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
+import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
+import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-instruction-preview-highlight";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
 import { useActiveTranslator } from "@/i18n/client";
 import {
@@ -29,6 +31,14 @@ import {
   getInstructionObjectFeed,
 } from "@/lib/editor-instruction-object-v2";
 import {
+  appendChangePlanItem,
+  buildChangePlanItemFromSelection,
+  listChangePlan,
+  validateChangePlanItemInput,
+} from "@/lib/editor-instruction-change-plan";
+import { evaluatePrintQuality, PRINT_PRESET_SPECS } from "@/lib/editor-instruction-print-export";
+import {
+  buildEditorInstructionChangePlanPrompt,
   buildEditorInstructionPromptV2,
   buildEditorInstructionVariantPayload,
 } from "@/lib/editor-instruction-prompt-builder";
@@ -86,8 +96,10 @@ export function EditorInstructionStudioWorkspace({
   const [statusMessage, setStatusMessage] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [colorInput, setColorInput] = useState("");
+  const [addPlanReason, setAddPlanReason] = useState("");
 
-  const { objects: objectsV2, meta: objectFeedMeta } = useMemo(
+  const { editableObjects: objectsV2, styleTraits, meta: objectFeedMeta } = useMemo(
     () => getInstructionObjectFeed(document),
     [document]
   );
@@ -105,6 +117,9 @@ export function EditorInstructionStudioWorkspace({
     category: storedSelection?.category ?? initialObject?.category ?? "other",
     action: storedSelection?.action ?? initialObject?.suggestedActions[0] ?? "replace",
   });
+
+  const selectedObject =
+    objectsV2.find((o) => o.id === selection.objectKey) ?? objectsV2[0] ?? null;
 
   const categoryActions = actionsForInstructionCategory(selection.category);
   const logoRef = findBrandReference(document, selection.logoReferenceId);
@@ -133,6 +148,7 @@ export function EditorInstructionStudioWorkspace({
     prompt: string;
     instruction: typeof selection;
     references: ReturnType<typeof buildInstructionReferences>;
+    changePlan?: ReturnType<typeof listChangePlan>;
     variantName?: string;
     parentVariantId?: string | null;
     presetId?: string;
@@ -145,6 +161,8 @@ export function EditorInstructionStudioWorkspace({
         instruction: params.instruction,
         prompt: params.prompt,
         references: params.references,
+        changePlan: params.changePlan,
+        outputTarget: document.instructionStudioState?.outputTarget,
         provider: "openai",
         name: params.variantName,
         parentVariantId: params.parentVariantId ?? approvedActive?.id ?? null,
@@ -172,6 +190,7 @@ export function EditorInstructionStudioWorkspace({
       imageUrl: document.backgroundUrl,
       prompt: params.prompt,
       instruction: params.instruction,
+      changePlan: params.changePlan,
       references: params.references,
       variantName: params.variantName,
       parentVariantId: params.parentVariantId,
@@ -206,6 +225,57 @@ export function EditorInstructionStudioWorkspace({
       )
     );
     return pendingId;
+  };
+
+  const handleAddToChangePlan = () => {
+    const validation = validateChangePlanItemInput(
+      { ...selection, color: colorInput },
+      document
+    );
+    if (!validation.ok) {
+      setAddPlanReason(t((validation.reasonKey ?? "") as never));
+      return;
+    }
+    setAddPlanReason("");
+    const item = buildChangePlanItemFromSelection(
+      { ...selection, color: colorInput || undefined },
+      listChangePlan(document).length
+    );
+    onDocumentChange(appendChangePlanItem(document, item));
+    setStatusMessage(t("editor.instructionStudio.v2.changePlan.added" as never));
+  };
+
+  const handleGenerateFromPlan = async () => {
+    const plan = listChangePlan(document);
+    if (plan.length === 0) {
+      return;
+    }
+    setGenerating(true);
+    setStatusMessage(t("editor.instructionStudio.generating" as never));
+    const references = buildInstructionReferences(document, selection);
+    const prompt = buildEditorInstructionChangePlanPrompt({
+      items: plan,
+      brandIdentity: document.assetProfile?.humanSummaryKey,
+      references,
+      preserveStyle: selection.sliders.preserveStyle,
+      preserveBrand: selection.sliders.brandPreservation,
+    });
+    const first = plan[0]!;
+    const instruction = mergeInstructionSelection(document, undefined, {
+      objectKey: first.objectId,
+      objectLabel: first.objectLabel,
+      category: first.objectCategory,
+      action: first.action,
+    });
+    await runVariantGeneration({
+      prompt,
+      instruction,
+      references,
+      changePlan: plan,
+      variantName: `Change plan (${plan.length})`,
+    });
+    setGenerating(false);
+    setStatusMessage(t("editor.instructionStudio.v2.changePlan.generated" as never));
   };
 
   const handleGenerateVariant = async () => {
@@ -354,16 +424,10 @@ export function EditorInstructionStudioWorkspace({
             <p className="mb-1 text-xs text-zinc-600">
               {t("editor.instructionStudio.originalLabel" as never)}
             </p>
-            <EditorCanvasPreview
+            <EditorInstructionPreviewHighlight
               document={document}
-              selectedLayerId={null}
-              selectedPlacementId={null}
-              previewOnly
-              onSelectLayer={() => undefined}
-              onSelectPlacement={() => undefined}
-              onMoveLayer={() => undefined}
-              onMovePlacement={() => undefined}
-              onResizePlacement={() => undefined}
+              imageUrl={document.backgroundUrl}
+              selectedObject={selectedObject}
             />
           </div>
           {previewUrl ?
@@ -402,11 +466,30 @@ export function EditorInstructionStudioWorkspace({
         />
 
         <aside className="w-full shrink-0 space-y-4 xl:max-w-sm">
+          <EditorInstructionAiDirectorBar
+            document={document}
+            editableObjects={objectsV2}
+            onDocumentChange={onDocumentChange}
+            onApplyFirstChange={(objectLabel, category) => {
+              const obj = objectsV2.find(
+                (o) =>
+                  o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
+                  o.category === category
+              );
+              if (obj) {
+                updateSelection(defaultSelectionForObject(obj));
+              }
+            }}
+          />
+
           <section className="rounded-2xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-900">
               {t("editor.instructionStudio.whatISee" as never)}
             </h2>
-            <ul className="mt-2 space-y-2 text-sm text-slate-700">
+            <h3 className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {t("editor.instructionStudio.v2.objectFeed.objectsSection" as never)}
+            </h3>
+            <ul className="mt-1 space-y-2 text-sm text-slate-700">
               {objectsV2.map((obj) => (
                 <li key={obj.id}>
                   <span className="font-medium">{obj.label}</span>
@@ -416,6 +499,18 @@ export function EditorInstructionStudioWorkspace({
                 </li>
               ))}
             </ul>
+            {styleTraits.length > 0 ?
+              <>
+                <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("editor.instructionStudio.v2.objectFeed.traitsSection" as never)}
+                </h3>
+                <ul className="mt-1 space-y-1 text-xs text-zinc-600">
+                  {styleTraits.map((trait) => (
+                    <li key={trait.id}>{trait.label}</li>
+                  ))}
+                </ul>
+              </>
+            : null}
             {objectFeedMeta.lowConfidence ?
               <p className="mt-2 text-xs text-amber-700">
                 {t("editor.instructionStudio.v2.objectFeed.lowConfidenceNotice" as never)}
@@ -485,6 +580,31 @@ export function EditorInstructionStudioWorkspace({
                 ))}
               </select>
             </label>
+
+            {selection.action === "change_color" ?
+              <label className="mt-3 block text-xs font-medium text-zinc-600">
+                {t("editor.instructionStudio.v2.changePlan.colorLabel" as never)}
+                <input
+                  type="text"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                  value={colorInput}
+                  placeholder="#006D52 or green"
+                  onChange={(e) => setColorInput(e.target.value)}
+                />
+              </label>
+            : null}
+
+            {selection.action === "replace" ?
+              <label className="mt-3 block text-xs font-medium text-zinc-600">
+                {t("editor.instructionStudio.v2.changePlan.replacementLabel" as never)}
+                <input
+                  type="text"
+                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                  value={selection.replacement ?? ""}
+                  onChange={(e) => updateSelection({ replacement: e.target.value })}
+                />
+              </label>
+            : null}
 
             {showBranding ?
               <section className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
@@ -590,7 +710,57 @@ export function EditorInstructionStudioWorkspace({
               </summary>
               <p className="mt-2 whitespace-pre-wrap">{promptPreview}</p>
             </details>
+
+            <button
+              type="button"
+              disabled={legacyReadOnly}
+              className="mt-3 w-full rounded-xl border border-[#0067B1]/40 bg-[#0067B1]/5 px-4 py-2.5 text-sm font-semibold text-[#0067B1] disabled:opacity-50"
+              onClick={handleAddToChangePlan}
+            >
+              {t("editor.instructionStudio.v2.changePlan.add" as never)}
+            </button>
+            {addPlanReason ?
+              <p className="mt-1 text-xs text-amber-700">{addPlanReason}</p>
+            : null}
           </section>
+
+          <EditorInstructionChangePlanPanel
+            document={document}
+            onDocumentChange={onDocumentChange}
+            onGenerateFromPlan={() => void handleGenerateFromPlan()}
+            generating={generating}
+          />
+
+          {approvedActive?.approvalStatus === "approved" ?
+            <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {t("editor.instructionStudio.v2.print.title" as never)}
+              </h3>
+              <p className="mt-1 text-xs text-zinc-600">
+                {t("editor.instructionStudio.v2.print.lead" as never)}
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-zinc-700">
+                {PRINT_PRESET_SPECS.slice(0, 4).map((preset) => {
+                  const report = evaluatePrintQuality({
+                    preset: preset.id,
+                    sourceWidthPx: 1200,
+                    sourceHeightPx: 900,
+                  });
+                  return (
+                    <li key={preset.id} className="flex justify-between gap-2">
+                      <span>{t(preset.labelKey as never)}</span>
+                      <span className="text-zinc-500">
+                        {report.qualityScore}% · {report.widthPx}×{report.heightPx}px
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 text-[11px] text-amber-700">
+                {t("editor.instructionStudio.v2.print.cmykNote" as never)}
+              </p>
+            </section>
+          : null}
 
           <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
             <h3 className="text-sm font-semibold text-slate-900">

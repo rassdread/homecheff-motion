@@ -198,6 +198,31 @@ export function buildEditorInstructionPromptV2(input: EditorInstructionPromptInp
   return parts.filter(Boolean).join(" ");
 }
 
+export function buildEditorInstructionChangePlanPrompt(input: {
+  items: import("@/types/editor-instruction-studio").EditorInstructionChangePlanItem[];
+  brandIdentity?: string;
+  references?: EditorInstructionReference[];
+  preserveStyle?: number;
+  preserveBrand?: number;
+}): string {
+  const preserveStyle = input.preserveStyle ?? 80;
+  const preserveBrand = input.preserveBrand ?? 85;
+  const lines = [
+    "Using the reference image, apply the following edits in one coherent variant.",
+    stylePreservationPhrase(preserveStyle),
+    brandPreservationPhrase(preserveBrand, input.brandIdentity),
+  ];
+  for (const item of [...input.items].sort((a, b) => a.order - b.order)) {
+    lines.push(`${item.order + 1}. ${item.instruction}.`);
+  }
+  lines.push("Preserve all areas not listed above. Do not mutate unrelated objects.");
+  const ref = referenceClause(input.references);
+  if (ref) {
+    lines.push(ref);
+  }
+  return lines.filter(Boolean).join(" ");
+}
+
 export function buildEditorInstructionVariantPayload(input: EditorInstructionPromptInputV2): {
   prompt: string;
   instruction: EditorInstructionSelection;
