@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
+import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
+import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
 import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-instruction-preview-highlight";
+import { EditorInstructionStyleTraitList } from "@/components/editor/editor-instruction-style-trait-list";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
 import { useActiveTranslator } from "@/i18n/client";
+import { isBrandingAction } from "@/lib/editor-instruction-actions";
 import {
-  actionLabelKey,
-  actionsForInstructionCategory,
-  categoryLabelKey,
-  isBrandingAction,
-} from "@/lib/editor-instruction-actions";
+  actionOptionKey,
+  resolveDynamicActionsForObject,
+} from "@/lib/editor-instruction-dynamic-actions";
 import {
   approveInstructionVariant,
   archiveInstructionVariant,
@@ -32,14 +34,19 @@ import {
 } from "@/lib/editor-instruction-object-v2";
 import {
   appendChangePlanItem,
+  appendStyleChangePlanItem,
   buildChangePlanItemFromSelection,
+  buildStyleChangePlanItem,
   listChangePlan,
+  listChangePlanEntries,
   validateChangePlanItemInput,
 } from "@/lib/editor-instruction-change-plan";
+import { EDITOR_STYLE_ACTIONS } from "@/lib/editor-style-actions";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import { evaluatePrintQuality, PRINT_PRESET_SPECS } from "@/lib/editor-instruction-print-export";
 import {
-  buildEditorInstructionChangePlanPrompt,
   buildEditorInstructionPromptV2,
+  buildEditorInstructionPromptV3,
   buildEditorInstructionVariantPayload,
 } from "@/lib/editor-instruction-prompt-builder";
 import {
@@ -71,8 +78,9 @@ import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type {
   EditorCreatorPresetId,
-  EditorInstructionDynamicAction,
+  EditorStyleAttribute,
 } from "@/types/editor-instruction-studio";
+import { DEFAULT_EDITOR_INSTRUCTION_SLIDERS } from "@/types/editor-instruction-studio";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -90,14 +98,24 @@ export function EditorInstructionStudioWorkspace({
   onSave,
 }: Props) {
   const t = useActiveTranslator();
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const styleInputRef = useRef<HTMLInputElement>(null);
   const [generating, setGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [colorInput, setColorInput] = useState("");
   const [addPlanReason, setAddPlanReason] = useState("");
+  const [focusMode, setFocusMode] = useState<"object" | "style">("object");
+  const [expandedObjectId, setExpandedObjectId] = useState<string | null>(null);
+  const [expandedStyleAttribute, setExpandedStyleAttribute] = useState<EditorStyleAttribute | null>(
+    null
+  );
+  const [selectedStyleAttribute, setSelectedStyleAttribute] =
+    useState<EditorStyleAttribute>("color_palette");
+  const [selectedStyleActionId, setSelectedStyleActionId] = useState(
+    EDITOR_STYLE_ACTIONS.color_palette[0]!.id
+  );
+  const [styleDescription, setStyleDescription] = useState("");
+  const [selectedActionKey, setSelectedActionKey] = useState("");
 
   const { editableObjects: objectsV2, styleTraits, meta: objectFeedMeta } = useMemo(
     () => getInstructionObjectFeed(document),
@@ -121,19 +139,9 @@ export function EditorInstructionStudioWorkspace({
   const selectedObject =
     objectsV2.find((o) => o.id === selection.objectKey) ?? objectsV2[0] ?? null;
 
-  const categoryActions = actionsForInstructionCategory(selection.category);
   const logoRef = findBrandReference(document, selection.logoReferenceId);
   const showBranding = brandingWorkflowRequiresLogo(selection.action);
-
-  const promptPreview = buildEditorInstructionPromptV2({
-    ...selection,
-    assetName: document.name,
-    brandIdentity: document.assetProfile?.humanSummaryKey,
-    logoReference: logoRef,
-    references: buildInstructionReferences(document, selection),
-    brandingPlacementHint:
-      selection.brandingPlacementHint ?? defaultBrandingPlacementHint(selection.category),
-  });
+  const previewHighlightObject = focusMode === "object" ? selectedObject : null;
 
   const updateSelection = (patch: Parameters<typeof mergeInstructionSelection>[2]) => {
     const next = mergeInstructionSelection(document, selection, patch);
@@ -227,6 +235,49 @@ export function EditorInstructionStudioWorkspace({
     return pendingId;
   };
 
+  const selectObject = (obj: NonNullable<typeof selectedObject>) => {
+    const dynamicActions = resolveDynamicActionsForObject(obj);
+    const first = dynamicActions[0];
+    setFocusMode("object");
+    setExpandedObjectId(obj.id);
+    setExpandedStyleAttribute(null);
+    if (first) {
+      setSelectedActionKey(actionOptionKey(first, 0));
+    }
+    updateSelection({
+      ...defaultSelectionForObject(obj),
+      action: first?.action ?? defaultSelectionForObject(obj).action,
+      customPrompt: first?.promptHint ? `Focus on ${first.promptHint}` : undefined,
+    });
+    setColorInput("");
+    setAddPlanReason("");
+  };
+
+  const selectStyleAttribute = (attribute: EditorStyleAttribute) => {
+    setFocusMode("style");
+    setSelectedStyleAttribute(attribute);
+    setExpandedStyleAttribute(attribute);
+    setSelectedStyleActionId(EDITOR_STYLE_ACTIONS[attribute][0]?.id ?? "");
+    setStyleDescription("");
+  };
+
+  const handleAddStyleToChangePlan = () => {
+    const action =
+      EDITOR_STYLE_ACTIONS[selectedStyleAttribute].find((a) => a.id === selectedStyleActionId) ??
+      EDITOR_STYLE_ACTIONS[selectedStyleAttribute][0];
+    if (!action) {
+      return;
+    }
+    const item = buildStyleChangePlanItem({
+      styleAttribute: selectedStyleAttribute,
+      action,
+      strength: DEFAULT_EDITOR_INSTRUCTION_SLIDERS.changeStrength,
+      order: listChangePlanEntries(document).length,
+    });
+    onDocumentChange(appendStyleChangePlanItem(document, item));
+    setStatusMessage(t("editor.instructionStudio.v2.style.added" as never));
+  };
+
   const handleAddToChangePlan = () => {
     const validation = validateChangePlanItemInput(
       { ...selection, color: colorInput },
@@ -246,33 +297,45 @@ export function EditorInstructionStudioWorkspace({
   };
 
   const handleGenerateFromPlan = async () => {
-    const plan = listChangePlan(document);
-    if (plan.length === 0) {
+    const entries = listChangePlanEntries(document);
+    if (entries.length === 0) {
       return;
     }
     setGenerating(true);
     setStatusMessage(t("editor.instructionStudio.generating" as never));
     const references = buildInstructionReferences(document, selection);
-    const prompt = buildEditorInstructionChangePlanPrompt({
-      items: plan,
+    const prompt = buildEditorInstructionPromptV3({
+      entries,
       brandIdentity: document.assetProfile?.humanSummaryKey,
       references,
       preserveStyle: selection.sliders.preserveStyle,
       preserveBrand: selection.sliders.brandPreservation,
     });
-    const first = plan[0]!;
-    const instruction = mergeInstructionSelection(document, undefined, {
-      objectKey: first.objectId,
-      objectLabel: first.objectLabel,
-      category: first.objectCategory,
-      action: first.action,
-    });
+    const objectPlan = listChangePlan(document);
+    const first = objectPlan[0];
+    const instruction = mergeInstructionSelection(
+      document,
+      undefined,
+      first
+        ? {
+            objectKey: first.objectId,
+            objectLabel: first.objectLabel,
+            category: first.objectCategory,
+            action: first.action,
+          }
+        : {
+            objectKey: selection.objectKey,
+            objectLabel: selection.objectLabel,
+            category: selection.category,
+            action: selection.action,
+          }
+    );
     await runVariantGeneration({
       prompt,
       instruction,
       references,
-      changePlan: plan,
-      variantName: `Change plan (${plan.length})`,
+      changePlan: objectPlan,
+      variantName: `Change plan (${entries.length})`,
     });
     setGenerating(false);
     setStatusMessage(t("editor.instructionStudio.v2.changePlan.generated" as never));
@@ -407,7 +470,7 @@ export function EditorInstructionStudioWorkspace({
       : approvedActive?.resultUrl ?? null;
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4 space-y-4" data-testid="instruction-studio-workspace">
       <div>
         <h1 className="text-lg font-semibold text-zinc-900">
           {t("editor.instructionStudio.title" as never)}
@@ -415,8 +478,24 @@ export function EditorInstructionStudioWorkspace({
         <p className="text-sm text-zinc-600">{t("editor.instructionStudio.lead" as never)}</p>
       </div>
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-        <div className="w-full shrink-0 space-y-3 xl:max-w-xs">
+      <EditorInstructionAiDirectorBar
+        document={document}
+        editableObjects={objectsV2}
+        onDocumentChange={onDocumentChange}
+        onApplyFirstChange={(objectLabel, category) => {
+          const obj = objectsV2.find(
+            (o) =>
+              o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
+              o.category === category
+          );
+          if (obj) {
+            selectObject(obj);
+          }
+        }}
+      />
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
+        <div className="space-y-3 xl:col-span-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             {t("editor.instructionStudio.v2.previewColumn" as never)}
           </p>
@@ -427,7 +506,7 @@ export function EditorInstructionStudioWorkspace({
             <EditorInstructionPreviewHighlight
               document={document}
               imageUrl={document.backgroundUrl}
-              selectedObject={selectedObject}
+              selectedObject={previewHighlightObject}
             />
           </div>
           {previewUrl ?
@@ -437,7 +516,7 @@ export function EditorInstructionStudioWorkspace({
                   ? t("editor.instructionStudio.v2.activeApproved" as never)
                   : t("editor.instructionStudio.variantLabel" as never)}
               </p>
-              <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-[#0067B1]/30 bg-zinc-100">
+              <div className="aspect-[4/3] overflow-hidden rounded-xl border border-white/15 bg-zinc-900/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={previewUrl} alt="" className="h-full w-full object-contain" />
               </div>
@@ -445,238 +524,97 @@ export function EditorInstructionStudioWorkspace({
           : null}
         </div>
 
-        <EditorInstructionComparisonCenter
-          document={document}
-          variants={variants}
-          previewVariantId={previewVariantId}
-          compareVariantIds={compareIds}
-          onPreview={(id) =>
-            onDocumentChange(setPreviewInstructionVariant(document, id || null))
-          }
-          onToggleCompare={(id) =>
-            setCompareIds((prev) =>
-              prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 3)
-            )
-          }
-          onRename={(id, name) => onDocumentChange(renameInstructionVariant(document, id, name))}
-          onDelete={(id) => onDocumentChange(deleteInstructionVariant(document, id))}
-          onNote={(id, note) =>
-            onDocumentChange(patchInstructionVariant(document, id, { userNote: note }))
-          }
-        />
-
-        <aside className="w-full shrink-0 space-y-4 xl:max-w-sm">
-          <EditorInstructionAiDirectorBar
-            document={document}
-            editableObjects={objectsV2}
-            onDocumentChange={onDocumentChange}
-            onApplyFirstChange={(objectLabel, category) => {
-              const obj = objectsV2.find(
-                (o) =>
-                  o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
-                  o.category === category
-              );
-              if (obj) {
-                updateSelection(defaultSelectionForObject(obj));
-              }
-            }}
+        <div className="space-y-3 xl:col-span-3">
+          <EditorInstructionObjectList
+            objects={objectsV2}
+            selectedObjectId={focusMode === "object" ? selection.objectKey : null}
+            expandedObjectId={expandedObjectId}
+            onSelect={selectObject}
+            onToggleExpand={(id) =>
+              setExpandedObjectId((prev) => (prev === id ? null : id))
+            }
+            lowConfidence={objectFeedMeta.lowConfidence}
           />
-
-          <section className="rounded-2xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              {t("editor.instructionStudio.whatISee" as never)}
-            </h2>
-            <h3 className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {t("editor.instructionStudio.v2.objectFeed.objectsSection" as never)}
-            </h3>
-            <ul className="mt-1 space-y-2 text-sm text-slate-700">
-              {objectsV2.map((obj) => (
-                <li key={obj.id}>
-                  <span className="font-medium">{obj.label}</span>
-                  <span className="block text-xs text-zinc-500">
-                    {t(categoryLabelKey(obj.category) as never)} · {obj.description}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {styleTraits.length > 0 ?
-              <>
-                <h3 className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  {t("editor.instructionStudio.v2.objectFeed.traitsSection" as never)}
-                </h3>
-                <ul className="mt-1 space-y-1 text-xs text-zinc-600">
-                  {styleTraits.map((trait) => (
-                    <li key={trait.id}>{trait.label}</li>
-                  ))}
-                </ul>
-              </>
-            : null}
-            {objectFeedMeta.lowConfidence ?
-              <p className="mt-2 text-xs text-amber-700">
-                {t("editor.instructionStudio.v2.objectFeed.lowConfidenceNotice" as never)}
-              </p>
-            : null}
-          </section>
-
+          <EditorInstructionStyleTraitList
+            document={document}
+            styleTraitLabels={styleTraits}
+            selectedAttribute={focusMode === "style" ? selectedStyleAttribute : null}
+            expandedAttribute={expandedStyleAttribute}
+            onSelect={selectStyleAttribute}
+            onToggleExpand={(attribute) =>
+              setExpandedStyleAttribute((prev) => (prev === attribute ? null : attribute))
+            }
+          />
           {isAdmin ?
-            <section className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
+            <section className={`p-3 text-[11px] text-zinc-600 ${studioVisual.editorSurface}`}>
               <p className="font-semibold text-zinc-800">
                 {t("editor.instructionStudio.v2.objectFeed.debugTitle" as never)}
               </p>
               <p>
-                {t("editor.instructionStudio.v2.objectFeed.source" as never)}:{" "}
-                {objectFeedMeta.source}
-                {objectFeedMeta.sourcesUsed.length > 1 ?
-                  ` (${objectFeedMeta.sourcesUsed.join(", ")})`
-                : ""}
+                {t("editor.instructionStudio.v2.objectFeed.source" as never)}: {objectFeedMeta.source}
               </p>
               <p>
                 {t("editor.instructionStudio.v2.objectFeed.count" as never)}: {objectFeedMeta.count}
               </p>
-              <p>
-                {t("editor.instructionStudio.v2.objectFeed.rawCount" as never)}: {objectFeedMeta.rawCount}
-              </p>
             </section>
           : null}
+        </div>
 
-          <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">
-              {t("editor.instructionStudio.whatToChange" as never)}
-            </h2>
+        <div className="space-y-4 xl:col-span-5">
+          {focusMode === "style" ?
+            <EditorInstructionEditPanel
+              mode="style"
+              document={document}
+              styleAttribute={selectedStyleAttribute}
+              selectedActionId={selectedStyleActionId}
+              onActionIdChange={setSelectedStyleActionId}
+              description={styleDescription}
+              onDescriptionChange={setStyleDescription}
+              onAddToChangePlan={handleAddStyleToChangePlan}
+            />
+          : selectedObject ?
+            <EditorInstructionEditPanel
+              mode="object"
+              document={document}
+              object={selectedObject}
+              selection={selection}
+              colorInput={colorInput}
+              addPlanReason={addPlanReason}
+              uploadingLogo={uploadingLogo}
+              onUpdateSelection={(patch) => updateSelection(patch)}
+              onColorInputChange={setColorInput}
+              onLogoUpload={handleLogoUpload}
+              onStyleReferenceUpload={(file) => void handleReferenceUpload(file, "style")}
+              onAddToChangePlan={handleAddToChangePlan}
+              selectedActionKey={
+                selectedActionKey ||
+                actionOptionKey(resolveDynamicActionsForObject(selectedObject)[0]!, 0)
+              }
+              onActionKeyChange={(key, option) => {
+                setSelectedActionKey(key);
+                updateSelection({
+                  action: option.action,
+                  customPrompt: option.promptHint ? `Focus on ${option.promptHint}` : undefined,
+                });
+              }}
+            />
+          : (
+            <section className={`p-4 text-sm text-zinc-600 ${studioVisual.editorSurface}`}>
+              {t("editor.instructionStudio.v2.workspace.selectObjectPrompt" as never)}
+            </section>
+          )}
 
-            <label className="mt-3 block text-xs font-medium text-zinc-600">
-              {t("editor.instructionStudio.objectLabel" as never)}
-              <select
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                value={selection.objectKey}
-                onChange={(e) => {
-                  const obj = findInstructionObjectV2(document, e.target.value);
-                  if (obj) {
-                    updateSelection(defaultSelectionForObject(obj));
-                  }
-                }}
-              >
-                {objectsV2.map((obj) => (
-                  <option key={obj.id} value={obj.id}>
-                    {obj.label} ({t(categoryLabelKey(obj.category) as never)})
-                  </option>
-                ))}
-              </select>
-            </label>
+          <EditorInstructionChangePlanPanel
+            document={document}
+            onDocumentChange={onDocumentChange}
+            onGenerateFromPlan={() => void handleGenerateFromPlan()}
+            generating={generating}
+          />
 
-            <label className="mt-3 block text-xs font-medium text-zinc-600">
-              {t("editor.instructionStudio.actionLabel" as never)}
-              <select
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                value={selection.action}
-                onChange={(e) =>
-                  updateSelection({ action: e.target.value as EditorInstructionDynamicAction })
-                }
-              >
-                {categoryActions.map((action) => (
-                  <option key={action} value={action}>
-                    {t(actionLabelKey(action) as never)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selection.action === "change_color" ?
-              <label className="mt-3 block text-xs font-medium text-zinc-600">
-                {t("editor.instructionStudio.v2.changePlan.colorLabel" as never)}
-                <input
-                  type="text"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                  value={colorInput}
-                  placeholder="#006D52 or green"
-                  onChange={(e) => setColorInput(e.target.value)}
-                />
-              </label>
-            : null}
-
-            {selection.action === "replace" ?
-              <label className="mt-3 block text-xs font-medium text-zinc-600">
-                {t("editor.instructionStudio.v2.changePlan.replacementLabel" as never)}
-                <input
-                  type="text"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                  value={selection.replacement ?? ""}
-                  onChange={(e) => updateSelection({ replacement: e.target.value })}
-                />
-              </label>
-            : null}
-
-            {showBranding ?
-              <section className="mt-4 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
-                <h3 className="text-xs font-semibold text-violet-900">
-                  {t("editor.instructionStudio.v2.branding.title" as never)}
-                </h3>
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      void handleLogoUpload(file);
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  disabled={uploadingLogo}
-                  className="mt-2 w-full rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-semibold text-violet-900"
-                  onClick={() => logoInputRef.current?.click()}
-                >
-                  {logoRef
-                    ? t("editor.instructionStudio.v2.branding.replaceLogo" as never)
-                    : t("editor.instructionStudio.v2.branding.uploadLogo" as never)}
-                </button>
-                {logoRef ?
-                  <p className="mt-2 text-xs text-violet-800">{logoRef.name}</p>
-                : null}
-                <input
-                  className="mt-2 w-full rounded-lg border border-violet-200 px-2 py-1 text-xs"
-                  value={selection.brandingPlacementHint ?? ""}
-                  placeholder={t("editor.instructionStudio.v2.branding.placementHint" as never)}
-                  onChange={(e) => updateSelection({ brandingPlacementHint: e.target.value })}
-                />
-              </section>
-            : null}
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <input
-                ref={styleInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    void handleReferenceUpload(file, "style");
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="rounded-lg border border-zinc-300 px-2 py-2 text-xs font-medium"
-                onClick={() => styleInputRef.current?.click()}
-              >
-                {t("editor.instructionStudio.v2.reference.style" as never)}
-              </button>
-            </div>
-
-            <label className="mt-3 block text-xs font-medium text-zinc-600">
-              {t("editor.instructionStudio.promptLabel" as never)}
-              <textarea
-                className="mt-1 min-h-[72px] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-                value={selection.customPrompt ?? ""}
-                placeholder={t("editor.instructionStudio.promptPlaceholder" as never)}
-                onChange={(e) => updateSelection({ customPrompt: e.target.value })}
-              />
-            </label>
-
+          <section className={`p-4 ${studioVisual.editorSurface}`}>
+            <h3 className="text-sm font-semibold text-zinc-900">
+              {t("editor.instructionStudio.v2.workspace.generationControls" as never)}
+            </h3>
             <div className="mt-3 space-y-2">
               {(
                 [
@@ -686,7 +624,7 @@ export function EditorInstructionStudioWorkspace({
                   ["changeStrength", "editor.instructionStudio.v2.slider.strength"],
                 ] as const
               ).map(([key, labelKey]) => (
-                <label key={key} className="block text-xs font-medium text-zinc-600">
+                <label key={key} className="block text-xs font-medium text-zinc-700">
                   {t(labelKey as never)}
                   <input
                     type="range"
@@ -703,36 +641,10 @@ export function EditorInstructionStudioWorkspace({
                 </label>
               ))}
             </div>
-
-            <details className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              <summary className="cursor-pointer font-medium text-zinc-800">
-                {t("editor.instructionStudio.promptPreview" as never)}
-              </summary>
-              <p className="mt-2 whitespace-pre-wrap">{promptPreview}</p>
-            </details>
-
-            <button
-              type="button"
-              disabled={legacyReadOnly}
-              className="mt-3 w-full rounded-xl border border-[#0067B1]/40 bg-[#0067B1]/5 px-4 py-2.5 text-sm font-semibold text-[#0067B1] disabled:opacity-50"
-              onClick={handleAddToChangePlan}
-            >
-              {t("editor.instructionStudio.v2.changePlan.add" as never)}
-            </button>
-            {addPlanReason ?
-              <p className="mt-1 text-xs text-amber-700">{addPlanReason}</p>
-            : null}
           </section>
 
-          <EditorInstructionChangePlanPanel
-            document={document}
-            onDocumentChange={onDocumentChange}
-            onGenerateFromPlan={() => void handleGenerateFromPlan()}
-            generating={generating}
-          />
-
           {approvedActive?.approvalStatus === "approved" ?
-            <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+            <section className={`p-4 ${studioVisual.editorSurface}`}>
               <h3 className="text-sm font-semibold text-slate-900">
                 {t("editor.instructionStudio.v2.print.title" as never)}
               </h3>
@@ -762,7 +674,7 @@ export function EditorInstructionStudioWorkspace({
             </section>
           : null}
 
-          <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-3">
+          <section className={`p-4 ${studioVisual.editorSurface}`}>
             <h3 className="text-sm font-semibold text-slate-900">
               {t("editor.instructionStudio.v2.presets.title" as never)}
             </h3>
@@ -865,8 +777,28 @@ export function EditorInstructionStudioWorkspace({
               {t("editor.instructionStudio.toMotion" as never)}
             </button>
           </div>
-        </aside>
+        </div>
       </div>
+
+      <EditorInstructionComparisonCenter
+        document={document}
+        variants={variants}
+        previewVariantId={previewVariantId}
+        compareVariantIds={compareIds}
+        onPreview={(id) =>
+          onDocumentChange(setPreviewInstructionVariant(document, id || null))
+        }
+        onToggleCompare={(id) =>
+          setCompareIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 3)
+          )
+        }
+        onRename={(id, name) => onDocumentChange(renameInstructionVariant(document, id, name))}
+        onDelete={(id) => onDocumentChange(deleteInstructionVariant(document, id))}
+        onNote={(id, note) =>
+          onDocumentChange(patchInstructionVariant(document, id, { userNote: note }))
+        }
+      />
     </div>
   );
 }

@@ -166,7 +166,8 @@ describe("editor instruction v2 extended", () => {
     });
     assert.match(prompt, /Apron/i);
     assert.match(prompt, /Globe/i);
-    assert.match(prompt, /Preserve all areas not listed/i);
+    assert.match(prompt, /PRESERVE/);
+    assert.match(prompt, /mascot identity/i);
   });
 
   it("removes plan items", () => {

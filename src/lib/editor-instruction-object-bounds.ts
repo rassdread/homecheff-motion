@@ -7,13 +7,20 @@ import type { EditorCanvasDocument, EditorCanvasLayer } from "@/types/homecheff-
 
 /** Normalized heuristic bounds for Globe Man mascot (0–1). */
 export const GLOBE_MAN_HEURISTIC_BOUNDS: Record<string, EditorInstructionObjectBounds> = {
+  Character: { x: 0.22, y: 0.12, width: 0.56, height: 0.78, exact: false },
   "Character / Globe Man": { x: 0.22, y: 0.12, width: 0.56, height: 0.78, exact: false },
-  Globe: { x: 0.58, y: 0.2, width: 0.24, height: 0.24, exact: false },
+  Face: { x: 0.36, y: 0.1, width: 0.28, height: 0.22, exact: false },
+  Eyes: { x: 0.38, y: 0.14, width: 0.24, height: 0.1, exact: false },
+  Mouth: { x: 0.4, y: 0.22, width: 0.2, height: 0.08, exact: false },
+  Jacket: { x: 0.28, y: 0.34, width: 0.44, height: 0.38, exact: false },
+  Shirt: { x: 0.32, y: 0.38, width: 0.36, height: 0.22, exact: false },
   "Suit / Clothing": { x: 0.28, y: 0.36, width: 0.44, height: 0.44, exact: false },
   "White lab coat": { x: 0.28, y: 0.34, width: 0.44, height: 0.46, exact: false },
   Tie: { x: 0.42, y: 0.4, width: 0.16, height: 0.14, exact: false },
-  Face: { x: 0.36, y: 0.1, width: 0.28, height: 0.22, exact: false },
+  Pants: { x: 0.3, y: 0.58, width: 0.4, height: 0.24, exact: false },
   Shoes: { x: 0.28, y: 0.8, width: 0.44, height: 0.14, exact: false },
+  Hands: { x: 0.18, y: 0.42, width: 0.64, height: 0.2, exact: false },
+  Globe: { x: 0.58, y: 0.2, width: 0.24, height: 0.24, exact: false },
   Logo: { x: 0.34, y: 0.2, width: 0.32, height: 0.18, exact: false },
   Background: { x: 0, y: 0, width: 1, height: 1, exact: false },
 };
@@ -52,8 +59,23 @@ function heuristicByLabel(label: string): EditorInstructionObjectBounds | undefi
   if (/\bface\b/.test(lower)) {
     return GLOBE_MAN_HEURISTIC_BOUNDS.Face;
   }
-  if (/lab coat|labcoat|white coat/.test(lower)) {
-    return GLOBE_MAN_HEURISTIC_BOUNDS["White lab coat"];
+  if (/^jacket\b|lab coat|labcoat|white coat/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Jacket;
+  }
+  if (/^shirt\b/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Shirt;
+  }
+  if (/^pants\b|trousers/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Pants;
+  }
+  if (/\beyes?\b/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Eyes;
+  }
+  if (/\bmouth\b/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Mouth;
+  }
+  if (/\bhands?\b/.test(lower)) {
+    return GLOBE_MAN_HEURISTIC_BOUNDS.Hands;
   }
   if (/\btie\b/.test(lower)) {
     return GLOBE_MAN_HEURISTIC_BOUNDS.Tie;

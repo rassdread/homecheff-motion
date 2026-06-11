@@ -269,10 +269,13 @@ describe("editor instruction studio v2", () => {
     });
     const { objects, meta } = buildInstructionObjectsFromDocument(doc);
     const labels = objects.map((o) => o.label);
-    assert.ok(labels.includes("Character / Globe Man"));
+    assert.ok(labels.includes("Character"));
     assert.ok(labels.includes("Globe"));
-    assert.ok(labels.includes("Suit / Clothing"));
+    assert.ok(labels.includes("Jacket"));
+    assert.ok(labels.includes("Shirt"));
     assert.ok(labels.includes("Tie"));
+    assert.ok(labels.includes("Pants"));
+    assert.ok(labels.includes("Shoes"));
     assert.ok(labels.includes("Background"));
     assert.equal(meta.lowConfidence, true);
     assert.equal(labels.filter((l) => l === "Background").length, 1);
@@ -285,7 +288,7 @@ describe("editor instruction studio v2", () => {
     });
     const objects = listInstructionObjectsV2(doc);
     const globe = objects.find((o) => o.label === "Globe");
-    const clothing = objects.find((o) => o.label === "Suit / Clothing");
+    const clothing = objects.find((o) => o.label === "Jacket");
     const background = objects.find((o) => o.label === "Background");
     assert.ok(globe);
     assert.ok(clothing);
@@ -434,10 +437,10 @@ describe("editor instruction studio v2", () => {
     const { objects, meta } = buildInstructionObjectsFromDocument(doc);
     const labels = objects.map((o) => o.label);
 
-    assert.ok(labels.includes("Character / Globe Man"));
+    assert.ok(labels.includes("Character"));
     assert.ok(labels.includes("Logo"));
     assert.ok(labels.includes("Globe"));
-    assert.ok(labels.includes("Suit / Clothing"));
+    assert.ok(labels.includes("Jacket"));
     assert.ok(labels.includes("Tie"));
     assert.ok(labels.includes("Shoes"));
     assert.ok(labels.includes("Background"));
@@ -445,9 +448,9 @@ describe("editor instruction studio v2", () => {
     assert.equal(labels.filter((l) => l === "Logo").length, 1);
     assert.ok(!labels.some((l) => /body shape|proportions/i.test(l)));
     assert.ok(meta.rawCount >= 6);
-    assert.ok(meta.count < meta.rawCount);
+    assert.ok(meta.count >= meta.rawCount);
 
-    const character = objects.find((o) => o.label === "Character / Globe Man");
+    const character = objects.find((o) => o.label === "Character");
     assert.ok(character?.traits?.some((t) => /body shape|proportions/i.test(t)));
   });
 });

@@ -5,9 +5,10 @@ import { useActiveTranslator } from "@/i18n/client";
 import { clearChangePlan } from "@/lib/editor-instruction-change-plan";
 import {
   parseEditorInstructionRequest,
-  parsedRequestToChangePlanItems,
+  parsedRequestToChangePlanEntries,
 } from "@/lib/editor-instruction-request-parser";
 import type { EditorInstructionObjectV2 } from "@/types/editor-instruction-studio";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -41,7 +42,7 @@ export function EditorInstructionAiDirectorBar({
       );
       return match?.id ?? `obj_${label.toLowerCase().replace(/\s+/g, "_")}`;
     };
-    const items = parsedRequestToChangePlanItems(result, resolveObjectId);
+    const items = parsedRequestToChangePlanEntries(result, resolveObjectId);
     const nextDoc: EditorCanvasDocument = {
       ...document,
       instructionStudioState: {
@@ -70,7 +71,7 @@ export function EditorInstructionAiDirectorBar({
   };
 
   return (
-    <section className="rounded-2xl border border-violet-200 bg-violet-50/70 px-4 py-3">
+    <section className={`px-4 py-3 ${studioVisual.editorSurface}`} data-testid="instruction-ai-director">
       <h2 className="text-sm font-semibold text-violet-900">
         {t("editor.instructionStudio.v2.director.title" as never)}
       </h2>
@@ -95,7 +96,7 @@ export function EditorInstructionAiDirectorBar({
           </button>
         : null}
       </div>
-      {parsed && parsed.objects.length > 0 ?
+      {parsed && (parsed.objects.length > 0 || parsed.styleChanges.length > 0) ?
         <ul className="mt-3 space-y-1 text-xs text-violet-900">
           {parsed.objects.map((obj) => (
             <li key={obj.object}>
@@ -107,6 +108,12 @@ export function EditorInstructionAiDirectorBar({
                   {a.replacement ? ` → ${a.replacement}` : ""}
                 </span>
               ))}
+            </li>
+          ))}
+          {parsed.styleChanges.map((style) => (
+            <li key={`${style.styleAttribute}-${style.actionId}`}>
+              <span className="font-semibold">{style.styleAttribute.replace(/_/g, " ")}</span>
+              <span className="ml-2 text-violet-700">→ {style.instruction}</span>
             </li>
           ))}
         </ul>

@@ -1,9 +1,14 @@
-import { buildChangePlanItemFromSelection } from "@/lib/editor-instruction-change-plan";
+import {
+  buildChangePlanItemFromSelection,
+  buildStyleChangePlanItem,
+} from "@/lib/editor-instruction-change-plan";
+import { EDITOR_STYLE_ACTIONS } from "@/lib/editor-style-actions";
 import type {
-  EditorInstructionChangePlanItem,
+  EditorInstructionChangePlanEntry,
   EditorInstructionDynamicAction,
   EditorInstructionObjectCategory,
   EditorInstructionOutputTarget,
+  EditorStyleAttribute,
 } from "@/types/editor-instruction-studio";
 import { DEFAULT_EDITOR_INSTRUCTION_SLIDERS } from "@/types/editor-instruction-studio";
 
@@ -20,9 +25,16 @@ export type ParsedInstructionObject = {
   actions: ParsedInstructionAction[];
 };
 
+export type ParsedStyleChange = {
+  styleAttribute: EditorStyleAttribute;
+  actionId: string;
+  instruction: string;
+};
+
 export type ParsedEditorInstructionRequest = {
   rawPrompt: string;
   objects: ParsedInstructionObject[];
+  styleChanges: ParsedStyleChange[];
   outputTarget?: EditorInstructionOutputTarget;
   suggestions: string[];
 };
@@ -73,7 +85,7 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
   const seen = new Set<string>();
 
   const objectPattern =
-    /\b(apron|lab coat|white lab coat|suit|jacket|tie|shoes|globe|logo|background|mascot|character|face|packaging|text)\b/gi;
+    /\b(apron|lab coat|white lab coat|suit|jacket|shirt|tie|pants|shoes|globe|logo|background|mascot|character|face|packaging|text)\b/gi;
 
   let match: RegExpExecArray | null;
   while ((match = objectPattern.exec(lower)) !== null) {
@@ -85,8 +97,15 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
     seen.add(key);
     const actions: ParsedInstructionAction[] = [];
 
-    if (/add\s+(?:the\s+)?(?:homecheff\s+)?logo|logo\s+on/.test(lower) && /apron|coat|suit|jacket|clothing|packaging/.test(key)) {
+    if (
+      (/add\s+(?:the\s+)?(?:homecheff\s+)?logo|logo\s+(?:to|on)/.test(lower) &&
+        /apron|coat|suit|jacket|shirt|clothing|packaging/.test(key)) ||
+      (/logo/.test(lower) && key === "jacket" && /jacket/.test(lower))
+    ) {
       actions.push({ action: "add_logo", logo: "HomeCheff" });
+    }
+    if (/(make|change|turn).*(dark\s+blue|navy)/.test(lower) && key === "tie") {
+      actions.push({ action: "change_color", color: "dark blue" });
     }
     if (/replace\s+(?:the\s+)?logo/.test(lower) && key === "logo") {
       actions.push({ action: "replace_logo", logo: "HomeCheff" });
@@ -95,8 +114,10 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
       const colorMatch = lower.match(/(green|red|blue|black|white|#[0-9a-f]{3,8})/);
       actions.push({ action: "change_color", color: colorMatch?.[1] });
     }
-    if (/replace\s+(?:the\s+)?/.test(lower) && lower.includes(key) && key !== "background") {
-      const replaceMatch = prompt.match(new RegExp(`replace\\s+(?:the\\s+)?${object}\\s+with\\s+([^,.]+)`, "i"));
+    if (/replace\s+(?:the\s+)?/.test(lower) && (lower.includes(key) || lower.includes(`the ${key}`)) && key !== "background") {
+      const replaceMatch = prompt.match(
+        new RegExp(`replace\\s+(?:the\\s+)?${object}\\s+with\\s+(?:a\\s+)?([^,.]+)`, "i")
+      );
       if (replaceMatch) {
         actions.push({
           action: "replace",
@@ -124,6 +145,42 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
   return results;
 }
 
+function extractStyleChanges(prompt: string): ParsedStyleChange[] {
+  const lower = prompt.toLowerCase();
+  const results: ParsedStyleChange[] = [];
+  const seen = new Set<string>();
+
+  const rules: Array<{ pattern: RegExp; attribute: EditorStyleAttribute; actionId: string; instruction: string }> = [
+    { pattern: /premium|more luxury|luxury palette/, attribute: "color_palette", actionId: "more_premium", instruction: "Make the overall color palette more premium." },
+    { pattern: /more vibrant|vibrant color/, attribute: "color_palette", actionId: "more_vibrant", instruction: "Make the color palette more vibrant." },
+    { pattern: /more realistic.{0,20}proportion|proportion.{0,20}realistic|slightly more realistic/, attribute: "body_proportions", actionId: "more_realistic", instruction: "Make body proportions slightly more realistic." },
+    { pattern: /thicker outline|outline.{0,12}thick|increase outline/, attribute: "outline_style", actionId: "thicker", instruction: "Increase outline thickness." },
+    { pattern: /stronger line|line weight|thicker lines/, attribute: "line_weight", actionId: "stronger", instruction: "Use stronger line weight." },
+    { pattern: /friendlier face|more expressive/, attribute: "facial_style", actionId: "more_expressive", instruction: "Make facial style more expressive." },
+    { pattern: /more mascot|mascot.driven/, attribute: "illustration_style", actionId: "more_mascot", instruction: "Make illustration style more mascot-driven." },
+    { pattern: /stronger homecheff|brand color/, attribute: "brand_colors", actionId: "stronger_homecheff", instruction: "Strengthen HomeCheff brand colors." },
+    { pattern: /more iconic|recognizable silhouette/, attribute: "silhouette", actionId: "more_iconic", instruction: "Make silhouette more iconic." },
+  ];
+
+  for (const rule of rules) {
+    if (!rule.pattern.test(lower)) {
+      continue;
+    }
+    const key = `${rule.attribute}:${rule.actionId}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    results.push({
+      styleAttribute: rule.attribute,
+      actionId: rule.actionId,
+      instruction: rule.instruction,
+    });
+  }
+
+  return results;
+}
+
 function buildSuggestions(objects: ParsedInstructionObject[], prompt: string): string[] {
   const suggestions: string[] = [];
   const lower = prompt.toLowerCase();
@@ -143,19 +200,21 @@ function buildSuggestions(objects: ParsedInstructionObject[], prompt: string): s
 export function parseEditorInstructionRequest(prompt: string): ParsedEditorInstructionRequest {
   const trimmed = prompt.trim();
   const objects = extractObjects(trimmed);
+  const styleChanges = extractStyleChanges(trimmed);
   return {
     rawPrompt: trimmed,
     objects,
+    styleChanges,
     outputTarget: detectOutputTarget(trimmed),
     suggestions: buildSuggestions(objects, trimmed),
   };
 }
 
-export function parsedRequestToChangePlanItems(
+export function parsedRequestToChangePlanEntries(
   parsed: ParsedEditorInstructionRequest,
   resolveObjectId: (label: string, category: EditorInstructionObjectCategory) => string
-): EditorInstructionChangePlanItem[] {
-  const items: EditorInstructionChangePlanItem[] = [];
+): EditorInstructionChangePlanEntry[] {
+  const items: EditorInstructionChangePlanEntry[] = [];
   let order = 0;
   for (const obj of parsed.objects) {
     for (const act of obj.actions) {
@@ -173,5 +232,30 @@ export function parsedRequestToChangePlanItems(
       order += 1;
     }
   }
+  for (const style of parsed.styleChanges) {
+    const options = EDITOR_STYLE_ACTIONS[style.styleAttribute];
+    const action = options.find((o) => o.id === style.actionId) ?? options[0];
+    if (!action) {
+      continue;
+    }
+    items.push(
+      buildStyleChangePlanItem({
+        styleAttribute: style.styleAttribute,
+        action,
+        order,
+      })
+    );
+    order += 1;
+  }
   return items;
+}
+
+/** @deprecated use parsedRequestToChangePlanEntries */
+export function parsedRequestToChangePlanItems(
+  parsed: ParsedEditorInstructionRequest,
+  resolveObjectId: (label: string, category: EditorInstructionObjectCategory) => string
+) {
+  return parsedRequestToChangePlanEntries(parsed, resolveObjectId).filter(
+    (e) => e.entryType !== "style"
+  );
 }

@@ -988,6 +988,8 @@ export type EditorCanvasDocument = {
   /** Instruction studio generated variants — original image is never replaced in-place. */
   instructionVariants?: import("@/types/editor-instruction-studio").EditorInstructionVariant[];
   instructionStudioState?: import("@/types/editor-instruction-studio").EditorInstructionStudioState;
+  /** Detected / canonical style attributes (not editable objects) */
+  styleAttributes?: import("@/types/editor-instruction-studio").EditorStyleAttributeRecord[];
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

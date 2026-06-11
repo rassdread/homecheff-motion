@@ -133,6 +133,7 @@ export type EditorInstructionObjectV2 = {
 export type EditorInstructionChangePlanItemStatus = "pending" | "applied" | "skipped";
 
 export type EditorInstructionChangePlanItem = {
+  entryType?: "object";
   id: string;
   objectId: string;
   objectLabel: string;
@@ -152,6 +153,78 @@ export type EditorInstructionChangePlanItem = {
   order: number;
   status: EditorInstructionChangePlanItemStatus;
 };
+
+export const EDITOR_STYLE_ATTRIBUTES = [
+  "head_shape",
+  "body_proportions",
+  "facial_style",
+  "outline_style",
+  "color_palette",
+  "brand_colors",
+  "illustration_style",
+  "silhouette",
+  "visual_identity",
+  "identity_markers",
+  "line_weight",
+] as const;
+
+export type EditorStyleAttribute = (typeof EDITOR_STYLE_ATTRIBUTES)[number];
+
+export const CHARACTER_OBJECT_PARTS = [
+  "face",
+  "eyes",
+  "mouth",
+  "hair",
+  "head",
+  "jacket",
+  "shirt",
+  "tie",
+  "pants",
+  "shoes",
+  "hands",
+  "held_object",
+  "background",
+] as const;
+
+export type CharacterObjectPart = (typeof CHARACTER_OBJECT_PARTS)[number];
+
+export type EditorStyleAttributeRecord = {
+  id: string;
+  attribute: EditorStyleAttribute;
+  label: string;
+  confidence: number;
+  source?: EditorInstructionObjectSource;
+  detectedFromAnalysis?: boolean;
+};
+
+export type EditorInstructionStyleChangePlanItem = {
+  entryType: "style";
+  id: string;
+  styleAttribute: EditorStyleAttribute;
+  action: string;
+  instruction: string;
+  strength: number;
+  preserveStyle: boolean;
+  preserveBrand: boolean;
+  order: number;
+  status: EditorInstructionChangePlanItemStatus;
+};
+
+export type EditorInstructionChangePlanEntry =
+  | EditorInstructionChangePlanItem
+  | EditorInstructionStyleChangePlanItem;
+
+export function isStyleChangePlanEntry(
+  entry: EditorInstructionChangePlanEntry
+): entry is EditorInstructionStyleChangePlanItem {
+  return entry.entryType === "style";
+}
+
+export function isObjectChangePlanEntry(
+  entry: EditorInstructionChangePlanEntry
+): entry is EditorInstructionChangePlanItem {
+  return entry.entryType !== "style";
+}
 
 export const EDITOR_INSTRUCTION_OUTPUT_TARGETS = [
   "social",
@@ -393,8 +466,8 @@ export type EditorInstructionStudioState = {
   selection?: Partial<EditorInstructionSelection>;
   /** Explicit object feed override — highest priority for instruction UI */
   instructionObjects?: EditorInstructionObjectV2[];
-  /** Multi-step edits queued before variant generation */
-  changePlan?: EditorInstructionChangePlanItem[];
+  /** Unified object + style change plan */
+  changePlan?: EditorInstructionChangePlanEntry[];
   /** AI reference composition plan */
   compositionPlan?: EditorCompositionPlan;
   /** AI Director natural-language input */

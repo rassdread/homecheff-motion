@@ -1,14 +1,28 @@
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
+import {
+  summarizeStyleChangeInstruction,
+  type EditorStyleActionOption,
+} from "@/lib/editor-style-actions";
 import type {
+  EditorInstructionChangePlanEntry,
   EditorInstructionChangePlanItem,
   EditorInstructionDynamicAction,
   EditorInstructionObjectCategory,
   EditorInstructionSelection,
+  EditorInstructionStyleChangePlanItem,
+  EditorStyleAttribute,
 } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 export function createChangePlanItemId(): string {
   return `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeEntry(entry: EditorInstructionChangePlanEntry): EditorInstructionChangePlanEntry {
+  if (entry.entryType === "style") {
+    return entry;
+  }
+  return { ...entry, entryType: "object" as const };
 }
 
 export function summarizeChangePlanItem(
@@ -67,6 +81,7 @@ export function buildChangePlanItemFromSelection(
   order: number
 ): EditorInstructionChangePlanItem {
   return {
+    entryType: "object",
     id: createChangePlanItemId(),
     objectId: selection.objectKey,
     objectLabel: selection.objectLabel,
@@ -88,27 +103,78 @@ export function buildChangePlanItemFromSelection(
   };
 }
 
+export function buildStyleChangePlanItem(input: {
+  styleAttribute: EditorStyleAttribute;
+  action: EditorStyleActionOption;
+  strength?: number;
+  preserveStyle?: boolean;
+  preserveBrand?: boolean;
+  order: number;
+}): EditorInstructionStyleChangePlanItem {
+  return {
+    entryType: "style",
+    id: createChangePlanItemId(),
+    styleAttribute: input.styleAttribute,
+    action: input.action.id,
+    instruction: summarizeStyleChangeInstruction(input.styleAttribute, input.action),
+    strength: input.strength ?? 55,
+    preserveStyle: input.preserveStyle ?? true,
+    preserveBrand: input.preserveBrand ?? true,
+    order: input.order,
+    status: "pending",
+  };
+}
+
+export function listChangePlanEntries(document: EditorCanvasDocument): EditorInstructionChangePlanEntry[] {
+  return [...(document.instructionStudioState?.changePlan ?? [])]
+    .map(normalizeEntry)
+    .sort((a, b) => a.order - b.order);
+}
+
+/** Object-only entries (legacy helper). */
 export function listChangePlan(document: EditorCanvasDocument): EditorInstructionChangePlanItem[] {
-  return [...(document.instructionStudioState?.changePlan ?? [])].sort((a, b) => a.order - b.order);
+  return listChangePlanEntries(document).filter(
+    (e): e is EditorInstructionChangePlanItem => e.entryType !== "style"
+  );
+}
+
+export function listStyleChangePlan(document: EditorCanvasDocument): EditorInstructionStyleChangePlanItem[] {
+  return listChangePlanEntries(document).filter(
+    (e): e is EditorInstructionStyleChangePlanItem => e.entryType === "style"
+  );
+}
+
+export function appendChangePlanEntry(
+  document: EditorCanvasDocument,
+  entry: EditorInstructionChangePlanEntry
+): EditorCanvasDocument {
+  const plan = listChangePlanEntries(document);
+  return {
+    ...document,
+    instructionStudioState: {
+      ...document.instructionStudioState,
+      changePlan: [...plan, normalizeEntry(entry)],
+    },
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function appendChangePlanItem(
   document: EditorCanvasDocument,
   item: EditorInstructionChangePlanItem
 ): EditorCanvasDocument {
-  const plan = listChangePlan(document);
-  return {
-    ...document,
-    instructionStudioState: {
-      ...document.instructionStudioState,
-      changePlan: [...plan, item],
-    },
-    updatedAt: new Date().toISOString(),
-  };
+  return appendChangePlanEntry(document, { ...item, entryType: "object" });
+}
+
+export function appendStyleChangePlanItem(
+  document: EditorCanvasDocument,
+  item: EditorInstructionStyleChangePlanItem
+): EditorCanvasDocument {
+  return appendChangePlanEntry(document, item);
 }
 
 export function removeChangePlanItem(document: EditorCanvasDocument, itemId: string): EditorCanvasDocument {
-  const plan = listChangePlan(document).filter((i) => i.id !== itemId);
+  const plan = listChangePlanEntries(document).filter((i) => i.id !== itemId);
   return {
     ...document,
     instructionStudioState: { ...document.instructionStudioState, changePlan: reindexPlan(plan) },
@@ -124,8 +190,24 @@ export function clearChangePlan(document: EditorCanvasDocument): EditorCanvasDoc
   };
 }
 
-function reindexPlan(plan: EditorInstructionChangePlanItem[]): EditorInstructionChangePlanItem[] {
+function reindexPlan(plan: EditorInstructionChangePlanEntry[]): EditorInstructionChangePlanEntry[] {
   return plan.map((item, index) => ({ ...item, order: index }));
+}
+
+export function duplicateChangePlanEntry(
+  document: EditorCanvasDocument,
+  itemId: string
+): EditorCanvasDocument {
+  const plan = listChangePlanEntries(document);
+  const item = plan.find((entry) => entry.id === itemId);
+  if (!item) {
+    return document;
+  }
+  return appendChangePlanEntry(document, {
+    ...item,
+    id: createChangePlanItemId(),
+    order: plan.length,
+  });
 }
 
 export function reorderChangePlanItem(
@@ -133,7 +215,7 @@ export function reorderChangePlanItem(
   itemId: string,
   direction: "up" | "down"
 ): EditorCanvasDocument {
-  const plan = listChangePlan(document);
+  const plan = listChangePlanEntries(document);
   const index = plan.findIndex((i) => i.id === itemId);
   if (index < 0) {
     return document;
@@ -159,8 +241,8 @@ export function patchChangePlanItem(
   itemId: string,
   patch: Partial<EditorInstructionChangePlanItem>
 ): EditorCanvasDocument {
-  const plan = listChangePlan(document).map((item) =>
-    item.id === itemId ? { ...item, ...patch } : item
+  const plan = listChangePlanEntries(document).map((item) =>
+    item.id === itemId && item.entryType !== "style" ? { ...item, ...patch } : item
   );
   return {
     ...document,
@@ -184,6 +266,39 @@ export function groupChangePlanByObject(
     objectCategory: items[0]!.objectCategory,
     items: items.sort((a, b) => a.order - b.order),
   }));
+}
+
+export function groupChangePlanEntries(plan: EditorInstructionChangePlanEntry[]): Array<{
+  groupKey: string;
+  groupLabel: string;
+  groupType: "object" | "style";
+  items: EditorInstructionChangePlanEntry[];
+}> {
+  const objectGroups = groupChangePlanByObject(
+    plan.filter((e): e is EditorInstructionChangePlanItem => e.entryType !== "style")
+  );
+  const result: Array<{
+    groupKey: string;
+    groupLabel: string;
+    groupType: "object" | "style";
+    items: EditorInstructionChangePlanEntry[];
+  }> = objectGroups.map((g) => ({
+    groupKey: g.objectLabel,
+    groupLabel: g.objectLabel,
+    groupType: "object" as const,
+    items: g.items,
+  }));
+
+  const styleItems = plan.filter((e): e is EditorInstructionStyleChangePlanItem => e.entryType === "style");
+  if (styleItems.length > 0) {
+    result.push({
+      groupKey: "__style__",
+      groupLabel: "Style & visual design",
+      groupType: "style",
+      items: styleItems,
+    });
+  }
+  return result;
 }
 
 export function changePlanToSelection(item: EditorInstructionChangePlanItem): EditorInstructionSelection {

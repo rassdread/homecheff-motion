@@ -22,38 +22,46 @@ export function EditorInstructionPreviewHighlight({
     : null;
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-inner">
+    <div
+      className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/15 bg-zinc-900/20 shadow-inner"
+      data-testid="instruction-preview-highlight"
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={imageUrl} alt="" className="h-full w-full object-contain" />
       {bounds && selectedObject ?
         <>
           <div
-            className="pointer-events-none absolute rounded-lg border-2 border-[#0067B1]/80 bg-[#0067B1]/15"
+            className="pointer-events-none absolute rounded-md border border-[#006D52]/50"
             style={{
               left: `${bounds.x * 100}%`,
               top: `${bounds.y * 100}%`,
               width: `${bounds.width * 100}%`,
               height: `${bounds.height * 100}%`,
+              backgroundColor: "rgba(0, 109, 82, 0.17)",
+              boxShadow:
+                "inset 0 0 0 1px rgba(255,255,255,0.35), 0 0 10px rgba(0,109,82,0.18)",
             }}
           />
           <div
-            className="pointer-events-none absolute z-10 flex max-w-[80%] flex-wrap items-center gap-1"
+            className="pointer-events-none absolute z-10 flex max-w-[85%] flex-wrap items-center gap-1"
             style={{
               left: `${bounds.x * 100}%`,
-              top: `${Math.max(0, bounds.y * 100 - 5)}%`,
+              top: `${Math.max(0, bounds.y * 100 - 4)}%`,
             }}
           >
-            <span className="rounded-md bg-[#0067B1] px-2 py-0.5 text-[11px] font-semibold text-white shadow">
+            <span className="rounded-md border border-white/40 bg-black/45 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
               {selectedObject.label}
             </span>
             <span
-              className={`rounded-md px-2 py-0.5 text-[10px] font-medium shadow ${
-                bounds.exact ? "bg-emerald-600 text-white" : "bg-amber-500 text-white"
+              className={`rounded-md border px-2 py-0.5 text-[10px] font-medium backdrop-blur-sm ${
+                bounds.exact
+                  ? "border-emerald-200/60 bg-emerald-950/55 text-emerald-50"
+                  : "border-amber-200/60 bg-amber-950/55 text-amber-50"
               }`}
             >
               {bounds.exact
-                ? t("editor.instructionStudio.v2.highlight.exact" as never)
-                : t("editor.instructionStudio.v2.highlight.estimated" as never)}
+                ? t("editor.instructionStudio.v2.highlight.exactZone" as never)
+                : t("editor.instructionStudio.v2.highlight.estimatedZone" as never)}
             </span>
           </div>
         </>

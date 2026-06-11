@@ -1,3 +1,7 @@
+import {
+  buildGlobeManExpandedObjects,
+  expandCharacterObjectFeed,
+} from "@/lib/editor-character-expansion";
 import { actionsForInstructionCategory } from "@/lib/editor-instruction-actions";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
 import { attachBoundsToObjects } from "@/lib/editor-instruction-object-bounds";
@@ -133,11 +137,29 @@ export function normalizeDisplayLabel(
       return "Shoes";
     }
     if (/lab coat|labcoat|white coat/.test(lower)) {
-      return "White lab coat";
+      return "Jacket";
     }
-    if (/^(suit|jacket|clothing|uniform|outfit)\b/.test(lower)) {
-      return "Suit / Clothing";
+    if (/^jacket\b/.test(lower)) {
+      return "Jacket";
     }
+    if (/^shirt\b/.test(lower)) {
+      return "Shirt";
+    }
+    if (/^pants\b|trousers/.test(lower)) {
+      return "Pants";
+    }
+    if (/^(suit|clothing|uniform|outfit)\b/.test(lower)) {
+      return "Jacket";
+    }
+  }
+  if (/\beyes?\b/.test(lower)) {
+    return "Eyes";
+  }
+  if (/\bmouth\b/.test(lower)) {
+    return "Mouth";
+  }
+  if (/\bhands?\b/.test(lower)) {
+    return "Hands";
   }
   if (/\bface\b/.test(lower)) {
     return "Face";
@@ -357,25 +379,7 @@ export function isGlobeManMascotImage(document: EditorCanvasDocument): boolean {
   );
 }
 
-export function buildGlobeManHeuristicObjects(): EditorInstructionObjectV2[] {
-  const specs: Array<{ label: string; category: EditorInstructionObjectCategory; confidence: number }> = [
-    { label: "Character / Globe Man", category: "character", confidence: 0.58 },
-    { label: "Face", category: "character", confidence: 0.54 },
-    { label: "Globe", category: "tool", confidence: 0.55 },
-    { label: "Suit / Clothing", category: "clothing", confidence: 0.55 },
-    { label: "Tie", category: "clothing", confidence: 0.52 },
-    { label: "Shoes", category: "clothing", confidence: 0.52 },
-    { label: "Background", category: "background", confidence: 1 },
-  ];
-  return specs.map((spec, index) =>
-    buildInstructionObject({
-      ...spec,
-      source: "heuristic",
-      layerId: spec.category === "background" ? "background" : undefined,
-      index,
-    })
-  );
-}
+export { buildGlobeManHeuristicObjects, buildGlobeManExpandedObjects } from "@/lib/editor-character-expansion";
 
 type RawSplit = {
   editable: EditorInstructionObjectV2[];
@@ -453,7 +457,7 @@ function applyGlobeManFeed(
   const { traits } = cleanRawObjectFeed(raw);
   const logo = findLogoInRaw(raw);
 
-  let objects = buildGlobeManHeuristicObjects();
+  let objects = buildGlobeManExpandedObjects();
 
   if (traits.length > 0) {
     objects = objects.map((o) =>
@@ -644,7 +648,8 @@ function finalizeFeed(
   lowConfidence: boolean,
   document: EditorCanvasDocument
 ): InstructionObjectFeedResult {
-  const cleaned = ensureBackground(dedupeAndMergeObjects(objects), sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
+  const deduped = ensureBackground(dedupeAndMergeObjects(objects), sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
+  const cleaned = expandCharacterObjectFeed(deduped, document);
   return splitFeedResult(
     cleaned,
     {
