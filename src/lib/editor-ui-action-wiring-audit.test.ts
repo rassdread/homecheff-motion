@@ -134,8 +134,13 @@ describe("Editor UI action wiring audit", () => {
       join(ROOT, "src/components/editor/editor-canvas-workspace.tsx"),
       "utf8"
     );
-    assert.match(workspace, /EditorInstructionStudioWorkspace/);
+    assert.match(workspace, /EditorV2WorkflowShell/);
     assert.match(workspace, /instructionStudioActive/);
+    const shell = readFileSync(
+      join(ROOT, "src/components/editor/editor-v2-workflow-shell.tsx"),
+      "utf8"
+    );
+    assert.match(shell, /EditorInstructionStudioWorkspace/);
     assert.match(workspace, /handleOperation\("duplicate"\)/);
     assert.match(workspace, /EditorExportHubPanel/);
     assert.match(workspace, /handleRemoveBackground/);

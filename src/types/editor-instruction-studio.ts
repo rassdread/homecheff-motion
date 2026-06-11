@@ -276,6 +276,9 @@ export type EditorInstructionVariant = {
   presetId?: string;
   outputTarget?: EditorInstructionOutputTarget;
   printExports?: EditorInstructionPrintExportRecord[];
+  variantType?: "instruction" | "combined" | "change_plan";
+  compositionPlanId?: string;
+  referenceIds?: string[];
   createdAt: string;
   updatedAt: string;
   error?: string;
@@ -288,6 +291,98 @@ export type EditorInstructionHandoffMeta = {
   versionNote?: string;
   createdAt?: string;
   usesOriginal: boolean;
+  changePlan?: EditorInstructionChangePlanItem[];
+  compositionPlanId?: string;
+};
+
+export const EDITOR_COMPOSITION_REFERENCE_TYPES = [
+  "character",
+  "logo",
+  "product",
+  "packaging",
+  "style",
+  "color",
+  "background",
+  "brand",
+] as const;
+
+export type EditorCompositionReferenceType = (typeof EDITOR_COMPOSITION_REFERENCE_TYPES)[number];
+
+export const EDITOR_COMPOSITION_TARGET_ROLES = [
+  "character",
+  "logo",
+  "product",
+  "packaging",
+  "style",
+  "color_palette",
+  "background",
+  "brand",
+  "text",
+  "object",
+  "environment",
+] as const;
+
+export type EditorCompositionTargetRole = (typeof EDITOR_COMPOSITION_TARGET_ROLES)[number];
+
+export type EditorCompositionReference = {
+  id: string;
+  type: EditorCompositionReferenceType;
+  name: string;
+  url: string;
+  uploadedAt: string;
+  editableObjectLabels?: string[];
+  styleTraitLabels?: string[];
+};
+
+export type EditorCompositionPlanItem = {
+  id: string;
+  targetRole: EditorCompositionTargetRole;
+  sourceReferenceId: string;
+  sourceImageUrl: string;
+  sourceObjectId?: string;
+  sourceObjectLabel: string;
+  sourceObjectCategory?: EditorInstructionObjectCategory;
+  instruction?: string;
+  preserveRules: string[];
+  priority: number;
+  order: number;
+};
+
+export type EditorCompositionPlan = {
+  id: string;
+  baseImageUrl: string;
+  baseVariantId?: string | null;
+  items: EditorCompositionPlanItem[];
+  references: EditorCompositionReference[];
+  userNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const EDITOR_WORKFLOW_STAGES = [
+  "analyze",
+  "plan",
+  "generate",
+  "approve",
+  "deliver",
+] as const;
+
+export type EditorWorkflowStage = (typeof EDITOR_WORKFLOW_STAGES)[number];
+
+export type EditorWorkflowStageStatus = "pending" | "current" | "complete" | "blocked";
+
+export const EDITOR_WORKSPACE_INTENTS = [
+  "edit",
+  "combine",
+  "motion",
+  "export",
+] as const;
+
+export type EditorWorkspaceIntent = (typeof EDITOR_WORKSPACE_INTENTS)[number];
+
+export type EditorWorkflowOrchestrationState = {
+  intent: EditorWorkspaceIntent;
+  activeStage: EditorWorkflowStage;
 };
 
 export type EditorInstructionStudioState = {
@@ -300,9 +395,12 @@ export type EditorInstructionStudioState = {
   instructionObjects?: EditorInstructionObjectV2[];
   /** Multi-step edits queued before variant generation */
   changePlan?: EditorInstructionChangePlanItem[];
+  /** AI reference composition plan */
+  compositionPlan?: EditorCompositionPlan;
   /** AI Director natural-language input */
   directorPrompt?: string;
   outputTarget?: EditorInstructionOutputTarget;
+  workflow?: EditorWorkflowOrchestrationState;
   brandReferences?: BrandReferenceAsset[];
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;

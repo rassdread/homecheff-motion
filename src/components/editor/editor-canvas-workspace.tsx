@@ -37,7 +37,7 @@ import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
 import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
-import { EditorInstructionStudioWorkspace } from "@/components/editor/editor-instruction-studio-workspace";
+import { EditorV2WorkflowShell } from "@/components/editor/editor-v2-workflow-shell";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
@@ -2165,12 +2165,15 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           : null}
 
           {!showReview && uiMode === "visual" && instructionStudioActive ?
-            <EditorInstructionStudioWorkspace
+            <EditorV2WorkflowShell
               document={document}
               busy={v6Busy || saving}
               isAdmin={isAdmin}
+              saving={saving}
               onDocumentChange={persist}
               onSave={() => void handleSaveDraft()}
+              onClose={onBack}
+              onProjects={onBack}
             />
           : null}
 

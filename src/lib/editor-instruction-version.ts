@@ -134,6 +134,9 @@ export function createPendingInstructionVariant(params: {
   name?: string;
   parentVariantId?: string | null;
   presetId?: string;
+  variantType?: EditorInstructionVariant["variantType"];
+  compositionPlanId?: string;
+  referenceIds?: string[];
 }): EditorInstructionVariant {
   const now = new Date().toISOString();
   return {
@@ -152,6 +155,9 @@ export function createPendingInstructionVariant(params: {
     approvalStatus: "draft",
     userNote: params.userNote,
     presetId: params.presetId,
+    variantType: params.variantType ?? "instruction",
+    compositionPlanId: params.compositionPlanId,
+    referenceIds: params.referenceIds,
     createdAt: now,
     updatedAt: now,
   };
