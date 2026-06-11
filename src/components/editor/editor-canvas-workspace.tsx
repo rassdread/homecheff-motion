@@ -37,6 +37,7 @@ import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
 import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
+import { EditorInstructionStudioPanel } from "@/components/editor/editor-instruction-studio-panel";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
@@ -176,7 +177,13 @@ import { updateImportedLayer } from "@/lib/editor-imported-layers";
 import { persistCutoutToLibrary } from "@/lib/editor-cutout-library-persist";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
-import { EDITOR_MODE_LABEL_KEYS } from "@/lib/editor-workspace-modes";
+import {
+  EDITOR_LEGACY_WORKSPACE_MODES,
+  EDITOR_MODE_LABEL_KEYS,
+  EDITOR_PRIMARY_WORKSPACE_MODES,
+} from "@/lib/editor-workspace-modes";
+import { resolveEditorWorkspaceMode } from "@/lib/editor-instruction-studio";
+import { activeInstructionVariant } from "@/lib/editor-instruction-version";
 import type {
   EditorUxV7NoSelectionAction,
   EditorUxV7ObjectAction,
@@ -187,6 +194,8 @@ import {
   modeShowsComposePanels,
   modeShowsExportAdvancedPanels,
   modeShowsExportHub,
+  modeShowsInstructionStudio,
+  modeShowsLiveCanvasSelection,
   modeShowsQuickMotionPanel,
   modeShowsLibraryPanels,
   modeShowsMotionPreparePanels,
@@ -241,6 +250,7 @@ import type {
 type PanelMode = "layer" | "placement" | "body";
 
 const EDITOR_MODE_ALREADY_ACTIVE_KEYS: Record<EditorWorkspaceMode, string> = {
+  instruction_studio: "editor.modeAlreadyActive.instructionStudio",
   photo_edit: "editor.modeAlreadyActive.photoEdit",
   compose: "editor.modeAlreadyActive.compose",
   quick_motion: "editor.modeAlreadyActive.gif",
@@ -305,7 +315,12 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [composerUploading, setComposerUploading] = useState(false);
   const composerSourceRef = useRef<HTMLInputElement>(null);
 
-  const workspaceMode: EditorWorkspaceMode = document.workspaceMode ?? "photo_edit";
+  const workspaceMode: EditorWorkspaceMode = resolveEditorWorkspaceMode(document);
+  const instructionStudioActive = modeShowsInstructionStudio(workspaceMode);
+  const liveCanvasSelectionEnabled = modeShowsLiveCanvasSelection(workspaceMode);
+  const visibleWorkspaceModes =
+    uiMode === "advanced" ? EDITOR_WORKSPACE_MODES : EDITOR_PRIMARY_WORKSPACE_MODES;
+  const instructionPreviewVariant = activeInstructionVariant(document);
 
   const hierarchicalSelection =
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
@@ -2101,7 +2116,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
           {!showReview && uiMode === "advanced" ?
             <div className="mt-4 flex flex-wrap gap-2">
-              {EDITOR_WORKSPACE_MODES.map((mode) => (
+              {EDITOR_LEGACY_WORKSPACE_MODES.map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -2151,11 +2166,75 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             </pre>
           : null}
 
-          {!showReview && uiMode === "visual" ?
+          {!showReview && uiMode === "visual" && instructionStudioActive ?
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
+              <div className="min-w-0 flex-1 space-y-3">
+                <h1 className="text-lg font-semibold text-zinc-900">
+                  {t("editor.instructionStudio.title" as never)}
+                </h1>
+                <p className="text-sm text-zinc-600">{t("editor.instructionStudio.lead" as never)}</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("editor.instructionStudio.originalLabel" as never)}
+                    </p>
+                    <EditorCanvasPreview
+                      document={document}
+                      selectedLayerId={null}
+                      selectedPlacementId={null}
+                      previewOnly
+                      onSelectLayer={() => undefined}
+                      onSelectPlacement={() => undefined}
+                      onMoveLayer={() => undefined}
+                      onMovePlacement={() => undefined}
+                      onResizePlacement={() => undefined}
+                    />
+                  </div>
+                  {instructionPreviewVariant?.resultUrl ?
+                    <div>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        {t("editor.instructionStudio.variantLabel" as never)}
+                      </p>
+                      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-[#0067B1]/30 bg-zinc-100 shadow-inner">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={instructionPreviewVariant.resultUrl}
+                          alt=""
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  : null}
+                </div>
+              </div>
+              <EditorInstructionStudioPanel
+                document={document}
+                busy={v6Busy || saving}
+                onDocumentChange={persist}
+                onSave={() => void handleSaveDraft()}
+                onOpenStudio={() =>
+                  window.open(
+                    `/studio/storyboards/new?editorSession=${encodeURIComponent(document.sessionId)}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
+                onOpenMotion={() =>
+                  window.open(
+                    `/animate/instant?editorSession=${encodeURIComponent(document.sessionId)}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
+              />
+            </div>
+          : null}
+
+          {!showReview && uiMode === "visual" && !instructionStudioActive ?
             <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
               <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap gap-2">
-                {EDITOR_WORKSPACE_MODES.map((mode) => (
+                {visibleWorkspaceModes.map((mode) => (
                   <button
                     key={mode}
                     type="button"

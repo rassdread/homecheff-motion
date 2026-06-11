@@ -569,8 +569,9 @@ export type EditorDetectionMeta = {
   userMessageKey?: string;
 };
 
-/** Editor V5 workspace modes — what the user wants to make. */
+/** Editor workspace modes — instruction studio is the default product surface. */
 export const EDITOR_WORKSPACE_MODES = [
+  "instruction_studio",
   "photo_edit",
   "compose",
   "quick_motion",
@@ -984,6 +985,9 @@ export type EditorCanvasDocument = {
   editorFlowMode?: "edit" | "combine" | "motion_prepare" | "export";
   /** HomeCheff asset intelligence — recommendations, routing, readiness. */
   assetProfile?: import("@/types/editor-asset-profile").EditorAssetProfile;
+  /** Instruction studio generated variants — original image is never replaced in-place. */
+  instructionVariants?: import("@/types/editor-instruction-studio").EditorInstructionVariant[];
+  instructionStudioState?: import("@/types/editor-instruction-studio").EditorInstructionStudioState;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

@@ -91,7 +91,7 @@ function gateUxV7Actions(
 ): EditorUxV7ObjectAction[] {
   const gated = actions.filter((action) => uxV7ActionAllowed(layer, action));
   if (layerShowsRefineAction(layer)) {
-    return ["refine_selection", ...gated];
+    return filterVisibleUxV7Actions(["refine_selection", ...gated]);
   }
   return gated;
 }

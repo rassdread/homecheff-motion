@@ -1,6 +1,10 @@
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
 /** Active workspace tab is the source of truth for panel visibility. */
+export function modeShowsInstructionStudio(mode: EditorWorkspaceMode): boolean {
+  return mode === "instruction_studio";
+}
+
 export function modeShowsComposePanels(mode: EditorWorkspaceMode): boolean {
   return mode === "compose";
 }
@@ -29,6 +33,10 @@ export function modeShowsMotionPreparePanels(document: EditorCanvasDocument): bo
 
 export function modeShowsPhotoEditObjectPanels(mode: EditorWorkspaceMode): boolean {
   return mode === "photo_edit";
+}
+
+export function modeShowsLiveCanvasSelection(mode: EditorWorkspaceMode): boolean {
+  return mode === "photo_edit" || mode === "compose";
 }
 
 export function modeShowsLibraryPanels(mode: EditorWorkspaceMode): boolean {

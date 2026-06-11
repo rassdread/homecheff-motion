@@ -131,7 +131,7 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     motionPreparations,
     objectHierarchies,
     hierarchicalSelection,
-    workspaceMode: document.workspaceMode ?? "photo_edit",
+    workspaceMode: document.workspaceMode ?? "instruction_studio",
     importedLayers: document.importedLayers ?? [],
     libraryExports: document.libraryExports ?? [],
   });
@@ -198,7 +198,7 @@ export function createEditorDocumentFromUpload(params: {
       },
     ],
     placements: [],
-    workspaceMode: params.workspaceMode ?? "photo_edit",
+    workspaceMode: params.workspaceMode ?? "instruction_studio",
     status: "editing",
     createdAt: now,
     updatedAt: now,

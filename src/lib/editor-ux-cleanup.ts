@@ -253,16 +253,16 @@ function gateHumanActions(layer: EditorCanvasLayer, picked: EditorHumanAction[])
     return true;
   });
   if (layerShowsRefineAction(layer)) {
-    return [
+    return filterHumanVisibleActions([
       {
         id: "refine_selection",
         labelKey: "editor.selectionFix.refine",
         icon: "✨",
       },
       ...gated,
-    ];
+    ]);
   }
-  return gated;
+  return filterHumanVisibleActions(gated);
 }
 
 export function resolveContextualHumanActions(layer: EditorCanvasLayer | null): EditorHumanAction[] {

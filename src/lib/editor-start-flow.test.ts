@@ -55,9 +55,9 @@ describe("Editor start flow", () => {
   });
 
   it("post-upload modes map to workspace modes", () => {
-    assert.equal(workspaceModeForPostUpload("edit"), "photo_edit");
+    assert.equal(workspaceModeForPostUpload("edit"), "instruction_studio");
     assert.equal(workspaceModeForPostUpload("combine"), "compose");
-    assert.equal(workspaceModeForPostUpload("motion_prepare"), "photo_edit");
+    assert.equal(workspaceModeForPostUpload("motion_prepare"), "instruction_studio");
     assert.equal(workspaceModeForPostUpload("export"), "export");
   });
 

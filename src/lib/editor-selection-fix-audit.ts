@@ -103,10 +103,10 @@ export function gatedActionsHideReplaceUntilMask(): boolean {
   const freshHuman = resolveContextualHumanActions(fresh).map((a) => a.id);
   const maskedHuman = resolveContextualHumanActions(masked).map((a) => a.id);
   return (
-    freshUx.includes("refine_selection") &&
+    !freshUx.includes("refine_selection") &&
     !freshUx.includes("replace") &&
     maskedUx.includes("replace") &&
-    freshHuman.includes("refine_selection") &&
+    !freshHuman.includes("refine_selection") &&
     !freshHuman.includes("replace") &&
     (maskedHuman.includes("replace") || maskedHuman.includes("remove"))
   );

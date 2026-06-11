@@ -26,7 +26,7 @@ describe("Editor Selection Fix Audit", () => {
     assert.equal(selectionOutlineShowsApproximate(), true);
   });
 
-  it("replace hidden until mask; refine shown instead", () => {
+  it("replace hidden until mask; live refine hidden (instruction studio pivot)", () => {
     assert.equal(gatedActionsHideReplaceUntilMask(), true);
   });
 

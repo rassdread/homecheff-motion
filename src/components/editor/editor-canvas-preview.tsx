@@ -79,6 +79,8 @@ type Props = {
   segmentMessageKey?: string | null;
   clickFeedbackPoint?: EditorShapePoint | null;
   showSelectionHelp?: boolean;
+  /** Read-only preview — no hit-testing, transforms, or selection overlays. */
+  previewOnly?: boolean;
 };
 
 export function EditorCanvasPreview({
@@ -118,6 +120,7 @@ export function EditorCanvasPreview({
   segmentMessageKey = null,
   clickFeedbackPoint = null,
   showSelectionHelp = true,
+  previewOnly = false,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -168,7 +171,17 @@ export function EditorCanvasPreview({
   const hoveredLayer =
     hoveredLayerId ? document.objects.find((o) => o.id === hoveredLayerId) : null;
   const interactiveCanvas =
-    humanFirst && !lassoActive && !preciseSelectActive && !selectedPlacementId;
+    !previewOnly && humanFirst && !lassoActive && !preciseSelectActive && !selectedPlacementId;
+
+  if (previewOnly) {
+    const previewUrl = document.backgroundUrl;
+    return (
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-inner">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={previewUrl} alt="" className="h-full w-full object-contain" />
+      </div>
+    );
+  }
 
   return (
     <div

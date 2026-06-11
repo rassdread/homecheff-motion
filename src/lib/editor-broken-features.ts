@@ -15,6 +15,7 @@ export const HIDDEN_HUMAN_ACTIONS = new Set<EditorHumanActionId>([
   "expression",
   "hands",
   "new_role",
+  "refine_selection",
 ]);
 
 export const HIDDEN_UX_V7_OBJECT_ACTIONS = new Set<EditorUxV7ObjectAction>([
@@ -22,7 +23,22 @@ export const HIDDEN_UX_V7_OBJECT_ACTIONS = new Set<EditorUxV7ObjectAction>([
   "animate",
   "resize",
   "move",
+  "refine_selection",
+  "cutout",
 ]);
+
+/** Live canvas tools hidden in instruction studio pivot — use Generate Variant instead. */
+export const HIDDEN_LIVE_CANVAS_TOOLS = new Set([
+  "move",
+  "resize",
+  "select_object",
+  "precise_mask",
+  "refine_selection",
+  "cut_out",
+  "replace_via_mask",
+  "lasso",
+  "transform_handles",
+] as const);
 
 export const HIDDEN_BACKGROUND_TOOLS = new Set<EditorBackgroundToolId>(["blur", "sky"]);
 

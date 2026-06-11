@@ -109,14 +109,14 @@ describe("Editor UI action wiring audit", () => {
     assert.equal(modeShowsMotionPreparePanels(doc), true);
   });
 
-  it("precise globe child: replace/cutout/duplicate enabled via mask gate", () => {
+  it("precise globe child: replace/duplicate enabled; live cutout hidden (instruction pivot)", () => {
     const layer = mockLayer();
     const gate = evaluateEditorMaskGate(layer);
     assert.equal(gate.allowed, true);
     const actions = resolveUxV7ObjectActions(layer);
     assert.ok(actions.includes("replace"));
-    assert.ok(actions.includes("cutout"));
     assert.ok(actions.includes("duplicate"));
+    assert.equal(actions.includes("cutout"), false);
   });
 
   it("hint-only resize/move hidden from contextual bar", () => {
@@ -129,13 +129,13 @@ describe("Editor UI action wiring audit", () => {
     assert.equal(logoActions.includes("move"), false);
   });
 
-  it("core actions wired: segment click, cutout, duplicate, export hub", () => {
+  it("core actions wired: instruction studio panel, duplicate, export hub", () => {
     const workspace = readFileSync(
       join(ROOT, "src/components/editor/editor-canvas-workspace.tsx"),
       "utf8"
     );
-    assert.match(workspace, /runPromptSubLayerSegmentation/);
-    assert.match(workspace, /handleOneClickCutout/);
+    assert.match(workspace, /EditorInstructionStudioPanel/);
+    assert.match(workspace, /instructionStudioActive/);
     assert.match(workspace, /handleOperation\("duplicate"\)/);
     assert.match(workspace, /EditorExportHubPanel/);
     assert.match(workspace, /handleRemoveBackground/);

@@ -25,10 +25,10 @@ export function workspaceModeForPostUpload(mode: EditorPostUploadMode): EditorWo
     case "export":
       return "export";
     case "motion_prepare":
-      return "photo_edit";
+      return "instruction_studio";
     case "edit":
     default:
-      return "photo_edit";
+      return "instruction_studio";
   }
 }
 

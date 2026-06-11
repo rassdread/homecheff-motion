@@ -8,7 +8,7 @@ export type EditorUserIntent =
   | "export_print";
 
 export const EDITOR_INTENT_TO_MODE: Record<EditorUserIntent, EditorWorkspaceMode> = {
-  edit_photo: "photo_edit",
+  edit_photo: "instruction_studio",
   combine_images: "compose",
   make_gif: "quick_motion",
   prepare_motion: "export",
@@ -16,11 +16,23 @@ export const EDITOR_INTENT_TO_MODE: Record<EditorUserIntent, EditorWorkspaceMode
 };
 
 export const EDITOR_MODE_LABEL_KEYS: Record<EditorWorkspaceMode, string> = {
+  instruction_studio: "editor.instructionStudio.mode",
   photo_edit: "editor.v5.mode.photoEdit",
   compose: "editor.v5.mode.compose",
   quick_motion: "editor.v5.mode.quickMotion",
   export: "editor.v5.mode.export",
 };
+
+/** Modes shown in the default (visual) instruction studio shell. */
+export const EDITOR_PRIMARY_WORKSPACE_MODES: EditorWorkspaceMode[] = ["instruction_studio"];
+
+/** Legacy canvas modes — advanced shell only. */
+export const EDITOR_LEGACY_WORKSPACE_MODES: EditorWorkspaceMode[] = [
+  "photo_edit",
+  "compose",
+  "quick_motion",
+  "export",
+];
 
 export function resolveWorkspaceModeFromIntent(intent: EditorUserIntent): EditorWorkspaceMode {
   return EDITOR_INTENT_TO_MODE[intent];
