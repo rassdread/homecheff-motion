@@ -1,18 +1,44 @@
+import { isBrandingAction } from "@/lib/editor-instruction-actions";
+import type { BrandReferenceAsset } from "@/types/editor-instruction-studio";
 import type {
-  EditorInstructionAction,
+  EditorInstructionDynamicAction,
+  EditorInstructionObjectCategory,
+  EditorInstructionReference,
   EditorInstructionSelection,
+  EditorInstructionSliders,
 } from "@/types/editor-instruction-studio";
 
-export type EditorInstructionPromptInput = EditorInstructionSelection & {
+export type EditorInstructionPromptInputV2 = EditorInstructionSelection & {
   assetName?: string;
   brandIdentity?: string;
+  logoReference?: BrandReferenceAsset | null;
+  references?: EditorInstructionReference[];
+  preserveObjects?: string[];
 };
 
-const ACTION_VERBS: Record<EditorInstructionAction, string> = {
-  remove: "Remove only",
-  replace: "Replace only",
+const ACTION_PHRASES: Partial<Record<EditorInstructionDynamicAction, string>> = {
+  add_logo: "Apply the uploaded logo to",
+  replace_logo: "Replace the logo on",
   change_color: "Change the color of only",
-  change_style: "Adjust the style of only",
+  change_material: "Change the material of only",
+  remove: "Remove only",
+  redesign_packaging: "Redesign the packaging of",
+  premium_packaging: "Upgrade the packaging of to a premium luxury style for",
+  eco_packaging: "Redesign the packaging of with eco-friendly sustainable styling for",
+  rewrite: "Rewrite the text on",
+  translate: "Translate the text on",
+  replace: "Replace only",
+  blur: "Blur only",
+  transparent: "Make transparent only",
+  change_clothing: "Change the clothing on",
+  change_expression: "Change the expression of",
+  change_pose: "Change the pose of",
+  add_item: "Add an item to",
+  remove_item: "Remove an item from",
+  enlarge_logo: "Enlarge the logo on",
+  move_logo: "Reposition the logo on",
+  remove_logo: "Remove the logo from",
+  change_style: "Adjust the visual style of only",
   change_background: "Change the background",
   duplicate: "Create a duplicate variant of",
   detach_asset: "Isolate and extract",
@@ -30,25 +56,25 @@ function strengthPhrase(changeStrength: number): string {
 
 function stylePreservationPhrase(preserveStyle: number): string {
   if (preserveStyle >= 75) {
-    return "Keep the original illustration style, line weight, shading, and color palette highly consistent.";
+    return "Keep: mascot, pose, colors, and illustration style highly consistent.";
   }
   if (preserveStyle >= 45) {
-    return "Keep the overall illustration style mostly consistent.";
+    return "Keep: overall illustration style mostly consistent.";
   }
-  return "You may reinterpret the visual style while keeping the scene recognizable.";
+  return "Style may shift while keeping the scene recognizable.";
 }
 
 function brandPreservationPhrase(brandPreservation: number, brandIdentity?: string): string {
   const brand = brandIdentity?.trim();
   if (brandPreservation >= 75) {
     return brand
-      ? `Preserve brand identity (${brand}), mascot proportions, and logo treatment.`
-      : "Preserve brand colors, mascot identity, and logo treatment.";
+      ? `Preserve: brand identity (${brand}), mascot proportions, and logo treatment.`
+      : "Preserve: brand colors, mascot identity, and logo treatment.";
   }
   if (brandPreservation >= 45) {
-    return "Keep major brand cues recognizable.";
+    return "Preserve: major brand cues.";
   }
-  return "Brand cues may shift if needed for the requested edit.";
+  return "Brand cues may adapt to support the edit.";
 }
 
 function creativityPhrase(creativity: number): string {
@@ -56,55 +82,113 @@ function creativityPhrase(creativity: number): string {
     return "You may add tasteful creative details that support the brief.";
   }
   if (creativity >= 40) {
-    return "Stay close to the reference composition with limited creative liberty.";
+    return "Stay close to the reference composition.";
   }
-  return "Do not invent new elements beyond the explicit request.";
+  return "Do not invent elements beyond the explicit request.";
 }
 
-function actionDetail(selection: EditorInstructionPromptInput): string {
-  const target = selection.objectLabel.trim() || selection.objectId;
-  const verb = ACTION_VERBS[selection.action];
-  switch (selection.action) {
-    case "replace": {
-      const replacement = selection.replacement?.trim() || "the described replacement";
+function doNotModifyClause(
+  category: EditorInstructionObjectCategory,
+  preserveObjects?: string[]
+): string {
+  const defaults = ["unrelated objects", "text", "logos", "background"];
+  if (category !== "background" && category !== "character") {
+    defaults.unshift("mascot face", "pose", "clothing");
+  }
+  if (category === "background") {
+    return "Do not modify: foreground subjects, logos, or clothing unless required for blending.";
+  }
+  const extras = preserveObjects?.length ? preserveObjects : defaults;
+  return `Do not modify: ${extras.join(", ")}.`;
+}
+
+function brandingPromptBlock(
+  input: EditorInstructionPromptInputV2,
+  target: string
+): string {
+  const placement = input.brandingPlacementHint?.trim() || "the appropriate visible area";
+  const logoName = input.logoReference?.name ?? "uploaded logo";
+  if (input.action === "add_logo") {
+    return [
+      `Apply the uploaded logo (${logoName}) to ${target} at ${placement}.`,
+      "Preserve: fabric folds, perspective, shadows, lighting.",
+      "Do not alter: mascot face, pose, background.",
+    ].join(" ");
+  }
+  if (input.action === "replace_logo") {
+    return [
+      `Replace the existing logo on ${target} with the uploaded logo (${logoName}).`,
+      "Preserve: fabric folds, perspective, shadows, lighting.",
+      "Do not alter: mascot face, pose, background.",
+    ].join(" ");
+  }
+  return "";
+}
+
+function actionDetail(input: EditorInstructionPromptInputV2): string {
+  const target = input.objectLabel.trim() || input.objectKey;
+  if (isBrandingAction(input.action) && input.logoReference) {
+    return brandingPromptBlock(input, target);
+  }
+
+  const verb = ACTION_PHRASES[input.action] ?? "Edit only";
+  switch (input.action) {
+    case "replace":
+    case "replace_logo": {
+      const replacement = input.replacement?.trim() || "the described replacement";
       return `${verb} ${target} with ${replacement}.`;
     }
-    case "remove":
-      return `${verb} ${target} and fill the area naturally.`;
-    case "change_color":
-      return `${verb} ${target} as described in the user brief.`;
-    case "change_style":
-      return `${verb} ${target} while keeping the rest of the image coherent.`;
-    case "change_background":
-      return `${verb} as described; do not alter foreground subjects unless necessary for blending.`;
-    case "duplicate":
-      return `${verb} ${target} as a separate asset-ready element.`;
-    case "detach_asset":
-      return `${verb} ${target} on a clean transparent or simple background.`;
+    case "premium_packaging":
+    case "eco_packaging":
+    case "redesign_packaging":
+      return `${verb} ${target}.`;
+    case "transparent":
+      return `Make ${target} transparent while keeping edges clean.`;
+    case "blur":
+      return `Blur ${target} naturally.`;
     default:
       return `${verb} ${target}.`;
   }
 }
 
-function preserveCharacterClause(selection: EditorInstructionPromptInput): string {
-  if (selection.preserveCharacter === false) {
+function referenceClause(references?: EditorInstructionReference[]): string {
+  if (!references?.length) {
     return "";
   }
-  if (selection.objectId === "character" || selection.objectId === "mascot" || selection.objectId === "person") {
-    return "";
-  }
-  return "Do not change the character's face, pose, clothing, or expression.";
+  const parts = references
+    .filter((r) => r.type !== "SOURCE_IMAGE")
+    .map((r) => {
+      switch (r.type) {
+        case "LOGO_REFERENCE":
+          return `Use the provided logo reference (${r.label ?? "logo"}) for brand placement.`;
+        case "STYLE_REFERENCE":
+          return `Match the visual style of the style reference (${r.label ?? "style"}).`;
+        case "PRODUCT_REFERENCE":
+          return `Use the product reference (${r.label ?? "product"}) for shape and detail.`;
+        default:
+          return "";
+      }
+    })
+    .filter(Boolean);
+  return parts.join(" ");
 }
 
-export function buildEditorInstructionPrompt(input: EditorInstructionPromptInput): string {
+/** @deprecated use buildEditorInstructionPromptV2 */
+export function buildEditorInstructionPrompt(
+  input: EditorInstructionPromptInputV2 & { objectId?: string; sliders: EditorInstructionSliders }
+): string {
+  return buildEditorInstructionPromptV2(input);
+}
+
+export function buildEditorInstructionPromptV2(input: EditorInstructionPromptInputV2): string {
   const custom = input.customPrompt?.trim();
   const parts = [
     "Using the reference image,",
     stylePreservationPhrase(input.sliders.preserveStyle),
     brandPreservationPhrase(input.sliders.brandPreservation, input.brandIdentity),
     actionDetail(input),
-    preserveCharacterClause(input),
-    "Do not change unrelated objects, text, logos, or background unless the action requires it.",
+    doNotModifyClause(input.category, input.preserveObjects),
+    referenceClause(input.references),
     strengthPhrase(input.sliders.changeStrength),
     creativityPhrase(input.sliders.creativity),
   ];
@@ -114,23 +198,31 @@ export function buildEditorInstructionPrompt(input: EditorInstructionPromptInput
   return parts.filter(Boolean).join(" ");
 }
 
-export function buildEditorInstructionVariantPayload(input: EditorInstructionPromptInput): {
+export function buildEditorInstructionVariantPayload(input: EditorInstructionPromptInputV2): {
   prompt: string;
   instruction: EditorInstructionSelection;
   sourceImageId: string;
+  references: EditorInstructionReference[];
 } {
-  const prompt = buildEditorInstructionPrompt(input);
+  const references = input.references ?? [];
+  const prompt = buildEditorInstructionPromptV2({ ...input, references });
   return {
     prompt,
     instruction: {
-      objectId: input.objectId,
+      objectKey: input.objectKey,
       objectLabel: input.objectLabel,
+      category: input.category,
       action: input.action,
       replacement: input.replacement,
       customPrompt: input.customPrompt,
       sliders: input.sliders,
       preserveCharacter: input.preserveCharacter,
+      logoReferenceId: input.logoReferenceId,
+      styleReferenceId: input.styleReferenceId,
+      productReferenceId: input.productReferenceId,
+      brandingPlacementHint: input.brandingPlacementHint,
     },
     sourceImageId: "background",
+    references,
   };
 }

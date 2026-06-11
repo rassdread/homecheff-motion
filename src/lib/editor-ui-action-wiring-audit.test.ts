@@ -134,7 +134,7 @@ describe("Editor UI action wiring audit", () => {
       join(ROOT, "src/components/editor/editor-canvas-workspace.tsx"),
       "utf8"
     );
-    assert.match(workspace, /EditorInstructionStudioPanel/);
+    assert.match(workspace, /EditorInstructionStudioWorkspace/);
     assert.match(workspace, /instructionStudioActive/);
     assert.match(workspace, /handleOperation\("duplicate"\)/);
     assert.match(workspace, /EditorExportHubPanel/);

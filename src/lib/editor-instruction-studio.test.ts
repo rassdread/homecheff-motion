@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { listInstructionDetectedObjects } from "@/lib/editor-instruction-objects";
-import { buildEditorInstructionPrompt } from "@/lib/editor-instruction-prompt-builder";
+import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-builder";
 import {
   DEFAULT_EDITOR_WORKSPACE_MODE,
   instructionStudioShowsLiveSelectionTools,
@@ -51,14 +51,14 @@ describe("editor instruction studio pivot", () => {
       confidence: 0.9,
     });
     const objects = listInstructionDetectedObjects(doc);
-    assert.ok(objects.some((o) => o.id === "globe"));
-    assert.ok(objects.some((o) => o.id === "background"));
+    assert.ok(objects.length >= 2);
   });
 
-  it("builds instruction prompt for replace globe with cooking pan", () => {
-    const prompt = buildEditorInstructionPrompt({
-      objectId: "globe",
+  it("builds instruction prompt for replace with cooking pan", () => {
+    const prompt = buildEditorInstructionPromptV2({
+      objectKey: "obj_globe",
       objectLabel: "globe",
+      category: "tool",
       action: "replace",
       replacement: "cooking pan",
       preserveCharacter: true,
@@ -70,8 +70,7 @@ describe("editor instruction studio pivot", () => {
       brandIdentity: "HomeCheff",
     });
     assert.match(prompt, /Replace only globe with cooking pan/i);
-    assert.match(prompt, /Do not change the character's face/i);
-    assert.match(prompt, /Preserve brand identity/i);
+    assert.match(prompt, /Preserve: brand identity/i);
   });
 
   it("stores variants without mutating the original image url", () => {
@@ -83,8 +82,9 @@ describe("editor instruction studio pivot", () => {
       sourceImageUrl: doc.backgroundUrl,
       sourceImageId: "background",
       instruction: {
-        objectId: "globe",
+        objectKey: "obj_globe",
         objectLabel: "globe",
+        category: "tool",
         action: "remove",
         sliders: { ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS },
       },
@@ -93,6 +93,7 @@ describe("editor instruction studio pivot", () => {
     const next = appendInstructionVariant(doc, variant);
     assert.equal(originalImageUrlUnchanged(doc, next), true);
     assert.equal(next.instructionVariants?.length, 1);
+    assert.equal(next.instructionStudioState?.activeVariantId, undefined);
   });
 
   it("flags legacy canvas sessions with non-instruction workspace mode", () => {

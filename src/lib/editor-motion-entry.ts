@@ -19,13 +19,14 @@ export function resolveEditorMotionBootstrap(params: {
 }): EditorMotionBootstrap | null {
   const sessionEntry = resolveEditorStudioEntry(params.editorSession);
   if (sessionEntry) {
+    const primary = sessionEntry.instructionHandoff.activeVariantUrl;
     const imageUrls = [
+      primary,
       ...sessionEntry.compositorLayerUrls,
       ...sessionEntry.cutoutUrls,
       ...sessionEntry.placementUrls,
-      sessionEntry.primaryImageUrl,
     ].filter((url, index, arr) => url && arr.indexOf(url) === index);
-    const imageUrl = imageUrls[0];
+    const imageUrl = primary || imageUrls[0];
     if (!imageUrl) {
       return null;
     }

@@ -1,8 +1,9 @@
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type {
+  EditorInstructionReference,
   EditorInstructionSelection,
   EditorInstructionVariant,
-  EditorInstructionVariantStatus,
+  EditorInstructionVariantGenerationStatus,
 } from "@/types/editor-instruction-studio";
 
 export function createInstructionVariantId(): string {
@@ -30,6 +31,7 @@ export function activeInstructionVariant(
   return findInstructionVariant(document, activeId);
 }
 
+/** New variants are draft — do not auto-activate. */
 export function appendInstructionVariant(
   document: EditorCanvasDocument,
   variant: EditorInstructionVariant
@@ -40,7 +42,7 @@ export function appendInstructionVariant(
     instructionVariants: [...listInstructionVariants(document), variant],
     instructionStudioState: {
       ...document.instructionStudioState,
-      activeVariantId: variant.id,
+      previewVariantId: variant.id,
     },
     updatedAt: now,
   };
@@ -62,6 +64,46 @@ export function patchInstructionVariant(
   };
 }
 
+export function renameInstructionVariant(
+  document: EditorCanvasDocument,
+  variantId: string,
+  name: string
+): EditorCanvasDocument {
+  return patchInstructionVariant(document, variantId, { name: name.trim() });
+}
+
+export function deleteInstructionVariant(
+  document: EditorCanvasDocument,
+  variantId: string
+): EditorCanvasDocument {
+  const nextVariants = listInstructionVariants(document).filter((v) => v.id !== variantId);
+  const state = document.instructionStudioState;
+  return {
+    ...document,
+    instructionVariants: nextVariants,
+    instructionStudioState: {
+      ...state,
+      activeVariantId: state?.activeVariantId === variantId ? null : state?.activeVariantId,
+      previewVariantId: state?.previewVariantId === variantId ? null : state?.previewVariantId,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function setPreviewInstructionVariant(
+  document: EditorCanvasDocument,
+  variantId: string | null
+): EditorCanvasDocument {
+  return {
+    ...document,
+    instructionStudioState: {
+      ...document.instructionStudioState,
+      previewVariantId: variantId,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function setActiveInstructionVariant(
   document: EditorCanvasDocument,
   variantId: string | null
@@ -71,6 +113,7 @@ export function setActiveInstructionVariant(
     instructionStudioState: {
       ...document.instructionStudioState,
       activeVariantId: variantId,
+      previewVariantId: variantId ?? document.instructionStudioState?.previewVariantId,
     },
     updatedAt: new Date().toISOString(),
   };
@@ -81,19 +124,28 @@ export function createPendingInstructionVariant(params: {
   sourceImageId: string;
   instruction: EditorInstructionSelection;
   prompt: string;
+  references?: EditorInstructionReference[];
   provider?: string;
   userNote?: string;
+  name?: string;
+  parentVariantId?: string | null;
+  presetId?: string;
 }): EditorInstructionVariant {
   const now = new Date().toISOString();
   return {
     id: createInstructionVariantId(),
+    name: params.name,
     sourceImageUrl: params.sourceImageUrl,
     sourceImageId: params.sourceImageId,
+    parentVariantId: params.parentVariantId ?? null,
     instruction: params.instruction,
+    references: params.references,
     prompt: params.prompt,
     provider: params.provider,
     status: "pending",
+    approvalStatus: "draft",
     userNote: params.userNote,
+    presetId: params.presetId,
     createdAt: now,
     updatedAt: now,
   };
@@ -101,7 +153,7 @@ export function createPendingInstructionVariant(params: {
 
 export function instructionVariantWithStatus(
   variant: EditorInstructionVariant,
-  status: EditorInstructionVariantStatus,
+  status: EditorInstructionVariantGenerationStatus,
   patch?: Partial<EditorInstructionVariant>
 ): EditorInstructionVariant {
   return {
@@ -112,7 +164,6 @@ export function instructionVariantWithStatus(
   };
 }
 
-/** Original background URL is never mutated — variants are appended separately. */
 export function originalImageUrlUnchanged(
   before: EditorCanvasDocument,
   after: EditorCanvasDocument

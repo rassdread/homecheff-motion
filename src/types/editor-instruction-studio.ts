@@ -1,5 +1,55 @@
-/** Image Instruction Studio — analyze → guide → generate variant. */
+/** Image Instruction Studio V2 — analyze → guide → generate variant. */
 
+export const EDITOR_INSTRUCTION_OBJECT_CATEGORIES = [
+  "character",
+  "logo",
+  "text",
+  "product",
+  "packaging",
+  "clothing",
+  "tool",
+  "food",
+  "background",
+  "environment",
+  "vehicle",
+  "building",
+  "signage",
+  "other",
+] as const;
+
+export type EditorInstructionObjectCategory = (typeof EDITOR_INSTRUCTION_OBJECT_CATEGORIES)[number];
+
+export const EDITOR_INSTRUCTION_DYNAMIC_ACTIONS = [
+  "add_logo",
+  "replace_logo",
+  "change_color",
+  "change_material",
+  "remove",
+  "redesign_packaging",
+  "premium_packaging",
+  "eco_packaging",
+  "rewrite",
+  "translate",
+  "replace",
+  "blur",
+  "transparent",
+  "change_clothing",
+  "change_expression",
+  "change_pose",
+  "add_item",
+  "remove_item",
+  "enlarge_logo",
+  "move_logo",
+  "remove_logo",
+  "change_style",
+  "change_background",
+  "duplicate",
+  "detach_asset",
+] as const;
+
+export type EditorInstructionDynamicAction = (typeof EDITOR_INSTRUCTION_DYNAMIC_ACTIONS)[number];
+
+/** @deprecated V1 object ids — use EditorInstructionObjectV2.category */
 export const EDITOR_INSTRUCTION_OBJECT_IDS = [
   "character",
   "person",
@@ -14,6 +64,7 @@ export const EDITOR_INSTRUCTION_OBJECT_IDS = [
 
 export type EditorInstructionObjectId = (typeof EDITOR_INSTRUCTION_OBJECT_IDS)[number];
 
+/** @deprecated V1 actions — use EditorInstructionDynamicAction */
 export const EDITOR_INSTRUCTION_ACTIONS = [
   "remove",
   "replace",
@@ -26,14 +77,20 @@ export const EDITOR_INSTRUCTION_ACTIONS = [
 
 export type EditorInstructionAction = (typeof EDITOR_INSTRUCTION_ACTIONS)[number];
 
+export type EditorInstructionObjectV2 = {
+  id: string;
+  label: string;
+  category: EditorInstructionObjectCategory;
+  confidence: number;
+  description: string;
+  suggestedActions: EditorInstructionDynamicAction[];
+  layerId?: string;
+};
+
 export type EditorInstructionSliders = {
-  /** 0–100 — keep original illustration/photo style */
   preserveStyle: number;
-  /** 0–100 — how strong the requested change should be */
   changeStrength: number;
-  /** 0–100 — keep brand colors, logo, mascot identity */
   brandPreservation: number;
-  /** 0–100 — allow creative interpretation beyond the brief */
   creativity: number;
 };
 
@@ -44,38 +101,107 @@ export const DEFAULT_EDITOR_INSTRUCTION_SLIDERS: EditorInstructionSliders = {
   creativity: 35,
 };
 
+export type BrandReferenceAsset = {
+  id: string;
+  name: string;
+  url: string;
+  transparentBackground: boolean;
+  uploadedAt: string;
+};
+
+export const EDITOR_INSTRUCTION_REFERENCE_TYPES = [
+  "SOURCE_IMAGE",
+  "LOGO_REFERENCE",
+  "STYLE_REFERENCE",
+  "PRODUCT_REFERENCE",
+] as const;
+
+export type EditorInstructionReferenceType = (typeof EDITOR_INSTRUCTION_REFERENCE_TYPES)[number];
+
+export type EditorInstructionReference = {
+  type: EditorInstructionReferenceType;
+  assetId: string;
+  url: string;
+  label?: string;
+};
+
 export type EditorInstructionSelection = {
-  objectId: EditorInstructionObjectId;
+  objectKey: string;
   objectLabel: string;
-  action: EditorInstructionAction;
+  category: EditorInstructionObjectCategory;
+  action: EditorInstructionDynamicAction;
   replacement?: string;
   customPrompt?: string;
   sliders: EditorInstructionSliders;
   preserveCharacter?: boolean;
+  logoReferenceId?: string;
+  styleReferenceId?: string;
+  productReferenceId?: string;
+  brandingPlacementHint?: string;
 };
 
-export type EditorInstructionVariantStatus = "pending" | "running" | "completed" | "failed";
+export type EditorInstructionVariantGenerationStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed";
+
+export type EditorInstructionVariantApproval = "draft" | "approved" | "archived";
 
 export type EditorInstructionVariant = {
   id: string;
+  name?: string;
   sourceImageUrl: string;
   sourceImageId: string;
+  parentVariantId?: string | null;
   resultUrl?: string;
   resultStorageKey?: string;
   instruction: EditorInstructionSelection;
+  references?: EditorInstructionReference[];
   prompt: string;
   provider?: string;
   model?: string;
   costEstimateUsd?: number;
-  status: EditorInstructionVariantStatus;
+  status: EditorInstructionVariantGenerationStatus;
+  approvalStatus: EditorInstructionVariantApproval;
   userNote?: string;
   versionNote?: string;
+  presetId?: string;
   createdAt: string;
   updatedAt: string;
   error?: string;
 };
 
+export type EditorInstructionHandoffMeta = {
+  variantId?: string;
+  activeVariantUrl: string;
+  instructionUsed?: string;
+  versionNote?: string;
+  createdAt?: string;
+  usesOriginal: boolean;
+};
+
 export type EditorInstructionStudioState = {
+  /** Approved variant used for Studio/Motion — not auto-set on generate */
   activeVariantId?: string | null;
+  /** UI preview selection (may be draft) */
+  previewVariantId?: string | null;
   selection?: Partial<EditorInstructionSelection>;
+  brandReferences?: BrandReferenceAsset[];
+  styleReference?: EditorInstructionReference | null;
+  productReference?: EditorInstructionReference | null;
+};
+
+export type EditorCreatorPresetId = "chef" | "garden" | "designer";
+
+export type EditorCreatorPreset = {
+  id: EditorCreatorPresetId;
+  labelKey: string;
+  descriptionKey: string;
+  variants: Array<{
+    id: string;
+    labelKey: string;
+    promptSuffix: string;
+    action?: EditorInstructionDynamicAction;
+  }>;
 };

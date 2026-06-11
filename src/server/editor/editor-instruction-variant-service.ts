@@ -6,7 +6,10 @@ import {
 } from "@/lib/openai-image-generation";
 import { validateEditorSegmentImageSource } from "@/server/editor/editor-image-ownership";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
-import type { EditorInstructionSelection } from "@/types/editor-instruction-studio";
+import type {
+  EditorInstructionReference,
+  EditorInstructionSelection,
+} from "@/types/editor-instruction-studio";
 
 type OpenAiImageResponse = {
   data?: Array<{ url?: string; b64_json?: string }>;
@@ -66,6 +69,7 @@ export async function executeEditorInstructionVariant(params: {
   imageUrl: string;
   prompt: string;
   instruction: EditorInstructionSelection;
+  references?: EditorInstructionReference[];
 }): Promise<EditorInstructionVariantResult> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {

@@ -1,12 +1,19 @@
+import {
+  defaultActionForCategory,
+} from "@/lib/editor-instruction-actions";
+import {
+  defaultSelectionForObject,
+  findInstructionObjectV2,
+  listInstructionObjectsV2,
+} from "@/lib/editor-instruction-object-v2";
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 import type {
-  EditorInstructionObjectId,
+  EditorInstructionObjectCategory,
   EditorInstructionSelection,
   EditorInstructionSliders,
 } from "@/types/editor-instruction-studio";
 import { DEFAULT_EDITOR_INSTRUCTION_SLIDERS } from "@/types/editor-instruction-studio";
 
-/** Default product mode after pivot — instruction-first, not live pixel editing. */
 export const DEFAULT_EDITOR_WORKSPACE_MODE: EditorWorkspaceMode = "instruction_studio";
 
 export function resolveEditorWorkspaceMode(
@@ -47,24 +54,35 @@ export function instructionStudioShowsLiveSelectionTools(mode: EditorWorkspaceMo
 }
 
 export function defaultInstructionSelection(
-  objectId: EditorInstructionObjectId = "object",
-  objectLabel = "object"
+  document?: EditorCanvasDocument
 ): EditorInstructionSelection {
+  const objects = document ? listInstructionObjectsV2(document) : [];
+  const first = objects[0];
+  if (first) {
+    return {
+      ...defaultSelectionForObject(first),
+      sliders: { ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS },
+      preserveCharacter: true,
+      action: first.suggestedActions[0] ?? defaultActionForCategory(first.category),
+    };
+  }
   return {
-    objectId,
-    objectLabel,
-    action: "replace",
+    objectKey: "obj_main",
+    objectLabel: "Main subject",
+    category: "other" as EditorInstructionObjectCategory,
+    action: defaultActionForCategory("other"),
     sliders: { ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS },
     preserveCharacter: true,
   };
 }
 
 export function mergeInstructionSelection(
+  document: EditorCanvasDocument,
   current: Partial<EditorInstructionSelection> | undefined,
   patch: Partial<EditorInstructionSelection>
 ): EditorInstructionSelection {
-  const base = defaultInstructionSelection();
-  return {
+  const base = defaultInstructionSelection(document);
+  const merged = {
     ...base,
     ...current,
     ...patch,
@@ -74,4 +92,17 @@ export function mergeInstructionSelection(
       ...patch.sliders,
     } as EditorInstructionSliders,
   };
+
+  if (patch.objectKey && document) {
+    const obj = findInstructionObjectV2(document, patch.objectKey);
+    if (obj) {
+      merged.objectLabel = obj.label;
+      merged.category = obj.category;
+      if (!patch.action) {
+        merged.action = obj.suggestedActions[0] ?? defaultActionForCategory(obj.category);
+      }
+    }
+  }
+
+  return merged;
 }
