@@ -42,8 +42,8 @@ function mockDocument(overrides: Partial<EditorCanvasDocument> = {}): EditorCanv
 }
 
 describe("Editor start flow", () => {
-  it("start screen only shows upload and library primary options", () => {
-    assert.deepEqual(startScreenPrimaryOptions(), ["upload", "library"]);
+  it("start screen leads with workflow chooser then upload and library", () => {
+    assert.deepEqual(startScreenPrimaryOptions(), ["workflow", "upload", "library"]);
   });
 
   it("hides gif print motion and combine intents before image exists", () => {

@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { EditorCombineWorkspace } from "@/components/editor/editor-combine-workspace";
 import { EditorExportWorkspace } from "@/components/editor/editor-export-workspace";
+import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
 import { EditorInstructionStudioWorkspace } from "@/components/editor/editor-instruction-studio-workspace";
+import { EditorMenu } from "@/components/editor/editor-menu";
 import { EditorMotionWorkspace } from "@/components/editor/editor-motion-workspace";
-import { EditorProjectTopBar } from "@/components/editor/editor-project-top-bar";
-import { EditorSmartNextSteps } from "@/components/editor/editor-smart-next-steps";
-import { EditorWorkflowStatusBar } from "@/components/editor/editor-workflow-status-bar";
 import { useActiveTranslator } from "@/i18n/client";
+import { defaultSelectionForObject } from "@/lib/editor-instruction-object-v2";
+import { listInstructionObjectsV2 } from "@/lib/editor-instruction-object-v2";
 import { editorHandoffStudioUrl } from "@/lib/editor-instruction-handoff";
 import {
   detectEditorWorkflowIntent,
@@ -31,15 +32,13 @@ type Props = {
   onSave: () => void;
   onClose: () => void;
   onProjects: () => void;
+  onReview: () => void;
+  onDownload: () => void;
+  onToggleAdvanced?: () => void;
+  advancedMode?: boolean;
+  onToggleAiAnalysis?: () => void;
+  showAiAnalysis?: boolean;
 };
-
-const WORKSPACE_TABS: Array<{ id: EditorWorkspaceIntent | "projects"; labelKey: string }> = [
-  { id: "edit", labelKey: "editor.workflow.tab.edit" },
-  { id: "combine", labelKey: "editor.workflow.tab.combine" },
-  { id: "motion", labelKey: "editor.workflow.tab.motion" },
-  { id: "export", labelKey: "editor.workflow.tab.export" },
-  { id: "projects", labelKey: "editor.workflow.tab.projects" },
-];
 
 export function EditorV2WorkflowShell({
   document,
@@ -50,6 +49,12 @@ export function EditorV2WorkflowShell({
   onSave,
   onClose,
   onProjects,
+  onReview,
+  onDownload,
+  onToggleAdvanced,
+  advancedMode = false,
+  onToggleAiAnalysis,
+  showAiAnalysis = false,
 }: Props) {
   const t = useActiveTranslator();
   const [activeTab, setActiveTab] = useState<EditorWorkspaceIntent | "projects">(
@@ -58,10 +63,33 @@ export function EditorV2WorkflowShell({
 
   const stages = useMemo(() => resolveWorkflowStages(document), [document]);
   const nextSteps = useMemo(() => suggestSmartNextSteps(document), [document]);
+  const editableObjects = useMemo(() => listInstructionObjectsV2(document), [document]);
 
-  const setIntent = (intent: EditorWorkspaceIntent) => {
+  const setIntent = (intent: EditorWorkspaceIntent | "projects") => {
+    if (intent === "projects") {
+      onProjects();
+      return;
+    }
     setActiveTab(intent);
     onDocumentChange(patchWorkflowIntent(document, intent));
+  };
+
+  const handleDirectorApply = (objectLabel: string, category: string) => {
+    const obj = editableObjects.find(
+      (o) =>
+        o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
+        o.category === category
+    );
+    if (obj) {
+      onDocumentChange({
+        ...document,
+        instructionStudioState: {
+          ...document.instructionStudioState,
+          selection: defaultSelectionForObject(obj),
+        },
+        updatedAt: new Date().toISOString(),
+      });
+    }
   };
 
   const handleNextStep = (step: ReturnType<typeof suggestSmartNextSteps>[number]) => {
@@ -71,50 +99,71 @@ export function EditorV2WorkflowShell({
     }
     if (step.id === "studio") {
       window.location.href = editorHandoffStudioUrl(document);
-      return;
-    }
-    if (step.id === "generate" && activeTab === "edit") {
-      return;
     }
     if (step.id === "approve") {
       setIntent("edit");
     }
   };
 
+  const primaryNext = nextSteps[0];
+
   return (
-    <div className="mt-4 space-y-4">
-      <EditorProjectTopBar
-        document={document}
-        saving={saving}
-        onSave={onSave}
-        onClose={onClose}
-        onProjects={onProjects}
-      />
-
-      <EditorWorkflowStatusBar stages={stages} />
-
-      <div className="flex flex-wrap gap-2">
-        {WORKSPACE_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => {
-              if (tab.id === "projects") {
-                onProjects();
-                return;
-              }
-              setIntent(tab.id);
-            }}
-            className={
-              activeTab === tab.id ? studioVisual.editorTabActive : studioVisual.editorTabInactive
-            }
-          >
-            {t(tab.labelKey as never)}
-          </button>
-        ))}
+    <div className="space-y-4" data-testid="editor-v2-workflow-shell">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {activeTab === "edit" ?
+            <EditorInstructionAiDirectorBar
+              document={document}
+              editableObjects={editableObjects}
+              isAdmin={isAdmin}
+              onDocumentChange={onDocumentChange}
+              onApplyFirstChange={handleDirectorApply}
+            />
+          : (
+            <section className={`p-4 ${studioVisual.editorSurface}`}>
+              <h2 className="text-sm font-semibold text-zinc-900">
+                {t(`editor.workflow.tab.${activeTab}` as never)}
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                {t("editor.workflow.tabLead" as never)}
+              </p>
+            </section>
+          )}
+        </div>
+        <EditorMenu
+          documentName={document.name}
+          saving={saving}
+          activeTab={activeTab}
+          stages={stages}
+          isAdmin={isAdmin}
+          showAdvancedToggle={Boolean(onToggleAdvanced)}
+          advancedMode={advancedMode}
+          onSave={onSave}
+          onReview={onReview}
+          onDownload={onDownload}
+          onProjects={onProjects}
+          onClose={onClose}
+          onTabChange={setIntent}
+          onToggleAdvanced={onToggleAdvanced}
+          onToggleAiAnalysis={onToggleAiAnalysis}
+          showAiAnalysis={showAiAnalysis}
+        />
       </div>
 
-      <EditorSmartNextSteps steps={nextSteps} onStep={handleNextStep} />
+      {primaryNext && activeTab === "edit" ?
+        <div className={`flex flex-wrap items-center gap-2 px-3 py-2 text-xs ${studioVisual.editorSurface}`}>
+          <span className="font-medium text-zinc-600">
+            {t("editor.workflow.next.title" as never)}:
+          </span>
+          <button
+            type="button"
+            className="rounded-full border border-[#0067B1]/25 bg-[#0067B1]/5 px-3 py-1 font-semibold text-[#0067B1]"
+            onClick={() => handleNextStep(primaryNext)}
+          >
+            {t(primaryNext.labelKey as never)}
+          </button>
+        </div>
+      : null}
 
       {activeTab === "edit" ?
         <EditorInstructionStudioWorkspace
@@ -122,9 +171,7 @@ export function EditorV2WorkflowShell({
           busy={busy}
           isAdmin={isAdmin}
           onDocumentChange={(next) =>
-            onDocumentChange(
-              patchWorkflowIntent(next, detectEditorWorkflowIntent(next))
-            )
+            onDocumentChange(patchWorkflowIntent(next, detectEditorWorkflowIntent(next)))
           }
           onSave={onSave}
         />
@@ -150,7 +197,10 @@ export function EditorV2WorkflowShell({
       {activeTab === "projects" ?
         <div className={`${studioVisual.editorSurface} p-6 text-center`}>
           <p className="text-sm text-zinc-600">{t("editor.workflow.projects.lead" as never)}</p>
-          <Link href="/editor" className={`mt-3 inline-block ${studioVisual.btnGradientPrimary} px-4 py-2 text-xs`}>
+          <Link
+            href="/editor"
+            className={`mt-3 inline-block ${studioVisual.btnGradientPrimary} px-4 py-2 text-xs`}
+          >
             {t("editor.workflow.projects.open" as never)}
           </Link>
         </div>

@@ -32,9 +32,9 @@ export function buildEditorCompositionPrompt(input: {
     lines.push("Keep the overall illustration style highly consistent with the base image.");
   }
   if (preserveBrand >= 75) {
-    const brand = input.brandIdentity?.trim() || "HomeCheff";
-    lines.push(`Preserve ${brand} brand colors and mascot identity.`);
-    lines.push("Do not alter the mascot face unless explicitly requested.");
+    const brand = input.brandIdentity?.trim() || "the brand";
+    lines.push(`Preserve ${brand} brand colors and character identity.`);
+    lines.push("Do not alter the character face unless explicitly requested.");
   }
 
   lines.push("Do not mutate unrelated areas. Blend lighting and perspective naturally.");

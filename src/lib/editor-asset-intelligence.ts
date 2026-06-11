@@ -4,6 +4,8 @@ import { resolveEcosystemDestination, resolveLibraryIntelligence } from "@/lib/e
 import { buildStudioAssetIntent, buildStudioReadinessReport } from "@/lib/editor-asset-studio-intelligence";
 import { resolveAssetVariantGroup } from "@/lib/editor-asset-variants";
 import { recommendationsForAssetType } from "@/lib/editor-asset-recommendations";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import { resolveAssetSummaryKey } from "@/lib/editor-personalized-recommendations";
 import type { AssetVisionAnalysis, AssetVisionObjectType } from "@/types/studio-asset-vision-analysis";
 import type { EditorAssetProfile, EditorAssetType } from "@/types/editor-asset-profile";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -105,25 +107,6 @@ export function detectEditorAssetType(
   return { assetType: fromLayers, confidence: 0.55 };
 }
 
-const SUMMARY_KEYS: Record<EditorAssetType, string> = {
-  character: "editor.assetIntel.summary.character",
-  mascot: "editor.assetIntel.summary.mascot",
-  logo: "editor.assetIntel.summary.logo",
-  product: "editor.assetIntel.summary.product",
-  food: "editor.assetIntel.summary.food",
-  plant: "editor.assetIntel.summary.plant",
-  garden_asset: "editor.assetIntel.summary.garden",
-  poster: "editor.assetIntel.summary.poster",
-  flyer: "editor.assetIntel.summary.flyer",
-  photo: "editor.assetIntel.summary.photo",
-  scene: "editor.assetIntel.summary.scene",
-  background: "editor.assetIntel.summary.background",
-  object_collection: "editor.assetIntel.summary.collection",
-  text_design: "editor.assetIntel.summary.text",
-  motion_asset: "editor.assetIntel.summary.motion",
-  brand_asset: "editor.assetIntel.summary.brand",
-};
-
 export function buildEditorAssetProfile(
   document: EditorCanvasDocument,
   vision?: AssetVisionAnalysis | null
@@ -132,6 +115,7 @@ export function buildEditorAssetProfile(
   const handoff = computeStudioHandoffScore(document);
   const destination = resolveEcosystemDestination(assetType);
   const libraryIntelligence = resolveLibraryIntelligence(assetType, document);
+  const recCtx = buildEditorRecommendationContext({ document });
   const recommendedActions = recommendationsForAssetType(assetType, document, handoff.score);
   const recommendedExports: EditorAssetProfile["recommendedExports"] =
     assetType === "poster" || assetType === "flyer"
@@ -143,7 +127,7 @@ export function buildEditorAssetProfile(
   return {
     assetType,
     confidence,
-    humanSummaryKey: SUMMARY_KEYS[assetType],
+    humanSummaryKey: resolveAssetSummaryKey(recCtx, assetType),
     recommendedActions,
     recommendedExports,
     recommendedStudioUse: buildStudioReadinessReport(document, assetType),

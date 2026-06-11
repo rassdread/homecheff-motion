@@ -37,9 +37,9 @@ export function EditorInstructionPreviewHighlight({
               top: `${bounds.y * 100}%`,
               width: `${bounds.width * 100}%`,
               height: `${bounds.height * 100}%`,
-              backgroundColor: "rgba(0, 109, 82, 0.17)",
+              backgroundColor: "rgba(0, 109, 82, 0.18)",
               boxShadow:
-                "inset 0 0 0 1px rgba(255,255,255,0.35), 0 0 10px rgba(0,109,82,0.18)",
+                "inset 0 0 0 2px rgba(255,255,255,0.55), 0 0 0 1px rgba(0,109,82,0.65), 0 0 14px rgba(0,109,82,0.22)",
             }}
           />
           <div

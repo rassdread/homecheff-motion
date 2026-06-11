@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
-import { EditorPostUploadModePicker } from "@/components/editor/editor-post-upload-mode-picker";
+import { EditorCombineIntentPicker } from "@/components/editor/editor-combine-intent-picker";
+import { EditorWorkflowChooser } from "@/components/editor/editor-workflow-chooser";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
@@ -14,6 +15,8 @@ import {
   applyPostUploadMode,
   type EditorPostUploadMode,
 } from "@/lib/editor-start-flow";
+import { combineIntentOption, workflowProductForMode } from "@/lib/editor-workflow-product";
+import { applyWearOutfitComposition } from "@/lib/editor-wear-outfit-composition";
 import {
   createEditorDocumentFromLibrarySource,
   createEditorDocumentFromUpload,
@@ -22,11 +25,23 @@ import {
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
+import type { EditorCombineIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
   onOpenDocument: (document: EditorCanvasDocument) => void;
 };
+
+type StartPhase =
+  | { kind: "workflow" }
+  | { kind: "combine_intent"; workflow: "combine" }
+  | {
+      kind: "intake";
+      workflow: EditorPostUploadMode;
+      combineIntent?: EditorCombineIntent;
+      dualStep?: "person" | "outfit";
+      personDocument?: EditorCanvasDocument;
+    };
 
 export function EditorStartScreen({ onOpenDocument }: Props) {
   const t = useActiveTranslator();
@@ -38,6 +53,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const [showLibrary, setShowLibrary] = useState(false);
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
+  const [phase, setPhase] = useState<StartPhase>({ kind: "workflow" });
+  const [showRecent, setShowRecent] = useState(false);
 
   useEffect(() => {
     if (!auth.user) {
@@ -59,19 +76,78 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
       setRecent(listRecentEditorDocuments());
     });
   }, [auth.user]);
-  const [pendingDocument, setPendingDocument] = useState<EditorCanvasDocument | null>(null);
-  const [showRecent, setShowRecent] = useState(false);
 
-  const finishOpen = async (document: EditorCanvasDocument, mode: EditorPostUploadMode) => {
-    const withMode = applyPostUploadMode(document, mode);
+  const finishOpen = async (
+    document: EditorCanvasDocument,
+    mode: EditorPostUploadMode,
+    combineIntent?: EditorCombineIntent
+  ) => {
+    const withMode = applyPostUploadMode(document, mode, { combineIntent });
+    if (combineIntent === "person_outfit" && mode === "combine") {
+      // Outfit reference is applied before open when dual-upload completes.
+    }
     saveEditorCanvasDocument(withMode);
     if (auth.user) {
       await createEditorProject(withMode);
     }
     setRecent(listRecentEditorDocuments());
-    const analyzed = await runEditorVisionAndObjectDetection(withMode);
+    const analyzed =
+      mode === "export" ? withMode : await runEditorVisionAndObjectDetection(withMode);
     onOpenDocument(analyzed);
-    setPendingDocument(null);
+    setPhase({ kind: "workflow" });
+  };
+
+  const openIntake = (workflow: EditorPostUploadMode) => {
+    if (workflow === "combine") {
+      setPhase({ kind: "combine_intent", workflow: "combine" });
+      return;
+    }
+    setPhase({ kind: "intake", workflow });
+  };
+
+  const handleCombineIntent = (intent: EditorCombineIntent) => {
+    const option = combineIntentOption(intent);
+    if (option.requiresDualUpload) {
+      setPhase({
+        kind: "intake",
+        workflow: "combine",
+        combineIntent: intent,
+        dualStep: "person",
+      });
+      return;
+    }
+    setPhase({ kind: "intake", workflow: "combine", combineIntent: intent });
+  };
+
+  const handleDocumentReady = async (doc: EditorCanvasDocument) => {
+    if (phase.kind !== "intake") {
+      return;
+    }
+    const { workflow, combineIntent, dualStep, personDocument } = phase;
+
+    if (workflow === "combine" && combineIntent === "person_outfit" && dualStep === "person") {
+      setPhase({
+        kind: "intake",
+        workflow: "combine",
+        combineIntent,
+        dualStep: "outfit",
+        personDocument: doc,
+      });
+      return;
+    }
+
+    if (
+      workflow === "combine" &&
+      combineIntent === "person_outfit" &&
+      dualStep === "outfit" &&
+      personDocument
+    ) {
+      const merged = applyWearOutfitComposition(personDocument, doc.backgroundUrl, doc.name);
+      await finishOpen(merged, "combine", "person_outfit");
+      return;
+    }
+
+    await finishOpen(doc, workflow, combineIntent);
   };
 
   const handleUpload = async (file: File) => {
@@ -84,7 +160,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
         backgroundUrl: uploaded.workingImageUrl,
         backgroundStorageKey: uploaded.workingStorageKey,
       });
-      setPendingDocument(doc);
+      await handleDocumentReady(doc);
     } catch {
       setError(t("editor.start.uploadFailed"));
     } finally {
@@ -105,137 +181,197 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     setShowLibrary(true);
   };
 
-  if (pendingDocument) {
-    return (
-      <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
-        <main className={`flex-1 ${brand.softGradientBg}`}>
-          <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-            <EditorPostUploadModePicker
-              imageName={pendingDocument.name}
-              busy={uploading}
-              onSelectMode={(mode) => void finishOpen(pendingDocument, mode)}
-            />
-          </section>
-        </main>
-      </StudioAuthGate>
-    );
-  }
+  const intakeTitle = () => {
+    if (phase.kind !== "intake") {
+      return t("editor.v3.intake.title" as never);
+    }
+    const product = workflowProductForMode(phase.workflow);
+    if (phase.dualStep === "person") {
+      return t("editor.v3.combine.uploadPerson" as never);
+    }
+    if (phase.dualStep === "outfit") {
+      return t("editor.v3.combine.uploadOutfit" as never);
+    }
+    return t(product.titleKey as never);
+  };
+
+  const intakeHint = () => {
+    if (phase.kind !== "intake") {
+      return t("editor.v3.intake.lead" as never);
+    }
+    if (phase.workflow === "export") {
+      return t("editor.v3.workflow.export.standaloneHint" as never);
+    }
+    if (phase.dualStep === "person") {
+      return t("editor.v3.combine.uploadPersonHint" as never);
+    }
+    if (phase.dualStep === "outfit") {
+      return t("editor.v3.combine.uploadOutfitHint" as never);
+    }
+    return t(workflowProductForMode(phase.workflow).leadKey as never);
+  };
+
+  const renderIntake = () => (
+    <>
+      <button
+        type="button"
+        className="mb-4 text-sm font-semibold text-[#0067B1] hover:underline"
+        onClick={() => {
+          if (phase.kind === "intake" && phase.dualStep === "outfit") {
+            setPhase({
+              kind: "intake",
+              workflow: "combine",
+              combineIntent: "person_outfit",
+              dualStep: "person",
+              personDocument: phase.personDocument,
+            });
+            return;
+          }
+          if (phase.kind === "intake" && phase.workflow === "combine" && phase.combineIntent) {
+            setPhase({ kind: "combine_intent", workflow: "combine" });
+            return;
+          }
+          setPhase({ kind: "workflow" });
+        }}
+      >
+        {t("editor.v3.back" as never)}
+      </button>
+
+      <h1 className="text-2xl font-bold text-white sm:text-3xl">{intakeTitle()}</h1>
+      <p className="mt-2 text-sm text-white/80">{intakeHint()}</p>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+          className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
+        >
+          <p className="font-semibold text-zinc-900">{t("editor.start.upload")}</p>
+          <p className="mt-1 text-sm text-zinc-600">{t("editor.startFlow.uploadHint" as never)}</p>
+        </button>
+        <button
+          type="button"
+          disabled={loadingSources}
+          onClick={() => void loadLibrary()}
+          className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
+        >
+          <p className="font-semibold text-slate-900">{t("editor.start.chooseLibrary")}</p>
+          <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.libraryHint" as never)}</p>
+        </button>
+      </div>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            void handleUpload(file);
+          }
+        }}
+      />
+
+      {error ?
+        <p className="mt-4 text-sm text-red-700">{error}</p>
+      : null}
+
+      {showLibrary ?
+        <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">{t("editor.start.libraryPicker")}</h2>
+            <button type="button" className="text-sm text-zinc-600" onClick={() => setShowLibrary(false)}>
+              {t("editor.start.closePicker")}
+            </button>
+          </div>
+          <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+            {sources.map((source) => (
+              <li key={`${source.assetId}-${source.name}`}>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-lg border border-zinc-100 px-3 py-2 text-left hover:bg-zinc-50"
+                  onClick={() => {
+                    void handleDocumentReady(createEditorDocumentFromLibrarySource(source));
+                    setShowLibrary(false);
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={source.thumbnailUrl || source.referenceImageUrl} alt="" className="h-10 w-10 rounded object-cover" />
+                  <span className="text-sm font-medium">{source.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      : null}
+    </>
+  );
 
   return (
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
+        <section className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
           <p className={studioVisual.eyebrowOnDark}>{t("suite.nav.editor")}</p>
-          <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
-            {t("editor.startFlow.title" as never)}
-          </h1>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileRef.current?.click()}
-              className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
-            >
-              <p className="font-semibold text-zinc-900">{t("editor.start.upload")}</p>
-              <p className="mt-1 text-sm text-zinc-600">{t("editor.startFlow.uploadHint" as never)}</p>
-            </button>
-            <button
-              type="button"
-              disabled={loadingSources}
-              onClick={() => void loadLibrary()}
-              className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
-            >
-              <p className="font-semibold text-slate-900">{t("editor.start.chooseLibrary")}</p>
-              <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.libraryHint" as never)}</p>
-            </button>
-          </div>
+          {phase.kind === "workflow" ?
+            <>
+              <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+                {t("editor.v3.chooser.title" as never)}
+              </h1>
+              <p className="mt-2 text-sm text-white/80">{t("editor.v3.chooser.lead" as never)}</p>
+              <div className="mt-8">
+                <EditorWorkflowChooser busy={uploading} onSelectWorkflow={openIntake} />
+              </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                void handleUpload(file);
-              }
-            }}
-          />
-
-          {error ?
-            <p className="mt-4 text-sm text-red-700">{error}</p>
-          : null}
-
-          {recent.length > 0 ?
-            <div className="mt-8 text-center">
-              <button
-                type="button"
-                onClick={() => setShowRecent((v) => !v)}
-                className="text-sm font-semibold text-[#0067B1] hover:underline"
-              >
-                {t("editor.startFlow.continueRecent" as never)}
-              </button>
-              {showRecent ?
-                <ul className="mt-3 space-y-2 text-left">
-                  {recent.map((doc) => (
-                    <li key={doc.sessionId}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (auth.user) {
-                            void fetchEditorProject(doc.sessionId).then((remote) => {
-                              if (remote.ok && remote.project) {
-                                onOpenDocument(saveEditorCanvasDocument(remote.project));
+              {recent.length > 0 ?
+                <div className="mt-8 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecent((v) => !v)}
+                    className="text-sm font-semibold text-white/90 hover:underline"
+                  >
+                    {t("editor.startFlow.continueRecent" as never)}
+                  </button>
+                  {showRecent ?
+                    <ul className="mt-3 space-y-2 text-left">
+                      {recent.map((doc) => (
+                        <li key={doc.sessionId}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (auth.user) {
+                                void fetchEditorProject(doc.sessionId).then((remote) => {
+                                  if (remote.ok && remote.project) {
+                                    onOpenDocument(saveEditorCanvasDocument(remote.project));
+                                    return;
+                                  }
+                                  onOpenDocument(doc);
+                                });
                                 return;
                               }
                               onOpenDocument(doc);
-                            });
-                            return;
-                          }
-                          onOpenDocument(doc);
-                        }}
-                        className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3 text-left text-sm hover:bg-zinc-50"
-                      >
-                        <span className="font-medium">{doc.name}</span>
-                        <span className="text-xs text-zinc-500">{doc.status}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                            }}
+                            className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/95 px-4 py-3 text-left text-sm hover:bg-white"
+                          >
+                            <span className="font-medium text-zinc-900">{doc.name}</span>
+                            <span className="text-xs text-zinc-500">{doc.status}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  : null}
+                </div>
               : null}
-            </div>
-          : null}
-
-          {showLibrary ?
-            <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold">{t("editor.start.libraryPicker")}</h2>
-                <button type="button" className="text-sm text-zinc-600" onClick={() => setShowLibrary(false)}>
-                  {t("editor.start.closePicker")}
-                </button>
-              </div>
-              <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto">
-                {sources.map((source) => (
-                  <li key={`${source.assetId}-${source.name}`}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded-lg border border-zinc-100 px-3 py-2 text-left hover:bg-zinc-50"
-                      onClick={() => {
-                        setPendingDocument(createEditorDocumentFromLibrarySource(source));
-                        setShowLibrary(false);
-                      }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={source.thumbnailUrl || source.referenceImageUrl} alt="" className="h-10 w-10 rounded object-cover" />
-                      <span className="text-sm font-medium">{source.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          : null}
+            </>
+          : phase.kind === "combine_intent" ?
+            <EditorCombineIntentPicker
+              busy={uploading}
+              onSelectIntent={handleCombineIntent}
+              onBack={() => setPhase({ kind: "workflow" })}
+            />
+          : renderIntake()}
         </section>
       </main>
     </StudioAuthGate>

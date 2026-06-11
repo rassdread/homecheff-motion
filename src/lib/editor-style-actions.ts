@@ -41,7 +41,8 @@ export const EDITOR_STYLE_ACTIONS: Record<EditorStyleAttribute, EditorStyleActio
     { id: "more_luxury", labelKey: "editor.instructionStudio.v2.style.colorPalette.moreLuxury", instructionSuffix: "more luxury" },
   ],
   brand_colors: [
-    { id: "stronger_homecheff", labelKey: "editor.instructionStudio.v2.style.brandColors.stronger", instructionSuffix: "stronger HomeCheff brand colors" },
+    { id: "stronger_brand", labelKey: "editor.instructionStudio.v2.style.brandColors.stronger", instructionSuffix: "stronger brand colors" },
+    { id: "stronger_homecheff", labelKey: "editor.rec.homecheff.style.brandColors.stronger", instructionSuffix: "stronger HomeCheff brand colors" },
     { id: "reduce_branding", labelKey: "editor.instructionStudio.v2.style.brandColors.reduce", instructionSuffix: "reduced branding colors" },
     { id: "modernize", labelKey: "editor.instructionStudio.v2.style.brandColors.modernize", instructionSuffix: "modernized brand palette" },
   ],

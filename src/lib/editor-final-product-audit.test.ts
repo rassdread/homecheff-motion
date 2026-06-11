@@ -48,8 +48,8 @@ describe("Editor Final Product Audit", () => {
     assert.equal(blur?.status, "broken");
   });
 
-  it("start screen hides gif print motion combine before image", () => {
-    assert.deepEqual(startScreenPrimaryOptions(), ["upload", "library"]);
+  it("start screen leads with workflow chooser and hides legacy intents before image", () => {
+    assert.deepEqual(startScreenPrimaryOptions(), ["workflow", "upload", "library"]);
     assert.equal(isPreImageStartIntentHidden("make_gif"), true);
     assert.equal(isPreImageStartIntentHidden("combine_images"), true);
   });

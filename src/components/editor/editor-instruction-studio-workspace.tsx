@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
 import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
 import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
@@ -58,7 +57,8 @@ import {
   setProductReference,
   setStyleReference,
 } from "@/lib/editor-instruction-references";
-import { listCreatorPresets } from "@/lib/editor-instruction-presets";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import { listCreatorPresetsForContext } from "@/lib/editor-personalized-recommendations";
 import { isLegacyCanvasEditorDocument, mergeInstructionSelection } from "@/lib/editor-instruction-studio";
 import {
   executeEditorInstructionBulkVariantApi,
@@ -121,7 +121,16 @@ export function EditorInstructionStudioWorkspace({
     () => getInstructionObjectFeed(document),
     [document]
   );
+  const recCtx = useMemo(
+    () => buildEditorRecommendationContext({ document, isAdmin }),
+    [document, isAdmin]
+  );
+  const creatorPresets = useMemo(() => listCreatorPresetsForContext(recCtx), [recCtx]);
   const variants = listInstructionVariants(document);
+  const completedVariants = variants.filter(
+    (v) => v.status === "completed" || Boolean(v.resultUrl?.trim())
+  );
+  const showResults = completedVariants.length > 0;
   const legacyReadOnly = isLegacyCanvasEditorDocument(document);
   const previewVariant = previewInstructionVariant(document);
   const approvedActive = activeApprovedVariant(document);
@@ -306,7 +315,7 @@ export function EditorInstructionStudioWorkspace({
     const references = buildInstructionReferences(document, selection);
     const prompt = buildEditorInstructionPromptV3({
       entries,
-      brandIdentity: document.assetProfile?.humanSummaryKey,
+      brandIdentity: recCtx.brandName,
       references,
       preserveStyle: selection.sliders.preserveStyle,
       preserveBrand: selection.sliders.brandPreservation,
@@ -375,6 +384,16 @@ export function EditorInstructionStudioWorkspace({
   const handleBulkGenerate = async (presetId?: EditorCreatorPresetId) => {
     if (legacyReadOnly) {
       return;
+    }
+    if (presetId) {
+      onDocumentChange({
+        ...document,
+        instructionStudioState: {
+          ...document.instructionStudioState,
+          selectedCreatorPresetId: presetId,
+        },
+        updatedAt: new Date().toISOString(),
+      });
     }
     setGenerating(true);
     const plans = presetId ? buildBulkVariantPlansFromPreset(presetId) : buildGenericBulkPlans(4);
@@ -470,30 +489,7 @@ export function EditorInstructionStudioWorkspace({
       : approvedActive?.resultUrl ?? null;
 
   return (
-    <div className="mt-4 space-y-4" data-testid="instruction-studio-workspace">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-900">
-          {t("editor.instructionStudio.title" as never)}
-        </h1>
-        <p className="text-sm text-zinc-600">{t("editor.instructionStudio.lead" as never)}</p>
-      </div>
-
-      <EditorInstructionAiDirectorBar
-        document={document}
-        editableObjects={objectsV2}
-        onDocumentChange={onDocumentChange}
-        onApplyFirstChange={(objectLabel, category) => {
-          const obj = objectsV2.find(
-            (o) =>
-              o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
-              o.category === category
-          );
-          if (obj) {
-            selectObject(obj);
-          }
-        }}
-      />
-
+    <div className="space-y-4" data-testid="instruction-studio-workspace">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
         <div className="space-y-3 xl:col-span-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -679,7 +675,7 @@ export function EditorInstructionStudioWorkspace({
               {t("editor.instructionStudio.v2.presets.title" as never)}
             </h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {listCreatorPresets().map((preset) => (
+              {creatorPresets.map((preset) => (
                 <button
                   key={preset.id}
                   type="button"
@@ -780,25 +776,32 @@ export function EditorInstructionStudioWorkspace({
         </div>
       </div>
 
-      <EditorInstructionComparisonCenter
-        document={document}
-        variants={variants}
-        previewVariantId={previewVariantId}
-        compareVariantIds={compareIds}
-        onPreview={(id) =>
-          onDocumentChange(setPreviewInstructionVariant(document, id || null))
-        }
-        onToggleCompare={(id) =>
-          setCompareIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 3)
-          )
-        }
-        onRename={(id, name) => onDocumentChange(renameInstructionVariant(document, id, name))}
-        onDelete={(id) => onDocumentChange(deleteInstructionVariant(document, id))}
-        onNote={(id, note) =>
-          onDocumentChange(patchInstructionVariant(document, id, { userNote: note }))
-        }
-      />
+      {showResults ?
+        <section data-testid="instruction-results-panel">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+            {t("editor.instructionStudio.v2.results.title" as never)}
+          </h2>
+          <EditorInstructionComparisonCenter
+            document={document}
+            variants={variants}
+            previewVariantId={previewVariantId}
+            compareVariantIds={compareIds}
+            onPreview={(id) =>
+              onDocumentChange(setPreviewInstructionVariant(document, id || null))
+            }
+            onToggleCompare={(id) =>
+              setCompareIds((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(0, 3)
+              )
+            }
+            onRename={(id, name) => onDocumentChange(renameInstructionVariant(document, id, name))}
+            onDelete={(id) => onDocumentChange(deleteInstructionVariant(document, id))}
+            onNote={(id, note) =>
+              onDocumentChange(patchInstructionVariant(document, id, { userNote: note }))
+            }
+          />
+        </section>
+      : null}
     </div>
   );
 }

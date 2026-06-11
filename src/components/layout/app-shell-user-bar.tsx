@@ -88,36 +88,37 @@ export function AppShellUserBar() {
   const { email, role, isActive } = session.user;
   const normalizedRole = role === "admin" || role === "power" ? role : "user";
 
+  const displayName = email.split("@")[0] ?? email;
+
   return (
-    <div className="flex max-w-[min(100%,22rem)] flex-shrink-0 flex-col items-end gap-1.5 sm:max-w-none sm:flex-row sm:items-center sm:gap-2">
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-        <Link
-          href="/mijn-verbruik"
-          prefetch={false}
-          className={`hidden sm:inline-flex ${studioVisual.btnGhost} text-[10px] sm:text-xs`}
-        >
-          {t("nav.usage")}
-        </Link>
-        <span
-          className={`${studioVisual.userEmail} ${!isActive ? "opacity-50" : ""}`}
+    <div
+      className="flex max-w-full flex-shrink-0 flex-col items-stretch gap-2 sm:max-w-none sm:flex-row sm:items-center sm:justify-end"
+      data-testid="app-shell-user-bar"
+    >
+      <div className="min-w-0 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-right backdrop-blur-sm">
+        <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+        <p
+          className={`truncate text-xs text-white/85 ${!isActive ? "opacity-50" : ""}`}
           title={email}
         >
-          {shortenEmail(email)}
-        </span>
+          {email}
+        </p>
         <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-xs ${roleBadgeClass(normalizedRole)}`}
+          className={`mt-1 inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-xs ${roleBadgeClass(normalizedRole)}`}
         >
           {t(roleLabelKey(normalizedRole))}
         </span>
-        {normalizedRole === "admin" ? (
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {normalizedRole === "admin" ?
           <Link href="/admin" prefetch={false} className={studioVisual.btnGhost}>
             {t("nav.admin")}
           </Link>
-        ) : null}
+        : null}
+        <button type="button" onClick={() => void handleLogout()} className={studioVisual.btnGhost}>
+          {t("nav.logout")}
+        </button>
       </div>
-      <button type="button" onClick={() => void handleLogout()} className={studioVisual.btnGhost}>
-        {t("nav.logout")}
-      </button>
     </div>
   );
 }

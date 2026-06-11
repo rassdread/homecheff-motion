@@ -1,6 +1,8 @@
 import {
-  buildGlobeManExpandedObjects,
+  buildMascotExpandedObjects,
   expandCharacterObjectFeed,
+  isCharacterAssetDocument,
+  resolveMascotExpansionKind,
 } from "@/lib/editor-character-expansion";
 import { actionsForInstructionCategory } from "@/lib/editor-instruction-actions";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
@@ -361,25 +363,12 @@ function ensureBackground(
   ];
 }
 
-export function isGlobeManMascotImage(document: EditorCanvasDocument): boolean {
-  const text = [
-    document.name,
-    document.assetProfile?.variantGroup?.baseLabel,
-    document.assetProfile?.variantGroup?.groupId,
-    document.sourceKind,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return (
-    /globe\s*man|globe-man|globeman|homecheff.*mascot|mascot.*globe/.test(text) ||
-    document.assetProfile?.variantGroup?.groupId === "globe_man" ||
-    (document.assetProfile?.assetType === "mascot" &&
-      /globe|homecheff|globe\s*man|globeman/.test(text))
-  );
-}
-
-export { buildGlobeManHeuristicObjects, buildGlobeManExpandedObjects } from "@/lib/editor-character-expansion";
+export {
+  buildGlobeManHeuristicObjects,
+  buildGlobeManExpandedObjects,
+  isGlobeManMascotImage,
+  resolveMascotExpansionKind,
+} from "@/lib/editor-character-expansion";
 
 type RawSplit = {
   editable: EditorInstructionObjectV2[];
@@ -449,7 +438,8 @@ function findLogoInRaw(raw: EditorInstructionObjectV2[]): EditorInstructionObjec
   return raw.find((o) => !isAnalysisOnlyTrait(o.label) && inferCategoryFromText(o.label) === "logo");
 }
 
-function applyGlobeManFeed(
+function applyMascotFeed(
+  kind: import("@/lib/editor-character-expansion").MascotExpansionKind,
   raw: EditorInstructionObjectV2[],
   sourcesUsed: EditorInstructionObjectSource[],
   document: EditorCanvasDocument
@@ -457,7 +447,7 @@ function applyGlobeManFeed(
   const { traits } = cleanRawObjectFeed(raw);
   const logo = findLogoInRaw(raw);
 
-  let objects = buildGlobeManExpandedObjects();
+  let objects = buildMascotExpandedObjects(kind);
 
   if (traits.length > 0) {
     objects = objects.map((o) =>
@@ -688,12 +678,13 @@ export function buildInstructionObjectsFromDocument(
   const { raw, sourcesUsed } = collectRawCandidates(document);
   const rawCount = raw.length;
 
-  if (isGlobeManMascotImage(document)) {
-    return applyGlobeManFeed(raw, sourcesUsed, document);
+  const mascotKind = resolveMascotExpansionKind(document);
+  if (mascotKind) {
+    return applyMascotFeed(mascotKind, raw, sourcesUsed, document);
   }
 
   if (rawCount === 0) {
-    if (documentHasLikelyForegroundSubject(document)) {
+    if (documentHasLikelyForegroundSubject(document) && !isCharacterAssetDocument(document)) {
       const objects = ensureBackground(
         [
           buildInstructionObject({
@@ -717,6 +708,9 @@ export function buildInstructionObjectsFromDocument(
         document
       );
     }
+    if (isCharacterAssetDocument(document)) {
+      return finalizeFeed([], rawCount, sourcesUsed, true, document);
+    }
     const objects = ensureBackground([], "fallback");
     return splitFeedResult(
       objects,
@@ -734,7 +728,11 @@ export function buildInstructionObjectsFromDocument(
   let objects = editable;
   let lowConfidence = objects.some((o) => o.confidence < 0.6);
 
-  if (nonBackgroundCount(objects) === 0 && documentHasLikelyForegroundSubject(document)) {
+  if (
+    nonBackgroundCount(objects) === 0 &&
+    documentHasLikelyForegroundSubject(document) &&
+    !isCharacterAssetDocument(document)
+  ) {
     objects = ensureBackground(
       [
         buildInstructionObject({
@@ -749,6 +747,8 @@ export function buildInstructionObjectsFromDocument(
     );
     sourcesUsed.push("fallback");
     lowConfidence = true;
+  } else if (nonBackgroundCount(objects) === 0 && isCharacterAssetDocument(document)) {
+    return finalizeFeed([], rawCount, sourcesUsed, true, document);
   } else {
     objects = ensureBackground(objects, sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
   }

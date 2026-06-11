@@ -18,19 +18,33 @@ export function AppShell({ children }: AppShellProps) {
       <I18nHydrationSync />
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
-        <nav className={studioVisual.headerInner}>
-          <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-3">
-            <div className={studioVisual.logoMark}>
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
-              />
+        <nav className={`${studioVisual.headerInner} !flex-col gap-3 lg:!flex-row lg:!items-center`}>
+          <div className="flex w-full items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-3">
+                <div className={studioVisual.logoMark}>
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
+                  />
+                </div>
+                <span className={studioVisual.logoText}>{brand.studioProductName}</span>
+              </Link>
+              <LanguageSwitch />
             </div>
-            <span className={studioVisual.logoText}>{brand.studioProductName}</span>
-          </Link>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
-            <LanguageSwitch />
-            <AppShellPrimaryNav />
-            <AppShellUserBar />
+            <div className="hidden shrink-0 lg:block">
+              <AppShellUserBar />
+            </div>
+          </div>
+
+          <div className="hidden w-full justify-center lg:flex lg:flex-1">
+            <AppShellPrimaryNav variant="desktop" />
+          </div>
+
+          <div className="w-full lg:hidden">
+            <AppShellPrimaryNav variant="mobile" />
+            <div className="mt-3 border-t border-white/10 pt-3">
+              <AppShellUserBar />
+            </div>
           </div>
         </nav>
       </header>

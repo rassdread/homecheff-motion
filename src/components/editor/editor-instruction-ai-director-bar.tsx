@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { clearChangePlan } from "@/lib/editor-instruction-change-plan";
 import {
   parseEditorInstructionRequest,
   parsedRequestToChangePlanEntries,
 } from "@/lib/editor-instruction-request-parser";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import { resolveDirectorPlaceholderKey, resolveDirectorSuggestionKeys } from "@/lib/editor-personalized-recommendations";
 import type { EditorInstructionObjectV2 } from "@/types/editor-instruction-studio";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -14,6 +16,7 @@ import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 type Props = {
   document: EditorCanvasDocument;
   editableObjects: EditorInstructionObjectV2[];
+  isAdmin?: boolean;
   onDocumentChange: (document: EditorCanvasDocument) => void;
   onApplyFirstChange: (objectLabel: string, category: string) => void;
 };
@@ -21,6 +24,7 @@ type Props = {
 export function EditorInstructionAiDirectorBar({
   document,
   editableObjects,
+  isAdmin = false,
   onDocumentChange,
   onApplyFirstChange,
 }: Props) {
@@ -30,8 +34,30 @@ export function EditorInstructionAiDirectorBar({
     null
   );
 
+  const recCtx = useMemo(
+    () => buildEditorRecommendationContext({ document, isAdmin }),
+    [document, isAdmin]
+  );
+  const directorPlaceholderKey = useMemo(
+    () => resolveDirectorPlaceholderKey(recCtx),
+    [recCtx]
+  );
+  const suggestionKeys = useMemo(() => {
+    if (!parsed) {
+      return [];
+    }
+    return resolveDirectorSuggestionKeys({
+      ctx: recCtx,
+      hasClothing: parsed.objects.some((o) => o.objectCategory === "clothing"),
+      promptLower: parsed.rawPrompt.toLowerCase(),
+    });
+  }, [parsed, recCtx]);
+
   const analyze = () => {
-    const result = parseEditorInstructionRequest(prompt);
+    const result = parseEditorInstructionRequest(prompt, {
+      brandName: recCtx.brandName,
+      showHomeCheffExamples: recCtx.showHomeCheffExamples,
+    });
     setParsed(result);
     const resolveObjectId = (label: string, category: string) => {
       const match = editableObjects.find(
@@ -80,7 +106,7 @@ export function EditorInstructionAiDirectorBar({
         rows={3}
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        placeholder={t("editor.instructionStudio.v2.director.placeholder" as never)}
+        placeholder={t(directorPlaceholderKey as never)}
       />
       <div className="mt-2 flex flex-wrap gap-2">
         <button
@@ -123,9 +149,9 @@ export function EditorInstructionAiDirectorBar({
           {t("editor.instructionStudio.v2.director.outputTarget" as never)}: {parsed.outputTarget}
         </p>
       : null}
-      {parsed?.suggestions.length ?
-        <ul className="mt-2 space-y-1 text-[11px] text-violet-700">
-          {parsed.suggestions.map((key) => (
+      {suggestionKeys.length ?
+        <ul className="mt-2 space-y-1 text-[11px] text-violet-700" data-testid="director-suggestions">
+          {suggestionKeys.map((key) => (
             <li key={key}>• {t(key as never)}</li>
           ))}
         </ul>

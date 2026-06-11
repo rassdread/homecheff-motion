@@ -10,7 +10,9 @@ import {
 } from "@/lib/editor-instruction-dynamic-actions";
 import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-builder";
 import { findBrandReference } from "@/lib/editor-instruction-references";
-import { EDITOR_STYLE_ACTIONS, styleAttributeLabelKey } from "@/lib/editor-style-actions";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import { resolveStyleActionsForContext } from "@/lib/editor-personalized-recommendations";
+import { styleAttributeLabelKey } from "@/lib/editor-style-actions";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type {
@@ -55,7 +57,8 @@ export function EditorInstructionEditPanel(props: Props) {
   const styleInputRef = useRef<HTMLInputElement>(null);
 
   if (props.mode === "style") {
-    const actions = EDITOR_STYLE_ACTIONS[props.styleAttribute] ?? [];
+    const recCtx = buildEditorRecommendationContext({ document: props.document });
+    const actions = resolveStyleActionsForContext(recCtx, props.styleAttribute);
     return (
       <section
         className={`p-4 ${studioVisual.editorSurface}`}
@@ -176,7 +179,7 @@ export function EditorInstructionEditPanel(props: Props) {
             type="text"
             className="mt-1 w-full rounded-lg border border-zinc-300/90 bg-white px-3 py-2 text-sm"
             value={colorInput}
-            placeholder="#006D52 or green"
+            placeholder={t("editor.rec.generic.colorPlaceholder" as never)}
             onChange={(e) => onColorInputChange(e.target.value)}
           />
         </label>

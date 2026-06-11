@@ -1,3 +1,4 @@
+import type { EditorCombineIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
 export const EDITOR_POST_UPLOAD_MODES = ["edit", "combine", "motion_prepare", "export"] as const;
@@ -34,7 +35,8 @@ export function workspaceModeForPostUpload(mode: EditorPostUploadMode): EditorWo
 
 export function applyPostUploadMode(
   document: EditorCanvasDocument,
-  mode: EditorPostUploadMode
+  mode: EditorPostUploadMode,
+  options?: { combineIntent?: EditorCombineIntent }
 ): EditorCanvasDocument {
   const workspaceMode = workspaceModeForPostUpload(mode);
   let next: EditorCanvasDocument = {
@@ -43,6 +45,15 @@ export function applyPostUploadMode(
     workspaceMode,
     updatedAt: new Date().toISOString(),
   };
+  if (options?.combineIntent) {
+    next = {
+      ...next,
+      instructionStudioState: {
+        ...next.instructionStudioState,
+        combineIntent: options.combineIntent,
+      },
+    };
+  }
   if (mode === "export") {
     next = {
       ...next,
@@ -58,8 +69,12 @@ export function applyPostUploadMode(
   return next;
 }
 
-export function startScreenPrimaryOptions(): Array<"upload" | "library"> {
-  return ["upload", "library"];
+export function startScreenPrimaryOptions(): Array<"workflow" | "upload" | "library"> {
+  return ["workflow", "upload", "library"];
+}
+
+export function editorV3WorkflowChooserModes(): EditorPostUploadMode[] {
+  return [...EDITOR_POST_UPLOAD_MODES];
 }
 
 export function isPreImageStartIntentHidden(intent: string): boolean {

@@ -78,7 +78,7 @@ describe("editor instruction studio v2", () => {
     assert.ok(apron);
     assert.equal(apron!.category, "clothing");
     assert.ok(apron!.suggestedActions.includes("add_logo"));
-    assert.ok(apron!.description.toLowerCase().includes("apron"));
+    assert.equal(apron!.label, "Apron");
   });
 
   it("returns dynamic actions per category", () => {

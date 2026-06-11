@@ -34,7 +34,31 @@ export function resolveAssetVariantGroup(
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  if (/globe|homecheff|mascot|chef/.test(text)) {
+  if (/globe\s*man|globeman|globe-man|mascot.*globe|globe.*mascot/.test(text)) {
+    return MASCOT_VARIANTS;
+  }
+  if (/\bchef\b|homecheff chef|chef mascot/.test(text)) {
+    return {
+      groupId: "chef_mascot",
+      baseLabel: "Chef Mascot",
+      variants: MASCOT_VARIANTS.variants,
+    };
+  }
+  if (/\bgarden\b|homegarden|garden mascot/.test(text)) {
+    return {
+      groupId: "garden_mascot",
+      baseLabel: "Garden Mascot",
+      variants: MASCOT_VARIANTS.variants,
+    };
+  }
+  if (/\bdesigner\b|homedesigner|design mascot/.test(text)) {
+    return {
+      groupId: "designer_mascot",
+      baseLabel: "Designer Mascot",
+      variants: MASCOT_VARIANTS.variants,
+    };
+  }
+  if (/homecheff|mascot/.test(text)) {
     return MASCOT_VARIANTS;
   }
   return {

@@ -36,7 +36,7 @@ export function EditorInstructionChangePlanPanel({
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-zinc-900">
-          {t("editor.instructionStudio.v2.changePlan.title" as never)}
+          {t("editor.instructionStudio.v2.changePlan.summaryTitle" as never)}
         </h2>
         {plan.length > 0 ?
           <button

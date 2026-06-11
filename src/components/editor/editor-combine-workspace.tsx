@@ -27,6 +27,9 @@ import {
 } from "@/lib/editor-instruction-version";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import { resolveCompositionBrandIdentity } from "@/lib/editor-personalized-recommendations";
+import { combineIntentOption } from "@/lib/editor-workflow-product";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type {
   EditorCompositionReferenceType,
@@ -113,7 +116,9 @@ export function EditorCombineWorkspace({
     setGenerating(true);
     const prompt = buildEditorCompositionPrompt({
       plan,
-      brandIdentity: document.assetProfile?.humanSummaryKey,
+      brandIdentity: resolveCompositionBrandIdentity(
+        buildEditorRecommendationContext({ document })
+      ),
       preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
       preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
     });
@@ -196,8 +201,24 @@ export function EditorCombineWorkspace({
 
   const selectedRef = plan.references.find((r) => r.id === selectedRefId);
 
+  const combineIntent = document.instructionStudioState?.combineIntent;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr]">
+    <div className="space-y-4">
+      {combineIntent ?
+        <div
+          className={`rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-4 py-3 text-sm text-zinc-800 ${studioVisual.editorSurface}`}
+          data-testid="combine-intent-banner"
+        >
+          <p className="font-semibold text-zinc-900">
+            {t(combineIntentOption(combineIntent).labelKey as never)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {t(combineIntentOption(combineIntent).hintKey as never)}
+          </p>
+        </div>
+      : null}
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr]">
       <section className={`space-y-3 p-4 ${studioVisual.editorSurface}`}>
         <h2 className="text-sm font-bold text-zinc-900">{t("editor.combine.baseImage" as never)}</h2>
         <img
@@ -423,6 +444,7 @@ export function EditorCombineWorkspace({
           {statusMessage}
         </p>
       : null}
+      </div>
     </div>
   );
 }

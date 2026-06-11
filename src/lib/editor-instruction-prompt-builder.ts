@@ -256,12 +256,15 @@ export function buildEditorInstructionPromptV3(input: {
     });
   }
 
+  const brandPreserveLine = input.brandIdentity?.trim()
+    ? `- ${input.brandIdentity.trim()} branding`
+    : "- brand identity";
   lines.push(
     "",
     "PRESERVE",
     "- mascot identity",
     "- facial recognizability",
-    "- HomeCheff branding",
+    brandPreserveLine,
     "- illustration quality",
     "- pose",
     "- composition",

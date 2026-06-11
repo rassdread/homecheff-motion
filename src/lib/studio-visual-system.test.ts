@@ -41,9 +41,11 @@ describe("studio visual system", () => {
     assert.match(btn, /studioVisual\.btnOutline/);
   });
 
-  it("editor v2 shell uses studio tab tokens", () => {
+  it("editor v2 shell uses studio surface tokens", () => {
     const editor = readFileSync("src/components/editor/editor-v2-workflow-shell.tsx", "utf8");
-    assert.match(editor, /studioVisual\.editorTabActive/);
+    assert.match(editor, /studioVisual\.editorSurface/);
+    const menu = readFileSync("src/components/editor/editor-menu.tsx", "utf8");
+    assert.match(menu, /studioVisual\.editorSurface/);
   });
 
   it("globals imports studio visual system css", () => {

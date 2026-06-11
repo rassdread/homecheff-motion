@@ -15,9 +15,12 @@ export type PrintPresetSpec = {
 };
 
 export const PRINT_PRESET_SPECS: PrintPresetSpec[] = [
-  { id: "a4", labelKey: "editor.instructionStudio.v2.print.preset.a4", widthMm: 210, heightMm: 297 },
   { id: "a5", labelKey: "editor.instructionStudio.v2.print.preset.a5", widthMm: 148, heightMm: 210 },
+  { id: "a4", labelKey: "editor.instructionStudio.v2.print.preset.a4", widthMm: 210, heightMm: 297 },
   { id: "a3", labelKey: "editor.instructionStudio.v2.print.preset.a3", widthMm: 297, heightMm: 420 },
+  { id: "a2", labelKey: "editor.v3.export.printFormat.a2", widthMm: 420, heightMm: 594 },
+  { id: "a1", labelKey: "editor.v3.export.printFormat.a1", widthMm: 594, heightMm: 841 },
+  { id: "a0", labelKey: "editor.v3.export.printFormat.a0", widthMm: 841, heightMm: 1189 },
   { id: "poster", labelKey: "editor.instructionStudio.v2.print.preset.poster", widthMm: 420, heightMm: 594 },
   { id: "flyer", labelKey: "editor.instructionStudio.v2.print.preset.flyer", widthMm: 148, heightMm: 210 },
   { id: "sticker", labelKey: "editor.instructionStudio.v2.print.preset.sticker", widthMm: 100, heightMm: 100 },
@@ -29,6 +32,10 @@ export const PRINT_PRESET_SPECS: PrintPresetSpec[] = [
     widthMm: 200,
     heightMm: 280,
   },
+  { id: "large_70x100", labelKey: "editor.v3.export.printFormat.large_70x100", widthMm: 700, heightMm: 1000 },
+  { id: "large_100x150", labelKey: "editor.v3.export.printFormat.large_100x150", widthMm: 1000, heightMm: 1500 },
+  { id: "large_120x180", labelKey: "editor.v3.export.printFormat.large_120x180", widthMm: 1200, heightMm: 1800 },
+  { id: "custom", labelKey: "editor.v3.export.printFormat.custom", widthMm: 210, heightMm: 297 },
 ];
 
 export function printPresetSpec(preset: EditorInstructionPrintPreset): PrintPresetSpec {

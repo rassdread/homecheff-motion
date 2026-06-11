@@ -7,6 +7,7 @@ import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { StudioLibraryCard } from "@/components/studio/studio-library-card";
 import { brand } from "@/lib/brand";
 import {
   fetchAssetLibraryPreferences,
@@ -396,38 +397,21 @@ export function StudioAssetLibrary({
               {filtered.length === 0 ?
                 <p className="col-span-full px-2 py-8 text-sm text-slate-500">{t("studio.mediaAsset.empty")}</p>
               : filtered.map((asset) => (
-                  <button
+                  <StudioLibraryCard
                     key={asset.id}
-                    type="button"
+                    title={`${asset.isFavorite ? "★ " : ""}${asset.name}`}
+                    typeLabel={t(`studio.mediaAsset.source.${asset.source}` as never)}
+                    statusLabel={
+                      asset.semanticContinuity?.identityAssetType === "canonical_character_base"
+                        ? "Canonical"
+                        : undefined
+                    }
+                    modifiedLabel={asset.updatedAt ? new Date(asset.updatedAt).toLocaleDateString() : undefined}
+                    thumbnailUrl={asset.previewUrl}
+                    thumbnailFallback={asset.category.slice(0, 3)}
+                    selected={selectedId === asset.id}
                     onClick={() => setSelectedId(asset.id)}
-                    className={`flex min-h-[120px] flex-col rounded-2xl border p-3 text-left transition-colors ${
-                      selectedId === asset.id ? "border-[#006D52] bg-[#006D52]/5" : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    {asset.previewUrl ?
-                      <img src={asset.previewUrl} alt="" className="mb-2 h-20 w-full rounded-lg object-cover" />
-                    : (
-                      <span className="mb-2 flex h-20 items-center justify-center rounded-lg bg-slate-100 text-xs uppercase text-slate-500">
-                        {asset.category.slice(0, 3)}
-                      </span>
-                    )}
-                    <span className="truncate text-sm font-semibold text-slate-900">{asset.name}</span>
-                    <span className="mt-1 flex flex-wrap items-center gap-1">
-                      {asset.semanticContinuity?.identityAssetType === "canonical_character_base" ?
-                        <StudioCanonicalBaseBadge />
-                      : null}
-                      {typeof asset.semanticContinuity?.identityScore === "number" ?
-                        <StudioIdentityScoreBadge
-                          score={asset.semanticContinuity.identityScore}
-                          profileLevel={asset.semanticContinuity.identityProfile}
-                        />
-                      : null}
-                      <span className="truncate text-xs text-slate-500">
-                        {asset.isFavorite ? "★ " : ""}
-                        {t(`studio.mediaAsset.source.${asset.source}` as never)}
-                      </span>
-                    </span>
-                  </button>
+                  />
                 ))
               }
             </div>

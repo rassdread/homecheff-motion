@@ -1993,6 +1993,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+          {!instructionStudioActive ?
           <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -2036,8 +2037,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               </button>
             </div>
           </header>
+          : null}
 
-          {uiMode === "visual" ?
+          {!instructionStudioActive && uiMode === "visual" ?
             <p className="mb-3 text-sm text-zinc-600">{t("editor.human.lead")}</p>
           : null}
 
@@ -2082,6 +2084,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           </div>
           : null}
 
+          {!instructionStudioActive ?
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -2100,7 +2103,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               {t("editor.history.redo")}
             </button>
           </div>
+          : null}
 
+          {!instructionStudioActive ?
           <EditorToolbar
             onBack={onBack}
             onDownload={() => void handleDownload()}
@@ -2111,6 +2116,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             }}
             saving={saving}
           />
+          : null}
 
           {!showReview && uiMode === "advanced" ?
             <div className="mt-4 flex flex-wrap gap-2">
@@ -2174,6 +2180,19 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               onSave={() => void handleSaveDraft()}
               onClose={onBack}
               onProjects={onBack}
+              onReview={() => {
+                persist({ ...document, workflowStep: "review" });
+                setShowReview(true);
+              }}
+              onDownload={() => void handleDownload()}
+              onToggleAdvanced={() => {
+                setUiMode(uiMode === "visual" ? "advanced" : "visual");
+                setShowActionMenu(false);
+                setShowVisualBody(false);
+              }}
+              advancedMode={false}
+              onToggleAiAnalysis={() => setShowAiAnalysis((v) => !v)}
+              showAiAnalysis={showAiAnalysis}
             />
           : null}
 
@@ -2242,6 +2261,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
 
               <EditorMagicEditBar
                 busy={v6Busy || saving}
+                document={document}
+                isAdmin={isAdmin}
                 suggestions={v7Suggestions}
                 onSubmit={handleV7CommandSubmit}
               />

@@ -2,24 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
+import {
+  resolveCommandExampleKeys,
+  resolveMagicPlaceholderKeys,
+} from "@/lib/editor-personalized-recommendations";
+import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
+import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type { EditorV7ContextualSuggestion } from "@/types/homecheff-visual-editor";
-
-const EXAMPLE_KEYS = [
-  "editor.v7.command.example1",
-  "editor.v7.command.example2",
-  "editor.v7.command.example3",
-  "editor.v7.command.example4",
-] as const;
-
-const MAGIC_PLACEHOLDER_KEYS = [
-  "editor.uxV7.magic.placeholder1",
-  "editor.uxV7.magic.placeholder2",
-  "editor.uxV7.magic.placeholder3",
-  "editor.uxV7.magic.placeholder4",
-] as const;
 
 type Props = {
   busy?: boolean;
+  document?: EditorCanvasDocument;
+  isAdmin?: boolean;
   suggestions?: EditorV7ContextualSuggestion[];
   variant?: "default" | "magic";
   onSubmit: (prompt: string) => void;
@@ -28,6 +23,8 @@ type Props = {
 
 export function EditorCommandBar({
   busy,
+  document,
+  isAdmin = false,
   suggestions = [],
   variant = "default",
   onSubmit,
@@ -38,16 +35,36 @@ export function EditorCommandBar({
   const [showExamples, setShowExamples] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const isMagic = variant === "magic";
+  const recCtx = document
+    ? buildEditorRecommendationContext({ document, isAdmin })
+    : buildEditorRecommendationContext({
+        document: {
+          sessionId: "ephemeral",
+          name: "",
+          sourceKind: "upload",
+          sourceAssetId: null,
+          backgroundUrl: "",
+          workflowStep: "visual_editor",
+          objects: [],
+          placements: [],
+          status: "editing",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        isAdmin,
+      });
+  const magicPlaceholderKeys = resolveMagicPlaceholderKeys(recCtx);
+  const exampleKeys = resolveCommandExampleKeys(recCtx);
 
   useEffect(() => {
     if (!isMagic) {
       return;
     }
     const timer = window.setInterval(() => {
-      setPlaceholderIndex((i) => (i + 1) % MAGIC_PLACEHOLDER_KEYS.length);
+      setPlaceholderIndex((i) => (i + 1) % magicPlaceholderKeys.length);
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [isMagic]);
+  }, [isMagic, magicPlaceholderKeys.length]);
 
   const handleSubmit = () => {
     const trimmed = value.trim();
@@ -59,7 +76,7 @@ export function EditorCommandBar({
   };
 
   const placeholder = isMagic
-    ? t(MAGIC_PLACEHOLDER_KEYS[placeholderIndex] as never)
+    ? t(magicPlaceholderKeys[placeholderIndex]! as never)
     : t("editor.v7.command.placeholder" as never);
 
   return (
@@ -136,7 +153,7 @@ export function EditorCommandBar({
 
       {!isMagic && showExamples ?
         <ul className="mt-3 space-y-1 text-xs text-indigo-800/80">
-          {EXAMPLE_KEYS.map((key) => (
+          {exampleKeys.map((key: TranslationKey) => (
             <li key={key}>
               <button
                 type="button"

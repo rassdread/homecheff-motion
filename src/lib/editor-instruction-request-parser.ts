@@ -31,6 +31,11 @@ export type ParsedStyleChange = {
   instruction: string;
 };
 
+export type ParseEditorInstructionOptions = {
+  brandName?: string;
+  showHomeCheffExamples?: boolean;
+};
+
 export type ParsedEditorInstructionRequest = {
   rawPrompt: string;
   objects: ParsedInstructionObject[];
@@ -79,7 +84,22 @@ function detectOutputTarget(prompt: string): EditorInstructionOutputTarget | und
   return undefined;
 }
 
-function extractObjects(prompt: string): ParsedInstructionObject[] {
+function resolveDefaultLogoBrand(
+  prompt: string,
+  options?: ParseEditorInstructionOptions
+): string {
+  const lower = prompt.toLowerCase();
+  if (/homecheff/.test(lower) && (options?.showHomeCheffExamples ?? false)) {
+    return "HomeCheff";
+  }
+  const explicit = lower.match(/(?:add|place|use)\s+(?:the\s+)?([a-z0-9][\w\s-]{1,30}?)\s+logo/);
+  if (explicit?.[1]?.trim()) {
+    return explicit[1].trim();
+  }
+  return options?.brandName?.trim() || "your logo";
+}
+
+function extractObjects(prompt: string, options?: ParseEditorInstructionOptions): ParsedInstructionObject[] {
   const lower = prompt.toLowerCase();
   const results: ParsedInstructionObject[] = [];
   const seen = new Set<string>();
@@ -98,17 +118,17 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
     const actions: ParsedInstructionAction[] = [];
 
     if (
-      (/add\s+(?:the\s+)?(?:homecheff\s+)?logo|logo\s+(?:to|on)/.test(lower) &&
+      (/add\s+(?:the\s+)?(?:[\w-]+\s+)?logo|logo\s+(?:to|on)/.test(lower) &&
         /apron|coat|suit|jacket|shirt|clothing|packaging/.test(key)) ||
       (/logo/.test(lower) && key === "jacket" && /jacket/.test(lower))
     ) {
-      actions.push({ action: "add_logo", logo: "HomeCheff" });
+      actions.push({ action: "add_logo", logo: resolveDefaultLogoBrand(prompt, options) });
     }
     if (/(make|change|turn).*(dark\s+blue|navy)/.test(lower) && key === "tie") {
       actions.push({ action: "change_color", color: "dark blue" });
     }
     if (/replace\s+(?:the\s+)?logo/.test(lower) && key === "logo") {
-      actions.push({ action: "replace_logo", logo: "HomeCheff" });
+      actions.push({ action: "replace_logo", logo: resolveDefaultLogoBrand(prompt, options) });
     }
     if (/(make|change|turn).*(green|red|blue|black|white|#[0-9a-f]{3,8})/.test(lower) && lower.includes(key)) {
       const colorMatch = lower.match(/(green|red|blue|black|white|#[0-9a-f]{3,8})/);
@@ -145,7 +165,7 @@ function extractObjects(prompt: string): ParsedInstructionObject[] {
   return results;
 }
 
-function extractStyleChanges(prompt: string): ParsedStyleChange[] {
+function extractStyleChanges(prompt: string, options?: ParseEditorInstructionOptions): ParsedStyleChange[] {
   const lower = prompt.toLowerCase();
   const results: ParsedStyleChange[] = [];
   const seen = new Set<string>();
@@ -158,7 +178,20 @@ function extractStyleChanges(prompt: string): ParsedStyleChange[] {
     { pattern: /stronger line|line weight|thicker lines/, attribute: "line_weight", actionId: "stronger", instruction: "Use stronger line weight." },
     { pattern: /friendlier face|more expressive/, attribute: "facial_style", actionId: "more_expressive", instruction: "Make facial style more expressive." },
     { pattern: /more mascot|mascot.driven/, attribute: "illustration_style", actionId: "more_mascot", instruction: "Make illustration style more mascot-driven." },
-    { pattern: /stronger homecheff|brand color/, attribute: "brand_colors", actionId: "stronger_homecheff", instruction: "Strengthen HomeCheff brand colors." },
+    {
+      pattern: /stronger homecheff/,
+      attribute: "brand_colors",
+      actionId: "stronger_homecheff",
+      instruction: "Strengthen HomeCheff brand colors.",
+    },
+    {
+      pattern: /stronger brand|brand color|brand colours/,
+      attribute: "brand_colors",
+      actionId: options?.showHomeCheffExamples ? "stronger_homecheff" : "stronger_brand",
+      instruction: options?.showHomeCheffExamples
+        ? "Strengthen HomeCheff brand colors."
+        : `Strengthen ${options?.brandName?.trim() || "brand"} colors.`,
+    },
     { pattern: /more iconic|recognizable silhouette/, attribute: "silhouette", actionId: "more_iconic", instruction: "Make silhouette more iconic." },
   ];
 
@@ -181,32 +214,19 @@ function extractStyleChanges(prompt: string): ParsedStyleChange[] {
   return results;
 }
 
-function buildSuggestions(objects: ParsedInstructionObject[], prompt: string): string[] {
-  const suggestions: string[] = [];
-  const lower = prompt.toLowerCase();
-  if (objects.some((o) => o.objectCategory === "clothing")) {
-    suggestions.push("editor.instructionStudio.v2.director.suggest.logoPlacement");
-  }
-  if (/packaging|product/.test(lower)) {
-    suggestions.push("editor.instructionStudio.v2.director.suggest.packaging");
-  }
-  if (!/motion|video|print|social/.test(lower)) {
-    suggestions.push("editor.instructionStudio.v2.director.suggest.socialVersion");
-    suggestions.push("editor.instructionStudio.v2.director.suggest.motionReady");
-  }
-  return suggestions;
-}
-
-export function parseEditorInstructionRequest(prompt: string): ParsedEditorInstructionRequest {
+export function parseEditorInstructionRequest(
+  prompt: string,
+  options?: ParseEditorInstructionOptions
+): ParsedEditorInstructionRequest {
   const trimmed = prompt.trim();
-  const objects = extractObjects(trimmed);
-  const styleChanges = extractStyleChanges(trimmed);
+  const objects = extractObjects(trimmed, options);
+  const styleChanges = extractStyleChanges(trimmed, options);
   return {
     rawPrompt: trimmed,
     objects,
     styleChanges,
     outputTarget: detectOutputTarget(trimmed),
-    suggestions: buildSuggestions(objects, trimmed),
+    suggestions: [],
   };
 }
 

@@ -236,16 +236,34 @@ export const EDITOR_INSTRUCTION_OUTPUT_TARGETS = [
 export type EditorInstructionOutputTarget = (typeof EDITOR_INSTRUCTION_OUTPUT_TARGETS)[number];
 
 export const EDITOR_INSTRUCTION_PRINT_PRESETS = [
-  "a4",
   "a5",
+  "a4",
   "a3",
+  "a2",
+  "a1",
+  "a0",
   "poster",
   "flyer",
   "sticker",
   "label",
   "menu_card",
   "packaging_mockup",
+  "large_70x100",
+  "large_100x150",
+  "large_120x180",
+  "custom",
 ] as const;
+
+export const EDITOR_COMBINE_INTENTS = [
+  "person_outfit",
+  "product_branding",
+  "person_background",
+  "product_environment",
+  "multiple_references",
+  "custom_composition",
+] as const;
+
+export type EditorCombineIntent = (typeof EDITOR_COMBINE_INTENTS)[number];
 
 export type EditorInstructionPrintPreset = (typeof EDITOR_INSTRUCTION_PRINT_PRESETS)[number];
 
@@ -470,6 +488,10 @@ export type EditorInstructionStudioState = {
   changePlan?: EditorInstructionChangePlanEntry[];
   /** AI reference composition plan */
   compositionPlan?: EditorCompositionPlan;
+  /** Combine workflow intent chosen before upload */
+  combineIntent?: EditorCombineIntent;
+  /** Last explicit creator preset chosen in Instruction Studio */
+  selectedCreatorPresetId?: EditorCreatorPresetId;
   /** AI Director natural-language input */
   directorPrompt?: string;
   outputTarget?: EditorInstructionOutputTarget;
