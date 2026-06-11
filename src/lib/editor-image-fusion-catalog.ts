@@ -7,6 +7,7 @@ import type {
 export type EditorFusionUploadStep = {
   id: string;
   labelKey: string;
+  hintKey?: string;
   role: string;
   optional?: boolean;
 };
@@ -19,6 +20,9 @@ export type EditorFusionIntentDefinition = {
   uploadSteps: EditorFusionUploadStep[];
   defaultFusionStrength: number;
   defaultPreservation: EditorFusionPreservationRule[];
+  supportsVariations?: boolean;
+  supportsSequences?: boolean;
+  supportsMotionHandoff?: boolean;
   isSimulation?: boolean;
   legacy?: boolean;
   badge?: "popular" | "recommended" | "new" | "premium";
@@ -81,7 +85,15 @@ const PEOPLE: EditorFusionIntentDefinition[] = [
     category: "people_characters",
     labelKey: "editor.fusion.intent.humanIntoMascot.label",
     hintKey: "editor.fusion.intent.humanIntoMascot.hint",
-    uploadSteps: [{ id: "human", labelKey: "editor.fusion.upload.human", role: "person" }],
+    uploadSteps: [
+      { id: "human", labelKey: "editor.fusion.upload.human", role: "person" },
+      {
+        id: "mascot_style",
+        labelKey: "editor.fusion.upload.mascotStyle",
+        role: "style",
+        optional: true,
+      },
+    ],
     defaultFusionStrength: 75,
     defaultPreservation: ["identity", "hair", "clothing", "brand_colors"],
   },

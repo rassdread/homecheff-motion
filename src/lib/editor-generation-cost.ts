@@ -21,6 +21,10 @@ function resolveGenerationCount(
   workflow: EditorGenerationWorkflow,
   options: EstimateEditorGenerationCostOptions
 ): number {
+  if (options.outputMode === "variations" && options.variationCount) {
+    return Math.max(1, options.variationCount);
+  }
+
   if (options.outputMode === "sequence" && options.stepCount) {
     return Math.max(1, options.stepCount);
   }
@@ -127,8 +131,9 @@ export function estimateEditorGenerationCost(
           ? 1
           : 0;
 
+  const motionUnits = options.motionDurationSec && options.motionDurationSec > 0 ? 1 : 0;
   const generationCount = imageGenerationCount;
-  const estimatedProviderCostUsd = unitCost * (generationCount + upscaleUnits);
+  const estimatedProviderCostUsd = unitCost * (generationCount + upscaleUnits + motionUnits);
   const premiumRequired = isPremiumOnlyWorkflow(workflow, options, generationCount);
   const adValue = adEstimatedValueUsd();
   const adEligible =
@@ -138,7 +143,7 @@ export function estimateEditorGenerationCost(
     estimatedProviderCostUsd <= adValue &&
     options.outputMode !== "sequence";
 
-  const creditCost = generationCount + upscaleUnits;
+  const creditCost = generationCount + upscaleUnits + motionUnits;
 
   let reason: string | undefined;
   if (premiumRequired) {

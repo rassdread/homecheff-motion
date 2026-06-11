@@ -22,20 +22,34 @@ export function fusionPlanCostOptions(
         ? [...DEFAULT_CAMPAIGN_VARIANT_OUTPUTS]
         : undefined;
 
-  const outputMode = settings.outputMode === "sequence" ? "sequence" : "single";
+  const outputMode =
+    settings.outputMode === "sequence"
+      ? "sequence"
+      : settings.outputMode === "variations"
+        ? "variations"
+        : "single";
   const stepCount =
     typeof settings.stepCount === "number"
       ? settings.stepCount
       : outputMode === "sequence"
         ? 3
         : 1;
+  const variationCount =
+    typeof settings.variationCount === "number"
+      ? settings.variationCount
+      : outputMode === "variations"
+        ? 4
+        : undefined;
 
   return {
     selectedAges,
     selectedVariants,
     referenceCount: plan.references.length + (document ? 1 : 0),
     stepCount,
+    variationCount,
     outputMode,
+    motionDurationSec:
+      typeof settings.motionDurationSec === "number" ? settings.motionDurationSec : undefined,
     upscaleScope:
       settings.upscaleScope === "all_steps"
         ? "all_steps"

@@ -7,6 +7,7 @@ import { EditorInstructionObjectList } from "@/components/editor/editor-instruct
 import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-instruction-preview-highlight";
 import { EditorInstructionStyleTraitList } from "@/components/editor/editor-instruction-style-trait-list";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
+import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
 import {
@@ -775,6 +776,10 @@ export function EditorInstructionStudioWorkspace({
           </div>
         </div>
       </div>
+
+      {!showResults && document.instructionStudioState?.fusionPlan ?
+        <EditorPlanSummaryPanel document={document} compact />
+      : null}
 
       {showResults ?
         <section data-testid="instruction-results-panel">

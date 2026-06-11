@@ -605,6 +605,24 @@ export type EditorInstructionStudioState = {
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;
   transformationSession?: EditorTransformationSession;
+  /** Universal reference role intake metadata from start flow */
+  referenceIntake?: {
+    roleAssignments?: Array<{
+      roleId: string;
+      role: string;
+      instanceId?: string;
+      instanceCount?: number;
+      url?: string;
+      name?: string;
+      friendlyName?: string;
+      metadata?: import("@/types/editor-reference-metadata").EditorReferenceMetadata;
+    }>;
+    outputMode?: "single" | "variations" | "sequence";
+    stepCount?: number;
+    variationCount?: number;
+    motionHandoff?: boolean;
+    motionDurationSec?: number;
+  };
 };
 
 export type EditorCreatorPresetId = "chef" | "garden" | "designer";

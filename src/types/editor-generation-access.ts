@@ -126,7 +126,9 @@ export type EstimateEditorGenerationCostOptions = {
   selectedVariants?: string[];
   referenceCount?: number;
   stepCount?: number;
-  outputMode?: "single" | "sequence";
+  variationCount?: number;
+  outputMode?: "single" | "sequence" | "variations";
+  motionDurationSec?: number;
   upscaleMode?: EditorUpscaleModeId;
   upscaleScope?: "none" | "final_only" | "all_steps";
   printPreset?: EditorInstructionPrintPreset;

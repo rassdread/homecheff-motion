@@ -1,4 +1,6 @@
 import { activePreservationRules } from "@/lib/editor-fusion-plan";
+import { buildReferenceMetadataPromptLines } from "@/lib/editor-reference-metadata-prompt";
+import type { EditorReferenceAssignment } from "@/types/editor-reference-metadata";
 import type { EditorFusionPlan } from "@/types/editor-instruction-studio";
 
 const PRESERVATION_STRENGTH_PHRASE: Record<EditorFusionPlan["preservation"]["strength"], string> = {
@@ -14,6 +16,7 @@ export function buildEditorFusionPrompt(input: {
   brandIdentity?: string;
   preserveStyle?: number;
   preserveBrand?: number;
+  referenceAssignments?: EditorReferenceAssignment[];
 }): string {
   const { plan } = input;
   const preserveStyle = input.preserveStyle ?? 80;
@@ -93,6 +96,11 @@ export function buildEditorFusionPrompt(input: {
 
   if (plan.userInstructions.trim()) {
     lines.push("", "USER INSTRUCTIONS", plan.userInstructions.trim());
+  }
+
+  const metadataLines = buildReferenceMetadataPromptLines(input.referenceAssignments ?? []);
+  if (metadataLines.length > 0) {
+    lines.push("", "REFERENCE METADATA", ...metadataLines);
   }
 
   return lines.join("\n");
