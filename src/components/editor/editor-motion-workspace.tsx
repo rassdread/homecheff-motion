@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { editorHandoffMotionUrl } from "@/lib/editor-instruction-handoff";
 import { evaluateMotionReadiness } from "@/lib/editor-motion-workflow";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -17,7 +18,7 @@ export function EditorMotionWorkspace({ document }: Props) {
   const handoffUrl = editorHandoffMotionUrl(document);
 
   return (
-    <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4">
+    <div className={`space-y-4 p-4 ${studioVisual.editorSurface}`}>
       <div>
         <h2 className="text-base font-bold text-zinc-900">
           {t("editor.workflow.motion.title" as never)}

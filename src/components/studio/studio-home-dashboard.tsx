@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
 const QUICK_LINKS = [
@@ -18,7 +19,7 @@ const QUICK_LINKS = [
 
 function UsageStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+    <div className={studioVisual.editorSurface}>
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-2 text-2xl font-bold text-zinc-900">{value}</p>
     </div>
@@ -37,7 +38,7 @@ function AssetCountLink({
   return (
     <Link
       href={href}
-      className="flex min-h-[44px] items-center justify-between rounded-2xl border border-zinc-200 bg-white px-4 py-3 hover:border-[#006D52]/30"
+      className={`flex min-h-[44px] items-center justify-between px-4 py-3 transition hover:shadow-md ${studioVisual.editorSurface}`}
     >
       <span className="text-sm font-medium text-zinc-800">{label}</span>
       <span className="text-sm font-semibold text-[#006D52]">{count}</span>
@@ -80,25 +81,23 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
       {error ?
         <p className="text-sm text-red-700">{error}</p>
       : !report ?
-        <p className="text-sm text-zinc-600">{t("studio.home.loading")}</p>
+        <p className="text-sm text-white/70">{t("studio.home.loading")}</p>
       : (
         <div className="space-y-8">
           <header>
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#006D52]">
-              {t("studio.home.eyebrow")}
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-zinc-900 sm:text-3xl">{t("studio.home.title")}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">{t("studio.home.subtitle")}</p>
+            <p className={studioVisual.eyebrowOnDark}>{t("studio.home.eyebrow")}</p>
+            <h2 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{t("studio.home.title")}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("studio.home.subtitle")}</p>
           </header>
 
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900">{t("studio.home.quickActions")}</h3>
+            <h3 className="text-sm font-semibold text-white/90">{t("studio.home.quickActions")}</h3>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {QUICK_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex min-h-[48px] items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-800 hover:border-[#006D52]/30 hover:bg-[#006D52]/5"
+                  className={`flex min-h-[48px] items-center gap-2 px-4 py-3 text-sm font-semibold text-zinc-800 transition hover:shadow-md ${studioVisual.editorSurface}`}
                 >
                   <span aria-hidden>{link.emoji}</span>
                   {t(link.labelKey as never)}

@@ -27,6 +27,7 @@ import {
 } from "@/lib/editor-instruction-version";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type {
   EditorCompositionReferenceType,
   EditorCompositionTargetRole,
@@ -197,7 +198,7 @@ export function EditorCombineWorkspace({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr]">
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+      <section className={`space-y-3 p-4 ${studioVisual.editorSurface}`}>
         <h2 className="text-sm font-bold text-zinc-900">{t("editor.combine.baseImage" as never)}</h2>
         <img
           src={base.url}
@@ -211,7 +212,7 @@ export function EditorCombineWorkspace({
         </p>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+      <section className={`space-y-3 p-4 ${studioVisual.editorSurface}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-zinc-900">
             {t("editor.combine.references" as never)}
@@ -314,7 +315,7 @@ export function EditorCombineWorkspace({
         </div>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+      <section className={`space-y-3 p-4 ${studioVisual.editorSurface}`}>
         <h2 className="text-sm font-bold text-zinc-900">{t("editor.combine.planTitle" as never)}</h2>
 
         <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">

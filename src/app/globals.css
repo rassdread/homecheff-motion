@@ -1,13 +1,12 @@
 @import "tailwindcss";
-
-:root {
-  --background: #f7fbf8;
-  --foreground: #111827;
-}
+@import "./studio-visual-system.css";
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-studio-green: #006d52;
+  --color-studio-blue: #0067b1;
+  --color-studio-navy: #041428;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

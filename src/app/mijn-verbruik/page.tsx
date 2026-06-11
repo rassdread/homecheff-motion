@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { ProductPageShell } from "@/components/layout/product-page-shell";
 import { CustomerUsageDashboard } from "@/components/usage/customer-usage-dashboard";
 import { getActiveTranslator } from "@/i18n";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import {
   emptyUserUsageSummary,
@@ -37,19 +39,17 @@ export default async function MijnVerbruikPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
-        {t("usage.label")}
-      </p>
-      <h1 className="mt-1 text-2xl font-bold text-zinc-900 sm:text-3xl">{t("usage.title")}</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">{t("usage.intro")}</p>
-      <p className="mt-2 text-xs text-zinc-500">{t("usage.privacyNote")}</p>
+    <ProductPageShell>
+      <p className={studioVisual.eyebrowOnDark}>{t("usage.label")}</p>
+      <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{t("usage.title")}</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("usage.intro")}</p>
+      <p className="mt-2 text-xs text-white/50">{t("usage.privacyNote")}</p>
       <div className="mt-6">
         <CustomerUsageDashboard
           initialReport={initialReport}
           initialError={initialError}
         />
       </div>
-    </main>
+    </ProductPageShell>
   );
 }

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { ComponentPropsWithoutRef, ReactNode } from "react";
 import { useActiveTranslator } from "@/i18n/client";
-import { brand } from "@/lib/brand";
+import { studioVisual } from "@/lib/studio-visual-tokens";
+
+export type GradientButtonVariant = "primary" | "secondary" | "danger";
 
 type SharedProps = {
   children: ReactNode;
@@ -12,6 +14,7 @@ type SharedProps = {
   /** When `loading` is true, shown instead of the default generic loading label. */
   loadingLabel?: ReactNode;
   disabled?: boolean;
+  variant?: GradientButtonVariant;
 };
 
 type LinkButtonProps = SharedProps & {
@@ -28,9 +31,16 @@ type GradientButtonProps = LinkButtonProps | NativeButtonProps;
 function getClasses(
   className: string,
   disabled: boolean,
-  loading: boolean
+  loading: boolean,
+  variant: GradientButtonVariant
 ): string {
-  return `inline-flex items-center justify-center rounded-full bg-gradient-to-r ${brand.accentGradient} px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-opacity active:scale-[0.98] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${
+  const base =
+    variant === "secondary"
+      ? studioVisual.btnOutline
+      : variant === "danger"
+        ? studioVisual.btnDanger
+        : studioVisual.btnGradientPrimary;
+  return `${base} studio-btn-glow ${
     disabled || loading ? "cursor-not-allowed opacity-40" : ""
   } ${className}`;
 }
@@ -42,7 +52,8 @@ export function GradientButton(props: GradientButtonProps) {
   const content = loading
     ? (props.loadingLabel ?? t("button.loading"))
     : props.children;
-  const classes = getClasses(props.className ?? "", disabled, loading);
+  const variant = props.variant ?? "primary";
+  const classes = getClasses(props.className ?? "", disabled, loading, variant);
 
   if ("href" in props && props.href) {
     return (

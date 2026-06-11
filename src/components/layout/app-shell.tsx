@@ -6,6 +6,7 @@ import { I18nHtmlLangSync } from "@/components/layout/i18n-html-lang-sync";
 import { I18nHydrationSync } from "@/components/layout/i18n-hydration-sync";
 import { LanguageSwitch } from "@/components/layout/language-switch";
 import { brand } from "@/lib/brand";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type AppShellProps = {
   children: ReactNode;
@@ -16,17 +17,15 @@ export function AppShell({ children }: AppShellProps) {
     <>
       <I18nHydrationSync />
       <I18nHtmlLangSync />
-      <header className="sticky top-0 z-20 border-b border-emerald-100 bg-white backface-hidden [transform:translateZ(0)]">
-        <nav className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4 lg:px-10">
-          <Link href="/" prefetch={false} className="flex items-center gap-3">
-            <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-emerald-100 bg-white">
+      <header className={`${studioVisual.header} studio-header-glow`}>
+        <nav className={studioVisual.headerInner}>
+          <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-3">
+            <div className={studioVisual.logoMark}>
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-90`}
+                className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
               />
             </div>
-            <span className="text-sm font-semibold tracking-tight text-zinc-900">
-              {brand.studioProductName}
-            </span>
+            <span className={studioVisual.logoText}>{brand.studioProductName}</span>
           </Link>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
             <LanguageSwitch />
@@ -35,7 +34,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </nav>
       </header>
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </>
   );
 }

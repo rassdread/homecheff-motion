@@ -7,14 +7,11 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 import { resolvePrimaryNavItems } from "@/lib/homecheff-primary-nav-config";
 import { isStudioProductionModeEnabled } from "@/lib/studio-production-mode-flag";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import { resolveSuiteNavHref } from "@/lib/universe-public-landing";
 
 function navLinkClass(active: boolean): string {
-  return `inline-flex min-h-11 shrink-0 items-center rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:min-h-0 sm:px-3 sm:py-2 sm:text-xs lg:px-4 lg:text-sm ${
-    active
-      ? "border-[#006D52]/40 bg-[#006D52]/10 text-[#006D52]"
-      : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-  }`;
+  return active ? studioVisual.navActive : studioVisual.navInactive;
 }
 
 export function AppShellPrimaryNav() {

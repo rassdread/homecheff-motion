@@ -6,6 +6,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 
 function shortenEmail(email: string, maxLen = 30): string {
   if (email.length <= maxLen) {
@@ -25,12 +26,12 @@ function shortenEmail(email: string, maxLen = 30): string {
 
 function roleBadgeClass(role: string): string {
   if (role === "admin") {
-    return "border-violet-200 bg-violet-50 text-violet-800";
+    return studioVisual.adminBadge;
   }
   if (role === "power") {
-    return "border-sky-200 bg-sky-50 text-sky-800";
+    return studioVisual.roleBadgePower;
   }
-  return "border-zinc-200 bg-zinc-100 text-zinc-600";
+  return studioVisual.roleBadgeUser;
 }
 
 function roleLabelKey(role: string): "nav.role.admin" | "nav.role.power" | "nav.role.user" {
@@ -59,7 +60,10 @@ export function AppShellUserBar() {
 
   if (!session.resolved) {
     return (
-      <span className="hidden h-9 w-24 animate-pulse rounded-full bg-zinc-100 sm:block" aria-hidden />
+      <span
+        className="hidden h-9 w-24 animate-pulse rounded-full bg-white/10 sm:block"
+        aria-hidden
+      />
     );
   }
 
@@ -67,17 +71,13 @@ export function AppShellUserBar() {
     const suiteNav = isHomeCheffProductSuiteNavEnabled();
     return (
       <div className="flex flex-shrink-0 items-center gap-2">
-        <Link
-          href="/login"
-          prefetch={false}
-          className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-emerald-50 sm:px-4 sm:py-2 sm:text-sm"
-        >
+        <Link href="/login" prefetch={false} className={studioVisual.btnSecondary}>
           {t("nav.login")}
         </Link>
         <Link
           href={suiteNav ? "/signup?next=%2Feditor" : "/signup"}
           prefetch={false}
-          className="rounded-full border border-[#006D52]/30 bg-gradient-to-r from-[#006D52] to-[#0067B1] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90 sm:px-4 sm:py-2 sm:text-sm"
+          className={studioVisual.btnPrimary}
         >
           {t(suiteNav ? "universe.public.startCreating" : "nav.getStarted")}
         </Link>
@@ -94,12 +94,12 @@ export function AppShellUserBar() {
         <Link
           href="/mijn-verbruik"
           prefetch={false}
-          className="hidden shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 sm:inline-flex sm:px-3 sm:py-1.5 sm:text-xs"
+          className={`hidden sm:inline-flex ${studioVisual.btnGhost} text-[10px] sm:text-xs`}
         >
           {t("nav.usage")}
         </Link>
         <span
-          className={`truncate text-xs text-zinc-700 sm:text-sm ${!isActive ? "opacity-60" : ""}`}
+          className={`${studioVisual.userEmail} ${!isActive ? "opacity-50" : ""}`}
           title={email}
         >
           {shortenEmail(email)}
@@ -110,20 +110,12 @@ export function AppShellUserBar() {
           {t(roleLabelKey(normalizedRole))}
         </span>
         {normalizedRole === "admin" ? (
-          <Link
-            href="/admin"
-            prefetch={false}
-            className="shrink-0 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-800 transition-colors hover:bg-violet-50 sm:px-3 sm:py-1.5 sm:text-sm"
-          >
+          <Link href="/admin" prefetch={false} className={studioVisual.btnGhost}>
             {t("nav.admin")}
           </Link>
         ) : null}
       </div>
-      <button
-        type="button"
-        onClick={() => void handleLogout()}
-        className="shrink-0 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:px-3 sm:py-1.5 sm:text-sm"
-      >
+      <button type="button" onClick={() => void handleLogout()} className={studioVisual.btnGhost}>
         {t("nav.logout")}
       </button>
     </div>

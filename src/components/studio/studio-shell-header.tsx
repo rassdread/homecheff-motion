@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioNewStoryButton } from "@/components/studio/studio-new-story-button";
 import { useActiveTranslator } from "@/i18n/client";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type Props = {
   projectTitle?: string | null;
@@ -19,7 +20,7 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
     : null;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
+    <header className={`sticky top-0 z-20 px-4 py-3 sm:px-6 ${studioVisual.editorSurface}`}>
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-[#006D52]">
@@ -34,14 +35,14 @@ export function StudioShellHeader({ projectTitle, storyboardId, showMakeVideo = 
           <Link
             href="/studio"
             prefetch={false}
-            className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            className={`min-h-[44px] px-3 py-2 text-xs !text-zinc-800 !border-zinc-300 !bg-white/90 ${studioVisual.btnOutline}`}
           >
             {t("studio.shell.myStudio")}
           </Link>
           <Link
             href="/studio/storyboards"
             prefetch={false}
-            className="min-h-[44px] rounded-full border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            className={`min-h-[44px] px-3 py-2 text-xs !text-zinc-800 !border-zinc-300 !bg-white/90 ${studioVisual.btnOutline}`}
           >
             {t("studio.start.myStories")}
           </Link>

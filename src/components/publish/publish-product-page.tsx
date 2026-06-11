@@ -7,6 +7,7 @@ import { PublishSubtitlePanel } from "@/components/publish/publish-subtitle-pane
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import { createPublishProject, loadPublishProject, savePublishProject } from "@/lib/publish-overlay-session";
 import type { PublishProject } from "@/types/publish-overlay";
 
@@ -46,10 +47,10 @@ export function PublishProductPage() {
         <main className={`flex-1 ${brand.softGradientBg}`}>
           <section className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
             <div className="mb-4 flex gap-2">
-              <button type="button" onClick={() => setTab("overlays")} className={`rounded-full px-3 py-1 text-sm font-semibold ${tab === "overlays" ? "bg-[#0067B1] text-white" : "border"}`}>
+              <button type="button" onClick={() => setTab("overlays")} className={tab === "overlays" ? studioVisual.editorTabActive : studioVisual.editorTabInactive}>
                 {t("publish.tab.overlays")}
               </button>
-              <button type="button" onClick={() => setTab("subtitles")} className={`rounded-full px-3 py-1 text-sm font-semibold ${tab === "subtitles" ? "bg-[#0067B1] text-white" : "border"}`}>
+              <button type="button" onClick={() => setTab("subtitles")} className={tab === "subtitles" ? studioVisual.editorTabActive : studioVisual.editorTabInactive}>
                 {t("publish.tab.subtitles")}
               </button>
             </div>
@@ -66,9 +67,9 @@ export function PublishProductPage() {
     <StudioAuthGate authTitleKey="publish.authTitle" authBodyKey="publish.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-3xl px-6 py-12">
-          <h1 className="text-3xl font-bold text-zinc-900">{t("publish.start.title")}</h1>
-          <p className="mt-2 text-sm text-zinc-600">{t("publish.start.lead")}</p>
-          <label className="mt-6 block rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center">
+          <h1 className="text-3xl font-bold text-white">{t("publish.start.title")}</h1>
+          <p className="mt-2 text-sm text-white/70">{t("publish.start.lead")}</p>
+          <label className={`mt-6 block border-dashed p-8 text-center ${studioVisual.editorSurface}`}>
             <span className="text-sm font-semibold text-zinc-700">{t("publish.start.upload")}</span>
             <input
               type="file"

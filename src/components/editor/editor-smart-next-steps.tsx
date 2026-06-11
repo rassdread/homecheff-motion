@@ -2,6 +2,7 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import type { SmartNextStep } from "@/lib/editor-workflow-orchestration";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
 
 type Props = {
@@ -15,7 +16,7 @@ export function EditorSmartNextSteps({ steps, onStep }: Props) {
     return null;
   }
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+    <div className={`p-3 ${studioVisual.editorSurface}`}>
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {t("editor.workflow.next.title" as never)}
       </p>

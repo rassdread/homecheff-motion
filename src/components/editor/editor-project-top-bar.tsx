@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
 import { editorProjectHasUnsavedVisualChanges } from "@/lib/editor-project-model";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -38,7 +39,7 @@ export function EditorProjectTopBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+    <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${studioVisual.editorSurface}`}>
       <div className="min-w-0">
         <h1 className="truncate text-sm font-bold text-zinc-900">{document.name}</h1>
         <p className="text-xs text-zinc-500">
@@ -61,7 +62,7 @@ export function EditorProjectTopBar({
           type="button"
           disabled={saving}
           onClick={onSave}
-          className="min-h-9 rounded-full bg-[#0067B1] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          className={`min-h-9 px-4 py-1.5 text-xs disabled:opacity-50 ${studioVisual.btnGradientPrimary}`}
         >
           {saving ?
             t("editor.project.topBar.saving" as never)
@@ -70,14 +71,14 @@ export function EditorProjectTopBar({
         <button
           type="button"
           onClick={onProjects}
-          className="min-h-9 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-xs font-semibold text-zinc-800"
+          className={`min-h-9 px-4 py-1.5 text-xs ${studioVisual.btnOutline} !text-zinc-800 !border-zinc-300 !bg-white/90`}
         >
           {t("editor.project.topBar.projects" as never)}
         </button>
         <button
           type="button"
           onClick={requestClose}
-          className="min-h-9 rounded-full border border-zinc-300 bg-white px-4 py-1.5 text-xs font-semibold text-zinc-800"
+          className={`min-h-9 px-4 py-1.5 text-xs ${studioVisual.btnOutline} !text-zinc-800 !border-zinc-300 !bg-white/90`}
         >
           {t("editor.project.topBar.close" as never)}
         </button>
@@ -85,7 +86,7 @@ export function EditorProjectTopBar({
 
       {showCloseDialog ?
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-5 shadow-lg">
+          <div className={`w-full max-w-md p-5 shadow-lg ${studioVisual.cardElevated}`}>
             <h2 className="text-base font-bold text-zinc-900">
               {t("editor.project.close.title" as never)}
             </h2>

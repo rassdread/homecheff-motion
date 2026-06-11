@@ -9,6 +9,7 @@ import {
   evaluateExportReadiness,
   resolveExportSourceUrl,
 } from "@/lib/editor-export-workflow";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -52,7 +53,7 @@ export function EditorExportWorkspace({ document, onDocumentChange }: Props) {
   };
 
   return (
-    <div className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4">
+    <div className={`space-y-4 p-4 ${studioVisual.editorSurface}`}>
       <div>
         <h2 className="text-base font-bold text-zinc-900">
           {t("editor.workflow.export.title" as never)}

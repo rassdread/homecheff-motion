@@ -7,6 +7,7 @@ import { EditorPostUploadModePicker } from "@/components/editor/editor-post-uplo
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
 import {
@@ -124,10 +125,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
       <main className={`flex-1 ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#0067B1]">
-            {t("suite.nav.editor")}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
+          <p className={studioVisual.eyebrowOnDark}>{t("suite.nav.editor")}</p>
+          <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
             {t("editor.startFlow.title" as never)}
           </h1>
 
@@ -136,16 +135,16 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
-              className="min-h-[120px] rounded-2xl border border-[#0067B1]/30 bg-white p-5 text-left shadow-sm hover:bg-[#0067B1]/5"
+              className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
             >
-              <p className="font-semibold text-slate-900">{t("editor.start.upload")}</p>
-              <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.uploadHint" as never)}</p>
+              <p className="font-semibold text-zinc-900">{t("editor.start.upload")}</p>
+              <p className="mt-1 text-sm text-zinc-600">{t("editor.startFlow.uploadHint" as never)}</p>
             </button>
             <button
               type="button"
               disabled={loadingSources}
               onClick={() => void loadLibrary()}
-              className="min-h-[120px] rounded-2xl border border-[#006D52]/30 bg-white p-5 text-left shadow-sm hover:bg-[#006D52]/5"
+              className={`min-h-[120px] p-5 text-left transition hover:shadow-md ${studioVisual.editorSurface}`}
             >
               <p className="font-semibold text-slate-900">{t("editor.start.chooseLibrary")}</p>
               <p className="mt-1 text-sm text-slate-600">{t("editor.startFlow.libraryHint" as never)}</p>

@@ -2,6 +2,7 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import type { WorkflowStageView } from "@/lib/editor-workflow-orchestration";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type Props = {
   stages: WorkflowStageView[];
@@ -18,7 +19,7 @@ export function EditorWorkflowStatusBar({ stages }: Props) {
   const t = useActiveTranslator();
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2"
+      className={`flex flex-wrap items-center gap-2 p-2 ${studioVisual.editorSurface}`}
       role="list"
       aria-label={t("editor.workflow.statusBar.title" as never)}
     >

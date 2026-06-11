@@ -19,6 +19,7 @@ import {
   suggestSmartNextSteps,
 } from "@/lib/editor-workflow-orchestration";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
 
 type Props = {
@@ -104,11 +105,9 @@ export function EditorV2WorkflowShell({
               }
               setIntent(tab.id);
             }}
-            className={`rounded-full px-4 py-2 text-xs font-semibold ${
-              activeTab === tab.id ?
-                "bg-[#0067B1] text-white"
-              : "border border-zinc-300 bg-white text-zinc-800"
-            }`}
+            className={
+              activeTab === tab.id ? studioVisual.editorTabActive : studioVisual.editorTabInactive
+            }
           >
             {t(tab.labelKey as never)}
           </button>
@@ -149,12 +148,9 @@ export function EditorV2WorkflowShell({
       : null}
 
       {activeTab === "projects" ?
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
+        <div className={`${studioVisual.editorSurface} p-6 text-center`}>
           <p className="text-sm text-zinc-600">{t("editor.workflow.projects.lead" as never)}</p>
-          <Link
-            href="/editor"
-            className="mt-3 inline-block rounded-full bg-[#0067B1] px-4 py-2 text-xs font-semibold text-white"
-          >
+          <Link href="/editor" className={`mt-3 inline-block ${studioVisual.btnGradientPrimary} px-4 py-2 text-xs`}>
             {t("editor.workflow.projects.open" as never)}
           </Link>
         </div>
