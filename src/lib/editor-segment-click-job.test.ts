@@ -11,6 +11,7 @@ import {
   getEditorSegmentClickJob,
   markEditorSegmentClickJobReady,
   markEditorSegmentClickJobRunning,
+  resolveStaleEditorSegmentClickJob,
 } from "@/server/editor/editor-segment-click-job-store";
 import {
   EDITOR_JOB_CLICK_DEADLINE_MS,
@@ -96,5 +97,57 @@ describe("editor segment click async job", () => {
     const client = read("src/lib/editor-segment-click-job-client.ts");
     assert.match(client, /EDITOR_SEGMENT_JOB_POLL_MS = 1_800/);
     assert.match(client, /EDITOR_SEGMENT_JOB_MAX_WAIT_MS = 90_000/);
+  });
+
+  it("stale queued/running jobs resolve to timeout", () => {
+    const job = createEditorSegmentClickJob({
+      userId: "user-1",
+      sessionId: "sess-1",
+      prompt: "globe",
+      imageUrl: "https://example.com/globe.png",
+      clickPoint: { x: 0.5, y: 0.18 },
+      parentLayerId: null,
+      editorObjectId: "child-1",
+      createCutout: true,
+    });
+    const g = globalThis as { editorSegmentClickJobs?: Map<string, typeof job> };
+    const stored = g.editorSegmentClickJobs?.get(job.jobId);
+    if (stored) {
+      g.editorSegmentClickJobs?.set(job.jobId, {
+        ...stored,
+        createdAt: Date.now() - EDITOR_JOB_CLICK_DEADLINE_MS - 20_000,
+      });
+    }
+    const resolved = resolveStaleEditorSegmentClickJob(job.jobId);
+    assert.equal(resolved?.status, "timeout");
+  });
+
+  it("production logging helper and runner orphan guard exist", () => {
+    const log = read("src/server/editor/editor-segment-click-job-log.ts");
+    assert.match(log, /\[editor-segment-job\]/);
+    assert.match(log, /jobId/);
+    assert.match(log, /finalResult/);
+    const runner = read("src/server/editor/editor-segment-click-job-runner.ts");
+    assert.match(runner, /markJobOrphanedTimeout/);
+    assert.match(runner, /logEditorSegmentJob/);
+  });
+
+  it("status route resolves stale jobs before responding", () => {
+    const status = read("src/app/api/editor/segment/click/status/route.ts");
+    assert.match(status, /resolveStaleEditorSegmentClickJob/);
+    assert.match(status, /logEditorSegmentJob/);
+  });
+
+  it("workspace clears segment job UI in finally (no stuck banner)", () => {
+    const workspace = read("src/components/editor/editor-canvas-workspace.tsx");
+    const fnStart = workspace.indexOf("const runPromptSubLayerSegmentation");
+    const fnEnd = workspace.indexOf("const handleClickSegmentObject", fnStart);
+    assert.ok(fnStart >= 0 && fnEnd > fnStart);
+    const fnBody = workspace.slice(fnStart, fnEnd);
+    assert.match(fnBody, /clearSegmentJobUi/);
+    assert.match(fnBody, /finally[\s\S]*clearSegmentJobUi/);
+    assert.match(fnBody, /startEditorSegmentClickJob/);
+    assert.match(fnBody, /pollEditorSegmentClickJob/);
+    assert.doesNotMatch(fnBody, /postEditorSegmentClick/);
   });
 });

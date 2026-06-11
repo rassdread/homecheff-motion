@@ -690,6 +690,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
 
+    const clearSegmentJobUi = () => {
+      setActiveSegmentJobId(null);
+      setSegmentCanvasMessageKey(null);
+    };
+
     setRefiningSelection(true);
     try {
       const parentLayer =
@@ -726,7 +731,6 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         createCutout: true,
       });
       if (!started.ok) {
-        setSegmentCanvasMessageKey(null);
         reportSegmentFailure(started.code);
         setClickDebugApiStatus(`start failed ${started.code ?? ""}`);
         return;
@@ -747,9 +751,6 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           }
         },
       });
-      setActiveSegmentJobId(null);
-      setSegmentCanvasMessageKey(null);
-
       if (!polled.ok) {
         reportSegmentFailure(polled.code);
         setClickDebugApiStatus(
@@ -786,10 +787,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       setSaveMessage(t(segmentPromptSuccessMessageKey(input.prompt) as never));
       return withSegment;
     } catch {
-      setSegmentCanvasMessageKey(null);
-      setActiveSegmentJobId(null);
       reportSegmentFailure("segmentation_internal_error");
     } finally {
+      clearSegmentJobUi();
       setRefiningSelection(false);
     }
   };

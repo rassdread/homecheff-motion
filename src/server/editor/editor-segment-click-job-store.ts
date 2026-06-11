@@ -6,8 +6,11 @@ import type {
   EditorSegmentClickJobTrace,
 } from "@/types/editor-segment-click-job";
 import type { EditorSegmentErrorCode } from "@/lib/editor-segmentation-errors";
+import { EDITOR_JOB_CLICK_DEADLINE_MS } from "@/server/editor/replicate-sam3-editor-segment";
+import { logEditorSegmentJob } from "@/server/editor/editor-segment-click-job-log";
 
 const JOB_TTL_MS = 2 * 60 * 60 * 1000;
+const JOB_STALE_MS = EDITOR_JOB_CLICK_DEADLINE_MS + 15_000;
 
 type GlobalJobStore = {
   editorSegmentClickJobs?: Map<string, EditorSegmentClickJob>;
@@ -104,7 +107,18 @@ export function markEditorSegmentClickJobReady(
   result: EditorSegmentClickJobResult,
   trace?: EditorSegmentClickJobTrace
 ): EditorSegmentClickJob | null {
-  return updateEditorSegmentClickJob(jobId, { status: "ready", result, trace, retryable: false });
+  const updated = updateEditorSegmentClickJob(jobId, { status: "ready", result, trace, retryable: false });
+  if (updated) {
+    logEditorSegmentJob({
+      jobId,
+      status: "ready",
+      provider: result.providerUsed ?? result.segmentationSource ?? null,
+      elapsedMs: trace?.totalMs ?? Date.now() - updated.createdAt,
+      finalResult: result.maskUrl ? "mask_ready" : "no_mask",
+      prompt: updated.prompt,
+    });
+  }
+  return updated;
 }
 
 export function markEditorSegmentClickJobFailed(
@@ -117,11 +131,44 @@ export function markEditorSegmentClickJobFailed(
     trace?: EditorSegmentClickJobTrace;
   }
 ): EditorSegmentClickJob | null {
-  return updateEditorSegmentClickJob(jobId, {
+  const updated = updateEditorSegmentClickJob(jobId, {
     status: input.status,
     errorCode: input.errorCode,
     errorMessage: input.errorMessage,
     retryable: input.retryable,
     trace: input.trace,
+  });
+  if (updated) {
+    logEditorSegmentJob({
+      jobId,
+      status: input.status,
+      elapsedMs: input.trace?.totalMs ?? Date.now() - updated.createdAt,
+      finalResult: input.status,
+      errorCode: input.errorCode,
+      prompt: updated.prompt,
+    });
+  }
+  return updated;
+}
+
+/** Ensure in-flight jobs cannot remain queued/running forever (serverless after() miss). */
+export function resolveStaleEditorSegmentClickJob(jobId: string): EditorSegmentClickJob | null {
+  const job = getEditorSegmentClickJob(jobId);
+  if (!job) {
+    return null;
+  }
+  if (job.status !== "queued" && job.status !== "running") {
+    return job;
+  }
+  const elapsedMs = Date.now() - job.createdAt;
+  if (elapsedMs <= JOB_STALE_MS) {
+    return job;
+  }
+  return markEditorSegmentClickJobFailed(jobId, {
+    status: "timeout",
+    errorCode: "replicate_timeout",
+    errorMessage: "Segmentation job timed out.",
+    retryable: true,
+    trace: { totalMs: elapsedMs },
   });
 }

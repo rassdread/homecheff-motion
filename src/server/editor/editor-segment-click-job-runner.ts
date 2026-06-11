@@ -1,9 +1,6 @@
 import { after } from "next/server";
 import { mapReplicateErrorToCode, type EditorSegmentErrorCode } from "@/lib/editor-segmentation-errors";
-import {
-  EDITOR_JOB_CLICK_DEADLINE_MS,
-  EDITOR_JOB_REPLICATE_TIMEOUT_MS,
-} from "@/server/editor/replicate-sam3-editor-segment";
+import { logEditorSegmentJob } from "@/server/editor/editor-segment-click-job-log";
 import {
   getEditorSegmentClickJob,
   markEditorSegmentClickJobFailed,
@@ -58,6 +55,20 @@ function toJobResult(
   };
 }
 
+function markJobOrphanedTimeout(jobId: string, elapsedMs: number): void {
+  const job = getEditorSegmentClickJob(jobId);
+  if (!job || job.status === "ready" || job.status === "failed" || job.status === "timeout") {
+    return;
+  }
+  markEditorSegmentClickJobFailed(jobId, {
+    status: "timeout",
+    errorCode: "replicate_timeout",
+    errorMessage: "Segmentation job did not complete.",
+    retryable: true,
+    trace: { totalMs: elapsedMs },
+  });
+}
+
 export function scheduleEditorSegmentClickJob(jobId: string): void {
   after(async () => {
     await runEditorSegmentClickJob(jobId);
@@ -66,18 +77,33 @@ export function scheduleEditorSegmentClickJob(jobId: string): void {
 
 export async function runEditorSegmentClickJob(jobId: string): Promise<void> {
   const job = getEditorSegmentClickJob(jobId);
-  if (!job || job.status !== "queued") {
+  if (!job) {
+    logEditorSegmentJob({
+      jobId,
+      status: "failed",
+      finalResult: "job_missing",
+      errorCode: "job_not_found",
+    });
+    return;
+  }
+  if (job.status !== "queued") {
+    logEditorSegmentJob({
+      jobId,
+      status: job.status,
+      finalResult: "skipped_not_queued",
+      prompt: job.prompt,
+    });
     return;
   }
 
   markEditorSegmentClickJobRunning(jobId);
   const startedMs = Date.now();
-
-  console.info("[editor-segmentation]", {
-    phase: "async_job_start",
+  logEditorSegmentJob({
     jobId,
+    status: "running",
+    provider: "replicate_sam3",
+    elapsedMs: 0,
     prompt: job.prompt,
-    sessionId: job.sessionId,
   });
 
   try {
@@ -102,14 +128,7 @@ export async function runEditorSegmentClickJob(jobId: string): Promise<void> {
     };
 
     if (!result.ok) {
-      const status =
-        result.code === "replicate_timeout" ? "timeout" : "failed";
-      console.info("[editor-segmentation]", {
-        phase: "async_job_failed",
-        jobId,
-        failureCode: result.code,
-        totalMs,
-      });
+      const status = result.code === "replicate_timeout" ? "timeout" : "failed";
       markEditorSegmentClickJobFailed(jobId, {
         status,
         errorCode: result.code,
@@ -120,13 +139,6 @@ export async function runEditorSegmentClickJob(jobId: string): Promise<void> {
       return;
     }
 
-    console.info("[editor-segmentation]", {
-      phase: "async_job_ready",
-      jobId,
-      replicatePredictionMs: result.result.runtimeMs,
-      totalMs,
-    });
-
     markEditorSegmentClickJobReady(
       jobId,
       toJobResult(result.shape, result.result),
@@ -136,12 +148,6 @@ export async function runEditorSegmentClickJob(jobId: string): Promise<void> {
     const message = error instanceof Error ? error.message : "Segmentation failed.";
     const code = mapReplicateErrorToCode(message);
     const totalMs = Date.now() - startedMs;
-    console.error("[editor-segmentation]", {
-      phase: "async_job_error",
-      jobId,
-      error: message,
-      totalMs,
-    });
     markEditorSegmentClickJobFailed(jobId, {
       status: code === "replicate_timeout" ? "timeout" : "failed",
       errorCode: code,
@@ -149,5 +155,7 @@ export async function runEditorSegmentClickJob(jobId: string): Promise<void> {
       retryable: isRetryableCode(code),
       trace: { totalMs },
     });
+  } finally {
+    markJobOrphanedTimeout(jobId, Date.now() - startedMs);
   }
 }

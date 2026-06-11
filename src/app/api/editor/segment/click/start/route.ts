@@ -5,6 +5,7 @@ import {
   type EditorSegmentClickBody,
 } from "@/lib/editor-segment-click-route-parse";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { logEditorSegmentJob } from "@/server/editor/editor-segment-click-job-log";
 import { createEditorSegmentClickJob } from "@/server/editor/editor-segment-click-job-store";
 import { scheduleEditorSegmentClickJob } from "@/server/editor/editor-segment-click-job-runner";
 
@@ -62,11 +63,13 @@ export async function POST(request: Request) {
     createCutout: body.createCutout,
   });
 
-  console.info("[editor-segmentation]", {
-    phase: "async_job_queued",
+  logEditorSegmentJob({
     jobId: job.jobId,
+    status: "queued",
+    provider: "replicate_sam3",
+    elapsedMs: 0,
+    finalResult: "queued",
     prompt,
-    sessionId,
   });
 
   scheduleEditorSegmentClickJob(job.jobId);

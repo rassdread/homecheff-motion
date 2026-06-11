@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { segmentErrorHttpStatus } from "@/lib/editor-segmentation-errors";
 import { requireActiveUser } from "@/server/auth/permissions";
-import { getEditorSegmentClickJob } from "@/server/editor/editor-segment-click-job-store";
+import { logEditorSegmentJob } from "@/server/editor/editor-segment-click-job-log";
+import {
+  getEditorSegmentClickJob,
+  resolveStaleEditorSegmentClickJob,
+} from "@/server/editor/editor-segment-click-job-store";
 
 export const runtime = "nodejs";
 
@@ -16,7 +20,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "jobId is required.", code: "invalid_job" }, { status: 400 });
   }
 
-  const job = getEditorSegmentClickJob(jobId);
+  const job = resolveStaleEditorSegmentClickJob(jobId) ?? getEditorSegmentClickJob(jobId);
   if (!job) {
     return NextResponse.json({ error: "Job not found.", code: "job_not_found" }, { status: 404 });
   }
@@ -25,7 +29,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden.", code: "forbidden" }, { status: 403 });
   }
 
+  const elapsedMs = Date.now() - job.createdAt;
+
   if (job.status === "ready") {
+    logEditorSegmentJob({
+      jobId: job.jobId,
+      status: "ready",
+      provider: job.result?.providerUsed ?? job.result?.segmentationSource ?? null,
+      elapsedMs: job.trace?.totalMs ?? elapsedMs,
+      finalResult: job.result?.maskUrl ? "mask_ready" : "no_mask",
+      prompt: job.prompt,
+    });
     return NextResponse.json({
       jobId: job.jobId,
       status: "ready",
@@ -36,6 +50,14 @@ export async function GET(request: Request) {
 
   if (job.status === "failed" || job.status === "timeout") {
     const code = job.errorCode ?? "segmentation_internal_error";
+    logEditorSegmentJob({
+      jobId: job.jobId,
+      status: job.status,
+      elapsedMs: job.trace?.totalMs ?? elapsedMs,
+      finalResult: job.status,
+      errorCode: code,
+      prompt: job.prompt,
+    });
     return NextResponse.json(
       {
         jobId: job.jobId,
