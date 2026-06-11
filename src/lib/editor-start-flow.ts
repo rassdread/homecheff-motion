@@ -1,4 +1,5 @@
-import type { EditorCombineIntent } from "@/types/editor-instruction-studio";
+import { ensureFusionPlan } from "@/lib/editor-fusion-plan";
+import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
 export const EDITOR_POST_UPLOAD_MODES = ["edit", "combine", "motion_prepare", "export"] as const;
@@ -36,7 +37,7 @@ export function workspaceModeForPostUpload(mode: EditorPostUploadMode): EditorWo
 export function applyPostUploadMode(
   document: EditorCanvasDocument,
   mode: EditorPostUploadMode,
-  options?: { combineIntent?: EditorCombineIntent }
+  options?: { combineIntent?: EditorFusionIntent }
 ): EditorCanvasDocument {
   const workspaceMode = workspaceModeForPostUpload(mode);
   let next: EditorCanvasDocument = {
@@ -53,6 +54,9 @@ export function applyPostUploadMode(
         combineIntent: options.combineIntent,
       },
     };
+    if (mode === "combine") {
+      next = ensureFusionPlan(next, options.combineIntent);
+    }
   }
   if (mode === "export") {
     next = {

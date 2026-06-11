@@ -7,6 +7,11 @@ import {
   parseEditorInstructionRequest,
   parsedRequestToChangePlanEntries,
 } from "@/lib/editor-instruction-request-parser";
+import {
+  buildFusionPlanFromDirectorRequest,
+  parseFusionDirectorRequest,
+} from "@/lib/editor-fusion-request-parser";
+import { patchFusionPlan } from "@/lib/editor-fusion-plan";
 import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
 import { resolveDirectorPlaceholderKey, resolveDirectorSuggestionKeys } from "@/lib/editor-personalized-recommendations";
 import type { EditorInstructionObjectV2 } from "@/types/editor-instruction-studio";
@@ -54,6 +59,27 @@ export function EditorInstructionAiDirectorBar({
   }, [parsed, recCtx]);
 
   const analyze = () => {
+    const isCombine = document.editorFlowMode === "combine" || document.workspaceMode === "compose";
+    if (isCombine) {
+      const fusionParsed = parseFusionDirectorRequest(prompt);
+      const fusionPlan = buildFusionPlanFromDirectorRequest(document, fusionParsed);
+      const nextDoc = patchFusionPlan(document, fusionPlan);
+      setParsed(parseEditorInstructionRequest(prompt, {
+        brandName: recCtx.brandName,
+        showHomeCheffExamples: recCtx.showHomeCheffExamples,
+      }));
+      onDocumentChange({
+        ...nextDoc,
+        instructionStudioState: {
+          ...nextDoc.instructionStudioState,
+          directorPrompt: prompt,
+          combineIntent: fusionParsed.intent,
+        },
+        updatedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
     const result = parseEditorInstructionRequest(prompt, {
       brandName: recCtx.brandName,
       showHomeCheffExamples: recCtx.showHomeCheffExamples,

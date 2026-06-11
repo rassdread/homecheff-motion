@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { EditorGenerationCostPanel } from "@/components/editor/editor-generation-cost-panel";
+import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
 import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
 import { createPrintExportRecord } from "@/lib/editor-instruction-print-export";
+import { checkGenerationAccess } from "@/lib/editor-generation-gate";
 import {
   EDITOR_AI_ENHANCEMENTS,
   EDITOR_EXPORT_TARGET_CATEGORIES,
@@ -34,6 +37,7 @@ const DEFAULT_SOURCE_H = 900;
 
 export function EditorExportWorkspace({ document, onDocumentChange }: Props) {
   const t = useActiveTranslator();
+  const { access } = useEditorUserAccess();
   const [category, setCategory] = useState<EditorExportTargetCategory>("print");
   const [selectedId, setSelectedId] = useState("a4");
   const [printFormat, setPrintFormat] = useState<EditorInstructionPrintPreset>("a4");
@@ -73,6 +77,18 @@ export function EditorExportWorkspace({ document, onDocumentChange }: Props) {
 
   const handleExport = () => {
     if (!approved?.resultUrl && !document.backgroundUrl) {
+      return;
+    }
+    const exportDecision = checkGenerationAccess({
+      user: access,
+      workflow: enhancements.includes("upscale") ? "export_upscale" : "export_print",
+      options: {
+        upscaleMode,
+        printPreset: printFormat,
+      },
+      useCredits: true,
+    });
+    if (!exportDecision.allowed) {
       return;
     }
     const record = createPrintExportRecord({
@@ -289,6 +305,13 @@ export function EditorExportWorkspace({ document, onDocumentChange }: Props) {
         src={sourceUrl}
         alt=""
         className="max-h-48 rounded-lg border border-zinc-200 object-contain"
+      />
+
+      <EditorGenerationCostPanel
+        user={access}
+        workflow={enhancements.includes("upscale") ? "export_upscale" : "export_print"}
+        options={{ upscaleMode, printPreset: printFormat }}
+        useCredits
       />
 
       <button

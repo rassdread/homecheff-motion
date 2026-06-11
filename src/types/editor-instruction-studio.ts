@@ -1,5 +1,7 @@
 /** Image Instruction Studio V2 — analyze → guide → generate variant. */
 
+import type { EditorTransformationSession } from "@/types/editor-generation-access";
+
 export const EDITOR_INSTRUCTION_OBJECT_CATEGORIES = [
   "character",
   "logo",
@@ -254,16 +256,97 @@ export const EDITOR_INSTRUCTION_PRINT_PRESETS = [
   "custom",
 ] as const;
 
-export const EDITOR_COMBINE_INTENTS = [
-  "person_outfit",
+export const EDITOR_FUSION_INTENT_CATEGORIES = [
+  "people_characters",
+  "animals",
+  "products_brands",
+  "marketing_content",
+  "future_identity",
+] as const;
+
+export type EditorFusionIntentCategory = (typeof EDITOR_FUSION_INTENT_CATEGORIES)[number];
+
+export const EDITOR_FUSION_PRESERVATION_RULES = [
+  "face",
+  "hair",
+  "hairstyle",
+  "expression",
+  "identity",
+  "body_proportions",
+  "body",
+  "pose",
+  "brand_colors",
+  "logo",
+  "illustration_style",
+  "skin_tone",
+  "distinctive_features",
+  "brand_identity",
+  "clothing",
+  "product_shape",
+  "building_structure",
+] as const;
+
+export type EditorFusionPreservationRule = (typeof EDITOR_FUSION_PRESERVATION_RULES)[number];
+
+export const EDITOR_FUSION_PRESERVATION_STRENGTHS = ["low", "medium", "high", "strict"] as const;
+
+export type EditorFusionPreservationStrength = (typeof EDITOR_FUSION_PRESERVATION_STRENGTHS)[number];
+
+export type EditorFusionInheritedTrait = {
+  id: string;
+  label: string;
+  group?: string;
+  sourceReferenceId?: string;
+  enabled: boolean;
+};
+
+export type EditorFusionPreservationSettings = {
+  rules: EditorFusionPreservationRule[];
+  strength: EditorFusionPreservationStrength;
+  toggles: Partial<Record<EditorFusionPreservationRule, boolean>>;
+};
+
+export type EditorFusionGenerationSettings = Record<
+  string,
+  number | string | boolean | number[] | string[] | undefined
+>;
+
+export const EDITOR_FUSION_INTENTS = [
+  "outfit_from_reference",
+  "character_fusion",
+  "character_upgrade",
+  "human_into_mascot",
+  "mascot_into_human",
+  "animal_fusion",
+  "animal_human_fusion",
+  "pet_customization",
+  "fantasy_creature",
   "product_branding",
-  "person_background",
+  "product_packaging",
   "product_environment",
+  "product_family",
+  "ad_composition",
+  "social_media_visual",
+  "poster_composition",
+  "campaign_variant",
+  "how_will_i_look",
+  "life_timeline",
+  "genetic_blend",
+  "future_child",
+  "future_professions",
+  "future_home",
+  "person_outfit",
+  "person_background",
   "multiple_references",
   "custom_composition",
 ] as const;
 
-export type EditorCombineIntent = (typeof EDITOR_COMBINE_INTENTS)[number];
+export type EditorFusionIntent = (typeof EDITOR_FUSION_INTENTS)[number];
+
+/** @deprecated Use EditorFusionIntent */
+export type EditorCombineIntent = EditorFusionIntent;
+
+export const EDITOR_COMBINE_INTENTS = EDITOR_FUSION_INTENTS;
 
 export type EditorInstructionPrintPreset = (typeof EDITOR_INSTRUCTION_PRINT_PRESETS)[number];
 
@@ -450,6 +533,26 @@ export type EditorCompositionPlan = {
   updatedAt: string;
 };
 
+export type EditorFusionPlan = {
+  id: string;
+  intent: EditorFusionIntent;
+  category: EditorFusionIntentCategory;
+  fusionStrength: number;
+  preservation: EditorFusionPreservationSettings;
+  inheritedTraits: EditorFusionInheritedTrait[];
+  styleRules: string[];
+  brandRules: string[];
+  userInstructions: string;
+  simulationDisclaimer?: string;
+  generationSettings: EditorFusionGenerationSettings;
+  baseImageUrl: string;
+  baseVariantId?: string | null;
+  references: EditorCompositionReference[];
+  items: EditorCompositionPlanItem[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const EDITOR_WORKFLOW_STAGES = [
   "analyze",
   "plan",
@@ -488,8 +591,10 @@ export type EditorInstructionStudioState = {
   changePlan?: EditorInstructionChangePlanEntry[];
   /** AI reference composition plan */
   compositionPlan?: EditorCompositionPlan;
-  /** Combine workflow intent chosen before upload */
-  combineIntent?: EditorCombineIntent;
+  /** Structured Image Fusion plan — source of truth for combine/fusion workflows */
+  fusionPlan?: EditorFusionPlan;
+  /** Combine / fusion workflow intent chosen before upload */
+  combineIntent?: EditorFusionIntent;
   /** Last explicit creator preset chosen in Instruction Studio */
   selectedCreatorPresetId?: EditorCreatorPresetId;
   /** AI Director natural-language input */
@@ -499,6 +604,7 @@ export type EditorInstructionStudioState = {
   brandReferences?: BrandReferenceAsset[];
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;
+  transformationSession?: EditorTransformationSession;
 };
 
 export type EditorCreatorPresetId = "chef" | "garden" | "designer";

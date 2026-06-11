@@ -10,6 +10,8 @@ import {
   EDITOR_COMBINE_INTENT_OPTIONS,
   EDITOR_WORKFLOW_PRODUCTS,
   combineIntentOption,
+  combineRequiresMultiUpload,
+  fusionIntentsInCategory,
   workflowChooserModes,
 } from "@/lib/editor-workflow-product";
 import {
@@ -74,18 +76,21 @@ describe("Editor V3 workflow chooser", () => {
 });
 
 describe("Editor V3 combine intents", () => {
-  it("lists six combine composition intents", () => {
-    assert.equal(EDITOR_COMBINE_INTENT_OPTIONS.length, 6);
-    assert.equal(combineIntentOption("person_outfit").requiresDualUpload, true);
-    assert.equal(combineIntentOption("custom_composition").requiresDualUpload, false);
+  it("lists fusion intents across five categories", () => {
+    assert.ok(EDITOR_COMBINE_INTENT_OPTIONS.length >= 20);
+    assert.equal(fusionIntentsInCategory("people_characters").length, 5);
+    assert.equal(combineRequiresMultiUpload("person_outfit"), true);
+    assert.equal(combineRequiresMultiUpload("custom_composition"), false);
+    assert.equal(combineIntentOption("outfit_from_reference").category, "people_characters");
   });
 
   it("stores combine intent on document when applied", () => {
     const doc = applyPostUploadMode(mockDocument(), "combine", {
       combineIntent: "person_outfit",
     });
-    assert.equal(doc.instructionStudioState?.combineIntent, "person_outfit");
+    assert.equal(doc.instructionStudioState?.combineIntent, "outfit_from_reference");
     assert.equal(doc.workspaceMode, "compose");
+    assert.ok(doc.instructionStudioState?.fusionPlan);
   });
 });
 
@@ -129,7 +134,8 @@ describe("Editor V3 wear outfit from reference", () => {
     const plan = next.instructionStudioState?.compositionPlan;
     assert.ok(plan);
     assert.ok((plan?.items.length ?? 0) >= 4);
-    assert.equal(next.instructionStudioState?.combineIntent, "person_outfit");
+    assert.equal(next.instructionStudioState?.combineIntent, "outfit_from_reference");
+    assert.ok(next.instructionStudioState?.fusionPlan);
     assert.ok(plan?.userNotes?.includes("Preserve face"));
   });
 });

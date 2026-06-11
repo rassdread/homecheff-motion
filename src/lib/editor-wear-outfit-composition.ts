@@ -6,9 +6,11 @@ import {
   ensureCompositionPlan,
   patchCompositionPlan,
 } from "@/lib/editor-composition-plan";
+import { ensureFusionPlan, patchFusionPlan } from "@/lib/editor-fusion-plan";
 import type {
   EditorCompositionPlan,
   EditorCompositionReference,
+  EditorFusionPreservationRule,
 } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -26,7 +28,7 @@ export const WEAR_OUTFIT_PRESERVE_RULES = [
   "identity",
   "hair",
   "expression",
-  "body proportions",
+  "body_proportions",
   "pose",
 ] as const;
 
@@ -113,19 +115,35 @@ export function applyWearOutfitComposition(
     return next;
   }
 
+  const preserveNotes = WEAR_OUTFIT_PRESERVE_RULES.map((r) => `Preserve ${r}`);
+  const userNotes = ["Wear outfit from reference", ...preserveNotes].join(". ");
+  const fusionInstructions = ["Replace clothing only from outfit reference", ...preserveNotes].join(". ");
+
   const patched = patchCompositionPlan(next, {
     ...plan,
-    userNotes: [
-      "Wear outfit from reference",
-      ...WEAR_OUTFIT_PRESERVE_RULES.map((r) => `Preserve ${r}`),
-    ].join(". "),
+    userNotes,
   });
 
-  return {
-    ...patched,
-    instructionStudioState: {
-      ...patched.instructionStudioState,
-      combineIntent: "person_outfit",
-    },
-  };
+  let withFusion = ensureFusionPlan(
+    { ...patched, instructionStudioState: { ...patched.instructionStudioState, combineIntent: "outfit_from_reference" } },
+    "outfit_from_reference"
+  );
+  const fusion = withFusion.instructionStudioState?.fusionPlan;
+  if (fusion) {
+    withFusion = patchFusionPlan(withFusion, {
+      ...fusion,
+      items: patched.instructionStudioState!.compositionPlan!.items,
+      references: patched.instructionStudioState!.compositionPlan!.references,
+      userInstructions: fusionInstructions,
+      preservation: {
+        ...fusion.preservation,
+        rules: [...WEAR_OUTFIT_PRESERVE_RULES] as EditorFusionPreservationRule[],
+        toggles: Object.fromEntries(
+          WEAR_OUTFIT_PRESERVE_RULES.map((r) => [r, true])
+        ) as Partial<Record<EditorFusionPreservationRule, boolean>>,
+      },
+    });
+  }
+
+  return withFusion;
 }

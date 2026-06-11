@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
-import { EditorCombineIntentPicker } from "@/components/editor/editor-combine-intent-picker";
+import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
 import { EditorWorkflowChooser } from "@/components/editor/editor-workflow-chooser";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
@@ -15,8 +15,9 @@ import {
   applyPostUploadMode,
   type EditorPostUploadMode,
 } from "@/lib/editor-start-flow";
-import { combineIntentOption, workflowProductForMode } from "@/lib/editor-workflow-product";
-import { applyWearOutfitComposition } from "@/lib/editor-wear-outfit-composition";
+import { combineIntentOption, combineRequiresMultiUpload, workflowProductForMode } from "@/lib/editor-workflow-product";
+import { fusionIntentDefinition } from "@/lib/editor-image-fusion-catalog";
+import { applyFusionIntakeDocuments } from "@/lib/editor-fusion-plan";
 import {
   createEditorDocumentFromLibrarySource,
   createEditorDocumentFromUpload,
@@ -25,7 +26,7 @@ import {
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
-import type { EditorCombineIntent } from "@/types/editor-instruction-studio";
+import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -38,9 +39,9 @@ type StartPhase =
   | {
       kind: "intake";
       workflow: EditorPostUploadMode;
-      combineIntent?: EditorCombineIntent;
-      dualStep?: "person" | "outfit";
-      personDocument?: EditorCanvasDocument;
+      combineIntent?: EditorFusionIntent;
+      uploadStepIndex?: number;
+      stagedDocs?: EditorCanvasDocument[];
     };
 
 export function EditorStartScreen({ onOpenDocument }: Props) {
@@ -80,7 +81,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const finishOpen = async (
     document: EditorCanvasDocument,
     mode: EditorPostUploadMode,
-    combineIntent?: EditorCombineIntent
+    combineIntent?: EditorFusionIntent
   ) => {
     const withMode = applyPostUploadMode(document, mode, { combineIntent });
     if (combineIntent === "person_outfit" && mode === "combine") {
@@ -105,14 +106,14 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     setPhase({ kind: "intake", workflow });
   };
 
-  const handleCombineIntent = (intent: EditorCombineIntent) => {
-    const option = combineIntentOption(intent);
-    if (option.requiresDualUpload) {
+  const handleCombineIntent = (intent: EditorFusionIntent) => {
+    if (combineRequiresMultiUpload(intent)) {
       setPhase({
         kind: "intake",
         workflow: "combine",
         combineIntent: intent,
-        dualStep: "person",
+        uploadStepIndex: 0,
+        stagedDocs: [],
       });
       return;
     }
@@ -123,27 +124,33 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     if (phase.kind !== "intake") {
       return;
     }
-    const { workflow, combineIntent, dualStep, personDocument } = phase;
-
-    if (workflow === "combine" && combineIntent === "person_outfit" && dualStep === "person") {
-      setPhase({
-        kind: "intake",
-        workflow: "combine",
-        combineIntent,
-        dualStep: "outfit",
-        personDocument: doc,
-      });
-      return;
-    }
+    const { workflow, combineIntent, uploadStepIndex, stagedDocs } = phase;
 
     if (
       workflow === "combine" &&
-      combineIntent === "person_outfit" &&
-      dualStep === "outfit" &&
-      personDocument
+      combineIntent &&
+      uploadStepIndex !== undefined &&
+      stagedDocs
     ) {
-      const merged = applyWearOutfitComposition(personDocument, doc.backgroundUrl, doc.name);
-      await finishOpen(merged, "combine", "person_outfit");
+      const def = fusionIntentDefinition(combineIntent);
+      const requiredSteps = def.uploadSteps.filter((s) => !s.optional);
+      const nextStaged = [...stagedDocs, doc];
+      if (nextStaged.length < requiredSteps.length) {
+        setPhase({
+          kind: "intake",
+          workflow: "combine",
+          combineIntent,
+          uploadStepIndex: nextStaged.length,
+          stagedDocs: nextStaged,
+        });
+        return;
+      }
+      const merged = applyFusionIntakeDocuments(
+        nextStaged[0]!,
+        nextStaged.slice(1),
+        combineIntent
+      );
+      await finishOpen(merged, "combine", combineIntent);
       return;
     }
 
@@ -185,14 +192,13 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     if (phase.kind !== "intake") {
       return t("editor.v3.intake.title" as never);
     }
-    const product = workflowProductForMode(phase.workflow);
-    if (phase.dualStep === "person") {
-      return t("editor.v3.combine.uploadPerson" as never);
+    if (phase.combineIntent && phase.uploadStepIndex !== undefined) {
+      const step = fusionIntentDefinition(phase.combineIntent).uploadSteps[phase.uploadStepIndex];
+      if (step) {
+        return t(step.labelKey as never);
+      }
     }
-    if (phase.dualStep === "outfit") {
-      return t("editor.v3.combine.uploadOutfit" as never);
-    }
-    return t(product.titleKey as never);
+    return t(workflowProductForMode(phase.workflow).titleKey as never);
   };
 
   const intakeHint = () => {
@@ -202,11 +208,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     if (phase.workflow === "export") {
       return t("editor.v3.workflow.export.standaloneHint" as never);
     }
-    if (phase.dualStep === "person") {
-      return t("editor.v3.combine.uploadPersonHint" as never);
-    }
-    if (phase.dualStep === "outfit") {
-      return t("editor.v3.combine.uploadOutfitHint" as never);
+    if (phase.combineIntent) {
+      return t(combineIntentOption(phase.combineIntent).hintKey as never);
     }
     return t(workflowProductForMode(phase.workflow).leadKey as never);
   };
@@ -217,13 +220,13 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
         type="button"
         className="mb-4 text-sm font-semibold text-[#0067B1] hover:underline"
         onClick={() => {
-          if (phase.kind === "intake" && phase.dualStep === "outfit") {
+          if (phase.kind === "intake" && phase.uploadStepIndex && phase.uploadStepIndex > 0) {
             setPhase({
               kind: "intake",
               workflow: "combine",
-              combineIntent: "person_outfit",
-              dualStep: "person",
-              personDocument: phase.personDocument,
+              combineIntent: phase.combineIntent,
+              uploadStepIndex: phase.uploadStepIndex - 1,
+              stagedDocs: phase.stagedDocs?.slice(0, -1),
             });
             return;
           }
@@ -366,7 +369,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
               : null}
             </>
           : phase.kind === "combine_intent" ?
-            <EditorCombineIntentPicker
+            <EditorFusionIntentPicker
               busy={uploading}
               onSelectIntent={handleCombineIntent}
               onBack={() => setPhase({ kind: "workflow" })}

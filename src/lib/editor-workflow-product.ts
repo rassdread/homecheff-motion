@@ -1,5 +1,13 @@
 import type { EditorPostUploadMode } from "@/lib/editor-start-flow";
-import type { EditorCombineIntent } from "@/types/editor-instruction-studio";
+import {
+  EDITOR_FUSION_CATEGORY_ORDER,
+  fusionCategoryLabelKey,
+  fusionIntentDefinition,
+  fusionIntentsForCategory,
+  requiresMultiUpload,
+  type EditorFusionIntentDefinition,
+} from "@/lib/editor-image-fusion-catalog";
+import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 
 export type EditorWorkflowProduct = {
   mode: EditorPostUploadMode;
@@ -26,11 +34,11 @@ export const EDITOR_WORKFLOW_PRODUCTS: EditorWorkflowProduct[] = [
   {
     mode: "combine",
     icon: "🧩",
-    titleKey: "editor.v3.workflow.combine.title",
-    leadKey: "editor.v3.workflow.combine.lead",
-    examplesKey: "editor.v3.workflow.combine.examples",
-    inputKey: "editor.v3.workflow.combine.input",
-    outputKey: "editor.v3.workflow.combine.output",
+    titleKey: "editor.fusion.workflow.title",
+    leadKey: "editor.fusion.workflow.lead",
+    examplesKey: "editor.fusion.workflow.examples",
+    inputKey: "editor.fusion.workflow.input",
+    outputKey: "editor.fusion.workflow.output",
     minImages: 2,
   },
   {
@@ -55,58 +63,35 @@ export const EDITOR_WORKFLOW_PRODUCTS: EditorWorkflowProduct[] = [
   },
 ];
 
-export type EditorCombineIntentOption = {
-  id: EditorCombineIntent;
-  labelKey: string;
-  hintKey: string;
-  requiresDualUpload: boolean;
-};
+export type { EditorFusionIntentDefinition };
 
-export const EDITOR_COMBINE_INTENT_OPTIONS: EditorCombineIntentOption[] = [
-  {
-    id: "person_outfit",
-    labelKey: "editor.v3.combine.intent.personOutfit",
-    hintKey: "editor.v3.combine.intent.personOutfitHint",
-    requiresDualUpload: true,
-  },
-  {
-    id: "product_branding",
-    labelKey: "editor.v3.combine.intent.productBranding",
-    hintKey: "editor.v3.combine.intent.productBrandingHint",
-    requiresDualUpload: false,
-  },
-  {
-    id: "person_background",
-    labelKey: "editor.v3.combine.intent.personBackground",
-    hintKey: "editor.v3.combine.intent.personBackgroundHint",
-    requiresDualUpload: false,
-  },
-  {
-    id: "product_environment",
-    labelKey: "editor.v3.combine.intent.productEnvironment",
-    hintKey: "editor.v3.combine.intent.productEnvironmentHint",
-    requiresDualUpload: false,
-  },
-  {
-    id: "multiple_references",
-    labelKey: "editor.v3.combine.intent.multipleReferences",
-    hintKey: "editor.v3.combine.intent.multipleReferencesHint",
-    requiresDualUpload: false,
-  },
-  {
-    id: "custom_composition",
-    labelKey: "editor.v3.combine.intent.customComposition",
-    hintKey: "editor.v3.combine.intent.customCompositionHint",
-    requiresDualUpload: false,
-  },
-];
+export function combineIntentOption(id: EditorFusionIntent): EditorFusionIntentDefinition {
+  return fusionIntentDefinition(id);
+}
+
+export function fusionCategoryOrder() {
+  return EDITOR_FUSION_CATEGORY_ORDER;
+}
+
+export function fusionCategoryTitleKey(category: (typeof EDITOR_FUSION_CATEGORY_ORDER)[number]) {
+  return fusionCategoryLabelKey(category);
+}
+
+export function fusionIntentsInCategory(category: (typeof EDITOR_FUSION_CATEGORY_ORDER)[number]) {
+  return fusionIntentsForCategory(category);
+}
+
+export function combineRequiresMultiUpload(intent: EditorFusionIntent): boolean {
+  return requiresMultiUpload(intent);
+}
+
+/** @deprecated Use fusionIntentsInCategory */
+export const EDITOR_COMBINE_INTENT_OPTIONS = EDITOR_FUSION_CATEGORY_ORDER.flatMap((c) =>
+  fusionIntentsForCategory(c)
+);
 
 export function workflowProductForMode(mode: EditorPostUploadMode): EditorWorkflowProduct {
   return EDITOR_WORKFLOW_PRODUCTS.find((p) => p.mode === mode) ?? EDITOR_WORKFLOW_PRODUCTS[0]!;
-}
-
-export function combineIntentOption(id: EditorCombineIntent): EditorCombineIntentOption {
-  return EDITOR_COMBINE_INTENT_OPTIONS.find((o) => o.id === id) ?? EDITOR_COMBINE_INTENT_OPTIONS[0]!;
 }
 
 export function workflowChooserModes(): EditorPostUploadMode[] {

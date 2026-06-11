@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
 import {
@@ -17,6 +17,23 @@ import {
   resolveCompositionBaseImageUrl,
 } from "@/lib/editor-composition-plan";
 import { buildEditorCompositionPrompt } from "@/lib/editor-composition-prompt-builder";
+import { EditorFusionPlanPanel } from "@/components/editor/editor-fusion-plan-panel";
+import { EditorFusionSetupPanel } from "@/components/editor/editor-fusion-setup-panel";
+import { EditorGenerationCostPanel } from "@/components/editor/editor-generation-cost-panel";
+import { EditorFusionLifeTimelinePanel } from "@/components/editor/editor-fusion-life-timeline-panel";
+import { EditorTransformationSessionPanel } from "@/components/editor/editor-transformation-session-panel";
+import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
+import { buildEditorFusionPrompt } from "@/lib/editor-fusion-prompt-builder";
+import { fusionPlanCostOptions } from "@/lib/editor-fusion-generation-settings";
+import {
+  checkGenerationAccess,
+  createAccountingRecord,
+  deductCreditsAfterSuccess,
+  persistUserCredits,
+  recordGenerationAccounting,
+} from "@/lib/editor-generation-gate";
+import { buildTransformationStepPrompt } from "@/lib/editor-transformation-session";
+import { ensureFusionPlan } from "@/lib/editor-fusion-plan";
 import { mergeInstructionSelection } from "@/lib/editor-instruction-studio";
 import { executeEditorInstructionVariantApi } from "@/lib/editor-instruction-variant-client";
 import {
@@ -51,6 +68,7 @@ export function EditorCombineWorkspace({
   onSave,
 }: Props) {
   const t = useActiveTranslator();
+  const { access, setCredits } = useEditorUserAccess();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -109,81 +127,94 @@ export function EditorCombineWorkspace({
   };
 
   const handleGenerate = async () => {
-    if (plan.items.length === 0) {
+    const fusionPlan = document.instructionStudioState?.fusionPlan;
+    if (plan.items.length === 0 && !fusionPlan?.userInstructions) {
       setStatusMessage(t("editor.combine.planEmpty" as never));
       return;
     }
-    setGenerating(true);
-    const prompt = buildEditorCompositionPrompt({
-      plan,
-      brandIdentity: resolveCompositionBrandIdentity(
-        buildEditorRecommendationContext({ document })
-      ),
-      preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
-      preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
+
+    const workflow = fusionPlan?.intent ?? "custom_composition";
+    const costOptions = fusionPlan ? fusionPlanCostOptions(fusionPlan, document) : {};
+    const accessDecision = checkGenerationAccess({
+      user: access,
+      workflow,
+      options: costOptions,
+      useCredits: true,
     });
-    const selection = mergeInstructionSelection(document, undefined, {
-      objectKey: "combine",
-      objectLabel: "Combined composition",
-      category: "other",
-      action: "replace",
-    });
-    let nextDoc = appendInstructionVariant(
-      document,
-      createPendingInstructionVariant({
-        sourceImageUrl: base.url,
-        sourceImageId: base.variantId ?? "background",
-        instruction: selection,
-        prompt,
-        variantType: "combined",
-        compositionPlanId: plan.id,
-        referenceIds: plan.references.map((r) => r.id),
-        parentVariantId: approved?.id ?? null,
-        name: t("editor.combine.variantName" as never),
-      })
-    );
-    onDocumentChange(nextDoc);
-    const pendingId = nextDoc.instructionStudioState?.previewVariantId;
-    if (!pendingId) {
-      setGenerating(false);
+    if (!accessDecision.allowed) {
+      setStatusMessage(t(accessDecision.disclosureKey as never, accessDecision.disclosureParams as never));
       return;
     }
-    nextDoc = patchInstructionVariant(
-      nextDoc,
-      pendingId,
-      instructionVariantWithStatus(
-        nextDoc.instructionVariants!.find((v) => v.id === pendingId)!,
-        "running"
-      )
-    );
-    onDocumentChange(nextDoc);
 
-    const result = await executeEditorInstructionVariantApi({
-      sessionId: document.sessionId,
-      imageUrl: base.url,
-      prompt,
-      instruction: selection,
-      variantName: t("editor.combine.variantName" as never),
-      parentVariantId: approved?.id ?? null,
-    });
+    const transformationSession = document.instructionStudioState?.transformationSession;
+    const isSequence = costOptions.outputMode === "sequence" && transformationSession;
 
-    if (result.ok && result.resultUrl) {
+    setGenerating(true);
+    const recCtx = buildEditorRecommendationContext({ document });
+
+    const runSingleGeneration = async (prompt: string, variantLabel: string) => {
+      const selection = mergeInstructionSelection(document, undefined, {
+        objectKey: "combine",
+        objectLabel: "Combined composition",
+        category: "other",
+        action: "replace",
+      });
+      let nextDoc = appendInstructionVariant(
+        document,
+        createPendingInstructionVariant({
+          sourceImageUrl: base.url,
+          sourceImageId: base.variantId ?? "background",
+          instruction: selection,
+          prompt,
+          variantType: "combined",
+          compositionPlanId: plan.id,
+          referenceIds: plan.references.map((r) => r.id),
+          parentVariantId: approved?.id ?? null,
+          name: variantLabel,
+        })
+      );
+      onDocumentChange(nextDoc);
+      const pendingId = nextDoc.instructionStudioState?.previewVariantId;
+      if (!pendingId) {
+        return { ok: false as const, nextDoc };
+      }
       nextDoc = patchInstructionVariant(
         nextDoc,
         pendingId,
         instructionVariantWithStatus(
           nextDoc.instructionVariants!.find((v) => v.id === pendingId)!,
-          "completed",
-          {
-            resultUrl: result.resultUrl,
-            resultStorageKey: result.storageKey,
-            provider: result.provider,
-            model: result.model,
-          }
+          "running"
         )
       );
-      setStatusMessage(t("editor.combine.generateSuccess" as never));
-    } else {
+      onDocumentChange(nextDoc);
+
+      const result = await executeEditorInstructionVariantApi({
+        sessionId: document.sessionId,
+        imageUrl: base.url,
+        prompt,
+        instruction: selection,
+        variantName: variantLabel,
+        parentVariantId: approved?.id ?? null,
+      });
+
+      if (result.ok && result.resultUrl) {
+        nextDoc = patchInstructionVariant(
+          nextDoc,
+          pendingId,
+          instructionVariantWithStatus(
+            nextDoc.instructionVariants!.find((v) => v.id === pendingId)!,
+            "completed",
+            {
+              resultUrl: result.resultUrl,
+              resultStorageKey: result.storageKey,
+              provider: result.provider,
+              model: result.model,
+            }
+          )
+        );
+        return { ok: true as const, nextDoc };
+      }
+
       nextDoc = patchInstructionVariant(
         nextDoc,
         pendingId,
@@ -193,15 +224,86 @@ export function EditorCombineWorkspace({
           { error: result.error }
         )
       );
-      setStatusMessage(t("editor.combine.generateFailed" as never));
+      return { ok: false as const, nextDoc };
+    };
+
+    let successfulOutputs = 0;
+    let failedOutputs = 0;
+    let latestDoc = document;
+
+    if (isSequence && transformationSession) {
+      for (const step of transformationSession.steps) {
+        const stepPrompt = buildTransformationStepPrompt({
+          session: transformationSession,
+          step,
+          userInstruction: fusionPlan?.userInstructions,
+        });
+        const outcome = await runSingleGeneration(
+          stepPrompt,
+          `${t("editor.combine.variantName" as never)} ${step.index + 1}/${transformationSession.stepCount}`
+        );
+        latestDoc = outcome.nextDoc;
+        if (outcome.ok) {
+          successfulOutputs += 1;
+        } else {
+          failedOutputs += 1;
+        }
+      }
+    } else {
+      const prompt =
+        fusionPlan
+          ? buildEditorFusionPrompt({
+              plan: fusionPlan,
+              brandIdentity: resolveCompositionBrandIdentity(recCtx),
+              preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
+              preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
+            })
+          : buildEditorCompositionPrompt({
+              plan,
+              brandIdentity: resolveCompositionBrandIdentity(recCtx),
+              preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
+              preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
+            });
+      const outcome = await runSingleGeneration(prompt, t("editor.combine.variantName" as never));
+      latestDoc = outcome.nextDoc;
+      if (outcome.ok) {
+        successfulOutputs = 1;
+      } else {
+        failedOutputs = 1;
+      }
     }
-    onDocumentChange(nextDoc);
+
+    const accounting = createAccountingRecord({
+      workflow,
+      cost: accessDecision.cost,
+      successfulOutputs,
+      failedOutputs,
+      accessPath: accessDecision.accessPath ?? "credits",
+      user: access,
+    });
+    recordGenerationAccounting(accounting);
+    const updatedAccess = deductCreditsAfterSuccess(access, accounting.creditsCharged);
+    setCredits(updatedAccess.credits);
+    persistUserCredits(updatedAccess);
+
+    onDocumentChange(latestDoc);
+    setStatusMessage(
+      successfulOutputs > 0
+        ? t("editor.combine.generateSuccess" as never)
+        : t("editor.combine.generateFailed" as never)
+    );
     setGenerating(false);
   };
 
   const selectedRef = plan.references.find((r) => r.id === selectedRefId);
 
   const combineIntent = document.instructionStudioState?.combineIntent;
+
+  useEffect(() => {
+    if (document.editorFlowMode === "combine" && !document.instructionStudioState?.fusionPlan) {
+      onDocumentChange(ensureFusionPlan(document));
+    }
+  }, [document, onDocumentChange]);
 
   return (
     <div className="space-y-4">
@@ -218,6 +320,11 @@ export function EditorCombineWorkspace({
           </p>
         </div>
       : null}
+      <EditorFusionPlanPanel document={document} />
+      <EditorFusionSetupPanel document={document} onDocumentChange={onDocumentChange} />
+      <EditorFusionLifeTimelinePanel document={document} onDocumentChange={onDocumentChange} />
+      <EditorTransformationSessionPanel document={document} onDocumentChange={onDocumentChange} />
+      <EditorGenerationCostPanel document={document} user={access} useCredits />
       <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr]">
       <section className={`space-y-3 p-4 ${studioVisual.editorSurface}`}>
         <h2 className="text-sm font-bold text-zinc-900">{t("editor.combine.baseImage" as never)}</h2>
