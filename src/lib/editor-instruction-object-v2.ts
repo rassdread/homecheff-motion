@@ -13,6 +13,10 @@ export {
   buildInstructionObjectsFromDocument,
   buildGlobeManHeuristicObjects,
   isGlobeManMascotImage,
+  isAnalysisOnlyTrait,
+  cleanRawObjectFeed,
+  dedupeAndMergeObjects,
+  normalizeDisplayLabel,
   type InstructionObjectFeedResult,
 } from "@/lib/editor-instruction-object-feed";
 

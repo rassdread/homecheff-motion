@@ -271,11 +271,11 @@ describe("editor instruction studio v2", () => {
     const labels = objects.map((o) => o.label);
     assert.ok(labels.includes("Character / Globe Man"));
     assert.ok(labels.includes("Globe"));
-    assert.ok(labels.includes("Clothing / suit"));
+    assert.ok(labels.includes("Suit / Clothing"));
     assert.ok(labels.includes("Tie"));
     assert.ok(labels.includes("Background"));
-    assert.equal(meta.source, "heuristic");
     assert.equal(meta.lowConfidence, true);
+    assert.equal(labels.filter((l) => l === "Background").length, 1);
   });
 
   it("Globe Man dropdown includes category-specific actions", () => {
@@ -285,7 +285,7 @@ describe("editor instruction studio v2", () => {
     });
     const objects = listInstructionObjectsV2(doc);
     const globe = objects.find((o) => o.label === "Globe");
-    const clothing = objects.find((o) => o.label === "Clothing / suit");
+    const clothing = objects.find((o) => o.label === "Suit / Clothing");
     const background = objects.find((o) => o.label === "Background");
     assert.ok(globe);
     assert.ok(clothing);
@@ -332,5 +332,122 @@ describe("editor instruction studio v2", () => {
     assert.ok(objects.some((o) => o.label === "Main subject"));
     assert.ok(objects.some((o) => o.category === "background"));
     assert.equal(meta.lowConfidence, true);
+  });
+
+  it("cleans messy Globe Man feed — dedupes background and hides analysis traits", () => {
+    const doc = createEditorDocumentFromUpload({
+      name: "Globe Man.png",
+      backgroundUrl: "https://example.com/globe-man.png",
+    });
+    doc.semanticLayers = [
+      {
+        id: "sl_logo",
+        label: "Logo",
+        type: "logo",
+        category: "logo",
+        bounds: { x: 0.1, y: 0.1, width: 0.2, height: 0.1 },
+        confidence: 0.82,
+        visible: true,
+        locked: false,
+        editable: true,
+        source: "vision",
+        children: [],
+      },
+      {
+        id: "sl_bg1",
+        label: "Background",
+        type: "background",
+        category: "background",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        confidence: 1,
+        visible: true,
+        locked: true,
+        editable: false,
+        source: "vision",
+        children: [],
+      },
+      {
+        id: "sl_bg2",
+        label: "Background",
+        type: "background",
+        category: "background",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        confidence: 0.99,
+        visible: true,
+        locked: true,
+        editable: false,
+        source: "vision",
+        children: [],
+      },
+      {
+        id: "sl_body_shape",
+        label: "Rounded body shape",
+        type: "body",
+        category: "character",
+        bounds: { x: 0.2, y: 0.2, width: 0.5, height: 0.6 },
+        confidence: 0.6,
+        visible: true,
+        locked: false,
+        editable: true,
+        source: "vision",
+        children: [],
+      },
+      {
+        id: "sl_proportions",
+        label: "body proportions",
+        type: "body",
+        category: "character",
+        bounds: { x: 0.25, y: 0.25, width: 0.4, height: 0.5 },
+        confidence: 0.58,
+        visible: true,
+        locked: false,
+        editable: true,
+        source: "vision",
+        children: [],
+      },
+      {
+        id: "sl_bg3",
+        label: "Background",
+        type: "background",
+        category: "background",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        confidence: 1,
+        visible: true,
+        locked: true,
+        editable: false,
+        source: "vision",
+        children: [],
+      },
+    ];
+    doc.detectedObjects = doc.semanticLayers.map((layer, index) => ({
+      id: `obj_${layer.id}`,
+      label: layer.label,
+      confidence: layer.confidence,
+      bbox: layer.bounds,
+      category: layer.category === "logo" ? "logo" : layer.category === "background" ? "background" : "person",
+      zIndex: index,
+      layerId: layer.id,
+      visible: true,
+      locked: false,
+    }));
+
+    const { objects, meta } = buildInstructionObjectsFromDocument(doc);
+    const labels = objects.map((o) => o.label);
+
+    assert.ok(labels.includes("Character / Globe Man"));
+    assert.ok(labels.includes("Logo"));
+    assert.ok(labels.includes("Globe"));
+    assert.ok(labels.includes("Suit / Clothing"));
+    assert.ok(labels.includes("Tie"));
+    assert.ok(labels.includes("Shoes"));
+    assert.ok(labels.includes("Background"));
+    assert.equal(labels.filter((l) => l === "Background").length, 1);
+    assert.equal(labels.filter((l) => l === "Logo").length, 1);
+    assert.ok(!labels.some((l) => /body shape|proportions/i.test(l)));
+    assert.ok(meta.rawCount >= 6);
+    assert.ok(meta.count < meta.rawCount);
+
+    const character = objects.find((o) => o.label === "Character / Globe Man");
+    assert.ok(character?.traits?.some((t) => /body shape|proportions/i.test(t)));
   });
 });

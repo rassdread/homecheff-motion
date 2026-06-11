@@ -91,7 +91,10 @@ export type EditorInstructionObjectSource = (typeof EDITOR_INSTRUCTION_OBJECT_SO
 
 export type EditorInstructionObjectFeedMeta = {
   source: EditorInstructionObjectSource | "mixed";
+  /** Cleaned user-facing object count */
   count: number;
+  /** Raw candidates before cleanup (admin debug) */
+  rawCount: number;
   lowConfidence: boolean;
   sourcesUsed: EditorInstructionObjectSource[];
 };
@@ -105,6 +108,8 @@ export type EditorInstructionObjectV2 = {
   suggestedActions: EditorInstructionDynamicAction[];
   layerId?: string;
   source?: EditorInstructionObjectSource;
+  /** Analysis traits grouped onto this object (e.g. body proportions on Character) */
+  traits?: string[];
 };
 
 export type EditorInstructionSliders = {

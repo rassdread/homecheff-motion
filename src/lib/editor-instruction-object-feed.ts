@@ -19,6 +19,26 @@ export type InstructionObjectFeedResult = {
   meta: EditorInstructionObjectFeedMeta;
 };
 
+const ANALYSIS_TRAIT_PATTERN =
+  /body\s*shape|rounded\s*body|body\s*proportions|character\s*proportions|face\s*shape|identity\s*shape|shape\s*marker|silhouette|estimated\s*bounds|approximate\s*selection|taxonomy|proportion|marker/i;
+
+const CATEGORY_SORT_ORDER: Record<EditorInstructionObjectCategory, number> = {
+  character: 0,
+  logo: 1,
+  text: 2,
+  tool: 3,
+  clothing: 4,
+  product: 5,
+  packaging: 6,
+  food: 7,
+  vehicle: 8,
+  building: 9,
+  signage: 10,
+  environment: 11,
+  other: 12,
+  background: 99,
+};
+
 function slugifyId(label: string): string {
   return label
     .toLowerCase()
@@ -27,37 +47,121 @@ function slugifyId(label: string): string {
     .slice(0, 48);
 }
 
+export function isAnalysisOnlyTrait(label: string): boolean {
+  return ANALYSIS_TRAIT_PATTERN.test(label.trim());
+}
+
+function normalizeDedupeKey(label: string, category: EditorInstructionObjectCategory): string {
+  const text = label.toLowerCase().trim().replace(/\s+/g, " ");
+  if (category === "background" || /background|backdrop|scene/.test(text)) {
+    return "background";
+  }
+  if (category === "logo" || /^logo\b|brand mark|brand element/.test(text)) {
+    return "logo";
+  }
+  if (/\bglobe\b|\bearth\b|\bworld\b/.test(text) && !/globe man|globeman/.test(text)) {
+    return "globe";
+  }
+  if (/^suit\b|^jacket\b|^clothing\b|^uniform\b|^outfit\b/.test(text)) {
+    return "clothing_suit";
+  }
+  if (/\btie\b/.test(text)) {
+    return "tie";
+  }
+  if (/shoe|shoes|footwear/.test(text)) {
+    return "shoes";
+  }
+  if (/apron/.test(text)) {
+    return "apron";
+  }
+  if (/globe man|globeman|mascot/.test(text)) {
+    return "character_globe_man";
+  }
+  return `${category}:${text}`;
+}
+
+export function normalizeDisplayLabel(
+  label: string,
+  category: EditorInstructionObjectCategory
+): string {
+  const text = label.trim();
+  const lower = text.toLowerCase();
+
+  if (category === "background" || /background|backdrop|^scene$/.test(lower)) {
+    return "Background";
+  }
+  if (category === "logo" || /^logo\b|brand mark/.test(lower)) {
+    return "Logo";
+  }
+  if (/\bglobe\b|\bearth\b|\bworld\b/.test(lower) && !/globe man|globeman/.test(lower)) {
+    return "Globe";
+  }
+  if (/globe man|globeman/.test(lower)) {
+    return "Character / Globe Man";
+  }
+  if (category === "clothing") {
+    if (/\btie\b/.test(lower)) {
+      return "Tie";
+    }
+    if (/shoe|shoes|footwear/.test(lower)) {
+      return "Shoes";
+    }
+    if (/^(suit|jacket|clothing|uniform|outfit)\b/.test(lower)) {
+      return "Suit / Clothing";
+    }
+  }
+  if (category === "character" && /mascot|character|chef|person|figure/.test(lower)) {
+    if (/globe man|globeman/.test(lower)) {
+      return "Character / Globe Man";
+    }
+    return text;
+  }
+  return text;
+}
+
 function inferCategoryFromText(
   label: string,
   hints: string[] = []
 ): EditorInstructionObjectCategory {
   const text = `${label} ${hints.join(" ")}`.toLowerCase();
 
-  if (/background|backdrop|scene bg/.test(text)) {
+  if (isAnalysisOnlyTrait(label)) {
+    return "other";
+  }
+  if (/background|backdrop|scene bg|^scene$/.test(text)) {
     return "background";
   }
-  if (/logo|brand mark|brand element/.test(text)) {
+  if (/^logo\b|brand mark|brand element/.test(text)) {
     return "logo";
   }
   if (/\btext\b|caption|title|typography|tekst/.test(text)) {
     return "text";
   }
-  if (/mascot|character|chef|person|man|woman|figure|globe man|globeman/.test(text)) {
+  if (/globe man|globeman|mascot|character|chef|person|figure/.test(text)) {
     return "character";
   }
-  if (/apron|shirt|jacket|hat|clothing|uniform|outfit|tie|shoe|suit|footwear|pants|trousers/.test(text)) {
+  if (/\btie\b/.test(text)) {
     return "clothing";
   }
-  if (/packaging|box|carton|wrapper|label/.test(text)) {
+  if (/shoe|shoes|footwear/.test(text)) {
+    return "clothing";
+  }
+  if (/apron|shirt|jacket|hat|clothing|uniform|outfit|suit|pants|trousers/.test(text)) {
+    return "clothing";
+  }
+  if (/packaging|box|carton|wrapper/.test(text) && !/^label\b/.test(text)) {
     return "packaging";
   }
-  if (/cup|mug|bottle|product|item/.test(text)) {
+  if (/cup|mug|bottle|product/.test(text)) {
     return "product";
   }
   if (/food|dish|meal|plate|pan|pot/.test(text)) {
     return "food";
   }
-  if (/\bglobe\b|tool|utensil|knife|spoon/.test(text) && !/globe man|globeman/.test(text)) {
+  if (/\bglobe\b|\bearth\b|\bworld\b/.test(text) && !/globe man|globeman/.test(text)) {
+    return "tool";
+  }
+  if (/tool|utensil|knife|spoon/.test(text)) {
     return "tool";
   }
   if (/truck|van|vehicle|car/.test(text)) {
@@ -69,7 +173,7 @@ function inferCategoryFromText(
   if (/sign|banner|billboard|poster/.test(text)) {
     return "signage";
   }
-  if (/sky|scene|environment|landscape|garden|outdoor/.test(text)) {
+  if (/sky|environment|landscape|garden|outdoor/.test(text)) {
     return "environment";
   }
   return "other";
@@ -129,37 +233,58 @@ function buildInstructionObject(
     source: EditorInstructionObjectSource;
     layerId?: string;
     index: number;
+    traits?: string[];
   }
 ): EditorInstructionObjectV2 {
-  const label = input.label.trim() || `Object ${input.index + 1}`;
-  const slug = slugifyId(label) || input.category;
+  const category = input.category;
+  const label = normalizeDisplayLabel(input.label, category);
+  const slug = slugifyId(label) || category;
   return {
     id: `obj_${slug}_${input.index}`,
     label,
-    category: input.category,
+    category,
     confidence: input.confidence,
-    description: describeObject(label, input.category),
-    suggestedActions: actionsForInstructionCategory(input.category),
+    description: describeObject(label, category),
+    suggestedActions: actionsForInstructionCategory(category),
     layerId: input.layerId,
     source: input.source,
+    traits: input.traits?.length ? input.traits : undefined,
   };
 }
 
-function dedupeObjects(objects: EditorInstructionObjectV2[]): EditorInstructionObjectV2[] {
-  const seen = new Set<string>();
-  const results: EditorInstructionObjectV2[] = [];
-  for (const obj of objects) {
-    const key = `${obj.category}:${obj.label.toLowerCase()}`;
-    if (seen.has(key) && obj.category !== "background") {
-      continue;
-    }
-    seen.add(key);
-    results.push(obj);
-  }
-  return results;
+function sortObjects(objects: EditorInstructionObjectV2[]): EditorInstructionObjectV2[] {
+  return [...objects].sort(
+    (a, b) => (CATEGORY_SORT_ORDER[a.category] ?? 50) - (CATEGORY_SORT_ORDER[b.category] ?? 50)
+  );
 }
 
-function ensureBackground(objects: EditorInstructionObjectV2[], source: EditorInstructionObjectSource): EditorInstructionObjectV2[] {
+/** Merge duplicates — one Background, one Logo, near-identical labels collapsed. */
+export function dedupeAndMergeObjects(objects: EditorInstructionObjectV2[]): EditorInstructionObjectV2[] {
+  const byKey = new Map<string, EditorInstructionObjectV2>();
+
+  for (const obj of objects) {
+    const key = normalizeDedupeKey(obj.label, obj.category);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, obj);
+      continue;
+    }
+    const mergedTraits = [...new Set([...(existing.traits ?? []), ...(obj.traits ?? [])])];
+    byKey.set(key, {
+      ...existing,
+      confidence: Math.max(existing.confidence, obj.confidence),
+      layerId: existing.layerId ?? obj.layerId,
+      traits: mergedTraits.length ? mergedTraits : undefined,
+    });
+  }
+
+  return sortObjects([...byKey.values()]);
+}
+
+function ensureBackground(
+  objects: EditorInstructionObjectV2[],
+  source: EditorInstructionObjectSource
+): EditorInstructionObjectV2[] {
   if (objects.some((o) => o.category === "background")) {
     return objects;
   }
@@ -188,8 +313,9 @@ export function isGlobeManMascotImage(document: EditorCanvasDocument): boolean {
     .toLowerCase();
   return (
     /globe\s*man|globe-man|globeman|homecheff.*mascot|mascot.*globe/.test(text) ||
-    (document.assetProfile?.variantGroup?.groupId === "globe_man") ||
-    (document.assetProfile?.assetType === "mascot" && /globe|homecheff|mascot|chef/.test(text))
+    document.assetProfile?.variantGroup?.groupId === "globe_man" ||
+    (document.assetProfile?.assetType === "mascot" &&
+      /globe|homecheff|globe\s*man|globeman/.test(text))
   );
 }
 
@@ -197,7 +323,7 @@ export function buildGlobeManHeuristicObjects(): EditorInstructionObjectV2[] {
   const specs: Array<{ label: string; category: EditorInstructionObjectCategory; confidence: number }> = [
     { label: "Character / Globe Man", category: "character", confidence: 0.58 },
     { label: "Globe", category: "tool", confidence: 0.55 },
-    { label: "Clothing / suit", category: "clothing", confidence: 0.55 },
+    { label: "Suit / Clothing", category: "clothing", confidence: 0.55 },
     { label: "Tie", category: "clothing", confidence: 0.52 },
     { label: "Shoes", category: "clothing", confidence: 0.52 },
     { label: "Background", category: "background", confidence: 1 },
@@ -210,6 +336,125 @@ export function buildGlobeManHeuristicObjects(): EditorInstructionObjectV2[] {
       index,
     })
   );
+}
+
+type RawSplit = {
+  editable: EditorInstructionObjectV2[];
+  traits: string[];
+};
+
+/** Filter analysis fragments; normalize labels and categories. */
+export function cleanRawObjectFeed(raw: EditorInstructionObjectV2[]): RawSplit {
+  const traits: string[] = [];
+  const editable: EditorInstructionObjectV2[] = [];
+
+  for (const obj of raw) {
+    if (isAnalysisOnlyTrait(obj.label)) {
+      traits.push(obj.label.trim());
+      continue;
+    }
+
+    const category = inferCategoryFromText(obj.label, [obj.category]);
+    if (category === "other" && isAnalysisOnlyTrait(obj.label)) {
+      traits.push(obj.label.trim());
+      continue;
+    }
+
+    editable.push(
+      buildInstructionObject({
+        label: obj.label,
+        category,
+        confidence: obj.confidence,
+        source: obj.source ?? "objects",
+        layerId: obj.layerId,
+        index: editable.length,
+        traits: obj.traits,
+      })
+    );
+  }
+
+  let cleaned = dedupeAndMergeObjects(editable);
+
+  if (traits.length > 0) {
+    const characterIdx = cleaned.findIndex((o) => o.category === "character");
+    if (characterIdx >= 0) {
+      const character = cleaned[characterIdx]!;
+      cleaned = cleaned.map((o, i) =>
+        i === characterIdx
+          ? { ...o, traits: [...new Set([...(o.traits ?? []), ...traits])] }
+          : o
+      );
+    } else if (cleaned.some((o) => o.category !== "background")) {
+      cleaned = [
+        buildInstructionObject({
+          label: "Character",
+          category: "character",
+          confidence: 0.5,
+          source: "fallback",
+          index: 0,
+          traits,
+        }),
+        ...cleaned,
+      ];
+    }
+  }
+
+  return { editable: cleaned, traits };
+}
+
+function findLogoInRaw(raw: EditorInstructionObjectV2[]): EditorInstructionObjectV2 | undefined {
+  return raw.find((o) => !isAnalysisOnlyTrait(o.label) && inferCategoryFromText(o.label) === "logo");
+}
+
+function applyGlobeManFeed(
+  raw: EditorInstructionObjectV2[],
+  sourcesUsed: EditorInstructionObjectSource[]
+): InstructionObjectFeedResult {
+  const { traits } = cleanRawObjectFeed(raw);
+  const logo = findLogoInRaw(raw);
+
+  let objects = buildGlobeManHeuristicObjects();
+
+  if (traits.length > 0) {
+    objects = objects.map((o) =>
+      o.category === "character" ? { ...o, traits: [...new Set([...(o.traits ?? []), ...traits])] } : o
+    );
+  }
+
+  if (logo) {
+    const hasLogo = objects.some((o) => o.category === "logo");
+    if (!hasLogo) {
+      objects = dedupeAndMergeObjects([
+        ...objects.filter((o) => o.category !== "background"),
+        buildInstructionObject({
+          label: "Logo",
+          category: "logo",
+          confidence: logo.confidence,
+          source: logo.source ?? "detectedObjects",
+          layerId: logo.layerId,
+          index: objects.length,
+        }),
+        ...objects.filter((o) => o.category === "background"),
+      ]);
+    }
+  }
+
+  objects = ensureBackground(objects, "heuristic");
+
+  const mergedSources: EditorInstructionObjectSource[] = sourcesUsed.includes("heuristic")
+    ? sourcesUsed
+    : [...sourcesUsed, "heuristic"];
+
+  return {
+    objects,
+    meta: {
+      source: sourcesUsed.includes("heuristic") ? "heuristic" : "mixed",
+      count: objects.length,
+      rawCount: raw.length,
+      lowConfidence: true,
+      sourcesUsed: mergedSources,
+    },
+  };
 }
 
 function documentHasLikelyForegroundSubject(document: EditorCanvasDocument): boolean {
@@ -273,49 +518,32 @@ function mapSemanticLayers(document: EditorCanvasDocument): EditorInstructionObj
   );
 }
 
-function buildFromAssetProfile(
-  profile: EditorAssetProfile | undefined,
-  document: EditorCanvasDocument
-): EditorInstructionObjectV2[] {
-  if (!profile) {
-    return [];
+function collectRawCandidates(document: EditorCanvasDocument): {
+  raw: EditorInstructionObjectV2[];
+  sourcesUsed: EditorInstructionObjectSource[];
+} {
+  const sourcesUsed: EditorInstructionObjectSource[] = [];
+  const raw: EditorInstructionObjectV2[] = [];
+
+  const fromDetected = mapDetectedObjects(document);
+  if (fromDetected.length > 0) {
+    raw.push(...fromDetected);
+    sourcesUsed.push("detectedObjects");
   }
-  if (profile.variantGroup?.groupId === "globe_man" || isGlobeManMascotImage(document)) {
-    return buildGlobeManHeuristicObjects();
+
+  const fromLayers = mapCanvasLayers(document);
+  if (fromLayers.length > 0) {
+    raw.push(...fromLayers);
+    sourcesUsed.push("objects");
   }
-  if (profile.assetType === "logo") {
-    return dedupeObjects(
-      ensureBackground(
-        [
-          buildInstructionObject({
-            label: "Logo",
-            category: "logo",
-            confidence: profile.confidence,
-            source: "assetProfile",
-            index: 0,
-          }),
-        ],
-        "assetProfile"
-      )
-    );
+
+  const fromSemantic = mapSemanticLayers(document);
+  if (fromSemantic.length > 0) {
+    raw.push(...fromSemantic);
+    sourcesUsed.push("semanticLayers");
   }
-  if (profile.assetType === "mascot" || profile.assetType === "character") {
-    return dedupeObjects(
-      ensureBackground(
-        [
-          buildInstructionObject({
-            label: profile.variantGroup?.baseLabel ?? document.name ?? "Character",
-            category: "character",
-            confidence: profile.confidence,
-            source: "assetProfile",
-            index: 0,
-          }),
-        ],
-        "assetProfile"
-      )
-    );
-  }
-  return [];
+
+  return { raw, sourcesUsed };
 }
 
 function nonBackgroundCount(objects: EditorInstructionObjectV2[]): number {
@@ -332,64 +560,96 @@ function resolvePrimarySource(sourcesUsed: EditorInstructionObjectSource[]): Edi
   return "mixed";
 }
 
+function finalizeFeed(
+  objects: EditorInstructionObjectV2[],
+  rawCount: number,
+  sourcesUsed: EditorInstructionObjectSource[],
+  lowConfidence: boolean
+): InstructionObjectFeedResult {
+  const cleaned = ensureBackground(dedupeAndMergeObjects(objects), sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
+  return {
+    objects: cleaned,
+    meta: {
+      source: resolvePrimarySource(sourcesUsed),
+      count: cleaned.length,
+      rawCount,
+      lowConfidence,
+      sourcesUsed: [...new Set(sourcesUsed)],
+    },
+  };
+}
+
 /**
  * Builds instruction-studio object intelligence from all available document signals.
- * Priority: explicit instructionObjects → assetProfile → detectedObjects → objects →
- * semanticLayers → mascot heuristics → foreground fallback → background only.
+ * Raw sources are merged, filtered, deduped, and grouped before display.
  */
 export function buildInstructionObjectsFromDocument(
   document: EditorCanvasDocument
 ): InstructionObjectFeedResult {
   const explicit = document.instructionStudioState?.instructionObjects;
   if (explicit?.length) {
-    const objects = ensureBackground(dedupeObjects(explicit), "instructionObjects");
+    const { editable } = cleanRawObjectFeed(explicit);
+    const objects = ensureBackground(editable, "instructionObjects");
     return {
       objects,
       meta: {
         source: "instructionObjects",
         count: objects.length,
+        rawCount: explicit.length,
         lowConfidence: false,
         sourcesUsed: ["instructionObjects"],
       },
     };
   }
 
-  const sourcesUsed: EditorInstructionObjectSource[] = [];
-  const candidates: EditorInstructionObjectV2[] = [];
+  const { raw, sourcesUsed } = collectRawCandidates(document);
+  const rawCount = raw.length;
 
-  const fromProfile = buildFromAssetProfile(document.assetProfile, document);
-  if (fromProfile.length > 0) {
-    candidates.push(...fromProfile);
-    sourcesUsed.push("assetProfile");
+  if (isGlobeManMascotImage(document)) {
+    return applyGlobeManFeed(raw, sourcesUsed);
   }
 
-  const fromDetected = mapDetectedObjects(document);
-  if (fromDetected.length > 0) {
-    candidates.push(...fromDetected);
-    sourcesUsed.push("detectedObjects");
+  if (rawCount === 0) {
+    if (documentHasLikelyForegroundSubject(document)) {
+      const objects = ensureBackground(
+        [
+          buildInstructionObject({
+            label: "Main subject",
+            category: "other",
+            confidence: 0.48,
+            source: "fallback",
+            index: 0,
+          }),
+        ],
+        "fallback"
+      );
+      return {
+        objects,
+        meta: {
+          source: "fallback",
+          count: objects.length,
+          rawCount: 0,
+          lowConfidence: true,
+          sourcesUsed: ["fallback"],
+        },
+      };
+    }
+    const objects = ensureBackground([], "fallback");
+    return {
+      objects,
+      meta: {
+        source: "fallback",
+        count: objects.length,
+        rawCount: 0,
+        lowConfidence: false,
+        sourcesUsed: ["fallback"],
+      },
+    };
   }
 
-  const fromLayers = mapCanvasLayers(document);
-  if (fromLayers.length > 0) {
-    candidates.push(...fromLayers);
-    sourcesUsed.push("objects");
-  }
-
-  const fromSemantic = mapSemanticLayers(document);
-  if (fromSemantic.length > 0) {
-    candidates.push(...fromSemantic);
-    sourcesUsed.push("semanticLayers");
-  }
-
-  let objects = dedupeObjects(candidates);
-  let lowConfidence = false;
-
-  if (nonBackgroundCount(objects) === 0 && isGlobeManMascotImage(document)) {
-    objects = buildGlobeManHeuristicObjects();
-    sourcesUsed.length = 0;
-    sourcesUsed.push("heuristic");
-    lowConfidence = true;
-  }
+  const { editable } = cleanRawObjectFeed(raw);
+  let objects = editable;
+  let lowConfidence = objects.some((o) => o.confidence < 0.6);
 
   if (nonBackgroundCount(objects) === 0 && documentHasLikelyForegroundSubject(document)) {
     objects = ensureBackground(
@@ -404,49 +664,11 @@ export function buildInstructionObjectsFromDocument(
       ],
       "fallback"
     );
-    sourcesUsed.length = 0;
     sourcesUsed.push("fallback");
     lowConfidence = true;
-  }
-
-  if (objects.length === 0) {
-    objects = ensureBackground([], "fallback");
-    sourcesUsed.push("fallback");
   } else {
     objects = ensureBackground(objects, sourcesUsed[sourcesUsed.length - 1] ?? "fallback");
   }
 
-  const onlyBackground =
-    objects.length === 1 && objects[0]?.category === "background" && documentHasLikelyForegroundSubject(document);
-  if (onlyBackground) {
-    objects = ensureBackground(
-      [
-        buildInstructionObject({
-          label: "Main subject",
-          category: "other",
-          confidence: 0.48,
-          source: "fallback",
-          index: 0,
-        }),
-        ...objects,
-      ],
-      "fallback"
-    );
-    sourcesUsed.push("fallback");
-    lowConfidence = true;
-  }
-
-  if (objects.some((o) => o.source === "heuristic" || (o.confidence ?? 1) < 0.6)) {
-    lowConfidence = lowConfidence || objects.some((o) => o.confidence < 0.6);
-  }
-
-  return {
-    objects,
-    meta: {
-      source: resolvePrimarySource(sourcesUsed),
-      count: objects.length,
-      lowConfidence,
-      sourcesUsed: [...new Set(sourcesUsed)],
-    },
-  };
+  return finalizeFeed(objects, rawCount, sourcesUsed, lowConfidence);
 }

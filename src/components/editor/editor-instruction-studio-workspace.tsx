@@ -438,6 +438,9 @@ export function EditorInstructionStudioWorkspace({
               <p>
                 {t("editor.instructionStudio.v2.objectFeed.count" as never)}: {objectFeedMeta.count}
               </p>
+              <p>
+                {t("editor.instructionStudio.v2.objectFeed.rawCount" as never)}: {objectFeedMeta.rawCount}
+              </p>
             </section>
           : null}
 
