@@ -605,6 +605,10 @@ export type EditorInstructionStudioState = {
   styleReference?: EditorInstructionReference | null;
   productReference?: EditorInstructionReference | null;
   transformationSession?: EditorTransformationSession;
+  /** Standardized post-generation asset package */
+  generationPackage?: import("@/types/editor-generation-package").EditorGenerationPackage;
+  /** Master HomeCheff .hc project container id */
+  hcProjectId?: string;
   /** Universal reference role intake metadata from start flow */
   referenceIntake?: {
     roleAssignments?: Array<{
@@ -622,6 +626,7 @@ export type EditorInstructionStudioState = {
     variationCount?: number;
     motionHandoff?: boolean;
     motionDurationSec?: number;
+    motionMetadata?: Record<string, string>;
   };
 };
 

@@ -35,6 +35,14 @@ export function createPublishProject(params: {
   durationSeconds?: number;
   source?: PublishProject["source"];
   motionProjectId?: string;
+  mediaKind?: PublishProject["mediaKind"];
+  imageUrl?: string;
+  imageUrls?: string[];
+  editorSessionId?: string;
+  publishIntent?: string;
+  generationPackageId?: string;
+  workflow?: string;
+  metadata?: Record<string, unknown>;
 }): PublishProject {
   const now = new Date().toISOString();
   return {
@@ -48,6 +56,14 @@ export function createPublishProject(params: {
     status: "draft",
     source: params.source ?? "standalone",
     motionProjectId: params.motionProjectId,
+    mediaKind: params.mediaKind ?? "video",
+    imageUrl: params.imageUrl,
+    imageUrls: params.imageUrls,
+    editorSessionId: params.editorSessionId,
+    publishIntent: params.publishIntent,
+    generationPackageId: params.generationPackageId,
+    workflow: params.workflow,
+    metadata: params.metadata,
     createdAt: now,
     updatedAt: now,
   };

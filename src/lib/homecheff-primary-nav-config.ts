@@ -31,6 +31,12 @@ export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
       productId: "studio",
     },
     {
+      href: "/projects",
+      labelKey: "suite.nav.projects",
+      match: (pathname) => pathname === "/projects" || pathname.startsWith("/projects/"),
+      authOnly: true,
+    },
+    {
       href: "/studio/assets",
       labelKey: "nav.library",
       match: (pathname) =>
@@ -134,6 +140,12 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       match: publishMatch,
       authOnly: true,
       productId: "presentation",
+    },
+    {
+      href: "/projects",
+      labelKey: "suite.nav.projects",
+      match: (pathname) => pathname === "/projects" || pathname.startsWith("/projects/"),
+      authOnly: true,
     },
     {
       href: resolveProductHref("assets"),

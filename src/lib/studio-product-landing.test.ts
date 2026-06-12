@@ -59,8 +59,13 @@ describe("Studio product landing layer", () => {
         config.titleKey,
         config.descriptionKey,
         config.primaryCtaKey,
+        config.positioningKey,
+        ...(config.categoryKeys ?? []),
+        ...(config.categoryKeys ?? []).map((k) => `${k}.desc` as typeof config.titleKey),
+        ...(config.valuePropKeys ?? []),
+        ...(config.durationKeys ?? []),
         ...config.featureCardKeys,
-      ]) {
+      ].filter(Boolean)) {
         assert.ok(en[key]?.length, `missing EN ${key}`);
         assert.ok(nl[key]?.length, `missing NL ${key}`);
       }

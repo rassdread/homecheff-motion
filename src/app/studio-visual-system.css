@@ -77,3 +77,16 @@
     --studio-header-height: 3.5rem;
   }
 }
+
+/* Prevent layout jumps while typing in textareas */
+.hc-stable-field {
+  overflow-anchor: none;
+  field-sizing: content;
+  min-height: 2.5rem;
+  resize: vertical;
+}
+
+textarea.hc-stable-field,
+input.hc-stable-field {
+  scroll-margin-block: 1rem;
+}

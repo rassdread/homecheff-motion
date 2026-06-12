@@ -17,17 +17,25 @@ export type StudioProductLandingConfig = {
   titleKey: TranslationKey;
   subtitleKey: TranslationKey;
   descriptionKey: TranslationKey;
+  positioningKey?: TranslationKey;
   primaryCtaKey: TranslationKey;
   primaryCtaHref: string;
   secondaryCtaKey: TranslationKey;
   secondaryCtaHref: string;
+  tertiaryCtaKey?: TranslationKey;
+  tertiaryCtaHref?: string;
   featureCardKeys: TranslationKey[];
   workflowStepKeys: TranslationKey[];
   examplePromptKeys: TranslationKey[];
+  categoryKeys?: TranslationKey[];
+  exampleCreationKeys?: TranslationKey[];
+  durationKeys?: TranslationKey[];
+  valuePropKeys?: TranslationKey[];
   benefitKeys: TranslationKey[];
   orbitLabelKey: TranslationKey;
   accentColor: string;
   accentSecondary?: string;
+  showPricingEducation?: boolean;
 };
 
 export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
@@ -40,17 +48,42 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
     titleKey: "landing.editor.title",
     subtitleKey: "landing.editor.subtitle",
     descriptionKey: "landing.editor.description",
-    primaryCtaKey: "landing.editor.primaryCta",
+    positioningKey: "marketing.positioning.tagline",
+    primaryCtaKey: "marketing.cta.startCreating",
     primaryCtaHref: "/editor/start",
-    secondaryCtaKey: "landing.editor.secondaryCta",
-    secondaryCtaHref: "/editor/start?recent=1",
+    secondaryCtaKey: "marketing.cta.seeExamples",
+    secondaryCtaHref: "/editor/examples",
+    tertiaryCtaKey: "marketing.cta.learnMore",
+    tertiaryCtaHref: "/hoe-het-werkt",
     featureCardKeys: [
-      "landing.editor.feature.aiDirector",
-      "landing.editor.feature.objectFirst",
-      "landing.editor.feature.outfit",
-      "landing.editor.feature.style",
-      "landing.editor.feature.print",
-      "landing.editor.feature.motionReady",
+      "landing.editor.feature.imageEditing",
+      "landing.editor.feature.imageFusion",
+      "landing.editor.feature.futureSelf",
+      "landing.editor.feature.transformations",
+      "landing.editor.feature.characters",
+      "landing.editor.feature.exportHandoff",
+    ],
+    categoryKeys: [
+      "landing.editor.category.people",
+      "landing.editor.category.animals",
+      "landing.editor.category.fashion",
+      "landing.editor.category.products",
+      "landing.editor.category.brands",
+      "landing.editor.category.characters",
+      "landing.editor.category.futureSelf",
+      "landing.editor.category.transformations",
+    ],
+    exampleCreationKeys: [
+      "landing.editor.example.outfit",
+      "landing.editor.example.hybrid",
+      "landing.editor.example.timeline",
+      "landing.editor.example.mascot",
+    ],
+    valuePropKeys: [
+      "landing.editor.valueProp.futureSelf",
+      "landing.editor.valueProp.outfit",
+      "landing.editor.valueProp.animalFusion",
+      "landing.editor.valueProp.characterUpgrade",
     ],
     workflowStepKeys: [
       "landing.editor.step.upload",
@@ -60,14 +93,15 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
     ],
     examplePromptKeys: [
       "landing.editor.prompt.outfit",
-      "landing.editor.prompt.logo",
-      "landing.editor.prompt.background",
+      "landing.editor.prompt.futureSelf",
+      "landing.editor.prompt.mascot",
     ],
     benefitKeys: [
       "landing.editor.benefit.noPhotoshop",
       "landing.editor.benefit.structured",
       "landing.editor.benefit.variants",
     ],
+    showPricingEducation: true,
     orbitLabelKey: "suite.nav.editor",
     accentColor: "#0067B1",
     accentSecondary: "#006D52",
@@ -78,16 +112,20 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
     titleKey: "landing.studio.title",
     subtitleKey: "landing.studio.subtitle",
     descriptionKey: "landing.studio.description",
-    primaryCtaKey: "landing.studio.primaryCta",
+    positioningKey: "marketing.positioning.tagline",
+    primaryCtaKey: "marketing.cta.startCreating",
     primaryCtaHref: "/studio/storyboards/new",
-    secondaryCtaKey: "landing.studio.secondaryCta",
-    secondaryCtaHref: "/studio/start",
+    secondaryCtaKey: "marketing.cta.seeExamples",
+    secondaryCtaHref: "/studio/examples",
+    tertiaryCtaKey: "marketing.cta.learnMore",
+    tertiaryCtaHref: "/hoe-werkt-studio",
     featureCardKeys: [
-      "landing.studio.feature.scenes",
-      "landing.studio.feature.story",
-      "landing.studio.feature.voice",
-      "landing.studio.feature.brand",
-      "landing.studio.feature.versions",
+      "landing.studio.feature.stories",
+      "landing.studio.feature.campaigns",
+      "landing.studio.feature.episodes",
+      "landing.studio.feature.storyboard",
+      "landing.studio.feature.assets",
+      "landing.studio.feature.integrations",
     ],
     workflowStepKeys: [
       "landing.studio.step.concept",
@@ -96,10 +134,16 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
       "landing.studio.step.publish",
     ],
     examplePromptKeys: [],
+    valuePropKeys: [
+      "landing.studio.valueProp.hub",
+      "landing.studio.valueProp.campaigns",
+      "landing.studio.valueProp.motionPublish",
+    ],
     benefitKeys: [
       "landing.studio.benefit.pipeline",
       "landing.studio.benefit.consistency",
     ],
+    showPricingEducation: true,
     orbitLabelKey: "suite.nav.studio",
     accentColor: "#0067B1",
     accentSecondary: "#006D52",
@@ -110,20 +154,35 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
     titleKey: "landing.motion.title",
     subtitleKey: "landing.motion.subtitle",
     descriptionKey: "landing.motion.description",
-    primaryCtaKey: "landing.motion.primaryCta",
+    positioningKey: "marketing.positioning.tagline",
+    primaryCtaKey: "marketing.cta.startCreating",
     primaryCtaHref: "/motion/start",
-    secondaryCtaKey: "landing.motion.secondaryCta",
-    secondaryCtaHref: "/animate/instant?editorActiveVariant=1",
+    secondaryCtaKey: "marketing.cta.seeExamples",
+    secondaryCtaHref: "/motion/examples",
+    tertiaryCtaKey: "marketing.cta.learnMore",
+    tertiaryCtaHref: "/hoe-het-werkt",
     featureCardKeys: [
       "landing.motion.feature.imageToVideo",
       "landing.motion.feature.transformation",
       "landing.motion.feature.scene",
-      "landing.motion.feature.transitions",
-      "landing.motion.feature.handoff",
+      "landing.motion.feature.socialClips",
+      "landing.motion.feature.campaign",
+      "landing.motion.feature.studioProduction",
+    ],
+    durationKeys: [
+      "landing.motion.duration.3",
+      "landing.motion.duration.5",
+      "landing.motion.duration.8",
+    ],
+    exampleCreationKeys: [
+      "landing.motion.example.generatedImages",
+      "landing.motion.example.sequence",
+      "landing.motion.example.social",
     ],
     workflowStepKeys: [],
     examplePromptKeys: [],
     benefitKeys: ["landing.motion.benefit.social", "landing.motion.benefit.editorAssets"],
+    showPricingEducation: true,
     orbitLabelKey: "suite.nav.motion",
     accentColor: "#006D52",
     accentSecondary: "#0067B1",
@@ -134,20 +193,30 @@ export const STUDIO_PRODUCT_LANDING_CONFIG: Record<
     titleKey: "landing.publish.title",
     subtitleKey: "landing.publish.subtitle",
     descriptionKey: "landing.publish.description",
-    primaryCtaKey: "landing.publish.primaryCta",
+    positioningKey: "marketing.positioning.tagline",
+    primaryCtaKey: "marketing.cta.startCreating",
     primaryCtaHref: "/publish/start",
-    secondaryCtaKey: "landing.publish.secondaryCta",
-    secondaryCtaHref: "/videos",
+    secondaryCtaKey: "marketing.cta.seeExamples",
+    secondaryCtaHref: "/publish/examples",
+    tertiaryCtaKey: "marketing.cta.learnMore",
+    tertiaryCtaHref: "/hoe-het-werkt",
     featureCardKeys: [
-      "landing.publish.feature.social",
-      "landing.publish.feature.web",
-      "landing.publish.feature.print",
-      "landing.publish.feature.presentation",
-      "landing.publish.feature.versions",
+      "landing.publish.feature.headlines",
+      "landing.publish.feature.subtitles",
+      "landing.publish.feature.voiceover",
+      "landing.publish.feature.music",
+      "landing.publish.feature.branding",
+      "landing.publish.feature.exports",
+    ],
+    exampleCreationKeys: [
+      "landing.publish.example.social",
+      "landing.publish.example.print",
+      "landing.publish.example.finishedVideo",
     ],
     workflowStepKeys: [],
     examplePromptKeys: [],
     benefitKeys: ["landing.publish.benefit.delivery"],
+    showPricingEducation: true,
     orbitLabelKey: "suite.nav.publish",
     accentColor: "#0067B1",
   },

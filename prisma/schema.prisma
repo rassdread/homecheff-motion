@@ -311,6 +311,65 @@ model User {
   studioStoryboards    StudioStoryboard[]
   studioJobs           StudioJob[]
   editorCanvasProjects EditorCanvasProject[]
+  homeCheffProjects    HomeCheffProject[]
+}
+
+/** Universal HomeCheff .hc master project container. */
+model HomeCheffProject {
+  id                    String    @id @default(cuid())
+  ownerId               String
+  owner                 User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String    @default("")
+  packageVersion        Int       @default(1)
+  projectFormat         String    @default("hc")
+  projectVersionLabel   String    @default("1")
+  manifestJson          Json
+  servicePayloadJson    Json      @default("{}")
+  currentService        String?
+  sourceService         String?
+  legacySourceJson      Json?
+  isArchived            Boolean   @default(false)
+  archivedAt            DateTime?
+  conversionHistoryJson Json      @default("[]")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  handoffs  ProjectHandoff[]
+  assetRefs ProjectAssetReference[]
+
+  @@index([ownerId, updatedAt])
+  @@index([ownerId, projectFormat, isArchived])
+}
+
+model ProjectHandoff {
+  id              String   @id @default(cuid())
+  sourceProjectId  String
+  sourceProject    HomeCheffProject @relation(fields: [sourceProjectId], references: [id], onDelete: Cascade)
+  sourceType       String
+  targetProjectId  String?
+  targetType       String
+  handoffType      String
+  payloadJson      Json     @default("{}")
+  createdAt        DateTime @default(now())
+
+  @@index([sourceProjectId])
+}
+
+model ProjectAssetReference {
+  id              String   @id @default(cuid())
+  packageId        String
+  package          HomeCheffProject @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  assetId          String
+  url             String
+  storageKey       String?
+  kind            String
+  role            String?
+  permissionsJson  Json     @default("{}")
+  createdAt        DateTime @default(now())
+
+  @@index([packageId])
+  @@index([packageId, assetId])
 }
 
 /** Persisted HomeCheff Editor canvas project (compositor state, layers, handoff). */

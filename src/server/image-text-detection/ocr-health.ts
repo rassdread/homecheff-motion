@@ -11,9 +11,12 @@ export type OcrHealthSnapshot = {
   ok: boolean;
   provider: OcrHealthProvider;
   hasOpenAiKey: boolean;
+  hasGoogleKey: boolean;
   model: string | null;
   errors: string[];
   checkedAt: string;
+  statusReason: string;
+  launchCritical: boolean;
 };
 
 export function getOcrHealthSnapshot(): OcrHealthSnapshot {
@@ -37,13 +40,23 @@ export function getOcrHealthSnapshot(): OcrHealthSnapshot {
         ? "google-vision"
         : null;
 
+  const statusReason =
+    provider === "google"
+      ? "Google Vision API key configured. Run health check to verify connectivity."
+      : provider === "openai"
+        ? `OpenAI Vision configured (${model}). Run health check to verify API.`
+        : "No OCR provider — set GOOGLE_VISION_API_KEY or OPENAI_API_KEY.";
+
   return {
     ok: errors.length === 0,
     provider,
     hasOpenAiKey: Boolean(openAiKey),
+    hasGoogleKey: Boolean(googleKey),
     model,
     errors,
     checkedAt: new Date().toISOString(),
+    statusReason,
+    launchCritical: false,
   };
 }
 
@@ -55,6 +68,13 @@ export async function runOcrHealthCheck(): Promise<{
   const snapshot = getOcrHealthSnapshot();
   if (!snapshot.ok) {
     return { ok: false, errorCode: "OCR_PROVIDER_NOT_CONFIGURED", message: snapshot.errors[0] };
+  }
+
+  if (snapshot.provider === "google") {
+    return {
+      ok: true,
+      message: "Google Vision key present — live OCR probe uses production detect-text route.",
+    };
   }
 
   const openAiKey = process.env.OPENAI_API_KEY?.trim();

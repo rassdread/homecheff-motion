@@ -8,6 +8,7 @@ import {
   fusionIntentToTransformationType,
 } from "@/lib/editor-transformation-session";
 import { editorTransformationMotionUrl } from "@/lib/editor-transformation-handoff";
+import { collectEditorMetadataPipeline } from "@/lib/editor-metadata-pipeline";
 import { resolveCompositionBaseImageUrl } from "@/lib/editor-composition-plan";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -87,7 +88,16 @@ export function EditorTransformationSessionPanel({ document, onDocumentChange }:
 
   const motionUrl =
     session ?
-      editorTransformationMotionUrl({ session, editorSessionId: document.sessionId })
+      editorTransformationMotionUrl({
+        session,
+        editorSessionId: document.sessionId,
+        transitionDurationSec: document.instructionStudioState?.referenceIntake?.motionDurationSec ?? 5,
+        referenceAssignments: document.instructionStudioState?.referenceIntake?.roleAssignments?.filter(
+          (a): a is import("@/types/editor-reference-metadata").EditorReferenceAssignment =>
+            Boolean(a.url && a.instanceId && a.name)
+        ),
+        metadataQueryParams: collectEditorMetadataPipeline(document).motionQueryParams,
+      })
     : null;
 
   return (

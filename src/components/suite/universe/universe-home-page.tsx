@@ -17,7 +17,9 @@ import type { UniversePlanetConfig, UniversePlanetId } from "@/lib/universe-home
 import {
   resolveUniversePlanetHrefs,
   resolveUniverseQuickActionHref,
+  resolveUniverseStartProjectHref,
 } from "@/lib/universe-public-landing";
+import { UniverseMarketingSections } from "@/components/suite/universe/universe-marketing-sections";
 import {
   UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS,
   UNIVERSE_PLANET_HOVER_LOCK_MS,
@@ -71,6 +73,11 @@ export function UniverseHomePage() {
   const parallax = useUniverseParallax(!reducedMotion);
   const hoverCloseTimer = useRef<number | undefined>(undefined);
   const hoverOpenedAt = useRef<number>(0);
+
+  const startCreatingHref = useMemo(
+    () => resolveUniverseStartProjectHref(isAuthenticated),
+    [isAuthenticated]
+  );
 
   const planetHrefs = useMemo(
     () => resolveUniversePlanetHrefs(isAuthenticated),
@@ -218,6 +225,7 @@ export function UniverseHomePage() {
 
         <div className="universe-dashboard-section">
           <UniverseProductionLine />
+          <UniverseMarketingSections startCreatingHref={startCreatingHref} />
           <UniverseDifferentiation />
           <UniverseQuickActions hrefs={quickHrefs} onNavigate={handleQuickNavigate} />
         </div>

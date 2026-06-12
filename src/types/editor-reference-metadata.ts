@@ -36,7 +36,10 @@ export const EDITOR_FAMILY_REFERENCE_TYPES = [
   "grandfather_mother_side",
   "grandmother_father_side",
   "grandfather_father_side",
+  "older_brother",
+  "older_sister",
   "sibling",
+  "family_reference",
   "custom",
 ] as const;
 

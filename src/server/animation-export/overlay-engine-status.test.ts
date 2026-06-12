@@ -77,6 +77,7 @@ describe("getOverlayEngineStatus", () => {
     delete process.env.HC_ENABLE_MEDIAPIPE_SAFE_ZONES;
     const status = getOverlayEngineStatus(disabledVision());
     assert.equal(status.card.safeZones, "FALLBACK");
+    assert.match(status.cardReasons.safeZones.reason, /HC_ENABLE_OBJECT_SAFE_ZONES/);
     assert.equal(status.card.objectDetection, "DISABLED");
     assert.equal(status.card.typography, "ACTIVE");
     assert.equal(status.card.placement, "ACTIVE");
@@ -99,6 +100,13 @@ describe("getOverlayEngineStatus", () => {
     assert.ok(
       status.inactiveFeatures.some((line) => line.includes("Local vision flags off"))
     );
+  });
+
+  it("includes SAM2 optional status and activation checklist", () => {
+    const status = getOverlayEngineStatus(disabledVision());
+    assert.equal(status.sam2.optionalForLaunch, true);
+    assert.ok(status.activationChecklist.local.setupCommands.length >= 1);
+    assert.ok(status.featureImpact.length >= 5);
   });
 
   it("includes timing and language rerender capabilities as active", () => {

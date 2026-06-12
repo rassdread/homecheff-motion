@@ -93,7 +93,37 @@ export function workflowReferenceConfigForIntent(
   intent: EditorFusionIntent
 ): EditorWorkflowReferenceConfig {
   const normalized = normalizeFusionIntent(intent);
-  const roles = roleSpecsFromIntent(normalized);
+  let roles = roleSpecsFromIntent(normalized);
+
+  if (normalized === "outfit_from_reference" || normalized === "person_outfit") {
+    roles = roles.map((role) =>
+      role.id === "outfit" || role.role === "outfit"
+        ? {
+            ...role,
+            id: "clothing_item",
+            role: "outfit",
+            labelKey: "editor.fusion.upload.clothingItem",
+            hintKey: "editor.referenceRole.clothingItemHint",
+            maxInstances: 12,
+          }
+        : role
+    );
+  }
+
+  if (normalized === "how_will_i_look" || normalized === "genetic_blend") {
+    roles = [
+      ...roles,
+      {
+        id: "family_extra",
+        role: "family",
+        labelKey: "editor.fusion.upload.familyExtra",
+        hintKey: "editor.referenceRole.familyExtraHint",
+        required: false,
+        maxInstances: 6,
+      },
+    ];
+  }
+
   const sequences = supportsSequences(normalized);
   return {
     workflow: "combine",

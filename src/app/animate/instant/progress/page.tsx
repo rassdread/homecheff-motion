@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InstantRecoveryActionButtons } from "@/components/instant/instant-recovery-action-buttons";
+import { MotionResultsWorkspace } from "@/components/motion/motion-results-workspace";
+import { MotionPostGenerationActionCenter } from "@/components/motion/motion-post-generation-action-center";
 import { MotionPublishHandoff } from "@/components/motion/motion-publish-handoff";
 import { useInstantVideoRepair } from "@/hooks/use-instant-video-repair";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { InstantFinalProgressPanel } from "@/components/instant/instant-final-progress-panel";
 import { InstantSegmentProgressList } from "@/components/instant/instant-segment-progress-list";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -73,6 +76,10 @@ function transientBannerKey(message: string | null): string | null {
 export default function InstantPremiumProgressPage() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const hcProjectId = useMemo(() => {
+    if (typeof window === "undefined") return undefined;
+    return new URLSearchParams(window.location.search).get("hcProject")?.trim() || undefined;
+  }, []);
   const session = useAuthSession();
   const isAdmin = session.resolved && session.user?.role === "admin";
   const completionSyncedRef = useRef(false);
@@ -401,9 +408,123 @@ export default function InstantPremiumProgressPage() {
     return () => window.clearTimeout(timer);
   }, [rebuildBusy, snapshot]);
 
+  if (isCompleted && snapshot?.finalVideoUrl && effectiveProjectId && !showFatalMissing) {
+    return (
+      <>
+        <MotionResultsWorkspace
+          projectId={effectiveProjectId}
+          videoUrl={snapshot.finalVideoUrl}
+          hcProjectId={hcProjectId}
+          center={
+            <div className="space-y-4">
+              <VideoPreview
+                key={finalPlaybackCacheKey}
+                variant="main"
+                frameClassName="overflow-hidden rounded-xl border border-zinc-200"
+                controls
+                playsInline
+                preload="metadata"
+                src={snapshot.finalVideoUrl}
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={animationProjectDownloadUrl(effectiveProjectId)}
+                  download={`homecheff-motion-${effectiveProjectId}.mp4`}
+                  className="min-h-11 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-900"
+                >
+                  {t("instant.progress.download")}
+                </a>
+                <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
+              </div>
+              <InstantRecoveryActionButtons
+                snapshot={snapshot}
+                hideVideoRepair={videoRepair.showRepairCard}
+                textRerenderBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                forceRebuildBusy={rebuildBusy || snapshot.isRebuildingFinalVideo}
+                isAdmin={isAdmin}
+                onTextRerender={() => setTextRerenderEditorOpen(true)}
+                onForceRebuild={isAdmin ? () => void runTextRerender() : undefined}
+                buttonClassName="min-h-11 rounded-xl border px-4 py-2 text-sm font-medium disabled:opacity-60"
+              />
+              <VideoVersionsPanel
+                projectId={effectiveProjectId}
+                hideOriginalVideoPlayer
+                cleanVideoUrl={versionMeta?.cleanVideoUrl ?? null}
+                finalVideoUrl={snapshot.finalVideoUrl}
+                usesStoryOverlay={versionMeta?.usesStoryOverlay ?? false}
+                instantSceneTexts={versionMeta?.instantSceneTexts}
+                languageExports={languageExports}
+                onLanguageExportsChange={setLanguageExports}
+              />
+            </div>
+          }
+        />
+        {effectiveProjectId && versionMeta?.usesStoryOverlay ?
+          <TextRerenderEditorModal
+            open={textRerenderEditorOpen}
+            onClose={() => setTextRerenderEditorOpen(false)}
+            projectId={effectiveProjectId}
+            instantSceneTexts={versionMeta?.instantSceneTexts}
+            imageCount={Math.max(parseSceneTextsJson(versionMeta?.instantSceneTexts).length, 1)}
+            onRenderStart={() => setRebuildBusy(true)}
+            onSuccess={(response) => {
+              setRebuildBusy(true);
+              void applyTextRerenderResponse(response);
+            }}
+            onError={(message) => {
+              setActionError(message);
+              setRebuildBusy(false);
+            }}
+          />
+        : null}
+        {effectiveProjectId && canShowFullRerender ?
+          <FullRerenderEditorModal
+            open={fullRerenderEditorOpen}
+            onClose={() => setFullRerenderEditorOpen(false)}
+            projectId={effectiveProjectId}
+            instantSceneTexts={versionMeta?.instantSceneTexts ?? snapshot?.segments?.map(() => ({}))}
+            instantMode={versionMeta?.instantMode}
+            instantTransitionSeconds={versionMeta?.instantTransitionSeconds ?? 5}
+            uploadRole={session.user?.role ?? "user"}
+            imageCount={Math.max(
+              snapshot?.segmentCount ?? snapshot?.segments?.length ?? 0,
+              parseSceneTextsJson(versionMeta?.instantSceneTexts).length,
+              1
+            )}
+            images={(snapshot?.segments ?? []).map((segment) => ({
+              id: segment.sourceImageId,
+              previewUrl: segment.sourceImageUrl ?? "",
+            }))}
+            onRenderStart={() => {
+              setFullRerenderBusy(true);
+              setActionError(null);
+            }}
+            onSuccess={(response) => {
+              setFullRerenderBusy(false);
+              setActionError(null);
+              if (response.status) {
+                setSnapshot(response.status);
+              }
+              invalidateCachedInstantProgressSnapshot(effectiveProjectId);
+            }}
+            onError={(message) => {
+              setActionError(message);
+              setFullRerenderBusy(false);
+            }}
+          />
+        : null}
+      </>
+    );
+  }
+
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-xl px-4 py-10">
+        {isReconnecting && !snapshot ?
+          <div className="flex justify-center py-16">
+            <HomeCheffOrbitLoader state="rendering" size="lg" />
+          </div>
+        : null}
         <AppCard>
           <h1 className="text-2xl font-bold">{t("instant.progress.title")}</h1>
           <p className="mt-2 text-sm text-zinc-600">{t(headlineKey as never)}</p>
@@ -572,7 +693,12 @@ export default function InstantPremiumProgressPage() {
                 ) : null}
                 <GradientButton href="/videos">{t("animate.button.openSavedProject")}</GradientButton>
               </div>
-              <MotionPublishHandoff projectId={effectiveProjectId} videoUrl={snapshot.finalVideoUrl} />
+              <MotionPublishHandoff projectId={effectiveProjectId} videoUrl={snapshot.finalVideoUrl} hcProjectId={hcProjectId} />
+              <MotionPostGenerationActionCenter
+                projectId={effectiveProjectId}
+                videoUrl={snapshot.finalVideoUrl}
+                hcProjectId={hcProjectId}
+              />
               <InstantRecoveryActionButtons
                 snapshot={snapshot}
                 hideVideoRepair={videoRepair.showRepairCard}

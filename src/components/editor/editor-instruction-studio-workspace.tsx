@@ -8,6 +8,7 @@ import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-in
 import { EditorInstructionStyleTraitList } from "@/components/editor/editor-instruction-style-trait-list";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
+import { EditorPostGenerationActionCenter } from "@/components/editor/editor-post-generation-action-center";
 import { useActiveTranslator } from "@/i18n/client";
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
 import {
@@ -782,7 +783,9 @@ export function EditorInstructionStudioWorkspace({
       : null}
 
       {showResults ?
-        <section data-testid="instruction-results-panel">
+        <>
+          <EditorPostGenerationActionCenter document={document} resultType="image" />
+          <section data-testid="instruction-results-panel">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">
             {t("editor.instructionStudio.v2.results.title" as never)}
           </h2>
@@ -806,6 +809,7 @@ export function EditorInstructionStudioWorkspace({
             }
           />
         </section>
+        </>
       : null}
     </div>
   );

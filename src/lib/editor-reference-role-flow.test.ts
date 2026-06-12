@@ -23,9 +23,12 @@ function mockDoc(name: string) {
 
 test("workflowReferenceConfigForIntent maps outfit transfer roles", () => {
   const config = workflowReferenceConfigForIntent("outfit_from_reference");
-  assert.equal(config.requiredRoles.join(","), "person,outfit");
+  assert.equal(config.requiredRoles.join(","), "person,clothing_item");
   assert.equal(config.optionalRoles.length, 0);
   assert.equal(config.roles.length, 2);
+  const clothing = config.roles.find((r) => r.id === "clothing_item");
+  assert.ok(clothing);
+  assert.equal(clothing?.maxInstances, 12);
   assert.equal(config.supportsSequences, true);
 });
 
@@ -40,6 +43,7 @@ test("workflowReferenceConfigForIntent future self optional parents", () => {
   assert.equal(config.requiredRoles[0], "current");
   assert.ok(config.optionalRoles.includes("father"));
   assert.ok(config.optionalRoles.includes("mother"));
+  assert.ok(config.roles.some((r) => r.id === "family_extra"));
 });
 
 test("referenceIntakeReady requires all mandatory roles", () => {

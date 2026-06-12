@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TransformPromptPreview } from "@/lib/studio-asset-transform-prompt";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
@@ -18,6 +19,11 @@ export function StudioWizardIdentityDebugPanel({
   generatedPrompt,
 }: Props) {
   const t = useActiveTranslator();
+  const session = useAuthSession();
+  const isAdmin = session.user?.role === "admin";
+  if (!isAdmin) {
+    return null;
+  }
   const vision = draft.sourceVisionAnalysis;
   const fingerprintHash = vision?.identityFingerprint.fingerprintHash;
 

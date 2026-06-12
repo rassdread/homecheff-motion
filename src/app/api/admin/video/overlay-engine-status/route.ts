@@ -20,6 +20,7 @@ export async function GET(request: Request) {
 
   const probe = new URL(request.url).searchParams.get("probe") === "1";
   let status;
+  let probeWarning: string | undefined;
   if (isVideoRenderWorkerMode()) {
     const workerVision = await fetchWorkerVisionHealth(probe);
     if (workerVision) {
@@ -28,11 +29,18 @@ export async function GET(request: Request) {
       const modelPath = await resolveObjectDetectorModelPath().catch(() => "");
       status.env.HC_OBJECT_DETECTOR_MODEL_PATH =
         workerVision.objectDetector.modelPath || modelPath || status.env.HC_OBJECT_DETECTOR_MODEL_PATH;
-      status = { ...status, source: "video-worker" as const };
+      status.source = "video-worker";
+    } else {
+      probeWarning =
+        "VIDEO_RENDER_MODE=worker but worker vision health unreachable — showing app-process probe (likely no ONNX on Vercel). Fix VIDEO_WORKER_BASE_URL / VIDEO_WORKER_SECRET.";
     }
   }
   if (!status) {
-    status = { ...(await getOverlayEngineReadiness(probe)), source: "app-process" as const };
+    status = await getOverlayEngineReadiness(probe);
+    status.source = "app-process";
+  }
+  if (probeWarning) {
+    status.probeWarning = probeWarning;
   }
   const httpOk = status.readinessScore >= 50;
   return NextResponse.json(status, { status: httpOk ? 200 : 503 });

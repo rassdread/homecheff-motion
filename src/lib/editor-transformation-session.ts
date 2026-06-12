@@ -145,8 +145,27 @@ export function buildTransformationStepPrompt(input: {
   session: EditorTransformationSession;
   step: EditorTransformationStep;
   userInstruction?: string;
+  referenceAssignments?: import("@/types/editor-reference-metadata").EditorReferenceAssignment[];
 }): string {
   const { session, step } = input;
+  const metadataBlock =
+    input.referenceAssignments && input.referenceAssignments.length > 0
+      ? [
+          "",
+          "REFERENCE METADATA",
+          ...input.referenceAssignments.map((a) => {
+            const parts = [
+              a.metadata?.view,
+              a.metadata?.familyType,
+              a.metadata?.clothingType,
+              a.metadata?.animalType,
+            ]
+              .filter(Boolean)
+              .join(", ");
+            return parts ? `- ${a.role}: ${parts}` : `- ${a.role}`;
+          }),
+        ]
+      : [];
   return [
     "TRANSFORMATION SEQUENCE STEP",
     buildTransformationStepInstruction({
@@ -168,6 +187,7 @@ export function buildTransformationStepPrompt(input: {
     "QUALITY",
     "- Keep consistent aspect ratio, framing, background, and subject centering.",
     "- Avoid large pose jumps or sudden identity drift between steps.",
+    ...metadataBlock,
   ]
     .filter(Boolean)
     .join("\n");

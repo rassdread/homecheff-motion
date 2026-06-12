@@ -149,9 +149,27 @@ export function applyReferenceRoleIntake(
     }
   }
 
-  if (normalized === "outfit_from_reference" && referenceEntries[0]) {
-    const outfitDoc = referenceEntries[0].doc;
-    let next = applyWearOutfitComposition(baseDoc, outfitDoc.backgroundUrl, outfitDoc.name);
+  if (
+    (normalized === "outfit_from_reference" || normalized === "person_outfit") &&
+    referenceEntries.length > 0
+  ) {
+    const clothingEntries = referenceEntries.filter(
+      (entry) => entry.role === "outfit" || entry.roleId === "clothing_item" || entry.roleId === "outfit"
+    );
+    const primaryOutfit = clothingEntries[0] ?? referenceEntries[0]!;
+    let next = applyWearOutfitComposition(
+      baseDoc,
+      primaryOutfit.doc.backgroundUrl,
+      primaryOutfit.doc.name
+    );
+    for (const entry of clothingEntries.slice(1)) {
+      const analyzed = analyzeCompositionReference({
+        name: entry.doc.name,
+        url: entry.doc.backgroundUrl,
+        type: "style",
+      });
+      next = addCompositionReference(next, analyzed);
+    }
     next = attachOutputSettings(next, normalized, output, motion, slots);
     return next;
   }

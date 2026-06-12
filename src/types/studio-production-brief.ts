@@ -82,6 +82,9 @@ export type StudioProductionBrief = {
   productionPlan?: StudioProductionPlan;
   assetDecisions?: StudioAssetDecision[];
   productionMemoryGuidance?: ProductionMemoryCreationGuidance | null;
+  userSelections?: import("@/types/studio-production-brief-v3").StudioProductionBriefSelections;
+  storyPlan?: import("@/types/studio-production-brief-v3").StudioStoryPlan;
+  productionRoute?: import("@/types/studio-production-brief-v3").StudioProductionRoute;
 };
 
 export type StudioProductionBriefInput = {

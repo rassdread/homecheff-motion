@@ -3,6 +3,22 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BriefV4SelectionCards } from "@/components/studio/brief-v4-selection-cards";
+import { StudioBuildStoryPanel } from "@/components/studio/studio-build-story-panel";
+import { StudioCharacterWizardPanel } from "@/components/studio/studio-character-wizard-panel";
+import { StudioConfirmStoryboardPanel } from "@/components/studio/studio-confirm-storyboard-panel";
+import { StudioGenerateMissingAssetsPanel } from "@/components/studio/studio-generate-missing-assets-panel";
+import { persistWizardConceptToHc } from "@/lib/studio-brief-asset-wizards";
+import { persistHcProjectWithSync } from "@/lib/homecheff-project-sync";
+import { StudioProductionRoutePicker } from "@/components/studio/studio-production-route-picker";
+import { buildStoryPlanFromBrief } from "@/lib/studio-build-story-plan";
+import { briefSelectionsToIdeaEnrichment } from "@/lib/studio-production-brief-selection";
+import { persistHcWorkflowV2WithSync } from "@/lib/hc-workflow-persist";
+import { storeStudioWorkflowInHc } from "@/lib/hc-workflow-v2";
+import { loadHcProjectFromQuery } from "@/lib/homecheff-project-open";
+import { loadHomeCheffProject } from "@/lib/homecheff-project-persist";
+import type { StudioProductionRoute, StudioStoryPlan } from "@/types/studio-production-brief-v3";
+import { DEFAULT_BRIEF_V4_SELECTIONS, type StudioProductionBriefV4Selections } from "@/types/studio-production-brief-v4";
 import { resolveEditorStudioEntry } from "@/lib/editor-studio-entry";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { AppCard } from "@/components/ui/app-card";
@@ -48,8 +64,9 @@ import type {
 } from "@/types/studio-production-brief";
 import type { AssetDecisionMode, StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 import { StudioProductionMemoryPanel } from "@/components/studio/studio-production-memory-panel";
+import { StudioAiEverythingPanel } from "@/components/studio/studio-ai-everything-panel";
 
-type FlowStep = "idea" | "brief" | "preview";
+type FlowStep = "idea" | "brief" | "build_story" | "route" | "preview";
 
 const EXAMPLE_KEYS = [
   "studio.directorProposal.example.homecheffGarden",
@@ -301,8 +318,13 @@ export function StudioProductionBriefFlow() {
   const t = useActiveTranslator();
   const searchParams = useSearchParams();
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
+  const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
   const [step, setStep] = useState<FlowStep>("idea");
   const [idea, setIdea] = useState("");
+  const [selections, setSelections] = useState<StudioProductionBriefV4Selections>(DEFAULT_BRIEF_V4_SELECTIONS);
+  const [storyPlan, setStoryPlan] = useState<StudioStoryPlan | null>(null);
+  const [productionRoute, setProductionRoute] = useState<StudioProductionRoute>("mixed");
+  const [showCharacterWizard, setShowCharacterWizard] = useState(false);
   const [brief, setBrief] = useState<StudioProductionBrief | null>(null);
   const [decisionRegistry, setDecisionRegistry] = useState<StudioAssetDecisionRegistry>(() =>
     loadAssetDecisionRegistry({})
@@ -375,10 +397,30 @@ export function StudioProductionBriefFlow() {
     return [...brief.mainCharacters, ...brief.recommendedLocations, ...brief.recommendedProps];
   }, [brief]);
 
+  const [hcProjectLocal, setHcProjectLocal] = useState<ReturnType<typeof loadHomeCheffProject>>(null);
+
+  const hcProject = useMemo(() => {
+    if (hcProjectLocal) return hcProjectLocal;
+    const fromQuery = loadHcProjectFromQuery(searchParams);
+    if (fromQuery) return fromQuery;
+    if (hcProjectId) return loadHomeCheffProject(hcProjectId);
+    return null;
+  }, [hcProjectId, hcProjectLocal, searchParams]);
+
+  const persistWorkflow = useCallback(
+    (studio: Parameters<typeof storeStudioWorkflowInHc>[1]) => {
+      if (!hcProject) return;
+      const next = storeStudioWorkflowInHc(hcProject, studio);
+      persistHcWorkflowV2WithSync(next, {});
+    },
+    [hcProject]
+  );
+
   const handleBuildBrief = useCallback(() => {
     setError("");
+    const enrichedIdea = briefSelectionsToIdeaEnrichment(idea, selections);
     const built = buildProductionBrief({
-      idea,
+      idea: enrichedIdea,
       characters,
       locations,
       props,
@@ -389,10 +431,22 @@ export function StudioProductionBriefFlow() {
       setError(t("studio.productionBrief.error.emptyIdea"));
       return;
     }
-    setBrief(built);
+    const withSelections = {
+      ...built,
+      userSelections: selections,
+      estimatedDurationSeconds: built.estimatedDurationSeconds,
+    };
+    setBrief(withSelections);
     setDecisionRegistry(loadAssetDecisionRegistry({ briefIdea: idea }));
+    persistWorkflow({
+      phase: "plan",
+      idea,
+      briefSelections: selections,
+      goal: selections.goals.join(", "),
+      targetAudience: selections.audience.join(", "),
+    });
     setStep("brief");
-  }, [idea, characters, locations, props, worlds, projectMemory, t]);
+  }, [idea, selections, characters, locations, props, worlds, projectMemory, persistWorkflow, t]);
 
   const handleApplyAssetDecision = useCallback(
     (asset: ProductionBriefAssetProposal, mode: AssetDecisionMode) => {
@@ -414,8 +468,14 @@ export function StudioProductionBriefFlow() {
     if (!brief) return;
     setCreating(true);
     setError("");
+    const briefWithPlan = {
+      ...brief,
+      userSelections: selections,
+      storyPlan: storyPlan ?? undefined,
+      productionRoute,
+    };
     const result = await createStoryboardFromProductionBrief({
-      brief,
+      brief: briefWithPlan,
       assetDecisionRegistry: decisionRegistry,
       characters,
       locations,
@@ -430,7 +490,20 @@ export function StudioProductionBriefFlow() {
       return;
     }
     setError(result.error || t("studio.storyboards.error.saveFailed"));
-  }, [brief, decisionRegistry, characters, locations, props, worlds, projectMemory, t]);
+  }, [brief, selections, storyPlan, productionRoute, decisionRegistry, characters, locations, props, worlds, projectMemory, t]);
+
+  const stepNumber = (s: FlowStep) => {
+    const order: FlowStep[] = ["idea", "brief", "build_story", "route", "preview"];
+    return String(order.indexOf(s) + 1);
+  };
+
+  const stepTitle = (s: FlowStep) => {
+    if (s === "idea") return t("studio.productionBrief.idea.title");
+    if (s === "brief") return t("studio.productionBrief.brief.title");
+    if (s === "build_story") return t("studio.buildStory.title" as never);
+    if (s === "route") return t("studio.productionRoute.title" as never);
+    return t("studio.productionBrief.preview.confirmTitle");
+  };
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -448,26 +521,21 @@ export function StudioProductionBriefFlow() {
           <header className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
               {t("studio.productionBrief.stepLabel", {
-                step:
-                  step === "idea" ? "1"
-                  : step === "brief" ? "2"
-                  : "3",
-                total: "3",
+                step: stepNumber(step),
+                total: "5",
               })}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-              {step === "idea"
-                ? t("studio.productionBrief.idea.title")
-                : step === "brief"
-                  ? t("studio.productionBrief.brief.title")
-                  : t("studio.productionBrief.preview.confirmTitle")}
-            </h1>
+            <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{stepTitle(step)}</h1>
             <p className="mt-2 text-sm text-zinc-600">
               {step === "idea"
                 ? t("studio.productionBrief.idea.subtitle")
                 : step === "brief"
                   ? t("studio.productionBrief.brief.subtitle")
-                  : t("studio.productionBrief.preview.confirmSubtitle")}
+                  : step === "build_story"
+                    ? t("studio.buildStory.subtitle" as never)
+                    : step === "route"
+                      ? t("studio.productionRoute.lead" as never)
+                      : t("studio.productionBrief.preview.confirmSubtitle")}
             </p>
           </header>
 
@@ -480,6 +548,7 @@ export function StudioProductionBriefFlow() {
                 placeholder={t("studio.productionBrief.idea.placeholder")}
                 className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-[#006D52] focus:outline-none focus:ring-1 focus:ring-[#006D52]"
               />
+              <BriefV4SelectionCards selections={selections} onChange={setSelections} />
               <div className="flex flex-wrap gap-2">
                 {EXAMPLE_KEYS.map((key) => (
                   <button
@@ -542,26 +611,129 @@ export function StudioProductionBriefFlow() {
                 >
                   {t("studio.productionBrief.back")}
                 </button>
-                <GradientButton type="button" onClick={() => setStep("preview")} className="sm:w-auto">
-                  {t("studio.productionBrief.brief.continue")}
+                <GradientButton
+                  type="button"
+                  onClick={() => {
+                    if (!brief) return;
+                    const plan = buildStoryPlanFromBrief({ brief, selections });
+                    setStoryPlan(plan);
+                    persistWorkflow({ phase: "plan", storyPlan: plan });
+                    if (selections.aiEverythingMode) {
+                      setProductionRoute("asset_first");
+                      setStep("preview");
+                    } else {
+                      setStep("build_story");
+                    }
+                  }}
+                  className="sm:w-auto"
+                >
+                  {selections.aiEverythingMode
+                    ? t("studio.aiEverything.continue" as never)
+                    : t("studio.buildStory.continue" as never)}
                 </GradientButton>
               </div>
             </div>
           : null}
 
-          {step === "preview" && brief ?
+          {step === "build_story" && storyPlan ?
             <div className="space-y-6">
-              <StoryPreview brief={brief} />
-              <BriefSummary
-                brief={brief}
-                projectMemory={projectMemory}
-                characters={characters}
-                worlds={worlds}
+              <StudioBuildStoryPanel plan={storyPlan} />
+              {showCharacterWizard ?
+                <StudioCharacterWizardPanel
+                  onComplete={(concept) => {
+                    if (hcProject) {
+                      const next = persistHcProjectWithSync(
+                        persistWizardConceptToHc(hcProject, "character", concept),
+                        { syncToServer: true }
+                      );
+                      setHcProjectLocal(next);
+                    }
+                    setShowCharacterWizard(false);
+                  }}
+                />
+              : (
+                <button
+                  type="button"
+                  onClick={() => setShowCharacterWizard(true)}
+                  className="text-sm font-semibold text-[#006D52] hover:underline"
+                >
+                  {t("studio.characterWizard.open" as never)}
+                </button>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => setStep("brief")} className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  {t("studio.productionBrief.back")}
+                </button>
+                <GradientButton type="button" onClick={() => setStep("route")} className="sm:w-auto">
+                  {t("editor.flow.continue" as never)}
+                </GradientButton>
+              </div>
+            </div>
+          : null}
+
+          {step === "route" && storyPlan ?
+            <div className="space-y-6">
+              <StudioProductionRoutePicker
+                storyPlan={storyPlan}
+                value={productionRoute}
+                onChange={setProductionRoute}
+                aiEverythingMode={selections.aiEverythingMode}
               />
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => setStep("build_story")} className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                  {t("studio.productionBrief.back")}
+                </button>
+                <GradientButton
+                  type="button"
+                  onClick={() => {
+                    persistWorkflow({ phase: "approve", productionRoute, storyPlan });
+                    setStep("preview");
+                  }}
+                  className="sm:w-auto"
+                >
+                  {t("editor.flow.continue" as never)}
+                </GradientButton>
+              </div>
+            </div>
+          : null}
+
+          {step === "preview" && brief && storyPlan ?
+            <div className="space-y-6">
+              {selections.aiEverythingMode ?
+                <StudioAiEverythingPanel
+                  brief={brief}
+                  selections={selections}
+                  hcProject={hcProject}
+                  storyPlan={storyPlan}
+                  onPlanReady={(_plan, nextPlan) => {
+                    setStoryPlan(nextPlan);
+                    persistWorkflow({ phase: "generate", storyPlan: nextPlan, productionRoute: "asset_first" });
+                    setProductionRoute("asset_first");
+                  }}
+                  onComplete={() => void handleCreateStory()}
+                />
+              : null}
+              <StudioConfirmStoryboardPanel
+                brief={brief}
+                selections={selections}
+                storyPlan={storyPlan}
+                onStoryPlanChange={setStoryPlan}
+                onRegenerateAll={() => {
+                  if (!brief) return;
+                  setStoryPlan(buildStoryPlanFromBrief({ brief, selections }));
+                }}
+              />
+              {storyPlan ?
+                <StudioGenerateMissingAssetsPanel
+                  storyPlan={storyPlan}
+                  hcProject={hcProject}
+                  onProjectChange={setHcProjectLocal}
+                />
+              : null}
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setStep("brief")}
+                  onClick={() => setStep("route")}
                   className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                 >
                   {t("studio.productionBrief.back")}

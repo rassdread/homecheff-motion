@@ -14,6 +14,13 @@ import {
   resolveObjectDetectorKind,
   resolveObjectDetectorModelPath,
 } from "@/server/animation-export/local-vision/object-detector-model-paths";
+import {
+  buildOverlayStatusReasons,
+  getSam2OptionalStatus,
+  VISION_ACTIVATION_CHECKLIST,
+  VISION_FEATURE_IMPACT,
+  type StatusReasonDetail,
+} from "@/lib/vision-activation";
 
 export type EngineStatusLabel = "READY" | "ACTIVE" | "FALLBACK" | "DISABLED";
 
@@ -42,6 +49,7 @@ export type OverlayEngineStatusCard = {
 export type OverlayEngineReadiness = {
   checkedAt: string;
   card: OverlayEngineStatusCard;
+  cardReasons: Record<keyof OverlayEngineStatusCard, StatusReasonDetail>;
   readinessScore: number;
   breakdown: {
     placement: number;
@@ -63,6 +71,11 @@ export type OverlayEngineReadiness = {
   };
   inactiveFeatures: string[];
   recommendedNextAction: string;
+  sam2: ReturnType<typeof getSam2OptionalStatus>;
+  featureImpact: typeof VISION_FEATURE_IMPACT;
+  activationChecklist: typeof VISION_ACTIVATION_CHECKLIST;
+  source?: "video-worker" | "app-process";
+  probeWarning?: string;
 };
 
 function envFlag(name: string): boolean {
@@ -366,9 +379,11 @@ export function getOverlayEngineStatus(vision: VisionSetupDiagnostics): OverlayE
   const modelDir = process.env.HC_OBJECT_DETECTOR_MODEL_DIR?.trim() || null;
   const modelPath = process.env.HC_OBJECT_DETECTOR_MODEL_PATH?.trim() || null;
 
+  const card = buildCard(vision, breakdown);
   return {
     checkedAt: new Date().toISOString(),
-    card: buildCard(vision, breakdown),
+    card,
+    cardReasons: buildOverlayStatusReasons(vision),
     readinessScore,
     breakdown,
     capabilities,
@@ -383,6 +398,9 @@ export function getOverlayEngineStatus(vision: VisionSetupDiagnostics): OverlayE
     },
     inactiveFeatures: listInactive(capabilities, vision),
     recommendedNextAction: recommendNextAction(vision),
+    sam2: getSam2OptionalStatus(),
+    featureImpact: VISION_FEATURE_IMPACT,
+    activationChecklist: VISION_ACTIVATION_CHECKLIST,
   };
 }
 

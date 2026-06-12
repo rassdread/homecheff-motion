@@ -42,6 +42,8 @@ export const UNIVERSE_PLANET_NAME_LABEL_CLASS = "universe-planet-name-label";
 
 /** Compact orbit cluster — no portal hover zone */
 export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX = 280;
+/** Service landing — ~18% larger hit area and label clearance */
+export const UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_COMPACT_PX = 330;
 
 /** Rotating capability orbit — 20–30s per revolution */
 export const UNIVERSE_CAPABILITY_ORBIT_DURATION_S = 25;

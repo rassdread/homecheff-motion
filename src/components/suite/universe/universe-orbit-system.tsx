@@ -8,6 +8,7 @@ import {
   UNIVERSE_PLANETS,
   resolveUniverseOrbitPosition,
   UNIVERSE_ORBIT_RADIUS_PERCENT,
+  UNIVERSE_ORBIT_RADIUS_PERCENT_COMPACT,
   type UniversePlanetId,
 } from "@/lib/universe-home-config";
 import type { UniverseParallaxOffset } from "@/hooks/use-universe-parallax";
@@ -27,6 +28,8 @@ type UniverseOrbitSystemProps = {
   globeDebugLayer?: UniverseGlobeDebugLayer | null;
   globeProjectionDebug?: boolean;
   orbitDebug?: boolean;
+  /** hero = homepage; compact = service landing hero (right side) */
+  size?: "hero" | "compact";
   onHoverStart: (id: UniversePlanetId) => void;
   onHoverEnd: () => void;
   onFocus: (id: UniversePlanetId | null) => void;
@@ -42,6 +45,7 @@ export function UniverseOrbitSystem({
   globeDebugLayer = null,
   globeProjectionDebug = false,
   orbitDebug = false,
+  size = "hero",
   onHoverStart,
   onHoverEnd,
   onFocus,
@@ -49,9 +53,15 @@ export function UniverseOrbitSystem({
 }: UniverseOrbitSystemProps) {
   const px = parallax?.x ?? 0;
   const py = parallax?.y ?? 0;
+  const orbitRadius =
+    size === "compact" ? UNIVERSE_ORBIT_RADIUS_PERCENT_COMPACT : UNIVERSE_ORBIT_RADIUS_PERCENT;
+  const containerClass =
+    size === "compact"
+      ? "relative mx-auto aspect-square w-full max-w-[min(50vw,500px)] min-w-[280px] overflow-visible"
+      : "relative mx-auto aspect-square w-full max-w-[min(98vw,880px)] overflow-visible";
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(98vw,880px)] overflow-visible">
+    <div className={containerClass} data-universe-orbit-size={size}>
       <div className="absolute inset-0" style={{ zIndex: UNIVERSE_Z_PIPELINE }}>
         <UniversePipeline hoveredPlanet={hoveredPlanet} />
       </div>
@@ -67,7 +77,7 @@ export function UniverseOrbitSystem({
         <div className="pointer-events-auto">
           <UniverseGlobe
             reducedMotion={reducedMotion}
-            size="hero"
+            size={size === "compact" ? "compact" : "hero"}
             debugLayer={globeDebugLayer}
             projectionDebug={globeProjectionDebug}
           />
@@ -75,7 +85,7 @@ export function UniverseOrbitSystem({
       </div>
 
       {UNIVERSE_PLANETS.map((planet) => {
-        const pos = resolveUniverseOrbitPosition(planet.orbitAngle, UNIVERSE_ORBIT_RADIUS_PERCENT);
+        const pos = resolveUniverseOrbitPosition(planet.orbitAngle, orbitRadius);
         return (
           <div
             key={planet.id}
@@ -101,6 +111,7 @@ export function UniverseOrbitSystem({
               onFocus={onFocus}
               onSelect={onSelect}
               variant="orbit"
+              orbitSize={size}
               orbitDebug={orbitDebug}
             />
           </div>

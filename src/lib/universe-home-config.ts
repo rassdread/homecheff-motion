@@ -10,6 +10,8 @@ export const UNIVERSE_BRAND = {
 
 /** Planet orbit radius as % from center — tuned for hero globe scale */
 export const UNIVERSE_ORBIT_RADIUS_PERCENT = 30;
+/** Service landing compact widget — larger radius keeps labels clear of globe */
+export const UNIVERSE_ORBIT_RADIUS_PERCENT_COMPACT = 36;
 
 export const UNIVERSE_WELCOME_KEYS = [
   "universe.welcome.create",

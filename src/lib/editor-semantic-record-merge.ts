@@ -86,13 +86,13 @@ export function resolveEditorEntityKind(sourceKind: EditorSourceKind): "characte
 
 export function resolveLibraryHref(entityKind: string, assetId: string): string {
   if (entityKind === "upload") {
-    return "/library/creative/uploads";
+    return "/studio/assets/library/uploads";
   }
   if (entityKind === "prop") {
-    return `/library/creative/props/${encodeURIComponent(assetId)}`;
+    return `/studio/assets/creative/props/${encodeURIComponent(assetId)}`;
   }
   if (entityKind === "location") {
-    return `/library/creative/locations/${encodeURIComponent(assetId)}`;
+    return `/studio/assets/creative/locations/${encodeURIComponent(assetId)}`;
   }
-  return `/library/creative/characters/${encodeURIComponent(assetId)}`;
+  return `/studio/assets/creative/characters/${encodeURIComponent(assetId)}`;
 }

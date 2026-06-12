@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { StudioAiWorkflowV2 } from "@/components/studio/studio-ai-workflow-v2";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
@@ -89,6 +90,8 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
             <h2 className="mt-1 text-2xl font-bold text-white sm:text-3xl">{t("studio.home.title")}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70">{t("studio.home.subtitle")}</p>
           </header>
+
+          <StudioAiWorkflowV2 />
 
           <div>
             <h3 className="text-sm font-semibold text-white/90">{t("studio.home.quickActions")}</h3>

@@ -17,12 +17,20 @@ import { detectEditorObjectsApi } from "@/lib/editor-vision-v3-client";
 import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
+import type { StudioAssetKind } from "@/types/studio-asset-creation";
 import type {
   EditorCanvasDocument,
   EditorCanvasLayer,
   EditorDetectionMeta,
   EditorSemanticLayer,
 } from "@/types/homecheff-visual-editor";
+
+function bootstrapStudioSourceKind(document: EditorCanvasDocument): StudioAssetKind {
+  const kind = document.sourceKind;
+  if (kind === "character") return "character";
+  if (kind === "product_photo" || kind === "logo") return "prop";
+  return "character";
+}
 
 function countNonBackgroundLayers(layers: EditorCanvasLayer[]): number {
   return layers.filter((layer) => layer.layerType !== "background").length;
@@ -150,7 +158,7 @@ export async function bootstrapEditorObjectDetection(
 
   const visionRes = await analyzeAssetStyleDnaApi({
     imageUrl: document.backgroundUrl,
-    sourceKind: "character",
+    sourceKind: bootstrapStudioSourceKind(document),
     sourceName: document.name,
     derivationJobId: document.sessionId,
   });

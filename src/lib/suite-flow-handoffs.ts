@@ -23,26 +23,32 @@ export function buildEditorSaveNextActions(params: {
   return [
     { id: "use-studio", labelKey: "suite.flow.useInStudio", href: `/studio${editorQ}`, productId: "studio" },
     { id: "animate-motion", labelKey: "suite.flow.animateInMotion", href: `/animate/instant${motionQ}`, productId: "motion" },
-    { id: "open-library", labelKey: "suite.flow.openLibrary", href: params.assetId ? `/library/creative/characters/${params.assetId}` : "/library", productId: "assets" },
+    { id: "open-library", labelKey: "suite.flow.openLibrary", href: params.assetId ? `/studio/assets/creative/characters/${params.assetId}` : "/studio/assets", productId: "assets" },
     { id: "download", labelKey: "suite.flow.download", href: `/editor${editorQ}`, productId: "editor" },
   ];
 }
 
-export function buildMotionRenderNextActions(params: { projectId: string; videoUrl?: string }): SuiteFlowAction[] {
-  const publishHref = params.videoUrl
-    ? `/publish?video=${encodeURIComponent(params.videoUrl)}&motion=${encodeURIComponent(params.projectId)}`
-    : `/publish?motion=${encodeURIComponent(params.projectId)}`;
+export function buildMotionRenderNextActions(params: {
+  projectId: string;
+  videoUrl?: string;
+  hcProjectId?: string;
+}): SuiteFlowAction[] {
+  const publishHref = params.hcProjectId
+    ? `/publish/start?hcProject=${encodeURIComponent(params.hcProjectId)}`
+    : params.videoUrl
+      ? `/publish?video=${encodeURIComponent(params.videoUrl)}&motion=${encodeURIComponent(params.projectId)}`
+      : `/publish?motion=${encodeURIComponent(params.projectId)}`;
   return [
     { id: "open-publish", labelKey: "suite.flow.openInPublish", href: publishHref, productId: "presentation" },
     { id: "download", labelKey: "suite.flow.download", href: `/videos/${encodeURIComponent(params.projectId)}`, productId: "motion" },
-    { id: "save-library", labelKey: "suite.flow.saveToLibrary", href: "/library/media/videos", productId: "assets" },
+    { id: "save-library", labelKey: "suite.flow.saveToLibrary", href: "/studio/assets/media/videos", productId: "assets" },
   ];
 }
 
 export function buildPublishExportNextActions(params: { projectId: string }): SuiteFlowAction[] {
   return [
     { id: "download", labelKey: "suite.flow.download", href: `/publish?project=${encodeURIComponent(params.projectId)}`, productId: "presentation" },
-    { id: "save-library", labelKey: "suite.flow.saveToLibrary", href: "/library/media/videos", productId: "assets" },
+    { id: "save-library", labelKey: "suite.flow.saveToLibrary", href: "/studio/assets/media/videos", productId: "assets" },
   ];
 }
 

@@ -14,6 +14,7 @@ import {
   UNIVERSE_PLANET_ICON_CLASS,
   UNIVERSE_PLANET_NAME_LABEL_CLASS,
   UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
+  UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_COMPACT_PX,
   UNIVERSE_Z_PLANET,
   UNIVERSE_Z_PLANET_ACTIVE,
 } from "@/lib/universe-planet-ux";
@@ -30,8 +31,17 @@ type UniversePlanetProps = {
   onSelect: (planet: UniversePlanetConfig) => void;
   style?: CSSProperties;
   variant?: "orbit" | "card";
+  /** hero = homepage; compact = service landing */
+  orbitSize?: "hero" | "compact";
   orbitDebug?: boolean;
 };
+
+function resolveOrbitLabelOffset(angleDeg: number, compact: boolean): { x: number; y: number } {
+  if (!compact) return { x: 0, y: 8 };
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  const dist = 14;
+  return { x: Math.cos(rad) * dist, y: Math.sin(rad) * dist + 6 };
+}
 
 export function UniversePlanet({
   planet,
@@ -45,14 +55,21 @@ export function UniversePlanet({
   onSelect,
   style,
   variant = "orbit",
+  orbitSize = "hero",
   orbitDebug = false,
 }: UniversePlanetProps) {
   const t = useActiveTranslator();
   const active = hovered || focused;
   const productName = t(planet.titleKey);
+  const compactOrbit = variant === "orbit" && orbitSize === "compact";
+  const labelOffset = resolveOrbitLabelOffset(planet.orbitAngle, compactOrbit);
 
   const sizeClass =
-    variant === "orbit" ? "h-[100px] w-[100px] sm:h-[110px] sm:w-[110px]" : "h-[88px] w-[88px]";
+    variant === "orbit"
+      ? compactOrbit
+        ? "h-[88px] w-[88px] sm:h-[96px] sm:w-[96px]"
+        : "h-[100px] w-[100px] sm:h-[110px] sm:w-[110px]"
+      : "h-[88px] w-[88px]";
 
   const sphereBg = planet.accentSecondary
     ? `radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35) 0%, transparent 40%),
@@ -71,12 +88,17 @@ export function UniversePlanet({
       style={{
         ...style,
         ...(variant === "orbit"
-          ? {
-              width: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
-              height: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
-              minWidth: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
-              minHeight: UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX,
-            }
+          ? (() => {
+              const clusterPx = compactOrbit
+                ? UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_COMPACT_PX
+                : UNIVERSE_PLANET_ORBIT_CLUSTER_SIZE_PX;
+              return {
+                width: clusterPx,
+                height: clusterPx,
+                minWidth: clusterPx,
+                minHeight: clusterPx,
+              };
+            })()
           : undefined),
         transform: `scale(${hoverScale})`,
         transformOrigin: "center center",
@@ -109,7 +131,9 @@ export function UniversePlanet({
       <button
         type="button"
         onClick={() => onSelect(planet)}
-        className={`universe-planet-sphere relative cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${sizeClass}`}
+        className={`universe-planet-sphere relative cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#041428] ${sizeClass} ${
+          compactOrbit ? "min-h-[88px] min-w-[88px] sm:min-h-[96px] sm:min-w-[96px]" : ""
+        }`}
         style={{
           zIndex: active ? UNIVERSE_Z_PLANET_ACTIVE : UNIVERSE_Z_PLANET,
           transform: active ? "translateZ(12px)" : undefined,
@@ -149,7 +173,14 @@ export function UniversePlanet({
       </button>
 
       <p
-        className={`${UNIVERSE_PLANET_NAME_LABEL_CLASS} pointer-events-none relative z-[88] mt-2`}
+        className={`${UNIVERSE_PLANET_NAME_LABEL_CLASS} pointer-events-none absolute z-[92] ${
+          active ? "shadow-[0_0_20px_rgba(255,255,255,0.25)]" : ""
+        }`}
+        style={{
+          left: "50%",
+          top: "50%",
+          transform: `translate(calc(-50% + ${labelOffset.x}px), calc(-50% + ${labelOffset.y + (compactOrbit ? 52 : 58)}px))`,
+        }}
         aria-hidden
       >
         {productName}

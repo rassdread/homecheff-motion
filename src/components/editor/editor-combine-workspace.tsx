@@ -18,6 +18,12 @@ import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-
 import { EditorFusionCategoryWorkspace } from "@/components/editor/editor-fusion-category-workspace";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
 import { EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
+import { EditorPostGenerationActionCenter } from "@/components/editor/editor-post-generation-action-center";
+import {
+  patchDocumentGenerationPackage,
+  syncTransformationSessionFromVariants,
+} from "@/lib/editor-generation-package";
+import { collectEditorMetadataPipeline, metadataEnrichedGenerationPrompt } from "@/lib/editor-metadata-pipeline";
 import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
 import { buildEditorFusionPrompt } from "@/lib/editor-fusion-prompt-builder";
 import { fusionPlanCostOptions } from "@/lib/editor-fusion-generation-settings";
@@ -62,6 +68,9 @@ export function EditorCombineWorkspace({
   const { access, setCredits } = useEditorUserAccess();
   const [generating, setGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
+  const [lastAccessPath, setLastAccessPath] = useState<
+    "free" | "ad" | "credits" | "subscription" | "premium" | undefined
+  >();
 
   const plan = useMemo(() => {
     const withPlan = ensureCompositionPlan(document);
@@ -178,14 +187,23 @@ export function EditorCombineWorkspace({
     let successfulOutputs = 0;
     let failedOutputs = 0;
     let latestDoc = document;
+    const referenceAssignments = document.instructionStudioState?.referenceIntake?.roleAssignments?.filter(
+      (assignment): assignment is EditorReferenceAssignment =>
+        Boolean(assignment.url && assignment.instanceId && assignment.name)
+    );
+    const metadataPipeline = collectEditorMetadataPipeline(document);
 
     if (isSequence && transformationSession) {
       for (const step of transformationSession.steps) {
-        const stepPrompt = buildTransformationStepPrompt({
-          session: transformationSession,
-          step,
-          userInstruction: fusionPlan?.userInstructions,
-        });
+        const stepPrompt = metadataEnrichedGenerationPrompt(
+          buildTransformationStepPrompt({
+            session: transformationSession,
+            step,
+            userInstruction: fusionPlan?.userInstructions,
+            referenceAssignments,
+          }),
+          document
+        );
         const outcome = await runSingleGeneration(
           stepPrompt,
           `${t("editor.combine.variantName" as never)} ${step.index + 1}/${transformationSession.stepCount}`
@@ -198,24 +216,23 @@ export function EditorCombineWorkspace({
         }
       }
     } else {
-      const prompt =
+      const prompt = metadataEnrichedGenerationPrompt(
         fusionPlan
           ? buildEditorFusionPrompt({
               plan: fusionPlan,
               brandIdentity: resolveCompositionBrandIdentity(recCtx),
               preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
               preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
-              referenceAssignments: document.instructionStudioState?.referenceIntake?.roleAssignments?.filter(
-                (assignment): assignment is EditorReferenceAssignment =>
-                  Boolean(assignment.url && assignment.instanceId && assignment.name)
-              ),
+              referenceAssignments,
             })
           : buildEditorCompositionPrompt({
               plan,
               brandIdentity: resolveCompositionBrandIdentity(recCtx),
               preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
               preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
-            });
+            }),
+        document
+      );
       const outcome = await runSingleGeneration(prompt, t("editor.combine.variantName" as never));
       latestDoc = outcome.nextDoc;
       if (outcome.ok) {
@@ -237,6 +254,22 @@ export function EditorCombineWorkspace({
     const updatedAccess = deductCreditsAfterSuccess(access, accounting.creditsCharged);
     setCredits(updatedAccess.credits);
     persistUserCredits(updatedAccess);
+    setLastAccessPath(accessDecision.accessPath);
+
+    latestDoc = syncTransformationSessionFromVariants(latestDoc);
+    latestDoc = patchDocumentGenerationPackage(latestDoc);
+    if (metadataPipeline.motionQueryParams.referenceMetadata) {
+      latestDoc = {
+        ...latestDoc,
+        instructionStudioState: {
+          ...latestDoc.instructionStudioState,
+          referenceIntake: {
+            ...latestDoc.instructionStudioState?.referenceIntake,
+            motionMetadata: metadataPipeline.motionQueryParams,
+          },
+        },
+      };
+    }
 
     onDocumentChange(latestDoc);
     setStatusMessage(
@@ -326,6 +359,18 @@ export function EditorCombineWorkspace({
         <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
           {statusMessage}
         </p>
+      : null}
+
+      {!generating && (document.instructionStudioState?.generationPackage?.generatedImages.length ?? 0) > 0 ?
+        <EditorPostGenerationActionCenter
+          document={document}
+          resultType={
+            document.instructionStudioState?.referenceIntake?.outputMode === "sequence"
+              ? "sequence"
+              : "image"
+          }
+          lastAccessPath={lastAccessPath}
+        />
       : null}
     </div>
   );

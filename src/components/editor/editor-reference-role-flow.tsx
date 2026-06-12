@@ -2,17 +2,22 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { EditorFlowActionBar, EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
+import { EditorUploadClassifyGate } from "@/components/editor/editor-upload-classify-gate";
 import { EditorGenerationCostPanel } from "@/components/editor/editor-generation-cost-panel";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { EditorReferenceRoleCard } from "@/components/editor/editor-reference-role-card";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
-import { StudioAssetLibraryModal } from "@/components/studio/studio-asset-library-modal";
+import { HomeCheffAssetPickerModal } from "@/components/library/homecheff-asset-picker-modal";
 import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
-import { createEditorDocumentFromLibrarySource, createEditorDocumentFromUpload } from "@/lib/editor-canvas-session";
+import {
+  assetPickerSelectionToDerivationSource,
+  createEditorDocumentFromLibrarySource,
+  createEditorDocumentFromUpload,
+} from "@/lib/editor-canvas-session";
 import { startScreenPhaseToFlowStep } from "@/lib/editor-flow-steps";
 import {
   createIdleReferenceAnalysis,
@@ -38,7 +43,7 @@ import type {
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
-type FlowStep = "reference_roles" | "output_type" | "motion_upsell" | "plan_review";
+type FlowStep = "reference_roles" | "classify" | "output_type" | "motion_upsell" | "plan_review";
 
 type Props = {
   config: EditorWorkflowReferenceConfig;
@@ -267,6 +272,10 @@ export function EditorReferenceRoleFlow({
         setStep("output_type");
         return;
       }
+      setStep("classify");
+      return;
+    }
+    if (step === "classify") {
       setStep("plan_review");
       return;
     }
@@ -295,7 +304,7 @@ export function EditorReferenceRoleFlow({
         setStep("output_type");
         return;
       }
-      setStep("reference_roles");
+      setStep("classify");
       return;
     }
     if (step === "motion_upsell") {
@@ -508,9 +517,7 @@ export function EditorReferenceRoleFlow({
               <p className="font-semibold text-zinc-900">
                 {duration === 0
                   ? t("editor.referenceRole.motion.no" as never)
-                  : duration === 8
-                    ? t("editor.referenceRole.motion.sendToMotion" as never)
-                    : t("editor.referenceRole.motion.duration" as never, { seconds: duration } as never)}
+                  : t("editor.referenceRole.motion.animateNow" as never, { seconds: duration } as never)}
               </p>
             </button>
           );
@@ -550,6 +557,18 @@ export function EditorReferenceRoleFlow({
       {step === "output_type" ? renderOutputType() : null}
       {step === "motion_upsell" ? renderMotionUpsell() : null}
 
+      {step === "classify" ?
+        <div className="mt-6">
+          <EditorUploadClassifyGate
+            uploadUrls={intake.slots.flatMap((slot) =>
+              slot.instances.map((i) => i.document.backgroundUrl).filter(Boolean)
+            )}
+            onConfirm={() => setStep("plan_review")}
+            onBack={() => setStep("reference_roles")}
+          />
+        </div>
+      : null}
+
       {step === "plan_review" ?
         <div className="mt-6 space-y-4" data-testid="reference-plan-review">
           {previewDocument ?
@@ -564,6 +583,7 @@ export function EditorReferenceRoleFlow({
         onContinue={goNext}
         continueDisabled={
           (step === "reference_roles" && (!rolesReady || analysisRunning)) ||
+          (step === "classify" && false) ||
           (step === "plan_review" && !previewDocument)
         }
         continueLabel={
@@ -589,19 +609,14 @@ export function EditorReferenceRoleFlow({
         }}
       />
 
-      <StudioAssetLibraryModal
+      <HomeCheffAssetPickerModal
         open={Boolean(libraryRoleId)}
-        sources={sources}
-        loading={loadingSources}
-        roleLabel={
-          libraryRoleId
-            ? t(config.roles.find((r) => r.id === libraryRoleId)?.labelKey as never)
-            : undefined
-        }
+        initialCategory="images"
         onClose={() => setLibraryRoleId(null)}
-        onSelect={(source) => {
+        onSelect={(asset) => {
           if (libraryRoleId) {
-            addDocumentToRole(libraryRoleId, createEditorDocumentFromLibrarySource(source), source.name);
+            const source = assetPickerSelectionToDerivationSource(asset);
+            addDocumentToRole(libraryRoleId, createEditorDocumentFromLibrarySource(source), asset.name);
           }
           setLibraryRoleId(null);
         }}

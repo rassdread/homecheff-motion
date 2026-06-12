@@ -50,7 +50,9 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
         <>
           <p className="mt-2 text-sm font-medium text-white/82 sm:text-base">{t("universe.hero.leadA")}</p>
           <p className="text-sm font-medium text-white/82 sm:text-base">{t("universe.hero.leadB")}</p>
-          <p className="mt-1 text-xs font-medium tracking-wide text-white/55">{t("universe.hero.taglineAlt")}</p>
+          <p className="mt-1 text-xs font-medium tracking-wide text-white/55">
+            {t("marketing.positioning.tagline")} — {t("marketing.positioning.lead")}
+          </p>
         </>
       )}
 

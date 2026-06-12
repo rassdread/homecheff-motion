@@ -54,8 +54,19 @@ export const studioVisual = {
   mobileNavDrawer:
     "absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-white/[0.13] bg-[#041428]/95 p-3 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
   /** Cards */
+  /** Cards on dark pages — tinted glass, not harsh pure white */
+  cardOnDark:
+    "rounded-2xl border border-white/14 bg-white/[0.08] p-6 text-white shadow-[0_16px_48px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md",
+  cardOnDarkMuted:
+    "rounded-2xl border border-white/12 bg-[#041428]/55 p-5 text-white/90 backdrop-blur-md",
+  headingOnDark: "text-white font-bold tracking-tight",
+  subheadingOnDark: "text-white/85",
+  bodyOnDark: "text-white/75",
+  /** Hub/list cards — soft glass on cinematic bg */
   cardLight:
     "rounded-2xl border border-white/15 bg-white/[0.94] p-6 text-zinc-900 shadow-[0_16px_48px_-24px_rgba(0,0,0,0.45)] backdrop-blur-md",
+  hubCard:
+    "rounded-2xl border border-white/14 bg-white/[0.94] p-4 text-zinc-900 shadow-[0_12px_40px_-20px_rgba(0,103,177,0.2)] backdrop-blur-sm",
   cardGlass:
     "rounded-2xl border border-white/12 bg-white/8 p-6 text-white shadow-[0_12px_40px_-20px_rgba(0,103,177,0.25)] backdrop-blur-xl",
   cardElevated:

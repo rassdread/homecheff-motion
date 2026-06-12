@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
+import { UniverseLandingOrbitWidget } from "@/components/suite/universe/universe-landing-orbit-widget";
+import { ServiceLandingNav } from "@/components/suite/service-landing-nav";
+import { SpaceGallery } from "@/components/examples/space-gallery";
+import { listExamplesForService } from "@/lib/homecheff-examples";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioProductLandingConfig } from "@/lib/studio-product-landing-config";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -16,16 +20,31 @@ type Props = {
   continueCard?: StudioProductLandingContinue | null;
 };
 
+function categoryDescKey(categoryKey: string): string {
+  return `${categoryKey}.desc`;
+}
+
 export function StudioProductLandingPage({ config, continueCard }: Props) {
   const t = useActiveTranslator();
+  const examples = listExamplesForService(
+    config.moduleKey === "usage" || config.moduleKey === "library" ? "home" : config.moduleKey
+  );
 
   return (
     <main className={`relative flex-1 overflow-hidden ${studioVisual.pageBg}`} data-testid={`landing-${config.moduleKey}`}>
       <UniverseBackground />
-      <div className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-16 sm:px-8 sm:pt-20 lg:pt-24">
-        <div className="max-w-3xl">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-12 sm:px-8 lg:pt-16">
+        <ServiceLandingNav current={config.moduleKey} />
+
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,500px)] lg:gap-10">
+          <div className="min-w-0 max-w-3xl">
+          {config.positioningKey ?
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#5eb8e8]">
+              {t(config.positioningKey)}
+            </p>
+          : null}
           <p
-            className="text-xs font-semibold uppercase tracking-[0.2em]"
+            className={`text-xs font-semibold uppercase tracking-[0.2em] ${config.positioningKey ? "mt-2" : ""}`}
             style={{ color: config.accentColor }}
           >
             {t(config.eyebrowKey)}
@@ -59,8 +78,42 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
             <Link href={config.secondaryCtaHref} className={studioVisual.btnOutline}>
               {t(config.secondaryCtaKey)}
             </Link>
+            {config.tertiaryCtaKey && config.tertiaryCtaHref ?
+              <Link href={config.tertiaryCtaHref} className={studioVisual.btnOutline}>
+                {t(config.tertiaryCtaKey)}
+              </Link>
+            : null}
+          </div>
+          </div>
+
+          <div className="flex items-center justify-center pt-6 lg:justify-end lg:pt-4">
+            <div className="w-full max-w-[min(92vw,500px)] scale-[0.92] sm:scale-100 lg:max-w-none">
+              <UniverseLandingOrbitWidget />
+            </div>
           </div>
         </div>
+
+        {examples.length > 0 ?
+          <section className="relative mt-16" aria-labelledby={`${config.moduleKey}-space-gallery`}>
+            <h2 id={`${config.moduleKey}-space-gallery`} className="text-xl font-bold text-white">
+              {t("examples.gallery.title" as never)}
+            </h2>
+            <SpaceGallery examples={examples} />
+          </section>
+        : null}
+
+        {config.durationKeys && config.durationKeys.length > 0 ?
+          <div className="mt-12 flex flex-wrap gap-3">
+            {config.durationKeys.map((key) => (
+              <span
+                key={key}
+                className="rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white"
+              >
+                {t(key)}
+              </span>
+            ))}
+          </div>
+        : null}
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {config.featureCardKeys.map((key) => (
@@ -69,6 +122,52 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
             </article>
           ))}
         </div>
+
+        {config.categoryKeys && config.categoryKeys.length > 0 ?
+          <section className="mt-14" aria-labelledby={`${config.moduleKey}-categories`}>
+            <h2 id={`${config.moduleKey}-categories`} className="text-xl font-bold text-white">
+              {t("landing.shared.whatCanICreate" as never)}
+            </h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {config.categoryKeys.map((key) => (
+                <article key={key} className={studioVisual.cardGlass}>
+                  <p className="text-sm font-semibold text-white">{t(key)}</p>
+                  <p className="mt-1 text-xs text-white/65">{t(categoryDescKey(key) as never)}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        : null}
+
+        {config.exampleCreationKeys && config.exampleCreationKeys.length > 0 ?
+          <section className="mt-14" aria-labelledby={`${config.moduleKey}-examples`}>
+            <h2 id={`${config.moduleKey}-examples`} className="text-xl font-bold text-white">
+              {t("landing.shared.examples" as never)}
+            </h2>
+            <ul className="mt-4 space-y-2 text-sm text-white/78">
+              {config.exampleCreationKeys.map((key) => (
+                <li key={key} className={studioVisual.cardGlass}>
+                  {t(key)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        : null}
+
+        {config.valuePropKeys && config.valuePropKeys.length > 0 ?
+          <section className="mt-14" aria-labelledby={`${config.moduleKey}-value-props`}>
+            <h2 id={`${config.moduleKey}-value-props`} className="text-xl font-bold text-white">
+              {t("landing.shared.workflowValue" as never)}
+            </h2>
+            <ul className="mt-4 space-y-3">
+              {config.valuePropKeys.map((key) => (
+                <li key={key} className={`${studioVisual.cardGlass} text-sm text-white/82`}>
+                  {t(key)}
+                </li>
+              ))}
+            </ul>
+          </section>
+        : null}
 
         {config.workflowStepKeys.length > 0 ?
           <ol className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,6 +187,24 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
           </ul>
         : null}
 
+        {config.showPricingEducation ?
+          <section className={`mt-12 ${studioVisual.cardGlass}`}>
+            <h2 className="text-lg font-bold text-white">{t("marketing.freePremium.title")}</h2>
+            <p className="mt-2 text-sm text-white/72">{t("marketing.freePremium.lead")}</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 text-sm text-white/75">
+              <div>
+                <p className="font-semibold text-white">{t("marketing.freePremium.free.title")}</p>
+                <p className="mt-1">• {t("marketing.freePremium.free.ads")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">{t("marketing.freePremium.premium.title")}</p>
+                <p className="mt-1">• {t("marketing.freePremium.premium.generations")}</p>
+                <p>• {t("marketing.freePremium.premium.sequences")}</p>
+              </div>
+            </div>
+          </section>
+        : null}
+
         {config.examplePromptKeys.length > 0 ?
           <div className="mt-10 flex flex-wrap gap-2">
             {config.examplePromptKeys.map((key) => (
@@ -100,6 +217,20 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
             ))}
           </div>
         : null}
+
+        <div className="mt-12 flex flex-wrap gap-3 border-t border-white/10 pt-8">
+          <Link href={config.primaryCtaHref} className={studioVisual.btnGradientPrimary}>
+            {t(config.primaryCtaKey)}
+          </Link>
+          <Link href={config.secondaryCtaHref} className={studioVisual.btnOutline}>
+            {t(config.secondaryCtaKey)}
+          </Link>
+          {config.tertiaryCtaKey && config.tertiaryCtaHref ?
+            <Link href={config.tertiaryCtaHref} className={studioVisual.btnOutline}>
+              {t(config.tertiaryCtaKey)}
+            </Link>
+          : null}
+        </div>
       </div>
     </main>
   );

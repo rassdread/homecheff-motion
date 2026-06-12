@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { AppCard } from "@/components/ui/app-card";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator } from "@/i18n/client";
@@ -29,8 +30,8 @@ export function StudioAuthGate({
   if (!session.resolved) {
     return (
       <main className={`flex-1 ${brand.softGradientBg}`}>
-        <section className="mx-auto max-w-lg px-6 py-16 text-center text-sm text-zinc-500">
-          {t("button.loading")}
+        <section className="mx-auto flex max-w-lg flex-col items-center px-6 py-16">
+          <HomeCheffOrbitLoader state="loading" size="md" />
         </section>
       </main>
     );

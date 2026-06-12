@@ -47,19 +47,33 @@ export function buildReferenceMetadataPromptLines(assignments: EditorReferenceAs
     }
   }
 
-  const outfitFront = assignments.find(
-    (a) => a.metadata?.clothingType && a.metadata.view === "front"
-  );
-  const outfitBack = assignments.find(
-    (a) => a.metadata?.clothingType && a.metadata.view === "back"
-  );
-  if (outfitFront && outfitBack) {
-    lines.push("- Use outfit front and back references to reconstruct the clothing.");
-  }
-
   const familyRefs = assignments.filter((a) => a.metadata?.familyType);
+  if (familyRefs.length >= 1) {
+    lines.push("- Use maternal and paternal aging references when available.");
+  }
   if (familyRefs.length >= 2) {
     lines.push("- Use family references to infer aging and identity features.");
+  }
+  if (familyRefs.length >= 3) {
+    lines.push("- Use extended family references for aging estimation.");
+  }
+
+  const clothingByType = new Map<string, EditorReferenceAssignment[]>();
+  for (const assignment of assignments) {
+    if (!assignment.metadata?.clothingType) {
+      continue;
+    }
+    const key = assignment.metadata.clothingType;
+    clothingByType.set(key, [...(clothingByType.get(key) ?? []), assignment]);
+  }
+  if (clothingByType.size >= 2) {
+    lines.push("- Create one complete outfit using all uploaded clothing references.");
+    for (const [type, items] of clothingByType.entries()) {
+      const views = items.map((i) => i.metadata?.view).filter(Boolean);
+      lines.push(`- Use ${type.replace(/_/g, " ")} reference${items.length > 1 ? "s" : ""}${views.length ? ` (${views.join(", ")})` : ""} for outfit reconstruction.`);
+    }
+  } else if (assignments.filter((a) => a.role === "outfit" || a.metadata?.clothingType).length >= 2) {
+    lines.push("- Use outfit front and back references to reconstruct the clothing.");
   }
 
   const animalSide = assignments.find(

@@ -3,6 +3,7 @@ import { logOcrPerf } from "@/lib/ocr-performance-log";
 import { OCR_DETECT_SERVER_TIMEOUT_MS } from "@/lib/instant-ocr-scan";
 import type { OcrDetectMode } from "@/lib/instant-ocr-scan";
 import { detectTextBlocksFromImageUrl } from "@/server/image-text-detection";
+import { getOcrHealthSnapshot } from "@/server/image-text-detection/ocr-health";
 import type { ImageTextDetectionResult } from "@/server/image-text-detection/types";
 
 export class OcrDetectTimeoutError extends Error {
@@ -25,7 +26,8 @@ export async function detectTextBlocksFromImageUrlWithTimeout(
 ): Promise<ImageTextDetectionResult> {
   const mode = options?.mode ?? "fast";
   const started = Date.now();
-  logOcrDetect("start", { scanRequestId, mode, imageUrl: imageUrl.slice(0, 80) });
+  const providerName = getOcrHealthSnapshot().provider;
+  logOcrDetect("start", { scanRequestId, mode, imageUrl: imageUrl.slice(0, 80), provider: providerName });
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -33,7 +35,13 @@ export async function detectTextBlocksFromImageUrlWithTimeout(
       detectTextBlocksFromImageUrl(imageUrl, { mode }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
-          () => reject(new OcrDetectTimeoutError("OpenAI OCR timed out.", "openai")),
+          () =>
+            reject(
+              new OcrDetectTimeoutError(
+                `${providerName === "google" ? "Google Vision" : providerName === "openai" ? "OpenAI Vision" : "OCR"} timed out.`,
+                providerName === "google" ? "google" : "openai"
+              )
+            ),
           OCR_DETECT_SERVER_TIMEOUT_MS
         );
       }),

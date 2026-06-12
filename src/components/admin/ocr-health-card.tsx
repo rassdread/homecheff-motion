@@ -9,11 +9,13 @@ type OcrHealthResponse = {
   ok: boolean;
   provider: "openai" | "google" | "none";
   hasOpenAiKey: boolean;
+  hasGoogleKey?: boolean;
   model: string | null;
   errors: string[];
   checkedAt?: string;
   checkOk?: boolean;
   checkErrorCode?: string;
+  statusReason?: string;
 };
 
 function StatusSpinner() {
@@ -134,6 +136,10 @@ export function OcrHealthCard() {
           {t("admin.ocrHealth.apiChecking")}
         </p>
       ) : null}
+
+      {data?.statusReason && !loading ?
+        <p className="mt-3 rounded-md bg-zinc-50 px-3 py-2 text-xs text-zinc-700">{data.statusReason}</p>
+      : null}
 
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between gap-4">

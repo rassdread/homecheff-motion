@@ -47,11 +47,21 @@ export type PublishProject = {
   overlays: PublishOverlay[];
   subtitles: PublishSubtitleSegment[];
   status: "draft" | "ready" | "exported";
-  source: "upload" | "motion" | "standalone";
+  source: "upload" | "motion" | "standalone" | "editor";
   motionProjectId?: string;
+  mediaKind?: PublishProjectMediaKind;
+  imageUrl?: string;
+  imageUrls?: string[];
+  editorSessionId?: string;
+  publishIntent?: string;
+  generationPackageId?: string;
+  workflow?: string;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };
+
+export type PublishProjectMediaKind = "video" | "image" | "carousel";
 
 export type PublishSubtitleSegment = {
   id: string;

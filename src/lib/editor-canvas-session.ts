@@ -218,6 +218,30 @@ export function mapLibrarySourceKind(source: AssetDerivationSourceListItem): Edi
   return "generated";
 }
 
+export function assetPickerSelectionToDerivationSource(
+  asset: { id: string; name: string; url?: string; storageKey?: string; category: string }
+): AssetDerivationSourceListItem {
+  const kindMap: Record<string, AssetDerivationSourceListItem["kind"]> = {
+    characters: "character",
+    locations: "location",
+    props: "prop",
+    worlds: "world",
+    images: "prop",
+    generated: "prop",
+    voice: "character",
+    music: "character",
+  };
+  return {
+    sourceType: "library_asset",
+    kind: kindMap[asset.category] ?? "prop",
+    assetId: asset.id,
+    name: asset.name,
+    referenceImageUrl: asset.url ?? "",
+    referenceStorageKey: asset.storageKey ?? "",
+    thumbnailUrl: asset.url ?? "",
+  };
+}
+
 export function createEditorDocumentFromLibrarySource(
   source: AssetDerivationSourceListItem
 ): EditorCanvasDocument {

@@ -18,8 +18,8 @@ export function AppShell({ children }: AppShellProps) {
       <I18nHydrationSync />
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
-        <nav className={`${studioVisual.headerInner} relative !flex !flex-row !items-center`}>
-          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+        <nav className={`${studioVisual.headerInner} items-center`}>
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3 lg:pr-4">
             <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-2.5">
               <div className={studioVisual.logoMark}>
                 <div
@@ -28,16 +28,14 @@ export function AppShell({ children }: AppShellProps) {
               </div>
               <span className={studioVisual.logoText}>{brand.studioProductName}</span>
             </Link>
+          </div>
+
+          <div className="hidden min-w-0 justify-center overflow-x-auto lg:flex lg:px-2">
+            <AppShellPrimaryNav variant="desktop" />
+          </div>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
             <LanguageSwitch />
-          </div>
-
-          <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 lg:block">
-            <div className="pointer-events-auto">
-              <AppShellPrimaryNav variant="desktop" />
-            </div>
-          </div>
-
-          <div className="ml-auto flex shrink-0 items-center gap-2">
             <div className="hidden lg:block">
               <AppShellUserBar />
             </div>

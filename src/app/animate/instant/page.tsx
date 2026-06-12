@@ -20,11 +20,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
+import { MotionBeginnerCollectShell } from "@/components/motion/motion-beginner-collect-shell";
 import { InstantWizardContent } from "@/components/instant/instant-wizard-content";
 import { InstantWizardFooter } from "@/components/instant/instant-wizard-footer";
 import { InstantWizardResetDialog } from "@/components/instant/instant-wizard-reset-dialog";
 import { InstantWizardShell } from "@/components/instant/instant-wizard-shell";
 import { InstantWizardToast } from "@/components/instant/instant-wizard-toast";
+import { HcMotionBootstrapBridge } from "@/components/projects/hc-motion-bootstrap-bridge";
+import { HcInstantProjectBar } from "@/components/projects/hc-instant-project-bar";
 import { EditorMotionBootstrapBridge } from "@/components/editor/editor-motion-bootstrap-bridge";
 import { EditorMotionBootstrapApply } from "@/components/instant/editor-motion-bootstrap-apply";
 import { isActiveOcrScanPhase } from "@/lib/instant-ocr-scan";
@@ -1559,6 +1562,8 @@ export default function InstantPremiumPage() {
   return (
     <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
       <EditorMotionBootstrapBridge />
+      <HcMotionBootstrapBridge />
+      <HcInstantProjectBar />
       <EditorMotionBootstrapApply
         sceneSlots={sceneSlots}
         setSceneSlots={setSceneSlots}
@@ -1566,6 +1571,7 @@ export default function InstantPremiumPage() {
         instantMode={instantMode}
       />
       <div className="mx-auto w-full max-w-xl px-4 py-8 sm:max-w-2xl sm:px-6">
+        <MotionBeginnerCollectShell beginnerMode={wizardMode === "beginner"}>
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
@@ -2392,6 +2398,7 @@ export default function InstantPremiumPage() {
             stackButtons={wizardNav.stackButtons}
           />
         </InstantWizardShell>
+        </MotionBeginnerCollectShell>
       </div>
 
       <CheckoutScanGateDialog

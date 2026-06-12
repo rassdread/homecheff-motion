@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useActiveTranslator } from "@/i18n/client";
-import { brand } from "@/lib/brand";
 import { fetchAssetsHubCounts } from "@/lib/studio-asset-lifecycle-client";
+import { studioVisual } from "@/lib/studio-visual-tokens";
 import {
   ASSETS_HUB_GROUPS,
   getHubSectionsForGroup,
@@ -34,28 +35,30 @@ export function StudioAssetsHub() {
 
   return (
     <StudioAuthGate>
-      <main className={`flex-1 ${brand.softGradientBg}`}>
+      <main className={`flex-1 ${studioVisual.pageBg}`}>
         <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
           <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#006D52]">
-                {t("studio.assetsHub.eyebrow")}
+              <p className={`text-xs font-semibold uppercase tracking-widest ${studioVisual.eyebrowOnDark}`}>
+                {t("platform.hub.assetHub" as never)}
               </p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">
+              <h1 className={`mt-1 text-2xl sm:text-3xl ${studioVisual.headingOnDark}`}>
                 {t("studio.assetsHub.title")}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">{t("studio.assetsHub.subtitle")}</p>
+              <p className={`mt-2 max-w-2xl text-sm ${studioVisual.bodyOnDark}`}>{t("studio.assetsHub.subtitle")}</p>
             </div>
             <Link
               href="/studio/assets/browse"
-              className="inline-flex min-h-[44px] items-center rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-5 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/10"
+              className={`inline-flex min-h-[44px] items-center rounded-full border border-white/20 bg-white/10 px-5 text-sm font-semibold ${studioVisual.headingOnDark} hover:bg-white/15`}
             >
               {t("studio.assetsHub.browseAll")}
             </Link>
           </header>
 
           {loading ?
-            <p className="mt-8 text-sm text-slate-600">{t("button.loading")}</p>
+            <div className="mt-8 flex justify-center py-12">
+              <HomeCheffOrbitLoader state="loading" size="lg" />
+            </div>
           : (
             <div className="mt-8 space-y-8">
               {ASSETS_HUB_GROUPS.map((group) => (
