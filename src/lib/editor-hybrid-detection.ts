@@ -250,7 +250,7 @@ function mergeVisionLayersWithOnnx(
           approximateSelection: false,
         },
       });
-    } else if (!visionLayer.metadata?.estimatedBounds) {
+    } else {
       merged.push(visionLayer);
     }
   }

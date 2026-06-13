@@ -11,6 +11,8 @@ import { EditorClickTraceDebugPanel } from "@/components/editor/editor-click-tra
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorHumanObjectList } from "@/components/editor/editor-human-object-list";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
+import { EditorVisionHierarchyPanel } from "@/components/editor/editor-vision-hierarchy-panel";
+import { EditorDetectionStatusBanner } from "@/components/editor/editor-detection-status-banner";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
 import { EditorObjectActionMenu } from "@/components/editor/editor-object-action-menu";
 import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-placement-properties-panel";
@@ -112,7 +114,7 @@ import {
   editorMaskActionRequiresAiBackend,
 } from "@/lib/editor-mask-actions";
 import { syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
-import type { EditorShapePoint } from "@/types/homecheff-visual-editor";
+import type { EditorShapePoint, EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
 import {
   DEFAULT_CHARACTER_BODY_DESIGNER_PARAMS,
   EDITOR_WORKSPACE_MODES,
@@ -619,6 +621,19 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     } else if (layer) {
       setClickDebugHandler("selectLayer→selectOnly");
       setSaveMessage(t(autoMaskProgressMessageKey("selecting") as never));
+    }
+  };
+
+  const selectVisionHierarchyNode = (node: EditorVisionHierarchyNode) => {
+    if (node.partId && node.objectId) {
+      const root = (document.detectedObjects ?? []).find((o) => o.id === node.objectId);
+      if (root) {
+        selectLayer(root.layerId, node.partId);
+      }
+      return;
+    }
+    if (node.layerId) {
+      selectLayer(node.layerId);
     }
   };
 
@@ -2283,6 +2298,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 </p>
               : null}
 
+              <EditorDetectionStatusBanner meta={document.detectionMeta} />
+
               <EditorHumanObjectList
                 layers={document.objects}
                 selectedLayerId={selectedLayerId}
@@ -2701,6 +2718,18 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 humanFirst={!showAiAnalysis}
                 showAiAnalysis={showAiAnalysis}
               />
+              {(document.visionHierarchy?.length ?? 0) > 0 ? (
+                <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
+                  <EditorVisionHierarchyPanel
+                    hierarchy={document.visionHierarchy ?? []}
+                    selectedNodeId={
+                      hierarchicalSelection.selectedPartId ??
+                      selectedLayerId
+                    }
+                    onSelectNode={selectVisionHierarchyNode}
+                  />
+                </div>
+              ) : null}
               {document.placements.length > 0 ?
                 <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
                   <p className="text-xs font-semibold uppercase text-zinc-500">{t("editor.placement.listTitle")}</p>

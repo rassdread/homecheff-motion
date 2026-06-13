@@ -5,6 +5,14 @@ import {
 } from "@/lib/video-render-mode";
 import type { VideoHealthResponse } from "@/lib/video-ffmpeg-capability";
 import type { VisionSetupDiagnostics } from "@/server/animation-export/local-vision/vision-setup-validation";
+import type { ObjectDetectionResult } from "@/server/animation-export/local-vision/object-detector-types";
+
+export type WorkerVisionDetectResponse = ObjectDetectionResult & {
+  inferenceMs: number;
+  detectedAt: string;
+  backend: "local";
+  service?: string;
+};
 
 export type WorkerHealthResponse = VideoHealthResponse & {
   service?: string;
@@ -153,6 +161,27 @@ export function triggerWorkerLanguageExport(exportId: string): void {
       });
     }
   );
+}
+
+export async function requestWorkerVisionDetect(input: {
+  imageUrl?: string;
+  imagePath?: string;
+  imageBase64?: string;
+}): Promise<WorkerVisionDetectResponse> {
+  const res = await fetch(`${workerBaseUrl()}/vision/detect`, {
+    method: "POST",
+    headers: workerHeaders(),
+    body: JSON.stringify(input),
+    signal: AbortSignal.timeout(25_000),
+    cache: "no-store",
+  });
+  const body = (await res.json().catch(() => ({}))) as WorkerVisionDetectResponse & {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.error ?? `Worker vision detect failed (${res.status})`);
+  }
+  return body;
 }
 
 export async function requestWorkerLanguageExportRender(

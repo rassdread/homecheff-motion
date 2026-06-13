@@ -80,19 +80,18 @@ describe("getOverlayEngineStatus", () => {
     assert.match(status.cardReasons.safeZones.reason, /HC_ENABLE_OBJECT_SAFE_ZONES/);
     assert.equal(status.card.objectDetection, "DISABLED");
     assert.equal(status.card.typography, "ACTIVE");
-    assert.equal(status.card.placement, "ACTIVE");
+    assert.equal(status.card.placement, "FALLBACK");
     assert.equal(status.card.timing, "ACTIVE");
     assert.ok(status.readinessScore > 0 && status.readinessScore <= 100);
     assert.ok(status.capabilities.some((c) => c.id === "safe_zone_v1" && c.usedInRenderPipeline));
   });
 
-  it("reports READY object detection when flag on and probe ready", () => {
-    process.env.HC_ENABLE_OBJECT_SAFE_ZONES = "1";
+  it("reports ACTIVE when worker diagnostics show flag on without app env", () => {
+    delete process.env.HC_ENABLE_OBJECT_SAFE_ZONES;
     const status = getOverlayEngineStatus(readyObjectVision());
-    assert.equal(status.card.objectDetection, "READY");
-    assert.equal(status.card.safeZones, "READY");
-    const rtdetr = status.capabilities.find((c) => c.id === "rtdetr");
-    assert.ok(rtdetr?.usedInRenderPipeline);
+    assert.equal(status.card.objectDetection, "ACTIVE");
+    assert.equal(status.card.safeZones, "ACTIVE");
+    assert.equal(status.env.HC_ENABLE_OBJECT_SAFE_ZONES, true);
   });
 
   it("lists inactive local vision when flags off", () => {

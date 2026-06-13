@@ -373,6 +373,27 @@ export type EditorObjectPart = {
   estimatedBounds?: boolean;
 };
 
+export type EditorVisionHierarchyCategory =
+  | "objects"
+  | "face"
+  | "clothing"
+  | "branding"
+  | "style"
+  | "background";
+
+export type EditorVisionHierarchyNode = {
+  id: string;
+  label: string;
+  category: EditorVisionHierarchyCategory;
+  layerId?: string;
+  partId?: string;
+  objectId?: string;
+  bbox?: EditorCanvasBounds;
+  editable: boolean;
+  estimated?: boolean;
+  children: EditorVisionHierarchyNode[];
+};
+
 export type EditorObjectHierarchy = {
   rootObjectId: string;
   rootLayerId: string;
@@ -556,16 +577,26 @@ export type EditorVisionMetricsSnapshot = {
   failedObjectEdits: number;
   onnxDetectionCount?: number;
   hybridMergeCount?: number;
+  lastDetectionAt?: string | null;
+  lastDetectionCount?: number;
+  lastInferenceMs?: number | null;
+  lastInferenceError?: string | null;
+  lastInferenceSource?: "onnx" | "vision" | "hybrid" | null;
   updatedAt: string;
 };
 
 export type EditorDetectionMeta = {
   source: "onnx" | "vision" | "hybrid" | "brand_sheet" | "onnx_only" | "heuristic";
+  /** Unified detection backbone (Editor Vision V5). */
+  backend?: "video-worker" | "local" | "fallback" | "unavailable";
+  status?: "active" | "fallback" | "unavailable";
   detectorKind?: string;
   count: number;
   onnxAvailable: boolean;
   bootstrapAttempted?: boolean;
   noObjectsFound?: boolean;
+  inferenceMs?: number;
+  lastDetectedAt?: string;
   userMessageKey?: string;
 };
 
@@ -974,8 +1005,12 @@ export type EditorCanvasDocument = {
   editJobs?: EditorMaskEditJob[];
   visionMetrics?: EditorVisionMetricsSnapshot;
   detectionMeta?: EditorDetectionMeta;
+  /** OpenAI/vision analysis from bootstrap (style, colors, features). */
+  visionAnalysis?: import("@/types/studio-asset-vision-analysis").AssetVisionAnalysis;
   /** Part hierarchies keyed by root EditorObject id. */
   objectHierarchies?: Record<string, EditorObjectHierarchy>;
+  /** Vision V4 expandable analysis tree (objects, face, clothing, branding, style). */
+  visionHierarchy?: EditorVisionHierarchyNode[];
   partLibraryAssets?: EditorPartLibraryAsset[];
   hierarchicalSelection?: EditorHierarchicalSelectionState;
   studioMotionHandoff?: EditorStudioMotionHandoff;

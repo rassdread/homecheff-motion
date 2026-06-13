@@ -6,6 +6,7 @@ import { OcrHealthCard } from "@/components/admin/ocr-health-card";
 import { OverlayEngineStatusCard } from "@/components/admin/overlay-engine-status-card";
 import { EditorVisionMetricsCard } from "@/components/admin/editor-vision-metrics-card";
 import { VisionHealthCard } from "@/components/admin/vision-health-card";
+import { StudioFinanceCard } from "@/components/admin/studio-finance-card";
 import { VideoCreditsCard } from "@/components/admin/video-credits-card";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
@@ -18,6 +19,7 @@ export default function AdminDashboardPage() {
       <h1 className="text-2xl font-semibold text-zinc-900">{t("admin.dashboard.title")}</h1>
       <p className="mt-2 text-sm text-zinc-600">{t("admin.dashboard.intro")}</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StudioFinanceCard />
         <VideoCreditsCard />
         <VideoStorageAuditCard />
         <OverlayEngineStatusCard />

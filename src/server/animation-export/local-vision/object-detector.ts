@@ -350,7 +350,17 @@ export async function detectWithObjectDetector(imagePath: string): Promise<Objec
     return { detections: [] };
   }
 
-  return detectObjectsForEditor(imagePath);
+  const { resolveObjectDetections } = await import("@/lib/vision/unified-detection-client");
+  const result = await resolveObjectDetections({
+    imagePath,
+    consumer: "safe_zones",
+  });
+  return {
+    detections: result.detections,
+    failed: result.failed,
+    error: result.error,
+    detectorKind: result.detectorKind,
+  };
 }
 
 /** Editor analysis — runs ONNX detection when model/runtime is available (no safe-zone flag). */

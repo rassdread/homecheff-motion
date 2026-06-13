@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { withStudioCreditGate } from "@/server/studio-account/with-studio-credit-gate";
 import { executeEditorInstructionVariant } from "@/server/editor/editor-instruction-variant-service";
 import type {
   EditorInstructionReference,
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     references?: EditorInstructionReference[];
     variantName?: string;
     parentVariantId?: string | null;
+    confirmed?: boolean;
   };
 
   try {
@@ -94,15 +96,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid instruction payload." }, { status: 400 });
   }
 
-  const result = await executeEditorInstructionVariant({
-    userId: user.id,
-    sessionId,
-    imageUrl,
-    prompt,
-    instruction,
-    references: body.references,
+  const gated = await withStudioCreditGate({
+    user,
+    actionType: "image_generation",
+    confirmed: body.confirmed,
+    execute: () =>
+      executeEditorInstructionVariant({
+        userId: user.id,
+        sessionId,
+        imageUrl,
+        prompt,
+        instruction,
+        references: body.references,
+      }),
+    isFailure: (result) => !result.ok,
   });
 
+  if ("blocked" in gated) {
+    return gated.blocked;
+  }
+
+  const result = gated.result;
   if (!result.ok) {
     return NextResponse.json(
       { ok: false, error: result.message, code: result.code },

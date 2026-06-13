@@ -11,6 +11,7 @@ import {
 } from "@/lib/editor-non-destructive";
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
+import { buildEditorVisionHierarchy } from "@/lib/editor-vision-v4-hierarchy";
 import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
 import { refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
@@ -123,6 +124,15 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     document.motionPreparations ?? buildEditorMotionPreparations(detectedObjects, document.objects);
   const hierarchicalSelection =
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
+  const visionHierarchy =
+    document.visionHierarchy ??
+    buildEditorVisionHierarchy({
+      objects: detectedObjects,
+      layers: document.objects,
+      semanticLayers,
+      objectHierarchies,
+      vision: document.visionAnalysis,
+    });
   const withHandoff = attachStudioMotionHandoff({
     ...ensureEditorNonDestructiveState(document),
     semanticLayers,
@@ -130,6 +140,7 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     textLayers,
     motionPreparations,
     objectHierarchies,
+    visionHierarchy,
     hierarchicalSelection,
     workspaceMode: document.workspaceMode ?? "instruction_studio",
     importedLayers: document.importedLayers ?? [],

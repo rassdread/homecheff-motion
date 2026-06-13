@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { withStudioCreditGate } from "@/server/studio-account/with-studio-credit-gate";
 import { parseSubtitleEntriesJson } from "@/lib/studio-subtitle-track";
 import { generateStoryboardVoice } from "@/server/studio/generate-storyboard-voice";
 import { getStudioStoryboardById } from "@/server/studio/studio-storyboard-service";
@@ -59,25 +60,41 @@ export async function POST(request: Request, context: RouteContext) {
 
   let language: string | undefined;
   let forceMock = false;
+  let confirmed = false;
   try {
     const body = (await request.json().catch(() => ({}))) as {
       language?: string;
       mock?: boolean;
+      confirmed?: boolean;
     };
     language = body.language?.trim().toLowerCase().slice(0, 2);
     forceMock = body.mock === true || process.env.NODE_ENV === "test";
+    confirmed = body.confirmed === true;
   } catch {
     /* empty body ok */
   }
 
-  const result = await generateStoryboardVoice({
+  const gated = await withStudioCreditGate({
+    user,
+    actionType: "voice_generation",
+    projectId: id,
+    confirmed,
+    execute: () =>
+      generateStoryboardVoice({
     storyboard,
     ownerId: storyboard.ownerId,
     language:
       language && isStudioVoiceExecutionLanguage(language) ? language : undefined,
-    forceProvider: forceMock ? "mock" : undefined,
+        forceProvider: forceMock ? "mock" : undefined,
+      }),
+    isFailure: (result) => "error" in result,
   });
 
+  if ("blocked" in gated) {
+    return gated.blocked;
+  }
+
+  const result = gated.result;
   if ("error" in result) {
     return NextResponse.json(
       { error: result.error.message, code: result.error.code },

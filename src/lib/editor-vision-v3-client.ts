@@ -1,8 +1,7 @@
 import type { EditorDetectionMeta, EditorMaskEditJob } from "@/types/homecheff-visual-editor";
-import type { ObjectDetectionResult } from "@/server/animation-export/local-vision/object-detector-types";
+import type { UnifiedDetectionResult } from "@/lib/vision/unified-detection-types";
 
-export type EditorDetectApiResponse = ObjectDetectionResult & {
-  available: boolean;
+export type EditorDetectApiResponse = UnifiedDetectionResult & {
   meta?: EditorDetectionMeta;
 };
 
@@ -20,6 +19,10 @@ export async function detectEditorObjectsApi(imageUrl: string): Promise<EditorDe
       failed: true,
       error: body.error ?? `Detection failed (${res.status})`,
       available: false,
+      backend: "unavailable",
+      status: "unavailable",
+      inferenceMs: 0,
+      detectedAt: new Date().toISOString(),
     };
   }
   return body;

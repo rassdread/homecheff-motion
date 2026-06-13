@@ -1,7 +1,8 @@
 import type { EditorVisionMetricsSnapshot } from "@/types/homecheff-visual-editor";
 
 export type EditorVisionMetricEvent =
-  | { type: "detection"; count: number; source: "onnx" | "vision" | "hybrid" }
+  | { type: "detection"; count: number; source: "onnx" | "vision" | "hybrid"; durationMs?: number }
+  | { type: "detection_failed"; error: string; durationMs?: number }
   | { type: "mask_created" }
   | { type: "segmentation"; success: boolean; durationMs: number }
   | { type: "openai_edit"; success: boolean; operation: "remove" | "replace" };
@@ -18,6 +19,11 @@ type MetricsAccumulator = {
   onnxDetectionCount: number;
   hybridMergeCount: number;
   updatedAt: string;
+  lastDetectionAt: string | null;
+  lastDetectionCount: number;
+  lastInferenceMs: number | null;
+  lastInferenceError: string | null;
+  lastInferenceSource: "onnx" | "vision" | "hybrid" | null;
 };
 
 const globalMetrics: MetricsAccumulator = {
@@ -32,6 +38,11 @@ const globalMetrics: MetricsAccumulator = {
   onnxDetectionCount: 0,
   hybridMergeCount: 0,
   updatedAt: new Date().toISOString(),
+  lastDetectionAt: null,
+  lastDetectionCount: 0,
+  lastInferenceMs: null,
+  lastInferenceError: null,
+  lastInferenceSource: null,
 };
 
 export function recordEditorVisionMetric(event: EditorVisionMetricEvent): void {
@@ -40,12 +51,22 @@ export function recordEditorVisionMetric(event: EditorVisionMetricEvent): void {
   switch (event.type) {
     case "detection":
       globalMetrics.detectionCount += event.count;
+      globalMetrics.lastDetectionAt = new Date().toISOString();
+      globalMetrics.lastDetectionCount = event.count;
+      globalMetrics.lastInferenceMs = event.durationMs ?? globalMetrics.lastInferenceMs;
+      globalMetrics.lastInferenceError = null;
+      globalMetrics.lastInferenceSource = event.source;
       if (event.source === "onnx") {
         globalMetrics.onnxDetectionCount += event.count;
       }
       if (event.source === "hybrid") {
         globalMetrics.hybridMergeCount += event.count;
       }
+      break;
+    case "detection_failed":
+      globalMetrics.lastDetectionAt = new Date().toISOString();
+      globalMetrics.lastInferenceMs = event.durationMs ?? globalMetrics.lastInferenceMs;
+      globalMetrics.lastInferenceError = event.error;
       break;
     case "mask_created":
       globalMetrics.maskCount += 1;
@@ -91,6 +112,11 @@ export function getEditorVisionMetricsSnapshot(): EditorVisionMetricsSnapshot {
     failedObjectEdits: globalMetrics.failedObjectEdits,
     onnxDetectionCount: globalMetrics.onnxDetectionCount,
     hybridMergeCount: globalMetrics.hybridMergeCount,
+    lastDetectionAt: globalMetrics.lastDetectionAt,
+    lastDetectionCount: globalMetrics.lastDetectionCount,
+    lastInferenceMs: globalMetrics.lastInferenceMs,
+    lastInferenceError: globalMetrics.lastInferenceError,
+    lastInferenceSource: globalMetrics.lastInferenceSource,
     updatedAt: globalMetrics.updatedAt,
   };
 }

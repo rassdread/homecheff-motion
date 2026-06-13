@@ -4,6 +4,10 @@ import {
   isAssetReferenceGenerationAvailable,
 } from "@/server/studio/studio-asset-reference-service";
 import { requireActiveUser } from "@/server/auth/permissions";
+import {
+  mapAssetKindToActionType,
+  withStudioCreditGate,
+} from "@/server/studio-account/with-studio-credit-gate";
 import { resolveOpenAiImageModel } from "@/lib/openai-image-generation";
 import { getSelectedSceneImageProviderId } from "@/server/scene-image-providers";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -50,6 +54,7 @@ export async function POST(request: Request) {
       visionHint?: string;
     };
     identityAudit?: import("@/types/studio-asset-identity-generation-audit").AssetIdentityGenerationAudit;
+    confirmed?: boolean;
   };
 
   try {
@@ -83,17 +88,29 @@ export async function POST(request: Request) {
     })
   );
 
-  const result = await generateAssetReference(user, {
-    kind,
-    summaryPrompt: body.summaryPrompt ?? "",
-    choices: body.choices ?? {},
-    customTexts: body.customTexts ?? {},
-    generationId: body.generationId ?? "",
-    sourceReference: body.sourceReference,
-    derivation: body.derivation,
-    identityAudit: body.identityAudit,
+  const gated = await withStudioCreditGate({
+    user,
+    actionType: mapAssetKindToActionType(kind),
+    confirmed: body.confirmed,
+    execute: () =>
+      generateAssetReference(user, {
+        kind,
+        summaryPrompt: body.summaryPrompt ?? "",
+        choices: body.choices ?? {},
+        customTexts: body.customTexts ?? {},
+        generationId: body.generationId ?? "",
+        sourceReference: body.sourceReference,
+        derivation: body.derivation,
+        identityAudit: body.identityAudit,
+      }),
+    isFailure: (result) => "error" in result,
   });
 
+  if ("blocked" in gated) {
+    return gated.blocked;
+  }
+
+  const result = gated.result;
   if ("error" in result) {
     return NextResponse.json(
       {

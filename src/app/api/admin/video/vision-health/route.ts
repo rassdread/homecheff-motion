@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/auth/permissions";
-import { fetchWorkerVisionHealth } from "@/lib/video-worker-client";
-import { isVideoRenderWorkerMode } from "@/lib/video-render-mode";
-import { getVisionSetupDiagnostics } from "@/server/animation-export/local-vision/vision-setup-validation";
+import { loadVisionHealthDashboard } from "@/server/admin/vision-health-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +12,19 @@ export async function GET(request: Request) {
   }
 
   const probe = new URL(request.url).searchParams.get("probe") === "1";
-  if (isVideoRenderWorkerMode()) {
-    const workerVision = await fetchWorkerVisionHealth(probe);
-    if (workerVision) {
-      return NextResponse.json(
-        { ...workerVision, source: "video-worker" as const },
-        { status: workerVision.ok ? 200 : 503 }
-      );
-    }
-  }
-
-  const diagnostics = await getVisionSetupDiagnostics(probe);
+  const dashboard = await loadVisionHealthDashboard(probe);
   return NextResponse.json(
-    { ...diagnostics, source: "app-process" as const },
-    { status: diagnostics.ok ? 200 : 503 }
+    {
+      ...dashboard.vision,
+      dashboard,
+      source: dashboard.source,
+      workerReachable: dashboard.workerReachable,
+      overlayEngine: dashboard.overlayEngine,
+      editorMetrics: dashboard.editorMetrics,
+      unifiedDetection: dashboard.unifiedDetection,
+      activeFlags: dashboard.activeFlags,
+      probeWarning: dashboard.probeWarning,
+    },
+    { status: dashboard.vision.ok ? 200 : 503 }
   );
 }

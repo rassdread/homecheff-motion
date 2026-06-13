@@ -312,6 +312,81 @@ model User {
   studioJobs           StudioJob[]
   editorCanvasProjects EditorCanvasProject[]
   homeCheffProjects    HomeCheffProject[]
+  studioAccount        StudioAccount?
+  studioWallet         StudioWallet?
+  studioLedgerEntries  StudioLedgerEntry[]
+}
+
+/** HomeCheff Studio account — plan, billing, credit policy (1:1 with User). */
+model StudioAccount {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** free | creator | pro | studio | enterprise */
+  accountType           String    @default("free")
+  /** Plan SKU id from studio-plan-config */
+  studioPlan            String    @default("free")
+  planVersion           String    @default("v1")
+  creditPolicyVersion   String    @default("v1")
+  /** active | suspended | closed */
+  accountStatus         String    @default("active")
+  /** none | active | past_due | canceled | prepaid */
+  billingStatus         String    @default("none")
+  activatedAt           DateTime?
+  autoChargeSmallActions Boolean  @default(true)
+  confirmAboveCredits   Int       @default(100)
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  stripePriceId         String?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([accountType])
+  @@index([billingStatus])
+  @@index([stripeCustomerId])
+}
+
+/** Single Studio credit wallet per user. */
+model StudioWallet {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance            Int       @default(0)
+  reservedBalance    Int       @default(0)
+  lifetimePurchased  Int       @default(0)
+  lifetimeGranted    Int       @default(0)
+  lifetimeSpent      Int       @default(0)
+  lifetimeRefunded   Int       @default(0)
+  lastTransactionAt  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+/** Immutable ledger — every wallet mutation goes through here. */
+model StudioLedgerEntry {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId        String?
+  service          String
+  /** credit_purchase | subscription_grant | admin_grant | usage_charge | usage_reservation | usage_capture | usage_refund | failed_generation_refund | bonus_grant | expiration_adjustment | manual_adjustment */
+  actionType       String
+  creditsDelta     Int
+  balanceAfter     Int
+  provider         String?
+  providerCostUsd  Float?
+  reservedCostUsd  Float?
+  marginEstimate   Float?
+  metadataJson     Json     @default("{}")
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, projectId])
+  @@index([actionType])
+  @@index([service])
 }
 
 /** Universal HomeCheff .hc master project container. */

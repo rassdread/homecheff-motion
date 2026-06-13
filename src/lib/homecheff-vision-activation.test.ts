@@ -61,8 +61,8 @@ test("object detector ready improves overlay status", () => {
   resetFeatureFlagDeprecationGuards();
   process.env.HC_ENABLE_OBJECT_SAFE_ZONES = "1";
   const status = getOverlayEngineStatus(readyObjectVision());
-  assert.equal(status.card.objectDetection, "READY");
-  assert.equal(status.cardReasons.objectDetection.label, "READY");
+  assert.equal(status.card.objectDetection, "ACTIVE");
+  assert.equal(status.cardReasons.objectDetection.label, "ACTIVE");
   assert.ok(status.cardReasons.objectDetection.reason.includes("ONNX"));
 });
 

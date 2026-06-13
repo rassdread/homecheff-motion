@@ -27,6 +27,37 @@ type DetectorBlock = {
 type VisionHealthResponse = {
   ok: boolean;
   checkedAt: string;
+  source?: "video-worker" | "app-process";
+  workerReachable?: boolean;
+  probeWarning?: string;
+  overlayEngine?: {
+    safeZones: string;
+    objectDetection: string;
+  };
+  editorMetrics?: {
+    detectionCount: number;
+    maskCount: number;
+    lastDetectionAt?: string | null;
+    lastInferenceMs?: number | null;
+    lastInferenceError?: string | null;
+  };
+  unifiedDetection?: {
+    detectionBackend: string;
+    model: string;
+    workerReachable: boolean;
+    inferenceCount: number;
+    lastDetectionAt?: string | null;
+    averageInferenceMs?: number | null;
+    lastInferenceMs?: number | null;
+    lastBackend?: string | null;
+    lastError?: string | null;
+    consumers?: Array<{
+      consumer: string;
+      backend: string;
+      mode: string;
+      notes: string;
+    }>;
+  };
   featureFlags: {
     mediaPipe: boolean;
     objectDetector: boolean;
@@ -192,7 +223,94 @@ export function VisionHealthCard() {
               Flags — MediaPipe: {data.featureFlags.mediaPipe ? "1" : "0"}, Object detector:{" "}
               {data.featureFlags.objectDetector ? "1" : "0"}, debug:{" "}
               {data.featureFlags.safeZoneDebug ? "1" : "0"}
+              {data.source ? ` · Source: ${data.source}` : ""}
             </p>
+          ) : null}
+
+          {data?.overlayEngine ? (
+            <p className="mt-2 text-xs text-zinc-600">
+              Overlay — Safe zones: {data.overlayEngine.safeZones}, Object detection:{" "}
+              {data.overlayEngine.objectDetection}
+            </p>
+          ) : null}
+
+          {data?.unifiedDetection ? (
+            <div className="mt-4 rounded-lg border border-zinc-200 p-3">
+              <p className="text-sm font-medium text-zinc-900">Unified detection backbone</p>
+              <dl className="mt-2 space-y-1 text-xs text-zinc-600">
+                <div>
+                  <dt className="inline font-medium">Backend: </dt>
+                  <dd className="inline">{data.unifiedDetection.detectionBackend}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Model: </dt>
+                  <dd className="inline">{data.unifiedDetection.model}</dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Worker reachable: </dt>
+                  <dd className="inline">
+                    {data.unifiedDetection.workerReachable ? "yes" : "no"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium">Inference count: </dt>
+                  <dd className="inline">{data.unifiedDetection.inferenceCount}</dd>
+                </div>
+                {data.unifiedDetection.averageInferenceMs != null ? (
+                  <div>
+                    <dt className="inline font-medium">Avg inference: </dt>
+                    <dd className="inline">{data.unifiedDetection.averageInferenceMs}ms</dd>
+                  </div>
+                ) : null}
+                {data.unifiedDetection.lastDetectionAt ? (
+                  <div>
+                    <dt className="inline font-medium">Last detection: </dt>
+                    <dd className="inline">
+                      <ClientFormattedDateTime iso={data.unifiedDetection.lastDetectionAt} />
+                    </dd>
+                  </div>
+                ) : null}
+                {data.unifiedDetection.lastError ? (
+                  <div>
+                    <dt className="inline font-medium">Last error: </dt>
+                    <dd className="inline">{data.unifiedDetection.lastError}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {data.unifiedDetection.consumers && data.unifiedDetection.consumers.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-xs text-zinc-600">
+                  {data.unifiedDetection.consumers.map((row) => (
+                    <li key={row.consumer} className="rounded border border-zinc-100 bg-zinc-50 p-2">
+                      <span className="font-medium text-zinc-800">{row.consumer}</span>
+                      {" — "}
+                      {row.mode === "rtdetr_worker"
+                        ? "RT-DETR Worker"
+                        : row.mode === "local_rtdetr"
+                          ? "Local RT-DETR"
+                          : "Fallback Mode"}
+                      <span className="block text-zinc-500">{row.notes}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+
+          {data?.editorMetrics ? (
+            <p className="mt-2 text-xs text-zinc-600">
+              Editor — detections: {data.editorMetrics.detectionCount}, masks:{" "}
+              {data.editorMetrics.maskCount}
+              {data.editorMetrics.lastInferenceMs != null
+                ? `, last inference: ${data.editorMetrics.lastInferenceMs}ms`
+                : ""}
+              {data.editorMetrics.lastInferenceError
+                ? `, last error: ${data.editorMetrics.lastInferenceError}`
+                : ""}
+            </p>
+          ) : null}
+
+          {data?.probeWarning ? (
+            <p className="mt-2 text-xs text-amber-800">{data.probeWarning}</p>
           ) : null}
 
           {data?.warnings && data.warnings.length > 0 ? (

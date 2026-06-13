@@ -13,7 +13,8 @@ import { buildEditorObjectsFromLayers } from "@/lib/editor-object-detection";
 import { buildEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
-import { detectEditorObjectsApi } from "@/lib/editor-vision-v3-client";
+import { detectEditorObjectsApi, type EditorDetectApiResponse } from "@/lib/editor-vision-v3-client";
+import { buildEditorDetectionMeta, detectionUsedVisionFallback } from "@/lib/editor-detection-meta";
 import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
@@ -100,7 +101,8 @@ function buildLayersFromSemantic(
   document: EditorCanvasDocument,
   semanticLayers: EditorSemanticLayer[],
   vision: AssetVisionAnalysis,
-  meta: EditorDetectionMeta
+  meta: EditorDetectionMeta,
+  detection?: EditorDetectApiResponse
 ): EditorCanvasDocument {
   const bg = document.objects.find((o) => o.id === "background");
   const finalLayers = semanticLayers.map((layer) => {
@@ -117,13 +119,25 @@ function buildLayersFromSemantic(
   });
 
   const objectCount = countNonBackgroundLayers(finalLayers);
-  const detectionMeta: EditorDetectionMeta = {
-    ...meta,
-    count: objectCount,
-    noObjectsFound: objectCount === 0,
-    userMessageKey: objectCount === 0 ? "editor.detectionBootstrap.noObjects" : undefined,
-    bootstrapAttempted: true,
-  };
+  const detectionMeta = detection
+    ? buildEditorDetectionMeta({
+        detection,
+        source: meta.source,
+        objectCount,
+      })
+    : buildEditorDetectionMeta({
+        detection: {
+          detections: [],
+          available: meta.onnxAvailable,
+          backend: meta.backend ?? "fallback",
+          status: meta.status ?? "fallback",
+          inferenceMs: meta.inferenceMs ?? 0,
+          detectedAt: meta.lastDetectedAt ?? new Date().toISOString(),
+          failed: meta.status === "unavailable",
+        },
+        source: meta.source,
+        objectCount,
+      });
 
   const detectedObjects = buildEditorObjectsFromLayers(finalLayers, {
     visionObjectType: vision.objectType,
@@ -139,6 +153,7 @@ function buildLayersFromSemantic(
     textLayers: extractEditorTextLayers(finalLayers),
     motionPreparations: buildEditorMotionPreparations(detectedObjects, finalLayers),
     detectionMeta,
+    visionAnalysis: vision,
     visionMetrics: getEditorVisionMetricsSnapshot(),
     assetProfile: buildEditorAssetProfile(
       { ...document, objects: finalLayers, detectedObjects },
@@ -197,13 +212,11 @@ export async function bootstrapEditorObjectDetection(
         detectedObjects,
         textLayers: extractEditorTextLayers(layers),
         motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
-        detectionMeta: {
+        detectionMeta: buildEditorDetectionMeta({
+          detection: onnxResult,
           source: hybrid.meta.source,
-          count: objectCount,
-          onnxAvailable: hybrid.meta.onnxAvailable,
-          detectorKind: hybrid.meta.detectorKind,
-          bootstrapAttempted: true,
-        },
+          objectCount,
+        }),
         visionMetrics: getEditorVisionMetricsSnapshot(),
         assetProfile: buildEditorAssetProfile(
           { ...document, objects: layers, detectedObjects },
@@ -243,13 +256,11 @@ export async function bootstrapEditorObjectDetection(
         detectedObjects,
         textLayers: extractEditorTextLayers(layers),
         motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
-        detectionMeta: {
+        detectionMeta: buildEditorDetectionMeta({
+          detection: onnxResult,
           source: "onnx_only",
-          count: objectCount,
-          onnxAvailable: true,
-          detectorKind: onnxResult.detectorKind,
-          bootstrapAttempted: true,
-        },
+          objectCount,
+        }),
         visionMetrics: getEditorVisionMetricsSnapshot(),
         assetProfile: buildEditorAssetProfile(
           { ...document, objects: layers, detectedObjects },
@@ -271,12 +282,22 @@ export async function bootstrapEditorObjectDetection(
       vision: visionAnalyzeOk ? vision : null,
       sourceKind: document.sourceKind,
     });
-    return buildLayersFromSemantic(document, semanticLayers, vision, {
-      source: "brand_sheet",
-      count: semanticLayers.filter((l) => l.type !== "background").length,
-      onnxAvailable: onnxResult.available,
-      detectorKind: onnxResult.detectorKind,
-    });
+    return buildLayersFromSemantic(
+      document,
+      semanticLayers,
+      vision,
+      {
+        source: "brand_sheet",
+        count: semanticLayers.filter((l) => l.type !== "background").length,
+        onnxAvailable: onnxResult.available,
+        detectorKind: onnxResult.detectorKind,
+        backend: onnxResult.backend,
+        status: detectionUsedVisionFallback(onnxResult) ? "fallback" : onnxResult.status,
+        inferenceMs: onnxResult.inferenceMs,
+        lastDetectedAt: onnxResult.detectedAt,
+      },
+      onnxResult
+    );
   }
 
   const semanticLayers = buildBrandSheetSemanticLayers({
@@ -284,10 +305,20 @@ export async function bootstrapEditorObjectDetection(
     sourceKind: document.sourceKind,
   });
 
-  return buildLayersFromSemantic(document, semanticLayers, vision, {
-    source: "heuristic",
-    count: semanticLayers.filter((l) => l.type !== "background").length,
-    onnxAvailable: onnxResult.available,
-    detectorKind: onnxResult.detectorKind,
-  });
+  return buildLayersFromSemantic(
+    document,
+    semanticLayers,
+    vision,
+    {
+      source: "heuristic",
+      count: semanticLayers.filter((l) => l.type !== "background").length,
+      onnxAvailable: onnxResult.available,
+      detectorKind: onnxResult.detectorKind,
+      backend: onnxResult.backend,
+      status: detectionUsedVisionFallback(onnxResult) ? "fallback" : onnxResult.status,
+      inferenceMs: onnxResult.inferenceMs,
+      lastDetectedAt: onnxResult.detectedAt,
+    },
+    onnxResult
+  );
 }

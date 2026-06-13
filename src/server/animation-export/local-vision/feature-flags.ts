@@ -41,6 +41,44 @@ export function isAnyLocalDetectionEnabled(): boolean {
   return isMediaPipeSafeZonesEnabled() || isObjectSafeZonesEnabled();
 }
 
+/** Use probed worker/app diagnostics instead of process.env when reporting remote readiness. */
+export function isObjectDetectionEnabledForDiagnostics(
+  vision?: { featureFlags?: { objectDetector?: boolean }; objectDetector?: { enabled?: boolean } }
+): boolean {
+  if (vision?.featureFlags?.objectDetector !== undefined) {
+    return vision.featureFlags.objectDetector;
+  }
+  if (vision?.objectDetector?.enabled !== undefined) {
+    return vision.objectDetector.enabled;
+  }
+  return isObjectSafeZonesEnabled();
+}
+
+export function isMediaPipeEnabledForDiagnostics(
+  vision?: { featureFlags?: { mediaPipe?: boolean }; mediaPipe?: { enabled?: boolean } }
+): boolean {
+  if (vision?.featureFlags?.mediaPipe !== undefined) {
+    return vision.featureFlags.mediaPipe;
+  }
+  if (vision?.mediaPipe?.enabled !== undefined) {
+    return vision.mediaPipe.enabled;
+  }
+  return isMediaPipeSafeZonesEnabled();
+}
+
+export function isAnyLocalDetectionEnabledForDiagnostics(
+  vision?: {
+    featureFlags?: { objectDetector?: boolean; mediaPipe?: boolean };
+    objectDetector?: { enabled?: boolean };
+    mediaPipe?: { enabled?: boolean };
+  }
+): boolean {
+  return (
+    isObjectDetectionEnabledForDiagnostics(vision) ||
+    isMediaPipeEnabledForDiagnostics(vision)
+  );
+}
+
 /** Max time per detector before fail-open to Safe Zone V1. */
 export const DETECTOR_TIMEOUT_MS = 8_000;
 

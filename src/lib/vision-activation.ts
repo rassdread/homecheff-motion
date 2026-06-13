@@ -8,6 +8,9 @@ import { getOcrHealthSnapshot } from "@/server/image-text-detection/ocr-health";
 import type { VisionSetupDiagnostics } from "@/server/animation-export/local-vision/vision-setup-validation";
 import {
   isAnyLocalDetectionEnabled,
+  isAnyLocalDetectionEnabledForDiagnostics,
+  isMediaPipeEnabledForDiagnostics,
+  isObjectDetectionEnabledForDiagnostics,
   isMediaPipeSafeZonesEnabled,
   isObjectSafeZonesEnabled,
 } from "@/server/animation-export/local-vision/feature-flags";
@@ -137,7 +140,7 @@ export function resolvePublishVisionActivation(): PublishVisionActivation {
 }
 
 export function resolveSafeZoneFallbackReason(vision: VisionSetupDiagnostics): string {
-  if (!isAnyLocalDetectionEnabled()) {
+  if (!isAnyLocalDetectionEnabledForDiagnostics(vision)) {
     return "HC_ENABLE_OBJECT_SAFE_ZONES and HC_ENABLE_MEDIAPIPE_SAFE_ZONES are off — using Safe Zone V1 luminance grid only.";
   }
   if (vision.objectDetector.enabled && vision.objectDetector.status === "MODEL_MISSING") {
@@ -158,15 +161,17 @@ export function buildOverlayStatusReasons(
   const ocr = getOcrHealthSnapshot();
   const objectReady = vision.objectDetector.enabled && vision.objectDetector.status === "READY";
   const mediaPipeReady = vision.mediaPipe.enabled && vision.mediaPipe.status === "READY";
-  const anyVision = isAnyLocalDetectionEnabled();
+  const objectFlagOn = isObjectDetectionEnabledForDiagnostics(vision);
+  const anyVision = isAnyLocalDetectionEnabledForDiagnostics(vision);
   const fallbackReason = resolveSafeZoneFallbackReason(vision);
+  const visionActive = objectReady || mediaPipeReady;
 
   return {
     safeZones: {
-      label:
-        anyVision && (objectReady || mediaPipeReady) ? "READY"
-        : "FALLBACK",
-      reason: fallbackReason,
+      label: visionActive ? "ACTIVE" : "FALLBACK",
+      reason: visionActive
+        ? "Object-aware safe zones active (RT-DETR and/or MediaPipe)."
+        : fallbackReason,
       action: !anyVision
         ? "Set HC_ENABLE_OBJECT_SAFE_ZONES=1 on video worker and install ONNX model."
         : undefined,
@@ -174,18 +179,18 @@ export function buildOverlayStatusReasons(
     },
     objectDetection: {
       label:
-        !isObjectSafeZonesEnabled() ? "DISABLED"
-        : objectReady ? "READY"
+        !objectFlagOn ? "DISABLED"
+        : objectReady ? "ACTIVE"
         : "DISABLED",
       reason:
-        !isObjectSafeZonesEnabled()
-          ? "Disabled because HC_ENABLE_OBJECT_SAFE_ZONES is off."
+        !objectFlagOn
+          ? "Disabled because HC_ENABLE_OBJECT_SAFE_ZONES is off on the probed runtime."
           : objectReady
-            ? "ONNX object detector probed ready."
+            ? "ONNX object detector probed ready — inference can run."
             : `Detector not ready: ${vision.objectDetector.status}`,
       action: vision.objectDetector.status === "MODEL_MISSING"
         ? "Run setup:vision-models on worker host."
-        : !isObjectSafeZonesEnabled()
+        : !objectFlagOn
           ? "Set HC_ENABLE_OBJECT_SAFE_ZONES=1 on worker."
           : undefined,
       launchCritical: false,

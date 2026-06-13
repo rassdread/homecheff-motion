@@ -4,7 +4,10 @@
 
 import {
   isAnyLocalDetectionEnabled,
+  isAnyLocalDetectionEnabledForDiagnostics,
+  isMediaPipeEnabledForDiagnostics,
   isMediaPipeSafeZonesEnabled,
+  isObjectDetectionEnabledForDiagnostics,
   isObjectSafeZonesEnabled,
   isSafeZoneDebugEnabled,
 } from "@/server/animation-export/local-vision/feature-flags";
@@ -84,7 +87,7 @@ function envFlag(name: string): boolean {
 }
 
 function buildCapabilityInventory(vision: VisionSetupDiagnostics): OverlayCapabilityRow[] {
-  const visionEnabled = isAnyLocalDetectionEnabled();
+  const visionEnabled = isAnyLocalDetectionEnabledForDiagnostics(vision);
   const objectReady =
     vision.objectDetector.enabled && vision.objectDetector.status === "READY";
   const mediaPipeReady = vision.mediaPipe.enabled && vision.mediaPipe.status === "READY";
@@ -273,7 +276,7 @@ function scoreBreakdown(
   );
   const visionScore = Math.round(
     ((objectReady ? 35 : 10) + (mediaPipeReady ? 25 : 5) + (vision.ok ? 10 : 0)) *
-      (isAnyLocalDetectionEnabled() ? 1 : 0.6)
+      (isAnyLocalDetectionEnabledForDiagnostics(vision) ? 1 : 0.6)
   );
   const typography = capabilities.find((c) => c.id === "adaptive_typography")?.impactScore ?? 85;
   const timing = Math.round(
@@ -301,17 +304,18 @@ function buildCard(
 ): OverlayEngineStatusCard {
   const objectReady =
     vision.objectDetector.enabled && vision.objectDetector.status === "READY";
-  const anyVision = isAnyLocalDetectionEnabled();
+  const mediaPipeReady = vision.mediaPipe.enabled && vision.mediaPipe.status === "READY";
+  const objectFlagOn = isObjectDetectionEnabledForDiagnostics(vision);
+  const visionActive = objectReady || mediaPipeReady;
 
   return {
     safeZones:
-      anyVision && (vision.mediaPipe.status === "READY" || vision.objectDetector.status === "READY") ?
-        "READY"
-      : anyVision ? "FALLBACK"
+      visionActive ? "ACTIVE"
+      : objectFlagOn || isMediaPipeSafeZonesEnabled() ? "FALLBACK"
       : "FALLBACK",
     objectDetection:
-      !isObjectSafeZonesEnabled() ? "DISABLED"
-      : objectReady ? "READY"
+      !objectFlagOn ? "DISABLED"
+      : objectReady ? "ACTIVE"
       : "DISABLED",
     typography: breakdown.typography >= 70 ? "ACTIVE" : "FALLBACK",
     placement: breakdown.placement >= 70 ? "ACTIVE" : "FALLBACK",
@@ -331,7 +335,7 @@ function listInactive(capabilities: OverlayCapabilityRow[], vision: VisionSetupD
       out.push(`${row.name}: enabled but not ready — ${row.notes}`);
     }
   }
-  if (!isAnyLocalDetectionEnabled()) {
+  if (!isAnyLocalDetectionEnabledForDiagnostics(vision)) {
     out.push(
       "Local vision flags off — enhanced/object-aware paths use Safe Zone V1 template placement only."
     );
@@ -346,7 +350,10 @@ function listInactive(capabilities: OverlayCapabilityRow[], vision: VisionSetupD
 }
 
 function recommendNextAction(vision: VisionSetupDiagnostics): string {
-  if (!isObjectSafeZonesEnabled() && !isMediaPipeSafeZonesEnabled()) {
+  if (
+    !isObjectDetectionEnabledForDiagnostics(vision) &&
+    !isMediaPipeEnabledForDiagnostics(vision)
+  ) {
     return "Enable HC_ENABLE_OBJECT_SAFE_ZONES=1 (and optionally HC_ENABLE_MEDIAPIPE_SAFE_ZONES=1) on the video worker, run npm run setup:vision-models -- --include-object-detector, then verify GET /api/admin/video/vision-health?probe=1.";
   }
   if (vision.objectDetector.status === "MODEL_MISSING") {
@@ -389,8 +396,10 @@ export function getOverlayEngineStatus(vision: VisionSetupDiagnostics): OverlayE
     capabilities,
     vision,
     env: {
-      HC_ENABLE_MEDIAPIPE_SAFE_ZONES: envFlag("HC_ENABLE_MEDIAPIPE_SAFE_ZONES"),
-      HC_ENABLE_OBJECT_SAFE_ZONES: envFlag("HC_ENABLE_OBJECT_SAFE_ZONES"),
+      HC_ENABLE_MEDIAPIPE_SAFE_ZONES:
+        vision.featureFlags.mediaPipe || envFlag("HC_ENABLE_MEDIAPIPE_SAFE_ZONES"),
+      HC_ENABLE_OBJECT_SAFE_ZONES:
+        vision.featureFlags.objectDetector || envFlag("HC_ENABLE_OBJECT_SAFE_ZONES"),
       HC_OBJECT_DETECTOR_KIND: resolveObjectDetectorKind(),
       HC_OBJECT_DETECTOR_MODEL_DIR: modelDir,
       HC_OBJECT_DETECTOR_MODEL_PATH: modelPath,

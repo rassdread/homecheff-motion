@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import {
+  mapPublishFormatToActionType,
+  withStudioCreditGate,
+} from "@/server/studio-account/with-studio-credit-gate";
 import { loadPublishProjectFromBody } from "@/server/publish/publish-export-body";
 import { exportPublishProjectVideo } from "@/server/publish/publish-video-export-service";
 
@@ -15,7 +19,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid publish project" }, { status: 400 });
   }
 
-  const result = await exportPublishProjectVideo(project);
+  const gated = await withStudioCreditGate({
+    user,
+    actionType: mapPublishFormatToActionType(
+      project.mediaKind === "image"
+        ? "photo_story"
+        : project.mediaKind === "carousel"
+          ? "slideshow"
+          : "mp4"
+    ),
+    projectId: project.id,
+    execute: () => exportPublishProjectVideo(project),
+    isFailure: (result) => !result.ok,
+  });
+
+  if ("blocked" in gated) {
+    return gated.blocked;
+  }
+
+  const result = gated.result;
   if (!result.ok) {
     return NextResponse.json({ error: result.error, fallback: "draft_saved" }, { status: 503 });
   }

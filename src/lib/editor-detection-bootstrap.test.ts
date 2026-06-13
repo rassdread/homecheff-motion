@@ -74,6 +74,25 @@ describe("editor detection bootstrap fix", () => {
     assert.ok(preview.includes("onEmptyCanvasClick"));
   });
 
+  it("detect route uses unified detection client", () => {
+    const route = readFileSync(
+      join(process.cwd(), "src/app/api/editor/detect/route.ts"),
+      "utf8"
+    );
+    const editorOnnx = readFileSync(
+      join(process.cwd(), "src/server/editor/editor-onnx-detection.ts"),
+      "utf8"
+    );
+    assert.ok(editorOnnx.includes("resolveObjectDetections"));
+    assert.ok(route.includes("detectEditorObjectsFromImageUrl"));
+  });
+
+  it("video worker exposes POST /vision/detect", () => {
+    const worker = readFileSync(join(process.cwd(), "worker/video-worker.ts"), "utf8");
+    assert.ok(worker.includes('app.post("/vision/detect"'));
+    assert.ok(worker.includes("detectObjectsForEditor"));
+  });
+
   it("segment status exposes replicate and auto-mask flags", () => {
     const route = readFileSync(
       join(process.cwd(), "src/app/api/editor/segment/status/route.ts"),

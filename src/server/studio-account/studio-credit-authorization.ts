@@ -1,0 +1,321 @@
+/**
+ * Credit authorization flow: evaluate → reserve → (execute) → capture/refund.
+ * No provider call should happen before successful reservation.
+ */
+
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
+import { evaluateCreditPolicy } from "@/server/studio-account/studio-credit-policy";
+import {
+  captureStudioCredits,
+  ensureStudioWallet,
+  refundStudioReservation,
+  reserveStudioCredits,
+} from "@/server/studio-account/studio-wallet-service";
+import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
+import type { SessionUser } from "@/server/auth/session";
+
+export type CreditAuthorizationPreview = {
+  allowed: boolean;
+  requiredCredits: number;
+  confirmationRequired: boolean;
+  reason: string | null;
+  balanceAfter: number;
+  upgradeSuggestion: string | null;
+  actionType: string;
+};
+
+export async function previewStudioCreditAuthorization(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  actionType: StudioActionType | string;
+  projectId?: string;
+}): Promise<CreditAuthorizationPreview> {
+  const account = await ensureStudioAccount(input.user.id, input.user.email);
+  const wallet = await ensureStudioWallet(input.user.id);
+
+  const policy = evaluateCreditPolicy({
+    userId: input.user.id,
+    role: input.user.role,
+    accountType: account.accountType,
+    planVersion: account.planVersion,
+    creditPolicyVersion: account.creditPolicyVersion,
+    billingStatus: account.billingStatus,
+    actionType: input.actionType,
+    balance: wallet.balance,
+    reservedBalance: wallet.reservedBalance,
+    autoChargeSmallActions: account.autoChargeSmallActions,
+    confirmAboveCredits: account.confirmAboveCredits,
+  });
+
+  return {
+    allowed: policy.allowed,
+    requiredCredits: policy.requiredCredits,
+    confirmationRequired: policy.confirmationRequired,
+    reason: policy.reason,
+    balanceAfter: policy.balanceAfter,
+    upgradeSuggestion: policy.upgradeSuggestion,
+    actionType: policy.actionType,
+  };
+}
+
+export type CreditReservation = {
+  reservationId: string;
+  requiredCredits: number;
+  service: string;
+  provider: string;
+  reservedCostUsd: number;
+  marginEstimate: number;
+};
+
+export async function authorizeStudioAction(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  actionType: StudioActionType | string;
+  projectId?: string;
+  confirmed?: boolean;
+  metadataJson?: Record<string, unknown>;
+}): Promise<
+  | { ok: true; reservation: CreditReservation; adminBypass?: boolean }
+  | { ok: false; code: string; message: string; preview: CreditAuthorizationPreview }
+> {
+  const account = await ensureStudioAccount(input.user.id, input.user.email);
+  const wallet = await ensureStudioWallet(input.user.id);
+
+  const policy = evaluateCreditPolicy({
+    userId: input.user.id,
+    role: input.user.role,
+    accountType: account.accountType,
+    planVersion: account.planVersion,
+    creditPolicyVersion: account.creditPolicyVersion,
+    billingStatus: account.billingStatus,
+    actionType: input.actionType,
+    balance: wallet.balance,
+    reservedBalance: wallet.reservedBalance,
+    autoChargeSmallActions: account.autoChargeSmallActions,
+    confirmAboveCredits: account.confirmAboveCredits,
+  });
+
+  const preview: CreditAuthorizationPreview = {
+    allowed: policy.allowed,
+    requiredCredits: policy.requiredCredits,
+    confirmationRequired: policy.confirmationRequired,
+    reason: policy.reason,
+    balanceAfter: policy.balanceAfter,
+    upgradeSuggestion: policy.upgradeSuggestion,
+    actionType: policy.actionType,
+  };
+
+  if (!policy.allowed) {
+    return {
+      ok: false,
+      code: policy.reason ?? "not_allowed",
+      message: creditDenialMessage(policy.reason),
+      preview,
+    };
+  }
+
+  if (input.user.role === "admin" || policy.reason === "admin_bypass") {
+    return {
+      ok: true,
+      adminBypass: true,
+      reservation: {
+        reservationId: "admin-bypass",
+        requiredCredits: 0,
+        service: policy.service,
+        provider: policy.provider,
+        reservedCostUsd: 0,
+        marginEstimate: 0,
+      },
+    };
+  }
+
+  if (policy.confirmationRequired && !input.confirmed) {
+    return {
+      ok: false,
+      code: "confirmation_required",
+      message: "Confirmation required for this action.",
+      preview,
+    };
+  }
+
+  try {
+    const { reservationId } = await reserveStudioCredits({
+      userId: input.user.id,
+      credits: policy.requiredCredits,
+      service: policy.service,
+      provider: policy.provider,
+      projectId: input.projectId,
+      reservedCostUsd: policy.reservedCostUsd,
+      marginEstimate: policy.marginEstimateUsd,
+      metadataJson: {
+        actionType: policy.actionType,
+        ...input.metadataJson,
+      },
+    });
+
+    return {
+      ok: true,
+      reservation: {
+        reservationId,
+        requiredCredits: policy.requiredCredits,
+        service: policy.service,
+        provider: policy.provider,
+        reservedCostUsd: policy.reservedCostUsd,
+        marginEstimate: policy.marginEstimateUsd,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Reservation failed";
+    return {
+      ok: false,
+      code: message === "INSUFFICIENT_CREDITS" ? "insufficient_credits" : "reservation_failed",
+      message,
+      preview,
+    };
+  }
+}
+
+export async function captureStudioActionReservation(input: {
+  userId: string;
+  reservation: CreditReservation;
+  projectId?: string;
+  providerCostUsd?: number;
+  metadataJson?: Record<string, unknown>;
+}): Promise<void> {
+  if (input.reservation.reservationId === "admin-bypass") {
+    return;
+  }
+  if (input.reservation.requiredCredits <= 0) {
+    return;
+  }
+
+  await captureStudioCredits({
+    userId: input.userId,
+    credits: input.reservation.requiredCredits,
+    reservationId: input.reservation.reservationId,
+    service: input.reservation.service,
+    provider: input.reservation.provider,
+    projectId: input.projectId,
+    providerCostUsd: input.providerCostUsd,
+    reservedCostUsd: input.reservation.reservedCostUsd,
+    marginEstimate: input.reservation.marginEstimate,
+    metadataJson: input.metadataJson,
+  });
+}
+
+export async function refundStudioActionReservation(input: {
+  userId: string;
+  reservation: CreditReservation;
+  projectId?: string;
+  failedGeneration?: boolean;
+  metadataJson?: Record<string, unknown>;
+}): Promise<void> {
+  if (input.reservation.reservationId === "admin-bypass") {
+    return;
+  }
+  if (input.reservation.requiredCredits <= 0) {
+    return;
+  }
+
+  await refundStudioReservation({
+    userId: input.userId,
+    credits: input.reservation.requiredCredits,
+    reservationId: input.reservation.reservationId,
+    service: input.reservation.service,
+    provider: input.reservation.provider,
+    projectId: input.projectId,
+    failedGeneration: input.failedGeneration,
+    metadataJson: input.metadataJson,
+  });
+}
+
+export function creditDenialMessage(code: string | null): string {
+  switch (code) {
+    case "free_account_provider_action":
+      return "Voor AI-functies heb je credits nodig. Koop credits of start een abonnement.";
+    case "insufficient_credits":
+      return "Onvoldoende Studio Credits.";
+    case "confirmation_required":
+      return "Bevestiging vereist voor deze actie.";
+    default:
+      return "Deze actie is niet toegestaan.";
+  }
+}
+
+export function studioCreditDeniedResponse(
+  code: string,
+  message: string,
+  preview?: CreditAuthorizationPreview
+): NextResponse {
+  return NextResponse.json(
+    {
+      error: message,
+      code,
+      creditGate: true,
+      preview,
+    },
+    { status: code === "confirmation_required" ? 402 : 403 }
+  );
+}
+
+/** Helper for API routes — returns NextResponse if blocked, null if authorized. */
+export async function gateStudioAction(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  actionType: StudioActionType | string;
+  projectId?: string;
+  confirmed?: boolean;
+}): Promise<
+  | { blocked: NextResponse }
+  | { authorized: true; reservation: CreditReservation; adminBypass?: boolean }
+> {
+  const result = await authorizeStudioAction(input);
+  if (!result.ok) {
+    return {
+      blocked: studioCreditDeniedResponse(result.code, result.message, result.preview),
+    };
+  }
+  return {
+    authorized: true,
+    reservation: result.reservation,
+    adminBypass: result.adminBypass,
+  };
+}
+
+/** Map action types to routes for integration tests. */
+export const ACTION_TYPE_ROUTE_MAP: Record<string, string[]> = {
+  ai_analysis: ["/api/studio/storyboards/[id]/analyze-vision"],
+  scene_generation: ["/api/studio/storyboards/[id]/scenes/[sceneId]/images"],
+  motion_render: ["/api/instant-premium/create-and-generate", "/api/animations/projects"],
+  image_generation: ["/api/editor/instruction/variant"],
+  publish_mp4_export: ["/api/publish/export"],
+};
+
+export async function verifyLedgerMatchesWallet(userId: string): Promise<{
+  ok: boolean;
+  walletBalance: number;
+  ledgerNet: number;
+}> {
+  const wallet = await prisma.studioWallet.findUnique({ where: { userId } });
+  if (!wallet) {
+    return { ok: true, walletBalance: 0, ledgerNet: 0 };
+  }
+
+  const entries = await prisma.studioLedgerEntry.findMany({
+    where: { userId },
+    select: { creditsDelta: true, actionType: true, metadataJson: true },
+  });
+
+  let net = 0;
+  for (const e of entries) {
+    if (e.actionType === "usage_reservation" || e.actionType === "usage_refund") {
+      continue;
+    }
+    net += e.creditsDelta;
+  }
+
+  return {
+    ok: net === wallet.balance,
+    walletBalance: wallet.balance,
+    ledgerNet: net,
+  };
+}

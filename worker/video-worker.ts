@@ -72,6 +72,47 @@ app.get("/health/vision", async (req, res) => {
   });
 });
 
+app.post("/vision/detect", requireWorkerAuth, async (req, res) => {
+  const startedAt = Date.now();
+  const body = (req.body ?? {}) as {
+    imageUrl?: string;
+    imagePath?: string;
+    imageBase64?: string;
+  };
+
+  const { withVisionDetectTempPath } = await import(
+    "../src/server/animation-export/local-vision/vision-detect-input"
+  );
+  const { detectObjectsForEditor } = await import(
+    "../src/server/animation-export/local-vision/object-detector"
+  );
+
+  try {
+    const result = await withVisionDetectTempPath(body, async (tempPath) =>
+      detectObjectsForEditor(tempPath)
+    );
+    const inferenceMs = Date.now() - startedAt;
+    res.status(result.failed ? 503 : 200).json({
+      ...result,
+      inferenceMs,
+      detectedAt: new Date().toISOString(),
+      backend: "local",
+      service: "instant-premium-video-worker",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(400).json({
+      detections: [],
+      failed: true,
+      error: message,
+      inferenceMs: Date.now() - startedAt,
+      detectedAt: new Date().toISOString(),
+      backend: "local",
+      service: "instant-premium-video-worker",
+    });
+  }
+});
+
 app.post(
   "/jobs/instant-premium/:projectId/process",
   requireWorkerAuth,

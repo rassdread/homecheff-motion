@@ -7,6 +7,11 @@ import {
 } from "@/server/instant-premium/create-instant-premium-project";
 import { startProjectJobs } from "@/server/animation-jobs/service";
 import { requireActiveUser } from "@/server/auth/permissions";
+import {
+  captureStudioActionReservation,
+  refundStudioActionReservation,
+} from "@/server/studio-account/studio-credit-authorization";
+import { requireStudioCredits } from "@/server/studio-account/with-studio-credit-gate";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -27,8 +32,12 @@ export async function POST(request: Request) {
   }
 
   let body: unknown;
+  let confirmed = false;
   try {
     body = await request.json();
+    if (body && typeof body === "object" && "confirmed" in body) {
+      confirmed = (body as { confirmed?: boolean }).confirmed === true;
+    }
   } catch {
     return NextResponse.json(
       { ok: false as const, error: "Invalid JSON body.", code: "INVALID_JSON" },
@@ -42,6 +51,15 @@ export async function POST(request: Request) {
       { ok: false as const, error: validated.error, code: "VALIDATION_ERROR" },
       { status: validated.status }
     );
+  }
+
+  const creditGate = await requireStudioCredits({
+    user,
+    actionType: "motion_render",
+    confirmed,
+  });
+  if ("blocked" in creditGate) {
+    return creditGate.blocked;
   }
 
   const created = await createInstantPremiumAnimationProject(user.id, validated.data);
@@ -71,8 +89,19 @@ export async function POST(request: Request) {
   }
   try {
     await startProjectJobs(created.projectId);
+    await captureStudioActionReservation({
+      userId: user.id,
+      reservation: creditGate.reservation,
+      projectId: created.projectId,
+    });
   } catch {
     jobTriggered = false;
+    await refundStudioActionReservation({
+      userId: user.id,
+      reservation: creditGate.reservation,
+      projectId: created.projectId,
+      failedGeneration: true,
+    }).catch(() => undefined);
   }
 
   const projectId = String(created.projectId).trim();
