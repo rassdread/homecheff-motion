@@ -1,4 +1,5 @@
 import { buildStudioStorylineFromIdea } from "@/lib/studio-story-generator";
+import type { StudioStoryInterpretation } from "@/lib/studio-story-interpretation";
 import type { StudioProductionBrief } from "@/types/studio-production-brief";
 import type {
   StudioProductionBriefSelections,
@@ -6,9 +7,48 @@ import type {
   StudioStoryPlanScene,
 } from "@/types/studio-production-brief-v3";
 
+export function buildStoryPlanFromInterpretation(input: {
+  interpretation: StudioStoryInterpretation;
+  selections: StudioProductionBriefSelections;
+  brief?: StudioProductionBrief;
+}): StudioStoryPlan {
+  const { interpretation, selections } = input;
+  const perScene = Math.floor(
+    (input.brief?.estimatedDurationSeconds ?? 30) / Math.max(1, interpretation.scenes.length)
+  );
+  const scenes: StudioStoryPlanScene[] = interpretation.scenes.map((scene, index) => ({
+    id: scene.id,
+    index: index + 1,
+    title: scene.title,
+    purpose: scene.purpose,
+    description: scene.visualIdea,
+    dialogue: selections.narrative.includes("characters") ? scene.visualIdea : "",
+    voiceOver: selections.narrative.includes("narrator") ? scene.visualIdea : "",
+    location: input.brief?.recommendedLocations[index]?.name ?? "Main location",
+    requiredAssets: scene.characters,
+    durationSeconds: perScene,
+  }));
+
+  const direction = interpretation.directions.find(
+    (d) => d.id === interpretation.selectedDirectionId
+  );
+
+  return {
+    logline: interpretation.interpretation,
+    storyStructure: `${interpretation.narrativeType} — ${direction?.summary ?? interpretation.coreConcept}`,
+    scenes,
+    characterNotes: interpretation.scenes.flatMap((s) => s.characters),
+    voiceOverProposal: scenes.map((s) => s.voiceOver).filter(Boolean).join(" "),
+    locationNotes: input.brief?.recommendedLocations.map((l) => l.name) ?? [],
+    assetRequirements: [`concept: ${interpretation.coreConcept}`, `audience: ${interpretation.audience}`],
+    builtAt: new Date().toISOString(),
+  };
+}
+
 export function buildStoryPlanFromBrief(input: {
   brief: StudioProductionBrief;
   selections: StudioProductionBriefSelections;
+  locale?: string;
 }): StudioStoryPlan {
   const enrichedIdea = [
     input.brief.idea,
@@ -24,6 +64,7 @@ export function buildStoryPlanFromBrief(input: {
     emotions: v4.emotions ?? input.selections.tones,
     visualStyles: v4.visualStyles ?? [],
     audience: input.selections.audience,
+    locale: input.locale,
   });
   const sceneCount = Math.max(storyline.scenes.length, input.brief.storyPreview.estimatedSceneCount);
   const perScene = Math.floor(input.brief.estimatedDurationSeconds / Math.max(1, sceneCount));

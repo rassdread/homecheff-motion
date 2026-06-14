@@ -94,6 +94,10 @@ function StudioCharacterNewPageContent() {
     router.push(`/studio/characters/${res.data.character.id}`);
   };
 
+  const handleCharacterPipelineComplete = () => {
+    clearIdentityBuilderPrefill();
+  };
+
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -108,7 +112,10 @@ function StudioCharacterNewPageContent() {
               guidedQueryParam={guided}
               startInAdvancedMode={searchParams.get("advanced") === "1"}
               hasDecisionPrefill={Boolean(prefill)}
+              storyboardId={prefill?.storyboardId ?? null}
+              decisionId={prefill?.decisionId ?? null}
               onWizardSave={handleWizardSave}
+              onCharacterPipelineComplete={handleCharacterPipelineComplete}
             >
               {(ctx) => (
                 <StudioCharacterForm

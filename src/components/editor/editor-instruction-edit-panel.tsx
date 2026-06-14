@@ -36,6 +36,8 @@ type ObjectEditorProps = {
   onAddToChangePlan: () => void;
   selectedActionKey: string;
   onActionKeyChange: (key: string, option: DynamicActionOption) => void;
+  estimatedSelection?: boolean;
+  onExtractPart?: () => void;
 };
 
 type StyleEditorProps = {
@@ -122,6 +124,8 @@ export function EditorInstructionEditPanel(props: Props) {
     onAddToChangePlan,
     selectedActionKey,
     onActionKeyChange,
+    estimatedSelection,
+    onExtractPart,
   } = props;
 
   const dynamicActions = resolveDynamicActionsForObject(object);
@@ -146,6 +150,11 @@ export function EditorInstructionEditPanel(props: Props) {
       <p className="mt-1 text-xs text-zinc-600">
         {t("editor.instructionStudio.v2.workspace.objectEditorLead" as never)}
       </p>
+      {estimatedSelection ?
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {t("editor.instructionStudio.v2.partActions.estimatedHint" as never)}
+        </p>
+      : null}
 
       <label className="mt-4 block text-xs font-medium text-zinc-700">
         {t("editor.instructionStudio.actionLabel" as never)}
@@ -267,6 +276,16 @@ export function EditorInstructionEditPanel(props: Props) {
         </summary>
         <p className="mt-2 whitespace-pre-wrap">{promptPreview}</p>
       </details>
+
+      {selection.action === "detach_asset" && onExtractPart ?
+        <button
+          type="button"
+          className="mt-4 w-full rounded-xl border border-[#0067B1]/30 bg-[#0067B1]/5 px-4 py-2.5 text-sm font-semibold text-[#0067B1]"
+          onClick={onExtractPart}
+        >
+          {t("editor.instructionStudio.v2.partActions.extractNow" as never)}
+        </button>
+      : null}
 
       <button
         type="button"

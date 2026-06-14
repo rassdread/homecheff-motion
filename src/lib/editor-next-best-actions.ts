@@ -1,4 +1,5 @@
 import { editorHandoffStudioUrl } from "@/lib/editor-instruction-handoff";
+import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
 import {
   resolveEditorToMotionHandoffUrl,
   resolveEditorToPublishHandoffUrl,
@@ -37,6 +38,7 @@ export function isFreePostGenerationAction(actionId: string): boolean {
 
 export function resolveEditorNextBestActions(input: EditorNextBestActionInput): EditorNextBestAction[] {
   const actions: EditorNextBestAction[] = [];
+  const motionAllowed = Boolean(input.document && activeApprovedVariant(input.document));
   const handoffBase = {
     document: input.document,
     editorSessionId: input.editorSessionId ?? "",
@@ -115,13 +117,23 @@ export function resolveEditorNextBestActions(input: EditorNextBestActionInput): 
       priority: 7,
     });
   } else if (input.resultType === "sequence") {
+    if (motionAllowed) {
+      push({
+        id: "animate_5s",
+        labelKey: "editor.postGen.animateSequence",
+        descriptionKey: "editor.postGen.animateSequenceHint",
+        cost: "motion_credits",
+        creditCost: 1,
+        priority: 1,
+      });
+    }
     push({
-      id: "animate_5s",
-      labelKey: "editor.postGen.animateSequence",
-      descriptionKey: "editor.postGen.animateSequenceHint",
-      cost: "motion_credits",
+      id: "generate_variant",
+      labelKey: "editor.postGen.generateVariant",
+      descriptionKey: "editor.postGen.generateVariantHint",
+      cost: "credits",
       creditCost: 1,
-      priority: 1,
+      priority: motionAllowed ? 2 : 1,
     });
     push({
       id: "send_studio_scene",
@@ -191,21 +203,23 @@ export function resolveEditorNextBestActions(input: EditorNextBestActionInput): 
         priority: 1,
       });
       push({
-        id: "animate_3s",
-        labelKey: "editor.postGen.animate3s",
-        descriptionKey: "editor.postGen.animateHint",
-        cost: "motion_credits",
-        creditCost: 1,
-        priority: 2,
-      });
-      push({
         id: "generate_variant",
         labelKey: "editor.postGen.generateVariant",
         descriptionKey: "editor.postGen.generateVariantHint",
         cost: "credits",
         creditCost: 1,
-        priority: 3,
+        priority: 2,
       });
+      if (motionAllowed) {
+        push({
+          id: "animate_3s",
+          labelKey: "editor.postGen.animate3s",
+          descriptionKey: "editor.postGen.animateHint",
+          cost: "motion_credits",
+          creditCost: 1,
+          priority: 3,
+        });
+      }
     } else {
       push({
         id: "publish_share_ready",
@@ -217,13 +231,23 @@ export function resolveEditorNextBestActions(input: EditorNextBestActionInput): 
         priority: 1,
       });
       push({
-        id: "animate_3s",
-        labelKey: "editor.postGen.animate3s",
-        descriptionKey: "editor.postGen.animateHint",
-        cost: "motion_credits",
+        id: "generate_variant",
+        labelKey: "editor.postGen.generateVariant",
+        descriptionKey: "editor.postGen.generateVariantHint",
+        cost: "credits",
         creditCost: 1,
         priority: 2,
       });
+      if (motionAllowed) {
+        push({
+          id: "animate_3s",
+          labelKey: "editor.postGen.animate3s",
+          descriptionKey: "editor.postGen.animateHint",
+          cost: "motion_credits",
+          creditCost: 1,
+          priority: 3,
+        });
+      }
     }
 
     push({

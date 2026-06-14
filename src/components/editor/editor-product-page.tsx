@@ -9,6 +9,7 @@ import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { fetchEditorProject } from "@/lib/editor-project-client";
 import { loadEditorCanvasDocument, saveEditorCanvasDocument } from "@/lib/editor-canvas-session";
+import { mergePreservingVisionAnalysis, documentHasRichVisionAnalysis } from "@/lib/editor-vision-v6-stability";
 import { confirmLeaveEditorProject, editorProjectHasUnsavedVisualChanges } from "@/lib/editor-project-model";
 import { hydrateEditorDocumentFromHcProject, loadHcProjectFromQueryResolved } from "@/lib/homecheff-project-open";
 import { loadHomeCheffProject } from "@/lib/homecheff-project-persist";
@@ -75,26 +76,33 @@ export function EditorProductPage() {
     if (!sessionId || !auth.user || hcProjectId) {
       return;
     }
+    if (documentOverride && documentHasRichVisionAnalysis(documentOverride)) {
+      return;
+    }
     let cancelled = false;
     void (async () => {
       setHydrating(true);
+      const local = loadEditorCanvasDocument(sessionId);
       const result = await fetchEditorProject(sessionId);
       if (cancelled) {
         return;
       }
       if (result.ok && result.project) {
-        const saved = saveEditorCanvasDocument(result.project);
+        const merged = mergePreservingVisionAnalysis(local ?? result.project, result.project);
+        const saved = saveEditorCanvasDocument(merged);
         setDocumentOverride(saved);
         if (saved.instructionStudioState?.hcProjectId) {
           setHcProject(loadHomeCheffProject(saved.instructionStudioState.hcProjectId));
         }
+      } else if (local) {
+        setDocumentOverride(local);
       }
       setHydrating(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [auth.user?.id, hcProjectId, sessionId]);
+  }, [auth.user?.id, documentOverride, hcProjectId, sessionId]);
 
   const openDocument = (doc: EditorCanvasDocument) => {
     setDocumentOverride(doc);
@@ -122,7 +130,7 @@ export function EditorProductPage() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
         <HomeCheffOrbitLoader state="loading" size="md" />
-        <p className="text-sm text-zinc-600">{t("editor.project.loading" as never)}</p>
+        <p className="text-sm text-white/80">{t("editor.project.loading" as never)}</p>
       </main>
     );
   }

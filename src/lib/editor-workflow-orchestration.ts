@@ -2,6 +2,7 @@ import { activeApprovedVariant } from "@/lib/editor-instruction-approval";
 import { getCompositionPlan } from "@/lib/editor-composition-plan";
 import { listChangePlan } from "@/lib/editor-instruction-change-plan";
 import { parseEditorInstructionRequest } from "@/lib/editor-instruction-request-parser";
+import { isMotionWorkspaceUnlocked } from "@/lib/editor-workflow-phases";
 import type {
   EditorWorkflowStage,
   EditorWorkflowStageStatus,
@@ -30,7 +31,7 @@ export function resolveWorkflowIntent(document: EditorCanvasDocument): EditorWor
     case "combine":
       return "combine";
     case "motion_prepare":
-      return "motion";
+      return "edit";
     case "export":
       return "export";
     default:
@@ -53,7 +54,7 @@ export function detectEditorWorkflowIntent(
     return "combine";
   }
   if (/motion|animation|video|commercial|animate/.test(text)) {
-    return "motion";
+    return isMotionWorkspaceUnlocked(document) ? "motion" : "edit";
   }
   if (/print|flyer|poster|a3|a4|export|instagram|tiktok|social/.test(text)) {
     return "export";
@@ -133,8 +134,8 @@ export function suggestSmartNextSteps(document: EditorCanvasDocument): SmartNext
     steps.push({ id: "approve", labelKey: "editor.workflow.next.approveVariant" });
   }
   if (approved) {
-    steps.push({ id: "motion", labelKey: "editor.workflow.next.prepareMotion", intent: "motion" });
     steps.push({ id: "export", labelKey: "editor.workflow.next.export", intent: "export" });
+    steps.push({ id: "motion", labelKey: "editor.workflow.next.prepareMotion", intent: "motion" });
     steps.push({ id: "studio", labelKey: "editor.workflow.next.sendStudio" });
   }
   return steps.slice(0, 5);
@@ -164,13 +165,16 @@ export function patchWorkflowIntent(
   };
 }
 
-export function inferIntentFromDirectorPrompt(prompt: string): EditorWorkspaceIntent {
+export function inferIntentFromDirectorPrompt(
+  prompt: string,
+  document?: EditorCanvasDocument
+): EditorWorkspaceIntent {
   const parsed = parseEditorInstructionRequest(prompt);
   if (parsed.outputTarget === "print") {
     return "export";
   }
   if (parsed.outputTarget === "motion") {
-    return "motion";
+    return document && isMotionWorkspaceUnlocked(document) ? "motion" : "edit";
   }
   if (/reference|combine|from image/.test(prompt.toLowerCase())) {
     return "combine";

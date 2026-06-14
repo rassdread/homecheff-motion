@@ -4,11 +4,14 @@ import { useMemo, useState } from "react";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
 import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
 import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
+import { EditorVisionHierarchyPanel } from "@/components/editor/editor-vision-hierarchy-panel";
 import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-instruction-preview-highlight";
 import { EditorInstructionStyleTraitList } from "@/components/editor/editor-instruction-style-trait-list";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { EditorPostGenerationActionCenter } from "@/components/editor/editor-post-generation-action-center";
+import { EditorDetectionStatusBanner } from "@/components/editor/editor-detection-status-banner";
+import { EditorVisionSummaryPanel } from "@/components/editor/editor-vision-summary-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
 import {
@@ -63,6 +66,21 @@ import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-co
 import { listCreatorPresetsForContext } from "@/lib/editor-personalized-recommendations";
 import { isLegacyCanvasEditorDocument, mergeInstructionSelection } from "@/lib/editor-instruction-studio";
 import {
+  resolveInstructionObjectFromHierarchyNode,
+  selectionPatchFromHierarchyNode,
+  styleAttributeFromHierarchyNode,
+} from "@/lib/editor-hierarchy-object-resolution";
+import { extractPartToLibrary } from "@/lib/editor-part-extraction";
+import { runEditorVisionAndObjectDetection } from "@/lib/editor-canvas-session";
+import { editorPhaseShowsSection } from "@/lib/editor-workflow-phases";
+import {
+  documentHasRichVisionAnalysis,
+  isMeaningfulVisionHierarchy,
+  resolveStickyVisionHierarchy,
+  traceVisionHierarchyStage,
+} from "@/lib/editor-vision-v6-stability";
+import { listEditorAnalysisTimings } from "@/lib/editor-analysis-performance";
+import {
   executeEditorInstructionBulkVariantApi,
   executeEditorInstructionVariantApi,
 } from "@/lib/editor-instruction-variant-client";
@@ -77,9 +95,11 @@ import {
   setPreviewInstructionVariant,
 } from "@/lib/editor-instruction-version";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
-import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import type { EditorCanvasDocument, EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
 import type {
   EditorCreatorPresetId,
+  EditorImagePhase,
+  EditorInstructionObjectV2,
   EditorStyleAttribute,
 } from "@/types/editor-instruction-studio";
 import { DEFAULT_EDITOR_INSTRUCTION_SLIDERS } from "@/types/editor-instruction-studio";
@@ -88,6 +108,9 @@ type Props = {
   document: EditorCanvasDocument;
   busy?: boolean;
   isAdmin?: boolean;
+  activePhase?: EditorImagePhase;
+  motionUnlocked?: boolean;
+  onPhaseChange?: (phase: EditorImagePhase) => void;
   onDocumentChange: (document: EditorCanvasDocument) => void;
   onSave?: () => void;
 };
@@ -96,6 +119,9 @@ export function EditorInstructionStudioWorkspace({
   document,
   busy = false,
   isAdmin = false,
+  activePhase = "edit",
+  motionUnlocked = false,
+  onPhaseChange,
   onDocumentChange,
   onSave,
 }: Props) {
@@ -106,7 +132,7 @@ export function EditorInstructionStudioWorkspace({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [colorInput, setColorInput] = useState("");
   const [addPlanReason, setAddPlanReason] = useState("");
-  const [focusMode, setFocusMode] = useState<"object" | "style">("object");
+  const [manualFocusMode, setManualFocusMode] = useState<"object" | "style" | null>(null);
   const [expandedObjectId, setExpandedObjectId] = useState<string | null>(null);
   const [expandedStyleAttribute, setExpandedStyleAttribute] = useState<EditorStyleAttribute | null>(
     null
@@ -118,6 +144,10 @@ export function EditorInstructionStudioWorkspace({
   );
   const [styleDescription, setStyleDescription] = useState("");
   const [selectedActionKey, setSelectedActionKey] = useState("");
+  const [selectedHierarchyNodeId, setSelectedHierarchyNodeId] = useState<string | null>(null);
+  const [virtualSelectedObject, setVirtualSelectedObject] = useState<EditorInstructionObjectV2 | null>(
+    null
+  );
 
   const { editableObjects: objectsV2, styleTraits, meta: objectFeedMeta } = useMemo(
     () => getInstructionObjectFeed(document),
@@ -148,7 +178,20 @@ export function EditorInstructionStudioWorkspace({
   });
 
   const selectedObject =
-    objectsV2.find((o) => o.id === selection.objectKey) ?? objectsV2[0] ?? null;
+    virtualSelectedObject ??
+    objectsV2.find((o) => o.id === selection.objectKey) ??
+    objectsV2[0] ??
+    null;
+
+  const focusMode = useMemo((): "object" | "style" => {
+    if (activePhase === "colors" || activePhase === "style") {
+      return "style";
+    }
+    if (activePhase === "parts" || activePhase === "edit" || activePhase === "director") {
+      return "object";
+    }
+    return manualFocusMode ?? "object";
+  }, [activePhase, manualFocusMode]);
 
   const logoRef = findBrandReference(document, selection.logoReferenceId);
   const showBranding = brandingWorkflowRequiresLogo(selection.action);
@@ -249,7 +292,11 @@ export function EditorInstructionStudioWorkspace({
   const selectObject = (obj: NonNullable<typeof selectedObject>) => {
     const dynamicActions = resolveDynamicActionsForObject(obj);
     const first = dynamicActions[0];
-    setFocusMode("object");
+    setVirtualSelectedObject(
+      obj.id.startsWith("obj_v6_") || obj.source === "semanticLayers" ? obj : null
+    );
+    setSelectedHierarchyNodeId(null);
+    setManualFocusMode("object");
     setExpandedObjectId(obj.id);
     setExpandedStyleAttribute(null);
     if (first) {
@@ -265,11 +312,75 @@ export function EditorInstructionStudioWorkspace({
   };
 
   const selectStyleAttribute = (attribute: EditorStyleAttribute) => {
-    setFocusMode("style");
+    setManualFocusMode("style");
     setSelectedStyleAttribute(attribute);
     setExpandedStyleAttribute(attribute);
     setSelectedStyleActionId(EDITOR_STYLE_ACTIONS[attribute][0]?.id ?? "");
     setStyleDescription("");
+  };
+
+  const displayHierarchy = useMemo(() => {
+    traceVisionHierarchyStage("before_EditorVisionHierarchyPanel_render", document);
+    return resolveStickyVisionHierarchy(document);
+  }, [document]);
+  const hasRichHierarchy = isMeaningfulVisionHierarchy(displayHierarchy, document.visionV6Meta);
+  const analysisPending =
+    !documentHasRichVisionAnalysis(document) &&
+    (document.objects.filter((o) => o.layerType !== "background").length === 0 ||
+      !document.detectionMeta?.lastDetectedAt);
+  const weakEstimatedOnly =
+    !hasRichHierarchy && (displayHierarchy.length > 0 || analysisPending);
+  const showParts = editorPhaseShowsSection(activePhase, "parts");
+  const showAnalysis = editorPhaseShowsSection(activePhase, "analysis");
+  const showObjectEdit = editorPhaseShowsSection(activePhase, "objectEdit");
+  const showStyle = editorPhaseShowsSection(activePhase, "style");
+  const showChangePlan = editorPhaseShowsSection(activePhase, "changePlan");
+  const showVariants = editorPhaseShowsSection(activePhase, "variants");
+  const showVersions = editorPhaseShowsSection(activePhase, "versions");
+  const showApprove = editorPhaseShowsSection(activePhase, "approve");
+  const styleFocus = activePhase === "colors" ? "color_palette" : selectedStyleAttribute;
+  const expandedStyleForPanel =
+    activePhase === "colors" ? "color_palette" : expandedStyleAttribute;
+
+  const selectHierarchyNode = (node: EditorVisionHierarchyNode) => {
+    setSelectedHierarchyNodeId(node.id);
+    if (node.category === "style") {
+      selectStyleAttribute(styleAttributeFromHierarchyNode(node));
+      return;
+    }
+    const match = resolveInstructionObjectFromHierarchyNode(document, objectsV2, node);
+    setVirtualSelectedObject(match);
+    const patch = selectionPatchFromHierarchyNode(document, node, match);
+    const dynamicActions = resolveDynamicActionsForObject(match);
+    const first = dynamicActions[0];
+    setManualFocusMode("object");
+    setExpandedObjectId(match.id);
+    setExpandedStyleAttribute(null);
+    if (first) {
+      setSelectedActionKey(actionOptionKey(first, 0));
+    }
+    updateSelection({
+      ...defaultSelectionForObject(match),
+      ...patch,
+      action: first?.action ?? defaultSelectionForObject(match).action,
+      customPrompt: first?.promptHint ? `Focus on ${first.promptHint}` : undefined,
+    });
+    setColorInput("");
+    setAddPlanReason("");
+  };
+
+  const handleExtractSelectedPart = () => {
+    if (!selectedObject) {
+      return;
+    }
+    const next = extractPartToLibrary(document, {
+      object: selectedObject,
+      targetPartId: selection.targetPartId,
+      targetLayerId: selection.targetLayerId,
+      quality: selection.estimatedSelection ? "estimated_crop" : "estimated_crop",
+    });
+    onDocumentChange(next);
+    setStatusMessage(t("editor.instructionStudio.v2.partActions.extractSaved" as never));
   };
 
   const handleAddStyleToChangePlan = () => {
@@ -490,15 +601,28 @@ export function EditorInstructionStudioWorkspace({
       ? previewVariant.resultUrl
       : approvedActive?.resultUrl ?? null;
 
+  const analysisTimings = useMemo(() => {
+    if (!isAdmin) {
+      return [];
+    }
+    return listEditorAnalysisTimings(document.sessionId);
+  }, [document.sessionId, document.detectionMeta?.lastDetectedAt, isAdmin]);
+
   return (
     <div className="space-y-4" data-testid="instruction-studio-workspace">
+      {showAnalysis ?
+        <div className="space-y-3">
+          <EditorDetectionStatusBanner meta={document.detectionMeta} />
+          <EditorVisionSummaryPanel document={document} />
+        </div>
+      : null}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
         <div className="space-y-3 xl:col-span-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <p className={`${studioVisual.eyebrowOnDark}`}>
             {t("editor.instructionStudio.v2.previewColumn" as never)}
           </p>
           <div>
-            <p className="mb-1 text-xs text-zinc-600">
+            <p className="mb-1 text-xs text-white/75">
               {t("editor.instructionStudio.originalLabel" as never)}
             </p>
             <EditorInstructionPreviewHighlight
@@ -509,7 +633,7 @@ export function EditorInstructionStudioWorkspace({
           </div>
           {previewUrl ?
             <div>
-              <p className="mb-1 text-xs text-zinc-600">
+              <p className="mb-1 text-xs text-white/75">
                 {approvedActive
                   ? t("editor.instructionStudio.v2.activeApproved" as never)
                   : t("editor.instructionStudio.variantLabel" as never)}
@@ -523,54 +647,151 @@ export function EditorInstructionStudioWorkspace({
         </div>
 
         <div className="space-y-3 xl:col-span-3">
-          <EditorInstructionObjectList
-            objects={objectsV2}
-            selectedObjectId={focusMode === "object" ? selection.objectKey : null}
-            expandedObjectId={expandedObjectId}
-            onSelect={selectObject}
-            onToggleExpand={(id) =>
-              setExpandedObjectId((prev) => (prev === id ? null : id))
-            }
-            lowConfidence={objectFeedMeta.lowConfidence}
-          />
-          <EditorInstructionStyleTraitList
-            document={document}
-            styleTraitLabels={styleTraits}
-            selectedAttribute={focusMode === "style" ? selectedStyleAttribute : null}
-            expandedAttribute={expandedStyleAttribute}
-            onSelect={selectStyleAttribute}
-            onToggleExpand={(attribute) =>
-              setExpandedStyleAttribute((prev) => (prev === attribute ? null : attribute))
-            }
-          />
-          {isAdmin ?
-            <section className={`p-3 text-[11px] text-zinc-600 ${studioVisual.editorSurface}`}>
-              <p className="font-semibold text-zinc-800">
-                {t("editor.instructionStudio.v2.objectFeed.debugTitle" as never)}
-              </p>
-              <p>
-                {t("editor.instructionStudio.v2.objectFeed.source" as never)}: {objectFeedMeta.source}
-              </p>
-              <p>
-                {t("editor.instructionStudio.v2.objectFeed.count" as never)}: {objectFeedMeta.count}
+          {showParts && analysisPending ?
+            <section
+              className="rounded-2xl border border-white/20 bg-[#003d6b]/55 p-4 text-white shadow-sm backdrop-blur-sm"
+              data-testid="instruction-parts-analyzing"
+            >
+              <h3 className="text-sm font-semibold text-white">
+                {t("editor.workflow.parts.analyzingTitle" as never)}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/85">
+                {t("editor.workflow.parts.analyzingLead" as never)}
               </p>
             </section>
+          : null}
+          {showParts && hasRichHierarchy ?
+            <section
+              className={`rounded-2xl border border-white/15 bg-white/95 p-3 shadow-sm ${studioVisual.editorSurface}`}
+              data-testid="instruction-vision-hierarchy"
+            >
+              <EditorVisionHierarchyPanel
+                hierarchy={displayHierarchy}
+                selectedNodeId={selectedHierarchyNodeId}
+                onSelectNode={selectHierarchyNode}
+              />
+            </section>
+          : null}
+          {showParts && weakEstimatedOnly && !analysisPending ?
+            <section
+              className={`rounded-2xl border border-amber-200/80 bg-amber-50/95 p-4 text-amber-950 shadow-sm ${studioVisual.editorSurface}`}
+              data-testid="instruction-parts-weak"
+            >
+              <h3 className="text-sm font-semibold text-amber-950">
+                {t("editor.workflow.parts.weakTitle" as never)}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-amber-900/90">
+                {t("editor.workflow.parts.weakLead" as never)}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
+                  onClick={() => void runEditorVisionAndObjectDetection(document).then(onDocumentChange)}
+                >
+                  {t("editor.workflow.parts.reanalyze" as never)}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
+                  onClick={() => onPhaseChange?.("edit")}
+                >
+                  {t("editor.workflow.parts.manualSelect" as never)}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
+                  onClick={() => onPhaseChange?.("director")}
+                >
+                  {t("editor.workflow.parts.describeAi" as never)}
+                </button>
+              </div>
+            </section>
+          : null}
+          {showParts && !hasRichHierarchy && !analysisPending && !weakEstimatedOnly ?
+            <EditorInstructionObjectList
+              objects={objectsV2}
+              selectedObjectId={focusMode === "object" ? selection.objectKey : null}
+              expandedObjectId={expandedObjectId}
+              onSelect={selectObject}
+              onToggleExpand={(id) =>
+                setExpandedObjectId((prev) => (prev === id ? null : id))
+              }
+              lowConfidence={objectFeedMeta.lowConfidence}
+            />
+          : null}
+          {showStyle ?
+            <EditorInstructionStyleTraitList
+              document={document}
+              styleTraitLabels={styleTraits}
+              selectedAttribute={focusMode === "style" ? styleFocus : null}
+              expandedAttribute={expandedStyleForPanel}
+              onSelect={selectStyleAttribute}
+              onToggleExpand={(attribute) =>
+                setExpandedStyleAttribute((prev) => (prev === attribute ? null : attribute))
+              }
+            />
+          : null}
+          {isAdmin ?
+            <>
+              <section className="rounded-2xl border border-white/20 bg-[#041428]/70 p-3 text-[11px] text-white/90 backdrop-blur-sm">
+                <p className="font-semibold text-white">
+                  {t("editor.instructionStudio.v2.objectFeed.debugTitle" as never)}
+                </p>
+                <p>
+                  {t("editor.instructionStudio.v2.objectFeed.source" as never)}: {objectFeedMeta.source}
+                </p>
+                <p>
+                  {t("editor.instructionStudio.v2.objectFeed.count" as never)}: {objectFeedMeta.count}
+                </p>
+              </section>
+              {analysisTimings.length ?
+                <section
+                  className="rounded-2xl border border-white/20 bg-[#041428]/70 p-3 text-[11px] text-white/90 backdrop-blur-sm"
+                  data-testid="instruction-analysis-timings"
+                >
+                  <p className="font-semibold text-white">
+                    {t("editor.workflow.parts.performanceTitle" as never)}
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {analysisTimings.map((row) => (
+                      <li key={`${row.stage}-${row.at}`}>
+                        <span className="text-white/80">{row.stage}</span>
+                        <span className="ml-2 font-mono text-emerald-200">{row.durationMs}ms</span>
+                        {row.note ?
+                          <span className="ml-1 text-white/60">({row.note})</span>
+                        : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              : null}
+            </>
           : null}
         </div>
 
         <div className="space-y-4 xl:col-span-5">
-          {focusMode === "style" ?
+          {showObjectEdit && (activePhase === "director" ?
+            <section className={`p-4 text-sm text-zinc-700 ${studioVisual.editorSurface}`}>
+              <p className="font-semibold text-zinc-900">
+                {t("editor.workflow.phase.directorHintTitle" as never)}
+              </p>
+              <p className="mt-1">{t("editor.workflow.phase.directorHintLead" as never)}</p>
+            </section>
+          : null)}
+          {showObjectEdit && focusMode === "style" ?
             <EditorInstructionEditPanel
               mode="style"
               document={document}
-              styleAttribute={selectedStyleAttribute}
+              styleAttribute={styleFocus}
               selectedActionId={selectedStyleActionId}
               onActionIdChange={setSelectedStyleActionId}
               description={styleDescription}
               onDescriptionChange={setStyleDescription}
               onAddToChangePlan={handleAddStyleToChangePlan}
             />
-          : selectedObject ?
+          : null}
+          {showObjectEdit && focusMode !== "style" && selectedObject ?
             <EditorInstructionEditPanel
               mode="object"
               document={document}
@@ -584,6 +805,8 @@ export function EditorInstructionStudioWorkspace({
               onLogoUpload={handleLogoUpload}
               onStyleReferenceUpload={(file) => void handleReferenceUpload(file, "style")}
               onAddToChangePlan={handleAddToChangePlan}
+              estimatedSelection={selection.estimatedSelection}
+              onExtractPart={handleExtractSelectedPart}
               selectedActionKey={
                 selectedActionKey ||
                 actionOptionKey(resolveDynamicActionsForObject(selectedObject)[0]!, 0)
@@ -596,52 +819,112 @@ export function EditorInstructionStudioWorkspace({
                 });
               }}
             />
-          : (
+          : showObjectEdit ?
             <section className={`p-4 text-sm text-zinc-600 ${studioVisual.editorSurface}`}>
               {t("editor.instructionStudio.v2.workspace.selectObjectPrompt" as never)}
             </section>
-          )}
+          : null}
 
-          <EditorInstructionChangePlanPanel
-            document={document}
-            onDocumentChange={onDocumentChange}
-            onGenerateFromPlan={() => void handleGenerateFromPlan()}
-            generating={generating}
-          />
+          {showChangePlan ?
+            <EditorInstructionChangePlanPanel
+              document={document}
+              onDocumentChange={onDocumentChange}
+              onGenerateFromPlan={() => void handleGenerateFromPlan()}
+              generating={generating}
+            />
+          : null}
 
-          <section className={`p-4 ${studioVisual.editorSurface}`}>
-            <h3 className="text-sm font-semibold text-zinc-900">
-              {t("editor.instructionStudio.v2.workspace.generationControls" as never)}
-            </h3>
-            <div className="mt-3 space-y-2">
-              {(
-                [
-                  ["preserveStyle", "editor.instructionStudio.slider.preserveStyle"],
-                  ["brandPreservation", "editor.instructionStudio.v2.slider.preserveBrand"],
-                  ["creativity", "editor.instructionStudio.slider.creativity"],
-                  ["changeStrength", "editor.instructionStudio.v2.slider.strength"],
-                ] as const
-              ).map(([key, labelKey]) => (
-                <label key={key} className="block text-xs font-medium text-zinc-700">
-                  {t(labelKey as never)}
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={selection.sliders[key]}
-                    className="mt-1 w-full"
-                    onChange={(e) =>
-                      updateSelection({
-                        sliders: { ...selection.sliders, [key]: Number(e.target.value) },
-                      })
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-          </section>
+          {showVariants ?
+            <>
+              <section className={`p-4 ${studioVisual.editorSurface}`}>
+                <h3 className="text-sm font-semibold text-zinc-900">
+                  {t("editor.instructionStudio.v2.workspace.generationControls" as never)}
+                </h3>
+                <div className="mt-3 space-y-2">
+                  {(
+                    [
+                      ["preserveStyle", "editor.instructionStudio.slider.preserveStyle"],
+                      ["brandPreservation", "editor.instructionStudio.v2.slider.preserveBrand"],
+                      ["creativity", "editor.instructionStudio.slider.creativity"],
+                      ["changeStrength", "editor.instructionStudio.v2.slider.strength"],
+                    ] as const
+                  ).map(([key, labelKey]) => (
+                    <label key={key} className="block text-xs font-medium text-zinc-700">
+                      {t(labelKey as never)}
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={selection.sliders[key]}
+                        className="mt-1 w-full"
+                        onChange={(e) =>
+                          updateSelection({
+                            sliders: { ...selection.sliders, [key]: Number(e.target.value) },
+                          })
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              </section>
 
-          {approvedActive?.approvalStatus === "approved" ?
+              <section className={`p-4 ${studioVisual.editorSurface}`}>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {t("editor.instructionStudio.v2.presets.title" as never)}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {creatorPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      disabled={generating || legacyReadOnly}
+                      className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800"
+                      onClick={() => void handleBulkGenerate(preset.id)}
+                    >
+                      {t(preset.labelKey as never)}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={generating || legacyReadOnly}
+                    className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800"
+                    onClick={() => void handleBulkGenerate()}
+                  >
+                    {t("editor.instructionStudio.v2.bulk.generate4" as never)}
+                  </button>
+                </div>
+              </section>
+
+              {statusMessage ?
+                <p className="text-sm text-zinc-600" role="status">
+                  {statusMessage}
+                </p>
+              : null}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy || generating || legacyReadOnly}
+                  onClick={() => void handleGenerateVariant()}
+                  className="min-h-11 flex-1 rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {t("editor.instructionStudio.generateVariant" as never)}
+                </button>
+                {onSave ?
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={onSave}
+                    className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+                  >
+                    {t("editor.instructionStudio.save" as never)}
+                  </button>
+                : null}
+              </div>
+            </>
+          : null}
+
+          {showApprove && approvedActive?.approvalStatus === "approved" ?
             <section className={`p-4 ${studioVisual.editorSurface}`}>
               <h3 className="text-sm font-semibold text-slate-900">
                 {t("editor.instructionStudio.v2.print.title" as never)}
@@ -672,109 +955,64 @@ export function EditorInstructionStudioWorkspace({
             </section>
           : null}
 
-          <section className={`p-4 ${studioVisual.editorSurface}`}>
-            <h3 className="text-sm font-semibold text-slate-900">
-              {t("editor.instructionStudio.v2.presets.title" as never)}
-            </h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {creatorPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  disabled={generating || legacyReadOnly}
-                  className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800"
-                  onClick={() => void handleBulkGenerate(preset.id)}
-                >
-                  {t(preset.labelKey as never)}
-                </button>
-              ))}
-              <button
-                type="button"
-                disabled={generating || legacyReadOnly}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-800"
-                onClick={() => void handleBulkGenerate()}
-              >
-                {t("editor.instructionStudio.v2.bulk.generate4" as never)}
-              </button>
-            </div>
-          </section>
-
-          {statusMessage ?
-            <p className="text-sm text-zinc-600" role="status">
-              {statusMessage}
-            </p>
-          : null}
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy || generating || legacyReadOnly}
-              onClick={() => void handleGenerateVariant()}
-              className="min-h-11 flex-1 rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {t("editor.instructionStudio.generateVariant" as never)}
-            </button>
-            {previewVariantId && previewVariant ?
-              <>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900"
-                  onClick={() =>
-                    onDocumentChange(approveInstructionVariant(document, previewVariantId))
-                  }
-                >
-                  {t("editor.instructionStudio.v2.approve" as never)}
-                </button>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800"
-                  onClick={() =>
-                    onDocumentChange(archiveInstructionVariant(document, previewVariantId))
-                  }
-                >
-                  {t("editor.instructionStudio.v2.reject" as never)}
-                </button>
-                {previewVariant.approvalStatus === "approved" ?
+          {showApprove ?
+            <div className="flex flex-wrap gap-2">
+              {previewVariantId && previewVariant ?
+                <>
                   <button
                     type="button"
-                    className="min-h-11 rounded-full border border-[#0067B1] px-4 py-2 text-sm font-semibold text-[#0067B1]"
-                    onClick={() => {
-                      const next = setActiveApprovedVariant(document, previewVariantId);
-                      if (next) {
-                        onDocumentChange(next);
-                      }
-                    }}
+                    className="min-h-11 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900"
+                    onClick={() =>
+                      onDocumentChange(approveInstructionVariant(document, previewVariantId))
+                    }
                   >
-                    {t("editor.instructionStudio.v2.setActive" as never)}
+                    {t("editor.instructionStudio.v2.approve" as never)}
                   </button>
-                : null}
-              </>
-            : null}
-            {onSave ?
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onSave}
-                className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
-              >
-                {t("editor.instructionStudio.save" as never)}
-              </button>
-            : null}
-            <button
-              type="button"
-              className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
-              onClick={() => window.open(editorHandoffStudioUrl(document), "_blank", "noopener,noreferrer")}
-            >
-              {t("editor.instructionStudio.toStudio" as never)}
-            </button>
-            <button
-              type="button"
-              className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
-              onClick={() => window.open(editorHandoffMotionUrl(document), "_blank", "noopener,noreferrer")}
-            >
-              {t("editor.instructionStudio.toMotion" as never)}
-            </button>
-          </div>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800"
+                    onClick={() =>
+                      onDocumentChange(archiveInstructionVariant(document, previewVariantId))
+                    }
+                  >
+                    {t("editor.instructionStudio.v2.reject" as never)}
+                  </button>
+                  {previewVariant.approvalStatus === "approved" ?
+                    <button
+                      type="button"
+                      className="min-h-11 rounded-full border border-[#0067B1] px-4 py-2 text-sm font-semibold text-[#0067B1]"
+                      onClick={() => {
+                        const next = setActiveApprovedVariant(document, previewVariantId);
+                        if (next) {
+                          onDocumentChange(next);
+                        }
+                      }}
+                    >
+                      {t("editor.instructionStudio.v2.setActive" as never)}
+                    </button>
+                  : null}
+                </>
+              : null}
+              {motionUnlocked ?
+                <>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+                    onClick={() => window.open(editorHandoffStudioUrl(document), "_blank", "noopener,noreferrer")}
+                  >
+                    {t("editor.instructionStudio.toStudio" as never)}
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+                    onClick={() => window.open(editorHandoffMotionUrl(document), "_blank", "noopener,noreferrer")}
+                  >
+                    {t("editor.instructionStudio.toMotion" as never)}
+                  </button>
+                </>
+              : null}
+            </div>
+          : null}
         </div>
       </div>
 
@@ -782,9 +1020,11 @@ export function EditorInstructionStudioWorkspace({
         <EditorPlanSummaryPanel document={document} compact />
       : null}
 
-      {showResults ?
+      {showResults && (showVersions || showApprove) ?
         <>
-          <EditorPostGenerationActionCenter document={document} resultType="image" />
+          {motionUnlocked ?
+            <EditorPostGenerationActionCenter document={document} resultType="image" />
+          : null}
           <section data-testid="instruction-results-panel">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">
             {t("editor.instructionStudio.v2.results.title" as never)}

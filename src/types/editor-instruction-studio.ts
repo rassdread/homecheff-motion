@@ -47,6 +47,8 @@ export const EDITOR_INSTRUCTION_DYNAMIC_ACTIONS = [
   "change_background",
   "duplicate",
   "detach_asset",
+  "protect_part",
+  "refine_selection",
 ] as const;
 
 export type EditorInstructionDynamicAction = (typeof EDITOR_INSTRUCTION_DYNAMIC_ACTIONS)[number];
@@ -154,6 +156,10 @@ export type EditorInstructionChangePlanItem = {
   preserveBrand: number;
   order: number;
   status: EditorInstructionChangePlanItemStatus;
+  targetPartId?: string;
+  targetLayerId?: string;
+  estimatedCostCredits?: number;
+  extractionQuality?: "mask" | "estimated_crop" | "manual";
 };
 
 export const EDITOR_STYLE_ATTRIBUTES = [
@@ -417,6 +423,9 @@ export type EditorInstructionSelection = {
   styleReferenceId?: string;
   productReferenceId?: string;
   brandingPlacementHint?: string;
+  targetPartId?: string;
+  targetLayerId?: string;
+  estimatedSelection?: boolean;
 };
 
 export type EditorInstructionVariantGenerationStatus =
@@ -574,6 +583,20 @@ export const EDITOR_WORKSPACE_INTENTS = [
 
 export type EditorWorkspaceIntent = (typeof EDITOR_WORKSPACE_INTENTS)[number];
 
+export const EDITOR_IMAGE_PHASES = [
+  "analyze",
+  "parts",
+  "edit",
+  "style",
+  "colors",
+  "director",
+  "variants",
+  "versions",
+  "approve",
+] as const;
+
+export type EditorImagePhase = (typeof EDITOR_IMAGE_PHASES)[number];
+
 export type EditorWorkflowOrchestrationState = {
   intent: EditorWorkspaceIntent;
   activeStage: EditorWorkflowStage;
@@ -599,6 +622,8 @@ export type EditorInstructionStudioState = {
   selectedCreatorPresetId?: EditorCreatorPresetId;
   /** AI Director natural-language input */
   directorPrompt?: string;
+  /** Image-editing workspace phase (Photoshop/Canva-first flow) */
+  activeImagePhase?: EditorImagePhase;
   outputTarget?: EditorInstructionOutputTarget;
   workflow?: EditorWorkflowOrchestrationState;
   brandReferences?: BrandReferenceAsset[];

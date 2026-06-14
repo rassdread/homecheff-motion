@@ -21,6 +21,7 @@ import {
 } from "@/lib/studio-asset-wizard-reference-generation";
 import { buildTransformPromptPreview } from "@/lib/studio-asset-transform-prompt";
 import { StudioWizardIdentityDebugPanel } from "@/components/studio/studio-wizard-identity-debug-panel";
+import { StudioCharacterCreationPipelinePanel } from "@/components/studio/studio-character-creation-pipeline-panel";
 import { StudioWizardGenerationProgress } from "@/components/studio/studio-wizard-generation-progress";
 import { StudioVariantQualityPanel } from "@/components/studio/studio-variant-quality-panel";
 import {
@@ -66,6 +67,8 @@ type Props = {
   onBackToChoices: () => void;
   onBackToSourceTransform?: () => void;
   onChangeSource?: () => void;
+  storyboardId?: string | null;
+  decisionId?: string | null;
 };
 
 export function StudioWizardReferenceStep({
@@ -75,6 +78,8 @@ export function StudioWizardReferenceStep({
   onBackToChoices,
   onBackToSourceTransform,
   onChangeSource,
+  storyboardId = null,
+  decisionId = null,
 }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
@@ -297,43 +302,55 @@ export function StudioWizardReferenceStep({
             </p>
           : null}
 
-          {!sourceFlow &&
-          draft.referenceGenerationStatus === "idle" &&
-          generationAvailable &&
-          draft.summaryPrompt.trim() ?
-            <button
-              type="button"
-              onClick={() => void runGeneration()}
-              className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
-            >
-              {t("studio.assetCreation.transformPrompt.generateVariant")}
-            </button>
-          : null}
-
-          {draft.referenceGenerationStatus === "generating" ?
-            <div className="space-y-3" role="status" aria-live="polite">
-              <StudioWizardGenerationProgress activeStepId="generate_image" />
-              <p className="text-center text-sm font-medium text-zinc-700">
-                {t("studio.assetCreation.reference.generating")}
-              </p>
-            </div>
-          : null}
-
-          {draft.referenceGenerationStatus === "failed" ?
-            <div className="space-y-3">
-              <p className="text-sm text-red-700">{draft.referenceGenerationError}</p>
-              {session.user?.role === "admin" && providerDebugError ?
-                <p className="text-xs text-zinc-500">{providerDebugError}</p>
+          {kind === "character" && generationAvailable !== false ?
+            <StudioCharacterCreationPipelinePanel
+              draft={{ ...draft, kind: "character" }}
+              onDraftChange={onDraftChange}
+              storyboardId={storyboardId}
+              decisionId={decisionId}
+              showRecent={false}
+            />
+          : (
+            <>
+              {!sourceFlow &&
+              draft.referenceGenerationStatus === "idle" &&
+              generationAvailable &&
+              draft.summaryPrompt.trim() ?
+                <button
+                  type="button"
+                  onClick={() => void runGeneration()}
+                  className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  {t("studio.assetCreation.transformPrompt.generateVariant")}
+                </button>
               : null}
-              <button
-                type="button"
-                onClick={() => void runGeneration(true)}
-                className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
-              >
-                {t("studio.assetCreation.reference.retryGenerate")}
-              </button>
-            </div>
-          : null}
+
+              {draft.referenceGenerationStatus === "generating" ?
+                <div className="space-y-3" role="status" aria-live="polite">
+                  <StudioWizardGenerationProgress activeStepId="generate_image" />
+                  <p className="text-center text-sm font-medium text-zinc-700">
+                    {t("studio.assetCreation.reference.generating")}
+                  </p>
+                </div>
+              : null}
+
+              {draft.referenceGenerationStatus === "failed" ?
+                <div className="space-y-3">
+                  <p className="text-sm text-red-700">{draft.referenceGenerationError}</p>
+                  {session.user?.role === "admin" && providerDebugError ?
+                    <p className="text-xs text-zinc-500">{providerDebugError}</p>
+                  : null}
+                  <button
+                    type="button"
+                    onClick={() => void runGeneration(true)}
+                    className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    {t("studio.assetCreation.reference.retryGenerate")}
+                  </button>
+                </div>
+              : null}
+            </>
+          )}
 
           {(draft.referenceGenerationStatus === "preview" ||
             draft.referenceGenerationStatus === "accepted") &&

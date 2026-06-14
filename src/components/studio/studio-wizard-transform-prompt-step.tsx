@@ -25,6 +25,7 @@ import {
   syncTransformPromptDraft,
   toggleChipInText,
 } from "@/lib/studio-asset-transform-prompt";
+import { StudioCharacterCreationPipelinePanel } from "@/components/studio/studio-character-creation-pipeline-panel";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
 type DraftPatch = Partial<AssetWizardDraft> | ((d: AssetWizardDraft) => AssetWizardDraft);
@@ -35,6 +36,8 @@ type Props = {
   onDraftChange: (patch: DraftPatch) => void;
   onGenerationComplete: () => void;
   onBack: () => void;
+  storyboardId?: string | null;
+  decisionId?: string | null;
 };
 
 function ChipRow({
@@ -78,6 +81,8 @@ export function StudioWizardTransformPromptStep({
   onDraftChange,
   onGenerationComplete,
   onBack,
+  storyboardId = null,
+  decisionId = null,
 }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
@@ -378,16 +383,29 @@ export function StudioWizardTransformPromptStep({
         >
           {t("studio.assetCreation.wizard.back")}
         </button>
-        <button
-          type="button"
-          disabled={generating || generationAvailable === false}
-          onClick={() => void handleGenerate()}
-          className="min-h-[48px] flex-1 rounded-full bg-[#0067B1] px-6 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none"
-        >
-          {generating
-            ? t("studio.assetCreation.reference.generating")
-            : t("studio.assetCreation.transformPrompt.generateVariant")}
-        </button>
+        {kind === "character" && generationAvailable !== false ?
+          <div className="w-full sm:flex-1">
+            <StudioCharacterCreationPipelinePanel
+              draft={{ ...draft, kind: "character" }}
+              onDraftChange={onDraftChange}
+              storyboardId={storyboardId}
+              decisionId={decisionId}
+              showRecent={false}
+              onComplete={() => onGenerationComplete()}
+            />
+          </div>
+        : (
+          <button
+            type="button"
+            disabled={generating || generationAvailable === false}
+            onClick={() => void handleGenerate()}
+            className="min-h-[48px] flex-1 rounded-full bg-[#0067B1] px-6 py-2 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none"
+          >
+            {generating
+              ? t("studio.assetCreation.reference.generating")
+              : t("studio.assetCreation.transformPrompt.generateVariant")}
+          </button>
+        )}
       </div>
     </div>
   );

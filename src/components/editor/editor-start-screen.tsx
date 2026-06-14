@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
+import { createEditorProject, fetchEditorProject, fetchEditorProjects, saveEditorProject } from "@/lib/editor-project-client";
 import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
 import { EditorReferenceRoleFlow } from "@/components/editor/editor-reference-role-flow";
 import { EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
@@ -78,12 +78,17 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     try {
       const withMode = applyPostUploadMode(document, mode, { combineIntent });
       saveEditorCanvasDocument(withMode);
-      if (auth.user) {
-        await createEditorProject(withMode);
-      }
-      setRecent(listRecentEditorDocuments());
       const analyzed =
         mode === "export" ? withMode : await runEditorVisionAndObjectDetection(withMode);
+      if (auth.user) {
+        const existing = await fetchEditorProject(analyzed.sessionId);
+        if (existing.ok) {
+          await saveEditorProject(analyzed.sessionId, analyzed, analyzed.name);
+        } else {
+          await createEditorProject(analyzed);
+        }
+      }
+      setRecent(listRecentEditorDocuments());
       onOpenDocument(analyzed);
       setPhase({ kind: "workflow" });
     } catch {

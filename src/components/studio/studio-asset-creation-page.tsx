@@ -29,7 +29,10 @@ type Props = {
   guidedQueryParam?: boolean;
   startInAdvancedMode?: boolean;
   hasDecisionPrefill?: boolean;
+  storyboardId?: string | null;
+  decisionId?: string | null;
   onWizardSave: (result: AssetCreationWizardResult) => Promise<void>;
+  onCharacterPipelineComplete?: (characterId: string) => void;
   children: (ctx: AssetCreationPageContext) => React.ReactNode;
 };
 
@@ -38,7 +41,10 @@ export function StudioAssetCreationPage({
   guidedQueryParam = false,
   startInAdvancedMode = false,
   hasDecisionPrefill = false,
+  storyboardId = null,
+  decisionId = null,
   onWizardSave,
+  onCharacterPipelineComplete,
   children,
 }: Props) {
   const t = useActiveTranslator();
@@ -104,9 +110,12 @@ export function StudioAssetCreationPage({
         initialKind={kind}
         lockKind
         choiceBasedFlow={guidedQueryParam || forceWizard}
+        storyboardId={storyboardId}
+        decisionId={decisionId}
         onAdvancedEdit={handleAdvancedEdit}
         onSave={handleWizardSave}
         onSkipToClassic={handleSkipToClassic}
+        onCharacterPipelineComplete={onCharacterPipelineComplete}
       />
     );
   }

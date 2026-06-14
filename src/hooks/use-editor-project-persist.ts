@@ -6,7 +6,7 @@ import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 export type EditorProjectSaveStatus = "idle" | "saving" | "saved" | "dirty" | "error";
 
-const AUTOSAVE_MS = 800;
+const AUTOSAVE_MS = 1500;
 
 export function useEditorProjectPersist(params: {
   document: EditorCanvasDocument;

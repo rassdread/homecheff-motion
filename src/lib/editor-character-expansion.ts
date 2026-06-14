@@ -119,6 +119,10 @@ export function documentMascotSignals(document: EditorCanvasDocument): string {
     document.assetProfile?.variantGroup?.baseLabel,
     document.assetProfile?.variantGroup?.groupId,
     document.sourceKind,
+    document.visionAnalysis?.objectType,
+    document.visionAnalysis?.objectTypeLabel,
+    document.visionAnalysis?.visualStyle,
+    ...(document.visionAnalysis?.keyFeatures ?? []),
     ...(document.semanticLayers?.map((l) => l.label) ?? []),
     ...(document.detectedObjects?.map((o) => o.label) ?? []),
   ]

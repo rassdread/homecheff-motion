@@ -4,13 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { WorkflowStageView } from "@/lib/editor-workflow-orchestration";
-import type { EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
+import type { EditorImagePhase, EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
+import { EDITOR_IMAGE_PHASES } from "@/types/editor-instruction-studio";
 
 type Props = {
   documentName: string;
   saving?: boolean;
   activeTab: EditorWorkspaceIntent | "projects";
+  activeImagePhase?: EditorImagePhase;
   stages: WorkflowStageView[];
+  motionUnlocked?: boolean;
   isAdmin?: boolean;
   showAdvancedToggle?: boolean;
   advancedMode?: boolean;
@@ -20,6 +23,7 @@ type Props = {
   onProjects: () => void;
   onClose: () => void;
   onTabChange: (tab: EditorWorkspaceIntent | "projects") => void;
+  onPhaseChange?: (phase: EditorImagePhase) => void;
   onToggleAdvanced?: () => void;
   onToggleAiAnalysis?: () => void;
   showAiAnalysis?: boolean;
@@ -29,7 +33,9 @@ export function EditorMenu({
   documentName,
   saving = false,
   activeTab,
+  activeImagePhase,
   stages,
+  motionUnlocked = false,
   isAdmin = false,
   showAdvancedToggle = false,
   advancedMode = false,
@@ -39,6 +45,7 @@ export function EditorMenu({
   onProjects,
   onClose,
   onTabChange,
+  onPhaseChange,
   onToggleAdvanced,
   onToggleAiAnalysis,
   showAiAnalysis = false,
@@ -107,9 +114,28 @@ export function EditorMenu({
             {currentStage ? t(currentStage.labelKey as never) : "—"}
           </p>
           <div className="my-1 border-t border-zinc-200/80" />
-          {item(t("editor.workflow.tab.edit" as never), () => onTabChange("edit"))}
+          <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            {t("editor.workflow.phase.sectionEditor" as never)}
+          </p>
+          {EDITOR_IMAGE_PHASES.map((phase) =>
+            item(
+              `${t(`editor.workflow.phase.${phase}` as never)}${activeImagePhase === phase ? " ✓" : ""}`,
+              () => {
+                onTabChange("edit");
+                onPhaseChange?.(phase);
+              }
+            )
+          )}
+          <div className="my-1 border-t border-zinc-200/80" />
+          <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            {t("editor.workflow.phase.sectionMotion" as never)}
+          </p>
+          {item(
+            t("editor.workflow.tab.motion" as never),
+            () => onTabChange("motion"),
+            !motionUnlocked
+          )}
           {item(t("editor.workflow.tab.combine" as never), () => onTabChange("combine"))}
-          {item(t("editor.workflow.tab.motion" as never), () => onTabChange("motion"))}
           {item(t("editor.workflow.tab.export" as never), () => onTabChange("export"))}
           {showAdvancedToggle && onToggleAdvanced
             ? item(

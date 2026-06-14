@@ -18,6 +18,16 @@ const PART_LABELS: Record<EditorPartCategory, string> = {
   globe: "Globe",
   tie: "Tie",
   prop: "Object",
+  eyes: "Eyes",
+  mouth: "Mouth",
+  jacket: "Jacket",
+  shirt: "Shirt",
+  pants: "Pants",
+  shoes: "Shoes",
+  arms: "Arms",
+  hands: "Hands",
+  shadow: "Shadow",
+  outline: "Face outline",
 };
 
 const EXPRESSION_LABELS: Record<EditorCharacterExpression, string> = {

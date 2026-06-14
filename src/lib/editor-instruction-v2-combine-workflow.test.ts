@@ -127,7 +127,7 @@ describe("editor v2 combine and workflow", () => {
       inferIntentFromDirectorPrompt("Use the background from image 2 and mascot from image 1"),
       "combine"
     );
-    assert.equal(inferIntentFromDirectorPrompt("Prepare Globe Man for animation"), "motion");
+    assert.equal(inferIntentFromDirectorPrompt("Prepare Globe Man for animation"), "edit");
     assert.equal(inferIntentFromDirectorPrompt("Create an A3 poster"), "export");
     assert.equal(detectEditorWorkflowIntent(doc, "make this print ready"), "export");
   });

@@ -33,13 +33,65 @@ function slugScene(index: number): string {
 
 export function buildStudioStorylineFromIdea(
   idea: string,
-  context?: { emotions?: string[]; visualStyles?: string[]; audience?: string[] }
+  context?: {
+    emotions?: string[];
+    visualStyles?: string[];
+    audience?: string[];
+    locale?: string;
+  }
 ): StudioGeneratedStoryline {
-  const trimmed = idea.trim() || "A day in the kitchen";
+  const locale = context?.locale?.toLowerCase().startsWith("nl") ? "nl" : "en";
+  const trimmed = idea.trim() || (locale === "nl" ? "Een dag in de keuken" : "A day in the kitchen");
   const title = trimmed.length > 48 ? `${trimmed.slice(0, 45)}…` : trimmed;
-  const style = context?.visualStyles?.[0] ?? "cinematic";
-  const emotion = context?.emotions?.[0] ?? "excitement";
-  const audience = context?.audience?.[0] ?? "general";
+  const style = context?.visualStyles?.[0] ?? (locale === "nl" ? "cinematisch" : "cinematic");
+  const emotion = context?.emotions?.[0] ?? (locale === "nl" ? "energie" : "excitement");
+  const audience = context?.audience?.[0] ?? (locale === "nl" ? "algemeen" : "general");
+
+  if (locale === "nl") {
+    return {
+      title,
+      logline: `Een ${style} verhaal gedreven door ${emotion} — meer dan alleen een wandeling.`,
+      summary: `Dit project vertolkt de kern van je idee voor ${audience} publiek, met scènes die bouwen naar een gedeelde pay-off.`,
+      targetAudience: audience,
+      tone: `${emotion}, ${style}, toegankelijk`,
+      musicMood: "Lichte upbeat akoestisch",
+      soundEnvironment: "Stads- of keukenambience",
+      cta: "Probeer het zelf — start in HomeCheff Studio.",
+      scenes: [
+        {
+          id: slugScene(0),
+          title: "Opening",
+          script: "We openen op het thema van je idee — niet letterlijk je zin.",
+          visualDescription: "Hero-shot met natuurlijk licht en heldere compositie.",
+          voiceOver: "Soms begint een community met één stap.",
+          subtitle: trimmed,
+        },
+        {
+          id: slugScene(1),
+          title: "Middendeel",
+          script: "De sleutelmomenten met ritme en helderheid.",
+          visualDescription: "Medium shots van personages, plekken en transformatie.",
+          voiceOver: "Elke ontmoeting voegt iets toe.",
+          subtitle: "Stap voor stap",
+        },
+        {
+          id: slugScene(2),
+          title: "Pay-off",
+          script: "Onthul het resultaat en nodig uit tot actie.",
+          visualDescription: "Hero reveal met ruimte voor merk.",
+          voiceOver: "Jouw versie is klaar om te delen.",
+          subtitle: "Klaar om te publiceren",
+        },
+      ],
+      assetRequirements: [
+        { kind: "character", label: "Host of mascotte", required: false },
+        { kind: "location", label: "Hoofdlocatie", required: true },
+        { kind: "prop", label: "Hero product of ingredient", required: true },
+        { kind: "world", label: "Merk look & feel", required: false },
+      ],
+    };
+  }
+
   return {
     title,
     logline: `A ${style} story driven by ${emotion} — ${trimmed.toLowerCase()}.`,

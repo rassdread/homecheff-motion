@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefV4SelectionCards } from "@/components/studio/brief-v4-selection-cards";
 import { StudioBuildStoryPanel } from "@/components/studio/studio-build-story-panel";
+import { StudioStoryInterpretationPanel } from "@/components/studio/studio-story-interpretation-panel";
 import { StudioCharacterWizardPanel } from "@/components/studio/studio-character-wizard-panel";
 import { StudioConfirmStoryboardPanel } from "@/components/studio/studio-confirm-storyboard-panel";
 import { StudioGenerateMissingAssetsPanel } from "@/components/studio/studio-generate-missing-assets-panel";
@@ -22,7 +23,7 @@ import { DEFAULT_BRIEF_V4_SELECTIONS, type StudioProductionBriefV4Selections } f
 import { resolveEditorStudioEntry } from "@/lib/editor-studio-entry";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { AppCard } from "@/components/ui/app-card";
-import { useActiveTranslator } from "@/i18n/client";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { buildProductionBrief } from "@/lib/studio-production-brief-builder";
 import { createStoryboardFromProductionBrief } from "@/lib/studio-create-story-from-brief-client";
@@ -316,6 +317,7 @@ function StoryPreview({ brief }: { brief: StudioProductionBrief }) {
 
 export function StudioProductionBriefFlow() {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const searchParams = useSearchParams();
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
@@ -615,13 +617,14 @@ export function StudioProductionBriefFlow() {
                   type="button"
                   onClick={() => {
                     if (!brief) return;
-                    const plan = buildStoryPlanFromBrief({ brief, selections });
-                    setStoryPlan(plan);
-                    persistWorkflow({ phase: "plan", storyPlan: plan });
                     if (selections.aiEverythingMode) {
+                      const plan = buildStoryPlanFromBrief({ brief, selections, locale });
+                      setStoryPlan(plan);
+                      persistWorkflow({ phase: "plan", storyPlan: plan });
                       setProductionRoute("asset_first");
                       setStep("preview");
                     } else {
+                      setStoryPlan(null);
                       setStep("build_story");
                     }
                   }}
@@ -632,6 +635,27 @@ export function StudioProductionBriefFlow() {
                     : t("studio.buildStory.continue" as never)}
                 </GradientButton>
               </div>
+            </div>
+          : null}
+
+          {step === "build_story" && brief && !storyPlan ?
+            <div className="space-y-6">
+              <StudioStoryInterpretationPanel
+                idea={idea}
+                selections={selections}
+                locale={locale}
+                onPlanReady={(plan) => {
+                  setStoryPlan(plan);
+                  persistWorkflow({ phase: "plan", storyPlan: plan });
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setStep("brief")}
+                className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                {t("studio.productionBrief.back")}
+              </button>
             </div>
           : null}
 

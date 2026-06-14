@@ -21,6 +21,7 @@ import type {
   EditorSemanticLayer,
 } from "@/types/homecheff-visual-editor";
 import type { EditorAssetProfile } from "@/types/editor-asset-profile";
+import { documentHasRichVisionAnalysis } from "@/lib/editor-vision-v6-stability";
 
 export type InstructionObjectFeedResult = {
   /** Editable objects for dropdown (alias: objects) */
@@ -318,6 +319,18 @@ function sortObjects(objects: EditorInstructionObjectV2[]): EditorInstructionObj
   return [...objects].sort(
     (a, b) => (CATEGORY_SORT_ORDER[a.category] ?? 50) - (CATEGORY_SORT_ORDER[b.category] ?? 50)
   );
+}
+
+/** V6 semantic layers — keep per-part granularity (no label collapse). */
+export function dedupeV6SemanticObjects(objects: EditorInstructionObjectV2[]): EditorInstructionObjectV2[] {
+  const byKey = new Map<string, EditorInstructionObjectV2>();
+  for (const obj of objects) {
+    const key = obj.layerId ?? obj.id;
+    if (!byKey.has(key)) {
+      byKey.set(key, obj);
+    }
+  }
+  return sortObjects([...byKey.values()]);
 }
 
 /** Merge duplicates — one Background, one Logo, near-identical labels collapsed. */
@@ -652,6 +665,30 @@ function finalizeFeed(
   );
 }
 
+function buildFromV6SemanticLayers(
+  document: EditorCanvasDocument
+): InstructionObjectFeedResult | null {
+  const fromSemantic = mapSemanticLayers(document);
+  if (fromSemantic.filter((o) => o.category !== "background").length === 0) {
+    return null;
+  }
+  const editableOnly = dedupeV6SemanticObjects(fromSemantic.filter(isEditableObject));
+  const editableObjects = attachBoundsToObjects(editableOnly, document);
+  return {
+    editableObjects,
+    objects: editableObjects,
+    styleTraits: [],
+    meta: {
+      source: "semanticLayers",
+      count: editableObjects.length,
+      traitCount: 0,
+      rawCount: fromSemantic.length,
+      lowConfidence: fromSemantic.some((o) => o.confidence < 0.6),
+      sourcesUsed: ["semanticLayers"],
+    },
+  };
+}
+
 /**
  * Builds instruction-studio object intelligence from all available document signals.
  * Raw sources are merged, filtered, deduped, and grouped before display.
@@ -675,6 +712,13 @@ export function buildInstructionObjectsFromDocument(
     );
   }
 
+  if (documentHasRichVisionAnalysis(document)) {
+    const v6Feed = buildFromV6SemanticLayers(document);
+    if (v6Feed && nonBackgroundCount(v6Feed.editableObjects) > 0) {
+      return v6Feed;
+    }
+  }
+
   const { raw, sourcesUsed } = collectRawCandidates(document);
   const rawCount = raw.length;
 
@@ -684,6 +728,12 @@ export function buildInstructionObjectsFromDocument(
   }
 
   if (rawCount === 0) {
+    if (documentHasRichVisionAnalysis(document)) {
+      const v6Feed = buildFromV6SemanticLayers(document);
+      if (v6Feed) {
+        return v6Feed;
+      }
+    }
     if (documentHasLikelyForegroundSubject(document) && !isCharacterAssetDocument(document)) {
       const objects = ensureBackground(
         [
@@ -733,6 +783,12 @@ export function buildInstructionObjectsFromDocument(
     documentHasLikelyForegroundSubject(document) &&
     !isCharacterAssetDocument(document)
   ) {
+    if (documentHasRichVisionAnalysis(document)) {
+      const v6Feed = buildFromV6SemanticLayers(document);
+      if (v6Feed) {
+        return v6Feed;
+      }
+    }
     objects = ensureBackground(
       [
         buildInstructionObject({

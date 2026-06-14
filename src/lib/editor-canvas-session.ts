@@ -12,6 +12,7 @@ import {
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
 import { buildEditorVisionHierarchy } from "@/lib/editor-vision-v4-hierarchy";
+import { resolveVisionHierarchyForDocument, traceVisionHierarchyStage } from "@/lib/editor-vision-v6-stability";
 import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
 import { refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
@@ -103,15 +104,22 @@ function writeStore(store: Record<string, EditorCanvasDocument>, activeSessionId
 }
 
 export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocument | null {
-  return readStore()[sessionId] ?? null;
+  const doc = readStore()[sessionId] ?? null;
+  if (doc) {
+    traceVisionHierarchyStage("after_loadEditorCanvasDocument", doc);
+  }
+  return doc;
 }
 
 function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocument {
-  const semanticLayers = document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
-  let detectedObjects = syncDetectedObjectsOnDocument(
-    document.objects,
-    document.detectedObjects
-  );
+  const semanticLayers =
+    document.visionV6Meta?.illustrationAnalysis && document.semanticLayers?.length
+      ? document.semanticLayers
+      : document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
+  let detectedObjects =
+    document.visionV6Meta?.illustrationAnalysis && document.detectedObjects?.length
+      ? document.detectedObjects
+      : syncDetectedObjectsOnDocument(document.objects, document.detectedObjects);
   const objectHierarchies =
     document.objectHierarchies ??
     buildDocumentObjectHierarchies(detectedObjects, document.objects, semanticLayers);
@@ -124,15 +132,15 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     document.motionPreparations ?? buildEditorMotionPreparations(detectedObjects, document.objects);
   const hierarchicalSelection =
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
-  const visionHierarchy =
-    document.visionHierarchy ??
+  const visionHierarchy = resolveVisionHierarchyForDocument(document, () =>
     buildEditorVisionHierarchy({
       objects: detectedObjects,
       layers: document.objects,
       semanticLayers,
       objectHierarchies,
       vision: document.visionAnalysis,
-    });
+    })
+  );
   const withHandoff = attachStudioMotionHandoff({
     ...ensureEditorNonDestructiveState(document),
     semanticLayers,
@@ -141,6 +149,7 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
     motionPreparations,
     objectHierarchies,
     visionHierarchy,
+    visionV6Meta: document.visionV6Meta,
     hierarchicalSelection,
     workspaceMode: document.workspaceMode ?? "instruction_studio",
     importedLayers: document.importedLayers ?? [],
@@ -154,6 +163,7 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
 
 function persistEditorDocument(document: EditorCanvasDocument): EditorCanvasSaveResult {
   const next = enrichEditorDocument(document);
+  traceVisionHierarchyStage("after_enrichEditorDocument", next);
   const store = readStore();
   store[next.sessionId] = next;
   const storageWarning = writeStore(store, next.sessionId);
@@ -293,8 +303,12 @@ export function createEditorDocumentFromLibrarySource(
 export async function runEditorVisionAndObjectDetection(
   document: EditorCanvasDocument
 ): Promise<EditorCanvasDocument> {
+  traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", document);
   const analyzed = await bootstrapEditorObjectDetection(document);
-  return saveEditorCanvasDocument(analyzed);
+  traceVisionHierarchyStage("before_saveEditorCanvasDocument", analyzed);
+  const saved = saveEditorCanvasDocument(analyzed);
+  traceVisionHierarchyStage("after_saveEditorCanvasDocument", saved);
+  return saved;
 }
 
 export function applyEditorLayerOperation(

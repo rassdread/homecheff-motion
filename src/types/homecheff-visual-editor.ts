@@ -230,6 +230,9 @@ export type EditorSemanticLayerMetadata = {
   lastSegmentProvider?: string;
   lastSegmentPredictionId?: string;
   lastSegmentRuntimeMs?: number;
+  /** Vision V6 — part provenance for admin/debug. */
+  visionPartSource?: EditorVisionPartSource;
+  partCategory?: EditorPartCategory;
 };
 
 export type EditorSemanticLayer = {
@@ -313,6 +316,16 @@ export const EDITOR_PART_CATEGORIES = [
   "globe",
   "tie",
   "prop",
+  "eyes",
+  "mouth",
+  "jacket",
+  "shirt",
+  "pants",
+  "shoes",
+  "arms",
+  "hands",
+  "shadow",
+  "outline",
 ] as const;
 
 export type EditorPartCategory = (typeof EDITOR_PART_CATEGORIES)[number];
@@ -373,6 +386,8 @@ export type EditorObjectPart = {
   estimatedBounds?: boolean;
 };
 
+export type EditorVisionPartSource = "rtdetr" | "openai_vision" | "estimated" | "manual";
+
 export type EditorVisionHierarchyCategory =
   | "objects"
   | "face"
@@ -391,7 +406,27 @@ export type EditorVisionHierarchyNode = {
   bbox?: EditorCanvasBounds;
   editable: boolean;
   estimated?: boolean;
+  /** Vision V6 — where this node came from. */
+  source?: EditorVisionPartSource;
+  confidence?: number;
+  locked?: boolean;
   children: EditorVisionHierarchyNode[];
+};
+
+export type EditorVisionV6LayerSource = {
+  layerId: string;
+  label: string;
+  source: EditorVisionPartSource;
+  estimated: boolean;
+};
+
+export type EditorVisionV6Meta = {
+  illustrationAnalysis: boolean;
+  rtdetrCount: number;
+  visionPartCount: number;
+  mergedLayerCount: number;
+  openAiPartsUsed: boolean;
+  layerSources: EditorVisionV6LayerSource[];
 };
 
 export type EditorObjectHierarchy = {
@@ -421,6 +456,14 @@ export type EditorPartLibraryAsset = {
   boundingBox: EditorCanvasBounds;
   animationProfile?: EditorPartAnimationProfile;
   createdAt: string;
+  extractionMeta?: {
+    sourceSessionId: string;
+    sourceImageUrl: string;
+    sourcePartId?: string;
+    sourcePartLabel: string;
+    assetType: "character_part" | "prop" | "logo" | "background" | "style_reference";
+    extractionQuality: "mask" | "estimated_crop" | "manual";
+  };
 };
 
 export type EditorStudioMotionHandoff = {
@@ -1011,6 +1054,8 @@ export type EditorCanvasDocument = {
   objectHierarchies?: Record<string, EditorObjectHierarchy>;
   /** Vision V4 expandable analysis tree (objects, face, clothing, branding, style). */
   visionHierarchy?: EditorVisionHierarchyNode[];
+  /** Vision V6 illustration part analysis diagnostics. */
+  visionV6Meta?: EditorVisionV6Meta;
   partLibraryAssets?: EditorPartLibraryAsset[];
   hierarchicalSelection?: EditorHierarchicalSelectionState;
   studioMotionHandoff?: EditorStudioMotionHandoff;

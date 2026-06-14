@@ -41,6 +41,12 @@ export function summarizeChangePlanItem(
       return `Replace logo on ${target}`;
     case "replace":
       return `Replace ${target} with ${selection.replacement?.trim() || "described item"}`;
+    case "detach_asset":
+      return `Extract ${target} as library asset`;
+    case "protect_part":
+      return `Protect ${target} from edits`;
+    case "refine_selection":
+      return `Refine selection for ${target}`;
     default:
       return `${selection.action.replace(/_/g, " ")} on ${target}`;
   }
@@ -100,6 +106,10 @@ export function buildChangePlanItemFromSelection(
     preserveBrand: selection.sliders.brandPreservation,
     order,
     status: "pending",
+    targetPartId: selection.targetPartId,
+    targetLayerId: selection.targetLayerId,
+    estimatedCostCredits: 1,
+    extractionQuality: selection.estimatedSelection ? "estimated_crop" : undefined,
   };
 }
 

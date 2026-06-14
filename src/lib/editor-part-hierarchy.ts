@@ -44,6 +44,20 @@ function semanticTypeToPartCategory(type: string, label: string): EditorPartCate
   if (lower.includes("globe")) return "globe";
   if (lower.includes("logo")) return "logo";
   if (lower.includes("tie")) return "tie";
+  if (lower.includes("eye")) return "eyes";
+  if (lower.includes("mouth")) return "mouth";
+  if (lower.includes("jacket")) return "jacket";
+  if (lower.includes("shirt")) return "shirt";
+  if (lower.includes("pant")) return "pants";
+  if (lower.includes("shoe") || lower.includes("feet")) return "shoes";
+  if (lower.includes("shadow")) return "shadow";
+  if (lower.includes("outline")) return "outline";
+  if (lower.includes("arm") && lower.includes("left")) return "left_arm";
+  if (lower.includes("arm") && lower.includes("right")) return "right_arm";
+  if (lower.includes("arm")) return "arms";
+  if (lower.includes("hand") && lower.includes("left")) return "left_hand";
+  if (lower.includes("hand") && lower.includes("right")) return "right_hand";
+  if (lower.includes("hand")) return "hands";
   if (lower.includes("face")) return "face";
   if (lower.includes("hair")) return "hair";
   if (lower.includes("head")) return "head";
@@ -218,7 +232,13 @@ export function buildDocumentObjectHierarchies(
 
   for (const object of objects) {
     if (object.category === "background") continue;
-    if (object.category === "mascot" || object.category === "person" || object.parts?.length) {
+    if (
+      object.category === "mascot" ||
+      object.category === "person" ||
+      object.category === "prop" ||
+      object.category === "logo" ||
+      object.parts?.length
+    ) {
       const hierarchy = buildObjectHierarchy(
         object,
         layerById.get(object.layerId) ?? null,
@@ -242,6 +262,8 @@ export function partSupportsHierarchy(object: EditorObject): boolean {
   return (
     object.category === "mascot" ||
     object.category === "person" ||
+    object.category === "prop" ||
+    object.category === "logo" ||
     Boolean(object.parts?.length)
   );
 }

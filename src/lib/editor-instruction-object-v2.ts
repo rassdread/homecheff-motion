@@ -16,9 +16,19 @@ export {
   isStyleTrait,
   cleanRawObjectFeed,
   dedupeAndMergeObjects,
+  dedupeV6SemanticObjects,
   normalizeDisplayLabel,
   type InstructionObjectFeedResult,
 } from "@/lib/editor-instruction-object-feed";
+
+export {
+  buildVirtualInstructionObjectFromNode,
+  flattenSelectableHierarchyNodes,
+  isHierarchyNodeSelectable,
+  resolveInstructionObjectFromHierarchyNode,
+  selectionPatchFromHierarchyNode,
+  styleAttributeFromHierarchyNode,
+} from "@/lib/editor-hierarchy-object-resolution";
 
 export function getInstructionObjectFeed(document: EditorCanvasDocument): InstructionObjectFeedResult {
   return buildInstructionObjectsFromDocument(document);

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudioAssetCreateEntryChoice } from "@/components/studio/studio-asset-create-entry-choice";
+import { StudioCharacterCreationPipelinePanel } from "@/components/studio/studio-character-creation-pipeline-panel";
 import { StudioAssetCreationFlowProgress } from "@/components/studio/studio-asset-creation-flow-progress";
 import { StudioAssetWizardChoiceStep } from "@/components/studio/studio-asset-wizard-choice-step";
 import {
@@ -94,9 +95,12 @@ type Props = {
   initialKind?: StudioAssetKind;
   lockKind?: boolean;
   choiceBasedFlow?: boolean;
+  storyboardId?: string | null;
+  decisionId?: string | null;
   onAdvancedEdit: (result: AssetCreationWizardResult) => void;
   onSave: (result: AssetCreationWizardResult) => Promise<void>;
   onSkipToClassic: () => void;
+  onCharacterPipelineComplete?: (characterId: string) => void;
 };
 
 const KIND_OPTIONS: StudioAssetKind[] = ["character", "prop", "location", "world"];
@@ -109,9 +113,12 @@ export function StudioAssetCreationWizard({
   initialKind = "character",
   lockKind = false,
   choiceBasedFlow = false,
+  storyboardId = null,
+  decisionId = null,
   onAdvancedEdit,
   onSave,
   onSkipToClassic,
+  onCharacterPipelineComplete,
 }: Props) {
   const t = useActiveTranslator();
   const [kind, setKind] = useState<StudioAssetKind>(initialKind);
@@ -546,6 +553,8 @@ export function StudioAssetCreationWizard({
           kind={activeDraft.kind}
           draft={activeDraft}
           onDraftChange={updateDraft}
+          storyboardId={storyboardId}
+          decisionId={decisionId}
           onGenerationComplete={() => {
             const refIdx = stepSequence.indexOf("reference");
             if (refIdx >= 0) {
@@ -577,6 +586,8 @@ export function StudioAssetCreationWizard({
           kind={activeDraft.kind}
           draft={activeDraft}
           onDraftChange={updateDraft}
+          storyboardId={storyboardId}
+          decisionId={decisionId}
           onBackToChoices={() => {
             const firstChoiceIdx = stepSequence.indexOf("choice");
             if (firstChoiceIdx >= 0) {
@@ -627,21 +638,33 @@ export function StudioAssetCreationWizard({
       {activeDraft && step === "save" ?
         <div className="space-y-3">
           <StudioAssetWizardReviewStep draft={activeDraft} onDraftChange={updateDraft} />
-          <p className="text-sm text-zinc-700">{t("studio.assetCreation.save.lead")}</p>
-          {!canSaveWizardDraft(activeDraft) && activeDraft.referenceMode === "skip" ?
-            <p className="text-sm text-amber-700">{t("studio.assetCreation.save.referenceRequired")}</p>
-          : null}
-          {saveError ?
-            <p className="text-sm text-red-700">{saveError}</p>
-          : null}
-          <button
-            type="button"
-            disabled={saving || !canSaveWizardDraft(activeDraft)}
-            onClick={() => void handleSave()}
-            className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
-          >
-            {saving ? t("button.loading") : t("studio.assetCreation.save.create")}
-          </button>
+          {kind === "character" ?
+            <StudioCharacterCreationPipelinePanel
+              draft={activeDraft}
+              onDraftChange={updateDraft}
+              storyboardId={storyboardId}
+              decisionId={decisionId}
+              onComplete={(result) => onCharacterPipelineComplete?.(result.characterId)}
+            />
+          : (
+            <>
+              <p className="text-sm text-zinc-700">{t("studio.assetCreation.save.lead")}</p>
+              {!canSaveWizardDraft(activeDraft) && activeDraft.referenceMode === "skip" ?
+                <p className="text-sm text-amber-700">{t("studio.assetCreation.save.referenceRequired")}</p>
+              : null}
+              {saveError ?
+                <p className="text-sm text-red-700">{saveError}</p>
+              : null}
+              <button
+                type="button"
+                disabled={saving || !canSaveWizardDraft(activeDraft)}
+                onClick={() => void handleSave()}
+                className="min-h-[48px] w-full rounded-full bg-[#0067B1] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto"
+              >
+                {saving ? t("button.loading") : t("studio.assetCreation.save.create")}
+              </button>
+            </>
+          )}
         </div>
       : null}
 

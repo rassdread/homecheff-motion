@@ -44,19 +44,20 @@ describe("editor instruction dynamic workspace", () => {
     const jacketActions = resolveDynamicActionsForObject(
       mockObject({ label: "Jacket", category: "clothing" })
     );
-    assert.ok(jacketActions.some((a) => a.action === "add_logo"));
+    assert.ok(jacketActions.some((a) => a.action === "replace"));
     assert.ok(jacketActions.some((a) => a.action === "change_color"));
+    assert.ok(jacketActions.some((a) => a.action === "detach_asset"));
 
     const faceActions = resolveDynamicActionsForObject(
       mockObject({ label: "Face", category: "character" })
     );
     assert.ok(faceActions.some((a) => a.labelKey.includes("changeExpression")));
-    assert.ok(faceActions.some((a) => a.promptHint === "eyes"));
+    assert.ok(faceActions.some((a) => a.action === "refine_selection"));
 
     const backgroundActions = resolveDynamicActionsForObject(
       mockObject({ label: "Background", category: "background" })
     );
-    assert.ok(backgroundActions.some((a) => a.action === "blur"));
+    assert.ok(backgroundActions.some((a) => a.action === "remove"));
     assert.ok(backgroundActions.some((a) => a.action === "replace"));
   });
 

@@ -10,17 +10,29 @@ import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
+  motionUnlocked?: boolean;
 };
 
-export function EditorMotionWorkspace({ document }: Props) {
+export function EditorMotionWorkspace({ document, motionUnlocked = false }: Props) {
   const t = useActiveTranslator();
   const report = useMemo(() => evaluateMotionReadiness(document), [document]);
   const handoffUrl = editorHandoffMotionUrl(document);
+  const canHandoff = motionUnlocked && report.usesApprovedVariant;
 
   return (
-    <div className={`space-y-4 p-4 ${studioVisual.editorSurface}`}>
+    <div className={`space-y-4 p-4 ${studioVisual.editorSurface}`} data-testid="editor-motion-workspace">
+      {!motionUnlocked ?
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">{t("editor.workflow.motion.lockedTitle" as never)}</p>
+          <p className="mt-1">{t("editor.workflow.motion.lockedLead" as never)}</p>
+        </div>
+      : null}
+
       <div>
-        <h2 className="text-base font-bold text-zinc-900">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("editor.workflow.motion.finalReview" as never)}
+        </p>
+        <h2 className="mt-1 text-base font-bold text-zinc-900">
           {t("editor.workflow.motion.title" as never)}
         </h2>
         <p className="mt-1 text-sm text-zinc-600">
@@ -62,7 +74,7 @@ export function EditorMotionWorkspace({ document }: Props) {
         <Link
           href={handoffUrl}
           className={`rounded-full px-4 py-2 text-xs font-semibold ${
-            report.usesApprovedVariant ?
+            canHandoff ?
               "bg-[#0067B1] text-white"
             : "pointer-events-none bg-zinc-200 text-zinc-500"
           }`}

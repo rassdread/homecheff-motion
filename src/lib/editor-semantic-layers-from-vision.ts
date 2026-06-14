@@ -218,7 +218,15 @@ function collectFeatureSeeds(input: BuildEditorSemanticLayersInput): LayerSeed[]
 }
 
 function needsCharacterRoot(objectType: AssetVisionObjectType): boolean {
-  return ["character", "mascot", "human", "animal"].includes(objectType);
+  return [
+    "character",
+    "mascot",
+    "human",
+    "animal",
+    "illustration",
+    "logo",
+    "brand_asset",
+  ].includes(objectType);
 }
 
 export function buildEditorSemanticLayersFromVision(

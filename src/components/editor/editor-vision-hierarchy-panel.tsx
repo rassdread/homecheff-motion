@@ -2,13 +2,30 @@
 
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { isHierarchyNodeSelectable } from "@/lib/editor-hierarchy-object-resolution";
 import type { EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
+import type { EditorVisionPartSource } from "@/types/homecheff-visual-editor";
 
 type Props = {
   hierarchy: EditorVisionHierarchyNode[];
   selectedNodeId: string | null;
   onSelectNode: (node: EditorVisionHierarchyNode) => void;
 };
+
+function sourceBadge(source?: EditorVisionPartSource): string | null {
+  switch (source) {
+    case "rtdetr":
+      return "RT-DETR";
+    case "openai_vision":
+      return "Vision";
+    case "estimated":
+      return "Est.";
+    case "manual":
+      return "Manual";
+    default:
+      return null;
+  }
+}
 
 function HierarchyRow({
   node,
@@ -51,13 +68,18 @@ function HierarchyRow({
         )}
         <button
           type="button"
-          className="flex-1 text-left"
-          disabled={!node.editable}
-          onClick={() => node.editable && onSelectNode(node)}
+          className="flex-1 text-left disabled:cursor-default disabled:opacity-60"
+          disabled={!isHierarchyNodeSelectable(node)}
+          onClick={() => isHierarchyNodeSelectable(node) && onSelectNode(node)}
         >
           {node.label}
           {node.estimated ? (
             <span className="ml-1 text-[10px] text-amber-600">~</span>
+          ) : null}
+          {sourceBadge(node.source) ? (
+            <span className="ml-1 rounded bg-zinc-100 px-1 text-[9px] text-zinc-500">
+              {sourceBadge(node.source)}
+            </span>
           ) : null}
         </button>
       </div>
@@ -104,7 +126,7 @@ export function EditorVisionHierarchyPanel({ hierarchy, selectedNodeId, onSelect
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-zinc-500">{t("editor.visionV4.hierarchyTitle")}</p>
+      <p className="text-xs font-medium text-zinc-500">{t("editor.visionV6.hierarchyTitle")}</p>
       {hierarchy.map((root) => (
         <HierarchyRow
           key={root.id}

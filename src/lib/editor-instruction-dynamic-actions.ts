@@ -13,13 +13,81 @@ export type DynamicActionOption = {
   promptHint?: string;
 };
 
-/** UI-layer action options — maps to existing backend instruction actions. */
+const UNIVERSAL_PART_ACTIONS: DynamicActionOption[] = [
+  { action: "replace", labelKey: "editor.instructionStudio.v2.partActions.replace" },
+  { action: "change_color", labelKey: "editor.instructionStudio.v2.partActions.recolor" },
+  { action: "remove", labelKey: "editor.instructionStudio.v2.partActions.remove" },
+  { action: "detach_asset", labelKey: "editor.instructionStudio.v2.partActions.extract" },
+  { action: "duplicate", labelKey: "editor.instructionStudio.v2.partActions.duplicate" },
+  { action: "protect_part", labelKey: "editor.instructionStudio.v2.partActions.protect" },
+  { action: "refine_selection", labelKey: "editor.instructionStudio.v2.partActions.refine" },
+  {
+    action: "change_style",
+    labelKey: "editor.instructionStudio.v2.partActions.describe",
+    promptHint: "custom change",
+  },
+];
+
+function withCategoryExtras(
+  obj: EditorInstructionObjectV2,
+  base: DynamicActionOption[]
+): DynamicActionOption[] {
+  const label = obj.label.toLowerCase();
+  const extras: DynamicActionOption[] = [];
+
+  if (obj.category === "logo") {
+    extras.push(
+      { action: "replace_logo", labelKey: actionLabelKey("replace_logo") },
+      { action: "move_logo", labelKey: actionLabelKey("move_logo") }
+    );
+  }
+  if (obj.category === "background") {
+    extras.push(
+      {
+        action: "replace",
+        labelKey: "editor.instructionStudio.v2.partActions.replaceBackground",
+        promptHint: "new background",
+      },
+      { action: "transparent", labelKey: actionLabelKey("transparent") }
+    );
+  }
+  if (/\bglobe\b|prop|ball|earth/.test(label)) {
+    extras.unshift({
+      action: "replace",
+      labelKey: "editor.instructionStudio.v2.partActions.replaceProp",
+      promptHint: "replacement prop",
+    });
+  }
+  if (/\btie\b|shoe|jacket|clothing/.test(label)) {
+    extras.unshift({
+      action: "change_color",
+      labelKey: "editor.instructionStudio.v2.partActions.recolorClothing",
+      promptHint: "clothing color",
+    });
+  }
+
+  const seen = new Set<string>();
+  return [...extras, ...base].filter((opt) => {
+    const key = `${opt.action}:${opt.promptHint ?? ""}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+/** UI-layer action options — every V6 part gets the full actionable set. */
 export function resolveDynamicActionsForObject(obj: EditorInstructionObjectV2): DynamicActionOption[] {
+  if (obj.source === "semanticLayers" || obj.layerId?.startsWith("v6_")) {
+    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+  }
+
   const label = obj.label;
 
   if (obj.category === "character" || /\b(character|mascot|globe man)\b/i.test(label)) {
     if (/\bface\b/i.test(label) && !/\binterface\b/i.test(label)) {
-      return [
+      return withCategoryExtras(obj, [
         {
           action: "change_expression",
           labelKey: "editor.instructionStudio.v2.dynamic.face.changeExpression",
@@ -29,108 +97,45 @@ export function resolveDynamicActionsForObject(obj: EditorInstructionObjectV2): 
           labelKey: "editor.instructionStudio.v2.dynamic.face.changeEyes",
           promptHint: "eyes",
         },
-        {
-          action: "change_expression",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeSmile",
-          promptHint: "smile",
-        },
-        {
-          action: "change_style",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeFacialStyle",
-        },
-      ];
+        ...UNIVERSAL_PART_ACTIONS,
+      ]);
     }
-    if (/\beyes?\b/i.test(label)) {
-      return [
-        {
-          action: "change_expression",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeEyes",
-          promptHint: "eyes",
-        },
-        {
-          action: "change_expression",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeExpression",
-        },
-      ];
-    }
-    if (/\bmouth\b/i.test(label)) {
-      return [
-        {
-          action: "change_expression",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeSmile",
-          promptHint: "mouth and smile",
-        },
-        {
-          action: "change_expression",
-          labelKey: "editor.instructionStudio.v2.dynamic.face.changeExpression",
-        },
-      ];
-    }
-    return [
-      {
-        action: "change_style",
-        labelKey: "editor.instructionStudio.v2.dynamic.character.changeAppearance",
-      },
+    return withCategoryExtras(obj, [
       {
         action: "change_expression",
         labelKey: "editor.instructionStudio.v2.dynamic.character.changeExpression",
       },
       {
-        action: "change_pose",
-        labelKey: "editor.instructionStudio.v2.dynamic.character.changePose",
-      },
-      {
         action: "change_clothing",
         labelKey: "editor.instructionStudio.v2.dynamic.character.changeClothing",
       },
-      {
-        action: "change_style",
-        labelKey: "editor.instructionStudio.v2.dynamic.character.changeProportions",
-        promptHint: "body proportions",
-      },
-    ];
+      ...UNIVERSAL_PART_ACTIONS,
+    ]);
   }
 
   if (obj.category === "clothing") {
-    return [
-      { action: "add_logo", labelKey: actionLabelKey("add_logo") },
-      { action: "replace_logo", labelKey: actionLabelKey("replace_logo") },
-      { action: "change_color", labelKey: actionLabelKey("change_color") },
-      { action: "change_material", labelKey: actionLabelKey("change_material") },
-      {
-        action: "add_logo",
-        labelKey: "editor.instructionStudio.v2.dynamic.clothing.changeBranding",
-        promptHint: "branding placement",
-      },
-    ];
+    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
   }
 
   if (obj.category === "logo") {
-    return [
-      { action: "replace_logo", labelKey: "editor.instructionStudio.v2.dynamic.logo.replace" },
-      { action: "enlarge_logo", labelKey: "editor.instructionStudio.v2.dynamic.logo.resize" },
-      { action: "move_logo", labelKey: "editor.instructionStudio.v2.dynamic.logo.reposition" },
-      { action: "change_color", labelKey: "editor.instructionStudio.v2.dynamic.logo.recolor" },
-    ];
+    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
   }
 
   if (obj.category === "background") {
-    return [
-      { action: "replace", labelKey: "editor.instructionStudio.v2.dynamic.background.replace" },
-      { action: "blur", labelKey: actionLabelKey("blur") },
-      { action: "remove", labelKey: actionLabelKey("remove") },
-      {
-        action: "replace",
-        labelKey: "editor.instructionStudio.v2.dynamic.background.changeEnvironment",
-        promptHint: "environment",
-      },
-    ];
+    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
   }
 
-  return actionsForInstructionCategory(obj.category).map((action) => ({
-    action,
-    labelKey: actionLabelKey(action),
-  }));
+  if (obj.category === "product" || /\bglobe\b/i.test(label)) {
+    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+  }
+
+  return withCategoryExtras(
+    obj,
+    actionsForInstructionCategory(obj.category).map((action) => ({
+      action,
+      labelKey: actionLabelKey(action),
+    }))
+  );
 }
 
 export function actionOptionKey(option: DynamicActionOption, index: number): string {

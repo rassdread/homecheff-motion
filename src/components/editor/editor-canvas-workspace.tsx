@@ -13,6 +13,7 @@ import { EditorHumanObjectList } from "@/components/editor/editor-human-object-l
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
 import { EditorVisionHierarchyPanel } from "@/components/editor/editor-vision-hierarchy-panel";
 import { EditorDetectionStatusBanner } from "@/components/editor/editor-detection-status-banner";
+import { EditorVisionV6DebugPanel } from "@/components/editor/editor-vision-v6-debug-panel";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
 import { EditorObjectActionMenu } from "@/components/editor/editor-object-action-menu";
 import { EditorPlacementPropertiesPanel } from "@/components/editor/editor-placement-properties-panel";
@@ -625,6 +626,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   };
 
   const selectVisionHierarchyNode = (node: EditorVisionHierarchyNode) => {
+    if (node.layerId) {
+      const rootObject = node.objectId
+        ? (document.detectedObjects ?? []).find((o) => o.id === node.objectId)
+        : (document.detectedObjects ?? []).find((o) => o.layerId === node.layerId);
+      if (node.partId && rootObject) {
+        selectLayer(rootObject.layerId, node.partId);
+        return;
+      }
+      selectLayer(node.layerId);
+      return;
+    }
     if (node.partId && node.objectId) {
       const root = (document.detectedObjects ?? []).find((o) => o.id === node.objectId);
       if (root) {
@@ -2299,6 +2311,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               : null}
 
               <EditorDetectionStatusBanner meta={document.detectionMeta} />
+
+              {isAdmin && document.visionV6Meta ? (
+                <EditorVisionV6DebugPanel
+                  visionV6Meta={document.visionV6Meta}
+                  detectionMeta={document.detectionMeta}
+                />
+              ) : null}
 
               <EditorHumanObjectList
                 layers={document.objects}

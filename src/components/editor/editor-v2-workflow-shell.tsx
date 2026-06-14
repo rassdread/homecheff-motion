@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { EditorCombineWorkspace } from "@/components/editor/editor-combine-workspace";
 import { EditorExportWorkspace } from "@/components/editor/editor-export-workspace";
+import { EditorImagePhaseNav } from "@/components/editor/editor-image-phase-nav";
 import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
 import { EditorInstructionStudioWorkspace } from "@/components/editor/editor-instruction-studio-workspace";
 import { EditorMenu } from "@/components/editor/editor-menu";
+import { EditorMotionPhaseNav } from "@/components/editor/editor-motion-phase-nav";
 import { EditorMotionWorkspace } from "@/components/editor/editor-motion-workspace";
 import { useActiveTranslator } from "@/i18n/client";
 import { defaultSelectionForObject } from "@/lib/editor-instruction-object-v2";
@@ -19,9 +21,14 @@ import {
   resolveWorkflowStages,
   suggestSmartNextSteps,
 } from "@/lib/editor-workflow-orchestration";
+import {
+  isMotionWorkspaceUnlocked,
+  patchEditorImagePhase,
+  resolveEditorImagePhase,
+} from "@/lib/editor-workflow-phases";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import { studioVisual } from "@/lib/studio-visual-tokens";
-import type { EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
+import type { EditorImagePhase, EditorWorkspaceIntent } from "@/types/editor-instruction-studio";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -64,14 +71,28 @@ export function EditorV2WorkflowShell({
   const stages = useMemo(() => resolveWorkflowStages(document), [document]);
   const nextSteps = useMemo(() => suggestSmartNextSteps(document), [document]);
   const editableObjects = useMemo(() => listInstructionObjectsV2(document), [document]);
+  const motionUnlocked = useMemo(() => isMotionWorkspaceUnlocked(document), [document]);
+  const activeImagePhase = useMemo(() => resolveEditorImagePhase(document), [document]);
 
   const setIntent = (intent: EditorWorkspaceIntent | "projects") => {
     if (intent === "projects") {
       onProjects();
       return;
     }
+    if (intent === "motion" && !motionUnlocked) {
+      setActiveTab("edit");
+      onDocumentChange(
+        patchEditorImagePhase(patchWorkflowIntent(document, "edit"), "approve")
+      );
+      return;
+    }
     setActiveTab(intent);
     onDocumentChange(patchWorkflowIntent(document, intent));
+  };
+
+  const setImagePhase = (phase: EditorImagePhase) => {
+    setActiveTab("edit");
+    onDocumentChange(patchEditorImagePhase(patchWorkflowIntent(document, "edit"), phase));
   };
 
   const handleDirectorApply = (objectLabel: string, category: string) => {
@@ -93,15 +114,28 @@ export function EditorV2WorkflowShell({
   };
 
   const handleNextStep = (step: ReturnType<typeof suggestSmartNextSteps>[number]) => {
+    if (step.id === "approve") {
+      setImagePhase("approve");
+      return;
+    }
+    if (step.id === "generate" || step.id === "variants") {
+      setImagePhase("variants");
+      return;
+    }
+    if (step.id === "analyze") {
+      setImagePhase("analyze");
+      return;
+    }
+    if (step.id === "add_change") {
+      setImagePhase("edit");
+      return;
+    }
     if (step.intent) {
       setIntent(step.intent);
       return;
     }
     if (step.id === "studio") {
       window.location.href = editorHandoffStudioUrl(document);
-    }
-    if (step.id === "approve") {
-      setIntent("edit");
     }
   };
 
@@ -134,7 +168,9 @@ export function EditorV2WorkflowShell({
           documentName={document.name}
           saving={saving}
           activeTab={activeTab}
+          activeImagePhase={activeImagePhase}
           stages={stages}
+          motionUnlocked={motionUnlocked}
           isAdmin={isAdmin}
           showAdvancedToggle={Boolean(onToggleAdvanced)}
           advancedMode={advancedMode}
@@ -144,6 +180,7 @@ export function EditorV2WorkflowShell({
           onProjects={onProjects}
           onClose={onClose}
           onTabChange={setIntent}
+          onPhaseChange={setImagePhase}
           onToggleAdvanced={onToggleAdvanced}
           onToggleAiAnalysis={onToggleAiAnalysis}
           showAiAnalysis={showAiAnalysis}
@@ -166,10 +203,26 @@ export function EditorV2WorkflowShell({
       : null}
 
       {activeTab === "edit" ?
+        <>
+          <p className="text-sm text-white/80" data-testid="editor-workflow-principle">
+            {t("editor.workflow.principle" as never)}
+          </p>
+          <EditorImagePhaseNav activePhase={activeImagePhase} onPhaseChange={setImagePhase} />
+          <EditorMotionPhaseNav
+            unlocked={motionUnlocked}
+            onOpenMotionReview={() => setIntent("motion")}
+          />
+        </>
+      : null}
+
+      {activeTab === "edit" ?
         <EditorInstructionStudioWorkspace
           document={document}
           busy={busy}
           isAdmin={isAdmin}
+          activePhase={activeImagePhase}
+          motionUnlocked={motionUnlocked}
+          onPhaseChange={setImagePhase}
           onDocumentChange={(next) =>
             onDocumentChange(patchWorkflowIntent(next, detectEditorWorkflowIntent(next)))
           }
@@ -187,7 +240,7 @@ export function EditorV2WorkflowShell({
       : null}
 
       {activeTab === "motion" ?
-        <EditorMotionWorkspace document={document} />
+        <EditorMotionWorkspace document={document} motionUnlocked={motionUnlocked} />
       : null}
 
       {activeTab === "export" ?
