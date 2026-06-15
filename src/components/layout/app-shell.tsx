@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { HomeCheffAssistantMount } from "@/components/assistant/homecheff-assistant-mount";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
 import { I18nHtmlLangSync } from "@/components/layout/i18n-html-lang-sync";
@@ -47,6 +48,7 @@ export function AppShell({ children }: AppShellProps) {
         </nav>
       </header>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+      <HomeCheffAssistantMount />
     </>
   );
 }

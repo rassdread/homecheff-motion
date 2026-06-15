@@ -51,7 +51,7 @@ export function HcProjectWorkspaceControls({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusKey, setStatusKey] = useState<string | null>(null);
-  const importFlow = useHcProjectImportFlow({
+  const { ui: importUi, actions: importActions, fileInputRef } = useHcProjectImportFlow({
     targetService: sourceModule,
     onImported: (imported) => onProjectChange(imported),
   });
@@ -124,7 +124,7 @@ export function HcProjectWorkspaceControls({
           exportHcProjectRecord(project);
           setStatusKey("hcProject.file.exportStarted");
         }}
-        onImportProject={importFlow.openImportPicker}
+        onImportProject={importActions.openImportPicker}
         onClose={() => router.push(closeHref)}
       />
       {statusKey ?
@@ -156,24 +156,24 @@ export function HcProjectWorkspaceControls({
         }}
       />
       <input
-        ref={importFlow.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept=".hc,application/json,application/vnd.homecheff.project+json"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            void importFlow.handleFile(file);
+            void importActions.handleFile(file);
           }
         }}
       />
       <HcProjectImportDialog
-        open={importFlow.dialogOpen}
-        preview={importFlow.preview}
-        errorKey={importFlow.errorKey}
-        busy={importFlow.busy}
-        onCancel={importFlow.cancelImport}
-        onConfirm={() => void importFlow.confirmImport()}
+        open={importUi.dialogOpen}
+        preview={importUi.preview}
+        errorKey={importUi.errorKey}
+        busy={importUi.busy}
+        onCancel={importActions.cancelImport}
+        onConfirm={() => void importActions.confirmImport()}
       />
     </div>
   );

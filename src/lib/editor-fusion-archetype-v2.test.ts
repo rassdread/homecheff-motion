@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { EDITOR_FUSION_INTENTS } from "@/types/editor-instruction-studio";
 import {
@@ -129,10 +131,10 @@ describe("fusion archetype v2", () => {
   });
 
   it("dynamic questions UI panel is referenced in reference flow", () => {
-    const content = require("node:fs").readFileSync(
-      require("node:path").join(process.cwd(), "src/components/editor/editor-reference-role-flow.tsx"),
+    const content = readFileSync(
+      join(process.cwd(), "src/components/editor/editor-reference-role-flow.tsx"),
       "utf8"
-    ) as string;
+    );
     assert.match(content, /EditorFusionDynamicQuestionsPanel/);
     assert.match(content, /dynamic_questions/);
   });

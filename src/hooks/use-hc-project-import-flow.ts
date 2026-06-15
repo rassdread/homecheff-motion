@@ -80,15 +80,12 @@ export function useHcProjectImportFlow(options: Options = {}) {
     }
   };
 
-  return {
-    fileInputRef,
-    dialogOpen,
-    preview,
-    errorKey,
-    busy,
+  const ui = { dialogOpen, preview, errorKey, busy };
+  const actions = {
     openImportPicker,
     handleFile,
     confirmImport,
     cancelImport: reset,
   };
+  return { ui, actions, fileInputRef };
 }

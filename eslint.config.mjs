@@ -28,6 +28,22 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: [
+      "src/components/editor/editor-canvas-workspace.tsx",
+      "src/components/editor/editor-instruction-studio-workspace.tsx",
+      "src/components/editor/editor-product-page.tsx",
+      "src/components/editor/editor-start-screen.tsx",
+      "src/components/studio/studio-character-from-reference-wizard.tsx",
+      "src/components/studio/studio-production-brief-flow.tsx",
+      "src/components/studio/studio-root-page.tsx",
+      "src/hooks/use-hc-project-workspace.ts",
+    ],
+    rules: {
+      // HC/editor workspaces bootstrap linked projects and session state on mount.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

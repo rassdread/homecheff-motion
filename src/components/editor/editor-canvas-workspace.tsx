@@ -1200,7 +1200,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     onBack();
   };
 
-  const importFlow = useHcProjectImportFlow({
+  const { ui: importUi, actions: importActions, fileInputRef } = useHcProjectImportFlow({
     targetService: "editor",
   });
 
@@ -2439,7 +2439,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               onRestoreProject={linkedHcProject ? handleRestoreLinkedProject : undefined}
               onDeleteProject={linkedHcProject ? handleDeleteLinkedProject : undefined}
               onDownloadProject={handleDownloadProjectFile}
-              onImportProject={importFlow.openImportPicker}
+              onImportProject={importActions.openImportPicker}
               isProjectArchived={isLinkedProjectArchived}
               onReview={() => {
                 persist({ ...document, workflowStep: "review" });
@@ -3149,24 +3149,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         onConfirm={confirmDeleteLinkedProject}
       />
       <input
-        ref={importFlow.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept=".hc,application/json,application/vnd.homecheff.project+json"
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            void importFlow.handleFile(file);
+            void importActions.handleFile(file);
           }
         }}
       />
       <HcProjectImportDialog
-        open={importFlow.dialogOpen}
-        preview={importFlow.preview}
-        errorKey={importFlow.errorKey}
-        busy={importFlow.busy}
-        onCancel={importFlow.cancelImport}
-        onConfirm={() => void importFlow.confirmImport()}
+        open={importUi.dialogOpen}
+        preview={importUi.preview}
+        errorKey={importUi.errorKey}
+        busy={importUi.busy}
+        onCancel={importActions.cancelImport}
+        onConfirm={() => void importActions.confirmImport()}
       />
     </StudioAuthGate>
   );

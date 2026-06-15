@@ -23,6 +23,7 @@ export function HcProjectImportButton({
     openAfterImport,
     onImported: (project) => onImported?.(project.id),
   });
+  const { ui, actions, fileInputRef } = flow;
 
   return (
     <>
@@ -30,12 +31,12 @@ export function HcProjectImportButton({
         type="button"
         className={className ?? studioVisual.btnGradientPrimary}
         data-testid="hc-project-import-button"
-        onClick={flow.openImportPicker}
+        onClick={actions.openImportPicker}
       >
         {t(labelKey as never)}
       </button>
       <input
-        ref={flow.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept=".hc,application/json,application/vnd.homecheff.project+json"
         className="hidden"
@@ -43,17 +44,17 @@ export function HcProjectImportButton({
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            void flow.handleFile(file);
+            void actions.handleFile(file);
           }
         }}
       />
       <HcProjectImportDialog
-        open={flow.dialogOpen}
-        preview={flow.preview}
-        errorKey={flow.errorKey}
-        busy={flow.busy}
-        onCancel={flow.cancelImport}
-        onConfirm={() => void flow.confirmImport()}
+        open={ui.dialogOpen}
+        preview={ui.preview}
+        errorKey={ui.errorKey}
+        busy={ui.busy}
+        onCancel={actions.cancelImport}
+        onConfirm={() => void actions.confirmImport()}
       />
     </>
   );

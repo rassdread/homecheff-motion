@@ -105,7 +105,9 @@ export function EditorReferenceRoleFlow({
   const [recentlyAddedCount, setRecentlyAddedCount] = useState(0);
   const analysisStartedRef = useRef(new Set<string>());
   const intakeRef = useRef(intake);
-  intakeRef.current = intake;
+  useEffect(() => {
+    intakeRef.current = intake;
+  }, [intake]);
 
   const activeFlowStep = startScreenPhaseToFlowStep({
     kind: "reference_flow",

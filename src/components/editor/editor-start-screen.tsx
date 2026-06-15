@@ -47,7 +47,11 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const auth = useAuthSession();
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
-  const [phase, setPhase] = useState<StartPhase>({ kind: "workflow" });
+  const [phase, setPhase] = useState<StartPhase>(() =>
+    searchParams.get("workflow") === "combine"
+      ? { kind: "combine_intent", workflow: "combine" }
+      : { kind: "workflow" }
+  );
   const [showRecent, setShowRecent] = useState(false);
   const [opening, setOpening] = useState(false);
 
@@ -71,12 +75,6 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
       setRecent(listRecentEditorDocuments());
     });
   }, [auth.user]);
-
-  useEffect(() => {
-    if (searchParams.get("workflow") === "combine") {
-      setPhase({ kind: "combine_intent", workflow: "combine" });
-    }
-  }, [searchParams]);
 
   const finishOpen = async (
     document: EditorCanvasDocument,

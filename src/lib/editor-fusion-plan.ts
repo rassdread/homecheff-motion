@@ -1,6 +1,4 @@
 import {
-  addCompositionReference,
-  analyzeCompositionReference,
   ensureCompositionPlan,
   getCompositionPlan,
   patchCompositionPlan,
@@ -13,7 +11,6 @@ import {
   FUTURE_IDENTITY_DISCLAIMER,
   normalizeFusionIntent,
 } from "@/lib/editor-image-fusion-catalog";
-import { applyWearOutfitComposition } from "@/lib/editor-wear-outfit-composition";
 import type {
   EditorFusionInheritedTrait,
   EditorFusionIntent,
@@ -223,39 +220,4 @@ export function syncFusionPlanFromComposition(document: EditorCanvasDocument): E
     baseImageUrl: composition.baseImageUrl,
     baseVariantId: composition.baseVariantId,
   });
-}
-
-export function applyFusionIntakeDocuments(
-  baseDocument: EditorCanvasDocument,
-  referenceDocuments: EditorCanvasDocument[],
-  intent: import("@/types/editor-instruction-studio").EditorFusionIntent
-): EditorCanvasDocument {
-  const normalized = normalizeFusionIntent(intent);
-  if (normalized === "outfit_from_reference" && referenceDocuments[0]) {
-    return applyWearOutfitComposition(
-      baseDocument,
-      referenceDocuments[0].backgroundUrl,
-      referenceDocuments[0].name
-    );
-  }
-
-  let next = ensureFusionPlan(baseDocument, normalized);
-  for (let i = 0; i < referenceDocuments.length; i++) {
-    const refDoc = referenceDocuments[i]!;
-    const step = fusionIntentDefinition(normalized).uploadSteps[i + 1];
-    const analyzed = analyzeCompositionReference({
-      name: refDoc.name,
-      url: refDoc.backgroundUrl,
-      type: step?.role === "logo" ? "logo" : step?.role === "background" ? "background" : "style",
-    });
-    next = addCompositionReference(next, analyzed);
-  }
-  const fusion = getFusionPlan(next);
-  if (fusion) {
-    next = patchFusionPlan(next, {
-      ...fusion,
-      inheritedTraits: buildInheritedTraits(normalized),
-    });
-  }
-  return next;
 }

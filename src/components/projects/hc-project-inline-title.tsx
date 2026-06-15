@@ -24,12 +24,6 @@ export function HcProjectInlineTitle({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!editing) {
-      setDraft(title);
-    }
-  }, [editing, title]);
-
-  useEffect(() => {
     if (editing) {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -100,7 +94,10 @@ export function HcProjectInlineTitle({
         className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 text-xs text-zinc-600 hover:border-[#0067B1]/30 hover:text-[#0067B1]"
         aria-label={t("hcProject.card.renameLabel" as never)}
         data-testid="hc-project-inline-title-edit-button"
-        onClick={() => onEditingChange?.(true)}
+        onClick={() => {
+          setDraft(title);
+          onEditingChange?.(true);
+        }}
       >
         ✏️
       </button>

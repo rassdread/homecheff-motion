@@ -48,10 +48,10 @@ export function buildLibraryRelationBadges(record: LibraryConsistencyRecord): Li
     });
   }
   const modules = record.usedInModules ?? (record.sourceModule ? [record.sourceModule] : []);
-  for (const module of modules) {
-    const labelKey = USED_IN_MODULE_LABELS[module];
-    if (labelKey && !badges.some((b) => b.id === `used-${module}`)) {
-      badges.push({ id: `used-${module}`, labelKey });
+  for (const sourceModule of modules) {
+    const labelKey = USED_IN_MODULE_LABELS[sourceModule];
+    if (labelKey && !badges.some((b) => b.id === `used-${sourceModule}`)) {
+      badges.push({ id: `used-${sourceModule}`, labelKey });
     }
   }
   return badges;

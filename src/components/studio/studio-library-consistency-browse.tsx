@@ -80,7 +80,9 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
   }, [filters, debouncedSearch, t]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   useEffect(() => subscribeStudioLibraryRefresh(() => void load()), [load]);

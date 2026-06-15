@@ -17,13 +17,13 @@ export function HcProjectFileImportFlow({
   targetService,
   renderTrigger,
 }: Props) {
-  const flow = useHcProjectImportFlow({ onImported, openAfterImport, targetService });
+  const { ui, actions, fileInputRef } = useHcProjectImportFlow({ onImported, openAfterImport, targetService });
 
   return (
     <>
-      {renderTrigger ? renderTrigger(flow.openImportPicker) : null}
+      {renderTrigger ? renderTrigger(actions.openImportPicker) : null}
       <input
-        ref={flow.fileInputRef}
+        ref={fileInputRef}
         type="file"
         accept=".hc,application/json,application/vnd.homecheff.project+json"
         className="hidden"
@@ -31,17 +31,17 @@ export function HcProjectFileImportFlow({
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            void flow.handleFile(file);
+            void actions.handleFile(file);
           }
         }}
       />
       <HcProjectImportDialog
-        open={flow.dialogOpen}
-        preview={flow.preview}
-        errorKey={flow.errorKey}
-        busy={flow.busy}
-        onCancel={flow.cancelImport}
-        onConfirm={() => void flow.confirmImport()}
+        open={ui.dialogOpen}
+        preview={ui.preview}
+        errorKey={ui.errorKey}
+        busy={ui.busy}
+        onCancel={actions.cancelImport}
+        onConfirm={() => void actions.confirmImport()}
       />
     </>
   );

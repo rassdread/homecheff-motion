@@ -150,7 +150,7 @@ function ensureUniqueImportTitle(project: HomeCheffProjectPackage): HomeCheffPro
   const existingTitles = new Set(
     listHomeCheffProjects(200).map((entry) => entry.title.trim().toLowerCase()).filter(Boolean)
   );
-  let title = project.title.trim() || "Imported project";
+  const title = project.title.trim() || "Imported project";
   if (!existingTitles.has(title.toLowerCase())) {
     return { ...project, title };
   }
