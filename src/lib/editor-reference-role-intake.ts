@@ -3,6 +3,8 @@ import {
   analyzeCompositionReference,
 } from "@/lib/editor-composition-plan";
 import { patchFusionGenerationSettings } from "@/lib/editor-fusion-generation-settings";
+import { seedCategoryOutputSettings } from "@/lib/editor-fusion-archetypes";
+import { buildFusionOutputSettings } from "@/lib/editor-fusion-archetype-v2";
 import {
   buildInheritedTraits,
   ensureFusionPlan,
@@ -66,11 +68,14 @@ export function defaultReferenceMotionSelection(): EditorReferenceMotionSelectio
 export function createReferenceIntakeState(input: {
   config: EditorWorkflowReferenceConfig;
 }): EditorReferenceIntakeState {
+  const intent = input.config.intent;
   return {
     config: input.config,
     slots: createEmptyReferenceSlots(input.config),
     output: defaultReferenceOutputSelection(input.config),
     motion: defaultReferenceMotionSelection(),
+    fusionQuestionAnswers: {},
+    fusionOutputSettings: intent ? seedCategoryOutputSettings(intent) : {},
   };
 }
 
@@ -121,7 +126,7 @@ function primaryBaseDocument(state: EditorReferenceIntakeState): EditorCanvasDoc
 export function applyReferenceRoleIntake(
   state: EditorReferenceIntakeState
 ): EditorCanvasDocument {
-  const { config, slots, output, motion } = state;
+  const { config, slots, output, motion, fusionQuestionAnswers, fusionOutputSettings } = state;
   const intent = config.intent;
   const baseDoc = primaryBaseDocument(state);
   if (!baseDoc) {
@@ -170,7 +175,7 @@ export function applyReferenceRoleIntake(
       });
       next = addCompositionReference(next, analyzed);
     }
-    next = attachOutputSettings(next, normalized, output, motion, slots);
+    next = attachOutputSettings(next, normalized, output, motion, slots, fusionQuestionAnswers, fusionOutputSettings);
     return next;
   }
 
@@ -189,13 +194,18 @@ export function applyReferenceRoleIntake(
 
   const fusion = getFusionPlan(next);
   if (fusion) {
+    const categorySettings =
+      Object.keys(fusionQuestionAnswers).length > 0
+        ? buildFusionOutputSettings(normalized, fusionQuestionAnswers)
+        : fusionOutputSettings;
     next = patchFusionPlan(next, {
       ...fusion,
       inheritedTraits: buildInheritedTraits(normalized),
+      generationSettings: patchFusionGenerationSettings(fusion, categorySettings).generationSettings,
     });
   }
 
-  next = attachOutputSettings(next, normalized, output, motion, slots);
+  next = attachOutputSettings(next, normalized, output, motion, slots, fusionQuestionAnswers, fusionOutputSettings);
   return next;
 }
 
@@ -255,7 +265,9 @@ function attachOutputSettings(
   intent: EditorFusionIntent,
   output: EditorReferenceOutputSelection,
   motion: EditorReferenceMotionSelection,
-  slots: EditorReferenceRoleSlot[]
+  slots: EditorReferenceRoleSlot[],
+  fusionQuestionAnswers: EditorReferenceIntakeState["fusionQuestionAnswers"] = {},
+  fusionOutputSettings: EditorReferenceIntakeState["fusionOutputSettings"] = {}
 ): EditorCanvasDocument {
   const fusion = getFusionPlan(document);
   if (!fusion) {
@@ -269,9 +281,15 @@ function attachOutputSettings(
         ? "variations"
         : "single";
 
+  const categorySettings =
+    Object.keys(fusionQuestionAnswers).length > 0
+      ? buildFusionOutputSettings(intent, fusionQuestionAnswers)
+      : fusionOutputSettings;
+
   let next = patchFusionPlan(
     document,
     patchFusionGenerationSettings(fusion, {
+      ...categorySettings,
       outputMode,
       stepCount: output.outputMode === "sequence" ? output.stepCount : 1,
       variationCount:

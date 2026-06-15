@@ -1,11 +1,12 @@
 import type { EditorPostUploadMode } from "@/lib/editor-start-flow";
 import type { EditorTransformationStepCount } from "@/types/editor-generation-access";
 import type { EditorReferenceMetadata } from "@/types/editor-reference-metadata";
-import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
+import type { EditorFusionGenerationSettings, EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 export type EditorReferenceRoleAnalysisStatus =
   | "idle"
+  | "queued"
   | "uploading"
   | "running"
   | "done"
@@ -79,6 +80,8 @@ export type EditorReferenceIntakeState = {
   slots: EditorReferenceRoleSlot[];
   output: EditorReferenceOutputSelection;
   motion: EditorReferenceMotionSelection;
+  fusionQuestionAnswers: Record<string, string | boolean | string[]>;
+  fusionOutputSettings: EditorFusionGenerationSettings;
 };
 
 export const EDITOR_REFERENCE_VARIATION_PRESETS = [4, 6] as const;

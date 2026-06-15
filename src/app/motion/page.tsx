@@ -1,6 +1,6 @@
 import { StudioProductLandingPage } from "@/components/suite/studio-product-landing-page";
-import { studioProductLandingConfig } from "@/lib/studio-product-landing-config";
+import { MotionLandingRoute } from "@/components/suite/motion-landing-route";
 
 export default function MotionLandingPage() {
-  return <StudioProductLandingPage config={studioProductLandingConfig("motion")} />;
+  return <MotionLandingRoute />;
 }

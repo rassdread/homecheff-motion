@@ -94,6 +94,7 @@ function defaultsForKind(kind: BriefWizardKind): Record<string, string> {
   return { ...WORLD_WIZARD_DEFAULTS };
 }
 
+/** @deprecated For characters use /studio/characters/new — retained for location/prop/world during migration */
 export function StudioBriefAssetWizardPanel({ kind, onComplete, onCancel }: Props) {
   const t = useActiveTranslator();
   const questions = questionsForKind(kind);

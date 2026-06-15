@@ -2,9 +2,12 @@
 
 import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { fusionCategoryOutputFields } from "@/lib/editor-fusion-archetypes";
+import { patchFusionGenerationSettings } from "@/lib/editor-fusion-generation-settings";
 import { fusionIntentDefinition } from "@/lib/editor-image-fusion-catalog";
 import {
   activePreservationRules,
+  patchFusionPlan,
   setFusionPreservationStrength,
   setFusionStrength,
   toggleFusionPreservation,
@@ -47,6 +50,13 @@ export function EditorFusionSetupPanel({ document, onDocumentChange }: Props) {
       ? OUTFIT_PRESERVATION
       : def.defaultPreservation;
 
+  const categoryFields = fusionCategoryOutputFields(plan.intent);
+
+  const patchCategoryOutput = (key: string, value: boolean | string) => {
+    const updatedPlan = patchFusionGenerationSettings(plan, { [key]: value });
+    onDocumentChange(patchFusionPlan(document, updatedPlan));
+  };
+
   return (
     <section
       className={`space-y-4 p-4 ${studioVisual.editorSurface}`}
@@ -82,6 +92,50 @@ export function EditorFusionSetupPanel({ document, onDocumentChange }: Props) {
           <span>100%</span>
         </div>
       </div>
+
+      {categoryFields.length > 0 ?
+        <div data-testid="editor-fusion-category-output">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            {t("editor.fusion.setup.categoryOutput" as never)}
+          </p>
+          <div className="mt-2 space-y-3">
+            {categoryFields.map((field) => {
+              const value = plan.generationSettings[field.key] ?? field.defaultValue;
+              if (field.type === "boolean") {
+                return (
+                  <label
+                    key={field.key}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value === true}
+                      onChange={(e) => patchCategoryOutput(field.key, e.target.checked)}
+                    />
+                    {t(field.labelKey as never)}
+                  </label>
+                );
+              }
+              return (
+                <div key={field.key}>
+                  <p className="text-xs font-medium text-zinc-600">{t(field.labelKey as never)}</p>
+                  <select
+                    value={String(value)}
+                    onChange={(e) => patchCategoryOutput(field.key, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                  >
+                    {(field.choices ?? []).map((choice) => (
+                      <option key={choice} value={choice}>
+                        {choice}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      : null}
 
       {preservationOptions.length > 0 ?
         <div>

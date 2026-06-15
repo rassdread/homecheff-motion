@@ -25,6 +25,7 @@ import {
 import { getResolvedFfmpegPathSync } from "@/lib/ffmpeg/resolve-ffmpeg-binaries";
 import { getVideoProvider } from "@/server/video-providers";
 import { recordVideoExportCostEvent } from "@/server/provider-cost/provider-cost-event";
+import { syncCompletedMotionExportToLibrary } from "@/lib/library-consistency-completion";
 
 const EXPORT_CHAIN = new Map<string, Promise<unknown>>();
 const EXTERNAL_EXPORT_PROVIDER = "external-ffmpeg";
@@ -51,6 +52,29 @@ function escapeConcatPath(filePath: string): string {
 
 function publicUrlForFinalVideo(projectId: string): string {
   return `/generated/animations/projects/${projectId}/final.mp4`;
+}
+
+async function registerMotionExportInLibrarySafe(input: {
+  project: {
+    id: string;
+    ownerId: string;
+    title?: string | null;
+    studioSourceStoryboardId?: string | null;
+    instantOutputDurationSeconds?: number | null;
+    viduDurationSeconds?: number | null;
+  };
+  exportId: string;
+  outputVideoUrl: string;
+}): Promise<void> {
+  try {
+    await syncCompletedMotionExportToLibrary({
+      project: input.project,
+      exportId: input.exportId,
+      outputVideoUrl: input.outputVideoUrl,
+    });
+  } catch (error) {
+    console.error("[library-consistency] motion export register failed", error);
+  }
 }
 
 function absolutePublicPath(...segments: string[]): string {
@@ -461,6 +485,11 @@ async function runExternalExportStart(projectId: string, options?: { fromRetry?:
         console.error("[provider-cost] recordVideoExportCostEvent", err);
       });
       await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
+      await registerMotionExportInLibrarySafe({
+        project,
+        exportId: exportRecordId,
+        outputVideoUrl: remote.outputVideoUrl.trim(),
+      });
     } else if (remote.status.toLowerCase() === "failed") {
       await prisma.animationProject.update({
         where: { id: projectId },
@@ -529,6 +558,11 @@ async function syncExternalMergePoll(projectId: string) {
       data: { status: "completed" },
     });
     await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
+    await registerMotionExportInLibrarySafe({
+      project,
+      exportId: ex.id,
+      outputVideoUrl: remote.outputVideoUrl.trim(),
+    });
   } else if (remote.status.toLowerCase() === "failed") {
     await prisma.animationProject.update({
       where: { id: projectId },
@@ -883,6 +917,11 @@ async function runLocalProjectExportMerge(projectId: string) {
     });
 
     await maybeDeleteTransitionBlobVideosAfterFinalExport(projectId).catch(() => undefined);
+    await registerMotionExportInLibrarySafe({
+      project,
+      exportId: exportRecordId,
+      outputVideoUrl: publicUrl,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export merge failed.";
     console.info("[hc-animation-export]", {

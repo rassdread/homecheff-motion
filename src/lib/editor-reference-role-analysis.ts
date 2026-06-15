@@ -24,6 +24,15 @@ export function createIdleReferenceAnalysis(): EditorReferenceRoleAnalysis {
   return { status: "idle" };
 }
 
+export function createQueuedReferenceAnalysis(): EditorReferenceRoleAnalysis {
+  return { status: "queued" };
+}
+
+export type ReferenceRoleAnalysisResult = {
+  analysis: EditorReferenceRoleAnalysis;
+  document: EditorCanvasDocument;
+};
+
 export function buildReferenceAnalysisSummary(
   document: EditorCanvasDocument,
   roleSpec: EditorReferenceRoleSpec
@@ -39,8 +48,10 @@ export function buildReferenceAnalysisSummary(
     /jacket|shirt|pants|dress|outfit|shoe|coat|skirt|clothing/i.test(label)
   );
   const faceDetected = labels.some((label) => /face|person|human|portrait|head/i.test(label));
+  const status =
+    labels.length === 0 && traits.length === 0 ? ("needs_attention" as const) : ("done" as const);
   return {
-    status: "done",
+    status,
     objectCount: labels.length,
     faceDetected,
     clothingDetected,
@@ -53,25 +64,34 @@ export function buildReferenceAnalysisSummary(
 export async function runLiveReferenceRoleAnalysis(
   document: EditorCanvasDocument,
   roleSpec: EditorReferenceRoleSpec
-): Promise<EditorReferenceRoleAnalysis> {
+): Promise<ReferenceRoleAnalysisResult> {
   try {
     const withDetection = await bootstrapEditorObjectDetection(document);
-    const summary = buildReferenceAnalysisSummary(withDetection, roleSpec);
-    return summary;
+    const analysis = buildReferenceAnalysisSummary(withDetection, roleSpec);
+    return { analysis, document: withDetection };
   } catch {
     return {
-      status: "error",
-      errorMessage: "analysis_failed",
+      document,
+      analysis: {
+        status: "error",
+        errorMessage: "analysis_failed",
+      },
     };
   }
 }
 
 export function referenceAnalysisLabelKeys(analysis: EditorReferenceRoleAnalysis): string[] {
+  if (analysis.status === "queued") {
+    return ["editor.referenceRole.analysis.queued"];
+  }
   if (analysis.status === "running") {
     return ["editor.referenceRole.analysis.running"];
   }
   if (analysis.status === "error") {
     return ["editor.referenceRole.analysis.failed"];
+  }
+  if (analysis.status === "needs_attention") {
+    return ["editor.referenceRole.analysis.warning"];
   }
   if (analysis.status !== "done") {
     return [];

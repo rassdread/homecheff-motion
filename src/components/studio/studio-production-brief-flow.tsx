@@ -6,13 +6,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefV4SelectionCards } from "@/components/studio/brief-v4-selection-cards";
 import { StudioBuildStoryPanel } from "@/components/studio/studio-build-story-panel";
 import { StudioStoryInterpretationPanel } from "@/components/studio/studio-story-interpretation-panel";
-import { StudioCharacterWizardPanel } from "@/components/studio/studio-character-wizard-panel";
 import { StudioConfirmStoryboardPanel } from "@/components/studio/studio-confirm-storyboard-panel";
 import { StudioGenerateMissingAssetsPanel } from "@/components/studio/studio-generate-missing-assets-panel";
-import { persistWizardConceptToHc } from "@/lib/studio-brief-asset-wizards";
 import { persistHcProjectWithSync } from "@/lib/homecheff-project-sync";
+import {
+  attachStoryboardToHcProject,
+  ensureHcProjectOnStudioStart,
+  syncHcProjectIdToUrl,
+  transitionHcProjectWorkflowStatus,
+} from "@/lib/hc-project-lifecycle";
+import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-workspace-controls";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { StudioProductionRoutePicker } from "@/components/studio/studio-production-route-picker";
-import { buildStoryPlanFromBrief } from "@/lib/studio-build-story-plan";
+import { buildStoryPlanFromBrief, buildStoryPlanFromInterpretation } from "@/lib/studio-build-story-plan";
 import { briefSelectionsToIdeaEnrichment } from "@/lib/studio-production-brief-selection";
 import { persistHcWorkflowV2WithSync } from "@/lib/hc-workflow-persist";
 import { storeStudioWorkflowInHc } from "@/lib/hc-workflow-v2";
@@ -45,6 +51,7 @@ import {
   loadAssetDecisionRegistry,
   saveAssetDecisionRegistry,
 } from "@/lib/studio-asset-decision-storage";
+import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
 import { fetchStudioCharacters } from "@/lib/studio-characters-client";
 import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
@@ -66,8 +73,22 @@ import type {
 import type { AssetDecisionMode, StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
 import { StudioProductionMemoryPanel } from "@/components/studio/studio-production-memory-panel";
 import { StudioAiEverythingPanel } from "@/components/studio/studio-ai-everything-panel";
+import { StudioV10StoryPlanningPanel } from "@/components/studio/studio-v10-story-planning-panel";
+import { interpretStoryIdea, type StudioStoryInterpretation } from "@/lib/studio-story-interpretation";
+import {
+  buildStudioV10StoryPlanning,
+  v10PlanningToStoryPlanPatch,
+} from "@/lib/studio-v10-story-planning";
+import { StudioV11DirectorWizardPanel } from "@/components/studio/studio-v11-director-wizard-panel";
+import {
+  buildStudioV11DirectorWizard,
+  mergeDirectorWizardIntoV10Planning,
+  patchInterpretationFromDirector,
+} from "@/lib/studio-v11-director-wizard";
+import type { StudioV11DirectorWizardState } from "@/types/studio-v11-director-wizard";
+import type { StudioV10StoryPlanningState } from "@/types/studio-v10-story-planning";
 
-type FlowStep = "idea" | "brief" | "build_story" | "route" | "preview";
+type FlowStep = "idea" | "brief" | "director_wizard" | "story_planning" | "build_story" | "route" | "preview";
 
 const EXAMPLE_KEYS = [
   "studio.directorProposal.example.homecheffGarden",
@@ -317,6 +338,7 @@ function StoryPreview({ brief }: { brief: StudioProductionBrief }) {
 
 export function StudioProductionBriefFlow() {
   const t = useActiveTranslator();
+  const auth = useAuthSession();
   const [locale] = useLocale();
   const searchParams = useSearchParams();
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
@@ -326,7 +348,6 @@ export function StudioProductionBriefFlow() {
   const [selections, setSelections] = useState<StudioProductionBriefV4Selections>(DEFAULT_BRIEF_V4_SELECTIONS);
   const [storyPlan, setStoryPlan] = useState<StudioStoryPlan | null>(null);
   const [productionRoute, setProductionRoute] = useState<StudioProductionRoute>("mixed");
-  const [showCharacterWizard, setShowCharacterWizard] = useState(false);
   const [brief, setBrief] = useState<StudioProductionBrief | null>(null);
   const [decisionRegistry, setDecisionRegistry] = useState<StudioAssetDecisionRegistry>(() =>
     loadAssetDecisionRegistry({})
@@ -334,6 +355,9 @@ export function StudioProductionBriefFlow() {
   const [loadingLibraries, setLoadingLibraries] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [interpretation, setInterpretation] = useState<StudioStoryInterpretation | null>(null);
+  const [v10Planning, setV10Planning] = useState<StudioV10StoryPlanningState | null>(null);
+  const [v11Wizard, setV11Wizard] = useState<StudioV11DirectorWizardState | null>(null);
 
   const [characters, setCharacters] = useState<StudioCharacterListItem[]>([]);
   const [locations, setLocations] = useState<StudioLocationListItem[]>([]);
@@ -409,13 +433,35 @@ export function StudioProductionBriefFlow() {
     return null;
   }, [hcProjectId, hcProjectLocal, searchParams]);
 
+  useEffect(() => {
+    if (hcProject) {
+      return;
+    }
+    const { project, created } = ensureHcProjectOnStudioStart({
+      hcProjectId: hcProjectId || undefined,
+      ownerId: auth.user?.id,
+      syncToServer: Boolean(auth.user),
+    });
+    setHcProjectLocal(project);
+    if (created) {
+      syncHcProjectIdToUrl(project.id);
+    }
+  }, [auth.user, hcProject, hcProjectId]);
+
   const persistWorkflow = useCallback(
     (studio: Parameters<typeof storeStudioWorkflowInHc>[1]) => {
       if (!hcProject) return;
-      const next = storeStudioWorkflowInHc(hcProject, studio);
+      let next = storeStudioWorkflowInHc(hcProject, studio);
+      if (studio.phase === "approve" || studio.approvedAt) {
+        next = transitionHcProjectWorkflowStatus(next, "in_progress", {
+          currentStage: "studio",
+          syncToServer: Boolean(auth.user),
+        });
+      }
       persistHcWorkflowV2WithSync(next, {});
+      setHcProjectLocal(next);
     },
-    [hcProject]
+    [auth.user, hcProject]
   );
 
   const handleBuildBrief = useCallback(() => {
@@ -488,27 +534,70 @@ export function StudioProductionBriefFlow() {
     });
     setCreating(false);
     if (result.ok) {
+      if (hcProject) {
+        const linked = attachStoryboardToHcProject(hcProject, result.storyboardId, {
+          syncToServer: Boolean(auth.user),
+        });
+        setHcProjectLocal(linked);
+        const url = new URL(result.href, window.location.origin);
+        url.searchParams.set("hcProject", linked.id);
+        window.location.href = url.toString();
+        return;
+      }
       window.location.href = result.href;
       return;
     }
     setError(result.error || t("studio.storyboards.error.saveFailed"));
-  }, [brief, selections, storyPlan, productionRoute, decisionRegistry, characters, locations, props, worlds, projectMemory, t]);
+  }, [brief, selections, storyPlan, productionRoute, decisionRegistry, characters, locations, props, worlds, projectMemory, t, hcProject, auth.user]);
 
   const stepNumber = (s: FlowStep) => {
-    const order: FlowStep[] = ["idea", "brief", "build_story", "route", "preview"];
+    const order: FlowStep[] = ["idea", "brief", "director_wizard", "story_planning", "build_story", "route", "preview"];
     return String(order.indexOf(s) + 1);
   };
 
   const stepTitle = (s: FlowStep) => {
     if (s === "idea") return t("studio.productionBrief.idea.title");
     if (s === "brief") return t("studio.productionBrief.brief.title");
+    if (s === "director_wizard") return t("studio.v11.step.title" as never);
+    if (s === "story_planning") return t("studio.v10.step.title" as never);
     if (s === "build_story") return t("studio.buildStory.title" as never);
     if (s === "route") return t("studio.productionRoute.title" as never);
     return t("studio.productionBrief.preview.confirmTitle");
   };
 
+  const finalizeDirectorWizard = useCallback(
+    (wizard: StudioV11DirectorWizardState) => {
+      if (!brief) return;
+      const interp = interpretStoryIdea({ idea, selections, locale });
+      const patchedInterp = patchInterpretationFromDirector(interp, wizard);
+      setInterpretation(patchedInterp);
+      const planning = buildStudioV10StoryPlanning({
+        idea,
+        interpretation: patchedInterp,
+        selections,
+        brief,
+        locale,
+        directorWizard: wizard,
+      });
+      setV10Planning(mergeDirectorWizardIntoV10Planning(planning, wizard));
+      setV11Wizard(wizard);
+      persistWorkflow({ phase: "plan", v11DirectorWizard: wizard });
+      setStoryPlan(null);
+      setStep("story_planning");
+    },
+    [brief, idea, selections, locale, persistWorkflow]
+  );
+
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
+      <HcProjectWorkspaceControls
+        project={hcProject}
+        onProjectChange={setHcProjectLocal}
+        sourceModule="studio"
+        ownerId={auth.user?.id}
+        syncToServer={Boolean(auth.user)}
+        closeHref="/studio"
+      />
       <section className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6">
           <Link
@@ -524,7 +613,7 @@ export function StudioProductionBriefFlow() {
             <p className="text-xs font-semibold uppercase tracking-wide text-[#006D52]">
               {t("studio.productionBrief.stepLabel", {
                 step: stepNumber(step),
-                total: "5",
+                total: "7",
               })}
             </p>
             <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{stepTitle(step)}</h1>
@@ -533,6 +622,10 @@ export function StudioProductionBriefFlow() {
                 ? t("studio.productionBrief.idea.subtitle")
                 : step === "brief"
                   ? t("studio.productionBrief.brief.subtitle")
+                  : step === "director_wizard"
+                    ? t("studio.v11.step.subtitle" as never)
+                  : step === "story_planning"
+                    ? t("studio.v10.step.subtitle" as never)
                   : step === "build_story"
                     ? t("studio.buildStory.subtitle" as never)
                     : step === "route"
@@ -624,8 +717,13 @@ export function StudioProductionBriefFlow() {
                       setProductionRoute("asset_first");
                       setStep("preview");
                     } else {
-                      setStoryPlan(null);
-                      setStep("build_story");
+                      const wizard = buildStudioV11DirectorWizard({ idea, selections, brief, locale });
+                      setV11Wizard(wizard);
+                      if (wizard.questions.length === 0) {
+                        finalizeDirectorWizard(wizard);
+                      } else {
+                        setStep("director_wizard");
+                      }
                     }
                   }}
                   className="sm:w-auto"
@@ -635,6 +733,69 @@ export function StudioProductionBriefFlow() {
                     : t("studio.buildStory.continue" as never)}
                 </GradientButton>
               </div>
+            </div>
+          : null}
+
+          {step === "director_wizard" && v11Wizard ?
+            <div className="space-y-6">
+              <StudioV11DirectorWizardPanel
+                wizard={v11Wizard}
+                onWizardChange={setV11Wizard}
+                onComplete={finalizeDirectorWizard}
+              />
+              <button
+                type="button"
+                onClick={() => setStep("brief")}
+                className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                {t("studio.productionBrief.back")}
+              </button>
+            </div>
+          : null}
+
+          {step === "story_planning" && brief && v10Planning ?
+            <div className="space-y-6">
+              <StudioV10StoryPlanningPanel
+                planning={v10Planning}
+                onPlanningChange={setV10Planning}
+                characters={characters}
+                onCharactersRefresh={async () => {
+                  const charRes = await fetchStudioCharacters();
+                  if (charRes.ok) setCharacters(charRes.data.characters);
+                }}
+                hcProject={hcProject}
+                onProjectChange={setHcProjectLocal}
+                onApprove={(approved) => {
+                  setV10Planning(approved);
+                  if (!interpretation) return;
+                  const basePlan = buildStoryPlanFromInterpretation({
+                    interpretation,
+                    selections,
+                    brief,
+                  });
+                  const patch = v10PlanningToStoryPlanPatch(approved);
+                  const merged: StudioStoryPlan = {
+                    ...basePlan,
+                    scenes: patch.scenes,
+                    voiceOverProposal: patch.voiceOverProposal,
+                    builtAt: patch.builtAt,
+                  };
+                  setStoryPlan(merged);
+                  persistWorkflow({
+                    phase: "plan",
+                    storyPlan: merged,
+                    v10StoryPlanning: approved,
+                  });
+                  setStep("build_story");
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setStep(v11Wizard ? "director_wizard" : "brief")}
+                className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                {t("studio.productionBrief.back")}
+              </button>
             </div>
           : null}
 
@@ -651,7 +812,7 @@ export function StudioProductionBriefFlow() {
               />
               <button
                 type="button"
-                onClick={() => setStep("brief")}
+                onClick={() => setStep(v11Wizard ? "director_wizard" : "brief")}
                 className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 {t("studio.productionBrief.back")}
@@ -662,30 +823,28 @@ export function StudioProductionBriefFlow() {
           {step === "build_story" && storyPlan ?
             <div className="space-y-6">
               <StudioBuildStoryPanel plan={storyPlan} />
-              {showCharacterWizard ?
-                <StudioCharacterWizardPanel
-                  onComplete={(concept) => {
-                    if (hcProject) {
-                      const next = persistHcProjectWithSync(
-                        persistWizardConceptToHc(hcProject, "character", concept),
-                        { syncToServer: true }
-                      );
-                      setHcProjectLocal(next);
-                    }
-                    setShowCharacterWizard(false);
-                  }}
-                />
-              : (
-                <button
-                  type="button"
-                  onClick={() => setShowCharacterWizard(true)}
-                  className="text-sm font-semibold text-[#006D52] hover:underline"
-                >
+              <div className="rounded-xl border border-[#006D52]/20 bg-[#006D52]/5 p-4">
+                <p className="text-sm font-semibold text-zinc-900">
                   {t("studio.characterWizard.open" as never)}
-                </button>
-              )}
+                </p>
+                <p className="mt-1 text-xs text-zinc-600">
+                  {t("characterCluster.new.subtitle" as never)}
+                </p>
+                <Link
+                  href={buildCharacterClusterHref("new", {
+                    hcProject: hcProjectLocal?.id,
+                    projectId: hcProjectLocal?.id,
+                    projectTitle: hcProjectLocal?.title,
+                    returnTo: typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined,
+                  })}
+                  className="mt-3 inline-flex rounded-full bg-[#006D52] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                  data-testid="brief-character-cluster-link"
+                >
+                  {t("characterCluster.cta.create" as never)}
+                </Link>
+              </div>
               <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={() => setStep("brief")} className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                <button type="button" onClick={() => setStep("story_planning")} className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
                   {t("studio.productionBrief.back")}
                 </button>
                 <GradientButton type="button" onClick={() => setStep("route")} className="sm:w-auto">

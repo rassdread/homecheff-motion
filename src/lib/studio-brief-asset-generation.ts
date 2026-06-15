@@ -81,6 +81,11 @@ export async function generateBriefAssetImage(input: {
   concept: BriefWizardConcept;
   projectId: string;
   workflowId?: string;
+  sourceReference?: {
+    name: string;
+    imageUrl: string;
+    userPrompt?: string;
+  };
 }): Promise<{ ok: true; asset: GeneratedBriefAsset } | { ok: false; error: string }> {
   const { summaryPrompt, choices } = buildSummaryPromptForBriefAsset(input.kind, input.concept);
   const generationId = `brief_${input.kind}_${input.projectId}_${Date.now()}`;
@@ -90,6 +95,15 @@ export async function generateBriefAssetImage(input: {
     choices,
     customTexts: { name: "name" in input.concept ? input.concept.name : input.kind },
     generationId,
+    ...(input.sourceReference
+      ? {
+          sourceReference: {
+            name: input.sourceReference.name,
+            imageUrl: input.sourceReference.imageUrl,
+            userPrompt: input.sourceReference.userPrompt,
+          },
+        }
+      : {}),
   });
 
   if (!res.ok) {

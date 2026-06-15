@@ -1,5 +1,6 @@
 import type { Prisma, StudioCharacter } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { registerPrismaEntityInLibrary } from "@/server/studio/library-consistency-hooks";
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { normalizeStudioIdentityStrength } from "@/lib/studio-memory-validation";
 import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
@@ -286,6 +287,19 @@ export async function createStudioCharacter(
       isSystemCharacter: false,
     },
     include: CHARACTER_INCLUDE,
+  });
+
+  await registerPrismaEntityInLibrary({
+    ownerId,
+    createdBy: ownerId,
+    entityId: row.id,
+    entityName: row.name,
+    generationType: row.isMascot ? "mascot" : "character",
+    assetUrl: row.referenceImageUrl,
+    storageKey: row.referenceStorageKey,
+    thumbnailUrl: row.referenceImageUrl,
+    isMascot: row.isMascot,
+    sourceModule: "studio",
   });
 
   return { character: mapStudioCharacterToDetail(row) };

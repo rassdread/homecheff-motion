@@ -56,7 +56,7 @@ export function PublishWizardShell({
           );
         })}
       </nav>
-      <div className="space-y-2">
+      <div className="min-h-[9rem] space-y-2" data-testid="publish-wizard-helper-copy">
         <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
           {t("publish.wizard.aiCanDo" as never)}
         </p>

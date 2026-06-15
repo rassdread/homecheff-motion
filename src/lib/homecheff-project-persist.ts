@@ -1,4 +1,5 @@
 import { safeSetLocalStorage } from "@/lib/editor-local-storage";
+import { hcProjectDuplicateTitle } from "@/lib/hc-project-card-utils";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 
 export const HOMECHEFF_PROJECTS_KEY = "hc-homecheff-projects-v1";
@@ -91,7 +92,7 @@ export function duplicateHcProject(projectId: string): HomeCheffProjectPackage |
   const copy: HomeCheffProjectPackage = {
     ...project,
     id: `hcproj_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
-    title: `${project.title} (copy)`,
+    title: hcProjectDuplicateTitle(project.title),
     createdAt: now,
     updatedAt: now,
     legacySource: undefined,

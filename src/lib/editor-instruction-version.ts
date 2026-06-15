@@ -137,6 +137,7 @@ export function createPendingInstructionVariant(params: {
   variantType?: EditorInstructionVariant["variantType"];
   compositionPlanId?: string;
   referenceIds?: string[];
+  protectionPlan?: import("@/types/editor-instruction-studio").EditorEditProtectionPlan;
 }): EditorInstructionVariant {
   const now = new Date().toISOString();
   return {
@@ -158,6 +159,7 @@ export function createPendingInstructionVariant(params: {
     variantType: params.variantType ?? "instruction",
     compositionPlanId: params.compositionPlanId,
     referenceIds: params.referenceIds,
+    protectionPlan: params.protectionPlan,
     createdAt: now,
     updatedAt: now,
   };

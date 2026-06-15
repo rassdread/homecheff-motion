@@ -130,6 +130,31 @@ export function listLegacyProjects(filter: HomeCheffProjectListFilter = "active"
   }
 }
 
+export function unlinkHcProjectFromLegacyRegistry(hcProjectId: string): number {
+  const id = hcProjectId.trim();
+  if (!id || typeof window === "undefined") {
+    return 0;
+  }
+  const store = readStore();
+  let count = 0;
+  const now = new Date().toISOString();
+  for (const [key, entry] of Object.entries(store)) {
+    if (entry.linkedHcProjectId !== id) {
+      continue;
+    }
+    store[key] = {
+      ...entry,
+      linkedHcProjectId: undefined,
+      updatedAt: now,
+    };
+    count += 1;
+  }
+  if (count > 0) {
+    writeStore(store);
+  }
+  return count;
+}
+
 export function __resetLegacyProjectRegistryForTests(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(LEGACY_PROJECT_REGISTRY_KEY);

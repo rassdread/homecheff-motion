@@ -2,7 +2,7 @@
 
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublishModuleWorkspace } from "@/components/publish/publish-module-workspace";
 import { PublishWizardShell } from "@/components/publish/publish-wizard-shell";
 import { PublishOverlayWorkspace } from "@/components/publish/publish-overlay-workspace";
@@ -29,12 +29,16 @@ import { autoPrepareHcHandoff } from "@/lib/hc-project-continuity";
 import { PublishStartIntake } from "@/components/publish/publish-start-intake";
 import { PublishWizardStepPanels } from "@/components/publish/publish-wizard-step-panels";
 import { CrossServiceContinuityBar } from "@/components/platform/cross-service-continuity-bar";
+import { HcProjectAutoCreateBridge } from "@/components/projects/hc-project-auto-create-bridge";
+import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-workspace-controls";
+import { useAuthSession } from "@/hooks/use-auth-session";
 import { ServiceLandingNav } from "@/components/suite/service-landing-nav";
 import { createPublishProject, loadPublishProject, savePublishProject } from "@/lib/publish-overlay-session";
 import type { PublishProject } from "@/types/publish-overlay";
 
 export function PublishProductPage() {
   const t = useActiveTranslator();
+  const auth = useAuthSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project") ?? "";
@@ -49,6 +53,13 @@ export function PublishProductPage() {
   const tab = tabOverride ?? intentTab;
   const [wizardStep, setWizardStep] = useState<PublishWizardStepId>("upload");
   const [wizardState, setWizardState] = useState<PublishWizardState>({ step: "intent" });
+  const [mediaFocusSection, setMediaFocusSection] = useState<import("@/types/publish-media-production").PublishProductionSectionId | null>(null);
+
+  const handleProjectChange = useCallback((next: PublishProject) => {
+    setProjectOverride(savePublishProject(next));
+  }, [setProjectOverride]);
+
+  const hydratedProjectIdRef = useRef<string | null>(null);
 
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
 
@@ -58,6 +69,8 @@ export function PublishProductPage() {
     if (hcProjectId) return loadHomeCheffProject(hcProjectId);
     return null;
   }, [hcProjectId, searchParams]);
+  const [hcProjectState, setHcProjectState] = useState<typeof hcProject>(null);
+  const activeHcProject = hcProjectState ?? hcProject;
 
   const editorHandoffProject = useMemo(() => {
     if (projectOverride || projectId || videoUrl) {
@@ -104,27 +117,31 @@ export function PublishProductPage() {
   }, [hcProject, searchParams, project?.publishIntent]);
 
   useEffect(() => {
-    if (!project) return;
-    queueMicrotask(() => {
-      const plan = project.metadata?.publishChangePlan;
-      const hasProposal = Boolean(plan && typeof plan === "object");
-      const intake = hcProject?.workflowState.publishIntake as { description?: string; entryMode?: string } | undefined;
-      setWizardState(
-        hydratePublishWizardFromProject({
-          publishIntent: project.publishIntent ?? intake?.description ?? intake?.entryMode,
-          hcProjectId: hcProjectId || undefined,
-          hasMedia: Boolean(project.videoUrl || project.imageUrl || project.imageUrls?.length),
-          hasProposal,
-        })
-      );
-      setWizardStep(
-        hasProposal ? "review"
-        : project.publishIntent ? "analyze"
-        : project.videoUrl || project.imageUrl ? "intent"
-        : "upload"
-      );
-    });
-  }, [project?.id, hcProjectId, project?.publishIntent, project?.videoUrl, project?.overlays.length]);
+    if (!project) {
+      hydratedProjectIdRef.current = null;
+      return;
+    }
+    if (hydratedProjectIdRef.current === project.id) return;
+    hydratedProjectIdRef.current = project.id;
+
+    const plan = project.metadata?.changePlan ?? project.metadata?.publishChangePlan;
+    const hasProposal = Boolean(plan && typeof plan === "object");
+    const intake = hcProject?.workflowState.publishIntake as { description?: string; entryMode?: string } | undefined;
+    setWizardState(
+      hydratePublishWizardFromProject({
+        publishIntent: project.publishIntent ?? intake?.description ?? intake?.entryMode,
+        hcProjectId: hcProjectId || undefined,
+        hasMedia: Boolean(project.videoUrl || project.imageUrl || project.imageUrls?.length),
+        hasProposal,
+      })
+    );
+    setWizardStep(
+      hasProposal ? "media"
+      : project.publishIntent ? "analyze"
+      : project.videoUrl || project.imageUrl ? "intent"
+      : "upload"
+    );
+  }, [project?.id, hcProjectId, hcProject, project]);
 
   useEffect(() => {
     if (project && !projectId && (project.source === "editor" || hcProjectId)) {
@@ -136,6 +153,7 @@ export function PublishProductPage() {
   }, [hcProjectId, project, projectId, router]);
 
   const handleBack = () => {
+    hydratedProjectIdRef.current = null;
     setProjectOverride(null);
     router.replace("/publish");
   };
@@ -146,9 +164,21 @@ export function PublishProductPage() {
     return (
       <StudioAuthGate authTitleKey="publish.authTitle" authBodyKey="publish.authBody">
         <main className={`flex-1 ${brand.softGradientBg}`}>
+          <HcProjectAutoCreateBridge
+            sourceModule="publish"
+            publishProjectId={project.id}
+          />
+          <HcProjectWorkspaceControls
+            project={activeHcProject}
+            onProjectChange={setHcProjectState}
+            sourceModule="publish"
+            ownerId={auth.user?.id}
+            syncToServer={Boolean(auth.user)}
+            closeHref="/publish"
+          />
           <div className="mx-auto max-w-6xl px-4 pt-4">
             <ServiceLandingNav current="publish" />
-            <CrossServiceContinuityBar hcProjectId={hcProjectId || undefined} currentService="publish" />
+            <CrossServiceContinuityBar hcProjectId={hcProjectId || activeHcProject?.id} currentService="publish" />
           </div>
           <PublishModuleWorkspace
             project={project}
@@ -173,10 +203,15 @@ export function PublishProductPage() {
                     wizard={wizardState}
                     hcProject={hcProject}
                     onWizardChange={setWizardState}
-                    onProjectChange={setProjectOverride}
+                    onProjectChange={handleProjectChange}
+                    mediaFocusSection={mediaFocusSection}
+                    onJumpToMedia={(section) => {
+                      setMediaFocusSection(section);
+                      setWizardStep("media");
+                    }}
                   />
                 </PublishWizardShell>
-                {wizardStep === "review" || wizardStep === "export" ?
+                {wizardStep === "media" || wizardStep === "review" || wizardStep === "export" ?
                   <>
                     <p className="text-xs font-semibold uppercase text-zinc-500">{t("publish.wizard.advancedEdit" as never)}</p>
                     <div className="flex gap-2">
@@ -191,10 +226,10 @@ export function PublishProductPage() {
                       <PublishOverlayWorkspace
                         project={project}
                         hcProject={hcProject}
-                        onProjectChange={setProjectOverride}
+                        onProjectChange={handleProjectChange}
                         onBack={handleBack}
                       />
-                    : <PublishSubtitlePanel project={project} onProjectChange={setProjectOverride} />}
+                    : <PublishSubtitlePanel project={project} onProjectChange={handleProjectChange} />}
                   </>
                 : null}
               </div>
@@ -208,6 +243,15 @@ export function PublishProductPage() {
   return (
     <StudioAuthGate authTitleKey="publish.authTitle" authBodyKey="publish.authBody">
       <main className={`flex-1 ${studioVisual.pageBg}`}>
+        <HcProjectAutoCreateBridge sourceModule="publish" />
+        <HcProjectWorkspaceControls
+          project={activeHcProject}
+          onProjectChange={setHcProjectState}
+          sourceModule="publish"
+          ownerId={auth.user?.id}
+          syncToServer={Boolean(auth.user)}
+          closeHref="/publish"
+        />
         <section className="mx-auto w-full max-w-3xl px-6 py-12">
           <ServiceLandingNav current="publish" />
           <h1 className={`text-3xl ${studioVisual.headingOnDark}`}>{t("publish.start.title")}</h1>

@@ -18,6 +18,8 @@ export function buildUserUploadRegistryAssets(
       upload.assetType === "music" ? "music"
       : upload.assetType === "sound" ? "sound_effect"
       : upload.assetType === "voice_sample" ? "voice"
+      : upload.assetType === "video" ? "reference_image"
+      : upload.assetType === "export" ? "reference_image"
       : "reference_image";
 
     return {

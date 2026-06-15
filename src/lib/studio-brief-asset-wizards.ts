@@ -103,20 +103,64 @@ export function enrichWorldFromWizard(answers: WorldWizardAnswers): EnrichedWorl
   };
 }
 
+export type BriefAssetRequirementKind =
+  | "character"
+  | "mascot"
+  | "team"
+  | "location"
+  | "prop"
+  | "world"
+  | "voice"
+  | "music"
+  | "sfx";
+
+export type BriefAssetRequirementStatus =
+  | "missing"
+  | "uploading"
+  | "processing"
+  | "generating"
+  | "attached"
+  | "failed"
+  | "skipped";
+
 export type BriefAssetRequirement = {
   id: string;
-  kind: "character" | "location" | "prop" | "world" | "voice" | "music";
+  kind: BriefAssetRequirementKind;
   label: string;
   sceneIds: string[];
-  status: "missing" | "linked" | "skipped" | "generated";
+  status: BriefAssetRequirementStatus;
   assetRefId?: string;
   estimatedCredits: number;
   thumbnailUrl?: string;
+  previewUrl?: string;
+  audioUrl?: string;
   provider?: string;
   creditsUsed?: number;
   generatedPrompt?: string;
   source?: string;
+  errorMessage?: string;
+  referenceStorageKey?: string;
+  referenceMode?: "generate_from" | "reference_only";
+  cacheHit?: boolean;
 };
+
+export function normalizeRequirementStatus(status: string): BriefAssetRequirementStatus {
+  if (status === "linked" || status === "generated") {
+    return "attached";
+  }
+  if (
+    status === "missing" ||
+    status === "uploading" ||
+    status === "processing" ||
+    status === "generating" ||
+    status === "attached" ||
+    status === "failed" ||
+    status === "skipped"
+  ) {
+    return status;
+  }
+  return "missing";
+}
 
 export function buildMissingAssetRequirements(input: {
   storyPlan: import("@/types/studio-production-brief-v3").StudioStoryPlan;
@@ -137,7 +181,7 @@ export function buildMissingAssetRequirements(input: {
         kind,
         label: assetLabel,
         sceneIds: input.storyPlan.scenes.filter((s) => s.requiredAssets.includes(assetLabel)).map((s) => s.id),
-        status: linked.has(kind) ? "linked" : "missing",
+        status: linked.has(kind) ? "attached" : "missing",
         estimatedCredits: kind === "character" || kind === "world" ? 2 : 1,
       });
     }
@@ -149,7 +193,7 @@ export function buildMissingAssetRequirements(input: {
       kind: "voice",
       label: "Voice-over",
       sceneIds: input.storyPlan.scenes.map((s) => s.id),
-      status: linked.has("voice") ? "linked" : "missing",
+      status: linked.has("voice") ? "attached" : "missing",
       estimatedCredits: 1,
     });
   }
@@ -160,7 +204,18 @@ export function buildMissingAssetRequirements(input: {
       kind: "music",
       label: "Background music",
       sceneIds: input.storyPlan.scenes.map((s) => s.id),
-      status: linked.has("music") ? "linked" : "missing",
+      status: linked.has("music") ? "attached" : "missing",
+      estimatedCredits: 1,
+    });
+  }
+
+  if (!seen.has("sfx") && !seen.has("sound")) {
+    reqs.push({
+      id: "req_sfx",
+      kind: "sfx",
+      label: "Sound effects",
+      sceneIds: input.storyPlan.scenes.map((s) => s.id),
+      status: linked.has("sfx") ? "attached" : "missing",
       estimatedCredits: 1,
     });
   }
@@ -168,13 +223,17 @@ export function buildMissingAssetRequirements(input: {
   return reqs;
 }
 
-function inferAssetKind(label: string): BriefAssetRequirement["kind"] {
+function inferAssetKind(label: string): BriefAssetRequirementKind {
   const l = label.toLowerCase();
-  if (l.includes("character") || l.includes("person") || l.includes("mascot")) return "character";
+  if (l.includes("mascot")) return "mascot";
+  if (l.includes("team") || l.includes("crew") || l.includes("cast")) return "team";
+  if (l.includes("character") || l.includes("person") || l.includes("host")) return "character";
   if (l.includes("location") || l.includes("scene") || l.includes("setting")) return "location";
   if (l.includes("world") || l.includes("style") || l.includes("environment")) return "world";
   if (l.includes("voice") || l.includes("narrat")) return "voice";
-  if (l.includes("music") || l.includes("audio")) return "music";
+  if (l.includes("music") || l.includes("soundtrack")) return "music";
+  if (l.includes("sfx") || l.includes("sound effect") || l.includes("foley")) return "sfx";
+  if (l.includes("audio")) return "music";
   return "prop";
 }
 

@@ -6,6 +6,7 @@ import {
   patchCompositionPlan,
   resolveCompositionBaseImageUrl,
 } from "@/lib/editor-composition-plan";
+import { seedCategoryOutputSettings } from "@/lib/editor-fusion-archetypes";
 import {
   defaultInheritedTraits,
   fusionIntentDefinition,
@@ -67,7 +68,7 @@ export function createInitialFusionPlan(
     brandRules: [],
     userInstructions: "",
     simulationDisclaimer: def.isSimulation ? FUTURE_IDENTITY_DISCLAIMER : undefined,
-    generationSettings: {},
+    generationSettings: seedCategoryOutputSettings(normalized),
     baseImageUrl: base.url,
     baseVariantId: base.variantId,
     references: [],

@@ -114,7 +114,7 @@ export function buildAiEverythingPipelinePlan(input: {
   };
 
   const estimatedCredits = assetRequirements
-    .filter((r) => r.status === "missing" && (r.kind === "character" || r.kind === "location" || r.kind === "prop" || r.kind === "world"))
+    .filter((r) => r.status === "missing" && ["character", "mascot", "team", "location", "prop", "world"].includes(r.kind))
     .reduce((sum, r) => sum + r.estimatedCredits, 0);
 
   return {
@@ -133,7 +133,7 @@ export function checkAiEverythingCredits(
   availableCredits: number
 ): AiEverythingCreditGate {
   const missingAssets = plan.assetRequirements.filter(
-    (r) => r.status === "missing" && r.kind !== "voice" && r.kind !== "music"
+    (r) => r.status === "missing" && !["voice", "music", "sfx"].includes(r.kind)
   );
   const requiredCredits = missingAssets.reduce((sum, r) => sum + r.estimatedCredits, 0);
   if (availableCredits < requiredCredits) {
@@ -198,8 +198,12 @@ export type BriefWizardConcept =
 
 export function buildAutoConceptForRequirement(req: BriefAssetRequirement, idea: string): BriefWizardConcept {
   const seed = idea.trim() || req.label;
-  if (req.kind === "character") {
-    return { ...inferCharacterConcept(seed), name: req.label || "Main character" };
+  if (req.kind === "character" || req.kind === "mascot" || req.kind === "team") {
+    const concept = inferCharacterConcept(seed);
+    if (req.kind === "mascot") {
+      return { ...concept, type: "mascot", name: req.label || "Mascot" };
+    }
+    return { ...concept, name: req.label || "Main character" };
   }
   if (req.kind === "location") {
     const loc = enrichLocationFromWizard(LOCATION_WIZARD_DEFAULTS);

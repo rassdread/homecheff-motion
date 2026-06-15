@@ -256,7 +256,7 @@ const MARKETING: EditorFusionIntentDefinition[] = [
     ],
     defaultFusionStrength: 75,
     defaultPreservation: ["face", "identity", "pose"],
-    legacy: true,
+    badge: "popular",
   },
 ];
 

@@ -26,6 +26,9 @@ export type HcStudioWorkflowV2State = {
     missing: string[];
     optional: string[];
   };
+  briefAssetRequirements?: import("@/lib/studio-brief-asset-wizards").BriefAssetRequirement[];
+  v10StoryPlanning?: import("@/types/studio-v10-story-planning").StudioV10StoryPlanningState;
+  v11DirectorWizard?: import("@/types/studio-v11-director-wizard").StudioV11DirectorWizardState;
   storyline?: StudioGeneratedStoryline;
   approvedAt?: string;
 };

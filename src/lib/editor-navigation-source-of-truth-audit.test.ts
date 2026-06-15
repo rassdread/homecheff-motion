@@ -14,10 +14,13 @@ function read(rel: string): string {
 }
 
 describe("editor navigation source of truth audit", () => {
-  it("single editor route mounts EditorProductPage → EditorCanvasWorkspace", () => {
+  it("single editor route mounts EditorProductPage via landing deep link", () => {
     const route = read("src/app/editor/page.tsx");
+    const landing = read("src/components/suite/editor-landing-route.tsx");
     const product = read("src/components/editor/editor-product-page.tsx");
-    assert.match(route, /EditorProductPage/);
+    assert.match(route, /EditorLandingRoute/);
+    assert.match(landing, /EditorProductPage/);
+    assert.match(landing, /editorLandingHasDeepLink/);
     assert.match(product, /EditorCanvasWorkspace/);
     assert.match(product, /EditorStartScreen/);
     assert.doesNotMatch(product, /EditorV5|EditorV6Workspace|HumanFirstEditor/);

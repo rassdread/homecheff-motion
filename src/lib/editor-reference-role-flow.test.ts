@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createEditorDocumentFromUpload } from "@/lib/editor-canvas-session";
@@ -8,11 +11,53 @@ import {
   referenceIntakeReady,
 } from "@/lib/editor-reference-role-intake";
 import { buildReferenceAnalysisSummary } from "@/lib/editor-reference-role-analysis";
+import { referenceAddedToastVisible } from "@/lib/editor-reference-role-ui";
 import {
   resolveWorkflowReferenceConfig,
   workflowReferenceConfigForIntent,
 } from "@/lib/editor-workflow-reference-config";
 import { estimateEditorGenerationCost } from "@/lib/editor-generation-cost";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const referenceRoleFlowSrc = readFileSync(
+  join(__dirname, "../components/editor/editor-reference-role-flow.tsx"),
+  "utf8"
+);
+const startScreenSrc = readFileSync(
+  join(__dirname, "../components/editor/editor-start-screen.tsx"),
+  "utf8"
+);
+
+test("EditorReferenceRoleFlow declares recentlyAddedCount state before render", () => {
+  assert.match(
+    referenceRoleFlowSrc,
+    /const \[recentlyAddedCount, setRecentlyAddedCount\] = useState\(0\)/
+  );
+  assert.match(referenceRoleFlowSrc, /referenceAddedToastVisible\(step, recentlyAddedCount\)/);
+});
+
+test("EditorStartScreen renders EditorReferenceRoleFlow without referencing undefined count", () => {
+  assert.match(startScreenSrc, /EditorReferenceRoleFlow/);
+  assert.doesNotMatch(startScreenSrc, /recentlyAddedCount/);
+});
+
+test("referenceAddedToastVisible when no references exist", () => {
+  assert.equal(referenceAddedToastVisible("reference_roles", 0), false);
+});
+
+test("referenceAddedToastVisible when one reference was added", () => {
+  assert.equal(referenceAddedToastVisible("reference_roles", 1), true);
+});
+
+test("referenceAddedToastVisible tolerates undefined and null counts", () => {
+  assert.equal(referenceAddedToastVisible("reference_roles", undefined), false);
+  assert.equal(referenceAddedToastVisible("reference_roles", null), false);
+});
+
+test("referenceAddedToastVisible hidden outside reference_roles step", () => {
+  assert.equal(referenceAddedToastVisible("classify", 2), false);
+  assert.equal(referenceAddedToastVisible("plan_review", 2), false);
+});
 
 function mockDoc(name: string) {
   return createEditorDocumentFromUpload({

@@ -56,7 +56,7 @@ describe("Editor start flow", () => {
 
   it("post-upload modes map to workspace modes", () => {
     assert.equal(workspaceModeForPostUpload("edit"), "instruction_studio");
-    assert.equal(workspaceModeForPostUpload("combine"), "compose");
+    assert.equal(workspaceModeForPostUpload("combine"), "instruction_studio");
     assert.equal(workspaceModeForPostUpload("motion_prepare"), "instruction_studio");
     assert.equal(workspaceModeForPostUpload("export"), "export");
   });
@@ -65,7 +65,8 @@ describe("Editor start flow", () => {
     const base = mockDocument();
     const edited = applyPostUploadMode(base, "combine");
     assert.equal(edited.editorFlowMode, "combine");
-    assert.equal(edited.workspaceMode, "compose");
+    assert.equal(edited.workspaceMode, "instruction_studio");
+    assert.equal(edited.instructionStudioState?.workflow?.intent, "combine");
   });
 
   it("workspace tools are gated by active post-upload mode", () => {

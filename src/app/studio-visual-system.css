@@ -90,3 +90,9 @@ textarea.hc-stable-field,
 input.hc-stable-field {
   scroll-margin-block: 1rem;
 }
+
+textarea.hc-wizard-stable-textarea {
+  field-sizing: fixed;
+  min-height: 6.5rem;
+  overflow-anchor: none;
+}

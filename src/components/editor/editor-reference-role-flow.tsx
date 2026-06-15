@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { EditorFlowActionBar, EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EditorFusionDynamicQuestionsPanel } from "@/components/editor/editor-fusion-dynamic-questions-panel";
+import { EditorFlowStepper, EditorFlowActionBar } from "@/components/editor/editor-flow-stepper";
 import { EditorUploadClassifyGate } from "@/components/editor/editor-upload-classify-gate";
 import { EditorGenerationCostPanel } from "@/components/editor/editor-generation-cost-panel";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
@@ -20,9 +21,13 @@ import {
 } from "@/lib/editor-canvas-session";
 import { startScreenPhaseToFlowStep } from "@/lib/editor-flow-steps";
 import {
-  createIdleReferenceAnalysis,
-  runLiveReferenceRoleAnalysis,
-} from "@/lib/editor-reference-role-analysis";
+  collectQueuedReferenceAnalysisJobs,
+  markReferenceInstancesAnalysisStatus,
+  patchReferenceInstanceAnalysis,
+  referenceAnalysisProgress,
+  runReferenceAnalysesInParallel,
+} from "@/lib/editor-reference-role-analysis-runner";
+import { createQueuedReferenceAnalysis } from "@/lib/editor-reference-role-analysis";
 import {
   applyReferenceRoleIntake,
   createReferenceIntakeState,
@@ -30,6 +35,7 @@ import {
   referenceIntakeReady,
 } from "@/lib/editor-reference-role-intake";
 import { combineIntentOption } from "@/lib/editor-workflow-product";
+import { referenceAddedToastVisible } from "@/lib/editor-reference-role-ui";
 import type { EditorPostUploadMode } from "@/lib/editor-start-flow";
 import type { EditorTransformationStepCount } from "@/types/editor-generation-access";
 import type { EditorReferenceMetadata } from "@/types/editor-reference-metadata";
@@ -42,8 +48,13 @@ import type {
 } from "@/types/editor-reference-role-flow";
 import type { AssetDerivationSourceListItem } from "@/types/studio-asset-derivation";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import {
+  fusionArchetypeForIntent,
+} from "@/lib/editor-fusion-archetypes";
+import { buildFusionOutputSettings, resolveFusionDynamicQuestions } from "@/lib/editor-fusion-archetype-v2";
+import type { FusionOutfitItem } from "@/lib/editor-fusion-archetype-types";
 
-type FlowStep = "reference_roles" | "classify" | "output_type" | "motion_upsell" | "plan_review";
+type FlowStep = "reference_roles" | "dynamic_questions" | "classify" | "output_type" | "motion_upsell" | "plan_review";
 
 type Props = {
   config: EditorWorkflowReferenceConfig;
@@ -90,6 +101,11 @@ export function EditorReferenceRoleFlow({
   const [loadingSources, setLoadingSources] = useState(false);
   const [sources, setSources] = useState<AssetDerivationSourceListItem[]>([]);
   const [libraryRoleId, setLibraryRoleId] = useState<string | null>(null);
+  const [replacingInstanceId, setReplacingInstanceId] = useState<string | null>(null);
+  const [recentlyAddedCount, setRecentlyAddedCount] = useState(0);
+  const analysisStartedRef = useRef(new Set<string>());
+  const intakeRef = useRef(intake);
+  intakeRef.current = intake;
 
   const activeFlowStep = startScreenPhaseToFlowStep({
     kind: "reference_flow",
@@ -112,13 +128,17 @@ export function EditorReferenceRoleFlow({
   const costOptions = useMemo(() => referenceIntakeCostOptions(intake), [intake]);
   const costWorkflow = combineIntent ?? config.intent ?? "custom_composition";
   const rolesReady = referenceIntakeReady(intake);
+  const analysisProgress = useMemo(() => referenceAnalysisProgress(intake), [intake]);
+  const showFusionQuestions = Boolean(
+    combineIntent && resolveFusionDynamicQuestions(combineIntent, { intent: combineIntent, slots: intake.slots }).length > 0
+  );
+  const fusionArchetype = combineIntent ? fusionArchetypeForIntent(combineIntent) : null;
+  const fusionQuestions = combineIntent
+    ? resolveFusionDynamicQuestions(combineIntent, { intent: combineIntent, slots: intake.slots })
+    : [];
   const showOutputStep = config.supportsVariations || config.supportsSequences;
   const showMotionStep =
     intake.output.outputMode === "sequence" && config.supportsMotionHandoff;
-
-  const analysisRunning = intake.slots.some((slot) =>
-    slot.instances.some((i) => i.analysis.status === "running" || i.analysis.status === "uploading")
-  );
 
   const previewDocument = useMemo(() => {
     if (step !== "plan_review" || !rolesReady) {
@@ -131,37 +151,56 @@ export function EditorReferenceRoleFlow({
     }
   }, [intake, rolesReady, step]);
 
-  const analyzeInstance = useCallback(
-    async (roleSpec: EditorReferenceRoleSpec, instance: EditorReferenceRoleInstance) => {
-      setIntake((prev) => ({
-        ...prev,
-        slots: prev.slots.map((slot) =>
-          slot.roleId === roleSpec.id
-            ? {
-                ...slot,
-                instances: slot.instances.map((item) =>
-                  item.instanceId === instance.instanceId
-                    ? { ...item, analysis: { status: "running" } }
-                    : item
-                ),
-              }
-            : slot
-        ),
-      }));
+  useEffect(() => {
+    const jobs = collectQueuedReferenceAnalysisJobs(intakeRef.current, analysisStartedRef.current);
+    if (jobs.length === 0) {
+      return;
+    }
 
-      const analysis = await runLiveReferenceRoleAnalysis(instance.document, roleSpec);
+    for (const job of jobs) {
+      analysisStartedRef.current.add(job.instance.instanceId);
+    }
+
+    setIntake((prev) =>
+      markReferenceInstancesAnalysisStatus(
+        prev,
+        jobs.map((job) => job.instance.instanceId),
+        "running"
+      )
+    );
+
+    void runReferenceAnalysesInParallel(
+      jobs,
+      () => {},
+      (instanceId, result) => {
+        setIntake((prev) => patchReferenceInstanceAnalysis(prev, instanceId, result));
+      }
+    );
+  }, [intake.slots]);
+
+  const replaceDocumentInRole = useCallback(
+    (roleId: string, instanceId: string, document: EditorCanvasDocument, originalFilename?: string) => {
+      analysisStartedRef.current.delete(instanceId);
       setIntake((prev) => ({
         ...prev,
-        slots: prev.slots.map((slot) =>
-          slot.roleId === roleSpec.id
-            ? {
-                ...slot,
-                instances: slot.instances.map((item) =>
-                  item.instanceId === instance.instanceId ? { ...item, analysis } : item
-                ),
-              }
-            : slot
-        ),
+        slots: prev.slots.map((slot) => {
+          if (slot.roleId !== roleId) {
+            return slot;
+          }
+          return {
+            ...slot,
+            instances: slot.instances.map((item) =>
+              item.instanceId === instanceId
+                ? {
+                    ...item,
+                    document,
+                    analysis: createQueuedReferenceAnalysis(),
+                    originalFilename,
+                  }
+                : item
+            ),
+          };
+        }),
       }));
     },
     []
@@ -177,7 +216,7 @@ export function EditorReferenceRoleFlow({
       const instance: EditorReferenceRoleInstance = {
         instanceId: createInstanceId(),
         document,
-        analysis: createIdleReferenceAnalysis(),
+        analysis: createQueuedReferenceAnalysis(),
         metadata: defaultMetadata(roleSpec),
         originalFilename,
       };
@@ -194,10 +233,10 @@ export function EditorReferenceRoleFlow({
           return { ...slot, instances: [...slot.instances, instance] };
         }),
       }));
-
-      void analyzeInstance(roleSpec, instance);
+      setRecentlyAddedCount((count) => count + 1);
+      window.setTimeout(() => setRecentlyAddedCount((count) => Math.max(0, count - 1)), 4000);
     },
-    [analyzeInstance, config.roles]
+    [config.roles]
   );
 
   const updateInstanceMetadata = (
@@ -221,6 +260,7 @@ export function EditorReferenceRoleFlow({
   };
 
   const removeInstance = (roleId: string, instanceId: string) => {
+    analysisStartedRef.current.delete(instanceId);
     setIntake((prev) => ({
       ...prev,
       slots: prev.slots.map((slot) =>
@@ -241,7 +281,12 @@ export function EditorReferenceRoleFlow({
         backgroundUrl: uploaded.workingImageUrl,
         backgroundStorageKey: uploaded.workingStorageKey,
       });
-      addDocumentToRole(roleId, doc, file.name);
+      if (replacingInstanceId) {
+        replaceDocumentInRole(roleId, replacingInstanceId, doc, file.name);
+        setReplacingInstanceId(null);
+      } else {
+        addDocumentToRole(roleId, doc, file.name);
+      }
     } catch {
       setError(t("editor.start.uploadFailed"));
     } finally {
@@ -265,9 +310,47 @@ export function EditorReferenceRoleFlow({
 
   const goNext = () => {
     if (step === "reference_roles") {
-      if (!rolesReady || analysisRunning) {
+      if (!rolesReady) {
         return;
       }
+      if (showFusionQuestions) {
+        setIntake((prev) => {
+          if (Object.keys(prev.fusionQuestionAnswers).length > 0 || !combineIntent) {
+            return prev;
+          }
+          const seeded = buildFusionOutputSettings(combineIntent, {});
+          const answers: Record<string, string | boolean | string[]> = {};
+          for (const question of fusionQuestions) {
+            const value = seeded[question.outputKey];
+            if (typeof value === "boolean") {
+              answers[question.id] = value;
+            } else if (typeof value === "string") {
+              answers[question.id] = value;
+            } else if (Array.isArray(value)) {
+              answers[question.id] = value.map(String);
+            }
+          }
+          return {
+            ...prev,
+            fusionQuestionAnswers: answers,
+            fusionOutputSettings: seeded,
+          };
+        });
+        setStep("dynamic_questions");
+        return;
+      }
+      if (showOutputStep) {
+        setStep("output_type");
+        return;
+      }
+      setStep("classify");
+      return;
+    }
+    if (step === "dynamic_questions" && combineIntent) {
+      setIntake((prev) => ({
+        ...prev,
+        fusionOutputSettings: buildFusionOutputSettings(combineIntent, prev.fusionQuestionAnswers),
+      }));
       if (showOutputStep) {
         setStep("output_type");
         return;
@@ -304,6 +387,10 @@ export function EditorReferenceRoleFlow({
         setStep("output_type");
         return;
       }
+      if (showFusionQuestions) {
+        setStep("dynamic_questions");
+        return;
+      }
       setStep("classify");
       return;
     }
@@ -312,6 +399,22 @@ export function EditorReferenceRoleFlow({
       return;
     }
     if (step === "output_type") {
+      if (showFusionQuestions) {
+        setStep("dynamic_questions");
+        return;
+      }
+      setStep("reference_roles");
+      return;
+    }
+    if (step === "classify") {
+      if (showFusionQuestions) {
+        setStep("dynamic_questions");
+        return;
+      }
+      setStep("reference_roles");
+      return;
+    }
+    if (step === "dynamic_questions") {
       setStep("reference_roles");
       return;
     }
@@ -392,6 +495,7 @@ export function EditorReferenceRoleFlow({
               }
               onReplace={() => {
                 setPendingRoleId(roleSpec.id);
+                setReplacingInstanceId(instance.instanceId);
                 fileRef.current?.click();
               }}
               onRemove={() => removeInstance(roleSpec.id, instance.instanceId)}
@@ -536,10 +640,29 @@ export function EditorReferenceRoleFlow({
       <h1 className="text-2xl font-bold text-white sm:text-3xl">{title}</h1>
       <p className="mt-2 text-sm text-white/80">{lead}</p>
 
-      {(busy || uploadingRoleId) && step === "reference_roles" ?
-        <div className="mt-6 flex justify-center py-6">
-          <HomeCheffOrbitLoader state="analyzing" size="md" />
+      {step === "reference_roles" && analysisProgress.total > 0 ?
+        <div
+          className="mt-4 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white/90"
+          data-testid="reference-analysis-progress"
+        >
+          {analysisProgress.pending > 0 ?
+            <>
+              <p>{t("editor.referenceRole.analysis.backgroundLead" as never)}</p>
+              <p className="mt-1 text-xs text-white/75">
+                {t("editor.referenceRole.analysis.progress" as never, {
+                  done: String(analysisProgress.finished),
+                  total: String(analysisProgress.total),
+                } as never)}
+              </p>
+            </>
+          : <p>{t("editor.referenceRole.analysis.allDone" as never)}</p>}
         </div>
+      : null}
+
+      {referenceAddedToastVisible(step, recentlyAddedCount) ?
+        <p className="mt-3 text-xs font-medium text-emerald-200" data-testid="reference-added-toast">
+          {t("editor.referenceRole.added" as never)}
+        </p>
       : null}
 
       {step === "reference_roles" ?
@@ -548,14 +671,39 @@ export function EditorReferenceRoleFlow({
           {error ?
             <p className="mt-4 text-sm text-red-200">{error}</p>
           : null}
-          {analysisRunning ?
-            <p className="mt-2 text-xs text-white/80">{t("editor.referenceRole.analysis.running" as never)}</p>
-          : null}
         </>
       : null}
 
       {step === "output_type" ? renderOutputType() : null}
       {step === "motion_upsell" ? renderMotionUpsell() : null}
+
+      {step === "dynamic_questions" && combineIntent ?
+        <div className="mt-6">
+          <EditorFusionDynamicQuestionsPanel
+            questions={fusionQuestions}
+            answers={intake.fusionQuestionAnswers}
+            supportsOutfitItems={fusionArchetype?.supportsOutfitItems}
+            outfitItems={
+              Array.isArray(intake.fusionOutputSettings.outfitItems)
+                ? (intake.fusionOutputSettings.outfitItems as unknown as FusionOutfitItem[])
+                : []
+            }
+            onAnswersChange={(fusionQuestionAnswers) =>
+              setIntake((prev) => ({ ...prev, fusionQuestionAnswers }))
+            }
+            onOutfitItemsChange={(outfitItems) =>
+              setIntake((prev) => ({
+                ...prev,
+                fusionOutputSettings: {
+                  ...prev.fusionOutputSettings,
+                  outfitItems: outfitItems as unknown as string[],
+                },
+                fusionQuestionAnswers: { ...prev.fusionQuestionAnswers, outfit_items: outfitItems as unknown as string[] },
+              }))
+            }
+          />
+        </div>
+      : null}
 
       {step === "classify" ?
         <div className="mt-6">
@@ -582,7 +730,7 @@ export function EditorReferenceRoleFlow({
         onClose={onClose ?? onBack}
         onContinue={goNext}
         continueDisabled={
-          (step === "reference_roles" && (!rolesReady || analysisRunning)) ||
+          (step === "reference_roles" && !rolesReady) ||
           (step === "classify" && false) ||
           (step === "plan_review" && !previewDocument)
         }
@@ -591,7 +739,7 @@ export function EditorReferenceRoleFlow({
             ? t("editor.referenceRole.openEditor" as never)
             : t("editor.referenceRole.continue" as never)
         }
-        busy={busy || Boolean(uploadingRoleId)}
+        busy={busy}
       />
 
       <input

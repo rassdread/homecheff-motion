@@ -8,6 +8,7 @@ import { EditorVisionMetricsCard } from "@/components/admin/editor-vision-metric
 import { VisionHealthCard } from "@/components/admin/vision-health-card";
 import { StudioFinanceCard } from "@/components/admin/studio-finance-card";
 import { VideoCreditsCard } from "@/components/admin/video-credits-card";
+import { StudioLibraryConsistencyAdminPanel } from "@/components/studio/studio-library-consistency-admin-panel";
 import { AppCard } from "@/components/ui/app-card";
 import { useActiveTranslator } from "@/i18n/client";
 
@@ -26,6 +27,9 @@ export default function AdminDashboardPage() {
         <OcrHealthCard />
         <VisionHealthCard />
         <EditorVisionMetricsCard />
+        <AppCard className="sm:col-span-2">
+          <StudioLibraryConsistencyAdminPanel />
+        </AppCard>
         <AppCard>
           <h2 className="text-lg font-semibold">{t("admin.nav.invites")}</h2>
           <p className="mt-2 text-sm text-zinc-600">{t("admin.invites.intro")}</p>

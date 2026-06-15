@@ -2,7 +2,6 @@
 
 import { useActiveTranslator } from "@/i18n/client";
 import { buildFriendlyFileDisplay } from "@/lib/editor-friendly-file-name";
-import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
 import {
   EDITOR_ANIMAL_TYPES,
   EDITOR_CLOTHING_TYPES,
@@ -34,6 +33,9 @@ function analysisStatusKey(analysis: EditorReferenceRoleAnalysis, uploading?: bo
   if (uploading || analysis.status === "uploading") {
     return "editor.referenceRole.status.uploading";
   }
+  if (analysis.status === "queued") {
+    return "editor.referenceRole.status.queued";
+  }
   if (analysis.status === "running") {
     return "editor.referenceRole.status.analyzing";
   }
@@ -41,7 +43,7 @@ function analysisStatusKey(analysis: EditorReferenceRoleAnalysis, uploading?: bo
     return "editor.referenceRole.status.ready";
   }
   if (analysis.status === "needs_attention") {
-    return "editor.referenceRole.status.needsAttention";
+    return "editor.referenceRole.status.warning";
   }
   if (analysis.status === "error") {
     return "editor.referenceRole.status.failed";
@@ -93,8 +95,10 @@ export function EditorReferenceRoleCard({
               analysis.status === "done"
                 ? "text-emerald-700"
                 : analysis.status === "error"
-                  ? "text-amber-700"
-                  : "text-sky-700"
+                  ? "text-red-700"
+                  : analysis.status === "needs_attention"
+                    ? "text-amber-700"
+                    : "text-sky-700"
             }`}
             data-testid="reference-analysis-status"
           >
@@ -111,14 +115,15 @@ export function EditorReferenceRoleCard({
         </div>
       </div>
 
-      {(analysis.status === "running" || uploading) && (
-        <div className="mt-3 flex justify-center py-2">
-          <HomeCheffOrbitLoader state="analyzing" size="sm" />
-        </div>
-      )}
-
-      {analysis.status === "done" && (analysis.faceDetected || analysis.clothingDetected) ?
+      {analysis.status === "done" ?
         <div className="mt-2 flex flex-wrap gap-1">
+          {analysis.objectCount !== undefined && analysis.objectCount > 0 ?
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+              {t("editor.referenceRole.analysis.objects" as never, {
+                count: String(analysis.objectCount),
+              } as never)}
+            </span>
+          : null}
           {analysis.faceDetected ?
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
               {t("editor.referenceRole.analysis.face" as never)}
@@ -129,7 +134,18 @@ export function EditorReferenceRoleCard({
               {t("editor.referenceRole.analysis.clothing" as never)}
             </span>
           : null}
+          {analysis.styleTraits && analysis.styleTraits.length > 0 ?
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-900">
+              {t("editor.referenceRole.analysis.style" as never, {
+                traits: analysis.styleTraits.join(", "),
+              } as never)}
+            </span>
+          : null}
         </div>
+      : null}
+
+      {analysis.status === "needs_attention" ?
+        <p className="mt-2 text-xs text-amber-800">{t("editor.referenceRole.analysis.warning" as never)}</p>
       : null}
 
       {showMetadataDropdowns ?

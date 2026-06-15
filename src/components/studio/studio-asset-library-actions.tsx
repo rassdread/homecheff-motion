@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
 import {
   assetDownloadFilename,
   buildAssetDownloadHref,
@@ -56,7 +57,7 @@ export function StudioAssetLibraryActions({ asset, isAdmin, onFavoriteChange }: 
   const deriveHref = (() => {
     const ref = asset.sourceRef;
     if (ref.entityType === "character") {
-      return `/studio/characters/new?deriveFrom=${encodeURIComponent(ref.entityId)}`;
+      return buildCharacterClusterHref("from-reference", { characterId: ref.entityId });
     }
     if (ref.entityType === "prop") {
       return `/studio/props/new?deriveFrom=${encodeURIComponent(ref.entityId)}`;
@@ -65,7 +66,7 @@ export function StudioAssetLibraryActions({ asset, isAdmin, onFavoriteChange }: 
       return `/studio/locations/new?deriveFrom=${encodeURIComponent(ref.entityId)}`;
     }
     if (asset.generationId) {
-      return `/studio/characters/new?entry=derive&sourceGeneration=${encodeURIComponent(asset.generationId)}`;
+      return buildCharacterClusterHref("from-reference", {});
     }
     return null;
   })();

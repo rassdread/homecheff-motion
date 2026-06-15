@@ -49,7 +49,22 @@ export const EDITOR_INSTRUCTION_DYNAMIC_ACTIONS = [
   "detach_asset",
   "protect_part",
   "refine_selection",
+  "accessory_add",
 ] as const;
+
+export const EDITOR_ACCESSORY_TYPES = [
+  "hat",
+  "pet",
+  "beanie",
+  "sunglasses",
+  "glasses",
+  "headphones",
+  "necklace",
+  "jewelry",
+  "custom",
+] as const;
+
+export type EditorAccessoryType = (typeof EDITOR_ACCESSORY_TYPES)[number];
 
 export type EditorInstructionDynamicAction = (typeof EDITOR_INSTRUCTION_DYNAMIC_ACTIONS)[number];
 
@@ -114,6 +129,25 @@ export type EditorInstructionObjectBounds = {
   exact: boolean;
 };
 
+/** Structured protection contract for every edit request */
+export type EditorEditProtectionPlan = {
+  targetParts: string[];
+  protectedParts: string[];
+  lockedIdentityFeatures: string[];
+  lockedBackground: boolean;
+  lockedStyle: string[];
+  protectedRegionBounds?: Array<{ label: string; bounds: EditorInstructionObjectBounds }>;
+  targetRegionBounds?: Array<{ label: string; bounds: EditorInstructionObjectBounds }>;
+};
+
+export type EditorInstructionVariantPrecisionVerification = {
+  status: "pass" | "low_precision";
+  protectedRegionsChecked: number;
+  protectedRegionsChanged: number;
+  changedRegionLabels?: string[];
+  checkedAt: string;
+};
+
 export type EditorInstructionStyleTrait = {
   id: string;
   label: string;
@@ -160,6 +194,21 @@ export type EditorInstructionChangePlanItem = {
   targetLayerId?: string;
   estimatedCostCredits?: number;
   extractionQuality?: "mask" | "estimated_crop" | "manual";
+  accessoryType?: EditorAccessoryType;
+  /** Normalized edit region for the target part */
+  targetBounds?: EditorInstructionObjectBounds;
+  targetSource?: EditorInstructionObjectSource;
+  /** Human-readable change request without protection context */
+  requestedChange?: string;
+  /** Parts that must not change when targetOnly is enabled */
+  lockedParts?: string[];
+  /** Subset of locked parts shown in UI */
+  protectedParts?: string[];
+  negativePrompt?: string;
+  /** When true (default), only the selected part may change */
+  targetOnly?: boolean;
+  /** Full protection contract for this edit */
+  protectionPlan?: EditorEditProtectionPlan;
 };
 
 export const EDITOR_STYLE_ATTRIBUTES = [
@@ -416,6 +465,7 @@ export type EditorInstructionSelection = {
   category: EditorInstructionObjectCategory;
   action: EditorInstructionDynamicAction;
   replacement?: string;
+  color?: string;
   customPrompt?: string;
   sliders: EditorInstructionSliders;
   preserveCharacter?: boolean;
@@ -426,6 +476,7 @@ export type EditorInstructionSelection = {
   targetPartId?: string;
   targetLayerId?: string;
   estimatedSelection?: boolean;
+  accessoryType?: EditorAccessoryType;
 };
 
 export type EditorInstructionVariantGenerationStatus =
@@ -465,6 +516,12 @@ export type EditorInstructionVariant = {
   createdAt: string;
   updatedAt: string;
   error?: string;
+  /** Post-generation precision flag when protected regions may have changed */
+  precisionWarning?: "low_precision" | "possible_drift";
+  /** Client-side region verification after generation */
+  precisionVerification?: EditorInstructionVariantPrecisionVerification;
+  /** Protection contract snapshot used for this variant */
+  protectionPlan?: EditorEditProtectionPlan;
 };
 
 export type EditorInstructionHandoffMeta = {
@@ -634,6 +691,12 @@ export type EditorInstructionStudioState = {
   generationPackage?: import("@/types/editor-generation-package").EditorGenerationPackage;
   /** Master HomeCheff .hc project container id */
   hcProjectId?: string;
+  /** When true (default), variant generation edits only the selected part */
+  targetOnlyEdit?: boolean;
+  /** Next generation uses maximum part protection */
+  strongerProtection?: boolean;
+  /** Opens legacy dual-composer workspace for advanced fusion */
+  advancedFusionCompose?: boolean;
   /** Universal reference role intake metadata from start flow */
   referenceIntake?: {
     roleAssignments?: Array<{

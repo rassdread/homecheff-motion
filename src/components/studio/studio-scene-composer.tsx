@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { StudioCharactersEntryPanel } from "@/components/studio/studio-characters-entry-panel";
 import { StudioDirectorPanelV2 } from "@/components/studio/director-v2/studio-director-panel-v2";
 import { StudioPresetField } from "@/components/studio/studio-preset-field";
 import { StudioSceneCompositionPanel } from "@/components/studio/studio-scene-composition-panel";
@@ -60,6 +61,7 @@ type StudioSceneComposerProps = {
   canModify: boolean;
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
   onSceneUpdated: (scene: StudioSceneDetail) => void;
+  onCharactersRefresh?: () => void | Promise<void>;
   autoSelectImprovedImage?: boolean;
 };
 
@@ -88,6 +90,7 @@ export function StudioSceneComposer({
   canModify,
   onSave,
   onSceneUpdated,
+  onCharactersRefresh,
   autoSelectImprovedImage = true,
 }: StudioSceneComposerProps) {
   const t = useActiveTranslator();
@@ -217,6 +220,7 @@ export function StudioSceneComposer({
             onSceneUpdated(updated);
           }}
           onStoryboardNotesUpdated={onStoryboardNotesUpdated}
+          onCharactersRefresh={onCharactersRefresh}
         />
       ) : (
         <div className="space-y-5">
@@ -292,28 +296,27 @@ export function StudioSceneComposer({
             <p className="text-sm font-medium text-zinc-700">
               {t("studio.storyboards.field.characters")}
             </p>
-            <div className="mt-2 max-h-36 space-y-2 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-3">
-              {characters.length === 0 ? (
-                <p className="text-xs text-zinc-500">{t("studio.storyboards.field.noCharacters")}</p>
-              ) : (
-                characters.map((c) => (
-                  <label key={c.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={draft.characters.some((x) => x.id === c.id)}
-                      onChange={() => {
-                        const ids = draft.characters.map((x) => x.id);
-                        const nextIds = toggleId(ids, c.id);
-                        setDraft((prev) => ({
-                          ...prev,
-                          characters: characters.filter((ch) => nextIds.includes(ch.id)),
-                        }));
-                      }}
-                    />
-                    {c.name}
-                  </label>
-                ))
-              )}
+            <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-3">
+              <StudioCharactersEntryPanel
+                characters={characters}
+                canModify={canModify}
+                storyboardId={storyboardId}
+                scene={draft}
+                showSceneToggle
+                onToggleCharacter={(characterId) => {
+                  const ids = draft.characters.map((x) => x.id);
+                  const nextIds = toggleId(ids, characterId);
+                  setDraft((prev) => ({
+                    ...prev,
+                    characters: characters.filter((ch) => nextIds.includes(ch.id)),
+                  }));
+                }}
+                onSceneUpdated={(updated) => {
+                  setDraft(updated);
+                  onSceneUpdated(updated);
+                }}
+                onCharactersRefresh={onCharactersRefresh ?? (() => undefined)}
+              />
             </div>
           </div>
 

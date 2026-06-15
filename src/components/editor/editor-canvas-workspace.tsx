@@ -41,13 +41,38 @@ import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-point
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
 import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
 import { EditorV2WorkflowShell } from "@/components/editor/editor-v2-workflow-shell";
+import { EditorProjectNameDialog } from "@/components/editor/editor-project-name-dialog";
+import { HcProjectDeleteDialog } from "@/components/projects/hc-project-delete-dialog";
+import { HcProjectImportDialog } from "@/components/projects/hc-project-import-dialog";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
+import { useRouter } from "next/navigation";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useHcProjectImportFlow } from "@/hooks/use-hc-project-import-flow";
+import { useHcProjectTitleSync } from "@/hooks/use-hc-project-title-sync";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
 import { buildEditorSavePayload } from "@/lib/editor-canvas-export";
+import {
+  ensureHcProjectOnEditorOpen,
+  isUntitledHcProjectName,
+  readHcProjectWorkflowStatus,
+  renameHcProjectForDocument,
+  resolveHcProjectSaveMessageKey,
+  saveEditorDocumentAsNewHcProject,
+  saveEditorDocumentToHcProject,
+} from "@/lib/hc-project-lifecycle";
+import {
+  archiveHcProjectRecord,
+  hcProjectHasExportedResults,
+  permanentlyDeleteHcProjectRecord,
+  restoreHcProjectRecord,
+} from "@/lib/hc-project-delete-archive";
+import { exportHcProjectRecord } from "@/lib/hc-project-file-io";
+import { dispatchHcProjectTitleChanged } from "@/lib/hc-project-title-sync";
+import { exportEditorDocumentAsHcProject } from "@/lib/homecheff-project-export";
+import { loadHomeCheffProject } from "@/lib/homecheff-project-persist";
 import {
   applyEditorLayerOperation,
   markEditorDocumentDraftSaved,
@@ -62,6 +87,8 @@ import {
   undoEditorDocument,
   runEditorVisionAndObjectDetection,
 } from "@/lib/editor-canvas-session";
+import { resetEditorAnalysisState } from "@/lib/editor-analysis-reset";
+import { buildMotionReadyHrefFromEditorDocument } from "@/lib/motion-ready-character-routes";
 import { documentNeedsDetectionBootstrap } from "@/lib/editor-detection-bootstrap";
 import { editorCanRedo, editorCanUndo } from "@/lib/editor-non-destructive";
 import { buildEditorCutoutAsset, upsertEditorCutoutAsset } from "@/lib/editor-cutout-layers";
@@ -176,6 +203,7 @@ import {
 import { EditorSelectionVerificationPanel } from "@/components/admin/editor-selection-verification-panel";
 import { applyBackgroundRemovalResult, findPrimarySubjectLayer } from "@/lib/editor-background-remove";
 import { useEditorProjectPersist } from "@/hooks/use-editor-project-persist";
+import { saveEditorProject } from "@/lib/editor-project-client";
 import { updateImportedLayer } from "@/lib/editor-imported-layers";
 import { persistCutoutToLibrary } from "@/lib/editor-cutout-library-persist";
 import { attachQuickMotionConfig } from "@/lib/editor-quick-gif";
@@ -261,6 +289,7 @@ const EDITOR_MODE_ALREADY_ACTIVE_KEYS: Record<EditorWorkspaceMode, string> = {
 
 export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Props) {
   const t = useActiveTranslator();
+  const router = useRouter();
   const session = useAuthSession();
   const isAdmin = session.user?.role === "admin";
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(
@@ -270,6 +299,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [panelMode, setPanelMode] = useState<PanelMode>("layer");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [nameDialogMode, setNameDialogMode] = useState<"save" | "rename" | "save-as-new">("save");
   const [showAddPlacement, setShowAddPlacement] = useState(false);
   const [customTarget, setCustomTarget] = useState(false);
   const [mobileSheet, setMobileSheet] = useState<"target" | "properties" | "add" | null>(null);
@@ -296,7 +328,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [clickDebugPickedLayerId, setClickDebugPickedLayerId] = useState<string | null>(null);
   const [segmentCanvasMessageKey, setSegmentCanvasMessageKey] = useState<string | null>(null);
   const [activeSegmentJobId, setActiveSegmentJobId] = useState<string | null>(null);
-  const bootstrapRanRef = useRef(false);
+  const bootstrapKeyRef = useRef<string | null>(null);
   const photoEditPanelRef = useRef<HTMLDivElement>(null);
   const exportPanelRef = useRef<HTMLDivElement>(null);
   const composePanelRef = useRef<HTMLDivElement>(null);
@@ -349,13 +381,15 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   }, []);
 
   useEffect(() => {
-    if (bootstrapRanRef.current) {
+    const bootstrapKey = `${document.sessionId}::${document.backgroundUrl}`;
+    if (bootstrapKeyRef.current === bootstrapKey) {
       return;
     }
     if (!documentNeedsDetectionBootstrap(document)) {
+      bootstrapKeyRef.current = bootstrapKey;
       return;
     }
-    bootstrapRanRef.current = true;
+    bootstrapKeyRef.current = bootstrapKey;
     void (async () => {
       const analyzed = await runEditorVisionAndObjectDetection(document);
       onDocumentChange(analyzed);
@@ -367,7 +401,26 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         setSaveMessage(t(analyzed.detectionMeta.userMessageKey as never));
       }
     })();
-  }, [document.sessionId]);
+  }, [document.sessionId, document.backgroundUrl]);
+
+  useEffect(() => {
+    setSelectedLayerId(document.objects.find((o) => o.layerType !== "background")?.id ?? null);
+    setSelectedPlacementId(null);
+  }, [document.sessionId, document.backgroundUrl]);
+
+  useEffect(() => {
+    if (document.instructionStudioState?.hcProjectId) {
+      return;
+    }
+    const linked = ensureHcProjectOnEditorOpen({
+      document,
+      ownerId: session.user?.id,
+      syncToServer: false,
+    });
+    if (linked.instructionStudioState?.hcProjectId !== document.instructionStudioState?.hcProjectId) {
+      onDocumentChange(linked);
+    }
+  }, [document.sessionId, document.instructionStudioState?.hcProjectId, onDocumentChange, session.user?.id]);
 
   const { persistNow: persistProjectNow } = useEditorProjectPersist({
     document,
@@ -949,19 +1002,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       }
 
       const editJobs = [...(document.editJobs ?? []), api.job];
-      let next: EditorCanvasDocument = {
-        ...document,
-        backgroundUrl: api.resultUrl,
-        editJobs,
-        updatedAt: new Date().toISOString(),
-      };
+      let next = resetEditorAnalysisState(
+        {
+          ...document,
+          backgroundUrl: api.resultUrl,
+          editJobs,
+          updatedAt: new Date().toISOString(),
+        },
+        { preserveInstructionWorkflow: true }
+      );
 
       if (operation === "delete") {
         next = applyEditorLayerOperation(next, layer.id, "delete");
-        setSelectedLayerId(next.objects.find((o) => o.layerType !== "background")?.id ?? null);
       }
 
-      persist(next);
+      bootstrapKeyRef.current = null;
+      const analyzed = await runEditorVisionAndObjectDetection(next);
+      persist(analyzed);
+      setSelectedLayerId(analyzed.objects.find((o) => o.layerType !== "background")?.id ?? null);
       setSaveMessage(
         operation === "delete"
           ? t("editor.visionV3.removeSuccess" as never)
@@ -1022,26 +1080,182 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     }
   };
 
-  const handleSaveDraft = async () => {
+  const handleSaveProject = async (title?: string) => {
     setSaving(true);
+    const payload = buildEditorSavePayload(document);
+    const hadProject = Boolean(document.instructionStudioState?.hcProjectId);
     const saved = markEditorDocumentDraftSaved(document);
-    const payload = buildEditorSavePayload(saved);
-    persist(saved);
+    const { document: linked, project } = saveEditorDocumentToHcProject({
+      document: saved,
+      ownerId: session.user?.id,
+      title,
+      workflowStatus: hadProject ? "in_progress" : "concept",
+      syncToServer: Boolean(session.user),
+    });
+    persist(linked);
     if (session.user) {
-      const ok = await persistProjectNow();
-      if (!ok) {
-        setSaveMessage(t("editor.project.saveFailed" as never));
+      const result = await saveEditorProject(linked.sessionId, linked, linked.name);
+      if (!result.ok) {
+        setSaveMessage(t("hcProject.save.failed" as never));
         setSaving(false);
         return;
       }
     }
+    const messageKey = resolveHcProjectSaveMessageKey({
+      workflowStatus: readHcProjectWorkflowStatus(project),
+      created: !hadProject,
+    });
     setSaveMessage(
-      t("editor.placement.saveDraftSuccess", {
+      t(messageKey as never, {
         layers: String(payload.semanticLayers.filter((l) => l.type !== "background").length),
         placements: String(payload.placementCount),
+        name: project.title,
       })
     );
     setSaving(false);
+  };
+
+  const requestSaveProject = () => {
+    if (isUntitledHcProjectName(document.name)) {
+      setNameDialogMode("save");
+      setNameDialogOpen(true);
+      return;
+    }
+    void handleSaveProject();
+  };
+
+  const requestRenameProject = () => {
+    setNameDialogMode("rename");
+    setNameDialogOpen(true);
+  };
+
+  const requestSaveAsNewProject = () => {
+    setNameDialogMode("save-as-new");
+    setNameDialogOpen(true);
+  };
+
+  const handleOpenInProjects = () => {
+    const projectId = document.instructionStudioState?.hcProjectId;
+    if (projectId) {
+      router.push(`/projects?highlight=${encodeURIComponent(projectId)}`);
+      return;
+    }
+    router.push("/projects");
+  };
+
+  const linkedHcProject = useMemo(() => {
+    const projectId = document.instructionStudioState?.hcProjectId;
+    return projectId ? loadHomeCheffProject(projectId) : null;
+  }, [document.instructionStudioState?.hcProjectId]);
+
+  useHcProjectTitleSync(document.instructionStudioState?.hcProjectId, (next) => {
+    if (document.name === next.title) {
+      return;
+    }
+    persist({ ...document, name: next.title });
+  });
+
+  const isLinkedProjectArchived = linkedHcProject
+    ? linkedHcProject.isArchived || readHcProjectWorkflowStatus(linkedHcProject) === "archived"
+    : false;
+
+  const handleArchiveLinkedProject = () => {
+    const projectId = document.instructionStudioState?.hcProjectId;
+    if (!projectId) {
+      return;
+    }
+    archiveHcProjectRecord(projectId, { syncToServer: Boolean(session.user) });
+    setSaveMessage(t("hcProject.archive.archived" as never));
+  };
+
+  const handleRestoreLinkedProject = () => {
+    const projectId = document.instructionStudioState?.hcProjectId;
+    if (!projectId) {
+      return;
+    }
+    restoreHcProjectRecord(projectId, { syncToServer: Boolean(session.user) });
+    setSaveMessage(t("hcProject.archive.restored" as never));
+  };
+
+  const handleDeleteLinkedProject = () => {
+    if (document.instructionStudioState?.hcProjectId) {
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const confirmDeleteLinkedProject = () => {
+    const projectId = document.instructionStudioState?.hcProjectId;
+    if (!projectId) {
+      return;
+    }
+    permanentlyDeleteHcProjectRecord(projectId);
+    persist({
+      ...document,
+      instructionStudioState: {
+        ...document.instructionStudioState,
+        hcProjectId: undefined,
+      },
+    });
+    setDeleteDialogOpen(false);
+    onBack();
+  };
+
+  const importFlow = useHcProjectImportFlow({
+    targetService: "editor",
+  });
+
+  const handleDownloadProjectFile = () => {
+    if (linkedHcProject) {
+      exportHcProjectRecord(linkedHcProject);
+    } else {
+      exportEditorDocumentAsHcProject({
+        document,
+        ownerId: session.user?.id,
+        existingProjectId: document.instructionStudioState?.hcProjectId,
+        syncToServer: Boolean(session.user),
+      });
+    }
+    setSaveMessage(t("hcProject.file.exportStarted" as never));
+  };
+
+  const handleNameDialogConfirm = async (name: string) => {
+    setNameDialogOpen(false);
+    if (nameDialogMode === "rename") {
+      setSaving(true);
+      const { document: renamed, project } = renameHcProjectForDocument({
+        document,
+        title: name,
+        ownerId: session.user?.id,
+        syncToServer: Boolean(session.user),
+      });
+      if (!project) {
+        setSaving(false);
+        return;
+      }
+      dispatchHcProjectTitleChanged(project);
+      persist(renamed);
+      setSaveMessage(t("hcProject.save.nameUpdated" as never, { name: project.title }));
+      setSaving(false);
+      return;
+    }
+    if (nameDialogMode === "save-as-new") {
+      setSaving(true);
+      const { document: copied, project } = saveEditorDocumentAsNewHcProject({
+        document,
+        ownerId: session.user?.id,
+        title: name,
+        syncToServer: Boolean(session.user),
+      });
+      persist(copied);
+      setSaveMessage(t("hcProject.save.addedToProjects" as never, { name: project.title }));
+      setSaving(false);
+      return;
+    }
+    await handleSaveProject(name);
+  };
+
+  const handleSaveDraft = () => {
+    requestSaveProject();
   };
 
   const handleDownload = async () => {
@@ -1841,12 +2055,16 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
     if (actionId === "motion_ready" || actionId === "animation_ready") {
-      persist({
-        ...document,
-        workspaceMode: "export",
-        exportSettings: { ...document.exportSettings, profile: "motion_ready" },
-      });
-      setSaveMessage(t("editor.v7.plan.motionReady" as never));
+      window.location.assign(
+        buildMotionReadyHrefFromEditorDocument({
+          backgroundUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          name: document.name,
+          sessionId: document.sessionId,
+          sourceAssetId: document.sourceAssetId,
+          hcProjectId: document.instructionStudioState?.hcProjectId,
+        })
+      );
       return;
     }
     if (actionId === "make_transparent" || actionId === "remove_background" || actionId === "transparent_logo") {
@@ -1898,8 +2116,16 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
       return;
     }
     if (suggestionId === "animation_ready" || suggestionId === "animate") {
-      persist(markEditorLayerAnimationReady(document, selectedLayerId));
-      setSaveMessage(t("editor.human.animationReady"));
+      window.location.assign(
+        buildMotionReadyHrefFromEditorDocument({
+          backgroundUrl: document.backgroundUrl,
+          backgroundStorageKey: document.backgroundStorageKey,
+          name: document.name,
+          sessionId: document.sessionId,
+          sourceAssetId: document.sourceAssetId,
+          hcProjectId: document.instructionStudioState?.hcProjectId,
+        })
+      );
       return;
     }
     if (suggestionId === "refine_selection") {
@@ -2204,9 +2430,17 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
               isAdmin={isAdmin}
               saving={saving}
               onDocumentChange={persist}
-              onSave={() => void handleSaveDraft()}
+              onSaveProject={requestSaveProject}
+              onRenameProject={requestRenameProject}
+              onSaveAsNewProject={requestSaveAsNewProject}
               onClose={onBack}
-              onProjects={onBack}
+              onOpenInProjects={handleOpenInProjects}
+              onArchiveProject={linkedHcProject ? handleArchiveLinkedProject : undefined}
+              onRestoreProject={linkedHcProject ? handleRestoreLinkedProject : undefined}
+              onDeleteProject={linkedHcProject ? handleDeleteLinkedProject : undefined}
+              onDownloadProject={handleDownloadProjectFile}
+              onImportProject={importFlow.openImportPicker}
+              isProjectArchived={isLinkedProjectArchived}
               onReview={() => {
                 persist({ ...document, workflowStep: "review" });
                 setShowReview(true);
@@ -2899,6 +3133,40 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
           setLassoActive(true);
         }}
         onCancel={() => setMaskGateOpen(false)}
+      />
+      <EditorProjectNameDialog
+        open={nameDialogOpen}
+        initialName={document.name}
+        required={nameDialogMode === "rename"}
+        onCancel={() => setNameDialogOpen(false)}
+        onConfirm={(name) => void handleNameDialogConfirm(name)}
+      />
+      <HcProjectDeleteDialog
+        open={deleteDialogOpen}
+        projectTitle={linkedHcProject?.title ?? document.name}
+        showExportedWarning={linkedHcProject ? hcProjectHasExportedResults(linkedHcProject) : false}
+        onCancel={() => setDeleteDialogOpen(false)}
+        onConfirm={confirmDeleteLinkedProject}
+      />
+      <input
+        ref={importFlow.fileInputRef}
+        type="file"
+        accept=".hc,application/json,application/vnd.homecheff.project+json"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void importFlow.handleFile(file);
+          }
+        }}
+      />
+      <HcProjectImportDialog
+        open={importFlow.dialogOpen}
+        preview={importFlow.preview}
+        errorKey={importFlow.errorKey}
+        busy={importFlow.busy}
+        onCancel={importFlow.cancelImport}
+        onConfirm={() => void importFlow.confirmImport()}
       />
     </StudioAuthGate>
   );

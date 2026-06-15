@@ -67,7 +67,7 @@ describe("Editor V3 workflow chooser", () => {
     for (const product of EDITOR_WORKFLOW_PRODUCTS) {
       assert.equal(
         workspaceModeForPostUpload(product.mode),
-        product.mode === "combine" ? "compose"
+        product.mode === "combine" ? "instruction_studio"
         : product.mode === "export" ? "export"
         : "instruction_studio"
       );
@@ -89,7 +89,8 @@ describe("Editor V3 combine intents", () => {
       combineIntent: "person_outfit",
     });
     assert.equal(doc.instructionStudioState?.combineIntent, "outfit_from_reference");
-    assert.equal(doc.workspaceMode, "compose");
+    assert.equal(doc.workspaceMode, "instruction_studio");
+    assert.equal(doc.instructionStudioState?.workflow?.intent, "combine");
     assert.ok(doc.instructionStudioState?.fusionPlan);
   });
 });

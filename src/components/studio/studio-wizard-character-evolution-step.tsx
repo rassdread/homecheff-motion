@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { StudioWizardInfoButton } from "@/components/studio/studio-wizard-info-button";
 import { StudioWizardSourceReferenceBanner } from "@/components/studio/studio-wizard-source-reference-banner";
 import { useActiveTranslator } from "@/i18n/client";
+import { buildMotionReadyHrefFromWizardDraft } from "@/lib/motion-ready-character-routes";
 import { applyCharacterEvolutionChoice } from "@/lib/studio-asset-character-evolution";
 import type { AssetWizardDraft } from "@/lib/studio-asset-wizard-draft";
 import type { CharacterEvolutionChoice } from "@/types/studio-asset-character-evolution";
@@ -29,8 +31,23 @@ const CHOICE_HINT_KEYS: Record<CharacterEvolutionChoice, string> = {
 
 export function StudioWizardCharacterEvolutionStep({ draft, onDraftChange }: Props) {
   const t = useActiveTranslator();
+  const router = useRouter();
 
   const handleSelect = (choice: CharacterEvolutionChoice) => {
+    if (choice === "animation_ready_character") {
+      router.push(
+        buildMotionReadyHrefFromWizardDraft({
+          sourceReferenceImageUrl: draft.sourceReferenceImageUrl,
+          referenceImageUrl: draft.referenceImageUrl,
+          sourceReferenceStorageKey: draft.sourceReferenceStorageKey,
+          referenceStorageKey: draft.referenceStorageKey,
+          name: draft.name,
+          sourceAssetId: draft.derivationSource?.assetId,
+          hcProjectId: draft.fields?.hcProjectId,
+        })
+      );
+      return;
+    }
     onDraftChange((d) => ({
       ...d,
       ...applyCharacterEvolutionChoice(d, choice),

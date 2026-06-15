@@ -5,10 +5,20 @@ import { useActiveTranslator } from "@/i18n/client";
 import { brandingWorkflowRequiresLogo } from "@/lib/editor-instruction-branding";
 import {
   actionOptionKey,
+  listAccessoryTypesForObject,
   resolveDynamicActionsForObject,
   type DynamicActionOption,
 } from "@/lib/editor-instruction-dynamic-actions";
+import {
+  accessoryAddActionLabelKey,
+  accessoryTypeLabelKey,
+  buildAccessorySelectionPatch,
+} from "@/lib/editor-instruction-accessory-actions";
 import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-builder";
+import {
+  buildTargetOnlyPromptForSelection,
+  resolveTargetOnlyEdit,
+} from "@/lib/editor-instruction-target-precision";
 import { findBrandReference } from "@/lib/editor-instruction-references";
 import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
 import { resolveStyleActionsForContext } from "@/lib/editor-personalized-recommendations";
@@ -129,17 +139,24 @@ export function EditorInstructionEditPanel(props: Props) {
   } = props;
 
   const dynamicActions = resolveDynamicActionsForObject(object);
+  const accessoryTypes = listAccessoryTypesForObject(object);
   const logoRef = findBrandReference(document, selection.logoReferenceId);
   const showBranding = brandingWorkflowRequiresLogo(selection.action);
   const references = selection.logoReferenceId ? [] : [];
-  const promptPreview = buildEditorInstructionPromptV2({
-    ...selection,
-    assetName: document.name,
-    brandIdentity: document.assetProfile?.humanSummaryKey,
-    logoReference: logoRef,
-    references,
-    brandingPlacementHint: selection.brandingPlacementHint,
-  });
+  const targetOnly = resolveTargetOnlyEdit(document);
+  const promptPreview =
+    targetOnly
+      ? buildTargetOnlyPromptForSelection(document, selection, {
+          brandIdentity: document.assetProfile?.humanSummaryKey,
+        })
+      : buildEditorInstructionPromptV2({
+          ...selection,
+          assetName: document.name,
+          brandIdentity: document.assetProfile?.humanSummaryKey,
+          logoReference: logoRef,
+          references,
+          brandingPlacementHint: selection.brandingPlacementHint,
+        });
 
   return (
     <section
@@ -206,6 +223,55 @@ export function EditorInstructionEditPanel(props: Props) {
         </label>
       : null}
 
+      {selection.action === "accessory_add" ?
+        <section
+          className="mt-3 rounded-xl border border-zinc-200/90 bg-white/90 px-3 py-3"
+          data-testid="instruction-accessory-picker"
+        >
+          <p className="text-xs font-semibold text-zinc-800">
+            {t("editor.instructionStudio.v2.accessory.typeLabel" as never)}
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {accessoryTypes.map((type) => (
+              <button
+                key={type}
+                type="button"
+                data-testid={`accessory-type-${type}`}
+                className={`rounded-lg border px-2 py-2 text-left text-xs font-medium transition ${
+                  selection.accessoryType === type
+                    ? "border-[#006D52] bg-[#006D52]/10 text-[#006D52]"
+                    : "border-zinc-200 bg-zinc-50 text-zinc-800 hover:border-zinc-300"
+                }`}
+                onClick={() =>
+                  onUpdateSelection(buildAccessorySelectionPatch(type, selection.customPrompt))
+                }
+              >
+                {t(accessoryTypeLabelKey(type) as never)}
+              </button>
+            ))}
+          </div>
+          {selection.accessoryType === "custom" ?
+            <label className="mt-3 block text-xs font-medium text-zinc-700">
+              {t("editor.instructionStudio.v2.accessory.addCustom" as never)}
+              <textarea
+                className="mt-1 min-h-[56px] w-full rounded-lg border border-zinc-300/90 bg-white px-3 py-2 text-sm"
+                value={selection.customPrompt ?? ""}
+                placeholder={t("editor.instructionStudio.v2.accessory.customPlaceholder" as never)}
+                onChange={(e) =>
+                  onUpdateSelection(
+                    buildAccessorySelectionPatch("custom", e.target.value)
+                  )
+                }
+              />
+            </label>
+          : selection.accessoryType ?
+            <p className="mt-2 text-xs text-zinc-600">
+              {t(accessoryAddActionLabelKey(selection.accessoryType) as never)}
+            </p>
+          : null}
+        </section>
+      : null}
+
       {showBranding ?
         <section className="mt-4 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-3 py-3">
           <h3 className="text-xs font-semibold text-[#0067B1]">
@@ -267,6 +333,7 @@ export function EditorInstructionEditPanel(props: Props) {
           value={selection.customPrompt ?? ""}
           placeholder={t("editor.instructionStudio.promptPlaceholder" as never)}
           onChange={(e) => onUpdateSelection({ customPrompt: e.target.value })}
+          disabled={selection.action === "accessory_add" && selection.accessoryType !== "custom"}
         />
       </label>
 

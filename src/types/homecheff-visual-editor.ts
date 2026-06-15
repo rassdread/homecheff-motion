@@ -1036,6 +1036,8 @@ export type EditorCanvasDocument = {
   placements: PlacementCanvasItem[];
   bodyDesigner?: CharacterBodyDesignerParams;
   visionAnalysisHash?: string;
+  /** Base image URL used for the last successful vision/detection bootstrap. */
+  analyzedBackgroundUrl?: string;
   semanticLayers?: EditorSemanticLayer[];
   layerOperations?: EditorLayerOperationAudit[];
   /** All detected objects from vision/analysis — not only the selected one. */

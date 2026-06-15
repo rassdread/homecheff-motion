@@ -3,6 +3,9 @@
 import { StudioDirectorSectionText } from "@/components/studio/director-v2/sections/text-section";
 import { StudioMusicDirectorPanel } from "@/components/studio/studio-music-director-panel";
 import { StudioSoundDirectorPanel } from "@/components/studio/studio-sound-director-panel";
+import { StudioV9VoiceLibraryPanel } from "@/components/studio/studio-v9-voice-library-panel";
+import { StudioV9MusicPanel } from "@/components/studio/studio-v9-music-panel";
+import { StudioV9SoundEffectsPanel } from "@/components/studio/studio-v9-sound-effects-panel";
 import { StudioStoryboardVoiceIdentityPanel } from "@/components/studio/studio-storyboard-voice-identity-panel";
 import { StudioSubtitlePreviewPanel } from "@/components/studio/studio-subtitle-preview-panel";
 import { StudioTextBeatsPreviewPanel } from "@/components/studio/studio-text-beats-preview-panel";
@@ -73,6 +76,9 @@ const PRODUCTION_TOOLS = new Set<StudioToolId>(["render", "versions", "translate
 
 function StudioWorkspaceVoicePanel({
   storyboard,
+  storyboardId,
+  activeScene,
+  activeSceneIndex,
   characters,
   canModify,
   onStoryboardUpdated,
@@ -80,6 +86,9 @@ function StudioWorkspaceVoicePanel({
   isAdmin = false,
 }: {
   storyboard: StudioStoryboardDetail;
+  storyboardId: string;
+  activeScene: StudioSceneDetail | null;
+  activeSceneIndex: number;
   characters: StudioCharacterListItem[];
   canModify: boolean;
   onStoryboardUpdated: (storyboard: StudioStoryboardDetail) => void;
@@ -98,6 +107,14 @@ function StudioWorkspaceVoicePanel({
         <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.voice")}</h2>
         <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.voice.hint")}</p>
       </div>
+      <StudioV9VoiceLibraryPanel
+        storyboardId={storyboardId}
+        storyLanguage={storyLanguage}
+        activeScene={activeScene}
+        activeSceneIndex={activeSceneIndex}
+        characters={storyCharacters}
+        canModify={canModify}
+      />
       <StudioWorkspaceAudioMixPanel
         storyboard={storyboard}
         canModify={canModify}
@@ -445,6 +462,9 @@ export function StudioWorkspaceToolPanel({
     return (
       <StudioWorkspaceVoicePanel
         storyboard={storyboard}
+        storyboardId={storyboardId}
+        activeScene={activeScene}
+        activeSceneIndex={activeSceneIndex}
         characters={characters}
         canModify={canModify}
         onStoryboardUpdated={onStoryboardUpdated}
@@ -487,6 +507,12 @@ export function StudioWorkspaceToolPanel({
           <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.music")}</h2>
           <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.music.planningHint")}</p>
         </div>
+        <StudioV9MusicPanel
+          storyboardId={storyboardId}
+          activeSceneId={activeScene?.id}
+          activeSceneIndex={activeSceneIndex}
+          canModify={canModify}
+        />
         <StudioMusicDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
       </div>
     );
@@ -499,6 +525,12 @@ export function StudioWorkspaceToolPanel({
           <h2 className="text-lg font-semibold text-zinc-900">{t("studio.tools.sound")}</h2>
           <p className="mt-1 text-sm text-zinc-600">{t("studio.workspace.sound.planningHint")}</p>
         </div>
+        <StudioV9SoundEffectsPanel
+          storyboardId={storyboardId}
+          activeSceneId={activeScene?.id}
+          activeSceneIndex={activeSceneIndex}
+          canModify={canModify}
+        />
         <StudioSoundDirectorPanel storyboard={storyboard} onUpdated={onStoryboardUpdated} />
       </div>
     );

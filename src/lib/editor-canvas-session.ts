@@ -12,12 +12,16 @@ import {
 import { buildEditorObjectsFromLayers, syncDetectedObjectsOnDocument } from "@/lib/editor-object-detection";
 import { attachPartsToEditorObject, buildDocumentObjectHierarchies } from "@/lib/editor-part-hierarchy";
 import { buildEditorVisionHierarchy } from "@/lib/editor-vision-v4-hierarchy";
-import { resolveVisionHierarchyForDocument, traceVisionHierarchyStage } from "@/lib/editor-vision-v6-stability";
+import { resolveVisionHierarchyForDocument, traceVisionHierarchyStage, documentHasRichVisionAnalysis } from "@/lib/editor-vision-v6-stability";
 import { createDefaultHierarchicalSelection } from "@/lib/editor-hierarchical-selection";
 import { refreshEditorAssetProfile } from "@/lib/editor-asset-intelligence";
 import { attachStudioMotionHandoff } from "@/lib/editor-studio-motion-handoff";
 import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
+import {
+  editorAnalysisAppliesToBackground,
+  resetEditorAnalysisState,
+} from "@/lib/editor-analysis-reset";
 import { bootstrapEditorObjectDetection } from "@/lib/editor-detection-bootstrap";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
@@ -105,19 +109,25 @@ function writeStore(store: Record<string, EditorCanvasDocument>, activeSessionId
 
 export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocument | null {
   const doc = readStore()[sessionId] ?? null;
-  if (doc) {
-    traceVisionHierarchyStage("after_loadEditorCanvasDocument", doc);
+  if (!doc) {
+    return null;
   }
-  return doc;
+  const normalized =
+    !doc.analyzedBackgroundUrl && documentHasRichVisionAnalysis(doc)
+      ? { ...doc, analyzedBackgroundUrl: doc.backgroundUrl }
+      : doc;
+  traceVisionHierarchyStage("after_loadEditorCanvasDocument", normalized);
+  return normalized;
 }
 
 function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocument {
+  const analysisFresh = editorAnalysisAppliesToBackground(document);
   const semanticLayers =
-    document.visionV6Meta?.illustrationAnalysis && document.semanticLayers?.length
+    analysisFresh && document.visionV6Meta?.illustrationAnalysis && document.semanticLayers?.length
       ? document.semanticLayers
       : document.semanticLayers ?? extractEditorSemanticLayers(document.objects);
   let detectedObjects =
-    document.visionV6Meta?.illustrationAnalysis && document.detectedObjects?.length
+    analysisFresh && document.visionV6Meta?.illustrationAnalysis && document.detectedObjects?.length
       ? document.detectedObjects
       : syncDetectedObjectsOnDocument(document.objects, document.detectedObjects);
   const objectHierarchies =
@@ -184,6 +194,84 @@ export function listRecentEditorDocuments(limit = RECENT_LIMIT): EditorCanvasDoc
   return Object.values(readStore())
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, limit);
+}
+
+export function removeEditorCanvasSession(sessionId: string): void {
+  const id = sessionId.trim();
+  if (!id || typeof window === "undefined") {
+    return;
+  }
+  const store = readStore();
+  if (!(id in store)) {
+    return;
+  }
+  delete store[id];
+  writeStore(store);
+}
+
+/** Clears hcProjectId from editor sessions without removing session data. */
+export function detachHcProjectFromEditorSessions(hcProjectId: string): number {
+  const id = hcProjectId.trim();
+  if (!id || typeof window === "undefined") {
+    return 0;
+  }
+  const store = readStore();
+  let count = 0;
+  const now = new Date().toISOString();
+  for (const sessionId of Object.keys(store)) {
+    const doc = store[sessionId];
+    if (doc?.instructionStudioState?.hcProjectId !== id) {
+      continue;
+    }
+    store[sessionId] = {
+      ...doc,
+      updatedAt: now,
+      instructionStudioState: {
+        ...doc.instructionStudioState,
+        hcProjectId: undefined,
+      },
+    };
+    count += 1;
+  }
+  if (count > 0) {
+    writeStore(store);
+  }
+  return count;
+}
+
+/** Updates document.name for all editor sessions linked to an HC project. */
+export function syncHcProjectTitleInEditorSessions(hcProjectId: string, title: string): number {
+  const id = hcProjectId.trim();
+  const nextTitle = title.trim();
+  if (!id || !nextTitle || typeof window === "undefined") {
+    return 0;
+  }
+  const store = readStore();
+  let count = 0;
+  const now = new Date().toISOString();
+  for (const sessionId of Object.keys(store)) {
+    const doc = store[sessionId];
+    if (doc?.instructionStudioState?.hcProjectId !== id) {
+      continue;
+    }
+    store[sessionId] = {
+      ...doc,
+      name: nextTitle,
+      updatedAt: now,
+    };
+    count += 1;
+  }
+  if (count > 0) {
+    writeStore(store);
+  }
+  return count;
+}
+
+export function __resetEditorCanvasSessionsForTests(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(STORAGE_KEY);
 }
 
 export function createEditorDocumentFromUpload(params: {
@@ -303,8 +391,11 @@ export function createEditorDocumentFromLibrarySource(
 export async function runEditorVisionAndObjectDetection(
   document: EditorCanvasDocument
 ): Promise<EditorCanvasDocument> {
-  traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", document);
-  const analyzed = await bootstrapEditorObjectDetection(document);
+  const prepared = editorAnalysisAppliesToBackground(document)
+    ? document
+    : resetEditorAnalysisState(document, { preserveInstructionWorkflow: true });
+  traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", prepared);
+  const analyzed = await bootstrapEditorObjectDetection(prepared);
   traceVisionHierarchyStage("before_saveEditorCanvasDocument", analyzed);
   const saved = saveEditorCanvasDocument(analyzed);
   traceVisionHierarchyStage("after_saveEditorCanvasDocument", saved);

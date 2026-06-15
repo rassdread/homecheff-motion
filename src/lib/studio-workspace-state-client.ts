@@ -1,5 +1,9 @@
 import { fetchSameOriginJson, sameOriginApiPath } from "@/lib/client-api-fetch";
 import type { StudioAssetDecisionRegistry } from "@/types/studio-asset-decision";
+import type {
+  StudioAudioChangePlan,
+  StudioAudioProjectAssetsRegistry,
+} from "@/types/studio-audio-change-plan";
 import type { StudioWorkspaceState } from "@/types/studio-workspace-state";
 
 export async function fetchStudioWorkspaceState(storyboardId: string) {
@@ -14,6 +18,8 @@ export async function saveStudioWorkspaceState(
   storyboardId: string,
   patch: {
     assetDecisionRegistry?: StudioAssetDecisionRegistry;
+    audioChangePlan?: StudioAudioChangePlan;
+    audioProjectAssets?: StudioAudioProjectAssetsRegistry;
     motionWizardDraft?: Record<string, unknown> | null;
   }
 ) {
@@ -36,6 +42,8 @@ export function scheduleStudioWorkspaceStateSync(
   storyboardId: string,
   patch: {
     assetDecisionRegistry?: StudioAssetDecisionRegistry;
+    audioChangePlan?: StudioAudioChangePlan;
+    audioProjectAssets?: StudioAudioProjectAssetsRegistry;
     motionWizardDraft?: Record<string, unknown> | null;
   }
 ): void {

@@ -1,4 +1,5 @@
 import type { Prisma, StudioLocation } from "@prisma/client";
+import { registerPrismaEntityInLibrary } from "@/server/studio/library-consistency-hooks";
 import { prisma } from "@/lib/prisma";
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
@@ -179,6 +180,18 @@ export async function createStudioLocation(
       isSystemLocation: false,
     },
     include: LOCATION_INCLUDE,
+  });
+
+  await registerPrismaEntityInLibrary({
+    ownerId,
+    createdBy: ownerId,
+    entityId: row.id,
+    entityName: row.name,
+    generationType: "location",
+    assetUrl: row.referenceImageUrl,
+    storageKey: row.referenceStorageKey,
+    thumbnailUrl: row.referenceImageUrl,
+    sourceModule: "studio",
   });
 
   return { location: mapStudioLocationToDetail(row) };

@@ -12,6 +12,8 @@ import {
   storeAiEverythingStateInHc,
   type AiEverythingPipelinePlan,
 } from "@/lib/studio-ai-everything-pipeline";
+import { buildCharacterClusterHref } from "@/lib/character-cluster-routes";
+import { isCharacterRequirementKind } from "@/lib/studio-character-entry-actions";
 import {
   generateBriefAssetImage,
   persistGeneratedBriefAssetToHc,
@@ -73,14 +75,20 @@ export function StudioAiEverythingPanel({
     persistHcWorkflowV2WithSync(nextHc, {});
 
     const visualReqs = pipelinePlan.assetRequirements.filter(
-      (r) => r.status === "missing" && ["character", "location", "prop", "world"].includes(r.kind)
+      (r) =>
+        r.status === "missing" &&
+        ["character", "mascot", "team", "location", "prop", "world"].includes(r.kind)
     );
 
-    for (const req of visualReqs) {
+    const characterReqs = visualReqs.filter((r) => isCharacterRequirementKind(r.kind));
+    const nonCharacterReqs = visualReqs.filter((r) => !isCharacterRequirementKind(r.kind));
+
+    for (const req of nonCharacterReqs) {
       setProgress(t("studio.aiEverything.generating" as never, { asset: req.label } as never));
       const concept = buildAutoConceptForRequirement(req, brief.idea);
+      const wizardKind = req.kind as BriefWizardKind;
       const gen = await generateBriefAssetImage({
-        kind: req.kind as BriefWizardKind,
+        kind: wizardKind,
         concept,
         projectId: nextHc.id,
       });
@@ -94,7 +102,18 @@ export function StudioAiEverythingPanel({
     }
 
     setProgress(t("studio.aiEverything.opening" as never));
-    onComplete(`/studio/storyboards/new?hcProject=${encodeURIComponent(nextHc.id)}&aiEverything=1`);
+    const storyboardHref = `/studio/storyboards/new?hcProject=${encodeURIComponent(nextHc.id)}&aiEverything=1`;
+    if (characterReqs.length > 0) {
+      onComplete(
+        buildCharacterClusterHref("new", {
+          hcProject: nextHc.id,
+          projectId: nextHc.id,
+          returnTo: storyboardHref,
+        })
+      );
+    } else {
+      onComplete(storyboardHref);
+    }
     setBusy(false);
   };
 

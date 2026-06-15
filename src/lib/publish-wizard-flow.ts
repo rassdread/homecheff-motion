@@ -3,6 +3,7 @@ export type PublishWizardStepId =
   | "intent"
   | "analyze"
   | "proposal"
+  | "media"
   | "review"
   | "export";
 
@@ -11,6 +12,7 @@ export const PUBLISH_WIZARD_STEPS: PublishWizardStepId[] = [
   "intent",
   "analyze",
   "proposal",
+  "media",
   "review",
   "export",
 ];
@@ -20,6 +22,7 @@ export const PUBLISH_WIZARD_STEP_LABEL_KEYS: Record<PublishWizardStepId, string>
   intent: "publish.wizard.intent",
   analyze: "publish.wizard.analyze",
   proposal: "publish.wizard.proposal",
+  media: "publish.wizard.media",
   review: "publish.wizard.review",
   export: "publish.wizard.export",
 };
@@ -29,6 +32,7 @@ export const PUBLISH_WIZARD_STEP_HELP_KEYS: Record<PublishWizardStepId, string> 
   intent: "publish.wizard.help.intent",
   analyze: "publish.wizard.help.analyze",
   proposal: "publish.wizard.help.proposal",
+  media: "publish.wizard.help.media",
   review: "publish.wizard.help.review",
   export: "publish.wizard.help.export",
 };
@@ -38,6 +42,7 @@ export const PUBLISH_WIZARD_STEP_WHY_KEYS: Record<PublishWizardStepId, string> =
   intent: "publish.wizard.why.intent",
   analyze: "publish.wizard.why.analyze",
   proposal: "publish.wizard.why.proposal",
+  media: "publish.wizard.why.media",
   review: "publish.wizard.why.review",
   export: "publish.wizard.why.export",
 };
@@ -47,6 +52,7 @@ export const PUBLISH_WIZARD_STEP_NEXT_KEYS: Record<PublishWizardStepId, string> 
   intent: "publish.wizard.next.intent",
   analyze: "publish.wizard.next.analyze",
   proposal: "publish.wizard.next.proposal",
+  media: "publish.wizard.next.media",
   review: "publish.wizard.next.review",
   export: "publish.wizard.next.export",
 };
@@ -56,6 +62,7 @@ export const PUBLISH_WIZARD_STEP_CONTROL_KEYS: Record<PublishWizardStepId, strin
   intent: "publish.wizard.control.intent",
   analyze: "publish.wizard.control.analyze",
   proposal: "publish.wizard.control.proposal",
+  media: "publish.wizard.control.media",
   review: "publish.wizard.control.review",
   export: "publish.wizard.control.export",
 };
@@ -66,6 +73,7 @@ export type PublishWizardState = {
   uploadReady?: boolean;
   analyzeComplete?: boolean;
   proposalReady?: boolean;
+  mediaReady?: boolean;
   reviewReady?: boolean;
   hcProjectId?: string;
 };
@@ -94,6 +102,8 @@ export function publishWizardStepComplete(state: PublishWizardState, step: Publi
       return Boolean(state.analyzeComplete);
     case "proposal":
       return Boolean(state.proposalReady);
+    case "media":
+      return Boolean(state.mediaReady ?? state.proposalReady);
     case "review":
       return Boolean(state.reviewReady);
     case "export":
@@ -116,11 +126,12 @@ export function hydratePublishWizardFromProject(input: {
 }): PublishWizardState {
   if (input.hasProposal) {
     return {
-      step: "review",
+      step: "media",
       intent: input.publishIntent,
       uploadReady: true,
       analyzeComplete: true,
       proposalReady: true,
+      mediaReady: true,
       reviewReady: true,
       hcProjectId: input.hcProjectId,
     };

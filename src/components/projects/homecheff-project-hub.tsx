@@ -2,51 +2,114 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GenerationPackageBrowser } from "@/components/projects/generation-package-browser";
-import { HcProjectSummaryCard } from "@/components/projects/hc-project-summary-card";
+import { HcProjectDeleteDialog } from "@/components/projects/hc-project-delete-dialog";
+import { HcProjectHubCard } from "@/components/projects/hc-project-hub-card";
+import { HcProjectImportButton } from "@/components/projects/hc-project-import-button";
 import { HcProjectPrepareDialog } from "@/components/projects/hc-project-prepare-dialog";
-import { HcProjectStateBadge } from "@/components/projects/hc-project-state-badge";
+import { RecentLocalEditsPanel } from "@/components/projects/recent-local-edits-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
+import {
+  bulkArchiveHcProjectRecords,
+  bulkDeleteHcProjectRecords,
+  hcProjectHasExportedResults,
+  permanentlyDeleteHcProjectRecord,
+} from "@/lib/hc-project-delete-archive";
 import { buildHcHandoffUrl, resolveHcProjectOpenTargets } from "@/lib/homecheff-project-package-core";
 import {
-  archiveHcProject,
-  deleteHcProject,
-  duplicateHcProject,
+  listHcProjectsByWorkflowStatus,
+  type HcProjectWorkflowStatus,
+} from "@/lib/hc-project-lifecycle";
+import {
   listHomeCheffProjectsFiltered,
   loadHomeCheffProject,
-  restoreHcProject,
 } from "@/lib/homecheff-project-persist";
 import { listUnifiedProjects } from "@/lib/homecheff-project-list";
+import { listRecentLocalEdits } from "@/lib/recent-local-edits";
 import { loadHcProjectResolved } from "@/lib/homecheff-project-sync";
+import { queryLibraryConsistency } from "@/lib/library-consistency-client";
+import type { LibraryProjectAssetStats } from "@/lib/library-asset-index";
 import { resolveHcProjectLastService } from "@/lib/homecheff-project-state";
 import { archiveLegacyProject, restoreLegacyProject } from "@/lib/homecheff-project-legacy-registry";
 import { studioVisual } from "@/lib/studio-visual-tokens";
-import type { HomeCheffProjectListFilter, HomeCheffProjectType } from "@/types/homecheff-project-package";
+import type { HomeCheffProjectListFilter, HomeCheffProjectPackage, HomeCheffProjectType } from "@/types/homecheff-project-package";
 
-const FILTERS: HomeCheffProjectListFilter[] = ["active", "hc", "legacy", "archived"];
+const LEGACY_FILTERS: HomeCheffProjectListFilter[] = ["legacy", "archived"];
 
-const SERVICE_OPEN_LABEL: Record<string, string> = {
-  editor: "hcProject.openEditor",
-  motion: "hcProject.openMotion",
-  publish: "hcProject.openPublish",
-  studio: "hcProject.openStudio",
+const WORKFLOW_FILTERS: Array<HcProjectWorkflowStatus | "active"> = [
+  "active",
+  "concept",
+  "in_progress",
+  "motion_ready",
+  "publish_ready",
+  "exported",
+  "archived",
+];
+
+type DeleteTarget = {
+  projectId: string;
+  projectTitle: string;
+  showExportedWarning: boolean;
 };
 
 export function HomeCheffProjectHub() {
   const t = useActiveTranslator();
   const router = useRouter();
   const auth = useAuthSession();
-  const [filter, setFilter] = useState<HomeCheffProjectListFilter>("active");
+  const [filter, setFilter] = useState<HomeCheffProjectListFilter | HcProjectWorkflowStatus | "active">("active");
   const [refreshKey, setRefreshKey] = useState(0);
   const [prepareTarget, setPrepareTarget] = useState<{ projectId: string; target: HomeCheffProjectType } | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [liveProjects, setLiveProjects] = useState<Record<string, HomeCheffProjectPackage>>({});
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [projectLibraryStats, setProjectLibraryStats] = useState<Record<string, LibraryProjectAssetStats>>({});
+
+  useEffect(() => {
+    if (!auth.user?.id) {
+      return;
+    }
+    void (async () => {
+      const response = await queryLibraryConsistency({ limit: 500 });
+      if (response.ok && response.projectStats) {
+        setProjectLibraryStats(response.projectStats);
+      }
+    })();
+  }, [auth.user?.id, refreshKey]);
 
   const items = useMemo(() => {
     void refreshKey;
-    return listUnifiedProjects(filter);
+    if (filter === "legacy") {
+      return listUnifiedProjects(filter);
+    }
+    if (filter === "archived") {
+      const hcArchived = listHcProjectsByWorkflowStatus(
+        listHomeCheffProjectsFiltered("archived"),
+        "archived"
+      );
+      const legacy = listUnifiedProjects("archived");
+      return [
+        ...hcArchived.map((project) => ({ kind: "hc" as const, project })),
+        ...legacy,
+      ];
+    }
+    const hcProjects = listHomeCheffProjectsFiltered("hc");
+    const filtered = listHcProjectsByWorkflowStatus(hcProjects, filter as HcProjectWorkflowStatus | "active");
+    return filtered.map((project) => ({ kind: "hc" as const, project }));
   }, [filter, refreshKey]);
+
+  const hcItems = items.filter((item) => item.kind === "hc");
+
+  const recentLocalEdits = useMemo(() => {
+    void refreshKey;
+    return listRecentLocalEdits();
+  }, [refreshKey]);
+
+  const hasSavedProjects = items.length > 0;
+  const hasLocalEdits = recentLocalEdits.length > 0;
 
   const continueItem = useMemo(() => {
     void refreshKey;
@@ -54,7 +117,10 @@ export function HomeCheffProjectHub() {
     return active[0] ?? null;
   }, [refreshKey]);
 
-  const bump = () => setRefreshKey((k) => k + 1);
+  const bump = () => {
+    setLiveProjects({});
+    setRefreshKey((k) => k + 1);
+  };
 
   const openHc = async (projectId: string, service?: HomeCheffProjectType) => {
     if (auth.user) {
@@ -67,6 +133,58 @@ export function HomeCheffProjectHub() {
       return;
     }
     router.push(buildHcHandoffUrl(projectId, target));
+  };
+
+  const toggleSelected = (projectId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) {
+      return;
+    }
+    if (selectedIds.size > 1 && selectedIds.has(deleteTarget.projectId)) {
+      bulkDeleteHcProjectRecords([...selectedIds]);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+    } else {
+      permanentlyDeleteHcProjectRecord(deleteTarget.projectId);
+    }
+    setDeleteTarget(null);
+    bump();
+  };
+
+  const handleBulkArchive = () => {
+    bulkArchiveHcProjectRecords([...selectedIds]);
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    bump();
+  };
+
+  const handleBulkDelete = () => {
+    const first = loadHomeCheffProject([...selectedIds][0] ?? "");
+    if (!first) {
+      return;
+    }
+    setDeleteTarget({
+      projectId: first.id,
+      projectTitle:
+        selectedIds.size > 1
+          ? t("hcProject.delete.multipleLabel" as never, { count: selectedIds.size } as never)
+          : first.title,
+      showExportedWarning: [...selectedIds].some((id) => {
+        const project = loadHomeCheffProject(id);
+        return project ? hcProjectHasExportedResults(project) : false;
+      }),
+    });
   };
 
   return (
@@ -105,7 +223,17 @@ export function HomeCheffProjectHub() {
           : null}
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
+            {WORKFLOW_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={filter === f ? studioVisual.editorTabActive : studioVisual.editorTabInactive}
+              >
+                {t(`projects.hub.workflow.${f}` as never)}
+              </button>
+            ))}
+            {LEGACY_FILTERS.map((f) => (
               <button
                 key={f}
                 type="button"
@@ -117,65 +245,80 @@ export function HomeCheffProjectHub() {
             ))}
           </div>
 
-          <ul className="mt-6 space-y-3">
-            {items.length === 0 ?
-              <li className={`p-8 text-center ${studioVisual.cardOnDarkMuted}`}>
-                <p className={`text-sm ${studioVisual.subheadingOnDark}`}>{t("projects.hub.emptyTitle" as never)}</p>
-                <p className={`mt-2 text-sm ${studioVisual.bodyOnDark}`}>{t("projects.hub.empty" as never)}</p>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+            <h2 className={`text-sm font-bold ${studioVisual.subheadingOnDark}`}>
+              {t("projects.hub.section.projects" as never)}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <HcProjectImportButton
+                className={studioVisual.btnOutline}
+                onImported={() => bump()}
+              />
+              {hcItems.length > 0 ?
+              <button
+                type="button"
+                className={studioVisual.btnOutline}
+                onClick={() => {
+                  setBulkMode((value) => !value);
+                  setSelectedIds(new Set());
+                }}
+                data-testid="projects-hub-bulk-toggle"
+              >
+                {bulkMode ? t("hcProject.hub.bulk.cancel" as never) : t("hcProject.hub.bulk.select" as never)}
+              </button>
+              : null}
+            </div>
+          </div>
+
+          {bulkMode && selectedIds.size > 0 ?
+            <div className={`mt-3 flex flex-wrap gap-2 ${studioVisual.cardOnDarkMuted} p-3`} data-testid="projects-hub-bulk-actions">
+              <button type="button" className={studioVisual.btnOutline} onClick={handleBulkArchive}>
+                {t("hcProject.hub.bulk.archive" as never)}
+              </button>
+              <button type="button" className={studioVisual.btnOutline} onClick={handleBulkDelete}>
+                {t("hcProject.hub.bulk.delete" as never)}
+              </button>
+            </div>
+          : null}
+
+          <ul className="mt-3 space-y-3">
+            {!hasSavedProjects ?
+              <li className={`p-8 text-center ${studioVisual.cardOnDarkMuted}`} data-testid="projects-hub-empty">
+                <p className={`text-sm ${studioVisual.subheadingOnDark}`}>
+                  {hasLocalEdits
+                    ? t("projects.hub.emptyWithLocalEditsTitle" as never)
+                    : t("projects.hub.emptyTitle" as never)}
+                </p>
+                <p className={`mt-2 text-sm ${studioVisual.bodyOnDark}`}>
+                  {hasLocalEdits
+                    ? t("projects.hub.emptyWithLocalEdits" as never)
+                    : t("projects.hub.empty" as never)}
+                </p>
+                {hasLocalEdits ?
+                  <a href="#recent-local-edits" className={`mt-4 inline-block ${studioVisual.btnGradientPrimary}`}>
+                    {t("projects.hub.openRecentEdits" as never)}
+                  </a>
+                : null}
               </li>
             : items.map((item) => {
                 if (item.kind === "hc") {
-                  const project = item.project;
-                  const targets = resolveHcProjectOpenTargets(project);
+                  const project = liveProjects[item.project.id] ?? item.project;
                   return (
-                    <li
+                    <HcProjectHubCard
                       key={project.id}
-                      className={studioVisual.hubCard}
-                      data-testid={`hc-project-card-${project.id}`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-sm font-bold text-zinc-900">{project.title}</h3>
-                          <p className="mt-0.5 text-xs text-zinc-500">
-                            {t("projects.hub.lastService" as never, {
-                              service: resolveHcProjectLastService(project),
-                            } as never)}{" "}
-                            · {new Date(project.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <HcProjectStateBadge project={project} compact />
-                      </div>
-                      <HcProjectSummaryCard project={project} />
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" className={studioVisual.btnGradientPrimary} onClick={() => void openHc(project.id)}>
-                          {t("projects.hub.continueAction" as never)}
-                        </button>
-                        {targets.map((svc) => (
-                          <button
-                            key={svc}
-                            type="button"
-                            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 hover:border-[#0067B1]"
-                            onClick={() => void openHc(project.id, svc)}
-                          >
-                            {t((SERVICE_OPEN_LABEL[svc] ?? "hcProject.open") as never)}
-                          </button>
-                        ))}
-                        {project.isArchived ?
-                          <button type="button" className={studioVisual.btnOutline} onClick={() => { restoreHcProject(project.id); bump(); }}>
-                            {t("hcLegacy.action.restore" as never)}
-                          </button>
-                        : <button type="button" className={studioVisual.btnOutline} onClick={() => { archiveHcProject(project.id); bump(); }}>
-                            {t("hcLegacy.action.archive" as never)}
-                          </button>
-                        }
-                        <button type="button" className={studioVisual.btnOutline} onClick={() => { duplicateHcProject(project.id); bump(); }}>
-                          {t("projects.hub.duplicate" as never)}
-                        </button>
-                        <button type="button" className={studioVisual.btnOutline} onClick={() => { deleteHcProject(project.id); bump(); }}>
-                          {t("projects.hub.delete" as never)}
-                        </button>
-                      </div>
-                    </li>
+                      project={project}
+                      bulkMode={bulkMode}
+                      selected={selectedIds.has(project.id)}
+                      onToggleSelected={() => toggleSelected(project.id)}
+                      onOpen={(service) => void openHc(project.id, service)}
+                      onRenamed={(next) => {
+                        setLiveProjects((current) => ({ ...current, [next.id]: next }));
+                      }}
+                      onChanged={bump}
+                      ownerId={auth.user?.id}
+                      syncToServer={Boolean(auth.user)}
+                      libraryStats={projectLibraryStats[project.id] ?? null}
+                    />
                   );
                 }
 
@@ -208,7 +351,14 @@ export function HomeCheffProjectHub() {
             }
           </ul>
 
+          <div id="recent-local-edits">
+            <RecentLocalEditsPanel onSavedAsProject={bump} />
+          </div>
+
           <div className={`mt-10 ${studioVisual.cardOnDarkMuted} p-5`}>
+            <h2 className={`mb-3 text-sm font-bold ${studioVisual.subheadingOnDark}`}>
+              {t("projects.hub.section.generatedFiles" as never)}
+            </h2>
             <GenerationPackageBrowser />
           </div>
         </section>
@@ -222,6 +372,15 @@ export function HomeCheffProjectHub() {
             setPrepareTarget(null);
             router.push(href);
           }}
+        />
+      : null}
+      {deleteTarget ?
+        <HcProjectDeleteDialog
+          open
+          projectTitle={deleteTarget.projectTitle}
+          showExportedWarning={deleteTarget.showExportedWarning}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
         />
       : null}
     </StudioAuthGate>

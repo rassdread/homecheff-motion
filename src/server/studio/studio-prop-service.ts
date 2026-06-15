@@ -1,4 +1,5 @@
 import type { Prisma, StudioProp } from "@prisma/client";
+import { registerPrismaEntityInLibrary } from "@/server/studio/library-consistency-hooks";
 import { prisma } from "@/lib/prisma";
 import { normalizeStudioContinuityStrength } from "@/lib/studio-continuity-strength";
 import { mapStudioWorldProfileSummary } from "@/lib/studio-world-profile-summary";
@@ -175,6 +176,19 @@ export async function createStudioProp(
       isSystemProp: false,
     },
     include: PROP_INCLUDE,
+  });
+
+  await registerPrismaEntityInLibrary({
+    ownerId,
+    createdBy: ownerId,
+    entityId: row.id,
+    entityName: row.name,
+    generationType: category === "brand_asset" ? "logo" : "prop",
+    assetUrl: row.referenceImageUrl,
+    storageKey: row.referenceStorageKey,
+    thumbnailUrl: row.referenceImageUrl,
+    isLogo: category === "brand_asset",
+    sourceModule: "studio",
   });
 
   return { prop: mapStudioPropToDetail(row) };

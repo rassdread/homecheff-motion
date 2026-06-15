@@ -1,5 +1,11 @@
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
 import {
+  summarizeAccessoryChangePlanItem,
+} from "@/lib/editor-instruction-accessory-actions";
+import {
+  enrichChangePlanItemWithPrecision,
+} from "@/lib/editor-instruction-target-precision";
+import {
   summarizeStyleChangeInstruction,
   type EditorStyleActionOption,
 } from "@/lib/editor-style-actions";
@@ -28,7 +34,12 @@ function normalizeEntry(entry: EditorInstructionChangePlanEntry): EditorInstruct
 export function summarizeChangePlanItem(
   selection: Pick<
     EditorInstructionSelection,
-    "objectLabel" | "action" | "replacement" | "customPrompt" | "brandingPlacementHint"
+    | "objectLabel"
+    | "action"
+    | "replacement"
+    | "customPrompt"
+    | "brandingPlacementHint"
+    | "accessoryType"
   > & { color?: string }
 ): string {
   const target = selection.objectLabel.trim();
@@ -47,6 +58,14 @@ export function summarizeChangePlanItem(
       return `Protect ${target} from edits`;
     case "refine_selection":
       return `Refine selection for ${target}`;
+    case "accessory_add":
+      return selection.accessoryType
+        ? summarizeAccessoryChangePlanItem({
+            targetLabel: target,
+            accessoryType: selection.accessoryType,
+            customDescription: selection.customPrompt,
+          })
+        : `Add accessory to ${target}`;
     default:
       return `${selection.action.replace(/_/g, " ")} on ${target}`;
   }
@@ -79,14 +98,23 @@ export function validateChangePlanItemInput(
   if (selection.action === "replace" && !selection.replacement?.trim() && !selection.customPrompt?.trim()) {
     return { ok: false, reasonKey: "editor.instructionStudio.v2.changePlan.replacementRequired" };
   }
+  if (selection.action === "accessory_add") {
+    if (!selection.accessoryType) {
+      return { ok: false, reasonKey: "editor.instructionStudio.v2.accessory.typeRequired" };
+    }
+    if (selection.accessoryType === "custom" && !selection.customPrompt?.trim()) {
+      return { ok: false, reasonKey: "editor.instructionStudio.v2.accessory.customRequired" };
+    }
+  }
   return { ok: true };
 }
 
 export function buildChangePlanItemFromSelection(
   selection: EditorInstructionSelection & { color?: string },
-  order: number
+  order: number,
+  document?: EditorCanvasDocument
 ): EditorInstructionChangePlanItem {
-  return {
+  const base: EditorInstructionChangePlanItem = {
     entryType: "object",
     id: createChangePlanItemId(),
     objectId: selection.objectKey,
@@ -110,7 +138,12 @@ export function buildChangePlanItemFromSelection(
     targetLayerId: selection.targetLayerId,
     estimatedCostCredits: 1,
     extractionQuality: selection.estimatedSelection ? "estimated_crop" : undefined,
+    accessoryType: selection.accessoryType,
   };
+  if (!document) {
+    return base;
+  }
+  return enrichChangePlanItemWithPrecision(base, document);
 }
 
 export function buildStyleChangePlanItem(input: {
@@ -329,5 +362,6 @@ export function changePlanToSelection(item: EditorInstructionChangePlanItem): Ed
     styleReferenceId: item.styleReferenceId,
     productReferenceId: item.productReferenceId,
     brandingPlacementHint: item.brandingPlacementHint,
+    accessoryType: item.accessoryType,
   };
 }

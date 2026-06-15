@@ -17,6 +17,7 @@ import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
 import { StudioWorkspaceToolPanel } from "@/components/studio/studio-workspace-tool-panel";
 import { MotionBuildDebugBadge } from "@/components/layout/motion-build-debug-badge";
 import { StudioWorkspaceInspectorPanel } from "@/components/studio/studio-workspace-inspector-panel";
+import { StudioWorkspaceCenterScenePreview } from "@/components/studio/studio-workspace-center-scene-preview";
 import { StudioMobileInsightsSheet } from "@/components/studio/studio-mobile-insights-sheet";
 import { useActiveTranslator } from "@/i18n/client";
 import { fetchAuthSessionJson } from "@/lib/auth-session-client";
@@ -403,7 +404,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
         : !storyboard || loadFailure ?
           null
         : (
-          <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4">
+          <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:gap-4 lg:px-4" data-testid="studio-three-pane-layout">
             <aside
               className={`border-b border-zinc-200 bg-white lg:border-b-0 lg:border-r ${
                 mobilePane === "editor" && activeTool === "story" ? "hidden lg:block" : "block"
@@ -427,6 +428,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
               className={`min-h-[50vh] flex-1 bg-white px-4 py-4 sm:px-6 ${
                 mobilePane === "list" ? "hidden lg:block" : "block pb-36 lg:pb-4"
               }`}
+              data-testid="studio-center-panel"
             >
               {mobilePane === "editor" ?
                 <button
@@ -445,6 +447,14 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     setActiveTool("render");
                     setMobilePane("editor");
                   }}
+                />
+              : null}
+
+              {activeScene && activeSceneIndex >= 0 && activeTool !== "story" ?
+                <StudioWorkspaceCenterScenePreview
+                  scene={activeScene}
+                  sceneIndex={activeSceneIndex}
+                  sceneCount={scenes.length}
                 />
               : null}
 
@@ -506,6 +516,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
                     onSave={handleSaveScene}
                     onSceneDraftChange={handleSceneDraftChange}
                     onStoryboardNotesUpdated={handleStoryboardNotesUpdated}
+                    onCharactersRefresh={() => void load()}
                   />
                   : (
                     <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-12 text-center text-sm text-zinc-600">
@@ -564,6 +575,11 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
             </section>
 
             <aside className="hidden border-t border-zinc-200 bg-zinc-50/50 p-4 lg:block lg:border-l lg:border-t-0">
+              <div className="mb-3 border-b border-zinc-200 pb-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("studio.v9.right.panelLabel" as never)}
+                </p>
+              </div>
               {activeScene && activeSceneIndex >= 0 ?
                 <StudioWorkspaceInspectorPanel
                   storyboard={storyboard}

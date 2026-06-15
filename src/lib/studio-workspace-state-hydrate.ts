@@ -1,4 +1,5 @@
 import { loadAssetDecisionRegistry, saveAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
+import { hydrateStudioAudioWorkspaceFromServer } from "@/lib/studio-audio-change-plan-storage";
 import {
   readPersistedWizardState,
   writePersistedWizardState,
@@ -63,6 +64,14 @@ export async function hydrateStudioWorkspaceStateFromServer(storyboardId: string
       },
       { skipServerSync: true }
     );
+  }
+
+  if (state.audioChangePlan || state.audioProjectAssets) {
+    hydrateStudioAudioWorkspaceFromServer({
+      storyboardId,
+      audioChangePlan: state.audioChangePlan,
+      audioProjectAssets: state.audioProjectAssets,
+    });
   }
 
   const localWizard = readPersistedWizardState();

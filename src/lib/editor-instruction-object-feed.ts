@@ -21,6 +21,7 @@ import type {
   EditorSemanticLayer,
 } from "@/types/homecheff-visual-editor";
 import type { EditorAssetProfile } from "@/types/editor-asset-profile";
+import { editorAnalysisAppliesToBackground } from "@/lib/editor-analysis-reset";
 import { documentHasRichVisionAnalysis } from "@/lib/editor-vision-v6-stability";
 
 export type InstructionObjectFeedResult = {
@@ -697,7 +698,7 @@ export function buildInstructionObjectsFromDocument(
   document: EditorCanvasDocument
 ): InstructionObjectFeedResult {
   const explicit = document.instructionStudioState?.instructionObjects;
-  if (explicit?.length) {
+  if (explicit?.length && editorAnalysisAppliesToBackground(document)) {
     const { editable } = cleanRawObjectFeed(explicit);
     const objects = ensureBackground(editable, "instructionObjects");
     return splitFeedResult(
@@ -712,7 +713,7 @@ export function buildInstructionObjectsFromDocument(
     );
   }
 
-  if (documentHasRichVisionAnalysis(document)) {
+  if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
     const v6Feed = buildFromV6SemanticLayers(document);
     if (v6Feed && nonBackgroundCount(v6Feed.editableObjects) > 0) {
       return v6Feed;
@@ -728,7 +729,7 @@ export function buildInstructionObjectsFromDocument(
   }
 
   if (rawCount === 0) {
-    if (documentHasRichVisionAnalysis(document)) {
+    if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
       const v6Feed = buildFromV6SemanticLayers(document);
       if (v6Feed) {
         return v6Feed;
@@ -783,7 +784,7 @@ export function buildInstructionObjectsFromDocument(
     documentHasLikelyForegroundSubject(document) &&
     !isCharacterAssetDocument(document)
   ) {
-    if (documentHasRichVisionAnalysis(document)) {
+    if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
       const v6Feed = buildFromV6SemanticLayers(document);
       if (v6Feed) {
         return v6Feed;

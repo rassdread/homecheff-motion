@@ -11,7 +11,9 @@ export type UserLibraryUploadAssetType =
   | "audio"
   | "voice_sample"
   | "music"
-  | "sound";
+  | "sound"
+  | "video"
+  | "export";
 
 export type UserLibraryUploadRecord = {
   id: string;

@@ -7,17 +7,21 @@ import { fetchStudioLocations } from "@/lib/studio-locations-client";
 import { fetchStudioProps } from "@/lib/studio-props-client";
 import { fetchStudioWorlds } from "@/lib/studio-worlds-client";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
+import { fetchUserAudioLibraryApi } from "@/lib/studio-audio-library-client";
+import { fetchUserVoiceLibrary } from "@/lib/studio-user-voice-library-client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 export type AssetPickerCategory =
   | "characters"
+  | "mascots"
   | "locations"
   | "props"
   | "worlds"
   | "images"
   | "generated"
   | "voice"
-  | "music";
+  | "music"
+  | "sfx";
 
 export type AssetPickerSelection = {
   id: string;
@@ -25,6 +29,7 @@ export type AssetPickerSelection = {
   category: AssetPickerCategory;
   url?: string;
   storageKey?: string;
+  audioUrl?: string;
 };
 
 type Props = {
@@ -36,6 +41,7 @@ type Props = {
 
 const CATEGORIES: AssetPickerCategory[] = [
   "characters",
+  "mascots",
   "locations",
   "props",
   "worlds",
@@ -43,6 +49,7 @@ const CATEGORIES: AssetPickerCategory[] = [
   "generated",
   "voice",
   "music",
+  "sfx",
 ];
 
 export function HomeCheffAssetPickerModal({ open, onClose, onSelect, initialCategory = "images" }: Props) {
@@ -61,22 +68,49 @@ export function HomeCheffAssetPickerModal({ open, onClose, onSelect, initialCate
       if (category === "characters") {
         const res = await fetchStudioCharacters();
         if (res.ok) {
-          for (const c of res.data.characters) {
-            next.push({ id: c.id, name: c.name, category: "characters" });
+          for (const c of res.data.characters.filter((row) => !row.isMascot)) {
+            next.push({
+              id: c.id,
+              name: c.name,
+              category: "characters",
+              url: c.referenceImageUrl || undefined,
+            });
+          }
+        }
+      } else if (category === "mascots") {
+        const res = await fetchStudioCharacters();
+        if (res.ok) {
+          for (const c of res.data.characters.filter((row) => row.isMascot)) {
+            next.push({
+              id: c.id,
+              name: c.name,
+              category: "mascots",
+              url: c.referenceImageUrl || undefined,
+            });
           }
         }
       } else if (category === "locations") {
         const res = await fetchStudioLocations();
         if (res.ok) {
           for (const l of res.data.locations) {
-            next.push({ id: l.id, name: l.name, category: "locations" });
+            next.push({
+              id: l.id,
+              name: l.name,
+              category: "locations",
+              url: l.referenceImageUrl || undefined,
+            });
           }
         }
       } else if (category === "props") {
         const res = await fetchStudioProps();
         if (res.ok) {
           for (const p of res.data.props) {
-            next.push({ id: p.id, name: p.name, category: "props" });
+            next.push({
+              id: p.id,
+              name: p.name,
+              category: "props",
+              url: p.referenceImageUrl || undefined,
+            });
           }
         }
       } else if (category === "worlds") {
@@ -84,6 +118,35 @@ export function HomeCheffAssetPickerModal({ open, onClose, onSelect, initialCate
         if (res.ok) {
           for (const w of res.data.worlds) {
             next.push({ id: w.id, name: w.name, category: "worlds" });
+          }
+        }
+      } else if (category === "voice") {
+        try {
+          const lib = await fetchUserVoiceLibrary();
+          for (const v of lib.voices.filter((row) => row.status === "completed")) {
+            next.push({
+              id: v.cloneId,
+              name: v.name,
+              category: "voice",
+              audioUrl: v.previewUrl,
+              url: v.previewUrl,
+            });
+          }
+        } catch {
+          // empty list
+        }
+      } else if (category === "music" || category === "sfx") {
+        const res = await fetchUserAudioLibraryApi();
+        if (res.ok) {
+          const kind = category === "music" ? "music" : "sfx";
+          for (const a of res.data.assets.filter((row) => row.kind === kind)) {
+            next.push({
+              id: a.id,
+              name: a.name,
+              category,
+              audioUrl: a.audioUrl,
+              storageKey: a.storageKey,
+            });
           }
         }
       } else {
@@ -192,6 +255,8 @@ export function HomeCheffAssetPickerModal({ open, onClose, onSelect, initialCate
                     {item.url ?
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                    : item.audioUrl ?
+                      <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-violet-100 text-lg">♪</span>
                     : <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100 text-xs">—</span>}
                     <span className="text-sm font-medium text-zinc-900">{item.name}</span>
                   </button>

@@ -7,6 +7,8 @@ import { storePublishChangePlanInHc, storeStudioWorkflowInHc, writeHcWorkflowV2 
 import type { PublishChangePlan } from "@/lib/publish-change-plan";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 import type { PublishProject } from "@/types/publish-overlay";
+import { markHcProjectExported } from "@/lib/hc-project-lifecycle";
+import { persistHomeCheffProject } from "@/lib/homecheff-project-persist";
 
 export type PublishHcExportSnapshot = {
   exportUrl?: string;
@@ -85,7 +87,7 @@ export function syncPublishExportToHc(
   publishProject: PublishProject,
   exportUrl?: string
 ): HomeCheffProjectPackage {
-  return syncPublishProjectToHc(hcProject, publishProject, {
+  const synced = syncPublishProjectToHc(hcProject, publishProject, {
     exportSnapshot: {
       exportUrl,
       exportedAt: new Date().toISOString(),
@@ -93,4 +95,7 @@ export function syncPublishExportToHc(
       renderMode: publishProject.metadata?.renderMode as string | undefined,
     },
   });
+  const exported = markHcProjectExported(synced);
+  persistHomeCheffProject(exported);
+  return exported;
 }

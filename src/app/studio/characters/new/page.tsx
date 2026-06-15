@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { StudioAssetCreationPage } from "@/components/studio/studio-asset-creation-page";
 import type { AssetCreationWizardResult } from "@/components/studio/studio-asset-creation-wizard";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { StudioCharacterNewGuidedWizard } from "@/components/studio/studio-character-new-guided-wizard";
 import {
   StudioCharacterForm,
   studioCharacterFormToCreatePayload,
@@ -13,6 +14,7 @@ import {
 } from "@/components/studio/studio-character-form";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { resolveDeprecatedCharacterEntry } from "@/lib/character-cluster-routes";
 import { completeAssetLifecycleAfterCreate } from "@/lib/studio-asset-lifecycle-client";
 import { characterFormValuesFromWizardDraft, wizardSemanticCreateExtras } from "@/lib/studio-asset-wizard-draft";
 import { applySemanticRecordToCharacterFields, buildAssetSemanticRecordFromWizardDraft } from "@/lib/studio-asset-semantic-record";
@@ -29,9 +31,24 @@ function StudioCharacterNewPageContent() {
   const t = useActiveTranslator();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const guided = searchParams.get("advanced") !== "1";
+  const isAdvanced = searchParams.get("advanced") === "1";
   const [prefill] = useState<IdentityBuilderPrefill | null>(() => readIdentityPrefillForKind("character"));
   const prefillCharacter = prefill ? buildCharacterDetailFromPrefill(prefill) : undefined;
+
+  useEffect(() => {
+    const resolution = resolveDeprecatedCharacterEntry({
+      entry: searchParams.get("entry"),
+      deriveFrom: searchParams.get("deriveFrom"),
+      sourceGeneration: searchParams.get("sourceGeneration"),
+      storyboardId: prefill?.storyboardId ?? searchParams.get("storyboardId"),
+      projectId: searchParams.get("projectId"),
+      projectTitle: searchParams.get("projectTitle"),
+      characterId: searchParams.get("characterId"),
+    });
+    if (resolution) {
+      router.replace(resolution.redirectTo);
+    }
+  }, [prefill?.storyboardId, router, searchParams]);
 
   const handleSubmit = async (values: StudioCharacterFormValues) => {
     const res = await createStudioCharacterApi(studioCharacterFormToCreatePayload(values));
@@ -98,6 +115,16 @@ function StudioCharacterNewPageContent() {
     clearIdentityBuilderPrefill();
   };
 
+  if (!isAdvanced && !prefill) {
+    return (
+      <StudioCharacterNewGuidedWizard
+        projectId={searchParams.get("projectId")}
+        projectTitle={searchParams.get("projectTitle")}
+        storyboardId={searchParams.get("storyboardId")}
+      />
+    );
+  }
+
   return (
     <StudioAuthGate>
       <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -106,11 +133,12 @@ function StudioCharacterNewPageContent() {
             ← {t("studio.characters.backToLibrary")}
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-zinc-900">{t("studio.characters.createTitle")}</h1>
+          <p className="mt-1 text-xs text-zinc-500">{t("characterCluster.advancedMode" as never)}</p>
           <div className="mt-8">
             <StudioAssetCreationPage
               kind="character"
-              guidedQueryParam={guided}
-              startInAdvancedMode={searchParams.get("advanced") === "1"}
+              guidedQueryParam={false}
+              startInAdvancedMode
               hasDecisionPrefill={Boolean(prefill)}
               storyboardId={prefill?.storyboardId ?? null}
               decisionId={prefill?.decisionId ?? null}

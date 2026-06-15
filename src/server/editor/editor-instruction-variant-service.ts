@@ -4,7 +4,7 @@ import {
   openAiImageEditSupportsInputFidelity,
   resolveOpenAiImageEditModel,
 } from "@/lib/openai-image-generation";
-import { validateEditorSegmentImageSource } from "@/server/editor/editor-image-ownership";
+import { validateEditorInstructionVariantImageSource } from "@/server/editor/editor-image-ownership";
 import { uploadPublicBlob } from "@/lib/vercel-blob-config";
 import type {
   EditorInstructionReference,
@@ -82,8 +82,9 @@ export async function executeEditorInstructionVariant(params: {
     return { ok: false, code: "VALIDATION", message: "imageUrl and prompt are required." };
   }
 
-  const ownership = validateEditorSegmentImageSource({
+  const ownership = await validateEditorInstructionVariantImageSource({
     userId: params.userId,
+    sessionId: params.sessionId,
     imageUrl,
   });
   if (!ownership.ok) {

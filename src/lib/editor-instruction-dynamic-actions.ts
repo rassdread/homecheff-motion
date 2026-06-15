@@ -2,6 +2,10 @@ import {
   actionLabelKey,
   actionsForInstructionCategory,
 } from "@/lib/editor-instruction-actions";
+import {
+  isAccessoryEligibleObject,
+  resolveAccessoryTypesForTarget,
+} from "@/lib/editor-instruction-accessory-actions";
 import type {
   EditorInstructionDynamicAction,
   EditorInstructionObjectV2,
@@ -79,8 +83,17 @@ function withCategoryExtras(
 
 /** UI-layer action options — every V6 part gets the full actionable set. */
 export function resolveDynamicActionsForObject(obj: EditorInstructionObjectV2): DynamicActionOption[] {
+  const accessoryExtras: DynamicActionOption[] = isAccessoryEligibleObject(obj)
+    ? [
+        {
+          action: "accessory_add",
+          labelKey: "editor.instructionStudio.v2.accessory.addAction",
+        },
+      ]
+    : [];
+
   if (obj.source === "semanticLayers" || obj.layerId?.startsWith("v6_")) {
-    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+    return withCategoryExtras(obj, [...accessoryExtras, ...UNIVERSAL_PART_ACTIONS]);
   }
 
   const label = obj.label;
@@ -97,6 +110,7 @@ export function resolveDynamicActionsForObject(obj: EditorInstructionObjectV2): 
           labelKey: "editor.instructionStudio.v2.dynamic.face.changeEyes",
           promptHint: "eyes",
         },
+        ...accessoryExtras,
         ...UNIVERSAL_PART_ACTIONS,
       ]);
     }
@@ -109,33 +123,45 @@ export function resolveDynamicActionsForObject(obj: EditorInstructionObjectV2): 
         action: "change_clothing",
         labelKey: "editor.instructionStudio.v2.dynamic.character.changeClothing",
       },
+      ...accessoryExtras,
       ...UNIVERSAL_PART_ACTIONS,
     ]);
   }
 
   if (obj.category === "clothing") {
-    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+    return withCategoryExtras(obj, [...accessoryExtras, ...UNIVERSAL_PART_ACTIONS]);
   }
 
   if (obj.category === "logo") {
-    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+    return withCategoryExtras(obj, [...accessoryExtras, ...UNIVERSAL_PART_ACTIONS]);
   }
 
   if (obj.category === "background") {
-    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+    return withCategoryExtras(obj, [...accessoryExtras, ...UNIVERSAL_PART_ACTIONS]);
   }
 
   if (obj.category === "product" || /\bglobe\b/i.test(label)) {
-    return withCategoryExtras(obj, UNIVERSAL_PART_ACTIONS);
+    return withCategoryExtras(obj, [...accessoryExtras, ...UNIVERSAL_PART_ACTIONS]);
   }
 
   return withCategoryExtras(
     obj,
-    actionsForInstructionCategory(obj.category).map((action) => ({
-      action,
-      labelKey: actionLabelKey(action),
-    }))
+    [
+      ...accessoryExtras,
+      ...actionsForInstructionCategory(obj.category).map((action) => ({
+        action,
+        labelKey: actionLabelKey(action),
+      })),
+    ]
   );
+}
+
+export function listAccessoryTypesForObject(obj: EditorInstructionObjectV2) {
+  return resolveAccessoryTypesForTarget({
+    label: obj.label,
+    partId: obj.layerId,
+    category: obj.category,
+  });
 }
 
 export function actionOptionKey(option: DynamicActionOption, index: number): string {

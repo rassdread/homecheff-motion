@@ -9,8 +9,10 @@ import {
   removeChangePlanItem,
   reorderChangePlanItem,
 } from "@/lib/editor-instruction-change-plan";
+import { buildChangePlanItemDisplay, enrichChangePlanItemWithPrecision } from "@/lib/editor-instruction-target-precision";
 import { styleAttributeLabelKey } from "@/lib/editor-style-actions";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import { EditorTargetPrecisionPanel } from "@/components/editor/editor-target-precision-panel";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -18,6 +20,7 @@ type Props = {
   onDocumentChange: (document: EditorCanvasDocument) => void;
   onGenerateFromPlan: () => void;
   generating?: boolean;
+  onTargetOnlyChange: (enabled: boolean) => void;
 };
 
 export function EditorInstructionChangePlanPanel({
@@ -25,6 +28,7 @@ export function EditorInstructionChangePlanPanel({
   onDocumentChange,
   onGenerateFromPlan,
   generating = false,
+  onTargetOnlyChange,
 }: Props) {
   const t = useActiveTranslator();
   const plan = listChangePlanEntries(document);
@@ -62,18 +66,43 @@ export function EditorInstructionChangePlanPanel({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                    {index + 1}.{" "}
-                    {item.entryType === "style"
-                      ? t(styleAttributeLabelKey(item.styleAttribute) as never)
-                      : item.objectLabel}
-                  </p>
-                  <p className="mt-0.5 text-sm">
-                    →{" "}
-                    {item.entryType === "style"
-                      ? item.instruction
-                      : `${t(actionLabelKey(item.action) as never)} — ${item.instruction}`}
-                  </p>
+                  {item.entryType === "style" ?
+                    <>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {index + 1}. {t(styleAttributeLabelKey(item.styleAttribute) as never)}
+                      </p>
+                      <p className="mt-0.5 text-sm">→ {item.instruction}</p>
+                    </>
+                  : (() => {
+                      const enriched = enrichChangePlanItemWithPrecision(item, document);
+                      const display = buildChangePlanItemDisplay(enriched);
+                      return (
+                        <>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                            {display.title}
+                          </p>
+                          <p className="mt-0.5 text-sm font-medium text-zinc-900">
+                            {t(display.onlyPartKey as never, {
+                              part: display.onlyPartLabel,
+                            } as never)}
+                          </p>
+                          <p className="mt-0.5 text-sm text-zinc-800">
+                            {item.action === "change_color" && item.color
+                              ? `${t(actionLabelKey(item.action) as never)} → ${item.color}`
+                              : display.accessoryActionKey
+                                ? t(display.accessoryActionKey as never)
+                                : display.changeSummary}
+                          </p>
+                          {display.protectedList ?
+                            <p className="mt-1 text-xs text-zinc-600">
+                              {t("editor.instructionStudio.v2.precision.protectedInline" as never, {
+                                list: display.protectedList,
+                              } as never)}
+                            </p>
+                          : null}
+                        </>
+                      );
+                    })()}
                 </div>
                 <span className="flex shrink-0 gap-1">
                   <button
@@ -118,6 +147,26 @@ export function EditorInstructionChangePlanPanel({
           ))}
         </ol>
       )}
+
+      {plan.some((item) => item.entryType !== "style") ?
+        <div className="mt-4">
+          <EditorTargetPrecisionPanel
+            document={document}
+            changePlanItem={
+              (() => {
+                const objectItem = plan.find(
+                  (entry): entry is import("@/types/editor-instruction-studio").EditorInstructionChangePlanItem =>
+                    entry.entryType !== "style"
+                );
+                return objectItem
+                  ? enrichChangePlanItemWithPrecision(objectItem, document)
+                  : undefined;
+              })()
+            }
+            onTargetOnlyChange={onTargetOnlyChange}
+          />
+        </div>
+      : null}
 
       <button
         type="button"

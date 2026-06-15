@@ -1,3 +1,4 @@
+import { applyProductionConfigForExport } from "@/lib/publish-media-production";
 import { applyChangePlanToPublishProject } from "@/lib/publish-change-plan-apply";
 import { loadPublishChangePlanFromMetadata } from "@/lib/publish-change-plan-apply";
 import { applyTimelineToPublishProject, loadPublishTimelineFromProject, timelineHasPendingRender } from "@/lib/publish-timeline";
@@ -18,6 +19,7 @@ export async function exportPublishProject(
   if (timelineHasPendingRender(loadPublishTimelineFromProject(exportProject))) {
     exportProject = applyTimelineToPublishProject(exportProject);
   }
+  exportProject = applyProductionConfigForExport(exportProject);
 
   try {
     const res = await fetch("/api/publish/export", {

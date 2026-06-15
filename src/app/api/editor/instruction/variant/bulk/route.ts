@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { mergeBulkPrompt } from "@/lib/editor-instruction-bulk";
 import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-builder";
+import { buildVariantRouteValidationError } from "@/lib/editor-instruction-variant-client";
+import { receivedKeysFromVariantPayload } from "@/lib/editor-instruction-variant-preflight";
+import { validateEditorInstructionVariantRequest } from "@/lib/editor-instruction-variant-validation";
 import { executeEditorInstructionVariant } from "@/server/editor/editor-instruction-variant-service";
 import type {
   EditorInstructionReference,
@@ -28,34 +31,70 @@ export async function POST(request: Request) {
       promptSuffix: string;
       action?: EditorInstructionSelection["action"];
     }>;
+    triggerSource?: string;
   };
 
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const sessionId = body.sessionId?.trim();
-  const imageUrl = body.imageUrl?.trim();
+  const receivedKeys = receivedKeysFromVariantPayload({
+    sessionId: body.sessionId,
+    imageUrl: body.imageUrl,
+    instruction: body.instruction,
+    triggerSource: body.triggerSource,
+  });
+
+  const validation = validateEditorInstructionVariantRequest({
+    sessionId: body.sessionId,
+    imageUrl: body.imageUrl,
+    prompt: body.plans?.[0]?.promptSuffix || "bulk",
+    instruction: body.instruction,
+  });
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      buildVariantRouteValidationError({
+        validation,
+        receivedKeys,
+        triggerSource: body.triggerSource,
+      }),
+      { status: 400 }
+    );
+  }
+
+  const sessionId = body.sessionId!.trim();
+  const imageUrl = body.imageUrl!.trim();
   const plans = body.plans ?? [];
   const instruction = body.instruction;
 
-  if (!sessionId || !imageUrl || !instruction?.objectKey || !instruction.category || plans.length === 0) {
-    return NextResponse.json({ error: "sessionId, imageUrl, instruction, and plans are required." }, { status: 400 });
+  if (plans.length === 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "plans are required.",
+        code: "missing_instruction",
+        missingFields: ["plans"],
+        receivedKeys,
+        triggerSource: body.triggerSource,
+      },
+      { status: 400 }
+    );
   }
 
   const baseInstruction: EditorInstructionSelection = {
-    objectKey: instruction.objectKey,
-    objectLabel: instruction.objectLabel?.trim() || instruction.objectKey,
-    category: instruction.category,
-    action: instruction.action ?? "change_style",
-    replacement: instruction.replacement?.trim(),
-    customPrompt: instruction.customPrompt?.trim(),
-    sliders: { ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS, ...instruction.sliders },
-    preserveCharacter: instruction.preserveCharacter ?? true,
-    logoReferenceId: instruction.logoReferenceId,
-    brandingPlacementHint: instruction.brandingPlacementHint,
+    objectKey: instruction!.objectKey!,
+    objectLabel: instruction!.objectLabel?.trim() || instruction!.objectKey!,
+    category: instruction!.category!,
+    action: instruction!.action ?? "change_style",
+    replacement: instruction!.replacement?.trim(),
+    customPrompt: instruction!.customPrompt?.trim(),
+    sliders: { ...DEFAULT_EDITOR_INSTRUCTION_SLIDERS, ...instruction!.sliders },
+    preserveCharacter: instruction!.preserveCharacter ?? true,
+    logoReferenceId: instruction!.logoReferenceId,
+    brandingPlacementHint: instruction!.brandingPlacementHint,
   };
 
   const basePrompt = buildEditorInstructionPromptV2({
@@ -104,5 +143,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: results.some((r) => r.ok),
     results,
+    triggerSource: body.triggerSource,
   });
 }

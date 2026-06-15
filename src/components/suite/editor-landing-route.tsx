@@ -3,8 +3,8 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { EditorProductPage } from "@/components/editor/editor-product-page";
+import { EditorLandingContinueCard } from "@/components/suite/editor-landing-continue-card";
 import { StudioProductLandingPage } from "@/components/suite/studio-product-landing-page";
-import { listRecentEditorDocuments } from "@/lib/editor-canvas-session";
 import { editorLandingHasDeepLink } from "@/lib/studio-product-landing-routes";
 import { studioProductLandingConfig } from "@/lib/studio-product-landing-config";
 
@@ -14,20 +14,12 @@ function EditorLandingContent() {
     return <EditorProductPage />;
   }
 
-  const recent = listRecentEditorDocuments()[0];
   const config = studioProductLandingConfig("editor");
 
   return (
     <StudioProductLandingPage
       config={config}
-      continueCard={
-        recent
-          ? {
-              label: recent.name,
-              href: `/editor?session=${encodeURIComponent(recent.sessionId)}`,
-            }
-          : null
-      }
+      continueSlot={<EditorLandingContinueCard />}
     />
   );
 }

@@ -8,6 +8,8 @@ import { buildImproveProjectPreview } from "@/lib/studio-improve-project-preview
 import { findRecurringMatchesForIdea } from "@/lib/studio-recurring-asset-detection";
 import { buildSceneSuggestions } from "@/lib/studio-scene-suggestions";
 import { buildStudioProductionInsights } from "@/lib/studio-production-insights";
+import { buildStudioDirectorAudioSuggestions } from "@/lib/studio-director-audio-suggestions";
+import { useStudioAudioChangePlan } from "@/hooks/use-studio-audio-change-plan";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import { updateStudioSceneApi } from "@/lib/studio-storyboards-client";
 import type { StudioCharacterListItem, StudioSceneDetail, StudioStoryboardDetail } from "@/types/studio-api";
@@ -78,6 +80,7 @@ export function StudioProductionInsightsRail({
   projectMemory,
 }: Props) {
   const t = useActiveTranslator();
+  const { enqueueChange } = useStudioAudioChangePlan(storyboard.id);
   const [ignored, setIgnored] = useState<Set<string>>(() => {
     if (typeof window === "undefined") {
       return new Set();
@@ -103,6 +106,16 @@ export function StudioProductionInsightsRail({
         (s) => !ignored.has(s.id)
       ),
     [storyboard, scene, sceneIndex, sceneCount, characters, ignored]
+  );
+
+  const audioSuggestions = useMemo(
+    () =>
+      buildStudioDirectorAudioSuggestions({
+        storyboard,
+        sceneId: scene.id,
+        sceneIndex,
+      }),
+    [storyboard, scene.id, sceneIndex]
   );
 
   const improvePreview = useMemo(() => buildImproveProjectPreview(storyboard), [storyboard]);
@@ -340,6 +353,47 @@ export function StudioProductionInsightsRail({
                     {t("studio.aiAssistant.suggestions.ignore")}
                   </button>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </InsightSection>
+      : null}
+
+      {audioSuggestions.length > 0 ?
+        <InsightSection title={t("studio.v9.director.audioSuggestions" as never)}>
+          <ul className="space-y-2">
+            {audioSuggestions.map((suggestion) => (
+              <li
+                key={suggestion.id}
+                className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-zinc-800"
+                data-testid="studio-director-audio-suggestion"
+              >
+                <p className="font-medium text-zinc-900">{suggestion.title}</p>
+                <p className="mt-0.5 text-zinc-600">{suggestion.instruction}</p>
+                {canModify ?
+                  <button
+                    type="button"
+                    className="mt-2 min-h-9 rounded-full bg-[#0067B1] px-3 text-[11px] font-semibold text-white"
+                    onClick={() =>
+                      enqueueChange({
+                        kind: suggestion.kind,
+                        title: suggestion.title,
+                        instruction: suggestion.instruction,
+                        source: "ai_director",
+                        applyTarget: suggestion.applyTarget,
+                        sceneId: suggestion.sceneId,
+                        sceneIndex: suggestion.sceneIndex,
+                        prompt: suggestion.prompt,
+                        mood: suggestion.mood,
+                        sfxCategory: suggestion.sfxCategory,
+                        status: "planned",
+                        estimatedCostCredits: suggestion.kind === "music" ? 3 : 1,
+                      })
+                    }
+                  >
+                    {t("studio.v9.director.addToChangePlan" as never)}
+                  </button>
+                : null}
               </li>
             ))}
           </ul>

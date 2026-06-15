@@ -4,7 +4,7 @@ import {
   applyIllustrationPartAnalysisToDocument,
   buildTemplateIllustrationPartAnalysis,
 } from "@/lib/editor-vision-v6-part-analysis";
-import { resetEditorAnalysisCacheForTests, writeCachedEditorAnalysis } from "@/lib/editor-analysis-cache";
+import { stampEditorAnalyzedBackground } from "@/lib/editor-analysis-reset";
 import { stripDocumentForStorage } from "@/lib/editor-local-storage";
 import { saveEditorCanvasDocument, loadEditorCanvasDocument } from "@/lib/editor-canvas-session";
 import { buildInstructionObjectsFromDocument } from "@/lib/editor-instruction-object-feed";
@@ -81,14 +81,16 @@ function baseDocument() {
 function enrichedDoc() {
   const vision = mascotVision();
   const analysis = buildTemplateIllustrationPartAnalysis(vision);
-  return applyIllustrationPartAnalysisToDocument({
-    document: baseDocument(),
-    vision,
-    detections: [{ label: "person", confidence: 0.85, box: { x: 0.2, y: 0.1, width: 0.5, height: 0.8 } }],
-    analysis,
-    previewUrl: "https://example.com/mascot.png",
-    sourceKind: "character",
-  });
+  return stampEditorAnalyzedBackground(
+    applyIllustrationPartAnalysisToDocument({
+      document: baseDocument(),
+      vision,
+      detections: [{ label: "person", confidence: 0.85, box: { x: 0.2, y: 0.1, width: 0.5, height: 0.8 } }],
+      analysis,
+      previewUrl: "https://example.com/mascot.png",
+      sourceKind: "character",
+    })
+  );
 }
 
 describe("editor vision v6 stability", () => {
@@ -171,6 +173,17 @@ describe("editor vision v6 stability", () => {
     assert.ok(!labels.includes("main subject"));
     assert.ok(labels.some((l) => /head|tie|globe|character|mascot/.test(l)));
     assert.ok(feed.meta.count > 2);
+  });
+
+  it("documentNeedsDetectionBootstrap when V6 is stale for new background", () => {
+    const rich = enrichedDoc();
+    const humanUpload = {
+      ...rich,
+      name: "Portrait.jpg",
+      backgroundUrl: "https://example.com/human.png",
+      analyzedBackgroundUrl: "https://example.com/mascot.png",
+    };
+    assert.equal(documentNeedsDetectionBootstrap(humanUpload), true);
   });
 
   it("documentNeedsDetectionBootstrap is false when V6 is present", () => {

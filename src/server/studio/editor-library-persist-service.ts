@@ -20,6 +20,7 @@ import {
   updateStudioCharacter,
 } from "@/server/studio/studio-character-service";
 import { createStudioProp, updateStudioProp } from "@/server/studio/studio-prop-service";
+import { ensureCompletedGenerationInLibrary } from "@/server/studio/library-consistency-service";
 import { registerUserLibraryUpload } from "@/server/studio/studio-user-upload-library-blob";
 import type { SessionUser } from "@/server/auth/session";
 
@@ -80,6 +81,45 @@ async function persistAsUpload(
     persistedTo: "server",
     name: payload.name,
   };
+}
+
+async function registerEditorPersistConsistency(input: {
+  ownerId: string;
+  response: EditorLibraryPersistResponse;
+  payload: EditorSavePayload;
+  mode: EditorSaveMode;
+  sourceKind: EditorSourceKind;
+}): Promise<void> {
+  const refs = referenceFromPayload(input.payload);
+  const generationType =
+    input.response.entityKind === "character"
+      ? input.mode === "canonical_base"
+        ? "mascot"
+        : "character"
+      : input.response.entityKind === "prop"
+        ? input.sourceKind === "logo"
+          ? "logo"
+          : "prop"
+        : "editor_output";
+  try {
+    await ensureCompletedGenerationInLibrary({
+      ownerId: input.ownerId,
+      createdBy: input.ownerId,
+      generationType,
+      assetUrl: refs.referenceImageUrl,
+      storageKey: refs.referenceStorageKey,
+      thumbnailUrl: refs.referenceImageUrl,
+      assetName: input.response.name,
+      projectId: input.payload.sessionId,
+      projectTitle: input.payload.name,
+      sourceModule: "editor",
+      backingId: input.response.assetId,
+      isMascot: generationType === "mascot",
+      isLogo: generationType === "logo",
+    });
+  } catch (error) {
+    console.error("[library-consistency] editor persist failed", error);
+  }
 }
 
 async function persistCharacter(
@@ -233,7 +273,9 @@ export async function persistEditorSaveToLibrary(params: {
     mode === "print_export" ||
     mode === "composition"
   ) {
-    return persistAsUpload(ownerId, payload, mode);
+    const response = await persistAsUpload(ownerId, payload, mode);
+    await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+    return response;
   }
 
   const entityKind = resolveEditorEntityKind(sourceKind);
@@ -248,19 +290,37 @@ export async function persistEditorSaveToLibrary(params: {
 
   if (entityKind === "prop") {
     if (shouldUpdateExisting) {
-      return persistProp(ownerId, viewer, payload, mode, sourceKind, false);
+      const response = await persistProp(ownerId, viewer, payload, mode, sourceKind, false);
+      if (response.ok) {
+        await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+      }
+      return response;
     }
-    return persistProp(ownerId, viewer, payload, mode, sourceKind, true);
+    const response = await persistProp(ownerId, viewer, payload, mode, sourceKind, true);
+    if (response.ok) {
+      await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+    }
+    return response;
   }
 
   if (entityKind === "character") {
     if (shouldUpdateExisting || (mode === "animation_ready" && hasSource && !shouldCreateNew)) {
-      return persistCharacter(ownerId, viewer, payload, mode, sourceKind, false);
+      const response = await persistCharacter(ownerId, viewer, payload, mode, sourceKind, false);
+      if (response.ok) {
+        await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+      }
+      return response;
     }
-    return persistCharacter(ownerId, viewer, payload, mode, sourceKind, true);
+    const response = await persistCharacter(ownerId, viewer, payload, mode, sourceKind, true);
+    if (response.ok) {
+      await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+    }
+    return response;
   }
 
-  return persistAsUpload(ownerId, payload, mode);
+  const response = await persistAsUpload(ownerId, payload, mode);
+  await registerEditorPersistConsistency({ ownerId, response, payload, mode, sourceKind });
+  return response;
 }
 
 /** Test helper — parse semantic marker from character notes */

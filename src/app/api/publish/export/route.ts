@@ -7,6 +7,7 @@ import {
 } from "@/server/studio-account/with-studio-credit-gate";
 import { loadPublishProjectFromBody } from "@/server/publish/publish-export-body";
 import { exportPublishProjectVideo } from "@/server/publish/publish-video-export-service";
+import { persistPublishExportAndRegister } from "@/server/publish/publish-export-library-register";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -43,12 +44,34 @@ export async function POST(request: Request) {
   }
 
   const bytes = await readFile(result.outputPath);
+  let librarySaved = false;
+  let libraryAssetId: string | null = null;
+  let persistedExportUrl: string | null = null;
+  try {
+    const persisted = await persistPublishExportAndRegister({
+      ownerId: user.id,
+      createdBy: user.id,
+      project,
+      outputPath: result.outputPath,
+      format: project.mediaKind === "image" ? "photo_story" : "mp4",
+      thumbnailUrl: project.imageUrls?.[0] ?? project.videoUrl ?? null,
+    });
+    librarySaved = true;
+    libraryAssetId = persisted.record.registryAssetId;
+    persistedExportUrl = persisted.exportUrl;
+  } catch (error) {
+    console.error("[library-consistency] publish export register failed", error);
+  }
+
   return new NextResponse(bytes, {
     status: 200,
     headers: {
       "Content-Type": "video/mp4",
       "Content-Disposition": `attachment; filename="${project.name.replace(/[^a-z0-9-_]+/gi, "-")}-publish.mp4"`,
       "X-Publish-Layer-Count": String(result.layerCount),
+      "X-Library-Saved": librarySaved ? "1" : "0",
+      ...(libraryAssetId ? { "X-Library-Asset-Id": libraryAssetId } : {}),
+      ...(persistedExportUrl ? { "X-Publish-Export-Url": persistedExportUrl } : {}),
     },
   });
 }

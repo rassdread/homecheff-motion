@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import { loadAssetDecisionRegistry } from "@/lib/studio-asset-decision-storage";
+import { StudioWorkspaceAudioReviewSummary } from "@/components/studio/studio-workspace-audio-review-summary";
 import {
   buildStoryArchitectSummary,
   buildStoryArchitecture,
@@ -292,6 +293,12 @@ export function StudioWorkspaceProductionPlanPanel({
           ))}
         </ul>
       </section>
+
+      <StudioWorkspaceAudioReviewSummary
+        storyboard={storyboard}
+        characters={characters}
+        storyboardId={storyboard.id}
+      />
 
       <section className="rounded-2xl border border-[#0067B1]/20 bg-[#0067B1]/5 p-4">
         <h3 className="text-sm font-semibold text-zinc-900">

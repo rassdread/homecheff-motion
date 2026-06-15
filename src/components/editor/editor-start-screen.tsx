@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { createEditorProject, fetchEditorProject, fetchEditorProjects, saveEditorProject } from "@/lib/editor-project-client";
 import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
@@ -22,6 +23,7 @@ import {
   runEditorVisionAndObjectDetection,
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
+import { buildMotionReadyCharacterWizardHref } from "@/lib/motion-ready-character-routes";
 import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -40,6 +42,8 @@ type StartPhase =
 
 export function EditorStartScreen({ onOpenDocument }: Props) {
   const t = useActiveTranslator();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const auth = useAuthSession();
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
@@ -67,6 +71,12 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
       setRecent(listRecentEditorDocuments());
     });
   }, [auth.user]);
+
+  useEffect(() => {
+    if (searchParams.get("workflow") === "combine") {
+      setPhase({ kind: "combine_intent", workflow: "combine" });
+    }
+  }, [searchParams]);
 
   const finishOpen = async (
     document: EditorCanvasDocument,
@@ -99,6 +109,10 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   };
 
   const openReferenceFlow = (workflow: EditorPostUploadMode, combineIntent?: EditorFusionIntent) => {
+    if (workflow === "motion_prepare") {
+      router.push(buildMotionReadyCharacterWizardHref());
+      return;
+    }
     if (workflow === "combine" && !combineIntent) {
       setPhase({ kind: "combine_intent", workflow: "combine" });
       return;

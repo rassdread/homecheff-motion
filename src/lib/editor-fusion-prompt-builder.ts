@@ -1,3 +1,7 @@
+import {
+  buildCategoryNegativePrompt,
+  buildCategoryOutputPromptLines,
+} from "@/lib/editor-fusion-archetypes";
 import { activePreservationRules } from "@/lib/editor-fusion-plan";
 import { buildReferenceMetadataPromptLines } from "@/lib/editor-reference-metadata-prompt";
 import type { EditorReferenceAssignment } from "@/types/editor-reference-metadata";
@@ -96,6 +100,16 @@ export function buildEditorFusionPrompt(input: {
 
   if (plan.userInstructions.trim()) {
     lines.push("", "USER INSTRUCTIONS", plan.userInstructions.trim());
+  }
+
+  const categoryOutputLines = buildCategoryOutputPromptLines(plan.intent, plan.generationSettings);
+  if (categoryOutputLines.length > 0) {
+    lines.push("", "CATEGORY OUTPUT SETTINGS", ...categoryOutputLines);
+  }
+
+  const negativePrompt = buildCategoryNegativePrompt(plan.intent, plan.generationSettings);
+  if (negativePrompt.trim()) {
+    lines.push("", "NEGATIVE PROMPT", negativePrompt.trim());
   }
 
   const metadataLines = buildReferenceMetadataPromptLines(input.referenceAssignments ?? []);

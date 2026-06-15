@@ -1,6 +1,12 @@
 import type { EditorGenerationPackage } from "@/types/editor-generation-package";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import type { PublishProject } from "@/types/publish-overlay";
+import type {
+  LibraryFusionMetadata,
+  LibraryMotionMetadata,
+  LibraryPublishMetadata,
+  LibrarySourceModule,
+} from "@/types/library-consistency";
 
 export const HOMECHEFF_PACKAGE_VERSION = 1 as const;
 export const HOMECHEFF_PACKAGE_EXTENSION = ".hc" as const;
@@ -58,6 +64,23 @@ export type HomeCheffProjectPermission = {
   allowedTeamIds?: string[];
 };
 
+export type HomeCheffAssetLibraryMetadata = {
+  assetType?: string;
+  workflow?: string | null;
+  characterType?: string | null;
+  characterCompleteness?: string | null;
+  motionReady?: boolean | null;
+  motionReadinessScore?: number | null;
+  missingParts?: string[] | null;
+  fusionIntent?: string | null;
+  fusionArchetype?: string | null;
+  fusionMetadata?: LibraryFusionMetadata | null;
+  motionMetadata?: LibraryMotionMetadata | null;
+  publishMetadata?: LibraryPublishMetadata | null;
+  sourceRoute?: string | null;
+  sourceModule?: LibrarySourceModule;
+};
+
 export type HomeCheffAssetReference = {
   id: string;
   url: string;
@@ -69,6 +92,7 @@ export type HomeCheffAssetReference = {
   createdAt: string;
   checksum?: string;
   accessScope: "project" | "owner";
+  libraryMetadata?: HomeCheffAssetLibraryMetadata;
 };
 
 export type HomeCheffProjectHandoff = {

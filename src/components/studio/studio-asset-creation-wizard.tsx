@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { StudioAssetCreateEntryChoice } from "@/components/studio/studio-asset-create-entry-choice";
 import { StudioCharacterCreationPipelinePanel } from "@/components/studio/studio-character-creation-pipeline-panel";
 import { StudioAssetCreationFlowProgress } from "@/components/studio/studio-asset-creation-flow-progress";
@@ -24,6 +25,9 @@ import { StudioWizardIdentityProfileStep } from "@/components/studio/studio-wiza
 import { StudioWizardReferenceStep } from "@/components/studio/studio-wizard-reference-step";
 import { StudioWizardSourceTransformStep } from "@/components/studio/studio-wizard-source-transform-step";
 import { useActiveTranslator } from "@/i18n/client";
+import { logDeprecatedCharacterFlow } from "@/lib/character-cluster-analytics";
+import { buildFromReferenceHrefFromWizardDraft } from "@/lib/character-cluster-routes";
+import { buildMotionReadyHrefFromWizardDraft } from "@/lib/motion-ready-character-routes";
 import {
   canAdvanceFromChoiceStep,
   canAdvanceFromReferenceStep,
@@ -121,6 +125,7 @@ export function StudioAssetCreationWizard({
   onCharacterPipelineComplete,
 }: Props) {
   const t = useActiveTranslator();
+  const router = useRouter();
   const [kind, setKind] = useState<StudioAssetKind>(initialKind);
   const [navIndex, setNavIndex] = useState(() => initialNavIndex(lockKind, choiceBasedFlow));
   const [draft, setDraft] = useState<AssetWizardDraft | null>(null);
@@ -200,6 +205,19 @@ export function StudioAssetCreationWizard({
 
   const handleEntrySelect = useCallback(
     (path: AssetCreateEntryPath) => {
+      if (kind === "character" && path === "prepare_for_animation") {
+        logDeprecatedCharacterFlow(`universal_wizard:${path}`);
+        router.push(buildMotionReadyHrefFromWizardDraft({ storyboardId }));
+        return;
+      }
+      if (
+        kind === "character" &&
+        (path === "derive_from_reference" || path === "existing_asset")
+      ) {
+        logDeprecatedCharacterFlow(`universal_wizard:${path}`);
+        router.push(buildFromReferenceHrefFromWizardDraft({ storyboardId }));
+        return;
+      }
       const nextDraft =
         path === "derive_from_reference"
           ? emptyDerivationWizardDraft(kind)
@@ -209,7 +227,7 @@ export function StudioAssetCreationWizard({
       const firstStep = steps.indexOf("derive_source");
       setNavIndex(firstStep >= 0 ? firstStep : Math.min(steps.indexOf("entry") + 1, steps.length - 1));
     },
-    [kind, lockKind]
+    [kind, lockKind, router, storyboardId]
   );
 
   const goNext = useCallback(() => {

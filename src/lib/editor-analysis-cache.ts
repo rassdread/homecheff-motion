@@ -1,4 +1,5 @@
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
+import { editorAnalysisAppliesToBackground } from "@/lib/editor-analysis-reset";
 import {
   documentHasRichVisionAnalysis,
   editorAnalysisCacheKey,
@@ -9,6 +10,9 @@ const bootstrapResultCache = new Map<string, EditorCanvasDocument>();
 export function readCachedEditorAnalysis(
   document: EditorCanvasDocument
 ): EditorCanvasDocument | null {
+  if (!editorAnalysisAppliesToBackground(document)) {
+    return null;
+  }
   if (documentHasRichVisionAnalysis(document)) {
     return document;
   }

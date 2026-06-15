@@ -36,9 +36,17 @@ type Props = {
   isAdmin?: boolean;
   saving?: boolean;
   onDocumentChange: (document: EditorCanvasDocument) => void;
-  onSave: () => void;
+  onSaveProject: () => void;
+  onRenameProject: () => void;
+  onSaveAsNewProject: () => void;
   onClose: () => void;
-  onProjects: () => void;
+  onOpenInProjects: () => void;
+  onArchiveProject?: () => void;
+  onRestoreProject?: () => void;
+  onDeleteProject?: () => void;
+  onDownloadProject?: () => void;
+  onImportProject?: () => void;
+  isProjectArchived?: boolean;
   onReview: () => void;
   onDownload: () => void;
   onToggleAdvanced?: () => void;
@@ -53,9 +61,17 @@ export function EditorV2WorkflowShell({
   isAdmin = false,
   saving = false,
   onDocumentChange,
-  onSave,
+  onSaveProject,
+  onRenameProject,
+  onSaveAsNewProject,
   onClose,
-  onProjects,
+  onOpenInProjects,
+  onArchiveProject,
+  onRestoreProject,
+  onDeleteProject,
+  onDownloadProject,
+  onImportProject,
+  isProjectArchived = false,
   onReview,
   onDownload,
   onToggleAdvanced,
@@ -76,7 +92,7 @@ export function EditorV2WorkflowShell({
 
   const setIntent = (intent: EditorWorkspaceIntent | "projects") => {
     if (intent === "projects") {
-      onProjects();
+      onOpenInProjects();
       return;
     }
     if (intent === "motion" && !motionUnlocked) {
@@ -165,7 +181,7 @@ export function EditorV2WorkflowShell({
           )}
         </div>
         <EditorMenu
-          documentName={document.name}
+          projectName={document.name}
           saving={saving}
           activeTab={activeTab}
           activeImagePhase={activeImagePhase}
@@ -174,10 +190,18 @@ export function EditorV2WorkflowShell({
           isAdmin={isAdmin}
           showAdvancedToggle={Boolean(onToggleAdvanced)}
           advancedMode={advancedMode}
-          onSave={onSave}
+          onSaveProject={onSaveProject}
+          onRenameProject={onRenameProject}
+          onSaveAsNewProject={onSaveAsNewProject}
           onReview={onReview}
           onDownload={onDownload}
-          onProjects={onProjects}
+          onOpenInProjects={onOpenInProjects}
+          onArchiveProject={onArchiveProject}
+          onRestoreProject={onRestoreProject}
+          onDeleteProject={onDeleteProject}
+          onDownloadProject={onDownloadProject}
+          onImportProject={onImportProject}
+          isProjectArchived={isProjectArchived}
           onClose={onClose}
           onTabChange={setIntent}
           onPhaseChange={setImagePhase}
@@ -226,7 +250,7 @@ export function EditorV2WorkflowShell({
           onDocumentChange={(next) =>
             onDocumentChange(patchWorkflowIntent(next, detectEditorWorkflowIntent(next)))
           }
-          onSave={onSave}
+          onSave={onSaveProject}
         />
       : null}
 
@@ -235,7 +259,7 @@ export function EditorV2WorkflowShell({
           document={document}
           busy={busy}
           onDocumentChange={onDocumentChange}
-          onSave={onSave}
+          onSave={onSaveProject}
         />
       : null}
 
@@ -251,10 +275,10 @@ export function EditorV2WorkflowShell({
         <div className={`${studioVisual.editorSurface} p-6 text-center`}>
           <p className="text-sm text-zinc-600">{t("editor.workflow.projects.lead" as never)}</p>
           <Link
-            href="/editor"
-            className={`mt-3 inline-block ${studioVisual.btnGradientPrimary} px-4 py-2 text-xs`}
+            href="/projects"
+            className="mt-3 inline-flex rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white"
           >
-            {t("editor.workflow.projects.open" as never)}
+            {t("editor.menu.openInProjects" as never)}
           </Link>
         </div>
       : null}

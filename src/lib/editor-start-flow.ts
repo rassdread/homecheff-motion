@@ -1,4 +1,5 @@
 import { ensureFusionPlan } from "@/lib/editor-fusion-plan";
+import { patchWorkflowIntent } from "@/lib/editor-workflow-orchestration";
 import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument, EditorWorkspaceMode } from "@/types/homecheff-visual-editor";
 
@@ -23,7 +24,7 @@ export const EDITOR_POST_UPLOAD_HINT_KEYS: Record<EditorPostUploadMode, string> 
 export function workspaceModeForPostUpload(mode: EditorPostUploadMode): EditorWorkspaceMode {
   switch (mode) {
     case "combine":
-      return "compose";
+      return "instruction_studio";
     case "export":
       return "export";
     case "motion_prepare":
@@ -69,6 +70,9 @@ export function applyPostUploadMode(
       ...next,
       exportSettings: { ...next.exportSettings, profile: "motion_ready" },
     };
+  }
+  if (mode === "combine") {
+    next = patchWorkflowIntent(next, "combine");
   }
   return next;
 }

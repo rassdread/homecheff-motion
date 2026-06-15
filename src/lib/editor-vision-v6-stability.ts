@@ -143,8 +143,19 @@ export function mergePreservingVisionAnalysis(
   preferred: EditorCanvasDocument,
   incoming: EditorCanvasDocument
 ): EditorCanvasDocument {
-  const preferredRich = documentHasRichVisionAnalysis(preferred);
-  const incomingRich = documentHasRichVisionAnalysis(incoming);
+  if (preferred.backgroundUrl !== incoming.backgroundUrl) {
+    const base = incoming.updatedAt >= preferred.updatedAt ? incoming : preferred;
+    const other = base === incoming ? preferred : incoming;
+    return {
+      ...other,
+      ...base,
+      backgroundUrl: base.backgroundUrl,
+      backgroundStorageKey: base.backgroundStorageKey ?? other.backgroundStorageKey,
+      name: base.name,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   const preferredScore = analysisScore(preferred);
   const incomingScore = analysisScore(incoming);
 
@@ -204,11 +215,22 @@ export function resolveStickyVisionHierarchy(
   document: EditorCanvasDocument
 ): EditorVisionHierarchyNode[] {
   const current = document.visionHierarchy ?? [];
+  const analysisFresh =
+    Boolean(document.analyzedBackgroundUrl?.trim()) &&
+    document.analyzedBackgroundUrl === document.backgroundUrl;
+  if (!analysisFresh) {
+    stickyHierarchyBySession.delete(document.sessionId);
+    return current;
+  }
   if (isMeaningfulVisionHierarchy(current, document.visionV6Meta)) {
     stickyHierarchyBySession.set(document.sessionId, current);
     return current;
   }
   return stickyHierarchyBySession.get(document.sessionId) ?? current;
+}
+
+export function clearStickyVisionHierarchyForSession(sessionId: string): void {
+  stickyHierarchyBySession.delete(sessionId);
 }
 
 /** Test helper */

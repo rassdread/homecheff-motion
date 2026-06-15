@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { StudioLibraryRecentSection } from "@/components/studio/studio-library-recent-section";
 import { useActiveTranslator } from "@/i18n/client";
 import { fetchAssetsHubCounts } from "@/lib/studio-asset-lifecycle-client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
@@ -61,6 +62,7 @@ export function StudioAssetsHub() {
             </div>
           : (
             <div className="mt-8 space-y-8">
+              <StudioLibraryRecentSection />
               {ASSETS_HUB_GROUPS.map((group) => (
                 <HubGroupBlock
                   key={group}

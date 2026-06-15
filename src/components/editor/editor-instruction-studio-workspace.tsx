@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
 import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
 import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
@@ -11,6 +11,8 @@ import { EditorInstructionComparisonCenter } from "@/components/editor/editor-in
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { EditorPostGenerationActionCenter } from "@/components/editor/editor-post-generation-action-center";
 import { EditorDetectionStatusBanner } from "@/components/editor/editor-detection-status-banner";
+import { EditorTargetPrecisionPanel } from "@/components/editor/editor-target-precision-panel";
+import { EditorVariantCallDebugPanel } from "@/components/editor/editor-variant-call-debug-panel";
 import { EditorVisionSummaryPanel } from "@/components/editor/editor-vision-summary-panel";
 import { useActiveTranslator } from "@/i18n/client";
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
@@ -45,9 +47,21 @@ import {
   listChangePlanEntries,
   validateChangePlanItemInput,
 } from "@/lib/editor-instruction-change-plan";
+import {
+  evaluatePrintQuality,
+  PRINT_PRESET_SPECS,
+} from "@/lib/editor-instruction-print-export";
 import { EDITOR_STYLE_ACTIONS } from "@/lib/editor-style-actions";
 import { studioVisual } from "@/lib/studio-visual-tokens";
-import { evaluatePrintQuality, PRINT_PRESET_SPECS } from "@/lib/editor-instruction-print-export";
+import {
+  assessVariantPrecisionRisk,
+  buildProtectionPlanFromChangePlan,
+  buildTargetPrecisionContext,
+  ensureChangePlanPrecision,
+  mergePrecisionWarnings,
+  strongerProtectionSliders,
+} from "@/lib/editor-instruction-target-precision";
+import { verifyVariantRegionPrecision } from "@/lib/editor-instruction-region-verification-client";
 import {
   buildEditorInstructionPromptV2,
   buildEditorInstructionPromptV3,
@@ -83,7 +97,15 @@ import { listEditorAnalysisTimings } from "@/lib/editor-analysis-performance";
 import {
   executeEditorInstructionBulkVariantApi,
   executeEditorInstructionVariantApi,
+  EditorVariantPreflightBlockedError,
+  recordEditorVariantPreflightBlock,
 } from "@/lib/editor-instruction-variant-client";
+import {
+  logEditorVariantPreflightDev,
+  preflightEditorInstructionVariant,
+  variantValidationMessageKey,
+  type EditorVariantTriggerSource,
+} from "@/lib/editor-instruction-variant-preflight";
 import {
   appendInstructionVariant,
   createPendingInstructionVariant,
@@ -103,6 +125,24 @@ import type {
   EditorStyleAttribute,
 } from "@/types/editor-instruction-studio";
 import { DEFAULT_EDITOR_INSTRUCTION_SLIDERS } from "@/types/editor-instruction-studio";
+
+const VARIANT_WORKSPACE_COMPONENT = "EditorInstructionStudioWorkspace";
+
+function variantButtonNameForTrigger(
+  trigger: EditorVariantTriggerSource,
+  presetId?: string
+): string {
+  if (trigger === "instruction_generate_variant") {
+    return "instruction-generate-variant";
+  }
+  if (trigger === "instruction_generate_from_plan") {
+    return "instruction-change-plan-generate";
+  }
+  if (trigger === "instruction_bulk_generate") {
+    return presetId ? `instruction-bulk-preset-${presetId}` : "instruction-bulk-generate-4";
+  }
+  return trigger;
+}
 
 type Props = {
   document: EditorCanvasDocument;
@@ -148,6 +188,16 @@ export function EditorInstructionStudioWorkspace({
   const [virtualSelectedObject, setVirtualSelectedObject] = useState<EditorInstructionObjectV2 | null>(
     null
   );
+
+  useEffect(() => {
+    setVirtualSelectedObject(null);
+    setExpandedObjectId(null);
+    setExpandedStyleAttribute(null);
+    setSelectedHierarchyNodeId(null);
+    setManualFocusMode(null);
+    setCompareIds([]);
+    setStatusMessage("");
+  }, [document.sessionId, document.backgroundUrl]);
 
   const { editableObjects: objectsV2, styleTraits, meta: objectFeedMeta } = useMemo(
     () => getInstructionObjectFeed(document),
@@ -206,7 +256,76 @@ export function EditorInstructionStudioWorkspace({
     });
   };
 
+  const applyVariantPreflight = (
+    input: Parameters<typeof preflightEditorInstructionVariant>[0],
+    buttonName: string,
+    route: "/api/editor/instruction/variant" | "/api/editor/instruction/variant/bulk"
+  ) => {
+    const audit = preflightEditorInstructionVariant(input);
+    logEditorVariantPreflightDev(audit, { isAdmin });
+    if (!audit.validation.ok) {
+      const messageKey = variantValidationMessageKey(audit.validation);
+      if (messageKey) {
+        setStatusMessage(t(messageKey as never));
+      }
+      recordEditorVariantPreflightBlock({
+        triggerSource: input.triggerSource,
+        sessionId: input.sessionId,
+        route,
+        trace: {
+          componentName: VARIANT_WORKSPACE_COMPONENT,
+          buttonName,
+        },
+        validationCode: audit.validation.code,
+      });
+    }
+    return audit;
+  };
+
+  const variantGeneratePayload = useMemo(() => {
+    const references = buildInstructionReferences(document, selection);
+    return buildEditorInstructionVariantPayload({
+      ...selection,
+      color: colorInput || undefined,
+      logoReference: logoRef,
+      references,
+      brandingPlacementHint:
+        selection.brandingPlacementHint ?? defaultBrandingPlacementHint(selection.category),
+      document,
+    });
+  }, [colorInput, document, logoRef, selection]);
+
+  const variantInstructionForValidation = useMemo(
+    () => ({
+      ...variantGeneratePayload.instruction,
+      color: colorInput || undefined,
+    }),
+    [colorInput, variantGeneratePayload.instruction]
+  );
+
+  const canGenerateVariant = useMemo(() => {
+    if (legacyReadOnly || (showBranding && !logoRef)) {
+      return false;
+    }
+    return preflightEditorInstructionVariant({
+      triggerSource: "instruction_generate_variant",
+      sessionId: document.sessionId,
+      imageUrl: document.backgroundUrl,
+      prompt: variantGeneratePayload.prompt,
+      instruction: variantInstructionForValidation,
+      document,
+    }).validation.ok;
+  }, [
+    document,
+    legacyReadOnly,
+    logoRef,
+    showBranding,
+    variantGeneratePayload,
+    variantInstructionForValidation,
+  ]);
+
   const runVariantGeneration = async (params: {
+    triggerSource: EditorVariantTriggerSource;
     prompt: string;
     instruction: typeof selection;
     references: ReturnType<typeof buildInstructionReferences>;
@@ -214,16 +333,50 @@ export function EditorInstructionStudioWorkspace({
     variantName?: string;
     parentVariantId?: string | null;
     presetId?: string;
+    strongerProtection?: boolean;
   }) => {
+    const buttonName = variantButtonNameForTrigger(params.triggerSource, params.presetId);
+    const audit = applyVariantPreflight(
+      {
+        triggerSource: params.triggerSource,
+        sessionId: document.sessionId,
+        imageUrl: document.backgroundUrl,
+        prompt: params.prompt,
+        instruction: params.instruction,
+        changePlan: params.changePlan,
+        document,
+      },
+      buttonName,
+      "/api/editor/instruction/variant"
+    );
+    if (!audit.validation.ok) {
+      return null;
+    }
+
+    const strongerProtection =
+      params.strongerProtection ?? document.instructionStudioState?.strongerProtection === true;
+    const instructionForVariant = strongerProtection
+      ? { ...params.instruction, sliders: strongerProtectionSliders(params.instruction.sliders) }
+      : params.instruction;
+    const precisionCtx = buildTargetPrecisionContext(document, {
+      ...instructionForVariant,
+      color: instructionForVariant.color ?? (colorInput || undefined),
+    }, { strongerProtection });
+    const protectionPlan =
+      params.changePlan?.length
+        ? buildProtectionPlanFromChangePlan(document, params.changePlan)
+        : precisionCtx.protectionPlan;
+
     let nextDoc = appendInstructionVariant(
       document,
       createPendingInstructionVariant({
         sourceImageUrl: document.backgroundUrl,
         sourceImageId: "background",
-        instruction: params.instruction,
+        instruction: instructionForVariant,
         prompt: params.prompt,
         references: params.references,
         changePlan: params.changePlan,
+        protectionPlan,
         outputTarget: document.instructionStudioState?.outputTarget,
         provider: "openai",
         name: params.variantName,
@@ -247,18 +400,49 @@ export function EditorInstructionStudioWorkspace({
     );
     onDocumentChange(nextDoc);
 
-    const result = await executeEditorInstructionVariantApi({
-      sessionId: document.sessionId,
-      imageUrl: document.backgroundUrl,
-      prompt: params.prompt,
-      instruction: params.instruction,
-      changePlan: params.changePlan,
-      references: params.references,
-      variantName: params.variantName,
-      parentVariantId: params.parentVariantId,
-    });
+    let result;
+    try {
+      result = await executeEditorInstructionVariantApi({
+        sessionId: document.sessionId,
+        imageUrl: document.backgroundUrl,
+        prompt: params.prompt,
+        instruction: params.instruction,
+        changePlan: params.changePlan,
+        references: params.references,
+        variantName: params.variantName,
+        parentVariantId: params.parentVariantId,
+        document,
+        triggerSource: params.triggerSource,
+        trace: {
+          componentName: VARIANT_WORKSPACE_COMPONENT,
+          buttonName,
+        },
+        debug: { isAdmin },
+      });
+    } catch (error) {
+      if (error instanceof EditorVariantPreflightBlockedError) {
+        const variant = nextDoc.instructionVariants!.find((v) => v.id === pendingId)!;
+        onDocumentChange(
+          patchInstructionVariant(
+            nextDoc,
+            pendingId,
+            instructionVariantWithStatus(variant, "failed", {
+              error: error.message,
+            })
+          )
+        );
+        return null;
+      }
+      throw error;
+    }
 
     const variant = nextDoc.instructionVariants!.find((v) => v.id === pendingId)!;
+    const preCheckWarning = assessVariantPrecisionRisk({
+      targetOnly: precisionCtx.targetOnly,
+      estimatedSelection: precisionCtx.estimatedSelection,
+      mascotDetected: precisionCtx.mascotDetected,
+      extractionQuality: params.changePlan?.[0]?.extractionQuality,
+    });
     if (!result.ok || !result.resultUrl) {
       onDocumentChange(
         patchInstructionVariant(
@@ -272,21 +456,95 @@ export function EditorInstructionStudioWorkspace({
       return null;
     }
 
-    onDocumentChange(
-      patchInstructionVariant(
-        nextDoc,
-        pendingId,
-        instructionVariantWithStatus(variant, "completed", {
-          resultUrl: result.resultUrl,
-          resultStorageKey: result.storageKey,
-          provider: result.provider,
-          model: result.model,
-          costEstimateUsd: result.costEstimateUsd,
-          versionNote: result.versionNote,
-        })
-      )
+    const completedDoc = patchInstructionVariant(
+      nextDoc,
+      pendingId,
+      instructionVariantWithStatus(variant, "completed", {
+        resultUrl: result.resultUrl,
+        resultStorageKey: result.storageKey,
+        provider: result.provider,
+        model: result.model,
+        costEstimateUsd: result.costEstimateUsd,
+        versionNote: result.versionNote,
+        precisionWarning: preCheckWarning ?? undefined,
+        protectionPlan,
+      })
     );
+    onDocumentChange(completedDoc);
+
+    if (result.librarySaved) {
+      setStatusMessage(t("library.consistency.savedSuccess" as never));
+    }
+
+    if (strongerProtection) {
+      onDocumentChange({
+        ...completedDoc,
+        instructionStudioState: {
+          ...completedDoc.instructionStudioState,
+          strongerProtection: false,
+        },
+      });
+    }
+
+    void verifyVariantRegionPrecision({
+      sourceUrl: document.backgroundUrl,
+      resultUrl: result.resultUrl,
+      plan: protectionPlan,
+    }).then((verification) => {
+      const precisionWarning = mergePrecisionWarnings(preCheckWarning, verification);
+      onDocumentChange(
+        patchInstructionVariant(completedDoc, pendingId, {
+          precisionVerification: verification,
+          precisionWarning: precisionWarning ?? undefined,
+        })
+      );
+    });
+
     return pendingId;
+  };
+
+  const handleRegenerateWithStrongerProtection = async () => {
+    const strongerSelection = {
+      ...selection,
+      sliders: strongerProtectionSliders(selection.sliders),
+      color: colorInput || undefined,
+    };
+    const references = buildInstructionReferences(document, strongerSelection);
+    const prompt = buildEditorInstructionVariantPayload({
+      ...strongerSelection,
+      logoReference: logoRef,
+      references,
+      brandingPlacementHint:
+        selection.brandingPlacementHint ?? defaultBrandingPlacementHint(selection.category),
+      document: {
+        ...document,
+        instructionStudioState: {
+          ...document.instructionStudioState,
+          strongerProtection: true,
+          targetOnlyEdit: true,
+        },
+      },
+    }).prompt;
+
+    await runVariantGeneration({
+      triggerSource: "instruction_generate_variant",
+      prompt,
+      instruction: strongerSelection,
+      references,
+      parentVariantId: previewVariantId,
+      variantName: previewVariant?.name ? `${previewVariant.name} (strenger)` : "Variant (strenger)",
+      strongerProtection: true,
+    });
+  };
+
+  const setTargetOnlyEdit = (enabled: boolean) => {
+    onDocumentChange({
+      ...document,
+      instructionStudioState: {
+        ...document.instructionStudioState,
+        targetOnlyEdit: enabled,
+      },
+    });
   };
 
   const selectObject = (obj: NonNullable<typeof selectedObject>) => {
@@ -412,7 +670,8 @@ export function EditorInstructionStudioWorkspace({
     setAddPlanReason("");
     const item = buildChangePlanItemFromSelection(
       { ...selection, color: colorInput || undefined },
-      listChangePlan(document).length
+      listChangePlan(document).length,
+      document
     );
     onDocumentChange(appendChangePlanItem(document, item));
     setStatusMessage(t("editor.instructionStudio.v2.changePlan.added" as never));
@@ -423,17 +682,16 @@ export function EditorInstructionStudioWorkspace({
     if (entries.length === 0) {
       return;
     }
-    setGenerating(true);
-    setStatusMessage(t("editor.instructionStudio.generating" as never));
     const references = buildInstructionReferences(document, selection);
+    const objectPlan = ensureChangePlanPrecision(document, listChangePlan(document));
     const prompt = buildEditorInstructionPromptV3({
       entries,
       brandIdentity: recCtx.brandName,
       references,
       preserveStyle: selection.sliders.preserveStyle,
       preserveBrand: selection.sliders.brandPreservation,
+      document,
     });
-    const objectPlan = listChangePlan(document);
     const first = objectPlan[0];
     const instruction = mergeInstructionSelection(
       document,
@@ -452,7 +710,11 @@ export function EditorInstructionStudioWorkspace({
             action: selection.action,
           }
     );
-    await runVariantGeneration({
+
+    setGenerating(true);
+    setStatusMessage(t("editor.instructionStudio.generating" as never));
+    const variantId = await runVariantGeneration({
+      triggerSource: "instruction_generate_from_plan",
       prompt,
       instruction,
       references,
@@ -460,7 +722,11 @@ export function EditorInstructionStudioWorkspace({
       variantName: `Change plan (${entries.length})`,
     });
     setGenerating(false);
-    setStatusMessage(t("editor.instructionStudio.v2.changePlan.generated" as never));
+    setStatusMessage(
+      variantId
+        ? t("editor.instructionStudio.v2.changePlan.generated" as never)
+        : t("editor.instructionStudio.generateFailed" as never)
+    );
   };
 
   const handleGenerateVariant = async () => {
@@ -472,19 +738,29 @@ export function EditorInstructionStudioWorkspace({
       setStatusMessage(t("editor.instructionStudio.v2.branding.logoRequired" as never));
       return;
     }
+    if (!canGenerateVariant) {
+      applyVariantPreflight(
+        {
+          triggerSource: "instruction_generate_variant",
+          sessionId: document.sessionId,
+          imageUrl: document.backgroundUrl,
+          prompt: variantGeneratePayload.prompt,
+          instruction: variantInstructionForValidation,
+          document,
+        },
+        "instruction-generate-variant",
+        "/api/editor/instruction/variant"
+      );
+      return;
+    }
+
     setGenerating(true);
     setStatusMessage(t("editor.instructionStudio.generating" as never));
-    const payload = buildEditorInstructionVariantPayload({
-      ...selection,
-      logoReference: logoRef,
-      references: buildInstructionReferences(document, selection),
-      brandingPlacementHint:
-        selection.brandingPlacementHint ?? defaultBrandingPlacementHint(selection.category),
-    });
     const id = await runVariantGeneration({
-      prompt: payload.prompt,
-      instruction: payload.instruction,
-      references: payload.references,
+      triggerSource: "instruction_generate_variant",
+      prompt: variantGeneratePayload.prompt,
+      instruction: variantGeneratePayload.instruction,
+      references: variantGeneratePayload.references,
     });
     setGenerating(false);
     setStatusMessage(
@@ -498,6 +774,24 @@ export function EditorInstructionStudioWorkspace({
     if (legacyReadOnly) {
       return;
     }
+    const references = buildInstructionReferences(document, selection);
+    const basePrompt = buildEditorInstructionPromptV2({ ...selection, references, logoReference: logoRef });
+    const audit = applyVariantPreflight(
+      {
+        triggerSource: "instruction_bulk_generate",
+        sessionId: document.sessionId,
+        imageUrl: document.backgroundUrl,
+        prompt: basePrompt,
+        instruction: selection,
+        document,
+      },
+      variantButtonNameForTrigger("instruction_bulk_generate", presetId),
+      "/api/editor/instruction/variant/bulk"
+    );
+    if (!audit.validation.ok) {
+      return;
+    }
+
     if (presetId) {
       onDocumentChange({
         ...document,
@@ -510,14 +804,19 @@ export function EditorInstructionStudioWorkspace({
     }
     setGenerating(true);
     const plans = presetId ? buildBulkVariantPlansFromPreset(presetId) : buildGenericBulkPlans(4);
-    const references = buildInstructionReferences(document, selection);
-    const basePrompt = buildEditorInstructionPromptV2({ ...selection, references, logoReference: logoRef });
     const response = await executeEditorInstructionBulkVariantApi({
       sessionId: document.sessionId,
       imageUrl: document.backgroundUrl,
       instruction: selection,
       references,
       plans,
+      document,
+      triggerSource: "instruction_bulk_generate",
+      trace: {
+        componentName: VARIANT_WORKSPACE_COMPONENT,
+        buttonName: variantButtonNameForTrigger("instruction_bulk_generate", presetId),
+      },
+      debug: { isAdmin },
     });
     let nextDoc = document;
     for (const result of response.results) {
@@ -816,6 +1115,8 @@ export function EditorInstructionStudioWorkspace({
                 updateSelection({
                   action: option.action,
                   customPrompt: option.promptHint ? `Focus on ${option.promptHint}` : undefined,
+                  accessoryType: undefined,
+                  replacement: undefined,
                 });
               }}
             />
@@ -831,6 +1132,7 @@ export function EditorInstructionStudioWorkspace({
               onDocumentChange={onDocumentChange}
               onGenerateFromPlan={() => void handleGenerateFromPlan()}
               generating={generating}
+              onTargetOnlyChange={setTargetOnlyEdit}
             />
           : null}
 
@@ -896,17 +1198,29 @@ export function EditorInstructionStudioWorkspace({
               </section>
 
               {statusMessage ?
-                <p className="text-sm text-zinc-600" role="status">
+                <p className="text-sm text-zinc-600" role="status" data-testid="instruction-variant-status">
                   {statusMessage}
                 </p>
+              : null}
+
+              <EditorVariantCallDebugPanel isAdmin={isAdmin} adminDebugExpanded />
+
+              {showObjectEdit && selectedObject ?
+                <EditorTargetPrecisionPanel
+                  document={document}
+                  selection={{ ...selection, color: colorInput || undefined }}
+                  onTargetOnlyChange={setTargetOnlyEdit}
+                />
               : null}
 
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  disabled={busy || generating || legacyReadOnly}
+                  disabled={busy || generating || legacyReadOnly || !canGenerateVariant}
                   onClick={() => void handleGenerateVariant()}
                   className="min-h-11 flex-1 rounded-full bg-[#0067B1] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  data-testid="instruction-generate-variant"
+                  aria-disabled={busy || generating || legacyReadOnly || !canGenerateVariant}
                 >
                   {t("editor.instructionStudio.generateVariant" as never)}
                 </button>
@@ -957,6 +1271,35 @@ export function EditorInstructionStudioWorkspace({
 
           {showApprove ?
             <div className="flex flex-wrap gap-2">
+              {previewVariant?.precisionWarning ?
+                <div
+                  className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                  data-testid="instruction-variant-precision-warning"
+                >
+                  <p>
+                    {previewVariant.precisionWarning === "low_precision"
+                      ? t("editor.instructionStudio.v2.precision.lowPrecisionWarning" as never)
+                      : t("editor.instructionStudio.v2.precision.driftWarning" as never)}
+                  </p>
+                  {previewVariant.precisionVerification?.changedRegionLabels?.length ?
+                    <p className="mt-1 text-[11px] text-amber-800">
+                      {t("editor.instructionStudio.v2.precision.changedRegions" as never, {
+                        list: previewVariant.precisionVerification.changedRegionLabels.join(", "),
+                      } as never)}
+                    </p>
+                  : null}
+                  <button
+                    type="button"
+                    className="mt-2 rounded-full border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900"
+                    data-testid="instruction-regenerate-stronger-protection"
+                    disabled={generating || legacyReadOnly}
+                    onClick={() => void handleRegenerateWithStrongerProtection()}
+                  >
+                    {t("editor.instructionStudio.v2.precision.regenerateStronger" as never)}
+                  </button>
+                </div>
+              : null}
+
               {previewVariantId && previewVariant ?
                 <>
                   <button

@@ -2,6 +2,7 @@
 
 import { MotionBottomSheet } from "@/components/ui/motion-bottom-sheet";
 import { StudioProductionInsightsRail } from "@/components/studio/studio-production-insights-rail";
+import { StudioWorkspaceChangePlanPanel } from "@/components/studio/studio-workspace-change-plan-panel";
 import { isStudioAiAssistantEnabled } from "@/lib/studio-ai-assistant-flag";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import { useActiveTranslator } from "@/i18n/client";
@@ -55,6 +56,7 @@ export function StudioMobileInsightsSheet({
         onSwitchTool={onSwitchTool}
         projectMemory={projectMemory}
       />
+      <StudioWorkspaceChangePlanPanel storyboardId={storyboard.id} compact />
     </MotionBottomSheet>
   );
 }

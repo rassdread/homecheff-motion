@@ -1,4 +1,10 @@
 import { isBrandingAction } from "@/lib/editor-instruction-actions";
+import {
+  buildPrecisionInstructionForPlanItem,
+  buildTargetOnlyPromptForSelection,
+  ensureChangePlanPrecision,
+  strongerProtectionSliders,
+} from "@/lib/editor-instruction-target-precision";
 import type { BrandReferenceAsset } from "@/types/editor-instruction-studio";
 import type {
   EditorInstructionDynamicAction,
@@ -7,6 +13,7 @@ import type {
   EditorInstructionSelection,
   EditorInstructionSliders,
 } from "@/types/editor-instruction-studio";
+import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 export type EditorInstructionPromptInputV2 = EditorInstructionSelection & {
   assetName?: string;
@@ -222,12 +229,27 @@ export function buildEditorInstructionPromptV3(input: {
   preserveStyle?: number;
   preserveBrand?: number;
   userNotes?: string;
+  document?: EditorCanvasDocument;
 }): string {
   const preserveStyle = input.preserveStyle ?? 80;
   const preserveBrand = input.preserveBrand ?? 85;
   const sorted = [...input.entries].sort((a, b) => a.order - b.order);
   const objectChanges = sorted.filter((e) => e.entryType !== "style");
   const styleChanges = sorted.filter((e) => e.entryType === "style");
+
+  const precisionObjectChanges =
+    input.document && objectChanges.length > 0
+      ? ensureChangePlanPrecision(
+          input.document,
+          objectChanges.filter(
+            (e): e is import("@/types/editor-instruction-studio").EditorInstructionChangePlanItem =>
+              e.entryType === "object"
+          )
+        )
+      : objectChanges.filter(
+          (e): e is import("@/types/editor-instruction-studio").EditorInstructionChangePlanItem =>
+            e.entryType === "object"
+        );
 
   const lines = [
     "REFERENCE IMAGE",
@@ -236,11 +258,12 @@ export function buildEditorInstructionPromptV3(input: {
     "OBJECT CHANGES",
   ];
 
-  if (objectChanges.length === 0) {
+  if (precisionObjectChanges.length === 0) {
     lines.push("None.");
   } else {
-    objectChanges.forEach((item, index) => {
-      lines.push(`${index + 1}. ${item.instruction}.`);
+    precisionObjectChanges.forEach((item, index) => {
+      const instruction = buildPrecisionInstructionForPlanItem(item);
+      lines.push(`${index + 1}. ${instruction}`);
     });
   }
 
@@ -290,14 +313,34 @@ export function buildEditorInstructionPromptV3(input: {
   return lines.filter(Boolean).join("\n");
 }
 
-export function buildEditorInstructionVariantPayload(input: EditorInstructionPromptInputV2): {
+export function buildEditorInstructionVariantPayload(
+  input: EditorInstructionPromptInputV2 & { document?: EditorCanvasDocument }
+): {
   prompt: string;
   instruction: EditorInstructionSelection;
   sourceImageId: string;
   references: EditorInstructionReference[];
 } {
   const references = input.references ?? [];
-  const prompt = buildEditorInstructionPromptV2({ ...input, references });
+  const targetOnly =
+    input.document ? input.document.instructionStudioState?.targetOnlyEdit !== false : true;
+  const strongerProtection =
+    input.document?.instructionStudioState?.strongerProtection === true;
+  const sliders =
+    strongerProtection ? strongerProtectionSliders(input.sliders) : input.sliders;
+  const prompt =
+    input.document && targetOnly
+      ? buildTargetOnlyPromptForSelection(
+          input.document,
+          { ...input, sliders },
+          {
+          targetOnly,
+          strongerProtection,
+          brandIdentity: input.brandIdentity,
+          preserveStyle: sliders.preserveStyle,
+          preserveBrand: sliders.brandPreservation,
+        })
+      : buildEditorInstructionPromptV2({ ...input, sliders, references });
   return {
     prompt,
     instruction: {

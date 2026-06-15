@@ -3,6 +3,7 @@ import {
   extendHcProjectWithPublishState,
   extendHcProjectWithStudioState,
 } from "@/lib/homecheff-project-handoff";
+import { reuseHcProjectForService } from "@/lib/hc-project-lifecycle";
 import { buildHomeCheffProjectFromEditorDocument } from "@/lib/homecheff-project-build";
 import { hydrateEditorDocumentFromHcProject } from "@/lib/homecheff-project-open";
 import { persistHomeCheffProject } from "@/lib/homecheff-project-persist";
@@ -27,7 +28,10 @@ export function prepareHcProjectForMotion(
     return { project, prepared: false, hadExistingState: true };
   }
   const prepared = persistHomeCheffProject(
-    extendHcProjectWithMotionState(project, { durationSec: options.durationSec ?? 5 })
+    reuseHcProjectForService(
+      extendHcProjectWithMotionState(project, { durationSec: options.durationSec ?? 5 }),
+      "motion"
+    )
   );
   return { project: prepared, prepared: true, hadExistingState: false };
 }
@@ -41,7 +45,10 @@ export function prepareHcProjectForPublish(
     return { project, prepared: false, hadExistingState: true };
   }
   const prepared = persistHomeCheffProject(
-    extendHcProjectWithPublishState(project, { publishIntent: options.publishIntent })
+    reuseHcProjectForService(
+      extendHcProjectWithPublishState(project, { publishIntent: options.publishIntent }),
+      "publish"
+    )
   );
   return { project: prepared, prepared: true, hadExistingState: false };
 }

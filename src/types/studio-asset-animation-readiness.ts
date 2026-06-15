@@ -5,7 +5,9 @@ export type BodyVisibilityLevel =
   | "half_body"
   | "portrait"
   | "head_only"
-  | "partial";
+  | "partial"
+  | "unknown"
+  | "mascot";
 
 export type CharacterConstructionProfile = {
   bodyVisibility: BodyVisibilityLevel;

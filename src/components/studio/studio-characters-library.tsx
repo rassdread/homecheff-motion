@@ -90,7 +90,7 @@ export function StudioCharactersLibrary() {
               </p>
             </div>
             <Link
-              href="/studio/characters/new?guided=1"
+              href="/studio/characters/new"
               className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
             >
               {t("studio.characters.newCharacter")}
@@ -127,7 +127,7 @@ export function StudioCharactersLibrary() {
               </p>
               {!search.trim() ? (
                 <Link
-                  href="/studio/characters/new?guided=1"
+                  href="/studio/characters/new"
                   className="mt-6 inline-flex rounded-full bg-[#006D52] px-5 py-2.5 text-sm font-semibold text-white"
                 >
                   {t("studio.characters.newCharacter")}

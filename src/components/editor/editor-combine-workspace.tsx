@@ -36,8 +36,14 @@ import {
 } from "@/lib/editor-generation-gate";
 import { buildTransformationStepPrompt } from "@/lib/editor-transformation-session";
 import { ensureFusionPlan } from "@/lib/editor-fusion-plan";
+import { combineIntentOption } from "@/lib/editor-workflow-product";
 import { mergeInstructionSelection } from "@/lib/editor-instruction-studio";
-import { executeEditorInstructionVariantApi } from "@/lib/editor-instruction-variant-client";
+import { executeEditorInstructionVariantApi, recordEditorVariantPreflightBlock } from "@/lib/editor-instruction-variant-client";
+import {
+  logEditorVariantPreflightDev,
+  preflightEditorInstructionVariant,
+  variantValidationMessageKey,
+} from "@/lib/editor-instruction-variant-preflight";
 import {
   appendInstructionVariant,
   createPendingInstructionVariant,
@@ -48,8 +54,13 @@ import type { EditorReferenceAssignment } from "@/types/editor-reference-metadat
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
 import { resolveCompositionBrandIdentity } from "@/lib/editor-personalized-recommendations";
-import { combineIntentOption } from "@/lib/editor-workflow-product";
+import {
+  enableAdvancedFusionCompose,
+  shouldOfferAdvancedFusionCompose,
+} from "@/lib/editor-fusion-advanced";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+
+const COMBINE_WORKSPACE_COMPONENT = "EditorCombineWorkspace";
 
 type Props = {
   document: EditorCanvasDocument;
@@ -109,13 +120,48 @@ export function EditorCombineWorkspace({
     setGenerating(true);
     const recCtx = buildEditorRecommendationContext({ document });
 
-    const runSingleGeneration = async (prompt: string, variantLabel: string) => {
+    const runSingleGeneration = async (
+      prompt: string,
+      variantLabel: string,
+      triggerSource: "combine_generate" | "combine_sequence_step"
+    ) => {
       const selection = mergeInstructionSelection(document, undefined, {
         objectKey: "combine",
         objectLabel: "Combined composition",
         category: "other",
         action: "replace",
+        customPrompt: fusionPlan?.userInstructions,
       });
+      const audit = preflightEditorInstructionVariant({
+        triggerSource,
+        sessionId: document.sessionId,
+        imageUrl: base.url,
+        prompt,
+        instruction: selection,
+        document,
+      });
+      logEditorVariantPreflightDev(audit);
+      if (!audit.validation.ok) {
+        const messageKey = variantValidationMessageKey(audit.validation);
+        if (messageKey) {
+          setStatusMessage(t(messageKey as never));
+        }
+        recordEditorVariantPreflightBlock({
+          triggerSource,
+          sessionId: document.sessionId,
+          route: "/api/editor/instruction/variant",
+          trace: {
+            componentName: COMBINE_WORKSPACE_COMPONENT,
+            buttonName:
+              triggerSource === "combine_sequence_step"
+                ? "combine-sequence-step-generate"
+                : "combine-generate-button",
+          },
+          validationCode: audit.validation.code,
+        });
+        return { ok: false as const, nextDoc: document };
+      }
+
       let nextDoc = appendInstructionVariant(
         document,
         createPendingInstructionVariant({
@@ -152,6 +198,15 @@ export function EditorCombineWorkspace({
         instruction: selection,
         variantName: variantLabel,
         parentVariantId: approved?.id ?? null,
+        document,
+        triggerSource,
+        trace: {
+          componentName: COMBINE_WORKSPACE_COMPONENT,
+          buttonName:
+            triggerSource === "combine_sequence_step"
+              ? "combine-sequence-step-generate"
+              : "combine-generate-button",
+        },
       });
 
       if (result.ok && result.resultUrl) {
@@ -206,7 +261,8 @@ export function EditorCombineWorkspace({
         );
         const outcome = await runSingleGeneration(
           stepPrompt,
-          `${t("editor.combine.variantName" as never)} ${step.index + 1}/${transformationSession.stepCount}`
+          `${t("editor.combine.variantName" as never)} ${step.index + 1}/${transformationSession.stepCount}`,
+          "combine_sequence_step"
         );
         latestDoc = outcome.nextDoc;
         if (outcome.ok) {
@@ -233,7 +289,11 @@ export function EditorCombineWorkspace({
             }),
         document
       );
-      const outcome = await runSingleGeneration(prompt, t("editor.combine.variantName" as never));
+      const outcome = await runSingleGeneration(
+        prompt,
+        t("editor.combine.variantName" as never),
+        "combine_generate"
+      );
       latestDoc = outcome.nextDoc;
       if (outcome.ok) {
         successfulOutputs = 1;
@@ -348,6 +408,21 @@ export function EditorCombineWorkspace({
       />
 
       <EditorPlanSummaryPanel document={document} />
+
+      {shouldOfferAdvancedFusionCompose(document) ?
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
+          <p className="font-semibold text-zinc-900">{t("editor.fusion.advancedCompose" as never)}</p>
+          <p className="mt-1 text-xs text-zinc-600">{t("editor.fusion.advancedComposeHint" as never)}</p>
+          <button
+            type="button"
+            className="mt-3 rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-800"
+            data-testid="fusion-advanced-compose-button"
+            onClick={() => onDocumentChange(enableAdvancedFusionCompose(document))}
+          >
+            {t("editor.fusion.advancedCompose" as never)}
+          </button>
+        </div>
+      : null}
 
       {generating ?
         <div className="flex justify-center py-8">

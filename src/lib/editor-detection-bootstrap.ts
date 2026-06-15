@@ -1,4 +1,8 @@
 import {
+  editorAnalysisAppliesToBackground,
+  stampEditorAnalyzedBackground,
+} from "@/lib/editor-analysis-reset";
+import {
   analyzeAssetStyleDnaApi,
   type AnalyzeAssetStyleDnaApiResult,
 } from "@/lib/studio-asset-derivation-client";
@@ -57,8 +61,16 @@ function countNonBackgroundLayers(layers: EditorCanvasLayer[]): number {
 }
 
 export function documentNeedsDetectionBootstrap(document: EditorCanvasDocument): boolean {
-  if (documentHasRichVisionAnalysis(document)) {
+  if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
     return false;
+  }
+  if (
+    !editorAnalysisAppliesToBackground(document) &&
+    (documentHasRichVisionAnalysis(document) ||
+      (document.detectionMeta?.count ?? 0) > 0 ||
+      countNonBackgroundLayers(document.objects) > 0)
+  ) {
+    return true;
   }
   if ((document.detectionMeta?.count ?? 0) > 0 && countNonBackgroundLayers(document.objects) > 0) {
     return false;
@@ -257,10 +269,11 @@ async function maybeEnrichIllustrationParts(
 }
 
 function completeBootstrap(document: EditorCanvasDocument): EditorCanvasDocument {
-  endEditorAnalysisStage(document.sessionId, "bootstrap_total");
-  traceVisionHierarchyStage("after_bootstrapEditorObjectDetection", document);
-  writeCachedEditorAnalysis(document);
-  return document;
+  const stamped = stampEditorAnalyzedBackground(document);
+  endEditorAnalysisStage(stamped.sessionId, "bootstrap_total");
+  traceVisionHierarchyStage("after_bootstrapEditorObjectDetection", stamped);
+  writeCachedEditorAnalysis(stamped);
+  return stamped;
 }
 
 /**
@@ -274,7 +287,7 @@ export async function bootstrapEditorObjectDetection(
     traceVisionHierarchyStage("bootstrap_cache_hit", cached);
     return completeBootstrap(cached);
   }
-  if (documentHasRichVisionAnalysis(document)) {
+  if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
     traceVisionHierarchyStage("bootstrap_skip_already_rich", document);
     return completeBootstrap(document);
   }

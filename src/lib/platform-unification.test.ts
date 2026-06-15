@@ -13,6 +13,8 @@ test("publish wizard steps are ordered AI-first", () => {
   assert.equal(PUBLISH_WIZARD_STEPS[0], "upload");
   assert.equal(PUBLISH_WIZARD_STEPS.at(-1), "export");
   assert.equal(nextPublishWizardStep("upload"), "intent");
+  assert.equal(nextPublishWizardStep("proposal"), "media");
+  assert.equal(nextPublishWizardStep("media"), "review");
   assert.equal(prevPublishWizardStep("intent"), "upload");
 });
 

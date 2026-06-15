@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseLandingOrbitWidget } from "@/components/suite/universe/universe-landing-orbit-widget";
@@ -17,14 +18,17 @@ export type StudioProductLandingContinue = {
 
 type Props = {
   config: StudioProductLandingConfig;
+  /** @deprecated Prefer continueSlot — avoids hydration mismatch from localStorage. */
   continueCard?: StudioProductLandingContinue | null;
+  /** Client-only slot (e.g. recent edit card after mount). SSR and first client paint stay identical. */
+  continueSlot?: ReactNode;
 };
 
 function categoryDescKey(categoryKey: string): string {
   return `${categoryKey}.desc`;
 }
 
-export function StudioProductLandingPage({ config, continueCard }: Props) {
+export function StudioProductLandingPage({ config, continueCard, continueSlot }: Props) {
   const t = useActiveTranslator();
   const examples = listExamplesForService(
     config.moduleKey === "usage" || config.moduleKey === "library" ? "home" : config.moduleKey
@@ -57,7 +61,7 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
             {t(config.descriptionKey)}
           </p>
 
-          {continueCard ?
+          {continueSlot ?? (continueCard ?
             <div className={`mt-8 ${studioVisual.cardGlass} max-w-xl`}>
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300/90">
                 {t("landing.continue.title" as never)}
@@ -69,9 +73,9 @@ export function StudioProductLandingPage({ config, continueCard }: Props) {
                 {continueCard.label}
               </Link>
             </div>
-          : null}
+          : null)}
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap gap-3" data-testid="landing-primary-cta">
             <Link href={config.primaryCtaHref} className={studioVisual.btnGradientPrimary}>
               {t(config.primaryCtaKey)}
             </Link>

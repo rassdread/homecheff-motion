@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PublishMediaReviewSummary } from "@/components/publish/publish-media-review-summary";
+import { PublishMediaWorkspace } from "@/components/publish/publish-media-workspace";
 import { PublishAiAssistantPanel } from "@/components/publish/publish-ai-assistant-panel";
 import { PublishTimelinePanel } from "@/components/publish/publish-timeline-panel";
+import { PublishWizardStableTextarea } from "@/components/publish/publish-wizard-stable-textarea";
+import { PublishWizardTypingDiagnosticsPanel } from "@/components/publish/publish-wizard-typing-diagnostics-panel";
 import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { useActiveTranslator } from "@/i18n/client";
 import { loadPublishChangePlanFromMetadata } from "@/lib/publish-change-plan-apply";
@@ -16,6 +20,10 @@ import { isPublishAiEverythingProject } from "@/lib/publish-ai-everything";
 import { isAudioWithImageProject, isVoiceMessageProject } from "@/lib/publish-audio-workflows";
 import { syncPublishExportToHc, syncPublishProjectToHc } from "@/lib/publish-hc-sync";
 import { persistHcWorkflowV2WithSync } from "@/lib/hc-workflow-persist";
+import {
+  recordPublishWizardRemount,
+  recordPublishWizardRerender,
+} from "@/lib/publish-wizard-typing-diagnostics";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { PublishProject } from "@/types/publish-overlay";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
@@ -28,6 +36,8 @@ type Props = {
   onWizardChange: (next: PublishWizardState) => void;
   onProjectChange: (project: PublishProject) => void;
   playhead?: number;
+  mediaFocusSection?: import("@/types/publish-media-production").PublishProductionSectionId | null;
+  onJumpToMedia?: (section: import("@/types/publish-media-production").PublishProductionSectionId) => void;
 };
 
 function syncWizardFromProject(project: PublishProject, wizard: PublishWizardState): PublishWizardState {
@@ -39,6 +49,7 @@ function syncWizardFromProject(project: PublishProject, wizard: PublishWizardSta
     uploadReady: hasMedia,
     analyzeComplete: Boolean(project.metadata?.publishAnalysisComplete) || Boolean(plan),
     proposalReady: Boolean(plan?.segments.length) || timeline.items.length > 0,
+    mediaReady: Boolean(plan?.segments.length) || timeline.items.length > 0 || Boolean(project.metadata?.publishProduction),
     reviewReady: timeline.items.length > 0 || project.overlays.length > 0,
   };
 }
@@ -51,15 +62,30 @@ export function PublishWizardStepPanels({
   onWizardChange,
   onProjectChange,
   playhead = 0,
+  mediaFocusSection = null,
+  onJumpToMedia,
 }: Props) {
   const t = useActiveTranslator();
   const [analyzing, setAnalyzing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState("");
+  const mountedRef = useRef(false);
   const timeline = useMemo(() => loadPublishTimelineFromProject(project), [project]);
   const intake = (project.metadata?.intakeFiles as Array<{ name: string; labels: string[] }>) ?? [];
 
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      recordPublishWizardRemount();
+    }
+    recordPublishWizardRerender();
+  });
+
   const patchWizard = (patch: Partial<PublishWizardState>) => {
+    onWizardChange({ ...wizard, ...patch });
+  };
+
+  const syncWizard = (patch: Partial<PublishWizardState>) => {
     onWizardChange(syncWizardFromProject(project, { ...wizard, ...patch }));
   };
 
@@ -75,7 +101,7 @@ export function PublishWizardStepPanels({
       metadata: { ...project.metadata, publishAnalysisComplete: true, publishAnalysis: analysis },
       updatedAt: new Date().toISOString(),
     });
-    patchWizard({ analyzeComplete: true });
+    syncWizard({ analyzeComplete: true });
     setAnalyzing(false);
   };
 
@@ -104,21 +130,24 @@ export function PublishWizardStepPanels({
 
   if (step === "intent") {
     return (
-      <label className="block space-y-2">
-        <span className="text-xs font-semibold uppercase text-zinc-500">{t("publish.wizard.intent" as never)}</span>
-        <p className="text-sm text-zinc-600">{t("publish.wizard.intentLead" as never)}</p>
-        <textarea
-          value={wizard.intent ?? project.publishIntent ?? ""}
-          onChange={(e) => {
-            const intent = e.target.value;
-            onWizardChange(syncWizardFromProject(project, { ...wizard, intent }));
-            onProjectChange({ ...project, publishIntent: intent, updatedAt: new Date().toISOString() });
-          }}
-          rows={4}
-          className="hc-stable-field w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
-          placeholder={t("publish.start.descriptionPlaceholder" as never)}
-        />
-      </label>
+      <div className="space-y-3">
+        <label className="block space-y-2">
+          <span className="text-xs font-semibold uppercase text-zinc-500">{t("publish.wizard.intent" as never)}</span>
+          <p className="text-sm text-zinc-600">{t("publish.wizard.intentLead" as never)}</p>
+          <PublishWizardStableTextarea
+            value={project.publishIntent ?? ""}
+            rows={4}
+            className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+            placeholder={t("publish.start.descriptionPlaceholder" as never)}
+            onDraftChange={(intent) => patchWizard({ intent })}
+            onCommit={(intent) => {
+              onProjectChange({ ...project, publishIntent: intent, updatedAt: new Date().toISOString() });
+            }}
+            data-testid="publish-wizard-intent-textarea"
+          />
+        </label>
+        <PublishWizardTypingDiagnosticsPanel />
+      </div>
     );
   }
 
@@ -147,7 +176,21 @@ export function PublishWizardStepPanels({
         hcProject={hcProject}
         onPlanSaved={(next) => {
           onProjectChange(next);
-          patchWizard({ proposalReady: true });
+          syncWizard({ proposalReady: true });
+        }}
+      />
+    );
+  }
+
+  if (step === "media") {
+    return (
+      <PublishMediaWorkspace
+        project={project}
+        hcProject={hcProject}
+        focusSection={mediaFocusSection}
+        onProjectChange={(next) => {
+          onProjectChange(next);
+          syncWizard({ mediaReady: true });
         }}
       />
     );
@@ -180,10 +223,9 @@ export function PublishWizardStepPanels({
             ))}
           </ul>
         : null}
+        <PublishMediaReviewSummary project={project} onJumpToMedia={onJumpToMedia} />
         <ul className="space-y-1 text-sm text-zinc-700">
           <li>{t("publish.wizard.intent" as never)}: {wizard.intent ?? project.publishIntent ?? "—"}</li>
-          <li>{t("publish.tab.overlays")}: {project.overlays.length}</li>
-          <li>{t("publish.tab.subtitles")}: {project.subtitles.length}</li>
           <li>{t("publish.timeline.title" as never)}: {timeline.items.length}</li>
         </ul>
         <PublishTimelinePanel

@@ -2,6 +2,15 @@ import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
 import { withStudioCreditGate } from "@/server/studio-account/with-studio-credit-gate";
 import { executeEditorInstructionVariant } from "@/server/editor/editor-instruction-variant-service";
+import {
+  buildVariantRouteValidationError,
+} from "@/lib/editor-instruction-variant-client";
+import { receivedKeysFromVariantPayload } from "@/lib/editor-instruction-variant-preflight";
+import { logEditorVariantRouteDev } from "@/lib/editor-variant-dev-log";
+import { validateEditorInstructionVariantRequest } from "@/lib/editor-instruction-variant-validation";
+import { ensureCompletedGenerationInLibrary } from "@/server/studio/library-consistency-service";
+import { buildFusionLibraryFields } from "@/lib/library-consistency-completion";
+import type { LibraryFusionMetadata } from "@/types/library-consistency";
 import type {
   EditorInstructionReference,
   EditorInstructionSelection,
@@ -35,6 +44,29 @@ function normalizeInstruction(
   };
 }
 
+function variantPayloadShape(body: {
+  sessionId?: string;
+  imageUrl?: string;
+  prompt?: string;
+  instruction?: Partial<EditorInstructionSelection>;
+  changePlan?: unknown[];
+  triggerSource?: string;
+  componentName?: string;
+  buttonName?: string;
+}): Record<string, unknown> {
+  return {
+    hasSessionId: Boolean(body.sessionId?.trim()),
+    hasImageUrl: Boolean(body.imageUrl?.trim()),
+    promptLength: body.prompt?.trim().length ?? 0,
+    instructionObjectKey: body.instruction?.objectKey ?? null,
+    instructionAction: body.instruction?.action ?? null,
+    changePlanCount: Array.isArray(body.changePlan) ? body.changePlan.length : 0,
+    triggerSource: body.triggerSource ?? "unknown",
+    componentName: body.componentName ?? null,
+    buttonName: body.buttonName ?? null,
+  };
+}
+
 export async function POST(request: Request) {
   const user = await requireActiveUser();
   if (user instanceof NextResponse) {
@@ -51,29 +83,80 @@ export async function POST(request: Request) {
     variantName?: string;
     parentVariantId?: string | null;
     confirmed?: boolean;
+    triggerSource?: string;
+    componentName?: string;
+    buttonName?: string;
+    hcProjectId?: string | null;
+    projectTitle?: string | null;
+    fusionMetadata?: LibraryFusionMetadata | null;
   };
 
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
-  }
-
-  const sessionId = body.sessionId?.trim();
-  const imageUrl = body.imageUrl?.trim();
-  const prompt = body.prompt?.trim();
-  const normalizedInstruction = body.instruction ? normalizeInstruction(body.instruction) : null;
-  const changePlan = body.changePlan?.length ? body.changePlan : undefined;
-
-  if (!sessionId || !imageUrl || !prompt || (!normalizedInstruction && !changePlan)) {
+    logEditorVariantRouteDev({
+      status: 400,
+      code: "invalid_json",
+      error: "Invalid JSON body.",
+      triggerSource: "unknown",
+    });
     return NextResponse.json(
       {
-        error:
-          "sessionId, imageUrl, prompt, and instruction or changePlan are required.",
+        ok: false,
+        error: "Invalid JSON body.",
+        code: "invalid_json",
+        missingFields: [],
+        receivedKeys: [],
       },
       { status: 400 }
     );
   }
+
+  const triggerSource = body.triggerSource?.trim() || "unknown";
+  const payloadShape = variantPayloadShape(body);
+
+  const receivedKeys = receivedKeysFromVariantPayload({
+    sessionId: body.sessionId,
+    imageUrl: body.imageUrl,
+    prompt: body.prompt,
+    instruction: body.instruction,
+    changePlan: body.changePlan,
+    triggerSource: body.triggerSource,
+  });
+
+  const validation = validateEditorInstructionVariantRequest({
+    sessionId: body.sessionId,
+    imageUrl: body.imageUrl,
+    prompt: body.prompt,
+    instruction: body.instruction,
+    changePlan: body.changePlan,
+  });
+
+  if (!validation.ok) {
+    const errorBody = buildVariantRouteValidationError({
+      validation,
+      receivedKeys,
+      triggerSource: body.triggerSource,
+    });
+    logEditorVariantRouteDev({
+      status: 400,
+      code: errorBody.code,
+      error: errorBody.error,
+      triggerSource,
+      componentName: body.componentName,
+      buttonName: body.buttonName,
+      missingFields: errorBody.missingFields,
+      receivedKeys,
+      payloadShape,
+    });
+    return NextResponse.json(errorBody, { status: 400 });
+  }
+
+  const sessionId = body.sessionId!.trim();
+  const imageUrl = body.imageUrl!.trim();
+  const prompt = body.prompt!.trim();
+  const normalizedInstruction = body.instruction ? normalizeInstruction(body.instruction) : null;
+  const changePlan = body.changePlan?.length ? body.changePlan : undefined;
 
   const instruction =
     normalizedInstruction ??
@@ -93,7 +176,28 @@ export async function POST(request: Request) {
       : null);
 
   if (!instruction) {
-    return NextResponse.json({ error: "Invalid instruction payload." }, { status: 400 });
+    logEditorVariantRouteDev({
+      status: 400,
+      code: "missing_instruction",
+      error: "Invalid instruction payload.",
+      triggerSource,
+      componentName: body.componentName,
+      buttonName: body.buttonName,
+      missingFields: ["instruction", "changePlan"],
+      receivedKeys,
+      payloadShape,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Invalid instruction payload.",
+        code: "missing_instruction",
+        missingFields: ["instruction", "changePlan"],
+        receivedKeys,
+        triggerSource: body.triggerSource,
+      },
+      { status: 400 }
+    );
   }
 
   const gated = await withStudioCreditGate({
@@ -118,10 +222,61 @@ export async function POST(request: Request) {
 
   const result = gated.result;
   if (!result.ok) {
+    logEditorVariantRouteDev({
+      status: result.code === "VALIDATION" ? 400 : 502,
+      code: result.code,
+      error: result.message,
+      triggerSource,
+      componentName: body.componentName,
+      buttonName: body.buttonName,
+      missingFields: result.code === "VALIDATION" ? ["imageUrl"] : [],
+      receivedKeys,
+      payloadShape,
+    });
     return NextResponse.json(
-      { ok: false, error: result.message, code: result.code },
+      {
+        ok: false,
+        error: result.message,
+        code: result.code,
+        missingFields: result.code === "VALIDATION" ? ["imageUrl"] : [],
+        receivedKeys,
+        triggerSource: body.triggerSource,
+        componentName: body.componentName,
+        buttonName: body.buttonName,
+      },
       { status: result.code === "VALIDATION" ? 400 : 502 }
     );
+  }
+
+  let libraryRecord: Awaited<ReturnType<typeof ensureCompletedGenerationInLibrary>> | null = null;
+  try {
+    const fusion = buildFusionLibraryFields(body.fusionMetadata);
+    libraryRecord = await ensureCompletedGenerationInLibrary({
+      ownerId: user.id,
+      createdBy: user.id,
+      generationType: "editor_variant",
+      assetUrl: result.resultUrl,
+      storageKey: result.storageKey,
+      thumbnailUrl: result.resultUrl,
+      assetName:
+        body.variantName?.trim() ||
+        (changePlan
+          ? `Plan variant (${changePlan.length})`
+          : `${instruction.action} ${instruction.objectLabel}`),
+      promptSummary: prompt.slice(0, 240),
+      projectId: body.hcProjectId?.trim() || sessionId,
+      projectTitle: body.projectTitle?.trim() || null,
+      sourceModule: "editor",
+      backingId: result.storageKey.split("/").pop()?.replace(/\.png$/i, "") ?? undefined,
+      assetType: fusion.fusionArchetype || fusion.fusionIntent ? "fusion_output" : "editor_variant",
+      workflow: fusion.workflow,
+      fusionIntent: fusion.fusionIntent,
+      fusionArchetype: fusion.fusionArchetype,
+      fusionMetadata: fusion.fusionMetadata,
+      usedInModules: ["editor", "studio"],
+    });
+  } catch (error) {
+    console.error("[library-consistency] editor variant register failed", error);
   }
 
   return NextResponse.json({
@@ -142,5 +297,8 @@ export async function POST(request: Request) {
       (changePlan
         ? `Change plan (${changePlan.length} edits)`
         : `Variant: ${instruction.action} ${instruction.objectLabel}`),
+    triggerSource: body.triggerSource,
+    librarySaved: Boolean(libraryRecord),
+    libraryAssetId: libraryRecord?.registryAssetId ?? null,
   });
 }

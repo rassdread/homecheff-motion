@@ -58,6 +58,7 @@ type Props = {
   onSave: (patch: StudioSceneUpdateInput) => Promise<void>;
   onSceneDraftChange: (scene: StudioSceneDetail) => void;
   onStoryboardNotesUpdated?: (notes: string) => void;
+  onCharactersRefresh?: () => void | Promise<void>;
 };
 
 export function StudioDirectorPanelV2({
@@ -82,6 +83,7 @@ export function StudioDirectorPanelV2({
   onSave,
   onSceneDraftChange,
   onStoryboardNotesUpdated,
+  onCharactersRefresh,
 }: Props) {
   const t = useActiveTranslator();
   const [mode, setMode] = useState<StudioDirectorV2Mode>(() => readStudioDirectorV2Mode());
@@ -282,7 +284,10 @@ export function StudioDirectorPanelV2({
               scene={scene}
               allCharacters={characters}
               canModify={canModify}
+              storyboardId={storyboardId}
               onToggleCharacter={toggleCharacter}
+              onSceneUpdated={onSceneDraftChange}
+              onCharactersRefresh={onCharactersRefresh}
             />
           </StudioDirectorAccordionSection>
 

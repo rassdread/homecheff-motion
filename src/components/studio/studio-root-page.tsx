@@ -7,7 +7,12 @@ import { EditorStudioEntryBanner } from "@/components/studio/editor-studio-entry
 import { StudioHomeDashboard } from "@/components/studio/studio-home-dashboard";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { StudioWorkspaceShell } from "@/components/studio/studio-workspace-shell";
-import { HcProjectStateBadge } from "@/components/projects/hc-project-state-badge";
+import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-workspace-controls";
+import { HcProjectAutoCreateBridge } from "@/components/projects/hc-project-auto-create-bridge";
+import {
+  ensureHcProjectOnStudioStart,
+  syncHcProjectIdToUrl,
+} from "@/lib/hc-project-lifecycle";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
@@ -52,6 +57,20 @@ function StudioRootContent() {
     };
   }, [auth.user, hcProjectId, router, searchParams, storyboardId]);
 
+  useEffect(() => {
+    if (hcProject || hcProjectId) {
+      return;
+    }
+    const { project, created } = ensureHcProjectOnStudioStart({
+      ownerId: auth.user?.id,
+      syncToServer: Boolean(auth.user),
+    });
+    setHcProject(project);
+    if (created) {
+      syncHcProjectIdToUrl(project.id);
+    }
+  }, [auth.user, hcProject, hcProjectId]);
+
   if (hcRedirecting) {
     return (
       <main className="flex-1">
@@ -63,11 +82,15 @@ function StudioRootContent() {
   if (storyboardId) {
     return (
       <>
-        {hcProject ?
-          <div className="border-b border-sky-100 bg-sky-50/50 px-4 py-2">
-            <HcProjectStateBadge project={hcProject} compact />
-          </div>
-        : null}
+        <HcProjectAutoCreateBridge sourceModule="studio" storyboardId={storyboardId} />
+        <HcProjectWorkspaceControls
+          project={hcProject}
+          onProjectChange={setHcProject}
+          sourceModule="studio"
+          ownerId={auth.user?.id}
+          syncToServer={Boolean(auth.user)}
+          closeHref="/studio"
+        />
         <StudioWorkspaceShell storyboardId={storyboardId} />
       </>
     );
@@ -76,12 +99,19 @@ function StudioRootContent() {
   return (
     <StudioAuthGate>
       <main className={`flex min-h-screen flex-col ${brand.softGradientBg}`}>
-        <StudioShellHeader />
-        {hcProject ?
-          <div className="px-4 pt-2 sm:px-6">
-            <HcProjectStateBadge project={hcProject} />
-          </div>
-        : null}
+        <HcProjectAutoCreateBridge sourceModule="studio" />
+        <StudioShellHeader
+          projectTitle={hcProject?.title}
+          hcProjectId={hcProject?.id}
+        />
+        <HcProjectWorkspaceControls
+          project={hcProject}
+          onProjectChange={setHcProject}
+          sourceModule="studio"
+          ownerId={auth.user?.id}
+          syncToServer={Boolean(auth.user)}
+          closeHref="/studio"
+        />
         {editorSessionId ?
           <div className="px-4 pt-4 sm:px-6">
             <EditorStudioEntryBanner editorSessionId={editorSessionId} />
