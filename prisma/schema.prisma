@@ -355,6 +355,8 @@ model StudioWallet {
   userId             String    @unique
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   balance            Int       @default(0)
+  purchasedBalance   Int       @default(0)
+  promotionalBalance Int       @default(0)
   reservedBalance    Int       @default(0)
   lifetimePurchased  Int       @default(0)
   lifetimeGranted    Int       @default(0)
@@ -372,10 +374,12 @@ model StudioLedgerEntry {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId        String?
   service          String
-  /** credit_purchase | subscription_grant | admin_grant | usage_charge | usage_reservation | usage_capture | usage_refund | failed_generation_refund | bonus_grant | expiration_adjustment | manual_adjustment */
+  /** credit_purchase | subscription_grant | admin_grant | usage_charge | usage_reservation | usage_capture | usage_refund | failed_generation_refund | bonus_grant | expiration_adjustment | manual_adjustment | promotional_grant */
   actionType       String
   creditsDelta     Int
   balanceAfter     Int
+  /** PURCHASED | PROMOTIONAL | BETA | COMPENSATION | REFERRAL | MANUAL_GRANT */
+  creditOrigin     String?
   provider         String?
   providerCostUsd  Float?
   reservedCostUsd  Float?
@@ -387,6 +391,154 @@ model StudioLedgerEntry {
   @@index([userId, projectId])
   @@index([actionType])
   @@index([service])
+  @@index([creditOrigin])
+}
+
+/** Singleton billing policy — carry mode, defaults, plan benefits JSON. */
+model StudioBillingPolicy {
+  id                         String   @id @default("default")
+  carryMode                  String   @default("UNLIMITED")
+  newUserGrantCredits        Int      @default(0)
+  newUserPromotionCredits    Int      @default(0)
+  betaLaunchCredits          Int      @default(0)
+  /** 0 = unlimited new-user campaign slots */
+  newUserCampaignMaxUsers    Int      @default(0)
+  newUserCampaignRedeemed    Int      @default(0)
+  defaultConfirmAboveCredits Int      @default(100)
+  plansJson                  Json     @default("{}")
+  updatedAt                  DateTime @updatedAt
+}
+
+/** Admin-managed subscription plans — DB is source of truth; TS config is fallback. */
+model StudioSubscriptionPlan {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  name                 String
+  description          String   @default("")
+  monthlyPriceEur      Float?
+  yearlyPriceEur       Float?
+  discountPercent      Int      @default(0)
+  storageLimitGb       Int?
+  featureFlags         Json     @default("[]")
+  autoTopUpAvailable   Boolean  @default(false)
+  isVisible            Boolean  @default(true)
+  isActive             Boolean  @default(true)
+  displayOrder         Int      @default(0)
+  stripePriceIdMonthly String?
+  stripePriceIdYearly  String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([isActive, isVisible, displayOrder])
+}
+
+/** Admin-managed credit packs — DB is source of truth; TS config is fallback. */
+model StudioCreditPack {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  credits       Int
+  priceEur      Float
+  bonusCredits  Int      @default(0)
+  active        Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  stripePriceId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([active, displayOrder])
+}
+
+/** Admin-managed promotional credit campaigns. */
+model StudioPromotion {
+  id                        String                      @id @default(cuid())
+  name                      String
+  slug                      String                      @unique
+  active                    Boolean                     @default(true)
+  /** Legacy bonus credits field — still used for bonus_credits benefit type */
+  creditAmount              Int                         @default(0)
+  maximumUsers              Int                         @default(0)
+  /** bonus_credits | percentage_discount | fixed_discount | subscription_discount | credit_pack_bonus | free_trial_credits */
+  benefitType               String                      @default("bonus_credits")
+  percentageDiscount        Float?
+  fixedDiscountEur          Float?
+  subscriptionDiscountPercent Float?
+  creditPackBonusPercent    Float?
+  freeTrialCredits          Int?
+  newUserOnly               Boolean                     @default(false)
+  specificPlanSlug          String?
+  maxRedemptions            Int?
+  maxRedemptionsPerUser     Int                         @default(1)
+  /** PROMOTIONAL | BETA | COMPENSATION | REFERRAL */
+  grantType                 String                      @default("PROMOTIONAL")
+  startDate                 DateTime?
+  endDate                   DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  redemptions               StudioPromotionRedemption[]
+  promoCodes                StudioPromoCode[]
+
+  @@index([active, startDate, endDate])
+}
+
+model StudioPromotionRedemption {
+  id             String          @id @default(cuid())
+  promotionId    String
+  promotion      StudioPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  userId         String
+  creditsGranted Int
+  ledgerEntryId  String?
+  promoCodeId    String?
+  createdAt      DateTime        @default(now())
+
+  @@unique([promotionId, userId])
+  @@index([userId, createdAt])
+}
+
+/** Promo codes linked to promotions — HomeCheff source of truth (not Stripe coupons). */
+model StudioPromoCode {
+  id          String                    @id @default(cuid())
+  code        String                    @unique
+  promotionId String
+  promotion   StudioPromotion           @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  active      Boolean                   @default(true)
+  maxUses     Int?
+  usedCount   Int                       @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  notes       String                    @default("")
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  redemptions StudioPromoCodeRedemption[]
+
+  @@index([promotionId, active])
+}
+
+model StudioPromoCodeRedemption {
+  id          String          @id @default(cuid())
+  promoCodeId String
+  promoCode   StudioPromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  promotionId String
+  userId      String
+  appliedAt   DateTime        @default(now())
+  metadataJson Json           @default("{}")
+
+  @@unique([promoCodeId, userId])
+  @@index([userId, appliedAt])
+}
+
+/** Database-driven action pricing — overrides studio-action-cost-registry when active. */
+model StudioPricingRule {
+  id              String   @id @default(cuid())
+  actionType      String   @unique
+  creditCost      Int
+  providerCostUsd Float
+  active          Boolean  @default(true)
+  notes           String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active])
 }
 
 /** Universal HomeCheff .hc master project container. */

@@ -31,6 +31,18 @@ export default function AdminDashboardPage() {
           <StudioLibraryConsistencyAdminPanel />
         </AppCard>
         <AppCard>
+          <h2 className="text-lg font-semibold">Billing control center</h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            Wallet grants, promotions, carry policy, and plan benefits.
+          </p>
+          <Link
+            href="/admin/billing"
+            className="mt-4 inline-block text-sm font-medium text-emerald-700 underline"
+          >
+            Billing control center →
+          </Link>
+        </AppCard>
+        <AppCard>
           <h2 className="text-lg font-semibold">{t("admin.nav.invites")}</h2>
           <p className="mt-2 text-sm text-zinc-600">{t("admin.invites.intro")}</p>
           <Link

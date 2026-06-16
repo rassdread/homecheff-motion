@@ -28,14 +28,14 @@ export function ServiceLandingNav({ current }: Props) {
       aria-label={t("landing.nav.services" as never)}
       data-testid="service-landing-nav"
     >
-      <Link href="/" className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10">
+      <Link href="/" className={`rounded-full border border-white/20 px-3 py-1.5 text-xs font-semibold text-green-300 hover:bg-white/10 hover:text-green-200`}>
         {t("landing.nav.backHome" as never)}
       </Link>
       {links.map((key) => (
         <Link
           key={key}
           href={SERVICE_HREFS[key]}
-          className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/10"
+          className="rounded-full border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white"
         >
           {t(`landing.nav.backTo.${key}` as never)}
         </Link>

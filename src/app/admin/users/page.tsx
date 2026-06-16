@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+import { AdminUserBillingPanel } from "@/components/admin/billing/admin-user-billing-panel";
 
 type UserRow = {
   id: string;
@@ -29,6 +30,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [expandedBillingUserId, setExpandedBillingUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -119,7 +121,8 @@ export default function AdminUsersPage() {
               </>
             ) : (
               users.map((u) => (
-                <tr key={u.id} className="border-b border-zinc-100">
+                <Fragment key={u.id}>
+                <tr className="border-b border-zinc-100">
                   <td className="py-2 pr-2">{u.email}</td>
                   <td className="py-2 pr-2">
                     <select
@@ -160,8 +163,25 @@ export default function AdminUsersPage() {
                           ? t("admin.users.deactivate")
                           : t("admin.users.activate")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedBillingUserId((id) => (id === u.id ? null : u.id))
+                      }
+                      className="ml-3 text-xs text-zinc-600 underline"
+                    >
+                      Billing
+                    </button>
                   </td>
                 </tr>
+                {expandedBillingUserId === u.id ? (
+                  <tr>
+                    <td colSpan={7} className="pb-4">
+                      <AdminUserBillingPanel userId={u.id} />
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               ))
             )}
           </tbody>

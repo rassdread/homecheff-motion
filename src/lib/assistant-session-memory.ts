@@ -1,4 +1,5 @@
 import type { AssistantActionId } from "@/lib/assistant-action-registry";
+import type { AssistantConversationMemory } from "@/lib/assistant-conversation-memory";
 
 export type AssistantClarificationKind = "video_type";
 
@@ -8,7 +9,13 @@ export type AssistantSessionMemory = {
   activeWizard: AssistantActionId | null;
   lastIntent: string | null;
   pendingClarification: AssistantClarificationKind | null;
+  pendingPrefillId: string | null;
+  recentRecommendationIds?: string[];
+  recommendationSessionSeed?: string;
+  conversationMemory?: AssistantConversationMemory;
 };
+
+import { EMPTY_CONVERSATION_MEMORY } from "@/lib/assistant-conversation-memory";
 
 export const EMPTY_ASSISTANT_SESSION: AssistantSessionMemory = {
   selectedProjectId: null,
@@ -16,6 +23,10 @@ export const EMPTY_ASSISTANT_SESSION: AssistantSessionMemory = {
   activeWizard: null,
   lastIntent: null,
   pendingClarification: null,
+  pendingPrefillId: null,
+  recentRecommendationIds: [],
+  recommendationSessionSeed: undefined,
+  conversationMemory: EMPTY_CONVERSATION_MEMORY,
 };
 
 export function createAssistantSessionMemory(
@@ -64,4 +75,17 @@ export function resolveActiveAssistantProjectId(
   urlProjectId?: string | null
 ): string | null {
   return memory.selectedProjectId ?? urlProjectId ?? null;
+}
+
+export function rememberAssistantRecommendation(
+  memory: AssistantSessionMemory,
+  recommendationId: string
+): AssistantSessionMemory {
+  const recent = memory.recentRecommendationIds ?? [];
+  const next = [recommendationId, ...recent.filter((id) => id !== recommendationId)].slice(0, 12);
+  return {
+    ...memory,
+    recentRecommendationIds: next,
+    lastIntent: recommendationId,
+  };
 }

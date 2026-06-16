@@ -1,59 +1,33 @@
+/**
+ * @deprecated Replaced by AssistantRecommendationEngine (V5).
+ * Kept as a thin compatibility shim for legacy imports.
+ */
+import { buildAssistantRecommendations } from "@/lib/assistant-recommendation-engine";
 import type { AssistantProjectContext, AssistantContextSnapshot } from "@/lib/assistant-context-layer";
 
 export type AssistantSuggestion = {
   id: string;
-  messageKey: `assistant.suggestion.${string}`;
+  messageKey: `assistant.recommendation.${string}.title` | `assistant.suggestion.${string}`;
   actionId?: import("@/lib/assistant-action-registry").AssistantActionId;
+  promptMessage?: string;
 };
 
 export function buildAssistantSuggestions(input: {
   snapshot: AssistantContextSnapshot;
   activeProject?: AssistantProjectContext | null;
+  message?: string;
+  pathname?: string;
 }): AssistantSuggestion[] {
-  const suggestions: AssistantSuggestion[] = [];
-  const { library } = input.snapshot;
-  const project = input.activeProject;
-
-  if (library.characters.length === 0) {
-    suggestions.push({
-      id: "no-characters",
-      messageKey: "assistant.suggestion.noCharacters",
-      actionId: "create_character",
-    });
-  }
-
-  const motionReadyCharacters = library.characters.filter((row) => row.motionReady === true);
-  if (motionReadyCharacters.length > 0) {
-    suggestions.push({
-      id: "motion-ready-characters",
-      messageKey: "assistant.suggestion.motionReadyCharacters",
-      actionId: "create_motion_video",
-    });
-  }
-
-  if (library.fusionOutputs.length > 0 && library.characters.length === 0) {
-    suggestions.push({
-      id: "fusion-to-character",
-      messageKey: "assistant.suggestion.fusionToCharacter",
-      actionId: "create_character_from_reference",
-    });
-  }
-
-  if (project?.workflowStatus === "publish_ready" || project?.workflowStatus === "motion_ready") {
-    suggestions.push({
-      id: "ready-to-publish",
-      messageKey: "assistant.suggestion.readyToPublish",
-      actionId: "create_publish_export",
-    });
-  }
-
-  if (project && project.assetStats.characterCount === 0) {
-    suggestions.push({
-      id: "project-no-characters",
-      messageKey: "assistant.suggestion.projectNoCharacters",
-      actionId: "create_character",
-    });
-  }
-
-  return suggestions.slice(0, 4);
+  const result = buildAssistantRecommendations({
+    pathname: input.pathname ?? "/studio",
+    snapshot: input.snapshot,
+    activeProject: input.activeProject,
+    maxCount: 4,
+  });
+  return result.recommendations.map((row) => ({
+    id: row.id,
+    messageKey: row.titleKey,
+    actionId: row.actionPresetId ? "create_motion_video" : undefined,
+    promptMessage: row.promptMessage,
+  }));
 }

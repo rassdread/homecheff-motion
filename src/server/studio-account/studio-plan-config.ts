@@ -15,8 +15,11 @@ export type StudioPlanConfig = {
   accountType: StudioAccountType;
   labelKey: string;
   monthlyPriceEur: number | null;
+  /** Legacy reference — subscriptions do not auto-grant credits (Phase 4). */
   monthlyCredits: number;
-  monthlyCreditsMax?: number;
+  creditDiscountPercent: number;
+  autoTopUpAvailable: boolean;
+  storageLimitGb: number | null;
   planVersion: typeof STUDIO_PLAN_VERSION;
   creditPolicyVersion: typeof STUDIO_CREDIT_POLICY_VERSION;
   /** Future Stripe Price ID — set via env when wired */
@@ -30,6 +33,9 @@ export const STUDIO_PLANS: Record<StudioPlanId, StudioPlanConfig> = {
     labelKey: "account.plan.free",
     monthlyPriceEur: 0,
     monthlyCredits: 0,
+    creditDiscountPercent: 0,
+    autoTopUpAvailable: false,
+    storageLimitGb: 2,
     planVersion: STUDIO_PLAN_VERSION,
     creditPolicyVersion: STUDIO_CREDIT_POLICY_VERSION,
   },
@@ -38,7 +44,10 @@ export const STUDIO_PLANS: Record<StudioPlanId, StudioPlanConfig> = {
     accountType: "creator",
     labelKey: "account.plan.creator",
     monthlyPriceEur: 19,
-    monthlyCredits: 3000,
+    monthlyCredits: 0,
+    creditDiscountPercent: 10,
+    autoTopUpAvailable: true,
+    storageLimitGb: 25,
     planVersion: STUDIO_PLAN_VERSION,
     creditPolicyVersion: STUDIO_CREDIT_POLICY_VERSION,
     stripePriceIdEnvKey: "STRIPE_PRICE_CREATOR",
@@ -48,8 +57,10 @@ export const STUDIO_PLANS: Record<StudioPlanId, StudioPlanConfig> = {
     accountType: "pro",
     labelKey: "account.plan.pro",
     monthlyPriceEur: 49,
-    monthlyCredits: 8000,
-    monthlyCreditsMax: 10000,
+    monthlyCredits: 0,
+    creditDiscountPercent: 15,
+    autoTopUpAvailable: true,
+    storageLimitGb: 100,
     planVersion: STUDIO_PLAN_VERSION,
     creditPolicyVersion: STUDIO_CREDIT_POLICY_VERSION,
     stripePriceIdEnvKey: "STRIPE_PRICE_PRO",
@@ -59,8 +70,10 @@ export const STUDIO_PLANS: Record<StudioPlanId, StudioPlanConfig> = {
     accountType: "studio",
     labelKey: "account.plan.studio",
     monthlyPriceEur: 99,
-    monthlyCredits: 12000,
-    monthlyCreditsMax: 15000,
+    monthlyCredits: 0,
+    creditDiscountPercent: 20,
+    autoTopUpAvailable: true,
+    storageLimitGb: 500,
     planVersion: STUDIO_PLAN_VERSION,
     creditPolicyVersion: STUDIO_CREDIT_POLICY_VERSION,
     stripePriceIdEnvKey: "STRIPE_PRICE_STUDIO",
@@ -71,6 +84,9 @@ export const STUDIO_PLANS: Record<StudioPlanId, StudioPlanConfig> = {
     labelKey: "account.plan.enterprise",
     monthlyPriceEur: null,
     monthlyCredits: 0,
+    creditDiscountPercent: 25,
+    autoTopUpAvailable: true,
+    storageLimitGb: null,
     planVersion: STUDIO_PLAN_VERSION,
     creditPolicyVersion: STUDIO_CREDIT_POLICY_VERSION,
   },

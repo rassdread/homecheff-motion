@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BriefV4SelectionCards } from "@/components/studio/brief-v4-selection-cards";
 import { StudioBuildStoryPanel } from "@/components/studio/studio-build-story-panel";
 import { StudioStoryInterpretationPanel } from "@/components/studio/studio-story-interpretation-panel";
@@ -18,6 +18,9 @@ import {
 import { HcProjectWorkspaceControls } from "@/components/projects/hc-project-workspace-controls";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { StudioProductionRoutePicker } from "@/components/studio/studio-production-route-picker";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { applyAssistantPrefillToStudioBrief } from "@/lib/assistant-wizard-prefill-apply";
 import { buildStoryPlanFromBrief, buildStoryPlanFromInterpretation } from "@/lib/studio-build-story-plan";
 import { briefSelectionsToIdeaEnrichment } from "@/lib/studio-production-brief-selection";
 import { persistHcWorkflowV2WithSync } from "@/lib/hc-workflow-persist";
@@ -343,6 +346,8 @@ export function StudioProductionBriefFlow() {
   const searchParams = useSearchParams();
   const editorSessionId = searchParams.get("editorSession")?.trim() ?? "";
   const hcProjectId = searchParams.get("hcProject")?.trim() ?? "";
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
+  const prefillAppliedRef = useRef(false);
   const [step, setStep] = useState<FlowStep>("idea");
   const [idea, setIdea] = useState("");
   const [selections, setSelections] = useState<StudioProductionBriefV4Selections>(DEFAULT_BRIEF_V4_SELECTIONS);
@@ -370,6 +375,17 @@ export function StudioProductionBriefFlow() {
   useEffect(() => {
     saveAssetDecisionRegistry(decisionRegistry);
   }, [decisionRegistry]);
+
+  useEffect(() => {
+    if (!prefill?.studio || prefillAppliedRef.current) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    setSelections((prev) => applyAssistantPrefillToStudioBrief(prev, prefill));
+    if (prefill.studio.goal?.includes("promot")) {
+      setIdea("Promotievideo voor HomeCheff");
+    }
+  }, [prefill]);
 
   useEffect(() => {
     if (!editorSessionId) {
@@ -598,6 +614,11 @@ export function StudioProductionBriefFlow() {
         syncToServer={Boolean(auth.user)}
         closeHref="/studio"
       />
+      {hasPrefill && prefill ? (
+        <div className="mx-auto max-w-2xl px-6 pt-4">
+          <AssistantWizardPrefillBanner prefill={prefill} onClear={clearPrefill} />
+        </div>
+      ) : null}
       <section className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6">
           <Link

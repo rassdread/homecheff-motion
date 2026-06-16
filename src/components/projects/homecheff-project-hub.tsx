@@ -34,6 +34,7 @@ import { queryLibraryConsistency } from "@/lib/library-consistency-client";
 import type { LibraryProjectAssetStats } from "@/lib/library-asset-index";
 import { resolveHcProjectLastService } from "@/lib/homecheff-project-state";
 import { archiveLegacyProject, restoreLegacyProject } from "@/lib/homecheff-project-legacy-registry";
+import { StudioPageIntro } from "@/components/suite/studio-page-intro";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { HomeCheffProjectListFilter, HomeCheffProjectPackage, HomeCheffProjectType } from "@/types/homecheff-project-package";
 
@@ -189,14 +190,13 @@ export function HomeCheffProjectHub() {
 
   return (
     <StudioAuthGate authTitleKey="projects.authTitle" authBodyKey="projects.authBody">
-      <main className={`flex-1 ${studioVisual.pageBg}`}>
+      <main className={`${studioVisual.pageRoot} ${studioVisual.pageBg}`}>
         <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-          <p className={`text-xs font-semibold uppercase tracking-widest ${studioVisual.eyebrowOnDark}`}>
-            {t("platform.hub.projectHub" as never)}
-          </p>
-          <h1 className={`mt-1 text-2xl sm:text-3xl ${studioVisual.headingOnDark}`}>{t("projects.hub.title" as never)}</h1>
-          <p className={`mt-2 max-w-2xl text-sm ${studioVisual.bodyOnDark}`}>{t("projects.hub.lead" as never)}</p>
-          <p className={`mt-1 text-xs ${studioVisual.bodyOnDark}`}>{t("projects.hub.explainer" as never)}</p>
+          <StudioPageIntro
+            eyebrow={t("platform.hub.projectHub" as never)}
+            title={t("projects.hub.title" as never)}
+            description={t("suite.pageIntro.projects.description" as never)}
+          />
 
           {continueItem ?
             <div className={`mt-6 ${studioVisual.cardOnDarkMuted}`}>

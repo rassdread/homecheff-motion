@@ -4,6 +4,10 @@ import { useCallback, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { TranslationKey } from "@/i18n";
+import {
+  formatCreditSourceLabel,
+  formatLedgerActionLabel,
+} from "@/lib/billing-display-labels";
 import type { StudioAccountOverview, StudioBillingStatus } from "@/types/studio-account";
 
 const BILLING_STATUS_KEYS: Record<StudioBillingStatus, TranslationKey> = {
@@ -172,6 +176,7 @@ export function StudioAccountDashboard({
                 <tr className="border-b border-white/10 text-white/50">
                   <th className="px-5 py-2 font-medium">{t("account.ledger.date")}</th>
                   <th className="px-5 py-2 font-medium">{t("account.ledger.action")}</th>
+                  <th className="px-5 py-2 font-medium">{t("account.ledger.source")}</th>
                   <th className="px-5 py-2 font-medium">{t("account.ledger.delta")}</th>
                   <th className="px-5 py-2 font-medium">{t("account.ledger.balance")}</th>
                 </tr>
@@ -182,7 +187,10 @@ export function StudioAccountDashboard({
                     <td className="px-5 py-2 whitespace-nowrap">
                       {new Date(row.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-5 py-2">{row.actionType}</td>
+                    <td className="px-5 py-2">{formatLedgerActionLabel(row.actionType, t)}</td>
+                    <td className="px-5 py-2 text-white/60">
+                      {formatCreditSourceLabel(row.creditOrigin, t) ?? "—"}
+                    </td>
                     <td className="px-5 py-2">
                       {row.creditsDelta > 0 ? "+" : ""}
                       {row.creditsDelta}

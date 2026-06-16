@@ -8,7 +8,11 @@ import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { StudioLibraryCard } from "@/components/studio/studio-library-card";
-import { brand } from "@/lib/brand";
+import {
+  libraryFilterChipClasses,
+  libraryViewToggleClasses,
+  studioLibraryVisual,
+} from "@/lib/studio-library-visual";
 import {
   fetchAssetLibraryPreferences,
   fetchGeneratedReferenceHistory,
@@ -255,19 +259,21 @@ export function StudioAssetLibrary({
   };
 
   const inner = (
-    <div className={layout === "page" ? "" : "rounded-xl border border-slate-200 bg-slate-50/50 p-4"}>
+    <div className={layout === "embedded" ? studioLibraryVisual.embeddedShell : ""}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+          <h2 className={layout === "embedded" ? studioLibraryVisual.embeddedTitle : studioLibraryVisual.sectionTitle}>
             {hubMode ? t("studio.assetsHub.browseSection") : t("studio.mediaAsset.title")}
           </h2>
           {!hubMode ?
-            <p className="mt-1 text-sm text-slate-600">{t("studio.mediaAsset.hintPersonal")}</p>
+            <p className={layout === "embedded" ? studioLibraryVisual.embeddedLead : studioLibraryVisual.sectionLead}>
+              {t("studio.mediaAsset.hintPersonal")}
+            </p>
           : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {isAdmin ?
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+            <label className={studioLibraryVisual.adminCheckboxLabel}>
               <input
                 type="checkbox"
                 checked={showSystemAssets}
@@ -278,27 +284,25 @@ export function StudioAssetLibrary({
             </label>
           : null}
           {layout === "page" && !hubMode ?
-            <Link href="/studio/assets" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+            <Link href="/studio/assets" className={studioLibraryVisual.heroBackLink}>
               ← {t("studio.assetsHub.backToHub")}
             </Link>
           : null}
           {layout === "page" && hubMode ?
-            <Link href="/studio/assets/browse" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
+            <Link href="/studio/assets/browse" className={studioLibraryVisual.heroBackLink}>
               {t("studio.assetsHub.browseAll")}
             </Link>
           : null}
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-1" data-testid="studio-asset-library-tabs">
         {TABS.map((id) => (
           <button
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`shrink-0 rounded-full px-3 py-2 text-xs font-medium min-h-[44px] ${
-              tab === id ? "bg-slate-800 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200"
-            }`}
+            className={libraryFilterChipClasses(tab === id)}
           >
             {t(`studio.mediaAsset.tab.${id}` as never)}
             {tabCounts && tabCounts[id] > 0 ? ` (${tabCounts[id]})` : ""}
@@ -312,12 +316,12 @@ export function StudioAssetLibrary({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("studio.mediaAsset.search")}
-          className="min-h-[44px] min-w-[180px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          className={studioLibraryVisual.formControlWide}
         />
         <button
           type="button"
           onClick={() => setFiltersOpen((v) => !v)}
-          className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 lg:hidden"
+          className={studioLibraryVisual.filterToggle}
         >
           {t("studio.mediaAsset.filters")}
         </button>
@@ -325,7 +329,7 @@ export function StudioAssetLibrary({
           <select
             value={collectionId}
             onChange={(e) => setCollectionId(e.target.value)}
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
           >
             <option value="">{t("studio.mediaAsset.filterCollectionAll")}</option>
             <optgroup label={t("studio.mediaAsset.filterGroup.personal")}>
@@ -344,7 +348,7 @@ export function StudioAssetLibrary({
           <select
             value={originFilter}
             onChange={(e) => setOriginFilter(e.target.value as AssetLibraryOriginFilter)}
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
           >
             <option value="all">{t("studio.mediaAsset.filterOriginAll")}</option>
             <option value="generated">{t("studio.mediaAsset.filterOriginGenerated")}</option>
@@ -355,7 +359,7 @@ export function StudioAssetLibrary({
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as AssetLibrarySort)}
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
           >
             <option value="updated_desc">{t("studio.mediaAsset.sort.updatedDesc")}</option>
             <option value="updated_asc">{t("studio.mediaAsset.sort.updatedAsc")}</option>
@@ -363,18 +367,18 @@ export function StudioAssetLibrary({
             <option value="name_desc">{t("studio.mediaAsset.sort.nameDesc")}</option>
             <option value="recent">{t("studio.mediaAsset.sort.recent")}</option>
           </select>
-          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+          <div className={studioLibraryVisual.viewToggleWrap}>
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`min-h-[40px] rounded-lg px-3 text-xs font-medium ${viewMode === "grid" ? "bg-slate-100" : ""}`}
+              className={libraryViewToggleClasses(viewMode === "grid")}
             >
               {t("studio.mediaAsset.viewGrid")}
             </button>
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`min-h-[40px] rounded-lg px-3 text-xs font-medium ${viewMode === "list" ? "bg-slate-100" : ""}`}
+              className={libraryViewToggleClasses(viewMode === "list")}
             >
               {t("studio.mediaAsset.viewList")}
             </button>
@@ -382,20 +386,20 @@ export function StudioAssetLibrary({
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className={`mt-2 ${studioLibraryVisual.metaMuted}`}>
         {t("studio.mediaAsset.resultCount", { count: String(filtered.length) })}
       </p>
 
       {loading ?
-        <p className="mt-4 text-sm text-slate-600">{t("button.loading")}</p>
+        <p className={`mt-4 ${studioLibraryVisual.loadingText}`}>{t("button.loading")}</p>
       : error ?
-        <p className="mt-4 text-sm text-red-700">{error}</p>
+        <p className={`mt-4 ${studioLibraryVisual.errorText}`}>{error}</p>
       : (
         <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_320px]">
           {viewMode === "grid" ?
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 max-h-[520px] overflow-y-auto">
               {filtered.length === 0 ?
-                <p className="col-span-full px-2 py-8 text-sm text-slate-500">{t("studio.mediaAsset.empty")}</p>
+                <p className={`col-span-full px-2 py-8 ${studioLibraryVisual.emptyText}`}>{t("studio.mediaAsset.empty")}</p>
               : filtered.map((asset) => (
                   <StudioLibraryCard
                     key={asset.id}
@@ -465,7 +469,7 @@ export function StudioAssetLibrary({
               }}
             />
           : (
-            <p className="hidden text-sm text-slate-500 lg:block">{t("studio.mediaAsset.selectHint")}</p>
+            <p className={`hidden text-sm lg:block ${studioLibraryVisual.helperText}`}>{t("studio.mediaAsset.selectHint")}</p>
           )}
         </div>
       )}
@@ -478,7 +482,7 @@ export function StudioAssetLibrary({
 
   return (
     <StudioAuthGate>
-      <main className={`flex-1 ${brand.softGradientBg}`}>
+      <main className={studioLibraryVisual.pageMain}>
         <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">{inner}</section>
       </main>
     </StudioAuthGate>

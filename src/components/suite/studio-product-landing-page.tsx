@@ -9,6 +9,7 @@ import { SpaceGallery } from "@/components/examples/space-gallery";
 import { listExamplesForService } from "@/lib/homecheff-examples";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioProductLandingConfig } from "@/lib/studio-product-landing-config";
+import { StudioPageIntro } from "@/components/suite/studio-page-intro";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 export type StudioProductLandingContinue = {
@@ -35,31 +36,33 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
   );
 
   return (
-    <main className={`relative flex-1 overflow-hidden ${studioVisual.pageBg}`} data-testid={`landing-${config.moduleKey}`}>
+    <div className={`${studioVisual.pageRoot} overflow-x-hidden ${studioVisual.pageBg}`} data-testid={`landing-${config.moduleKey}`}>
       <UniverseBackground />
       <div className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-12 sm:px-8 lg:pt-16">
         <ServiceLandingNav current={config.moduleKey} />
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,500px)] lg:gap-10">
           <div className="min-w-0 max-w-3xl">
-          {config.positioningKey ?
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#5eb8e8]">
-              {t(config.positioningKey)}
-            </p>
-          : null}
-          <p
-            className={`text-xs font-semibold uppercase tracking-[0.2em] ${config.positioningKey ? "mt-2" : ""}`}
-            style={{ color: config.accentColor }}
-          >
-            {t(config.eyebrowKey)}
-          </p>
-          <h1 className="mt-3 text-4xl font-bold tracking-tight text-white sm:text-5xl">
-            {t(config.titleKey)}
-          </h1>
-          <p className="mt-3 text-lg font-medium text-white/90">{t(config.subtitleKey)}</p>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/75">
-            {t(config.descriptionKey)}
-          </p>
+          <StudioPageIntro
+            eyebrow={config.positioningKey ? t(config.positioningKey) : t(config.eyebrowKey)}
+            title={t(config.titleKey)}
+            description={t(`suite.pageIntro.${config.moduleKey}.description` as never)}
+            actions={
+              <>
+                <Link href={config.primaryCtaHref} className={studioVisual.btnGradientPrimary}>
+                  {t(config.primaryCtaKey)}
+                </Link>
+                <Link href={config.secondaryCtaHref} className={studioVisual.btnOutline}>
+                  {t(config.secondaryCtaKey)}
+                </Link>
+                {config.tertiaryCtaKey && config.tertiaryCtaHref ?
+                  <Link href={config.tertiaryCtaHref} className={studioVisual.btnOutline}>
+                    {t(config.tertiaryCtaKey)}
+                  </Link>
+                : null}
+              </>
+            }
+          />
 
           {continueSlot ?? (continueCard ?
             <div className={`mt-8 ${studioVisual.cardGlass} max-w-xl`}>
@@ -74,20 +77,6 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
               </Link>
             </div>
           : null)}
-
-          <div className="mt-8 flex flex-wrap gap-3" data-testid="landing-primary-cta">
-            <Link href={config.primaryCtaHref} className={studioVisual.btnGradientPrimary}>
-              {t(config.primaryCtaKey)}
-            </Link>
-            <Link href={config.secondaryCtaHref} className={studioVisual.btnOutline}>
-              {t(config.secondaryCtaKey)}
-            </Link>
-            {config.tertiaryCtaKey && config.tertiaryCtaHref ?
-              <Link href={config.tertiaryCtaHref} className={studioVisual.btnOutline}>
-                {t(config.tertiaryCtaKey)}
-              </Link>
-            : null}
-          </div>
           </div>
 
           <div className="flex items-center justify-center pt-6 lg:justify-end lg:pt-4">
@@ -236,6 +225,6 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
           : null}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

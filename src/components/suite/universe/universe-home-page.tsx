@@ -3,12 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
-import { UniverseDifferentiation } from "@/components/suite/universe/universe-differentiation";
-import { UniverseProductionLine } from "@/components/suite/universe/universe-production-line";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
 import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
 import { UniverseOrbitSystem } from "@/components/suite/universe/universe-orbit-system";
-import { UniverseQuickActions } from "@/components/suite/universe/universe-quick-actions";
 import { UniverseTunnelOverlay } from "@/components/suite/universe/universe-tunnel-overlay";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -16,10 +13,9 @@ import { useUniverseParallax } from "@/hooks/use-universe-parallax";
 import type { UniversePlanetConfig, UniversePlanetId } from "@/lib/universe-home-config";
 import {
   resolveUniversePlanetHrefs,
-  resolveUniverseQuickActionHref,
-  resolveUniverseStartProjectHref,
 } from "@/lib/universe-public-landing";
-import { UniverseMarketingSections } from "@/components/suite/universe/universe-marketing-sections";
+import { UniverseHomeSections } from "@/components/suite/universe/universe-home-sections";
+import { UniverseHomeSpaceShowcase } from "@/components/suite/universe/universe-home-space-showcase";
 import {
   UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS,
   UNIVERSE_PLANET_HOVER_LOCK_MS,
@@ -28,8 +24,9 @@ import {
 } from "@/lib/universe-planet-ux";
 import { resolveUniverseGlobeDebugLayer, type UniverseGlobeDebugLayer } from "@/lib/universe-globe-render";
 import { resolveUniverseGlobeProjectionDebug } from "@/lib/universe-globe-projection";
-import { UNIVERSE_QUICK_ACTIONS } from "@/lib/universe-home-config";
 import "./universe-home.css";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
+import { CANONICAL_HOMEPAGE_COMPONENT, resolveHomepageAuthMode } from "@/lib/homepage-render-trace";
 
 const TUNNEL_DURATION_MS = 820;
 
@@ -74,31 +71,10 @@ export function UniverseHomePage() {
   const hoverCloseTimer = useRef<number | undefined>(undefined);
   const hoverOpenedAt = useRef<number>(0);
 
-  const startCreatingHref = useMemo(
-    () => resolveUniverseStartProjectHref(isAuthenticated),
-    [isAuthenticated]
-  );
-
   const planetHrefs = useMemo(
     () => resolveUniversePlanetHrefs(isAuthenticated),
     [isAuthenticated]
   );
-
-  const quickHrefs = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const action of UNIVERSE_QUICK_ACTIONS) {
-      if (action.id === "createCharacter") map[action.id] = resolveUniverseQuickActionHref("/editor", isAuthenticated);
-      else if (action.id === "createStory")
-        map[action.id] = resolveUniverseQuickActionHref("/studio/storyboards/new", isAuthenticated);
-      else if (action.id === "animateImages")
-        map[action.id] = resolveUniverseQuickActionHref("/animate/instant", isAuthenticated);
-      else if (action.id === "publishVideo")
-        map[action.id] = resolveUniverseQuickActionHref("/publish", isAuthenticated);
-      else if (action.id === "openLibrary")
-        map[action.id] = resolveUniverseQuickActionHref("/library", isAuthenticated);
-    }
-    return map;
-  }, [isAuthenticated]);
 
   const [hoveredPlanet, setHoveredPlanet] = useState<UniversePlanetId | null>(null);
   const [focusedPlanet, setFocusedPlanet] = useState<UniversePlanetId | null>(null);
@@ -155,13 +131,6 @@ export function UniverseHomePage() {
     [clearHoverCloseTimer, navigateWithTunnel, planetHrefs]
   );
 
-  const handleQuickNavigate = useCallback(
-    (href: string) => {
-      router.push(href);
-    },
-    [router]
-  );
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -178,13 +147,25 @@ export function UniverseHomePage() {
     };
   }, [clearHoverCloseTimer]);
 
+  const authMode = resolveHomepageAuthMode({
+    resolved: session.resolved,
+    hasUser: Boolean(session.user),
+  });
+  const pageMarker = authMode === "logged-in" ? "studio-homepage" : "public-homepage";
+
   return (
-    <main className="universe-animate relative flex min-h-[calc(100dvh-4rem)] flex-1 flex-col overflow-x-hidden overflow-y-auto text-white">
+    <div
+      className={`universe-animate ${growthSidebarLayoutClasses.pageRoot} flex flex-col overflow-x-hidden text-white`}
+      data-testid="universe-home-page"
+      data-page={pageMarker}
+      data-homepage-component={CANONICAL_HOMEPAGE_COMPONENT}
+      data-auth-mode={authMode}
+    >
       <UniverseBackground reducedMotion={reducedMotion} parallax={parallax} />
 
-      <div className="relative z-10 mx-auto w-full max-w-[min(100%,1440px)] px-3 pb-4 pt-3 sm:px-5 sm:pt-4">
-        <div className="universe-home-hero-orbit flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-          <div className="universe-hero-column w-full shrink-0 lg:max-w-md xl:max-w-lg">
+      <div className="relative z-10 w-full">
+        <section className="home-hero-grid" data-testid="home-hero-grid">
+          <div className="home-hero-copy min-w-0">
             <UniverseHeroCopy
               isAuthenticated={isAuthenticated}
               email={session.user?.email}
@@ -192,48 +173,48 @@ export function UniverseHomePage() {
             />
           </div>
 
-          <div className="universe-orbit-column hidden min-w-0 flex-1 md:block">
-            <UniverseOrbitSystem
-              hrefs={planetHrefs}
-              hoveredPlanet={effectiveHoveredPlanet}
-              focusedPlanet={effectiveFocusedPlanet}
-              reducedMotion={reducedMotion}
-              parallax={parallax}
-              globeDebugLayer={globeDebugLayer}
-              globeProjectionDebug={globeProjectionDebug}
-              orbitDebug={orbitDebug}
-              onHoverStart={handlePlanetHoverStart}
-              onHoverEnd={handlePlanetHoverEnd}
-              onFocus={setFocusedPlanet}
-              onSelect={handlePlanetSelect}
-            />
+          <div className="home-universe-zone" data-testid="home-universe-zone">
+            <div className="home-universe-canvas hidden w-full md:block">
+              <UniverseOrbitSystem
+                hrefs={planetHrefs}
+                hoveredPlanet={effectiveHoveredPlanet}
+                focusedPlanet={effectiveFocusedPlanet}
+                reducedMotion={reducedMotion}
+                parallax={parallax}
+                globeDebugLayer={globeDebugLayer}
+                globeProjectionDebug={globeProjectionDebug}
+                orbitDebug={orbitDebug}
+                onHoverStart={handlePlanetHoverStart}
+                onHoverEnd={handlePlanetHoverEnd}
+                onFocus={setFocusedPlanet}
+                onSelect={handlePlanetSelect}
+              />
+            </div>
+            <div className="w-full md:hidden">
+              <UniverseMobileStack
+                hrefs={planetHrefs}
+                expandedPlanet={effectiveHoveredPlanet}
+                focusedPlanet={effectiveFocusedPlanet}
+                reducedMotion={reducedMotion}
+                onExpand={handlePlanetHoverStart}
+                onCollapse={handlePlanetHoverEnd}
+                onFocus={setFocusedPlanet}
+                onSelect={handlePlanetSelect}
+              />
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="w-full md:hidden">
-          <UniverseMobileStack
-            hrefs={planetHrefs}
-            expandedPlanet={effectiveHoveredPlanet}
-            focusedPlanet={effectiveFocusedPlanet}
-            reducedMotion={reducedMotion}
-            onExpand={handlePlanetHoverStart}
-            onCollapse={handlePlanetHoverEnd}
-            onFocus={setFocusedPlanet}
-            onSelect={handlePlanetSelect}
-          />
-        </div>
+        <UniverseHomeSpaceShowcase />
 
-        <div className="universe-dashboard-section">
-          <UniverseProductionLine />
-          <UniverseMarketingSections startCreatingHref={startCreatingHref} />
-          <UniverseDifferentiation />
-          <UniverseQuickActions hrefs={quickHrefs} onNavigate={handleQuickNavigate} />
-        </div>
+        <section className="home-after-hero" data-testid="home-after-hero">
+          <UniverseHomeSections />
+        </section>
       </div>
 
       {tunnelPlanet && (
         <UniverseTunnelOverlay planet={tunnelPlanet} reducedMotion={reducedMotion} />
       )}
-    </main>
+    </div>
   );
 }

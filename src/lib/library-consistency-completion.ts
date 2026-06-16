@@ -5,6 +5,8 @@ import type {
   LibraryMotionMetadata,
   LibraryPublishMetadata,
 } from "@/types/library-consistency";
+import type { MotionActionPresetMetadata } from "@/types/motion-action-presets";
+import { parsePosterMotionSettings } from "@/lib/poster-motion-preserve";
 
 export type RegisterMotionOutputInput = {
   ownerId: string;
@@ -19,7 +21,15 @@ export type RegisterMotionOutputInput = {
   durationSec?: number | null;
   renderVersion?: string | null;
   hcProjectId?: string | null;
+  actionPreset?: MotionActionPresetMetadata | null;
 };
+
+export function extractActionPresetFromPosterSettings(
+  raw: unknown
+): MotionActionPresetMetadata | null {
+  const settings = parsePosterMotionSettings(raw);
+  return settings.hcActionPreset ?? null;
+}
 
 export async function registerMotionOutputInLibrary(
   input: RegisterMotionOutputInput
@@ -31,6 +41,15 @@ export async function registerMotionOutputInLibrary(
     finalVideoUrl: input.finalVideoUrl,
     renderVersion: input.renderVersion ?? "1",
     exportId: input.exportId,
+    actionPresetId: input.actionPreset?.actionPresetId ?? null,
+    actionPresetCategory: input.actionPreset?.actionPresetCategory ?? null,
+    actionPresetTitle: input.actionPreset?.actionPresetTitle ?? null,
+    promptTemplate: input.actionPreset?.promptTemplate ?? null,
+    feasibilityNote: input.actionPreset?.feasibilityNote ?? null,
+    requirementAnalyzedAt: input.actionPreset?.requirementMetadata?.analyzedAt ?? null,
+    requirementAvailableCount: input.actionPreset?.requirementMetadata?.availableCount ?? null,
+    requirementMissingCount: input.actionPreset?.requirementMetadata?.missingCount ?? null,
+    requirementPlanStepIds: input.actionPreset?.requirementMetadata?.planStepIds ?? null,
   };
 
   return ensureCompletedGenerationInLibrary({
@@ -176,6 +195,7 @@ export type MotionExportProjectSnapshot = {
   studioSourceStoryboardId?: string | null;
   instantOutputDurationSeconds?: number | null;
   viduDurationSeconds?: number | null;
+  instantPosterMotionSettings?: unknown;
 };
 
 export async function syncCompletedMotionExportToLibrary(input: {
@@ -192,6 +212,9 @@ export async function syncCompletedMotionExportToLibrary(input: {
   const storageKey = resolveMotionExportStorageKey(input.project.id, finalVideoUrl);
   const durationSec =
     input.project.instantOutputDurationSeconds ?? input.project.viduDurationSeconds ?? null;
+  const actionPreset = extractActionPresetFromPosterSettings(
+    input.project.instantPosterMotionSettings
+  );
 
   return registerMotionOutputInLibrary({
     ownerId: input.project.ownerId,
@@ -206,5 +229,6 @@ export async function syncCompletedMotionExportToLibrary(input: {
     durationSec,
     renderVersion: input.renderVersion ?? "1",
     hcProjectId: input.hcProjectId ?? input.project.id,
+    actionPreset,
   });
 }

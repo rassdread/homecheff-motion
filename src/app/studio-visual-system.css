@@ -6,6 +6,7 @@
   --studio-deep-navy: #041428;
   --studio-mid-navy: #062a4a;
   --studio-header-height: 4rem;
+  --header-height: var(--studio-header-height);
   --background: #041428;
   --foreground: #f4f8fb;
 }

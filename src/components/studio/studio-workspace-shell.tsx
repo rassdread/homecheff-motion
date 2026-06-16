@@ -24,6 +24,7 @@ import { fetchAuthSessionJson } from "@/lib/auth-session-client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import { useStudioAdvancedFeatures } from "@/lib/studio-advanced-features";
 import { rememberRecentStoryboardId } from "@/lib/studio-recent-storyboard";
 import { studioClassicEditorHref } from "@/lib/studio-workspace-href";
@@ -359,7 +360,7 @@ export function StudioWorkspaceShell({ storyboardId }: Props) {
 
   return (
     <StudioAuthGate>
-      <main className={`flex min-h-screen flex-1 flex-col ${brand.softGradientBg}`}>
+      <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
         <StudioShellHeader
           projectTitle={storyboard?.title}
           storyboardId={storyboardId}

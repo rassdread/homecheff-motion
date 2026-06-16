@@ -7,12 +7,13 @@ type InstantWizardShellProps = {
   children: ReactNode;
   shellRef?: RefObject<HTMLDivElement | null>;
   className?: string;
+  id?: string;
 };
 
-export function InstantWizardShell({ children, shellRef, className = "" }: InstantWizardShellProps) {
+export function InstantWizardShell({ children, shellRef, className = "", id }: InstantWizardShellProps) {
   return (
-    <div ref={shellRef} className={`scroll-mt-6 ${className}`}>
-      <AppCard className="flex min-h-0 flex-col overflow-hidden !p-0">
+    <div id={id} ref={shellRef} className={`scroll-mt-6 ${className}`}>
+      <AppCard className="flex flex-col overflow-visible !p-0">
         {children}
       </AppCard>
     </div>

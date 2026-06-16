@@ -6,6 +6,6 @@ export function loginHref(next?: string | null): string {
   if (!trimmed) {
     return "/login";
   }
-  const safe = isAllowedPostAuthPath(trimmed) ? trimmed : "/maak";
+  const safe = isAllowedPostAuthPath(trimmed) ? (trimmed === "/maak" ? "/" : trimmed) : "/";
   return `/login?next=${encodeURIComponent(safe)}`;
 }

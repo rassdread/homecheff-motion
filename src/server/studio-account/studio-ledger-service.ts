@@ -9,6 +9,7 @@ export type AppendLedgerInput = {
   actionType: StudioLedgerActionType;
   creditsDelta: number;
   balanceAfter: number;
+  creditOrigin?: string | null;
   provider?: string | null;
   providerCostUsd?: number | null;
   reservedCostUsd?: number | null;
@@ -29,6 +30,7 @@ export async function appendStudioLedgerEntry(
       actionType: input.actionType,
       creditsDelta: input.creditsDelta,
       balanceAfter: input.balanceAfter,
+      creditOrigin: input.creditOrigin ?? null,
       provider: input.provider ?? null,
       providerCostUsd: input.providerCostUsd ?? null,
       reservedCostUsd: input.reservedCostUsd ?? null,
@@ -52,6 +54,7 @@ export function mapLedgerRow(row: {
   marginEstimate: number | null;
   metadataJson: unknown;
   createdAt: Date;
+  creditOrigin?: string | null;
 }): StudioLedgerRow {
   return {
     id: row.id,
@@ -60,6 +63,7 @@ export function mapLedgerRow(row: {
     actionType: row.actionType as StudioLedgerActionType,
     creditsDelta: row.creditsDelta,
     balanceAfter: row.balanceAfter,
+    creditOrigin: row.creditOrigin ?? null,
     provider: row.provider,
     providerCostUsd: row.providerCostUsd,
     reservedCostUsd: row.reservedCostUsd,

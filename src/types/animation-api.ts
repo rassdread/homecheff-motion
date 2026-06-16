@@ -70,6 +70,8 @@ export type CreateAnimationProjectErrorBody = {
   maxTransitions?: number;
   maxLength?: number;
   usage?: AnimationUsageResponse;
+  creditGate?: boolean;
+  requiredCredits?: number;
 };
 
 export type AnimationUsageResponse = {

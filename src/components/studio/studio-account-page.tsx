@@ -6,6 +6,7 @@ import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import type { UserAccountProfile, UserAccountResponse } from "@/types/user-account-profile";
 
 export function StudioAccountPage() {
@@ -86,7 +87,7 @@ export function StudioAccountPage() {
 
   return (
     <StudioAuthGate>
-      <main className={`flex min-h-screen flex-col ${brand.softGradientBg}`}>
+      <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
         <StudioShellHeader projectTitle={t("studio.account.title")} />
 
         <section className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6">

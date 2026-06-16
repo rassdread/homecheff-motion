@@ -8,6 +8,7 @@ import { StudioToolStrip } from "@/components/studio/studio-tool-strip";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthActionHref } from "@/hooks/use-auth-action-href";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import type { StudioToolId } from "@/lib/studio-tool-id";
 import { useState } from "react";
 
@@ -18,7 +19,7 @@ export function StudioShellEmptyView() {
   const storiesHref = useAuthActionHref("/studio/storyboards");
 
   return (
-    <main className={`flex min-h-screen flex-1 flex-col ${brand.softGradientBg}`}>
+    <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
       <StudioShellHeader />
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-4 lg:px-4 lg:pb-0">

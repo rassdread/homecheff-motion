@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { STUDIO_PLANS } from "@/server/studio-account/studio-plan-config";
-import { ensureStudioWallet } from "@/server/studio-account/studio-wallet-service";
+import { loadStudioBillingPolicy, claimNewUserCampaignSlot } from "@/server/studio-account/studio-billing-policy-service";
+import {
+  ensureStudioWallet,
+  grantStudioCreditsWithOrigin,
+} from "@/server/studio-account/studio-wallet-service";
 import type {
   StudioAccountSnapshot,
   StudioAccountType,
@@ -12,6 +16,7 @@ export async function ensureStudioAccount(
   email: string
 ): Promise<StudioAccountSnapshot> {
   let account = await prisma.studioAccount.findUnique({ where: { userId } });
+  const isNew = !account;
   if (!account) {
     account = await prisma.studioAccount.create({
       data: {
@@ -21,6 +26,39 @@ export async function ensureStudioAccount(
         activatedAt: new Date(),
       },
     });
+    const policy = await loadStudioBillingPolicy();
+    await prisma.studioWallet.create({
+      data: { userId, purchasedBalance: 0, promotionalBalance: 0 },
+    });
+    const campaignOk = await claimNewUserCampaignSlot();
+    if (campaignOk) {
+      const grants: Array<{
+        credits: number;
+        creditOrigin: import("@/types/studio-billing").CreditOriginType;
+        reason: string;
+      }> = [
+        { credits: policy.newUserGrantCredits, creditOrigin: "PROMOTIONAL", reason: "new_user_grant" },
+        {
+          credits: policy.newUserPromotionCredits,
+          creditOrigin: "PROMOTIONAL",
+          reason: "new_user_promotion",
+        },
+        { credits: policy.betaLaunchCredits, creditOrigin: "BETA", reason: "beta_launch" },
+      ];
+      for (const grant of grants) {
+        if (grant.credits > 0) {
+          await grantStudioCreditsWithOrigin({
+            userId,
+            credits: grant.credits,
+            creditOrigin: grant.creditOrigin,
+            actionType: "promotional_grant",
+            service: "billing",
+            metadataJson: { reason: grant.reason },
+          });
+        }
+      }
+    }
+  } else {
     await ensureStudioWallet(userId);
   }
 

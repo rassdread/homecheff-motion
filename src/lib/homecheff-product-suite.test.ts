@@ -172,8 +172,8 @@ describe("homecheff-suite-i18n-labels", () => {
     assert.equal(en["studio.assetsHub.title"], "Library");
   });
 
-  it("NL labels show Publiceren and Bibliotheek", () => {
-    assert.equal(nl["suite.nav.publish"], "Publiceren");
+  it("NL labels show Publish and Bibliotheek", () => {
+    assert.equal(nl["suite.nav.publish"], "Publish");
     assert.equal(nl["suite.nav.library"], "Bibliotheek");
     assert.equal(nl["studio.assetsHub.title"], "Bibliotheek");
   });

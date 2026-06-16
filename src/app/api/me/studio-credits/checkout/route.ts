@@ -5,8 +5,9 @@ import {
   createSubscriptionCheckout,
   isStripeCheckoutAvailable,
 } from "@/server/studio-account/stripe-billing";
-import { STUDIO_PLANS, type StudioPlanId } from "@/server/studio-account/studio-plan-config";
-import { getCreditPack } from "@/server/studio-account/studio-credit-packs";
+import { getStudioSubscriptionPlanBySlug } from "@/server/studio-account/studio-subscription-plan-service";
+import { getStudioCreditPackBySlug } from "@/server/studio-account/studio-credit-pack-service";
+import type { StudioPlanId } from "@/server/studio-account/studio-plan-config";
 
 export async function POST(request: Request) {
   const user = await requireActiveUser();
@@ -14,21 +15,23 @@ export async function POST(request: Request) {
     return user;
   }
 
-  if (!isStripeCheckoutAvailable()) {
+  if (!(await isStripeCheckoutAvailable())) {
     return NextResponse.json(
       { error: "Stripe checkout is not configured.", code: "STRIPE_NOT_CONFIGURED" },
       { status: 503 }
     );
   }
 
-  let body: { type?: string; planId?: string; packId?: string; returnPath?: string };
+  let body: {
+    type?: string;
+    planId?: string;
+    packId?: string;
+    returnPath?: string;
+    promoCode?: string;
+    locale?: "nl" | "en";
+  };
   try {
-    body = (await request.json()) as {
-      type?: string;
-      planId?: string;
-      packId?: string;
-      returnPath?: string;
-    };
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body.", code: "INVALID_BODY" }, { status: 400 });
   }
@@ -37,10 +40,12 @@ export async function POST(request: Request) {
   const returnPath = body.returnPath?.trim() || "/account/billing";
   const successUrl = `${baseUrl}${returnPath}?checkout=success`;
   const cancelUrl = `${baseUrl}${returnPath}?checkout=cancel`;
+  const locale = body.locale === "en" ? "en" : "nl";
 
   if (body.type === "subscription") {
     const planId = body.planId as StudioPlanId;
-    if (!planId || !(planId in STUDIO_PLANS) || planId === "free" || planId === "enterprise") {
+    const plan = planId ? await getStudioSubscriptionPlanBySlug(planId) : null;
+    if (!plan || !plan.isActive || planId === "free") {
       return NextResponse.json({ error: "Invalid plan.", code: "INVALID_PLAN" }, { status: 400 });
     }
     const result = await createSubscriptionCheckout({
@@ -49,6 +54,8 @@ export async function POST(request: Request) {
       planId,
       successUrl,
       cancelUrl,
+      promoCode: body.promoCode,
+      locale,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error, code: "CHECKOUT_FAILED" }, { status: 503 });
@@ -57,16 +64,18 @@ export async function POST(request: Request) {
   }
 
   if (body.type === "credit_pack") {
-    const pack = getCreditPack(body.packId ?? "");
-    if (!pack) {
+    const pack = await getStudioCreditPackBySlug(body.packId ?? "");
+    if (!pack || !pack.active) {
       return NextResponse.json({ error: "Invalid pack.", code: "INVALID_PACK" }, { status: 400 });
     }
     const result = await createCreditPackCheckout({
       userId: user.id,
       email: user.email,
-      packId: pack.id,
+      packId: pack.slug,
       successUrl,
       cancelUrl,
+      promoCode: body.promoCode,
+      locale,
     });
     if ("error" in result) {
       return NextResponse.json({ error: result.error, code: "CHECKOUT_FAILED" }, { status: 503 });

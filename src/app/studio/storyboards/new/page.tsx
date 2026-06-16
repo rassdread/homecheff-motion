@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioProductionBriefFlow } from "@/components/studio/studio-production-brief-flow";
 
@@ -9,7 +10,9 @@ export default function StudioStoryboardNewPage() {
       authTitleKey="studio.storyboards.authRequiredTitle"
       authBodyKey="studio.storyboards.authRequiredBody"
     >
-      <StudioProductionBriefFlow />
+      <Suspense fallback={null}>
+        <StudioProductionBriefFlow />
+      </Suspense>
     </StudioAuthGate>
   );
 }

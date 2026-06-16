@@ -1,5 +1,6 @@
-import { MaakOrSuiteStartPage } from "@/components/maak/maak-or-suite-start-page";
+import { redirect } from "next/navigation";
 
+/** Legacy alias — canonical homepage is `/`. */
 export default function MaakPage() {
-  return <MaakOrSuiteStartPage />;
+  redirect("/");
 }

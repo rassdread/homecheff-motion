@@ -163,8 +163,9 @@ describe("studio plan and credit packs config", () => {
     assert.equal(pack500!.priceEur, 4.99);
   });
 
-  it("creator plan grants 3000 monthly credits", () => {
-    assert.equal(STUDIO_PLANS.creator.monthlyCredits, 3000);
+  it("creator plan provides benefits not monthly credit grants", () => {
+    assert.equal(STUDIO_PLANS.creator.monthlyCredits, 0);
+    assert.equal(STUDIO_PLANS.creator.creditDiscountPercent, 10);
     assert.equal(STUDIO_PLANS.creator.monthlyPriceEur, 19);
   });
 });

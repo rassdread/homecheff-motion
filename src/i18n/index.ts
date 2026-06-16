@@ -7,6 +7,10 @@ export const SUPPORTED_LOCALES = ["nl", "en"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export type TranslationKey = keyof typeof nl;
 
+export type TranslationParams = Record<string, string | number> & {
+  defaultValue?: string;
+};
+
 const dictionaries: Record<Locale, Record<TranslationKey, string>> = {
   nl,
   en,
@@ -17,6 +21,10 @@ const localeListeners = new Set<() => void>();
 let activeLocale: Locale = DEFAULT_LOCALE;
 let localeInitialized = false;
 let i18nHydrated = false;
+
+function isDevEnvironment(): boolean {
+  return process.env.NODE_ENV === "development";
+}
 
 /** Call once after client mount so SSR and first paint both use DEFAULT_LOCALE. */
 export function markI18nHydrated(): void {
@@ -35,10 +43,13 @@ export function markI18nHydrated(): void {
   localeListeners.forEach((listener) => listener());
 }
 
-function interpolate(
-  template: string,
+export function interpolate(
+  template: unknown,
   params?: Record<string, string | number>
 ): string {
+  if (typeof template !== "string") {
+    return "";
+  }
   if (!params) {
     return template;
   }
@@ -49,12 +60,31 @@ function interpolate(
   });
 }
 
+function resolveTranslationTemplate(locale: Locale, key: string): string | undefined {
+  const value = (dictionaries[locale] as Record<string, string | undefined>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export function getTranslator(locale: Locale = DEFAULT_LOCALE) {
-  return function t(
-    key: TranslationKey,
-    params?: Record<string, string | number>
-  ): string {
-    return interpolate(dictionaries[locale][key], params);
+  return function t(key: TranslationKey, params?: TranslationParams): string {
+    const defaultValue = params?.defaultValue;
+    const interpolationParams = params
+      ? Object.fromEntries(
+          Object.entries(params).filter(([paramKey]) => paramKey !== "defaultValue")
+        )
+      : undefined;
+
+    const template = resolveTranslationTemplate(locale, key);
+    if (template === undefined) {
+      if (isDevEnvironment()) {
+        console.warn("[i18n] Missing key", key);
+      }
+      const fallback =
+        typeof defaultValue === "string" && defaultValue.length > 0 ? defaultValue : key;
+      return interpolate(fallback, interpolationParams);
+    }
+
+    return interpolate(template, interpolationParams);
   };
 }
 

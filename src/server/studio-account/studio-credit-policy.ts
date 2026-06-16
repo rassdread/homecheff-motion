@@ -13,11 +13,17 @@ export type CreditPolicyInput = {
   userId: string;
   role?: string;
   accountType: StudioAccountType;
+  planId?: string;
   planVersion: string;
   creditPolicyVersion: string;
   billingStatus: string;
   actionType: StudioActionType | string;
   estimatedProviderCostUsd?: number;
+  overrideCredits?: number;
+  resolvedCreditCost?: number;
+  resolvedReservedCostUsd?: number;
+  resolvedService?: string;
+  resolvedProvider?: string;
   requestedOptions?: Record<string, unknown>;
   balance: number;
   reservedBalance: number;
@@ -41,18 +47,39 @@ export type CreditPolicyResult = {
 
 export function evaluateCreditPolicy(input: CreditPolicyInput): CreditPolicyResult {
   const action = getActionCost(input.actionType);
-  if (!action) {
+  if (!action && input.resolvedCreditCost == null) {
     return denied(input, 0, "unknown_action", null, "Unknown action type.");
   }
 
   if (input.role === "admin") {
-    return allowed(input, 0, action, "admin_bypass");
+    return allowed(
+      input,
+      0,
+      {
+        actionType: input.actionType,
+        reservedCostUsd: input.resolvedReservedCostUsd ?? action?.reservedCostUsd ?? 0,
+        service: input.resolvedService ?? action?.service ?? "studio",
+        provider: input.resolvedProvider ?? action?.provider ?? "internal",
+      },
+      "admin_bypass"
+    );
   }
 
   const available = Math.max(0, input.balance - input.reservedBalance);
-  const requiredCredits = action.defaultCreditCost;
+  const requiredCredits =
+    input.resolvedCreditCost ??
+    input.overrideCredits ??
+    action?.defaultCreditCost ??
+    0;
+  const reservedCostUsd = input.resolvedReservedCostUsd ?? action?.reservedCostUsd ?? 0;
+  const service = input.resolvedService ?? action?.service ?? "studio";
+  const provider = input.resolvedProvider ?? action?.provider ?? "internal";
 
-  if (input.accountType === "free" && action.requiresProviderCost && available < requiredCredits) {
+  if (
+    input.accountType === "free" &&
+    (action?.requiresProviderCost ?? true) &&
+    available < requiredCredits
+  ) {
     return {
       allowed: false,
       requiredCredits,
@@ -60,11 +87,11 @@ export function evaluateCreditPolicy(input: CreditPolicyInput): CreditPolicyResu
       reason: "free_account_provider_action",
       balanceAfter: available,
       upgradeSuggestion: "creator",
-      reservedCostUsd: action.reservedCostUsd,
-      marginEstimateUsd: estimateMarginUsd(action.reservedCostUsd, requiredCredits),
-      actionType: action.actionType,
-      service: action.service,
-      provider: action.provider,
+      reservedCostUsd,
+      marginEstimateUsd: estimateMarginUsd(reservedCostUsd, requiredCredits),
+      actionType: input.actionType,
+      service,
+      provider,
     };
   }
 
@@ -76,11 +103,11 @@ export function evaluateCreditPolicy(input: CreditPolicyInput): CreditPolicyResu
       reason: "insufficient_credits",
       balanceAfter: available,
       upgradeSuggestion: suggestUpgrade(input.accountType),
-      reservedCostUsd: action.reservedCostUsd,
-      marginEstimateUsd: estimateMarginUsd(action.reservedCostUsd, requiredCredits),
-      actionType: action.actionType,
-      service: action.service,
-      provider: action.provider,
+      reservedCostUsd,
+      marginEstimateUsd: estimateMarginUsd(reservedCostUsd, requiredCredits),
+      actionType: input.actionType,
+      service,
+      provider,
     };
   }
 
@@ -95,11 +122,11 @@ export function evaluateCreditPolicy(input: CreditPolicyInput): CreditPolicyResu
     reason: null,
     balanceAfter: available - requiredCredits,
     upgradeSuggestion: null,
-    reservedCostUsd: action.reservedCostUsd,
-    marginEstimateUsd: estimateMarginUsd(action.reservedCostUsd, requiredCredits),
-    actionType: action.actionType,
-    service: action.service,
-    provider: action.provider,
+    reservedCostUsd,
+    marginEstimateUsd: estimateMarginUsd(reservedCostUsd, requiredCredits),
+    actionType: input.actionType,
+    service,
+    provider,
   };
 }
 
@@ -113,7 +140,12 @@ function suggestUpgrade(accountType: StudioAccountType): StudioAccountType | nul
 function allowed(
   input: CreditPolicyInput,
   requiredCredits: number,
-  action: NonNullable<ReturnType<typeof getActionCost>>,
+  action: {
+    actionType: string;
+    reservedCostUsd: number;
+    service: string;
+    provider: string;
+  },
   reason: string
 ): CreditPolicyResult {
   const available = Math.max(0, input.balance - input.reservedBalance);
@@ -155,12 +187,10 @@ function denied(
   };
 }
 
-/** V1 policy: credits never expire on cancellation — account moves to prepaid. */
+/** Credits never expire on cancellation by default — account moves to prepaid. */
 export function applySubscriptionCancellationPolicy(input: {
   creditPolicyVersion: string;
 }): { billingStatus: "prepaid"; retainCredits: true } {
-  if (input.creditPolicyVersion === "v1") {
-    return { billingStatus: "prepaid", retainCredits: true };
-  }
+  void input;
   return { billingStatus: "prepaid", retainCredits: true };
 }

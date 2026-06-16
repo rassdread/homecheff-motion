@@ -1,11 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { appendStudioLedgerEntry } from "@/server/studio-account/studio-ledger-service";
 import type { StudioLedgerActionType, StudioWalletSnapshot } from "@/types/studio-account";
+import type { CreditOriginType } from "@/types/studio-billing";
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
+function isPurchasedOrigin(origin: CreditOriginType): boolean {
+  return origin === "PURCHASED";
+}
+
 export function mapWalletSnapshot(row: {
   balance: number;
+  purchasedBalance: number;
+  promotionalBalance: number;
   reservedBalance: number;
   lifetimePurchased: number;
   lifetimeGranted: number;
@@ -15,6 +22,8 @@ export function mapWalletSnapshot(row: {
 }): StudioWalletSnapshot {
   return {
     balance: row.balance,
+    purchasedBalance: row.purchasedBalance,
+    promotionalBalance: row.promotionalBalance,
     reservedBalance: row.reservedBalance,
     availableBalance: Math.max(0, row.balance - row.reservedBalance),
     lifetimePurchased: row.lifetimePurchased,
@@ -30,8 +39,16 @@ export async function ensureStudioWallet(userId: string): Promise<StudioWalletSn
   if (existing) {
     return mapWalletSnapshot(existing);
   }
-  const created = await prisma.studioWallet.create({ data: { userId } });
+  const created = await prisma.studioWallet.create({
+    data: { userId, purchasedBalance: 0, promotionalBalance: 0 },
+  });
   return mapWalletSnapshot(created);
+}
+
+function splitSpendFromBuckets(wallet: { promotionalBalance: number; purchasedBalance: number }, credits: number) {
+  const fromPromotional = Math.min(wallet.promotionalBalance, credits);
+  const fromPurchased = credits - fromPromotional;
+  return { fromPromotional, fromPurchased };
 }
 
 export async function getWalletForUpdate(userId: string, tx: TxClient) {
@@ -49,6 +66,7 @@ export type GrantCreditsInput = {
   service?: string;
   projectId?: string | null;
   provider?: string | null;
+  creditOrigin?: CreditOriginType;
   metadataJson?: Record<string, unknown>;
   lifetimeField?: "lifetimePurchased" | "lifetimeGranted";
 };
@@ -58,19 +76,39 @@ export async function grantStudioCredits(input: GrantCreditsInput): Promise<{
   balanceAfter: number;
   ledgerId: string;
 }> {
+  const origin: CreditOriginType =
+    input.creditOrigin ??
+    (input.lifetimeField === "lifetimePurchased" || input.actionType === "credit_purchase"
+      ? "PURCHASED"
+      : "MANUAL_GRANT");
+  return grantStudioCreditsWithOrigin({ ...input, creditOrigin: origin });
+}
+
+export async function grantStudioCreditsWithOrigin(input: GrantCreditsInput & {
+  creditOrigin: CreditOriginType;
+}): Promise<{ balanceAfter: number; ledgerId: string }> {
   if (input.credits <= 0) {
     throw new Error("Grant credits must be positive.");
   }
 
+  const purchased = isPurchasedOrigin(input.creditOrigin);
+
   return prisma.$transaction(async (tx) => {
     const wallet = await getWalletForUpdate(input.userId, tx);
     const newBalance = wallet.balance + input.credits;
-    const lifetimeField = input.lifetimeField ?? "lifetimeGranted";
+    const lifetimeField =
+      input.lifetimeField ?? (purchased ? "lifetimePurchased" : "lifetimeGranted");
 
     await tx.studioWallet.update({
       where: { userId: input.userId },
       data: {
         balance: newBalance,
+        purchasedBalance: purchased
+          ? { increment: input.credits }
+          : wallet.purchasedBalance,
+        promotionalBalance: purchased
+          ? wallet.promotionalBalance
+          : { increment: input.credits },
         [lifetimeField]: { increment: input.credits },
         lastTransactionAt: new Date(),
       },
@@ -84,6 +122,7 @@ export async function grantStudioCredits(input: GrantCreditsInput): Promise<{
         actionType: input.actionType,
         creditsDelta: input.credits,
         balanceAfter: newBalance,
+        creditOrigin: input.creditOrigin,
         provider: input.provider,
         metadataJson: input.metadataJson,
       },
@@ -181,12 +220,15 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
 
     const newBalance = wallet.balance - input.credits;
     const newReserved = wallet.reservedBalance - input.credits;
+    const { fromPromotional, fromPurchased } = splitSpendFromBuckets(wallet, input.credits);
 
     await tx.studioWallet.update({
       where: { userId: input.userId },
       data: {
         balance: newBalance,
         reservedBalance: newReserved,
+        promotionalBalance: wallet.promotionalBalance - fromPromotional,
+        purchasedBalance: wallet.purchasedBalance - fromPurchased,
         lifetimeSpent: { increment: input.credits },
         lastTransactionAt: new Date(),
       },
@@ -200,6 +242,7 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
         actionType: "usage_capture",
         creditsDelta: -input.credits,
         balanceAfter: newBalance,
+        creditOrigin: fromPurchased > 0 ? "PURCHASED" : "PROMOTIONAL",
         provider: input.provider,
         providerCostUsd: input.providerCostUsd,
         reservedCostUsd: input.reservedCostUsd,
@@ -207,6 +250,8 @@ export async function captureStudioCredits(input: CaptureCreditsInput): Promise<
         metadataJson: {
           ...input.metadataJson,
           reservationId: input.reservationId,
+          spentFromPromotional: fromPromotional,
+          spentFromPurchased: fromPurchased,
         },
       },
       tx
@@ -277,22 +322,40 @@ export async function adminAdjustCredits(input: {
   creditsDelta: number;
   adminUserId: string;
   reason: string;
+  creditOrigin?: CreditOriginType;
 }): Promise<{ balanceAfter: number; ledgerId: string }> {
+  if (input.creditsDelta === 0) {
+    throw new Error("ZERO_DELTA_NOT_ALLOWED");
+  }
+
+  if (input.creditsDelta > 0) {
+    return grantStudioCreditsWithOrigin({
+      userId: input.userId,
+      credits: input.creditsDelta,
+      actionType: input.creditOrigin === "COMPENSATION" ? "admin_grant" : "manual_adjustment",
+      creditOrigin: input.creditOrigin ?? "MANUAL_GRANT",
+      service: "admin",
+      metadataJson: { adminUserId: input.adminUserId, reason: input.reason },
+    });
+  }
+
   return prisma.$transaction(async (tx) => {
     const wallet = await getWalletForUpdate(input.userId, tx);
-    const newBalance = wallet.balance + input.creditsDelta;
+    const abs = Math.abs(input.creditsDelta);
+    const newBalance = wallet.balance - abs;
     if (newBalance < 0) {
       throw new Error("NEGATIVE_BALANCE_NOT_ALLOWED");
     }
+    const { fromPromotional, fromPurchased } = splitSpendFromBuckets(wallet, abs);
 
     await tx.studioWallet.update({
       where: { userId: input.userId },
       data: {
         balance: newBalance,
+        promotionalBalance: wallet.promotionalBalance - fromPromotional,
+        purchasedBalance: wallet.purchasedBalance - fromPurchased,
+        lifetimeSpent: { increment: abs },
         lastTransactionAt: new Date(),
-        ...(input.creditsDelta > 0
-          ? { lifetimeGranted: { increment: input.creditsDelta } }
-          : { lifetimeSpent: { increment: Math.abs(input.creditsDelta) } }),
       },
     });
 
@@ -303,6 +366,7 @@ export async function adminAdjustCredits(input: {
         actionType: "manual_adjustment",
         creditsDelta: input.creditsDelta,
         balanceAfter: newBalance,
+        creditOrigin: input.creditOrigin ?? "MANUAL_GRANT",
         metadataJson: {
           adminUserId: input.adminUserId,
           reason: input.reason,

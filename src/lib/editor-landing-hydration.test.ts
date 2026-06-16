@@ -33,8 +33,13 @@ describe("editor landing hydration", () => {
       join(process.cwd(), "src/components/suite/studio-product-landing-page.tsx"),
       "utf8"
     );
-    assert.match(landing, /data-testid="landing-primary-cta"/);
-    assert.match(landing, /mt-8 flex flex-wrap gap-3/);
+    const intro = readFileSync(
+      join(process.cwd(), "src/components/suite/studio-page-intro.tsx"),
+      "utf8"
+    );
+    assert.match(landing, /StudioPageIntro/);
+    assert.match(intro, /data-testid="landing-primary-cta"/);
+    assert.match(intro, /mt-6 flex flex-wrap gap-3/);
   });
 
   it("has continue + CTA i18n keys", () => {

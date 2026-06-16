@@ -18,10 +18,13 @@ import {
 describe("universe production line messaging", () => {
   it("homepage hero shows AI production line copy", () => {
     const heroSource = readFileSync("src/components/suite/universe/universe-hero-copy.tsx", "utf8");
+    const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
     assert.match(heroSource, /universe\.hero\.tagline/);
     assert.match(heroSource, /UNIVERSE_HERO_PIPELINE_KEYS/);
-    assert.match(heroSource, /universe\.hero\.oneProject/);
-    assert.match(heroSource, /UNIVERSE_HERO_HIGHLIGHT_KEYS/);
+    assert.doesNotMatch(heroSource, /universe\.hero\.oneProject/);
+    assert.doesNotMatch(heroSource, /UNIVERSE_HERO_HIGHLIGHT_KEYS/);
+    assert.match(homeSource, /UniverseHomeSections/);
+    assert.doesNotMatch(homeSource, /UniverseProductionLine/);
     assert.doesNotMatch(heroSource, /Maak assets\. Bouw verhalen/);
   });
 
@@ -36,10 +39,12 @@ describe("universe production line messaging", () => {
     assert.equal(signedInMsgs[0], "universe.welcome.back");
   });
 
-  it("CTA block and production line section render on homepage", () => {
+  it("CTA block and after-hero sections render on homepage", () => {
     const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
+    const heroSource = readFileSync("src/components/suite/universe/universe-hero-copy.tsx", "utf8");
     assert.match(homeSource, /UniverseHeroCopy/);
-    assert.match(homeSource, /UniverseProductionLine/);
+    assert.match(homeSource, /UniverseHomeSections/);
+    assert.match(heroSource, /universe-hero-ctas/);
     assert.doesNotMatch(homeSource, /UniverseEcosystemStory/);
   });
 

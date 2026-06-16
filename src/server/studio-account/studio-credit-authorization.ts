@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 import { evaluateCreditPolicy } from "@/server/studio-account/studio-credit-policy";
+import { resolveActionCreditCost } from "@/server/studio-account/studio-pricing-rule-service";
+import { getActionCost } from "@/server/studio-account/studio-action-cost-registry";
 import {
   captureStudioCredits,
   ensureStudioWallet,
@@ -26,27 +28,50 @@ export type CreditAuthorizationPreview = {
   actionType: string;
 };
 
-export async function previewStudioCreditAuthorization(input: {
+async function buildPolicyEvaluation(input: {
   user: Pick<SessionUser, "id" | "email" | "role">;
   actionType: StudioActionType | string;
-  projectId?: string;
-}): Promise<CreditAuthorizationPreview> {
+  overrideCredits?: number;
+}) {
   const account = await ensureStudioAccount(input.user.id, input.user.email);
   const wallet = await ensureStudioWallet(input.user.id);
+  const resolved = await resolveActionCreditCost({
+    actionType: input.actionType,
+    planId: account.studioPlan,
+    overrideCredits: input.overrideCredits,
+  });
+  const registry = getActionCost(input.actionType);
 
   const policy = evaluateCreditPolicy({
     userId: input.user.id,
     role: input.user.role,
     accountType: account.accountType,
+    planId: account.studioPlan,
     planVersion: account.planVersion,
     creditPolicyVersion: account.creditPolicyVersion,
     billingStatus: account.billingStatus,
     actionType: input.actionType,
+    overrideCredits: input.overrideCredits,
+    resolvedCreditCost: resolved?.creditCost,
+    resolvedReservedCostUsd: resolved?.reservedCostUsd,
+    resolvedService: registry?.service,
+    resolvedProvider: registry?.provider,
     balance: wallet.balance,
     reservedBalance: wallet.reservedBalance,
     autoChargeSmallActions: account.autoChargeSmallActions,
     confirmAboveCredits: account.confirmAboveCredits,
   });
+
+  return { account, wallet, policy };
+}
+
+export async function previewStudioCreditAuthorization(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  actionType: StudioActionType | string;
+  projectId?: string;
+  overrideCredits?: number;
+}): Promise<CreditAuthorizationPreview> {
+  const { policy } = await buildPolicyEvaluation(input);
 
   return {
     allowed: policy.allowed,
@@ -73,27 +98,13 @@ export async function authorizeStudioAction(input: {
   actionType: StudioActionType | string;
   projectId?: string;
   confirmed?: boolean;
+  overrideCredits?: number;
   metadataJson?: Record<string, unknown>;
 }): Promise<
   | { ok: true; reservation: CreditReservation; adminBypass?: boolean }
   | { ok: false; code: string; message: string; preview: CreditAuthorizationPreview }
 > {
-  const account = await ensureStudioAccount(input.user.id, input.user.email);
-  const wallet = await ensureStudioWallet(input.user.id);
-
-  const policy = evaluateCreditPolicy({
-    userId: input.user.id,
-    role: input.user.role,
-    accountType: account.accountType,
-    planVersion: account.planVersion,
-    creditPolicyVersion: account.creditPolicyVersion,
-    billingStatus: account.billingStatus,
-    actionType: input.actionType,
-    balance: wallet.balance,
-    reservedBalance: wallet.reservedBalance,
-    autoChargeSmallActions: account.autoChargeSmallActions,
-    confirmAboveCredits: account.confirmAboveCredits,
-  });
+  const { policy } = await buildPolicyEvaluation(input);
 
   const preview: CreditAuthorizationPreview = {
     allowed: policy.allowed,
@@ -264,6 +275,7 @@ export async function gateStudioAction(input: {
   actionType: StudioActionType | string;
   projectId?: string;
   confirmed?: boolean;
+  overrideCredits?: number;
 }): Promise<
   | { blocked: NextResponse }
   | { authorized: true; reservation: CreditReservation; adminBypass?: boolean }

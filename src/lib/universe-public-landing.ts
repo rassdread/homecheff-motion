@@ -87,7 +87,10 @@ export function resolveSuiteNavHref(
   if (isAuthenticated || !productId) {
     return href;
   }
-  if (href === "/maak" || href === "/") {
+  if (href === "/maak") {
+    return "/";
+  }
+  if (href === "/") {
     return href;
   }
   if (href === "/pricing" || href.startsWith("/pricing")) {

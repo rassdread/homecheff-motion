@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { applyAssistantPrefillToCharacterNew } from "@/lib/assistant-wizard-prefill-apply";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioCharacterAnalysisCard } from "@/components/studio/studio-character-analysis-card";
 import { StudioCharacterDynamicQuestionsPanel } from "@/components/studio/studio-character-dynamic-questions-panel";
@@ -35,6 +38,8 @@ export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyb
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const router = useRouter();
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
+  const prefillAppliedRef = useRef(false);
   const [state, setState] = useState<CharacterNewWizardState>(() =>
     createEmptyCharacterNewWizardState({ id: projectId, title: projectTitle })
   );
@@ -44,6 +49,14 @@ export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyb
   useEffect(() => {
     trackCharacterClusterEvent("character_new", "started");
   }, []);
+
+  useEffect(() => {
+    if (!prefill || prefillAppliedRef.current) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    setState((prev) => applyAssistantPrefillToCharacterNew(prev, prefill));
+  }, [prefill]);
 
   const handleAnalyze = () => {
     if (!state.idea.trim()) {
@@ -128,12 +141,22 @@ export function StudioCharacterNewGuidedWizard({ projectId, projectTitle, storyb
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{t("characterCluster.new.title" as never)}</h1>
           <p className="mt-2 text-sm text-zinc-600">{t("characterCluster.new.subtitle" as never)}</p>
         </header>
+        {hasPrefill && prefill ? (
+          <div className="mt-4">
+            <AssistantWizardPrefillBanner
+              prefill={prefill}
+              onClear={clearPrefill}
+              onAdjust={() => document.getElementById("character-new-idea")?.focus()}
+            />
+          </div>
+        ) : null}
 
         {state.step === "describe" || state.step === "analyze" ?
           <section className="mt-6 space-y-3">
             <label className="block text-sm font-medium text-zinc-800">
               {t("characterCluster.new.describeLabel" as never)}
               <textarea
+                id="character-new-idea"
                 className="mt-1 min-h-[120px] w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm"
                 value={state.idea}
                 onChange={(e) => setState((prev) => ({ ...prev, idea: e.target.value }))}

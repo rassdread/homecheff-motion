@@ -18,9 +18,9 @@ export type PrimaryNavItem = {
 export function buildLegacyPrimaryNavItems(): PrimaryNavItem[] {
   return [
     {
-      href: "/maak",
+      href: "/",
       labelKey: "nav.create",
-      match: (pathname) => pathname === "/maak" || pathname.startsWith("/maak/"),
+      match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
     },
     {
       href: "/studio",
@@ -110,7 +110,7 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
 
   return [
     {
-      href: "/maak",
+      href: "/",
       labelKey: "suite.nav.home",
       match: (pathname) => pathname === "/" || pathname === "/maak" || pathname.startsWith("/maak/"),
     },

@@ -52,6 +52,11 @@ import {
   fusionArchetypeForIntent,
 } from "@/lib/editor-fusion-archetypes";
 import { buildFusionOutputSettings, resolveFusionDynamicQuestions } from "@/lib/editor-fusion-archetype-v2";
+import {
+  buildFusionQuestionAnswersFromAssistantBootstrap,
+  buildFusionSettingsFromAssistantBootstrap,
+} from "@/lib/assistant-wizard-prefill-apply";
+import type { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
 import type { FusionOutfitItem } from "@/lib/editor-fusion-archetype-types";
 
 type FlowStep = "reference_roles" | "dynamic_questions" | "classify" | "output_type" | "motion_upsell" | "plan_review";
@@ -59,6 +64,7 @@ type FlowStep = "reference_roles" | "dynamic_questions" | "classify" | "output_t
 type Props = {
   config: EditorWorkflowReferenceConfig;
   combineIntent?: EditorFusionIntent;
+  assistantFusionBootstrap?: ReturnType<typeof loadAssistantEditorFusionBootstrap>;
   busy?: boolean;
   onBack: () => void;
   onClose?: () => void;
@@ -83,6 +89,7 @@ function defaultMetadata(roleSpec: EditorReferenceRoleSpec): EditorReferenceMeta
 export function EditorReferenceRoleFlow({
   config,
   combineIntent,
+  assistantFusionBootstrap,
   busy,
   onBack,
   onClose,
@@ -320,18 +327,27 @@ export function EditorReferenceRoleFlow({
           if (Object.keys(prev.fusionQuestionAnswers).length > 0 || !combineIntent) {
             return prev;
           }
-          const seeded = buildFusionOutputSettings(combineIntent, {});
-          const answers: Record<string, string | boolean | string[]> = {};
-          for (const question of fusionQuestions) {
-            const value = seeded[question.outputKey];
-            if (typeof value === "boolean") {
-              answers[question.id] = value;
-            } else if (typeof value === "string") {
-              answers[question.id] = value;
-            } else if (Array.isArray(value)) {
-              answers[question.id] = value.map(String);
-            }
-          }
+          const seeded =
+            assistantFusionBootstrap && combineIntent
+              ? buildFusionSettingsFromAssistantBootstrap(combineIntent, assistantFusionBootstrap)
+              : buildFusionOutputSettings(combineIntent, {});
+          const answers =
+            assistantFusionBootstrap && combineIntent
+              ? buildFusionQuestionAnswersFromAssistantBootstrap(combineIntent, assistantFusionBootstrap)
+              : (() => {
+                  const seededAnswers: Record<string, string | boolean | string[]> = {};
+                  for (const question of fusionQuestions) {
+                    const value = seeded[question.outputKey as keyof typeof seeded];
+                    if (typeof value === "boolean") {
+                      seededAnswers[question.id] = value;
+                    } else if (typeof value === "string") {
+                      seededAnswers[question.id] = value;
+                    } else if (Array.isArray(value)) {
+                      seededAnswers[question.id] = value.map(String);
+                    }
+                  }
+                  return seededAnswers;
+                })();
           return {
             ...prev,
             fusionQuestionAnswers: answers,

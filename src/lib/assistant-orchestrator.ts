@@ -15,14 +15,44 @@ import {
   pickLatestAssistantProject,
   type AssistantRouteContext,
 } from "@/lib/assistant-route-builder";
-import { buildAssistantSuggestions, type AssistantSuggestion } from "@/lib/assistant-suggestions";
+import { enrichPrefillWithProducerAnalysis } from "@/lib/assistant-producer-mode";
 import {
   createAssistantSessionMemory,
   resolveActiveAssistantProjectId,
   type AssistantSessionMemory,
 } from "@/lib/assistant-session-memory";
+import {
+  applyPrefillAnswer,
+  buildAssistantPrefillPackage,
+  detectAssistantPrefillIntent,
+  tryResolvePrefillAnswerFromMessage,
+} from "@/lib/assistant-prefill-engine";
+import { interpretConversationally } from "@/lib/assistant-conversational-interpretation";
+import {
+  applyInterpretationAnswerToPrefill,
+  buildPrefillPackageFromInterpretation,
+  tryResolveInterpretationAnswerFromMessage,
+} from "@/lib/assistant-interpretation-engine";
+import { listAssistantHistory } from "@/lib/assistant-history";
+import {
+  buildProjectMemoryReuseReply,
+  isProjectRepeatRequest,
+} from "@/lib/assistant-project-memory";
+import {
+  resolvePronounMessage,
+  updateConversationMemory,
+} from "@/lib/assistant-conversation-memory";
+import { buildAssistantStudioContext } from "@/lib/assistant-studio-brain";
+import { producerResponseFromInterpretation } from "@/lib/assistant-producer-response";
+import type { ProducerResponse } from "@/types/assistant-producer";
+import { buildExecutionChainForPreset, executionChainSummary } from "@/lib/assistant-execution-chain";
+import { isMotionActionPresetId } from "@/lib/motion-action-presets";
+import type { AssistantStudioContext } from "@/types/assistant-studio-brain";
+import type { AssistantProjectMemory } from "@/types/assistant-project-memory";
+import { loadAssistantPrefillPackage } from "@/lib/assistant-prefill-storage";
 import { listHomeCheffProjectsFiltered } from "@/lib/homecheff-project-persist";
 import type { LibraryConsistencyRecord } from "@/types/library-consistency";
+import type { AssistantPrefillPackage } from "@/types/assistant-prefill";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 
 export type AssistantChatRole = "user" | "assistant";
@@ -34,6 +64,7 @@ export type AssistantChatMessage = {
   params?: Record<string, string | number>;
   proposal?: AssistantProposal | null;
   clarifyOptions?: AssistantClarifyOption[];
+  producerResponse?: ProducerResponse;
 };
 
 export type AssistantProposal = {
@@ -41,19 +72,27 @@ export type AssistantProposal = {
   actionId: AssistantActionId;
   route: string;
   autoExecute: false;
+  prefillPackage?: AssistantPrefillPackage | null;
 };
+
+import type { AssistantBillingContext } from "@/types/studio-billing";
 
 export type AssistantTurnInput = {
   message: string;
   memory: AssistantSessionMemory;
   snapshot: AssistantContextSnapshot;
   urlProjectId?: string | null;
+  interpretation?: import("@/types/assistant-interpretation").AssistantInterpretation | null;
+  isAuthenticated?: boolean;
+  locale?: "nl" | "en";
+  pathname?: string;
+  projectMemory?: AssistantProjectMemory | null;
+  billingContext?: AssistantBillingContext;
 };
 
 export type AssistantTurnResult = {
   memory: AssistantSessionMemory;
   messages: AssistantChatMessage[];
-  suggestions: AssistantSuggestion[];
 };
 
 function findActiveProject(
@@ -86,10 +125,88 @@ function routeContextFromProject(
   };
 }
 
+function finalizePrefillPackage(
+  pkg: AssistantPrefillPackage,
+  snapshot: AssistantContextSnapshot,
+  activeProject?: AssistantProjectContext | null
+): AssistantPrefillPackage {
+  return enrichPrefillWithProducerAnalysis(pkg, snapshot, activeProject);
+}
+
+function prefillProposalMessage(
+  pkg: AssistantPrefillPackage,
+  studio?: AssistantStudioContext | null,
+  locale?: string
+): AssistantChatMessage {
+  const messageKey = pkg.requirementAnalysis
+    ? pkg.readiness === "waiting_for_answer"
+      ? "assistant.reply.producerPrefillWaiting"
+      : "assistant.reply.producerPrefillReady"
+    : pkg.readiness === "waiting_for_answer"
+      ? "assistant.reply.prefillWaiting"
+      : "assistant.reply.prefillReady";
+
+  let producerResponse: ProducerResponse | undefined;
+  const presetId = pkg.interpretation?.likelyPresetId;
+  if (presetId && isMotionActionPresetId(presetId) && studio) {
+    const chain = buildExecutionChainForPreset(
+      presetId,
+      {
+        projects: [],
+        storyboards: [],
+        library: {
+          characters: studio.characters,
+          fusionOutputs: [],
+          motionVideos: [],
+          publishExports: [],
+          references: [],
+          voice: [],
+          music: [],
+          sfx: [],
+          assets: studio.assets,
+        },
+      },
+      locale
+    );
+    if (chain) {
+      producerResponse = {
+        understoodGoal: pkg.interpretation?.understoodGoal ?? chain.goal,
+        confidence: pkg.interpretation?.confidence ?? "high",
+        shortReply: executionChainSummary(chain, locale),
+        options: [],
+        questions: [],
+        canPrepare: pkg.readiness === "ready_to_open",
+        requiresLogin: false,
+        missingInputs: pkg.interpretation?.missingInputs ?? [],
+        executionChain: chain,
+      };
+    }
+  }
+
+  return {
+    id: `assistant-prefill-${Date.now()}`,
+    role: "assistant",
+    messageKey,
+    params: {
+      action: getAssistantAction(pkg.actionId).id,
+      route: pkg.targetRoute,
+    },
+    proposal: {
+      understoodKey: pkg.understoodKey,
+      actionId: pkg.actionId,
+      route: pkg.targetRoute,
+      autoExecute: false,
+      prefillPackage: pkg,
+    },
+    producerResponse,
+  };
+}
+
 function proposalMessage(
   understoodKey: `assistant.understood.${string}`,
   actionId: AssistantActionId,
-  route: string
+  route: string,
+  prefillPackage?: AssistantPrefillPackage | null
 ): AssistantChatMessage {
   return {
     id: `assistant-${Date.now()}`,
@@ -104,6 +221,7 @@ function proposalMessage(
       actionId,
       route,
       autoExecute: false,
+      prefillPackage: prefillPackage ?? null,
     },
   };
 }
@@ -118,6 +236,46 @@ function replyMessage(
     messageKey,
     params,
   };
+}
+
+function producerMessage(producer: ProducerResponse): AssistantChatMessage {
+  return {
+    id: `assistant-producer-${Date.now()}`,
+    role: "assistant",
+    messageKey: "assistant.reply.producer",
+    params: { text: producer.shortReply },
+    producerResponse: producer,
+  };
+}
+
+function interpretContext(input: AssistantTurnInput) {
+  return {
+    locale: input.locale ?? "nl",
+    projectId: input.urlProjectId ?? input.memory.selectedProjectId,
+    isAuthenticated: input.isAuthenticated ?? true,
+    snapshot: input.snapshot,
+  } as const;
+}
+
+function shouldShowProducerFirst(
+  interpretation: import("@/types/assistant-interpretation").AssistantInterpretation
+): boolean {
+  if (interpretation.detectedIntent === "mascot_variant") {
+    return true;
+  }
+  if (interpretation.detectedIntent === "producer_guidance") {
+    return true;
+  }
+  if (interpretation.confidence === "low") {
+    return true;
+  }
+  if (
+    (interpretation.alternativeIntents?.length ?? 0) > 0 &&
+    interpretation.confidence !== "high"
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function formatAssetList(names: string[], emptyKey: `assistant.${string}`): AssistantChatMessage {
@@ -143,21 +301,151 @@ export function buildAssistantSnapshotFromClient(input: {
 
 export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnResult {
   const activeProjectId = resolveActiveAssistantProjectId(input.memory, input.urlProjectId);
-  let memory = { ...input.memory, lastIntent: input.message.trim() };
-  const activeProject = findActiveProject(input.snapshot, activeProjectId);
-  const suggestions = buildAssistantSuggestions({
+  const studio = buildAssistantStudioContext({
+    pathname: input.pathname ?? "/",
     snapshot: input.snapshot,
-    activeProject,
+    activeProjectId,
+    pendingPrefillId: input.memory.pendingPrefillId,
+    recentHistory: listAssistantHistory(activeProjectId),
+    projectMemory: input.projectMemory ?? null,
   });
+  const resolvedMessage = resolvePronounMessage(
+    input.message,
+    input.memory.conversationMemory ?? { lastEntities: [] },
+    studio
+  );
+  let memory = { ...input.memory, lastIntent: resolvedMessage.trim() };
+  const activeProject = findActiveProject(input.snapshot, activeProjectId);
 
   const userMessage: AssistantChatMessage = {
     id: `user-${Date.now()}`,
     role: "user",
     messageKey: "assistant.chat.userEcho",
-    params: { text: input.message.trim() },
+    params: { text: resolvedMessage.trim() },
   };
 
-  const intent = matchAssistantIntent(input.message, {
+  if (isProjectRepeatRequest(resolvedMessage) && studio.projectMemory) {
+    const reuseReply = buildProjectMemoryReuseReply(studio.projectMemory, input.locale ?? "nl");
+    if (reuseReply) {
+      const interpretation = interpretConversationally(resolvedMessage, interpretContext(input));
+      memory = {
+        ...memory,
+        conversationMemory: updateConversationMemory(memory.conversationMemory ?? { lastEntities: [] }, {
+          message: resolvedMessage,
+          interpretation,
+          studio,
+          clusterId: "general_help",
+        }),
+      };
+      const producer = producerResponseFromInterpretation(
+        resolvedMessage,
+        interpretation,
+        interpretContext(input),
+        studio,
+        input.billingContext
+      );
+      return {
+        memory,
+        messages: [
+          userMessage,
+          producerMessage({
+            ...producer,
+            shortReply: `${reuseReply} ${producer.shortReply}`.trim(),
+          }),
+        ],
+      };
+    }
+  }
+
+  if (memory.pendingPrefillId) {
+    const existing = loadAssistantPrefillPackage(memory.pendingPrefillId);
+    if (existing && existing.readiness === "waiting_for_answer") {
+      if (existing.interpretation) {
+        const resolvedInterp = tryResolveInterpretationAnswerFromMessage(
+          existing.interpretation,
+          input.message
+        );
+        if (resolvedInterp) {
+          const applied = applyInterpretationAnswerToPrefill(
+            existing,
+            existing.interpretation,
+            resolvedInterp.questionId,
+            resolvedInterp.answer
+          );
+          const pkg = finalizePrefillPackage(applied.pkg, input.snapshot, activeProject);
+          memory = { ...memory, pendingPrefillId: pkg.id };
+          return {
+            memory,
+            messages: [userMessage, prefillProposalMessage(pkg, studio, input.locale)],
+          };
+        }
+      }
+
+      const resolved = tryResolvePrefillAnswerFromMessage(existing, input.message);
+      if (resolved) {
+        const updated = applyPrefillAnswer(existing, resolved.questionId, resolved.answer);
+        const pkg = finalizePrefillPackage(updated, input.snapshot, activeProject);
+        memory = { ...memory, pendingPrefillId: pkg.id };
+        return {
+          memory,
+          messages: [userMessage, prefillProposalMessage(pkg, studio, input.locale)],
+        };
+      }
+    }
+  }
+
+  const routeCtx = routeContextFromProject(activeProject);
+  const interpretCtx = interpretContext(input);
+
+  const interpretation =
+    input.interpretation ?? interpretConversationally(resolvedMessage, interpretCtx);
+
+  if (
+    interpretation &&
+    !shouldShowProducerFirst(interpretation) &&
+    interpretation.likelyActionId !== "unknown"
+  ) {
+    const built = buildPrefillPackageFromInterpretation(interpretation, routeCtx);
+    if (built) {
+      const pkg = finalizePrefillPackage(built, input.snapshot, activeProject);
+      memory = {
+        ...memory,
+        pendingPrefillId: pkg.id,
+        activeWizard: pkg.actionId,
+        selectedProjectId: activeProject?.id ?? memory.selectedProjectId,
+      };
+      return {
+        memory,
+        messages: [userMessage, prefillProposalMessage(pkg, studio, input.locale)],
+      };
+    }
+  }
+
+  const prefillDetect = detectAssistantPrefillIntent(resolvedMessage);
+  if (prefillDetect.kind === "prefill") {
+    const built = buildAssistantPrefillPackage({
+      intent: prefillDetect.intent,
+      message: resolvedMessage,
+      actionId: prefillDetect.actionId,
+      understoodKey: prefillDetect.understoodKey,
+      routeContext: routeCtx,
+    });
+    if (built) {
+      const pkg = finalizePrefillPackage(built, input.snapshot, activeProject);
+      memory = {
+        ...memory,
+        pendingPrefillId: pkg.id,
+        activeWizard: pkg.actionId,
+        selectedProjectId: activeProject?.id ?? memory.selectedProjectId,
+      };
+      return {
+        memory,
+        messages: [userMessage, prefillProposalMessage(pkg, studio, input.locale)],
+      };
+    }
+  }
+
+  const intent = matchAssistantIntent(resolvedMessage, {
     pendingClarification: memory.pendingClarification,
   });
 
@@ -174,7 +462,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
           clarifyOptions: assistantClarifyOptions(intent.clarification),
         },
       ],
-      suggestions,
     };
   }
 
@@ -192,7 +479,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
               "assistant.reply.noCharacters"
             ),
           ],
-          suggestions,
         };
       case "list_motion_videos":
         return {
@@ -204,7 +490,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
               "assistant.reply.noMotionVideos"
             ),
           ],
-          suggestions,
         };
       case "list_fusion_outputs":
         return {
@@ -216,7 +501,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
               "assistant.reply.noFusionOutputs"
             ),
           ],
-          suggestions,
         };
       case "open_latest_project": {
         const latest = pickLatestAssistantProject(listHomeCheffProjectsFiltered("hc", 200));
@@ -224,7 +508,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
           return {
             memory,
             messages: [userMessage, replyMessage("assistant.reply.noProjects")],
-            suggestions,
           };
         }
         memory = { ...memory, selectedProjectId: latest.id };
@@ -235,7 +518,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
             userMessage,
             proposalMessage("assistant.understood.openLatestProject", "open_project", route),
           ],
-          suggestions,
         };
       }
       case "project_status": {
@@ -243,7 +525,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
           return {
             memory,
             messages: [userMessage, replyMessage("assistant.reply.noActiveProject")],
-            suggestions,
           };
         }
         return {
@@ -259,7 +540,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
               fusion: input.snapshot.library.fusionOutputs.length,
             }),
           ],
-          suggestions,
         };
       }
       case "project_assets": {
@@ -267,7 +547,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
           return {
             memory,
             messages: [userMessage, replyMessage("assistant.reply.noActiveProject")],
-            suggestions,
           };
         }
         const route = buildAssistantActionRoute("open_asset", {
@@ -283,7 +562,6 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
             }),
             proposalMessage("assistant.understood.openProjectAssets", "open_asset", route),
           ],
-          suggestions,
         };
       }
     }
@@ -302,14 +580,34 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
     return {
       memory,
       messages: [userMessage, proposalMessage(intent.understoodKey, intent.actionId, route)],
-      suggestions,
     };
   }
 
+  memory = {
+    ...memory,
+    pendingClarification: null,
+    conversationMemory: updateConversationMemory(memory.conversationMemory ?? { lastEntities: [] }, {
+      message: resolvedMessage,
+      interpretation,
+      studio,
+      clusterId: interpretation?.detectedIntent,
+    }),
+  };
+
   return {
     memory,
-    messages: [userMessage, replyMessage("assistant.reply.unknown")],
-    suggestions,
+    messages: [
+      userMessage,
+      producerMessage(
+        producerResponseFromInterpretation(
+          resolvedMessage,
+          interpretation,
+          interpretCtx,
+          studio,
+          input.billingContext
+        )
+      ),
+    ],
   };
 }
 

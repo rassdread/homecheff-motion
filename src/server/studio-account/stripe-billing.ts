@@ -6,14 +6,19 @@ import { prisma } from "@/lib/prisma";
 import { getStripeClient, assertStripeSecretKeyConfigured } from "@/lib/stripe-server";
 import { ensureStudioAccount } from "@/server/studio-account/ensure-studio-account";
 import {
-  getCreditPack,
-  resolveCreditPackStripePriceId,
-} from "@/server/studio-account/studio-credit-packs";
+  getStudioCreditPackBySlug,
+  totalPackCredits,
+  resolvePackStripePriceId,
+} from "@/server/studio-account/studio-credit-pack-service";
 import {
-  getStudioPlan,
-  resolveStripePriceId,
-  type StudioPlanId,
-} from "@/server/studio-account/studio-plan-config";
+  getStudioSubscriptionPlanBySlug,
+  resolvePlanStripePriceId,
+} from "@/server/studio-account/studio-subscription-plan-service";
+import { type StudioPlanId } from "@/server/studio-account/studio-plan-config";
+import {
+  applyPostCheckoutPromoBenefits,
+  validatePromoCode,
+} from "@/server/studio-account/studio-promo-code-service";
 import { grantStudioCredits } from "@/server/studio-account/studio-wallet-service";
 import { updateStudioAccountPlan } from "@/server/studio-account/ensure-studio-account";
 import { applySubscriptionCancellationPolicy } from "@/server/studio-account/studio-credit-policy";
@@ -23,15 +28,14 @@ export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 }
 
-export function isStripeCheckoutAvailable(): boolean {
+export async function isStripeCheckoutAvailable(): Promise<boolean> {
   if (!isStripeConfigured()) {
     return false;
   }
-  const hasPlan =
-    resolveStripePriceId("creator") ||
-    resolveStripePriceId("pro") ||
-    resolveStripePriceId("studio");
-  const hasPack = resolveCreditPackStripePriceId("pack_500");
+  const plans = await getStudioSubscriptionPlanBySlug("creator");
+  const packs = await getStudioCreditPackBySlug("pack_500");
+  const hasPlan = plans ? resolvePlanStripePriceId(plans) : null;
+  const hasPack = packs ? resolvePackStripePriceId(packs) : null;
   return Boolean(hasPlan || hasPack);
 }
 
@@ -62,29 +66,78 @@ export async function createSubscriptionCheckout(input: {
   planId: StudioPlanId;
   successUrl: string;
   cancelUrl: string;
-}): Promise<{ sessionId: string; url: string } | { error: string }> {
+  promoCode?: string;
+  locale?: "nl" | "en";
+}): Promise<{ sessionId: string; url: string; promoPreview?: unknown } | { error: string }> {
   if (!isStripeConfigured()) {
     return { error: "Stripe is not configured." };
   }
 
-  const priceId = resolveStripePriceId(input.planId);
-  if (!priceId) {
-    return { error: `Stripe price not configured for plan ${input.planId}.` };
+  const plan = await getStudioSubscriptionPlanBySlug(input.planId);
+  if (!plan || !plan.isActive) {
+    return { error: `Unknown or inactive plan ${input.planId}.` };
   }
 
+  const basePrice = plan.monthlyPriceEur ?? 0;
+  let promoPreview;
+  let adjustedPrice = basePrice;
+
+  if (input.promoCode) {
+    const validation = await validatePromoCode({
+      code: input.promoCode,
+      userId: input.userId,
+      checkoutType: "subscription",
+      planSlug: plan.slug,
+      basePriceEur: basePrice,
+      locale: input.locale,
+    });
+    if (!validation.valid) {
+      return { error: validation.reason ?? "Invalid promo code." };
+    }
+    promoPreview = validation;
+    if (validation.adjustedPriceEur != null) {
+      adjustedPrice = validation.adjustedPriceEur;
+    } else if (validation.subscriptionDiscountPercent) {
+      adjustedPrice = Math.max(0, basePrice * (1 - validation.subscriptionDiscountPercent / 100));
+    }
+  }
+
+  const priceId = resolvePlanStripePriceId(plan);
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+    adjustedPrice < basePrice && adjustedPrice >= 0
+      ? [
+          {
+            price_data: {
+              currency: "eur",
+              product_data: { name: `${plan.name} subscription` },
+              unit_amount: Math.round(adjustedPrice * 100),
+              recurring: { interval: "month" },
+            },
+            quantity: 1,
+          },
+        ]
+      : priceId
+        ? [{ price: priceId, quantity: 1 }]
+        : [];
+
+  if (lineItems.length === 0) {
+    return { error: `Stripe price not configured for plan ${input.planId}.` };
+  }
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
     metadata: {
       userId: input.userId,
       planId: input.planId,
       type: "subscription",
+      ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
     },
   });
 
@@ -92,7 +145,7 @@ export async function createSubscriptionCheckout(input: {
     return { error: "Failed to create checkout session." };
   }
 
-  return { sessionId: session.id, url: session.url };
+  return { sessionId: session.id, url: session.url, promoPreview };
 }
 
 export async function createCreditPackCheckout(input: {
@@ -101,35 +154,86 @@ export async function createCreditPackCheckout(input: {
   packId: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<{ sessionId: string; url: string } | { error: string }> {
+  promoCode?: string;
+  locale?: "nl" | "en";
+}): Promise<{ sessionId: string; url: string; promoPreview?: unknown } | { error: string }> {
   if (!isStripeConfigured()) {
     return { error: "Stripe is not configured." };
   }
 
-  const pack = getCreditPack(input.packId);
-  if (!pack) {
+  const pack = await getStudioCreditPackBySlug(input.packId);
+  if (!pack || !pack.active) {
     return { error: "Unknown credit pack." };
   }
 
-  const priceId = resolveCreditPackStripePriceId(input.packId);
-  if (!priceId) {
-    return { error: `Stripe price not configured for pack ${input.packId}.` };
+  let promoPreview;
+  let adjustedPrice = pack.priceEur;
+  if (input.promoCode) {
+    const validation = await validatePromoCode({
+      code: input.promoCode,
+      userId: input.userId,
+      checkoutType: "credit_pack",
+      packSlug: pack.slug,
+      basePriceEur: pack.priceEur,
+      locale: input.locale,
+    });
+    if (!validation.valid) {
+      return { error: validation.reason ?? "Invalid promo code." };
+    }
+    promoPreview = validation;
+    if (validation.adjustedPriceEur != null) {
+      adjustedPrice = validation.adjustedPriceEur;
+    }
   }
 
+  const priceId = resolvePackStripePriceId(pack);
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
+  const totalCredits = totalPackCredits(pack);
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+    adjustedPrice < pack.priceEur
+      ? [
+          {
+            price_data: {
+              currency: "eur",
+              product_data: { name: pack.name },
+              unit_amount: Math.round(adjustedPrice * 100),
+            },
+            quantity: 1,
+          },
+        ]
+      : priceId
+        ? [{ price: priceId, quantity: 1 }]
+        : [
+            {
+              price_data: {
+                currency: "eur",
+                product_data: { name: pack.name },
+                unit_amount: Math.round(pack.priceEur * 100),
+              },
+              quantity: 1,
+            },
+          ];
+
+  if (lineItems.length === 0) {
+    return { error: `Stripe price not configured for pack ${input.packId}.` };
+  }
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "payment",
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
     metadata: {
       userId: input.userId,
-      packId: input.packId,
+      packId: pack.slug,
+      packSlug: pack.slug,
       credits: String(pack.credits),
+      totalCredits: String(totalCredits),
       type: "credit_pack",
+      ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
     },
   });
 
@@ -137,7 +241,7 @@ export async function createCreditPackCheckout(input: {
     return { error: "Failed to create checkout session." };
   }
 
-  return { sessionId: session.id, url: session.url };
+  return { sessionId: session.id, url: session.url, promoPreview };
 }
 
 export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<void> {
@@ -169,20 +273,42 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session): Promis
   if (!userId) return;
 
   if (type === "credit_pack") {
-    const credits = Number(session.metadata?.credits ?? 0);
+    const credits = Number(session.metadata?.totalCredits ?? session.metadata?.credits ?? 0);
     if (credits > 0) {
       await grantStudioCredits({
         userId,
         credits,
         actionType: "credit_purchase",
+        creditOrigin: "PURCHASED",
         service: "billing",
         metadataJson: {
           stripeSessionId: session.id,
           packId: session.metadata?.packId,
+          packSlug: session.metadata?.packSlug,
         },
         lifetimeField: "lifetimePurchased",
       });
     }
+    const promoCode = session.metadata?.promoCode;
+    if (promoCode) {
+      const pack = await getStudioCreditPackBySlug(session.metadata?.packSlug ?? session.metadata?.packId ?? "");
+      await applyPostCheckoutPromoBenefits({
+        userId,
+        promoCode,
+        pack,
+        stripeSessionId: session.id,
+      });
+    }
+  }
+
+  if (type === "subscription" && session.metadata?.promoCode) {
+    const plan = await getStudioSubscriptionPlanBySlug(session.metadata.planId ?? "");
+    await applyPostCheckoutPromoBenefits({
+      userId,
+      promoCode: session.metadata.promoCode,
+      plan,
+      stripeSessionId: session.id,
+    });
   }
 }
 
@@ -256,20 +382,34 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   });
   if (!account) return;
 
-  const plan = getStudioPlan(account.studioPlan);
-  if (plan.monthlyCredits <= 0) return;
-
-  await grantStudioCredits({
-    userId: account.userId,
-    credits: plan.monthlyCredits,
-    actionType: "subscription_grant",
-    service: "billing",
-    metadataJson: {
-      stripeInvoiceId: invoice.id,
-      planId: plan.id,
-    },
-    lifetimeField: "lifetimeGranted",
+  // Phase 4: subscriptions grant benefits (discount, storage, features) — not monthly credits.
+  await prisma.studioAccount.update({
+    where: { userId: account.userId },
+    data: { billingStatus: "active" },
   });
+}
+
+export async function createStripeCustomerPortalSession(input: {
+  userId: string;
+  email: string;
+  returnUrl: string;
+}): Promise<{ url: string } | { error: string }> {
+  if (!isStripeConfigured()) {
+    return { error: "Stripe is not configured." };
+  }
+
+  const customerId = await ensureStripeCustomer(input.userId, input.email);
+  const stripe = getStripeClient();
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: input.returnUrl,
+  });
+
+  if (!session.url) {
+    return { error: "Failed to create portal session." };
+  }
+
+  return { url: session.url };
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {

@@ -5,6 +5,7 @@ export type StudioPlanDisplay = {
   labelKey: string;
   monthlyPriceEur: number;
   monthlyCredits: number;
+  creditDiscountPercent: number;
 };
 
 export type StudioCreditPackDisplay = {
@@ -14,9 +15,9 @@ export type StudioCreditPackDisplay = {
 };
 
 export const STUDIO_PLAN_DISPLAY: StudioPlanDisplay[] = [
-  { id: "creator", labelKey: "account.plan.creator", monthlyPriceEur: 19, monthlyCredits: 3000 },
-  { id: "pro", labelKey: "account.plan.pro", monthlyPriceEur: 49, monthlyCredits: 8000 },
-  { id: "studio", labelKey: "account.plan.studio", monthlyPriceEur: 99, monthlyCredits: 12000 },
+  { id: "creator", labelKey: "account.plan.creator", monthlyPriceEur: 19, monthlyCredits: 0, creditDiscountPercent: 10 },
+  { id: "pro", labelKey: "account.plan.pro", monthlyPriceEur: 49, monthlyCredits: 0, creditDiscountPercent: 15 },
+  { id: "studio", labelKey: "account.plan.studio", monthlyPriceEur: 99, monthlyCredits: 0, creditDiscountPercent: 20 },
 ];
 
 export const STUDIO_CREDIT_PACK_DISPLAY: StudioCreditPackDisplay[] = [

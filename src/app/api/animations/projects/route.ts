@@ -13,7 +13,11 @@ import {
   MAX_ANIMATION_USER_PROMPT_LENGTH,
   validateAnimationPresetId,
 } from "@/lib/animation-presets";
-import { assertUsageAllowed } from "@/server/animations/usage-limits";
+import {
+  captureStudioActionReservation,
+  refundStudioActionReservation,
+} from "@/server/studio-account/studio-credit-authorization";
+import { requireStudioCredits } from "@/server/studio-account/with-studio-credit-gate";
 import {
   assertUserActive,
   canAccessAdmin,
@@ -342,28 +346,37 @@ export async function POST(request: Request) {
     }
   }
 
-  const usageCheck = await assertUsageAllowed({
-    userId: user.id,
-    userRole: user.role,
-    presetId: preset.id,
-    estimatedCredits,
+  const usageCheck = await requireStudioCredits({
+    user,
+    actionType: "motion_render",
+    overrideCredits: estimatedCredits,
+    confirmed: (payload as { confirmed?: boolean }).confirmed === true,
   });
-  if (!usageCheck.ok) {
-    const creditCode =
-      advancedEnabled && usageCheck.code === "ANIMATION_CREDIT_LIMIT"
+  if ("blocked" in usageCheck) {
+    const blockedBody = (await usageCheck.blocked.json()) as {
+      code?: string;
+      preview?: { requiredCredits?: number };
+    };
+    const creditCode: import("@/types/animation-api").CreateProjectErrorCode =
+      advancedEnabled && blockedBody.code === "insufficient_credits"
         ? "ADVANCED_CREDIT_LIMIT"
-        : usageCheck.code;
+        : "ANIMATION_CREDIT_LIMIT";
     return NextResponse.json(
       {
-        error: "Animation usage limit reached.",
+        error: "Insufficient Studio Credits for this render.",
         code: creditCode,
-        usage: usageCheck.status,
+        creditGate: true,
+        requiredCredits: blockedBody.preview?.requiredCredits ?? estimatedCredits,
       } satisfies CreateAnimationProjectErrorBody,
-      { status: 403 }
+      { status: usageCheck.blocked.status }
     );
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const reservation = usageCheck.reservation;
+
+  let result: CreateAnimationProjectResponse;
+  try {
+    result = await prisma.$transaction(async (tx) => {
     const project = await tx.animationProject.create({
       data: {
         ownerId: user.id,
@@ -443,6 +456,28 @@ export async function POST(request: Request) {
 
     return response;
   });
+  } catch (error) {
+    if (!usageCheck.adminBypass) {
+      await refundStudioActionReservation({
+        userId: user.id,
+        reservation,
+        failedGeneration: true,
+        metadataJson: {
+          error: error instanceof Error ? error.message : "project_create_failed",
+        },
+      });
+    }
+    throw error;
+  }
+
+  if (!usageCheck.adminBypass) {
+    await captureStudioActionReservation({
+      userId: user.id,
+      reservation,
+      projectId: result.projectId,
+      metadataJson: { presetId: preset.id, estimatedCredits },
+    });
+  }
 
   return NextResponse.json(result, { status: 201 });
 }

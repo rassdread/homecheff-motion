@@ -12,7 +12,7 @@ export function InstantWizardContent({ children, contentRef }: InstantWizardCont
   return (
     <div
       ref={contentRef}
-      className="min-h-[clamp(420px,58vh,720px)] flex-1 overflow-y-auto px-4 pb-4 pt-6 sm:px-6"
+      className="min-h-[clamp(420px,58vh,720px)] flex-1 overflow-visible px-4 pb-4 pt-6 sm:px-6"
     >
       {children}
     </div>

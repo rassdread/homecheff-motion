@@ -15,7 +15,7 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <>
+    <div data-route-shell="app-shell">
       <I18nHydrationSync />
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
@@ -47,8 +47,9 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </nav>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-      <HomeCheffAssistantMount />
-    </>
+      <div className="flex min-w-0 w-full flex-col overflow-visible">
+        <HomeCheffAssistantMount>{children}</HomeCheffAssistantMount>
+      </div>
+    </div>
   );
 }

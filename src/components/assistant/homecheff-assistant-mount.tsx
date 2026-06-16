@@ -1,32 +1,34 @@
 "use client";
 
-import { Suspense } from "react";
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { HomeCheffAssistant } from "@/components/assistant/homecheff-assistant";
 import { HomeCheffAssistantProvider } from "@/components/assistant/homecheff-assistant-provider";
+import { GrowthSidebarLayout } from "@/components/growth/growth-sidebar-layout";
 import {
   isHomeCheffAssistantEnabled,
   isHomeCheffAssistantRoute,
 } from "@/lib/homecheff-assistant-flag";
 
-function HomeCheffAssistantReady() {
-  return (
-    <HomeCheffAssistantProvider>
-      <HomeCheffAssistant />
-    </HomeCheffAssistantProvider>
-  );
-}
+type Props = {
+  children: ReactNode;
+};
 
-export function HomeCheffAssistantMount() {
+export function HomeCheffAssistantMount({ children }: Props) {
   const pathname = usePathname();
+  const enabled =
+    isHomeCheffAssistantEnabled() && isHomeCheffAssistantRoute(pathname);
 
-  if (!isHomeCheffAssistantEnabled() || !isHomeCheffAssistantRoute(pathname)) {
-    return null;
+  if (!enabled) {
+    return <div data-assistant-mount="false">{children}</div>;
   }
 
   return (
-    <Suspense fallback={null}>
-      <HomeCheffAssistantReady />
-    </Suspense>
+    <div data-assistant-mount="true">
+      <HomeCheffAssistantProvider>
+        <GrowthSidebarLayout showSidebar>{children}</GrowthSidebarLayout>
+        <HomeCheffAssistant />
+      </HomeCheffAssistantProvider>
+    </div>
   );
 }

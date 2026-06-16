@@ -22,6 +22,13 @@ describe("assistant action registry", () => {
       "open_project",
       "rename_project",
       "open_asset",
+      "prepare_outfit",
+      "prepare_background",
+      "prepare_location",
+      "prepare_prop",
+      "prepare_vehicle",
+      "prepare_music",
+      "prepare_sfx",
     ];
     assert.deepEqual([...ASSISTANT_ACTION_IDS], expected);
     assert.equal(listAssistantActions().length, expected.length);
@@ -56,6 +63,9 @@ describe("assistant action registry", () => {
     const characterActions = listAssistantActionsByCategory("character");
     assert.equal(characterActions.length, 3);
     assert.ok(characterActions.every((action) => action.category === "character"));
+    const preparationActions = listAssistantActionsByCategory("preparation");
+    assert.equal(preparationActions.length, 7);
+    assert.ok(preparationActions.every((action) => action.execution === "registry_only"));
   });
 
   it("validates unknown action ids", () => {

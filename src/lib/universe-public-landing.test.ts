@@ -53,7 +53,7 @@ describe("universe v3 public landing", () => {
 
   it("suite nav product links require auth when signed out", () => {
     assert.equal(resolveSuiteNavHref("/editor", false, "editor"), loginHref("/editor"));
-    assert.equal(resolveSuiteNavHref("/maak", false, "editor"), "/maak");
+    assert.equal(resolveSuiteNavHref("/maak", false, "editor"), "/");
     assert.equal(resolveSuiteNavHref("/editor", true, "editor"), "/editor");
   });
 

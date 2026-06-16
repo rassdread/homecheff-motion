@@ -19,7 +19,10 @@ export function StudioAccountNav() {
   return (
     <nav className="flex flex-wrap gap-2 border-b border-white/10 pb-4">
       {LINKS.map((link) => {
-        const active = pathname === link.href;
+        const active =
+          pathname === link.href ||
+          (link.href === "/account/billing" && pathname.startsWith("/account/billing")) ||
+          (link.href === "/account/credits" && pathname.startsWith("/account/billing"));
         return (
           <Link
             key={link.href}

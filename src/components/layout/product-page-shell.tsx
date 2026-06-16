@@ -14,7 +14,7 @@ export function ProductPageShell({
   contained = true,
 }: Props) {
   return (
-    <main className={`${studioVisual.pageBg} ${className}`}>
+    <main className={`${studioVisual.pageRoot} ${studioVisual.pageBg} ${className}`}>
       <div
         className={
           contained

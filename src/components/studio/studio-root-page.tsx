@@ -16,6 +16,7 @@ import {
 import { WorkspaceLoadingSkeleton } from "@/components/ui/motion-studio-primitives";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import {
   loadHcProjectFromQueryResolved,
   rehydrateStudioProjectFromHcProject,
@@ -98,7 +99,7 @@ function StudioRootContent() {
 
   return (
     <StudioAuthGate>
-      <main className={`flex min-h-screen flex-col ${brand.softGradientBg}`}>
+      <main className={`flex ${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
         <HcProjectAutoCreateBridge sourceModule="studio" />
         <StudioShellHeader
           projectTitle={hcProject?.title}

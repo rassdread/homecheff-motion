@@ -9,8 +9,8 @@ export const STUDIO_COLORS = {
 
 export const studioVisual = {
   /** Full-page cinematic background for product routes */
-  pageBg:
-    "studio-page-bg min-h-[calc(100dvh-4rem)] flex-1 text-zinc-100",
+  pageBg: "studio-page-bg text-zinc-100",
+  pageRoot: "relative w-full min-w-0 overflow-visible",
   /** Sticky dark glass header — compact V4 */
   header:
     "sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)]",
@@ -102,4 +102,12 @@ export const studioVisual = {
     "relative rounded-2xl border border-transparent bg-white p-5 text-left shadow-[0_14px_36px_-16px_rgba(0,103,177,0.45)] ring-2 ring-transparent [background:linear-gradient(#fff,#fff)_padding-box,linear-gradient(135deg,#006D52,#0067B1)_border-box] transition hover:-translate-y-0.5 disabled:opacity-50",
   fusionBadge:
     "shrink-0 rounded-full bg-gradient-to-r from-[#006D52]/15 to-[#0067B1]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0067B1]",
+  /** App-level overlays — above header (z-30), assistant FAB (z-40), bottom sheets (z-50). */
+  appModalZ: "z-[1000]",
+  appModalOverlay:
+    "fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm",
+  appModalClose:
+    "fixed z-[1001] flex h-11 w-11 items-center justify-center rounded-full border border-white/35 bg-black/55 text-lg font-semibold text-white shadow-[0_4px_24px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:border-white/50 hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400/80 active:scale-95",
+  appModalNavBtn:
+    "fixed top-1/2 z-[1001] -translate-y-1/2 rounded-full border border-white/25 bg-black/50 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-md transition hover:border-white/40 hover:bg-black/65 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400/80 disabled:cursor-not-allowed disabled:opacity-30",
 } as const;

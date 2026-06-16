@@ -18,7 +18,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type SetStateAction } from "react";
+import {
+  InstantAssistantPrefillApplier,
+  applyAssistantPrefillToInstantMotion,
+} from "@/components/assistant/instant-assistant-prefill-applier";
+import { MotionActionPresetMotionReadyPrompt } from "@/components/instant/motion-action-preset-motion-ready-prompt";
+import { shouldPromptMotionReadyForActionPreset } from "@/lib/motion-action-preset-motion-ready";
+import type { AssistantPrefillPackage } from "@/types/assistant-prefill";
 import { CheckoutScanGateDialog } from "@/components/instant/checkout-scan-gate-dialog";
 import { MotionBeginnerCollectShell } from "@/components/motion/motion-beginner-collect-shell";
 import { InstantWizardContent } from "@/components/instant/instant-wizard-content";
@@ -112,6 +119,7 @@ import {
 } from "@/lib/instant-premium-prompt";
 import { loginHref } from "@/lib/auth-login-href";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import { writeActiveInstantProjectId } from "@/lib/instant-premium-progress-cache";
 import {
   getClientImagePreprocessOptionsForRole,
@@ -355,6 +363,11 @@ export default function InstantPremiumPage() {
   );
   const [fastRenderMode, setFastRenderMode] = useState(false);
   const [checkoutGateOpen, setCheckoutGateOpen] = useState(false);
+  const [hcActionPreset, setHcActionPreset] = useState<
+    import("@/types/motion-action-presets").MotionActionPresetMetadata | null
+  >(null);
+  const [motionReadyPromptDismissed, setMotionReadyPromptDismissed] = useState(false);
+  const [motionReadyCharacterFlag, setMotionReadyCharacterFlag] = useState<boolean | null>(null);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -432,6 +445,41 @@ export default function InstantPremiumPage() {
       setStep((current) => clampWizardStep(mode, current, flowOptions));
     },
     [hasStudioImportedScenes]
+  );
+
+  const handleAssistantPrefill = useCallback((pkg: AssistantPrefillPackage) => {
+    const patch = applyAssistantPrefillToInstantMotion(pkg);
+    if (patch.stylePreset) {
+      setStylePreset(patch.stylePreset);
+    }
+    if (patch.transitionSeconds) {
+      setTransitionSeconds(patch.transitionSeconds);
+    }
+    if (patch.motionText) {
+      setMotionText(patch.motionText);
+    }
+    if (patch.posterMotionSettings) {
+      setPosterMotionSettings((prev) => ({
+        ...prev,
+        ...patch.posterMotionSettings,
+      }));
+    }
+    if (patch.hcActionPreset) {
+      setHcActionPreset(patch.hcActionPreset);
+      setMotionReadyPromptDismissed(false);
+    }
+  }, []);
+
+  const showMotionReadyPrompt = useMemo(
+    () =>
+      shouldPromptMotionReadyForActionPreset({
+        actionPresetActive: Boolean(hcActionPreset),
+        motionReadyPreferred: true,
+        attachedCharacterMotionReady: motionReadyCharacterFlag,
+        promptDismissed: motionReadyPromptDismissed,
+        hasAttachedImage: images.length > 0,
+      }),
+    [hcActionPreset, images.length, motionReadyCharacterFlag, motionReadyPromptDismissed]
   );
 
   const wizardView = useMemo(
@@ -599,7 +647,10 @@ export default function InstantPremiumPage() {
       lockedTextMode,
       textRenderMode,
       hybridOverlayStyle,
-      posterMotionSettings,
+      posterMotionSettings: {
+        ...posterMotionSettings,
+        ...(hcActionPreset ? { hcActionPreset } : {}),
+      },
     };
   }, [
     attachedImageCount,
@@ -617,6 +668,7 @@ export default function InstantPremiumPage() {
     textRenderMode,
     hybridOverlayStyle,
     posterMotionSettings,
+    hcActionPreset,
     instantMode,
     transitionSeconds,
     sceneSlots,
@@ -1284,7 +1336,10 @@ export default function InstantPremiumPage() {
         chipTextBySlot,
         textRenderMode,
         hybridOverlayStyle,
-        posterMotionSettings,
+        posterMotionSettings: {
+          ...posterMotionSettings,
+          ...(hcActionPreset ? { hcActionPreset } : {}),
+        },
         ...(studioImport ? { studioImport } : {}),
       };
 
@@ -1560,7 +1615,7 @@ export default function InstantPremiumPage() {
   }
 
   return (
-    <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
+    <main className={`${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
       <EditorMotionBootstrapBridge />
       <HcMotionBootstrapBridge />
       <HcInstantProjectBar />
@@ -1690,7 +1745,18 @@ export default function InstantPremiumPage() {
           buildValidationPayload={buildValidationPayload}
         />
 
-        <InstantWizardShell shellRef={wizardShellRef}>
+        <Suspense fallback={null}>
+          <InstantAssistantPrefillApplier onApply={handleAssistantPrefill} />
+        </Suspense>
+
+        {showMotionReadyPrompt ? (
+          <MotionActionPresetMotionReadyPrompt
+            onDismiss={() => setMotionReadyPromptDismissed(true)}
+            onContinue={() => setMotionReadyPromptDismissed(true)}
+          />
+        ) : null}
+
+        <InstantWizardShell shellRef={wizardShellRef} id="instant-wizard-main">
           <InstantWizardContent contentRef={wizardContentRef}>
             {wizardView === "upload" ? (
               <>

@@ -1,21 +1,55 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
+
+/** Tailwind `lg` breakpoint — sheet is `lg:hidden`, body lock must match. */
+export const MOTION_BOTTOM_SHEET_MOBILE_MQ = "(max-width: 1023px)";
+
+export function shouldMotionBottomSheetLockBody(input: {
+  open: boolean;
+  lockBodyScroll: boolean;
+  mobileViewport: boolean;
+}): boolean {
+  return input.open && input.lockBodyScroll && input.mobileViewport;
+}
 
 type Props = {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  /** When false, never locks document body (default true). */
+  lockBodyScroll?: boolean;
 };
 
-export function MotionBottomSheet({ open, title, onClose, children }: Props) {
+export function MotionBottomSheet({
+  open,
+  title,
+  onClose,
+  children,
+  lockBodyScroll = true,
+}: Props) {
   const t = useActiveTranslator();
   const titleId = useId();
+  const [mobileViewport, setMobileViewport] = useState(false);
 
   useEffect(() => {
-    if (!open) {
+    const mq = window.matchMedia(MOTION_BOTTOM_SHEET_MOBILE_MQ);
+    const sync = () => setMobileViewport(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  const lockBody = shouldMotionBottomSheetLockBody({
+    open,
+    lockBodyScroll,
+    mobileViewport,
+  });
+
+  useEffect(() => {
+    if (!lockBody) {
       return;
     }
     const prev = document.body.style.overflow;
@@ -23,7 +57,7 @@ export function MotionBottomSheet({ open, title, onClose, children }: Props) {
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [lockBody]);
 
   if (!open) {
     return null;

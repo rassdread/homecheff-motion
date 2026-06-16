@@ -36,7 +36,7 @@ function record(partial: Partial<LibraryConsistencyRecord> & Pick<LibraryConsist
 
 describe("homecheff assistant v1", () => {
   it("registry covers all supported assistant actions", () => {
-    assert.equal(ASSISTANT_ACTION_IDS.length, 9);
+    assert.equal(ASSISTANT_ACTION_IDS.length, 16);
   });
 
   it("routes character-from-reference intent to canonical wizard", () => {
@@ -150,12 +150,17 @@ describe("homecheff assistant v1", () => {
 
   it("builds smart suggestions from metadata", () => {
     const project = createHcProjectForModule({ sourceModule: "studio", title: "Empty" });
-    const snapshot = buildAssistantContextSnapshot({
+    const snap = buildAssistantContextSnapshot({
       projects: [project],
       libraryRecords: [],
     });
-    const active = snapshot.projects[0] ?? null;
-    const suggestions = buildAssistantSuggestions({ snapshot, activeProject: active });
-    assert.ok(suggestions.some((row) => row.id === "no-characters"));
+    const active = snap.projects[0] ?? null;
+    const suggestions = buildAssistantSuggestions({
+      snapshot: snap,
+      activeProject: active,
+      pathname: "/studio",
+    });
+    assert.ok(suggestions.length > 0);
+    assert.ok(suggestions.every((row) => row.promptMessage));
   });
 });

@@ -6,6 +6,7 @@ import { StudioAiWorkflowV2 } from "@/components/studio/studio-ai-workflow-v2";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { UserStudioDashboardReport } from "@/types/studio-profitability";
 
@@ -266,7 +267,7 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
   }
 
   return (
-    <main className={`flex min-h-screen flex-col ${brand.softGradientBg}`}>
+    <main className={`${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
       <StudioShellHeader projectTitle={t("studio.home.title")} />
       {content}
     </main>

@@ -134,7 +134,7 @@ function ShowcaseCard({
 
 export function HomeEcosystemPage() {
   const t = useActiveTranslator();
-  const maakHref = useAuthActionHref("/maak");
+  const maakHref = useAuthActionHref("/");
   const instantHref = useAuthActionHref("/animate/instant");
   const studioStoriesHref = useAuthActionHref("/studio/storyboards");
 

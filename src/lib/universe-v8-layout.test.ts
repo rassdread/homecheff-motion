@@ -12,30 +12,33 @@ describe("universe v8 layout and hover stability", () => {
     assert.match(heroSource, /text-left/);
     assert.match(heroSource, /justify-start/);
     assert.match(heroSource, /universe\.hero\.tagline/);
-    assert.match(heroSource, /universe\.hero\.signedInReady/);
+    assert.match(heroSource, /universe\.welcome\.back/);
+    assert.match(heroSource, /universe\.hero\.todayPrompt/);
     assert.doesNotMatch(heroSource, /text-center/);
   });
 
   it("home page places hero and orbit side by side on desktop", () => {
     const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
-    assert.match(homeSource, /universe-home-hero-orbit/);
-    assert.match(homeSource, /universe-hero-column/);
-    assert.match(homeSource, /universe-orbit-column/);
-    assert.match(homeSource, /universe-dashboard-section/);
+    assert.match(homeSource, /home-hero-grid/);
+    assert.match(homeSource, /home-hero-copy/);
+    assert.match(homeSource, /home-universe-zone/);
+    assert.match(homeSource, /home-after-hero/);
     assert.doesNotMatch(homeSource, /UniverseDynamicWelcome/);
   });
 
-  it("orbit column is offset higher and to the right", () => {
+  it("universe zone is centered without negative overlap offsets", () => {
     const css = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
-    assert.match(css, /\.universe-orbit-column/);
-    assert.match(css, /margin-top: -7\.5rem/);
-    assert.match(css, /translateX\(5rem\)/);
+    assert.match(css, /\.home-universe-zone/);
+    assert.match(css, /justify-content:\s*center/);
+    assert.doesNotMatch(css, /margin-top:\s*-7\.5rem/);
+    assert.doesNotMatch(css, /margin-top:\s*-9\.375rem/);
   });
 
-  it("dashboard section has reduced top spacing on desktop", () => {
+  it("dashboard section uses positive spacing in document flow", () => {
     const css = readFileSync("src/components/suite/universe/universe-home.css", "utf8");
     assert.match(css, /\.universe-dashboard-section/);
-    assert.match(css, /margin-top: -9\.375rem/);
+    assert.match(css, /margin-top:\s*0/);
+    assert.match(css, /padding-top:\s*clamp/);
   });
 
   it("capability labels never capture pointer events", () => {

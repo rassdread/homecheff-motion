@@ -22,6 +22,7 @@ export async function requireStudioCredits(input: {
   actionType: StudioActionType | string;
   projectId?: string;
   confirmed?: boolean;
+  overrideCredits?: number;
 }): Promise<
   | { blocked: NextResponse }
   | { authorized: true; reservation: CreditReservation; adminBypass?: boolean }
@@ -55,6 +56,7 @@ export async function withStudioCreditGate<T>(input: {
   actionType: StudioActionType | string;
   projectId?: string;
   confirmed?: boolean;
+  overrideCredits?: number;
   providerCostUsd?: number;
   execute: () => Promise<T>;
   isFailure?: (result: T) => boolean;
@@ -64,6 +66,7 @@ export async function withStudioCreditGate<T>(input: {
     actionType: input.actionType,
     projectId: input.projectId,
     confirmed: input.confirmed,
+    overrideCredits: input.overrideCredits,
   });
 
   if ("blocked" in gate) {

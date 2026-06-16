@@ -1,3 +1,5 @@
+import type { FeaturedExperience } from "@/types/featured-experience";
+
 export type HomeCheffExampleService = "motion" | "studio" | "publish" | "editor" | "home";
 
 export type HomeCheffExample = {
@@ -66,4 +68,22 @@ export function listExamplesForService(service: HomeCheffExampleService): HomeCh
 
 export function listAllExamples(): HomeCheffExample[] {
   return HOMECHEFF_EXAMPLES;
+}
+
+export function toFeaturedExperience(example: HomeCheffExample, sortOrder: number): FeaturedExperience {
+  return {
+    id: example.id,
+    title: example.title,
+    description: example.description,
+    thumbnail: example.thumbnailUrl,
+    video: example.mediaKind === "video" ? example.thumbnailUrl : example.mediaUrl,
+    assistantPrompt: example.description,
+    service: example.service,
+    sortOrder,
+    active: true,
+  };
+}
+
+export function listFeaturedExperiences(): FeaturedExperience[] {
+  return HOMECHEFF_EXAMPLES.map((row, index) => toFeaturedExperience(row, index));
 }

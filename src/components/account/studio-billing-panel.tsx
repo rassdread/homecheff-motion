@@ -1,32 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TranslationKey } from "@/i18n";
-import { useActiveTranslator } from "@/i18n/client";
-import {
-  STUDIO_CREDIT_PACK_DISPLAY,
-  STUDIO_PLAN_DISPLAY,
-} from "@/lib/studio-account-display-config";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+import {
+  formatCampaignCodeReason,
+  pickCampaignSummary,
+} from "@/lib/billing-display-labels";
+
+type CatalogPlan = {
+  id: string;
+  name: string;
+  monthlyPriceEur: number | null;
+  discountPercent: number;
+};
+
+type CatalogPack = {
+  id: string;
+  name: string;
+  credits: number;
+  bonusCredits: number;
+  totalCredits: number;
+  priceEur: number;
+};
+
+type PromoPreview = {
+  valid: boolean;
+  summaryNl?: string;
+  summaryEn?: string;
+  bonusCredits?: number;
+  discountEur?: number;
+  adjustedPriceEur?: number;
+  reason?: string;
+};
 
 export function StudioBillingPanel() {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [plans, setPlans] = useState<CatalogPlan[]>([]);
+  const [packs, setPacks] = useState<CatalogPack[]>([]);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoPreview, setPromoPreview] = useState<PromoPreview | null>(null);
+  const [pendingCheckout, setPendingCheckout] = useState<{
+    type: "subscription" | "credit_pack";
+    id: string;
+  } | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/billing/catalog")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { plans: CatalogPlan[]; packs: CatalogPack[] };
+        setPlans(data.plans);
+        setPacks(data.packs);
+      })
+      .catch(() => {
+        /* fallback display config used below if empty */
+      });
+  }, []);
+
+  const applyPromo = async (checkoutType: "subscription" | "credit_pack", targetId: string) => {
+    if (!promoCode.trim()) {
+      setPromoPreview(null);
+      return;
+    }
+    const res = await fetch("/api/me/billing/promo/validate", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: promoCode, checkoutType, planId: targetId, packId: targetId }),
+    });
+    const data = (await res.json()) as { preview: PromoPreview };
+    setPromoPreview(data.preview);
+  };
 
   const startCheckout = async (type: "subscription" | "credit_pack", id: string) => {
     setLoading(id);
     setError(null);
+    setPendingCheckout({ type, id });
     try {
-      const body =
-        type === "subscription"
-          ? { type, planId: id, returnPath: "/account/billing" }
-          : { type, packId: id, returnPath: "/account/billing" };
+      if (promoCode.trim()) {
+        await applyPromo(type, id);
+      }
       const res = await fetch("/api/me/studio-credits/checkout", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          type,
+          planId: type === "subscription" ? id : undefined,
+          packId: type === "credit_pack" ? id : undefined,
+          returnPath: "/account/billing",
+          promoCode: promoCode.trim() || undefined,
+        }),
       });
       const data = (await res.json()) as { url?: string; error?: string; code?: string };
       if (!res.ok) {
@@ -45,6 +114,25 @@ export function StudioBillingPanel() {
     }
   };
 
+  const displayPlans =
+    plans.length > 0
+      ? plans
+      : [
+          { id: "creator", name: "Creator", monthlyPriceEur: 19, discountPercent: 10 },
+          { id: "pro", name: "Pro", monthlyPriceEur: 49, discountPercent: 15 },
+          { id: "studio", name: "Studio", monthlyPriceEur: 99, discountPercent: 20 },
+        ];
+
+  const displayPacks =
+    packs.length > 0
+      ? packs
+      : [
+          { id: "pack_500", name: "500", credits: 500, bonusCredits: 0, totalCredits: 500, priceEur: 4.99 },
+          { id: "pack_1250", name: "1250", credits: 1250, bonusCredits: 0, totalCredits: 1250, priceEur: 9.99 },
+          { id: "pack_3000", name: "3000", credits: 3000, bonusCredits: 0, totalCredits: 3000, priceEur: 19.99 },
+          { id: "pack_8000", name: "8000", credits: 8000, bonusCredits: 0, totalCredits: 8000, priceEur: 49.99 },
+        ];
+
   return (
     <div className="space-y-8">
       {error && (
@@ -53,19 +141,52 @@ export function StudioBillingPanel() {
         </div>
       )}
 
+      <section className={`${studioVisual.cardOnDark} p-5`}>
+        <h3 className="text-sm font-semibold text-white">{t("account.billing.promoTitle" as never)}</h3>
+        <p className="mt-1 text-xs text-white/60">{t("account.billing.promoIntro" as never)}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <input
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder={t("account.billing.promoPlaceholder" as never)}
+            className="flex-1 rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (pendingCheckout) {
+                void applyPromo(pendingCheckout.type, pendingCheckout.id);
+              }
+            }}
+            className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white"
+          >
+            {t("account.billing.promoApply" as never)}
+          </button>
+        </div>
+        {promoPreview?.valid ? (
+          <p className="mt-2 text-sm text-emerald-300">
+            {pickCampaignSummary(promoPreview, locale)}
+          </p>
+        ) : promoPreview && !promoPreview.valid ? (
+          <p className="mt-2 text-sm text-red-300">
+            {formatCampaignCodeReason(promoPreview.reason, t)}
+          </p>
+        ) : null}
+      </section>
+
       <section>
         <h2 className="text-lg font-semibold text-white">{t("account.billing.plansTitle")}</h2>
         <p className="mt-1 text-sm text-white/60">{t("account.billing.plansIntro")}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {STUDIO_PLAN_DISPLAY.map((plan) => (
+          {displayPlans.map((plan) => (
             <div key={plan.id} className={`${studioVisual.cardOnDark} flex flex-col p-5`}>
-              <h3 className="font-semibold text-white">{t(plan.labelKey as TranslationKey)}</h3>
+              <h3 className="font-semibold text-white">{plan.name}</h3>
               <p className="mt-1 text-2xl font-bold text-white">
-                €{plan.monthlyPriceEur}
+                €{plan.monthlyPriceEur ?? "—"}
                 <span className="text-sm font-normal text-white/50">/mo</span>
               </p>
               <p className="mt-2 text-sm text-white/70">
-                {plan.monthlyCredits.toLocaleString()} {t("account.credits.unit")}/mo
+                {plan.discountPercent}% {t("account.billing.creditDiscount" as never)}
               </p>
               <button
                 type="button"
@@ -84,11 +205,16 @@ export function StudioBillingPanel() {
         <h2 className="text-lg font-semibold text-white">{t("account.billing.packsTitle")}</h2>
         <p className="mt-1 text-sm text-white/60">{t("account.billing.packsIntro")}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STUDIO_CREDIT_PACK_DISPLAY.map((pack) => (
+          {displayPacks.map((pack) => (
             <div key={pack.id} className={`${studioVisual.cardOnDark} flex flex-col p-5`}>
               <p className="font-semibold text-white">
-                {pack.credits.toLocaleString()} {t("account.credits.unit")}
+                {(pack.totalCredits ?? pack.credits).toLocaleString()} {t("account.credits.unit")}
               </p>
+              {pack.bonusCredits > 0 ? (
+                <p className="text-xs text-emerald-300">
+                  {t("account.billing.bonusCredits", { count: pack.bonusCredits })}
+                </p>
+              ) : null}
               <p className="mt-1 text-xl font-bold text-white">€{pack.priceEur.toFixed(2)}</p>
               <button
                 type="button"

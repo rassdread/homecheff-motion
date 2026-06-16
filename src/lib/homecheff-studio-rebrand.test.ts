@@ -18,20 +18,21 @@ describe("HomeCheff Studio rebrand", () => {
     assert.match(layout, /title: "HomeCheff Studio"/);
   });
 
-  it("hero uses pipeline and adaptation copy keys", () => {
+  it("hero uses pipeline copy without after-hero production messaging", () => {
     const heroSource = readFileSync("src/components/suite/universe/universe-hero-copy.tsx", "utf8");
     assert.match(heroSource, /UNIVERSE_HERO_PIPELINE_KEYS/);
-    assert.match(heroSource, /universe\.hero\.adaptIntro/);
-    assert.match(heroSource, /universe\.hero\.adaptFooter/);
+    assert.doesNotMatch(heroSource, /universe\.hero\.adaptIntro/);
+    assert.doesNotMatch(heroSource, /universe\.productionLine\.title/);
     assert.doesNotMatch(heroSource, /universe\.hero\.body/);
     assert.equal(UNIVERSE_HERO_PIPELINE_KEYS.length, 4);
   });
 
-  it("homepage includes differentiation section below production line", () => {
+  it("homepage includes premium after-hero sections without duplicate marketing blocks", () => {
     const homeSource = readFileSync("src/components/suite/universe/universe-home-page.tsx", "utf8");
-    assert.match(homeSource, /UniverseDifferentiation/);
-    const diffSource = readFileSync("src/components/suite/universe/universe-differentiation.tsx", "utf8");
-    assert.match(diffSource, /universe\.differentiation\.title/);
+    assert.match(homeSource, /UniverseHomeSections/);
+    assert.match(homeSource, /home-after-hero/);
+    assert.doesNotMatch(homeSource, /UniverseDifferentiation/);
+    assert.doesNotMatch(homeSource, /UniverseMarketingSections/);
   });
 
   it("why studio page renders at dedicated route", () => {

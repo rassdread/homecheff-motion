@@ -5,6 +5,12 @@ import { HomeCheffPreviewModal } from "@/components/ui/homecheff-preview-modal";
 import { useActiveTranslator } from "@/i18n/client";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { HomeCheffExample } from "@/lib/homecheff-examples";
+import {
+  spaceGalleryPreviewHasNext,
+  spaceGalleryPreviewHasPrev,
+  spaceGalleryPreviewIndexAfterNext,
+  spaceGalleryPreviewIndexAfterPrev,
+} from "@/lib/space-gallery-preview";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type Props = {
@@ -115,10 +121,14 @@ export function SpaceGallery({ examples }: Props) {
         open={previewIndex !== null}
         title={previewItem?.title ?? ""}
         onClose={closePreview}
-        hasPrev={previewIndex !== null && previewIndex > 0}
-        hasNext={previewIndex !== null && previewIndex < examples.length - 1}
-        onPrev={() => setPreviewIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
-        onNext={() => setPreviewIndex((i) => (i !== null && i < examples.length - 1 ? i + 1 : i))}
+        hasPrev={spaceGalleryPreviewHasPrev(previewIndex)}
+        hasNext={spaceGalleryPreviewHasNext(previewIndex, examples.length)}
+        onPrev={() =>
+          setPreviewIndex((i) => spaceGalleryPreviewIndexAfterPrev(i))
+        }
+        onNext={() =>
+          setPreviewIndex((i) => spaceGalleryPreviewIndexAfterNext(i, examples.length))
+        }
         indexLabel={previewIndex !== null ? `${previewIndex + 1} / ${examples.length}` : undefined}
       >
         {previewItem ?

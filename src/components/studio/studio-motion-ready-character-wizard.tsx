@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { HomeCheffAssetPickerModal, type AssetPickerSelection } from "@/components/library/homecheff-asset-picker-modal";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioCharacterAnalysisCard } from "@/components/studio/studio-character-analysis-card";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { applyAssistantPrefillToMotionWizard } from "@/lib/assistant-wizard-prefill-apply";
 import { useActiveTranslator } from "@/i18n/client";
 import { postWizardImageUpload, ImageUploadError } from "@/lib/instant-image-upload-client";
 import {
@@ -64,6 +67,8 @@ export function StudioMotionReadyCharacterWizard({
 }: Props) {
   const t = useActiveTranslator();
   const router = useRouter();
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
+  const prefillAppliedRef = useRef(false);
   const sourceBootstrapRef = useRef(false);
   const [state, setState] = useState<MotionReadyWizardState>(() =>
     sourceImage?.trim()
@@ -85,6 +90,14 @@ export function StudioMotionReadyCharacterWizard({
   useEffect(() => {
     trackCharacterClusterEvent("character_motion_ready", "started");
   }, []);
+
+  useEffect(() => {
+    if (!prefill || prefillAppliedRef.current) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    setState((prev) => applyAssistantPrefillToMotionWizard(prev, prefill));
+  }, [prefill]);
 
   const goNext = useCallback(() => {
     const next = nextMotionWizardStep(state.step);
@@ -292,6 +305,10 @@ export function StudioMotionReadyCharacterWizard({
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{t("motionReady.wizard.title" as never)}</h1>
           <p className="mt-2 text-sm text-zinc-600">{t("motionReady.wizard.subtitle" as never)}</p>
         </header>
+
+        {hasPrefill && prefill ? (
+          <AssistantWizardPrefillBanner prefill={prefill} onClear={clearPrefill} />
+        ) : null}
 
         <ol className="mt-6 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
           {STEP_ORDER.slice(0, 7).map((step, index) => (

@@ -11,6 +11,7 @@ import {
   libraryBrowseHrefForCategory,
   projectOpenHref,
 } from "@/lib/library-consistency";
+import { studioLibraryVisual } from "@/lib/studio-library-visual";
 import type { LibraryConsistencyRecord } from "@/types/library-consistency";
 
 export function StudioLibraryRecentSection() {
@@ -38,11 +39,11 @@ export function StudioLibraryRecentSection() {
 
   return (
     <section
-      className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6"
+      className={studioLibraryVisual.lightPanel}
       data-testid="library-recent-section"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className={studioLibraryVisual.lightPanelTitle}>
           {t("library.consistency.recentTitle" as never)}
         </h2>
         <Link
@@ -71,12 +72,12 @@ export function StudioLibraryRecentSection() {
                 thumbnailUrl={record.thumbnailUrl}
               />
               {metaChips.length > 0 ?
-                <p className="px-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                <p className={`px-1 ${studioLibraryVisual.lightPanelMeta} font-medium uppercase tracking-wide`}>
                   {metaChips.join(" · ")}
                 </p>
               : null}
               {record.projectTitle ?
-                <p className="px-1 text-[11px] text-slate-600">
+                <p className={`px-1 text-[11px] ${studioLibraryVisual.lightPanelBody}`}>
                   {t("library.consistency.createdFrom" as never, {
                     project: record.projectTitle,
                   } as never)}

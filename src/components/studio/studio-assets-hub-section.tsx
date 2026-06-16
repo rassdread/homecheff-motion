@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { StudioAssetLibrary } from "@/components/studio/studio-asset-library";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
+import { StudioLibraryPageHero } from "@/components/studio/studio-library-page-hero";
 import { useActiveTranslator } from "@/i18n/client";
-import { brand } from "@/lib/brand";
 import type { AssetsHubSectionDef } from "@/lib/studio-asset-hub-sections";
+import { studioLibraryVisual } from "@/lib/studio-library-visual";
 import type { AnimationProjectListResponse } from "@/types/animation-api";
+import { useEffect, useState } from "react";
 
 type Props = {
   section: AssetsHubSectionDef;
@@ -38,10 +39,10 @@ export function StudioAssetsHubSection({ section }: Props) {
   if (section.section === "videos") {
     return (
       <StudioAuthGate>
-        <main className={`flex-1 ${brand.softGradientBg}`}>
+        <main className={studioLibraryVisual.pageMain}>
           <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
             <HubSectionHeader section={section} />
-            <p className="mt-4 text-sm text-slate-600">{t("studio.assetsHub.videos.hint")}</p>
+            <p className={`mt-4 ${studioLibraryVisual.sectionLead}`}>{t("studio.assetsHub.videos.hint")}</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/videos"
@@ -51,13 +52,13 @@ export function StudioAssetsHubSection({ section }: Props) {
               </Link>
               <Link
                 href="/library"
-                className="inline-flex min-h-[44px] items-center rounded-full border border-slate-200 bg-white px-6 py-2 text-sm font-semibold text-slate-800"
+                className={`inline-flex min-h-[44px] items-center rounded-full border border-white/20 bg-white/10 px-6 py-2 text-sm font-semibold text-white hover:bg-white/15`}
               >
                 ← {t("studio.assetsHub.backToHub")}
               </Link>
             </div>
             {videoCount !== null ?
-              <p className="mt-4 text-xs text-slate-500">
+              <p className={`mt-4 ${studioLibraryVisual.metaMuted}`}>
                 {t("studio.assetsHub.videos.recentCount", { count: String(videoCount) })}
               </p>
             : null}
@@ -69,7 +70,7 @@ export function StudioAssetsHubSection({ section }: Props) {
 
   return (
     <StudioAuthGate>
-      <main className={`flex-1 ${brand.softGradientBg}`}>
+      <main className={studioLibraryVisual.pageMain}>
         <section className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-8">
           <HubSectionHeader section={section} />
           <div className="mt-4">
@@ -95,27 +96,18 @@ function HubSectionHeader({ section }: { section: AssetsHubSectionDef }) {
       : section.group === "creative"
         ? "suite.breadcrumb.creative"
         : "suite.breadcrumb.uploads";
+
   return (
-    <header>
-      <nav className="text-sm text-slate-600" aria-label="Breadcrumb">
-        <Link href="/library" className="font-medium text-[#006D52] hover:underline">
-          {t("suite.breadcrumb.library")}
-        </Link>
-        <span className="mx-1.5">/</span>
-        <span>{t(groupLabelKey as never)}</span>
-        <span className="mx-1.5">/</span>
-        <span className="font-medium text-slate-900">{t(section.labelKey as never)}</span>
-      </nav>
-      <Link
-        href="/library"
-        className="mt-3 inline-block text-sm font-medium text-[#006D52] hover:underline"
-      >
-        ← {t("studio.assetsHub.backToHub")}
-      </Link>
-      <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
-        {t(section.labelKey as never)}
-      </h1>
-      <p className="mt-1 text-sm text-slate-600">{t(section.descriptionKey as never)}</p>
-    </header>
+    <StudioLibraryPageHero
+      breadcrumbs={[
+        { label: t("suite.breadcrumb.library"), href: "/library" },
+        { label: t(groupLabelKey as never) },
+        { label: t(section.labelKey as never) },
+      ]}
+      backHref="/library"
+      backLabel={t("studio.assetsHub.backToHub")}
+      title={t(section.labelKey as never)}
+      description={t(section.descriptionKey as never)}
+    />
   );
 }

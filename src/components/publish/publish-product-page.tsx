@@ -27,6 +27,9 @@ import {
 } from "@/lib/publish-wizard-flow";
 import { autoPrepareHcHandoff } from "@/lib/hc-project-continuity";
 import { PublishStartIntake } from "@/components/publish/publish-start-intake";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { applyAssistantPrefillToPublishWizard } from "@/lib/assistant-wizard-prefill-apply";
 import { PublishWizardStepPanels } from "@/components/publish/publish-wizard-step-panels";
 import { CrossServiceContinuityBar } from "@/components/platform/cross-service-continuity-bar";
 import { HcProjectAutoCreateBridge } from "@/components/projects/hc-project-auto-create-bridge";
@@ -54,6 +57,8 @@ export function PublishProductPage() {
   const [wizardStep, setWizardStep] = useState<PublishWizardStepId>("upload");
   const [wizardState, setWizardState] = useState<PublishWizardState>({ step: "intent" });
   const [mediaFocusSection, setMediaFocusSection] = useState<import("@/types/publish-media-production").PublishProductionSectionId | null>(null);
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
+  const prefillAppliedRef = useRef(false);
 
   const handleProjectChange = useCallback((next: PublishProject) => {
     setProjectOverride(savePublishProject(next));
@@ -144,6 +149,19 @@ export function PublishProductPage() {
   }, [project?.id, hcProjectId, hcProject, project]);
 
   useEffect(() => {
+    if (!prefill || prefillAppliedRef.current) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    queueMicrotask(() => {
+      setWizardState((prev) => applyAssistantPrefillToPublishWizard(prev, prefill));
+      if (prefill.publish?.subtitles) {
+        setTabOverride("subtitles");
+      }
+    });
+  }, [prefill]);
+
+  useEffect(() => {
     if (project && !projectId && (project.source === "editor" || hcProjectId)) {
       const params = new URLSearchParams();
       params.set("project", project.id);
@@ -179,6 +197,15 @@ export function PublishProductPage() {
           <div className="mx-auto max-w-6xl px-4 pt-4">
             <ServiceLandingNav current="publish" />
             <CrossServiceContinuityBar hcProjectId={hcProjectId || activeHcProject?.id} currentService="publish" />
+            {hasPrefill && prefill ? (
+              <div className="mt-4">
+                <AssistantWizardPrefillBanner
+                  prefill={prefill}
+                  onClear={clearPrefill}
+                  onAdjust={() => setWizardStep("intent")}
+                />
+              </div>
+            ) : null}
           </div>
           <PublishModuleWorkspace
             project={project}
@@ -242,7 +269,7 @@ export function PublishProductPage() {
 
   return (
     <StudioAuthGate authTitleKey="publish.authTitle" authBodyKey="publish.authBody">
-      <main className={`flex-1 ${studioVisual.pageBg}`}>
+      <main className={`${studioVisual.pageRoot} ${studioVisual.pageBg}`}>
         <HcProjectAutoCreateBridge sourceModule="publish" />
         <HcProjectWorkspaceControls
           project={activeHcProject}

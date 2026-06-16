@@ -14,6 +14,7 @@ import {
 import type { SceneIntelligenceSnapshot } from "@/lib/scene-intelligence";
 import {
   DEFAULT_PREMIUM_POLISH_PRESET_ID,
+  getPremiumPolishPreset,
   normalizePremiumPolishPresetId,
   type PremiumPolishPresetId,
 } from "@/lib/premium-polish-presets";
@@ -33,8 +34,8 @@ import {
   normalizeEmotionalActingPresetId,
   type EmotionalActingPresetId,
 } from "@/lib/premium-emotional-presets";
-import { getPremiumPolishPreset } from "@/lib/premium-polish-presets";
 import { normalizeTextLockMode, type TextLockMode } from "@/lib/hard-text-lock";
+import type { MotionActionPresetMetadata } from "@/types/motion-action-presets";
 
 /** Layer roles for DeeVid-style poster animation (static base + moving foreground). */
 export type PosterMotionLayerRole =
@@ -112,6 +113,13 @@ export type PosterMotionSettings = {
   emotionalActingPreset?: EmotionalActingPresetId;
   animationMood?: AnimationMoodId;
   textLockMode?: TextLockMode;
+  /** Action preset metadata — does not affect render pipeline. */
+  hcActionPreset?: MotionActionPresetMetadata;
+  preparedByAssistant?: boolean;
+  preparedCharacterAssetId?: string;
+  preparedOutfitAssetId?: string;
+  preparedBackgroundAssetId?: string;
+  preparedPropAssetId?: string;
 };
 
 export const POSTER_MOTION_BLEND_MAX = 0.3;
@@ -224,6 +232,10 @@ export function parsePosterMotionSettings(raw: unknown): PosterMotionSettings {
     emotionalActingPreset: normalizeEmotionalActingPresetId(o.emotionalActingPreset),
     animationMood: normalizeAnimationMoodId(o.animationMood),
     textLockMode: normalizeTextLockMode(o.textLockMode),
+    hcActionPreset:
+      o.hcActionPreset && typeof o.hcActionPreset === "object"
+        ? (o.hcActionPreset as MotionActionPresetMetadata)
+        : undefined,
   };
 }
 

@@ -11,6 +11,13 @@ export const ASSISTANT_ACTION_IDS = [
   "open_project",
   "rename_project",
   "open_asset",
+  "prepare_outfit",
+  "prepare_background",
+  "prepare_location",
+  "prepare_prop",
+  "prepare_vehicle",
+  "prepare_music",
+  "prepare_sfx",
 ] as const;
 
 export type AssistantActionId = (typeof ASSISTANT_ACTION_IDS)[number];
@@ -21,7 +28,8 @@ export type AssistantActionCategory =
   | "fusion"
   | "publish"
   | "project"
-  | "asset";
+  | "asset"
+  | "preparation";
 
 export type AssistantActionDefinition = {
   id: AssistantActionId;
@@ -94,6 +102,55 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
     category: "asset",
     description: "Open a library asset in the consistency browse hub.",
     canonicalRoute: `${LIBRARY_HUB_BASE_PATH}/browse`,
+    execution: "registry_only",
+  },
+  prepare_outfit: {
+    id: "prepare_outfit",
+    category: "preparation",
+    description: "Plan outfit preparation via fusion (registry only).",
+    canonicalRoute: "/editor?workflow=combine",
+    execution: "registry_only",
+  },
+  prepare_background: {
+    id: "prepare_background",
+    category: "preparation",
+    description: "Plan background preparation (registry only).",
+    canonicalRoute: "/editor?workflow=combine",
+    execution: "registry_only",
+  },
+  prepare_location: {
+    id: "prepare_location",
+    category: "preparation",
+    description: "Plan location/scene preparation (registry only).",
+    canonicalRoute: "/editor?workflow=combine",
+    execution: "registry_only",
+  },
+  prepare_prop: {
+    id: "prepare_prop",
+    category: "preparation",
+    description: "Plan prop preparation (registry only).",
+    canonicalRoute: "/editor?workflow=combine",
+    execution: "registry_only",
+  },
+  prepare_vehicle: {
+    id: "prepare_vehicle",
+    category: "preparation",
+    description: "Plan vehicle preparation (registry only).",
+    canonicalRoute: "/editor?workflow=combine",
+    execution: "registry_only",
+  },
+  prepare_music: {
+    id: "prepare_music",
+    category: "preparation",
+    description: "Plan music selection for motion (registry only).",
+    canonicalRoute: "/animate/instant",
+    execution: "registry_only",
+  },
+  prepare_sfx: {
+    id: "prepare_sfx",
+    category: "preparation",
+    description: "Plan SFX selection for motion (registry only).",
+    canonicalRoute: "/animate/instant",
     execution: "registry_only",
   },
 };

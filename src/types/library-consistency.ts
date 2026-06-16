@@ -75,6 +75,15 @@ export type LibraryMotionMetadata = {
   finalVideoUrl?: string | null;
   renderVersion?: string | null;
   exportId?: string | null;
+  actionPresetId?: string | null;
+  actionPresetCategory?: string | null;
+  actionPresetTitle?: string | null;
+  promptTemplate?: string | null;
+  feasibilityNote?: string | null;
+  requirementAnalyzedAt?: string | null;
+  requirementAvailableCount?: number | null;
+  requirementMissingCount?: number | null;
+  requirementPlanStepIds?: string[] | null;
 };
 
 export type LibraryPublishMetadata = {

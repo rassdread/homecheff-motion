@@ -9,6 +9,7 @@ import {
 describe("auth post-auth redirect", () => {
   it("allows the documented callback routes", () => {
     for (const path of [
+      "/",
       "/maak",
       "/studio",
       "/studio/projects",
@@ -27,11 +28,12 @@ describe("auth post-auth redirect", () => {
     }
   });
 
-  it("falls back to /maak for missing or invalid next", () => {
-    assert.equal(DEFAULT_POST_AUTH_PATH, "/maak");
-    assert.equal(resolvePostAuthRedirect(undefined), "/maak");
-    assert.equal(resolvePostAuthRedirect(""), "/maak");
-    assert.equal(resolvePostAuthRedirect("/evil"), "/maak");
+  it("falls back to / for missing or invalid next", () => {
+    assert.equal(DEFAULT_POST_AUTH_PATH, "/");
+    assert.equal(resolvePostAuthRedirect(undefined), "/");
+    assert.equal(resolvePostAuthRedirect(""), "/");
+    assert.equal(resolvePostAuthRedirect("/evil"), "/");
+    assert.equal(resolvePostAuthRedirect("/maak"), "/");
     assert.equal(resolvePostAuthRedirect("/animate/instant"), "/animate/instant");
   });
 });

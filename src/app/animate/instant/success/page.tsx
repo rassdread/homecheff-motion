@@ -7,6 +7,7 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
+import { growthSidebarLayoutClasses } from "@/lib/growth-sidebar-layout";
 
 export default function InstantPremiumSuccessPage() {
   const router = useRouter();
@@ -71,7 +72,7 @@ export default function InstantPremiumSuccessPage() {
   }, [router, t]);
 
   return (
-    <main className={`min-h-screen flex-1 ${brand.softGradientBg}`}>
+    <main className={`${growthSidebarLayoutClasses.pageFloorFlex} ${brand.softGradientBg}`}>
       <div className="mx-auto w-full max-w-lg px-4 py-16">
         <AppCard>
           <h1 className="text-xl font-semibold">

@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
+import { applyAssistantPrefillToFromReference } from "@/lib/assistant-wizard-prefill-apply";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioCharacterAnalysisCard } from "@/components/studio/studio-character-analysis-card";
 import { StudioCharacterDynamicQuestionsPanel } from "@/components/studio/studio-character-dynamic-questions-panel";
@@ -60,6 +63,8 @@ export function StudioCharacterFromReferenceWizard({
 }: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
+  const prefillAppliedRef = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<CharacterFromReferenceWizardState>(() =>
     createEmptyFromReferenceWizardState({
@@ -79,6 +84,14 @@ export function StudioCharacterFromReferenceWizard({
   useEffect(() => {
     trackCharacterClusterEvent("character_reference", "started");
   }, []);
+
+  useEffect(() => {
+    if (!prefill || prefillAppliedRef.current) {
+      return;
+    }
+    prefillAppliedRef.current = true;
+    setState((prev) => applyAssistantPrefillToFromReference(prev, prefill));
+  }, [prefill]);
 
   useEffect(() => {
     if (seedImageUrl || !seedCharacterId) {
@@ -234,6 +247,16 @@ export function StudioCharacterFromReferenceWizard({
           <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{t("characterCluster.reference.title" as never)}</h1>
           <p className="mt-2 text-sm text-zinc-600">{t("characterCluster.reference.subtitle" as never)}</p>
         </header>
+
+        {hasPrefill && prefill ? (
+          <div className="mt-4">
+            <AssistantWizardPrefillBanner
+              prefill={prefill}
+              onClear={clearPrefill}
+              onAdjust={() => fileRef.current?.click()}
+            />
+          </div>
+        ) : null}
 
         {state.step === "upload" ?
           <section className="mt-6">

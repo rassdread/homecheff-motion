@@ -7,7 +7,8 @@ import { StudioLibraryCard } from "@/components/studio/studio-library-card";
 import { StudioLibraryConsistencyRelationBadges } from "@/components/studio/studio-library-consistency-relation-badges";
 import { useActiveTranslator } from "@/i18n/client";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { brand } from "@/lib/brand";
+import { studioLibraryVisual, libraryFilterChipClasses } from "@/lib/studio-library-visual";
+import { StudioLibraryPageHero } from "@/components/studio/studio-library-page-hero";
 import { libraryBrowseHrefForCategory } from "@/lib/library-consistency";
 import {
   clearLibraryBrowseFilters,
@@ -103,17 +104,12 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
 
   const inner = (
     <div data-testid="library-consistency-browse">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">
-            {t("library.consistency.browse.title" as never)}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">{t("library.consistency.browse.lead" as never)}</p>
-        </div>
-        <Link href="/studio/assets" className="min-h-[44px] text-sm font-medium text-[#006D52] hover:underline">
-          ← {t("studio.assetsHub.backToHub")}
-        </Link>
-      </div>
+      <StudioLibraryPageHero
+        backHref="/studio/assets"
+        backLabel={t("studio.assetsHub.backToHub")}
+        title={t("library.consistency.browse.title" as never)}
+        description={t("library.consistency.browse.lead" as never)}
+      />
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1" data-testid="library-browse-tabs">
         {LIBRARY_CONSISTENCY_FILTER_TABS.map((tab) => (
@@ -121,9 +117,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
             key={tab}
             type="button"
             onClick={() => setFilters((prev) => ({ ...prev, tab }))}
-            className={`shrink-0 rounded-full px-3 py-2 text-xs font-medium min-h-[44px] ${
-              filters.tab === tab ? "bg-slate-800 text-white" : "bg-white text-slate-700 ring-1 ring-slate-200"
-            }`}
+            className={libraryFilterChipClasses(filters.tab === tab)}
             data-testid={`library-browse-tab-${tab}`}
           >
             {t(`library.consistency.browse.tab.${tab}` as never)}
@@ -138,12 +132,12 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
           value={textSearch}
           onChange={(e) => setTextSearch(e.target.value)}
           placeholder={t("studio.mediaAsset.search")}
-          className="min-h-[44px] min-w-[180px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          className={studioLibraryVisual.formControlWide}
         />
         <button
           type="button"
           onClick={() => setFiltersOpen((v) => !v)}
-          className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 lg:hidden"
+          className={studioLibraryVisual.filterToggle}
         >
           {t("studio.mediaAsset.filters")}
         </button>
@@ -156,7 +150,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
                 motionReady: e.target.value === "" ? undefined : e.target.value === "true",
               }))
             }
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
             data-testid="library-filter-motion-ready"
           >
             <option value="">{t("library.consistency.browse.filter.motionReadyAll" as never)}</option>
@@ -168,7 +162,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
             value={filters.characterType ?? ""}
             onChange={(e) => setFilters((prev) => ({ ...prev, characterType: e.target.value || undefined }))}
             placeholder={t("library.consistency.browse.filter.characterType" as never)}
-            className="min-h-[44px] min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={`${studioLibraryVisual.formControl} min-w-[140px]`}
             data-testid="library-filter-character-type"
           />
           <input
@@ -176,7 +170,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
             value={filters.fusionArchetype ?? ""}
             onChange={(e) => setFilters((prev) => ({ ...prev, fusionArchetype: e.target.value || undefined }))}
             placeholder={t("library.consistency.browse.filter.fusionArchetype" as never)}
-            className="min-h-[44px] min-w-[140px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={`${studioLibraryVisual.formControl} min-w-[140px]`}
             data-testid="library-filter-fusion-archetype"
           />
           <select
@@ -187,7 +181,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
                 sourceModule: (e.target.value || undefined) as LibrarySourceModule | undefined,
               }))
             }
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
             data-testid="library-filter-source-module"
           >
             <option value="">{t("library.consistency.browse.filter.sourceModuleAll" as never)}</option>
@@ -200,7 +194,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
           <select
             value={filters.workflow ?? ""}
             onChange={(e) => setFilters((prev) => ({ ...prev, workflow: e.target.value || undefined }))}
-            className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={studioLibraryVisual.formControl}
             data-testid="library-filter-workflow"
           >
             <option value="">{t("library.consistency.browse.filter.workflowAll" as never)}</option>
@@ -215,33 +209,33 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
             value={filters.projectId ?? ""}
             onChange={(e) => setFilters((prev) => ({ ...prev, projectId: e.target.value || undefined }))}
             placeholder={t("library.consistency.browse.filter.projectId" as never)}
-            className="min-h-[44px] min-w-[160px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+            className={`${studioLibraryVisual.formControl} min-w-[160px]`}
             data-testid="library-filter-project-id"
           />
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className={`mt-2 ${studioLibraryVisual.metaMuted}`}>
         {t("studio.mediaAsset.resultCount", { count: String(results.length) })}
       </p>
 
       {loading ?
-        <p className="mt-4 text-sm text-slate-600">{t("button.loading")}</p>
+        <p className={`mt-4 ${studioLibraryVisual.loadingText}`}>{t("button.loading")}</p>
       : error ?
-        <p className="mt-4 text-sm text-red-700">{error}</p>
+        <p className={`mt-4 ${studioLibraryVisual.errorText}`}>{error}</p>
       : showEmptyState ?
         <div
-          className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center"
+          className={`mt-6 rounded-2xl border border-dashed border-white/25 ${studioLibraryVisual.lightPanel} text-center`}
           data-testid="library-browse-empty-state"
         >
-          <p className="text-sm font-medium text-slate-800">
+          <p className={studioLibraryVisual.lightPanelBody}>
             {t("library.consistency.browse.empty" as never)}
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {activeFilters ?
               <button
                 type="button"
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800"
+                className={studioLibraryVisual.filterToggle}
                 onClick={() => {
                   setTextSearch("");
                   setFilters(clearLibraryBrowseFilters({ projectId: initialProjectId }));
@@ -260,7 +254,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
             </Link>
             <Link
               href="/studio/assets/library/uploads"
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800"
+              className={studioLibraryVisual.filterToggle}
               data-testid="library-browse-upload"
             >
               {t("library.consistency.browse.upload" as never)}
@@ -290,7 +284,7 @@ export function StudioLibraryConsistencyBrowse({ initialTab, initialProjectId }:
 
   return (
     <StudioAuthGate>
-      <main className={`flex-1 ${brand.softGradientBg}`}>
+      <main className={studioLibraryVisual.pageMain}>
         <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">{inner}</section>
       </main>
     </StudioAuthGate>

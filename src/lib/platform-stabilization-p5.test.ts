@@ -15,8 +15,20 @@ import {
   transitionHcProjectWorkflowStatus,
 } from "@/lib/hc-project-lifecycle";
 import { LIBRARY_CONSISTENCY_AUDIT_ENDPOINTS } from "@/lib/library-consistency";
-import { listAssistantActions } from "@/lib/assistant-action-registry";
+import { listAssistantActions, isRegisteredAssistantAction } from "@/lib/assistant-action-registry";
 import { buildAssistantContextSnapshot } from "@/lib/assistant-context-layer";
+
+const CORE_ASSISTANT_ACTION_IDS = [
+  "create_character",
+  "create_character_from_reference",
+  "prepare_motion_character",
+  "create_motion_video",
+  "create_fusion",
+  "create_publish_export",
+  "open_project",
+  "rename_project",
+  "open_asset",
+] as const;
 
 const ROOT = process.cwd();
 
@@ -114,7 +126,18 @@ describe("platform stabilization P5", () => {
   });
 
   it("assistant foundation — context layer and action registry are present", () => {
-    assert.equal(listAssistantActions().length, 9);
+    const actions = listAssistantActions();
+    assert.ok(
+      actions.length >= CORE_ASSISTANT_ACTION_IDS.length,
+      `expected at least ${CORE_ASSISTANT_ACTION_IDS.length} actions, got ${actions.length}`
+    );
+    for (const id of CORE_ASSISTANT_ACTION_IDS) {
+      assert.ok(isRegisteredAssistantAction(id), `missing core assistant action: ${id}`);
+    }
+    for (const action of actions) {
+      assert.equal(action.execution, "registry_only");
+      assert.ok(action.canonicalRoute.startsWith("/"));
+    }
     const snapshot = buildAssistantContextSnapshot({
       projects: [createHcProjectForModule({ sourceModule: "editor", title: "Assistant" })],
       libraryRecords: [],

@@ -25,6 +25,7 @@ export const STUDIO_LEDGER_ACTION_TYPES = [
   "credit_purchase",
   "subscription_grant",
   "admin_grant",
+  "promotional_grant",
   "usage_charge",
   "usage_reservation",
   "usage_capture",
@@ -59,6 +60,8 @@ export type StudioAccountSnapshot = {
 
 export type StudioWalletSnapshot = {
   balance: number;
+  purchasedBalance: number;
+  promotionalBalance: number;
   reservedBalance: number;
   availableBalance: number;
   lifetimePurchased: number;
@@ -75,6 +78,7 @@ export type StudioLedgerRow = {
   actionType: StudioLedgerActionType;
   creditsDelta: number;
   balanceAfter: number;
+  creditOrigin: string | null;
   provider: string | null;
   providerCostUsd: number | null;
   reservedCostUsd: number | null;

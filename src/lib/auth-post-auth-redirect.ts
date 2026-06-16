@@ -1,7 +1,8 @@
 /** Default destination after login/signup when no valid `?next=` is provided. */
-export const DEFAULT_POST_AUTH_PATH = "/maak";
+export const DEFAULT_POST_AUTH_PATH = "/";
 
 const ALLOWED_EXACT = new Set([
+  "/",
   "/maak",
   "/studio/projects",
   "/studio/storyboards",
@@ -43,6 +44,9 @@ export function isAllowedPostAuthPath(path: string): boolean {
 
 export function resolvePostAuthRedirect(nextParam: string | null | undefined): string {
   const next = nextParam?.trim();
+  if (next === "/maak") {
+    return "/";
+  }
   if (next && isAllowedPostAuthPath(next)) {
     return next;
   }

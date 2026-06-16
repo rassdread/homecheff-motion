@@ -254,32 +254,104 @@
   align-items: flex-start;
 }
 
+.home-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: clamp(32px, 4vw, 72px);
+  align-items: center;
+  min-height: auto;
+  padding: clamp(32px, 5vw, 72px) clamp(22px, 4vw, 56px);
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 1280px) {
+  .home-hero-grid {
+    min-height: calc(100dvh - var(--studio-header-height) - 32px);
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .home-hero-grid {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .home-hero-grid {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding-top: clamp(16px, 3vw, 32px);
+  }
+}
+
+.home-universe-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.home-universe-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+}
+
+.home-after-hero {
+  position: relative;
+  z-index: 1;
+  padding: clamp(48px, 7vw, 96px) clamp(16px, 3vw, 40px) clamp(32px, 5vw, 64px);
+  max-width: min(100%, 1280px);
+  margin: 0 auto;
+}
+
+.home-space-showcase {
+  position: relative;
+  z-index: 1;
+  padding: clamp(24px, 5vw, 56px) clamp(16px, 3vw, 40px) clamp(8px, 2vw, 24px);
+  max-width: min(100%, 1280px);
+  margin: 0 auto;
+}
+
+.home-row {
+  position: relative;
+  z-index: 1;
+}
+
 .universe-orbit-column {
-  margin-top: -2rem;
-  transform: translateX(2.5rem);
+  margin-top: 0;
+  transform: none;
 }
 
 @media (min-width: 1024px) {
   .universe-orbit-column {
-    margin-top: -7.5rem;
-    transform: translateX(5rem);
+    margin-top: 0;
+    transform: none;
   }
 }
 
 @media (min-width: 1280px) {
   .universe-orbit-column {
-    transform: translateX(6.25rem);
+    transform: none;
   }
 }
 
 .universe-dashboard-section {
-  margin-top: -9.375rem;
-  padding-top: 0.25rem;
+  margin-top: 0;
+  padding-top: clamp(24px, 4vw, 48px);
 }
 
 @media (max-width: 767px) {
   .universe-dashboard-section {
-    margin-top: 1rem;
+    margin-top: 0;
   }
 }
 

@@ -62,6 +62,7 @@ async function registerMotionExportInLibrarySafe(input: {
     studioSourceStoryboardId?: string | null;
     instantOutputDurationSeconds?: number | null;
     viduDurationSeconds?: number | null;
+    instantPosterMotionSettings?: unknown;
   };
   exportId: string;
   outputVideoUrl: string;

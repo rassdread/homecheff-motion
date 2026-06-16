@@ -1,15 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { brand } from "@/lib/brand";
+import type { TranslationKey } from "@/i18n";
+
+const FAQ_KEYS: { q: TranslationKey; a: TranslationKey }[] = [
+  { q: "pricing.faq.q1", a: "pricing.faq.a1" },
+  { q: "pricing.faq.q2", a: "pricing.faq.a2" },
+  { q: "pricing.faq.q3", a: "pricing.faq.a3" },
+  { q: "pricing.faq.q4", a: "pricing.faq.a4" },
+  { q: "pricing.faq.q5", a: "pricing.faq.a5" },
+];
 
 export default function PricingPage() {
   const t = useActiveTranslator();
   const session = useAuthSession();
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -27,6 +38,11 @@ export default function PricingPage() {
           <p className="mt-4 text-base leading-relaxed text-zinc-600">{t("pricing.subtitle")}</p>
         </header>
 
+        <AppCard className="mt-8 border border-emerald-200 bg-emerald-50/80 p-6 sm:p-8">
+          <h2 className="text-lg font-bold text-emerald-900">{t("pricing.carryTitle")}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-emerald-900/80">{t("pricing.carryBody")}</p>
+        </AppCard>
+
         <div className="mt-10 space-y-6">
           <AppCard className="bg-white p-6 sm:p-8">
             <h2 className="text-lg font-bold text-zinc-900">{t("pricing.credits.title")}</h2>
@@ -42,24 +58,60 @@ export default function PricingPage() {
             <h2 className="text-lg font-bold text-zinc-900">{t("pricing.studio.title")}</h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600">{t("pricing.studio.body")}</p>
           </AppCard>
+
+          <AppCard className="bg-white p-6 sm:p-8">
+            <h2 className="text-lg font-bold text-zinc-900">{t("pricing.faq.title")}</h2>
+            <ul className="mt-4 space-y-2">
+              {FAQ_KEYS.map((row, index) => {
+                const expanded = openFaq === index;
+                return (
+                  <li key={row.q} className="rounded-lg border border-zinc-200">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(expanded ? null : index)}
+                      className="flex w-full min-h-[44px] items-start justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-zinc-900"
+                      aria-expanded={expanded}
+                    >
+                      <span>{t(row.q)}</span>
+                      <span className="text-zinc-400">{expanded ? "−" : "+"}</span>
+                    </button>
+                    {expanded ? (
+                      <p className="border-t border-zinc-100 px-4 py-3 text-sm leading-relaxed text-zinc-600">
+                        {t(row.a)}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </AppCard>
         </div>
 
-        <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+        <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
           {session.resolved && session.user ? (
-            <Link
-              href="/mijn-verbruik"
-              prefetch={false}
-              className="inline-flex items-center rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-6 py-3 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/10"
-            >
-              {t("pricing.usageLink")} →
-            </Link>
+            <>
+              <Link
+                href="/account/billing"
+                prefetch={false}
+                className="inline-flex min-h-[44px] items-center rounded-full border border-[#006D52]/30 bg-[#006D52]/5 px-6 py-3 text-sm font-semibold text-[#006D52] hover:bg-[#006D52]/10"
+              >
+                {t("pricing.billingLink")} →
+              </Link>
+              <Link
+                href="/mijn-verbruik"
+                prefetch={false}
+                className="inline-flex min-h-[44px] items-center rounded-full border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+              >
+                {t("pricing.usageLink")} →
+              </Link>
+            </>
           ) : (
-            <GradientButton href="/signup" className="px-8">
+            <GradientButton href="/signup" className="min-h-[44px] px-8">
               {t("nav.getStarted")}
             </GradientButton>
           )}
           <Link
-            href="/maak"
+            href="/"
             prefetch={false}
             className="text-sm font-semibold text-zinc-600 hover:text-zinc-900 hover:underline"
           >

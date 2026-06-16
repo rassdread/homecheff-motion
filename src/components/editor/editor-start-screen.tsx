@@ -18,6 +18,9 @@ import {
   type EditorPostUploadMode,
 } from "@/lib/editor-start-flow";
 import { resolveReferenceIntakeConfig } from "@/lib/editor-reference-role-intake";
+import { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
+import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
+import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
 import {
   listRecentEditorDocuments,
   runEditorVisionAndObjectDetection,
@@ -45,12 +48,21 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const auth = useAuthSession();
+  const { prefill, hasPrefill, clearPrefill } = useAssistantWizardPrefill();
   const [error, setError] = useState("");
   const [recent, setRecent] = useState(() => listRecentEditorDocuments());
-  const [phase, setPhase] = useState<StartPhase>(() =>
-    searchParams.get("workflow") === "combine"
-      ? { kind: "combine_intent", workflow: "combine" }
-      : { kind: "workflow" }
+  const [phase, setPhase] = useState<StartPhase>(() => {
+    if (searchParams.get("workflow") === "combine") {
+      return { kind: "combine_intent", workflow: "combine" };
+    }
+    const bootstrap = typeof window !== "undefined" ? loadAssistantEditorFusionBootstrap() : null;
+    if (bootstrap?.fusionIntent === "outfit_from_reference") {
+      return { kind: "combine_intent", workflow: "combine" };
+    }
+    return { kind: "workflow" };
+  });
+  const [fusionBootstrap] = useState(() =>
+    typeof window !== "undefined" ? loadAssistantEditorFusionBootstrap() : null
   );
   const [showRecent, setShowRecent] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -122,6 +134,12 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     openReferenceFlow("combine", intent);
   };
 
+  useEffect(() => {
+    if (fusionBootstrap?.fusionIntent === "outfit_from_reference") {
+      openReferenceFlow("combine", "outfit_from_reference");
+    }
+  }, [fusionBootstrap]);
+
   const referenceConfig =
     phase.kind === "reference_flow"
       ? resolveReferenceIntakeConfig({
@@ -132,9 +150,23 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
 
   return (
     <StudioAuthGate authTitleKey="editor.start.authTitle" authBodyKey="editor.start.authBody">
-      <main className={`flex-1 ${brand.softGradientBg}`}>
+      <main className={`${studioVisual.pageRoot} ${brand.softGradientBg}`}>
         <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
           <p className={studioVisual.eyebrowOnDark}>{t("suite.nav.editor")}</p>
+
+          {hasPrefill && prefill ? (
+            <div className="mb-4">
+              <AssistantWizardPrefillBanner
+                prefill={prefill}
+                onClear={clearPrefill}
+                onAdjust={() => {
+                  if (phase.kind === "reference_flow") {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }
+                }}
+              />
+            </div>
+          ) : null}
 
           {phase.kind === "workflow" ?
             <>
@@ -209,6 +241,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                 key={`${phase.workflow}-${phase.combineIntent ?? "none"}`}
                 config={referenceConfig}
                 combineIntent={phase.combineIntent}
+                assistantFusionBootstrap={fusionBootstrap}
                 busy={opening}
                 onBack={() => {
                   if (phase.workflow === "combine" && phase.combineIntent) {
