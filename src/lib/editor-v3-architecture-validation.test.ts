@@ -119,15 +119,15 @@ test("animation result shows subtitles voice music CTAs", () => {
   assert.ok(actions.some((a) => a.id === "add_music"));
 });
 
-test("free user after ad sees monetization CTAs", () => {
+test("free user with no credits sees credit purchase CTAs", () => {
   const actions = resolveEditorNextBestActions({
     resultType: "image",
     userTier: "free",
     credits: 0,
-    lastAccessPath: "ad",
+    lastAccessPath: "credits",
     editorSessionId: "sess_1",
   });
-  assert.ok(actions.some((a) => a.id === "watch_ad"));
+  assert.ok(!actions.some((a) => a.id === "watch_ad"));
   assert.ok(actions.some((a) => a.id === "buy_credits"));
   assert.ok(actions.some((a) => a.id === "upgrade_premium"));
 });

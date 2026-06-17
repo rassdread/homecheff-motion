@@ -196,7 +196,7 @@ export function EditorPostGenerationActionCenter({
       </ul>
 
       {access.tier === "free" ?
-        <p className="text-xs text-zinc-600">{t("editor.postGen.monetizationHint" as never)}</p>
+        <p className="text-xs text-zinc-600">{t("studio.billing.officialModel" as never)}</p>
       : null}
 
       <HomeCheffProjectFileActions document={document} compact />

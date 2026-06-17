@@ -22,8 +22,8 @@ export function AppShell({ children }: AppShellProps) {
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
         <nav className={`${studioVisual.headerInner} items-center`}>
-          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3 lg:pr-4">
-            <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center">
+            <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <div className={studioVisual.logoMark}>
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
@@ -33,11 +33,11 @@ export function AppShell({ children }: AppShellProps) {
             </Link>
           </div>
 
-          <div className="hidden min-w-0 justify-center overflow-x-auto lg:flex lg:px-2">
+          <div className="hidden min-w-0 justify-center overflow-x-auto lg:flex lg:px-1">
             <AppShellPrimaryNav variant="desktop" />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <LanguageSwitch />
             <GlobalCreditIndicator />
             <div className="hidden lg:block">

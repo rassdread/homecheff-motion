@@ -289,27 +289,20 @@ export function resolveEditorNextBestActions(input: EditorNextBestActionInput): 
     });
   }
 
-  if (input.userTier === "free" && input.lastAccessPath === "ad") {
-    push({
-      id: "watch_ad",
-      labelKey: "editor.postGen.watchAd",
-      descriptionKey: "editor.postGen.watchAdHint",
-      cost: "ad_eligible",
-      priority: 90,
-    });
+  if (input.userTier === "free" && (input.lastAccessPath === "ad" || input.credits <= 0)) {
     push({
       id: "buy_credits",
       labelKey: "editor.postGen.buyCredits",
-      descriptionKey: "editor.postGen.buyCreditsHint",
+      descriptionKey: "studio.billing.officialModel",
       cost: "credits",
-      priority: 91,
+      priority: 90,
     });
     push({
       id: "upgrade_premium",
       labelKey: "editor.postGen.upgradePremium",
       descriptionKey: "editor.postGen.upgradePremiumHint",
       cost: "premium",
-      priority: 92,
+      priority: 91,
     });
   }
 

@@ -94,12 +94,6 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
         pathname === "/animate" ||
         pathname.startsWith("/animate/"));
 
-  const usageMatch = (pathname: string) =>
-    pathname === "/usage" ||
-    pathname.startsWith("/usage/") ||
-    pathname === "/mijn-verbruik" ||
-    pathname.startsWith("/mijn-verbruik/");
-
   const publishMatch = (pathname: string) =>
     pathname === "/publish" ||
     pathname.startsWith("/publish/") ||
@@ -158,12 +152,6 @@ export function buildSuitePrimaryNavItems(): PrimaryNavItem[] {
       href: "/pricing",
       labelKey: "nav.pricing",
       match: (pathname) => pathname === "/pricing" || pathname.startsWith("/pricing/"),
-    },
-    {
-      href: "/usage",
-      labelKey: "nav.usage",
-      match: usageMatch,
-      authOnly: true,
     },
   ];
 }

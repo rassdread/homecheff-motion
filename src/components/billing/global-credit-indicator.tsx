@@ -68,7 +68,7 @@ export function GlobalCreditIndicator({ variant = "header" }: { variant?: "heade
 
   return (
     <div
-      className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/5 pl-3 pr-1 py-1 lg:flex"
+      className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/5 pl-2 pr-1 py-1 lg:flex"
       data-testid="global-credit-indicator"
     >
       <Link href="/account/billing" prefetch={false} className="min-w-0 text-left hover:opacity-90">

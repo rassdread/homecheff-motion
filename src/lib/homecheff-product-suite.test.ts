@@ -134,6 +134,7 @@ describe("homecheff-product-suite", () => {
     assert.ok(suite.some((i) => i.labelKey === "suite.nav.library"));
     assert.equal(suite.some((i) => i.labelKey === "suite.nav.presentation"), false);
     assert.equal(suite.some((i) => i.labelKey === "suite.nav.assets"), false);
+    assert.equal(suite.some((i) => i.labelKey === "nav.usage"), false);
     assert.equal(suite.filter((i) => i.productId).length, 5);
   });
 

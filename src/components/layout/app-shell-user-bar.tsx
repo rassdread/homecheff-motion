@@ -4,10 +4,26 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { useActiveTranslator } from "@/i18n/client";
+import type { TranslationKey } from "@/i18n";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
 import { isHomeCheffProductSuiteNavEnabled } from "@/lib/homecheff-product-suite-flag";
 import { studioVisual } from "@/lib/studio-visual-tokens";
+
+type AccountMenuItem = {
+  href: string;
+  labelKey: TranslationKey;
+  adminOnly?: boolean;
+};
+
+const ACCOUNT_MENU_ITEMS: AccountMenuItem[] = [
+  { href: "/account", labelKey: "account.nav.profile" },
+  { href: "/account/billing", labelKey: "account.nav.billing" },
+  { href: "/usage", labelKey: "account.nav.usage" },
+  { href: "/account/billing?tab=subscription", labelKey: "account.nav.subscription" },
+  { href: "/account/settings", labelKey: "account.nav.settings" },
+  { href: "/admin", labelKey: "nav.admin", adminOnly: true },
+];
 
 function roleBadgeClass(role: string): string {
   if (role === "admin") {
@@ -120,24 +136,23 @@ export function AppShellUserBar() {
           <div className="px-3 pb-2 lg:hidden">
             <GlobalCreditIndicator variant="compact" />
           </div>
-          <Link
-            href="/account/billing"
-            prefetch={false}
-            className={studioVisual.userDropdownItem}
-            onClick={() => setOpen(false)}
-          >
-            {t("billing.conversion.billingAndCredits")}
-          </Link>
-          {normalizedRole === "admin" ?
-            <Link
-              href="/admin"
-              prefetch={false}
-              className={studioVisual.userDropdownItem}
-              onClick={() => setOpen(false)}
-            >
-              {t("nav.admin")}
-            </Link>
-          : null}
+          {ACCOUNT_MENU_ITEMS.map((item) => {
+            if (item.adminOnly && normalizedRole !== "admin") {
+              return null;
+            }
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
+                className={studioVisual.userDropdownItem}
+                onClick={() => setOpen(false)}
+              >
+                {t(item.labelKey)}
+              </Link>
+            );
+          })}
+          <div className="my-1 border-t border-white/10" role="separator" />
           <button
             type="button"
             className={`${studioVisual.userDropdownItem} w-full text-left`}

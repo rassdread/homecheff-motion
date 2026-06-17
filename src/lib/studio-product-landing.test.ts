@@ -28,7 +28,8 @@ describe("Studio product landing layer", () => {
     assert.equal(suite.find((item) => item.productId === "editor")?.href, "/editor");
     assert.equal(suite.find((item) => item.productId === "motion")?.href, "/motion");
     assert.equal(suite.find((item) => item.productId === "assets")?.href, "/library");
-    assert.ok(suite.some((item) => item.href === "/usage"));
+    assert.equal(suite.some((item) => item.href === "/usage"), false);
+    assert.equal(suite.some((item) => item.labelKey === "nav.usage"), false);
   });
 
   it("CTA routes to actual workspace start paths", () => {

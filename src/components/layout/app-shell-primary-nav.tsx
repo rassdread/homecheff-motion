@@ -88,7 +88,7 @@ export function AppShellPrimaryNav({ variant = "desktop" }: Props) {
 
   return (
     <div
-      className="flex items-center justify-center gap-1.5 sm:gap-2"
+      className="flex items-center justify-center gap-1 sm:gap-1.5"
       data-testid="app-shell-desktop-nav"
     >
       {renderLinks(visibleItems)}

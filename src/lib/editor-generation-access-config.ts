@@ -1,7 +1,7 @@
 import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorSubscriptionTier } from "@/types/editor-generation-access";
 
-/** Rewarded ad value expressed as low-cost generation credits. */
+/** Legacy editor tier credit equivalent for cost estimation (credits-only model). */
 export const AD_VALUE_CREDIT_EQUIVALENT = 1;
 
 /** USD value per ad-equivalent credit unit. */

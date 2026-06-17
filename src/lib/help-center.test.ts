@@ -37,7 +37,25 @@ describe("help center", () => {
     assert.match(component, /ConversionSurfaceArticleFooter/);
   });
 
-  it("all categories are defined", () => {
-    assert.equal(HELP_CENTER_CATEGORIES.length, 8);
+  it("official billing model has no rewarded-ad copy in user surfaces", () => {
+    const en = readFileSync(join(ROOT, "src/i18n/locales/en.ts"), "utf8");
+    const nl = readFileSync(join(ROOT, "src/i18n/locales/nl.ts"), "utf8");
+    const banned = [
+      /ad-supported generations/i,
+      /watch 1 ad/i,
+      /watch another ad/i,
+      /rewarded ads/i,
+      /advertentie-ondersteund/i,
+      /advertentie bekijken/i,
+      /met advertenties/i,
+      /zonder advertenties/i,
+      /gratis credits via advertenties/i,
+    ];
+    for (const pattern of banned) {
+      assert.doesNotMatch(en, pattern, `EN still contains: ${pattern}`);
+      assert.doesNotMatch(nl, pattern, `NL still contains: ${pattern}`);
+    }
+    assert.match(en, /studio\.billing\.officialModel/);
+    assert.match(nl, /studio\.billing\.officialModel/);
   });
 });

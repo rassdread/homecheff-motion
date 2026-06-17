@@ -4,7 +4,7 @@ import { buildPageMetadata } from "@/lib/seo/site-metadata";
 export const metadata = buildPageMetadata({
   title: "Knowledge Center",
   description:
-    "Guides for Studio credits, billing, Motion, voice, music and publishing — in English and Dutch.",
+    "Use Studio with credits or choose a subscription for extra benefits and lower credit costs.",
   path: "/help",
 });
 

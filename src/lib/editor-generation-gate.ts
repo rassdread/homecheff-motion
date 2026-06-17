@@ -102,8 +102,9 @@ export function checkGenerationAccess(input: {
   }
 
   if (input.preferAd && cost.adEligible) {
-    return allowedDecision(cost, "ad", "editor.generation.disclosure.adEligible", {
+    return blockedDecision(cost, "insufficient_credits", "studio.billing.officialModel", {
       count: cost.generationCount,
+      credits: cost.creditCost,
     });
   }
 
@@ -115,7 +116,7 @@ export function checkGenerationAccess(input: {
   }
 
   if (cost.adEligible) {
-    return allowedDecision(cost, "ad", "editor.generation.disclosure.adOrCredits", {
+    return blockedDecision(cost, "insufficient_credits", "studio.billing.officialModel", {
       count: cost.generationCount,
       credits: cost.creditCost,
     });

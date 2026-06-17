@@ -15,15 +15,15 @@ export const studioVisual = {
   header:
     "sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)]",
   headerInner:
-    "mx-auto grid w-full max-w-7xl grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 min-h-[60px] sm:px-6 sm:min-h-[68px] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:px-8 lg:min-h-[76px] lg:py-3",
+    "mx-auto grid w-full max-w-7xl grid-cols-[1fr_auto] items-center gap-2 px-2.5 py-2.5 min-h-[60px] sm:px-4 sm:min-h-[68px] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-2 lg:px-5 lg:min-h-[72px] lg:py-2.5",
   logoMark:
     "relative h-7 w-7 overflow-hidden rounded-lg border border-white/[0.17] shadow-[0_0_10px_rgba(0,109,82,0.3)] sm:h-8 sm:w-8",
   logoText: "text-xs font-semibold tracking-tight text-white sm:text-sm",
   /** Nav pills */
   navInactive:
-    "inline-flex h-9 shrink-0 items-center rounded-full border border-white/[0.10] bg-white/5 px-3 text-xs font-medium text-white/80 transition-all hover:border-white/[0.17] hover:bg-white/10 hover:text-white lg:px-4 lg:text-sm",
+    "inline-flex h-9 shrink-0 items-center rounded-full border border-white/[0.10] bg-white/5 px-2.5 text-xs font-medium text-white/80 transition-all hover:border-white/[0.17] hover:bg-white/10 hover:text-white lg:px-3",
   navActive:
-    "inline-flex h-9 shrink-0 items-center rounded-full border border-[#006D52]/45 bg-gradient-to-r from-[#006D52]/25 to-[#0067B1]/25 px-3 text-xs font-semibold text-white shadow-[0_0_13px_rgba(0,103,177,0.28)] lg:px-4 lg:text-sm",
+    "inline-flex h-9 shrink-0 items-center rounded-full border border-[#006D52]/45 bg-gradient-to-r from-[#006D52]/25 to-[#0067B1]/25 px-2.5 text-xs font-semibold text-white shadow-[0_0_13px_rgba(0,103,177,0.28)] lg:px-3",
   /** Language switch */
   langSwitch:
     "flex items-center rounded-full border border-white/[0.13] bg-white/[0.07] p-0.5 backdrop-blur-sm",
@@ -44,7 +44,7 @@ export const studioVisual = {
   roleBadgePower:
     "shrink-0 rounded-full border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200 sm:text-xs",
   userPill:
-    "inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.13] bg-white/[0.07] px-3 py-1.5 text-xs backdrop-blur-sm transition-colors hover:bg-white/10",
+    "inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/[0.13] bg-white/[0.07] px-2.5 py-1.5 text-xs backdrop-blur-sm transition-colors hover:bg-white/10",
   userDropdown:
     "overflow-hidden rounded-xl border border-white/[0.13] bg-[#041428]/95 py-1 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
   userDropdownItem:
