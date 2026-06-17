@@ -72,12 +72,12 @@ test.describe("Motion Studio production smoke", () => {
     const res = await request.fetch("/api/studio/locations", {
       method: "OPTIONS",
       headers: {
-        Origin: "https://motion.homecheff.eu",
+        Origin: "https://studio.homecheff.eu",
         "Access-Control-Request-Method": "GET",
       },
     });
     expect(res.status()).toBe(204);
-    expect(res.headers()["access-control-allow-origin"]).toBe("https://motion.homecheff.eu");
+    expect(res.headers()["access-control-allow-origin"]).toBe("https://studio.homecheff.eu");
     expect(res.headers()["access-control-allow-credentials"]).toBe("true");
   });
 

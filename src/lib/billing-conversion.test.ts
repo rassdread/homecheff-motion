@@ -38,5 +38,7 @@ describe("billing conversion analytics", () => {
     assert.ok(typeof counts.buy_credits_clicked === "number");
     assert.ok(typeof counts.conversion_surface_impression === "number");
     assert.ok(typeof counts.pricing_view === "number");
+    assert.ok(typeof counts.yearly_selected === "number");
+    assert.ok(typeof counts.monthly_selected === "number");
   });
 });

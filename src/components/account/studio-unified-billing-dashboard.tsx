@@ -259,7 +259,7 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
           {overview.recentLedger.length === 0 ? (
             <p className="mt-3 text-sm text-white/50">{t("account.billing.walletHelpBody")}</p>
           ) : (
-            <div className="mt-3 overflow-x-auto">
+            <div className="hc-table-scroll mt-3">
               <table className="w-full min-w-[520px] text-left text-xs text-white/80">
                 <thead>
                   <tr className="border-b border-white/10 text-white/50">

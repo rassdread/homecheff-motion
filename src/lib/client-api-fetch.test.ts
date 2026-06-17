@@ -31,7 +31,8 @@ test("isAccessControlLikeError detects Safari CORS wording", () => {
   assert.equal(isAccessControlLikeError(new Error("timeout")), false);
 });
 
-test("production motion origin is allowed for API CORS", () => {
+test("production studio origin is allowed for API CORS", () => {
+  assert.ok(isAllowedApiOrigin("https://studio.homecheff.eu"));
   assert.ok(isAllowedApiOrigin("https://motion.homecheff.eu"));
   assert.equal(isAllowedApiOrigin("https://evil.example"), false);
 });
@@ -43,7 +44,7 @@ test("isAbortLikeError detects AbortError and aborted messages", () => {
 });
 
 test("sameOriginApiPath rejects absolute URLs", () => {
-  assert.throws(() => sameOriginApiPath("https://motion.homecheff.eu/api/x"));
+  assert.throws(() => sameOriginApiPath("https://studio.homecheff.eu/api/x"));
   assert.equal(sameOriginApiPath("/api/foo"), "/api/foo");
 });
 

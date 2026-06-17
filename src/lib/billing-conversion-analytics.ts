@@ -8,6 +8,8 @@ export type BillingConversionEventType =
   | "insufficient_credits_seen"
   | "credit_pack_selected"
   | "subscription_upgrade_selected"
+  | "yearly_selected"
+  | "monthly_selected"
   | "pricing_view"
   | "conversion_surface_impression";
 
@@ -79,6 +81,8 @@ export function getBillingConversionEventCounts(): Record<BillingConversionEvent
     insufficient_credits_seen: 0,
     credit_pack_selected: 0,
     subscription_upgrade_selected: 0,
+    yearly_selected: 0,
+    monthly_selected: 0,
     pricing_view: 0,
     conversion_surface_impression: 0,
   };

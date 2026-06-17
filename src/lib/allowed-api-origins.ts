@@ -1,8 +1,13 @@
+import {
+  LEGACY_MOTION_ORIGIN,
+  OFFICIAL_STUDIO_ORIGIN,
+  resolvePublicOriginFromEnv,
+} from "@/lib/public-origin";
+
 /** Origins allowed to call JSON API routes with cookies (CORS preflight). */
 export function getAllowedApiOrigins(): string[] {
   const fromEnv = [
-    process.env.NEXT_PUBLIC_APP_URL,
-    process.env.PUBLIC_BASE_URL,
+    resolvePublicOriginFromEnv(),
     process.env.NEXT_PUBLIC_VERCEL_URL
       ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL.replace(/^https?:\/\//, "")}`
       : null,
@@ -11,7 +16,8 @@ export function getAllowedApiOrigins(): string[] {
     .map((v) => v.trim().replace(/\/$/, ""));
 
   const defaults = [
-    "https://motion.homecheff.eu",
+    OFFICIAL_STUDIO_ORIGIN,
+    LEGACY_MOTION_ORIGIN,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
   ];

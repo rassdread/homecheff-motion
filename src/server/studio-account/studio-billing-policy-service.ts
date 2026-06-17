@@ -5,30 +5,31 @@ import type {
   StudioPlanBenefits,
 } from "@/types/studio-billing";
 import { STUDIO_PLANS, type StudioPlanId } from "@/server/studio-account/studio-plan-config";
+import { OFFICIAL_PLAN_STORAGE_GB } from "@/lib/studio-subscription-storage";
 
 const DEFAULT_PLAN_BENEFITS: Record<StudioPlanId, StudioPlanBenefits> = {
   free: {
     creditDiscountPercent: 0,
     autoTopUpAvailable: false,
-    storageLimitGb: 2,
+    storageLimitGb: OFFICIAL_PLAN_STORAGE_GB.free,
     featureFlags: [],
   },
   creator: {
     creditDiscountPercent: 10,
     autoTopUpAvailable: true,
-    storageLimitGb: 25,
+    storageLimitGb: OFFICIAL_PLAN_STORAGE_GB.creator,
     featureFlags: ["priority_export"],
   },
   pro: {
     creditDiscountPercent: 15,
     autoTopUpAvailable: true,
-    storageLimitGb: 100,
+    storageLimitGb: OFFICIAL_PLAN_STORAGE_GB.pro,
     featureFlags: ["priority_export", "advanced_motion"],
   },
   studio: {
     creditDiscountPercent: 20,
     autoTopUpAvailable: true,
-    storageLimitGb: 500,
+    storageLimitGb: OFFICIAL_PLAN_STORAGE_GB.studio,
     featureFlags: ["priority_export", "advanced_motion", "team_workspace"],
   },
   enterprise: {
@@ -39,9 +40,28 @@ const DEFAULT_PLAN_BENEFITS: Record<StudioPlanId, StudioPlanBenefits> = {
   },
 };
 
+function applyOfficialStorageOverlay(
+  plans: Record<string, StudioPlanBenefits>
+): Record<string, StudioPlanBenefits> {
+  const merged = { ...plans };
+  for (const planId of ["free", "creator", "pro", "studio"] as const) {
+    const current = merged[planId] ?? getDefaultPlanBenefitsWithoutOverlay(planId);
+    merged[planId] = {
+      ...current,
+      storageLimitGb: OFFICIAL_PLAN_STORAGE_GB[planId],
+    };
+  }
+  return merged;
+}
+
+function getDefaultPlanBenefitsWithoutOverlay(planId: string): StudioPlanBenefits {
+  const key = planId in STUDIO_PLANS ? (planId as StudioPlanId) : "free";
+  return DEFAULT_PLAN_BENEFITS[key];
+}
+
 function parsePlansJson(raw: unknown): Record<string, StudioPlanBenefits> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { ...DEFAULT_PLAN_BENEFITS };
+    return applyOfficialStorageOverlay({ ...DEFAULT_PLAN_BENEFITS });
   }
   const merged: Record<string, StudioPlanBenefits> = { ...DEFAULT_PLAN_BENEFITS };
   for (const [planId, value] of Object.entries(raw as Record<string, unknown>)) {
@@ -69,7 +89,7 @@ function parsePlansJson(raw: unknown): Record<string, StudioPlanBenefits> {
         : merged[planId]?.featureFlags ?? [],
     };
   }
-  return merged;
+  return applyOfficialStorageOverlay(merged);
 }
 
 export async function ensureStudioBillingPolicy() {
@@ -105,7 +125,7 @@ export async function loadStudioBillingPolicy(): Promise<StudioBillingPolicySnap
 
 export function getDefaultPlanBenefits(planId: string): StudioPlanBenefits {
   const key = planId in STUDIO_PLANS ? (planId as StudioPlanId) : "free";
-  return DEFAULT_PLAN_BENEFITS[key];
+  return applyOfficialStorageOverlay({ [key]: DEFAULT_PLAN_BENEFITS[key] })[key]!;
 }
 
 export async function getPlanBenefits(planId: string): Promise<StudioPlanBenefits> {

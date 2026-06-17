@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { STUDIO_PLANS, resolveStripePriceId, type StudioPlanId } from "@/server/studio-account/studio-plan-config";
+import {
+  STUDIO_PLANS,
+  resolveStripePriceId,
+  type StudioPlanId,
+} from "@/server/studio-account/studio-plan-config";
+import { subscriptionYearlyPriceEur } from "@/lib/studio-subscription-prices";
 import type { StudioSubscriptionPlanSnapshot } from "@/types/studio-billing";
 
 function parseFeatureFlags(raw: unknown): string[] {
@@ -57,7 +62,8 @@ function fallbackPlan(slug: StudioPlanId): StudioSubscriptionPlanSnapshot | null
     name: slug.charAt(0).toUpperCase() + slug.slice(1),
     description: "",
     monthlyPriceEur: plan.monthlyPriceEur,
-    yearlyPriceEur: plan.monthlyPriceEur != null ? plan.monthlyPriceEur * 10 : null,
+    yearlyPriceEur:
+      plan.monthlyPriceEur != null ? subscriptionYearlyPriceEur(plan.monthlyPriceEur) : null,
     discountPercent: plan.creditDiscountPercent,
     storageLimitGb: plan.storageLimitGb,
     featureFlags: [],
@@ -65,8 +71,8 @@ function fallbackPlan(slug: StudioPlanId): StudioSubscriptionPlanSnapshot | null
     isVisible: slug !== "enterprise",
     isActive: true,
     displayOrder: slug === "creator" ? 1 : slug === "pro" ? 2 : slug === "studio" ? 3 : 4,
-    stripePriceIdMonthly: resolveStripePriceId(slug),
-    stripePriceIdYearly: null,
+    stripePriceIdMonthly: resolveStripePriceId(slug, "monthly"),
+    stripePriceIdYearly: resolveStripePriceId(slug, "yearly"),
     source: "fallback",
   };
 }
@@ -204,7 +210,7 @@ export function resolvePlanStripePriceId(
     return dbPrice.trim();
   }
   if (plan.source === "fallback" && plan.slug in STUDIO_PLANS) {
-    return resolveStripePriceId(plan.slug as StudioPlanId);
+    return resolveStripePriceId(plan.slug as StudioPlanId, interval);
   }
   return null;
 }

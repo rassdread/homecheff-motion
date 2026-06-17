@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
+import { ROOT_SITE_METADATA } from "@/lib/seo/site-metadata";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,11 +17,7 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 
-export const metadata: Metadata = {
-  title: "HomeCheff Studio",
-  description:
-    "Your AI production line — create once, adapt endlessly. Build assets in Editor, design in Studio, animate in Motion, and publish unlimited versions.",
-};
+export const metadata: Metadata = ROOT_SITE_METADATA;
 
 export default function RootLayout({
   children,

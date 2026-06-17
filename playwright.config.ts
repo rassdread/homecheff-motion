@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "https://motion.homecheff.eu";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "https://studio.homecheff.eu";
 
 export default defineConfig({
   testDir: "./e2e",

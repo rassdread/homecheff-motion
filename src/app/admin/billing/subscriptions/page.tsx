@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { AdminBillingShell } from "@/components/admin/billing/admin-billing-shell";
 import type { StudioSubscriptionPlanSnapshot } from "@/types/studio-billing";
 
+function planYearlyWarning(plan: StudioSubscriptionPlanSnapshot): string | null {
+  if (plan.yearlyPriceEur != null && plan.yearlyPriceEur > 0 && !plan.stripePriceIdYearly?.trim()) {
+    return "Missing yearly Stripe Price ID — yearly checkout will fail.";
+  }
+  if (!plan.stripePriceIdMonthly?.trim() && plan.monthlyPriceEur != null && plan.monthlyPriceEur > 0) {
+    return "Missing monthly Stripe Price ID — monthly checkout will fail.";
+  }
+  return null;
+}
+
 export default function AdminBillingSubscriptionsPage() {
   const [plans, setPlans] = useState<StudioSubscriptionPlanSnapshot[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
@@ -36,17 +46,25 @@ export default function AdminBillingSubscriptionsPage() {
   return (
     <AdminBillingShell title="Subscription plans">
       <div className="space-y-4">
-        {plans.map((plan) => (
+        {plans.map((plan) => {
+          const warning = planYearlyWarning(plan);
+          return (
           <div key={plan.slug} className="rounded-xl border border-zinc-200 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-semibold text-zinc-900">{plan.name}</h2>
               <span className="text-xs text-zinc-500">{plan.source}</span>
             </div>
+            {warning ? (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {warning}
+              </p>
+            ) : null}
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <label className="text-xs text-zinc-600">
                 Monthly EUR
                 <input
                   type="number"
+                  step="0.01"
                   className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
                   value={plan.monthlyPriceEur ?? ""}
                   onChange={(e) =>
@@ -54,6 +72,24 @@ export default function AdminBillingSubscriptionsPage() {
                       rows.map((row) =>
                         row.slug === plan.slug
                           ? { ...row, monthlyPriceEur: e.target.value ? Number(e.target.value) : null }
+                          : row
+                      )
+                    )
+                  }
+                />
+              </label>
+              <label className="text-xs text-zinc-600">
+                Yearly EUR
+                <input
+                  type="number"
+                  step="0.01"
+                  className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                  value={plan.yearlyPriceEur ?? ""}
+                  onChange={(e) =>
+                    setPlans((rows) =>
+                      rows.map((row) =>
+                        row.slug === plan.slug
+                          ? { ...row, yearlyPriceEur: e.target.value ? Number(e.target.value) : null }
                           : row
                       )
                     )
@@ -100,13 +136,29 @@ export default function AdminBillingSubscriptionsPage() {
               <label className="text-xs text-zinc-600">
                 Stripe monthly price ID
                 <input
-                  className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm"
+                  className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm font-mono text-xs"
                   value={plan.stripePriceIdMonthly ?? ""}
                   onChange={(e) =>
                     setPlans((rows) =>
                       rows.map((row) =>
                         row.slug === plan.slug
                           ? { ...row, stripePriceIdMonthly: e.target.value || null }
+                          : row
+                      )
+                    )
+                  }
+                />
+              </label>
+              <label className="text-xs text-zinc-600">
+                Stripe yearly price ID
+                <input
+                  className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-sm font-mono text-xs"
+                  value={plan.stripePriceIdYearly ?? ""}
+                  onChange={(e) =>
+                    setPlans((rows) =>
+                      rows.map((row) =>
+                        row.slug === plan.slug
+                          ? { ...row, stripePriceIdYearly: e.target.value || null }
                           : row
                       )
                     )
@@ -169,7 +221,8 @@ export default function AdminBillingSubscriptionsPage() {
               {saving === plan.slug ? "Saving…" : "Save plan"}
             </button>
           </div>
-        ))}
+        );
+        })}
       </div>
     </AdminBillingShell>
   );

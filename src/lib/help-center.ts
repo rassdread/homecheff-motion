@@ -93,6 +93,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
     ],
   },
   {
+    slug: "monthly-vs-yearly-billing",
+    category: "credits_billing",
+    titleKey: "help.articles.monthlyVsYearly.title",
+    descriptionKey: "help.articles.monthlyVsYearly.description",
+    bodyKeys: [
+      "help.articles.monthlyVsYearly.body1",
+      "help.articles.monthlyVsYearly.body2",
+    ],
+  },
+  {
     slug: "getting-started-with-studio",
     category: "getting_started",
     titleKey: "help.articles.gettingStarted.title",

@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { COST_ACTION } from "@/server/provider-cost/cost-event-types";
 import { resolveEurToUsdRate } from "@/server/provider-cost/margin-simulation";
+import { STUDIO_PLANS } from "@/server/studio-account/studio-plan-config";
 import type {
   FeatureProfitabilityRow,
   NegativeMarginAlert,
@@ -39,11 +40,11 @@ const ELEVENLABS_ACTIONS = new Set<string>([
 const LOW_MARGIN_PERCENT = 20;
 const COST_SPIKE_MULTIPLIER = 2;
 
-const SUBSCRIPTION_PLANS = [
-  { planId: "creator", planLabel: "Creator", monthlyPriceEur: 19 },
-  { planId: "pro", planLabel: "Pro", monthlyPriceEur: 49 },
-  { planId: "studio", planLabel: "Studio", monthlyPriceEur: 99 },
-] as const;
+const SUBSCRIPTION_PLANS = (["creator", "pro", "studio"] as const).map((planId) => ({
+  planId,
+  planLabel: planId.charAt(0).toUpperCase() + planId.slice(1),
+  monthlyPriceEur: STUDIO_PLANS[planId].monthlyPriceEur ?? 0,
+}));
 
 const FEATURE_LABELS: Record<string, string> = {
   voice_preview: "Voice previews",

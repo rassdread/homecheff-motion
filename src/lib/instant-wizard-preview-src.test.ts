@@ -23,7 +23,7 @@ describe("instant wizard preview src", () => {
   it("rejects stale blob URLs without memory backing", () => {
     resetWizardPreviewRegistryForTests();
     clearWizardBlobMemoryCache();
-    const stale = "blob:https://motion.homecheff.eu/stale-preview";
+    const stale = "blob:https://studio.homecheff.eu/stale-preview";
     assert.equal(isValidBlobUrl(stale), false);
     assert.equal(
       resolvePreviewSrc({
@@ -99,7 +99,7 @@ describe("instant wizard preview src", () => {
 
   it("marks restored stale blob state as unavailable for generate", () => {
     resetWizardPreviewRegistryForTests();
-    const staleBlob = "blob:https://motion.homecheff.eu/dead";
+    const staleBlob = "blob:https://studio.homecheff.eu/dead";
     const image = {
       id: "img-6",
       originalFileName: "a.jpg",

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { listStudioSubscriptionPlans } from "@/server/studio-account/studio-subscription-plan-service";
+import {
+  listStudioSubscriptionPlans,
+  resolvePlanStripePriceId,
+} from "@/server/studio-account/studio-subscription-plan-service";
 import { listStudioCreditPacks } from "@/server/studio-account/studio-credit-pack-service";
 
 export async function GET() {
@@ -20,6 +23,7 @@ export async function GET() {
       storageLimitGb: plan.storageLimitGb,
       featureFlags: plan.featureFlags,
       autoTopUpAvailable: plan.autoTopUpAvailable,
+      yearlyCheckoutAvailable: Boolean(resolvePlanStripePriceId(plan, "yearly")),
     })),
     packs: packs.map((pack) => ({
       id: pack.slug,

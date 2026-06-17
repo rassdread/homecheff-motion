@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { HomeCheffBrandMark } from "@/components/brand/homecheff-brand-mark";
 import { HomeCheffAssistantMount } from "@/components/assistant/homecheff-assistant-mount";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
@@ -17,18 +18,14 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div data-route-shell="app-shell">
+    <div data-route-shell="app-shell" className="hc-viewport-width min-w-0 overflow-x-clip">
       <I18nHydrationSync />
       <I18nHtmlLangSync />
       <header className={`${studioVisual.header} studio-header-glow`}>
         <nav className={`${studioVisual.headerInner} items-center`}>
           <div className="flex min-w-0 items-center">
             <Link href="/" prefetch={false} className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <div className={studioVisual.logoMark}>
-                <div
-                  className={`absolute inset-0 bg-gradient-to-br ${brand.accentGradient} opacity-95`}
-                />
-              </div>
+              <HomeCheffBrandMark priority />
               <span className={studioVisual.logoText}>{brand.studioProductName}</span>
             </Link>
           </div>
@@ -37,14 +34,14 @@ export function AppShell({ children }: AppShellProps) {
             <AppShellPrimaryNav variant="desktop" />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
             <LanguageSwitch />
             <GlobalCreditIndicator />
             <div className="hidden lg:block">
               <AppShellUserBar />
             </div>
-            <div className="relative flex items-center gap-2 lg:hidden">
-              <AppShellUserBar />
+            <div className="relative flex min-w-0 items-center gap-1 lg:hidden">
+              <AppShellUserBar compact />
               <AppShellPrimaryNav variant="mobile" />
             </div>
           </div>

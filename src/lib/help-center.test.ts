@@ -7,6 +7,11 @@ import { HELP_ARTICLES, HELP_CENTER_CATEGORIES } from "@/lib/help-center";
 const ROOT = process.cwd();
 
 describe("help center", () => {
+  it("has monthly vs yearly billing article", () => {
+    const slugs = HELP_ARTICLES.map((a) => a.slug);
+    assert.ok(slugs.includes("monthly-vs-yearly-billing"));
+  });
+
   it("has starter billing articles", () => {
     const slugs = HELP_ARTICLES.map((a) => a.slug);
     assert.ok(slugs.includes("what-are-studio-credits"));

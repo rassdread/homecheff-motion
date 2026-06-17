@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UniverseBackground } from "@/components/suite/universe/universe-background";
 import { UniverseHeroCopy } from "@/components/suite/universe/universe-hero-copy";
-import { UniverseMobileStack } from "@/components/suite/universe/universe-mobile-stack";
 import { UniverseOrbitSystem } from "@/components/suite/universe/universe-orbit-system";
 import { UniverseTunnelOverlay } from "@/components/suite/universe/universe-tunnel-overlay";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -14,6 +13,7 @@ import type { UniversePlanetConfig, UniversePlanetId } from "@/lib/universe-home
 import {
   resolveUniversePlanetHrefs,
 } from "@/lib/universe-public-landing";
+import { UniverseHomeMobileQuickActions } from "@/components/suite/universe/universe-home-mobile-quick-actions";
 import { UniverseHomeSections } from "@/components/suite/universe/universe-home-sections";
 import { UniverseHomeSpaceShowcase } from "@/components/suite/universe/universe-home-space-showcase";
 import { ConversionSurface, GuestConversionStrip } from "@/components/billing/conversion-surface";
@@ -174,8 +174,8 @@ export function UniverseHomePage() {
             />
           </div>
 
-          <div className="home-universe-zone" data-testid="home-universe-zone">
-            <div className="home-universe-canvas hidden w-full md:block">
+          <div className="home-universe-zone hidden md:flex" data-testid="home-universe-zone">
+            <div className="home-universe-canvas w-full">
               <UniverseOrbitSystem
                 hrefs={planetHrefs}
                 hoveredPlanet={effectiveHoveredPlanet}
@@ -191,22 +191,14 @@ export function UniverseHomePage() {
                 onSelect={handlePlanetSelect}
               />
             </div>
-            <div className="w-full md:hidden">
-              <UniverseMobileStack
-                hrefs={planetHrefs}
-                expandedPlanet={effectiveHoveredPlanet}
-                focusedPlanet={effectiveFocusedPlanet}
-                reducedMotion={reducedMotion}
-                onExpand={handlePlanetHoverStart}
-                onCollapse={handlePlanetHoverEnd}
-                onFocus={setFocusedPlanet}
-                onSelect={handlePlanetSelect}
-              />
-            </div>
           </div>
         </section>
 
-        <UniverseHomeSpaceShowcase />
+        <UniverseHomeMobileQuickActions isAuthenticated={isAuthenticated} />
+
+        <div className="hidden md:block">
+          <UniverseHomeSpaceShowcase />
+        </div>
 
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6" data-testid="home-conversion-block">
           {isAuthenticated ? (

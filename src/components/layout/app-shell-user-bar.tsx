@@ -45,7 +45,11 @@ function roleLabelKey(role: string): "nav.role.admin" | "nav.role.power" | "nav.
   return "nav.role.user";
 }
 
-export function AppShellUserBar() {
+type Props = {
+  compact?: boolean;
+};
+
+export function AppShellUserBar({ compact = false }: Props) {
   const t = useActiveTranslator();
   const session = useAuthSession();
   const [open, setOpen] = useState(false);
@@ -106,23 +110,35 @@ export function AppShellUserBar() {
   const displayName = (email.split("@")[0] ?? email).replace(/^\w/, (c) => c.toUpperCase());
 
   return (
-    <div ref={rootRef} className="relative flex-shrink-0" data-testid="app-shell-user-bar">
+    <div ref={rootRef} className="relative shrink-0" data-testid="app-shell-user-bar">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         className={studioVisual.userPill}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={t("account.nav.profile")}
       >
-        <span className="max-w-[8rem] truncate font-semibold text-white">{displayName}</span>
-        <span
-          className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleBadgeClass(normalizedRole)}`}
-        >
-          {t(roleLabelKey(normalizedRole))}
-        </span>
-        <span className="text-white/60" aria-hidden>
-          ▼
-        </span>
+        {compact ? (
+          <span
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white"
+            aria-hidden
+          >
+            {displayName.slice(0, 1)}
+          </span>
+        ) : (
+          <>
+            <span className="max-w-[8rem] truncate font-semibold text-white">{displayName}</span>
+            <span
+              className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleBadgeClass(normalizedRole)}`}
+            >
+              {t(roleLabelKey(normalizedRole))}
+            </span>
+            <span className="text-white/60" aria-hidden>
+              ▼
+            </span>
+          </>
+        )}
       </button>
 
       {open ?

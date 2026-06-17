@@ -13,12 +13,12 @@ export const studioVisual = {
   pageRoot: "relative w-full min-w-0 overflow-visible",
   /** Sticky dark glass header — compact V4 */
   header:
-    "sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)]",
+    "studio-header-safe sticky top-0 z-30 border-b border-white/[0.085] bg-[#041428]/75 backdrop-blur-xl backface-hidden [transform:translateZ(0)] shadow-[0_6px_26px_-12px_rgba(0,103,177,0.28)] supports-[backdrop-filter]:bg-[#041428]/75 bg-[#041428]/95",
   headerInner:
-    "mx-auto grid w-full max-w-7xl grid-cols-[1fr_auto] items-center gap-2 px-2.5 py-2.5 min-h-[60px] sm:px-4 sm:min-h-[68px] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-2 lg:px-5 lg:min-h-[72px] lg:py-2.5",
+    "mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5 px-2 py-2 min-h-[var(--studio-header-height)] sm:gap-2 sm:px-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-2 lg:px-5 lg:py-2.5 lg:min-h-[72px]",
   logoMark:
-    "relative h-7 w-7 overflow-hidden rounded-lg border border-white/[0.17] shadow-[0_0_10px_rgba(0,109,82,0.3)] sm:h-8 sm:w-8",
-  logoText: "text-xs font-semibold tracking-tight text-white sm:text-sm",
+    "relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-white/[0.17] shadow-[0_0_10px_rgba(0,109,82,0.3)] sm:h-8 sm:w-8",
+  logoText: "hidden min-[400px]:inline text-xs font-semibold tracking-tight text-white sm:text-sm",
   /** Nav pills */
   navInactive:
     "inline-flex h-9 shrink-0 items-center rounded-full border border-white/[0.10] bg-white/5 px-2.5 text-xs font-medium text-white/80 transition-all hover:border-white/[0.17] hover:bg-white/10 hover:text-white lg:px-3",
@@ -44,15 +44,15 @@ export const studioVisual = {
   roleBadgePower:
     "shrink-0 rounded-full border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-200 sm:text-xs",
   userPill:
-    "inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/[0.13] bg-white/[0.07] px-2.5 py-1.5 text-xs backdrop-blur-sm transition-colors hover:bg-white/10",
+    "inline-flex max-w-[9.5rem] min-h-[44px] items-center gap-1 rounded-full border border-white/[0.13] bg-white/[0.07] px-2 py-1.5 text-xs backdrop-blur-sm transition-colors hover:bg-white/10 sm:max-w-[12rem] sm:gap-1.5 sm:px-2.5 lg:max-w-none",
   userDropdown:
     "overflow-hidden rounded-xl border border-white/[0.13] bg-[#041428]/95 py-1 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
   userDropdownItem:
     "block px-3 py-2 text-sm text-white/90 transition-colors hover:bg-white/10",
   mobileMenuButton:
-    "inline-flex h-9 items-center rounded-full border border-white/[0.13] bg-white/[0.07] px-3 text-xs font-semibold text-white backdrop-blur-sm",
+    "inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/[0.13] bg-white/[0.07] px-3 text-sm font-semibold text-white backdrop-blur-sm",
   mobileNavDrawer:
-    "absolute left-0 right-0 top-full z-40 mt-2 rounded-xl border border-white/[0.13] bg-[#041428]/95 p-3 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.65)] backdrop-blur-xl",
+    "studio-mobile-nav-drawer",
   /** Cards */
   /** Cards on dark pages — tinted glass, not harsh pure white */
   cardOnDark:

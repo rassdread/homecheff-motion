@@ -1,3 +1,5 @@
+import { studioOriginHostname } from "@/lib/public-origin";
+
 /**
  * Shared client fetch defaults for same-origin API routes.
  * `include` sends session cookies reliably in Safari and on schemeful-same-site subdomains.
@@ -68,7 +70,7 @@ export async function fetchSameOriginJson<T>(
     const aborted = isAbortLikeError(error);
     const accessControl = isAccessControlLikeError(error);
     const hint = accessControl
-      ? "We could not reach the server. Check your connection, stay on motion.homecheff.eu, and try again."
+      ? `We could not reach the server. Check your connection, stay on ${studioOriginHostname()}, and try again.`
       : message;
     return {
       ok: false,

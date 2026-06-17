@@ -24,6 +24,7 @@ import {
   resolveStripePriceId,
   type StudioPlanId,
 } from "@/server/studio-account/studio-plan-config";
+import { subscriptionYearlyPriceEur } from "@/lib/studio-subscription-prices";
 import {
   STUDIO_CREDIT_PACKS,
   resolveCreditPackStripePriceId,
@@ -47,6 +48,12 @@ const REQUIRED_ENV = [
   "STRIPE_PRICE_PACK_1250",
   "STRIPE_PRICE_PACK_3000",
   "STRIPE_PRICE_PACK_8000",
+] as const;
+
+const YEARLY_ENV = [
+  "STRIPE_PRICE_CREATOR_YEARLY",
+  "STRIPE_PRICE_PRO_YEARLY",
+  "STRIPE_PRICE_STUDIO_YEARLY",
 ] as const;
 
 const REQUIRED_PLAN_SLUGS = ["creator", "pro", "studio"] as const;
@@ -93,29 +100,38 @@ async function syncMissingCatalogFromEnv(): Promise<{ plansCreated: string[]; pl
 
   for (const slug of REQUIRED_PLAN_SLUGS) {
     const config = STUDIO_PLANS[slug];
-    const envPrice = resolveStripePriceId(slug);
+    const envPriceMonthly = resolveStripePriceId(slug, "monthly");
+    const envPriceYearly = resolveStripePriceId(slug, "yearly");
     const existing = await prisma.studioSubscriptionPlan.findUnique({ where: { slug } });
     if (!existing) {
       await upsertStudioSubscriptionPlan({
         slug,
         name: slug.charAt(0).toUpperCase() + slug.slice(1),
         monthlyPriceEur: config.monthlyPriceEur,
-        yearlyPriceEur: config.monthlyPriceEur != null ? config.monthlyPriceEur * 10 : null,
+        yearlyPriceEur:
+          config.monthlyPriceEur != null ? subscriptionYearlyPriceEur(config.monthlyPriceEur) : null,
         discountPercent: config.creditDiscountPercent,
         storageLimitGb: config.storageLimitGb,
         autoTopUpAvailable: config.autoTopUpAvailable,
         isVisible: true,
         isActive: true,
         displayOrder: slug === "creator" ? 1 : slug === "pro" ? 2 : 3,
-        stripePriceIdMonthly: envPrice,
+        stripePriceIdMonthly: envPriceMonthly,
+        stripePriceIdYearly: envPriceYearly,
       });
       plansCreated.push(slug);
-    } else if (!existing.stripePriceIdMonthly?.trim() && envPrice) {
-      await prisma.studioSubscriptionPlan.update({
-        where: { slug },
-        data: { stripePriceIdMonthly: envPrice },
-      });
-      plansSynced.push(slug);
+    } else {
+      const updates: { stripePriceIdMonthly?: string; stripePriceIdYearly?: string } = {};
+      if (!existing.stripePriceIdMonthly?.trim() && envPriceMonthly) {
+        updates.stripePriceIdMonthly = envPriceMonthly;
+      }
+      if (!existing.stripePriceIdYearly?.trim() && envPriceYearly) {
+        updates.stripePriceIdYearly = envPriceYearly;
+      }
+      if (Object.keys(updates).length > 0) {
+        await prisma.studioSubscriptionPlan.update({ where: { slug }, data: updates });
+        plansSynced.push(slug);
+      }
     }
   }
 
@@ -148,7 +164,10 @@ async function main() {
   const envFilesLoaded = loadProjectEnvFiles();
 
   const envValidation = {
-    present: Object.fromEntries(REQUIRED_ENV.map((k) => [k, Boolean(process.env[k]?.trim())])),
+    present: Object.fromEntries([
+      ...REQUIRED_ENV.map((k) => [k, Boolean(process.env[k]?.trim())] as const),
+      ...YEARLY_ENV.map((k) => [k, Boolean(process.env[k]?.trim())] as const),
+    ]),
     masked: {
       STRIPE_SECRET_KEY: mask(process.env.STRIPE_SECRET_KEY),
       STRIPE_WEBHOOK_SECRET: mask(process.env.STRIPE_WEBHOOK_SECRET),
@@ -157,7 +176,7 @@ async function main() {
     format: {
       secretKeyIsLive: process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ?? false,
       webhookStartsWhsec: process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_") ?? false,
-      appUrlIsHomecheff: process.env.NEXT_PUBLIC_APP_URL?.trim() === "https://homecheff.eu",
+      appUrlIsStudio: process.env.NEXT_PUBLIC_APP_URL?.trim() === "https://studio.homecheff.eu",
       priceIdsStartWithPrice: REQUIRED_ENV.filter((k) => k.startsWith("STRIPE_PRICE_")).every((k) =>
         process.env[k]?.trim().startsWith("price_")
       ),
@@ -174,21 +193,32 @@ async function main() {
     subscriptions: Object.fromEntries(
       REQUIRED_PLAN_SLUGS.map((slug) => {
         const plan = plans.find((p) => p.slug === slug);
-        const priceId = plan ? resolvePlanStripePriceId(plan) : null;
-        const envKey = STUDIO_PLANS[slug].stripePriceIdEnvKey;
+        const monthlyPriceId = plan ? resolvePlanStripePriceId(plan, "monthly") : null;
+        const yearlyPriceId = plan ? resolvePlanStripePriceId(plan, "yearly") : null;
+        const envKeyMonthly = STUDIO_PLANS[slug].stripePriceIdEnvKey;
+        const envKeyYearly = STUDIO_PLANS[slug].stripePriceIdYearlyEnvKey;
         return [
           slug,
           {
             planFound: Boolean(plan),
-            resolvedPriceId: priceId ? mask(priceId, 12) : null,
-            source: plan?.stripePriceIdMonthly?.trim()
+            monthlyPriceId: monthlyPriceId ? mask(monthlyPriceId, 12) : null,
+            yearlyPriceId: yearlyPriceId ? mask(yearlyPriceId, 12) : null,
+            monthlySource: plan?.stripePriceIdMonthly?.trim()
               ? "db"
               : plan?.source === "fallback"
                 ? "env_fallback"
-                : priceId
+                : monthlyPriceId
                   ? "env"
                   : "missing",
-            envVar: envKey ?? null,
+            yearlySource: plan?.stripePriceIdYearly?.trim()
+              ? "db"
+              : plan?.source === "fallback"
+                ? "env_fallback"
+                : yearlyPriceId
+                  ? "env"
+                  : "missing",
+            envVarMonthly: envKeyMonthly ?? null,
+            envVarYearly: envKeyYearly ?? null,
           },
         ];
       })
@@ -374,6 +404,7 @@ async function main() {
           plans: readiness.plans.map((p) => ({
             slug: p.slug,
             monthly: p.monthlyPriceId ? mask(p.monthlyPriceId, 12) : "missing",
+            yearly: p.yearlyPriceId ? mask(p.yearlyPriceId, 12) : "missing",
             warnings: p.warnings,
           })),
           creditPacks: readiness.creditPacks.map((p) => ({

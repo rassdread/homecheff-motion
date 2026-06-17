@@ -288,6 +288,7 @@ export const nl = {
   "universe.quick.publishVideo": "Video publiceren",
   "universe.quick.openLibrary": "Bibliotheek openen",
   "universe.mobile.globeHint": "Het HomeCheff ecosysteem",
+  "universe.mobile.quickActions": "Snelle acties",
   "universe.mobile.capabilities": "Mogelijkheden",
   "universe.planet.editor.theme": "Creatie",
   "universe.planet.editor.description": "Maak afbeeldingen, personages, assets en werelden voor jouw productie.",
@@ -4338,7 +4339,7 @@ export const nl = {
   "studio.workspace.error.loadBody": "Videoverhaal of assets laden niet. Probeer opnieuw of ga terug naar je videoverhaals.",
   "studio.workspace.error.authTitle": "Inloggen vereist",
   "studio.workspace.error.authBody":
-    "Je sessie is verlopen of cookies zijn geblokkeerd. Log in op motion.homecheff.eu en probeer opnieuw.",
+    "Je sessie is verlopen of cookies zijn geblokkeerd. Log in op studio.homecheff.eu en probeer opnieuw.",
   "studio.workspace.error.notFoundTitle": "Videoverhaal niet gevonden",
   "studio.workspace.error.notFoundBody": "Dit videoverhaal is verwijderd of je hebt geen toegang.",
   "studio.workspace.error.networkTitle": "Verbinding geblokkeerd",
@@ -10561,6 +10562,10 @@ export const nl = {
   "pricing.title": "Studio Credits & abonnementen",
   "pricing.subtitle":
     "Gebruik Studio met credits of kies een abonnement voor extra voordelen en lagere creditkosten.",
+  "pricing.yearlySeo": "Betaal jaarlijks en bespaar ongeveer {percent}%.",
+  "pricing.plans.sectionTitle": "Abonnementen",
+  "pricing.plans.sectionIntro":
+    "Kies maandelijks of jaarlijks. Jaarlijks betaal je voor 10 maanden en krijg je 2 maanden gratis (≈17% korting).",
   "pricing.credits.title": "Hoe Studio Credits werken",
   "pricing.credits.body":
     "Credits zijn je saldo voor AI-generatie in Studio en Motion. Elke actie kost een vast aantal credits. Je beschikbare saldo wordt bijgewerkt na aankopen en wanneer werk is afgerond.",
@@ -10630,6 +10635,13 @@ export const nl = {
   "help.articles.creditsVsSubscriptions.description": "Wanneer credits kopen en wanneer een plan upgraden.",
   "help.articles.creditsVsSubscriptions.body1": "Koop credits als je prepaid saldo nodig hebt voor renders en generatie. Upgrade een plan als je regelmatig credits gebruikt en permanente korting wilt.",
   "help.articles.creditsVsSubscriptions.body2": "De meeste teams combineren beide: een plan voor korting plus top-up packs bij drukke weken.",
+  "help.articles.monthlyVsYearly.title": "Wat is het verschil tussen maandelijks en jaarlijks?",
+  "help.articles.monthlyVsYearly.description":
+    "Beide opties geven dezelfde planvoordelen — jaarlijks is goedkoper per jaar.",
+  "help.articles.monthlyVsYearly.body1":
+    "Maandelijks betaal je elke maand (bijv. Creator €7,99/maand). Je kunt op elk moment opzeggen via Account → Billing.",
+  "help.articles.monthlyVsYearly.body2":
+    "Jaarlijks betaal je één keer per jaar (bijv. Creator €79,90/jaar). Dat is ongeveer 17% goedkoper dan 12 maandelijkse betalingen — vergelijkbaar met 2 maanden gratis.",
   "help.articles.gettingStarted.title": "Aan de slag met Studio",
   "help.articles.gettingStarted.description": "Van account naar eerste render in minder dan drie minuten.",
   "help.articles.gettingStarted.body1": "Maak een storyboard of personage, open Motion, upload frames en genereer je eerste clip.",
@@ -10670,6 +10682,9 @@ export const nl = {
   "pricing.faq.a4": "Ja. Credit packs werken op elk plan, ook gratis. Abonnees betalen minder per pack.",
   "pricing.faq.q5": "Waar zie ik mijn saldo en bonnen?",
   "pricing.faq.a5": "Log in en open Facturatie & credits in je account voor saldo, transactiegeschiedenis en abonnementsbeheer.",
+  "pricing.faq.q6": "Wat is het verschil tussen maandelijks en jaarlijks?",
+  "pricing.faq.a6":
+    "Maandelijks betaal je per maand en kun je elk moment opzeggen. Jaarlijks betaal je één keer per jaar tegen een lagere prijs — ongeveer 17% goedkoper dan 12 maandelijkse betalingen (2 maanden gratis). Dezelfde planvoordelen gelden in beide gevallen.",
   "pricing.usageLink": "Bekijk mijn verbruik",
   "pricing.billingLink": "Facturatie & credits",
   "pricing.createLink": "Start een project",
@@ -13336,6 +13351,7 @@ export const nl = {
   "account.billing.plansTitle": "Abonnementen",
   "account.billing.plansIntro": "Goedkopere credits, opslag en functies — abonnementen geven geen gratis maandelijkse credits.",
   "account.billing.creditDiscount": "korting op credit packs",
+  "account.billing.storageLimit": "{gb} GB opslag",
   "account.billing.promoTitle": "Campagnecode",
   "account.billing.promoIntro": "Heb je een campagnecode? Pas hem toe vóór checkout.",
   "account.billing.promoPlaceholder": "EARLY100",
@@ -13365,6 +13381,15 @@ export const nl = {
   "account.billing.stripeNotConfigured": "Online betalen is nog niet geconfigureerd.",
   "account.billing.checkoutError": "Checkout starten mislukt.",
   "billing.conversion.buyCredits": "Credits kopen",
+  "billing.interval.toggleLabel": "Factureringsperiode",
+  "billing.interval.monthly": "Maandelijks",
+  "billing.interval.yearlySave": "Jaarlijks — bespaar {percent}%",
+  "billing.interval.yearlyHint": "Bespaar 2 maanden per jaar — {percent}% goedkoper dan maandelijks betalen.",
+  "billing.interval.monthlyPrice": "Maandelijks",
+  "billing.interval.yearlyPrice": "Jaarlijks",
+  "billing.interval.perMonth": "/ maand",
+  "billing.interval.perYear": "/ jaar",
+  "billing.interval.savingsLabel": "Besparing: {percent}%",
   "billing.conversion.buyCreditsShort": "Kopen",
   "billing.conversion.upgradePlan": "Plan upgraden",
   "billing.conversion.upgradeSubscription": "Abonnement upgraden",

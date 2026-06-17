@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CreditPricingCatalog } from "@/components/billing/credit-pricing-catalog";
+import { SubscriptionPlanCards } from "@/components/billing/subscription-plan-cards";
 import {
   ConversionSurfacePricingSticky,
   GuestConversionStrip,
@@ -11,8 +12,10 @@ import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useStudioCheckout } from "@/hooks/use-studio-checkout";
 import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import { brand } from "@/lib/brand";
+import { SUBSCRIPTION_YEARLY_SAVINGS_PERCENT } from "@/lib/studio-subscription-billing";
 import type { TranslationKey } from "@/i18n";
 
 const FAQ_KEYS: { q: TranslationKey; a: TranslationKey }[] = [
@@ -21,11 +24,13 @@ const FAQ_KEYS: { q: TranslationKey; a: TranslationKey }[] = [
   { q: "pricing.faq.q3", a: "pricing.faq.a3" },
   { q: "pricing.faq.q4", a: "pricing.faq.a4" },
   { q: "pricing.faq.q5", a: "pricing.faq.a5" },
+  { q: "pricing.faq.q6", a: "pricing.faq.a6" },
 ];
 
 export default function PricingPage() {
   const t = useActiveTranslator();
   const session = useAuthSession();
+  const checkout = useStudioCheckout("/account/billing");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -46,6 +51,9 @@ export default function PricingPage() {
             {t("pricing.title")}
           </h1>
           <p className="mt-4 text-base leading-relaxed text-zinc-600">{t("pricing.subtitle")}</p>
+          <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+            {t("pricing.yearlySeo" as never, { percent: SUBSCRIPTION_YEARLY_SAVINGS_PERCENT })}
+          </p>
         </header>
 
         {session.resolved && !session.user ? (
@@ -57,6 +65,29 @@ export default function PricingPage() {
         <AppCard className="mt-8 border border-emerald-200 bg-emerald-50/80 p-6 sm:p-8">
           <h2 className="text-lg font-bold text-emerald-900">{t("pricing.carryTitle")}</h2>
           <p className="mt-3 text-sm leading-relaxed text-emerald-900/80">{t("pricing.carryBody")}</p>
+        </AppCard>
+
+        <AppCard className="mt-10 bg-white p-6 sm:p-8">
+          <h2 className="text-lg font-bold text-zinc-900">{t("pricing.plans.sectionTitle" as never)}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+            {t("pricing.plans.sectionIntro" as never)}
+          </p>
+          <div className="mt-6">
+            <SubscriptionPlanCards
+              theme="light"
+              loadingPlanId={checkout.loadingPackId}
+              onSubscribe={(planId, interval) => {
+                if (!session.user) {
+                  window.location.href = `/signup?plan=${encodeURIComponent(planId)}&interval=${interval}`;
+                  return;
+                }
+                void checkout.startCheckout("subscription", planId, { billingInterval: interval });
+              }}
+            />
+            {checkout.error ? (
+              <p className="mt-3 text-sm text-red-600">{checkout.error}</p>
+            ) : null}
+          </div>
         </AppCard>
 
         <div className="mt-10 space-y-6">

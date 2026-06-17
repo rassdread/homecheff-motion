@@ -14,8 +14,9 @@ describe("HomeCheff Studio rebrand", () => {
     const shell = readFileSync("src/components/layout/app-shell.tsx", "utf8");
     const layout = readFileSync("src/app/layout.tsx", "utf8");
     assert.match(shell, /brand\.studioProductName/);
+    assert.match(shell, /HomeCheffBrandMark/);
     assert.match(shell, /studioVisual\.header/);
-    assert.match(layout, /title: "HomeCheff Studio"/);
+    assert.match(layout, /ROOT_SITE_METADATA/);
   });
 
   it("hero uses pipeline copy without after-hero production messaging", () => {

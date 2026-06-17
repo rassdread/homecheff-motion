@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
   ],
   async redirects() {
     return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "motion.homecheff.eu" }],
+        destination: "https://studio.homecheff.eu/:path*",
+        permanent: true,
+      },
       { source: "/library/start", destination: "/studio/assets", permanent: false },
       { source: "/library/start/:path*", destination: "/studio/assets/:path*", permanent: false },
       { source: "/library/creative/:path*", destination: "/studio/assets/creative/:path*", permanent: false },

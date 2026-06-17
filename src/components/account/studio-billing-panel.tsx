@@ -3,18 +3,15 @@
 import { useEffect, useState } from "react";
 import type { TranslationKey } from "@/i18n";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
+import { SubscriptionPlanCards } from "@/components/billing/subscription-plan-cards";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import {
   formatCampaignCodeReason,
   pickCampaignSummary,
 } from "@/lib/billing-display-labels";
-
-type CatalogPlan = {
-  id: string;
-  name: string;
-  monthlyPriceEur: number | null;
-  discountPercent: number;
-};
+import { formatPriceEur } from "@/lib/format-price-eur";
+import type { SubscriptionBillingInterval } from "@/lib/studio-subscription-billing";
+import { STUDIO_CREDIT_PACK_DISPLAY } from "@/lib/studio-account-display-config";
 
 type CatalogPack = {
   id: string;
@@ -40,7 +37,6 @@ export function StudioBillingPanel() {
   const [locale] = useLocale();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [plans, setPlans] = useState<CatalogPlan[]>([]);
   const [packs, setPacks] = useState<CatalogPack[]>([]);
   const [promoCode, setPromoCode] = useState("");
   const [promoPreview, setPromoPreview] = useState<PromoPreview | null>(null);
@@ -53,8 +49,7 @@ export function StudioBillingPanel() {
     void fetch("/api/billing/catalog")
       .then(async (res) => {
         if (!res.ok) return;
-        const data = (await res.json()) as { plans: CatalogPlan[]; packs: CatalogPack[] };
-        setPlans(data.plans);
+        const data = (await res.json()) as { packs: CatalogPack[] };
         setPacks(data.packs);
       })
       .catch(() => {
@@ -77,7 +72,11 @@ export function StudioBillingPanel() {
     setPromoPreview(data.preview);
   };
 
-  const startCheckout = async (type: "subscription" | "credit_pack", id: string) => {
+  const startCheckout = async (
+    type: "subscription" | "credit_pack",
+    id: string,
+    billingInterval?: SubscriptionBillingInterval
+  ) => {
     setLoading(id);
     setError(null);
     setPendingCheckout({ type, id });
@@ -93,6 +92,7 @@ export function StudioBillingPanel() {
           type,
           planId: type === "subscription" ? id : undefined,
           packId: type === "credit_pack" ? id : undefined,
+          billingInterval: type === "subscription" ? (billingInterval ?? "monthly") : undefined,
           returnPath: "/account/billing",
           promoCode: promoCode.trim() || undefined,
         }),
@@ -114,24 +114,17 @@ export function StudioBillingPanel() {
     }
   };
 
-  const displayPlans =
-    plans.length > 0
-      ? plans
-      : [
-          { id: "creator", name: "Creator", monthlyPriceEur: 19, discountPercent: 10 },
-          { id: "pro", name: "Pro", monthlyPriceEur: 49, discountPercent: 15 },
-          { id: "studio", name: "Studio", monthlyPriceEur: 99, discountPercent: 20 },
-        ];
-
   const displayPacks =
     packs.length > 0
       ? packs
-      : [
-          { id: "pack_500", name: "500", credits: 500, bonusCredits: 0, totalCredits: 500, priceEur: 4.99 },
-          { id: "pack_1250", name: "1250", credits: 1250, bonusCredits: 0, totalCredits: 1250, priceEur: 9.99 },
-          { id: "pack_3000", name: "3000", credits: 3000, bonusCredits: 0, totalCredits: 3000, priceEur: 19.99 },
-          { id: "pack_8000", name: "8000", credits: 8000, bonusCredits: 0, totalCredits: 8000, priceEur: 49.99 },
-        ];
+      : STUDIO_CREDIT_PACK_DISPLAY.map((pack) => ({
+          id: pack.id,
+          name: String(pack.credits),
+          credits: pack.credits,
+          bonusCredits: 0,
+          totalCredits: pack.credits,
+          priceEur: pack.priceEur,
+        }));
 
   return (
     <div className="space-y-8">
@@ -144,12 +137,12 @@ export function StudioBillingPanel() {
       <section className={`${studioVisual.cardOnDark} p-5`}>
         <h3 className="text-sm font-semibold text-white">{t("account.billing.promoTitle" as never)}</h3>
         <p className="mt-1 text-xs text-white/60">{t("account.billing.promoIntro" as never)}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <input
             value={promoCode}
             onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
             placeholder={t("account.billing.promoPlaceholder" as never)}
-            className="flex-1 rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white"
+            className="min-h-[44px] flex-1 rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm text-white"
           />
           <button
             type="button"
@@ -158,7 +151,7 @@ export function StudioBillingPanel() {
                 void applyPromo(pendingCheckout.type, pendingCheckout.id);
               }
             }}
-            className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white"
+            className="min-h-[44px] rounded-lg border border-white/20 px-4 py-2 text-sm text-white"
           >
             {t("account.billing.promoApply" as never)}
           </button>
@@ -177,27 +170,12 @@ export function StudioBillingPanel() {
       <section>
         <h2 className="text-lg font-semibold text-white">{t("account.billing.plansTitle")}</h2>
         <p className="mt-1 text-sm text-white/60">{t("account.billing.plansIntro")}</p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayPlans.map((plan) => (
-            <div key={plan.id} className={`${studioVisual.cardOnDark} flex flex-col p-5`}>
-              <h3 className="font-semibold text-white">{plan.name}</h3>
-              <p className="mt-1 text-2xl font-bold text-white">
-                €{plan.monthlyPriceEur ?? "—"}
-                <span className="text-sm font-normal text-white/50">/mo</span>
-              </p>
-              <p className="mt-2 text-sm text-white/70">
-                {plan.discountPercent}% {t("account.billing.creditDiscount" as never)}
-              </p>
-              <button
-                type="button"
-                onClick={() => startCheckout("subscription", plan.id)}
-                disabled={loading === plan.id}
-                className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {loading === plan.id ? t("account.billing.loading") : t("account.billing.subscribe")}
-              </button>
-            </div>
-          ))}
+        <div className="mt-4">
+          <SubscriptionPlanCards
+            theme="dark"
+            loadingPlanId={loading}
+            onSubscribe={(planId, interval) => void startCheckout("subscription", planId, interval)}
+          />
         </div>
       </section>
 
@@ -215,7 +193,7 @@ export function StudioBillingPanel() {
                   {t("account.billing.bonusCredits", { count: pack.bonusCredits })}
                 </p>
               ) : null}
-              <p className="mt-1 text-xl font-bold text-white">€{pack.priceEur.toFixed(2)}</p>
+              <p className="mt-1 text-xl font-bold text-white">{formatPriceEur(pack.priceEur, locale)}</p>
               <button
                 type="button"
                 onClick={() => startCheckout("credit_pack", pack.id)}

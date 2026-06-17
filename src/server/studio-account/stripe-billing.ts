@@ -15,6 +15,7 @@ import {
   resolvePlanStripePriceId,
 } from "@/server/studio-account/studio-subscription-plan-service";
 import { type StudioPlanId } from "@/server/studio-account/studio-plan-config";
+import type { SubscriptionBillingInterval } from "@/lib/studio-subscription-billing";
 import {
   applyPostCheckoutPromoBenefits,
   validatePromoCode,
@@ -64,6 +65,7 @@ export async function createSubscriptionCheckout(input: {
   userId: string;
   email: string;
   planId: StudioPlanId;
+  billingInterval?: SubscriptionBillingInterval;
   successUrl: string;
   cancelUrl: string;
   promoCode?: string;
@@ -78,7 +80,11 @@ export async function createSubscriptionCheckout(input: {
     return { error: `Unknown or inactive plan ${input.planId}.` };
   }
 
-  const basePrice = plan.monthlyPriceEur ?? 0;
+  const billingInterval: SubscriptionBillingInterval = input.billingInterval ?? "monthly";
+  const basePrice =
+    billingInterval === "yearly"
+      ? (plan.yearlyPriceEur ?? 0)
+      : (plan.monthlyPriceEur ?? 0);
   let promoPreview;
   let adjustedPrice = basePrice;
 
@@ -102,9 +108,10 @@ export async function createSubscriptionCheckout(input: {
     }
   }
 
-  const priceId = resolvePlanStripePriceId(plan);
+  const priceId = resolvePlanStripePriceId(plan, billingInterval);
   const customerId = await ensureStripeCustomer(input.userId, input.email);
   const stripe = getStripeClient();
+  const stripeInterval = billingInterval === "yearly" ? "year" : "month";
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
     adjustedPrice < basePrice && adjustedPrice >= 0
@@ -112,9 +119,9 @@ export async function createSubscriptionCheckout(input: {
           {
             price_data: {
               currency: "eur",
-              product_data: { name: `${plan.name} subscription` },
+              product_data: { name: `${plan.name} subscription (${billingInterval})` },
               unit_amount: Math.round(adjustedPrice * 100),
-              recurring: { interval: "month" },
+              recurring: { interval: stripeInterval },
             },
             quantity: 1,
           },
@@ -124,7 +131,9 @@ export async function createSubscriptionCheckout(input: {
         : [];
 
   if (lineItems.length === 0) {
-    return { error: `Stripe price not configured for plan ${input.planId}.` };
+    return {
+      error: `Stripe ${billingInterval} price not configured for plan ${input.planId}.`,
+    };
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -136,6 +145,7 @@ export async function createSubscriptionCheckout(input: {
     metadata: {
       userId: input.userId,
       planId: input.planId,
+      billingInterval,
       type: "subscription",
       ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
     },

@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     type?: string;
     planId?: string;
     packId?: string;
+    billingInterval?: string;
     returnPath?: string;
     promoCode?: string;
     locale?: "nl" | "en";
@@ -48,10 +49,12 @@ export async function POST(request: Request) {
     if (!plan || !plan.isActive || planId === "free") {
       return NextResponse.json({ error: "Invalid plan.", code: "INVALID_PLAN" }, { status: 400 });
     }
+    const billingInterval = body.billingInterval === "yearly" ? "yearly" : "monthly";
     const result = await createSubscriptionCheckout({
       userId: user.id,
       email: user.email,
       planId,
+      billingInterval,
       successUrl,
       cancelUrl,
       promoCode: body.promoCode,
