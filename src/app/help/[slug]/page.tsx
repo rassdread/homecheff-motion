@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/seo/json-ld";
 import { HelpArticleView } from "@/components/help/help-center-pages";
-import { getHelpArticle } from "@/lib/help-center";
-import { buildArticleJsonLd, buildPageMetadata } from "@/lib/seo/site-metadata";
+import { getHelpArticle, helpCategoryLabelKey } from "@/lib/help-center";
+import { buildHelpArticleJsonLd } from "@/lib/seo/structured-data";
+import { buildPageMetadata } from "@/lib/seo/site-metadata";
 import { getActiveTranslator } from "@/i18n";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -24,17 +26,20 @@ export default async function HelpArticlePage({ params }: Props) {
   if (!article) notFound();
 
   const t = await getActiveTranslator();
-  const jsonLd = buildArticleJsonLd({
-    title: t(article.titleKey as never),
-    description: t(article.descriptionKey as never),
-    path: `/help/${slug}`,
-  });
+  const title = t(article.titleKey as never);
+  const description = t(article.descriptionKey as never);
+  const categoryLabel = t(helpCategoryLabelKey(article.category) as never);
+  const path = `/help/${slug}`;
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      <JsonLd
+        data={buildHelpArticleJsonLd({
+          title,
+          description,
+          path,
+          categoryLabel,
+        })}
       />
       <HelpArticleView article={article} />
     </>

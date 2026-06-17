@@ -7,7 +7,7 @@ import { GradientButton } from "@/components/ui/gradient-button";
 
 type AuthFormProps = {
   mode: "login" | "signup";
-  /** Required for signup when the server expects an invite (ignored for login). */
+  /** Optional admin invite link token (assigns role when valid). */
   inviteToken?: string;
 };
 
@@ -77,10 +77,6 @@ export function AuthForm({ mode, inviteToken = "" }: AuthFormProps) {
         const code = errJson.code;
 
         if (mode === "signup") {
-          if (code === "INVITE_REQUIRED") {
-            setError(t("auth.signup.inviteRequiredBody"));
-            return;
-          }
           if (code === "INVITE_INVALID") {
             setError(t("auth.signup.inviteInvalid"));
             return;

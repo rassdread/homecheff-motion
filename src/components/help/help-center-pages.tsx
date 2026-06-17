@@ -10,7 +10,17 @@ import {
   helpCategoryLabelKey,
   listHelpArticlesByCategory,
 } from "@/lib/help-center";
+import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 import { brand } from "@/lib/brand";
+
+const PRODUCT_HUB_LINKS = [
+  { href: PUBLIC_PAGE_SEO.studio.path, labelKey: "suite.nav.studio" as const },
+  { href: PUBLIC_PAGE_SEO.motion.path, labelKey: "suite.nav.motion" as const },
+  { href: PUBLIC_PAGE_SEO.editor.path, labelKey: "suite.nav.editor" as const },
+  { href: PUBLIC_PAGE_SEO.pricing.path, labelKey: "pricing.label" as const },
+  { href: PUBLIC_PAGE_SEO.library.path, labelKey: "suite.nav.library" as const },
+  { href: PUBLIC_PAGE_SEO.projects.path, labelKey: "suite.nav.projects" as const },
+] as const;
 
 export function HelpCenterHome() {
   const t = useActiveTranslator();
@@ -56,6 +66,24 @@ export function HelpCenterHome() {
           })}
         </div>
 
+        <nav className="mt-10 rounded-xl border border-zinc-200 bg-white p-5" aria-label="Product areas">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+            {t("help.home.productAreas" as never)}
+          </h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {PRODUCT_HUB_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                >
+                  {t(link.labelKey as never)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
         <div className="mt-10">
           <ConversionSurfaceArticleFooter source="help_home" />
         </div>
@@ -66,6 +94,9 @@ export function HelpCenterHome() {
 
 export function HelpArticleView({ article }: { article: HelpArticle }) {
   const t = useActiveTranslator();
+  const relatedArticles = listHelpArticlesByCategory(article.category).filter(
+    (item) => item.slug !== article.slug
+  );
 
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
@@ -95,6 +126,26 @@ export function HelpArticleView({ article }: { article: HelpArticle }) {
             </div>
           : null}
         </div>
+
+        {relatedArticles.length > 0 ? (
+          <nav className="mt-10 rounded-xl border border-zinc-200 bg-white p-5" aria-label="Related articles">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+              {t("help.article.related" as never)}
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {relatedArticles.map((related) => (
+                <li key={related.slug}>
+                  <Link
+                    href={`/help/${related.slug}`}
+                    className="text-sm font-medium text-emerald-700 hover:underline"
+                  >
+                    {t(related.titleKey as never)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ) : null}
 
         <div className="mt-10">
           <ConversionSurfaceArticleFooter source={`help_${article.slug}`} />

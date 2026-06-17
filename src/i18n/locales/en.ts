@@ -10597,8 +10597,10 @@ export const en: LocaleSchema = {
   "help.home.label": "Knowledge Center",
   "help.home.title": "Help & guides",
   "help.home.intro":
-    "Use Studio with credits or choose a subscription for extra benefits and lower credit costs. Browse guides below.",
+    "Guides for credits, subscriptions, video creation, voice, subtitles, translation, and publishing across HomeCheff Studio.",
+  "help.home.productAreas": "Explore HomeCheff Studio",
   "help.article.back": "← All articles",
+  "help.article.related": "Related articles",
   "help.category.getting_started": "Getting Started",
   "help.category.credits_billing": "Credits & Billing",
   "help.category.motion": "Motion",
@@ -10871,8 +10873,8 @@ export const en: LocaleSchema = {
   "animate.auth.signupCta": "Create account",
   "animate.auth.inactiveAccount":
     "Your account is disabled. Contact an administrator.",
-  "animate.auth.inviteSignupHint":
-    "New accounts are only possible with an invite link from an administrator.",
+  "animate.auth.publicSignupHint":
+    "Free to start — create your account and begin right away.",
   "animate.usage.dailyRemainingVideos":
     "Remaining today: {remaining} of {limit} videos",
   "animate.usage.dailyRemainingCredits":
@@ -10887,13 +10889,13 @@ export const en: LocaleSchema = {
   "auth.login.link": "Log in",
   "auth.login.noAccount": "No account yet?",
   "auth.signup.title": "Create account",
-  "auth.signup.subtitle": "Create a free account to get started.",
+  "auth.signup.subtitle": "Get started today — create your free account in minutes.",
   "auth.signup.cta": "Create account",
   "auth.signup.link": "Create account",
   "auth.signup.hasAccount": "Already have an account?",
-  "auth.signup.inviteRequiredTitle": "Invite required",
+  "auth.signup.inviteRequiredTitle": "Sign up to get started",
   "auth.signup.inviteRequiredBody":
-    "You need an invite link to create an account.",
+    "Create a free account to use HomeCheff Studio.",
   "auth.signup.inviteInvalid": "Invite expired or invalid.",
   "auth.signup.inviteEmailMismatch": "This email does not match the invite.",
   "auth.signup.bootstrapHint":
@@ -11230,7 +11232,7 @@ export const en: LocaleSchema = {
   "admin.forbiddenDescription": "Only administrators can open this section.",
   "admin.backHome": "Back to home",
   "admin.dashboard.title": "Admin dashboard",
-  "admin.dashboard.intro": "Manage invites and users.",
+  "admin.dashboard.intro": "Manage users and platform settings.",
   "admin.showcase.title": "Showcase carousel",
   "admin.showcase.intro": "Manage space gallery items for homepage and product pages.",
   "admin.showcase.addItem": "Add item",
@@ -11410,7 +11412,7 @@ export const en: LocaleSchema = {
   "admin.overlayEngine.checklistProduction": "Production",
   "admin.overlayEngine.featureImpactTitle": "Feature impact (vision optional vs required)",
   "admin.invites.title": "Invites",
-  "admin.invites.intro": "Create a one-time link to let someone register.",
+  "admin.invites.intro": "Optional: create a one-time link to assign a specific role at signup.",
   "admin.invites.createTitle": "Invite user",
   "admin.invites.emailOptional": "Email (optional, must match at signup)",
   "admin.invites.role": "Role",

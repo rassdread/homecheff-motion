@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { JsonLd } from "@/components/seo/json-ld";
 import { AppShell } from "@/components/layout/app-shell";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
+import {
+  buildOrganizationJsonLd,
+  buildSoftwareApplicationJsonLd,
+  buildWebSiteJsonLd,
+} from "@/lib/seo/structured-data";
 import { ROOT_SITE_METADATA } from "@/lib/seo/site-metadata";
 import "./globals.css";
 
@@ -34,6 +40,13 @@ export default function RootLayout({
         className="flex min-h-full flex-col overflow-x-hidden overflow-y-visible"
         data-instant-premium-mode={instantPremiumMode}
       >
+        <JsonLd
+          data={[
+            buildOrganizationJsonLd(),
+            buildWebSiteJsonLd(),
+            buildSoftwareApplicationJsonLd(),
+          ]}
+        />
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -9,16 +9,9 @@ export default async function SignupPage({ searchParams }: { searchParams: Searc
   const inviteFromQuery = typeof raw === "string" ? raw.trim() : "";
 
   const userCount = await prisma.user.count();
-  const inviteRequired = userCount > 0;
   const showBootstrapHint = userCount === 0;
-  const showForm = !inviteRequired || inviteFromQuery.length > 0;
 
   return (
-    <SignupPageContent
-      inviteFromQuery={inviteFromQuery}
-      inviteRequired={inviteRequired}
-      showBootstrapHint={showBootstrapHint}
-      showForm={showForm}
-    />
+    <SignupPageContent inviteFromQuery={inviteFromQuery} showBootstrapHint={showBootstrapHint} />
   );
 }

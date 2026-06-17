@@ -1,9 +1,12 @@
+import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 import { buildPageMetadata } from "@/lib/seo/site-metadata";
 
+const seo = PUBLIC_PAGE_SEO.studio;
+
 export const metadata = buildPageMetadata({
-  title: "Studio",
-  description: "Design characters, storyboards and production assets in HomeCheff Studio.",
-  path: "/studio",
+  title: seo.title,
+  description: seo.description,
+  path: seo.path,
 });
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {

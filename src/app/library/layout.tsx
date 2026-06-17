@@ -1,8 +1,7 @@
-import { HelpCenterHome } from "@/components/help/help-center-pages";
 import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 import { buildPageMetadata } from "@/lib/seo/site-metadata";
 
-const seo = PUBLIC_PAGE_SEO.help;
+const seo = PUBLIC_PAGE_SEO.library;
 
 export const metadata = buildPageMetadata({
   title: seo.title,
@@ -10,6 +9,6 @@ export const metadata = buildPageMetadata({
   path: seo.path,
 });
 
-export default function HelpPage() {
-  return <HelpCenterHome />;
+export default function LibraryLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }

@@ -10597,8 +10597,10 @@ export const nl = {
   "help.home.label": "Kenniscentrum",
   "help.home.title": "Help & gidsen",
   "help.home.intro":
-    "Gebruik Studio met credits of kies een abonnement voor extra voordelen en lagere creditkosten. Bekijk de gidsen hieronder.",
+    "Gidsen voor credits, abonnementen, videomaken, voice, ondertitels, vertaling en publiceren in HomeCheff Studio.",
+  "help.home.productAreas": "Ontdek HomeCheff Studio",
   "help.article.back": "← Alle artikelen",
+  "help.article.related": "Gerelateerde artikelen",
   "help.category.getting_started": "Aan de slag",
   "help.category.credits_billing": "Credits & Billing",
   "help.category.motion": "Motion",
@@ -10874,8 +10876,8 @@ export const nl = {
   "animate.auth.signupCta": "Account maken",
   "animate.auth.inactiveAccount":
     "Je account is uitgeschakeld. Neem contact op met een beheerder.",
-  "animate.auth.inviteSignupHint":
-    "Nieuwe accounts zijn alleen mogelijk met een uitnodigingslink van een beheerder.",
+  "animate.auth.publicSignupHint":
+    "Gratis beginnen — maak een account en start direct.",
   "animate.usage.dailyRemainingVideos":
     "Vandaag resterend: {remaining} van {limit} video’s",
   "animate.usage.dailyRemainingCredits":
@@ -10890,13 +10892,13 @@ export const nl = {
   "auth.login.link": "Inloggen",
   "auth.login.noAccount": "Nog geen account?",
   "auth.signup.title": "Account maken",
-  "auth.signup.subtitle": "Maak een gratis account om te beginnen.",
+  "auth.signup.subtitle": "Begin direct — maak gratis een account in een paar minuten.",
   "auth.signup.cta": "Account maken",
   "auth.signup.link": "Account maken",
   "auth.signup.hasAccount": "Heb je al een account?",
-  "auth.signup.inviteRequiredTitle": "Uitnodiging vereist",
+  "auth.signup.inviteRequiredTitle": "Maak een account om te beginnen",
   "auth.signup.inviteRequiredBody":
-    "Je hebt een uitnodigingslink nodig om een account aan te maken.",
+    "Maak gratis een account om HomeCheff Studio te gebruiken.",
   "auth.signup.inviteInvalid": "Uitnodiging verlopen of ongeldig.",
   "auth.signup.inviteEmailMismatch": "Dit e-mailadres hoort niet bij deze uitnodiging.",
   "auth.signup.bootstrapHint":
@@ -11234,7 +11236,7 @@ export const nl = {
   "admin.forbiddenDescription": "Alleen beheerders kunnen dit gedeelte openen.",
   "admin.backHome": "Terug naar home",
   "admin.dashboard.title": "Beheerdersdashboard",
-  "admin.dashboard.intro": "Beheer uitnodigingen en gebruikers.",
+  "admin.dashboard.intro": "Beheer gebruikers en platforminstellingen.",
   "admin.showcase.title": "Showcase-carrousel",
   "admin.showcase.intro": "Beheer space gallery-items voor homepage en productpagina's.",
   "admin.showcase.addItem": "Item toevoegen",
@@ -11414,7 +11416,7 @@ export const nl = {
   "admin.overlayEngine.checklistProduction": "Productie",
   "admin.overlayEngine.featureImpactTitle": "Feature-impact (vision optioneel vs vereist)",
   "admin.invites.title": "Uitnodigingen",
-  "admin.invites.intro": "Maak een eenmalige link om iemand te laten registreren.",
+  "admin.invites.intro": "Optioneel: maak een eenmalige link om bij registratie een specifieke rol toe te wijzen.",
   "admin.invites.createTitle": "Gebruiker uitnodigen",
   "admin.invites.emailOptional": "E-mail (optioneel, moet overeenkomen bij registratie)",
   "admin.invites.role": "Rol",

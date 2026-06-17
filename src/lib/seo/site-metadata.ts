@@ -5,10 +5,23 @@ import {
   HOMECHEFF_BRAND_ICON_PATHS,
 } from "@/lib/homecheff-brand-icon";
 import { getCanonicalStudioOrigin } from "@/lib/public-origin";
+import { HELP_ARTICLES } from "@/lib/help-center";
+import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 
 const SITE_NAME = "HomeCheff Studio";
-const DEFAULT_DESCRIPTION =
-  "Your AI production line — create once, adapt endlessly. Build assets in Editor, design in Studio, animate in Motion, and publish unlimited versions.";
+const DEFAULT_DESCRIPTION = PUBLIC_PAGE_SEO.home.description;
+
+/** Routes that should not appear in search indexes. */
+export const SEO_NOINDEX_PATH_PREFIXES = ["/account", "/admin", "/mijn-verbruik"] as const;
+
+export function buildNoIndexMetadata(): Metadata {
+  return {
+    robots: {
+      index: false,
+      follow: false,
+    },
+  };
+}
 
 export function absoluteUrl(path: string): string {
   const vercelUrl = process.env.VERCEL_URL?.trim();
@@ -100,26 +113,29 @@ export function buildArticleJsonLd(input: {
     headline: input.title,
     description: input.description,
     url: absoluteUrl(input.path),
+    image: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
+      },
     },
   };
 }
 
+const HELP_SITEMAP_PATHS = HELP_ARTICLES.map((article) => `/help/${article.slug}` as const);
+
 export const SEO_PUBLIC_PATHS = [
-  "/",
-  "/pricing",
-  "/help",
-  "/studio",
-  "/animate/instant",
-  "/help/what-are-studio-credits",
-  "/help/how-subscriptions-work",
-  "/help/do-credits-expire",
-  "/help/what-happens-when-i-cancel",
-  "/help/how-much-do-studio-actions-cost",
-  "/help/how-motion-pricing-works",
-  "/help/how-campaign-codes-work",
-  "/help/credits-vs-subscriptions",
-  "/help/getting-started-with-studio",
+  PUBLIC_PAGE_SEO.home.path,
+  PUBLIC_PAGE_SEO.pricing.path,
+  PUBLIC_PAGE_SEO.help.path,
+  PUBLIC_PAGE_SEO.studio.path,
+  PUBLIC_PAGE_SEO.editor.path,
+  PUBLIC_PAGE_SEO.motion.path,
+  PUBLIC_PAGE_SEO.library.path,
+  PUBLIC_PAGE_SEO.projects.path,
+  PUBLIC_PAGE_SEO.signup.path,
+  ...HELP_SITEMAP_PATHS,
 ] as const;

@@ -233,7 +233,7 @@ export default function AnimatePage() {
                 {t("animate.auth.signupCta")}
               </Link>
             </div>
-            <p className="mt-4 text-xs text-zinc-500">{t("animate.auth.inviteSignupHint")}</p>
+            <p className="mt-4 text-xs text-zinc-500">{t("animate.auth.publicSignupHint")}</p>
           </AppCard>
         </div>
       </main>

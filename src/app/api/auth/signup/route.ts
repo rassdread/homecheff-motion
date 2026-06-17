@@ -7,15 +7,14 @@ import { normalizeInviteRole } from "@/server/auth/permissions";
 type SignupPayload = {
   email?: string;
   password?: string;
-  /** Required when at least one user exists (invite-only). */
+  /** Optional admin invite link — assigns role when valid. */
   inviteToken?: string;
 };
 
 /**
- * First account bootstrap: if there are zero users in the database, the first
- * signup is allowed without an invite and receives role `admin`. After that,
- * every signup must redeem a valid admin-created invite. This is intentional
- * so production is not locked out before an invite system exists.
+ * Public signup: anyone can register with role `user`.
+ * First account in an empty database becomes `admin` (bootstrap).
+ * Optional invite tokens still assign admin/power/user from admin-created links.
  */
 export async function POST(request: Request) {
   let payload: SignupPayload;
@@ -58,63 +57,70 @@ export async function POST(request: Request) {
     return NextResponse.json({ user, bootstrapAdmin: true }, { status: 201 });
   }
 
-  if (!inviteToken) {
-    return NextResponse.json(
-      { error: "Invite required.", code: "INVITE_REQUIRED" },
-      { status: 403 }
-    );
-  }
-
-  const tokenHash = hashInviteToken(inviteToken);
-  const invite = await prisma.animationInvite.findUnique({
-    where: { tokenHash },
-  });
-
-  const now = new Date();
-  if (
-    !invite ||
-    invite.revokedAt !== null ||
-    invite.usedAt !== null ||
-    invite.expiresAt <= now
-  ) {
-    return NextResponse.json(
-      { error: "Invite expired or invalid.", code: "INVITE_INVALID" },
-      { status: 400 }
-    );
-  }
-
-  if (invite.email && invite.email.trim().toLowerCase() !== email) {
-    return NextResponse.json(
-      { error: "Email does not match this invite.", code: "INVITE_EMAIL_MISMATCH" },
-      { status: 400 }
-    );
-  }
-
-  const assignedRole = normalizeInviteRole(invite.role);
-
-  const user = await prisma.$transaction(async (tx) => {
-    const created = await tx.user.create({
-      data: {
-        email,
-        passwordHash: hashPassword(password),
-        role: assignedRole,
-        isActive: true,
-        invitedById: invite.createdByUserId,
-      },
-      select: { id: true, email: true, role: true },
+  if (inviteToken) {
+    const tokenHash = hashInviteToken(inviteToken);
+    const invite = await prisma.animationInvite.findUnique({
+      where: { tokenHash },
     });
 
-    await tx.animationInvite.update({
-      where: { id: invite.id },
-      data: {
-        usedAt: now,
-        usedByUserId: created.id,
-      },
+    const now = new Date();
+    if (
+      !invite ||
+      invite.revokedAt !== null ||
+      invite.usedAt !== null ||
+      invite.expiresAt <= now
+    ) {
+      return NextResponse.json(
+        { error: "Invite expired or invalid.", code: "INVITE_INVALID" },
+        { status: 400 }
+      );
+    }
+
+    if (invite.email && invite.email.trim().toLowerCase() !== email) {
+      return NextResponse.json(
+        { error: "Email does not match this invite.", code: "INVITE_EMAIL_MISMATCH" },
+        { status: 400 }
+      );
+    }
+
+    const assignedRole = normalizeInviteRole(invite.role);
+
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash: hashPassword(password),
+          role: assignedRole,
+          isActive: true,
+          invitedById: invite.createdByUserId,
+        },
+        select: { id: true, email: true, role: true },
+      });
+
+      await tx.animationInvite.update({
+        where: { id: invite.id },
+        data: {
+          usedAt: now,
+          usedByUserId: created.id,
+        },
+      });
+
+      return created;
     });
 
-    return created;
-  });
+    await createSession(user.id);
+    return NextResponse.json({ user }, { status: 201 });
+  }
 
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hashPassword(password),
+      role: "user",
+      isActive: true,
+    },
+    select: { id: true, email: true, role: true },
+  });
   await createSession(user.id);
   return NextResponse.json({ user }, { status: 201 });
 }

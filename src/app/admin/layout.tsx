@@ -1,7 +1,18 @@
+import type { Metadata } from "next";
 import { AdminLayoutChrome } from "@/components/admin/admin-layout-chrome";
+import { buildNoIndexMetadata, buildPageMetadata } from "@/lib/seo/site-metadata";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import { canAccessAdmin } from "@/server/auth/permissions";
 import { redirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  ...buildPageMetadata({
+    title: "Admin",
+    description: "HomeCheff Studio administration.",
+    path: "/admin",
+  }),
+  ...buildNoIndexMetadata(),
+};
 
 export default async function AdminLayout({
   children,
