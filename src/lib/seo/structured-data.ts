@@ -157,3 +157,55 @@ export function buildHelpArticleJsonLd(input: {
     },
   ];
 }
+
+export function buildSeoLandingJsonLd(input: {
+  title: string;
+  description: string;
+  path: string;
+  breadcrumbs: Array<{ name: string; path: string }>;
+  faqs?: Array<{ question: string; answer: string }>;
+}) {
+  const schemas: Array<Record<string, unknown>> = [
+    buildBreadcrumbJsonLd(input.breadcrumbs),
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: input.title,
+      description: input.description,
+      url: absoluteUrl(input.path),
+      isPartOf: {
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: absoluteUrl("/"),
+      },
+    },
+  ];
+  if (input.faqs && input.faqs.length > 0) {
+    schemas.push(buildFaqPageJsonLd(input.faqs));
+  }
+  return schemas;
+}
+
+export function buildCollectionPageJsonLd(input: {
+  title: string;
+  description: string;
+  path: string;
+  breadcrumbs: Array<{ name: string; path: string }>;
+  items: Array<{ name: string; path: string }>;
+}) {
+  return [
+    buildBreadcrumbJsonLd(input.breadcrumbs),
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: input.title,
+      description: input.description,
+      url: absoluteUrl(input.path),
+      hasPart: input.items.map((item) => ({
+        "@type": "WebPage",
+        name: item.name,
+        url: absoluteUrl(item.path),
+      })),
+    },
+  ];
+}

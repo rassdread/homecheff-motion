@@ -7,6 +7,7 @@ import {
 import { getCanonicalStudioOrigin } from "@/lib/public-origin";
 import { HELP_ARTICLES } from "@/lib/help-center";
 import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
+import { SEO_CONTENT_PATHS } from "@/lib/seo/seo-content-paths";
 
 const SITE_NAME = "HomeCheff Studio";
 const DEFAULT_DESCRIPTION = PUBLIC_PAGE_SEO.home.description;
@@ -138,4 +139,5 @@ export const SEO_PUBLIC_PATHS = [
   PUBLIC_PAGE_SEO.projects.path,
   PUBLIC_PAGE_SEO.signup.path,
   ...HELP_SITEMAP_PATHS,
+  ...SEO_CONTENT_PATHS,
 ] as const;
