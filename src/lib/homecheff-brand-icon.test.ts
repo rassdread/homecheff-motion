@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -29,6 +30,19 @@ describe("homecheff brand icon", () => {
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);
     }
+  });
+
+  it("app favicon.ico matches public globe-man generated favicon", () => {
+    const appPath = join(ROOT, "src/app/favicon.ico");
+    assert.equal(existsSync(appPath), true, "missing src/app/favicon.ico");
+    const publicIco = readFileSync(join(ROOT, "public/favicon.ico"));
+    const appIco = readFileSync(appPath);
+    assert.equal(
+      createHash("sha256").update(appIco).digest("hex"),
+      createHash("sha256").update(publicIco).digest("hex"),
+      "src/app/favicon.ico must match public/favicon.ico (Next.js serves app/ over public/)"
+    );
+    assert.notEqual(appIco.length, 25931, "legacy Create Next App triangle favicon must be replaced");
   });
 
   it("app shell uses HomeCheffBrandMark", () => {

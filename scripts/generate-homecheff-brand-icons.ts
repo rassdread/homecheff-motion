@@ -10,6 +10,8 @@ import toIco from "to-ico";
 const ROOT = process.cwd();
 const SOURCE = resolve(ROOT, "public/homecheff-globe-man.png");
 const OUT = resolve(ROOT, "public");
+/** Next.js App Router serves /favicon.ico from here — overrides public/favicon.ico. */
+const APP_FAVICON = resolve(ROOT, "src/app/favicon.ico");
 
 async function resizePng(size: number): Promise<Buffer> {
   return sharp(readFileSync(SOURCE))
@@ -32,6 +34,7 @@ async function main() {
 
   const ico = await toIco([favicon16, favicon32]);
   writeFileSync(resolve(OUT, "favicon.ico"), ico);
+  writeFileSync(APP_FAVICON, ico);
 
   const b64 = favicon32.toString("base64");
   writeFileSync(
@@ -39,7 +42,7 @@ async function main() {
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" role="img" aria-label="HomeCheff"><image width="32" height="32" xlink:href="data:image/png;base64,${b64}"/></svg>`
   );
 
-  console.log("Generated HomeCheff brand icons in public/");
+  console.log("Generated HomeCheff brand icons in public/ and src/app/favicon.ico");
 }
 
 main().catch((error) => {
