@@ -1,17 +1,16 @@
 /**
- * Generate favicon + touch icons from public/homecheff-globe-man.png
- * Run: npx tsx scripts/generate-homecheff-brand-icons.ts
+ * Generate favicon + touch icons from public/homecheff-globe-man.png (SSOT).
+ * Run: npm run generate:brand-icons
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import sharp from "sharp";
 import toIco from "to-ico";
+import { HOMECHEFF_BRAND_ICON_CACHE_VERSION } from "../src/lib/homecheff-brand-icon-version";
 
 const ROOT = process.cwd();
 const SOURCE = resolve(ROOT, "public/homecheff-globe-man.png");
 const OUT = resolve(ROOT, "public");
-/** Next.js App Router serves /favicon.ico from here — overrides public/favicon.ico. */
-const APP_FAVICON = resolve(ROOT, "src/app/favicon.ico");
 
 async function resizePng(size: number): Promise<Buffer> {
   return sharp(readFileSync(SOURCE))
@@ -21,6 +20,10 @@ async function resizePng(size: number): Promise<Buffer> {
     })
     .png()
     .toBuffer();
+}
+
+function versioned(path: string): string {
+  return `${path}?v=${HOMECHEFF_BRAND_ICON_CACHE_VERSION}`;
 }
 
 async function main() {
@@ -34,15 +37,48 @@ async function main() {
 
   const ico = await toIco([favicon16, favicon32]);
   writeFileSync(resolve(OUT, "favicon.ico"), ico);
-  writeFileSync(APP_FAVICON, ico);
 
-  const b64 = favicon32.toString("base64");
+  const manifest = {
+    name: "HomeCheff Studio",
+    short_name: "HomeCheff",
+    description: "Your AI production line — create once, adapt endlessly.",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#041428",
+    theme_color: "#006D52",
+    icons: [
+      {
+        src: versioned("/favicon-16x16.png"),
+        sizes: "16x16",
+        type: "image/png",
+      },
+      {
+        src: versioned("/favicon-32x32.png"),
+        sizes: "32x32",
+        type: "image/png",
+      },
+      {
+        src: versioned("/apple-touch-icon.png"),
+        sizes: "180x180",
+        type: "image/png",
+      },
+      {
+        src: "/homecheff-globe-man.png",
+        sizes: "1254x1254",
+        type: "image/png",
+        purpose: "any",
+      },
+    ],
+  };
+
   writeFileSync(
-    resolve(OUT, "favicon.svg"),
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32" role="img" aria-label="HomeCheff"><image width="32" height="32" xlink:href="data:image/png;base64,${b64}"/></svg>`
+    resolve(OUT, "site.webmanifest"),
+    `${JSON.stringify(manifest, null, 2)}\n`
   );
 
-  console.log("Generated HomeCheff brand icons in public/ and src/app/favicon.ico");
+  console.log(
+    `Generated HomeCheff brand icons in public/ (cache v${HOMECHEFF_BRAND_ICON_CACHE_VERSION})`
+  );
 }
 
 main().catch((error) => {

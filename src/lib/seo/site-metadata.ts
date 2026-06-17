@@ -28,7 +28,7 @@ export function buildPageMetadata(input: {
   locale?: "en" | "nl";
 }): Metadata {
   const url = absoluteUrl(input.path);
-  const ogImageUrl = absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.primary);
+  const ogImageUrl = absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source);
   return {
     title: `${input.title} | ${SITE_NAME}`,
     description: input.description,
@@ -73,13 +73,13 @@ export const ROOT_SITE_METADATA: Metadata = {
     url: absoluteUrl("/"),
     siteName: SITE_NAME,
     type: "website",
-    images: homeCheffOpenGraphIcon(absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.primary)),
+    images: homeCheffOpenGraphIcon(absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source)),
   },
   twitter: {
     card: "summary",
     title: SITE_NAME,
     description: DEFAULT_DESCRIPTION,
-    images: [absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.primary)],
+    images: [absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source)],
   },
 };
 

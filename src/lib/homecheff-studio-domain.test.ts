@@ -66,12 +66,12 @@ describe("HomeCheff Studio domain migration", () => {
       "favicon-16x16.png",
       "favicon-32x32.png",
       "apple-touch-icon.png",
-      "favicon.svg",
       "site.webmanifest",
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);
     }
-    assert.equal(HOMECHEFF_BRAND_ICON_PATHS.primary, "/homecheff-globe-man.png");
+    assert.equal(HOMECHEFF_BRAND_ICON_PATHS.source, "/homecheff-globe-man.png");
+    assert.equal(existsSync(join(ROOT, "src/app/favicon.ico")), false);
   });
 
   it("app shell uses HomeCheffBrandMark not gradient placeholder", () => {

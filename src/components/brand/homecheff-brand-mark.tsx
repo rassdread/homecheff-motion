@@ -25,7 +25,7 @@ export function HomeCheffBrandMark({ size = "header", className = "", priority =
       data-testid="homecheff-brand-mark"
     >
       <Image
-        src={HOMECHEFF_BRAND_ICON_PATHS.primary}
+        src={HOMECHEFF_BRAND_ICON_PATHS.source}
         alt={HOMECHEFF_BRAND_ICON_ALT}
         width={px}
         height={px}

@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
+import { HOMECHEFF_BRAND_ICON_CACHE_VERSION } from "@/lib/homecheff-brand-icon-version";
 
-/** Bump when favicon assets change to bust Safari/browser icon caches. */
-export const HOMECHEFF_BRAND_ICON_CACHE_VERSION = 2;
+/** SSOT raster source — all favicon/touch assets are generated from this file. */
+export const HOMECHEFF_BRAND_ICON_SOURCE = "/homecheff-globe-man.png" as const;
 
-/** Official HomeCheff globe-man brand asset paths (public/). */
+/** Derived public assets (npm run generate:brand-icons). */
 export const HOMECHEFF_BRAND_ICON_PATHS = {
-  primary: "/homecheff-globe-man.png",
+  source: HOMECHEFF_BRAND_ICON_SOURCE,
   faviconIco: "/favicon.ico",
   favicon16: "/favicon-16x16.png",
   favicon32: "/favicon-32x32.png",
-  faviconSvg: "/favicon.svg",
   appleTouchIcon: "/apple-touch-icon.png",
   webManifest: "/site.webmanifest",
 } as const;
 
 export const HOMECHEFF_BRAND_ICON_ALT = "HomeCheff";
 
-/** Cache-busted URL for metadata / Safari icon links. */
+/** Cache-busted URL for metadata / manifest icon links. */
 export function homeCheffBrandIconUrl(
   path: string,
   version: number = HOMECHEFF_BRAND_ICON_CACHE_VERSION
@@ -24,34 +24,56 @@ export function homeCheffBrandIconUrl(
   return `${path}?v=${version}`;
 }
 
-/** Explicit Safari-critical icon hrefs (also emitted via metadata icons). */
-export const HOMECHEFF_SAFARI_ICON_URLS = {
-  faviconIco: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.faviconIco),
-  favicon32: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.favicon32),
-  appleTouchIcon: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.appleTouchIcon),
-} as const;
-
+/**
+ * Single metadata icon configuration — no app/favicon.ico, no duplicate head links.
+ * Order: ICO first (Safari/Firefox), then PNG sizes, then apple-touch.
+ */
 export function homeCheffSiteIcons(): NonNullable<Metadata["icons"]> {
+  const faviconIco = homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.faviconIco);
+  const favicon32 = homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.favicon32);
+  const favicon16 = homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.favicon16);
+  const appleTouch = homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.appleTouchIcon);
+
   return {
     icon: [
-      { url: HOMECHEFF_BRAND_ICON_PATHS.faviconSvg, type: "image/svg+xml" },
-      {
-        url: HOMECHEFF_SAFARI_ICON_URLS.favicon32,
-        sizes: "32x32",
-        type: "image/png",
-      },
-      { url: HOMECHEFF_BRAND_ICON_PATHS.favicon16, sizes: "16x16", type: "image/png" },
-      { url: HOMECHEFF_SAFARI_ICON_URLS.faviconIco, sizes: "any" },
+      { url: faviconIco, sizes: "any" },
+      { url: favicon32, sizes: "32x32", type: "image/png" },
+      { url: favicon16, sizes: "16x16", type: "image/png" },
     ],
-    apple: [
-      {
-        url: HOMECHEFF_SAFARI_ICON_URLS.appleTouchIcon,
-        sizes: "180x180",
-        type: "image/png",
-      },
-    ],
-    shortcut: HOMECHEFF_SAFARI_ICON_URLS.faviconIco,
+    apple: [{ url: appleTouch, sizes: "180x180", type: "image/png" }],
+    shortcut: faviconIco,
   };
+}
+
+export function homeCheffWebManifestIcons(): Array<{
+  src: string;
+  sizes: string;
+  type: string;
+  purpose?: string;
+}> {
+  return [
+    {
+      src: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.favicon16),
+      sizes: "16x16",
+      type: "image/png",
+    },
+    {
+      src: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.favicon32),
+      sizes: "32x32",
+      type: "image/png",
+    },
+    {
+      src: homeCheffBrandIconUrl(HOMECHEFF_BRAND_ICON_PATHS.appleTouchIcon),
+      sizes: "180x180",
+      type: "image/png",
+    },
+    {
+      src: HOMECHEFF_BRAND_ICON_PATHS.source,
+      sizes: "1254x1254",
+      type: "image/png",
+      purpose: "any",
+    },
+  ];
 }
 
 export function homeCheffOpenGraphIcon(url: string): NonNullable<Metadata["openGraph"]>["images"] {

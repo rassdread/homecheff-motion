@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { HomeCheffSafariIconLinks } from "@/components/brand/homecheff-safari-icon-links";
 import { AppShell } from "@/components/layout/app-shell";
 import { getInstantPremiumMode } from "@/lib/instant-premium-mode";
 import { ROOT_SITE_METADATA } from "@/lib/seo/site-metadata";
@@ -31,9 +30,6 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} min-h-full antialiased`}
     >
-      <head>
-        <HomeCheffSafariIconLinks />
-      </head>
       <body
         className="flex min-h-full flex-col overflow-x-hidden overflow-y-visible"
         data-instant-premium-mode={instantPremiumMode}
