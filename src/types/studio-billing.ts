@@ -232,6 +232,12 @@ export type AdminUserBillingSnapshot = {
     creditsDelta: number;
     balanceAfter: number;
     creditOrigin: string | null;
+    provider: string | null;
+    providerCostUsd: number | null;
+    marginEstimate: number | null;
+    providerCostEventId: string | null;
+    studioActionType: string | null;
+    negativeMargin: boolean;
     createdAt: string;
   }>;
   promotionsRedeemed: Array<{ name: string; creditsGranted: number; createdAt: string }>;

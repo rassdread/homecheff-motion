@@ -9,6 +9,7 @@ import { HcProjectHubCard } from "@/components/projects/hc-project-hub-card";
 import { HcProjectImportButton } from "@/components/projects/hc-project-import-button";
 import { HcProjectPrepareDialog } from "@/components/projects/hc-project-prepare-dialog";
 import { RecentLocalEditsPanel } from "@/components/projects/recent-local-edits-panel";
+import { ConversionSurface } from "@/components/billing/conversion-surface";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
@@ -197,6 +198,10 @@ export function HomeCheffProjectHub() {
             title={t("projects.hub.title" as never)}
             description={t("suite.pageIntro.projects.description" as never)}
           />
+
+          <div className="mt-6 max-w-xs">
+            <ConversionSurface pageType="projects" variant="sidebar" source="projects_sidebar" />
+          </div>
 
           {continueItem ?
             <div className={`mt-6 ${studioVisual.cardOnDarkMuted}`}>

@@ -32,6 +32,12 @@ export type VideoJobStatusResult = {
   outputVideoUrl?: string;
   progress: number;
   errorMessage?: string;
+  /** Exact provider credits consumed (Vidu task API). */
+  providerCreditsUsed?: number;
+  providerDurationSeconds?: number;
+  providerTaskType?: string;
+  providerModel?: string;
+  providerResolution?: string;
 };
 
 export type MultiFrameSegmentInput = {

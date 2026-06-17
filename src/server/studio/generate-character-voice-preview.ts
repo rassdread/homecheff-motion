@@ -28,7 +28,7 @@ export async function generateCharacterVoicePreview(params: {
   characterId: string;
   ownerId: string;
 } & CharacterVoicePreviewOverrides): Promise<
-  | { ok: true; audioUrl: string; durationSeconds: number; provider: string }
+  | { ok: true; audioUrl: string; durationSeconds: number; provider: string; cacheHit: boolean }
   | { error: ServiceError }
 > {
   const row = await prisma.studioCharacter.findFirst({
@@ -76,6 +76,7 @@ export async function generateCharacterVoicePreview(params: {
     audioUrl: synthesis.audioUrl,
     durationSeconds: synthesis.durationSeconds,
     provider: synthesis.provider,
+    cacheHit: synthesis.cacheHit,
   };
 }
 
@@ -93,6 +94,7 @@ export async function generateCharacterVoicePreviewDraft(params: {
       durationSeconds: number;
       provider: string;
       metadata: { script: string; voiceProfile: string; language: string };
+      cacheHit: boolean;
     }
   | { error: ServiceError }
 > {
@@ -136,5 +138,6 @@ export async function generateCharacterVoicePreviewDraft(params: {
       voiceProfile: synthesis.voiceProfile,
       language: synthesis.language,
     },
+    cacheHit: synthesis.cacheHit,
   };
 }

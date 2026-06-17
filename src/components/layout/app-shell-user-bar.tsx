@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { invalidateAuthSessionCache } from "@/lib/auth-session-client";
@@ -116,6 +117,17 @@ export function AppShellUserBar() {
           <p className="truncate px-3 py-2 text-xs text-white/70" title={email}>
             {email}
           </p>
+          <div className="px-3 pb-2 lg:hidden">
+            <GlobalCreditIndicator variant="compact" />
+          </div>
+          <Link
+            href="/account/billing"
+            prefetch={false}
+            className={studioVisual.userDropdownItem}
+            onClick={() => setOpen(false)}
+          >
+            {t("billing.conversion.billingAndCredits")}
+          </Link>
           {normalizedRole === "admin" ?
             <Link
               href="/admin"

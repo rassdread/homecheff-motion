@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { cloneCharacterVoice } from "@/server/studio/clone-character-voice";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -39,25 +40,33 @@ export async function POST(request: Request, context: RouteContext) {
   const forceMock = process.env.NODE_ENV === "test" || form.get("mock") === "true";
 
   const buffer = Buffer.from(await sample.arrayBuffer());
-  const result = await cloneCharacterVoice({
-    characterId,
-    viewer: user,
-    sampleBuffer: buffer,
-    fileName: sample.name,
-    mimeType: sample.type,
-    voiceName,
-    consentConfirmed,
-    voiceLock: voiceLockRaw != null ? voiceLock : undefined,
-    language: language ?? undefined,
-    forceProvider: forceMock ? "mock" : undefined,
+
+  return runBilledProviderRoute({
+    user,
+    actionType: "voice_clone",
+    relatedJobId: characterId,
+    execute: () =>
+      cloneCharacterVoice({
+        characterId,
+        viewer: user,
+        sampleBuffer: buffer,
+        fileName: sample.name,
+        mimeType: sample.type,
+        voiceName,
+        consentConfirmed,
+        voiceLock: voiceLockRaw != null ? voiceLock : undefined,
+        language: language ?? undefined,
+        forceProvider: forceMock ? "mock" : undefined,
+      }),
+    isFailure: (result) => "error" in result,
+    onSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return NextResponse.json(
+          { error: result.error.message, code: result.error.code },
+          { status: result.error.httpStatus }
+        );
+      }
+      return NextResponse.json(withEstimatedCredits({ ok: true, ...result.data }, estimatedCredits));
+    },
   });
-
-  if ("error" in result) {
-    return NextResponse.json(
-      { error: result.error.message, code: result.error.code },
-      { status: result.error.httpStatus }
-    );
-  }
-
-  return NextResponse.json({ ok: true, ...result.data });
 }

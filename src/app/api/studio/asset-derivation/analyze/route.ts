@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { extractAssetStyleDna } from "@/server/studio/extract-asset-style-dna";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -29,23 +30,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid source kind.", code: "INVALID_KIND" }, { status: 400 });
   }
 
-  const result = await extractAssetStyleDna(user, {
-    imageUrl: body.imageUrl ?? "",
-    sourceKind,
-    sourceName: body.sourceName ?? "Reference",
-    derivationJobId: body.derivationJobId ?? crypto.randomUUID(),
-  });
-
-  if ("error" in result) {
-    return NextResponse.json(
-      { error: result.error, code: result.code },
-      { status: result.status }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    styleDna: result.data.styleDna,
-    visionAnalysis: result.data.visionAnalysis,
+  return runBilledProviderRoute({
+    user,
+    actionType: "vision_analysis",
+    relatedJobId: body.derivationJobId ?? undefined,
+    execute: () =>
+      extractAssetStyleDna(user, {
+        imageUrl: body.imageUrl ?? "",
+        sourceKind,
+        sourceName: body.sourceName ?? "Reference",
+        derivationJobId: body.derivationJobId ?? crypto.randomUUID(),
+      }),
+    isFailure: (result) => "error" in result,
+    onSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return NextResponse.json(
+          { error: result.error, code: result.code },
+          { status: result.status }
+        );
+      }
+      return NextResponse.json(
+        withEstimatedCredits(
+          {
+            ok: true,
+            styleDna: result.data.styleDna,
+            visionAnalysis: result.data.visionAnalysis,
+          },
+          estimatedCredits
+        )
+      );
+    },
   });
 }

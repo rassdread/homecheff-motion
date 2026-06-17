@@ -145,6 +145,14 @@ describe("studio action cost registry", () => {
     const motion = STUDIO_ACTION_COST_REGISTRY.motion_render;
     assert.ok(motion.defaultCreditCost >= 100);
   });
+
+  it("voice clone is priced above provider cost for safe margin", () => {
+    const voiceClone = STUDIO_ACTION_COST_REGISTRY.voice_clone;
+    assert.equal(voiceClone.defaultCreditCost, 400);
+    assert.equal(voiceClone.reservedCostUsd, 1.0);
+    assert.equal(voiceClone.actualCostEstimateUsd, 1.0);
+    assert.equal(voiceClone.confirmationCategory, "confirm");
+  });
 });
 
 describe("studio plan and credit packs config", () => {

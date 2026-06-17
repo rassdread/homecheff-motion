@@ -16,6 +16,7 @@ import {
 } from "@/lib/universe-public-landing";
 import { UniverseHomeSections } from "@/components/suite/universe/universe-home-sections";
 import { UniverseHomeSpaceShowcase } from "@/components/suite/universe/universe-home-space-showcase";
+import { ConversionSurface, GuestConversionStrip } from "@/components/billing/conversion-surface";
 import {
   UNIVERSE_PLANET_HOVER_CLOSE_DELAY_MS,
   UNIVERSE_PLANET_HOVER_LOCK_MS,
@@ -206,6 +207,14 @@ export function UniverseHomePage() {
         </section>
 
         <UniverseHomeSpaceShowcase />
+
+        <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6" data-testid="home-conversion-block">
+          {isAuthenticated ? (
+            <ConversionSurface pageType="homepage" variant="hero" source="homepage_showcase" />
+          ) : (
+            <GuestConversionStrip source="homepage_showcase" variant="hero" />
+          )}
+        </div>
 
         <section className="home-after-hero" data-testid="home-after-hero">
           <UniverseHomeSections />

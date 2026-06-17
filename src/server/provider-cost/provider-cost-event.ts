@@ -237,6 +237,44 @@ export type RecordCostEventInput = {
   skipBillingSync?: boolean;
 };
 
+/** Wallet-linked cost event — returns id, never syncs legacy CustomerBillingEvent. */
+export async function recordCostEventLinked(input: RecordCostEventInput): Promise<string> {
+  const internalCostUsd = unitsToTotalCostUsd(input.unitsUsed, input.unitCostUsd);
+  const status = normalizeStatus(input.status);
+
+  const row = await prisma.providerCostEvent.create({
+    data: {
+      provider: input.provider,
+      actionType: input.actionType,
+      projectId: input.projectId ?? null,
+      userId: input.userId ?? null,
+      relatedJobId: input.relatedJobId?.trim() || null,
+      relatedExportId: input.relatedExportId?.trim() || null,
+      providerJobId:
+        input.provider === "vidu" && input.relatedJobId?.trim() ?
+          input.relatedJobId.trim()
+        : null,
+      unitsUsed: input.unitsUsed,
+      unitType: input.unitType,
+      unitCostUsd: input.unitCostUsd,
+      internalCostUsd,
+      totalCostUsd: internalCostUsd,
+      status,
+      isEstimated: input.isEstimated ?? true,
+      needsReview: input.needsReview ?? false,
+      estimateReason: input.estimateReason ?? null,
+      metadataJson: {
+        ...((input.metadataJson as Record<string, unknown> | undefined) ?? {}),
+        studioWalletBilling: true,
+      } as Prisma.InputJsonValue,
+      startedAt: new Date(),
+      completedAt: new Date(),
+    },
+  });
+
+  return row.id;
+}
+
 /** One-shot cost event (no balance delta — e.g. OCR, storage, internal merge). */
 export async function recordCostEvent(input: RecordCostEventInput): Promise<void> {
   const internalCostUsd = unitsToTotalCostUsd(input.unitsUsed, input.unitCostUsd);
@@ -309,6 +347,7 @@ export async function completeViduRenderCostEvent(input: {
   providerJobId: string;
   status: string;
   creditsUsed?: number | null;
+  metadataJson?: Prisma.InputJsonValue;
 }): Promise<void> {
   await completeCostEvent({
     provider: "vidu",
@@ -317,6 +356,7 @@ export async function completeViduRenderCostEvent(input: {
     status: input.status,
     unitsUsedFromResponse: input.creditsUsed ?? null,
     unitCostUsd: UNIT_COST_USD.vidu_credit,
+    metadataJson: input.metadataJson,
   });
 }
 

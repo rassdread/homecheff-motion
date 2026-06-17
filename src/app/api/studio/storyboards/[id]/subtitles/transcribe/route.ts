@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { generateStoryboardTranscript } from "@/server/studio/generate-storyboard-transcript";
 import { isStudioVoiceExecutionLanguage } from "@/types/studio-voice-execution";
 
@@ -27,22 +28,26 @@ export async function POST(request: Request, context: RouteContext) {
     /* empty body ok */
   }
 
-  const result = await generateStoryboardTranscript({
-    storyboardId: id,
-    viewer: user,
-    language,
-    forceProvider: forceMock ? "mock" : undefined,
-  });
-
-  if ("error" in result) {
-    return NextResponse.json(
-      { error: result.error.message, code: result.error.code },
-      { status: result.error.httpStatus }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    ...result.data,
+  return runBilledProviderRoute({
+    user,
+    actionType: "subtitle_transcription",
+    projectId: id,
+    execute: () =>
+      generateStoryboardTranscript({
+        storyboardId: id,
+        viewer: user,
+        language,
+        forceProvider: forceMock ? "mock" : undefined,
+      }),
+    isFailure: (result) => "error" in result,
+    onSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return NextResponse.json(
+          { error: result.error.message, code: result.error.code },
+          { status: result.error.httpStatus }
+        );
+      }
+      return NextResponse.json(withEstimatedCredits({ ok: true, ...result.data }, estimatedCredits));
+    },
   });
 }

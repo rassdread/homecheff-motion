@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ConversionSurface } from "@/components/billing/conversion-surface";
 import { StudioAiWorkflowV2 } from "@/components/studio/studio-ai-workflow-v2";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { StudioShellHeader } from "@/components/studio/studio-shell-header";
 import { useActiveTranslator } from "@/i18n/client";
 import { brand } from "@/lib/brand";
@@ -93,6 +95,14 @@ export function StudioHomeDashboard({ embedded = false }: Props) {
           </header>
 
           <StudioAiWorkflowV2 />
+
+          <OnboardingChecklist />
+
+          <ConversionSurface
+            pageType="studio_dashboard"
+            variant="inline"
+            source="studio_dashboard"
+          />
 
           <div>
             <h3 className="text-sm font-semibold text-white/90">{t("studio.home.quickActions")}</h3>

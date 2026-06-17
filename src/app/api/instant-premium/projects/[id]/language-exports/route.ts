@@ -18,12 +18,14 @@ import { LANGUAGE_EXPORT_NO_CLEAN } from "@/lib/story-language-export";
 import {
   isLanguageExportCode,
   parseLanguageTextLayerJson,
+  type LanguageExportCode,
   type LanguageTextLayerRecord,
 } from "@/lib/video-language-export";
 import type { InstantSceneText } from "@/lib/story-overlay-templates";
 import { parseSceneTextsJson } from "@/lib/translate-scene-texts";
 import { parseInstantMode } from "@/lib/instant-premium-mode-types";
 import { projectUsesStoryOverlay } from "@/lib/story-language-export";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -132,26 +134,49 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    try {
-      const { exportId } = await rerenderLanguageExport({
-        exportId: raw.exportId.trim(),
-        viewer: user,
-      });
-      const exports = await listVideoLanguageExports(projectId);
-      const created = exports.find((e) => e.id === exportId);
-      return NextResponse.json({
-        ok: true,
-        exportId,
-        status: created?.status ?? "queued",
-        export: created ? mapExportRow(created) : null,
-        exports: exports.map(mapExportRow),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Rerender failed.";
-      const code =
-        message === LANGUAGE_EXPORT_IN_PROGRESS ? LANGUAGE_EXPORT_IN_PROGRESS : "RERENDER_FAILED";
-      return NextResponse.json({ ok: false, code, message }, { status: 400 });
-    }
+    return runBilledProviderRoute({
+      user,
+      actionType: "translation_export",
+      projectId,
+      relatedJobId: raw.exportId.trim(),
+      execute: async () => {
+        try {
+          const { exportId } = await rerenderLanguageExport({
+            exportId: raw.exportId!.trim(),
+            viewer: user,
+          });
+          const exports = await listVideoLanguageExports(projectId);
+          const created = exports.find((e) => e.id === exportId);
+          return { ok: true as const, exportId, created, exports };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Rerender failed.";
+          const code =
+            message === LANGUAGE_EXPORT_IN_PROGRESS ? LANGUAGE_EXPORT_IN_PROGRESS : "RERENDER_FAILED";
+          return { ok: false as const, code, message };
+        }
+      },
+      isFailure: (result) => !result.ok,
+      onSuccess: (result, estimatedCredits) => {
+        if (!result.ok) {
+          return NextResponse.json(
+            { ok: false, code: result.code, message: result.message },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          withEstimatedCredits(
+            {
+              ok: true,
+              exportId: result.exportId,
+              status: result.created?.status ?? "queued",
+              export: result.created ? mapExportRow(result.created) : null,
+              exports: result.exports.map(mapExportRow),
+            },
+            estimatedCredits
+          )
+        );
+      },
+    });
   }
 
   if (raw.action === "prepare") {
@@ -161,58 +186,80 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    try {
-      const prepared = await prepareLanguageExport({
-        projectId,
-        languageCode: raw.languageCode,
-        textLayerOverrides: raw.textLayers,
-        sceneTextOverrides: Array.isArray(raw.sceneTexts)
-          ? parseSceneTextsJson(raw.sceneTexts)
-          : undefined,
-        viewer: user,
-      });
-      if (prepared.mode === "story_overlay") {
-        return NextResponse.json({
-          ok: true,
-          mode: "story_overlay",
-          languageCode: raw.languageCode,
-          exportId: prepared.exportId ?? null,
-          sceneTexts: prepared.sceneTexts,
-          translationProvider: prepared.translationProvider,
-          translationFailed: prepared.translationFailed ?? false,
-          message: prepared.message,
-          sourceLanguage: prepared.sourceLanguage,
-          targetLanguage: prepared.targetLanguage,
-        });
-      }
-      return NextResponse.json({
-        ok: true,
-        mode: "typography",
-        exportId: null,
-        languageCode: raw.languageCode,
-        layers: prepared.layers,
-        textLayers: prepared.textLayers,
-        previews: prepared.previews,
-        layerCount: prepared.layerCount,
-        translationProvider: prepared.translationProvider,
-        typographyRenderQuality: prepared.typographyRenderQuality,
-        translationFailed: prepared.translationFailed,
-        message: prepared.message,
-        layerSourceStats: prepared.layerSourceStats,
-      });
-    } catch (error) {
-      if (error instanceof LanguageExportPrepareError) {
+    return runBilledProviderRoute({
+      user,
+      actionType: "translation_export",
+      projectId,
+      execute: async () => {
+        try {
+          const prepared = await prepareLanguageExport({
+            projectId,
+            languageCode: raw.languageCode as LanguageExportCode,
+            textLayerOverrides: raw.textLayers,
+            sceneTextOverrides: Array.isArray(raw.sceneTexts)
+              ? parseSceneTextsJson(raw.sceneTexts)
+              : undefined,
+            viewer: user,
+          });
+          return { ok: true as const, prepared };
+        } catch (error) {
+          if (error instanceof LanguageExportPrepareError) {
+            return { ok: false as const, code: error.code, message: error.message, httpStatus: 200 };
+          }
+          const message = error instanceof Error ? error.message : "Prepare failed.";
+          return { ok: false as const, code: "PREPARE_FAILED", message, httpStatus: 400 };
+        }
+      },
+      isFailure: (result) => !result.ok,
+      onSuccess: (result, estimatedCredits) => {
+        if (!result.ok) {
+          return NextResponse.json(
+            { ok: false, code: result.code, message: result.message },
+            { status: result.httpStatus ?? 400 }
+          );
+        }
+        const prepared = result.prepared;
+        if (prepared.mode === "story_overlay") {
+          return NextResponse.json(
+            withEstimatedCredits(
+              {
+                ok: true,
+                mode: "story_overlay",
+                languageCode: raw.languageCode,
+                exportId: prepared.exportId ?? null,
+                sceneTexts: prepared.sceneTexts,
+                translationProvider: prepared.translationProvider,
+                translationFailed: prepared.translationFailed ?? false,
+                message: prepared.message,
+                sourceLanguage: prepared.sourceLanguage,
+                targetLanguage: prepared.targetLanguage,
+              },
+              estimatedCredits
+            )
+          );
+        }
         return NextResponse.json(
-          { ok: false, code: error.code, message: error.message },
-          { status: 200 }
+          withEstimatedCredits(
+            {
+              ok: true,
+              mode: "typography",
+              exportId: null,
+              languageCode: raw.languageCode,
+              layers: prepared.layers,
+              textLayers: prepared.textLayers,
+              previews: prepared.previews,
+              layerCount: prepared.layerCount,
+              translationProvider: prepared.translationProvider,
+              typographyRenderQuality: prepared.typographyRenderQuality,
+              translationFailed: prepared.translationFailed,
+              message: prepared.message,
+              layerSourceStats: prepared.layerSourceStats,
+            },
+            estimatedCredits
+          )
         );
-      }
-      const message = error instanceof Error ? error.message : "Prepare failed.";
-      return NextResponse.json(
-        { ok: false, code: "PREPARE_FAILED", message },
-        { status: 400 }
-      );
-    }
+      },
+    });
   }
 
   const isRenderAction = raw.action === "render" || raw.action === undefined;
@@ -249,76 +296,107 @@ export async function POST(request: Request, context: RouteContext) {
     ? parseSceneTextsJson(raw.sceneTexts)
     : undefined;
 
-  try {
-    const { exportId } = await createAndRenderLanguageExport({
-      projectId,
-      viewer: user,
-      languageCode: raw.languageCode,
-      textLayerOverrides: overrides,
-      sceneTextOverrides: sceneOverrides,
-      exportId: raw.exportId?.trim() || undefined,
-      versionNote: raw.versionNote?.trim() || undefined,
-    });
-    const exports = await listVideoLanguageExports(projectId);
-    const created = exports.find((e) => e.id === exportId);
-    const status = created?.status ?? "queued";
-    const outputVideoUrl = created?.outputVideoUrl?.trim() ?? null;
-
-    if (status === "completed" && !outputVideoUrl) {
-      return NextResponse.json({
-        ok: false,
-        code: "LANGUAGE_EXPORT_OUTPUT_MISSING",
-        message: "Language export completed without an output video URL.",
-        exportId,
-        status,
-        languageCode: raw.languageCode,
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      exportId,
-      status,
-      outputVideoUrl,
-      languageCode: raw.languageCode,
-      export: created ? mapExportRow(created) : null,
-      exports: exports.map(mapExportRow),
-    });
-  } catch (error) {
-    if (error instanceof VideoToolsMissingError) {
-      return NextResponse.json(
-        {
-          ok: false,
-          code: error.code,
-          message: error.message,
+  return runBilledProviderRoute({
+    user,
+    actionType: "translation_export",
+    projectId,
+    execute: async () => {
+      try {
+        const { exportId } = await createAndRenderLanguageExport({
+          projectId,
+          viewer: user,
+          languageCode: raw.languageCode as LanguageExportCode,
+          textLayerOverrides: overrides,
+          sceneTextOverrides: sceneOverrides,
+          exportId: raw.exportId?.trim() || undefined,
+          versionNote: raw.versionNote?.trim() || undefined,
+        });
+        const exports = await listVideoLanguageExports(projectId);
+        const created = exports.find((e) => e.id === exportId);
+        const status = created?.status ?? "queued";
+        const outputVideoUrl = created?.outputVideoUrl?.trim() ?? null;
+        if (status === "completed" && !outputVideoUrl) {
+          return {
+            ok: false as const,
+            code: "LANGUAGE_EXPORT_OUTPUT_MISSING",
+            message: "Language export completed without an output video URL.",
+            exportId,
+            status,
+            languageCode: raw.languageCode,
+          };
+        }
+        return {
+          ok: true as const,
+          exportId,
+          status,
+          outputVideoUrl,
+          languageCode: raw.languageCode,
+          created,
+          exports,
+        };
+      } catch (error) {
+        if (error instanceof VideoToolsMissingError) {
+          return {
+            ok: false as const,
+            code: error.code,
+            message: error.message,
+            exportId: raw.exportId ?? null,
+            status: "failed",
+            languageCode: raw.languageCode,
+            httpStatus: 400,
+          };
+        }
+        const message = error instanceof Error ? error.message : "Language export failed.";
+        const code =
+          message === LANGUAGE_EXPORT_LIMIT
+            ? LANGUAGE_EXPORT_LIMIT
+            : message === LANGUAGE_EXPORT_IN_PROGRESS
+              ? LANGUAGE_EXPORT_IN_PROGRESS
+              : message === LANGUAGE_EXPORT_NO_BASE
+                ? LANGUAGE_EXPORT_NO_BASE
+                : message === LANGUAGE_EXPORT_NO_CLEAN
+                  ? LANGUAGE_EXPORT_NO_CLEAN
+                  : "LANGUAGE_EXPORT_FAILED";
+        return {
+          ok: false as const,
+          code,
+          message,
           exportId: raw.exportId ?? null,
           status: "failed",
           languageCode: raw.languageCode,
-        },
-        { status: 400 }
+          httpStatus: 400,
+        };
+      }
+    },
+    isFailure: (result) => !result.ok,
+    onSuccess: (result, estimatedCredits) => {
+      if (!result.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            code: result.code,
+            message: result.message,
+            exportId: result.exportId ?? null,
+            status: result.status ?? "failed",
+            languageCode: result.languageCode,
+          },
+          { status: result.httpStatus ?? 400 }
+        );
+      }
+      return NextResponse.json(
+        withEstimatedCredits(
+          {
+            ok: true,
+            exportId: result.exportId,
+            status: result.status,
+            outputVideoUrl: result.outputVideoUrl,
+            languageCode: result.languageCode,
+            export: result.created ? mapExportRow(result.created) : null,
+            exports: result.exports.map(mapExportRow),
+          },
+          estimatedCredits
+        )
       );
-    }
-    const message = error instanceof Error ? error.message : "Language export failed.";
-    const code =
-      message === LANGUAGE_EXPORT_LIMIT
-        ? LANGUAGE_EXPORT_LIMIT
-        : message === LANGUAGE_EXPORT_IN_PROGRESS
-          ? LANGUAGE_EXPORT_IN_PROGRESS
-          : message === LANGUAGE_EXPORT_NO_BASE
-            ? LANGUAGE_EXPORT_NO_BASE
-            : message === LANGUAGE_EXPORT_NO_CLEAN
-              ? LANGUAGE_EXPORT_NO_CLEAN
-              : "LANGUAGE_EXPORT_FAILED";
-    return NextResponse.json(
-      {
-        ok: false,
-        code,
-        message,
-        exportId: raw.exportId ?? null,
-        status: "failed",
-        languageCode: raw.languageCode,
-      },
-      { status: 400 }
-    );
-  }
+    },
+  });
 }

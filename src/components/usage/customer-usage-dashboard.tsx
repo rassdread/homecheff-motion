@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AppCard } from "@/components/ui/app-card";
 import { MotionEmptyState } from "@/components/ui/motion-studio-primitives";
+import { BillingUsageConversionCard } from "@/components/billing/billing-usage-conversion-card";
 import { useActiveTranslator } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
 import type { CustomerUsageReport } from "@/types/customer-usage";
@@ -99,6 +100,7 @@ export function CustomerUsageDashboard({
 
   return (
     <div className="space-y-6">
+      <BillingUsageConversionCard creditsUsedLast30Days={summary?.creditsUsed ?? 0} />
       {error ?
         <AppCard>
           <p className="text-sm text-amber-800">{error}</p>

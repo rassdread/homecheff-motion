@@ -24,6 +24,9 @@ export const COST_ACTION = {
   VIDEO_EXPORT: "video_export",
   STORAGE_UPLOAD: "storage_upload",
   INTERNAL_MERGE: "internal_merge",
+  REPLICATE_SEGMENT: "replicate_segment",
+  ELEVENLABS_MUSIC: "elevenlabs_music",
+  ELEVENLABS_SFX: "elevenlabs_sfx",
 } as const;
 
 export type CostActionType = (typeof COST_ACTION)[keyof typeof COST_ACTION];
@@ -41,6 +44,9 @@ export const INSTRUMENTATION_ONLY_ACTIONS: ReadonlySet<CostActionType> = new Set
   COST_ACTION.VOICE_PREVIEW_CACHE_HIT,
   COST_ACTION.STORAGE_UPLOAD,
   COST_ACTION.INTERNAL_MERGE,
+  COST_ACTION.REPLICATE_SEGMENT,
+  COST_ACTION.ELEVENLABS_MUSIC,
+  COST_ACTION.ELEVENLABS_SFX,
 ]);
 
 export const COST_UNIT = {

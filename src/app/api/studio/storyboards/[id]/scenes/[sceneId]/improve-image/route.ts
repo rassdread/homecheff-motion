@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { improveSceneImageWithApproval } from "@/server/studio/studio-improvement-service";
 import type { ImproveSceneImageResponse } from "@/types/studio-improvement";
 
@@ -17,20 +18,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
     autoSelect?: boolean;
   };
 
-  const result = await improveSceneImageWithApproval(
-    storyboardId,
-    sceneId,
-    body.sourceImageId,
+  return runBilledProviderRoute({
     user,
-    { autoSelect: body.autoSelect }
-  );
-  if ("error" in result) {
-    return NextResponse.json(
-      { error: result.error.message, code: result.error.code },
-      { status: result.error.httpStatus }
-    );
-  }
-
-  const response: ImproveSceneImageResponse = result;
-  return NextResponse.json(response, { status: 201 });
+    actionType: "scene_generation",
+    projectId: storyboardId,
+    execute: () =>
+      improveSceneImageWithApproval(storyboardId, sceneId, body.sourceImageId, user, {
+        autoSelect: body.autoSelect,
+      }),
+    isFailure: (result) => "error" in result,
+    onSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return NextResponse.json(
+          { error: result.error.message, code: result.error.code },
+          { status: result.error.httpStatus }
+        );
+      }
+      const response: ImproveSceneImageResponse = result;
+      return NextResponse.json(withEstimatedCredits(response, estimatedCredits), { status: 201 });
+    },
+  });
 }

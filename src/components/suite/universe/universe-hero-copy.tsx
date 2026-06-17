@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useActiveTranslator } from "@/i18n/client";
+import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import { resolveUniverseWelcomeName } from "@/lib/universe-home-config";
 import {
   UNIVERSE_HERO_PIPELINE_KEYS,
-  resolveUniverseHowItWorksHref,
   resolveUniversePrimaryCtaHref,
   resolveUniverseSecondaryCtaHref,
   resolveUniverseStartProjectHref,
@@ -91,11 +91,12 @@ export function UniverseHeroCopy({ isAuthenticated, email, reducedMotion = false
               {t("universe.hero.cta.startProject" as never)}
             </Link>
             <Link
-              href={resolveUniverseHowItWorksHref()}
+              href="/pricing"
               prefetch={false}
+              onClick={() => trackBillingConversionEvent("pricing_view", { source: "universe_hero" })}
               className="inline-flex min-h-11 items-center rounded-full border border-white/25 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15"
             >
-              {t("universe.hero.cta.howItWorks" as never)}
+              {t("billing.conversion.viewPlans" as never)}
             </Link>
           </>
         )}

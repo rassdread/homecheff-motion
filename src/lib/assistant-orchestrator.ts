@@ -51,6 +51,7 @@ import type { AssistantStudioContext } from "@/types/assistant-studio-brain";
 import type { AssistantProjectMemory } from "@/types/assistant-project-memory";
 import { loadAssistantPrefillPackage } from "@/lib/assistant-prefill-storage";
 import { listHomeCheffProjectsFiltered } from "@/lib/homecheff-project-persist";
+import { buildAssistantPricingCatalogReply } from "@/lib/assistant-pricing-catalog";
 import type { LibraryConsistencyRecord } from "@/types/library-consistency";
 import type { AssistantPrefillPackage } from "@/types/assistant-prefill";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
@@ -76,6 +77,7 @@ export type AssistantProposal = {
 };
 
 import type { AssistantBillingContext } from "@/types/studio-billing";
+import type { StudioPricingCatalogPublicEntry } from "@/types/studio-pricing-catalog";
 
 export type AssistantTurnInput = {
   message: string;
@@ -88,6 +90,7 @@ export type AssistantTurnInput = {
   pathname?: string;
   projectMemory?: AssistantProjectMemory | null;
   billingContext?: AssistantBillingContext;
+  pricingCatalog?: StudioPricingCatalogPublicEntry[];
 };
 
 export type AssistantTurnResult = {
@@ -323,6 +326,28 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
     messageKey: "assistant.chat.userEcho",
     params: { text: resolvedMessage.trim() },
   };
+
+  const pricingReply = buildAssistantPricingCatalogReply({
+    message: resolvedMessage,
+    catalog: input.pricingCatalog ?? [],
+    locale: input.locale,
+  });
+  if (pricingReply) {
+    return {
+      memory: { ...memory, lastIntent: "pricing_question" },
+      messages: [
+        userMessage,
+        {
+          id: `assistant-pricing-${Date.now()}`,
+          role: "assistant",
+          messageKey: "assistant.chat.pricingReply",
+          params: {
+            text: input.locale === "en" ? pricingReply.replyEn : pricingReply.replyNl,
+          },
+        },
+      ],
+    };
+  }
 
   if (isProjectRepeatRequest(resolvedMessage) && studio.projectMemory) {
     const reuseReply = buildProjectMemoryReuseReply(studio.projectMemory, input.locale ?? "nl");

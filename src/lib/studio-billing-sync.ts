@@ -3,7 +3,9 @@ import {
   type StudioActionType,
 } from "@/server/studio-account/studio-action-cost-registry";
 import { getStudioPlan } from "@/server/studio-account/studio-plan-config";
+import { resolveCatalogCreditCostSync } from "@/server/studio-account/studio-pricing-rule-service";
 import type { CarryMode } from "@/types/studio-billing";
+import type { StudioPricingCatalogPublicEntry } from "@/types/studio-pricing-catalog";
 
 export function applyPlanCreditDiscount(baseCredits: number, discountPercent: number): number {
   if (discountPercent <= 0) {
@@ -16,12 +18,30 @@ export function resolveRegistryActionCreditCost(input: {
   actionType: string;
   planId?: string;
   overrideCredits?: number;
+  pricingCatalog?: StudioPricingCatalogPublicEntry[];
 }): { creditCost: number; discountPercent: number; actionType: string } | null {
+  const plan = getStudioPlan(input.planId ?? "free");
+
+  if (input.pricingCatalog?.length) {
+    const base = resolveCatalogCreditCostSync({
+      catalog: input.pricingCatalog,
+      actionType: input.actionType,
+      planId: input.planId,
+      overrideCredits: input.overrideCredits,
+    });
+    if (base != null) {
+      return {
+        actionType: input.actionType,
+        creditCost: applyPlanCreditDiscount(base, plan.creditDiscountPercent),
+        discountPercent: plan.creditDiscountPercent,
+      };
+    }
+  }
+
   if (!(input.actionType in STUDIO_ACTION_COST_REGISTRY)) {
     return null;
   }
   const registry = STUDIO_ACTION_COST_REGISTRY[input.actionType as StudioActionType];
-  const plan = getStudioPlan(input.planId ?? "free");
   const base =
     input.overrideCredits != null && input.overrideCredits > 0
       ? input.overrideCredits

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { executeEditorMaskedReplace } from "@/server/editor/editor-masked-openai-edit";
 import type { EditorMaskEditJob } from "@/types/homecheff-visual-editor";
 
@@ -54,46 +55,59 @@ export async function POST(request: Request) {
     updatedAt: now,
   };
 
-  const result = await executeEditorMaskedReplace({
-    userId: user.id,
-    sessionId,
-    layerId,
-    imageUrl,
-    maskUrl,
-    objectLabel,
-    prompt,
-    backgroundStorageKey: body.backgroundStorageKey,
-    jobId,
-  });
+  return runBilledProviderRoute({
+    user,
+    actionType: "image_edit",
+    relatedJobId: sessionId,
+    execute: () =>
+      executeEditorMaskedReplace({
+        userId: user.id,
+        sessionId,
+        layerId,
+        imageUrl,
+        maskUrl,
+        objectLabel,
+        prompt,
+        backgroundStorageKey: body.backgroundStorageKey,
+        jobId,
+      }),
+    isFailure: (result) => !result.ok,
+    onSuccess: (result, estimatedCredits) => {
+      const completedAt = new Date().toISOString();
+      if (!result.ok) {
+        const failedJob: EditorMaskEditJob = {
+          ...runningJob,
+          status: "failed",
+          progress: 1,
+          message: result.message,
+          updatedAt: completedAt,
+        };
+        return NextResponse.json(
+          { ok: false, job: failedJob, error: result.message },
+          { status: result.code === "VALIDATION" ? 400 : 502 }
+        );
+      }
 
-  const completedAt = new Date().toISOString();
-  if (!result.ok) {
-    const failedJob: EditorMaskEditJob = {
-      ...runningJob,
-      status: "failed",
-      progress: 1,
-      message: result.message,
-      updatedAt: completedAt,
-    };
-    return NextResponse.json(
-      { ok: false, job: failedJob, error: result.message },
-      { status: result.code === "VALIDATION" ? 400 : 502 }
-    );
-  }
+      const completedJob: EditorMaskEditJob = {
+        ...runningJob,
+        status: "completed",
+        progress: 1,
+        message: "Object replaced.",
+        resultUrl: result.resultUrl,
+        updatedAt: completedAt,
+      };
 
-  const completedJob: EditorMaskEditJob = {
-    ...runningJob,
-    status: "completed",
-    progress: 1,
-    message: "Object replaced.",
-    resultUrl: result.resultUrl,
-    updatedAt: completedAt,
-  };
-
-  return NextResponse.json({
-    ok: true,
-    job: completedJob,
-    resultUrl: result.resultUrl,
-    storageKey: result.storageKey,
+      return NextResponse.json(
+        withEstimatedCredits(
+          {
+            ok: true,
+            job: completedJob,
+            resultUrl: result.resultUrl,
+            storageKey: result.storageKey,
+          },
+          estimatedCredits
+        )
+      );
+    },
   });
 }

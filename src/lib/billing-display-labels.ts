@@ -73,10 +73,23 @@ export function buildAssistantBillingSummary(input: {
   balanceAfter: number;
   savingsText?: string;
   locale?: string;
-}): { summaryNl: string; summaryEn: string } {
+}): { summaryNl: string; summaryEn: string; lowBalanceWarning?: boolean } {
   const savings = input.savingsText ?? "";
+  const nl = !input.locale || input.locale.startsWith("nl");
+  const lowBalanceWarning = input.availableCredits <= 100 || input.balanceAfter <= 50;
+
+  const lowNl =
+    lowBalanceWarning
+      ? " Je credits raken op — overweeg credits bij te kopen voordat je meerdere renders start."
+      : "";
+  const lowEn =
+    lowBalanceWarning
+      ? " You may want to top up credits before running multiple renders."
+      : "";
+
   return {
-    summaryNl: `Dit kost naar schatting ${input.estimatedCredits} credits. Je hebt ${input.availableCredits} credits beschikbaar. Na deze actie houd je ${input.balanceAfter} credits over.${savings}`,
-    summaryEn: `This will use about ${input.estimatedCredits} credits. You have ${input.availableCredits} credits available. After this action you'll have ${input.balanceAfter} credits left.${savings}`,
+    summaryNl: `Dit kost naar schatting ${input.estimatedCredits} credits. Je hebt ${input.availableCredits} credits beschikbaar. Na deze actie houd je ${input.balanceAfter} credits over.${savings}${lowNl}`,
+    summaryEn: `This will use about ${input.estimatedCredits} credits. You currently have ${input.availableCredits} available. After this action you'll have ${input.balanceAfter} credits left.${savings}${lowEn}`,
+    lowBalanceWarning,
   };
 }

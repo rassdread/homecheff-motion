@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { CreditPricingCatalog } from "@/components/billing/credit-pricing-catalog";
+import {
+  ConversionSurfacePricingSticky,
+  GuestConversionStrip,
+} from "@/components/billing/conversion-surface";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { useActiveTranslator } from "@/i18n/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { trackBillingConversionEvent } from "@/lib/billing-conversion-analytics";
 import { brand } from "@/lib/brand";
 import type { TranslationKey } from "@/i18n";
 
@@ -22,6 +28,10 @@ export default function PricingPage() {
   const session = useAuthSession();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  useEffect(() => {
+    trackBillingConversionEvent("pricing_view", { source: "pricing_page" });
+  }, []);
+
   return (
     <main className={`flex-1 ${brand.softGradientBg}`}>
       <section className="mx-auto w-full max-w-4xl px-6 py-12 sm:px-10 sm:py-16">
@@ -37,6 +47,12 @@ export default function PricingPage() {
           </h1>
           <p className="mt-4 text-base leading-relaxed text-zinc-600">{t("pricing.subtitle")}</p>
         </header>
+
+        {session.resolved && !session.user ? (
+          <div className="mt-8">
+            <GuestConversionStrip source="pricing_guest" variant="hero" theme="light" />
+          </div>
+        ) : null}
 
         <AppCard className="mt-8 border border-emerald-200 bg-emerald-50/80 p-6 sm:p-8">
           <h2 className="text-lg font-bold text-emerald-900">{t("pricing.carryTitle")}</h2>
@@ -59,8 +75,18 @@ export default function PricingPage() {
             <p className="mt-3 text-sm leading-relaxed text-zinc-600">{t("pricing.studio.body")}</p>
           </AppCard>
 
-          <AppCard className="bg-white p-6 sm:p-8">
-            <h2 className="text-lg font-bold text-zinc-900">{t("pricing.faq.title")}</h2>
+        <AppCard className="bg-white p-6 sm:p-8">
+          <h2 className="text-lg font-bold text-zinc-900">{t("pricing.catalog.sectionTitle" as never)}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+            {t("pricing.catalog.sectionIntro" as never)}
+          </p>
+          <div className="mt-6">
+            <CreditPricingCatalog full showDescriptions />
+          </div>
+        </AppCard>
+
+        <AppCard className="bg-white p-6 sm:p-8">
+          <h2 className="text-lg font-bold text-zinc-900">{t("pricing.faq.title")}</h2>
             <ul className="mt-4 space-y-2">
               {FAQ_KEYS.map((row, index) => {
                 const expanded = openFaq === index;
@@ -86,6 +112,8 @@ export default function PricingPage() {
             </ul>
           </AppCard>
         </div>
+
+        {session.resolved && session.user ? <ConversionSurfacePricingSticky /> : null}
 
         <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
           {session.resolved && session.user ? (

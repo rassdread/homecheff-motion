@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { segmentErrorHttpStatus } from "@/lib/editor-segmentation-errors";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { segmentByPrompt } from "@/server/editor/editor-segmentation-provider";
 
 export const dynamic = "force-dynamic";
@@ -32,39 +33,52 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await segmentByPrompt({
-    userId: user.id,
-    imageUrl,
-    prompt,
-    sessionId: body.sessionId,
-    editorObjectId: "prompt",
-    createCutout: body.createCutout !== false,
-  });
+  return runBilledProviderRoute({
+    user,
+    actionType: "transformation_session",
+    relatedJobId: body.sessionId,
+    execute: () =>
+      segmentByPrompt({
+        userId: user.id,
+        imageUrl,
+        prompt,
+        sessionId: body.sessionId,
+        editorObjectId: "prompt",
+        createCutout: body.createCutout !== false,
+      }),
+    isFailure: (result) => !result.ok,
+    onSuccess: (result, estimatedCredits) => {
+      if (!result.ok) {
+        const code = result.code ?? (result.error.includes("not configured") ? "SEGMENT_UNAVAILABLE" : "replicate_prediction_failed");
+        return NextResponse.json(
+          { ok: false, error: result.error, code },
+          { status: segmentErrorHttpStatus(code) }
+        );
+      }
 
-  if (!result.ok) {
-    const code = result.code ?? (result.error.includes("not configured") ? "SEGMENT_UNAVAILABLE" : "replicate_prediction_failed");
-    return NextResponse.json(
-      { ok: false, error: result.error, code },
-      { status: segmentErrorHttpStatus(code) }
-    );
-  }
+      const { result: seg, shape } = result;
+      const bbox = seg.boundingBox;
 
-  const { result: seg, shape } = result;
-  const bbox = seg.boundingBox;
-
-  return NextResponse.json({
-    ok: true,
-    segmentationSource: seg.segmentationSource,
-    maskUrl: seg.maskUrl,
-    cutoutUrl: seg.cutoutUrl,
-    overlayUrl: null,
-    confidence: seg.confidence,
-    predictionId: seg.predictionId,
-    runtimeMs: seg.runtimeMs,
-    providerUsed: seg.providerUsed,
-    boundingBox: bbox,
-    polygon: seg.polygon,
-    selectionMode: shape.selectionMode,
-    alphaMask: seg.alphaMask,
+      return NextResponse.json(
+        withEstimatedCredits(
+          {
+            ok: true,
+            segmentationSource: seg.segmentationSource,
+            maskUrl: seg.maskUrl,
+            cutoutUrl: seg.cutoutUrl,
+            overlayUrl: null,
+            confidence: seg.confidence,
+            predictionId: seg.predictionId,
+            runtimeMs: seg.runtimeMs,
+            providerUsed: seg.providerUsed,
+            boundingBox: bbox,
+            polygon: seg.polygon,
+            selectionMode: shape.selectionMode,
+            alphaMask: seg.alphaMask,
+          },
+          estimatedCredits
+        )
+      );
+    },
   });
 }

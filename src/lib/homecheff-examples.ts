@@ -6,11 +6,16 @@ export type HomeCheffExample = {
   id: string;
   service: HomeCheffExampleService;
   title: string;
+  subtitle?: string;
   description: string;
   thumbnailUrl: string;
   mediaUrl?: string;
+  posterUrl?: string;
   mediaKind?: "image" | "video";
   tags: string[];
+  assistantPrompt?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
 };
 
 /** Reusable examples catalog — admin can extend via API later. */

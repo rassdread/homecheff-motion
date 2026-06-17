@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { usePricingCatalog } from "@/hooks/use-pricing-catalog";
 import {
   buildAssistantSnapshotFromClient,
   createInitialAssistantSession,
@@ -77,6 +78,11 @@ export function useHomeCheffAssistant(): HomeCheffAssistantContextValue {
   return value;
 }
 
+/** Returns null when assistant provider is not mounted on this route. */
+export function useOptionalHomeCheffAssistant(): HomeCheffAssistantContextValue | null {
+  return useContext(HomeCheffAssistantContext);
+}
+
 export function HomeCheffAssistantProvider({ children }: { children: ReactNode }) {
   return <HomeCheffAssistantProviderCore>{children}</HomeCheffAssistantProviderCore>;
 }
@@ -104,6 +110,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<AssistantContextSnapshot>(initial.snapshot);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [billingContext, setBillingContext] = useState<AssistantBillingContext | undefined>();
+  const { items: pricingCatalog } = usePricingCatalog();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -265,6 +272,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           pathname,
           projectMemory,
           billingContext,
+          pricingCatalog,
         });
         trackAssistantAnalyticsEvent("prompt", {
           prompt: trimmed,
@@ -343,7 +351,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
 
       runTurn(null);
     },
-    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext]
+    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext, pricingCatalog]
   );
 
   const acceptProposal = useCallback((proposal: AssistantProposal) => {

@@ -5,6 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StudioBillingPanel } from "@/components/account/studio-billing-panel";
 import { BillingEducationPanel } from "@/components/account/billing-education-panel";
+import { BillingWalletHero } from "@/components/billing/billing-wallet-hero";
+import { BillingUsageConversionCard } from "@/components/billing/billing-usage-conversion-card";
+import { ConversionSurface } from "@/components/billing/conversion-surface";
+import { SubscriptionUpgradePromo } from "@/components/billing/subscription-upgrade-promo";
+import { useStudioCheckout } from "@/hooks/use-studio-checkout";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import type { TranslationKey } from "@/i18n";
@@ -69,6 +74,7 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
   const checkoutRefreshDone = useRef(false);
+  const packCheckout = useStudioCheckout("/account/billing");
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/me/studio-account", { credentials: "include" });
@@ -160,60 +166,69 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
 
       {(tab === "wallet" || tab === "credits") && (
         <div className="space-y-4">
-          <div className={`${studioVisual.cardOnDark} p-5 sm:p-6`}>
-            <p className="text-xs uppercase tracking-wide text-white/50">
-              {t("account.wallet.availableCredits")}
-            </p>
-            <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">
-              {overview.wallet.availableBalance.toLocaleString(locale)}
-              <span className="ml-2 text-base font-normal text-white/50">
-                {t("account.credits.unit")}
-              </span>
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3 text-sm">
-              <span className="rounded-full border border-white/15 px-3 py-1 text-white/80">
-                {planLabel}
-              </span>
-              <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-100">
-                {statusLabel}
-              </span>
-              {planDiscountPercent > 0 ? (
-                <span className="rounded-full border border-white/15 px-3 py-1 text-white/70">
-                  {t("account.billing.planSavingsNote", { percent: planDiscountPercent })}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className={`${studioVisual.cardOnDark} grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
-            <Stat label={t("account.wallet.purchasedCredits")} value={overview.wallet.purchasedBalance} locale={locale} />
-            <Stat label={t("account.wallet.bonusCredits")} value={overview.wallet.promotionalBalance} locale={locale} />
-            <Stat label={t("account.wallet.reservedCredits")} value={overview.wallet.reservedBalance} locale={locale} />
-            <Stat label={t("account.credits.lifetimeSpent")} value={overview.wallet.lifetimeSpent} locale={locale} />
-            <Stat label={t("account.credits.lifetimePurchased")} value={overview.wallet.lifetimePurchased} locale={locale} />
-            <Stat label={t("account.credits.lifetimeGranted")} value={overview.wallet.lifetimeGranted} locale={locale} />
-          </div>
+          {tab === "wallet" ? (
+            <BillingWalletHero
+              availableCredits={overview.wallet.availableBalance}
+              planLabel={planLabel}
+              planId={overview.account.studioPlan}
+              planDiscountPercent={planDiscountPercent}
+              onBuyPack={(packId) => void packCheckout.startCheckout("credit_pack", packId)}
+              loadingPackId={packCheckout.loadingPackId}
+            />
+          ) : (
+            <>
+              <div className={`${studioVisual.cardOnDark} p-5 sm:p-6`}>
+                <p className="text-xs uppercase tracking-wide text-white/50">
+                  {t("account.wallet.availableCredits")}
+                </p>
+                <p className="mt-1 text-3xl font-bold text-white sm:text-4xl">
+                  {overview.wallet.availableBalance.toLocaleString(locale)}
+                  <span className="ml-2 text-base font-normal text-white/50">
+                    {t("account.credits.unit")}
+                  </span>
+                </p>
+              </div>
+              <StudioBillingPanel />
+            </>
+          )}
 
           {tab === "wallet" ? (
-            <BillingEducationPanel variant="wallet" planDiscountPercent={planDiscountPercent} />
+            <>
+              <div className={`${studioVisual.cardOnDark} grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4`}>
+                <Stat label={t("account.wallet.purchasedCredits")} value={overview.wallet.purchasedBalance} locale={locale} />
+                <Stat label={t("account.wallet.bonusCredits")} value={overview.wallet.promotionalBalance} locale={locale} />
+                <Stat label={t("account.wallet.reservedCredits")} value={overview.wallet.reservedBalance} locale={locale} />
+                <Stat label={t("account.credits.lifetimeSpent")} value={overview.wallet.lifetimeSpent} locale={locale} />
+              </div>
+              <BillingEducationPanel variant="wallet" planDiscountPercent={planDiscountPercent} />
+            </>
           ) : null}
         </div>
       )}
 
       {tab === "usage" && (
-        <div className={`${studioVisual.cardOnDark} p-5`}>
-          <p className="text-sm text-white/70">{t("account.billing.usageIntro")}</p>
-          <Link
-            href="/mijn-verbruik"
-            className="mt-4 inline-block text-sm font-medium text-emerald-400 hover:underline"
-          >
-            {t("account.billing.usageLink")} →
-          </Link>
+        <div className="space-y-4">
+          <BillingUsageConversionCard
+            creditsUsedLast30Days={overview.wallet.lifetimeSpent}
+          />
+          <div className={`${studioVisual.cardOnDark} p-5`}>
+            <p className="text-sm text-white/70">{t("account.billing.usageIntro")}</p>
+            <Link
+              href="/mijn-verbruik"
+              className="mt-4 inline-block text-sm font-medium text-emerald-400 hover:underline"
+            >
+              {t("account.billing.usageLink")} →
+            </Link>
+          </div>
         </div>
       )}
 
       {tab === "subscription" && (
         <div className="space-y-4">
+          <SubscriptionUpgradePromo
+            planId={overview.account.studioPlan}
+            planDiscountPercent={planDiscountPercent}
+          />
           <div className={`${studioVisual.cardOnDark} p-5`}>
             <p className="text-sm text-white/70">{t("account.billing.subscriptionIntro")}</p>
             <p className="mt-3 text-sm text-white">
@@ -284,6 +299,8 @@ export function StudioUnifiedBillingDashboard({ initial, planDiscountPercent }: 
           <StudioBillingPanel />
         </>
       )}
+
+      <ConversionSurface pageType="billing" variant="inline" source="account_billing" />
     </div>
   );
 }

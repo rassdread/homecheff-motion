@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { segmentErrorHttpStatus } from "@/lib/editor-segmentation-errors";
 import { clampNormalizedPoint } from "@/lib/editor-sam2-segmentation";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import {
   estimateSegmentResponseBytes,
   segmentByClick,
@@ -28,6 +29,10 @@ type ClickBody = {
   sessionId?: string;
   createCutout?: boolean;
 };
+
+type ClickRouteResult =
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; error: string; code: string; status: number; fallbacks?: string[] };
 
 function parsePoint(raw: unknown): EditorShapePoint | null {
   if (!raw || typeof raw !== "object") {
@@ -70,75 +75,93 @@ export async function POST(request: Request) {
 
   const requestId = crypto.randomUUID();
 
-  try {
-    const result = await segmentByClick({
-      userId: user.id,
-      backgroundStorageKey: body.backgroundStorageKey,
-      imageUrl: body.imageUrl,
-      imageBase64: body.imageBase64,
-      clickPoint,
-      targetBounds: body.targetBounds,
-      positivePoints: parsePoints(body.positivePoints),
-      negativePoints: parsePoints(body.negativePoints),
-      objectHint: body.objectHint,
-      category: body.category,
-      semanticType: body.semanticType,
-      label: body.label,
-      editorObjectId: body.editorObjectId,
-      sessionId: body.sessionId,
-      createCutout: body.createCutout,
-      requestId,
-    });
+  return runBilledProviderRoute({
+    user,
+    actionType: "transformation_session",
+    relatedJobId: body.sessionId,
+    execute: async (): Promise<ClickRouteResult> => {
+      try {
+        const result = await segmentByClick({
+          userId: user.id,
+          backgroundStorageKey: body.backgroundStorageKey,
+          imageUrl: body.imageUrl,
+          imageBase64: body.imageBase64,
+          clickPoint,
+          targetBounds: body.targetBounds,
+          positivePoints: parsePoints(body.positivePoints),
+          negativePoints: parsePoints(body.negativePoints),
+          objectHint: body.objectHint,
+          category: body.category,
+          semanticType: body.semanticType,
+          label: body.label,
+          editorObjectId: body.editorObjectId,
+          sessionId: body.sessionId,
+          createCutout: body.createCutout,
+          requestId,
+        });
 
-    if (!result.ok) {
-      return NextResponse.json(
-        {
-          error: result.message,
-          code: result.code,
-          fallbacks: result.fallbacks,
-        },
-        { status: segmentErrorHttpStatus(result.code) }
-      );
-    }
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.message,
+            code: result.code,
+            status: segmentErrorHttpStatus(result.code),
+            fallbacks: result.fallbacks,
+          };
+        }
 
-    const { shape, result: providerResult } = result;
-    const payload = {
-      selectionMode: shape.selectionMode,
-      maskUrl: shape.maskUrl,
-      cutoutUrl: shape.cutoutUrl,
-      polygon: shape.polygon,
-      boundingBox: shape.boundingBox,
-      segmentationSource: shape.segmentationSource,
-      confidence: shape.confidence,
-      maskStorageKey: shape.maskStorageKey,
-      alphaMask: shape.alphaMask,
-      providerUsed: providerResult.providerUsed,
-      predictionId: providerResult.predictionId,
-      runtimeMs: providerResult.runtimeMs,
-    };
+        const { shape, result: providerResult } = result;
+        const payload = {
+          selectionMode: shape.selectionMode,
+          maskUrl: shape.maskUrl,
+          cutoutUrl: shape.cutoutUrl,
+          polygon: shape.polygon,
+          boundingBox: shape.boundingBox,
+          segmentationSource: shape.segmentationSource,
+          confidence: shape.confidence,
+          maskStorageKey: shape.maskStorageKey,
+          alphaMask: shape.alphaMask,
+          providerUsed: providerResult.providerUsed,
+          predictionId: providerResult.predictionId,
+          runtimeMs: providerResult.runtimeMs,
+        };
 
-    if (estimateSegmentResponseBytes(payload) > 512_000) {
-      return NextResponse.json(
-        {
-          error: "Segmentation response was too large.",
-          code: "response_payload_too_large",
+        if (estimateSegmentResponseBytes(payload) > 512_000) {
+          return {
+            ok: false,
+            error: "Segmentation response was too large.",
+            code: "response_payload_too_large",
+            status: segmentErrorHttpStatus("response_payload_too_large"),
+            fallbacks: ["manual_lasso", "approximate_box"],
+          };
+        }
+
+        return { ok: true, payload };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Segmentation failed.";
+        console.error("[editor-segmentation]", { requestId, phase: "route_error", error: message });
+        return {
+          ok: false,
+          error: message,
+          code: "segmentation_internal_error",
+          status: 500,
           fallbacks: ["manual_lasso", "approximate_box"],
-        },
-        { status: segmentErrorHttpStatus("response_payload_too_large") }
-      );
-    }
-
-    return NextResponse.json(payload);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Segmentation failed.";
-    console.error("[editor-segmentation]", { requestId, phase: "route_error", error: message });
-    return NextResponse.json(
-      {
-        error: message,
-        code: "segmentation_internal_error",
-        fallbacks: ["manual_lasso", "approximate_box"],
-      },
-      { status: 500 }
-    );
-  }
+        };
+      }
+    },
+    isFailure: (result) => !result.ok,
+    onSuccess: (result, estimatedCredits) => {
+      if (!result.ok) {
+        return NextResponse.json(
+          {
+            error: result.error,
+            code: result.code,
+            fallbacks: result.fallbacks,
+          },
+          { status: result.status }
+        );
+      }
+      return NextResponse.json(withEstimatedCredits(result.payload, estimatedCredits));
+    },
+  });
 }

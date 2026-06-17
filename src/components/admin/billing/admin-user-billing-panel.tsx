@@ -113,12 +113,25 @@ export function AdminUserBillingPanel({ userId }: { userId: string }) {
 
       <details className="mt-4">
         <summary className="cursor-pointer text-sm font-medium">Ledger history</summary>
-        <ul className="mt-2 max-h-48 overflow-y-auto text-xs">
+        <ul className="mt-2 max-h-64 overflow-y-auto text-xs">
           {billing.ledger.map((row) => (
-            <li key={row.id} className="border-b border-zinc-200 py-1">
-              {row.actionType} {row.creditsDelta > 0 ? "+" : ""}
-              {row.creditsDelta} → {row.balanceAfter}
-              {row.creditOrigin ? ` (${row.creditOrigin})` : ""}
+            <li key={row.id} className="border-b border-zinc-200 py-2">
+              <div className="font-medium">
+                {row.studioActionType ?? row.actionType}{" "}
+                {row.creditsDelta > 0 ? "+" : ""}
+                {row.creditsDelta} → balance {row.balanceAfter}
+                {row.creditOrigin ? ` (${row.creditOrigin})` : ""}
+              </div>
+              <div className="text-zinc-600">
+                {row.provider ? `Provider: ${row.provider}` : null}
+                {row.providerCostUsd != null ? ` · cost $${row.providerCostUsd.toFixed(4)}` : null}
+                {row.marginEstimate != null ? ` · margin $${row.marginEstimate.toFixed(4)}` : null}
+                {row.providerCostEventId ? ` · PCE ${row.providerCostEventId.slice(0, 8)}…` : null}
+              </div>
+              {row.negativeMargin ? (
+                <div className="mt-0.5 font-medium text-amber-800">Negative margin warning</div>
+              ) : null}
+              <div className="text-zinc-400">{row.createdAt}</div>
             </li>
           ))}
         </ul>

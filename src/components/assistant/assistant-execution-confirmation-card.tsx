@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { BillingConversionCta } from "@/components/billing/billing-conversion-cta";
 import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { AssistantExecutionPlan } from "@/types/assistant-tool-execution";
@@ -9,6 +11,7 @@ type Props = {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  availableCredits?: number;
 };
 
 export function AssistantExecutionConfirmationCard({
@@ -16,9 +19,14 @@ export function AssistantExecutionConfirmationCard({
   onConfirm,
   onCancel,
   loading = false,
+  availableCredits,
 }: Props) {
   const t = useActiveTranslator();
   const actionableSteps = plan.steps.filter((step) => step.actionId !== "open_motion_wizard");
+  const insufficient =
+    availableCredits != null &&
+    plan.totalEstimatedCredits > 0 &&
+    availableCredits < plan.totalEstimatedCredits;
 
   return (
     <div
@@ -58,11 +66,20 @@ export function AssistantExecutionConfirmationCard({
           : t("assistant.execution.confirm.noCredits" as never)}
       </div>
 
+      {insufficient ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-2 text-amber-900">
+          <p className="font-medium">{t("billing.conversion.insufficientTitle")}</p>
+          <div className="mt-2">
+            <BillingConversionCta source="assistant_execution" size="sm" />
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           className={`${studioVisual.btnPrimary} px-3 py-1.5 text-xs`}
-          disabled={loading}
+          disabled={loading || insufficient}
           data-testid="assistant-execution-confirm-button"
           onClick={onConfirm}
         >

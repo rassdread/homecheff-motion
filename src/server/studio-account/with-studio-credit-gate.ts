@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
+import { billProviderAction, type ProviderCostSpec } from "@/server/studio-account/bill-provider-action";
 import {
   authorizeStudioAction,
-  captureStudioActionReservation,
-  refundStudioActionReservation,
   type CreditReservation,
 } from "@/server/studio-account/studio-credit-authorization";
 import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
@@ -36,6 +35,7 @@ export async function requireStudioCredits(input: {
           code: auth.code,
           creditGate: true,
           preview: auth.preview,
+          estimatedCredits: auth.preview.requiredCredits,
         },
         { status: auth.code === "confirmation_required" ? 402 : 403 }
       ),
@@ -49,7 +49,7 @@ export async function requireStudioCredits(input: {
 }
 
 /**
- * Execute provider action with automatic capture on success, refund on failure.
+ * Execute provider action with unified billing: PCE + wallet + ledger.
  */
 export async function withStudioCreditGate<T>(input: {
   user: Pick<SessionUser, "id" | "email" | "role">;
@@ -58,56 +58,32 @@ export async function withStudioCreditGate<T>(input: {
   confirmed?: boolean;
   overrideCredits?: number;
   providerCostUsd?: number;
+  relatedJobId?: string;
   execute: () => Promise<T>;
   isFailure?: (result: T) => boolean;
-}): Promise<{ blocked: NextResponse } | { ok: true; result: T }> {
-  const gate = await requireStudioCredits({
+  buildCostEvent?: (result: T) => ProviderCostSpec | null | Promise<ProviderCostSpec | null>;
+}): Promise<{ blocked: NextResponse } | { ok: true; result: T; estimatedCredits?: number }> {
+  const billed = await billProviderAction({
     user: input.user,
     actionType: input.actionType,
     projectId: input.projectId,
     confirmed: input.confirmed,
     overrideCredits: input.overrideCredits,
+    relatedJobId: input.relatedJobId,
+    execute: input.execute,
+    isFailure: input.isFailure,
+    buildCostEvent: input.buildCostEvent,
   });
 
-  if ("blocked" in gate) {
-    return { blocked: gate.blocked };
+  if ("blocked" in billed) {
+    return { blocked: billed.blocked };
   }
 
-  const { reservation } = gate;
-
-  try {
-    const result = await input.execute();
-    const failed = input.isFailure?.(result) ?? false;
-
-    if (failed) {
-      await refundStudioActionReservation({
-        userId: input.user.id,
-        reservation,
-        projectId: input.projectId,
-        failedGeneration: true,
-      });
-    } else {
-      await captureStudioActionReservation({
-        userId: input.user.id,
-        reservation,
-        projectId: input.projectId,
-        providerCostUsd: input.providerCostUsd,
-      });
-    }
-
-    return { ok: true, result };
-  } catch (error) {
-    await refundStudioActionReservation({
-      userId: input.user.id,
-      reservation,
-      projectId: input.projectId,
-      failedGeneration: true,
-      metadataJson: {
-        error: error instanceof Error ? error.message : "unknown",
-      },
-    });
-    throw error;
-  }
+  return {
+    ok: true,
+    result: billed.result,
+    estimatedCredits: billed.billing.estimatedCredits,
+  };
 }
 
 export function mapAssetKindToActionType(kind: string): StudioActionType {
@@ -136,4 +112,15 @@ export function mapPublishFormatToActionType(format: string): StudioActionType {
     default:
       return "publish_mp4_export";
   }
+}
+
+/** Attach estimatedCredits to JSON responses from billed routes. */
+export function withEstimatedCredits<T extends Record<string, unknown>>(
+  body: T,
+  estimatedCredits?: number
+): T & { estimatedCredits?: number } {
+  if (estimatedCredits == null) {
+    return body;
+  }
+  return { ...body, estimatedCredits };
 }

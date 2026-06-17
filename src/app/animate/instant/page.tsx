@@ -56,7 +56,10 @@ import { SafePreviewImage } from "@/components/ui/safe-preview-image";
 import { useMounted } from "@/hooks/use-mounted";
 import { AppCard } from "@/components/ui/app-card";
 import { GradientButton } from "@/components/ui/gradient-button";
+import { ConversionSurface } from "@/components/billing/conversion-surface";
+import { FirstSuccessCelebration } from "@/components/onboarding/first-success-celebration";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
 import { useActiveTranslator, useLocale } from "@/i18n/client";
 import type { BakedTextProtectionDraft } from "@/components/instant/baked-text-protection-panel";
 import { AnimationStylePanel } from "@/components/instant/animation-style-panel";
@@ -322,6 +325,7 @@ export default function InstantPremiumPage() {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const session = useAuthSession();
+  const wallet = useStudioWalletSummary(Boolean(session.user));
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wizardShellRef = useRef<HTMLDivElement>(null);
   const wizardContentRef = useRef<HTMLDivElement>(null);
@@ -602,6 +606,11 @@ export default function InstantPremiumPage() {
   );
 
   const usesFreeGeneration = premiumMode === "test" || isAdmin;
+  const insufficientCreditsForRender =
+    !usesFreeGeneration &&
+    !pricingSummary.isAdminFree &&
+    wallet.resolved &&
+    pricingSummary.estimatedCredits > wallet.availableCredits;
 
   const imagesHaveValidSources = useMemo(
     () => sceneSlotsHaveValidImageSources(sceneSlots),
@@ -1544,7 +1553,7 @@ export default function InstantPremiumPage() {
         onBack: () => setStep(clamped - 1),
         onPrimary: startCheckoutWithQa,
         primaryLabel: generateLabel,
-        primaryDisabled: checkoutBusy || !imagesHaveValidSources,
+        primaryDisabled: checkoutBusy || !imagesHaveValidSources || insufficientCreditsForRender,
         stackButtons: true,
       };
     }
@@ -1572,6 +1581,7 @@ export default function InstantPremiumPage() {
     checkoutBusy,
     estimatedPriceLabel,
     imagesHaveValidSources,
+    insufficientCreditsForRender,
     isAdmin,
     sceneCount,
     startCheckoutWithQa,
@@ -2383,6 +2393,16 @@ export default function InstantPremiumPage() {
                     </p>
                   : null}
                 </div>
+                <FirstSuccessCelebration creditsRemaining={wallet.availableCredits} />
+                <ConversionSurface
+                  pageType="motion"
+                  variant={insufficientCreditsForRender ? "banner" : "compact"}
+                  source="motion_generate"
+                  estimatedCredits={pricingSummary.estimatedCredits}
+                  actionLabel={t("instant.creatorStep.generate")}
+                  className={insufficientCreditsForRender ? "mt-2" : "rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4"}
+                  trackImpression={wizardView === "generate"}
+                />
                 <ul className="space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50/80 p-4 text-sm text-zinc-700">
                   <li>
                     <span className="text-zinc-500">{t("instant.step7.animationStyle")}:</span>{" "}

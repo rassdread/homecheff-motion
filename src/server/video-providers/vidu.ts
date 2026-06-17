@@ -70,6 +70,22 @@ function progressForState(lifecycle: VideoJobLifecycleStatus, previous?: number)
   return 0;
 }
 
+function extractNumericField(body: unknown, key: string): number | undefined {
+  if (!body || typeof body !== "object") {
+    return undefined;
+  }
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function extractStringField(body: unknown, key: string): string | undefined {
+  if (!body || typeof body !== "object") {
+    return undefined;
+  }
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function extractVideoUrlFromCreations(body: unknown): string | undefined {
   if (!body || typeof body !== "object") {
     return undefined;
@@ -397,6 +413,11 @@ export class ViduVideoProvider implements VideoProvider {
       progress: progressForState(lifecycle),
       outputVideoUrl: videoUrl,
       errorMessage: errMsg,
+      providerCreditsUsed: extractNumericField(json, "credits"),
+      providerDurationSeconds: extractNumericField(json, "duration"),
+      providerTaskType: extractStringField(json, "type"),
+      providerModel: extractStringField(json, "model"),
+      providerResolution: extractStringField(json, "resolution"),
     };
 
     viduDebug("poll mapped", {

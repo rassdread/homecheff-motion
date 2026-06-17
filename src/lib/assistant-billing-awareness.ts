@@ -106,11 +106,13 @@ export function buildSyncAssistantBillingPreview(input: {
   studio?: AssistantStudioContext | null;
   locale?: string;
   overrideCredits?: number;
+  pricingCatalog?: import("@/types/studio-pricing-catalog").StudioPricingCatalogPublicEntry[];
 }): AssistantBillingPreview {
   const resolved = resolveRegistryActionCreditCost({
     actionType: input.actionType,
     planId: input.planId,
     overrideCredits: input.overrideCredits,
+    pricingCatalog: input.pricingCatalog,
   });
   const estimatedCredits = resolved?.creditCost ?? input.overrideCredits ?? 0;
   const available = Math.max(0, input.availableCredits);

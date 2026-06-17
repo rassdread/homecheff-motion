@@ -35,6 +35,42 @@ async function buildPolicyEvaluation(input: {
 }) {
   const account = await ensureStudioAccount(input.user.id, input.user.email);
   const wallet = await ensureStudioWallet(input.user.id);
+
+  const dbRule = await prisma.studioPricingRule.findUnique({
+    where: { actionType: input.actionType },
+  });
+  if (dbRule && !dbRule.active) {
+    const registry = getActionCost(input.actionType);
+    const policy = evaluateCreditPolicy({
+      userId: input.user.id,
+      role: input.user.role,
+      accountType: account.accountType,
+      planId: account.studioPlan,
+      planVersion: account.planVersion,
+      creditPolicyVersion: account.creditPolicyVersion,
+      billingStatus: account.billingStatus,
+      actionType: input.actionType,
+      overrideCredits: input.overrideCredits,
+      resolvedCreditCost: undefined,
+      resolvedReservedCostUsd: registry?.reservedCostUsd,
+      resolvedService: registry?.service,
+      resolvedProvider: registry?.provider,
+      balance: wallet.balance,
+      reservedBalance: wallet.reservedBalance,
+      autoChargeSmallActions: account.autoChargeSmallActions,
+      confirmAboveCredits: account.confirmAboveCredits,
+    });
+    return {
+      account,
+      wallet,
+      policy: {
+        ...policy,
+        allowed: false,
+        reason: "action_disabled",
+      },
+    };
+  }
+
   const resolved = await resolveActionCreditCost({
     actionType: input.actionType,
     planId: account.studioPlan,
@@ -191,6 +227,7 @@ export async function captureStudioActionReservation(input: {
   reservation: CreditReservation;
   projectId?: string;
   providerCostUsd?: number;
+  providerCostEventId?: string;
   metadataJson?: Record<string, unknown>;
 }): Promise<void> {
   if (input.reservation.reservationId === "admin-bypass") {
@@ -210,7 +247,10 @@ export async function captureStudioActionReservation(input: {
     providerCostUsd: input.providerCostUsd,
     reservedCostUsd: input.reservation.reservedCostUsd,
     marginEstimate: input.reservation.marginEstimate,
-    metadataJson: input.metadataJson,
+    metadataJson: {
+      ...input.metadataJson,
+      providerCostEventId: input.providerCostEventId,
+    },
   });
 }
 

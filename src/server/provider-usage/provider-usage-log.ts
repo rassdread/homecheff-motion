@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { getViduCreditBalance } from "@/server/video-providers/vidu-credits";
 import {
   CREDIT_UNIT_COST_USD,
@@ -173,6 +174,13 @@ export type CompleteProviderUsageLogInput = {
   instantTransitionSeconds?: number;
   estimatedCredits?: number | null;
   transitionCount?: number;
+  /** Exact credits from provider task API (preferred over balance delta). */
+  providerCreditsUsedFromApi?: number | null;
+  providerTaskMetadata?: {
+    model?: string;
+    resolution?: string;
+    type?: string;
+  };
 };
 
 function normalizeTerminalStatus(status: string): string {
@@ -215,7 +223,12 @@ export async function completeProviderUsageLog(
   let needsReview = false;
   let estimateReason = existing.estimateReason;
 
-  if (existing.creditsBefore != null && creditsAfter != null) {
+  if (input.providerCreditsUsedFromApi != null && input.providerCreditsUsedFromApi >= 0) {
+    creditsUsed = input.providerCreditsUsedFromApi;
+    isEstimated = false;
+    estimateReason = null;
+    needsReview = false;
+  } else if (existing.creditsBefore != null && creditsAfter != null) {
     creditsUsed = existing.creditsBefore - creditsAfter;
     isEstimated = false;
     estimateReason = null;
@@ -276,6 +289,14 @@ export async function completeProviderUsageLog(
       providerJobId: input.providerJobId,
       status: terminalStatus,
       creditsUsed,
+      metadataJson: input.providerTaskMetadata
+        ? ({
+            ...input.providerTaskMetadata,
+            source: input.providerCreditsUsedFromApi != null ? "vidu_task_api" : undefined,
+          } as Prisma.InputJsonValue)
+        : input.providerCreditsUsedFromApi != null
+          ? ({ source: "vidu_task_api" } as Prisma.InputJsonValue)
+          : undefined,
     }).catch((err) => {
       console.error("[provider-cost] completeViduRenderCostEvent", err);
     });

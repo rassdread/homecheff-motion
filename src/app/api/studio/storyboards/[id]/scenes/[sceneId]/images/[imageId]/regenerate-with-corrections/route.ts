@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireActiveUser } from "@/server/auth/permissions";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { regenerateStudioSceneImageWithCorrections } from "@/server/studio/studio-scene-image-service";
 import type { RegenerateWithCorrectionsResponse } from "@/types/studio-correction";
 
@@ -14,19 +15,23 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const { id: storyboardId, sceneId, imageId } = await context.params;
-  const result = await regenerateStudioSceneImageWithCorrections(
-    storyboardId,
-    sceneId,
-    imageId,
-    user
-  );
-  if ("error" in result) {
-    return NextResponse.json(
-      { error: result.error.message, code: result.error.code },
-      { status: result.error.httpStatus }
-    );
-  }
-
-  const body: RegenerateWithCorrectionsResponse = result;
-  return NextResponse.json(body, { status: 201 });
+  return runBilledProviderRoute({
+    user,
+    actionType: "scene_generation",
+    projectId: storyboardId,
+    relatedJobId: imageId,
+    execute: () =>
+      regenerateStudioSceneImageWithCorrections(storyboardId, sceneId, imageId, user),
+    isFailure: (result) => "error" in result,
+    onSuccess: (result, estimatedCredits) => {
+      if ("error" in result) {
+        return NextResponse.json(
+          { error: result.error.message, code: result.error.code },
+          { status: result.error.httpStatus }
+        );
+      }
+      const body: RegenerateWithCorrectionsResponse = result;
+      return NextResponse.json(withEstimatedCredits(body, estimatedCredits), { status: 201 });
+    },
+  });
 }

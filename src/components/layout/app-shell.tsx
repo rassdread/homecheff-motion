@@ -3,6 +3,8 @@ import { ReactNode } from "react";
 import { HomeCheffAssistantMount } from "@/components/assistant/homecheff-assistant-mount";
 import { AppShellPrimaryNav } from "@/components/layout/app-shell-primary-nav";
 import { AppShellUserBar } from "@/components/layout/app-shell-user-bar";
+import { BillingConversionShell } from "@/components/billing/billing-conversion-shell";
+import { GlobalCreditIndicator } from "@/components/billing/global-credit-indicator";
 import { I18nHtmlLangSync } from "@/components/layout/i18n-html-lang-sync";
 import { I18nHydrationSync } from "@/components/layout/i18n-hydration-sync";
 import { LanguageSwitch } from "@/components/layout/language-switch";
@@ -37,6 +39,7 @@ export function AppShell({ children }: AppShellProps) {
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
             <LanguageSwitch />
+            <GlobalCreditIndicator />
             <div className="hidden lg:block">
               <AppShellUserBar />
             </div>
@@ -47,6 +50,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </nav>
       </header>
+      <BillingConversionShell />
       <div className="flex min-w-0 w-full flex-col overflow-visible">
         <HomeCheffAssistantMount>{children}</HomeCheffAssistantMount>
       </div>

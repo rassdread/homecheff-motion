@@ -1,0 +1,277 @@
+/**
+ * Unified Studio billing pipeline — reserve → execute → ProviderCostEvent → capture → ledger link.
+ */
+
+import { NextResponse } from "next/server";
+import {
+  authorizeStudioAction,
+  captureStudioActionReservation,
+  previewStudioCreditAuthorization,
+  refundStudioActionReservation,
+  type CreditReservation,
+} from "@/server/studio-account/studio-credit-authorization";
+import type { StudioActionType } from "@/server/studio-account/studio-action-cost-registry";
+import {
+  defaultProviderCostSpec,
+  providerCostUsdFromSpec,
+  type ProviderCostSpec,
+} from "@/server/studio-account/studio-action-cost-mapping";
+import { recordCostEventLinked } from "@/server/provider-cost/provider-cost-event";
+import type { SessionUser } from "@/server/auth/session";
+import type { CostActionType } from "@/server/provider-cost/cost-event-types";
+
+export type { ProviderCostSpec };
+
+export type BillProviderActionResult = {
+  estimatedCredits: number;
+  providerCostEventId: string | null;
+  captured: boolean;
+  adminBypass?: boolean;
+};
+
+export type BillProviderActionSuccess<T> = {
+  ok: true;
+  result: T;
+  billing: BillProviderActionResult;
+};
+
+async function resolveCostSpec<T>(
+  input: {
+    actionType: StudioActionType | string;
+    userId: string;
+    projectId?: string;
+    overrideUnits?: number;
+    relatedJobId?: string;
+    failed: boolean;
+  },
+  result: T,
+  buildCostEvent?: (result: T) => ProviderCostSpec | null | Promise<ProviderCostSpec | null>
+): Promise<ProviderCostSpec | null> {
+  if (buildCostEvent) {
+    const custom = await buildCostEvent(result);
+    if (custom) {
+      return { ...custom, status: input.failed ? "failed" : custom.status ?? "completed" };
+    }
+  }
+  return defaultProviderCostSpec({
+    actionType: input.actionType,
+    userId: input.userId,
+    projectId: input.projectId,
+    status: input.failed ? "failed" : "completed",
+    relatedJobId: input.relatedJobId,
+    unitsUsed: input.overrideUnits,
+  });
+}
+
+async function writeProviderCostEvent(spec: ProviderCostSpec | null): Promise<string | null> {
+  if (!spec) {
+    return null;
+  }
+  return recordCostEventLinked({
+    provider: spec.provider,
+    actionType: spec.costActionType as CostActionType,
+    projectId: spec.projectId,
+    userId: spec.userId,
+    relatedJobId: spec.relatedJobId,
+    relatedExportId: spec.relatedExportId,
+    status: spec.status ?? "completed",
+    unitType: spec.unitType,
+    unitsUsed: spec.unitsUsed,
+    unitCostUsd: spec.unitCostUsd,
+    isEstimated: spec.isEstimated ?? true,
+    estimateReason: spec.estimateReason ?? "bill_provider_action",
+    metadataJson: {
+      ...spec.metadataJson,
+      studioWalletCaptured: true,
+    },
+  });
+}
+
+/**
+ * Single billing flow for all paid provider actions.
+ */
+export async function billProviderAction<T>(input: {
+  user: Pick<SessionUser, "id" | "email" | "role">;
+  actionType: StudioActionType | string;
+  projectId?: string;
+  confirmed?: boolean;
+  overrideCredits?: number;
+  relatedJobId?: string;
+  execute: () => Promise<T>;
+  isFailure?: (result: T) => boolean;
+  /** When true, refund reservation (e.g. library cache hit — no provider cost). */
+  skipCapture?: (result: T) => boolean;
+  buildCostEvent?: (result: T) => ProviderCostSpec | null | Promise<ProviderCostSpec | null>;
+}): Promise<{ blocked: NextResponse } | BillProviderActionSuccess<T>> {
+  const preview = await previewStudioCreditAuthorization({
+    user: input.user,
+    actionType: input.actionType,
+    projectId: input.projectId,
+    overrideCredits: input.overrideCredits,
+  });
+
+  const auth = await authorizeStudioAction({
+    user: input.user,
+    actionType: input.actionType,
+    projectId: input.projectId,
+    confirmed: input.confirmed,
+    overrideCredits: input.overrideCredits,
+  });
+
+  if (!auth.ok) {
+    return {
+      blocked: NextResponse.json(
+        {
+          error: auth.message,
+          code: auth.code,
+          creditGate: true,
+          preview: auth.preview,
+          estimatedCredits: auth.preview.requiredCredits,
+        },
+        { status: auth.code === "confirmation_required" ? 402 : 403 }
+      ),
+    };
+  }
+
+  const reservation = auth.reservation;
+  const adminBypass = auth.adminBypass;
+
+  try {
+    const result = await input.execute();
+    const failed = input.isFailure?.(result) ?? false;
+    const skipCapture = !failed && (input.skipCapture?.(result) ?? false);
+
+    const costSpec =
+      skipCapture
+        ? null
+        : await resolveCostSpec(
+            {
+              actionType: input.actionType,
+              userId: input.user.id,
+              projectId: input.projectId,
+              relatedJobId: input.relatedJobId,
+              failed,
+            },
+            result,
+            input.buildCostEvent
+          );
+
+    const providerCostEventId = skipCapture ? null : await writeProviderCostEvent(costSpec);
+    const providerCostUsd = costSpec ? providerCostUsdFromSpec(costSpec) : undefined;
+
+    if (failed || skipCapture) {
+      if (!adminBypass) {
+        await refundStudioActionReservation({
+          userId: input.user.id,
+          reservation,
+          projectId: input.projectId,
+          failedGeneration: failed,
+          metadataJson: {
+            providerCostEventId,
+            skippedCapture: skipCapture,
+          },
+        });
+      }
+      return {
+        ok: true,
+        result,
+        billing: {
+          estimatedCredits: preview.requiredCredits,
+          providerCostEventId,
+          captured: false,
+          adminBypass,
+        },
+      };
+    }
+
+    if (!adminBypass) {
+      await captureStudioActionReservation({
+        userId: input.user.id,
+        reservation,
+        projectId: input.projectId,
+        providerCostUsd,
+        providerCostEventId: providerCostEventId ?? undefined,
+        metadataJson: {
+          studioActionType: input.actionType,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      result,
+      billing: {
+        estimatedCredits: preview.requiredCredits,
+        providerCostEventId,
+        captured: !adminBypass && reservation.requiredCredits > 0,
+        adminBypass,
+      },
+    };
+  } catch (error) {
+    const costSpec = await resolveCostSpec(
+      {
+        actionType: input.actionType,
+        userId: input.user.id,
+        projectId: input.projectId,
+        relatedJobId: input.relatedJobId,
+        failed: true,
+      },
+      undefined as T,
+      undefined
+    );
+    const providerCostEventId = await writeProviderCostEvent(
+      costSpec
+        ? {
+            ...costSpec,
+            status: "failed",
+            metadataJson: {
+              ...costSpec.metadataJson,
+              error: error instanceof Error ? error.message : "unknown",
+            },
+          }
+        : null
+    );
+
+    if (!adminBypass) {
+      await refundStudioActionReservation({
+        userId: input.user.id,
+        reservation,
+        projectId: input.projectId,
+        failedGeneration: true,
+        metadataJson: {
+          providerCostEventId,
+          error: error instanceof Error ? error.message : "unknown",
+        },
+      });
+    }
+    throw error;
+  }
+}
+
+/** Re-export for routes that only need authorization without execute wrapper. */
+export type { CreditReservation };
+
+export async function captureBilledProviderAction(input: {
+  userId: string;
+  reservation: CreditReservation;
+  actionType: string;
+  projectId?: string;
+  providerCostEventId?: string;
+  providerCostUsd?: number;
+  metadataJson?: Record<string, unknown>;
+}): Promise<void> {
+  if (input.reservation.reservationId === "admin-bypass") {
+    return;
+  }
+  await captureStudioActionReservation({
+    userId: input.userId,
+    reservation: input.reservation,
+    projectId: input.projectId,
+    providerCostUsd: input.providerCostUsd,
+    providerCostEventId: input.providerCostEventId,
+    metadataJson: {
+      studioActionType: input.actionType,
+      ...input.metadataJson,
+    },
+  });
+}

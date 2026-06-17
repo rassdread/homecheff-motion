@@ -673,12 +673,19 @@ export async function pollTransitionJob(transitionId: string): Promise<Animation
       provider: transition.provider ?? "vidu",
       providerJobId: transition.providerJobId,
       status: providerStatus.status,
-      durationSeconds: pollJobSettings.providerDurationSeconds,
+      durationSeconds:
+        providerStatus.providerDurationSeconds ?? pollJobSettings.providerDurationSeconds,
       presetId: transition.project.presetId,
       viduDurationSeconds: transition.project.viduDurationSeconds,
       instantTransitionSeconds: transition.project.instantTransitionSeconds,
       estimatedCredits: transition.project.estimatedCredits,
       transitionCount: transition.project._count.transitions,
+      providerCreditsUsedFromApi: providerStatus.providerCreditsUsed,
+      providerTaskMetadata: {
+        model: providerStatus.providerModel,
+        resolution: providerStatus.providerResolution,
+        type: providerStatus.providerTaskType,
+      },
     }).catch((logErr) => {
       console.error("[provider-usage] completeProviderUsageLog", logErr);
     });

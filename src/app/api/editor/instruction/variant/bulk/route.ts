@@ -5,6 +5,8 @@ import { buildEditorInstructionPromptV2 } from "@/lib/editor-instruction-prompt-
 import { buildVariantRouteValidationError } from "@/lib/editor-instruction-variant-client";
 import { receivedKeysFromVariantPayload } from "@/lib/editor-instruction-variant-preflight";
 import { validateEditorInstructionVariantRequest } from "@/lib/editor-instruction-variant-validation";
+import { getActionCost } from "@/server/studio-account/studio-action-cost-registry";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 import { executeEditorInstructionVariant } from "@/server/editor/editor-instruction-variant-service";
 import type {
   EditorInstructionReference,
@@ -102,47 +104,77 @@ export async function POST(request: Request) {
     references: body.references,
   });
 
-  const results = [];
-  for (const plan of plans) {
-    const planInstruction = {
-      ...baseInstruction,
-      action: plan.action ?? baseInstruction.action,
-    };
-    const prompt = mergeBulkPrompt(basePrompt, plan);
-    const result = await executeEditorInstructionVariant({
-      userId: user.id,
-      sessionId,
-      imageUrl,
-      prompt,
-      instruction: planInstruction,
-      references: body.references,
-    });
+  const unitCost = getActionCost("image_generation")?.defaultCreditCost ?? 1;
 
-    if (!result.ok) {
-      results.push({ ok: false, error: result.message, code: result.code, variantName: plan.name });
-      continue;
-    }
+  return runBilledProviderRoute({
+    user,
+    actionType: "image_generation",
+    relatedJobId: sessionId,
+    overrideCredits: plans.length * unitCost,
+    execute: async () => {
+      const results = [];
+      for (const plan of plans) {
+        const planInstruction = {
+          ...baseInstruction,
+          action: plan.action ?? baseInstruction.action,
+        };
+        const prompt = mergeBulkPrompt(basePrompt, plan);
+        const result = await executeEditorInstructionVariant({
+          userId: user.id,
+          sessionId,
+          imageUrl,
+          prompt,
+          instruction: planInstruction,
+          references: body.references,
+        });
 
-    results.push({
-      ok: true,
-      resultUrl: result.resultUrl,
-      storageKey: result.storageKey,
-      provider: result.provider,
-      model: result.model,
-      costEstimateUsd: result.costEstimateUsd,
-      instruction: planInstruction,
-      references: body.references,
-      prompt,
-      sourceImageUrl: imageUrl,
-      variantName: plan.name,
-      versionNote: plan.name,
-      presetId: plan.id,
-    });
-  }
+        if (!result.ok) {
+          results.push({ ok: false, error: result.message, code: result.code, variantName: plan.name });
+          continue;
+        }
 
-  return NextResponse.json({
-    ok: results.some((r) => r.ok),
-    results,
-    triggerSource: body.triggerSource,
+        results.push({
+          ok: true,
+          resultUrl: result.resultUrl,
+          storageKey: result.storageKey,
+          provider: result.provider,
+          model: result.model,
+          costEstimateUsd: result.costEstimateUsd,
+          instruction: planInstruction,
+          references: body.references,
+          prompt,
+          sourceImageUrl: imageUrl,
+          variantName: plan.name,
+          versionNote: plan.name,
+          presetId: plan.id,
+        });
+      }
+
+      return {
+        ok: results.some((r) => r.ok),
+        results,
+        triggerSource: body.triggerSource,
+      };
+    },
+    isFailure: (result) => !result.ok,
+    buildCostEvent: (result) => {
+      const successCount = result.results.filter((r) => r.ok).length;
+      if (successCount === 0) {
+        return null;
+      }
+      return {
+        provider: "openai",
+        costActionType: "openai_scene_image",
+        unitType: "request",
+        unitsUsed: successCount,
+        unitCostUsd: 0.04,
+        userId: user.id,
+        relatedJobId: sessionId,
+        status: "completed",
+        metadataJson: { feature: "editor_instruction_variant_bulk", planCount: plans.length },
+      };
+    },
+    onSuccess: (result, estimatedCredits) =>
+      NextResponse.json(withEstimatedCredits(result, estimatedCredits)),
   });
 }

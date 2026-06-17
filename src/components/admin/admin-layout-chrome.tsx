@@ -46,6 +46,9 @@ export function AdminLayoutChrome({ forbidden = false, children }: AdminLayoutCh
         <Link href="/admin/ai-lab/replicate" className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white">
           {t("admin.nav.aiLabReplicate")}
         </Link>
+        <Link href="/admin/examples" className="rounded-full px-3 py-1 hover:bg-white/10 hover:text-white">
+          {t("admin.nav.showcaseCarousel")}
+        </Link>
       </nav>
       <div className={studioVisual.editorSurface}>{children}</div>
     </ProductPageShell>

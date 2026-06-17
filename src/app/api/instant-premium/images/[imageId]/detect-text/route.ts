@@ -17,11 +17,37 @@ import {
   detectTextBlocksFromImageUrlWithTimeout,
   OcrDetectTimeoutError,
 } from "@/server/image-text-detection/detect-with-timeout";
-import { recordOpenAiOcrCostEvent } from "@/server/provider-cost/provider-cost-event";
+import { runBilledProviderRoute, withEstimatedCredits } from "@/server/studio-account/studio-billed-route";
 
 type RouteContext = {
   params: Promise<{ imageId: string }>;
 };
+
+type OcrDetectSuccess = {
+  ok: true;
+  scanRequestId: string;
+  provider: string;
+  status: string;
+  blockCount: number;
+  averageConfidence: number;
+  durationMs: number;
+  autoConfirmEnabled: boolean;
+  autoConfirmed: boolean;
+  imageId: string;
+  imageWidth: number;
+  imageHeight: number;
+  blocks: ReturnType<typeof normalizeHeroReprojectBlocks>;
+  mode: "fast" | "full";
+  projectId?: string;
+};
+
+type OcrDetectFailure = {
+  ok: false;
+  payload: Record<string, unknown>;
+  status: number;
+};
+
+type OcrDetectResult = OcrDetectSuccess | OcrDetectFailure;
 
 function logOcrDetectError(payload: Record<string, unknown>): void {
   console.info("[ocr-detect]", "error", payload);
@@ -49,7 +75,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const dbImage = await prisma.animationImage.findUnique({
     where: { id: imageId },
-    include: { project: { select: { ownerId: true } } },
+    include: { project: { select: { ownerId: true, id: true } } },
   });
 
   if (dbImage) {
@@ -84,112 +110,152 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  try {
-    const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId, { mode });
-    const detected = result.blocks.map(detectedBlockToRecord);
-    const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
-    const { blocks: resolvedBlocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
-      detected,
-      autoConfirmEnabled
-    );
-    const blocks = normalizeHeroReprojectBlocks(resolvedBlocks);
-    const durationMs = Date.now() - startedAt;
-    const blockCount = blocks.filter((b) => b.kept !== false).length;
-    const averageConfidence = averageBlockConfidence(blocks);
+  return runBilledProviderRoute({
+    user,
+    actionType: "ocr_scan",
+    projectId: dbImage?.projectId,
+    execute: async (): Promise<OcrDetectResult> => {
+      try {
+        const result = await detectTextBlocksFromImageUrlWithTimeout(imageUrl, scanRequestId, { mode });
+        const detected = result.blocks.map(detectedBlockToRecord);
+        const autoConfirmEnabled = isAutoConfirmBakedTextEnabledFromEnv();
+        const { blocks: resolvedBlocks, autoConfirmed } = resolveAutoConfirmBakedTextBlocks(
+          detected,
+          autoConfirmEnabled
+        );
+        const blocks = normalizeHeroReprojectBlocks(resolvedBlocks);
+        const durationMs = Date.now() - startedAt;
+        const blockCount = blocks.filter((b) => b.kept !== false).length;
+        const averageConfidence = averageBlockConfidence(blocks);
 
-    if (dbImage) {
-      await recordOpenAiOcrCostEvent({
-        projectId: dbImage.projectId,
-        userId: dbImage.project.ownerId,
-        imageId,
-        scanRequestId,
-        mode,
-        status: "completed",
+        return {
+          ok: true,
+          scanRequestId,
+          provider: result.provider,
+          status: autoConfirmed ? "auto_protected" : blockCount > 0 ? "needs_review" : "no_text_found",
+          blockCount,
+          averageConfidence,
+          durationMs,
+          autoConfirmEnabled,
+          autoConfirmed,
+          imageId,
+          imageWidth: result.imageWidth,
+          imageHeight: result.imageHeight,
+          blocks,
+          mode,
+          projectId: dbImage?.projectId,
+        };
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+
+        if (error instanceof OcrDetectTimeoutError) {
+          const payload = buildOcrErrorPayload({
+            scanRequestId,
+            errorCode: "OPENAI_TIMEOUT",
+            durationMs,
+            provider: "openai",
+            logMessage: error.message,
+          });
+          logOcrDetectError({
+            errorCode: payload.errorCode,
+            status: 504,
+            provider: "openai",
+            scanRequestId,
+          });
+          return { ok: false, payload, status: 504 };
+        }
+
+        if (error instanceof OcrProviderError) {
+          const payload = buildOcrErrorPayload({
+            scanRequestId,
+            errorCode: error.errorCode,
+            durationMs,
+            provider: error.provider ?? "openai",
+            logMessage: error.message,
+          });
+          logOcrDetectError({
+            errorCode: payload.errorCode,
+            status: 503,
+            provider: payload.provider ?? "openai",
+            scanRequestId,
+          });
+          return { ok: false, payload, status: 503 };
+        }
+
+        const resolved = classifyOcrFailure(error);
+        const payload = buildOcrErrorPayload({
+          scanRequestId,
+          errorCode: resolved.errorCode,
+          durationMs,
+          provider: resolved.provider,
+          logMessage: resolved.logMessage,
+        });
+        logOcrDetectError({
+          errorCode: payload.errorCode,
+          status: resolved.httpStatus,
+          provider: payload.provider ?? "openai",
+          scanRequestId,
+        });
+        return { ok: false, payload, status: resolved.httpStatus };
+      }
+    },
+    isFailure: (result) => !result.ok,
+    buildCostEvent: (result) =>
+      !result.ok
+        ? null
+        : {
+            provider: "openai",
+            costActionType: "openai_ocr",
+            unitType: "request",
+            unitsUsed: 1,
+            unitCostUsd: 0.008,
+            userId: user.id,
+            projectId: result.projectId ?? dbImage?.projectId,
+            status: "completed",
+            metadataJson: {
+              imageId,
+              scanRequestId: result.scanRequestId,
+              mode: result.mode,
+              blockCount: result.blockCount,
+            },
+          },
+    onSuccess: (result, estimatedCredits) => {
+      if (!result.ok) {
+        return NextResponse.json(result.payload, { status: result.status });
+      }
+      const {
+        scanRequestId: reqId,
+        provider,
+        status,
         blockCount,
-      }).catch((err) => {
-        console.error("[provider-cost] recordOpenAiOcrCostEvent", err);
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      scanRequestId,
-      provider: result.provider,
-      status: autoConfirmed ? "auto_protected" : blockCount > 0 ? "needs_review" : "no_text_found",
-      blockCount,
-      averageConfidence,
-      durationMs,
-      autoConfirmEnabled,
-      autoConfirmed,
-      imageId,
-      imageWidth: result.imageWidth,
-      imageHeight: result.imageHeight,
-      blocks,
-    });
-  } catch (error) {
-    const durationMs = Date.now() - startedAt;
-
-    if (dbImage) {
-      await recordOpenAiOcrCostEvent({
-        projectId: dbImage.projectId,
-        userId: dbImage.project.ownerId,
-        imageId,
-        scanRequestId,
-        mode,
-        status: "failed",
-      }).catch((err) => {
-        console.error("[provider-cost] recordOpenAiOcrCostEvent failed", err);
-      });
-    }
-
-    if (error instanceof OcrDetectTimeoutError) {
-      const payload = buildOcrErrorPayload({
-        scanRequestId,
-        errorCode: "OPENAI_TIMEOUT",
+        averageConfidence,
         durationMs,
-        provider: "openai",
-        logMessage: error.message,
-      });
-      logOcrDetectError({
-        errorCode: payload.errorCode,
-        status: 504,
-        provider: "openai",
-        scanRequestId,
-      });
-      return NextResponse.json(payload, { status: 504 });
-    }
-
-    if (error instanceof OcrProviderError) {
-      const payload = buildOcrErrorPayload({
-        scanRequestId,
-        errorCode: error.errorCode,
-        durationMs,
-        provider: error.provider ?? "openai",
-        logMessage: error.message,
-      });
-      logOcrDetectError({
-        errorCode: payload.errorCode,
-        status: 503,
-        provider: payload.provider ?? "openai",
-        scanRequestId,
-      });
-      return NextResponse.json(payload, { status: 503 });
-    }
-
-    const resolved = classifyOcrFailure(error);
-    const payload = buildOcrErrorPayload({
-      scanRequestId,
-      errorCode: resolved.errorCode,
-      durationMs,
-      provider: resolved.provider,
-      logMessage: resolved.logMessage,
-    });
-    logOcrDetectError({
-      errorCode: payload.errorCode,
-      status: resolved.httpStatus,
-      provider: payload.provider ?? "openai",
-      scanRequestId,
-    });
-    return NextResponse.json(payload, { status: resolved.httpStatus });
-  }
+        autoConfirmEnabled,
+        autoConfirmed,
+        imageWidth,
+        imageHeight,
+        blocks,
+      } = result;
+      return NextResponse.json(
+        withEstimatedCredits(
+          {
+            ok: true,
+            scanRequestId: reqId,
+            provider,
+            status,
+            blockCount,
+            averageConfidence,
+            durationMs,
+            autoConfirmEnabled,
+            autoConfirmed,
+            imageId,
+            imageWidth,
+            imageHeight,
+            blocks,
+          },
+          estimatedCredits
+        )
+      );
+    },
+  });
 }

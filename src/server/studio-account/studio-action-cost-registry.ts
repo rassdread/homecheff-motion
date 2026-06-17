@@ -16,6 +16,10 @@ export const STUDIO_ACTION_TYPES = [
   "scene_generation",
   "voice_generation",
   "voice_clone",
+  "subtitle_transcription",
+  "music_generation",
+  "sfx_generation",
+  "assistant_interpret",
   "ocr_scan",
   "vision_analysis",
   "motion_render",
@@ -68,9 +72,10 @@ function entry(
   provider: string,
   reservedCostUsd: number,
   actualCostEstimateUsd?: number,
-  minimumCreditCost = 1
+  minimumCreditCost = 1,
+  creditCostOverride?: number
 ): StudioActionCostEntry {
-  const defaultCreditCost = usdToCredits(reservedCostUsd, minimumCreditCost);
+  const defaultCreditCost = creditCostOverride ?? usdToCredits(reservedCostUsd, minimumCreditCost);
   return {
     actionType,
     labelKey,
@@ -139,7 +144,44 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "elevenlabs",
     0.03
   ),
-  voice_clone: entry("voice_clone", "account.action.voiceClone", "studio", "elevenlabs", 0.15),
+  voice_clone: entry(
+    "voice_clone",
+    "account.action.voiceClone",
+    "studio",
+    "elevenlabs",
+    1.0,
+    1.0,
+    1,
+    400
+  ),
+  subtitle_transcription: entry(
+    "subtitle_transcription",
+    "account.action.subtitleTranscription",
+    "studio",
+    "elevenlabs",
+    0.02
+  ),
+  music_generation: entry(
+    "music_generation",
+    "account.action.musicGeneration",
+    "studio",
+    "elevenlabs",
+    0.08
+  ),
+  sfx_generation: entry(
+    "sfx_generation",
+    "account.action.sfxGeneration",
+    "studio",
+    "elevenlabs",
+    0.04
+  ),
+  assistant_interpret: entry(
+    "assistant_interpret",
+    "account.action.assistantInterpret",
+    "studio",
+    "openai",
+    0.003
+  ),
   ocr_scan: entry("ocr_scan", "account.action.ocrScan", "editor", "vision", 0.008),
   vision_analysis: entry(
     "vision_analysis",

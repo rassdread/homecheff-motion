@@ -6,6 +6,11 @@ import { useActiveTranslator } from "@/i18n/client";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import type { HomeCheffExample } from "@/lib/homecheff-examples";
 import {
+  spaceGalleryCardSrc,
+  spaceGalleryCardVideoSrc,
+  spaceGalleryModalSrc,
+} from "@/lib/space-gallery-media";
+import {
   spaceGalleryPreviewHasNext,
   spaceGalleryPreviewHasPrev,
   spaceGalleryPreviewIndexAfterNext,
@@ -15,6 +20,7 @@ import { studioVisual } from "@/lib/studio-visual-tokens";
 
 type Props = {
   examples: HomeCheffExample[];
+  onCtaClick?: (example: HomeCheffExample) => void;
 };
 
 /** Constellation node on a slowly drifting orbit */
@@ -32,7 +38,7 @@ function constellationPosition(index: number, total: number, active: boolean, or
   return { x, y, scale, z, floatDelay, depth };
 }
 
-export function SpaceGallery({ examples }: Props) {
+export function SpaceGallery({ examples, onCtaClick }: Props) {
   const t = useActiveTranslator();
   const reducedMotion = useReducedMotion();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -57,6 +63,19 @@ export function SpaceGallery({ examples }: Props) {
   const closePreview = useCallback(() => setPreviewIndex(null), []);
   const previewItem = previewIndex !== null ? examples[previewIndex] : null;
 
+  const showCta = Boolean(
+    previewItem &&
+      (previewItem.ctaLabel?.trim() || previewItem.assistantPrompt?.trim() || previewItem.ctaHref?.trim())
+  );
+
+  const handleCta = useCallback(() => {
+    if (!previewItem || !onCtaClick) {
+      return;
+    }
+    onCtaClick(previewItem);
+    setPreviewIndex(null);
+  }, [onCtaClick, previewItem]);
+
   if (examples.length === 0) return null;
 
   return (
@@ -75,6 +94,8 @@ export function SpaceGallery({ examples }: Props) {
         {examples.map((ex, i) => {
           const pos = positions[i]!;
           const active = hoveredId === ex.id;
+          const cardSrc = spaceGalleryCardSrc(ex);
+          const cardVideoSrc = spaceGalleryCardVideoSrc(ex);
           return (
             <button
               key={ex.id}
@@ -96,17 +117,18 @@ export function SpaceGallery({ examples }: Props) {
                 animation: reducedMotion ? undefined : `space-orbit-float ${8 + pos.floatDelay}s ease-in-out infinite`,
               }}
             >
-              {ex.mediaKind === "video" ?
+              {ex.mediaKind === "video" && cardVideoSrc ?
                 <video
-                  src={ex.thumbnailUrl}
+                  src={cardVideoSrc}
                   muted
                   playsInline
                   loop
+                  autoPlay
                   className="h-20 w-full rounded-lg object-contain bg-black/30"
                 />
               : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ex.thumbnailUrl} alt="" className="h-20 w-full rounded-lg object-contain bg-black/20" />
+                <img src={cardSrc} alt="" className="h-20 w-full rounded-lg object-contain bg-black/20" />
               )}
               <p className="mt-2 text-xs font-semibold text-white">{ex.title}</p>
               <p className="mt-0.5 line-clamp-2 text-[10px] text-white/65">{ex.description}</p>
@@ -136,18 +158,31 @@ export function SpaceGallery({ examples }: Props) {
             <p className="mb-3 max-w-prose text-center text-sm text-white/75">{previewItem.description}</p>
             {previewItem.mediaKind === "video" ?
               <video
-                src={previewItem.thumbnailUrl}
+                src={spaceGalleryModalSrc(previewItem)}
                 controls
+                playsInline
                 className="max-h-[min(60vh,520px)] w-full object-contain"
+                data-testid="space-gallery-modal-video"
               />
             : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={previewItem.thumbnailUrl}
+                src={spaceGalleryModalSrc(previewItem)}
                 alt=""
                 className="max-h-[min(60vh,520px)] w-full object-contain"
+                data-testid="space-gallery-modal-image"
               />
             )}
+            {showCta && onCtaClick ?
+              <button
+                type="button"
+                onClick={handleCta}
+                data-testid="space-gallery-cta"
+                className={`mt-4 ${studioVisual.btnGradientPrimary}`}
+              >
+                {previewItem.ctaLabel?.trim() || t("examples.gallery.ctaDefault" as never)}
+              </button>
+            : null}
           </>
         : null}
       </HomeCheffPreviewModal>

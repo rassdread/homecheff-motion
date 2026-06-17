@@ -315,6 +315,7 @@ model User {
   studioAccount        StudioAccount?
   studioWallet         StudioWallet?
   studioLedgerEntries  StudioLedgerEntry[]
+  studioShowcaseItemsCreated StudioShowcaseItem[] @relation("ShowcaseItemCreator")
 }
 
 /** HomeCheff Studio account — plan, billing, credit policy (1:1 with User). */
@@ -529,16 +530,28 @@ model StudioPromoCodeRedemption {
 
 /** Database-driven action pricing — overrides studio-action-cost-registry when active. */
 model StudioPricingRule {
-  id              String   @id @default(cuid())
-  actionType      String   @unique
-  creditCost      Int
-  providerCostUsd Float
-  active          Boolean  @default(true)
-  notes           String   @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                       String   @id @default(cuid())
+  actionType               String   @unique
+  creditCost               Int
+  providerCostUsd          Float
+  active                   Boolean  @default(true)
+  notes                    String   @default("")
+  category                 String?
+  displayNameNl            String?
+  displayNameEn            String?
+  descriptionNl            String?
+  descriptionEn            String?
+  visibleInCatalog         Boolean  @default(true)
+  sortOrder                Int      @default(0)
+  provider                 String?
+  marginWarningThreshold     Float    @default(0)
+  updatedByUserId          String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([active])
+  @@index([category, sortOrder])
+  @@index([visibleInCatalog, active])
 }
 
 /** Universal HomeCheff .hc master project container. */
@@ -1199,6 +1212,40 @@ model CustomerBillingEvent {
   @@index([providerCostEventId])
   @@index([actionType, createdAt])
   @@index([status, createdAt])
+}
+
+/** Admin-managed space carousel / showcase gallery items. */
+model StudioShowcaseItem {
+  id              String    @id @default(cuid())
+  title           String
+  subtitle        String?
+  description     String
+  /** image | video */
+  mediaType       String
+  mediaUrl        String
+  thumbnailUrl    String?
+  posterUrl       String?
+  /** home | studio | editor | motion | publish | library | projects | usage | global */
+  pageKey         String
+  /** studio | editor | motion | publish | library */
+  serviceKey      String?
+  category        String?
+  assistantPrompt String?
+  ctaLabel        String?
+  ctaHref         String?
+  sortOrder       Int       @default(0)
+  isActive        Boolean   @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  locale          String?
+  createdByUserId String?
+  createdByUser   User?     @relation("ShowcaseItemCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([pageKey, isActive, sortOrder])
+  @@index([serviceKey])
+  @@index([locale])
 }
 
 /** Daily (or on-demand) provider credit balance snapshots for audit. */

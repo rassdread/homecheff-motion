@@ -127,14 +127,29 @@ export async function loadUserBillingDetail(userId: string): Promise<AdminUserBi
     plan: user.studioAccount?.studioPlan ?? "free",
     billingStatus: user.studioAccount?.billingStatus ?? "none",
     wallet: user.studioWallet ? mapWalletSnapshot(user.studioWallet) : null,
-    ledger: ledger.map((row) => ({
-      id: row.id,
-      actionType: row.actionType,
-      creditsDelta: row.creditsDelta,
-      balanceAfter: row.balanceAfter,
-      creditOrigin: row.creditOrigin,
-      createdAt: row.createdAt.toISOString(),
-    })),
+    ledger: ledger.map((row) => {
+      const meta =
+        row.metadataJson && typeof row.metadataJson === "object" && !Array.isArray(row.metadataJson)
+          ? (row.metadataJson as Record<string, unknown>)
+          : {};
+      const margin = row.marginEstimate ?? 0;
+      return {
+        id: row.id,
+        actionType: row.actionType,
+        creditsDelta: row.creditsDelta,
+        balanceAfter: row.balanceAfter,
+        creditOrigin: row.creditOrigin,
+        provider: row.provider,
+        providerCostUsd: row.providerCostUsd,
+        marginEstimate: row.marginEstimate,
+        providerCostEventId:
+          typeof meta.providerCostEventId === "string" ? meta.providerCostEventId : null,
+        studioActionType:
+          typeof meta.studioActionType === "string" ? meta.studioActionType : null,
+        negativeMargin: margin < 0,
+        createdAt: row.createdAt.toISOString(),
+      };
+    }),
     promotionsRedeemed: promotionsRedeemed.map((row) => ({
       name: row.promotion.name,
       creditsGranted: row.creditsGranted,

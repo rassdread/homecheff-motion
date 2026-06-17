@@ -6,7 +6,9 @@ import { UniverseBackground } from "@/components/suite/universe/universe-backgro
 import { UniverseLandingOrbitWidget } from "@/components/suite/universe/universe-landing-orbit-widget";
 import { ServiceLandingNav } from "@/components/suite/service-landing-nav";
 import { SpaceGallery } from "@/components/examples/space-gallery";
-import { listExamplesForService } from "@/lib/homecheff-examples";
+import { useShowcaseCtaAction } from "@/hooks/use-showcase-cta-action";
+import { useShowcaseExamples } from "@/hooks/use-showcase-examples";
+import { landingModuleKeyToShowcasePageKey } from "@/lib/showcase-page-keys";
 import { useActiveTranslator } from "@/i18n/client";
 import type { StudioProductLandingConfig } from "@/lib/studio-product-landing-config";
 import { StudioPageIntro } from "@/components/suite/studio-page-intro";
@@ -31,9 +33,9 @@ function categoryDescKey(categoryKey: string): string {
 
 export function StudioProductLandingPage({ config, continueCard, continueSlot }: Props) {
   const t = useActiveTranslator();
-  const examples = listExamplesForService(
-    config.moduleKey === "usage" || config.moduleKey === "library" ? "home" : config.moduleKey
-  );
+  const showcasePageKey = landingModuleKeyToShowcasePageKey(config.moduleKey);
+  const { examples, loading: showcaseLoading } = useShowcaseExamples(showcasePageKey);
+  const onShowcaseCta = useShowcaseCtaAction();
 
   return (
     <div className={`${studioVisual.pageRoot} overflow-x-hidden ${studioVisual.pageBg}`} data-testid={`landing-${config.moduleKey}`}>
@@ -86,12 +88,12 @@ export function StudioProductLandingPage({ config, continueCard, continueSlot }:
           </div>
         </div>
 
-        {examples.length > 0 ?
+        {!showcaseLoading && examples.length > 0 ?
           <section className="relative mt-16" aria-labelledby={`${config.moduleKey}-space-gallery`}>
             <h2 id={`${config.moduleKey}-space-gallery`} className="text-xl font-bold text-white">
               {t("examples.gallery.title" as never)}
             </h2>
-            <SpaceGallery examples={examples} />
+            <SpaceGallery examples={examples} onCtaClick={onShowcaseCta} />
           </section>
         : null}
 

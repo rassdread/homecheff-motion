@@ -21,6 +21,10 @@ function AssistantMessageBody({ message }: { message: AssistantChatMessage }) {
     return <p className="text-sm leading-relaxed text-zinc-800">{String(message.params.text)}</p>;
   }
 
+  if (message.messageKey === "assistant.chat.pricingReply" && message.params?.text) {
+    return <p className="text-sm leading-relaxed text-zinc-800">{String(message.params.text)}</p>;
+  }
+
   const text = t(message.messageKey as never, message.params as never);
   return <p className="text-sm leading-relaxed text-zinc-800">{text}</p>;
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ConversionSurface } from "@/components/billing/conversion-surface";
 import { HomeCheffOrbitLoader } from "@/components/ui/homecheff-orbit-loader";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { StudioLibraryRecentSection } from "@/components/studio/studio-library-recent-section";
@@ -54,6 +55,13 @@ export function StudioAssetsHub() {
               {t("studio.assetsHub.browseAll")}
             </Link>
           </header>
+
+          <ConversionSurface
+            pageType="library"
+            variant="compact"
+            source="library_hub"
+            className="mt-6 rounded-2xl border border-slate-100 bg-white p-4"
+          />
 
           {loading ?
             <div className="mt-8 flex justify-center py-12">

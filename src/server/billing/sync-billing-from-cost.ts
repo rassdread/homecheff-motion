@@ -70,12 +70,15 @@ export async function syncCustomerBillingFromCostEvent(
     return;
   }
 
+  const meta = (event.metadataJson as Record<string, unknown> | null) ?? {};
+  const walletBilled =
+    meta.studioWalletBilling === true || meta.studioWalletCaptured === true;
+
   const terminal = ["completed", "failed", "cancelled"];
   if (!terminal.includes(event.status)) {
     return;
   }
 
-  const meta = (event.metadataJson as Record<string, unknown> | null) ?? {};
   const creditsUsed = creditsFromCostEvent(event);
   const internalCostUsd = event.internalCostUsd ?? event.totalCostUsd ?? undefined;
   const instantMode = typeof meta.instantMode === "string" ? meta.instantMode : undefined;
@@ -97,6 +100,8 @@ export async function syncCustomerBillingFromCostEvent(
       providerJobId: event.providerJobId,
       unitsUsed: event.unitsUsed,
       unitType: event.unitType,
+      analyticsOnly: walletBilled,
+      billingSource: walletBilled ? "studio_wallet" : "legacy",
     },
   });
 }
