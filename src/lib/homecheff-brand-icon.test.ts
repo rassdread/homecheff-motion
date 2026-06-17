@@ -8,7 +8,6 @@ import {
   homeCheffSiteIcons,
   homeCheffWebManifestIcons,
 } from "@/lib/homecheff-brand-icon";
-import { HOMECHEFF_BRAND_ICON_CACHE_VERSION } from "@/lib/homecheff-brand-icon-version";
 
 const ROOT = process.cwd();
 
@@ -20,13 +19,14 @@ describe("homecheff brand icon", () => {
     assert.ok(Array.isArray(icons.apple));
   });
 
-  it("generated public icon assets exist (no app/favicon.ico duplicate)", () => {
+  it("generated v4 public icon assets exist (no query-param cache bust)", () => {
     for (const file of [
       "homecheff-globe-man.png",
+      "homecheff-favicon-v4.ico",
+      "homecheff-favicon-16-v4.png",
+      "homecheff-favicon-32-v4.png",
+      "homecheff-apple-touch-icon-v4.png",
       "favicon.ico",
-      "favicon-16x16.png",
-      "favicon-32x32.png",
-      "apple-touch-icon.png",
       "site.webmanifest",
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);
@@ -35,22 +35,38 @@ describe("homecheff brand icon", () => {
     assert.equal(existsSync(join(ROOT, "public/favicon.svg")), false);
   });
 
-  it("metadata icons are versioned globe-man derivatives only", () => {
-    const v = `?v=${HOMECHEFF_BRAND_ICON_CACHE_VERSION}`;
+  it("metadata icons use v4 filenames with PNG before ICO", () => {
     const icons = homeCheffSiteIcons();
     const iconUrls = (icons.icon ?? []).map((entry) =>
       typeof entry === "string" ? entry : entry.url
     );
     assert.deepEqual(iconUrls, [
-      `/favicon.ico${v}`,
-      `/favicon-32x32.png${v}`,
-      `/favicon-16x16.png${v}`,
+      "/homecheff-favicon-32-v4.png",
+      "/homecheff-favicon-16-v4.png",
+      "/homecheff-favicon-v4.ico",
+      "/favicon.ico",
     ]);
-    assert.equal(icons.shortcut, `/favicon.ico${v}`);
+    assert.equal(icons.shortcut, "/homecheff-favicon-v4.ico");
     const apple = icons.apple ?? [];
     const appleUrl = typeof apple[0] === "string" ? apple[0] : apple[0]?.url;
-    assert.equal(appleUrl, `/apple-touch-icon.png${v}`);
+    assert.equal(appleUrl, "/homecheff-apple-touch-icon-v4.png");
+    assert.ok(!iconUrls.some((url) => url.includes("?v=")));
     assert.ok(!iconUrls.some((url) => url.includes(".svg")));
+  });
+
+  it("v4 favicon bytes match globe-man derivatives", () => {
+    const v4Ico = readFileSync(join(ROOT, "public/homecheff-favicon-v4.ico"));
+    const legacyIco = readFileSync(join(ROOT, "public/favicon.ico"));
+    assert.equal(
+      createHash("sha256").update(v4Ico).digest("hex"),
+      createHash("sha256").update(legacyIco).digest("hex")
+    );
+    const v4Png = readFileSync(join(ROOT, "public/homecheff-favicon-32-v4.png"));
+    const legacyPng = readFileSync(join(ROOT, "public/favicon-32x32.png"));
+    assert.equal(
+      createHash("sha256").update(v4Png).digest("hex"),
+      createHash("sha256").update(legacyPng).digest("hex")
+    );
   });
 
   it("site.webmanifest icons match runtime manifest helper", () => {
@@ -62,19 +78,10 @@ describe("homecheff brand icon", () => {
       manifest.icons.map((icon: { src: string }) => icon.src),
       expected
     );
+    assert.ok(!manifest.icons.some((icon: { src: string }) => icon.src.includes("?v=")));
   });
 
-  it("public favicon.ico is derived from globe-man (not legacy triangle)", () => {
-    const publicIco = readFileSync(join(ROOT, "public/favicon.ico"));
-    assert.notEqual(publicIco.length, 25931, "legacy Create Next App triangle favicon must be replaced");
-    const globeMan = readFileSync(join(ROOT, "public/homecheff-globe-man.png"));
-    assert.notEqual(
-      createHash("sha256").update(publicIco).digest("hex"),
-      createHash("sha256").update(globeMan).digest("hex")
-    );
-  });
-
-  it("layout relies on metadata icons only (no duplicate Safari head links)", () => {
+  it("layout relies on metadata icons only (no duplicate head links)", () => {
     const layout = readFileSync(join(ROOT, "src/app/layout.tsx"), "utf8");
     assert.match(layout, /ROOT_SITE_METADATA/);
     assert.doesNotMatch(layout, /HomeCheffSafariIconLinks/);

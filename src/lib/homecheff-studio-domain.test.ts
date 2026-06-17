@@ -62,10 +62,11 @@ describe("HomeCheff Studio domain migration", () => {
   it("globe-man brand icon assets exist", () => {
     for (const file of [
       "homecheff-globe-man.png",
+      "homecheff-favicon-v4.ico",
+      "homecheff-favicon-16-v4.png",
+      "homecheff-favicon-32-v4.png",
+      "homecheff-apple-touch-icon-v4.png",
       "favicon.ico",
-      "favicon-16x16.png",
-      "favicon-32x32.png",
-      "apple-touch-icon.png",
       "site.webmanifest",
     ]) {
       assert.equal(existsSync(join(ROOT, "public", file)), true, `missing public/${file}`);

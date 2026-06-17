@@ -1,2 +1,2 @@
-/** Bump when regenerating icons from public/homecheff-globe-man.png (Safari/browser cache bust). */
-export const HOMECHEFF_BRAND_ICON_CACHE_VERSION = 3;
+/** Filename suffix for cache-busted favicon assets (bump when regenerating icons). */
+export const HOMECHEFF_BRAND_ICON_ASSET_VERSION = "v4" as const;

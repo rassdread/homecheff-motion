@@ -6,11 +6,19 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import sharp from "sharp";
 import toIco from "to-ico";
-import { HOMECHEFF_BRAND_ICON_CACHE_VERSION } from "../src/lib/homecheff-brand-icon-version";
+import { HOMECHEFF_BRAND_ICON_ASSET_VERSION } from "../src/lib/homecheff-brand-icon-version";
 
 const ROOT = process.cwd();
 const SOURCE = resolve(ROOT, "public/homecheff-globe-man.png");
 const OUT = resolve(ROOT, "public");
+const V = HOMECHEFF_BRAND_ICON_ASSET_VERSION;
+
+const V4_FILES = {
+  favicon16: `homecheff-favicon-16-${V}.png`,
+  favicon32: `homecheff-favicon-32-${V}.png`,
+  appleTouch: `homecheff-apple-touch-icon-${V}.png`,
+  faviconIco: `homecheff-favicon-${V}.ico`,
+} as const;
 
 async function resizePng(size: number): Promise<Buffer> {
   return sharp(readFileSync(SOURCE))
@@ -22,20 +30,21 @@ async function resizePng(size: number): Promise<Buffer> {
     .toBuffer();
 }
 
-function versioned(path: string): string {
-  return `${path}?v=${HOMECHEFF_BRAND_ICON_CACHE_VERSION}`;
-}
-
 async function main() {
   const favicon16 = await resizePng(16);
   const favicon32 = await resizePng(32);
   const appleTouch = await resizePng(180);
+  const ico = await toIco([favicon16, favicon32]);
 
+  writeFileSync(resolve(OUT, V4_FILES.favicon16), favicon16);
+  writeFileSync(resolve(OUT, V4_FILES.favicon32), favicon32);
+  writeFileSync(resolve(OUT, V4_FILES.appleTouch), appleTouch);
+  writeFileSync(resolve(OUT, V4_FILES.faviconIco), ico);
+
+  // Legacy root fallbacks (same bytes — not primary in metadata).
   writeFileSync(resolve(OUT, "favicon-16x16.png"), favicon16);
   writeFileSync(resolve(OUT, "favicon-32x32.png"), favicon32);
   writeFileSync(resolve(OUT, "apple-touch-icon.png"), appleTouch);
-
-  const ico = await toIco([favicon16, favicon32]);
   writeFileSync(resolve(OUT, "favicon.ico"), ico);
 
   const manifest = {
@@ -48,17 +57,17 @@ async function main() {
     theme_color: "#006D52",
     icons: [
       {
-        src: versioned("/favicon-16x16.png"),
+        src: `/${V4_FILES.favicon16}`,
         sizes: "16x16",
         type: "image/png",
       },
       {
-        src: versioned("/favicon-32x32.png"),
+        src: `/${V4_FILES.favicon32}`,
         sizes: "32x32",
         type: "image/png",
       },
       {
-        src: versioned("/apple-touch-icon.png"),
+        src: `/${V4_FILES.appleTouch}`,
         sizes: "180x180",
         type: "image/png",
       },
@@ -76,9 +85,7 @@ async function main() {
     `${JSON.stringify(manifest, null, 2)}\n`
   );
 
-  console.log(
-    `Generated HomeCheff brand icons in public/ (cache v${HOMECHEFF_BRAND_ICON_CACHE_VERSION})`
-  );
+  console.log(`Generated HomeCheff brand icons in public/ (${V} filenames)`);
 }
 
 main().catch((error) => {

@@ -8,17 +8,17 @@
   "theme_color": "#006D52",
   "icons": [
     {
-      "src": "/favicon-16x16.png?v=3",
+      "src": "/homecheff-favicon-16-v4.png",
       "sizes": "16x16",
       "type": "image/png"
     },
     {
-      "src": "/favicon-32x32.png?v=3",
+      "src": "/homecheff-favicon-32-v4.png",
       "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/apple-touch-icon.png?v=3",
+      "src": "/homecheff-apple-touch-icon-v4.png",
       "sizes": "180x180",
       "type": "image/png"
     },
