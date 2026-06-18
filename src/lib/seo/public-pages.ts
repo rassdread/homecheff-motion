@@ -15,19 +15,19 @@ export const PUBLIC_PAGE_SEO = {
   studio: {
     title: "AI Storyboard & Production Studio",
     description:
-      "Plan stories, storyboards, scenes, and campaigns with consistent characters. AI production hub connecting Editor assets to Motion and Publish.",
+      "Plan campaigns in AI storyboards with reusable characters, voice, subtitles, and multi-channel publishing. The production hub between Editor assets and image-to-video motion.",
     path: "/studio",
   },
   motion: {
     title: "AI Video Generator — Image to Video",
     description:
-      "Turn images into AI video clips and motion renders. Image-to-video generation for social, campaigns, and Studio storyboard scenes.",
+      "Turn still images into AI motion clips for social and campaigns. Storyboard-ready exports that connect to Studio voice, subtitles, translation, and publishing.",
     path: "/animate/instant",
   },
   pricing: {
     title: "Pricing & Credits",
     description:
-      "Transparent AI video pricing with credits and subscriptions. Monthly or yearly plans, credit packs, and per-action costs for Studio and Motion.",
+      "Transparent AI video pricing: credits per storyboard, motion, voice, and publish action. Free start, monthly or yearly subscriptions, and credit packs with live tables.",
     path: "/pricing",
   },
   help: {
@@ -51,7 +51,7 @@ export const PUBLIC_PAGE_SEO = {
   signup: {
     title: "Create Account",
     description:
-      "Sign up free for HomeCheff Studio. Start creating AI videos, storyboards, and images today.",
+      "Sign up free for HomeCheff Studio. Start AI storyboards, image-to-video motion, and publishing today — compare pricing when you are ready to scale.",
     path: "/signup",
   },
 } as const;

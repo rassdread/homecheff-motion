@@ -43,10 +43,21 @@ export function buildPageMetadata(input: {
 }): Metadata {
   const url = absoluteUrl(input.path);
   const ogImageUrl = absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source);
+  const locale = input.locale ?? "en";
+  const languages: Record<string, string> = {
+    "x-default": url,
+  };
+  if (locale === "nl") {
+    languages["nl-NL"] = url;
+    languages.en = absoluteUrl("/guides");
+  } else {
+    languages.en = url;
+  }
+
   return {
     title: `${input.title} | ${SITE_NAME}`,
     description: input.description,
-    alternates: { canonical: url },
+    alternates: { canonical: url, languages },
     icons: homeCheffSiteIcons(),
     manifest: HOMECHEFF_BRAND_ICON_PATHS.webManifest,
     openGraph: {
@@ -55,7 +66,7 @@ export function buildPageMetadata(input: {
       url,
       siteName: SITE_NAME,
       type: "website",
-      locale: input.locale === "nl" ? "nl_NL" : "en_US",
+      locale: locale === "nl" ? "nl_NL" : "en_US",
       images: homeCheffOpenGraphIcon(ogImageUrl),
     },
     twitter: {

@@ -1,6 +1,9 @@
-import { StudioProductLandingPage } from "@/components/suite/studio-product-landing-page";
-import { MotionLandingRoute } from "@/components/suite/motion-landing-route";
+import { permanentRedirect } from "next/navigation";
 
-export default function MotionLandingPage() {
-  return <MotionLandingRoute />;
+/**
+ * Consolidates Motion marketing URL with the canonical image-to-video route.
+ * Deep-link entry points use /motion/start → /animate/instant.
+ */
+export default function MotionPage() {
+  permanentRedirect("/animate/instant");
 }

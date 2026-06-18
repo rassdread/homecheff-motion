@@ -90,6 +90,8 @@ function validateJsonLd(page) {
     path: page.path,
     breadcrumbs: page.breadcrumbs.map((b) => ({ name: b.label, path: b.href })),
     faqs: page.faqs,
+    sections: page.sections,
+    includeArticle: page.path.startsWith("/guides/"),
   });
 
   const breadcrumb = schemas.find((s) => s["@type"] === "BreadcrumbList");
@@ -252,6 +254,15 @@ for (const page of pages) {
   if (relatedCount < 2) {
     stats.internalLinkIssues++;
     issues.push(`INTERNAL: fewer than 2 related links ${page.path} (${relatedCount})`);
+  }
+  const contextualLinks = page.internalLinks?.length ?? 0;
+  if (contextualLinks < 5) {
+    stats.internalLinkIssues++;
+    issues.push(`INTERNAL: fewer than 5 contextual internalLinks ${page.path} (${contextualLinks})`);
+  }
+  if (contextualLinks > 10) {
+    stats.internalLinkIssues++;
+    issues.push(`INTERNAL: more than 10 contextual internalLinks ${page.path} (${contextualLinks})`);
   }
 
   for (const href of hrefs) {

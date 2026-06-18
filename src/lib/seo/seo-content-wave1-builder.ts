@@ -30,9 +30,9 @@ export type AlternativeWave1Config = {
 };
 
 export function buildAlternativeWave1Page(config: AlternativeWave1Config): SeoContentPage {
-  const title = `${config.competitor} Alternative for AI Video Production`;
+  const title = `${config.competitor} Alternative — AI Video`;
   const h1 = `HomeCheff Studio as a ${config.competitor} alternative`;
-  const metaDescription = `Compare HomeCheff Studio vs ${config.competitor} for ${config.category}. Story-first AI video with voice, subtitles, translation, and publishing.`;
+  const metaDescription = `Compare HomeCheff Studio vs ${config.competitor} for ${config.category}. Story-first AI video with voice, subtitles & publish. Start free.`;
 
   const sections: SeoContentSection[] = [
     {

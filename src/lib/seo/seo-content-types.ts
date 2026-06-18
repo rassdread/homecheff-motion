@@ -36,6 +36,9 @@ export type SeoContentPage = {
   faqs: SeoFaq[];
   internalLinks: SeoContentLink[];
   studioCta: SeoContentLink;
+  linkedGuides?: SeoContentLink[];
+  linkedAlternatives?: SeoContentLink[];
+  productLinks?: SeoContentLink[];
   disclaimers?: string[];
   locale: "en" | "nl";
   breadcrumbs: SeoContentLink[];

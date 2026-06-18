@@ -204,7 +204,7 @@ export type UseCaseWave3Config = {
 export function buildUseCaseWave3Page(config: UseCaseWave3Config): SeoContentPage {
   const title = `AI Video for ${config.name}`;
   const h1 = `HomeCheff Studio for ${config.name}`;
-  const metaDescription = `AI video production for ${config.name}: storyboards, motion, voice, subtitles, and publishing with HomeCheff Studio.`;
+  const metaDescription = `${config.sector} teams: ship ${config.name} video with storyboards, AI motion, voice & publish. ${config.deliverables[0] ?? "Repeatable campaigns"}. Compare pricing — start free.`;
 
   const intro = `${config.name} need video that educates, builds trust, and drives action — without endless agency cycles. HomeCheff Studio is a story-first AI production line built for ${config.sector.toLowerCase()} teams who must ship repeatable content. ${config.painPoint} ${config.solution} This page maps deliverables, governance, training, and credit planning so ${config.name} can publish this month — not after a six-month tool evaluation.`;
 

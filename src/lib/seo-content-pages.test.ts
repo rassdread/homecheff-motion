@@ -10,6 +10,7 @@ import { GUIDES_CONTENT, GUIDE_SLUGS } from "@/lib/seo/guides-content";
 import { INDUSTRIES_CONTENT, INDUSTRY_SLUGS } from "@/lib/seo/industries-content";
 import { LOCATIONS_CONTENT, LOCATION_SLUGS } from "@/lib/seo/locations-content";
 import { countSeoContentWords } from "@/lib/seo/seo-content-wave2-builder";
+import { buildInboundLinkStats } from "@/lib/seo/seo-internal-link-enricher";
 import { SEO_CONTENT_PATHS } from "@/lib/seo/seo-content-paths";
 import {
   ALTERNATIVE_WAVE2_SLUGS,
@@ -121,6 +122,36 @@ describe("SEO content pages implementation", () => {
       assert.equal(page.faqs.length, 5, slug);
       assert.ok(countSeoContentWords(page) >= 1000, `${slug} word count`);
     }
+  });
+
+  it("each SEO content page has 5–10 contextual internal links", () => {
+    const all = [
+      ...Object.values(ALTERNATIVES_CONTENT),
+      ...Object.values(GUIDES_CONTENT),
+      ...Object.values(WORKFLOWS_CONTENT),
+      ...Object.values(LOCATIONS_CONTENT),
+      ...Object.values(USE_CASES_CONTENT),
+      ...Object.values(INDUSTRIES_CONTENT),
+    ];
+    for (const page of all) {
+      const count = page.internalLinks.length;
+      assert.ok(count >= 5, `${page.path} has ${count} internal links`);
+      assert.ok(count <= 10, `${page.path} has ${count} internal links`);
+    }
+  });
+
+  it("inbound link average improves authority distribution", () => {
+    const all = [
+      ...Object.values(ALTERNATIVES_CONTENT),
+      ...Object.values(GUIDES_CONTENT),
+      ...Object.values(WORKFLOWS_CONTENT),
+      ...Object.values(LOCATIONS_CONTENT),
+      ...Object.values(USE_CASES_CONTENT),
+      ...Object.values(INDUSTRIES_CONTENT),
+    ];
+    const inbound = buildInboundLinkStats(all);
+    const avg = [...inbound.values()].reduce((a, b) => a + b, 0) / inbound.size;
+    assert.ok(avg >= 5, `average inbound ${avg} should be >= 5`);
   });
 
   it("wave 3 pages have at least 1000 words and 5 FAQs", () => {

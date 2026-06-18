@@ -53,9 +53,9 @@ export type AlternativeWave2Config = {
 };
 
 export function buildAlternativeWave2Page(config: AlternativeWave2Config): SeoContentPage {
-  const title = `${config.competitor} Alternative for AI Video Production`;
+  const title = `${config.competitor} Alternative — AI Video`;
   const h1 = `HomeCheff Studio as a ${config.competitor} alternative`;
-  const metaDescription = `Compare HomeCheff Studio vs ${config.competitor} for ${config.category}. Story-first AI video with voice, subtitles, translation, and publishing.`;
+  const metaDescription = `Compare HomeCheff Studio vs ${config.competitor} for ${config.category}. Story-first AI video with voice, subtitles & publish. Start free.`;
 
   const intro = `${config.competitor} and HomeCheff Studio solve overlapping but not identical problems in ${config.category.toLowerCase()}. This guide helps you decide when a category-native tool is enough — and when you need a full production line from storyboard to published video with reusable characters, voices, and translations. We cover strengths, migration paths, pricing mindset, and a practical checklist you can run on a real campaign this week. ${config.homecheffStrength}`;
 
@@ -463,7 +463,7 @@ export type WorkflowWave2Config = {
 };
 
 export function buildWorkflowWave2Page(config: WorkflowWave2Config): WorkflowWave2Page {
-  const metaDescription = `HomeCheff Studio workflow for ${config.role}: story-first video production with reusable assets, voice, subtitles, and publishing.`;
+  const metaDescription = `HomeCheff workflow for ${config.role}: storyboards, AI motion, voice & publish in one line. Reusable assets, subtitles, transparent credits. Start free.`;
 
   const deliverablePlaybooks = config.deliverablePlaybook;
 

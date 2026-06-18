@@ -7,6 +7,7 @@ import { PUBLIC_PAGE_SEO } from "@/lib/seo/public-pages";
 import {
   buildFaqPageJsonLd,
   buildOrganizationJsonLd,
+  buildPricingProductJsonLd,
   buildSoftwareApplicationJsonLd,
   buildWebSiteJsonLd,
   PRICING_FAQ_SCHEMA,
@@ -48,13 +49,45 @@ describe("SEO launch readiness", () => {
     assert.match(layout, /<JsonLd/);
   });
 
-  it("pricing layout includes FAQPage schema", () => {
+  it("pricing layout includes Product and FAQPage schema", () => {
     const pricing = read("src/app/pricing/layout.tsx");
+    assert.match(pricing, /buildPricingProductJsonLd/);
     assert.match(pricing, /buildFaqPageJsonLd/);
-    assert.match(pricing, /PRICING_FAQ_SCHEMA/);
+    assert.match(pricing, /CommercialSeoEnrichment/);
     const faq = buildFaqPageJsonLd(PRICING_FAQ_SCHEMA);
     assert.equal(faq["@type"], "FAQPage");
     assert.ok(faq.mainEntity.length >= 5);
+  });
+
+  it("studio and motion layouts include enhanced SoftwareApplication schema", () => {
+    assert.match(read("src/app/studio/layout.tsx"), /buildSoftwareApplicationJsonLd/);
+    assert.match(read("src/app/animate/instant/layout.tsx"), /buildMotionVideoObjectJsonLd/);
+    assert.match(read("src/app/animate/instant/layout.tsx"), /buildSoftwareApplicationJsonLd/);
+  });
+
+  it("buildPageMetadata includes hreflang alternates", () => {
+    const en = buildPageMetadata({
+      title: "Test",
+      description: "Test description for EN page.",
+      path: "/guides/how-to-create-marketing-videos",
+      locale: "en",
+    });
+    assert.ok(en.alternates?.languages?.en);
+    assert.ok(en.alternates?.languages?.["x-default"]);
+
+    const nl = buildPageMetadata({
+      title: "Test NL",
+      description: "Test beschrijving voor NL pagina.",
+      path: "/guides/van-verhaal-naar-video",
+      locale: "nl",
+    });
+    assert.ok(nl.alternates?.languages?.["nl-NL"]);
+    assert.ok(nl.alternates?.languages?.en);
+  });
+
+  it("motion marketing URL consolidates to /animate/instant", () => {
+    const motion = read("src/app/motion/page.tsx");
+    assert.match(motion, /permanentRedirect\("\/animate\/instant"\)/);
   });
 
   it("help articles use breadcrumb + article structured data", () => {
@@ -121,6 +154,8 @@ describe("SEO launch readiness", () => {
     assert.equal(buildOrganizationJsonLd()["@type"], "Organization");
     assert.equal(buildWebSiteJsonLd()["@type"], "WebSite");
     assert.equal(buildSoftwareApplicationJsonLd()["@type"], "SoftwareApplication");
+    assert.equal(buildPricingProductJsonLd()["@type"], "Product");
+    assert.ok(buildSoftwareApplicationJsonLd({ featureList: ["Test"] }).featureList?.length);
   });
 
   it("help center cross-links product hubs and related articles", () => {

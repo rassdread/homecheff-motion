@@ -34,6 +34,8 @@ function WorkflowPageView({ slug }: { slug: string }) {
     path: page.path,
     breadcrumbs: page.breadcrumbs.map((b) => ({ name: b.label, path: b.href })),
     faqs: page.faqs,
+    sections: page.sections,
+    includeArticle: false,
   });
 
   return (
@@ -119,6 +121,28 @@ function WorkflowPageView({ slug }: { slug: string }) {
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Product</h2>
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {page.productLinks.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-medium text-emerald-800 hover:bg-emerald-100"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
+            {page.internalLinks.length > 0 ? (
+              <nav
+                className="rounded-xl border border-zinc-200 bg-white p-5"
+                aria-label={page.locale === "nl" ? "Gerelateerde pagina's" : "Related pages"}
+              >
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  {page.locale === "nl" ? "Verder lezen" : "Read next"}
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {page.internalLinks.map((link) => (
                     <li key={link.href}>
                       <Link
                         href={link.href}

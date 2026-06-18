@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/lib/brand";
-import {
-  PRODUCTION_LINE_SECTION_EN,
-  PRODUCTION_LINE_SECTION_NL,
-} from "@/lib/seo/production-line";
 import { buildSeoLandingJsonLd } from "@/lib/seo/structured-data";
 import type { SeoContentPage } from "@/lib/seo/seo-content-types";
 
@@ -19,7 +15,6 @@ type Props = {
 
 export function SeoContentPageView({ page }: Props) {
   const isNl = page.locale === "nl";
-  const productionLine = isNl ? PRODUCTION_LINE_SECTION_NL : PRODUCTION_LINE_SECTION_EN;
   const pricingCta = isNl ? CTA_PRICING_NL : CTA_PRICING;
   const signupCta = isNl ? CTA_SIGNUP_NL : CTA_SIGNUP;
 
@@ -29,6 +24,8 @@ export function SeoContentPageView({ page }: Props) {
     path: page.path,
     breadcrumbs: page.breadcrumbs.map((b) => ({ name: b.label, path: b.href })),
     faqs: page.faqs,
+    sections: page.sections,
+    includeArticle: page.path.startsWith("/guides/"),
   });
 
   return (
@@ -105,20 +102,6 @@ export function SeoContentPageView({ page }: Props) {
                 </div>
               </section>
             ) : null}
-
-            <section>
-              <h2 className="text-xl font-bold text-zinc-900">{productionLine.heading}</h2>
-              {productionLine.paragraphs.map((p) => (
-                <p key={p.slice(0, 48)} className="mt-3 text-sm leading-relaxed text-zinc-700">
-                  {p}
-                </p>
-              ))}
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-zinc-700">
-                {productionLine.bullets?.map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-            </section>
 
             {page.faqs.length > 0 ? (
               <section id="faq">

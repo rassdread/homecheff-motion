@@ -1,4 +1,5 @@
 import type { SeoContentPage } from "@/lib/seo/seo-content-types";
+import { enrichSeoContentPage } from "@/lib/seo/seo-internal-link-enricher";
 import { ALTERNATIVES_WAVE1_CONTENT, ALTERNATIVE_WAVE1_SLUGS } from "@/lib/seo/seo-wave1-content";
 import {
   ALTERNATIVE_WAVE2_SLUGS,
@@ -9,10 +10,17 @@ export const ALTERNATIVE_SLUGS = [...ALTERNATIVE_WAVE1_SLUGS, ...ALTERNATIVE_WAV
 
 export type AlternativeSlug = (typeof ALTERNATIVE_SLUGS)[number];
 
-export const ALTERNATIVES_CONTENT: Record<AlternativeSlug, SeoContentPage> = {
+const RAW_ALTERNATIVES: Record<AlternativeSlug, SeoContentPage> = {
   ...(ALTERNATIVES_WAVE1_CONTENT as Record<AlternativeSlug, SeoContentPage>),
   ...(ALTERNATIVES_WAVE2_CONTENT as Record<AlternativeSlug, SeoContentPage>),
 };
+
+export const ALTERNATIVES_CONTENT: Record<AlternativeSlug, SeoContentPage> = Object.fromEntries(
+  Object.entries(RAW_ALTERNATIVES).map(([slug, page]) => [
+    slug,
+    enrichSeoContentPage(page, "alternative"),
+  ])
+) as Record<AlternativeSlug, SeoContentPage>;
 
 export function getAlternative(slug: string): SeoContentPage | null {
   if (!(slug in ALTERNATIVES_CONTENT)) return null;

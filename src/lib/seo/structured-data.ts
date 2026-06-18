@@ -41,17 +41,30 @@ export function buildWebSiteJsonLd() {
   };
 }
 
-export function buildSoftwareApplicationJsonLd() {
+export function buildSoftwareApplicationJsonLd(input?: {
+  path?: string;
+  name?: string;
+  description?: string;
+  featureList?: string[];
+}) {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: SITE_NAME,
+    name: input?.name ?? SITE_NAME,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web",
-    url: absoluteUrl("/"),
+    url: absoluteUrl(input?.path ?? "/"),
     image: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
     description:
+      input?.description ??
       "AI video production software with image-to-video generation, storyboards, voice, subtitles, translation, and publishing.",
+    featureList: input?.featureList ?? [
+      "AI storyboard planning",
+      "Image-to-video motion",
+      "Character and voice library",
+      "Subtitles and translation",
+      "Multi-channel publishing",
+    ],
     offers: {
       "@type": "Offer",
       price: "0",
@@ -63,6 +76,139 @@ export function buildSoftwareApplicationJsonLd() {
       name: ORGANIZATION_NAME,
     },
   };
+}
+
+export function buildPricingProductJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: "HomeCheff Studio Credits",
+    description:
+      "Transparent AI video production credits for storyboards, motion, voice, and publishing. Subscriptions and credit packs available.",
+    brand: {
+      "@type": "Brand",
+      name: ORGANIZATION_NAME,
+    },
+    url: absoluteUrl("/pricing"),
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: "EUR",
+      lowPrice: "0",
+      highPrice: "999",
+      offerCount: 3,
+      url: absoluteUrl("/pricing"),
+      availability: "https://schema.org/InStock",
+    },
+  };
+}
+
+export function buildMotionVideoObjectJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: "HomeCheff Image to Video",
+    description:
+      "Turn still images into AI motion clips with HomeCheff Studio — storyboard-ready exports for social and campaigns.",
+    contentUrl: absoluteUrl("/animate/instant"),
+    thumbnailUrl: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
+    uploadDate: "2025-01-01",
+    publisher: {
+      "@type": "Organization",
+      name: ORGANIZATION_NAME,
+    },
+  };
+}
+
+export function buildHowToJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+  steps: Array<{ name: string; text: string }>;
+}) {
+  if (input.steps.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    step: input.steps.map((step, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: step.name,
+      text: step.text,
+    })),
+  };
+}
+
+export function extractHowToStepsFromSections(
+  sections: Array<{ heading: string; paragraphs: string[] }>
+): Array<{ name: string; text: string }> {
+  return sections
+    .filter((s) => /^step\s+\d+/i.test(s.heading) || /^stap\s+\d+/i.test(s.heading))
+    .map((s) => ({
+      name: s.heading,
+      text: s.paragraphs.join(" ").slice(0, 500),
+    }))
+    .slice(0, 8);
+}
+
+export function buildSeoLandingJsonLd(input: {
+  title: string;
+  description: string;
+  path: string;
+  breadcrumbs: Array<{ name: string; path: string }>;
+  faqs?: Array<{ question: string; answer: string }>;
+  sections?: Array<{ heading: string; paragraphs: string[] }>;
+  includeArticle?: boolean;
+}) {
+  const schemas: Array<Record<string, unknown>> = [
+    buildBreadcrumbJsonLd(input.breadcrumbs),
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: input.title,
+      description: input.description,
+      url: absoluteUrl(input.path),
+      isPartOf: {
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: absoluteUrl("/"),
+      },
+    },
+  ];
+  if (input.includeArticle !== false && input.path.startsWith("/guides/")) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: input.title,
+      description: input.description,
+      url: absoluteUrl(input.path),
+      image: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
+      publisher: {
+        "@type": "Organization",
+        name: SITE_NAME,
+        logo: {
+          "@type": "ImageObject",
+          url: absoluteUrl(HOMECHEFF_BRAND_ICON_PATHS.source),
+        },
+      },
+      mainEntityOfPage: absoluteUrl(input.path),
+    });
+  }
+  if (input.faqs && input.faqs.length > 0) {
+    schemas.push(buildFaqPageJsonLd(input.faqs));
+  }
+  if (input.sections) {
+    const howTo = buildHowToJsonLd({
+      name: input.title,
+      description: input.description,
+      path: input.path,
+      steps: extractHowToStepsFromSections(input.sections),
+    });
+    if (howTo) schemas.push(howTo);
+  }
+  return schemas;
 }
 
 export function buildBreadcrumbJsonLd(items: Array<{ name: string; path: string }>) {
@@ -156,34 +302,6 @@ export function buildHelpArticleJsonLd(input: {
       mainEntityOfPage: absoluteUrl(input.path),
     },
   ];
-}
-
-export function buildSeoLandingJsonLd(input: {
-  title: string;
-  description: string;
-  path: string;
-  breadcrumbs: Array<{ name: string; path: string }>;
-  faqs?: Array<{ question: string; answer: string }>;
-}) {
-  const schemas: Array<Record<string, unknown>> = [
-    buildBreadcrumbJsonLd(input.breadcrumbs),
-    {
-      "@context": "https://schema.org",
-      "@type": "WebPage",
-      name: input.title,
-      description: input.description,
-      url: absoluteUrl(input.path),
-      isPartOf: {
-        "@type": "WebSite",
-        name: SITE_NAME,
-        url: absoluteUrl("/"),
-      },
-    },
-  ];
-  if (input.faqs && input.faqs.length > 0) {
-    schemas.push(buildFaqPageJsonLd(input.faqs));
-  }
-  return schemas;
 }
 
 export function buildCollectionPageJsonLd(input: {
