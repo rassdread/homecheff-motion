@@ -6,21 +6,25 @@ export async function fetchIllustrationPartsApi(input: {
   vision: import("@/types/studio-asset-vision-analysis").AssetVisionAnalysis;
   detections: import("@/server/animation-export/local-vision/object-detector-types").ObjectDetection[];
 }): Promise<IllustrationPartAnalysisResult | null> {
-  const res = await fetch("/api/editor/vision/parts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-    credentials: "include",
-  });
-  const body = (await res.json().catch(() => ({}))) as {
-    ok?: boolean;
-    analysis?: IllustrationPartAnalysisResult;
-    error?: string;
-  };
-  if (!res.ok || !body.analysis) {
+  try {
+    const res = await fetch("/api/editor/vision/parts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      credentials: "include",
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      analysis?: IllustrationPartAnalysisResult;
+      error?: string;
+    };
+    if (!res.ok || !body.analysis) {
+      return null;
+    }
+    return body.analysis;
+  } catch {
     return null;
   }
-  return body.analysis;
 }
 
 export function buildSemanticKeyToLayerId(

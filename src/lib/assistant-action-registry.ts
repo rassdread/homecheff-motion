@@ -5,6 +5,7 @@ export const ASSISTANT_ACTION_IDS = [
   "create_character",
   "create_character_from_reference",
   "prepare_motion_character",
+  "edit_mascot",
   "create_motion_video",
   "create_fusion",
   "create_publish_export",
@@ -60,6 +61,13 @@ export const ASSISTANT_ACTION_REGISTRY: Record<AssistantActionId, AssistantActio
     category: "character",
     description: "Open the motion-ready character preparation wizard.",
     canonicalRoute: buildCharacterClusterHref("motion-ready"),
+    execution: "registry_only",
+  },
+  edit_mascot: {
+    id: "edit_mascot",
+    category: "character",
+    description: "Open the editor to update an existing mascot or character asset.",
+    canonicalRoute: "/editor?workflow=edit",
     execution: "registry_only",
   },
   create_motion_video: {

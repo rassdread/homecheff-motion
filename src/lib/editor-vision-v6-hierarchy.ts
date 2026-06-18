@@ -48,6 +48,7 @@ function buildPartNodes(
         estimated: part.source !== "rtdetr",
         source: sourceLabel(part.source),
         confidence: part.confidence,
+        taxonomyTab: part.taxonomyTab,
         children: [],
       })
     );

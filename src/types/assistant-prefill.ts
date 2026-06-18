@@ -39,6 +39,9 @@ export type AssistantPrefillIntent =
   | "character_motion_ready"
   | "character_from_reference"
   | "character_new"
+  | "mascot_edit"
+  | "human_morph"
+  | "animal_morph"
   | "studio_story"
   | "motion_video"
   | "publish_export"
@@ -147,6 +150,15 @@ export type AssistantPublishPrefill = {
   cta?: string;
 };
 
+export type AssistantEditorPrefill = {
+  selectedAssetType?: "mascot" | "character" | "human" | "animal" | "product" | "logo";
+  selectedAssetName?: string;
+  selectedParts?: string[];
+  workflow?: "edit" | "combine" | "motion_prepare";
+  availableActions?: string[];
+  morphActionId?: string;
+};
+
 export type AssistantPrefillPackage = {
   version: 1;
   id: string;
@@ -171,6 +183,7 @@ export type AssistantPrefillPackage = {
   studio?: AssistantStudioPrefill;
   motion?: AssistantMotionPrefill;
   publish?: AssistantPublishPrefill;
+  editor?: AssistantEditorPrefill;
   understoodKey: `assistant.understood.${string}`;
   settingLabelKeys: `assistant.prefill.setting.${string}`[];
   interpretationSummary?: AssistantPrefillInterpretationSummary;

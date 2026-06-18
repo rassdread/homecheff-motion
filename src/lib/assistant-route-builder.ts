@@ -41,6 +41,11 @@ export function buildAssistantActionRoute(
         projectTitle: context.projectTitle ?? undefined,
         storyboardId: context.storyboardId ?? undefined,
       });
+    case "edit_mascot":
+      if (context.projectId) {
+        return `${buildHcHandoffUrl(context.projectId, "editor")}&workflow=edit`;
+      }
+      return base;
     case "create_motion_video":
       if (context.projectId) {
         return buildHcHandoffUrl(context.projectId, "motion");

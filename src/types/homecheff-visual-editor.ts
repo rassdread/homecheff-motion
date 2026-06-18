@@ -386,7 +386,12 @@ export type EditorObjectPart = {
   estimatedBounds?: boolean;
 };
 
-export type EditorVisionPartSource = "rtdetr" | "openai_vision" | "estimated" | "manual";
+export type EditorVisionPartSource =
+  | "rtdetr"
+  | "openai_vision"
+  | "estimated"
+  | "manual"
+  | "taxonomy_fallback";
 
 export type EditorVisionHierarchyCategory =
   | "objects"
@@ -410,6 +415,7 @@ export type EditorVisionHierarchyNode = {
   source?: EditorVisionPartSource;
   confidence?: number;
   locked?: boolean;
+  taxonomyTab?: string;
   children: EditorVisionHierarchyNode[];
 };
 
@@ -427,6 +433,8 @@ export type EditorVisionV6Meta = {
   mergedLayerCount: number;
   openAiPartsUsed: boolean;
   layerSources: EditorVisionV6LayerSource[];
+  /** Resolved fallback taxonomy type for hierarchy UI tabs. */
+  taxonomyType?: "mascot" | "human" | "animal";
 };
 
 export type EditorObjectHierarchy = {

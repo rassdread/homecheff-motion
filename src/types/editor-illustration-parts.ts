@@ -10,6 +10,8 @@ export type IllustrationPartSpec = {
   source: EditorVisionPartSource;
   confidence: number;
   editable: boolean;
+  /** UI tab grouping for taxonomy-driven hierarchy panels. */
+  taxonomyTab?: string;
 };
 
 export type IllustrationPartAnalysisResult = {

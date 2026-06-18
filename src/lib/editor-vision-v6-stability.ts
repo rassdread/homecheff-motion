@@ -78,10 +78,13 @@ export function isMeaningfulVisionHierarchy(
 }
 
 export function documentHasRichVisionAnalysis(document: EditorCanvasDocument): boolean {
-  return (
-    isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta) ||
-    (document.visionV6Meta?.mergedLayerCount ?? 0) >= 4
-  );
+  if (document.visionV6Meta?.illustrationAnalysis) {
+    return (
+      isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta) ||
+      (document.visionV6Meta.mergedLayerCount ?? 0) >= 4
+    );
+  }
+  return isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta);
 }
 
 function countLayerSources(meta?: EditorVisionV6Meta): Record<string, number> {

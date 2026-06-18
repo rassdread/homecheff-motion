@@ -15,6 +15,11 @@ import type {
   AssistantPrefillReadiness,
 } from "@/types/assistant-prefill";
 import { buildActionPresetPrefillPackage } from "@/lib/motion-action-preset-prefill";
+import {
+  buildEditorMorphActionRoute,
+  detectEditorMorphActionFromMessage,
+  getEditorMorphAction,
+} from "@/lib/editor-morph-actions";
 import type { MotionActionPresetId } from "@/types/motion-action-presets";
 
 export type AssistantPrefillDetectResult =
@@ -130,6 +135,52 @@ export function detectAssistantPrefillIntent(message: string): AssistantPrefillD
       intent: "character_from_reference",
       actionId: "create_character_from_reference",
       understoodKey: "assistant.understood.characterFromReference",
+    };
+  }
+
+  const morphAction = detectEditorMorphActionFromMessage(message);
+  if (morphAction) {
+    const morphDef = getEditorMorphAction(morphAction);
+    return {
+      kind: "prefill",
+      intent: morphDef.target === "animal" ? "animal_morph" : "human_morph",
+      actionId: "edit_mascot",
+      understoodKey:
+        morphDef.target === "animal"
+          ? "assistant.understood.animalMorph"
+          : "assistant.understood.humanMorph",
+    };
+  }
+
+  if (
+    includesAny(text, [
+      "mascotte bijwerken",
+      "mascot bijwerken",
+      "mascotte aanpassen",
+      "mascot aanpassen",
+      "mascotte veranderen",
+      "mascot update",
+      "update mascot",
+      "globe man aanpassen",
+      "globe man bijwerken",
+      "bestaande mascotte",
+      "existing mascot",
+      "update the mascot",
+    ]) &&
+    !includesAny(text, [
+      "nieuw personage",
+      "nieuwe mascotte maken",
+      "personage maken",
+      "create character",
+      "new character",
+      "new mascot",
+    ])
+  ) {
+    return {
+      kind: "prefill",
+      intent: "mascot_edit",
+      actionId: "edit_mascot",
+      understoodKey: "assistant.understood.editMascot",
     };
   }
 
@@ -539,6 +590,105 @@ function buildLogoPlacementPackage(
   };
 }
 
+function buildMorphEditPackage(
+  input: {
+    message: string;
+    routeContext: AssistantRouteContext;
+    understoodKey: `assistant.understood.${string}`;
+    intent: "human_morph" | "animal_morph";
+  }
+): AssistantPrefillPackage | null {
+  const morphAction = detectEditorMorphActionFromMessage(input.message);
+  if (!morphAction) {
+    return null;
+  }
+  const morphDef = getEditorMorphAction(morphAction);
+  const isAnimal = input.intent === "animal_morph";
+
+  return {
+    version: 1,
+    id: createAssistantPrefillId(),
+    intent: input.intent,
+    actionId: "edit_mascot",
+    targetRoute: buildEditorMorphActionRoute(morphAction),
+    projectId: input.routeContext.projectId ?? null,
+    promptDraft: input.message.trim(),
+    generationGoal: morphDef.description,
+    estimatedCost: null,
+    readiness: "ready_to_open",
+    missingInputs: [],
+    pendingQuestions: [],
+    activitySteps: buildActivitySteps("ready_to_open", false),
+    understoodKey: input.understoodKey,
+    settingLabelKeys: [
+      isAnimal ? "assistant.prefill.setting.animalMorph" : "assistant.prefill.setting.humanMorph",
+    ],
+    editor: {
+      selectedAssetType: isAnimal ? "animal" : "human",
+      workflow: "edit",
+      morphActionId: morphAction,
+      availableActions: isAnimal
+        ? [
+            "pet_to_cartoon",
+            "pet_to_mascot",
+            "animal_expression_change",
+            "animal_pose_change",
+            "preserve_breed_shape",
+            "preserve_fur_pattern",
+          ]
+        : [
+            "human_to_cartoon",
+            "portrait_to_avatar",
+            "outfit_change",
+            "expression_change",
+            "pose_change",
+            "preserve_identity",
+          ],
+    },
+    createdAt: new Date().toISOString(),
+    providerCalls: 0,
+    creditsConsumed: 0,
+  };
+}
+
+function buildMascotEditPackage(
+  input: { message: string; routeContext: AssistantRouteContext; understoodKey: `assistant.understood.${string}` }
+): AssistantPrefillPackage {
+  return {
+    version: 1,
+    id: createAssistantPrefillId(),
+    intent: "mascot_edit",
+    actionId: "edit_mascot",
+    targetRoute: buildAssistantActionRoute("edit_mascot", input.routeContext),
+    projectId: input.routeContext.projectId ?? null,
+    promptDraft: input.message.trim(),
+    generationGoal: "Update an existing mascot in the editor.",
+    estimatedCost: null,
+    readiness: "ready_to_open",
+    missingInputs: [],
+    pendingQuestions: [],
+    activitySteps: buildActivitySteps("ready_to_open", false),
+    understoodKey: input.understoodKey,
+    settingLabelKeys: ["assistant.prefill.setting.editMascot"],
+    editor: {
+      selectedAssetType: "mascot",
+      workflow: "edit",
+      availableActions: [
+        "edit_feature",
+        "edit_outfit",
+        "edit_pose",
+        "edit_expression",
+        "edit_prop",
+        "preserve_prop",
+        "animate",
+      ],
+    },
+    createdAt: new Date().toISOString(),
+    providerCalls: 0,
+    creditsConsumed: 0,
+  };
+}
+
 function buildCharacterNewPackage(
   input: { message: string; routeContext: AssistantRouteContext; understoodKey: `assistant.understood.${string}` }
 ): AssistantPrefillPackage {
@@ -619,6 +769,11 @@ export function buildAssistantPrefillPackage(input: {
       return buildLogoPlacementPackage(input);
     case "character_new":
       return buildCharacterNewPackage(input);
+    case "mascot_edit":
+      return buildMascotEditPackage(input);
+    case "human_morph":
+    case "animal_morph":
+      return buildMorphEditPackage({ ...input, intent: input.intent });
     case "character_from_reference":
       return buildCharacterFromReferencePackage(input);
     default:

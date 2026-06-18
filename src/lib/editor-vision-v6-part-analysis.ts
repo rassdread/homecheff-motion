@@ -2,8 +2,8 @@
  * Editor Vision V6 — illustration part analysis (template + OpenAI merge).
  */
 
+import { mergeIllustrationPartsWithVisionTaxonomy, resolveVisionTaxonomy } from "@/lib/editor-vision-taxonomy";
 import { classifyEditorSemanticFeature } from "@/lib/editor-semantic-layer-taxonomy";
-import { humanPartLabel } from "@/lib/editor-part-human-labels";
 import { boundsToPolygon } from "@/lib/editor-object-mask";
 import {
   attachPartsToEditorObject,
@@ -241,27 +241,49 @@ export function shouldRunIllustrationPartAnalysis(input: {
   detections: ObjectDetection[];
   semanticLayerCount: number;
   sourceKind?: import("@/types/homecheff-visual-editor").EditorSourceKind;
+  documentName?: string;
+  semanticLayerLabels?: string[];
 }): boolean {
-  const illustrationLike =
-    isIllustrationLikeImage(input.vision) ||
-    input.sourceKind === "character" ||
-    input.sourceKind === "logo";
-  if (!illustrationLike) {
-    return false;
+  if (input.sourceKind === "character" || input.sourceKind === "logo") {
+    return true;
+  }
+  if (isIllustrationLikeImage(input.vision)) {
+    return true;
+  }
+  const taxonomy = resolveVisionTaxonomy({
+    vision: input.vision,
+    documentName: input.documentName,
+    semanticLayerLabels: input.semanticLayerLabels,
+    sourceKind: input.sourceKind,
+  });
+  if (taxonomy) {
+    return true;
   }
   return isWeakRtdetrDetection(input.detections) || input.semanticLayerCount < 4;
 }
 
 export function buildTemplateIllustrationPartAnalysis(
-  vision: AssetVisionAnalysis
+  vision: AssetVisionAnalysis,
+  context?: {
+    documentName?: string;
+    semanticLayerLabels?: string[];
+    sourceKind?: import("@/types/homecheff-visual-editor").EditorSourceKind;
+  }
 ): IllustrationPartAnalysisResult {
-  return {
+  const partContext = {
+    vision,
+    documentName: context?.documentName,
+    semanticLayerLabels: context?.semanticLayerLabels,
+    sourceKind: context?.sourceKind,
+  };
+  const base: IllustrationPartAnalysisResult = {
     parts: buildMascotTemplateParts(vision),
     characterLabel: vision.objectType === "mascot" ? "Mascot" : vision.objectTypeLabel || "Character",
     propLabel: vision.keyFeatures.some((f) => /globe|world/i.test(f)) ? "World globe" : undefined,
     openAiUsed: false,
     templateUsed: true,
   };
+  return mergeIllustrationPartsWithVisionTaxonomy(base, partContext).analysis;
 }
 
 function mergeRtdetrIntoParts(
@@ -323,7 +345,9 @@ function partToSemanticLayer(
           ? "vision"
           : spec.source === "manual"
             ? "manual"
-            : "generated",
+            : spec.source === "taxonomy_fallback"
+              ? "generated"
+              : "generated",
     parentId: parentLayerId,
     children: [],
     metadata: {
@@ -590,6 +614,12 @@ export function applyIllustrationPartAnalysisToDocument(input: {
     mergedLayerCount: semanticLayers.filter((l) => l.type !== "background").length,
     openAiPartsUsed: mergedAnalysis.openAiUsed,
     layerSources,
+    taxonomyType: resolveVisionTaxonomy({
+      vision: input.vision,
+      documentName: input.document.name,
+      semanticLayerLabels: semanticLayers.map((l) => l.label),
+      sourceKind: input.sourceKind,
+    })?.type,
   };
 
   return {

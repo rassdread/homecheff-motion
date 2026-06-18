@@ -22,8 +22,10 @@ import { buildEditorDetectionMeta, detectionUsedVisionFallback } from "@/lib/edi
 import {
   applyIllustrationPartAnalysisToDocument,
   buildTemplateIllustrationPartAnalysis,
+  mergeOpenAiIllustrationParts,
   shouldRunIllustrationPartAnalysis,
 } from "@/lib/editor-vision-v6-part-analysis";
+import { mergeIllustrationPartsWithVisionTaxonomy } from "@/lib/editor-vision-taxonomy";
 import { fetchIllustrationPartsApi } from "@/lib/editor-vision-v6-client";
 import {
   documentHasRichVisionAnalysis,
@@ -213,19 +215,36 @@ async function maybeEnrichIllustrationParts(
       detections: onnxResult.detections,
       semanticLayerCount: layerCount,
       sourceKind: document.sourceKind,
+      documentName: document.name,
+      semanticLayerLabels: semanticLayers.map((l) => l.label),
     })
   ) {
     return document;
   }
 
-  const analysis =
+  const partContext = {
+    documentName: document.name,
+    semanticLayerLabels: semanticLayers.map((l) => l.label),
+    sourceKind: document.sourceKind,
+  };
+  const template = buildTemplateIllustrationPartAnalysis(vision, partContext);
+
+  const apiAnalysis =
     (await timeEditorAnalysisStage(document.sessionId, "vision_parts_api", async () =>
       fetchIllustrationPartsApi({
         imageUrl: document.backgroundUrl,
         vision,
         detections: onnxResult.detections,
       })
-    )) ?? buildTemplateIllustrationPartAnalysis(vision);
+    )) ?? null;
+
+  const mergedBase = apiAnalysis
+    ? mergeOpenAiIllustrationParts(template, apiAnalysis)
+    : template;
+  const { analysis, taxonomy } = mergeIllustrationPartsWithVisionTaxonomy(mergedBase, {
+    vision,
+    ...partContext,
+  });
 
   traceVisionHierarchyStage("after_fetchIllustrationPartsApi", {
     ...document,
@@ -236,6 +255,7 @@ async function maybeEnrichIllustrationParts(
       mergedLayerCount: analysis.parts.length,
       openAiPartsUsed: analysis.openAiUsed,
       layerSources: [],
+      taxonomyType: taxonomy?.type,
     },
   });
 

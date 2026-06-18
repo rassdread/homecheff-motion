@@ -968,6 +968,8 @@ export function EditorInstructionStudioWorkspace({
                 hierarchy={displayHierarchy}
                 selectedNodeId={selectedHierarchyNodeId}
                 onSelectNode={selectHierarchyNode}
+                showSourceDebug={isAdmin}
+                taxonomyType={document.visionV6Meta?.taxonomyType}
               />
             </section>
           : null}

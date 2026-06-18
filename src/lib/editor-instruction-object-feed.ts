@@ -4,6 +4,8 @@ import {
   isCharacterAssetDocument,
   resolveMascotExpansionKind,
 } from "@/lib/editor-character-expansion";
+import { buildAnimalTaxonomyFallbackParts, resolveAnimalTaxonomyKind } from "@/lib/editor-animal-parts-taxonomy";
+import { buildHumanTaxonomyFallbackParts, resolveHumanTaxonomyKind } from "@/lib/editor-human-parts-taxonomy";
 import { actionsForInstructionCategory } from "@/lib/editor-instruction-actions";
 import { resolveHumanFirstObjectType } from "@/lib/editor-ux-cleanup";
 import { attachBoundsToObjects } from "@/lib/editor-instruction-object-bounds";
@@ -452,6 +454,96 @@ function findLogoInRaw(raw: EditorInstructionObjectV2[]): EditorInstructionObjec
   return raw.find((o) => !isAnalysisOnlyTrait(o.label) && inferCategoryFromText(o.label) === "logo");
 }
 
+function applyTaxonomyPartFeed(
+  parts: Array<{ label: string; category: import("@/types/homecheff-visual-editor").EditorPartCategory }>,
+  raw: EditorInstructionObjectV2[],
+  sourcesUsed: EditorInstructionObjectSource[],
+  document: EditorCanvasDocument
+): InstructionObjectFeedResult {
+  const { traits } = cleanRawObjectFeed(raw);
+  let objects = parts.map((part, index) =>
+    buildInstructionObject({
+      label: part.label,
+      category:
+        part.category === "face" ||
+        part.category === "eyes" ||
+        part.category === "mouth" ||
+        part.category === "head" ||
+        part.category === "torso" ||
+        part.category === "arms" ||
+        part.category === "hands" ||
+        part.category === "legs"
+          ? "character"
+          : part.category === "clothing" || part.category === "shirt" || part.category === "jacket" || part.category === "pants" || part.category === "shoes"
+            ? "clothing"
+            : "other",
+      confidence: 0.55,
+      source: "heuristic",
+      index,
+      traits: traits.length > 0 ? traits : undefined,
+    })
+  );
+
+  objects = ensureBackground(objects, "heuristic");
+  const mergedSources: EditorInstructionObjectSource[] = sourcesUsed.includes("heuristic")
+    ? sourcesUsed
+    : [...sourcesUsed, "heuristic"];
+  return splitFeedResult(
+    objects,
+    {
+      source: "heuristic",
+      rawCount: raw.length,
+      lowConfidence: true,
+      sourcesUsed: mergedSources,
+    },
+    document
+  );
+}
+
+function applyHumanTaxonomyFeed(
+  raw: EditorInstructionObjectV2[],
+  sourcesUsed: EditorInstructionObjectSource[],
+  document: EditorCanvasDocument
+): InstructionObjectFeedResult | null {
+  const vision = document.visionAnalysis;
+  if (!vision) {
+    return null;
+  }
+  const kind = resolveHumanTaxonomyKind({
+    vision,
+    documentName: document.name,
+    semanticLayerLabels: document.semanticLayers?.map((l) => l.label),
+    sourceKind: document.sourceKind,
+  });
+  if (!kind) {
+    return null;
+  }
+  const parts = buildHumanTaxonomyFallbackParts(kind);
+  return applyTaxonomyPartFeed(parts, raw, sourcesUsed, document);
+}
+
+function applyAnimalTaxonomyFeed(
+  raw: EditorInstructionObjectV2[],
+  sourcesUsed: EditorInstructionObjectSource[],
+  document: EditorCanvasDocument
+): InstructionObjectFeedResult | null {
+  const vision = document.visionAnalysis;
+  if (!vision) {
+    return null;
+  }
+  const kind = resolveAnimalTaxonomyKind({
+    vision,
+    documentName: document.name,
+    semanticLayerLabels: document.semanticLayers?.map((l) => l.label),
+    sourceKind: document.sourceKind,
+  });
+  if (!kind) {
+    return null;
+  }
+  const parts = buildAnimalTaxonomyFallbackParts(kind);
+  return applyTaxonomyPartFeed(parts, raw, sourcesUsed, document);
+}
+
 function applyMascotFeed(
   kind: import("@/lib/editor-character-expansion").MascotExpansionKind,
   raw: EditorInstructionObjectV2[],
@@ -598,6 +690,21 @@ function nonBackgroundCount(objects: EditorInstructionObjectV2[]): number {
   return objects.filter((o) => o.category !== "background").length;
 }
 
+function isCoarseBrandSheetObjectFeed(objects: EditorInstructionObjectV2[]): boolean {
+  const labels = objects.map((o) => o.label.toLowerCase());
+  const hasLogo = labels.some((l) => l === "logo");
+  const hasBrandSheetRegion = labels.some((l) =>
+    /globe man|kleurenkaart|tekst|icoon|banner|product|afbeelding|color card/.test(l)
+  );
+  return hasLogo && hasBrandSheetRegion;
+}
+
+function feedHasFineCharacterParts(objects: EditorInstructionObjectV2[]): boolean {
+  return objects.some((o) =>
+    /^(eyes|mouth|face|tie|shoes|head|jacket|shirt|hands|nose|eyebrows|ears|outfit)$/i.test(o.label.trim())
+  );
+}
+
 function resolvePrimarySource(sourcesUsed: EditorInstructionObjectSource[]): EditorInstructionObjectSource | "mixed" {
   if (sourcesUsed.length === 0) {
     return "fallback";
@@ -716,12 +823,53 @@ export function buildInstructionObjectsFromDocument(
   if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
     const v6Feed = buildFromV6SemanticLayers(document);
     if (v6Feed && nonBackgroundCount(v6Feed.editableObjects) > 0) {
+      const mascotKind = resolveMascotExpansionKind(document);
+      if (
+        mascotKind &&
+        (!feedHasFineCharacterParts(v6Feed.editableObjects) ||
+          isCoarseBrandSheetObjectFeed(v6Feed.editableObjects))
+      ) {
+        const { raw, sourcesUsed } = collectRawCandidates(document);
+        return applyMascotFeed(mascotKind, raw.length > 0 ? raw : v6Feed.editableObjects, sourcesUsed, document);
+      }
       return v6Feed;
     }
   }
 
   const { raw, sourcesUsed } = collectRawCandidates(document);
   const rawCount = raw.length;
+
+  if (
+    document.visionAnalysis &&
+    !feedHasFineCharacterParts(raw) &&
+    resolveHumanTaxonomyKind({
+      vision: document.visionAnalysis,
+      documentName: document.name,
+      semanticLayerLabels: document.semanticLayers?.map((l) => l.label),
+      sourceKind: document.sourceKind,
+    })
+  ) {
+    const humanFeed = applyHumanTaxonomyFeed(raw, sourcesUsed, document);
+    if (humanFeed) {
+      return humanFeed;
+    }
+  }
+
+  if (
+    document.visionAnalysis &&
+    !feedHasFineCharacterParts(raw) &&
+    resolveAnimalTaxonomyKind({
+      vision: document.visionAnalysis,
+      documentName: document.name,
+      semanticLayerLabels: document.semanticLayers?.map((l) => l.label),
+      sourceKind: document.sourceKind,
+    })
+  ) {
+    const animalFeed = applyAnimalTaxonomyFeed(raw, sourcesUsed, document);
+    if (animalFeed) {
+      return animalFeed;
+    }
+  }
 
   const mascotKind = resolveMascotExpansionKind(document);
   if (mascotKind) {

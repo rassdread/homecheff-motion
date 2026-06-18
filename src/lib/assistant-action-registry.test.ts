@@ -16,6 +16,7 @@ describe("assistant action registry", () => {
       "create_character",
       "create_character_from_reference",
       "prepare_motion_character",
+      "edit_mascot",
       "create_motion_video",
       "create_fusion",
       "create_publish_export",
@@ -61,7 +62,7 @@ describe("assistant action registry", () => {
 
   it("filters actions by category", () => {
     const characterActions = listAssistantActionsByCategory("character");
-    assert.equal(characterActions.length, 3);
+    assert.equal(characterActions.length, 4);
     assert.ok(characterActions.every((action) => action.category === "character"));
     const preparationActions = listAssistantActionsByCategory("preparation");
     assert.equal(preparationActions.length, 7);

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { isHierarchyNodeSelectable } from "@/lib/editor-hierarchy-object-resolution";
+import type { VisionTaxonomyType } from "@/lib/editor-vision-taxonomy";
 import type { EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
 import type { EditorVisionPartSource } from "@/types/homecheff-visual-editor";
 
@@ -10,9 +11,46 @@ type Props = {
   hierarchy: EditorVisionHierarchyNode[];
   selectedNodeId: string | null;
   onSelectNode: (node: EditorVisionHierarchyNode) => void;
+  /** When true, show part source badges (admin / debug). */
+  showSourceDebug?: boolean;
+  taxonomyType?: VisionTaxonomyType;
 };
 
-function sourceBadge(source?: EditorVisionPartSource): string | null {
+const HUMAN_TABS = ["face", "hair", "body", "clothing", "expression", "pose", "morph", "background"] as const;
+const ANIMAL_TABS = ["head", "body", "coat", "paws_wings", "expression", "pose", "accessories", "morph", "background"] as const;
+const MASCOT_TABS = ["appearance", "expression", "pose", "props", "style"] as const;
+
+function collectNodesWithTab(
+  nodes: EditorVisionHierarchyNode[],
+  tab: string,
+  acc: EditorVisionHierarchyNode[] = []
+): EditorVisionHierarchyNode[] {
+  for (const node of nodes) {
+    if (node.taxonomyTab === tab) {
+      acc.push(node);
+    }
+    if (node.children.length > 0) {
+      collectNodesWithTab(node.children, tab, acc);
+    }
+  }
+  return acc;
+}
+
+function filterHierarchyByTab(
+  hierarchy: EditorVisionHierarchyNode[],
+  tab: string
+): EditorVisionHierarchyNode[] {
+  const matches = collectNodesWithTab(hierarchy, tab);
+  if (matches.length === 0) {
+    return hierarchy;
+  }
+  return matches;
+}
+
+function sourceBadge(source: EditorVisionPartSource | undefined, showDebug: boolean): string | null {
+  if (!showDebug) {
+    return null;
+  }
   switch (source) {
     case "rtdetr":
       return "RT-DETR";
@@ -22,6 +60,8 @@ function sourceBadge(source?: EditorVisionPartSource): string | null {
       return "Est.";
     case "manual":
       return "Manual";
+    case "taxonomy_fallback":
+      return "Fallback";
     default:
       return null;
   }
@@ -34,6 +74,7 @@ function HierarchyRow({
   onSelectNode,
   expanded,
   onToggle,
+  showSourceDebug,
 }: {
   node: EditorVisionHierarchyNode;
   depth: number;
@@ -41,6 +82,7 @@ function HierarchyRow({
   onSelectNode: (node: EditorVisionHierarchyNode) => void;
   expanded: Set<string>;
   onToggle: (id: string) => void;
+  showSourceDebug: boolean;
 }) {
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
@@ -76,9 +118,9 @@ function HierarchyRow({
           {node.estimated ? (
             <span className="ml-1 text-[10px] text-amber-600">~</span>
           ) : null}
-          {sourceBadge(node.source) ? (
+          {sourceBadge(node.source, showSourceDebug) ? (
             <span className="ml-1 rounded bg-zinc-100 px-1 text-[9px] text-zinc-500">
-              {sourceBadge(node.source)}
+              {sourceBadge(node.source, showSourceDebug)}
             </span>
           ) : null}
         </button>
@@ -93,6 +135,7 @@ function HierarchyRow({
               onSelectNode={onSelectNode}
               expanded={expanded}
               onToggle={onToggle}
+              showSourceDebug={showSourceDebug}
             />
           ))
         : null}
@@ -100,8 +143,28 @@ function HierarchyRow({
   );
 }
 
-export function EditorVisionHierarchyPanel({ hierarchy, selectedNodeId, onSelectNode }: Props) {
+export function EditorVisionHierarchyPanel({
+  hierarchy,
+  selectedNodeId,
+  onSelectNode,
+  showSourceDebug = false,
+  taxonomyType,
+}: Props) {
   const t = useActiveTranslator();
+  const tabs = useMemo(() => {
+    if (taxonomyType === "human") {
+      return HUMAN_TABS;
+    }
+    if (taxonomyType === "animal") {
+      return ANIMAL_TABS;
+    }
+    if (taxonomyType === "mascot") {
+      return MASCOT_TABS;
+    }
+    return null;
+  }, [taxonomyType]);
+
+  const [activeTab, setActiveTab] = useState<string>(tabs?.[0] ?? "all");
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(hierarchy.map((n) => n.id))
   );
@@ -124,10 +187,31 @@ export function EditorVisionHierarchyPanel({ hierarchy, selectedNodeId, onSelect
     );
   }
 
+  const displayHierarchy =
+    tabs && activeTab !== "all" ? filterHierarchyByTab(hierarchy, activeTab) : hierarchy;
+
   return (
     <div className="space-y-1">
       <p className="text-xs font-medium text-zinc-500">{t("editor.visionV6.hierarchyTitle")}</p>
-      {hierarchy.map((root) => (
+      {tabs ? (
+        <div className="flex flex-wrap gap-1 pb-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                activeTab === tab
+                  ? "bg-violet-600 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+              }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {t(`editor.visionTaxonomy.tab.${taxonomyType}.${tab}` as never)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {displayHierarchy.map((root) => (
         <HierarchyRow
           key={root.id}
           node={root}
@@ -136,6 +220,7 @@ export function EditorVisionHierarchyPanel({ hierarchy, selectedNodeId, onSelect
           onSelectNode={onSelectNode}
           expanded={expanded}
           onToggle={toggle}
+          showSourceDebug={showSourceDebug}
         />
       ))}
     </div>

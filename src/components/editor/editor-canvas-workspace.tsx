@@ -2980,6 +2980,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                       selectedLayerId
                     }
                     onSelectNode={selectVisionHierarchyNode}
+                    showSourceDebug={isAdmin}
+                    taxonomyType={document.visionV6Meta?.taxonomyType}
                   />
                 </div>
               ) : null}
