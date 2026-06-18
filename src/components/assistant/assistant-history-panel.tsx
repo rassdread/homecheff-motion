@@ -9,11 +9,11 @@ import {
   listAssistantHistory,
 } from "@/lib/assistant-history";
 
-export function AssistantHistoryPanel() {
+export function AssistantHistoryPanel({ collapsedDefault = true }: { collapsedDefault?: boolean }) {
   const t = useActiveTranslator();
   const pathname = usePathname();
   const { activeProjectId, sendMessage } = useHomeCheffAssistant();
-
+  const [open, setOpen] = useState(!collapsedDefault);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -33,11 +33,20 @@ export function AssistantHistoryPanel() {
   }
 
   return (
-    <section className="border-b border-zinc-100 px-4 py-4" data-testid="growth-sidebar-history">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-        {t("assistant.history.title" as never)}
-      </h3>
-      <div className="mt-3 space-y-2">
+    <section className="border-b border-zinc-100 px-4 py-2" data-testid="growth-sidebar-history">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((value) => !value)}
+        data-testid="studio-copilot-history-toggle"
+      >
+        <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          {t("studioCopilot.history.title" as never)}
+        </h3>
+        <span className="text-[10px] text-zinc-400">{open ? "−" : "+"}</span>
+      </button>
+      {open ? (
+        <div className="mt-2 space-y-2">
         {items.map((item) => (
           <div
             key={item.id}
@@ -70,7 +79,8 @@ export function AssistantHistoryPanel() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

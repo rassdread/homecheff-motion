@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { AssistantHistoryPanel } from "@/components/assistant/assistant-history-panel";
 import { AssistantChatPanel } from "@/components/assistant/assistant-chat-panel";
 import { AssistantRecommendationCards } from "@/components/assistant/assistant-recommendation-cards";
+import { StudioCopilotContextBar } from "@/components/assistant/studio-copilot-context-bar";
+import { StudioCopilotHeader } from "@/components/assistant/studio-copilot-header";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useActiveTranslator } from "@/i18n/client";
@@ -48,7 +50,8 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
   const pathname = usePathname();
   const session = useAuthSession();
   const isAuthenticated = Boolean(session.resolved && session.user);
-  const { suggestions, startRecommendation, loadingContext, memory } = useHomeCheffAssistant();
+  const { suggestions, startRecommendation, loadingContext, memory, copilotLayout, setCopilotPlacement } =
+    useHomeCheffAssistant();
   const isSheet = variant === "sheet";
   const loginLink = loginHref(pathname);
 
@@ -120,32 +123,40 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
 
   return (
     <aside
-      className={`flex flex-col bg-white ${isSheet ? "h-full min-h-0" : "min-h-full"}`}
+      className={`flex h-full min-h-0 flex-col bg-white ${isSheet ? "h-full" : "min-h-full"}`}
       data-testid="growth-sidebar"
-      aria-label={t("assistant.title" as never)}
+      aria-label={t("studioCopilot.title" as never)}
     >
       {!isSheet ? (
-        <header className="shrink-0 border-b border-zinc-100 bg-gradient-to-r from-[#006D52]/5 to-[#0067B1]/5 px-4 py-3">
-          <h2 className="text-sm font-bold text-zinc-900">{t("assistant.title" as never)}</h2>
-          <p className="text-[11px] text-zinc-500">
-            {t("assistant.growth.sidebarSubtitle" as never)}
-          </p>
+        <>
+          <StudioCopilotHeader
+            placement={copilotLayout.placement}
+            onPlacementChange={setCopilotPlacement}
+          />
+          <StudioCopilotContextBar />
+        </>
+      ) : (
+        <header className="shrink-0 border-b border-zinc-100 px-4 py-3">
+          <h2 className="text-sm font-bold text-zinc-900">{t("studioCopilot.title" as never)}</h2>
         </header>
-      ) : null}
+      )}
 
-      <div
-        className={`flex flex-col ${isSheet ? "min-h-0 flex-1 overflow-y-auto" : ""}`}
-      >
+      <div className={`flex min-h-0 flex-1 flex-col ${isSheet ? "overflow-y-auto" : ""}`}>
         <section
-          className={`flex shrink-0 flex-col border-b border-zinc-100 px-4 py-3 ${
-            isSheet ? "min-h-[200px] max-h-[36vh]" : "max-h-[min(38vh,420px)] min-h-[220px]"
+          className={`flex min-h-0 flex-1 flex-col px-3 py-2 ${
+            isSheet ? "min-h-[240px]" : ""
           }`}
           data-testid="growth-sidebar-chat"
         >
-          <AssistantChatPanel sidebarMode onClose={onClose} />
+          <AssistantChatPanel
+            sidebarMode
+            placement={isSheet ? "sheet" : copilotLayout.placement}
+            compact={copilotLayout.compactMode}
+            onClose={onClose}
+          />
         </section>
 
-        <AssistantHistoryPanel />
+        <AssistantHistoryPanel collapsedDefault={copilotLayout.collapsedRecent} />
 
         {!isAuthenticated ? (
           <GrowthSidebarSection

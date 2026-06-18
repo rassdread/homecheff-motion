@@ -71,13 +71,18 @@ describe("growth sidebar layout", () => {
     assert.doesNotMatch(growthSidebarLayoutClasses.container, /flex-1/);
   });
 
-  it("gives sidebar its own vertical scroll", () => {
+  it("gives sidebar its own vertical scroll and resizable copilot width", () => {
     assert.ok(growthSidebarColumnHasOwnScroll(growthSidebarLayoutClasses.sidebarColumn));
     assert.match(
       growthSidebarLayoutClasses.sidebarColumn,
       /max-h-\[calc\(100dvh-var\(--studio-header-height\)\)\]/
     );
-    assert.match(growthSidebarLayoutClasses.sidebarColumn, /w-\[clamp\(320px,22vw,420px\)\]/);
+    const layoutSource = readFileSync(
+      join(ROOT, "src/components/growth/growth-sidebar-layout.tsx"),
+      "utf8"
+    );
+    assert.match(layoutSource, /copilotLayout\.width/);
+    assert.match(layoutSource, /StudioCopilotResizeHandle/);
   });
 
   it("uses mobile FAB instead of fixed desktop column", () => {

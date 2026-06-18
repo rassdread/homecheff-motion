@@ -50,6 +50,15 @@ import {
   storeAssistantPrefillPackage,
 } from "@/lib/assistant-prefill-storage";
 import { readAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
+import {
+  patchStudioCopilotLayout,
+  readStudioCopilotLayout,
+} from "@/lib/studio-copilot-layout-storage";
+import type {
+  StudioCopilotLayoutPreferences,
+  StudioCopilotPlacement,
+} from "@/types/studio-copilot-layout";
+import { DEFAULT_STUDIO_COPILOT_LAYOUT } from "@/types/studio-copilot-layout";
 
 type HomeCheffAssistantContextValue = {
   open: boolean;
@@ -68,6 +77,11 @@ type HomeCheffAssistantContextValue = {
   libraryRecords: import("@/types/library-consistency").LibraryConsistencyRecord[];
   updateProposalPrefill: (prefillId: string, pkg: import("@/types/assistant-prefill").AssistantPrefillPackage) => void;
   startRecommendation: (recommendation: AssistantRecommendation) => void;
+  copilotLayout: StudioCopilotLayoutPreferences;
+  setCopilotPlacement: (placement: StudioCopilotPlacement) => void;
+  setCopilotWidth: (width: number) => void;
+  setCollapsedRecent: (collapsed: boolean) => void;
+  setCopilotCompactMode: (compact: boolean) => void;
 };
 
 const HomeCheffAssistantContext = createContext<HomeCheffAssistantContextValue | null>(null);
@@ -111,6 +125,9 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   const [memory, setMemory] = useState<AssistantSessionMemory>(initial.memory);
   const [snapshot, setSnapshot] = useState<AssistantContextSnapshot>(initial.snapshot);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
+  const [copilotLayout, setCopilotLayout] = useState<StudioCopilotLayoutPreferences>(() =>
+    typeof window === "undefined" ? DEFAULT_STUDIO_COPILOT_LAYOUT : readStudioCopilotLayout()
+  );
   const [billingContext, setBillingContext] = useState<AssistantBillingContext | undefined>();
   const { items: pricingCatalog } = usePricingCatalog();
 
@@ -143,6 +160,28 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const sync = () => setCopilotLayout(readStudioCopilotLayout());
+    window.addEventListener("hc-studio-copilot-layout-updated", sync);
+    return () => window.removeEventListener("hc-studio-copilot-layout-updated", sync);
+  }, []);
+
+  const setCopilotPlacement = useCallback((placement: StudioCopilotPlacement) => {
+    setCopilotLayout(patchStudioCopilotLayout({ placement }));
+  }, []);
+
+  const setCopilotWidth = useCallback((width: number) => {
+    setCopilotLayout(patchStudioCopilotLayout({ width }));
+  }, []);
+
+  const setCollapsedRecent = useCallback((collapsedRecent: boolean) => {
+    setCopilotLayout(patchStudioCopilotLayout({ collapsedRecent }));
+  }, []);
+
+  const setCopilotCompactMode = useCallback((compactMode: boolean) => {
+    setCopilotLayout(patchStudioCopilotLayout({ compactMode }));
+  }, []);
 
   const activeProjectId = memory.selectedProjectId ?? urlProjectId;
   const activeProject = useMemo(
@@ -464,6 +503,11 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       libraryRecords,
       updateProposalPrefill,
       startRecommendation,
+      copilotLayout,
+      setCopilotPlacement,
+      setCopilotWidth,
+      setCollapsedRecent,
+      setCopilotCompactMode,
     }),
     [
       open,
@@ -481,6 +525,11 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       libraryRecords,
       updateProposalPrefill,
       startRecommendation,
+      copilotLayout,
+      setCopilotPlacement,
+      setCopilotWidth,
+      setCollapsedRecent,
+      setCopilotCompactMode,
     ]
   );
 

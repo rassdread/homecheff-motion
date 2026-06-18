@@ -5,8 +5,9 @@ import Link from "next/link";
 import { EditorCombineWorkspace } from "@/components/editor/editor-combine-workspace";
 import { EditorExportWorkspace } from "@/components/editor/editor-export-workspace";
 import { EditorImagePhaseNav } from "@/components/editor/editor-image-phase-nav";
-import { EditorInstructionAiDirectorBar } from "@/components/editor/editor-instruction-ai-director-bar";
 import { EditorInstructionStudioWorkspace } from "@/components/editor/editor-instruction-studio-workspace";
+import { StudioCopilotDock } from "@/components/assistant/studio-copilot-dock";
+import { applyEditorDirectorPrompt } from "@/lib/editor-instruction-director-actions";
 import { EditorMenu } from "@/components/editor/editor-menu";
 import { EditorMotionPhaseNav } from "@/components/editor/editor-motion-phase-nav";
 import { EditorMotionWorkspace } from "@/components/editor/editor-motion-workspace";
@@ -162,12 +163,19 @@ export function EditorV2WorkflowShell({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {activeTab === "edit" ?
-            <EditorInstructionAiDirectorBar
-              document={document}
-              editableObjects={editableObjects}
-              isAdmin={isAdmin}
-              onDocumentChange={onDocumentChange}
-              onApplyFirstChange={handleDirectorApply}
+            <StudioCopilotDock
+              onApplyChangePlan={(prompt) => {
+                const applied = applyEditorDirectorPrompt({
+                  document,
+                  prompt,
+                  editableObjects,
+                  isAdmin,
+                });
+                onDocumentChange(applied.document);
+                if (applied.firstObjectLabel && applied.firstObjectCategory) {
+                  handleDirectorApply(applied.firstObjectLabel, applied.firstObjectCategory);
+                }
+              }}
             />
           : (
             <section className={`p-4 ${studioVisual.editorSurface}`}>

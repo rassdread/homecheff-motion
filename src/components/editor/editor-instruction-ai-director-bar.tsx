@@ -2,16 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
-import { clearChangePlan } from "@/lib/editor-instruction-change-plan";
-import {
-  parseEditorInstructionRequest,
-  parsedRequestToChangePlanEntries,
-} from "@/lib/editor-instruction-request-parser";
-import {
-  buildFusionPlanFromDirectorRequest,
-  parseFusionDirectorRequest,
-} from "@/lib/editor-fusion-request-parser";
-import { patchFusionPlan } from "@/lib/editor-fusion-plan";
+import { clearEditorDirectorPlan, applyEditorDirectorPrompt } from "@/lib/editor-instruction-director-actions";
+import { parseEditorInstructionRequest } from "@/lib/editor-instruction-request-parser";
 import { buildEditorRecommendationContext } from "@/lib/editor-recommendation-context";
 import { resolveDirectorPlaceholderKey, resolveDirectorSuggestionKeys } from "@/lib/editor-personalized-recommendations";
 import type { EditorInstructionObjectV2 } from "@/types/editor-instruction-studio";
@@ -59,67 +51,22 @@ export function EditorInstructionAiDirectorBar({
   }, [parsed, recCtx]);
 
   const analyze = () => {
-    const isCombine = document.editorFlowMode === "combine" || document.workspaceMode === "compose";
-    if (isCombine) {
-      const fusionParsed = parseFusionDirectorRequest(prompt);
-      const fusionPlan = buildFusionPlanFromDirectorRequest(document, fusionParsed);
-      const nextDoc = patchFusionPlan(document, fusionPlan);
-      setParsed(parseEditorInstructionRequest(prompt, {
-        brandName: recCtx.brandName,
-        showHomeCheffExamples: recCtx.showHomeCheffExamples,
-      }));
-      onDocumentChange({
-        ...nextDoc,
-        instructionStudioState: {
-          ...nextDoc.instructionStudioState,
-          directorPrompt: prompt,
-          combineIntent: fusionParsed.intent,
-        },
-        updatedAt: new Date().toISOString(),
-      });
-      return;
-    }
-
-    const result = parseEditorInstructionRequest(prompt, {
-      brandName: recCtx.brandName,
-      showHomeCheffExamples: recCtx.showHomeCheffExamples,
+    const applied = applyEditorDirectorPrompt({
+      document,
+      prompt,
+      editableObjects,
+      isAdmin,
     });
-    setParsed(result);
-    const resolveObjectId = (label: string, category: string) => {
-      const match = editableObjects.find(
-        (o) =>
-          o.label.toLowerCase().includes(label.toLowerCase()) ||
-          label.toLowerCase().includes(o.label.toLowerCase()) ||
-          o.category === category
-      );
-      return match?.id ?? `obj_${label.toLowerCase().replace(/\s+/g, "_")}`;
-    };
-    const items = parsedRequestToChangePlanEntries(result, resolveObjectId);
-    const nextDoc: EditorCanvasDocument = {
-      ...document,
-      instructionStudioState: {
-        ...document.instructionStudioState,
-        directorPrompt: prompt,
-        outputTarget: result.outputTarget,
-        changePlan: items,
-      },
-      updatedAt: new Date().toISOString(),
-    };
-    onDocumentChange(nextDoc);
-    const first = result.objects[0];
-    if (first) {
-      onApplyFirstChange(first.object, first.objectCategory);
+    setParsed(applied.parsed);
+    onDocumentChange(applied.document);
+    if (applied.firstObjectLabel && applied.firstObjectCategory) {
+      onApplyFirstChange(applied.firstObjectLabel, applied.firstObjectCategory);
     }
   };
 
   const resetPlan = () => {
     setParsed(null);
-    onDocumentChange(
-      clearChangePlan({
-        ...document,
-        instructionStudioState: { ...document.instructionStudioState, directorPrompt: prompt },
-      })
-    );
+    onDocumentChange(clearEditorDirectorPlan(document, prompt));
   };
 
   return (

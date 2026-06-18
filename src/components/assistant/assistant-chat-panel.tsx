@@ -32,11 +32,17 @@ function AssistantMessageBody({ message }: { message: AssistantChatMessage }) {
 
 type Props = {
   onClose?: () => void;
-  /** When true, chat fills sidebar top section without nested recommendation panel */
   sidebarMode?: boolean;
+  placement?: "side" | "wide" | "dock" | "sheet" | "focus";
+  compact?: boolean;
 };
 
-export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
+export function AssistantChatPanel({
+  onClose,
+  sidebarMode = false,
+  placement = "side",
+  compact = false,
+}: Props) {
   const t = useActiveTranslator();
   const [locale] = useLocale();
   const {
@@ -75,10 +81,11 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
 
   return (
     <div
-      className={`flex min-h-0 flex-col ${sidebarMode ? "h-full" : "h-full"}`}
+      className={`flex min-h-0 flex-col ${sidebarMode || placement === "dock" ? "h-full" : "h-full"}`}
       data-testid="homecheff-assistant-panel"
+      data-studio-copilot-placement={placement}
     >
-      {activeProject ? (
+      {activeProject && !compact ? (
         <div className="mb-2 shrink-0 rounded-xl border border-[#0067B1]/20 bg-[#0067B1]/5 px-3 py-2 text-xs text-zinc-700">
           <span className="font-semibold text-zinc-900">{activeProject.title}</span>
           <span className="mx-2 text-zinc-400">·</span>
@@ -94,7 +101,7 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
+      <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5 ${compact ? "text-xs" : "space-y-3"}`}>
         {messages.length === 0 ? (
           <p className="text-sm text-zinc-500">
             {sidebarMode
@@ -107,8 +114,8 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
             key={message.id}
             className={`rounded-2xl px-3 py-2 ${
               message.role === "user"
-                ? "ml-6 bg-zinc-100"
-                : "mr-2 border border-zinc-200 bg-white shadow-sm"
+                ? `ml-6 bg-zinc-100 ${compact ? "ml-4 py-1.5" : ""}`
+                : `mr-2 border border-zinc-200 bg-white shadow-sm ${compact ? "mr-0 py-1.5 shadow-none" : ""}`
             }`}
             data-testid={`assistant-message-${message.role}`}
           >
@@ -286,6 +293,7 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
               <AssistantExecutionPreviewCard
                 preview={message.v3Response.executionPreview}
                 locale={locale}
+                compact={compact}
                 onExecute={executeV4Preview}
                 onAdjust={focusAssistantInput}
                 onCancel={cancelPrefill}
@@ -416,7 +424,11 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
         ))}
       </div>
 
-      <div className="mt-2 flex shrink-0 gap-2 border-t border-zinc-100 pt-2">
+      <div
+        className={`mt-auto flex shrink-0 gap-2 border-t border-zinc-100 bg-white pt-2 ${
+          compact ? "sticky bottom-0 pb-1" : ""
+        }`}
+      >
         <input
           ref={inputRef}
           type="text"
@@ -428,8 +440,10 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
               submit();
             }
           }}
-          placeholder={t("assistant.input.placeholder" as never)}
-          className="min-w-0 flex-1 rounded-xl border border-zinc-200 px-3 py-2 text-sm text-zinc-900"
+          placeholder={t("studioCopilot.input.placeholder" as never)}
+          className={`min-w-0 flex-1 rounded-xl border border-zinc-200 text-zinc-900 ${
+            compact ? "px-2.5 py-2 text-xs" : "px-3 py-2 text-sm"
+          }`}
           data-testid="assistant-input"
           disabled={loadingContext}
         />

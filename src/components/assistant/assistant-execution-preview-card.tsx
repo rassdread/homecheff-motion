@@ -7,6 +7,7 @@ import type { AssistantExecutionPreview } from "@/types/assistant-v4";
 type Props = {
   preview: AssistantExecutionPreview;
   locale: "nl" | "en";
+  compact?: boolean;
   onExecute: (preview: AssistantExecutionPreview) => void;
   onAdjust: () => void;
   onCancel: () => void;
@@ -18,6 +19,7 @@ type Props = {
 export function AssistantExecutionPreviewCard({
   preview,
   locale,
+  compact = false,
   onExecute,
   onAdjust,
   onCancel,
@@ -51,7 +53,9 @@ export function AssistantExecutionPreviewCard({
 
   return (
     <div
-      className="mt-3 space-y-2 rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-xs text-zinc-700"
+      className={`mt-2 space-y-2 rounded-xl border border-sky-200 bg-sky-50/70 text-zinc-700 ${
+        compact ? "p-2 text-[10px]" : "mt-3 p-3 text-xs"
+      }`}
       data-testid="assistant-v4-execution-preview"
     >
       <p className="font-semibold text-zinc-900">{t("assistant.v4.preview.title" as never)}</p>
