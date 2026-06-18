@@ -27,6 +27,7 @@ export function StudioCopilotDock({ onApplyChangePlan }: Props) {
     }
     if (onApplyChangePlan) {
       onApplyChangePlan(trimmed);
+      return;
     }
     sendMessage(trimmed);
   };

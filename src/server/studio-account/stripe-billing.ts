@@ -18,6 +18,7 @@ import { type StudioPlanId } from "@/server/studio-account/studio-plan-config";
 import type { SubscriptionBillingInterval } from "@/lib/studio-subscription-billing";
 import {
   applyPostCheckoutPromoBenefits,
+  getPromoCodeStripeId,
   validatePromoCode,
 } from "@/server/studio-account/studio-promo-code-service";
 import { grantStudioCredits } from "@/server/studio-account/studio-wallet-service";
@@ -87,6 +88,7 @@ export async function createSubscriptionCheckout(input: {
       : (plan.monthlyPriceEur ?? 0);
   let promoPreview;
   let adjustedPrice = basePrice;
+  let stripePromotionCodeId: string | null = null;
 
   if (input.promoCode) {
     const validation = await validatePromoCode({
@@ -94,6 +96,7 @@ export async function createSubscriptionCheckout(input: {
       userId: input.userId,
       checkoutType: "subscription",
       planSlug: plan.slug,
+      billingInterval,
       basePriceEur: basePrice,
       locale: input.locale,
     });
@@ -101,10 +104,14 @@ export async function createSubscriptionCheckout(input: {
       return { error: validation.reason ?? "Invalid promo code." };
     }
     promoPreview = validation;
-    if (validation.adjustedPriceEur != null) {
-      adjustedPrice = validation.adjustedPriceEur;
-    } else if (validation.subscriptionDiscountPercent) {
-      adjustedPrice = Math.max(0, basePrice * (1 - validation.subscriptionDiscountPercent / 100));
+    stripePromotionCodeId =
+      validation.stripePromotionCodeId ?? (await getPromoCodeStripeId(input.promoCode));
+    if (!stripePromotionCodeId) {
+      if (validation.adjustedPriceEur != null) {
+        adjustedPrice = validation.adjustedPriceEur;
+      } else if (validation.subscriptionDiscountPercent) {
+        adjustedPrice = Math.max(0, basePrice * (1 - validation.subscriptionDiscountPercent / 100));
+      }
     }
   }
 
@@ -113,8 +120,10 @@ export async function createSubscriptionCheckout(input: {
   const stripe = getStripeClient();
   const stripeInterval = billingInterval === "yearly" ? "year" : "month";
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
-    adjustedPrice < basePrice && adjustedPrice >= 0
+  const useStripePromo = Boolean(stripePromotionCodeId && priceId);
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = useStripePromo
+    ? [{ price: priceId!, quantity: 1 }]
+    : adjustedPrice < basePrice && adjustedPrice >= 0
       ? [
           {
             price_data: {
@@ -127,7 +136,7 @@ export async function createSubscriptionCheckout(input: {
           },
         ]
       : priceId
-        ? [{ price: priceId, quantity: 1 }]
+        ? [{ price: priceId!, quantity: 1 }]
         : [];
 
   if (lineItems.length === 0) {
@@ -142,12 +151,17 @@ export async function createSubscriptionCheckout(input: {
     line_items: lineItems,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
+    allow_promotion_codes: !input.promoCode,
+    ...(stripePromotionCodeId
+      ? { discounts: [{ promotion_code: stripePromotionCodeId }] }
+      : {}),
     metadata: {
       userId: input.userId,
       planId: input.planId,
       billingInterval,
       type: "subscription",
       ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
+      ...(stripePromotionCodeId ? { stripePromotionCodeId } : {}),
     },
   });
 
@@ -178,6 +192,7 @@ export async function createCreditPackCheckout(input: {
 
   let promoPreview;
   let adjustedPrice = pack.priceEur;
+  let stripePromotionCodeId: string | null = null;
   if (input.promoCode) {
     const validation = await validatePromoCode({
       code: input.promoCode,
@@ -191,7 +206,9 @@ export async function createCreditPackCheckout(input: {
       return { error: validation.reason ?? "Invalid promo code." };
     }
     promoPreview = validation;
-    if (validation.adjustedPriceEur != null) {
+    stripePromotionCodeId =
+      validation.stripePromotionCodeId ?? (await getPromoCodeStripeId(input.promoCode));
+    if (!stripePromotionCodeId && validation.adjustedPriceEur != null) {
       adjustedPrice = validation.adjustedPriceEur;
     }
   }
@@ -201,8 +218,10 @@ export async function createCreditPackCheckout(input: {
   const stripe = getStripeClient();
   const totalCredits = totalPackCredits(pack);
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
-    adjustedPrice < pack.priceEur
+  const useStripePromo = Boolean(stripePromotionCodeId && priceId);
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = useStripePromo
+    ? [{ price: priceId!, quantity: 1 }]
+    : adjustedPrice < pack.priceEur
       ? [
           {
             price_data: {
@@ -214,7 +233,7 @@ export async function createCreditPackCheckout(input: {
           },
         ]
       : priceId
-        ? [{ price: priceId, quantity: 1 }]
+        ? [{ price: priceId!, quantity: 1 }]
         : [
             {
               price_data: {
@@ -236,6 +255,10 @@ export async function createCreditPackCheckout(input: {
     line_items: lineItems,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
+    allow_promotion_codes: !input.promoCode,
+    ...(stripePromotionCodeId
+      ? { discounts: [{ promotion_code: stripePromotionCodeId }] }
+      : {}),
     metadata: {
       userId: input.userId,
       packId: pack.slug,
@@ -244,6 +267,7 @@ export async function createCreditPackCheckout(input: {
       totalCredits: String(totalCredits),
       type: "credit_pack",
       ...(input.promoCode ? { promoCode: input.promoCode.trim().toUpperCase() } : {}),
+      ...(stripePromotionCodeId ? { stripePromotionCodeId } : {}),
     },
   });
 

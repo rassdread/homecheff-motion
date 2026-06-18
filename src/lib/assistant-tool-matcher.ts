@@ -3,6 +3,7 @@
  */
 
 import { detectEditorMorphActionFromMessage } from "@/lib/editor-morph-actions";
+import { enrichToolMatchWithIdentity } from "@/lib/assistant-identity-preservation";
 import {
   getAssistantToolCapability,
   listAssistantToolsForAsset,
@@ -27,6 +28,7 @@ export type AssistantToolMatcherInput = {
   turnInput: AssistantV3TurnInput;
   availableCredits?: number;
   pricingCatalog?: StudioPricingCatalogPublicEntry[];
+  identityOverrides?: import("@/types/assistant-identity-preservation").IdentityPreservationOverrides;
 };
 
 const SENSITIVE_TRAIT_PATTERNS =
@@ -364,6 +366,26 @@ function buildMotionRenderMatch(input: AssistantToolMatcherInput, projectId?: st
 }
 
 export function matchAssistantTool(input: AssistantToolMatcherInput): AssistantToolMatchResult | null {
+  const raw = matchAssistantToolImpl(input);
+  if (!raw || raw.blocked) {
+    return raw;
+  }
+  const asset = resolveAssistantV3AssetContext(input.turnInput);
+  const assetType = asset?.assetType ?? input.turnInput.editorContext?.selectedAssetType ?? "image";
+  const assetName = asset?.assetName ?? input.turnInput.editorContext?.selectedAssetName ?? "asset";
+  const taxonomyType = input.turnInput.editorContext?.taxonomyType ?? null;
+  return enrichToolMatchWithIdentity({
+    match: raw,
+    assetType,
+    assetName,
+    taxonomyType,
+    message: input.message,
+    locale: input.locale,
+    overrides: input.identityOverrides,
+  });
+}
+
+function matchAssistantToolImpl(input: AssistantToolMatcherInput): AssistantToolMatchResult | null {
   const text = input.message.trim().toLowerCase();
   if (!text) {
     return null;

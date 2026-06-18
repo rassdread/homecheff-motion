@@ -19,14 +19,16 @@ export type HomeCheffExample = {
 };
 
 /** Reusable examples catalog — admin can extend via API later. */
+const SHOWCASE_PLACEHOLDER_IMAGE = "/homecheff-globe-man.png";
+
 export const HOMECHEFF_EXAMPLES: HomeCheffExample[] = [
   {
     id: "motion-social-1",
     service: "motion",
     title: "Product reveal clip",
     description: "3-second social teaser from a single product photo.",
-    thumbnailUrl: "/generated/animations/projects/cmpwj6err0001l404vonqmj5x/final.mp4",
-    mediaKind: "video",
+    thumbnailUrl: SHOWCASE_PLACEHOLDER_IMAGE,
+    mediaKind: "image",
     tags: ["social", "product"],
   },
   {
@@ -34,7 +36,7 @@ export const HOMECHEFF_EXAMPLES: HomeCheffExample[] = [
     service: "studio",
     title: "Restaurant promo storyboard",
     description: "Multi-scene campaign with voice and branding plan.",
-    thumbnailUrl: "/generated/animations/projects/cmpwj6err0001l404vonqmj5x/final.mp4",
+    thumbnailUrl: SHOWCASE_PLACEHOLDER_IMAGE,
     mediaKind: "image",
     tags: ["story", "commercial"],
   },
@@ -43,7 +45,7 @@ export const HOMECHEFF_EXAMPLES: HomeCheffExample[] = [
     service: "publish",
     title: "Photo Story — recipe card",
     description: "Single image to MP4 with pan, text and music.",
-    thumbnailUrl: "/generated/animations/projects/cmpwj6err0001l404vonqmj5x/final.mp4",
+    thumbnailUrl: SHOWCASE_PLACEHOLDER_IMAGE,
     mediaKind: "image",
     tags: ["photo_story", "food"],
   },
@@ -52,7 +54,7 @@ export const HOMECHEFF_EXAMPLES: HomeCheffExample[] = [
     service: "editor",
     title: "Character outfit fusion",
     description: "Combine references into one polished still.",
-    thumbnailUrl: "/generated/animations/projects/cmpwj6err0001l404vonqmj5x/final.mp4",
+    thumbnailUrl: SHOWCASE_PLACEHOLDER_IMAGE,
     mediaKind: "image",
     tags: ["fusion", "character"],
   },
@@ -61,7 +63,7 @@ export const HOMECHEFF_EXAMPLES: HomeCheffExample[] = [
     service: "home",
     title: "Full production pipeline",
     description: "Editor → Studio → Motion → Publish in one HC project.",
-    thumbnailUrl: "/generated/animations/projects/cmpwj6err0001l404vonqmj5x/final.mp4",
+    thumbnailUrl: SHOWCASE_PLACEHOLDER_IMAGE,
     mediaKind: "image",
     tags: ["pipeline", "hc"],
   },

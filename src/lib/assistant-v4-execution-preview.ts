@@ -3,6 +3,7 @@
  */
 
 import { settingsToPreserveLabels } from "@/lib/assistant-v4-route-builder";
+import { inferChangedTraits, profilePreserveLabels } from "@/lib/assistant-identity-preservation";
 import type { AssistantRiskWarning } from "@/lib/assistant-v4-risk-warnings";
 import type {
   AssistantExecutionPreview,
@@ -73,10 +74,17 @@ export function buildAssistantExecutionPreview(input: {
     };
   }
 
-  const preserveItems = settingsToPreserveLabels(match.recommendedSettings, locale);
-  if (preserveItems.length === 0) {
-    preserveItems.push(...match.preserveConstraints);
-  }
+  const preserveItems = [
+    ...new Set([
+      ...settingsToPreserveLabels(match.recommendedSettings, locale),
+      ...(match.identityProfile ? profilePreserveLabels(match.identityProfile, locale) : []),
+      ...match.preserveConstraints,
+    ]),
+  ];
+
+  const changedTraitLabels =
+    match.identityDrift?.changedTraits ??
+    (match.identityProfile ? inferChangedTraits(input.message, match.identityProfile) : []);
 
   const asset = input.assetName ?? "asset";
   const part = input.partName;
@@ -134,14 +142,18 @@ export function buildAssistantExecutionPreview(input: {
     sufficientCredits,
     resultSummaryNl: nl(locale, "Nieuwe variant in de Editor", "New variant in the Editor"),
     resultSummaryEn: "New variant in the Editor",
-    riskWarningNl: primaryRisk?.messageNl,
-    riskWarningEn: primaryRisk?.messageEn,
+    riskWarningNl: primaryRisk?.messageNl ?? match.identityDrift?.warningNl,
+    riskWarningEn: primaryRisk?.messageEn ?? match.identityDrift?.warningEn,
     route: match.route,
     settings: match.recommendedSettings,
     status: sufficientCredits ? (requiresConfirmation ? "pending_confirmation" : "ready") : "pending_confirmation",
     requiresConfirmation,
     ctas,
     cheaperAlternativeToolId: match.alternativeTools[0]?.toolId,
+    identityRetentionPercent: match.identityDrift?.identityRetentionPercent,
+    changedTraitLabels: [...new Set(changedTraitLabels)],
+    identityDriftWarningNl: match.identityDrift?.warningNl,
+    identityDriftWarningEn: match.identityDrift?.warningEn,
   };
 }
 
@@ -175,16 +187,16 @@ export function buildToolAwareOpeningLine(input: {
   if (partName && /enlarge|groter|eyes|ogen/i.test(`${preview.changeSummaryNl} ${preview.changeSummaryEn}`)) {
     return nl(
       locale,
-      `Ik kan ${partName.toLowerCase()} groter maken en ${preserve} behouden.`,
-      `I can enlarge ${partName.toLowerCase()} and preserve ${preserve}.`
+      `Ik raad aan: ${partName.toLowerCase()} groter maken (${preserve} behouden).`,
+      `I recommend: enlarge ${partName.toLowerCase()} (keeping ${preserve}).`
     );
   }
 
   if (preview.toolId === "pet_to_mascot") {
     return nl(
       locale,
-      "Ik kan je hond een vriendelijke mascotte maken en rasvorm, vachtpatroon en oogkleur behouden.",
-      "I can turn your dog into a friendly mascot while preserving breed shape, fur pattern, and eye color."
+      "Ik raad aan: je hond omzetten naar mascotte met ras en vacht behouden.",
+      "I recommend: turn your dog into a mascot while preserving breed and fur."
     );
   }
 
@@ -192,14 +204,14 @@ export function buildToolAwareOpeningLine(input: {
     const asset = input.assetName ?? (locale === "en" ? "the mascot" : "de mascotte");
     return nl(
       locale,
-      `Ik kan ${asset} vrolijker maken en wereldbol, outfit en pose behouden.`,
-      `I can make ${asset} happier while preserving globe, outfit, and pose.`
+      `Ik raad aan: ${asset} vrolijker maken (wereldbol, outfit, pose behouden).`,
+      `I recommend: make ${asset} happier (keeping globe, outfit, pose).`
     );
   }
 
   return nl(
     locale,
-    `Ik ga ${toolName} gebruiken. Geschatte kosten: ±${preview.estimatedCredits} credits.`,
-    `I'll use ${toolName}. Estimated cost: ~${preview.estimatedCredits} credits.`
+    `Ik raad aan: ${toolName.toLowerCase()} (±${preview.estimatedCredits} credits).`,
+    `I recommend: ${toolName.toLowerCase()} (~${preview.estimatedCredits} credits).`
   );
 }

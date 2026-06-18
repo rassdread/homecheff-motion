@@ -1,6 +1,10 @@
 import type { AssistantActionId } from "@/lib/assistant-action-registry";
 import type { EditorMorphActionId } from "@/lib/editor-morph-actions";
 import type {
+  IdentityDriftAssessment,
+  IdentityPreservationProfile,
+} from "@/types/assistant-identity-preservation";
+import type {
   AssistantAssetType,
   AssistantV3CopilotResponse,
   AssistantV3DynamicAction,
@@ -56,6 +60,8 @@ export type AssistantToolMatchResult = {
   blockedReason?: string;
   unavailable: boolean;
   unavailableReason?: string;
+  identityProfile?: IdentityPreservationProfile;
+  identityDrift?: IdentityDriftAssessment;
 };
 
 export type AssistantExecutionPreviewCta = {
@@ -86,6 +92,10 @@ export type AssistantExecutionPreview = {
   requiresConfirmation: boolean;
   ctas: AssistantExecutionPreviewCta[];
   cheaperAlternativeToolId?: string;
+  identityRetentionPercent?: number;
+  changedTraitLabels?: string[];
+  identityDriftWarningNl?: string;
+  identityDriftWarningEn?: string;
 };
 
 export type ProductionReadinessItem = {
@@ -133,6 +143,7 @@ export type AssistantV4CopilotResponse = Omit<AssistantV3CopilotResponse, "versi
   executionPreview: AssistantExecutionPreview | null;
   readinessScore: ProductionReadinessScore | null;
   consistencySuggestions: AssistantConsistencySuggestion[];
+  clarityPresentation?: import("@/types/assistant-clarity").AssistantClarityPresentation;
 };
 
 export type AssistantV4TurnResult = {

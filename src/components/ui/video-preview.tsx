@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
+import { resolvePlayableVideoSrc } from "@/lib/playable-media-url";
 
 /**
  * Viewport caps for 9:16 previews — mobile 60vh, tablet 50vh, desktop 40vh.
@@ -36,6 +37,7 @@ export function VideoPreview({
   className,
   frameClassName,
   children,
+  src,
   ...videoProps
 }: VideoPreviewProps) {
   const frameClass =
@@ -43,10 +45,16 @@ export function VideoPreview({
   const videoClass =
     variant === "version" ? VIDEO_PREVIEW_VERSION_VIDEO_CLASS : VIDEO_PREVIEW_MAIN_VIDEO_CLASS;
 
+  const playableSrc = resolvePlayableVideoSrc(typeof src === "string" ? src : undefined);
+  if (!playableSrc) {
+    return null;
+  }
+
   return (
     <div className={[frameClass, frameClassName].filter(Boolean).join(" ")}>
       <video
         {...videoProps}
+        src={playableSrc}
         className={[videoClass, className].filter(Boolean).join(" ")}
       >
         {children}

@@ -126,7 +126,9 @@ describe("homecheff assistant v3 intelligence", () => {
     });
     const v3 = result.messages.find((m) => m.v3Response)?.v3Response;
     assert.ok(v3);
-    assert.match(v3?.openingLine ?? "", /Globe Man/i);
+    const contextHeader =
+      v3?.clarityPresentation?.decision.contextHeaderNl ?? v3?.openingLine ?? "";
+    assert.match(contextHeader, /Globe Man/i);
   });
 
   it("explains Motion vs Studio via studio knowledge", () => {

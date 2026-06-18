@@ -95,6 +95,7 @@ export type StudioPromotionSnapshot = {
   name: string;
   slug: string;
   active: boolean;
+  descriptionInternal: string;
   benefitType: PromotionBenefitType;
   creditAmount: number;
   maximumUsers: number;
@@ -105,15 +106,27 @@ export type StudioPromotionSnapshot = {
   subscriptionDiscountPercent: number | null;
   creditPackBonusPercent: number | null;
   freeTrialCredits: number | null;
+  discountDuration: string;
+  discountDurationMonths: number | null;
+  allowedPlanSlugs: string[];
+  appliesToMonthly: boolean;
+  appliesToYearly: boolean;
+  bonusCreditsApplyWhen: string;
+  bonusCreditsExpireDays: number | null;
   newUserOnly: boolean;
   specificPlanSlug: string | null;
   grantType: PromotionGrantType;
   startDate: string | null;
   endDate: string | null;
+  stripeCouponId: string | null;
   redemptionCount: number;
   remainingSlots: number;
   estimatedCostUsd: number;
   promoCodeCount: number;
+  primaryCode: string | null;
+  primaryCodeUsedCount: number;
+  primaryCodeMaxUses: number | null;
+  stripeLinked: boolean;
 };
 
 export type StudioPromoCodeSnapshot = {
@@ -128,6 +141,10 @@ export type StudioPromoCodeSnapshot = {
   startDate: string | null;
   endDate: string | null;
   notes: string;
+  stripePromotionCodeId: string | null;
+  stripeCouponId: string | null;
+  benefitType: PromotionBenefitType;
+  overviewLine: string;
 };
 
 export type PromoValidationResult = {
@@ -148,6 +165,8 @@ export type PromoValidationResult = {
   adjustedPriceEur?: number;
   durationLabelNl?: string;
   durationLabelEn?: string;
+  stripePromotionCodeId?: string;
+  stripeApplied?: boolean;
 };
 
 export type StudioPricingRuleSnapshot = {

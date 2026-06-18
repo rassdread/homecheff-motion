@@ -4,6 +4,7 @@ import { useMemo, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { useActiveTranslator } from "@/i18n/client";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   buildAssistantReusePrompt,
   listAssistantHistory,
@@ -13,7 +14,10 @@ export function AssistantHistoryPanel({ collapsedDefault = true }: { collapsedDe
   const t = useActiveTranslator();
   const pathname = usePathname();
   const { activeProjectId, sendMessage } = useHomeCheffAssistant();
-  const [open, setOpen] = useState(!collapsedDefault);
+  const mounted = useMounted();
+  const [openOverride, setOpenOverride] = useState<boolean | null>(null);
+  const defaultOpen = mounted && !collapsedDefault;
+  const open = openOverride ?? defaultOpen;
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -37,7 +41,7 @@ export function AssistantHistoryPanel({ collapsedDefault = true }: { collapsedDe
       <button
         type="button"
         className="flex w-full items-center justify-between text-left"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpenOverride((value) => !(value ?? defaultOpen))}
         data-testid="studio-copilot-history-toggle"
       >
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">

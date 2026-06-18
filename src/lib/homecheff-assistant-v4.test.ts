@@ -199,8 +199,8 @@ describe("homecheff assistant v4 production director", () => {
     assert.equal(preview!.sufficientCredits, false);
     assert.ok(preview!.ctas.some((c) => c.id === "buy_credits"));
     assert.ok(preview!.ctas.some((c) => c.id === "upgrade"));
-    const reply = `${turn.v3Response?.openingLine ?? ""} ${turn.v3Response?.body ?? ""}`;
-    assert.match(reply, /12 credits/i);
+    const warning = turn.v3Response?.clarityPresentation?.decision.defaultWarningNl ?? "";
+    assert.match(warning, /12 credits/i);
   });
 
   it("incomplete project → readiness score and voice-over next step", () => {

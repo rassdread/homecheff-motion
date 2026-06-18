@@ -738,13 +738,13 @@ export function buildAssistantV3CopilotResponse(input: AssistantV3TurnInput): As
   if (!openingLine && !body) {
     openingLine = nl(
       input.locale,
-      "Ik help je graag verder in HomeCheff Studio.",
-      "I'm happy to help you in HomeCheff Studio."
+      "Beschrijf wat je wilt maken of aanpassen.",
+      "Describe what you want to create or change."
     );
     body = nl(
       input.locale,
-      "Vertel wat je wilt maken, bewerken of publiceren — ik stel concrete vervolgstappen voor.",
-      "Tell me what you want to create, edit, or publish — I'll suggest concrete next steps."
+      "Ik stel één duidelijke vervolgstap voor.",
+      "I'll suggest one clear next step."
     );
   }
 

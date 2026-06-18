@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/auth/permissions";
 import {
-  createStudioPromotion,
+  createPromotionWithCode,
   listStudioPromotions,
   updateStudioPromotion,
 } from "@/server/studio-account/studio-promotion-service";
+import type { PromotionFormInput } from "@/lib/studio-promotion-validation";
 
 export async function GET() {
   const gate = await requireAdmin();
@@ -21,35 +22,20 @@ export async function POST(request: Request) {
     return gate;
   }
 
-  const body = (await request.json()) as {
-    name?: string;
-    slug?: string;
-    benefitType?: string;
-    creditAmount?: number;
-    maximumUsers?: number;
-    maxRedemptions?: number;
-    grantType?: string;
-    startDate?: string | null;
-    endDate?: string | null;
-  };
+  const body = (await request.json()) as PromotionFormInput;
 
-  if (!body.name || !body.slug) {
+  if (!body.name || !body.slug || !body.code) {
     return NextResponse.json({ error: "Missing promotion fields." }, { status: 400 });
   }
 
-  const promotion = await createStudioPromotion({
-    name: body.name,
-    slug: body.slug,
-    benefitType: body.benefitType as never,
-    creditAmount: body.creditAmount ?? 0,
-    maximumUsers: body.maximumUsers ?? body.maxRedemptions ?? 0,
-    maxRedemptions: body.maxRedemptions ?? body.maximumUsers ?? null,
-    grantType: body.grantType as never,
-    startDate: body.startDate,
-    endDate: body.endDate,
-  });
+  const result = await createPromotionWithCode(body);
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, errors: result.errors }, { status: 400 });
+  }
 
-  return NextResponse.json({ ok: true, promotion }, { status: 201 });
+  const promotions = await listStudioPromotions();
+  const promotion = promotions.find((p) => p.id === result.promotionId);
+  return NextResponse.json({ ok: true, promotion, promotionId: result.promotionId }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {

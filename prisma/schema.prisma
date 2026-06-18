@@ -456,6 +456,8 @@ model StudioPromotion {
   name                      String
   slug                      String                      @unique
   active                    Boolean                     @default(true)
+  /** Internal admin notes — not shown to customers */
+  descriptionInternal       String                      @default("")
   /** Legacy bonus credits field — still used for bonus_credits benefit type */
   creditAmount              Int                         @default(0)
   maximumUsers              Int                         @default(0)
@@ -466,6 +468,16 @@ model StudioPromotion {
   subscriptionDiscountPercent Float?
   creditPackBonusPercent    Float?
   freeTrialCredits          Int?
+  /** once | repeating | forever — Stripe coupon duration for discount types */
+  discountDuration          String                      @default("once")
+  discountDurationMonths    Int?
+  /** JSON array of plan slugs (creator, pro, studio) — empty = all plans */
+  allowedPlanSlugs          Json                        @default("[]")
+  appliesToMonthly          Boolean                     @default(true)
+  appliesToYearly           Boolean                     @default(true)
+  /** registration | first_payment | manual — when bonus credits are granted */
+  bonusCreditsApplyWhen     String                      @default("first_payment")
+  bonusCreditsExpireDays    Int?
   newUserOnly               Boolean                     @default(false)
   specificPlanSlug          String?
   maxRedemptions            Int?
@@ -474,12 +486,15 @@ model StudioPromotion {
   grantType                 String                      @default("PROMOTIONAL")
   startDate                 DateTime?
   endDate                   DateTime?
+  /** Stripe Coupon ID for discount benefit types */
+  stripeCouponId            String?
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   redemptions               StudioPromotionRedemption[]
   promoCodes                StudioPromoCode[]
 
   @@index([active, startDate, endDate])
+  @@index([stripeCouponId])
 }
 
 model StudioPromotionRedemption {
@@ -496,23 +511,25 @@ model StudioPromotionRedemption {
   @@index([userId, createdAt])
 }
 
-/** Promo codes linked to promotions — HomeCheff source of truth (not Stripe coupons). */
+/** Promo codes linked to promotions — synced to Stripe Promotion Codes for discounts. */
 model StudioPromoCode {
-  id          String                    @id @default(cuid())
-  code        String                    @unique
-  promotionId String
-  promotion   StudioPromotion           @relation(fields: [promotionId], references: [id], onDelete: Cascade)
-  active      Boolean                   @default(true)
-  maxUses     Int?
-  usedCount   Int                       @default(0)
-  startDate   DateTime?
-  endDate     DateTime?
-  notes       String                    @default("")
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-  redemptions StudioPromoCodeRedemption[]
+  id                     String                    @id @default(cuid())
+  code                   String                    @unique
+  promotionId            String
+  promotion              StudioPromotion           @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  active                 Boolean                   @default(true)
+  maxUses                Int?
+  usedCount              Int                       @default(0)
+  startDate              DateTime?
+  endDate                DateTime?
+  notes                  String                    @default("")
+  stripePromotionCodeId  String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  redemptions            StudioPromoCodeRedemption[]
 
   @@index([promotionId, active])
+  @@index([stripePromotionCodeId])
 }
 
 model StudioPromoCodeRedemption {

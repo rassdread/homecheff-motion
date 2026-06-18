@@ -16,7 +16,7 @@ export function useShowcaseCtaAction() {
   const isAuthenticated = Boolean(session.resolved && session.user);
 
   useEffect(() => {
-    if (!isAuthenticated || !assistant) {
+    if (!isAuthenticated || !assistant || !session.resolved) {
       return;
     }
     const pending = consumeShowcaseAssistantPending();
@@ -24,7 +24,7 @@ export function useShowcaseCtaAction() {
       assistant.setOpen(true);
       assistant.sendMessage(pending);
     }
-  }, [isAuthenticated, assistant]);
+  }, [isAuthenticated, assistant, session.resolved]);
 
   return useCallback(
     (example: HomeCheffExample) => {

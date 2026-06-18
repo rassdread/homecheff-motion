@@ -17,6 +17,10 @@ import {
 } from "@/lib/assistant-v4-execution-preview";
 import { computeProductionReadinessScore } from "@/lib/assistant-v4-readiness-score";
 import { buildAssistantRiskWarnings } from "@/lib/assistant-v4-risk-warnings";
+import {
+  applyClarityToV4Response,
+  buildCopilotClarityDecision,
+} from "@/lib/assistant-copilot-decision-engine";
 import { explainNoToolAvailable, matchAssistantTool } from "@/lib/assistant-tool-matcher";
 import type { AssistantBillingContext } from "@/types/studio-billing";
 import type { AssistantV3CopilotInsight, AssistantV3DynamicAction } from "@/types/assistant-v3";
@@ -28,6 +32,7 @@ import type {
 
 export type AssistantV4TurnInput = AssistantV3TurnInput & {
   billingContext?: AssistantBillingContext;
+  identityPreservationOverrides?: import("@/types/assistant-identity-preservation").IdentityPreservationOverrides;
 };
 
 function nl(locale: "nl" | "en", nlText: string, enText: string): string {
@@ -102,6 +107,7 @@ export function enhanceAssistantV4Response(
         turnInput: input,
         availableCredits,
         pricingCatalog: input.pricingCatalog,
+        identityOverrides: input.identityPreservationOverrides,
       })
     : null;
 
@@ -205,18 +211,20 @@ export function enhanceAssistantV4Response(
     });
   }
 
-  return {
+  const draft: AssistantV4CopilotResponse = {
     ...v3,
     version: 4,
     openingLine,
     body,
     actionGroups,
-    insights: insights.slice(0, 5),
+    insights,
     toolMatch,
     executionPreview,
     readinessScore,
     consistencySuggestions,
   };
+  const decision = buildCopilotClarityDecision(draft, input);
+  return applyClarityToV4Response(draft, decision, input.locale);
 }
 
 export function processAssistantV4Turn(input: AssistantV4TurnInput): AssistantV4TurnResult {

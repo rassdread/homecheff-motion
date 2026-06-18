@@ -99,6 +99,7 @@ export type AssistantTurnInput = {
   pricingCatalog?: StudioPricingCatalogPublicEntry[];
   editorContext?: AssistantEditorContextHint | null;
   libraryRecords?: LibraryConsistencyRecord[];
+  identityPreservationOverrides?: import("@/types/assistant-identity-preservation").IdentityPreservationOverrides;
 };
 
 export type AssistantTurnResult = {
@@ -653,6 +654,7 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
     pricingCatalog: input.pricingCatalog,
     pathname: input.pathname,
     billingContext: input.billingContext,
+    identityPreservationOverrides: input.identityPreservationOverrides,
   };
   const v3Turn = processAssistantV4Turn(v3Input);
   if (v3Turn.handled && v3Turn.producerResponse && v3Turn.v3Response) {

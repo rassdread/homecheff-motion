@@ -6,12 +6,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useMounted } from "@/hooks/use-mounted";
 import { usePricingCatalog } from "@/hooks/use-pricing-catalog";
+import { readIdentityPreservationOverrides } from "@/lib/studio-copilot-identity-preservation-storage";
 import {
   buildAssistantSnapshotFromClient,
   createInitialAssistantSession,
@@ -53,6 +57,7 @@ import { readAssistantEditorContext } from "@/lib/assistant-editor-context-bridg
 import {
   patchStudioCopilotLayout,
   readStudioCopilotLayout,
+  subscribeStudioCopilotLayout,
 } from "@/lib/studio-copilot-layout-storage";
 import type {
   StudioCopilotLayoutPreferences,
@@ -82,6 +87,7 @@ type HomeCheffAssistantContextValue = {
   setCopilotWidth: (width: number) => void;
   setCollapsedRecent: (collapsed: boolean) => void;
   setCopilotCompactMode: (compact: boolean) => void;
+  copilotLayoutHydrated: boolean;
 };
 
 const HomeCheffAssistantContext = createContext<HomeCheffAssistantContextValue | null>(null);
@@ -125,9 +131,16 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   const [memory, setMemory] = useState<AssistantSessionMemory>(initial.memory);
   const [snapshot, setSnapshot] = useState<AssistantContextSnapshot>(initial.snapshot);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
-  const [copilotLayout, setCopilotLayout] = useState<StudioCopilotLayoutPreferences>(() =>
-    typeof window === "undefined" ? DEFAULT_STUDIO_COPILOT_LAYOUT : readStudioCopilotLayout()
+  const storedCopilotLayout = useSyncExternalStore(
+    subscribeStudioCopilotLayout,
+    readStudioCopilotLayout,
+    () => DEFAULT_STUDIO_COPILOT_LAYOUT
   );
+  const copilotLayoutHydrated = useMounted();
+  const effectiveCopilotLayout = copilotLayoutHydrated
+    ? storedCopilotLayout
+    : DEFAULT_STUDIO_COPILOT_LAYOUT;
+  const interpretInFlightRef = useRef<string | null>(null);
   const [billingContext, setBillingContext] = useState<AssistantBillingContext | undefined>();
   const { items: pricingCatalog } = usePricingCatalog();
 
@@ -161,26 +174,20 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
     };
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    const sync = () => setCopilotLayout(readStudioCopilotLayout());
-    window.addEventListener("hc-studio-copilot-layout-updated", sync);
-    return () => window.removeEventListener("hc-studio-copilot-layout-updated", sync);
-  }, []);
-
   const setCopilotPlacement = useCallback((placement: StudioCopilotPlacement) => {
-    setCopilotLayout(patchStudioCopilotLayout({ placement }));
+    patchStudioCopilotLayout({ placement });
   }, []);
 
   const setCopilotWidth = useCallback((width: number) => {
-    setCopilotLayout(patchStudioCopilotLayout({ width }));
+    patchStudioCopilotLayout({ width });
   }, []);
 
   const setCollapsedRecent = useCallback((collapsedRecent: boolean) => {
-    setCopilotLayout(patchStudioCopilotLayout({ collapsedRecent }));
+    patchStudioCopilotLayout({ collapsedRecent });
   }, []);
 
   const setCopilotCompactMode = useCallback((compactMode: boolean) => {
-    setCopilotLayout(patchStudioCopilotLayout({ compactMode }));
+    patchStudioCopilotLayout({ compactMode });
   }, []);
 
   const activeProjectId = memory.selectedProjectId ?? urlProjectId;
@@ -283,6 +290,10 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (!session.resolved) {
+        return;
+      }
+
       if (!isAuthenticated) {
         setMessages((prev) => [
           ...prev,
@@ -316,6 +327,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           pricingCatalog,
           editorContext: readAssistantEditorContext(),
           libraryRecords,
+          identityPreservationOverrides: readIdentityPreservationOverrides(),
         });
         trackAssistantAnalyticsEvent("prompt", {
           prompt: trimmed,
@@ -371,11 +383,26 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       };
 
       if (isAssistantAiInterpretationEnabled()) {
+        const interpretCredits =
+          pricingCatalog.find((row) => row.actionType === "assistant_interpret")?.creditCost ?? 1;
+        const walletCredits = billingContext?.walletAvailableCredits ?? 0;
+        const canCallLlmInterpret = walletCredits >= interpretCredits;
+
+        if (!canCallLlmInterpret) {
+          runTurn(null);
+          return;
+        }
+
+        if (interpretInFlightRef.current === trimmed) {
+          return;
+        }
+        interpretInFlightRef.current = trimmed;
         setInterpreting(true);
         void (async () => {
           try {
             const res = await fetch("/api/assistant/interpret", {
               method: "POST",
+              credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ message: trimmed, locale: "nl" }),
             });
@@ -384,8 +411,13 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
               runTurn(data.interpretation ?? null);
               return;
             }
+            // 403 credit gate / permission — fall back to local rules, no retry
           } catch {
             /* fallback to rules inside orchestrator */
+          } finally {
+            if (interpretInFlightRef.current === trimmed) {
+              interpretInFlightRef.current = null;
+            }
           }
           runTurn(null);
         })();
@@ -394,7 +426,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
 
       runTurn(null);
     },
-    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext, pricingCatalog]
+    [memory, snapshot, urlProjectId, isAuthenticated, pathname, projectMemory, billingContext, pricingCatalog, session.resolved]
   );
 
   const acceptProposal = useCallback((proposal: AssistantProposal) => {
@@ -503,7 +535,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       libraryRecords,
       updateProposalPrefill,
       startRecommendation,
-      copilotLayout,
+      copilotLayout: effectiveCopilotLayout,
+      copilotLayoutHydrated,
       setCopilotPlacement,
       setCopilotWidth,
       setCollapsedRecent,
@@ -525,7 +558,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       libraryRecords,
       updateProposalPrefill,
       startRecommendation,
-      copilotLayout,
+      effectiveCopilotLayout,
+      copilotLayoutHydrated,
       setCopilotPlacement,
       setCopilotWidth,
       setCollapsedRecent,

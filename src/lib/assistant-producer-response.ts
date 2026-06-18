@@ -72,8 +72,8 @@ function producerShortReply(
       return nl ? "Zeker. Waar wil je mee starten?" : "Sure. What would you like to start with?";
     }
     return nl
-      ? "Ik kan je helpen. Ik twijfel alleen welke richting je bedoelt."
-      : "I can help. I'm just not sure which direction you mean yet.";
+      ? "Dit is de beste volgende actie — kies hieronder een richting."
+      : "This is the best next action — pick a direction below.";
   }
 
   if (interpretation.confidence === "medium") {

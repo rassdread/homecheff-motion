@@ -11,6 +11,27 @@ import {
 
 let memoryLayoutStore: string | null = null;
 
+const layoutListeners = new Set<() => void>();
+
+function notifyLayoutListeners(): void {
+  for (const listener of layoutListeners) {
+    listener();
+  }
+}
+
+export function subscribeStudioCopilotLayout(onStoreChange: () => void): () => void {
+  layoutListeners.add(onStoreChange);
+  if (typeof window !== "undefined") {
+    window.addEventListener("hc-studio-copilot-layout-updated", onStoreChange);
+  }
+  return () => {
+    layoutListeners.delete(onStoreChange);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("hc-studio-copilot-layout-updated", onStoreChange);
+    }
+  };
+}
+
 function clampWidth(width: number): number {
   return Math.min(STUDIO_COPILOT_WIDTH_MAX, Math.max(STUDIO_COPILOT_WIDTH_MIN, Math.round(width)));
 }
@@ -80,6 +101,7 @@ export function writeStudioCopilotLayout(prefs: StudioCopilotLayoutPreferences):
     }
   } else {
     memoryLayoutStore = JSON.stringify(normalized);
+    notifyLayoutListeners();
   }
   return normalized;
 }

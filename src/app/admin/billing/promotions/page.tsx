@@ -2,18 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { AdminBillingShell } from "@/components/admin/billing/admin-billing-shell";
+import { AdminPromotionForm } from "@/components/admin/billing/admin-promotion-form";
+import { formatPromotionOverviewLine } from "@/lib/studio-promotion-preview";
 import type { StudioPromotionSnapshot } from "@/types/studio-billing";
+
+function promotionOverviewLine(promo: StudioPromotionSnapshot): string {
+  if (!promo.primaryCode) {
+    return `${promo.slug} — ${promo.benefitType} · ${promo.redemptionCount} redeemed · ${promo.promoCodeCount} codes`;
+  }
+  return formatPromotionOverviewLine({
+    code: promo.primaryCode,
+    benefitType: promo.benefitType,
+    percentageDiscount: promo.percentageDiscount,
+    fixedDiscountEur: promo.fixedDiscountEur,
+    subscriptionDiscountPercent: promo.subscriptionDiscountPercent,
+    discountDuration: promo.discountDuration as "once" | "repeating" | "forever",
+    discountDurationMonths: promo.discountDurationMonths,
+    allowedPlanSlugs: promo.allowedPlanSlugs,
+    specificPlanSlug: promo.specificPlanSlug,
+    appliesToMonthly: promo.appliesToMonthly,
+    appliesToYearly: promo.appliesToYearly,
+    usedCount: promo.primaryCodeUsedCount,
+    maxUses: promo.primaryCodeMaxUses,
+    active: promo.active,
+    stripePromotionCodeId: promo.stripeLinked ? "linked" : null,
+    stripeCouponId: promo.stripeCouponId,
+  });
+}
 
 export default function AdminBillingPromotionsPage() {
   const [promotions, setPromotions] = useState<StudioPromotionSnapshot[]>([]);
-  const [form, setForm] = useState({
-    name: "",
-    slug: "",
-    benefitType: "bonus_credits",
-    creditAmount: 50,
-    maxRedemptions: 1000,
-    grantType: "PROMOTIONAL",
-  });
 
   const load = () => {
     void fetch("/api/admin/billing/promotions", { credentials: "include" }).then(async (res) => {
@@ -27,19 +45,6 @@ export default function AdminBillingPromotionsPage() {
     load();
   }, []);
 
-  const createPromotion = async () => {
-    await fetch("/api/admin/billing/promotions", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        maximumUsers: form.maxRedemptions,
-      }),
-    });
-    load();
-  };
-
   const toggle = async (id: string, active: boolean) => {
     await fetch("/api/admin/billing/promotions", {
       method: "PATCH",
@@ -52,72 +57,44 @@ export default function AdminBillingPromotionsPage() {
 
   return (
     <AdminBillingShell title="Promotions">
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="font-semibold">Create promotion</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <input
-            placeholder="Name"
-            className="rounded border px-2 py-1 text-sm"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          />
-          <input
-            placeholder="Slug"
-            className="rounded border px-2 py-1 text-sm"
-            value={form.slug}
-            onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-          />
-          <select
-            className="rounded border px-2 py-1 text-sm"
-            value={form.benefitType}
-            onChange={(e) => setForm((f) => ({ ...f, benefitType: e.target.value }))}
-          >
-            <option value="bonus_credits">Bonus credits</option>
-            <option value="percentage_discount">Percentage discount</option>
-            <option value="fixed_discount">Fixed discount</option>
-            <option value="subscription_discount">Subscription discount</option>
-            <option value="credit_pack_bonus">Credit pack bonus</option>
-            <option value="free_trial_credits">Free trial credits</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Credits / max redemptions"
-            className="rounded border px-2 py-1 text-sm"
-            value={form.creditAmount}
-            onChange={(e) => setForm((f) => ({ ...f, creditAmount: Number(e.target.value) }))}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => void createPromotion()}
-          className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white"
-        >
-          Create
-        </button>
-      </section>
+      <AdminPromotionForm onCreated={load} />
 
-      <ul className="space-y-3">
-        {promotions.map((promo) => (
-          <li key={promo.id} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
-            <div className="flex justify-between gap-3">
-              <div>
-                <p className="font-medium">{promo.name}</p>
-                <p className="text-zinc-500">
-                  {promo.benefitType} · {promo.redemptionCount} redeemed · {promo.promoCodeCount}{" "}
-                  codes
-                </p>
+      <section className="mt-6">
+        <h2 className="font-semibold">Overzicht</h2>
+        <ul className="mt-3 space-y-3">
+          {promotions.map((promo) => (
+            <li key={promo.id} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{promo.name}</p>
+                  <p className="mt-1 text-zinc-600">{promotionOverviewLine(promo)}</p>
+                  {promo.descriptionInternal ? (
+                    <p className="mt-1 text-xs text-zinc-400">{promo.descriptionInternal}</p>
+                  ) : null}
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
+                    <span>Type: {promo.benefitType}</span>
+                    {promo.stripeCouponId ? (
+                      <span>Stripe coupon: {promo.stripeCouponId}</span>
+                    ) : (
+                      <span>Geen Stripe coupon</span>
+                    )}
+                    {promo.endDate ? (
+                      <span>Geldig t/m {new Date(promo.endDate).toLocaleDateString("nl-NL")}</span>
+                    ) : null}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void toggle(promo.id, !promo.active)}
+                  className="shrink-0 text-emerald-700 underline"
+                >
+                  {promo.active ? "Disable" : "Enable"}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => void toggle(promo.id, !promo.active)}
-                className="text-emerald-700 underline"
-              >
-                {promo.active ? "Disable" : "Enable"}
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </section>
     </AdminBillingShell>
   );
 }

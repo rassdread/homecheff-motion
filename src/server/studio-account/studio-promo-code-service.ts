@@ -10,8 +10,12 @@ import type {
 import type { StudioCreditPackSnapshot } from "@/types/studio-billing";
 import type { StudioSubscriptionPlanSnapshot } from "@/types/studio-billing";
 import { totalPackCredits } from "@/server/studio-account/studio-credit-pack-service";
+import { parseAllowedPlanSlugs } from "@/lib/studio-promotion-validation";
+import { formatPromotionOverviewLine } from "@/lib/studio-promotion-preview";
+import { setStripePromotionCodeActive } from "@/server/studio-account/stripe-promotion-sync";
+import type { SubscriptionBillingInterval } from "@/lib/studio-subscription-billing";
 
-function normalizeCode(code: string): string {
+export function normalizePromoCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
@@ -35,7 +39,24 @@ function promotionMaxSlots(promotion: {
 export async function listStudioPromoCodes(promotionId?: string): Promise<StudioPromoCodeSnapshot[]> {
   const rows = await prisma.studioPromoCode.findMany({
     where: promotionId ? { promotionId } : undefined,
-    include: { promotion: { select: { name: true } } },
+    include: {
+      promotion: {
+        select: {
+          name: true,
+          benefitType: true,
+          percentageDiscount: true,
+          fixedDiscountEur: true,
+          subscriptionDiscountPercent: true,
+          discountDuration: true,
+          discountDurationMonths: true,
+          allowedPlanSlugs: true,
+          specificPlanSlug: true,
+          appliesToMonthly: true,
+          appliesToYearly: true,
+          stripeCouponId: true,
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   return rows.map((row) => ({
@@ -50,6 +71,27 @@ export async function listStudioPromoCodes(promotionId?: string): Promise<Studio
     startDate: row.startDate?.toISOString() ?? null,
     endDate: row.endDate?.toISOString() ?? null,
     notes: row.notes,
+    stripePromotionCodeId: row.stripePromotionCodeId,
+    stripeCouponId: row.promotion.stripeCouponId,
+    benefitType: row.promotion.benefitType as PromotionBenefitType,
+    overviewLine: formatPromotionOverviewLine({
+      code: row.code,
+      benefitType: row.promotion.benefitType as PromotionBenefitType,
+      percentageDiscount: row.promotion.percentageDiscount,
+      fixedDiscountEur: row.promotion.fixedDiscountEur,
+      subscriptionDiscountPercent: row.promotion.subscriptionDiscountPercent,
+      discountDuration: row.promotion.discountDuration as "once" | "repeating" | "forever",
+      discountDurationMonths: row.promotion.discountDurationMonths,
+      allowedPlanSlugs: row.promotion.allowedPlanSlugs,
+      specificPlanSlug: row.promotion.specificPlanSlug,
+      appliesToMonthly: row.promotion.appliesToMonthly,
+      appliesToYearly: row.promotion.appliesToYearly,
+      usedCount: row.usedCount,
+      maxUses: row.maxUses,
+      active: row.active,
+      stripePromotionCodeId: row.stripePromotionCodeId,
+      stripeCouponId: row.promotion.stripeCouponId,
+    }),
   }));
 }
 
@@ -64,7 +106,7 @@ export async function createStudioPromoCode(input: {
 }) {
   return prisma.studioPromoCode.create({
     data: {
-      code: normalizeCode(input.code),
+      code: normalizePromoCode(input.code),
       promotionId: input.promotionId,
       maxUses: input.maxUses ?? null,
       startDate: input.startDate ? new Date(input.startDate) : null,
@@ -83,7 +125,7 @@ export async function bulkCreatePromoCodes(input: {
 }) {
   const created: string[] = [];
   for (let i = 0; i < input.count; i++) {
-    const code = normalizeCode(`${input.prefix}${String(i + 1).padStart(4, "0")}`);
+    const code = normalizePromoCode(`${input.prefix}${String(i + 1).padStart(4, "0")}`);
     const row = await createStudioPromoCode({
       code,
       promotionId: input.promotionId,
@@ -98,7 +140,7 @@ export async function updateStudioPromoCode(
   id: string,
   patch: Partial<{ active: boolean; maxUses: number | null; notes: string }>
 ) {
-  return prisma.studioPromoCode.update({
+  const updated = await prisma.studioPromoCode.update({
     where: { id },
     data: {
       ...(patch.active !== undefined ? { active: patch.active } : {}),
@@ -106,6 +148,80 @@ export async function updateStudioPromoCode(
       ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
     },
   });
+
+  if (patch.active !== undefined && updated.stripePromotionCodeId) {
+    await setStripePromotionCodeActive(updated.stripePromotionCodeId, patch.active);
+  }
+
+  return updated;
+}
+
+export async function getPromoCodeStripeId(code: string): Promise<string | null> {
+  const row = await prisma.studioPromoCode.findUnique({
+    where: { code: normalizePromoCode(code) },
+    select: { stripePromotionCodeId: true, active: true },
+  });
+  if (!row?.active || !row.stripePromotionCodeId) return null;
+  return row.stripePromotionCodeId;
+}
+
+export function planAllowedForCheckout(
+  promotion: {
+    specificPlanSlug: string | null;
+    allowedPlanSlugs: unknown;
+  },
+  planSlug?: string
+): boolean {
+  if (!planSlug) return true;
+  const allowed = parseAllowedPlanSlugs(promotion.allowedPlanSlugs);
+  if (allowed.length > 0) {
+    return allowed.includes(planSlug);
+  }
+  if (promotion.specificPlanSlug) {
+    return promotion.specificPlanSlug === planSlug;
+  }
+  return true;
+}
+
+export function billingIntervalAllowedForCheckout(
+  promotion: { appliesToMonthly: boolean; appliesToYearly: boolean },
+  billingInterval?: SubscriptionBillingInterval
+): boolean {
+  if (!billingInterval) return true;
+  if (billingInterval === "monthly") return promotion.appliesToMonthly;
+  if (billingInterval === "yearly") return promotion.appliesToYearly;
+  return true;
+}
+
+function planAllowed(
+  promotion: {
+    specificPlanSlug: string | null;
+    allowedPlanSlugs: unknown;
+  },
+  planSlug?: string
+): boolean {
+  return planAllowedForCheckout(promotion, planSlug);
+}
+
+function billingIntervalAllowed(
+  promotion: { appliesToMonthly: boolean; appliesToYearly: boolean },
+  billingInterval?: SubscriptionBillingInterval
+): boolean {
+  return billingIntervalAllowedForCheckout(promotion, billingInterval);
+}
+
+function discountDurationLabel(
+  duration: string,
+  months: number | null,
+  locale: "nl" | "en"
+): string {
+  if (duration === "forever") {
+    return locale === "nl" ? "voor altijd" : "forever";
+  }
+  if (duration === "repeating" && months) {
+    return locale === "nl" ? `${months} maanden` : `${months} months`;
+  }
+  return locale === "nl" ? "eenmalig" : "once";
 }
 
 export function computePromoBenefits(input: {
@@ -173,10 +289,11 @@ export async function validatePromoCode(input: {
   planSlug?: string;
   packSlug?: string;
   basePriceEur?: number;
+  billingInterval?: SubscriptionBillingInterval;
   locale?: "nl" | "en";
   isNewUser?: boolean;
 }): Promise<PromoValidationResult> {
-  const code = normalizeCode(input.code);
+  const code = normalizePromoCode(input.code);
   if (!code) {
     return { valid: false, code, reason: "empty_code" };
   }
@@ -218,6 +335,17 @@ export async function validatePromoCode(input: {
     return { valid: false, code, reason: "new_users_only" };
   }
 
+  if (!planAllowed(promotion, input.planSlug)) {
+    return { valid: false, code, reason: "wrong_plan" };
+  }
+
+  if (
+    input.checkoutType === "subscription" &&
+    !billingIntervalAllowed(promotion, input.billingInterval)
+  ) {
+    return { valid: false, code, reason: "wrong_billing_interval" };
+  }
+
   if (promotion.specificPlanSlug && input.planSlug && promotion.specificPlanSlug !== input.planSlug) {
     return { valid: false, code, reason: "wrong_plan" };
   }
@@ -246,7 +374,6 @@ export async function validatePromoCode(input: {
     promotion,
   });
 
-  const nl = !input.locale || input.locale === "nl";
   const summaryPartsNl: string[] = [];
   const summaryPartsEn: string[] = [];
   if (benefits.bonusCredits) {
@@ -257,6 +384,10 @@ export async function validatePromoCode(input: {
     summaryPartsNl.push(`€${benefits.discountEur.toFixed(2)} korting`);
     summaryPartsEn.push(`€${benefits.discountEur.toFixed(2)} discount`);
   }
+  if (benefits.discountPercent) {
+    summaryPartsNl.push(`${benefits.discountPercent}% korting`);
+    summaryPartsEn.push(`${benefits.discountPercent}% discount`);
+  }
   if (benefits.subscriptionDiscountPercent) {
     summaryPartsNl.push(`${benefits.subscriptionDiscountPercent}% abonnementskorting`);
     summaryPartsEn.push(`${benefits.subscriptionDiscountPercent}% subscription discount`);
@@ -265,6 +396,17 @@ export async function validatePromoCode(input: {
     summaryPartsNl.push(`${benefits.freeTrialCredits} proefcredits`);
     summaryPartsEn.push(`${benefits.freeTrialCredits} trial credits`);
   }
+
+  const durationNl = discountDurationLabel(
+    promotion.discountDuration,
+    promotion.discountDurationMonths,
+    "nl"
+  );
+  const durationEn = discountDurationLabel(
+    promotion.discountDuration,
+    promotion.discountDurationMonths,
+    "en"
+  );
 
   return {
     valid: true,
@@ -276,11 +418,13 @@ export async function validatePromoCode(input: {
     summaryNl: summaryPartsNl.join(" · ") || "Campagne toegepast.",
     summaryEn: summaryPartsEn.join(" · ") || "Campaign applied.",
     durationLabelNl: promotion.endDate
-      ? `Geldig t/m ${promotion.endDate.toLocaleDateString("nl-NL")}`
-      : "Geen einddatum",
+      ? `Geldig t/m ${promotion.endDate.toLocaleDateString("nl-NL")} · korting ${durationNl}`
+      : `Korting ${durationNl}`,
     durationLabelEn: promotion.endDate
-      ? `Valid until ${promotion.endDate.toLocaleDateString("en-GB")}`
-      : "No end date",
+      ? `Valid until ${promotion.endDate.toLocaleDateString("en-GB")} · discount ${durationEn}`
+      : `Discount ${durationEn}`,
+    stripePromotionCodeId: promoCode.stripePromotionCodeId ?? undefined,
+    stripeApplied: Boolean(promoCode.stripePromotionCodeId),
   };
 }
 
@@ -326,7 +470,7 @@ export async function applyPostCheckoutPromoBenefits(input: {
   }
 
   const promoRow = await prisma.studioPromoCode.findUnique({
-    where: { code: normalizeCode(input.promoCode) },
+    where: { code: normalizePromoCode(input.promoCode) },
     include: { promotion: true },
   });
   if (!promoRow) {
@@ -367,7 +511,13 @@ export async function applyPostCheckoutPromoBenefits(input: {
     promoCodeId: promoRow.id,
     promotionId: promotion.id,
     userId: input.userId,
-    metadata: { stripeSessionId: input.stripeSessionId, creditsGranted: creditsToGrant },
+    metadata: {
+      stripeSessionId: input.stripeSessionId,
+      creditsGranted: creditsToGrant,
+      benefitType: promotion.benefitType,
+      auditEvent: "promo_redemption",
+      promotionSlug: promotion.slug,
+    },
   });
 
   await prisma.studioPromotionRedemption.upsert({

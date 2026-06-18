@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { AssistantActivityPanel } from "@/components/assistant/assistant-activity-panel";
+import { AssistantClarityResponse } from "@/components/assistant/assistant-clarity-response";
 import { AssistantExecutionPreviewCard } from "@/components/assistant/assistant-execution-preview-card";
 import { AssistantInterpretationPanel } from "@/components/assistant/assistant-interpretation-panel";
 import { ActionPresetRequirementsCard } from "@/components/assistant/action-preset-requirements-card";
@@ -119,7 +120,11 @@ export function AssistantChatPanel({
             }`}
             data-testid={`assistant-message-${message.role}`}
           >
-            <AssistantMessageBody message={message} />
+            {!(
+              message.v3Response?.version === 4 && message.v3Response.clarityPresentation
+            ) ? (
+              <AssistantMessageBody message={message} />
+            ) : null}
             {message.proposal ? (
               <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-zinc-700">
                 {message.proposal.prefillPackage?.interpretationSummary ? (
@@ -289,7 +294,21 @@ export function AssistantChatPanel({
                 ))}
               </div>
             ) : null}
-            {message.v3Response?.version === 4 && message.v3Response.executionPreview ? (
+            {message.v3Response?.version === 4 && message.v3Response.clarityPresentation ? (
+              <AssistantClarityResponse
+                presentation={message.v3Response.clarityPresentation}
+                executionPreview={message.v3Response.executionPreview}
+                compact={compact}
+                onExecute={executeV4Preview}
+                onAdjust={focusAssistantInput}
+                onCancel={cancelPrefill}
+                onPrompt={sendMessage}
+                onRoute={(route) => window.location.assign(route)}
+              />
+            ) : null}
+            {message.v3Response?.version === 4 &&
+            !message.v3Response.clarityPresentation &&
+            message.v3Response.executionPreview ? (
               <AssistantExecutionPreviewCard
                 preview={message.v3Response.executionPreview}
                 locale={locale}
@@ -299,7 +318,7 @@ export function AssistantChatPanel({
                 onCancel={cancelPrefill}
               />
             ) : null}
-            {message.v3Response?.readinessScore ? (
+            {message.v3Response?.readinessScore && !message.v3Response.clarityPresentation ? (
               <div
                 className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600"
                 data-testid="assistant-v4-readiness"
@@ -309,7 +328,9 @@ export function AssistantChatPanel({
                 } as never)}
               </div>
             ) : null}
-            {message.v3Response?.actionGroups && message.v3Response.actionGroups.length > 0 ? (
+            {message.v3Response?.actionGroups &&
+            message.v3Response.actionGroups.length > 0 &&
+            !message.v3Response.clarityPresentation ? (
               <div className="mt-3 space-y-3" data-testid="assistant-v3-action-groups">
                 {message.v3Response.actionGroups.map((group) => (
                   <div key={group.id}>
@@ -366,7 +387,7 @@ export function AssistantChatPanel({
                     className="rounded-lg border border-zinc-100 bg-zinc-50/80 p-2 text-xs text-zinc-700"
                     data-testid="assistant-production-plan"
                   >
-                    <p className="font-medium text-zinc-900">Productieplan</p>
+                    <p className="font-medium text-zinc-900">{t("assistant.clarity.productionSteps" as never)}</p>
                     <ol className="mt-1 list-decimal space-y-0.5 pl-4">
                       {message.producerResponse.productionPlan.steps.map((step) => (
                         <li key={step.id}>{step.title}</li>

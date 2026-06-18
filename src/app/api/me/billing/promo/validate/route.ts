@@ -10,18 +10,14 @@ export async function POST(request: Request) {
     return user;
   }
 
-  let body: {
+  const body = (await request.json()) as {
     code?: string;
     checkoutType?: "subscription" | "credit_pack";
     planId?: string;
     packId?: string;
+    billingInterval?: "monthly" | "yearly";
     locale?: "nl" | "en";
   };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
 
   const code = body.code?.trim() ?? "";
   if (!code) {
@@ -30,10 +26,13 @@ export async function POST(request: Request) {
 
   const pack = body.packId ? await getStudioCreditPackBySlug(body.packId) : null;
   const plan = body.planId ? await getStudioSubscriptionPlanBySlug(body.planId) : null;
+  const billingInterval = body.billingInterval ?? "monthly";
   const basePrice =
     body.checkoutType === "credit_pack"
       ? (pack?.priceEur ?? 0)
-      : (plan?.monthlyPriceEur ?? 0);
+      : billingInterval === "yearly"
+        ? (plan?.yearlyPriceEur ?? 0)
+        : (plan?.monthlyPriceEur ?? 0);
 
   const result = await validatePromoCode({
     code,
@@ -41,6 +40,7 @@ export async function POST(request: Request) {
     checkoutType: body.checkoutType,
     planSlug: plan?.slug,
     packSlug: pack?.slug,
+    billingInterval,
     basePriceEur: basePrice,
     locale: body.locale === "en" ? "en" : "nl",
   });
