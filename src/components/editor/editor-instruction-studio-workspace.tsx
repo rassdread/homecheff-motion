@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { publishAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
+import { buildAssistantEditorContextFromHierarchy } from "@/lib/assistant-editor-context-builder";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
 import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
 import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
@@ -581,6 +583,23 @@ export function EditorInstructionStudioWorkspace({
     traceVisionHierarchyStage("before_EditorVisionHierarchyPanel_render", document);
     return resolveStickyVisionHierarchy(document);
   }, [document]);
+
+  useEffect(() => {
+    publishAssistantEditorContext(
+      buildAssistantEditorContextFromHierarchy({
+        document,
+        hierarchy: displayHierarchy,
+        selectedNodeId: selectedHierarchyNodeId,
+        selectedObjectLabel: virtualSelectedObject?.label ?? null,
+      })
+    );
+  }, [
+    document,
+    displayHierarchy,
+    selectedHierarchyNodeId,
+    virtualSelectedObject?.label,
+  ]);
+
   const hasRichHierarchy = isMeaningfulVisionHierarchy(displayHierarchy, document.visionV6Meta);
   const analysisPending =
     !documentHasRichVisionAnalysis(document) &&

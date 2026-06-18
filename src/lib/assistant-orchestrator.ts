@@ -52,6 +52,11 @@ import type { AssistantProjectMemory } from "@/types/assistant-project-memory";
 import { loadAssistantPrefillPackage } from "@/lib/assistant-prefill-storage";
 import { listHomeCheffProjectsFiltered } from "@/lib/homecheff-project-persist";
 import { buildAssistantPricingCatalogReply } from "@/lib/assistant-pricing-catalog";
+import {
+  processAssistantV4Turn,
+  type AssistantV4TurnInput,
+} from "@/lib/assistant-v4-intelligence";
+import type { AssistantEditorContextHint } from "@/types/assistant-v3";
 import type { LibraryConsistencyRecord } from "@/types/library-consistency";
 import type { AssistantPrefillPackage } from "@/types/assistant-prefill";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
@@ -66,6 +71,7 @@ export type AssistantChatMessage = {
   proposal?: AssistantProposal | null;
   clarifyOptions?: AssistantClarifyOption[];
   producerResponse?: ProducerResponse;
+  v3Response?: import("@/types/assistant-v4").AssistantV4CopilotResponse;
 };
 
 export type AssistantProposal = {
@@ -91,6 +97,8 @@ export type AssistantTurnInput = {
   projectMemory?: AssistantProjectMemory | null;
   billingContext?: AssistantBillingContext;
   pricingCatalog?: StudioPricingCatalogPublicEntry[];
+  editorContext?: AssistantEditorContextHint | null;
+  libraryRecords?: LibraryConsistencyRecord[];
 };
 
 export type AssistantTurnResult = {
@@ -238,6 +246,20 @@ function replyMessage(
     role: "assistant",
     messageKey,
     params,
+  };
+}
+
+function v3CopilotMessage(
+  v3: import("@/types/assistant-v4").AssistantV4CopilotResponse,
+  producer: ProducerResponse
+): AssistantChatMessage {
+  return {
+    id: `assistant-v3-${Date.now()}`,
+    role: "assistant",
+    messageKey: "assistant.reply.v3Copilot",
+    params: { text: producer.shortReply },
+    producerResponse: producer,
+    v3Response: v3,
   };
 }
 
@@ -618,6 +640,37 @@ export function processAssistantTurn(input: AssistantTurnInput): AssistantTurnRe
       clusterId: interpretation?.detectedIntent,
     }),
   };
+
+  const v3Input: AssistantV4TurnInput = {
+    message: resolvedMessage,
+    locale: (input.locale ?? "nl") as "nl" | "en",
+    memory,
+    snapshot: input.snapshot,
+    studio,
+    activeProject,
+    editorContext: input.editorContext ?? null,
+    libraryRecords: input.libraryRecords,
+    pricingCatalog: input.pricingCatalog,
+    pathname: input.pathname,
+    billingContext: input.billingContext,
+  };
+  const v3Turn = processAssistantV4Turn(v3Input);
+  if (v3Turn.handled && v3Turn.producerResponse && v3Turn.v3Response) {
+    if (v3Turn.memoryPatch?.v3) {
+      memory = { ...memory, v3: v3Turn.memoryPatch.v3 };
+    }
+    if (v3Turn.memoryPatch?.selectedAssetId !== undefined) {
+      memory = { ...memory, selectedAssetId: v3Turn.memoryPatch.selectedAssetId };
+    }
+    if (v3Turn.memoryPatch?.conversationMemory) {
+      memory = { ...memory, conversationMemory: v3Turn.memoryPatch.conversationMemory };
+    }
+    memory = { ...memory, lastIntent: "assistant_v3_copilot" };
+    return {
+      memory,
+      messages: [userMessage, v3CopilotMessage(v3Turn.v3Response, v3Turn.producerResponse)],
+    };
+  }
 
   return {
     memory,

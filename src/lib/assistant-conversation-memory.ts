@@ -58,6 +58,9 @@ export function resolvePronounMessage(
   }
 
   const text = message.toLowerCase();
+  if (text.includes("vrolijker") || text.includes("blijer") || text.includes("happier")) {
+    return `Maak ${subject} vrolijker`;
+  }
   if (text.includes("moderner") || text.includes("modern")) {
     return `Maak ${subject} iets moderner`;
   }

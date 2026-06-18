@@ -49,6 +49,7 @@ import {
   storeAssistantEditorFusionBootstrap,
   storeAssistantPrefillPackage,
 } from "@/lib/assistant-prefill-storage";
+import { readAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
 
 type HomeCheffAssistantContextValue = {
   open: boolean;
@@ -61,6 +62,7 @@ type HomeCheffAssistantContextValue = {
   interpreting: boolean;
   sendMessage: (message: string) => void;
   acceptProposal: (proposal: AssistantProposal) => void;
+  executeV4Preview: (preview: import("@/types/assistant-v4").AssistantExecutionPreview) => void;
   cancelPrefill: () => void;
   activeProjectId: string | null;
   libraryRecords: import("@/types/library-consistency").LibraryConsistencyRecord[];
@@ -273,6 +275,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
           projectMemory,
           billingContext,
           pricingCatalog,
+          editorContext: readAssistantEditorContext(),
+          libraryRecords,
         });
         trackAssistantAnalyticsEvent("prompt", {
           prompt: trimmed,
@@ -390,6 +394,20 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
     window.location.assign(proposal.route);
   }, [isAuthenticated]);
 
+  const executeV4Preview = useCallback(
+    (preview: import("@/types/assistant-v4").AssistantExecutionPreview) => {
+      if (!isAuthenticated || preview.status === "blocked") {
+        return;
+      }
+      trackAssistantAnalyticsEvent("wizard_opened", {
+        route: preview.route,
+        intent: preview.toolId,
+      });
+      window.location.assign(preview.route);
+    },
+    [isAuthenticated]
+  );
+
   const cancelPrefill = useCallback(() => {
     setMemory((prev) => ({ ...prev, pendingPrefillId: null, activeWizard: null }));
   }, []);
@@ -440,6 +458,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       interpreting,
       sendMessage,
       acceptProposal,
+      executeV4Preview,
       cancelPrefill,
       activeProjectId: memory.selectedProjectId ?? urlProjectId,
       libraryRecords,
@@ -456,6 +475,7 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       interpreting,
       sendMessage,
       acceptProposal,
+      executeV4Preview,
       cancelPrefill,
       urlProjectId,
       libraryRecords,

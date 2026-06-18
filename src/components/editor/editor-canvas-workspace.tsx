@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { buildAssistantEditorContextFromHierarchy } from "@/lib/assistant-editor-context-builder";
+import { publishAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
+import { findHierarchyNodeByPartId } from "@/lib/assistant-editor-hierarchy-context";
+import { resolveStickyVisionHierarchy } from "@/lib/editor-vision-v6-stability";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asset-recommendations-panel";
@@ -358,6 +362,28 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const hierarchicalSelection =
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
   const selectedPartId = hierarchicalSelection.selectedPartId;
+
+  const displayVisionHierarchy = useMemo(
+    () => resolveStickyVisionHierarchy(document),
+    [document]
+  );
+
+  const selectedVisionHierarchyNodeId = useMemo(() => {
+    if (!selectedPartId) {
+      return null;
+    }
+    return findHierarchyNodeByPartId(displayVisionHierarchy, selectedPartId)?.id ?? null;
+  }, [displayVisionHierarchy, selectedPartId]);
+
+  useEffect(() => {
+    publishAssistantEditorContext(
+      buildAssistantEditorContextFromHierarchy({
+        document,
+        hierarchy: displayVisionHierarchy,
+        selectedNodeId: selectedVisionHierarchyNodeId,
+      })
+    );
+  }, [document, displayVisionHierarchy, selectedVisionHierarchyNodeId]);
 
   useEffect(() => {
     void fetch("/api/editor/segment/status")

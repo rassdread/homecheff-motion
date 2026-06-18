@@ -2,10 +2,11 @@
 
 import { useMemo, useRef, useState } from "react";
 import { AssistantActivityPanel } from "@/components/assistant/assistant-activity-panel";
+import { AssistantExecutionPreviewCard } from "@/components/assistant/assistant-execution-preview-card";
 import { AssistantInterpretationPanel } from "@/components/assistant/assistant-interpretation-panel";
 import { ActionPresetRequirementsCard } from "@/components/assistant/action-preset-requirements-card";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
-import { useActiveTranslator } from "@/i18n/client";
+import { useActiveTranslator, useLocale } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import type { AssistantChatMessage } from "@/lib/assistant-orchestrator";
 import { getAssistantAction } from "@/lib/assistant-action-registry";
@@ -37,10 +38,12 @@ type Props = {
 
 export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
   const t = useActiveTranslator();
+  const [locale] = useLocale();
   const {
     messages,
     sendMessage,
     acceptProposal,
+    executeV4Preview,
     cancelPrefill,
     loadingContext,
     interpreting,
@@ -276,6 +279,64 @@ export function AssistantChatPanel({ onClose, sidebarMode = false }: Props) {
                   >
                     {t(option.labelKey as never)}
                   </button>
+                ))}
+              </div>
+            ) : null}
+            {message.v3Response?.version === 4 && message.v3Response.executionPreview ? (
+              <AssistantExecutionPreviewCard
+                preview={message.v3Response.executionPreview}
+                locale={locale}
+                onExecute={executeV4Preview}
+                onAdjust={focusAssistantInput}
+                onCancel={cancelPrefill}
+              />
+            ) : null}
+            {message.v3Response?.readinessScore ? (
+              <div
+                className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-[11px] text-zinc-600"
+                data-testid="assistant-v4-readiness"
+              >
+                {t("assistant.v4.preview.readiness" as never, {
+                  score: message.v3Response.readinessScore.scorePercent,
+                } as never)}
+              </div>
+            ) : null}
+            {message.v3Response?.actionGroups && message.v3Response.actionGroups.length > 0 ? (
+              <div className="mt-3 space-y-3" data-testid="assistant-v3-action-groups">
+                {message.v3Response.actionGroups.map((group) => (
+                  <div key={group.id}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      {group.label}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {group.actions.map((row) => (
+                        <button
+                          key={row.id}
+                          type="button"
+                          className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-900 hover:border-violet-300"
+                          onClick={() => {
+                            if (row.route && message.v3Response?.executionPreview) {
+                              executeV4Preview({
+                                ...message.v3Response.executionPreview,
+                                route: row.route,
+                              });
+                              return;
+                            }
+                            if (row.route) {
+                              window.location.assign(row.route);
+                              return;
+                            }
+                            sendMessage(row.promptMessage);
+                          }}
+                        >
+                          {row.label}
+                          {"estimatedCredits" in row && row.estimatedCredits != null && row.estimatedCredits > 0
+                            ? ` (±${row.estimatedCredits})`
+                            : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : null}

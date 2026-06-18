@@ -1,5 +1,6 @@
 import type { AssistantActionId } from "@/lib/assistant-action-registry";
 import type { AssistantConversationMemory } from "@/lib/assistant-conversation-memory";
+import type { AssistantV3SessionMemory } from "@/types/assistant-v3";
 
 export type AssistantClarificationKind = "video_type";
 
@@ -13,6 +14,8 @@ export type AssistantSessionMemory = {
   recentRecommendationIds?: string[];
   recommendationSessionSeed?: string;
   conversationMemory?: AssistantConversationMemory;
+  /** Assistant V3 — session asset/goal memory */
+  v3?: AssistantV3SessionMemory;
 };
 
 import { EMPTY_CONVERSATION_MEMORY } from "@/lib/assistant-conversation-memory";
