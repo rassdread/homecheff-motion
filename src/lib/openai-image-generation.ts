@@ -41,6 +41,19 @@ export function openAiImageEditSupportsInputFidelity(model: string): boolean {
   return normalized.startsWith("gpt-image-1") || normalized.startsWith("gpt-image-1.5");
 }
 
+/** gpt-image-1 family accepts multiple reference images in one edit request. */
+export function openAiImageEditSupportsMultiReference(model: string): boolean {
+  const normalized = model.trim().toLowerCase();
+  if (normalized.startsWith("dall-e-2")) {
+    return false;
+  }
+  return (
+    normalized.startsWith("gpt-image-1") ||
+    normalized.startsWith("gpt-image-1.5") ||
+    normalized.startsWith("chatgpt-image")
+  );
+}
+
 /** DALL-E 2/3 accept response_format; gpt-image and unknown models must not send it. */
 export function openAiImageGenerationSupportsResponseFormat(model: string): boolean {
   const normalized = model.trim().toLowerCase();
@@ -144,6 +157,14 @@ export async function fetchOpenAiImageGenerations(params: {
   });
 }
 
+export type OpenAiImageEditReferenceImage = {
+  buffer: Buffer;
+  filename?: string;
+  contentType?: string;
+  role?: "reference" | "logo" | "product" | "background";
+  referenceId?: string;
+};
+
 export type OpenAiImageEditParams = {
   model: string;
   prompt: string;
@@ -151,6 +172,8 @@ export type OpenAiImageEditParams = {
   imageBuffer: Buffer;
   imageFilename?: string;
   imageContentType?: string;
+  /** Additional reference images (gpt-image-1 family only). Logos should be marked role=logo. */
+  additionalImages?: OpenAiImageEditReferenceImage[];
   maskBuffer?: Buffer;
   maskFilename?: string;
   inputFidelity?: "high" | "low";
@@ -168,6 +191,17 @@ export function buildOpenAiImageEditFormData(params: OpenAiImageEditParams): For
   form.append("size", params.size);
   form.append("n", String(params.n ?? 1));
   form.append("image", blob, params.imageFilename ?? "source.png");
+
+  const supportsMulti = openAiImageEditSupportsMultiReference(params.model);
+  if (supportsMulti && params.additionalImages?.length) {
+    for (const [index, ref] of params.additionalImages.entries()) {
+      const refBytes = new Uint8Array(ref.buffer);
+      const refBlob = new Blob([refBytes], { type: ref.contentType ?? "image/png" });
+      const suffix = ref.role === "logo" ? "logo" : ref.role ?? "ref";
+      form.append("image", refBlob, ref.filename ?? `${suffix}_${index + 1}.png`);
+    }
+  }
+
   if (params.maskBuffer) {
     const maskBytes = new Uint8Array(params.maskBuffer);
     const maskBlob = new Blob([maskBytes], { type: "image/png" });
@@ -189,6 +223,8 @@ export type OpenAiImageEditLogContext = {
   hasSourceImage: boolean;
   hasMask?: boolean;
   inputFidelity?: "high" | "low" | null;
+  referenceImageCount?: number;
+  providerSupportsMultiReference?: boolean;
 };
 
 export function logOpenAiImageEditRequest(context: OpenAiImageEditLogContext): void {
@@ -201,9 +237,24 @@ export function logOpenAiImageEditRequest(context: OpenAiImageEditLogContext): v
       hasSourceImage: context.hasSourceImage,
       hasMask: context.hasMask ?? false,
       inputFidelity: context.inputFidelity ?? null,
+      referenceImageCount: context.referenceImageCount ?? 1,
+      providerSupportsMultiReference: context.providerSupportsMultiReference ?? false,
       timestamp: new Date().toISOString(),
     })
   );
+
+  if (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "production" &&
+    context.referenceImageCount &&
+    context.referenceImageCount > 1 &&
+    context.providerSupportsMultiReference === false
+  ) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[studio-openai-image-edits] providerSupportsMultiReference=false — extra references omitted from provider payload"
+    );
+  }
 }
 
 export async function fetchSourceImageBuffer(imageUrl: string): Promise<{
@@ -242,6 +293,8 @@ export async function fetchOpenAiImageEdits(params: {
     hasSourceImage: true,
     hasMask: Boolean(editParams.maskBuffer),
     inputFidelity: editParams.inputFidelity ?? null,
+    referenceImageCount: 1 + (editParams.additionalImages?.length ?? 0),
+    providerSupportsMultiReference: openAiImageEditSupportsMultiReference(model),
   });
 
   const form = buildOpenAiImageEditFormData(editParams);

@@ -4,6 +4,7 @@ import {
   buildOpenAiImageEditFormData,
   buildOpenAiImageGenerationsBody,
   openAiImageEditSupportsInputFidelity,
+  openAiImageEditSupportsMultiReference,
   openAiImageGenerationSupportsResponseFormat,
   openAiImageModelSupportsEdit,
   prepareOpenAiImageGenerationsBody,
@@ -107,5 +108,17 @@ describe("openai-image-generation", () => {
     assert.equal(form.get("input_fidelity"), "high");
     assert.equal(openAiImageEditSupportsInputFidelity("gpt-image-1"), true);
     assert.equal(openAiImageEditSupportsInputFidelity("gpt-image-2"), false);
+  });
+
+  it("appends additional reference images when model supports multi-reference", () => {
+    assert.equal(openAiImageEditSupportsMultiReference("gpt-image-1"), true);
+    const form = buildOpenAiImageEditFormData({
+      model: "gpt-image-1",
+      prompt: "Fusion",
+      size: "1024x1024",
+      imageBuffer: Buffer.from("base"),
+      additionalImages: [{ buffer: Buffer.from("ref"), filename: "ref.png", role: "reference" }],
+    });
+    assert.equal(form.getAll("image").length, 2);
   });
 });

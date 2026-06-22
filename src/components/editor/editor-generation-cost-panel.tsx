@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { checkGenerationAccess } from "@/lib/editor-generation-gate";
 import { fusionPlanCostOptions } from "@/lib/editor-fusion-generation-settings";
+import { fusionIntelligenceRequiredReferenceCount } from "@/lib/editor-fusion-intelligence";
+import { fusionWorkflowUsesIntelligence } from "@/lib/editor-fusion-workflow-credits";
 import type { EditorUserAccessSnapshot, EstimateEditorGenerationCostOptions, EditorGenerationWorkflow } from "@/types/editor-generation-access";
 import type { EditorFusionPlan } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -42,6 +44,7 @@ export function EditorGenerationCostPanel({
 }: Props) {
   const t = useActiveTranslator();
   const fusionPlan = document?.instructionStudioState?.fusionPlan;
+  const fusionIntelligence = document?.instructionStudioState?.fusionIntelligence;
 
   const decision = useMemo(() => {
     const resolvedWorkflow = workflow ?? fusionPlan?.intent;
@@ -80,6 +83,35 @@ export function EditorGenerationCostPanel({
         {t("editor.generation.cost.willGenerate" as never, { count: cost.generationCount } as never)}
       </p>
       <p className="text-zinc-700">{disclosure}</p>
+      {fusionPlan && fusionWorkflowUsesIntelligence(fusionPlan.intent) ?
+        <div className="space-y-1 rounded-lg border border-zinc-200 bg-white/70 px-3 py-2 text-xs text-zinc-700">
+          <p className="font-semibold text-zinc-900">{t("editor.fusionIntelligence.title" as never)}</p>
+          <p>
+            {t("editor.fusionIntelligence.requiredRefs" as never, {
+              count: fusionIntelligenceRequiredReferenceCount(fusionPlan.intent),
+            } as never)}
+          </p>
+          <p>
+            {fusionIntelligence?.analysisCreditsRequired ?
+              t("editor.fusionIntelligence.analysisCredits" as never, {
+                credits: fusionIntelligence.analysisCreditsRequired,
+              } as never)
+            : t("editor.fusionIntelligence.premiumCached" as never)}
+          </p>
+          <p>
+            {t("editor.fusionIntelligence.renderCredits" as never, {
+              credits: fusionIntelligence?.renderCredits ?? cost.creditCost,
+            } as never)}
+          </p>
+          <p>
+            {t("editor.fusionIntelligence.totalCredits" as never, {
+              credits:
+                (fusionIntelligence?.analysisCreditsRequired ?? 0) +
+                (fusionIntelligence?.renderCredits ?? cost.creditCost),
+            } as never)}
+          </p>
+        </div>
+      : null}
       {cost.reason ?
         <p className="text-xs text-amber-800">{cost.reason}</p>
       : null}

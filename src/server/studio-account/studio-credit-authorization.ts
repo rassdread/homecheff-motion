@@ -339,6 +339,7 @@ export const ACTION_TYPE_ROUTE_MAP: Record<string, string[]> = {
   scene_generation: ["/api/studio/storyboards/[id]/scenes/[sceneId]/images"],
   motion_render: ["/api/instant-premium/create-and-generate", "/api/animations/projects"],
   image_generation: ["/api/editor/instruction/variant"],
+  fusion_render: ["/api/editor/instruction/variant"],
   publish_mp4_export: ["/api/publish/export"],
 };
 

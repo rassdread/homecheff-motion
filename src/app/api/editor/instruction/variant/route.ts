@@ -10,6 +10,19 @@ import { logEditorVariantRouteDev } from "@/lib/editor-variant-dev-log";
 import { validateEditorInstructionVariantRequest } from "@/lib/editor-instruction-variant-validation";
 import { ensureCompletedGenerationInLibrary } from "@/server/studio/library-consistency-service";
 import { buildFusionLibraryFields } from "@/lib/library-consistency-completion";
+import {
+  buildFusionWorkflowCostLog,
+  recordEditorFusionProviderCost,
+} from "@/server/editor/editor-fusion-provider-cost";
+import {
+  FUSION_RENDER_ACTION_TYPE,
+  resolveFusionRenderActionType,
+  resolveFusionRenderCreditsRequired,
+} from "@/server/editor/editor-fusion-render-billing";
+import { fusionWorkflowUsesIntelligence } from "@/lib/editor-fusion-workflow-credits";
+import { normalizeFusionIntent } from "@/lib/editor-image-fusion-catalog";
+import type { FusionRenderPayload } from "@/types/editor-fusion-intelligence";
+import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { LibraryFusionMetadata } from "@/types/library-consistency";
 import type {
   EditorInstructionReference,
@@ -89,6 +102,8 @@ export async function POST(request: Request) {
     hcProjectId?: string | null;
     projectTitle?: string | null;
     fusionMetadata?: LibraryFusionMetadata | null;
+    fusionWorkflowType?: EditorFusionIntent;
+    fusionRenderPayload?: FusionRenderPayload | null;
   };
 
   try {
@@ -200,10 +215,27 @@ export async function POST(request: Request) {
     );
   }
 
+  const fusionWorkflowType = body.fusionWorkflowType
+    ? normalizeFusionIntent(body.fusionWorkflowType)
+    : body.fusionRenderPayload?.blueprint.workflowType
+      ? normalizeFusionIntent(body.fusionRenderPayload.blueprint.workflowType)
+      : body.fusionMetadata?.fusionIntent &&
+          fusionWorkflowUsesIntelligence(body.fusionMetadata.fusionIntent as EditorFusionIntent)
+        ? normalizeFusionIntent(body.fusionMetadata.fusionIntent as EditorFusionIntent)
+        : null;
+
+  const billingActionType = resolveFusionRenderActionType(fusionWorkflowType);
+  const fusionCreditsRequired =
+    fusionWorkflowType && billingActionType === FUSION_RENDER_ACTION_TYPE
+      ? resolveFusionRenderCreditsRequired(fusionWorkflowType)
+      : undefined;
+
   const gated = await withStudioCreditGate({
     user,
-    actionType: "image_generation",
+    actionType: billingActionType,
+    projectId: sessionId,
     confirmed: body.confirmed,
+    overrideCredits: fusionCreditsRequired,
     execute: () =>
       executeEditorInstructionVariant({
         userId: user.id,
@@ -212,8 +244,42 @@ export async function POST(request: Request) {
         prompt,
         instruction,
         references: body.references,
+        fusionWorkflowType: fusionWorkflowType ?? undefined,
+        fusionRenderPayload: body.fusionRenderPayload ?? null,
+        fusionCreditsCharged: fusionCreditsRequired,
       }),
     isFailure: (result) => !result.ok,
+    buildCostEvent: async (result) => {
+      if (!fusionWorkflowType || billingActionType !== FUSION_RENDER_ACTION_TYPE) {
+        return null;
+      }
+      const costLog = buildFusionWorkflowCostLog({
+        workflowType: fusionWorkflowType,
+        creditsCharged: fusionCreditsRequired ?? 0,
+        renderCostUsd: result.ok ? (result.costEstimateUsd ?? 0.04) : 0.04,
+        referenceCount: result.referenceImageCount,
+        imageCount: result.referenceImageCount,
+        durationMs: result.durationMs,
+        status: result.ok ? "completed" : "failed",
+        errorCode: result.ok ? null : result.code,
+        provider: result.ok ? result.provider : "openai",
+        model: result.ok ? result.model : undefined,
+      });
+      await recordEditorFusionProviderCost({
+        userId: user.id,
+        sessionId,
+        workflowType: fusionWorkflowType,
+        blueprintId: body.fusionRenderPayload?.blueprint.id ?? null,
+        status: result.ok ? "completed" : "failed",
+        costLog,
+        provider: result.ok ? result.provider : "openai",
+        model: result.ok ? result.model : undefined,
+        referenceCount: result.referenceImageCount,
+        providerSupportsMultiReference: result.providerSupportsMultiReference,
+        errorCode: result.ok ? null : result.code,
+      });
+      return null;
+    },
   });
 
   if ("blocked" in gated) {
@@ -292,6 +358,11 @@ export async function POST(request: Request) {
     prompt,
     sourceImageUrl: imageUrl,
     variantName: body.variantName,
+    fusionRun: result.fusionRun,
+    providerSupportsMultiReference: result.providerSupportsMultiReference,
+    referenceImageCount: result.referenceImageCount,
+    fusionCreditsCharged: fusionCreditsRequired,
+    estimatedCredits: gated.estimatedCredits,
     versionNote:
       body.variantName ??
       (changePlan

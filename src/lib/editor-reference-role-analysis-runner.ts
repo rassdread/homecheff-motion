@@ -1,5 +1,6 @@
 import {
   runLiveReferenceRoleAnalysis,
+  type ReferenceRoleAnalysisOptions,
   type ReferenceRoleAnalysisResult,
 } from "@/lib/editor-reference-role-analysis";
 import type {
@@ -87,7 +88,8 @@ export function referenceAnalysisProgress(state: EditorReferenceIntakeState): {
 export async function runReferenceAnalysesInParallel(
   jobs: ReferenceAnalysisJob[],
   onJobStart: (instanceId: string) => void,
-  onJobComplete: (instanceId: string, result: ReferenceRoleAnalysisResult) => void
+  onJobComplete: (instanceId: string, result: ReferenceRoleAnalysisResult) => void,
+  options: ReferenceRoleAnalysisOptions = {}
 ): Promise<void> {
   if (jobs.length === 0) {
     return;
@@ -99,7 +101,7 @@ export async function runReferenceAnalysesInParallel(
 
   await Promise.allSettled(
     jobs.map(async (job) => {
-      const result = await runLiveReferenceRoleAnalysis(job.instance.document, job.roleSpec);
+      const result = await runLiveReferenceRoleAnalysis(job.instance.document, job.roleSpec, options);
       onJobComplete(job.instance.instanceId, result);
     })
   );

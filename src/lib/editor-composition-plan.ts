@@ -47,12 +47,20 @@ export function analyzeCompositionReference(input: {
     name: input.name,
     backgroundUrl: input.url,
   });
-  const feed = buildInstructionObjectsFromDocument(synthetic);
+  return analyzeCompositionReferenceFromDocument(synthetic, input.type);
+}
+
+export function analyzeCompositionReferenceFromDocument(
+  document: EditorCanvasDocument,
+  type: EditorCompositionReferenceType,
+  nameOverride?: string
+): EditorCompositionReference {
+  const feed = buildInstructionObjectsFromDocument(document);
   return {
     id: createCompositionReferenceId(),
-    type: input.type,
-    name: input.name,
-    url: input.url,
+    type,
+    name: nameOverride ?? document.name,
+    url: document.backgroundUrl,
     uploadedAt: new Date().toISOString(),
     editableObjectLabels: feed.editableObjects.map((o) => o.label),
     styleTraitLabels: feed.styleTraits.map((t) => t.label),

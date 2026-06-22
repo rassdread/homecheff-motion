@@ -4,6 +4,8 @@ import {
 } from "@/lib/editor-fusion-archetypes";
 import { activePreservationRules } from "@/lib/editor-fusion-plan";
 import { buildReferenceMetadataPromptLines } from "@/lib/editor-reference-metadata-prompt";
+import { buildFusionIntelligencePrompt } from "@/lib/editor-fusion-render-payload";
+import type { FusionRenderPayload } from "@/types/editor-fusion-intelligence";
 import type { EditorReferenceAssignment } from "@/types/editor-reference-metadata";
 import type { EditorFusionPlan } from "@/types/editor-instruction-studio";
 
@@ -21,7 +23,17 @@ export function buildEditorFusionPrompt(input: {
   preserveStyle?: number;
   preserveBrand?: number;
   referenceAssignments?: EditorReferenceAssignment[];
+  fusionRenderPayload?: FusionRenderPayload;
 }): string {
+  if (input.fusionRenderPayload) {
+    const intelligencePrompt = buildFusionIntelligencePrompt(input.fusionRenderPayload);
+    const metadataLines = buildReferenceMetadataPromptLines(input.referenceAssignments ?? []);
+    if (metadataLines.length === 0) {
+      return intelligencePrompt;
+    }
+    return `${intelligencePrompt}\n\nREFERENCE METADATA\n${metadataLines.join("\n")}`;
+  }
+
   const { plan } = input;
   const preserveStyle = input.preserveStyle ?? 80;
   const preserveBrand = input.preserveBrand ?? 85;

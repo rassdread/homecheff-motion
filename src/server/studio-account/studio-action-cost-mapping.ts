@@ -71,6 +71,7 @@ export function defaultProviderCostSpec(input: {
     case "world_generation":
     case "image_generation":
     case "image_edit":
+    case "fusion_render":
       return {
         ...base,
         provider: "openai",

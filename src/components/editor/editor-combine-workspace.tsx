@@ -26,6 +26,9 @@ import {
 import { collectEditorMetadataPipeline, metadataEnrichedGenerationPrompt } from "@/lib/editor-metadata-pipeline";
 import { useEditorUserAccess } from "@/hooks/use-editor-user-access";
 import { buildEditorFusionPrompt } from "@/lib/editor-fusion-prompt-builder";
+import { resolveFusionIntelligenceForGeneration } from "@/lib/editor-fusion-intelligence";
+import { fusionWorkflowUsesIntelligence } from "@/lib/editor-fusion-workflow-credits";
+import { fusionPayloadToInstructionReferences } from "@/lib/editor-fusion-variant-render";
 import { fusionPlanCostOptions } from "@/lib/editor-fusion-generation-settings";
 import {
   checkGenerationAccess,
@@ -120,6 +123,44 @@ export function EditorCombineWorkspace({
     setGenerating(true);
     const recCtx = buildEditorRecommendationContext({ document });
 
+    const referenceAssignments = document.instructionStudioState?.referenceIntake?.roleAssignments?.filter(
+      (assignment): assignment is EditorReferenceAssignment =>
+        Boolean(assignment.url && assignment.instanceId && assignment.name)
+    );
+    const metadataPipeline = collectEditorMetadataPipeline(document);
+
+    const fusionIntelligence =
+      fusionPlan && fusionWorkflowUsesIntelligence(fusionPlan.intent)
+        ? resolveFusionIntelligenceForGeneration({
+            document,
+            plan: fusionPlan,
+          })
+        : null;
+
+    if (fusionIntelligence && !fusionIntelligence.ready) {
+      setStatusMessage(t("editor.fusionIntelligence.analysisRequired" as never));
+      setGenerating(false);
+      return;
+    }
+
+    setStatusMessage(
+      fusionPlan && fusionWorkflowUsesIntelligence(fusionPlan.intent)
+        ? t("editor.fusionIntelligence.rendering" as never)
+        : t("editor.combine.generating" as never)
+    );
+
+    let latestDoc = document;
+    if (fusionIntelligence?.state) {
+      latestDoc = {
+        ...document,
+        instructionStudioState: {
+          ...document.instructionStudioState,
+          fusionIntelligence: fusionIntelligence.state,
+        },
+      };
+      onDocumentChange(latestDoc);
+    }
+
     const runSingleGeneration = async (
       prompt: string,
       variantLabel: string,
@@ -200,6 +241,15 @@ export function EditorCombineWorkspace({
         parentVariantId: approved?.id ?? null,
         document,
         triggerSource,
+        fusionWorkflowType:
+          fusionPlan && fusionWorkflowUsesIntelligence(fusionPlan.intent)
+            ? fusionPlan.intent
+            : undefined,
+        fusionRenderPayload: fusionIntelligence?.state?.renderPayload ?? null,
+        references: fusionPayloadToInstructionReferences(
+          fusionIntelligence?.state?.renderPayload
+        ),
+        debug: { isAdmin: access.billingFree },
         trace: {
           componentName: COMBINE_WORKSPACE_COMPONENT,
           buttonName:
@@ -209,12 +259,35 @@ export function EditorCombineWorkspace({
         },
       });
 
+      if (!result.ok && result.creditGate) {
+        setStatusMessage(
+          t("editor.fusionIntelligence.insufficientCredits" as never, {
+            credits: result.estimatedCredits ?? accessDecision.cost.creditCost,
+          } as never)
+        );
+      } else if (!result.ok && result.code && result.code !== "VALIDATION") {
+        setStatusMessage(t("editor.fusionIntelligence.refundAfterFailure" as never));
+      }
+
       if (result.ok && result.resultUrl) {
+        let completedDoc = nextDoc;
+        if (result.fusionRun && fusionIntelligence?.state) {
+          completedDoc = {
+            ...completedDoc,
+            instructionStudioState: {
+              ...completedDoc.instructionStudioState,
+              fusionIntelligence: {
+                ...fusionIntelligence.state,
+                lastRun: result.fusionRun,
+              },
+            },
+          };
+        }
         nextDoc = patchInstructionVariant(
-          nextDoc,
+          completedDoc,
           pendingId,
           instructionVariantWithStatus(
-            nextDoc.instructionVariants!.find((v) => v.id === pendingId)!,
+            completedDoc.instructionVariants!.find((v) => v.id === pendingId)!,
             "completed",
             {
               resultUrl: result.resultUrl,
@@ -241,12 +314,6 @@ export function EditorCombineWorkspace({
 
     let successfulOutputs = 0;
     let failedOutputs = 0;
-    let latestDoc = document;
-    const referenceAssignments = document.instructionStudioState?.referenceIntake?.roleAssignments?.filter(
-      (assignment): assignment is EditorReferenceAssignment =>
-        Boolean(assignment.url && assignment.instanceId && assignment.name)
-    );
-    const metadataPipeline = collectEditorMetadataPipeline(document);
 
     if (isSequence && transformationSession) {
       for (const step of transformationSession.steps) {
@@ -272,22 +339,26 @@ export function EditorCombineWorkspace({
         }
       }
     } else {
+      const baseFusionPrompt = fusionPlan
+        ? buildEditorFusionPrompt({
+            plan: fusionPlan,
+            brandIdentity: resolveCompositionBrandIdentity(recCtx),
+            preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
+            preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
+            referenceAssignments,
+            fusionRenderPayload: fusionIntelligence?.state?.renderPayload,
+          })
+        : buildEditorCompositionPrompt({
+            plan,
+            brandIdentity: resolveCompositionBrandIdentity(recCtx),
+            preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
+            preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
+          });
       const prompt = metadataEnrichedGenerationPrompt(
-        fusionPlan
-          ? buildEditorFusionPrompt({
-              plan: fusionPlan,
-              brandIdentity: resolveCompositionBrandIdentity(recCtx),
-              preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
-              preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
-              referenceAssignments,
-            })
-          : buildEditorCompositionPrompt({
-              plan,
-              brandIdentity: resolveCompositionBrandIdentity(recCtx),
-              preserveStyle: document.instructionStudioState?.selection?.sliders?.preserveStyle,
-              preserveBrand: document.instructionStudioState?.selection?.sliders?.brandPreservation,
-            }),
-        document
+        fusionIntelligence?.ready && fusionIntelligence.prompt
+          ? fusionIntelligence.prompt
+          : baseFusionPrompt,
+        latestDoc
       );
       const outcome = await runSingleGeneration(
         prompt,
@@ -334,7 +405,9 @@ export function EditorCombineWorkspace({
     onDocumentChange(latestDoc);
     setStatusMessage(
       successfulOutputs > 0
-        ? t("editor.combine.generateSuccess" as never)
+        ? fusionPlan && fusionWorkflowUsesIntelligence(fusionPlan.intent)
+          ? t("editor.fusionIntelligence.completed" as never)
+          : t("editor.combine.generateSuccess" as never)
         : t("editor.combine.generateFailed" as never)
     );
     setGenerating(false);
@@ -387,7 +460,10 @@ export function EditorCombineWorkspace({
               data-testid="combine-generate-button"
             >
               {generating ?
-                t("editor.combine.generating" as never)
+                document.instructionStudioState?.fusionPlan &&
+                  fusionWorkflowUsesIntelligence(document.instructionStudioState.fusionPlan.intent)
+                  ? t("editor.fusionIntelligence.rendering" as never)
+                : t("editor.combine.generating" as never)
               : t("editor.combine.generate" as never)}
             </button>
             {onSave ?

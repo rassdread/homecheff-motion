@@ -1120,6 +1120,8 @@ export type EditorCanvasDocument = {
   instructionStudioState?: import("@/types/editor-instruction-studio").EditorInstructionStudioState;
   /** Detected / canonical style attributes (not editable objects) */
   styleAttributes?: import("@/types/editor-instruction-studio").EditorStyleAttributeRecord[];
+  /** Fusion Intelligence Layer — cached premium reference analysis profile. */
+  referenceAnalysisProfile?: import("@/types/editor-fusion-intelligence").ReferenceAnalysisProfile;
   status: "editing" | "draft_saved";
   updatedAt: string;
   createdAt: string;

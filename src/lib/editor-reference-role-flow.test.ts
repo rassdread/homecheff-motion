@@ -33,7 +33,10 @@ test("EditorReferenceRoleFlow declares recentlyAddedCount state before render", 
     referenceRoleFlowSrc,
     /const \[recentlyAddedCount, setRecentlyAddedCount\] = useState\(0\)/
   );
-  assert.match(referenceRoleFlowSrc, /referenceAddedToastVisible\(step, recentlyAddedCount\)/);
+  assert.match(
+    referenceRoleFlowSrc,
+    /step === "reference_roles" && referenceAddedToastVisible\("reference_roles", recentlyAddedCount\)/
+  );
 });
 
 test("EditorStartScreen renders EditorReferenceRoleFlow without referencing undefined count", () => {

@@ -37,7 +37,7 @@ describe("Editor generation cost", () => {
     assert.equal(cost.generationCount, 6);
     assert.equal(cost.adEligible, false);
     assert.equal(cost.premiumRequired, true);
-    assert.equal(cost.creditCost, 6);
+    assert.equal(cost.creditCost, 50);
   });
 
   it("selected ages count determines credit cost", () => {
@@ -45,12 +45,12 @@ describe("Editor generation cost", () => {
     assert.equal(lifeTimelineGenerationCount([25]), 1);
   });
 
-  it("Product Family 4 variants costs 4 credits", () => {
+  it("Product Family 4 variants costs fusion intelligence render credits", () => {
     const cost = estimateEditorGenerationCost("product_family", {
       selectedVariants: ["premium", "luxury", "eco", "holiday"],
     });
     assert.equal(cost.generationCount, 4);
-    assert.equal(cost.creditCost, 4);
+    assert.equal(cost.creditCost, 25);
     assert.equal(cost.premiumRequired, true);
   });
 

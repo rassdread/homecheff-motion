@@ -1,6 +1,6 @@
 import {
   addCompositionReference,
-  analyzeCompositionReference,
+  analyzeCompositionReferenceFromDocument,
 } from "@/lib/editor-composition-plan";
 import { patchFusionGenerationSettings } from "@/lib/editor-fusion-generation-settings";
 import { seedCategoryOutputSettings } from "@/lib/editor-fusion-archetypes";
@@ -11,6 +11,10 @@ import {
   getFusionPlan,
   patchFusionPlan,
 } from "@/lib/editor-fusion-plan";
+import {
+  buildFusionIntelligenceState,
+  profileFromAnalyzedDocument,
+} from "@/lib/editor-fusion-intelligence";
 import { applyWearOutfitComposition } from "@/lib/editor-wear-outfit-composition";
 import { fusionIntentDefinition, normalizeFusionIntent } from "@/lib/editor-image-fusion-catalog";
 import {
@@ -109,6 +113,12 @@ function primaryRoleId(config: EditorWorkflowReferenceConfig): string {
   return config.roles[0]?.id ?? "source";
 }
 
+export function primaryBaseDocumentFromIntake(
+  state: EditorReferenceIntakeState
+): EditorCanvasDocument | undefined {
+  return primaryBaseDocument(state);
+}
+
 function primaryBaseDocument(state: EditorReferenceIntakeState): EditorCanvasDocument | undefined {
   const primaryId = primaryRoleId(state.config);
   const primarySlot = state.slots.find((s) => s.roleId === primaryId);
@@ -168,15 +178,11 @@ export function applyReferenceRoleIntake(
       primaryOutfit.doc.name
     );
     for (const entry of clothingEntries.slice(1)) {
-      const analyzed = analyzeCompositionReference({
-        name: entry.doc.name,
-        url: entry.doc.backgroundUrl,
-        type: "style",
-      });
+      const analyzed = analyzeCompositionReferenceFromDocument(entry.doc, "style");
       next = addCompositionReference(next, analyzed);
     }
     next = attachOutputSettings(next, normalized, output, motion, slots, fusionQuestionAnswers, fusionOutputSettings);
-    return next;
+    return stampFusionIntelligenceFromIntake(next, slots, baseDoc);
   }
 
   let next = ensureFusionPlan(baseDoc, normalized);
@@ -184,11 +190,10 @@ export function applyReferenceRoleIntake(
     const step = fusionIntentDefinition(normalized).uploadSteps.find(
       (s) => s.id === entry.roleId || s.role === entry.role
     );
-    const analyzed = analyzeCompositionReference({
-      name: entry.doc.name,
-      url: entry.doc.backgroundUrl,
-      type: roleToReferenceType(step?.role ?? entry.role),
-    });
+    const analyzed = analyzeCompositionReferenceFromDocument(
+      entry.doc,
+      roleToReferenceType(step?.role ?? entry.role)
+    );
     next = addCompositionReference(next, analyzed);
   }
 
@@ -206,7 +211,70 @@ export function applyReferenceRoleIntake(
   }
 
   next = attachOutputSettings(next, normalized, output, motion, slots, fusionQuestionAnswers, fusionOutputSettings);
-  return next;
+  return stampFusionIntelligenceFromIntake(next, slots, baseDoc);
+}
+
+function stampFusionIntelligenceFromIntake(
+  document: EditorCanvasDocument,
+  slots: EditorReferenceRoleSlot[],
+  baseDoc: EditorCanvasDocument
+): EditorCanvasDocument {
+  const referenceProfiles = collectReferenceProfilesFromIntake(slots, baseDoc);
+  const fusion = getFusionPlan(document);
+  if (!fusion || referenceProfiles.length === 0) {
+    return document;
+  }
+  const intelligence = buildFusionIntelligenceState({
+    document,
+    plan: fusion,
+    profiles: referenceProfiles,
+  });
+  return {
+    ...document,
+    instructionStudioState: {
+      ...document.instructionStudioState,
+      fusionIntelligence: intelligence,
+    },
+  };
+}
+
+function collectReferenceProfilesFromIntake(
+  slots: EditorReferenceRoleSlot[],
+  baseDoc: EditorCanvasDocument
+) {
+  const profiles: ReturnType<typeof profileFromAnalyzedDocument>[] = [];
+  const seenUrls = new Set<string>();
+
+  const baseProfile = profileFromAnalyzedDocument({
+    document: baseDoc,
+    referenceId: `base_${baseDoc.sessionId}`,
+    role: "base",
+    roleId: "base",
+    name: baseDoc.name,
+  });
+  profiles.push(baseProfile);
+  seenUrls.add(baseDoc.backgroundUrl.trim());
+
+  for (const slot of slots) {
+    for (const instance of slot.instances) {
+      const url = instance.document.backgroundUrl?.trim();
+      if (!url || seenUrls.has(url)) {
+        continue;
+      }
+      seenUrls.add(url);
+      profiles.push(
+        profileFromAnalyzedDocument({
+          document: instance.document,
+          referenceId: instance.instanceId,
+          role: slot.role,
+          roleId: slot.roleId,
+          name: instance.document.name,
+        })
+      );
+    }
+  }
+
+  return profiles;
 }
 
 function patchNonFusionIntake(

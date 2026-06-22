@@ -10,12 +10,16 @@ import {
   PREMIUM_ONLY_UPSCALE_MODES,
 } from "@/lib/editor-generation-access-config";
 import { normalizeFusionIntent } from "@/lib/editor-image-fusion-catalog";
+import {
+  fusionIntelligenceTotalRenderCredits,
+  fusionWorkflowUsesIntelligence,
+} from "@/lib/editor-fusion-workflow-credits";
+import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type {
   EditorGenerationWorkflow,
   EstimateEditorGenerationCostOptions,
   GenerationCostProfile,
 } from "@/types/editor-generation-access";
-import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 
 function resolveGenerationCount(
   workflow: EditorGenerationWorkflow,
@@ -143,7 +147,20 @@ export function estimateEditorGenerationCost(
     estimatedProviderCostUsd <= adValue &&
     options.outputMode !== "sequence";
 
-  const creditCost = generationCount + upscaleUnits + motionUnits;
+  const normalizedFusion =
+    workflow !== "export_print" &&
+    workflow !== "export_upscale" &&
+    workflow !== "transformation_sequence"
+      ? normalizeFusionIntent(workflow as EditorFusionIntent)
+      : null;
+
+  const fusionRenderCredits =
+    normalizedFusion && fusionWorkflowUsesIntelligence(normalizedFusion)
+      ? fusionIntelligenceTotalRenderCredits(normalizedFusion)
+      : null;
+
+  const creditCost =
+    fusionRenderCredits ?? generationCount + upscaleUnits + motionUnits;
 
   let reason: string | undefined;
   if (premiumRequired) {

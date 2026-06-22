@@ -5,6 +5,9 @@ import { EditorFusionDynamicQuestionsPanel } from "@/components/editor/editor-fu
 import { EditorFlowStepper, EditorFlowActionBar } from "@/components/editor/editor-flow-stepper";
 import { EditorUploadClassifyGate } from "@/components/editor/editor-upload-classify-gate";
 import { EditorGenerationCostPanel } from "@/components/editor/editor-generation-cost-panel";
+import { EditorFusionWizardProgress } from "@/components/editor/editor-fusion-wizard-progress";
+import { EditorFusionWizardResultPanel } from "@/components/editor/editor-fusion-wizard-result-panel";
+import { EditorFusionWizardSummaryPanel } from "@/components/editor/editor-fusion-wizard-summary-panel";
 import { EditorPlanSummaryPanel } from "@/components/editor/editor-plan-summary-panel";
 import { EditorReferenceRoleCard } from "@/components/editor/editor-reference-role-card";
 import { HomeCheffOrbitLoader } from "@/components/editor/homecheff-orbit-loader";
@@ -65,8 +68,23 @@ import {
 } from "@/lib/assistant-wizard-prefill-apply";
 import type { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
 import type { FusionOutfitItem } from "@/lib/editor-fusion-archetype-types";
+import { patchFusionPlan } from "@/lib/editor-fusion-plan";
+import {
+  fusionWizardRenderActionKey,
+  fusionWorkflowUsesWizardFirst,
+} from "@/lib/editor-fusion-wizard-flow";
+import { runFusionWizardRenderPipeline } from "@/lib/editor-fusion-wizard-render";
 
-type FlowStep = "reference_roles" | "dynamic_questions" | "classify" | "output_type" | "motion_upsell" | "plan_review";
+type FlowStep =
+    | "reference_roles"
+    | "dynamic_questions"
+    | "classify"
+    | "output_type"
+    | "motion_upsell"
+    | "plan_review"
+    | "fusion_summary"
+    | "fusion_rendering"
+    | "fusion_result";
 
 type Props = {
   config: EditorWorkflowReferenceConfig;
@@ -119,16 +137,31 @@ export function EditorReferenceRoleFlow({
   const [libraryRoleId, setLibraryRoleId] = useState<string | null>(null);
   const [replacingInstanceId, setReplacingInstanceId] = useState<string | null>(null);
   const [recentlyAddedCount, setRecentlyAddedCount] = useState(0);
+  const [renderProgressStep, setRenderProgressStep] = useState(0);
+  const [renderBusy, setRenderBusy] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultCreditsUsed, setResultCreditsUsed] = useState(0);
+  const [resultAnalysisReused, setResultAnalysisReused] = useState(false);
+  const [resultDocument, setResultDocument] = useState<EditorCanvasDocument | null>(null);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [wizardPreviewDocument, setWizardPreviewDocument] = useState<EditorCanvasDocument | null>(null);
   const analysisStartedRef = useRef(new Set<string>());
   const intakeRef = useRef(intake);
   useEffect(() => {
     intakeRef.current = intake;
   }, [intake]);
 
+  const wizardFirstMode = Boolean(
+    config.workflow === "combine" && combineIntent && fusionWorkflowUsesWizardFirst(combineIntent)
+  );
+
   const activeFlowStep = startScreenPhaseToFlowStep({
     kind: "reference_flow",
     referenceStep:
-      step === "plan_review"
+      step === "plan_review" ||
+      step === "fusion_summary" ||
+      step === "fusion_result" ||
+      step === "fusion_rendering"
         ? "plan_review"
         : step === "output_type" || step === "motion_upsell"
           ? "output_type"
@@ -159,8 +192,8 @@ export function EditorReferenceRoleFlow({
   const showMotionStep =
     intake.output.outputMode === "sequence" && config.supportsMotionHandoff;
 
-  const previewDocument = useMemo(() => {
-    if (step !== "plan_review" || !rolesReady) {
+  const computedPreviewDocument = useMemo(() => {
+    if (!rolesReady) {
       return null;
     }
     try {
@@ -168,7 +201,29 @@ export function EditorReferenceRoleFlow({
     } catch {
       return null;
     }
-  }, [intake, rolesReady, step]);
+  }, [intake, rolesReady]);
+
+  const previewDocument = useMemo(() => {
+    if (wizardFirstMode && wizardPreviewDocument && (step === "fusion_summary" || step === "fusion_rendering")) {
+      return wizardPreviewDocument;
+    }
+    if ((step === "plan_review" || step === "fusion_summary") && computedPreviewDocument) {
+      return computedPreviewDocument;
+    }
+    return null;
+  }, [wizardFirstMode, wizardPreviewDocument, step, computedPreviewDocument]);
+
+  const prevStepRef = useRef<FlowStep>(step);
+  useEffect(() => {
+    if (
+      prevStepRef.current !== "fusion_summary" &&
+      step === "fusion_summary" &&
+      computedPreviewDocument
+    ) {
+      setWizardPreviewDocument(computedPreviewDocument);
+    }
+    prevStepRef.current = step;
+  }, [step, computedPreviewDocument]);
 
   useEffect(() => {
     const jobs = collectQueuedReferenceAnalysisJobs(intakeRef.current, analysisStartedRef.current);
@@ -199,9 +254,15 @@ export function EditorReferenceRoleFlow({
             result.document.visionV6Meta || result.document.visionHierarchy?.length
           ),
         });
+      },
+      {
+        useFusionIntelligence: config.workflow === "combine" && !wizardFirstMode,
+        fusionWizardBasicOnly: wizardFirstMode,
+        isAdmin: access.billingFree,
+        creditsAvailable: access.credits,
       }
     );
-  }, [intake.slots]);
+  }, [intake.slots, config.workflow, wizardFirstMode, access.billingFree, access.credits]);
 
   const replaceDocumentInRole = useCallback(
     (roleId: string, instanceId: string, document: EditorCanvasDocument, originalFilename?: string) => {
@@ -397,6 +458,10 @@ export function EditorReferenceRoleFlow({
         setStep("dynamic_questions");
         return;
       }
+      if (wizardFirstMode) {
+        setStep("fusion_summary");
+        return;
+      }
       if (showOutputStep) {
         setStep("output_type");
         return;
@@ -409,6 +474,10 @@ export function EditorReferenceRoleFlow({
         ...prev,
         fusionOutputSettings: buildFusionOutputSettings(combineIntent, prev.fusionQuestionAnswers),
       }));
+      if (wizardFirstMode) {
+        setStep("fusion_summary");
+        return;
+      }
       if (showOutputStep) {
         setStep("output_type");
         return;
@@ -417,7 +486,7 @@ export function EditorReferenceRoleFlow({
       return;
     }
     if (step === "classify") {
-      setStep("plan_review");
+      setStep(wizardFirstMode ? "fusion_summary" : "plan_review");
       return;
     }
     if (step === "output_type") {
@@ -425,17 +494,96 @@ export function EditorReferenceRoleFlow({
         setStep("motion_upsell");
         return;
       }
-      setStep("plan_review");
+      setStep(wizardFirstMode ? "fusion_summary" : "plan_review");
       return;
     }
     if (step === "motion_upsell") {
-      setStep("plan_review");
+      setStep(wizardFirstMode ? "fusion_summary" : "plan_review");
+      return;
+    }
+    if (step === "fusion_summary") {
+      void runFusionWizardRender();
       return;
     }
     onComplete(applyReferenceRoleIntake(intake));
   };
 
+  const runFusionWizardRender = async () => {
+    if (!combineIntent || !previewDocument || renderBusy) {
+      return;
+    }
+    setError("");
+    setRenderBusy(true);
+    setStep("fusion_rendering");
+    setRenderProgressStep(0);
+
+    let document = previewDocument;
+    if (customPrompt.trim()) {
+      const fusion = document.instructionStudioState?.fusionPlan;
+      if (fusion) {
+        document = patchFusionPlan(document, {
+          ...fusion,
+          userInstructions: customPrompt.trim(),
+        });
+      }
+    }
+
+    const outcome = await runFusionWizardRenderPipeline({
+      intake,
+      document,
+      combineIntent,
+      isAdmin: access.billingFree,
+      creditsAvailable: access.credits,
+      onProgress: setRenderProgressStep,
+      confirmed: true,
+    });
+
+    setRenderBusy(false);
+
+    if (!outcome.ok) {
+      setStep("fusion_summary");
+      if (outcome.code === "credit_gate") {
+        setError(
+          t("editor.fusionIntelligence.insufficientCredits" as never, {
+            credits: outcome.estimatedCredits ?? 0,
+          } as never)
+        );
+        return;
+      }
+      if (outcome.code === "analysis") {
+        setError(t("editor.fusionWizard.error.analysisFailed" as never));
+        return;
+      }
+      setError(t("editor.fusionWizard.error.renderFailed" as never));
+      return;
+    }
+
+    setIntake(outcome.intake);
+
+    setResultUrl(outcome.resultUrl);
+    setResultCreditsUsed(outcome.creditsUsed);
+    setResultAnalysisReused(outcome.analysisReused);
+    setResultDocument(outcome.document);
+    setStep("fusion_result");
+  };
+
   const goBack = () => {
+    if (step === "fusion_result") {
+      setStep("fusion_summary");
+      return;
+    }
+    if (step === "fusion_rendering") {
+      setStep("fusion_summary");
+      return;
+    }
+    if (step === "fusion_summary") {
+      if (showFusionQuestions) {
+        setStep("dynamic_questions");
+        return;
+      }
+      setStep("reference_roles");
+      return;
+    }
     if (step === "plan_review") {
       if (showMotionStep && intake.output.outputMode === "sequence") {
         setStep("motion_upsell");
@@ -717,7 +865,7 @@ export function EditorReferenceRoleFlow({
         </div>
       : null}
 
-      {referenceAddedToastVisible(step, recentlyAddedCount) ?
+      {step === "reference_roles" && referenceAddedToastVisible("reference_roles", recentlyAddedCount) ?
         <p className="mt-3 text-xs font-medium text-emerald-200" data-testid="reference-added-toast">
           {t("editor.referenceRole.added" as never)}
         </p>
@@ -775,7 +923,7 @@ export function EditorReferenceRoleFlow({
         </div>
       : null}
 
-      {step === "plan_review" ?
+      {step === "plan_review" && !wizardFirstMode ?
         <div className="mt-6 space-y-4" data-testid="reference-plan-review">
           {previewDocument ?
             <EditorPlanSummaryPanel document={previewDocument} />
@@ -786,6 +934,61 @@ export function EditorReferenceRoleFlow({
         </div>
       : null}
 
+      {step === "fusion_summary" && wizardFirstMode && combineIntent ?
+        <div className="mt-6 space-y-4">
+          {previewDocument ?
+            <EditorFusionWizardSummaryPanel
+              document={previewDocument}
+              intake={intake}
+              combineIntent={combineIntent}
+              isAdmin={access.billingFree}
+              customPrompt={customPrompt}
+              onCustomPromptChange={setCustomPrompt}
+              onDocumentChange={setWizardPreviewDocument}
+              onEditReferences={() => setStep("reference_roles")}
+            />
+          : <HomeCheffOrbitLoader state="preparing_plan" size="md" />}
+          {displayError ?
+            <p className="whitespace-pre-wrap text-sm text-red-200">{displayError}</p>
+          : null}
+        </div>
+      : null}
+
+      {step === "fusion_rendering" && wizardFirstMode ?
+        <div className="mt-6">
+          <EditorFusionWizardProgress activeStepIndex={renderProgressStep} />
+        </div>
+      : null}
+
+      {step === "fusion_result" && wizardFirstMode && resultUrl ?
+        <div className="mt-6">
+          <EditorFusionWizardResultPanel
+            resultUrl={resultUrl}
+            creditsUsed={resultCreditsUsed}
+            analysisReused={resultAnalysisReused}
+            adminFree={access.billingFree}
+            onDownload={() => {
+              const link = window.document.createElement("a");
+              link.href = resultUrl;
+              link.download = "fusion-result.png";
+              link.click();
+            }}
+            onMakeAnother={() => {
+              setResultUrl(null);
+              setResultDocument(null);
+              setStep("reference_roles");
+              setIntake(createReferenceIntakeState({ config }));
+            }}
+            onOpenEditor={() => {
+              if (resultDocument) {
+                onComplete(resultDocument);
+              }
+            }}
+          />
+        </div>
+      : null}
+
+      {step !== "fusion_rendering" && step !== "fusion_result" ?
       <EditorFlowActionBar
         onBack={goBack}
         onClose={onClose ?? onBack}
@@ -793,15 +996,19 @@ export function EditorReferenceRoleFlow({
         continueDisabled={
           (step === "reference_roles" && !rolesReady) ||
           (step === "classify" && false) ||
-          (step === "plan_review" && !previewDocument)
+          ((step === "plan_review" || step === "fusion_summary") && !previewDocument) ||
+          renderBusy
         }
         continueLabel={
-          step === "plan_review"
-            ? t("editor.referenceRole.openEditor" as never)
-            : t("editor.referenceRole.continue" as never)
+          step === "fusion_summary" && combineIntent
+            ? t(fusionWizardRenderActionKey(combineIntent) as never)
+            : step === "plan_review"
+              ? t("editor.referenceRole.openEditor" as never)
+              : t("editor.referenceRole.continue" as never)
         }
-        busy={busy}
+        busy={busy || renderBusy}
       />
+      : null}
 
       <input
         ref={fileRef}

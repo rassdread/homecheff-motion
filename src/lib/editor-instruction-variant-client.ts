@@ -1,4 +1,6 @@
+import type { FusionRenderPayload } from "@/types/editor-fusion-intelligence";
 import type {
+  EditorFusionIntent,
   EditorInstructionChangePlanItem,
   EditorInstructionReference,
   EditorInstructionSelection,
@@ -55,6 +57,12 @@ export type EditorInstructionVariantApiResponse = {
   triggerSource?: string;
   librarySaved?: boolean;
   libraryAssetId?: string | null;
+  estimatedCredits?: number;
+  creditGate?: boolean;
+  fusionRun?: import("@/types/editor-fusion-intelligence").FusionRunRecord;
+  providerSupportsMultiReference?: boolean;
+  referenceImageCount?: number;
+  fusionCreditsCharged?: number;
 };
 
 export type EditorVariantTraceMeta = {
@@ -85,6 +93,9 @@ export async function executeEditorInstructionVariantApi(input: {
   triggerSource?: EditorVariantTriggerSource;
   trace?: EditorVariantTraceMeta;
   debug?: { isAdmin?: boolean };
+  fusionWorkflowType?: EditorFusionIntent;
+  fusionRenderPayload?: FusionRenderPayload | null;
+  confirmed?: boolean;
 }): Promise<EditorInstructionVariantApiResponse> {
   const triggerSource = input.triggerSource ?? "variant_api_client";
   const route: EditorVariantTraceRoute = "/api/editor/instruction/variant";
@@ -168,10 +179,26 @@ export async function executeEditorInstructionVariantApi(input: {
       buttonName: meta.buttonName,
       hcProjectId: input.document?.instructionStudioState?.hcProjectId ?? null,
       projectTitle: input.document?.name ?? null,
+      fusionWorkflowType: input.fusionWorkflowType,
+      fusionRenderPayload: input.fusionRenderPayload ?? null,
+      fusionMetadata: input.fusionWorkflowType
+        ? { fusionIntent: input.fusionWorkflowType, workflow: "combine" as const }
+        : null,
+      confirmed: input.confirmed ?? true,
     }),
     credentials: "include",
   });
   const body = (await res.json()) as EditorInstructionVariantApiResponse;
+
+  if (!res.ok && body.creditGate) {
+    return {
+      ok: false,
+      error: body.error ?? "Insufficient credits",
+      code: body.code ?? "insufficient_credits",
+      estimatedCredits: body.estimatedCredits,
+      creditGate: true,
+    };
+  }
 
   recordEditorVariantTrace({
     triggerSource,

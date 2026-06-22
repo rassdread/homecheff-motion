@@ -331,6 +331,17 @@ export const PRICING_CATALOG_ACTION_META: Record<string, PricingCatalogActionMet
     visibleInCatalog: true,
     isFree: false,
   },
+  fusion_render: {
+    actionType: "fusion_render",
+    category: "editor",
+    displayNameNl: "Fusion render",
+    displayNameEn: "Fusion render",
+    descriptionNl: "Render een fusion-workflow op basis van premium analyse en blueprint.",
+    descriptionEn: "Render a fusion workflow from premium analysis and blueprint.",
+    sortOrder: 355,
+    visibleInCatalog: true,
+    isFree: false,
+  },
   image_edit: {
     actionType: "image_edit",
     category: "editor",

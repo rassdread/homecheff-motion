@@ -32,6 +32,7 @@ export const STUDIO_ACTION_TYPES = [
   "translation_export",
   "image_generation",
   "image_edit",
+  "fusion_render",
   "transformation_session",
 ] as const;
 
@@ -250,6 +251,16 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "editor",
     "replicate",
     0.04
+  ),
+  fusion_render: entry(
+    "fusion_render",
+    "account.action.fusionRender",
+    "editor",
+    "openai",
+    0.04,
+    0.04,
+    15,
+    25
   ),
   image_edit: entry("image_edit", "account.action.imageEdit", "editor", "openai", 0.03),
   transformation_session: entry(

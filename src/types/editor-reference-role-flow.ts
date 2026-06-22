@@ -22,6 +22,10 @@ export type EditorReferenceRoleAnalysis = {
   editableObjects?: string[];
   errorMessage?: string;
   analyzedAt?: string;
+  /** Premium analysis reuse status for Fusion Intelligence Layer. */
+  premiumAnalysisStatus?: "missing" | "cached" | "completed" | "required";
+  premiumAnalysisCached?: boolean;
+  profileSummary?: string;
 };
 
 export type EditorReferenceRoleSpec = {

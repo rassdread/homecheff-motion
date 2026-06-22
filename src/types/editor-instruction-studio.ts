@@ -716,6 +716,8 @@ export type EditorInstructionStudioState = {
     motionDurationSec?: number;
     motionMetadata?: Record<string, string>;
   };
+  /** Fusion Intelligence Layer — blueprint + render payload built from premium analysis. */
+  fusionIntelligence?: import("@/types/editor-fusion-intelligence").FusionIntelligenceState;
 };
 
 export type EditorCreatorPresetId = "chef" | "garden" | "designer";
