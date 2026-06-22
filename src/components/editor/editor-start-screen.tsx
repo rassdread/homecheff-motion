@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthSession } from "@/hooks/use-auth-session";
-import { createEditorProject, fetchEditorProject, fetchEditorProjects, saveEditorProject } from "@/lib/editor-project-client";
+import {
+  listRecentEditorDocuments,
+  saveEditorCanvasDocument,
+} from "@/lib/editor-canvas-session";
+import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
+import { beginEditorOpenTimingSession, markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
+import { resolveEditorDocumentOrigin } from "@/lib/editor-project-origin";
+import { scheduleIdleTask } from "@/lib/editor-project-restore";
+import { buildMotionReadyCharacterWizardHref } from "@/lib/motion-ready-character-routes";
 import { EditorFusionIntentPicker } from "@/components/editor/editor-fusion-intent-picker";
 import { EditorReferenceRoleFlow } from "@/components/editor/editor-reference-role-flow";
 import { EditorFlowStepper } from "@/components/editor/editor-flow-stepper";
@@ -21,12 +29,6 @@ import { resolveReferenceIntakeConfig } from "@/lib/editor-reference-role-intake
 import { loadAssistantEditorFusionBootstrap } from "@/lib/assistant-prefill-storage";
 import { AssistantWizardPrefillBanner } from "@/components/assistant/assistant-wizard-prefill-banner";
 import { useAssistantWizardPrefill } from "@/hooks/use-assistant-wizard-prefill";
-import {
-  listRecentEditorDocuments,
-  runEditorVisionAndObjectDetection,
-  saveEditorCanvasDocument,
-} from "@/lib/editor-canvas-session";
-import { buildMotionReadyCharacterWizardHref } from "@/lib/motion-ready-character-routes";
 import type { EditorFusionIntent } from "@/types/editor-instruction-studio";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
@@ -88,33 +90,29 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     });
   }, [auth.user]);
 
-  const finishOpen = async (
+  const finishOpen = (
     document: EditorCanvasDocument,
     mode: EditorPostUploadMode,
     combineIntent?: EditorFusionIntent
   ) => {
-    setOpening(true);
     setError("");
     try {
       const withMode = applyPostUploadMode(document, mode, { combineIntent });
+      beginEditorOpenTimingSession(withMode.sessionId);
+      markEditorOpenTiming("localDocumentSavedAt");
       saveEditorCanvasDocument(withMode);
-      const analyzed =
-        mode === "export" ? withMode : await runEditorVisionAndObjectDetection(withMode);
-      if (auth.user) {
-        const existing = await fetchEditorProject(analyzed.sessionId);
-        if (existing.ok) {
-          await saveEditorProject(analyzed.sessionId, analyzed, analyzed.name);
-        } else {
-          await createEditorProject(analyzed);
-        }
-      }
+      recordEditorOpenStage("editor_opening");
+      markEditorOpenTiming("routeStartedAt");
       setRecent(listRecentEditorDocuments());
-      onOpenDocument(analyzed);
+      onOpenDocument(withMode);
       setPhase({ kind: "workflow" });
+      if (auth.user) {
+        scheduleIdleTask(() => {
+          void createEditorProject(withMode);
+        });
+      }
     } catch {
       setError(t("editor.start.uploadFailed"));
-    } finally {
-      setOpening(false);
     }
   };
 
@@ -200,17 +198,18 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                           <button
                             type="button"
                             onClick={() => {
-                              if (auth.user) {
-                                void fetchEditorProject(doc.sessionId).then((remote) => {
-                                  if (remote.ok && remote.project) {
-                                    onOpenDocument(saveEditorCanvasDocument(remote.project));
-                                    return;
-                                  }
-                                  onOpenDocument(doc);
-                                });
+                              const origin = resolveEditorDocumentOrigin(doc);
+                              if (!auth.user || origin === "local") {
+                                onOpenDocument(doc);
                                 return;
                               }
-                              onOpenDocument(doc);
+                              void fetchEditorProject(doc.sessionId).then((remote) => {
+                                if (remote.ok && remote.project) {
+                                  onOpenDocument(saveEditorCanvasDocument(remote.project));
+                                  return;
+                                }
+                                onOpenDocument(doc);
+                              });
                             }}
                             className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-white/95 px-4 py-3 text-left text-sm hover:bg-white"
                           >
@@ -252,7 +251,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                 }}
                 onClose={() => setPhase({ kind: "workflow" })}
                 onComplete={(document) => {
-                  void finishOpen(document, phase.workflow, phase.combineIntent);
+                  finishOpen(document, phase.workflow, phase.combineIntent);
                 }}
               />
               {error ?

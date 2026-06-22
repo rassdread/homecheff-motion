@@ -1,4 +1,5 @@
 import type { HomeCheffExample, HomeCheffExampleService } from "@/lib/homecheff-examples";
+import { resolvePlayableVideoSrc } from "@/lib/playable-media-url";
 import type { ShowcasePageKey, StudioShowcaseItemRecord } from "@/types/studio-showcase-item";
 
 export function mapPageKeyToExampleService(pageKey: ShowcasePageKey): HomeCheffExampleService {
@@ -34,9 +35,27 @@ export function resolveShowcaseModalSrc(item: Pick<
   "mediaType" | "mediaUrl" | "thumbnailUrl" | "posterUrl"
 >): string {
   if (item.mediaType === "video") {
-    return item.mediaUrl.trim();
+    const playable = resolvePlayableVideoSrc(item.mediaUrl);
+    if (playable) {
+      return playable;
+    }
+    return item.posterUrl?.trim() || item.thumbnailUrl?.trim() || "";
   }
   return item.mediaUrl.trim() || resolveShowcaseCardSrc(item);
+}
+
+function sanitizeShowcaseMediaUrl(
+  item: Pick<StudioShowcaseItemRecord, "mediaType" | "mediaUrl" | "thumbnailUrl" | "posterUrl">
+): string {
+  const raw = item.mediaUrl.trim();
+  if (item.mediaType !== "video") {
+    return raw;
+  }
+  const playable = resolvePlayableVideoSrc(raw);
+  if (playable) {
+    return playable;
+  }
+  return item.posterUrl?.trim() || item.thumbnailUrl?.trim() || "";
 }
 
 export function studioShowcaseItemToExample(item: StudioShowcaseItemRecord): HomeCheffExample {
@@ -45,6 +64,9 @@ export function studioShowcaseItemToExample(item: StudioShowcaseItemRecord): Hom
       (item.serviceKey as HomeCheffExampleService)
     : mapPageKeyToExampleService(item.pageKey);
   const cardSrc = resolveShowcaseCardSrc(item);
+  const mediaUrl = sanitizeShowcaseMediaUrl(item);
+  const effectiveMediaKind =
+    item.mediaType === "video" && !resolvePlayableVideoSrc(mediaUrl) ? "image" : item.mediaType;
   return {
     id: item.id,
     service,
@@ -52,9 +74,9 @@ export function studioShowcaseItemToExample(item: StudioShowcaseItemRecord): Hom
     subtitle: item.subtitle ?? undefined,
     description: item.description,
     thumbnailUrl: cardSrc,
-    mediaUrl: item.mediaUrl,
+    mediaUrl: mediaUrl || undefined,
     posterUrl: item.posterUrl ?? undefined,
-    mediaKind: item.mediaType,
+    mediaKind: effectiveMediaKind,
     tags: item.category ? [item.category] : [],
     assistantPrompt: item.assistantPrompt ?? undefined,
     ctaLabel: item.ctaLabel ?? undefined,

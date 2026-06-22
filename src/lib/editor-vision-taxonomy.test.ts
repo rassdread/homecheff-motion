@@ -14,6 +14,7 @@ import {
   publicEditablePartLabels,
   resolveVisionTaxonomy,
 } from "@/lib/editor-vision-taxonomy";
+import { splitAnalysisIntoTruthSections } from "@/lib/editor-vision-truth-mode";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 
 function vision(partial: Partial<AssetVisionAnalysis> & Pick<AssetVisionAnalysis, "objectType">): AssetVisionAnalysis {
@@ -52,7 +53,7 @@ const shallowAnalysis = {
 };
 
 describe("editor vision taxonomy — humans, animals, morphs", () => {
-  it("human shallow detection still shows full human taxonomy", () => {
+  it("human shallow detection exposes taxonomy as creative capabilities", () => {
     const v = vision({
       objectType: "human",
       objectTypeLabel: "Portrait",
@@ -63,13 +64,18 @@ describe("editor vision taxonomy — humans, animals, morphs", () => {
       vision: v,
       documentName: "selfie.jpg",
     });
-    const labels = publicEditablePartLabels(analysis).map((l) => l.toLowerCase());
-    for (const expected of ["face", "eyes", "hair", "shirt", "smile", "standing", "cartoon"]) {
-      assert.ok(labels.some((l) => l.includes(expected)), `missing ${expected}`);
+    const sections = splitAnalysisIntoTruthSections(analysis);
+    const creativeLabels = sections.creative.map((p) => p.label.toLowerCase());
+    for (const expected of ["cartoon", "outfit", "pose"]) {
+      assert.ok(creativeLabels.some((l) => l.includes(expected)), `missing creative ${expected}`);
     }
+    assert.equal(
+      sections.detected.some((p) => /cartoon|cinematic/i.test(p.label)),
+      false
+    );
   });
 
-  it("animal shallow detection still shows full animal taxonomy", () => {
+  it("animal shallow detection exposes taxonomy as creative capabilities", () => {
     const v = vision({
       objectType: "animal",
       objectTypeLabel: "Dog",
@@ -81,10 +87,12 @@ describe("editor vision taxonomy — humans, animals, morphs", () => {
       documentName: "my-dog.png",
     });
     assert.equal(taxonomy?.type, "animal");
-    const labels = publicEditablePartLabels(analysis).map((l) => l.toLowerCase());
-    for (const expected of ["eyes", "fur", "tail", "paws", "collar", "cartoon animal", "mascot"]) {
-      assert.ok(labels.some((l) => l.includes(expected)), `missing ${expected}`);
+    const sections = splitAnalysisIntoTruthSections(analysis);
+    const creativeLabels = sections.creative.map((p) => p.label.toLowerCase());
+    for (const expected of ["tail", "paws", "collar", "cartoon animal", "mascot"]) {
+      assert.ok(creativeLabels.some((l) => l.includes(expected)), `missing creative ${expected}`);
     }
+    assert.equal(sections.detected.some((p) => /tail|paw|body/i.test(p.label)), false);
   });
 
   it("admin and normal user see same editable parts for human portrait", () => {

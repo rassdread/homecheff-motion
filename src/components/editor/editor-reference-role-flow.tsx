@@ -14,6 +14,7 @@ import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
+import { markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
 import {
   assetPickerSelectionToDerivationSource,
   createEditorDocumentFromLibrarySource,
@@ -285,6 +286,8 @@ export function EditorReferenceRoleFlow({
     setError("");
     try {
       const uploaded = await uploadEditorSourceImage(file);
+      markEditorOpenTiming("imageSelectedAt");
+      recordEditorOpenStage("photo_loading");
       const doc = createEditorDocumentFromUpload({
         name: file.name.replace(/\.[^.]+$/, ""),
         backgroundUrl: uploaded.workingImageUrl,

@@ -5,6 +5,10 @@ export type StudioCopilotLayoutPreferences = {
   width: number;
   collapsedRecent: boolean;
   compactMode: boolean;
+  /** Copilot panel minimized — only floating restore button visible. */
+  collapsed: boolean;
+  /** Placement restored after minimize (defaults to side). */
+  restorePlacement: StudioCopilotPlacement;
 };
 
 export const STUDIO_COPILOT_LAYOUT_STORAGE_KEY = "homecheff:studio-copilot-layout";
@@ -20,4 +24,19 @@ export const DEFAULT_STUDIO_COPILOT_LAYOUT: StudioCopilotLayoutPreferences = {
   width: STUDIO_COPILOT_WIDTH_DEFAULT,
   collapsedRecent: true,
   compactMode: true,
+  collapsed: false,
+  restorePlacement: "side",
 };
+
+export function defaultWidthForCopilotPlacement(placement: StudioCopilotPlacement): number {
+  switch (placement) {
+    case "wide":
+      return STUDIO_COPILOT_WIDTH_WIDE;
+    case "focus":
+      return STUDIO_COPILOT_WIDTH_FOCUS;
+    case "side":
+    case "dock":
+    default:
+      return STUDIO_COPILOT_WIDTH_DEFAULT;
+  }
+}

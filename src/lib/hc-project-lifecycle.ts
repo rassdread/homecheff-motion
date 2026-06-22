@@ -1,12 +1,18 @@
 import { buildHomeCheffProjectFromEditorDocument, mergeHomeCheffProject } from "@/lib/homecheff-project-build";
 import { linkDocumentToHcProject } from "@/lib/homecheff-project-handoff-routes";
 import {
+  resolveHcProjectOrigin,
+  stampEditorDocumentOrigin,
+  stampHcProjectOrigin,
+} from "@/lib/editor-project-origin";
+import {
   extendHcProjectWithMotionState,
   extendHcProjectWithPublishState,
 } from "@/lib/homecheff-project-handoff";
 import { createHomeCheffProjectId, defaultProjectPermissions } from "@/lib/homecheff-project-package-core";
 import { loadHomeCheffProject, persistHomeCheffProject } from "@/lib/homecheff-project-persist";
 import { persistHcProjectWithSync } from "@/lib/homecheff-project-sync";
+import { safeReplaceEditorUrlString } from "@/lib/editor-route-navigation";
 import { storeStudioWorkflowInHc } from "@/lib/hc-workflow-v2";
 import {
   HOMECHEFF_PACKAGE_VERSION,
@@ -168,12 +174,15 @@ export function saveEditorDocumentToHcProject(input: {
     thumbnailUrl: namedDocument.backgroundUrl,
   });
 
+  const origin = existing ? resolveHcProjectOrigin(existing) : "local";
+  project = stampHcProjectOrigin(project, origin);
+
   project = persistHcProjectWithSync(project, {
     syncToServer: input.syncToServer ?? Boolean(input.ownerId),
   });
   persistHomeCheffProject(project);
 
-  const linked = linkDocumentToHcProject(namedDocument, project.id);
+  const linked = stampEditorDocumentOrigin(linkDocumentToHcProject(namedDocument, project.id), origin);
   return { document: linked, project };
 }
 
@@ -545,9 +554,10 @@ export function syncHcProjectIdToUrl(hcProjectId: string): void {
     return;
   }
   const url = new URL(window.location.href);
-  if (url.searchParams.get("hcProject") === hcProjectId) {
+  if (url.searchParams.get("hcProject")?.trim() === hcProjectId) {
     return;
   }
   url.searchParams.set("hcProject", hcProjectId);
-  window.history.replaceState({}, "", url.toString());
+  url.searchParams.delete("restoreServer");
+  safeReplaceEditorUrlString(`${url.pathname}${url.search}`, "hc_synced");
 }

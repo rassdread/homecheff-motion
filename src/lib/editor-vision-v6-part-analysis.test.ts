@@ -7,7 +7,6 @@ import {
   isWeakRtdetrDetection,
   shouldRunIllustrationPartAnalysis,
 } from "@/lib/editor-vision-v6-part-analysis";
-import { buildEditorVisionV6Hierarchy } from "@/lib/editor-vision-v6-hierarchy";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 
 function mascotVision(): AssetVisionAnalysis {
@@ -138,15 +137,9 @@ describe("editor vision v6 illustration part analysis", () => {
     const nonBg = doc.objects.filter((o) => o.layerType !== "background");
     assert.ok(nonBg.length >= 8, `expected >= 8 layers, got ${nonBg.length}`);
     assert.ok(doc.visionV6Meta?.mergedLayerCount >= 8);
-    assert.ok(doc.visionHierarchy && doc.visionHierarchy.length >= 3);
+    assert.ok(doc.visionHierarchy && doc.visionHierarchy.length >= 1);
 
-    const tree = buildEditorVisionV6Hierarchy({
-      analysis,
-      objects: doc.detectedObjects ?? [],
-      layers: doc.objects,
-      semanticLayers: doc.semanticLayers,
-      vision,
-    });
+    const tree = doc.visionHierarchy ?? [];
     const labels: string[] = [];
     const walk = (nodes: typeof tree) => {
       for (const n of nodes) {
@@ -158,6 +151,7 @@ describe("editor vision v6 illustration part analysis", () => {
     assert.ok(labels.some((l) => /head/i.test(l)));
     assert.ok(labels.some((l) => /tie/i.test(l)));
     assert.ok(labels.some((l) => /globe/i.test(l)));
-    assert.ok(labels.some((l) => /style/i.test(l)));
+    assert.ok(tree.some((n) => n.truthSection === "detected"));
+    assert.ok(tree.some((n) => n.truthSection === "estimated" || n.truthSection === "creative"));
   });
 });

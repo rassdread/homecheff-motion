@@ -6,7 +6,7 @@ import { GrowthSidebar } from "@/components/growth/growth-sidebar";
 import { StudioCopilotResizeHandle } from "@/components/assistant/studio-copilot-resize-handle";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { growthSidebarLayoutClasses, GROWTH_SIDEBAR_HEADER_VAR } from "@/lib/growth-sidebar-layout";
-import { shouldHideSideCopilotOnEditor } from "@/lib/studio-copilot-layout-storage";
+import { shouldShowSideCopilotPanel } from "@/lib/studio-copilot-layout-storage";
 
 type Props = {
   children: ReactNode;
@@ -21,18 +21,19 @@ export function GrowthSidebarLayout({ children, showSidebar }: Props) {
     return <>{children}</>;
   }
 
-  const hideSidePanel = shouldHideSideCopilotOnEditor(copilotLayout.placement, pathname);
+  const showSidePanel = shouldShowSideCopilotPanel(copilotLayout, pathname);
 
   return (
     <div
       className={growthSidebarLayoutClasses.container}
       data-testid="growth-sidebar-layout"
       data-growth-sidebar-layout="true"
+      data-studio-copilot-collapsed={copilotLayout.collapsed ? "true" : "false"}
     >
       <main className={growthSidebarLayoutClasses.main} data-testid="growth-sidebar-main">
         {children}
       </main>
-      {!hideSidePanel ? (
+      {showSidePanel ? (
         <div
           className={`${growthSidebarLayoutClasses.sidebarColumn} relative`}
           style={{ width: copilotLayout.width, maxWidth: copilotLayout.width }}

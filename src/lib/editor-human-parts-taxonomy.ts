@@ -2,7 +2,7 @@
  * Realistic human fallback taxonomy — visual editable parts only (no sensitive inference).
  */
 
-import { mergeTaxonomyFallbackParts, publicEditablePartLabels, taxonomySpec } from "@/lib/editor-taxonomy-shared";
+import { mergeTaxonomyFallbackPartsSeparated, publicEditablePartLabels, taxonomySpec } from "@/lib/editor-taxonomy-shared";
 import type { IllustrationPartAnalysisResult, IllustrationPartSpec } from "@/types/editor-illustration-parts";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -118,10 +118,26 @@ function clothingParts(): IllustrationPartSpec[] {
     taxonomySpec({ key: "trousers", label: "Trousers", category: "pants", group: "character", taxonomyTab: "clothing" }),
     taxonomySpec({ key: "dress", label: "Dress", category: "clothing", group: "character", taxonomyTab: "clothing" }),
     taxonomySpec({ key: "shoes", label: "Shoes", category: "shoes", group: "character", taxonomyTab: "clothing" }),
-    taxonomySpec({ key: "hat", label: "Hat", category: "head", group: "character", taxonomyTab: "clothing" }),
-    taxonomySpec({ key: "glasses", label: "Glasses", category: "prop", group: "character", taxonomyTab: "clothing" }),
-    taxonomySpec({ key: "jewelry", label: "Jewelry", category: "prop", group: "character", taxonomyTab: "clothing" }),
-    taxonomySpec({ key: "accessories", label: "Accessories", category: "prop", group: "character", taxonomyTab: "clothing" }),
+  ].filter((p): p is IllustrationPartSpec => p !== null);
+}
+
+function humanAccessoryParts(): IllustrationPartSpec[] {
+  return [
+    taxonomySpec({ key: "sunglasses", label: "Sunglasses", category: "eyes", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "glasses", label: "Glasses", category: "eyes", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "hat", label: "Hat", category: "head", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "cap", label: "Cap", category: "head", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "helmet", label: "Helmet", category: "head", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "earrings", label: "Earrings", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "necklace", label: "Necklace", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "chain", label: "Chain", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "watch", label: "Watch", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "bracelet", label: "Wristband", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "ring", label: "Ring", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "backpack", label: "Backpack", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "bag", label: "Bag", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "headphones", label: "Headphones", category: "prop", group: "character", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "microphone", label: "Microphone", category: "prop", group: "character", taxonomyTab: "accessories" }),
   ].filter((p): p is IllustrationPartSpec => p !== null);
 }
 
@@ -172,6 +188,7 @@ export function buildHumanTaxonomyFallbackParts(_kind: HumanTaxonomyKind): Illus
     ...hairParts(),
     ...bodyParts(),
     ...clothingParts(),
+    ...humanAccessoryParts(),
     ...expressionParts(),
     ...poseParts(),
     ...morphParts(),
@@ -187,9 +204,9 @@ export function mergeIllustrationPartsWithHumanTaxonomy(
     return analysis;
   }
   const fallback = buildHumanTaxonomyFallbackParts(kind);
-  const merged = mergeTaxonomyFallbackParts(analysis, fallback);
+  const merged = mergeTaxonomyFallbackPartsSeparated(analysis, fallback);
   return {
-    ...merged,
+    ...merged.analysis,
     characterLabel: vision.objectTypeLabel?.trim() || "Person",
   };
 }

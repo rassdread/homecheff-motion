@@ -20,11 +20,16 @@ export function loadHcProjectFromQuery(searchParams: URLSearchParams): HomeCheff
 
 export async function loadHcProjectFromQueryResolved(
   searchParams: URLSearchParams,
-  syncFromServer = false
+  options: {
+    syncFromServer?: boolean;
+    skipServerWithoutLocal?: boolean;
+    userRequestedRestore?: boolean;
+    analysisStatus?: import("@/lib/editor-vision-analysis-run").EditorVisionAnalysisStatus | null;
+  } = {}
 ): Promise<HomeCheffProjectPackage | null> {
   const id = searchParams.get("hcProject")?.trim();
   if (!id) return null;
-  return loadHcProjectResolved(id, { syncFromServer });
+  return loadHcProjectResolved(id, options);
 }
 
 export function hydratePublishFromHcProject(project: HomeCheffProjectPackage): PublishProject | null {

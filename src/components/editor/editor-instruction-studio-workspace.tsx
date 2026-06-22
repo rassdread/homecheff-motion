@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { EditorProjectIsolationControls } from "@/components/editor/editor-project-isolation-controls";
 import { publishAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
 import { buildAssistantEditorContextFromHierarchy } from "@/lib/assistant-editor-context-builder";
 import { EditorInstructionChangePlanPanel } from "@/components/editor/editor-instruction-change-plan-panel";
 import { EditorInstructionEditPanel } from "@/components/editor/editor-instruction-edit-panel";
 import { EditorInstructionObjectList } from "@/components/editor/editor-instruction-object-list";
-import { EditorVisionHierarchyPanel } from "@/components/editor/editor-vision-hierarchy-panel";
+import { EditorVisionPartsPanel } from "@/components/editor/editor-vision-parts-panel";
+import { useEditorVisionAnalysisRun } from "@/hooks/use-editor-vision-analysis-run";
+import {
+  markEditorOpenTiming,
+  recordEditorOpenStage,
+} from "@/lib/editor-open-timing";
 import { EditorInstructionPreviewHighlight } from "@/components/editor/editor-instruction-preview-highlight";
 import { EditorInstructionStyleTraitList } from "@/components/editor/editor-instruction-style-trait-list";
 import { EditorInstructionComparisonCenter } from "@/components/editor/editor-instruction-comparison-center";
@@ -87,14 +93,12 @@ import {
   styleAttributeFromHierarchyNode,
 } from "@/lib/editor-hierarchy-object-resolution";
 import { extractPartToLibrary } from "@/lib/editor-part-extraction";
-import { runEditorVisionAndObjectDetection } from "@/lib/editor-canvas-session";
 import { editorPhaseShowsSection } from "@/lib/editor-workflow-phases";
 import {
-  documentHasRichVisionAnalysis,
   isMeaningfulVisionHierarchy,
-  resolveStickyVisionHierarchy,
   traceVisionHierarchyStage,
 } from "@/lib/editor-vision-v6-stability";
+import { traceBeforeHierarchyPanelRenderStage } from "@/lib/editor-vision-hierarchy-loss-trace";
 import { listEditorAnalysisTimings } from "@/lib/editor-analysis-performance";
 import {
   executeEditorInstructionBulkVariantApi,
@@ -171,6 +175,16 @@ export function EditorInstructionStudioWorkspace({
   const [generating, setGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [imageVisible, setImageVisible] = useState(false);
+
+  const handleInstructionImageVisible = () => {
+    if (!imageVisible) {
+      setImageVisible(true);
+      markEditorOpenTiming("imageVisibleAt");
+      recordEditorOpenStage("analysis_preparing");
+    }
+  };
+
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [colorInput, setColorInput] = useState("");
   const [addPlanReason, setAddPlanReason] = useState("");
@@ -192,6 +206,7 @@ export function EditorInstructionStudioWorkspace({
   );
 
   useEffect(() => {
+    setImageVisible(false);
     setVirtualSelectedObject(null);
     setExpandedObjectId(null);
     setExpandedStyleAttribute(null);
@@ -579,10 +594,33 @@ export function EditorInstructionStudioWorkspace({
     setStyleDescription("");
   };
 
-  const displayHierarchy = useMemo(() => {
+  const {
+    runMeta: visionRunMeta,
+    displayHierarchy,
+    hasRichHierarchy,
+    analysisPending,
+    analysisInProgress,
+    analysisComplete,
+    isPartialResult,
+    showEmptyState,
+    lifecycleDebug,
+    runAnalysis,
+    cachedResult,
+    needsDeepAnalysis,
+    analysisProgress,
+  } = useEditorVisionAnalysisRun(document, onDocumentChange, {
+    imageVisible,
+    mountTrigger: "instruction-workspace-mount",
+  });
+
+  useEffect(() => {
     traceVisionHierarchyStage("before_EditorVisionHierarchyPanel_render", document);
-    return resolveStickyVisionHierarchy(document);
-  }, [document]);
+    traceBeforeHierarchyPanelRenderStage({
+      document,
+      displayHierarchy,
+      meaningful: isMeaningfulVisionHierarchy(displayHierarchy, document.visionV6Meta),
+    });
+  }, [document, displayHierarchy]);
 
   useEffect(() => {
     publishAssistantEditorContext(
@@ -598,15 +636,11 @@ export function EditorInstructionStudioWorkspace({
     displayHierarchy,
     selectedHierarchyNodeId,
     virtualSelectedObject?.label,
+    analysisPending,
   ]);
 
-  const hasRichHierarchy = isMeaningfulVisionHierarchy(displayHierarchy, document.visionV6Meta);
-  const analysisPending =
-    !documentHasRichVisionAnalysis(document) &&
-    (document.objects.filter((o) => o.layerType !== "background").length === 0 ||
-      !document.detectionMeta?.lastDetectedAt);
   const weakEstimatedOnly =
-    !hasRichHierarchy && (displayHierarchy.length > 0 || analysisPending);
+    !hasRichHierarchy && !analysisPending && !analysisInProgress && !analysisComplete && !showEmptyState;
   const showParts = editorPhaseShowsSection(activePhase, "parts");
   const showAnalysis = editorPhaseShowsSection(activePhase, "analysis");
   const showObjectEdit = editorPhaseShowsSection(activePhase, "objectEdit");
@@ -928,10 +962,15 @@ export function EditorInstructionStudioWorkspace({
 
   return (
     <div className="space-y-4" data-testid="instruction-studio-workspace">
+      <EditorProjectIsolationControls
+        document={document}
+        onDocumentChange={onDocumentChange}
+        compact
+      />
       {showAnalysis ?
         <div className="space-y-3">
           <EditorDetectionStatusBanner meta={document.detectionMeta} />
-          <EditorVisionSummaryPanel document={document} />
+          <EditorVisionSummaryPanel document={document} showDebug={isAdmin} />
         </div>
       : null}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
@@ -947,6 +986,7 @@ export function EditorInstructionStudioWorkspace({
               document={document}
               imageUrl={document.backgroundUrl}
               selectedObject={previewHighlightObject}
+              onImageLoad={handleInstructionImageVisible}
             />
           </div>
           {previewUrl ?
@@ -965,34 +1005,38 @@ export function EditorInstructionStudioWorkspace({
         </div>
 
         <div className="space-y-3 xl:col-span-3">
-          {showParts && analysisPending ?
-            <section
-              className="rounded-2xl border border-white/20 bg-[#003d6b]/55 p-4 text-white shadow-sm backdrop-blur-sm"
-              data-testid="instruction-parts-analyzing"
-            >
-              <h3 className="text-sm font-semibold text-white">
-                {t("editor.workflow.parts.analyzingTitle" as never)}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/85">
-                {t("editor.workflow.parts.analyzingLead" as never)}
-              </p>
-            </section>
+          {showParts ?
+            <EditorVisionPartsPanel
+              hierarchy={displayHierarchy}
+              selectedNodeId={selectedHierarchyNodeId}
+              onSelectNode={selectHierarchyNode}
+              showSourceDebug={isAdmin}
+              analysisPending={analysisPending}
+              analysisInProgress={analysisInProgress}
+              analysisComplete={analysisComplete}
+              showEmptyState={showEmptyState}
+              isPartialResult={isPartialResult}
+              cachedResult={cachedResult}
+              needsDeepAnalysis={needsDeepAnalysis}
+              onDeepAnalyze={() => {
+                void runAnalysis(document, { trigger: "deep-analyze" });
+              }}
+              runMeta={visionRunMeta}
+              lifecycleDebug={lifecycleDebug}
+              analysisProgress={analysisProgress}
+              onReanalyze={() => {
+                void runAnalysis(document, {
+                  force: true,
+                  trigger: "manual-reanalyze",
+                  preserveUserEdits: false,
+                });
+              }}
+              variant="studio"
+              className={studioVisual.editorSurface}
+              taxonomyType={document.visionV6Meta?.taxonomyType ?? "unknown"}
+            />
           : null}
-          {showParts && hasRichHierarchy ?
-            <section
-              className={`rounded-2xl border border-white/15 bg-white/95 p-3 shadow-sm ${studioVisual.editorSurface}`}
-              data-testid="instruction-vision-hierarchy"
-            >
-              <EditorVisionHierarchyPanel
-                hierarchy={displayHierarchy}
-                selectedNodeId={selectedHierarchyNodeId}
-                onSelectNode={selectHierarchyNode}
-                showSourceDebug={isAdmin}
-                taxonomyType={document.visionV6Meta?.taxonomyType}
-              />
-            </section>
-          : null}
-          {showParts && weakEstimatedOnly && !analysisPending ?
+          {showParts && weakEstimatedOnly ?
             <section
               className={`rounded-2xl border border-amber-200/80 bg-amber-50/95 p-4 text-amber-950 shadow-sm ${studioVisual.editorSurface}`}
               data-testid="instruction-parts-weak"
@@ -1007,7 +1051,13 @@ export function EditorInstructionStudioWorkspace({
                 <button
                   type="button"
                   className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
-                  onClick={() => void runEditorVisionAndObjectDetection(document).then(onDocumentChange)}
+                  onClick={() => {
+                    void runAnalysis(document, {
+                      force: true,
+                      trigger: "manual-reanalyze",
+                      preserveUserEdits: false,
+                    });
+                  }}
                 >
                   {t("editor.workflow.parts.reanalyze" as never)}
                 </button>

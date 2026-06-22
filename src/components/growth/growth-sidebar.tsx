@@ -10,6 +10,7 @@ import { StudioCopilotContextBar } from "@/components/assistant/studio-copilot-c
 import { StudioCopilotHeader } from "@/components/assistant/studio-copilot-header";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { useMounted } from "@/hooks/use-mounted";
 import { useActiveTranslator } from "@/i18n/client";
 import { loginHref } from "@/lib/auth-login-href";
 import { buildPublicHomepageDiscoveryRecommendations } from "@/lib/growth-sidebar-public-discovery";
@@ -49,8 +50,12 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
   const t = useActiveTranslator();
   const pathname = usePathname();
   const session = useAuthSession();
+  const mounted = useMounted();
   const isAuthenticated = Boolean(session.resolved && session.user);
-  const { suggestions, startRecommendation, loadingContext, memory, copilotLayout, setCopilotPlacement } =
+  /** SSR + first client paint: show public sidebar (matches unresolved session). */
+  const showPublicUi = !mounted || !isAuthenticated;
+  const showAuthenticatedUi = mounted && isAuthenticated;
+  const { suggestions, startRecommendation, loadingContext, memory, copilotLayout, copilotLayoutHydrated, setCopilotPlacement, minimizeCopilot } =
     useHomeCheffAssistant();
   const isSheet = variant === "sheet";
   const loginLink = loginHref(pathname);
@@ -131,7 +136,9 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
         <>
           <StudioCopilotHeader
             placement={copilotLayout.placement}
+            pathname={pathname}
             onPlacementChange={setCopilotPlacement}
+            onMinimize={minimizeCopilot}
           />
           <StudioCopilotContextBar />
         </>
@@ -156,9 +163,11 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           />
         </section>
 
-        <AssistantHistoryPanel collapsedDefault={copilotLayout.collapsedRecent} />
+        <AssistantHistoryPanel
+          collapsedDefault={copilotLayoutHydrated ? copilotLayout.collapsedRecent : true}
+        />
 
-        {!isAuthenticated ? (
+        {!showPublicUi ? null : (
           <GrowthSidebarSection
             title={t("assistant.growth.public.title" as never)}
             subtitle={t("assistant.growth.public.subtitle" as never)}
@@ -170,9 +179,9 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
               compact
             />
           </GrowthSidebarSection>
-        ) : null}
+        )}
 
-        {isAuthenticated && !loadingContext && forYou.length > 0 ? (
+        {showAuthenticatedUi && !loadingContext && forYou.length > 0 ? (
           <GrowthSidebarSection
             title={t("assistant.recommendations.title" as never)}
             subtitle={t("assistant.recommendations.subtitle" as never)}
@@ -182,7 +191,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           </GrowthSidebarSection>
         ) : null}
 
-        {isAuthenticated && !loadingContext && discover.length > 0 ? (
+        {showAuthenticatedUi && !loadingContext && discover.length > 0 ? (
           <GrowthSidebarSection
             title={t("assistant.growth.discover.title" as never)}
             subtitle={t("assistant.growth.discover.subtitle" as never)}
@@ -196,7 +205,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           </GrowthSidebarSection>
         ) : null}
 
-        {isAuthenticated && !loadingContext && trending.length > 0 ? (
+        {showAuthenticatedUi && !loadingContext && trending.length > 0 ? (
           <GrowthSidebarSection
             title={t("assistant.growth.trending.title" as never)}
             subtitle={t("assistant.growth.trending.subtitle" as never)}
@@ -210,7 +219,7 @@ export function GrowthSidebar({ variant = "sidebar", onClose }: Props) {
           </GrowthSidebarSection>
         ) : null}
 
-        {!isAuthenticated ? (
+        {showPublicUi ? (
           <section className="border-b border-zinc-100 px-4 py-4" data-testid="growth-sidebar-login-cta">
             <p className="text-sm font-semibold text-zinc-900">
               {t("assistant.growth.public.loginTitle" as never)}

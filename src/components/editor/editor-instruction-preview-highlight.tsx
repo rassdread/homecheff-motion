@@ -9,12 +9,14 @@ type Props = {
   document: EditorCanvasDocument;
   imageUrl: string;
   selectedObject: EditorInstructionObjectV2 | null;
+  onImageLoad?: () => void;
 };
 
 export function EditorInstructionPreviewHighlight({
   document,
   imageUrl,
   selectedObject,
+  onImageLoad,
 }: Props) {
   const t = useActiveTranslator();
   const bounds = selectedObject
@@ -27,7 +29,12 @@ export function EditorInstructionPreviewHighlight({
       data-testid="instruction-preview-highlight"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-full w-full object-contain"
+        onLoad={() => onImageLoad?.()}
+      />
       {bounds && selectedObject ?
         <>
           <div

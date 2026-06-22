@@ -5,6 +5,7 @@ import {
   buildTemplateIllustrationPartAnalysis,
 } from "@/lib/editor-vision-v6-part-analysis";
 import { stampEditorAnalyzedBackground } from "@/lib/editor-analysis-reset";
+import { resetEditorAnalysisCacheForTests, writeCachedEditorAnalysis } from "@/lib/editor-analysis-cache";
 import { stripDocumentForStorage } from "@/lib/editor-local-storage";
 import { saveEditorCanvasDocument, loadEditorCanvasDocument } from "@/lib/editor-canvas-session";
 import { buildInstructionObjectsFromDocument } from "@/lib/editor-instruction-object-feed";

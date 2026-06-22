@@ -2,7 +2,7 @@
  * Animal / pet fallback taxonomy — visual editable parts only.
  */
 
-import { mergeTaxonomyFallbackParts, publicEditablePartLabels, taxonomySpec } from "@/lib/editor-taxonomy-shared";
+import { mergeTaxonomyFallbackPartsSeparated, publicEditablePartLabels, taxonomySpec } from "@/lib/editor-taxonomy-shared";
 import type { IllustrationPartAnalysisResult, IllustrationPartSpec } from "@/types/editor-illustration-parts";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -181,9 +181,12 @@ function accessoryParts(): IllustrationPartSpec[] {
   return [
     taxonomySpec({ key: "collar", label: "Collar", category: "prop", group: "prop", taxonomyTab: "accessories" }),
     taxonomySpec({ key: "leash", label: "Leash", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "harness", label: "Harness", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "tag", label: "Tag", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "bandana", label: "Bandana", category: "prop", group: "prop", taxonomyTab: "accessories" }),
     taxonomySpec({ key: "bow", label: "Bow", category: "prop", group: "prop", taxonomyTab: "accessories" }),
-    taxonomySpec({ key: "saddle", label: "Saddle", category: "prop", group: "prop", taxonomyTab: "accessories" }),
     taxonomySpec({ key: "toy", label: "Toy", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    taxonomySpec({ key: "saddle", label: "Saddle", category: "prop", group: "prop", taxonomyTab: "accessories" }),
   ].filter((p): p is IllustrationPartSpec => p !== null);
 }
 
@@ -226,7 +229,7 @@ export function mergeIllustrationPartsWithAnimalTaxonomy(
     return analysis;
   }
   const fallback = buildAnimalTaxonomyFallbackParts(kind);
-  const merged = mergeTaxonomyFallbackParts(analysis, fallback);
+  const merged = mergeTaxonomyFallbackPartsSeparated(analysis, fallback);
   const label =
     kind === "dog"
       ? "Dog"
@@ -242,7 +245,7 @@ export function mergeIllustrationPartsWithAnimalTaxonomy(
                 ? "Creature"
                 : vision.objectTypeLabel?.trim() || "Animal";
   return {
-    ...merged,
+    ...merged.analysis,
     characterLabel: label,
   };
 }

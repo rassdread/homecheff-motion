@@ -6,14 +6,11 @@ import { EditorCombineWorkspace } from "@/components/editor/editor-combine-works
 import { EditorExportWorkspace } from "@/components/editor/editor-export-workspace";
 import { EditorImagePhaseNav } from "@/components/editor/editor-image-phase-nav";
 import { EditorInstructionStudioWorkspace } from "@/components/editor/editor-instruction-studio-workspace";
-import { StudioCopilotDock } from "@/components/assistant/studio-copilot-dock";
-import { applyEditorDirectorPrompt } from "@/lib/editor-instruction-director-actions";
+import { EditorCopilotDockSlot } from "@/components/editor/editor-copilot-dock-slot";
 import { EditorMenu } from "@/components/editor/editor-menu";
 import { EditorMotionPhaseNav } from "@/components/editor/editor-motion-phase-nav";
 import { EditorMotionWorkspace } from "@/components/editor/editor-motion-workspace";
 import { useActiveTranslator } from "@/i18n/client";
-import { defaultSelectionForObject } from "@/lib/editor-instruction-object-v2";
-import { listInstructionObjectsV2 } from "@/lib/editor-instruction-object-v2";
 import { editorHandoffStudioUrl } from "@/lib/editor-instruction-handoff";
 import {
   detectEditorWorkflowIntent,
@@ -87,7 +84,6 @@ export function EditorV2WorkflowShell({
 
   const stages = useMemo(() => resolveWorkflowStages(document), [document]);
   const nextSteps = useMemo(() => suggestSmartNextSteps(document), [document]);
-  const editableObjects = useMemo(() => listInstructionObjectsV2(document), [document]);
   const motionUnlocked = useMemo(() => isMotionWorkspaceUnlocked(document), [document]);
   const activeImagePhase = useMemo(() => resolveEditorImagePhase(document), [document]);
 
@@ -110,24 +106,6 @@ export function EditorV2WorkflowShell({
   const setImagePhase = (phase: EditorImagePhase) => {
     setActiveTab("edit");
     onDocumentChange(patchEditorImagePhase(patchWorkflowIntent(document, "edit"), phase));
-  };
-
-  const handleDirectorApply = (objectLabel: string, category: string) => {
-    const obj = editableObjects.find(
-      (o) =>
-        o.label.toLowerCase().includes(objectLabel.toLowerCase()) ||
-        o.category === category
-    );
-    if (obj) {
-      onDocumentChange({
-        ...document,
-        instructionStudioState: {
-          ...document.instructionStudioState,
-          selection: defaultSelectionForObject(obj),
-        },
-        updatedAt: new Date().toISOString(),
-      });
-    }
   };
 
   const handleNextStep = (step: ReturnType<typeof suggestSmartNextSteps>[number]) => {
@@ -162,22 +140,12 @@ export function EditorV2WorkflowShell({
     <div className="space-y-4" data-testid="editor-v2-workflow-shell">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {activeTab === "edit" ?
-            <StudioCopilotDock
-              onApplyChangePlan={(prompt) => {
-                const applied = applyEditorDirectorPrompt({
-                  document,
-                  prompt,
-                  editableObjects,
-                  isAdmin,
-                });
-                onDocumentChange(applied.document);
-                if (applied.firstObjectLabel && applied.firstObjectCategory) {
-                  handleDirectorApply(applied.firstObjectLabel, applied.firstObjectCategory);
-                }
-              }}
-            />
-          : (
+          <EditorCopilotDockSlot
+            document={document}
+            onDocumentChange={onDocumentChange}
+            isAdmin={isAdmin}
+          />
+          {activeTab !== "edit" ?
             <section className={`p-4 ${studioVisual.editorSurface}`}>
               <h2 className="text-sm font-semibold text-zinc-900">
                 {t(`editor.workflow.tab.${activeTab}` as never)}
@@ -186,7 +154,7 @@ export function EditorV2WorkflowShell({
                 {t("editor.workflow.tabLead" as never)}
               </p>
             </section>
-          )}
+          : null}
         </div>
         <EditorMenu
           projectName={document.name}

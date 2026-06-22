@@ -21,26 +21,45 @@ import { detectEditorObjectsApi, type EditorDetectApiResponse } from "@/lib/edit
 import { buildEditorDetectionMeta, detectionUsedVisionFallback } from "@/lib/editor-detection-meta";
 import {
   applyIllustrationPartAnalysisToDocument,
+  buildLocalProvisionalPartAnalysis,
   buildTemplateIllustrationPartAnalysis,
   mergeOpenAiIllustrationParts,
   shouldRunIllustrationPartAnalysis,
 } from "@/lib/editor-vision-v6-part-analysis";
 import { mergeIllustrationPartsWithVisionTaxonomy } from "@/lib/editor-vision-taxonomy";
-import { fetchIllustrationPartsApi } from "@/lib/editor-vision-v6-client";
+import { fetchIllustrationPartsApiWithTimeout } from "@/lib/editor-vision-v6-client";
 import {
   documentHasRichVisionAnalysis,
+  countVisionHierarchyNodes,
+  isWeakBackgroundOnlyAnalysis,
   traceVisionHierarchyStage,
 } from "@/lib/editor-vision-v6-stability";
+import {
+  resetVisionHierarchyLossTrace,
+  traceMergeStyleDnaRefinementStage,
+  traceVisionHierarchyRegression,
+  traceVisionPartsApiStage,
+} from "@/lib/editor-vision-hierarchy-loss-trace";
 import {
   readCachedEditorAnalysis,
   writeCachedEditorAnalysis,
 } from "@/lib/editor-analysis-cache";
+import {
+  readCachedAnalysisMatchesCurrentRun,
+  type EditorVisionAnalysisPipelineStage,
+  type EditorVisionAnalysisRunScope,
+} from "@/lib/editor-vision-analysis-run";
+import {
+  sanitizeDocumentForAssetIsolation,
+  stampEditorAnalysisIsolationScope,
+} from "@/lib/editor-project-isolation";
 import {
   beginEditorAnalysisStage,
   endEditorAnalysisStage,
   timeEditorAnalysisStage,
 } from "@/lib/editor-analysis-performance";
 import { getEditorVisionMetricsSnapshot } from "@/lib/editor-vision-metrics";
+import { traceVisionPipeline } from "@/lib/editor-vision-trace";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -50,6 +69,163 @@ import type {
   EditorDetectionMeta,
   EditorSemanticLayer,
 } from "@/types/homecheff-visual-editor";
+
+export type EditorDetectionBootstrapOptions = {
+  onStage?: (stage: EditorVisionAnalysisPipelineStage) => void;
+  onProgress?: (document: EditorCanvasDocument) => void;
+  runScope?: EditorVisionAnalysisRunScope;
+};
+
+/** Hard cap — finalize with best available local/provisional result. */
+export const BOOTSTRAP_MAX_MS = 25_000;
+/** Per-stage cap for Style DNA — never blocks provisional UI. */
+export const BOOTSTRAP_LOCAL_STAGE_TIMEOUT_MS = 12_000;
+
+type BootstrapLayerRoute = {
+  layerDoc: EditorCanvasDocument;
+  semanticLayers: EditorSemanticLayer[];
+};
+
+type StyleDnaResolved = ReturnType<typeof resolveEditorBootstrapVision>;
+
+const STYLE_DNA_TIMEOUT_RESULT = {
+  ok: false,
+  status: 504,
+  error: "style_dna_timeout",
+} as unknown as AnalyzeAssetStyleDnaApiResult;
+
+type IllustrationEnrichResult = {
+  document: EditorCanvasDocument;
+  needsDeepAnalysis: boolean;
+  fallbackUsed?: boolean;
+  visionPartsTimedOut?: boolean;
+  terminalStateReason?: string;
+};
+
+function emptyOnnxResult(): EditorDetectApiResponse {
+  return {
+    detections: [],
+    failed: true,
+    available: false,
+    backend: "unavailable",
+    status: "unavailable",
+    inferenceMs: 0,
+    detectedAt: new Date().toISOString(),
+  };
+}
+
+async function withStageTimeout<T>(
+  promise: Promise<T>,
+  fallback: T,
+  ms = BOOTSTRAP_LOCAL_STAGE_TIMEOUT_MS,
+  traceLabel?: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let settled = false;
+  try {
+    return await Promise.race([
+      promise.then((value) => {
+        settled = true;
+        return value;
+      }),
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => {
+          if (!settled && traceLabel) {
+            traceVisionPipeline(`${traceLabel}_TIMEOUT`, { ms });
+          }
+          resolve(fallback);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+async function traceRtdetrDetect(
+  sessionId: string,
+  backgroundUrl: string
+): Promise<EditorDetectApiResponse> {
+  traceVisionPipeline("RTDETR_START", { sessionId });
+  try {
+    const result = await timeEditorAnalysisStage(sessionId, "rtdetr_detect", () =>
+      detectEditorObjectsApi(backgroundUrl)
+    );
+    traceVisionPipeline("RTDETR_COMPLETE", {
+      sessionId,
+      detections: result.detections.length,
+      backend: result.backend,
+    });
+    return result;
+  } catch (error) {
+    traceVisionPipeline("RTDETR_FAILED", {
+      sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+async function traceStyleDnaAnalyze(
+  document: EditorCanvasDocument
+): Promise<AnalyzeAssetStyleDnaApiResult> {
+  traceVisionPipeline("STYLE_DNA_START", {
+    sessionId: document.sessionId,
+    imageUrl: document.backgroundUrl,
+  });
+  try {
+    const result = await timeEditorAnalysisStage(document.sessionId, "style_dna_analyze", () =>
+      analyzeAssetStyleDnaApi({
+        imageUrl: document.backgroundUrl,
+        sourceKind: bootstrapStudioSourceKind(document),
+        sourceName: document.name,
+        derivationJobId: document.sessionId,
+      })
+    );
+    if (result.ok) {
+      traceVisionPipeline("STYLE_DNA_COMPLETE", {
+        sessionId: document.sessionId,
+        objectType: result.data.visionAnalysis.objectType,
+      });
+    } else {
+      traceVisionPipeline("STYLE_DNA_FAILED", {
+        sessionId: document.sessionId,
+        status: "status" in result ? result.status : undefined,
+        error: "error" in result ? result.error : undefined,
+      });
+    }
+    return result;
+  } catch (error) {
+    traceVisionPipeline("STYLE_DNA_FAILED", {
+      sessionId: document.sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+function applyLocalPartsToDocument(
+  document: EditorCanvasDocument,
+  vision: AssetVisionAnalysis,
+  onnxResult: EditorDetectApiResponse
+): EditorCanvasDocument {
+  const partContext = {
+    documentName: document.name,
+    semanticLayerLabels: document.semanticLayers?.map((l) => l.label) ?? [],
+    sourceKind: document.sourceKind,
+  };
+  const analysis = buildLocalProvisionalPartAnalysis(vision, onnxResult.detections, partContext);
+  return applyIllustrationPartAnalysisToDocument({
+    document,
+    vision,
+    detections: onnxResult.detections,
+    analysis,
+    previewUrl: document.backgroundUrl,
+    sourceKind: document.sourceKind,
+  });
+}
 
 function bootstrapStudioSourceKind(document: EditorCanvasDocument): StudioAssetKind {
   const kind = document.sourceKind;
@@ -63,21 +239,146 @@ function countNonBackgroundLayers(layers: EditorCanvasLayer[]): number {
 }
 
 export function documentNeedsDetectionBootstrap(document: EditorCanvasDocument): boolean {
+  if (!document.backgroundUrl?.trim()) {
+    return false;
+  }
   if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
     return false;
   }
-  if (
-    !editorAnalysisAppliesToBackground(document) &&
-    (documentHasRichVisionAnalysis(document) ||
-      (document.detectionMeta?.count ?? 0) > 0 ||
-      countNonBackgroundLayers(document.objects) > 0)
-  ) {
-    return true;
+  return true;
+}
+
+function stampBootstrapRunMeta(
+  document: EditorCanvasDocument,
+  options: EditorDetectionBootstrapOptions | undefined,
+  patch: Partial<import("@/lib/editor-vision-analysis-run").EditorVisionAnalysisRunMeta>
+): EditorCanvasDocument {
+  const scope = options?.runScope;
+  if (!scope) {
+    return document;
   }
-  if ((document.detectionMeta?.count ?? 0) > 0 && countNonBackgroundLayers(document.objects) > 0) {
-    return false;
+  const existing = document.visionAnalysisRun;
+  return {
+    ...document,
+    visionAnalysisRun: {
+      runId: scope.runId,
+      analysisId: scope.analysisId,
+      assetId: scope.assetId,
+      projectId: scope.projectId,
+      backgroundUrl: scope.backgroundUrl,
+      sessionId: scope.sessionId,
+      status: existing?.status ?? "detecting",
+      startedAt: existing?.startedAt ?? new Date().toISOString(),
+      pipelineCalls: existing?.pipelineCalls ?? 0,
+      duplicateRunCount: existing?.duplicateRunCount ?? 0,
+      sourceOrder: existing?.sourceOrder ?? [],
+      isPartial: existing?.isPartial ?? false,
+      ...existing,
+      ...patch,
+    },
+  };
+}
+
+function emitProvisionalProgress(
+  document: EditorCanvasDocument,
+  options?: EditorDetectionBootstrapOptions
+): void {
+  traceVisionPipeline("PROVISIONAL_EMIT", {
+    sessionId: document.sessionId,
+    runId: options?.runScope?.runId,
+    hierarchyCount: countVisionHierarchyNodes(document.visionHierarchy),
+  });
+  const stamped = stampBootstrapRunMeta(document, options, {
+    status: "partial",
+    isPartial: true,
+    lastStage: "provisional",
+    sourceOrder: ["rtdetr", "provisional"],
+  });
+  options?.onProgress?.(stamped);
+  options?.onStage?.("provisional");
+}
+
+function buildDetectedLayerDocument(
+  document: EditorCanvasDocument,
+  vision: AssetVisionAnalysis,
+  styleDna: AssetStyleDna | null,
+  onnxResult: EditorDetectApiResponse,
+  metaSource: EditorDetectionMeta["source"]
+): EditorCanvasDocument | null {
+  const hybrid = buildEditorSemanticLayersFromHybrid({
+    vision,
+    styleDna,
+    sourceKind: document.sourceKind,
+    onnxDetections: onnxResult.detections,
+    detectorKind: onnxResult.detectorKind,
+  });
+
+  const layers = seedEditorLayersFromVision({
+    vision,
+    styleDna,
+    sourceKind: document.sourceKind,
+    preserveBackground: document.objects.find((o) => o.id === "background"),
+    onnxDetections: onnxResult.detections,
+    detectorKind: onnxResult.detectorKind,
+  });
+
+  const objectCount = countNonBackgroundLayers(layers);
+  if (objectCount === 0) {
+    return null;
   }
-  return countNonBackgroundLayers(document.objects) === 0;
+
+  const detectedObjects = buildEditorObjectsFromLayers(layers, {
+    visionObjectType: vision.objectType,
+  });
+
+  return {
+    ...document,
+    workflowStep: "visual_editor",
+    visionAnalysisHash: vision.identityFingerprint.fingerprintHash,
+    objects: layers,
+    semanticLayers: hybrid.layers,
+    detectedObjects,
+    textLayers: extractEditorTextLayers(layers),
+    motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
+    detectionMeta: buildEditorDetectionMeta({
+      detection: onnxResult,
+      source: metaSource,
+      objectCount,
+    }),
+    visionMetrics: getEditorVisionMetricsSnapshot(),
+    assetProfile: buildEditorAssetProfile({ ...document, objects: layers, detectedObjects }, vision),
+    visionAnalysis: vision,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function applyLocalProvisionalParts(
+  layerDocument: EditorCanvasDocument,
+  vision: AssetVisionAnalysis,
+  onnxResult: EditorDetectApiResponse,
+  options?: EditorDetectionBootstrapOptions
+): EditorCanvasDocument {
+  const partContext = {
+    documentName: layerDocument.name,
+    semanticLayerLabels: layerDocument.semanticLayers?.map((l) => l.label) ?? [],
+    sourceKind: layerDocument.sourceKind,
+  };
+  const analysis = buildLocalProvisionalPartAnalysis(vision, onnxResult.detections, partContext);
+  const enriched = applyIllustrationPartAnalysisToDocument({
+    document: layerDocument,
+    vision,
+    detections: onnxResult.detections,
+    analysis,
+    previewUrl: layerDocument.backgroundUrl,
+    sourceKind: layerDocument.sourceKind,
+  });
+  const provisional = stampBootstrapRunMeta(enriched, options, {
+    status: "partial",
+    isPartial: true,
+    lastStage: "provisional",
+  });
+  emitProvisionalProgress(provisional, options);
+  return provisional;
 }
 
 /**
@@ -206,8 +507,14 @@ async function maybeEnrichIllustrationParts(
   document: EditorCanvasDocument,
   vision: AssetVisionAnalysis,
   onnxResult: EditorDetectApiResponse,
-  semanticLayers: EditorSemanticLayer[]
-): Promise<EditorCanvasDocument> {
+  semanticLayers: EditorSemanticLayer[],
+  options?: EditorDetectionBootstrapOptions
+): Promise<IllustrationEnrichResult> {
+  const partContext = {
+    documentName: document.name,
+    semanticLayerLabels: semanticLayers.map((l) => l.label),
+    sourceKind: document.sourceKind,
+  };
   const layerCount = semanticLayers.filter((l) => l.type !== "background").length;
   if (
     !shouldRunIllustrationPartAnalysis({
@@ -219,31 +526,70 @@ async function maybeEnrichIllustrationParts(
       semanticLayerLabels: semanticLayers.map((l) => l.label),
     })
   ) {
-    return document;
+    options?.onStage?.("truth_classifier");
+    traceVisionPartsApiStage({
+      sessionId: document.sessionId,
+      partsLength: 0,
+      source: "skipped",
+    });
+    const localDoc = applyLocalPartsToDocument(document, vision, onnxResult);
+    traceVisionHierarchyRegression("vision_parts", { document: localDoc });
+    return {
+      document: localDoc,
+      needsDeepAnalysis: true,
+      fallbackUsed: true,
+      terminalStateReason: "vision_parts_skipped_local_only",
+    };
   }
 
-  const partContext = {
-    documentName: document.name,
-    semanticLayerLabels: semanticLayers.map((l) => l.label),
-    sourceKind: document.sourceKind,
-  };
   const template = buildTemplateIllustrationPartAnalysis(vision, partContext);
+  const visionPartsStartedAt = new Date().toISOString();
 
-  const apiAnalysis =
-    (await timeEditorAnalysisStage(document.sessionId, "vision_parts_api", async () =>
-      fetchIllustrationPartsApi({
+  options?.onStage?.("vision_parts_api");
+  traceVisionPipeline("VISION_PARTS_START", {
+    sessionId: document.sessionId,
+    runId: options?.runScope?.runId,
+  });
+  let apiAnalysis: Awaited<ReturnType<typeof fetchIllustrationPartsApiWithTimeout>> = null;
+  let visionPartsTimedOut = false;
+  try {
+    apiAnalysis = await timeEditorAnalysisStage(document.sessionId, "vision_parts_api", async () =>
+      fetchIllustrationPartsApiWithTimeout({
         imageUrl: document.backgroundUrl,
         vision,
         detections: onnxResult.detections,
       })
-    )) ?? null;
+    );
+    visionPartsTimedOut = apiAnalysis == null;
+    if (visionPartsTimedOut) {
+      traceVisionPipeline("VISION_PARTS_TIMEOUT", { sessionId: document.sessionId });
+    } else {
+      traceVisionPipeline("VISION_PARTS_COMPLETE", {
+        sessionId: document.sessionId,
+        parts: apiAnalysis?.parts.length ?? 0,
+      });
+    }
+  } catch (error) {
+    visionPartsTimedOut = true;
+    apiAnalysis = null;
+    traceVisionPipeline("VISION_PARTS_FAILED", {
+      sessionId: document.sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
+  const usedLocalFallback = !apiAnalysis;
   const mergedBase = apiAnalysis
     ? mergeOpenAiIllustrationParts(template, apiAnalysis)
-    : template;
+    : buildLocalProvisionalPartAnalysis(vision, onnxResult.detections, partContext);
   const { analysis, taxonomy } = mergeIllustrationPartsWithVisionTaxonomy(mergedBase, {
     vision,
     ...partContext,
+  });
+  traceVisionPartsApiStage({
+    sessionId: document.sessionId,
+    partsLength: analysis.parts.length,
+    source: usedLocalFallback ? "local_fallback" : "api",
   });
 
   traceVisionHierarchyStage("after_fetchIllustrationPartsApi", {
@@ -267,6 +613,7 @@ async function maybeEnrichIllustrationParts(
     previewUrl: document.backgroundUrl,
     sourceKind: document.sourceKind,
   });
+  options?.onStage?.("truth_classifier");
 
   const detectedObjects = enriched.detectedObjects ?? [];
   traceVisionHierarchyStage("after_applyIllustrationPartAnalysisToDocument", enriched);
@@ -285,55 +632,47 @@ async function maybeEnrichIllustrationParts(
     updatedAt: new Date().toISOString(),
   };
   traceVisionHierarchyStage("after_maybeEnrichIllustrationParts", result);
-  return completeBootstrap(result);
+  let stampedResult = options?.runScope
+    ? stampBootstrapRunMeta(result, options, { visionPartsStartedAt, visionPartsTimedOut })
+    : result;
+  if (isWeakBackgroundOnlyAnalysis(stampedResult) && onnxResult.detections.length > 0) {
+    stampedResult = applyLocalProvisionalParts(stampedResult, vision, onnxResult, options);
+  }
+  traceVisionHierarchyRegression("vision_parts", { document: stampedResult });
+  return {
+    document: stampedResult,
+    needsDeepAnalysis: usedLocalFallback,
+    fallbackUsed: usedLocalFallback,
+    visionPartsTimedOut,
+    terminalStateReason: usedLocalFallback ? "vision_parts_local_fallback" : undefined,
+  };
 }
 
-function completeBootstrap(document: EditorCanvasDocument): EditorCanvasDocument {
-  const stamped = stampEditorAnalyzedBackground(document);
-  endEditorAnalysisStage(stamped.sessionId, "bootstrap_total");
-  traceVisionHierarchyStage("after_bootstrapEditorObjectDetection", stamped);
-  writeCachedEditorAnalysis(stamped);
-  return stamped;
+function buildDetectionMetaPartial(
+  onnxResult: EditorDetectApiResponse,
+  source: EditorDetectionMeta["source"],
+  semanticLayers: EditorSemanticLayer[]
+): EditorDetectionMeta {
+  const count = semanticLayers.filter((l) => l.type !== "background").length;
+  return {
+    source,
+    count,
+    onnxAvailable: onnxResult.available,
+    detectorKind: onnxResult.detectorKind,
+    backend: onnxResult.backend,
+    status: detectionUsedVisionFallback(onnxResult) ? "fallback" : onnxResult.status,
+    inferenceMs: onnxResult.inferenceMs,
+    lastDetectedAt: onnxResult.detectedAt,
+  };
 }
 
-/**
- * After upload / library open: always attempt ONNX + vision, then brand-sheet or heuristic fallback.
- */
-export async function bootstrapEditorObjectDetection(
-  document: EditorCanvasDocument
-): Promise<EditorCanvasDocument> {
-  const cached = readCachedEditorAnalysis(document);
-  if (cached) {
-    traceVisionHierarchyStage("bootstrap_cache_hit", cached);
-    return completeBootstrap(cached);
-  }
-  if (documentHasRichVisionAnalysis(document) && editorAnalysisAppliesToBackground(document)) {
-    traceVisionHierarchyStage("bootstrap_skip_already_rich", document);
-    return completeBootstrap(document);
-  }
-
-  beginEditorAnalysisStage(document.sessionId, "bootstrap_total");
-
-  const onnxResult = await timeEditorAnalysisStage(
-    document.sessionId,
-    "rtdetr_detect",
-    () => detectEditorObjectsApi(document.backgroundUrl)
-  );
-
-  const visionRes = await timeEditorAnalysisStage(
-    document.sessionId,
-    "style_dna_analyze",
-    () =>
-      analyzeAssetStyleDnaApi({
-        imageUrl: document.backgroundUrl,
-        sourceKind: bootstrapStudioSourceKind(document),
-        sourceName: document.name,
-        derivationJobId: document.sessionId,
-      })
-  );
-
-  const { vision, styleDna, visionAnalyzeOk } = resolveEditorBootstrapVision(document, visionRes);
-
+function resolveBootstrapLayerRoute(
+  document: EditorCanvasDocument,
+  vision: AssetVisionAnalysis,
+  styleDna: AssetStyleDna | null,
+  onnxResult: EditorDetectApiResponse,
+  visionAnalyzeOk: boolean
+): BootstrapLayerRoute {
   if (visionAnalyzeOk) {
     const hybrid = buildEditorSemanticLayersFromHybrid({
       vision,
@@ -342,100 +681,16 @@ export async function bootstrapEditorObjectDetection(
       onnxDetections: onnxResult.detections,
       detectorKind: onnxResult.detectorKind,
     });
-
-    const layers = seedEditorLayersFromVision({
-      vision,
-      styleDna,
-      sourceKind: document.sourceKind,
-      preserveBackground: document.objects.find((o) => o.id === "background"),
-      onnxDetections: onnxResult.detections,
-      detectorKind: onnxResult.detectorKind,
-    });
-
-    const objectCount = countNonBackgroundLayers(layers);
-    if (objectCount > 0) {
-      const detectedObjects = buildEditorObjectsFromLayers(layers, {
-        visionObjectType: vision.objectType,
-      });
-      return completeBootstrap(
-        await maybeEnrichIllustrationParts(
-        {
-          ...document,
-          workflowStep: "visual_editor",
-          visionAnalysisHash: vision.identityFingerprint.fingerprintHash,
-          objects: layers,
-          semanticLayers: hybrid.layers,
-          detectedObjects,
-          textLayers: extractEditorTextLayers(layers),
-          motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
-          detectionMeta: buildEditorDetectionMeta({
-            detection: onnxResult,
-            source: hybrid.meta.source,
-            objectCount,
-          }),
-          visionMetrics: getEditorVisionMetricsSnapshot(),
-          assetProfile: buildEditorAssetProfile(
-            { ...document, objects: layers, detectedObjects },
-            vision
-          ),
-          visionAnalysis: vision,
-          updatedAt: new Date().toISOString(),
-        },
-        vision,
-        onnxResult,
-        hybrid.layers
-      ));
+    const layerDoc = buildDetectedLayerDocument(document, vision, styleDna, onnxResult, hybrid.meta.source);
+    if (layerDoc?.semanticLayers?.length) {
+      return { layerDoc, semanticLayers: layerDoc.semanticLayers };
     }
   }
 
   if (onnxResult.detections.length > 0) {
-    const hybrid = buildEditorSemanticLayersFromHybrid({
-      vision,
-      styleDna,
-      sourceKind: document.sourceKind,
-      onnxDetections: onnxResult.detections,
-      detectorKind: onnxResult.detectorKind,
-    });
-    const layers = seedEditorLayersFromVision({
-      vision,
-      styleDna,
-      sourceKind: document.sourceKind,
-      preserveBackground: document.objects.find((o) => o.id === "background"),
-      onnxDetections: onnxResult.detections,
-      detectorKind: onnxResult.detectorKind,
-    });
-    const objectCount = countNonBackgroundLayers(layers);
-    if (objectCount > 0) {
-      const detectedObjects = buildEditorObjectsFromLayers(layers, {
-        visionObjectType: vision.objectType,
-      });
-      return completeBootstrap(
-        await maybeEnrichIllustrationParts(
-        {
-          ...document,
-          workflowStep: "visual_editor",
-          objects: layers,
-          semanticLayers: hybrid.layers,
-          detectedObjects,
-          textLayers: extractEditorTextLayers(layers),
-          motionPreparations: buildEditorMotionPreparations(detectedObjects, layers),
-          detectionMeta: buildEditorDetectionMeta({
-            detection: onnxResult,
-            source: "onnx_only",
-            objectCount,
-          }),
-          visionMetrics: getEditorVisionMetricsSnapshot(),
-          assetProfile: buildEditorAssetProfile(
-            { ...document, objects: layers, detectedObjects },
-            vision
-          ),
-          visionAnalysis: vision,
-          updatedAt: new Date().toISOString(),
-        },
-        vision,
-        onnxResult,
-        hybrid.layers
-      ));
+    const layerDoc = buildDetectedLayerDocument(document, vision, styleDna, onnxResult, "onnx_only");
+    if (layerDoc?.semanticLayers?.length) {
+      return { layerDoc, semanticLayers: layerDoc.semanticLayers };
     }
   }
 
@@ -450,55 +705,394 @@ export async function bootstrapEditorObjectDetection(
       vision: visionAnalyzeOk ? vision : null,
       sourceKind: document.sourceKind,
     });
-    return completeBootstrap(
-      await maybeEnrichIllustrationParts(
-      buildLayersFromSemantic(
+    return {
+      layerDoc: buildLayersFromSemantic(
         document,
         semanticLayers,
         vision,
-        {
-          source: "brand_sheet",
-          count: semanticLayers.filter((l) => l.type !== "background").length,
-          onnxAvailable: onnxResult.available,
-          detectorKind: onnxResult.detectorKind,
-          backend: onnxResult.backend,
-          status: detectionUsedVisionFallback(onnxResult) ? "fallback" : onnxResult.status,
-          inferenceMs: onnxResult.inferenceMs,
-          lastDetectedAt: onnxResult.detectedAt,
-        },
+        buildDetectionMetaPartial(onnxResult, "brand_sheet", semanticLayers),
         onnxResult
       ),
-      vision,
-      onnxResult,
-      semanticLayers
-    ));
+      semanticLayers,
+    };
   }
 
   const semanticLayers = buildBrandSheetSemanticLayers({
     vision,
     sourceKind: document.sourceKind,
   });
-
-  return completeBootstrap(
-    await maybeEnrichIllustrationParts(
-    buildLayersFromSemantic(
+  return {
+    layerDoc: buildLayersFromSemantic(
       document,
       semanticLayers,
       vision,
-      {
-        source: "heuristic",
-        count: semanticLayers.filter((l) => l.type !== "background").length,
-        onnxAvailable: onnxResult.available,
-        detectorKind: onnxResult.detectorKind,
-        backend: onnxResult.backend,
-        status: detectionUsedVisionFallback(onnxResult) ? "fallback" : onnxResult.status,
-        inferenceMs: onnxResult.inferenceMs,
-        lastDetectedAt: onnxResult.detectedAt,
-      },
+      buildDetectionMetaPartial(onnxResult, "heuristic", semanticLayers),
       onnxResult
     ),
+    semanticLayers,
+  };
+}
+
+function mergeStyleDnaRefinement(
+  document: EditorCanvasDocument,
+  route: BootstrapLayerRoute,
+  vision: AssetVisionAnalysis,
+  styleDna: AssetStyleDna | null,
+  onnxResult: EditorDetectApiResponse
+): EditorCanvasDocument {
+  const priorSubjects = countNonBackgroundLayers(document.objects);
+  const routeSubjects = countNonBackgroundLayers(route.layerDoc.objects);
+  const priorHierarchyRich = !isWeakBackgroundOnlyAnalysis(document);
+  const keepPriorLayers =
+    priorSubjects > 0 && (routeSubjects === 0 || (priorHierarchyRich && routeSubjects < priorSubjects));
+
+  const objects = keepPriorLayers ? document.objects : route.layerDoc.objects;
+  const semanticLayers = keepPriorLayers
+    ? (document.semanticLayers ?? route.semanticLayers)
+    : route.semanticLayers;
+  const detectedObjects = keepPriorLayers
+    ? (document.detectedObjects ?? route.layerDoc.detectedObjects ?? [])
+    : (route.layerDoc.detectedObjects ?? document.detectedObjects ?? []);
+
+  const merged: EditorCanvasDocument = {
+    ...document,
+    workflowStep: "visual_editor",
+    visionAnalysisHash: vision.identityFingerprint.fingerprintHash,
+    objects,
+    semanticLayers,
+    detectedObjects,
+    textLayers: keepPriorLayers
+      ? (document.textLayers ?? extractEditorTextLayers(objects))
+      : (route.layerDoc.textLayers ?? extractEditorTextLayers(objects)),
+    motionPreparations:
+      document.motionPreparations ??
+      buildEditorMotionPreparations(detectedObjects, objects),
+    detectionMeta: keepPriorLayers
+      ? (document.detectionMeta ?? route.layerDoc.detectionMeta)
+      : (route.layerDoc.detectionMeta ?? document.detectionMeta),
+    visionAnalysis: vision,
+    visionMetrics: route.layerDoc.visionMetrics ?? document.visionMetrics,
+    assetProfile:
+      route.layerDoc.assetProfile ??
+      buildEditorAssetProfile({ ...document, objects, detectedObjects }, vision),
+    updatedAt: new Date().toISOString(),
+  };
+  traceMergeStyleDnaRefinementStage({ before: document, after: merged });
+  void styleDna;
+  void onnxResult;
+  return merged;
+}
+
+function startStyleDnaAnalyze(document: EditorCanvasDocument): Promise<StyleDnaResolved> {
+  return withStageTimeout(
+    traceStyleDnaAnalyze(document),
+    STYLE_DNA_TIMEOUT_RESULT,
+    BOOTSTRAP_LOCAL_STAGE_TIMEOUT_MS,
+    "STYLE_DNA"
+  ).then((visionRes) => resolveEditorBootstrapVision(document, visionRes));
+}
+
+async function finalizeFromProvisional(
+  provisional: EditorCanvasDocument,
+  vision: AssetVisionAnalysis,
+  onnxResult: EditorDetectApiResponse,
+  semanticLayers: EditorSemanticLayer[],
+  options?: EditorDetectionBootstrapOptions,
+  extraMeta?: Partial<import("@/lib/editor-vision-analysis-run").EditorVisionAnalysisRunMeta>
+): Promise<EditorCanvasDocument> {
+  const provisionalCount = countVisionHierarchyNodes(provisional.visionHierarchy);
+  try {
+    const enriched = await maybeEnrichIllustrationParts(
+      provisional,
+      vision,
+      onnxResult,
+      semanticLayers,
+      options
+    );
+    const finalCount = countVisionHierarchyNodes(enriched.document.visionHierarchy);
+    return completeBootstrap(enriched.document, options, {
+      status: "complete",
+      isPartial: false,
+      needsDeepAnalysis: enriched.needsDeepAnalysis,
+      completedAt: new Date().toISOString(),
+      provisionalCount,
+      finalCount,
+      fallbackUsed: enriched.fallbackUsed,
+      visionPartsTimedOut: enriched.visionPartsTimedOut,
+      terminalStateReason: enriched.terminalStateReason,
+      ...extraMeta,
+    });
+  } catch (error) {
+    return completeBootstrap(provisional, options, {
+      status: "complete",
+      isPartial: false,
+      needsDeepAnalysis: true,
+      completedAt: new Date().toISOString(),
+      provisionalCount,
+      finalCount: provisionalCount,
+      fallbackUsed: true,
+      terminalStateReason: error instanceof Error ? error.message : "enrich_failed",
+      ...extraMeta,
+    });
+  }
+}
+
+function completeBootstrap(
+  document: EditorCanvasDocument,
+  options?: EditorDetectionBootstrapOptions,
+  extraMeta?: Partial<import("@/lib/editor-vision-analysis-run").EditorVisionAnalysisRunMeta>
+): EditorCanvasDocument {
+  const stamped = stampEditorAnalysisIsolationScope(stampEditorAnalyzedBackground(document));
+  traceVisionPipeline("BOOTSTRAP_COMPLETE", {
+    sessionId: stamped.sessionId,
+    runId: options?.runScope?.runId,
+    ...extraMeta,
+  });
+  endEditorAnalysisStage(stamped.sessionId, "bootstrap_total");
+  options?.onStage?.("bootstrap_complete");
+  traceVisionHierarchyStage("after_bootstrapEditorObjectDetection", stamped);
+  writeCachedEditorAnalysis(stamped);
+  if (options?.runScope || extraMeta) {
+    return stampBootstrapRunMeta(stamped, options, extraMeta ?? {});
+  }
+  return stamped;
+}
+
+function buildBootstrapTimeoutFallback(
+  document: EditorCanvasDocument,
+  provisional: EditorCanvasDocument | null,
+  options?: EditorDetectionBootstrapOptions
+): EditorCanvasDocument {
+  if (provisional) {
+    return completeBootstrap(provisional, options, {
+      status: "complete",
+      isPartial: false,
+      needsDeepAnalysis: true,
+      bootstrapTimedOut: true,
+      fallbackUsed: true,
+      terminalStateReason: "bootstrap_timeout_provisional",
+      completedAt: new Date().toISOString(),
+      provisionalCount: countVisionHierarchyNodes(provisional.visionHierarchy),
+      finalCount: countVisionHierarchyNodes(provisional.visionHierarchy),
+    });
+  }
+
+  const vision = createFallbackVision(document);
+  const onnxResult = emptyOnnxResult();
+  const semanticLayers = buildBrandSheetSemanticLayers({
     vision,
+    sourceKind: document.sourceKind,
+  });
+  const base = buildLayersFromSemantic(
+    document,
+    semanticLayers,
+    vision,
+    {
+      source: "heuristic",
+      count: semanticLayers.filter((l) => l.type !== "background").length,
+      onnxAvailable: false,
+      backend: "unavailable",
+      status: "fallback",
+      inferenceMs: 0,
+      lastDetectedAt: new Date().toISOString(),
+    },
+    onnxResult
+  );
+  const local = applyLocalProvisionalParts(base, vision, onnxResult, options);
+  return completeBootstrap(local, options, {
+    status: "complete",
+    isPartial: false,
+    needsDeepAnalysis: true,
+    bootstrapTimedOut: true,
+    fallbackUsed: true,
+    terminalStateReason: "bootstrap_timeout_minimal",
+    completedAt: new Date().toISOString(),
+    provisionalCount: countVisionHierarchyNodes(local.visionHierarchy),
+    finalCount: countVisionHierarchyNodes(local.visionHierarchy),
+  });
+}
+
+/**
+ * After upload / library open: always attempt ONNX + vision, then brand-sheet or heuristic fallback.
+ */
+async function bootstrapEditorObjectDetectionPipeline(
+  document: EditorCanvasDocument,
+  options?: EditorDetectionBootstrapOptions
+): Promise<EditorCanvasDocument> {
+  traceVisionPipeline("PIPELINE_START", {
+    sessionId: document.sessionId,
+    runId: options?.runScope?.runId,
+    analysisId: options?.runScope?.analysisId,
+  });
+  beginEditorAnalysisStage(document.sessionId, "bootstrap_total");
+  resetVisionHierarchyLossTrace(document.sessionId);
+
+  // Style DNA starts in parallel — must never block provisional UI.
+  const styleDnaPromise = startStyleDnaAnalyze(document);
+
+  traceVisionPipeline("RTDETR_AWAIT", { sessionId: document.sessionId });
+  const onnxResult = await withStageTimeout(
+    traceRtdetrDetect(document.sessionId, document.backgroundUrl),
+    emptyOnnxResult(),
+    BOOTSTRAP_LOCAL_STAGE_TIMEOUT_MS,
+    "RTDETR"
+  );
+
+  options?.onStage?.("rtdetr");
+  traceVisionPipeline("RTDETR_PROVISIONAL_START", { sessionId: document.sessionId });
+
+  const initialVision = createFallbackVision(document);
+  const initialRoute = resolveBootstrapLayerRoute(
+    document,
+    initialVision,
+    null,
     onnxResult,
-    semanticLayers
-  ));
+    false
+  );
+  const provisional = applyLocalProvisionalParts(
+    initialRoute.layerDoc,
+    initialVision,
+    onnxResult,
+    options
+  );
+
+  traceVisionHierarchyRegression("provisional", { document: provisional });
+  traceVisionPipeline("RTDETR_PROVISIONAL_EMITTED", { sessionId: document.sessionId });
+
+  // Vision Parts + Style DNA finalize in parallel — provisional already visible.
+  const enrichPromise = maybeEnrichIllustrationParts(
+    provisional,
+    initialVision,
+    onnxResult,
+    initialRoute.semanticLayers,
+    options
+  );
+
+  const styleDnaResolvedPromise = styleDnaPromise.then((resolved) => {
+    options?.onStage?.("style_dna");
+    traceVisionPipeline("STYLE_DNA_RESOLVED", {
+      sessionId: document.sessionId,
+      visionAnalyzeOk: resolved.visionAnalyzeOk,
+    });
+    return resolved;
+  });
+
+  const [enriched, styleResolved] = await Promise.all([enrichPromise, styleDnaResolvedPromise]);
+
+  let finalDocument = enriched.document;
+  const styleDnaTimedOut = !styleResolved.visionAnalyzeOk;
+
+  if (styleResolved.visionAnalyzeOk) {
+    const refinedRoute = resolveBootstrapLayerRoute(
+      document,
+      styleResolved.vision,
+      styleResolved.styleDna,
+      onnxResult,
+      true
+    );
+    finalDocument = mergeStyleDnaRefinement(
+      finalDocument,
+      refinedRoute,
+      styleResolved.vision,
+      styleResolved.styleDna,
+      onnxResult
+    );
+    if (isWeakBackgroundOnlyAnalysis(finalDocument) && onnxResult.detections.length > 0) {
+      finalDocument = applyLocalProvisionalParts(
+        finalDocument,
+        styleResolved.vision,
+        onnxResult,
+        options
+      );
+    }
+  }
+
+  const provisionalCount = countVisionHierarchyNodes(provisional.visionHierarchy);
+  const finalCount = countVisionHierarchyNodes(finalDocument.visionHierarchy);
+
+  return completeBootstrap(finalDocument, options, {
+    status: "complete",
+    isPartial: false,
+    needsDeepAnalysis: enriched.needsDeepAnalysis || styleDnaTimedOut,
+    completedAt: new Date().toISOString(),
+    provisionalCount,
+    finalCount,
+    fallbackUsed: enriched.fallbackUsed || styleDnaTimedOut,
+    visionPartsTimedOut: enriched.visionPartsTimedOut,
+    terminalStateReason:
+      enriched.terminalStateReason ??
+      (styleDnaTimedOut ? "style_dna_timeout" : undefined),
+  });
+}
+
+export async function bootstrapEditorObjectDetection(
+  document: EditorCanvasDocument,
+  options?: EditorDetectionBootstrapOptions
+): Promise<EditorCanvasDocument> {
+  const isolated = sanitizeDocumentForAssetIsolation(document);
+  const cached = readCachedEditorAnalysis(isolated);
+  if (cached && readCachedAnalysisMatchesCurrentRun(isolated, cached)) {
+    options?.onStage?.("bootstrap_complete");
+    traceVisionHierarchyStage("bootstrap_cache_hit", cached);
+    return completeBootstrap(cached, options, {
+      cachedResult: true,
+      status: "complete",
+      isPartial: false,
+      completedAt: cached.visionAnalysisRun?.completedAt ?? new Date().toISOString(),
+    });
+  }
+  if (documentHasRichVisionAnalysis(isolated) && editorAnalysisAppliesToBackground(isolated)) {
+    options?.onStage?.("bootstrap_complete");
+    traceVisionHierarchyStage("bootstrap_skip_already_rich", isolated);
+    return completeBootstrap(isolated, options, { status: "complete", isPartial: false });
+  }
+
+  let latestProvisional: EditorCanvasDocument | null = null;
+  let settled = false;
+  const wrappedOptions: EditorDetectionBootstrapOptions = {
+    ...options,
+    onProgress: (partial) => {
+      latestProvisional = partial;
+      options?.onProgress?.(partial);
+    },
+  };
+
+  const pipelinePromise = bootstrapEditorObjectDetectionPipeline(document, wrappedOptions)
+    .then((result) => {
+      settled = true;
+      return result;
+    })
+    .catch((error: unknown) => {
+      settled = true;
+      if (latestProvisional) {
+        return completeBootstrap(latestProvisional, wrappedOptions, {
+          status: "complete",
+          isPartial: false,
+          needsDeepAnalysis: true,
+          fallbackUsed: true,
+          terminalStateReason: error instanceof Error ? error.message : "bootstrap_error",
+          completedAt: new Date().toISOString(),
+          provisionalCount: countVisionHierarchyNodes(latestProvisional.visionHierarchy),
+          finalCount: countVisionHierarchyNodes(latestProvisional.visionHierarchy),
+        });
+      }
+      throw error;
+    });
+
+  const timeoutPromise = new Promise<EditorCanvasDocument>((resolve) => {
+    setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      traceVisionPipeline("BOOTSTRAP_RACE_TIMEOUT", {
+        sessionId: document.sessionId,
+        hasProvisional: Boolean(latestProvisional),
+        ms: BOOTSTRAP_MAX_MS,
+      });
+      resolve(buildBootstrapTimeoutFallback(document, latestProvisional, wrappedOptions));
+    }, BOOTSTRAP_MAX_MS);
+  });
+
+  return Promise.race([pipelinePromise, timeoutPromise]);
 }

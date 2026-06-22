@@ -18,7 +18,9 @@ function HcMotionBootstrapInner() {
 
     let cancelled = false;
     void (async () => {
-      const project = await loadHcProjectFromQueryResolved(searchParams, Boolean(auth.user));
+      const project = await loadHcProjectFromQueryResolved(searchParams, {
+        syncFromServer: Boolean(auth.user),
+      });
       if (cancelled || !project) return;
       const bootstrap = rehydrateMotionProjectFromHcProject(project);
       if (!bootstrap) return;

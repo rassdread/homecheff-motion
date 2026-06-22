@@ -1,4 +1,5 @@
 import type { EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
+import { resolveLegacyActionPartGroupFromNode } from "@/lib/editor-vision-hierarchy-action-mapping";
 
 export function findHierarchyNodeByPartId(
   nodes: EditorVisionHierarchyNode[],
@@ -83,39 +84,5 @@ export function flattenVisibleHierarchyLabels(
 }
 
 export function inferPartGroupFromNode(node: EditorVisionHierarchyNode): string {
-  if (node.taxonomyTab) {
-    return node.taxonomyTab;
-  }
-  const label = node.label.toLowerCase();
-  if (/eye|ogen|pupil/.test(label)) {
-    return "eyes";
-  }
-  if (/mouth|mond|lip/.test(label)) {
-    return "mouth";
-  }
-  if (/face|gezicht/.test(label)) {
-    return "face";
-  }
-  if (/outfit|jacket|shirt|clothing|kleding/.test(label)) {
-    return "outfit";
-  }
-  if (/hair|haar|beard|beard/.test(label)) {
-    return "hair";
-  }
-  if (/globe|wereldbol|world/.test(label)) {
-    return "globe";
-  }
-  if (/fur|vacht|feather|veren|coat/.test(label)) {
-    return "coat";
-  }
-  if (/tail|staart/.test(label)) {
-    return "tail";
-  }
-  if (/pose/.test(label)) {
-    return "pose";
-  }
-  if (/expr|express|blij|happy|serious/.test(label)) {
-    return "expression";
-  }
-  return "appearance";
+  return resolveLegacyActionPartGroupFromNode(node);
 }

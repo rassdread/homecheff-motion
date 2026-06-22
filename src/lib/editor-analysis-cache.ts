@@ -2,8 +2,12 @@ import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 import { editorAnalysisAppliesToBackground } from "@/lib/editor-analysis-reset";
 import {
   documentHasRichVisionAnalysis,
-  editorAnalysisCacheKey,
 } from "@/lib/editor-vision-v6-stability";
+import {
+  editorIsolationScopeMatches,
+  editorProjectIsolationCacheKey,
+} from "@/lib/editor-project-isolation";
+import { readCachedAnalysisMatchesCurrentRun } from "@/lib/editor-vision-analysis-run";
 
 const bootstrapResultCache = new Map<string, EditorCanvasDocument>();
 
@@ -14,11 +18,19 @@ export function readCachedEditorAnalysis(
     return null;
   }
   if (documentHasRichVisionAnalysis(document)) {
-    return document;
+    if (editorIsolationScopeMatches(document.isolationScope, document)) {
+      return document;
+    }
+    return null;
   }
-  const key = editorAnalysisCacheKey(document);
+  const key = editorProjectIsolationCacheKey(document);
   const cached = bootstrapResultCache.get(key);
-  if (cached && documentHasRichVisionAnalysis(cached)) {
+  if (
+    cached &&
+    documentHasRichVisionAnalysis(cached) &&
+    editorIsolationScopeMatches(cached.isolationScope, document) &&
+    readCachedAnalysisMatchesCurrentRun(document, cached)
+  ) {
     return cached;
   }
   return null;
@@ -28,12 +40,15 @@ export function writeCachedEditorAnalysis(document: EditorCanvasDocument): void 
   if (!documentHasRichVisionAnalysis(document)) {
     return;
   }
-  bootstrapResultCache.set(editorAnalysisCacheKey(document), document);
+  bootstrapResultCache.set(editorProjectIsolationCacheKey(document), document);
 }
 
-export function clearCachedEditorAnalysis(sessionId: string): void {
+export function clearCachedEditorAnalysis(sessionId: string, projectId?: string): void {
   for (const key of bootstrapResultCache.keys()) {
-    if (key.startsWith(`${sessionId}::`)) {
+    if (key.includes(`::${sessionId}::`) || key.startsWith(`${sessionId}::`)) {
+      bootstrapResultCache.delete(key);
+    }
+    if (projectId && key.startsWith(`${projectId}::`)) {
       bootstrapResultCache.delete(key);
     }
   }

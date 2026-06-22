@@ -391,7 +391,12 @@ export type EditorVisionPartSource =
   | "openai_vision"
   | "estimated"
   | "manual"
-  | "taxonomy_fallback";
+  | "taxonomy_fallback"
+  | "creative";
+
+export type EditorVisionTruthTier = "vision" | "estimated" | "creative" | "debug";
+
+export type EditorVisionTruthSection = "detected" | "estimated" | "creative" | "debug";
 
 export type EditorVisionHierarchyCategory =
   | "objects"
@@ -413,9 +418,19 @@ export type EditorVisionHierarchyNode = {
   estimated?: boolean;
   /** Vision V6 — where this node came from. */
   source?: EditorVisionPartSource;
+  /** Vision Truth Mode — user-facing tier (Vision / Estimated / Creative). */
+  truthTier?: EditorVisionTruthTier;
+  /** Vision Truth Mode — section header (Detected / Estimated / Creative). */
+  truthSection?: EditorVisionTruthSection;
   confidence?: number;
   locked?: boolean;
   taxonomyTab?: string;
+  /** User taxonomy — parent category when this node is a sub-group (e.g. Gezicht under Personage). */
+  taxonomyParentTab?: string;
+  /** Legacy copilot/instruction part group (eyes, outfit, accessories, …). */
+  actionPartGroup?: string;
+  /** Vision Evidence Audit V2 — why this part was detected / rejected (admin debug). */
+  detectionExplanation?: import("@/types/editor-vision-evidence").VisionPartDetectionExplanation;
   children: EditorVisionHierarchyNode[];
 };
 
@@ -424,6 +439,14 @@ export type EditorVisionV6LayerSource = {
   label: string;
   source: EditorVisionPartSource;
   estimated: boolean;
+};
+
+export type EditorAnalysisIsolationScope = {
+  assetId: string;
+  projectId: string;
+  analysisId: string;
+  sessionId: string;
+  backgroundUrl: string;
 };
 
 export type EditorVisionV6Meta = {
@@ -435,6 +458,10 @@ export type EditorVisionV6Meta = {
   layerSources: EditorVisionV6LayerSource[];
   /** Resolved fallback taxonomy type for hierarchy UI tabs. */
   taxonomyType?: "mascot" | "human" | "animal";
+  /** Hard isolation — analysis belongs to this asset/project only. */
+  isolationScope?: EditorAnalysisIsolationScope;
+  /** Vision Evidence Audit V2 — trust score + accessory audit + per-part decisions. */
+  evidenceAudit?: import("@/types/editor-vision-evidence").EditorVisionEvidenceAuditMeta;
 };
 
 export type EditorObjectHierarchy = {
@@ -1073,6 +1100,12 @@ export type EditorCanvasDocument = {
   assistantState?: EditorV7AssistantState;
   /** Post-upload flow: edit | combine | motion_prepare | export */
   editorFlowMode?: "edit" | "combine" | "motion_prepare" | "export";
+  /** Hard asset/project isolation for vision analysis. */
+  isolationScope?: EditorAnalysisIsolationScope;
+  /** Vision analysis run tracking — prevents flicker / stale hierarchy. */
+  visionAnalysisRun?: import("@/lib/editor-vision-analysis-run").EditorVisionAnalysisRunMeta;
+  /** local = browser-only; server = opened from cloud; synced = confirmed on server. */
+  projectOrigin?: import("@/lib/editor-project-origin").EditorProjectOrigin;
   /** HomeCheff asset intelligence — recommendations, routing, readiness. */
   assetProfile?: import("@/types/editor-asset-profile").EditorAssetProfile;
   /** Instruction studio generated variants — original image is never replaced in-place. */

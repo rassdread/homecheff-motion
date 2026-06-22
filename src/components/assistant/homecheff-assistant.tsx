@@ -8,7 +8,11 @@ import { GrowthSidebar } from "@/components/growth/growth-sidebar";
 /** Mobile-only FAB + bottom sheet. Desktop uses the permanent Growth Sidebar layout. */
 export function HomeCheffAssistant() {
   const t = useActiveTranslator();
-  const { open, setOpen } = useHomeCheffAssistant();
+  const { open, setOpen, copilotLayout, copilotLayoutHydrated } = useHomeCheffAssistant();
+
+  if (copilotLayoutHydrated && copilotLayout.collapsed) {
+    return null;
+  }
 
   return (
     <>

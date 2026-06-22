@@ -4,20 +4,51 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
 import { useActiveTranslator } from "@/i18n/client";
-import { readAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
+import { useMounted } from "@/hooks/use-mounted";
+import {
+  readAssistantEditorContext,
+} from "@/lib/assistant-editor-context-bridge";
+import type { AssistantEditorContextHint } from "@/types/assistant-v3";
 
 type Props = {
   compact?: boolean;
 };
 
+function editorContextEqual(
+  a: AssistantEditorContextHint | null,
+  b: AssistantEditorContextHint | null
+): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  return (
+    a.module === b.module &&
+    a.selectedAssetName === b.selectedAssetName &&
+    a.selectedPartName === b.selectedPartName &&
+    a.selectedAssetType === b.selectedAssetType &&
+    a.selectedPartGroup === b.selectedPartGroup &&
+    a.taxonomyType === b.taxonomyType
+  );
+}
+
 export function StudioCopilotContextBar({ compact = false }: Props) {
   const t = useActiveTranslator();
   const pathname = usePathname();
+  const mounted = useMounted();
   const { snapshot, activeProjectId, memory } = useHomeCheffAssistant();
-  const [editorCtx, setEditorCtx] = useState(readAssistantEditorContext());
+  const [editorCtx, setEditorCtx] = useState<AssistantEditorContextHint | null>(null);
 
   useEffect(() => {
-    const sync = () => setEditorCtx(readAssistantEditorContext());
+    if (!mounted) {
+      return;
+    }
+    const sync = () => {
+      const next = readAssistantEditorContext();
+      setEditorCtx((prev) => (editorContextEqual(prev, next) ? prev : next));
+    };
     sync();
     window.addEventListener("storage", sync);
     window.addEventListener("hc-studio-copilot-layout-updated", sync);
@@ -27,29 +58,34 @@ export function StudioCopilotContextBar({ compact = false }: Props) {
       window.removeEventListener("hc-studio-copilot-layout-updated", sync);
       window.clearInterval(id);
     };
-  }, [pathname, memory.v3?.selectedPartName, memory.v3?.selectedAssetName]);
+  }, [mounted, pathname, memory.v3?.selectedPartName, memory.v3?.selectedAssetName]);
 
   const activeProject = snapshot.projects.find((p) => p.id === activeProjectId) ?? null;
-  const mode = editorCtx?.module ?? (pathname.startsWith("/editor") ? "editor" : pathname.startsWith("/animate") || pathname.startsWith("/motion") ? "motion" : pathname.startsWith("/publish") ? "publish" : "producer");
+  const mode =
+    mounted && editorCtx?.module
+      ? editorCtx.module
+      : pathname.startsWith("/editor")
+        ? "editor"
+        : pathname.startsWith("/animate") || pathname.startsWith("/motion")
+          ? "motion"
+          : pathname.startsWith("/publish")
+            ? "publish"
+            : "producer";
 
   const parts: string[] = [];
-  if (editorCtx?.selectedAssetName) {
+  if (mounted && editorCtx?.selectedAssetName) {
     parts.push(editorCtx.selectedAssetName);
   }
-  if (editorCtx?.selectedPartName) {
+  if (mounted && editorCtx?.selectedPartName) {
     parts.push(editorCtx.selectedPartName);
   }
-  if (!editorCtx?.selectedAssetName && activeProject) {
+  if (mounted && !editorCtx?.selectedAssetName && activeProject) {
     parts.push(activeProject.title);
   }
 
   const modeLabel = t(`studioCopilot.mode.${mode}` as never);
   const contextLine =
-    parts.length > 0
-      ? parts.join(" · ")
-      : t("studioCopilot.context.empty" as never);
-
-  const readiness = memory.v3?.reasoningProfile === "producer" ? null : null;
+    parts.length > 0 ? parts.join(" · ") : t("studioCopilot.context.empty" as never);
 
   return (
     <div
@@ -61,7 +97,6 @@ export function StudioCopilotContextBar({ compact = false }: Props) {
         <span className="mx-1.5 text-zinc-300">·</span>
         <span>{contextLine}</span>
       </p>
-      {readiness ? null : null}
     </div>
   );
 }

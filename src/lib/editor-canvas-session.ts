@@ -22,6 +22,12 @@ import {
   editorAnalysisAppliesToBackground,
   resetEditorAnalysisState,
 } from "@/lib/editor-analysis-reset";
+import { sanitizeDocumentForAssetIsolation } from "@/lib/editor-project-isolation";
+import { traceVisionHierarchyRegression } from "@/lib/editor-vision-hierarchy-loss-trace";
+import {
+  executeEditorVisionAnalysisRun,
+  type EditorVisionAnalysisRunOptions,
+} from "@/lib/editor-vision-analysis-run";
 import { bootstrapEditorObjectDetection } from "@/lib/editor-detection-bootstrap";
 import { extractEditorTextLayers } from "@/lib/editor-text-layers";
 import { syncLinkedPlacementsOnTargetMove } from "@/lib/editor-placement-canvas";
@@ -116,8 +122,9 @@ export function loadEditorCanvasDocument(sessionId: string): EditorCanvasDocumen
     !doc.analyzedBackgroundUrl && documentHasRichVisionAnalysis(doc)
       ? { ...doc, analyzedBackgroundUrl: doc.backgroundUrl }
       : doc;
-  traceVisionHierarchyStage("after_loadEditorCanvasDocument", normalized);
-  return normalized;
+  const sanitized = sanitizeDocumentForAssetIsolation(normalized);
+  traceVisionHierarchyStage("after_loadEditorCanvasDocument", sanitized);
+  return sanitized;
 }
 
 function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocument {
@@ -174,6 +181,9 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
 function persistEditorDocument(document: EditorCanvasDocument): EditorCanvasSaveResult {
   const next = enrichEditorDocument(document);
   traceVisionHierarchyStage("after_enrichEditorDocument", next);
+  traceVisionHierarchyRegression("persisted_document", {
+    document: stripDocumentForStorage(next),
+  });
   const store = readStore();
   store[next.sessionId] = next;
   const storageWarning = writeStore(store, next.sessionId);
@@ -309,6 +319,7 @@ export function createEditorDocumentFromUpload(params: {
     placements: [],
     workspaceMode: params.workspaceMode ?? "instruction_studio",
     status: "editing",
+    projectOrigin: "local",
     createdAt: now,
     updatedAt: now,
   };
@@ -383,23 +394,37 @@ export function createEditorDocumentFromLibrarySource(
     ],
     placements: [],
     status: "editing",
+    projectOrigin: "local",
     createdAt: now,
     updatedAt: now,
   };
 }
 
 export async function runEditorVisionAndObjectDetection(
-  document: EditorCanvasDocument
+  document: EditorCanvasDocument,
+  options?: EditorVisionAnalysisRunOptions
 ): Promise<EditorCanvasDocument> {
-  const prepared = editorAnalysisAppliesToBackground(document)
-    ? document
-    : resetEditorAnalysisState(document, { preserveInstructionWorkflow: true });
-  traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", prepared);
-  const analyzed = await bootstrapEditorObjectDetection(prepared);
-  traceVisionHierarchyStage("before_saveEditorCanvasDocument", analyzed);
-  const saved = saveEditorCanvasDocument(analyzed);
-  traceVisionHierarchyStage("after_saveEditorCanvasDocument", saved);
-  return saved;
+  return executeEditorVisionAnalysisRun(
+    document,
+    async (run, reportStage) => {
+      const prepared =
+        options?.preserveUserEdits ||
+        (editorAnalysisAppliesToBackground(document) && documentHasRichVisionAnalysis(document))
+          ? document
+          : resetEditorAnalysisState(document, { preserveInstructionWorkflow: true });
+      traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", prepared);
+      const analyzed = await bootstrapEditorObjectDetection(prepared, {
+        onStage: reportStage,
+        onProgress: options?.onProgress,
+        runScope: run,
+      });
+      traceVisionHierarchyStage("before_saveEditorCanvasDocument", analyzed);
+      const saved = saveEditorCanvasDocument(analyzed);
+      traceVisionHierarchyStage("after_saveEditorCanvasDocument", saved);
+      return saved;
+    },
+    options
+  );
 }
 
 export function applyEditorLayerOperation(

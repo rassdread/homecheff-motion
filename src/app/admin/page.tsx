@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrowserRuntimeStorageAuditCard } from "@/components/admin/browser-runtime-storage-audit-card";
 import { VideoStorageAuditCard } from "@/components/admin/video-storage-audit-card";
 import { OcrHealthCard } from "@/components/admin/ocr-health-card";
 import { OverlayEngineStatusCard } from "@/components/admin/overlay-engine-status-card";
@@ -23,6 +24,7 @@ export default function AdminDashboardPage() {
         <StudioFinanceCard />
         <VideoCreditsCard />
         <VideoStorageAuditCard />
+        <BrowserRuntimeStorageAuditCard />
         <OverlayEngineStatusCard />
         <OcrHealthCard />
         <VisionHealthCard />

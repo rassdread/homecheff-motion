@@ -271,7 +271,11 @@ export function GuestConversionStrip({
   const bodyClass = isLight ? "text-zinc-600" : "text-white/70";
 
   useEffect(() => {
-    trackBillingConversionEvent("conversion_surface_impression", { source });
+    try {
+      trackBillingConversionEvent("conversion_surface_impression", { source });
+    } catch {
+      // Analytics must never block guest conversion UI.
+    }
   }, [source]);
 
   const inner = (

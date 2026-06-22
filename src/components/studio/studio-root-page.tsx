@@ -41,7 +41,9 @@ function StudioRootContent() {
     let cancelled = false;
     void (async () => {
       setHcRedirecting(true);
-      const project = await loadHcProjectFromQueryResolved(searchParams, Boolean(auth.user));
+      const project = await loadHcProjectFromQueryResolved(searchParams, {
+        syncFromServer: Boolean(auth.user),
+      });
       if (cancelled || !project) {
         setHcRedirecting(false);
         return;

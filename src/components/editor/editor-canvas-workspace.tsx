@@ -2,9 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { buildAssistantEditorContextFromHierarchy } from "@/lib/assistant-editor-context-builder";
+import { useHomeCheffAssistant } from "@/components/assistant/homecheff-assistant-provider";
+import { shouldShowCopilotDock } from "@/lib/studio-copilot-layout-storage";
 import { publishAssistantEditorContext } from "@/lib/assistant-editor-context-bridge";
+import {
+  editorOpenStageLabelKey,
+  getEditorOpenStage,
+  markEditorOpenTiming,
+  recordEditorOpenStage,
+} from "@/lib/editor-open-timing";
+import { scheduleIdleTask } from "@/lib/editor-project-restore";
 import { findHierarchyNodeByPartId } from "@/lib/assistant-editor-hierarchy-context";
-import { resolveStickyVisionHierarchy } from "@/lib/editor-vision-v6-stability";
 import { EditorAddPlacementPanel } from "@/components/editor/editor-add-placement-panel";
 import { EditorAiSuggestions } from "@/components/editor/editor-ai-suggestions";
 import { EditorAssetRecommendationsPanel } from "@/components/editor/editor-asset-recommendations-panel";
@@ -15,7 +23,9 @@ import { EditorClickTraceDebugPanel } from "@/components/editor/editor-click-tra
 import { EditorCanvasPreview } from "@/components/editor/editor-canvas-preview";
 import { EditorHumanObjectList } from "@/components/editor/editor-human-object-list";
 import { EditorLayerTree } from "@/components/editor/editor-layer-tree";
-import { EditorVisionHierarchyPanel } from "@/components/editor/editor-vision-hierarchy-panel";
+import { EditorProjectIsolationControls } from "@/components/editor/editor-project-isolation-controls";
+import { EditorVisionPartsPanel } from "@/components/editor/editor-vision-parts-panel";
+import { useEditorVisionAnalysisRun } from "@/hooks/use-editor-vision-analysis-run";
 import { EditorDetectionStatusBanner } from "@/components/editor/editor-detection-status-banner";
 import { EditorVisionV6DebugPanel } from "@/components/editor/editor-vision-v6-debug-panel";
 import { EditorMobileBottomSheet } from "@/components/editor/editor-mobile-bottom-sheet";
@@ -44,12 +54,13 @@ import { EditorReviewPanel } from "@/components/editor/editor-review-panel";
 import { EditorRefinePointsPanel } from "@/components/editor/editor-refine-points-panel";
 import type { PreciseSelectMode } from "@/components/editor/editor-precise-select-overlay";
 import { EditorSelectionToolsPanel } from "@/components/editor/editor-selection-tools-panel";
+import { EditorCopilotDockSlot } from "@/components/editor/editor-copilot-dock-slot";
 import { EditorV2WorkflowShell } from "@/components/editor/editor-v2-workflow-shell";
 import { EditorProjectNameDialog } from "@/components/editor/editor-project-name-dialog";
 import { HcProjectDeleteDialog } from "@/components/projects/hc-project-delete-dialog";
 import { HcProjectImportDialog } from "@/components/projects/hc-project-import-dialog";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { EditorVisualBodyPanel } from "@/components/editor/editor-visual-body-panel";
 import { StudioAuthGate } from "@/components/studio/studio-auth-gate";
 import { useAuthSession } from "@/hooks/use-auth-session";
@@ -89,7 +100,6 @@ import {
   loadEditorCanvasDocument,
   buildEditorDownloadFilename,
   undoEditorDocument,
-  runEditorVisionAndObjectDetection,
 } from "@/lib/editor-canvas-session";
 import { resetEditorAnalysisState } from "@/lib/editor-analysis-reset";
 import { buildMotionReadyHrefFromEditorDocument } from "@/lib/motion-ready-character-routes";
@@ -271,6 +281,7 @@ import type {
 type Props = {
   document: EditorCanvasDocument;
   onBack: () => void;
+  onNewProject?: () => void;
   onDocumentChange: (document: EditorCanvasDocument) => void;
 };
 
@@ -291,9 +302,12 @@ const EDITOR_MODE_ALREADY_ACTIVE_KEYS: Record<EditorWorkspaceMode, string> = {
   export: "editor.modeAlreadyActive.export",
 };
 
-export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Props) {
+export function EditorCanvasWorkspace({ document, onBack, onNewProject, onDocumentChange }: Props) {
   const t = useActiveTranslator();
   const router = useRouter();
+  const pathname = usePathname();
+  const { copilotLayout } = useHomeCheffAssistant();
+  const showCopilotDock = shouldShowCopilotDock(copilotLayout, pathname);
   const session = useAuthSession();
   const isAdmin = session.user?.role === "admin";
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(
@@ -332,7 +346,6 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [clickDebugPickedLayerId, setClickDebugPickedLayerId] = useState<string | null>(null);
   const [segmentCanvasMessageKey, setSegmentCanvasMessageKey] = useState<string | null>(null);
   const [activeSegmentJobId, setActiveSegmentJobId] = useState<string | null>(null);
-  const bootstrapKeyRef = useRef<string | null>(null);
   const photoEditPanelRef = useRef<HTMLDivElement>(null);
   const exportPanelRef = useRef<HTMLDivElement>(null);
   const composePanelRef = useRef<HTMLDivElement>(null);
@@ -351,7 +364,27 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   const [maskGateOpen, setMaskGateOpen] = useState(false);
   const [selectedCompositorId, setSelectedCompositorId] = useState<string | null>(null);
   const [composerUploading, setComposerUploading] = useState(false);
+  const [copilotContextReady, setCopilotContextReady] = useState(false);
+  const [imageVisible, setImageVisible] = useState(false);
   const composerSourceRef = useRef<HTMLInputElement>(null);
+
+  const handleBackgroundImageVisible = () => {
+    if (!imageVisible) {
+      setImageVisible(true);
+      markEditorOpenTiming("imageVisibleAt");
+      recordEditorOpenStage("analysis_preparing");
+    }
+  };
+
+  useEffect(() => {
+    setImageVisible(false);
+    markEditorOpenTiming("editorMountedAt");
+    recordEditorOpenStage("editor_opening");
+    const frameId = requestAnimationFrame(() => {
+      setCopilotContextReady(true);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [document.sessionId]);
 
   const workspaceMode: EditorWorkspaceMode = resolveEditorWorkspaceMode(document);
   const instructionStudioActive = modeShowsInstructionStudio(workspaceMode);
@@ -363,10 +396,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     document.hierarchicalSelection ?? createDefaultHierarchicalSelection();
   const selectedPartId = hierarchicalSelection.selectedPartId;
 
-  const displayVisionHierarchy = useMemo(
-    () => resolveStickyVisionHierarchy(document),
-    [document]
-  );
+  const {
+    runMeta: visionRunMeta,
+    displayHierarchy: displayVisionHierarchy,
+    analysisPending: visionAnalysisPending,
+    analysisInProgress: visionAnalysisInProgress,
+    analysisComplete: visionAnalysisComplete,
+    isPartialResult: visionIsPartialResult,
+    showEmptyState: visionShowEmptyState,
+    lifecycleDebug: visionLifecycleDebug,
+    runAnalysis: runVisionAnalysis,
+    cachedResult: visionCachedResult,
+    needsDeepAnalysis: visionNeedsDeepAnalysis,
+    analysisProgress: visionAnalysisProgress,
+  } = useEditorVisionAnalysisRun(document, onDocumentChange, {
+    imageVisible,
+    autoBootstrap: !instructionStudioActive,
+    mountTrigger: "workspace-mount",
+  });
 
   const selectedVisionHierarchyNodeId = useMemo(() => {
     if (!selectedPartId) {
@@ -376,6 +423,9 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   }, [displayVisionHierarchy, selectedPartId]);
 
   useEffect(() => {
+    if (!copilotContextReady || !imageVisible) {
+      return;
+    }
     publishAssistantEditorContext(
       buildAssistantEditorContextFromHierarchy({
         document,
@@ -383,7 +433,13 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         selectedNodeId: selectedVisionHierarchyNodeId,
       })
     );
-  }, [document, displayVisionHierarchy, selectedVisionHierarchyNodeId]);
+  }, [
+    copilotContextReady,
+    document,
+    displayVisionHierarchy,
+    imageVisible,
+    selectedVisionHierarchyNodeId,
+  ]);
 
   useEffect(() => {
     void fetch("/api/editor/segment/status")
@@ -407,27 +463,20 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
   }, []);
 
   useEffect(() => {
-    const bootstrapKey = `${document.sessionId}::${document.backgroundUrl}`;
-    if (bootstrapKeyRef.current === bootstrapKey) {
+    if (!visionAnalysisPending && document.detectionMeta?.userMessageKey) {
+      setSaveMessage(t(document.detectionMeta.userMessageKey as never));
+    }
+  }, [document.detectionMeta?.userMessageKey, visionAnalysisPending, t]);
+
+  useEffect(() => {
+    if (visionAnalysisPending) {
       return;
     }
-    if (!documentNeedsDetectionBootstrap(document)) {
-      bootstrapKeyRef.current = bootstrapKey;
-      return;
+    const firstObject = document.objects.find((o) => o.layerType !== "background");
+    if (firstObject && documentNeedsDetectionBootstrap(document) === false) {
+      setSelectedLayerId((prev) => prev ?? firstObject.id);
     }
-    bootstrapKeyRef.current = bootstrapKey;
-    void (async () => {
-      const analyzed = await runEditorVisionAndObjectDetection(document);
-      onDocumentChange(analyzed);
-      const firstObject = analyzed.objects.find((o) => o.layerType !== "background");
-      if (firstObject) {
-        setSelectedLayerId(firstObject.id);
-      }
-      if (analyzed.detectionMeta?.userMessageKey) {
-        setSaveMessage(t(analyzed.detectionMeta.userMessageKey as never));
-      }
-    })();
-  }, [document.sessionId, document.backgroundUrl]);
+  }, [document, visionAnalysisPending]);
 
   useEffect(() => {
     setSelectedLayerId(document.objects.find((o) => o.layerType !== "background")?.id ?? null);
@@ -438,19 +487,24 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
     if (document.instructionStudioState?.hcProjectId) {
       return;
     }
-    const linked = ensureHcProjectOnEditorOpen({
-      document,
-      ownerId: session.user?.id,
-      syncToServer: false,
+    return scheduleIdleTask(() => {
+      const linked = ensureHcProjectOnEditorOpen({
+        document,
+        ownerId: session.user?.id,
+        syncToServer: false,
+      });
+      if (linked.instructionStudioState?.hcProjectId !== document.instructionStudioState?.hcProjectId) {
+        onDocumentChange(linked);
+      }
     });
-    if (linked.instructionStudioState?.hcProjectId !== document.instructionStudioState?.hcProjectId) {
-      onDocumentChange(linked);
-    }
   }, [document.sessionId, document.instructionStudioState?.hcProjectId, onDocumentChange, session.user?.id]);
 
   const { persistNow: persistProjectNow } = useEditorProjectPersist({
     document,
-    enabled: Boolean(session.user),
+    enabled:
+      Boolean(session.user) &&
+      !visionAnalysisInProgress &&
+      (visionAnalysisComplete || !visionAnalysisPending),
   });
 
   const selectedLayer = useMemo(
@@ -1042,10 +1096,11 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
         next = applyEditorLayerOperation(next, layer.id, "delete");
       }
 
-      bootstrapKeyRef.current = null;
-      const analyzed = await runEditorVisionAndObjectDetection(next);
-      persist(analyzed);
-      setSelectedLayerId(analyzed.objects.find((o) => o.layerType !== "background")?.id ?? null);
+      const analyzed = await runVisionAnalysis(next, { trigger: "document-change" });
+      if (analyzed) {
+        persist(analyzed);
+        setSelectedLayerId(analyzed.objects.find((o) => o.layerType !== "background")?.id ?? null);
+      }
       setSaveMessage(
         operation === "delete"
           ? t("editor.visionV3.removeSuccess" as never)
@@ -2284,8 +2339,19 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   ? t("editor.human.modeVisual")
                   : t(`editor.canvas.step.${document.workflowStep}` as never)}
               </p>
+              {visionAnalysisPending || visionAnalysisInProgress ?
+                <p className="mt-1 text-xs font-medium text-violet-700">
+                  {t(editorOpenStageLabelKey(getEditorOpenStage()) as never)}
+                </p>
+              : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <EditorProjectIsolationControls
+                document={document}
+                onDocumentChange={persist}
+                onNewProject={onNewProject}
+                compact
+              />
               {editorAdminCanShowAiAnalysis(isAdmin) ?
                 <button
                   type="button"
@@ -2449,6 +2515,14 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
             </pre>
           : null}
 
+          {!showReview && uiMode === "visual" && showCopilotDock && !instructionStudioActive ?
+            <EditorCopilotDockSlot
+              document={document}
+              onDocumentChange={persist}
+              isAdmin={isAdmin}
+            />
+          : null}
+
           {!showReview && uiMode === "visual" && instructionStudioActive ?
             <EditorV2WorkflowShell
               document={document}
@@ -2503,7 +2577,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 ))}
               </div>
 
-              <EditorVisionSummaryPanel document={document} />
+              <EditorVisionSummaryPanel document={document} showDebug={isAdmin} />
 
               {document.assetProfile ?
                 <EditorAssetRecommendationsPanel
@@ -2576,6 +2650,8 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 <EditorVisionV6DebugPanel
                   visionV6Meta={document.visionV6Meta}
                   detectionMeta={document.detectionMeta}
+                  visionAnalysisRun={visionRunMeta ?? document.visionAnalysisRun}
+                  document={document}
                 />
               ) : null}
 
@@ -2635,6 +2711,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                   selectedPlacementId={selectedPlacementId}
                   showBodyGuide={showVisualBody}
                   humanFirst
+                  onBackgroundImageLoad={handleBackgroundImageVisible}
                   onSelectLayer={selectLayer}
                   onEmptyCanvasClick={handleEmptyCanvasClick}
                   onApproximateLayerClick={handleApproximateLayerClick}
@@ -2997,20 +3074,33 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 humanFirst={!showAiAnalysis}
                 showAiAnalysis={showAiAnalysis}
               />
-              {(document.visionHierarchy?.length ?? 0) > 0 ? (
-                <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
-                  <EditorVisionHierarchyPanel
-                    hierarchy={document.visionHierarchy ?? []}
-                    selectedNodeId={
-                      hierarchicalSelection.selectedPartId ??
-                      selectedLayerId
-                    }
-                    onSelectNode={selectVisionHierarchyNode}
-                    showSourceDebug={isAdmin}
-                    taxonomyType={document.visionV6Meta?.taxonomyType}
-                  />
-                </div>
-              ) : null}
+              <div className="mt-3">
+                <EditorVisionPartsPanel
+                  hierarchy={displayVisionHierarchy}
+                  selectedNodeId={selectedVisionHierarchyNodeId ?? hierarchicalSelection.selectedPartId ?? selectedLayerId}
+                  onSelectNode={selectVisionHierarchyNode}
+                  showSourceDebug={isAdmin}
+                  analysisPending={visionAnalysisPending}
+                  analysisInProgress={visionAnalysisInProgress}
+                  analysisComplete={visionAnalysisComplete}
+                  showEmptyState={visionShowEmptyState}
+                  isPartialResult={visionIsPartialResult}
+                  cachedResult={visionCachedResult}
+                  needsDeepAnalysis={visionNeedsDeepAnalysis}
+                  onDeepAnalyze={() => void runVisionAnalysis(document, { trigger: "deep-analyze" })}
+                  runMeta={visionRunMeta}
+                  lifecycleDebug={visionLifecycleDebug}
+                  analysisProgress={visionAnalysisProgress}
+                  onReanalyze={() => {
+                    void runVisionAnalysis(document, {
+                      force: true,
+                      trigger: "manual-reanalyze",
+                      preserveUserEdits: false,
+                    });
+                  }}
+                  taxonomyType={document.visionV6Meta?.taxonomyType ?? "unknown"}
+                />
+              </div>
               {document.placements.length > 0 ?
                 <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
                   <p className="text-xs font-semibold uppercase text-zinc-500">{t("editor.placement.listTitle")}</p>
@@ -3039,6 +3129,7 @@ export function EditorCanvasWorkspace({ document, onBack, onDocumentChange }: Pr
                 selectedPlacementId={selectedPlacementId}
                 showBodyGuide={panelMode === "body"}
                 humanFirst={false}
+                onBackgroundImageLoad={handleBackgroundImageVisible}
                 onSelectLayer={selectLayer}
                 onEmptyCanvasClick={handleEmptyCanvasClick}
                 onApproximateLayerClick={handleApproximateLayerClick}

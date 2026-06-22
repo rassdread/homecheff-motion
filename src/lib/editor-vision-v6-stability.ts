@@ -7,6 +7,15 @@ import type {
   EditorVisionHierarchyNode,
   EditorVisionV6Meta,
 } from "@/types/homecheff-visual-editor";
+import type { EditorVisionAnalysisRunMeta } from "@/lib/editor-vision-analysis-run";
+import {
+  getEditorVisionAnalysisRunMeta,
+  isEditorVisionAnalysisInProgress,
+  isEditorVisionAnalysisLoading,
+  shouldShowFinalVisionHierarchy,
+  shouldShowPartialVisionHierarchy,
+} from "@/lib/editor-vision-analysis-run";
+import { normalizeEditorVisionScopeUrl } from "@/lib/editor-vision-analysis-scope";
 
 export type VisionHierarchyTrace = {
   stage: string;
@@ -22,7 +31,16 @@ export type VisionHierarchyTrace = {
 };
 
 const MEANINGFUL_PART_RE =
-  /head|eye|mouth|tie|hand|shoe|globe|mascot|character|style|prop|face|jacket/i;
+  /head|eye|mouth|tie|hand|shoe|globe|mascot|character|style|prop|face|jacket|paw|tail|snout|ear|hair|body|torso|arm|leg|foot|nose|outfit|clothing|kleding|accessoire/i;
+
+const BACKGROUND_DECORATION_LABEL_RE =
+  /^(background|color|lighting|shadow|safe empty area|safe area|style|visual style)$/i;
+
+const SUBJECT_ROOT_LABEL_RE =
+  /person|personage|character|mascot|mascotte|dier|animal|human|portrait|dog|cat|main subject|hoofdonderwerp|objects|detected on image|character \//i;
+
+const GENERIC_SUBJECT_CONTAINER_LABEL_RE =
+  /^(objects|main subject|hoofdonderwerp|detected on image)$/i;
 
 export function countVisionHierarchyNodes(
   nodes: EditorVisionHierarchyNode[] | undefined
@@ -59,30 +77,102 @@ export function collectVisionHierarchyLabels(
   return labels;
 }
 
+function countSubjectPartNodes(nodes: EditorVisionHierarchyNode[] | undefined): number {
+  if (!nodes?.length) {
+    return 0;
+  }
+  let count = 0;
+  const walk = (list: EditorVisionHierarchyNode[], inSubjectBranch: boolean) => {
+    for (const node of list) {
+      const isBg =
+        node.category === "background" || BACKGROUND_DECORATION_LABEL_RE.test(node.label.trim());
+      const isSubjectBranch =
+        inSubjectBranch || SUBJECT_ROOT_LABEL_RE.test(node.label) || node.category === "objects";
+      if (
+        isSubjectBranch &&
+        !isBg &&
+        !BACKGROUND_DECORATION_LABEL_RE.test(node.label.trim()) &&
+        !GENERIC_SUBJECT_CONTAINER_LABEL_RE.test(node.label.trim())
+      ) {
+        count += 1;
+      }
+      walk(node.children, isSubjectBranch);
+    }
+  };
+  walk(nodes, false);
+  return count;
+}
+
+/** Background-only or main-subject-without-parts — not sufficient to skip bootstrap. */
+export function isWeakBackgroundOnlyAnalysis(
+  document: Pick<EditorCanvasDocument, "visionHierarchy" | "visionV6Meta"> &
+    Partial<Pick<EditorCanvasDocument, "objects" | "detectedObjects">>
+): boolean {
+  const hierarchy = document.visionHierarchy ?? [];
+  if (hierarchy.length === 0) {
+    return true;
+  }
+
+  const labels = collectVisionHierarchyLabels(hierarchy, 100);
+  const joined = labels.join(" ").toLowerCase();
+  if (MEANINGFUL_PART_RE.test(joined)) {
+    return false;
+  }
+
+  const subjectPartNodes = countSubjectPartNodes(hierarchy);
+  const hasSubjectRoot = labels.some((label) => SUBJECT_ROOT_LABEL_RE.test(label));
+  const nonDecorationLabels = labels.filter(
+    (label) => !BACKGROUND_DECORATION_LABEL_RE.test(label.trim())
+  );
+
+  if (nonDecorationLabels.length === 0) {
+    return true;
+  }
+
+  if (!hasSubjectRoot && subjectPartNodes === 0) {
+    return true;
+  }
+
+  if (hasSubjectRoot && subjectPartNodes <= 1) {
+    return true;
+  }
+
+  if (document.objects || document.detectedObjects) {
+    const nonBackgroundObjects =
+      document.detectedObjects?.filter((obj) => obj.category !== "background").length ??
+      document.objects?.filter((obj) => obj.layerType !== "background").length ??
+      0;
+    if (nonBackgroundObjects > 0 && subjectPartNodes <= 1 && !MEANINGFUL_PART_RE.test(joined)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function isMeaningfulVisionHierarchy(
   hierarchy: EditorVisionHierarchyNode[] | undefined,
   meta?: EditorVisionV6Meta
 ): boolean {
-  if (meta?.illustrationAnalysis && (meta.mergedLayerCount ?? 0) >= 4) {
-    return true;
-  }
-  const total = countVisionHierarchyNodes(hierarchy);
-  if (total > 3) {
-    return true;
+  if (isWeakBackgroundOnlyAnalysis({ visionHierarchy: hierarchy, visionV6Meta: meta })) {
+    return false;
   }
   const labels = collectVisionHierarchyLabels(hierarchy, 40).join(" ");
   if (MEANINGFUL_PART_RE.test(labels)) {
+    return true;
+  }
+  if (countSubjectPartNodes(hierarchy) >= 3) {
+    return true;
+  }
+  if (meta?.illustrationAnalysis && (meta.mergedLayerCount ?? 0) >= 6 && countSubjectPartNodes(hierarchy) >= 2) {
     return true;
   }
   return false;
 }
 
 export function documentHasRichVisionAnalysis(document: EditorCanvasDocument): boolean {
-  if (document.visionV6Meta?.illustrationAnalysis) {
-    return (
-      isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta) ||
-      (document.visionV6Meta.mergedLayerCount ?? 0) >= 4
-    );
+  if (isWeakBackgroundOnlyAnalysis(document)) {
+    return false;
   }
   return isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta);
 }
@@ -130,15 +220,103 @@ function nonBackgroundLayerCount(document: EditorCanvasDocument): number {
 }
 
 function analysisScore(document: EditorCanvasDocument): number {
+  return visionDocumentRichnessScore(document);
+}
+
+const FACE_PART_RE = /\b(face|eyes|eye|mouth|hair|head|gezicht|ogen|mond|haar)\b/i;
+const CLOTHING_PART_RE = /\b(shirt|jacket|pants|shoe|tie|kleding|broek|jas)\b/i;
+const ACCESSORY_PART_RE = /\b(sunglasses|glasses|bril|necklace|watch|hat|cap|accessoire|zonnebril)\b/i;
+
+/** Score hierarchy richness for compare/merge decisions. */
+export function visionDocumentRichnessScore(document: EditorCanvasDocument): number {
   let score = 0;
   if (document.visionV6Meta?.illustrationAnalysis) {
     score += 1000;
   }
+  const labels = collectVisionHierarchyLabels(document.visionHierarchy, 120).join(" ").toLowerCase();
   score += countVisionHierarchyNodes(document.visionHierarchy) * 10;
   score += document.visionV6Meta?.mergedLayerCount ?? 0;
   score += nonBackgroundLayerCount(document) * 5;
   score += document.semanticLayers?.filter((l) => l.type !== "background").length ?? 0;
+  if (FACE_PART_RE.test(labels)) {
+    score += 40;
+  }
+  if (CLOTHING_PART_RE.test(labels)) {
+    score += 30;
+  }
+  if (ACCESSORY_PART_RE.test(labels)) {
+    score += 35;
+  }
+  if (document.visionV6Meta?.openAiPartsUsed) {
+    score += 15;
+  }
+  const accessoryParts =
+    document.visionV6Meta?.layerSources?.filter((row) =>
+      ACCESSORY_PART_RE.test(row.label.toLowerCase())
+    ).length ?? 0;
+  score += accessoryParts * 8;
   return score;
+}
+
+export type ChooseRicherVisionDocumentResult = {
+  document: EditorCanvasDocument;
+  keptPrevious: boolean;
+  previousScore: number;
+  nextScore: number;
+};
+
+/** Never replace a richer provisional tree with a weaker final unless evidence is clearly better. */
+export function chooseRicherVisionDocument(
+  previous: EditorCanvasDocument,
+  next: EditorCanvasDocument
+): EditorCanvasDocument {
+  const result = compareVisionDocumentRichness(previous, next);
+  if (!result.keptPrevious) {
+    return next;
+  }
+  const previousRun = previous.visionAnalysisRun ?? next.visionAnalysisRun;
+  return {
+    ...previous,
+    visionAnalysisRun: previousRun
+      ? {
+          ...previousRun,
+          status: "complete",
+          isPartial: true,
+          needsDeepAnalysis: true,
+          fallbackUsed: true,
+          terminalStateReason: "final_weaker_than_provisional",
+          completedAt: previousRun.completedAt ?? new Date().toISOString(),
+          finalCount: countVisionHierarchyNodes(previous.visionHierarchy),
+          provisionalCount:
+            previousRun.provisionalCount ?? countVisionHierarchyNodes(previous.visionHierarchy),
+        }
+      : next.visionAnalysisRun,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function compareVisionDocumentRichness(
+  previous: EditorCanvasDocument,
+  next: EditorCanvasDocument
+): ChooseRicherVisionDocumentResult {
+  const previousScore = visionDocumentRichnessScore(previous);
+  const nextScore = visionDocumentRichnessScore(next);
+  const previousNodes = countVisionHierarchyNodes(previous.visionHierarchy);
+  const nextNodes = countVisionHierarchyNodes(next.visionHierarchy);
+  const nextStrongerEvidence =
+    Boolean(next.visionV6Meta?.openAiPartsUsed) &&
+    !previous.visionV6Meta?.openAiPartsUsed &&
+    nextScore >= previousScore - 20;
+  const keptPrevious =
+    !nextStrongerEvidence &&
+    (previousScore > nextScore + 5 ||
+      (previousNodes > nextNodes + 1 && nextScore <= previousScore));
+  return {
+    document: keptPrevious ? previous : next,
+    keptPrevious,
+    previousScore,
+    nextScore,
+  };
 }
 
 /** Prefer the document with richer V6 / hierarchy data (never downgrade). */
@@ -148,13 +326,20 @@ export function mergePreservingVisionAnalysis(
 ): EditorCanvasDocument {
   if (preferred.backgroundUrl !== incoming.backgroundUrl) {
     const base = incoming.updatedAt >= preferred.updatedAt ? incoming : preferred;
-    const other = base === incoming ? preferred : incoming;
     return {
-      ...other,
       ...base,
-      backgroundUrl: base.backgroundUrl,
-      backgroundStorageKey: base.backgroundStorageKey ?? other.backgroundStorageKey,
-      name: base.name,
+      visionHierarchy: undefined,
+      visionV6Meta: undefined,
+      visionAnalysis: undefined,
+      visionAnalysisHash: undefined,
+      analyzedBackgroundUrl: undefined,
+      semanticLayers: undefined,
+      detectedObjects: undefined,
+      objectHierarchies: undefined,
+      detectionMeta: undefined,
+      assetProfile: undefined,
+      isolationScope: undefined,
+      hierarchicalSelection: base.hierarchicalSelection,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -213,27 +398,83 @@ export function resolveVisionHierarchyForDocument(
 
 const stickyHierarchyBySession = new Map<string, EditorVisionHierarchyNode[]>();
 
-/** UI-only: never downgrade hierarchy once a meaningful tree was shown. */
+function stickyHierarchyKey(document: EditorCanvasDocument): string {
+  const analysisId =
+    document.isolationScope?.analysisId ?? document.visionAnalysisRun?.analysisId ?? "pending";
+  return `${document.sessionId}::${document.backgroundUrl}::${analysisId}`;
+}
+
+/** UI-only: never downgrade hierarchy once a meaningful tree was shown for this analysis run. */
 export function resolveStickyVisionHierarchy(
-  document: EditorCanvasDocument
+  document: EditorCanvasDocument,
+  runMeta?: EditorVisionAnalysisRunMeta | null
 ): EditorVisionHierarchyNode[] {
   const current = document.visionHierarchy ?? [];
+  const meta = runMeta ?? getEditorVisionAnalysisRunMeta(document);
   const analysisFresh =
     Boolean(document.analyzedBackgroundUrl?.trim()) &&
-    document.analyzedBackgroundUrl === document.backgroundUrl;
-  if (!analysisFresh) {
-    stickyHierarchyBySession.delete(document.sessionId);
-    return current;
-  }
+    normalizeEditorVisionScopeUrl(document.analyzedBackgroundUrl) ===
+      normalizeEditorVisionScopeUrl(document.backgroundUrl);
+  const cacheKey = stickyHierarchyKey(document);
+  const sticky = stickyHierarchyBySession.get(cacheKey);
+
   if (isMeaningfulVisionHierarchy(current, document.visionV6Meta)) {
-    stickyHierarchyBySession.set(document.sessionId, current);
+    if (analysisFresh || isEditorVisionAnalysisInProgress(meta?.status)) {
+      stickyHierarchyBySession.set(cacheKey, current);
+    }
     return current;
   }
-  return stickyHierarchyBySession.get(document.sessionId) ?? current;
+
+  if (sticky?.length) {
+    return sticky;
+  }
+
+  if (!analysisFresh && !isEditorVisionAnalysisInProgress(meta?.status)) {
+    for (const key of stickyHierarchyBySession.keys()) {
+      if (key.startsWith(`${document.sessionId}::${document.backgroundUrl}::`)) {
+        stickyHierarchyBySession.delete(key);
+      }
+    }
+  }
+  return current;
+}
+
+/** Stable hierarchy for parts panel — hides stale trees during early detecting only. */
+export function resolveDisplayVisionHierarchy(
+  document: EditorCanvasDocument,
+  runMeta?: EditorVisionAnalysisRunMeta | null
+): EditorVisionHierarchyNode[] {
+  const meta = runMeta ?? getEditorVisionAnalysisRunMeta(document);
+  if (meta?.status === "partial" || meta?.status === "finalizing") {
+    return resolveStickyVisionHierarchy(document, meta);
+  }
+  if (meta?.status === "detecting") {
+    if (document.visionHierarchy?.length) {
+      return resolveStickyVisionHierarchy(document, meta);
+    }
+    return [];
+  }
+  if (meta?.status === "failed") {
+    if (document.visionHierarchy?.length) {
+      return resolveStickyVisionHierarchy(document, meta);
+    }
+    return [];
+  }
+  if (shouldShowFinalVisionHierarchy(document, meta)) {
+    return resolveStickyVisionHierarchy(document, meta);
+  }
+  if (documentHasRichVisionAnalysis(document)) {
+    return resolveStickyVisionHierarchy(document, meta);
+  }
+  return [];
 }
 
 export function clearStickyVisionHierarchyForSession(sessionId: string): void {
-  stickyHierarchyBySession.delete(sessionId);
+  for (const key of stickyHierarchyBySession.keys()) {
+    if (key.startsWith(`${sessionId}::`) || key === sessionId) {
+      stickyHierarchyBySession.delete(key);
+    }
+  }
 }
 
 /** Test helper */

@@ -6,8 +6,25 @@ import {
   resolvePlayableVideoSrc,
 } from "@/lib/playable-media-url";
 import { spaceGalleryCardVideoSrc } from "@/lib/space-gallery-media";
+import { studioShowcaseItemToExample } from "@/lib/showcase-item-mapper";
+import {
+  patchStudioCopilotLayout,
+  readStudioCopilotLayout,
+  resetStudioCopilotLayoutCacheForTests,
+  writeStudioCopilotLayout,
+} from "@/lib/studio-copilot-layout-storage";
+import {
+  readIdentityPreservationOverrides,
+  resetIdentityPreservationCacheForTests,
+  writeIdentityPreservationOverrides,
+} from "@/lib/studio-copilot-identity-preservation-storage";
+import {
+  readStudioCopilotExpertMode,
+  writeStudioCopilotExpertMode,
+} from "@/lib/studio-copilot-expert-mode-storage";
 import { DEFAULT_STUDIO_COPILOT_LAYOUT } from "@/types/studio-copilot-layout";
 import { isHomeCheffAssistantRoute } from "@/lib/homecheff-assistant-flag";
+import type { StudioShowcaseItemRecord } from "@/types/studio-showcase-item";
 
 describe("production errors audit fixes", () => {
   it("static showcase examples do not reference broken final.mp4 paths", () => {
@@ -24,6 +41,64 @@ describe("production errors audit fixes", () => {
     );
     assert.equal(resolvePlayableVideoSrc("https://cdn.example.com/render.mp4"), "https://cdn.example.com/render.mp4");
     assert.equal(resolvePlayableVideoSrc(""), null);
+  });
+
+  it("showcase mapper sanitizes broken final.mp4 video URLs from admin DB items", () => {
+    const item = {
+      id: "x",
+      pageKey: "home",
+      title: "Demo",
+      description: "Demo",
+      mediaType: "video",
+      mediaUrl: "/generated/animations/projects/demo/final.mp4",
+      thumbnailUrl: "/homecheff-globe-man.png",
+      sortOrder: 0,
+      isActive: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    } as StudioShowcaseItemRecord;
+    const example = studioShowcaseItemToExample(item);
+    assert.equal(example.mediaKind, "image");
+    assert.equal(spaceGalleryCardVideoSrc(example), null);
+  });
+
+  it("layout storage getSnapshot returns stable object reference", () => {
+    resetStudioCopilotLayoutCacheForTests();
+    writeStudioCopilotLayout(DEFAULT_STUDIO_COPILOT_LAYOUT);
+    const a = readStudioCopilotLayout();
+    const b = readStudioCopilotLayout();
+    assert.equal(a, b);
+    const patched = patchStudioCopilotLayout({ placement: "side" });
+    assert.equal(patched, a);
+  });
+
+  it("identity preservation getSnapshot returns stable default reference", () => {
+    resetIdentityPreservationCacheForTests();
+    const a = readIdentityPreservationOverrides();
+    const b = readIdentityPreservationOverrides();
+    assert.equal(a, b);
+    writeIdentityPreservationOverrides({
+      preserveFace: false,
+      preserveEyes: true,
+      preserveMouth: true,
+      preservePersonality: true,
+      preserveBodyShape: true,
+      preserveCoreShape: true,
+      preserveBrandIdentity: true,
+    });
+    const c = readIdentityPreservationOverrides();
+    const d = readIdentityPreservationOverrides();
+    assert.equal(c, d);
+    assert.equal(c.preserveFace, false);
+    resetIdentityPreservationCacheForTests();
+  });
+
+  it("expert mode storage returns stable boolean", () => {
+    writeStudioCopilotExpertMode(false);
+    assert.equal(readStudioCopilotExpertMode(), false);
+    writeStudioCopilotExpertMode(true);
+    assert.equal(readStudioCopilotExpertMode(), true);
+    writeStudioCopilotExpertMode(false);
   });
 
   it("default copilot layout matches SSR-stable spec", () => {

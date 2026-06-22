@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { StudioCopilotContextBar } from "@/components/assistant/studio-copilot-context-bar";
 import { StudioCopilotHeader } from "@/components/assistant/studio-copilot-header";
 import { StudioCopilotQuickActions } from "@/components/assistant/studio-copilot-quick-actions";
@@ -18,7 +19,8 @@ type Props = {
  */
 export function StudioCopilotDock({ onApplyChangePlan }: Props) {
   const t = useActiveTranslator();
-  const { sendMessage, copilotLayout, setCopilotPlacement } = useHomeCheffAssistant();
+  const pathname = usePathname();
+  const { sendMessage, copilotLayout, setCopilotPlacement, minimizeCopilot } = useHomeCheffAssistant();
 
   const handleSubmit = (value: string) => {
     const trimmed = value.trim();
@@ -39,7 +41,9 @@ export function StudioCopilotDock({ onApplyChangePlan }: Props) {
     >
       <StudioCopilotHeader
         placement={copilotLayout.placement}
+        pathname={pathname}
         onPlacementChange={setCopilotPlacement}
+        onMinimize={minimizeCopilot}
         compact
       />
       <StudioCopilotContextBar compact />

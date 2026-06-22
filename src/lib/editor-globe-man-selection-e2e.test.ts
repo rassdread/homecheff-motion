@@ -11,7 +11,7 @@ import { buildEditorObjectsFromLayers } from "@/lib/editor-object-detection";
 import { pickTopEditorObjectAtPoint } from "@/lib/editor-object-picking";
 import { postEditorSegmentClick, EDITOR_SEGMENT_CLICK_CLIENT_TIMEOUT_MS } from "@/lib/editor-segment-click-client";
 import { deriveSegmentationUiState } from "@/lib/editor-segmentation-state";
-import { buildEditorVisionSummary } from "@/lib/editor-vision-summary";
+import { buildEditorVisionSummary, buildEditorVisionSummaryLegacyDebug } from "@/lib/editor-vision-summary";
 import {
   applySegmentToSubObjectLayer,
   attachSubObjectLayer,
@@ -87,12 +87,14 @@ describe("Globe Man real user selection e2e (simulated)", () => {
     assert.match(route, /requestId/);
   });
 
-  it("vision summary appears for Globe Man layers", () => {
+  it("vision summary uses truth mode — legacy object layers are debug-only", () => {
     const doc = globeManDocument();
     const summary = buildEditorVisionSummary(doc);
-    assert.ok(summary.itemKeys.includes("editor.visionSummary.item.character"));
-    assert.ok(summary.itemKeys.includes("editor.visionSummary.item.background"));
-    assert.ok(summary.lowConfidence);
+    assert.equal(summary.hasTruthSource, false);
+    assert.equal(summary.detectedLabels.length, 0);
+
+    const legacy = buildEditorVisionSummaryLegacyDebug(doc);
+    assert.ok(legacy.itemKeys.includes("editor.visionSummary.item.globe"));
   });
 
   it("globe click opens prompt path (approximate parent hit)", () => {

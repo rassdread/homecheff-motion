@@ -6,7 +6,7 @@
 import type { MascotExpansionKind } from "@/lib/editor-character-expansion";
 import { resolveMascotExpansionKind, documentMascotSignals } from "@/lib/editor-character-expansion";
 import {
-  mergeTaxonomyFallbackParts,
+  mergeTaxonomyFallbackPartsSeparated,
   publicEditablePartLabels,
   taxonomySpec,
 } from "@/lib/editor-taxonomy-shared";
@@ -74,21 +74,29 @@ function poseParts(): IllustrationPartSpec[] {
   ].filter((p): p is IllustrationPartSpec => p !== null);
 }
 
-function propParts(includeGlobe: boolean): IllustrationPartSpec[] {
+function mascotAccessoryParts(includeGlobe: boolean): IllustrationPartSpec[] {
   const parts: IllustrationPartSpec[] = [
-    spec({ key: "prop_laptop", label: "Laptop", category: "prop", group: "prop", taxonomyTab: "props" }),
-    spec({ key: "prop_phone", label: "Phone", category: "prop", group: "prop", taxonomyTab: "props" }),
-    spec({ key: "prop_sign", label: "Sign", category: "prop", group: "prop", taxonomyTab: "props" }),
-    spec({ key: "prop_coffee", label: "Coffee cup", category: "prop", group: "prop", taxonomyTab: "props" }),
-    spec({ key: "prop_book", label: "Book", category: "prop", group: "prop", taxonomyTab: "props" }),
+    spec({ key: "hat", label: "Hat", category: "head", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "badge", label: "Badge", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "tool", label: "Tool", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "prop_laptop", label: "Laptop", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "prop_phone", label: "Phone", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "prop_coffee", label: "Mug", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "prop_sign", label: "Board", category: "prop", group: "prop", taxonomyTab: "accessories" }),
+    spec({ key: "prop_book", label: "Prop object", category: "prop", group: "prop", taxonomyTab: "accessories" }),
   ].filter((p): p is IllustrationPartSpec => p !== null);
+
   if (includeGlobe) {
-    const globe = spec({ key: "globe", label: "World globe", category: "globe", group: "prop", taxonomyTab: "props" });
+    const globe = spec({ key: "globe", label: "World globe", category: "globe", group: "prop", taxonomyTab: "accessories" });
     if (globe) {
       parts.unshift(globe);
     }
   }
   return parts;
+}
+
+function propParts(): IllustrationPartSpec[] {
+  return [];
 }
 
 function brandVariantParts(kind: MascotTaxonomyKind): IllustrationPartSpec[] {
@@ -172,9 +180,10 @@ export function buildMascotTaxonomyFallbackParts(
 
   return [
     ...appearanceParts(),
+    ...mascotAccessoryParts(includeGlobe),
     ...expressionParts(),
     ...poseParts(),
-    ...propParts(includeGlobe),
+    ...propParts(),
     ...brandVariantParts(kind),
     ...animationParts(),
     ...styleParts(),
@@ -191,7 +200,7 @@ export function mergeIllustrationPartsWithMascotTaxonomy(
   }
 
   const fallback = buildMascotTaxonomyFallbackParts(kind, vision);
-  return mergeTaxonomyFallbackParts(analysis, fallback);
+  return mergeTaxonomyFallbackPartsSeparated(analysis, fallback).analysis;
 }
 
 export { publicEditablePartLabels };

@@ -1,4 +1,14 @@
 import { persistHomeCheffProject, loadHomeCheffProject } from "@/lib/homecheff-project-persist";
+import {
+  markHcProjectSynced,
+  resolveHcProjectOrigin,
+  stampHcProjectOrigin,
+} from "@/lib/editor-project-origin";
+import {
+  canRestoreFromServer,
+  isAnalysisBlockingRestore,
+} from "@/lib/editor-project-restore";
+import type { EditorVisionAnalysisStatus } from "@/lib/editor-vision-analysis-run";
 import type { HomeCheffProjectPackage } from "@/types/homecheff-project-package";
 
 export async function fetchHcProjectFromServer(projectId: string): Promise<HomeCheffProjectPackage | null> {
@@ -47,7 +57,7 @@ export async function importHcProjectToServer(content: string): Promise<{
       copied?: boolean;
     };
     if (body.project) {
-      persistHomeCheffProject(body.project);
+      persistHomeCheffProject(stampHcProjectOrigin(body.project, "server"));
     }
     return { ok: Boolean(body.ok), project: body.project, copied: body.copied };
   } catch {
@@ -55,18 +65,40 @@ export async function importHcProjectToServer(content: string): Promise<{
   }
 }
 
-/** Prefer local, optionally merge from server when signed in. */
+/** Prefer local, optionally merge from server when signed in and restore is allowed. */
 export async function loadHcProjectResolved(
   projectId: string,
-  options: { syncFromServer?: boolean } = {}
+  options: {
+    syncFromServer?: boolean;
+    skipServerWithoutLocal?: boolean;
+    userRequestedRestore?: boolean;
+    analysisStatus?: EditorVisionAnalysisStatus | null;
+  } = {}
 ): Promise<HomeCheffProjectPackage | null> {
   const local = loadHomeCheffProject(projectId);
   if (!options.syncFromServer) {
     return local;
   }
+
+  const origin = resolveHcProjectOrigin(local);
+  const gate = canRestoreFromServer({
+    origin,
+    localExists: Boolean(local),
+    userRequestedRestore: options.userRequestedRestore,
+    analysisStatus: options.analysisStatus,
+  });
+
+  if (!gate.allowed) {
+    return local;
+  }
+
+  if (!local && options.skipServerWithoutLocal) {
+    return null;
+  }
+
   const remote = await fetchHcProjectFromServer(projectId);
   if (remote) {
-    persistHomeCheffProject(remote);
+    persistHomeCheffProject(stampHcProjectOrigin(remote, "server"));
     return remote;
   }
   return local;
@@ -78,7 +110,11 @@ export function persistHcProjectWithSync(
 ): HomeCheffProjectPackage {
   const persisted = persistHomeCheffProject(project);
   if (options.syncToServer) {
-    void syncHcProjectToServer(persisted);
+    void syncHcProjectToServer(persisted).then((ok) => {
+      if (ok) {
+        persistHomeCheffProject(markHcProjectSynced(persisted));
+      }
+    });
   }
   return persisted;
 }

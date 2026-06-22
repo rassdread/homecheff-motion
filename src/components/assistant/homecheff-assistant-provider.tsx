@@ -33,6 +33,7 @@ import { buildDynamicLibraryRecommendations } from "@/lib/assistant-dynamic-reco
 import { buildAssistantStudioContext } from "@/lib/assistant-studio-brain";
 import { listAssistantHistory } from "@/lib/assistant-history";
 import { trackAssistantAnalyticsEvent } from "@/lib/assistant-analytics";
+import { EDITOR_PROJECT_RESET_EVENT } from "@/lib/editor-project-isolation";
 import {
   appendAssistantProjectMemoryTurn,
   createEmptyAssistantProjectMemory,
@@ -57,6 +58,7 @@ import { readAssistantEditorContext } from "@/lib/assistant-editor-context-bridg
 import {
   patchStudioCopilotLayout,
   readStudioCopilotLayout,
+  resolveRestorePlacement,
   subscribeStudioCopilotLayout,
 } from "@/lib/studio-copilot-layout-storage";
 import type {
@@ -88,6 +90,8 @@ type HomeCheffAssistantContextValue = {
   setCollapsedRecent: (collapsed: boolean) => void;
   setCopilotCompactMode: (compact: boolean) => void;
   copilotLayoutHydrated: boolean;
+  minimizeCopilot: () => void;
+  restoreCopilot: (pathname?: string) => void;
 };
 
 const HomeCheffAssistantContext = createContext<HomeCheffAssistantContextValue | null>(null);
@@ -145,6 +149,18 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   const { items: pricingCatalog } = usePricingCatalog();
 
   useEffect(() => {
+    const onProjectReset = () => {
+      const fresh = createInitialAssistantSession(null);
+      setMemory(fresh.memory);
+      setSnapshot(fresh.snapshot);
+      setMessages([]);
+      interpretInFlightRef.current = null;
+    };
+    window.addEventListener(EDITOR_PROJECT_RESET_EVENT, onProjectReset);
+    return () => window.removeEventListener(EDITOR_PROJECT_RESET_EVENT, onProjectReset);
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       queueMicrotask(() => setBillingContext(undefined));
       return;
@@ -175,8 +191,25 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const setCopilotPlacement = useCallback((placement: StudioCopilotPlacement) => {
-    patchStudioCopilotLayout({ placement });
+    patchStudioCopilotLayout({ placement, collapsed: false });
   }, []);
+
+  const minimizeCopilot = useCallback(() => {
+    const current = readStudioCopilotLayout();
+    patchStudioCopilotLayout({
+      collapsed: true,
+      restorePlacement: current.placement,
+    });
+  }, []);
+
+  const restoreCopilot = useCallback((routePathname?: string) => {
+    const current = readStudioCopilotLayout();
+    const placement = resolveRestorePlacement(current.restorePlacement, routePathname ?? pathname);
+    patchStudioCopilotLayout({
+      collapsed: false,
+      placement,
+    });
+  }, [pathname]);
 
   const setCopilotWidth = useCallback((width: number) => {
     patchStudioCopilotLayout({ width });
@@ -541,6 +574,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       setCopilotWidth,
       setCollapsedRecent,
       setCopilotCompactMode,
+      minimizeCopilot,
+      restoreCopilot,
     }),
     [
       open,
@@ -564,6 +599,8 @@ function HomeCheffAssistantProviderCore({ children }: { children: ReactNode }) {
       setCopilotWidth,
       setCollapsedRecent,
       setCopilotCompactMode,
+      minimizeCopilot,
+      restoreCopilot,
     ]
   );
 

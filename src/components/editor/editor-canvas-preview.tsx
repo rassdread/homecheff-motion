@@ -81,6 +81,7 @@ type Props = {
   showSelectionHelp?: boolean;
   /** Read-only preview — no hit-testing, transforms, or selection overlays. */
   previewOnly?: boolean;
+  onBackgroundImageLoad?: () => void;
 };
 
 export function EditorCanvasPreview({
@@ -121,6 +122,7 @@ export function EditorCanvasPreview({
   clickFeedbackPoint = null,
   showSelectionHelp = true,
   previewOnly = false,
+  onBackgroundImageLoad,
 }: Props) {
   const t = useActiveTranslator();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
@@ -178,7 +180,12 @@ export function EditorCanvasPreview({
     return (
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-inner">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={previewUrl} alt="" className="h-full w-full object-contain" />
+        <img
+          src={previewUrl}
+          alt=""
+          className="h-full w-full object-contain"
+          onLoad={onBackgroundImageLoad}
+        />
       </div>
     );
   }
@@ -267,7 +274,12 @@ export function EditorCanvasPreview({
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={document.backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-contain" />
+      <img
+        src={document.backgroundUrl}
+        alt=""
+        className="absolute inset-0 h-full w-full object-contain"
+        onLoad={onBackgroundImageLoad}
+      />
       <div className="absolute inset-0">
         <EditorCompositorOverlays
           document={document}

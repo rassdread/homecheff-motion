@@ -1,6 +1,8 @@
 import type { IllustrationPartAnalysisResult } from "@/types/editor-illustration-parts";
 import type { EditorSemanticLayer } from "@/types/homecheff-visual-editor";
 
+export const VISION_PARTS_API_TIMEOUT_MS = 22_000;
+
 export async function fetchIllustrationPartsApi(input: {
   imageUrl: string;
   vision: import("@/types/studio-asset-vision-analysis").AssetVisionAnalysis;
@@ -24,6 +26,25 @@ export async function fetchIllustrationPartsApi(input: {
     return body.analysis;
   } catch {
     return null;
+  }
+}
+
+export async function fetchIllustrationPartsApiWithTimeout(
+  input: Parameters<typeof fetchIllustrationPartsApi>[0],
+  timeoutMs = VISION_PARTS_API_TIMEOUT_MS
+): Promise<IllustrationPartAnalysisResult | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      fetchIllustrationPartsApi(input),
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
 

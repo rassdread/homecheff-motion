@@ -38,8 +38,9 @@ describe("studio copilot unification", () => {
   });
 
   it("hides side copilot on editor when placement is dock", () => {
-    assert.equal(shouldHideSideCopilotOnEditor("dock", "/editor/foo"), true);
-    assert.equal(shouldHideSideCopilotOnEditor("side", "/editor/foo"), false);
+    assert.equal(shouldHideSideCopilotOnEditor("dock", "/editor/start"), true);
+    assert.equal(shouldHideSideCopilotOnEditor("side", "/editor/start"), false);
+    assert.equal(shouldHideSideCopilotOnEditor("dock", "/editor"), false);
     assert.equal(shouldHideSideCopilotOnEditor("dock", "/studio"), false);
   });
 

@@ -8,6 +8,10 @@ import type { EditorCanvasDocument, EditorCanvasLayer } from "@/types/homecheff-
 export type EditorAnalysisResetOptions = {
   /** Keep combine/fusion/hc-project workflow fields on instructionStudioState. */
   preserveInstructionWorkflow?: boolean;
+  /** Clear V7 assistant command history on full project reset. */
+  clearAssistantState?: boolean;
+  /** Clear undo/redo history and edit jobs on full project reset. */
+  clearEditHistory?: boolean;
 };
 
 function backgroundOnlyLayer(document: EditorCanvasDocument): EditorCanvasLayer {
@@ -90,12 +94,19 @@ export function resetEditorAnalysisState(
     detectionMeta: undefined,
     visionMetrics: undefined,
     assetProfile: undefined,
+    visionAnalysisRun: undefined,
     textLayers: undefined,
     motionPreparations: undefined,
     styleAttributes: undefined,
     hierarchicalSelection: createDefaultHierarchicalSelection(),
     instructionVariants: undefined,
     instructionStudioState,
+    isolationScope: undefined,
+    assistantState: options?.clearAssistantState ? undefined : document.assistantState,
+    history: options?.clearEditHistory ? undefined : document.history,
+    nonDestructive: options?.clearEditHistory ? undefined : document.nonDestructive,
+    editJobs: options?.clearEditHistory ? undefined : document.editJobs,
+    cutoutAssets: options?.clearEditHistory ? undefined : document.cutoutAssets,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -106,5 +117,38 @@ export function stampEditorAnalyzedBackground(
   return {
     ...document,
     analyzedBackgroundUrl: document.backgroundUrl,
+  };
+}
+
+/** Clears vision/detection derivatives while preserving canvas layers, placements, and edit history. */
+export function resetEditorVisionDerivedState(
+  document: EditorCanvasDocument,
+  options?: Pick<EditorAnalysisResetOptions, "preserveInstructionWorkflow">
+): EditorCanvasDocument {
+  clearCachedEditorAnalysis(document.sessionId);
+  clearStickyVisionHierarchyForSession(document.sessionId);
+  resetEditorAnalysisTimings(document.sessionId);
+
+  return {
+    ...document,
+    semanticLayers: undefined,
+    detectedObjects: undefined,
+    objectHierarchies: undefined,
+    visionHierarchy: undefined,
+    visionV6Meta: undefined,
+    visionAnalysis: undefined,
+    visionAnalysisHash: undefined,
+    analyzedBackgroundUrl: undefined,
+    detectionMeta: undefined,
+    visionMetrics: undefined,
+    assetProfile: undefined,
+    visionAnalysisRun: undefined,
+    styleAttributes: undefined,
+    instructionVariants: undefined,
+    instructionStudioState:
+      options?.preserveInstructionWorkflow === false
+        ? preserveWorkflowInstructionState(document.instructionStudioState)
+        : document.instructionStudioState,
+    updatedAt: new Date().toISOString(),
   };
 }

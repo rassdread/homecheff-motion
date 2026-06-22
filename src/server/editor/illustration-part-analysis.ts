@@ -54,6 +54,9 @@ Return JSON only:
 For mascot/character illustrations include at minimum:
 Head, Eyes, Mouth, Face outline, Body, Jacket, Shirt, Tie, Arms, Hands, Pants, Shoes.
 
+Always include clearly visible accessories as separate parts when present, e.g.:
+Sunglasses, Glasses, Hat, Cap, Necklace, Earrings, Watch, Headphones, Collar, Beard.
+
 If a world globe or held object is visible, add prop group with globe + ocean + continents children.
 
 Add background group: White background, Shadow, Safe empty area.

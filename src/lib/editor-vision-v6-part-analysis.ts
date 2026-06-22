@@ -11,8 +11,18 @@ import {
 } from "@/lib/editor-part-hierarchy";
 import { buildEditorObjectsFromLayers } from "@/lib/editor-object-detection";
 import { semanticLayerToCanvasLayer } from "@/lib/editor-semantic-layers-from-vision";
-import { buildEditorVisionV6Hierarchy } from "@/lib/editor-vision-v6-hierarchy";
+import { buildEditorVisionTruthHierarchy, splitAnalysisIntoTruthSections } from "@/lib/editor-vision-truth-mode";
+import { buildVisionEvidenceAuditMeta } from "@/lib/editor-vision-evidence-audit";
+import {
+  traceApplyIllustrationPartAnalysisStage,
+  traceBuildSemanticLayersStage,
+  traceBuildTruthHierarchyStage,
+  traceSplitTruthSectionsStage,
+} from "@/lib/editor-vision-hierarchy-loss-trace";
+import { countVisionHierarchyNodes } from "@/lib/editor-vision-v6-stability";
 import type { ObjectDetection } from "@/server/animation-export/local-vision/object-detector-types";
+import { enrichAnalysisWithVisionKeyFeatureAccessories } from "@/lib/editor-vision-accessory-detection";
+import { assignAccessoriesTaxonomyToParts } from "@/lib/editor-vision-accessories-taxonomy";
 import type { IllustrationPartAnalysisResult, IllustrationPartSpec } from "@/types/editor-illustration-parts";
 import type { AssetVisionAnalysis, AssetVisionObjectType } from "@/types/studio-asset-vision-analysis";
 import type {
@@ -46,6 +56,86 @@ const GENERIC_RT_DETR_LABELS = new Set([
   "chair",
   "dining table",
 ]);
+
+const ANIMAL_RT_DETR_LABELS = new Set([
+  "dog",
+  "cat",
+  "bird",
+  "horse",
+  "sheep",
+  "cow",
+  "elephant",
+  "bear",
+  "zebra",
+  "giraffe",
+  "mouse",
+  "rabbit",
+]);
+
+export function resolveProvisionalSubjectLabel(
+  detections: ObjectDetection[],
+  vision: AssetVisionAnalysis
+): string {
+  const labels = detections.map((det) => det.label.toLowerCase());
+  if (labels.some((label) => ANIMAL_RT_DETR_LABELS.has(label))) {
+    return "Dier";
+  }
+  if (/dog|cat|animal|pet|puppy|kitten/i.test(labels.join(" "))) {
+    return "Dier";
+  }
+  if (vision.objectType === "mascot") {
+    return "Mascotte";
+  }
+  if (
+    labels.includes("person") ||
+    vision.objectType === "human" ||
+    vision.objectType === "character"
+  ) {
+    return "Personage";
+  }
+  return "Hoofdonderwerp";
+}
+
+export function ensureProvisionalSubjectFromDetections(
+  analysis: IllustrationPartAnalysisResult,
+  detections: ObjectDetection[],
+  vision: AssetVisionAnalysis
+): IllustrationPartAnalysisResult {
+  const hasCharacterParts = analysis.parts.some((part) => part.group === "character");
+  if (hasCharacterParts) {
+    return analysis;
+  }
+
+  const subjectDetection = detections.find(
+    (det) =>
+      det.confidence >= 0.35 &&
+      (!GENERIC_RT_DETR_LABELS.has(det.label.toLowerCase()) ||
+        det.label.toLowerCase() === "person" ||
+        ANIMAL_RT_DETR_LABELS.has(det.label.toLowerCase()))
+  );
+  if (!subjectDetection) {
+    return analysis;
+  }
+
+  const subjectLabel = resolveProvisionalSubjectLabel(detections, vision);
+  return {
+    ...analysis,
+    characterLabel: subjectLabel,
+    parts: [
+      ...analysis.parts,
+      {
+        key: "provisional_subject",
+        label: subjectLabel,
+        category: "torso",
+        group: "character",
+        bbox: subjectDetection.box,
+        source: "rtdetr",
+        confidence: subjectDetection.confidence,
+        editable: true,
+      },
+    ],
+  };
+}
 
 const CHARACTER_ROOT: EditorCanvasBounds = { x: 0.18, y: 0.05, width: 0.48, height: 0.88 };
 const GLOBE_ROOT: EditorCanvasBounds = { x: 0.52, y: 0.36, width: 0.34, height: 0.34 };
@@ -284,6 +374,28 @@ export function buildTemplateIllustrationPartAnalysis(
     templateUsed: true,
   };
   return mergeIllustrationPartsWithVisionTaxonomy(base, partContext).analysis;
+}
+
+/** Fast local part analysis — template + RT-DETR + Style-DNA keyFeatures (no Vision Parts API). */
+export function buildLocalProvisionalPartAnalysis(
+  vision: AssetVisionAnalysis,
+  detections: ObjectDetection[],
+  context?: {
+    documentName?: string;
+    semanticLayerLabels?: string[];
+    sourceKind?: import("@/types/homecheff-visual-editor").EditorSourceKind;
+  }
+): IllustrationPartAnalysisResult {
+  const template = buildTemplateIllustrationPartAnalysis(vision, context);
+  const enriched = enrichAnalysisWithVisionKeyFeatureAccessories(
+    { ...template, parts: mergeRtdetrIntoParts(template.parts, detections) },
+    vision
+  );
+  const withAccessories = {
+    ...enriched,
+    parts: assignAccessoriesTaxonomyToParts(enriched.parts, vision.objectType),
+  };
+  return ensureProvisionalSubjectFromDetections(withAccessories, detections, vision);
 }
 
 function mergeRtdetrIntoParts(
@@ -546,12 +658,20 @@ export function applyIllustrationPartAnalysisToDocument(input: {
   previewUrl: string;
   sourceKind: EditorCanvasDocument["sourceKind"];
 }): EditorCanvasDocument {
-  const mergedAnalysis: IllustrationPartAnalysisResult = {
-    ...input.analysis,
-    parts: mergeRtdetrIntoParts(input.analysis.parts, input.detections),
+  const enrichedAnalysis = enrichAnalysisWithVisionKeyFeatureAccessories(
+    {
+      ...input.analysis,
+      parts: mergeRtdetrIntoParts(input.analysis.parts, input.detections),
+    },
+    input.vision
+  );
+  const mergedAnalysis = {
+    ...enrichedAnalysis,
+    parts: assignAccessoriesTaxonomyToParts(enrichedAnalysis.parts, input.vision.objectType),
   };
 
   const semanticLayers = buildSemanticLayersFromParts(mergedAnalysis, input.vision);
+  traceBuildSemanticLayersStage(semanticLayers.length);
   const canvasLayers = semanticLayers.map((layer) =>
     semanticLayerToCanvasLayer(layer, input.sourceKind, input.previewUrl)
   );
@@ -589,13 +709,47 @@ export function applyIllustrationPartAnalysisToDocument(input: {
     return hierarchy ? attachPartsToEditorObject(obj, hierarchy) : obj;
   });
 
-  const visionHierarchy = buildEditorVisionV6Hierarchy({
+  const keyToLayerId = new Map<string, string>();
+  for (const layer of semanticLayers) {
+    const match = layer.id.match(/^v6_([a-z0-9_]+)_\d+$/i);
+    if (match) {
+      keyToLayerId.set(match[1]!, layer.id);
+    }
+    if (layer.id === "v6_character_root") {
+      keyToLayerId.set("character", layer.id);
+    }
+    if (layer.id === "v6_prop_root") {
+      keyToLayerId.set("globe", layer.id);
+    }
+  }
+
+  const characterObject = detectedWithParts.find(
+    (o) => o.category === "mascot" || o.category === "person"
+  );
+
+  const truthContext = { assetType: input.vision.objectType };
+  const truthSections = splitAnalysisIntoTruthSections(mergedAnalysis, truthContext);
+  traceSplitTruthSectionsStage({
+    detectedCount: truthSections.detected.length,
+    estimatedCount: truthSections.estimated.length,
+    creativeCount: truthSections.creative.length,
+  });
+
+  const visionHierarchy = buildEditorVisionTruthHierarchy({
     analysis: mergedAnalysis,
-    objects: detectedWithParts,
-    layers: canvasLayers,
-    semanticLayers,
-    objectHierarchies,
-    vision: input.vision,
+    semanticLayerIds: keyToLayerId,
+    characterObjectId: characterObject?.id,
+    assetType: input.vision.objectType,
+    sectionLabels: {
+      detected: "Detected on image",
+      estimated: "Possibly present",
+      creative: "Extra edits",
+      debug: "Debug labels",
+    },
+  });
+  traceBuildTruthHierarchyStage({
+    rootCount: visionHierarchy.length,
+    totalNodes: countVisionHierarchyNodes(visionHierarchy),
   });
 
   const layerSources: EditorVisionV6LayerSource[] = semanticLayers
@@ -620,9 +774,10 @@ export function applyIllustrationPartAnalysisToDocument(input: {
       semanticLayerLabels: semanticLayers.map((l) => l.label),
       sourceKind: input.sourceKind,
     })?.type,
+    evidenceAudit: buildVisionEvidenceAuditMeta(mergedAnalysis, truthSections.detected, truthContext),
   };
 
-  return {
+  const nextDocument: EditorCanvasDocument = {
     ...input.document,
     objects: canvasLayers,
     semanticLayers,
@@ -632,6 +787,8 @@ export function applyIllustrationPartAnalysisToDocument(input: {
     visionV6Meta,
     visionAnalysis: input.vision,
   };
+  traceApplyIllustrationPartAnalysisStage(nextDocument);
+  return nextDocument;
 }
 
 export function mergeOpenAiIllustrationParts(
@@ -653,10 +810,17 @@ export function mergeOpenAiIllustrationParts(
       byKey.set(part.key, { ...part, source: "openai_vision" });
     }
   }
+  const mergedParts = [...byKey.values()];
+  const hasCharacterParts = mergedParts.some((part) => part.group === "character");
+  const templateCharacterParts = template.parts.filter(
+    (part) => part.group === "character" && part.source === "rtdetr"
+  );
+  const parts =
+    hasCharacterParts ? mergedParts : [...mergedParts, ...templateCharacterParts];
   return {
     characterLabel: openAi.characterLabel || template.characterLabel,
     propLabel: openAi.propLabel ?? template.propLabel,
-    parts: [...byKey.values()],
+    parts,
     openAiUsed: true,
     templateUsed: true,
   };

@@ -3,68 +3,77 @@
 import { useMemo, useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { isHierarchyNodeSelectable } from "@/lib/editor-hierarchy-object-resolution";
-import type { VisionTaxonomyType } from "@/lib/editor-vision-taxonomy";
-import type { EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
-import type { EditorVisionPartSource } from "@/types/homecheff-visual-editor";
+import { localizeVisionPartLabel } from "@/lib/editor-vision-part-display-label";
+import { visionTaxonomyGroupLabelKey } from "@/lib/editor-vision-accessories-taxonomy";
+import { visionUserTaxonomyGroupLabelKey } from "@/lib/editor-vision-user-taxonomy";
+import { filterVisionTruthHierarchyForUser } from "@/lib/editor-vision-truth-mode";
+import type { EditorVisionHierarchyNode, EditorVisionTruthSection } from "@/types/homecheff-visual-editor";
+import type { VisionTaxonomyAssetType } from "@/lib/editor-vision-accessories-taxonomy";
 
 type Props = {
   hierarchy: EditorVisionHierarchyNode[];
   selectedNodeId: string | null;
   onSelectNode: (node: EditorVisionHierarchyNode) => void;
-  /** When true, show part source badges (admin / debug). */
+  /** When true, show part source badges + debug labels section (admin). */
   showSourceDebug?: boolean;
-  taxonomyType?: VisionTaxonomyType;
+  taxonomyType?: VisionTaxonomyAssetType;
 };
 
-const HUMAN_TABS = ["face", "hair", "body", "clothing", "expression", "pose", "morph", "background"] as const;
-const ANIMAL_TABS = ["head", "body", "coat", "paws_wings", "expression", "pose", "accessories", "morph", "background"] as const;
-const MASCOT_TABS = ["appearance", "expression", "pose", "props", "style"] as const;
+const DEFAULT_EXPANDED: EditorVisionTruthSection[] = ["detected"];
 
-function collectNodesWithTab(
-  nodes: EditorVisionHierarchyNode[],
-  tab: string,
-  acc: EditorVisionHierarchyNode[] = []
-): EditorVisionHierarchyNode[] {
-  for (const node of nodes) {
-    if (node.taxonomyTab === tab) {
-      acc.push(node);
-    }
-    if (node.children.length > 0) {
-      collectNodesWithTab(node.children, tab, acc);
-    }
+function truthSectionLabel(
+  t: ReturnType<typeof useActiveTranslator>,
+  section: EditorVisionTruthSection | undefined,
+  fallback: string
+): string {
+  if (!section) {
+    return fallback;
   }
-  return acc;
+  return t(`editor.visionTruth.section.${section}` as never);
 }
 
-function filterHierarchyByTab(
-  hierarchy: EditorVisionHierarchyNode[],
-  tab: string
-): EditorVisionHierarchyNode[] {
-  const matches = collectNodesWithTab(hierarchy, tab);
-  if (matches.length === 0) {
-    return hierarchy;
-  }
-  return matches;
-}
-
-function sourceBadge(source: EditorVisionPartSource | undefined, showDebug: boolean): string | null {
-  if (!showDebug) {
+function truthTierBadge(
+  node: EditorVisionHierarchyNode,
+  showDebug: boolean,
+  t: ReturnType<typeof useActiveTranslator>
+): string | null {
+  if (node.truthSection) {
     return null;
   }
-  switch (source) {
-    case "rtdetr":
-      return "RT-DETR";
-    case "openai_vision":
-      return "Vision";
-    case "estimated":
-      return "Est.";
-    case "manual":
-      return "Manual";
-    case "taxonomy_fallback":
-      return "Fallback";
-    default:
-      return null;
+
+  if (showDebug) {
+    const src = node.source ?? "estimated";
+    const conf =
+      node.confidence !== undefined ? ` ${Math.round(node.confidence * 100)}%` : "";
+    switch (src) {
+      case "rtdetr":
+        return `RT-DETR${conf}`;
+      case "openai_vision":
+        return `Vision${conf}`;
+      case "estimated":
+        return node.truthTier === "debug" ? `Debug${conf}` : `Est.${conf}`;
+      case "manual":
+        return `Manual${conf}`;
+      case "taxonomy_fallback":
+        return `Fallback${conf}`;
+      case "creative":
+        return `Creative${conf}`;
+      default:
+        return null;
+    }
   }
+
+  const tier = node.truthTier;
+  if (tier === "vision") {
+    return t("editor.visionTruth.badge.vision");
+  }
+  if (tier === "estimated") {
+    return t("editor.visionTruth.badge.estimated");
+  }
+  if (tier === "creative") {
+    return t("editor.visionTruth.badge.creative");
+  }
+  return null;
 }
 
 function HierarchyRow({
@@ -75,6 +84,8 @@ function HierarchyRow({
   expanded,
   onToggle,
   showSourceDebug,
+  taxonomyType = "unknown",
+  t,
 }: {
   node: EditorVisionHierarchyNode;
   depth: number;
@@ -83,16 +94,32 @@ function HierarchyRow({
   expanded: Set<string>;
   onToggle: (id: string) => void;
   showSourceDebug: boolean;
+  taxonomyType: VisionTaxonomyAssetType;
+  t: ReturnType<typeof useActiveTranslator>;
 }) {
   const hasChildren = node.children.length > 0;
   const isOpen = expanded.has(node.id);
   const selected = selectedNodeId === node.id;
+  const isTaxonomyGroup = !node.partId && Boolean(node.taxonomyTab) && !node.truthSection;
+  const userTaxonomyLabelKey = isTaxonomyGroup ? visionUserTaxonomyGroupLabelKey(node) : null;
+  const displayLabel = node.truthSection
+    ? truthSectionLabel(t, node.truthSection, node.label)
+    : isTaxonomyGroup
+      ? userTaxonomyLabelKey
+        ? t(userTaxonomyLabelKey as never)
+        : t(visionTaxonomyGroupLabelKey(taxonomyType, node.taxonomyTab!) as never)
+      : localizeVisionPartLabel(node.label, t);
+  const badge = truthTierBadge(node, showSourceDebug, t);
 
   return (
     <>
       <div
         className={`flex items-center gap-1 rounded-md px-1 py-0.5 text-xs ${
-          selected ? "bg-violet-100 text-violet-900" : "text-zinc-700 hover:bg-zinc-50"
+          node.truthSection || isTaxonomyGroup
+            ? "mt-1 font-semibold text-zinc-800"
+            : selected
+              ? "bg-violet-100 text-violet-900"
+              : "text-zinc-700 hover:bg-zinc-50"
         }`}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
       >
@@ -110,17 +137,27 @@ function HierarchyRow({
         )}
         <button
           type="button"
-          className="flex-1 text-left disabled:cursor-default disabled:opacity-60"
+          className="flex flex-1 items-center gap-1 text-left disabled:cursor-default disabled:opacity-60"
           disabled={!isHierarchyNodeSelectable(node)}
           onClick={() => isHierarchyNodeSelectable(node) && onSelectNode(node)}
         >
-          {node.label}
-          {node.estimated ? (
-            <span className="ml-1 text-[10px] text-amber-600">~</span>
+          <span>{displayLabel}</span>
+          {node.estimated && !node.truthSection ? (
+            <span className="text-[10px] text-amber-600">~</span>
           ) : null}
-          {sourceBadge(node.source, showSourceDebug) ? (
-            <span className="ml-1 rounded bg-zinc-100 px-1 text-[9px] text-zinc-500">
-              {sourceBadge(node.source, showSourceDebug)}
+          {badge ? (
+            <span
+              className={`ml-auto shrink-0 rounded px-1 text-[9px] ${
+                node.truthTier === "creative"
+                  ? "bg-violet-50 text-violet-700"
+                  : node.truthTier === "estimated"
+                    ? "bg-amber-50 text-amber-700"
+                    : node.truthTier === "debug"
+                      ? "bg-zinc-100 text-zinc-500"
+                      : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {badge}
             </span>
           ) : null}
         </button>
@@ -136,6 +173,8 @@ function HierarchyRow({
               expanded={expanded}
               onToggle={onToggle}
               showSourceDebug={showSourceDebug}
+              taxonomyType={taxonomyType}
+              t={t}
             />
           ))
         : null}
@@ -148,26 +187,31 @@ export function EditorVisionHierarchyPanel({
   selectedNodeId,
   onSelectNode,
   showSourceDebug = false,
-  taxonomyType,
+  taxonomyType = "unknown",
 }: Props) {
   const t = useActiveTranslator();
-  const tabs = useMemo(() => {
-    if (taxonomyType === "human") {
-      return HUMAN_TABS;
-    }
-    if (taxonomyType === "animal") {
-      return ANIMAL_TABS;
-    }
-    if (taxonomyType === "mascot") {
-      return MASCOT_TABS;
-    }
-    return null;
-  }, [taxonomyType]);
 
-  const [activeTab, setActiveTab] = useState<string>(tabs?.[0] ?? "all");
-  const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set(hierarchy.map((n) => n.id))
+  const visibleHierarchy = useMemo(
+    () => filterVisionTruthHierarchyForUser(hierarchy, showSourceDebug),
+    [hierarchy, showSourceDebug]
   );
+
+  const initialExpanded = useMemo(() => {
+    const ids = new Set<string>();
+    for (const root of visibleHierarchy) {
+      if (root.truthSection && DEFAULT_EXPANDED.includes(root.truthSection)) {
+        ids.add(root.id);
+        for (const child of root.children) {
+          ids.add(child.id);
+        }
+      } else if (!root.truthSection) {
+        ids.add(root.id);
+      }
+    }
+    return ids;
+  }, [visibleHierarchy]);
+
+  const [expanded, setExpanded] = useState<Set<string>>(initialExpanded);
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -181,37 +225,20 @@ export function EditorVisionHierarchyPanel({
     });
   };
 
-  if (hierarchy.length === 0) {
+  if (visibleHierarchy.length === 0) {
     return (
       <p className="text-xs text-zinc-500">{t("editor.visionV4.hierarchyEmpty")}</p>
     );
   }
 
-  const displayHierarchy =
-    tabs && activeTab !== "all" ? filterHierarchyByTab(hierarchy, activeTab) : hierarchy;
+  const isTruthMode = visibleHierarchy.some((n) => n.truthSection);
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-zinc-500">{t("editor.visionV6.hierarchyTitle")}</p>
-      {tabs ? (
-        <div className="flex flex-wrap gap-1 pb-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                activeTab === tab
-                  ? "bg-violet-600 text-white"
-                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-              }`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {t(`editor.visionTaxonomy.tab.${taxonomyType}.${tab}` as never)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {displayHierarchy.map((root) => (
+      <p className="text-xs font-medium text-zinc-500">
+        {isTruthMode ? t("editor.visionTruth.hierarchyTitle") : t("editor.visionV6.hierarchyTitle")}
+      </p>
+      {visibleHierarchy.map((root) => (
         <HierarchyRow
           key={root.id}
           node={root}
@@ -221,6 +248,8 @@ export function EditorVisionHierarchyPanel({
           expanded={expanded}
           onToggle={toggle}
           showSourceDebug={showSourceDebug}
+          taxonomyType={taxonomyType}
+          t={t}
         />
       ))}
     </div>

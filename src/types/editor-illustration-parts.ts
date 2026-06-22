@@ -1,4 +1,9 @@
-import type { EditorCanvasBounds, EditorPartCategory, EditorVisionPartSource } from "@/types/homecheff-visual-editor";
+import type {
+  EditorCanvasBounds,
+  EditorPartCategory,
+  EditorShapePoint,
+  EditorVisionPartSource,
+} from "@/types/homecheff-visual-editor";
 
 export type IllustrationPartSpec = {
   key: string;
@@ -12,10 +17,17 @@ export type IllustrationPartSpec = {
   editable: boolean;
   /** UI tab grouping for taxonomy-driven hierarchy panels. */
   taxonomyTab?: string;
+  /** Segmentation mask URL or inline mask reference — counts as visual evidence. */
+  mask?: string;
+  /** Polygon outline — counts as visual evidence. */
+  polygon?: EditorShapePoint[];
 };
 
 export type IllustrationPartAnalysisResult = {
+  /** Vision-detected and estimated parts only — never taxonomy fallback. */
   parts: IllustrationPartSpec[];
+  /** Creative capabilities / morph actions from taxonomy — not detections. */
+  creativeCapabilities?: IllustrationPartSpec[];
   characterLabel: string;
   propLabel?: string;
   openAiUsed: boolean;

@@ -48,8 +48,25 @@ export function mergeTaxonomyFallbackParts(
   analysis: IllustrationPartAnalysisResult,
   fallback: IllustrationPartSpec[]
 ): IllustrationPartAnalysisResult {
+  return mergeTaxonomyFallbackPartsSeparated(analysis, fallback).analysis;
+}
+
+export type TaxonomyFallbackMergeResult = {
+  analysis: IllustrationPartAnalysisResult;
+  creativeCapabilities: IllustrationPartSpec[];
+};
+
+/**
+ * Vision Truth Mode — taxonomy items never enter `parts` unless they enrich an
+ * existing vision-detected match. All other fallback items become creative capabilities.
+ */
+export function mergeTaxonomyFallbackPartsSeparated(
+  analysis: IllustrationPartAnalysisResult,
+  fallback: IllustrationPartSpec[]
+): TaxonomyFallbackMergeResult {
   const byKey = new Map<string, IllustrationPartSpec>();
   const byLabel = new Map<string, IllustrationPartSpec>();
+  const creativeCapabilities: IllustrationPartSpec[] = [];
 
   for (const part of analysis.parts) {
     byKey.set(normalizePartKey(part.key), part);
@@ -60,27 +77,34 @@ export function mergeTaxonomyFallbackParts(
     const key = normalizePartKey(part.key);
     const labelKey = labelDedupeKey(part.label);
     const existing = byKey.get(key) ?? byLabel.get(labelKey);
-    if (existing) {
-      byKey.set(key, {
+
+    if (existing && existing.source !== "taxonomy_fallback") {
+      byKey.set(normalizePartKey(existing.key), {
         ...existing,
-        label: existing.label || part.label,
-        confidence: Math.max(existing.confidence, part.confidence),
-        editable: existing.editable || part.editable,
         taxonomyTab: existing.taxonomyTab ?? part.taxonomyTab,
       });
+      if (part.taxonomyTab === "morph" || part.key.startsWith("morph_")) {
+        creativeCapabilities.push(part);
+      }
       continue;
     }
-    byKey.set(key, part);
-    byLabel.set(labelKey, part);
+
+    creativeCapabilities.push(part);
   }
 
   return {
-    ...analysis,
-    parts: [...byKey.values()],
-    templateUsed: true,
+    analysis: {
+      ...analysis,
+      parts: [...byKey.values()],
+      creativeCapabilities: [...(analysis.creativeCapabilities ?? []), ...creativeCapabilities],
+      templateUsed: true,
+    },
+    creativeCapabilities: [...(analysis.creativeCapabilities ?? []), ...creativeCapabilities],
   };
 }
 
 export function publicEditablePartLabels(analysis: IllustrationPartAnalysisResult): string[] {
-  return analysis.parts.filter((p) => p.editable).map((p) => p.label);
+  const fromParts = analysis.parts.filter((p) => p.editable).map((p) => p.label);
+  const fromCreative = (analysis.creativeCapabilities ?? []).filter((p) => p.editable).map((p) => p.label);
+  return [...fromParts, ...fromCreative];
 }
