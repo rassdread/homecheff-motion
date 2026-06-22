@@ -7,6 +7,9 @@ import type {
   EditorVisionAnalysisLifecycleDebug,
   EditorVisionAnalysisRunMeta,
 } from "@/lib/editor-vision-analysis-run";
+import type { PremiumVisionAnalysisGateResult } from "@/lib/editor-vision-analysis-tier";
+import { PREMIUM_VISION_ANALYSIS_CREDITS } from "@/lib/editor-premium-vision-credits";
+import type { PremiumAnalysisUiStatus } from "@/hooks/use-editor-vision-analysis-run";
 import type { EditorVisionHierarchyNode } from "@/types/homecheff-visual-editor";
 
 type Props = {
@@ -21,11 +24,14 @@ type Props = {
   isPartialResult?: boolean;
   cachedResult?: boolean;
   needsDeepAnalysis?: boolean;
-  onDeepAnalyze?: () => void;
+  showPremiumAnalyzeCta?: boolean;
+  premiumGate?: PremiumVisionAnalysisGateResult;
+  onPremiumAnalyze?: () => void;
+  premiumAnalysisStatus?: PremiumAnalysisUiStatus;
+  premiumFailureReason?: string | null;
   runMeta?: EditorVisionAnalysisRunMeta | null;
   lifecycleDebug?: EditorVisionAnalysisLifecycleDebug;
   analysisProgress?: EditorVisionAnalysisProgressState;
-  onReanalyze?: () => void;
   taxonomyType?: "human" | "animal" | "mascot" | "unknown";
   className?: string;
   variant?: "light" | "studio";
@@ -43,11 +49,14 @@ export function EditorVisionPartsPanel({
   isPartialResult = false,
   cachedResult = false,
   needsDeepAnalysis = false,
-  onDeepAnalyze,
+  showPremiumAnalyzeCta = false,
+  premiumGate,
+  onPremiumAnalyze,
+  premiumAnalysisStatus = "idle",
+  premiumFailureReason = null,
   runMeta,
   lifecycleDebug,
   analysisProgress,
-  onReanalyze,
   taxonomyType = "unknown",
   className = "",
   variant = "light",
@@ -57,8 +66,42 @@ export function EditorVisionPartsPanel({
   const loadingEmpty = (analysisPending || analysisInProgress) && hierarchy.length === 0;
   const showHierarchy = hierarchy.length > 0;
   const showInlineProgress = Boolean(
-    progress?.showProgress && (analysisPending || analysisInProgress) && showHierarchy
+    progress?.showProgress &&
+      (analysisPending || analysisInProgress) &&
+      showHierarchy &&
+      premiumAnalysisStatus !== "failed"
   );
+  const premiumAnalyzing =
+    premiumAnalysisStatus === "running" || (analysisInProgress && showPremiumAnalyzeCta);
+  const showPremiumFailed = premiumAnalysisStatus === "failed";
+  const showPremiumComplete = premiumAnalysisStatus === "complete";
+  const showPremiumCompleteNoParts = premiumAnalysisStatus === "complete_no_extra_parts";
+  const premiumAllowed = premiumGate?.allowed ?? false;
+  const premiumCredits = premiumGate?.requiredCredits ?? PREMIUM_VISION_ANALYSIS_CREDITS;
+
+  const premiumFailureUserMessage = (() => {
+    if (premiumFailureReason === "insufficient_credits") {
+      return t("editor.visionAnalysis.premiumInsufficientCredits" as never, {
+        count: premiumCredits,
+      });
+    }
+    if (
+      premiumFailureReason === "analysis_failed" ||
+      premiumFailureReason === "premium_analysis_failed" ||
+      premiumFailureReason === "premium_tier_not_stamped" ||
+      premiumFailureReason === "acceptance_rejected"
+    ) {
+      return t("editor.visionAnalysis.premiumFailedRefunded" as never);
+    }
+    return null;
+  })();
+  const showBasicCompleteBanner =
+    showPremiumAnalyzeCta &&
+    showHierarchy &&
+    !analysisInProgress &&
+    !analysisPending &&
+    !premiumAnalyzing;
+  const isDev = process.env.NODE_ENV !== "production";
 
   const shellClass =
     variant === "studio"
@@ -74,6 +117,58 @@ export function EditorVisionPartsPanel({
     variant === "studio"
       ? "rounded-2xl border border-white/20 bg-[#003d6b]/40 p-4 text-white shadow-sm backdrop-blur-sm"
       : "rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-zinc-800";
+
+  const premiumButtonClass =
+    variant === "studio"
+      ? "border-white/30 bg-white/10 text-white hover:bg-white/20 disabled:opacity-50"
+      : "border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100 disabled:opacity-50";
+
+  const renderPremiumAnalyzeButton = (classNameExtra = "") => {
+    if (!onPremiumAnalyze) {
+      return null;
+    }
+    return (
+      <div className={classNameExtra}>
+        {premiumGate?.adminTestLabel ? (
+          <p
+            className={`mb-2 text-[11px] font-medium ${
+              variant === "studio" ? "text-emerald-200" : "text-emerald-700"
+            }`}
+          >
+            {premiumGate.adminTestLabel}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          disabled={!premiumAllowed || premiumAnalyzing}
+          className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${premiumButtonClass}`}
+          onClick={onPremiumAnalyze}
+          data-testid="editor-premium-analyze-button"
+        >
+          {premiumAnalyzing
+            ? t("editor.visionAnalysis.premiumAnalyzeInProgress" as never)
+            : t("editor.visionAnalysis.premiumAnalyzeWithCredits" as never, {
+                count: premiumCredits,
+              })}
+        </button>
+        <p
+          className={`mt-2 text-[11px] leading-relaxed ${
+            variant === "studio" ? "text-white/75" : "text-zinc-600"
+          }`}
+        >
+          {!premiumGate?.adminTestLabel
+            ? premiumAllowed
+              ? t("editor.visionAnalysis.premiumAnalyzeHintWithCredits" as never, {
+                  count: premiumCredits,
+                })
+              : t("editor.visionAnalysis.premiumInsufficientCredits" as never, {
+                  count: premiumCredits,
+                })
+            : null}
+        </p>
+      </div>
+    );
+  };
 
   const progressBanner =
     progress && (loadingEmpty || showInlineProgress) ? (
@@ -185,19 +280,7 @@ export function EditorVisionPartsPanel({
         >
           {t("editor.visionAnalysis.emptyLead" as never)}
         </p>
-        {onReanalyze ? (
-          <button
-            type="button"
-            className={`mt-3 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-              variant === "studio"
-                ? "border-white/30 bg-white/10 text-white hover:bg-white/20"
-                : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
-            }`}
-            onClick={onReanalyze}
-          >
-            {t("editor.isolation.reanalyze" as never)}
-          </button>
-        ) : null}
+        {renderPremiumAnalyzeButton("mt-3")}
       </section>
     );
   }
@@ -209,6 +292,21 @@ export function EditorVisionPartsPanel({
   return (
     <section className={shellClass} data-testid="editor-vision-parts-panel">
       {showInlineProgress ? progressBanner : null}
+      {showBasicCompleteBanner ? (
+        <div
+          className={`mb-3 rounded-xl border px-3 py-2 ${
+            variant === "studio"
+              ? "border-sky-300/40 bg-sky-500/15 text-white"
+              : "border-sky-200 bg-sky-50 text-sky-950"
+          }`}
+          data-testid="editor-basic-analysis-complete-banner"
+        >
+          <p className="text-xs font-semibold">{t("editor.visionAnalysis.basicCompleteTitle" as never)}</p>
+          <p className="mt-1 text-[11px] leading-relaxed opacity-90">
+            {t("editor.visionAnalysis.basicCompleteLead" as never)}
+          </p>
+        </div>
+      ) : null}
       {cachedResult ? (
         <p className="mb-2 text-[11px] font-medium text-sky-700">
           {t("editor.visionAnalysis.lastAnalyzedLabel" as never)}
@@ -218,6 +316,36 @@ export function EditorVisionPartsPanel({
         <p className="mb-2 text-[11px] font-medium text-amber-700">
           {t("editor.visionAnalysis.partialLabel" as never)}
         </p>
+      ) : null}
+      {showPremiumComplete ? (
+        <p
+          className="mb-2 text-[11px] font-medium text-emerald-700"
+          data-testid="editor-premium-analysis-complete-label"
+        >
+          {t("editor.visionAnalysis.premiumCompleteLabel" as never)}
+        </p>
+      ) : null}
+      {showPremiumCompleteNoParts ? (
+        <p
+          className="mb-2 text-[11px] font-medium text-sky-700"
+          data-testid="editor-premium-analysis-no-parts-label"
+        >
+          {t("editor.visionAnalysis.premiumCompleteNoParts" as never)}
+        </p>
+      ) : null}
+      {showPremiumFailed ? (
+        <div
+          className="mb-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] text-red-900"
+          data-testid="editor-premium-analysis-failed-label"
+        >
+          <p className="font-semibold">{t("editor.visionAnalysis.premiumFailed" as never)}</p>
+          {premiumFailureUserMessage ? (
+            <p className="mt-1 leading-relaxed">{premiumFailureUserMessage}</p>
+          ) : null}
+          {isDev && premiumFailureReason ? (
+            <p className="mt-1 font-mono text-[10px] opacity-80">{premiumFailureReason}</p>
+          ) : null}
+        </div>
       ) : null}
       {runMeta?.bootstrapTimedOut ? (
         <p className="mb-2 text-[11px] font-medium text-amber-700">
@@ -238,23 +366,26 @@ export function EditorVisionPartsPanel({
         showSourceDebug={showSourceDebug}
         taxonomyType={taxonomyType}
       />
-      {needsDeepAnalysis && onDeepAnalyze ? (
-        <button
-          type="button"
-          className={`mt-3 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-            variant === "studio"
-              ? "border-white/30 bg-white/10 text-white hover:bg-white/20"
-              : "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-          }`}
-          onClick={onDeepAnalyze}
-        >
-          {t("editor.visionAnalysis.deepAnalyze" as never)}
-        </button>
-      ) : null}
+      {(showPremiumAnalyzeCta || needsDeepAnalysis) && renderPremiumAnalyzeButton("mt-3")}
       {showSourceDebug && lifecycleDebug ? (
         <details className="mt-3 rounded border border-violet-200 bg-violet-50/50 p-2 text-[10px] text-violet-900">
           <summary className="cursor-pointer font-medium">Vision run lifecycle</summary>
           <pre className="mt-2 overflow-x-auto whitespace-pre-wrap">{JSON.stringify(lifecycleDebug, null, 2)}</pre>
+          {lifecycleDebug.visibleTreeDebug ? (
+            <div className="mt-2 rounded border border-violet-300 bg-white/80 p-2">
+              <p className="font-semibold">Visible parts tree</p>
+              <p>rawPartsCount: {lifecycleDebug.visibleTreeDebug.rawPartsCount}</p>
+              <p>visibleTreeNodeCount: {lifecycleDebug.visibleTreeDebug.visibleTreeNodeCount}</p>
+              <p>datasourceUsed: {lifecycleDebug.visibleTreeDebug.datasourceUsed}</p>
+              <p>droppedPartsCount: {lifecycleDebug.visibleTreeDebug.droppedPartsCount}</p>
+              {lifecycleDebug.visibleTreeDebug.rawFoundLabels?.length ? (
+                <p>rawFound: {lifecycleDebug.visibleTreeDebug.rawFoundLabels.join(", ")}</p>
+              ) : null}
+              {lifecycleDebug.visibleTreeDebug.droppedPartLabels.length > 0 ? (
+                <p>dropped: {lifecycleDebug.visibleTreeDebug.droppedPartLabels.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : null}
         </details>
       ) : null}
     </section>

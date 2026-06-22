@@ -14,9 +14,11 @@ import {
   normalizeEditorVisionScopeFromDocument,
   normalizeEditorVisionScopeId,
   normalizeEditorVisionScopeUrl,
+  editorVisionAnalysisIdsMatch,
   scopesAlignForVisionResult,
 } from "@/lib/editor-vision-analysis-scope";
-import { documentHasRichVisionAnalysis, countVisionHierarchyNodes, isWeakBackgroundOnlyAnalysis, chooseRicherVisionDocument } from "@/lib/editor-vision-v6-stability";
+import { documentHasCompletedFullVisionAnalysis, documentHasRichVisionAnalysis, countVisionHierarchyNodes, isWeakBackgroundOnlyAnalysis, chooseRicherVisionDocument } from "@/lib/editor-vision-v6-stability";
+import { buildVisibleEditorPartsTreeFromDocument } from "@/lib/build-visible-editor-parts-tree";
 import {
   detectRecentDuplicateAssetStart,
   editorVisionAssetRunKey,
@@ -28,6 +30,21 @@ import {
 } from "@/lib/editor-vision-analysis-run-guard";
 import { getRunMeta, resetVisionRunMetaStoreForTests, setRunMeta } from "@/lib/editor-vision-analysis-run-store";
 import { traceVisionPipeline, traceVisionStageTransition } from "@/lib/editor-vision-trace";
+import {
+  isVisionPartsLossTracingStopped,
+  traceVisionPartsLossStage,
+} from "@/lib/editor-vision-parts-loss-trace";
+import {
+  editorAnalysisAppliesToBackground,
+  resetEditorAnalysisState,
+  resetEditorVisionDerivedState,
+} from "@/lib/editor-analysis-reset";
+import {
+  normalizeEditorVisionAnalysisTier,
+  resolveEditorVisionAnalysisTierFromInput,
+  resolvePremiumVisionAnalysisGate,
+  type EditorVisionAnalysisDepth,
+} from "@/lib/editor-vision-analysis-tier";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 export type EditorVisionAnalysisStatus =
@@ -70,7 +87,11 @@ export type EditorVisionAnalysisRunOptions = EditorVisionAnalysisRunCallbacks & 
   retry?: boolean;
   /** When true, runner must not wipe canvas layers before bootstrap. */
   preserveUserEdits?: boolean;
+  /** basic = RT-DETR/local only; premium = Vision Parts API + Style DNA. */
+  analysisDepth?: EditorVisionAnalysisDepth;
 };
+
+export type { EditorVisionAnalysisDepth } from "@/lib/editor-vision-analysis-tier";
 
 export type { VisionAnalysisRunTrigger } from "@/lib/editor-vision-analysis-run-guard";
 
@@ -140,6 +161,7 @@ export type EditorVisionAnalysisLifecycleDebug = {
   autoStartGuardBlockedReason?: string | null;
   autoStartRetryAttempted?: boolean;
   subscribedScopeKey?: string | null;
+  visibleTreeDebug?: import("@/lib/build-visible-editor-parts-tree").VisibleEditorPartsTreeDebug;
 };
 
 export type EditorVisionAnalysisResultEnvelope = {
@@ -263,6 +285,10 @@ function publishRunMeta(key: string, meta: EditorVisionAnalysisRunMeta): void {
     sessionId: meta.sessionId,
   });
   notifyScopeCallbacks(key, meta);
+  const pendingKey = `${meta.projectId}::${meta.assetId}::pending`;
+  if (pendingKey !== key) {
+    notifyScopeCallbacks(pendingKey, meta);
+  }
 }
 
 export function getEditorVisionAnalysisRunMeta(
@@ -428,6 +454,8 @@ export function buildVisionAnalysisLifecycleDebug(
     return section.children.reduce((sum, child) => sum + (child.children.length || 1), 0);
   };
 
+  const visibleTree = buildVisibleEditorPartsTreeFromDocument(document);
+
   return {
     activeRunId:
       runMeta && !isEditorVisionAnalysisTerminal(runMeta.status) ? runMeta.runId : null,
@@ -466,6 +494,7 @@ export function buildVisionAnalysisLifecycleDebug(
     autoStartGuardBlockedReason: options?.autoStartGuardBlockedReason ?? null,
     autoStartRetryAttempted: options?.autoStartRetryAttempted,
     subscribedScopeKey: options?.subscribedScopeKey ?? null,
+    visibleTreeDebug: visibleTree.debug,
   };
 }
 
@@ -568,6 +597,17 @@ export function acceptAnalysisDocumentResult(
   }
 
   if (!scopesAlignForVisionResult(scope, currentDocument)) {
+    if (
+      envelope?.runId &&
+      active?.runId === envelope.runId &&
+      result.sessionId === currentDocument.sessionId &&
+      normalizeEditorVisionScopeUrl(result.backgroundUrl) ===
+        normalizeEditorVisionScopeUrl(currentDocument.backgroundUrl) &&
+      !editorVisionAnalysisIdsMatch(scope.analysisId, currentDocument)
+    ) {
+      lastRejectReason = null;
+      return result;
+    }
     logIgnoredStaleAnalysisResult(scope, currentDocument, "scope_mismatch");
     return null;
   }
@@ -604,13 +644,31 @@ export function resolveVisionAnalysisAcceptance(
     baseline && baseline !== result
       ? chooseRicherVisionDocument(baseline, result)
       : result;
+  if (!isVisionPartsLossTracingStopped()) {
+    traceVisionPartsLossStage("vision_parts_guarded_pipeline_result", {
+      sessionId: mergedResult.sessionId,
+      document: mergedResult,
+    });
+  }
   const strict = acceptAnalysisDocumentResult(mergedResult, sourceDocument);
   if (strict) {
+    if (!isVisionPartsLossTracingStopped()) {
+      traceVisionPartsLossStage("vision_parts_accepted", {
+        sessionId: strict.sessionId,
+        document: strict,
+      });
+    }
     return { accepted: strict, rejectionReason: null, lenient: false };
   }
   if (storedDocument) {
     const fromStore = acceptAnalysisDocumentResult(mergedResult, storedDocument);
     if (fromStore) {
+      if (!isVisionPartsLossTracingStopped()) {
+        traceVisionPartsLossStage("vision_parts_accepted", {
+          sessionId: fromStore.sessionId,
+          document: fromStore,
+        });
+      }
       return { accepted: fromStore, rejectionReason: null, lenient: false };
     }
   }
@@ -628,6 +686,12 @@ export function resolveVisionAnalysisAcceptance(
     )
   ) {
     lastRejectReason = null;
+    if (!isVisionPartsLossTracingStopped()) {
+      traceVisionPartsLossStage("vision_parts_accepted", {
+        sessionId: mergedResult.sessionId,
+        document: mergedResult,
+      });
+    }
     return { accepted: mergedResult, rejectionReason: null, lenient: true };
   }
   return {
@@ -706,6 +770,41 @@ export function reportAnalysisPipelineStage(
   publishRunMeta(key, meta);
 }
 
+export function resolveEditorVisionAnalysisDepth(
+  options?: Pick<EditorVisionAnalysisRunOptions, "analysisDepth" | "trigger">
+): EditorVisionAnalysisDepth {
+  const tier = resolveEditorVisionAnalysisTierFromInput({
+    analysisDepth: options?.analysisDepth,
+    trigger: options?.trigger,
+  });
+  return tier;
+}
+
+/** Prepare document for bootstrap — separates layer preservation from analysis depth. */
+export function prepareDocumentForVisionBootstrap(
+  document: EditorCanvasDocument,
+  options: Pick<EditorVisionAnalysisRunOptions, "preserveUserEdits" | "analysisDepth" | "trigger">
+): EditorCanvasDocument {
+  const tier = normalizeEditorVisionAnalysisTier(resolveEditorVisionAnalysisDepth(options));
+  if (tier === "basic") {
+    return document;
+  }
+
+  const hasCompletedFull =
+    editorAnalysisAppliesToBackground(document) &&
+    documentHasCompletedFullVisionAnalysis(document);
+
+  if (hasCompletedFull) {
+    return document;
+  }
+
+  if (options.preserveUserEdits) {
+    return resetEditorVisionDerivedState(document, { preserveInstructionWorkflow: true });
+  }
+
+  return resetEditorAnalysisState(document, { preserveInstructionWorkflow: true });
+}
+
 export async function executeEditorVisionAnalysisRun(
   document: EditorCanvasDocument,
   runner: (
@@ -765,7 +864,7 @@ export async function executeEditorVisionAnalysisRun(
       !retry &&
       recentDup.duplicate &&
       !recentDup.sameAnalysisId &&
-      documentHasRichVisionAnalysis(document)
+      documentHasCompletedFullVisionAnalysis(document)
     ) {
       const blockReason = "duplicate_start_ignored_rich_within_window";
       setLastVisionRunGuardBlockReason(blockReason);

@@ -605,12 +605,19 @@ export function EditorInstructionStudioWorkspace({
     showEmptyState,
     lifecycleDebug,
     runAnalysis,
+    runPremiumAnalysis,
+    premiumAnalysisStatus,
+    premiumFailureReason,
     cachedResult,
     needsDeepAnalysis,
+    showPremiumAnalyzeCta,
+    premiumGate,
     analysisProgress,
   } = useEditorVisionAnalysisRun(document, onDocumentChange, {
     imageVisible,
     mountTrigger: "instruction-workspace-mount",
+    isAdmin,
+    userId: null,
   });
 
   useEffect(() => {
@@ -965,6 +972,9 @@ export function EditorInstructionStudioWorkspace({
       <EditorProjectIsolationControls
         document={document}
         onDocumentChange={onDocumentChange}
+        onRunPremiumAnalysis={() => runPremiumAnalysis(document)}
+        isAdmin={isAdmin}
+        userId={null}
         compact
       />
       {showAnalysis ?
@@ -1018,19 +1028,14 @@ export function EditorInstructionStudioWorkspace({
               isPartialResult={isPartialResult}
               cachedResult={cachedResult}
               needsDeepAnalysis={needsDeepAnalysis}
-              onDeepAnalyze={() => {
-                void runAnalysis(document, { trigger: "deep-analyze" });
-              }}
+              showPremiumAnalyzeCta={showPremiumAnalyzeCta}
+              premiumGate={premiumGate}
+              premiumAnalysisStatus={premiumAnalysisStatus}
+              premiumFailureReason={premiumFailureReason}
+              onPremiumAnalyze={() => void runPremiumAnalysis(document)}
               runMeta={visionRunMeta}
               lifecycleDebug={lifecycleDebug}
               analysisProgress={analysisProgress}
-              onReanalyze={() => {
-                void runAnalysis(document, {
-                  force: true,
-                  trigger: "manual-reanalyze",
-                  preserveUserEdits: false,
-                });
-              }}
               variant="studio"
               className={studioVisual.editorSurface}
               taxonomyType={document.visionV6Meta?.taxonomyType ?? "unknown"}
@@ -1050,16 +1055,13 @@ export function EditorInstructionStudioWorkspace({
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950"
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 disabled:opacity-50"
+                  disabled={!premiumGate.allowed}
                   onClick={() => {
-                    void runAnalysis(document, {
-                      force: true,
-                      trigger: "manual-reanalyze",
-                      preserveUserEdits: false,
-                    });
+                    void runPremiumAnalysis(document);
                   }}
                 >
-                  {t("editor.workflow.parts.reanalyze" as never)}
+                  {t("editor.visionAnalysis.premiumAnalyze" as never)}
                 </button>
                 <button
                   type="button"

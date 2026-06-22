@@ -77,9 +77,8 @@ describe("Analyze method mismatch", () => {
     assert.match(client, /body: JSON\.stringify\(params\)/);
   });
 
-  it("all analyze callers go through analyzeAssetStyleDnaApi (POST)", () => {
+  it("studio asset callers use analyzeAssetStyleDnaApi (POST)", () => {
     const callers = [
-      "src/lib/editor-detection-bootstrap.ts",
       "src/lib/studio-asset-vision-trigger.ts",
       "src/lib/studio-asset-wizard-reference-generation.ts",
     ];
@@ -88,6 +87,9 @@ describe("Analyze method mismatch", () => {
       assert.match(src, /analyzeAssetStyleDnaApi/);
       assert.doesNotMatch(src, /asset-derivation\/analyze/);
     }
+    const bootstrap = readFileSync(join(ROOT, "src/lib/editor-detection-bootstrap.ts"), "utf8");
+    assert.match(bootstrap, /analyzeEditorPremiumStyleDnaApi/);
+    assert.doesNotMatch(bootstrap, /analyzeAssetStyleDnaApi/);
   });
 
   it("405 analyze response does not block Editor bootstrap fallback vision", () => {
@@ -95,8 +97,7 @@ describe("Analyze method mismatch", () => {
     const resolved = resolveEditorBootstrapVision(doc, {
       ok: false,
       status: 405,
-      data: { error: "Method Not Allowed" } as never,
-      networkError: false,
+      error: "Method Not Allowed",
     });
     assert.equal(resolved.visionAnalyzeOk, false);
     assert.ok(resolved.vision.objectType);
@@ -107,10 +108,16 @@ describe("Analyze method mismatch", () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
       const url = String(input);
-      if (url.includes("/api/studio/asset-derivation/analyze")) {
+      if (url.includes("/api/editor/vision/style-dna")) {
         assert.equal(init?.method, "POST");
-        return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
+        return new Response(JSON.stringify({ error: "Method Not Allowed", code: "METHOD_NOT_ALLOWED" }), {
           status: 405,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/api/editor/vision/parts")) {
+        return new Response(JSON.stringify({ ok: true, analysis: { parts: [], openAiUsed: false, templateUsed: true, characterLabel: "Test" } }), {
+          status: 200,
           headers: { "Content-Type": "application/json" },
         });
       }
@@ -126,7 +133,10 @@ describe("Analyze method mismatch", () => {
     try {
       const doc = backgroundOnlyDoc();
       assert.equal(documentNeedsDetectionBootstrap(doc), true);
-      const bootstrapped = await bootstrapEditorObjectDetection(doc);
+      const bootstrapped = await bootstrapEditorObjectDetection(doc, {
+        analysisDepth: "premium",
+        trigger: "deep-analyze",
+      });
       assert.ok(bootstrapped.objects.length > 1);
       assert.equal(bootstrapped.detectionMeta?.bootstrapAttempted, true);
     } finally {

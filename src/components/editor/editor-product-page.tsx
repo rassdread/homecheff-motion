@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { EditorCanvasWorkspace } from "@/components/editor/editor-canvas-workspace";
 import { EditorSessionRecoveryPanel } from "@/components/editor/editor-session-recovery-panel";
@@ -35,6 +35,7 @@ import {
   replaceEditorRouteIfNeeded,
   type EditorRouteReplaceReason,
 } from "@/lib/editor-route-navigation";
+import { buildEditorSessionHydrationDiagnostic } from "@/lib/editor-session-hydration-debug";
 import { beginEditorOpenTimingSession, markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
 import { useActiveTranslator } from "@/i18n/client";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
@@ -75,6 +76,7 @@ function stripStaleHcProjectFromDocument(doc: EditorCanvasDocument): EditorCanva
 export function EditorProductPage() {
   const t = useActiveTranslator();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const auth = useAuthSession();
   const sessionId = searchParams.get("session") ?? "";
@@ -87,6 +89,7 @@ export function EditorProductPage() {
   const [hcProject, setHcProject] = useState<HomeCheffProjectPackage | null>(null);
   const sessionRestoreRef = useRef<string | null>(null);
   const hcRestoreRef = useRef<string | null>(null);
+  const pendingOpenSessionRef = useRef<string | null>(null);
   const lastSyncedRouteRef = useRef<string | null>(null);
   const document = resolveEditorDocument(sessionId, documentOverride, storageReady);
 
@@ -94,7 +97,7 @@ export function EditorProductPage() {
     target: { session?: string; hcProject?: string; stripRestoreServer?: boolean },
     reason: EditorRouteReplaceReason
   ): boolean => {
-    const href = buildEditorRouteHref(target, searchParams);
+    const href = buildEditorRouteHref(target, searchParams, pathname);
     const normalized = normalizeEditorRouteUrl(href);
     if (lastSyncedRouteRef.current === normalized) {
       return false;
@@ -103,11 +106,26 @@ export function EditorProductPage() {
       lastSyncedRouteRef.current = normalized;
       return false;
     }
-    const applied = replaceEditorRouteIfNeeded(router, searchParams, target, reason);
+    const applied = replaceEditorRouteIfNeeded(router, searchParams, target, reason, pathname);
     if (applied) {
       lastSyncedRouteRef.current = normalized;
     }
     return applied;
+  };
+
+  const reportHydrationFailure = (
+    failureReason: import("@/lib/editor-session-hydration-debug").EditorSessionHydrationFailureReason
+  ) => {
+    buildEditorSessionHydrationDiagnostic({
+      sessionId,
+      document,
+      documentOverride,
+      userId: auth.user?.id ?? null,
+      ownerUserId: hcProject?.ownerId ?? document?.instructionStudioState?.hcProjectId ?? null,
+      storageReady,
+      hydrationState: "not_found",
+      failureReason,
+    });
   };
 
   useEffect(() => {
@@ -120,13 +138,21 @@ export function EditorProductPage() {
     sessionRestoreRef.current = null;
     hcRestoreRef.current = null;
     lastSyncedRouteRef.current = normalizeEditorRouteUrl(
-      buildEditorRouteHref({
-        session: sessionId || undefined,
-        hcProject: hcProjectId || undefined,
-      })
+      buildEditorRouteHref(
+        {
+          session: sessionId || undefined,
+          hcProject: hcProjectId || undefined,
+        },
+        undefined,
+        pathname
+      )
     );
-    setHydrationState(sessionId || hcProjectId ? "loading" : "idle");
-  }, [sessionId, hcProjectId]);
+    const pendingOpen =
+      pendingOpenSessionRef.current === sessionId || documentOverride?.sessionId === sessionId;
+    if (!pendingOpen) {
+      setHydrationState(sessionId || hcProjectId ? "loading" : "idle");
+    }
+  }, [documentOverride?.sessionId, hcProjectId, pathname, sessionId]);
 
   useEffect(() => {
     if (!hcProjectId || !storageReady) {
@@ -184,12 +210,14 @@ export function EditorProductPage() {
           }
         }
         setHydrationState("not_found");
+        reportHydrationFailure("hc_project_hydrate_failed");
         return;
       }
       setHcProject(project);
       const doc = hydrateEditorDocumentFromHcProject(project);
       if (!doc) {
         setHydrationState("not_found");
+        reportHydrationFailure("hc_project_hydrate_failed");
         return;
       }
       setDocumentOverride(sanitizeDocumentForAssetIsolation(doc));
@@ -258,9 +286,13 @@ export function EditorProductPage() {
         reason: local ? "local_copy_present" : "local_first_session",
         analysisStatus: analysisStatus ?? "idle",
       });
-      setHydrationState(local ? "ready" : "not_found");
       if (local) {
+        pendingOpenSessionRef.current = null;
         setDocumentOverride(sanitizeDocumentForAssetIsolation(local));
+        setHydrationState("ready");
+      } else {
+        setHydrationState("not_found");
+        reportHydrationFailure("local_document_missing");
       }
       return;
     }
@@ -291,6 +323,7 @@ export function EditorProductPage() {
         return;
       }
       setHydrationState("not_found");
+      reportHydrationFailure("server_restore_failed");
     })();
     return () => {
       cancelled = true;
@@ -351,20 +384,22 @@ export function EditorProductPage() {
   }, [document, searchParams, sessionId]);
 
   const openDocument = (doc: EditorCanvasDocument) => {
-    setDocumentOverride(doc);
-    sessionRestoreRef.current = doc.sessionId;
+    const saved = saveEditorCanvasDocument(sanitizeDocumentForAssetIsolation(doc));
+    pendingOpenSessionRef.current = saved.sessionId;
+    setDocumentOverride(saved);
+    sessionRestoreRef.current = saved.sessionId;
     setHydrationState("ready");
     markEditorOpenTiming("localDocumentSavedAt");
-    beginEditorOpenTimingSession(doc.sessionId);
+    beginEditorOpenTimingSession(saved.sessionId);
     recordEditorOpenStage("editor_opening");
     markEditorOpenTiming("routeStartedAt");
-    const hcId = doc.instructionStudioState?.hcProjectId;
+    const hcId = saved.instructionStudioState?.hcProjectId;
     const linkedHc = hcId ? loadHomeCheffProject(hcId) : null;
     if (linkedHc && hcId) {
       setHcProject(linkedHc);
       syncEditorRoute(
         {
-          session: doc.sessionId,
+          session: saved.sessionId,
           hcProject: hcId,
           stripRestoreServer: true,
         },
@@ -372,7 +407,7 @@ export function EditorProductPage() {
       );
       return;
     }
-    syncEditorRoute({ session: doc.sessionId, stripRestoreServer: true }, "session_synced");
+    syncEditorRoute({ session: saved.sessionId, stripRestoreServer: true }, "session_synced");
   };
 
   const handleBack = () => {

@@ -46,10 +46,25 @@ export function normalizeEditorRouteUrl(pathWithSearch: string): string {
   return qs ? `${pathname}?${qs}` : pathname;
 }
 
+/** Editor workspace lives on /editor and /editor/start — keep the current path when syncing query params. */
+export function resolveEditorRoutePathname(pathname?: string | null): string {
+  const raw =
+    pathname?.trim() ||
+    (typeof window !== "undefined" ? window.location.pathname : "") ||
+    "/editor";
+  const normalized = raw.replace(/\/+$/, "") || "/editor";
+  if (normalized === "/editor/start" || normalized.startsWith("/editor/start/")) {
+    return "/editor/start";
+  }
+  return "/editor";
+}
+
 export function buildEditorRouteHref(
   query: EditorRouteQuery,
-  currentSearch?: URLSearchParams | string
+  currentSearch?: URLSearchParams | string,
+  pathname?: string | null
 ): string {
+  const basePath = resolveEditorRoutePathname(pathname);
   const params = new URLSearchParams();
   if (currentSearch) {
     const src =
@@ -86,7 +101,7 @@ export function buildEditorRouteHref(
   }
 
   const qs = params.toString();
-  return qs ? `/editor?${qs}` : "/editor";
+  return qs ? `${basePath}?${qs}` : basePath;
 }
 
 export function editorRouteSearchEquals(
@@ -235,10 +250,11 @@ export function safeReplaceEditorRoute(
   target: EditorRouteQuery,
   options: {
     currentSearch?: URLSearchParams | string;
+    pathname?: string | null;
     reason: EditorRouteReplaceReason;
   }
 ): boolean {
-  const href = buildEditorRouteHref(target, options.currentSearch);
+  const href = buildEditorRouteHref(target, options.currentSearch, options.pathname);
   const normalizedTarget = normalizeEditorRouteUrl(href);
   const gate = evaluateReplaceGuard(normalizedTarget, options.reason);
   if (!gate.allowed) {
@@ -259,11 +275,12 @@ export function replaceEditorRouteIfNeeded(
   router: { replace: (href: string, options?: { scroll?: boolean }) => void },
   currentSearch: URLSearchParams | string,
   target: EditorRouteQuery,
-  reason: EditorRouteReplaceReason = "session_synced"
+  reason: EditorRouteReplaceReason = "session_synced",
+  pathname?: string | null
 ): boolean {
   if (!editorRouteQueryNeedsSync(currentSearch, target)) {
     logEditorRouteReplace("skipped", "same_url", { target, reason });
     return false;
   }
-  return safeReplaceEditorRoute(router, target, { currentSearch, reason });
+  return safeReplaceEditorRoute(router, target, { currentSearch, pathname, reason });
 }

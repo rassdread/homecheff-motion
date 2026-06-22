@@ -4,10 +4,11 @@ import {
   mapVisionJsonToAnalysis,
 } from "@/lib/studio-asset-vision-analysis";
 import {
-  analyzeAssetReferenceVisionWithOpenAi,
+  analyzeAssetReferenceVisionWithOpenAiTracked,
   resolveAssetVisionModel,
 } from "@/server/studio/analyze-asset-reference-vision";
 import { meterAssetDerivation } from "@/server/provider-cost/studio-cost-metering";
+import type { OpenAiVisionUsageMetrics } from "@/server/openai/openai-vision-usage";
 import type { AssetStyleDna } from "@/types/studio-asset-derivation";
 import type { AssetVisionAnalysis } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
@@ -18,11 +19,14 @@ export type ExtractStyleDnaInput = {
   sourceKind: StudioAssetKind;
   sourceName: string;
   derivationJobId: string;
+  /** Skip legacy asset_derivation metering — editor premium logs via recordEditorPremiumProviderCost. */
+  skipLegacyMetering?: boolean;
 };
 
 export type ExtractAssetVisionResult = {
   styleDna: AssetStyleDna;
   visionAnalysis: AssetVisionAnalysis;
+  metrics?: OpenAiVisionUsageMetrics;
 };
 
 export async function extractAssetStyleDna(
@@ -46,7 +50,7 @@ export async function extractAssetStyleDna(
   const model = resolveAssetVisionModel();
 
   try {
-    const json = await analyzeAssetReferenceVisionWithOpenAi(
+    const tracked = await analyzeAssetReferenceVisionWithOpenAiTracked(
       {
         imageUrl,
         sourceKind: input.sourceKind,
@@ -56,28 +60,32 @@ export async function extractAssetStyleDna(
       apiKey
     );
 
-    const visionAnalysis = mapVisionJsonToAnalysis(json, { sourceName: input.sourceName });
+    const visionAnalysis = mapVisionJsonToAnalysis(tracked.json, { sourceName: input.sourceName });
     const styleDna = mapVisionAnalysisToStyleDna(visionAnalysis);
 
-    meterAssetDerivation({
-      ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
-      phase: "vision",
-      status: "completed",
-      sourceKind: input.sourceKind,
-      imageCount: 1,
-      model,
-    });
+    if (!input.skipLegacyMetering) {
+      meterAssetDerivation({
+        ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
+        phase: "vision",
+        status: "completed",
+        sourceKind: input.sourceKind,
+        imageCount: 1,
+        model,
+      });
+    }
 
-    return { data: { styleDna, visionAnalysis } };
+    return { data: { styleDna, visionAnalysis, metrics: tracked.metrics } };
   } catch (e) {
-    meterAssetDerivation({
-      ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
-      phase: "vision",
-      status: "failed",
-      sourceKind: input.sourceKind,
-      imageCount: 1,
-      model,
-    });
+    if (!input.skipLegacyMetering) {
+      meterAssetDerivation({
+        ctx: { userId: viewer.id, feature: "asset_derivation", relatedJobId: input.derivationJobId },
+        phase: "vision",
+        status: "failed",
+        sourceKind: input.sourceKind,
+        imageCount: 1,
+        model,
+      });
+    }
     const message = e instanceof Error ? e.message : "Style DNA extraction failed.";
     return { error: message, code: "EXTRACTION_FAILED", status: 502 };
   }

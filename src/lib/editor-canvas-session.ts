@@ -20,12 +20,14 @@ import { buildEditorMotionPreparations } from "@/lib/editor-motion-preparation";
 import { reorderEditorLayers, renameEditorLayer } from "@/lib/editor-semantic-layer-tree";
 import {
   editorAnalysisAppliesToBackground,
-  resetEditorAnalysisState,
 } from "@/lib/editor-analysis-reset";
 import { sanitizeDocumentForAssetIsolation } from "@/lib/editor-project-isolation";
 import { traceVisionHierarchyRegression } from "@/lib/editor-vision-hierarchy-loss-trace";
+import { traceVisionPartsLossStage } from "@/lib/editor-vision-parts-loss-trace";
 import {
   executeEditorVisionAnalysisRun,
+  prepareDocumentForVisionBootstrap,
+  resolveEditorVisionAnalysisDepth,
   type EditorVisionAnalysisRunOptions,
 } from "@/lib/editor-vision-analysis-run";
 import { bootstrapEditorObjectDetection } from "@/lib/editor-detection-bootstrap";
@@ -37,7 +39,6 @@ import {
   EDITOR_CANVAS_SESSIONS_KEY,
   pruneEditorSessionStore,
   safeSetLocalStorage,
-  serializeEditorSessionStore,
   stripDocumentForStorage,
 } from "@/lib/editor-local-storage";
 import type {
@@ -54,7 +55,10 @@ const RECENT_LIMIT = 8;
 
 export type EditorCanvasSaveResult = {
   document: EditorCanvasDocument;
+  /** Save succeeded after pruning older sessions — not a hard failure. */
   storageWarning?: "quota_exceeded";
+  /** True when the session round-trips from localStorage after write. */
+  persisted: boolean;
 };
 
 function slugLabel(label: string): string {
@@ -86,19 +90,23 @@ function writeStore(store: Record<string, EditorCanvasDocument>, activeSessionId
     return undefined;
   }
 
-  let payload = serializeEditorSessionStore(
-    Object.fromEntries(
-      Object.entries(store).map(([id, doc]) => [id, stripDocumentForStorage(doc)])
-    )
+  const stripped = Object.fromEntries(
+    Object.entries(store).map(([id, doc]) => [id, stripDocumentForStorage(doc)])
   );
+  const buildPayload = (source: Record<string, EditorCanvasDocument>) =>
+    JSON.stringify(
+      activeSessionId ? pruneEditorSessionStore(source, activeSessionId) : pruneEditorSessionStore(source)
+    );
+
+  let payload = buildPayload(stripped);
   let result = safeSetLocalStorage(STORAGE_KEY, payload);
   if (result.ok) {
     return undefined;
   }
 
   if (result.reason === "quota_exceeded") {
-    const pruned = pruneEditorSessionStore(store, activeSessionId);
-    payload = serializeEditorSessionStore(pruned);
+    const pruned = pruneEditorSessionStore(stripped, activeSessionId);
+    payload = JSON.stringify(pruned);
     result = safeSetLocalStorage(STORAGE_KEY, payload);
     if (result.ok) {
       Object.keys(store).forEach((key) => {
@@ -178,16 +186,33 @@ function enrichEditorDocument(document: EditorCanvasDocument): EditorCanvasDocum
   });
 }
 
+function persistEditorDocumentRaw(document: EditorCanvasDocument): EditorCanvasSaveResult {
+  const next = {
+    ...stripDocumentForStorage(document),
+    updatedAt: new Date().toISOString(),
+  };
+  const store = readStore();
+  store[next.sessionId] = next;
+  const storageWarning = writeStore(store, next.sessionId);
+  const persisted = Boolean(readStore()[next.sessionId]);
+  return { document: next, storageWarning, persisted };
+}
+
 function persistEditorDocument(document: EditorCanvasDocument): EditorCanvasSaveResult {
   const next = enrichEditorDocument(document);
   traceVisionHierarchyStage("after_enrichEditorDocument", next);
   traceVisionHierarchyRegression("persisted_document", {
     document: stripDocumentForStorage(next),
   });
+  traceVisionPartsLossStage("vision_parts_persisted", {
+    sessionId: next.sessionId,
+    document: next,
+  });
   const store = readStore();
   store[next.sessionId] = next;
   const storageWarning = writeStore(store, next.sessionId);
-  return { document: next, storageWarning };
+  const persisted = Boolean(readStore()[next.sessionId]);
+  return { document: next, storageWarning, persisted };
 }
 
 export function saveEditorCanvasDocument(document: EditorCanvasDocument): EditorCanvasDocument {
@@ -198,6 +223,13 @@ export function saveEditorCanvasDocumentWithStatus(
   document: EditorCanvasDocument
 ): EditorCanvasSaveResult {
   return persistEditorDocument(document);
+}
+
+/** Skip enrich — smaller payload for wizard localStorage fallback. */
+export function saveEditorCanvasDocumentRawWithStatus(
+  document: EditorCanvasDocument
+): EditorCanvasSaveResult {
+  return persistEditorDocumentRaw(document);
 }
 
 export function listRecentEditorDocuments(limit = RECENT_LIMIT): EditorCanvasDocument[] {
@@ -404,19 +436,25 @@ export async function runEditorVisionAndObjectDetection(
   document: EditorCanvasDocument,
   options?: EditorVisionAnalysisRunOptions
 ): Promise<EditorCanvasDocument> {
+  const analysisDepth = resolveEditorVisionAnalysisDepth({
+    analysisDepth: options?.analysisDepth,
+    trigger: options?.trigger,
+  });
   return executeEditorVisionAnalysisRun(
     document,
     async (run, reportStage) => {
-      const prepared =
-        options?.preserveUserEdits ||
-        (editorAnalysisAppliesToBackground(document) && documentHasRichVisionAnalysis(document))
-          ? document
-          : resetEditorAnalysisState(document, { preserveInstructionWorkflow: true });
+      const prepared = prepareDocumentForVisionBootstrap(document, {
+        preserveUserEdits: options?.preserveUserEdits,
+        analysisDepth,
+        trigger: options?.trigger,
+      });
       traceVisionHierarchyStage("before_bootstrapEditorObjectDetection", prepared);
       const analyzed = await bootstrapEditorObjectDetection(prepared, {
         onStage: reportStage,
         onProgress: options?.onProgress,
         runScope: run,
+        analysisDepth,
+        trigger: options?.trigger,
       });
       traceVisionHierarchyStage("before_saveEditorCanvasDocument", analyzed);
       const saved = saveEditorCanvasDocument(analyzed);

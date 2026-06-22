@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   createMonotonicProgressTracker,
+  bumpProgressAfterRtdetrTiming,
+  bumpProgressAfterVisionPartsTiming,
   resolveEditorVisionAnalysisProgress,
 } from "@/lib/editor-vision-analysis-progress";
 import { VISION_PARTS_API_TIMEOUT_MS } from "@/lib/editor-vision-v6-client";
@@ -120,6 +122,89 @@ describe("editor vision analysis progress", () => {
     });
     assert.equal(snapshot.showProgress, false);
     assert.equal(snapshot.percent, 100);
+  });
+
+  it("bumps past 28% when RT-DETR timing exists but runMeta is stale", () => {
+    const stalled = resolveEditorVisionAnalysisProgress({
+      openStage: "analysis_preparing",
+      runMeta: null,
+    });
+    assert.equal(stalled.percent, 28);
+    const bumped = bumpProgressAfterRtdetrTiming({
+      snapshot: stalled,
+      rtdetrRecorded: true,
+      analysisPending: true,
+      analysisInProgress: true,
+      runMeta: null,
+    });
+    assert.ok(bumped.percent >= 40);
+    assert.equal(bumped.stage, "local_detection");
+  });
+
+  it("preserves advanced stage label when monotonic percent is floored", () => {
+    const advanced = bumpProgressAfterRtdetrTiming({
+      snapshot: resolveEditorVisionAnalysisProgress({
+        openStage: "photo_loading",
+        runMeta: null,
+      }),
+      rtdetrRecorded: true,
+      analysisPending: true,
+      analysisInProgress: true,
+      runMeta: null,
+    });
+    const regressed = resolveEditorVisionAnalysisProgress({
+      openStage: "photo_loading",
+      runMeta: baseMeta({ status: "detecting", lastStage: "analysis_preparing" }),
+      previousPercent: advanced.percent,
+      previousSnapshot: advanced,
+    });
+    assert.equal(regressed.percent, 40);
+    assert.equal(regressed.labelKey, "editor.open.stage.localDetection");
+  });
+
+  it("fixes stale photo_loading label when percent already reached 40 via monotonic", () => {
+    const floored = resolveEditorVisionAnalysisProgress({
+      openStage: "photo_loading",
+      runMeta: null,
+      previousPercent: 40,
+      previousSnapshot: {
+        percent: 40,
+        stage: "photo_loading",
+        labelKey: "editor.open.stage.photoLoading",
+        showProgress: true,
+      },
+    });
+    assert.equal(floored.percent, 40);
+    const fixed = bumpProgressAfterRtdetrTiming({
+      snapshot: floored,
+      rtdetrRecorded: true,
+      analysisPending: true,
+      analysisInProgress: true,
+      runMeta: null,
+    });
+    assert.equal(fixed.labelKey, "editor.open.stage.localDetection");
+  });
+
+  it("bumps to parts recognition when vision_parts_api timing exists but runMeta is stale", () => {
+    const stalled = bumpProgressAfterRtdetrTiming({
+      snapshot: resolveEditorVisionAnalysisProgress({
+        openStage: "analysis_preparing",
+        runMeta: null,
+      }),
+      rtdetrRecorded: true,
+      analysisPending: true,
+      analysisInProgress: true,
+      runMeta: null,
+    });
+    const bumped = bumpProgressAfterVisionPartsTiming({
+      snapshot: stalled,
+      visionPartsRecorded: true,
+      analysisPending: true,
+      analysisInProgress: true,
+      runMeta: null,
+    });
+    assert.ok(bumped.percent >= 55);
+    assert.equal(bumped.stage, "parts_recognition");
   });
 
   it("long Vision Parts API caps at 88% until complete", () => {

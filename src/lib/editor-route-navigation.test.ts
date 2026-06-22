@@ -21,6 +21,17 @@ describe("editor-route-navigation", () => {
       "/editor?session=sess-1&hcProject=hc-1"
     );
     assert.equal(buildEditorRouteHref({}), "/editor");
+    assert.equal(
+      buildEditorRouteHref({ session: "sess-1" }, undefined, "/editor/start"),
+      "/editor/start?session=sess-1"
+    );
+  });
+
+  it("preserves /editor/start pathname when syncing session query", () => {
+    assert.equal(
+      buildEditorRouteHref({ session: "sess-1" }, new URLSearchParams("workflow=edit"), "/editor/start"),
+      "/editor/start?workflow=edit&session=sess-1"
+    );
   });
 
   it("normalizeEditorRouteUrl ignores restoreServer and param order", () => {

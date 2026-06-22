@@ -4,28 +4,41 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useActiveTranslator } from "@/i18n/client";
 import { clearAllEditorProjectIsolationState } from "@/lib/editor-project-isolation";
-import { startEditorImageAnalysis } from "@/lib/start-editor-image-analysis";
+import { useStudioWalletSummary } from "@/hooks/use-studio-wallet-summary";
+import { resolvePremiumVisionAnalysisGate } from "@/lib/editor-vision-analysis-tier";
 import type { EditorCanvasDocument } from "@/types/homecheff-visual-editor";
 
 type Props = {
   document: EditorCanvasDocument;
   onDocumentChange: (document: EditorCanvasDocument) => void;
+  /** Preferred: shared hook entry for premium deep-analyze. */
+  onRunPremiumAnalysis?: () => Promise<unknown>;
   /** Called before navigating away for a fresh project. */
   onNewProject?: () => void;
+  isAdmin?: boolean;
+  userId?: string | null;
   compact?: boolean;
   className?: string;
 };
 
 export function EditorProjectIsolationControls({
   document,
-  onDocumentChange,
+  onDocumentChange: _onDocumentChange,
+  onRunPremiumAnalysis,
   onNewProject,
+  isAdmin = false,
+  userId = null,
   compact = false,
   className = "",
 }: Props) {
   const t = useActiveTranslator();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const wallet = useStudioWalletSummary(Boolean(userId));
+  const premiumGate = resolvePremiumVisionAnalysisGate({
+    isAdmin,
+    creditsAvailable: wallet.availableCredits,
+  });
 
   const handleNewProject = () => {
     clearAllEditorProjectIsolationState(document.sessionId, document.instructionStudioState?.hcProjectId);
@@ -36,20 +49,13 @@ export function EditorProjectIsolationControls({
     router.push("/editor/start");
   };
 
-  const handleReanalyze = async () => {
+  const handlePremiumAnalyze = async () => {
+    if (!premiumGate.allowed || !onRunPremiumAnalysis) {
+      return;
+    }
     setBusy(true);
     try {
-      clearAllEditorProjectIsolationState(
-        document.sessionId,
-        document.instructionStudioState?.hcProjectId
-      );
-      await startEditorImageAnalysis({
-        document,
-        trigger: "isolation-controls",
-        force: true,
-        preserveUserEdits: false,
-        onDocumentChange,
-      });
+      await onRunPremiumAnalysis();
     } finally {
       setBusy(false);
     }
@@ -68,17 +74,22 @@ export function EditorProjectIsolationControls({
       >
         {t("editor.isolation.newProject" as never)}
       </button>
-      <button
-        type="button"
-        disabled={busy || !document.backgroundUrl?.trim()}
-        onClick={() => void handleReanalyze()}
-        className={`rounded-full border border-violet-200 bg-violet-50 font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-60 ${
-          compact ? "px-3 py-1 text-xs" : "px-4 py-2 text-sm"
-        }`}
-        title={t("editor.isolation.reanalyzeHint" as never)}
-      >
-        {busy ? t("button.loading" as never) : t("editor.isolation.reanalyze" as never)}
-      </button>
+      {onRunPremiumAnalysis ? (
+        <button
+          type="button"
+          disabled={busy || !document.backgroundUrl?.trim() || !premiumGate.allowed}
+          onClick={() => void handlePremiumAnalyze()}
+          className={`rounded-full border border-violet-200 bg-violet-50 font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-60 ${
+            compact ? "px-3 py-1 text-xs" : "px-4 py-2 text-sm"
+          }`}
+          title={t("editor.visionAnalysis.premiumAnalyzeHintWithCredits" as never, { count: 5 })}
+          data-testid="editor-isolation-premium-analyze-button"
+        >
+          {busy
+            ? t("editor.visionAnalysis.premiumAnalyzeInProgress" as never)
+            : t("editor.visionAnalysis.premiumAnalyzeWithCredits" as never, { count: 5 })}
+        </button>
+      ) : null}
     </div>
   );
 }

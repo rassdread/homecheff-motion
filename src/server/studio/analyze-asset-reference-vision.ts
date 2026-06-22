@@ -3,6 +3,11 @@ import {
   noteOpenAiRateLimitFailure,
   runOpenAiGated,
 } from "@/server/openai/openai-request-gate";
+import {
+  buildOpenAiVisionUsageMetrics,
+  parseOpenAiChatCompletionUsage,
+  type OpenAiVisionUsageMetrics,
+} from "@/server/openai/openai-vision-usage";
 import type { AssetReferenceVisionJson } from "@/types/studio-asset-vision-analysis";
 import type { StudioAssetKind } from "@/types/studio-asset-creation";
 
@@ -11,6 +16,11 @@ export type AssetReferenceVisionInput = {
   sourceKind: StudioAssetKind;
   sourceName: string;
   userDescription?: string;
+};
+
+export type AssetReferenceVisionTrackedResult = {
+  json: AssetReferenceVisionJson;
+  metrics: OpenAiVisionUsageMetrics;
 };
 
 function buildVisionPrompt(input: AssetReferenceVisionInput): string {
@@ -68,13 +78,21 @@ export async function analyzeAssetReferenceVisionWithOpenAi(
   input: AssetReferenceVisionInput,
   apiKey: string
 ): Promise<AssetReferenceVisionJson> {
+  const tracked = await analyzeAssetReferenceVisionWithOpenAiTracked(input, apiKey);
+  return tracked.json;
+}
+
+export async function analyzeAssetReferenceVisionWithOpenAiTracked(
+  input: AssetReferenceVisionInput,
+  apiKey: string
+): Promise<AssetReferenceVisionTrackedResult> {
   return runOpenAiGated(() => analyzeAssetReferenceVisionWithOpenAiInner(input, apiKey));
 }
 
 async function analyzeAssetReferenceVisionWithOpenAiInner(
   input: AssetReferenceVisionInput,
   apiKey: string
-): Promise<AssetReferenceVisionJson> {
+): Promise<AssetReferenceVisionTrackedResult> {
   const imageUrl = input.imageUrl.trim();
   if (!imageUrl) {
     throw new Error("Reference image URL is required.");
@@ -85,6 +103,7 @@ async function analyzeAssetReferenceVisionWithOpenAiInner(
     process.env.OPENAI_VISION_MODEL?.trim() ||
     "gpt-4o-mini";
 
+  const startedAt = Date.now();
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -115,6 +134,11 @@ async function analyzeAssetReferenceVisionWithOpenAiInner(
   const body = (await res.json().catch(() => ({}))) as {
     error?: { message?: string };
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    };
   };
 
   if (!res.ok) {
@@ -133,7 +157,15 @@ async function analyzeAssetReferenceVisionWithOpenAiInner(
   }
 
   try {
-    return JSON.parse(content) as AssetReferenceVisionJson;
+    const json = JSON.parse(content) as AssetReferenceVisionJson;
+    const tokenUsage = parseOpenAiChatCompletionUsage(body);
+    const metrics = buildOpenAiVisionUsageMetrics({
+      model,
+      durationMs: Date.now() - startedAt,
+      imageCount: 1,
+      ...tokenUsage,
+    });
+    return { json, metrics };
   } catch {
     throw new Error("OpenAI asset vision returned invalid JSON.");
   }

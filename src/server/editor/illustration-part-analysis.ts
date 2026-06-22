@@ -4,6 +4,11 @@ import {
   mergeOpenAiIllustrationParts,
 } from "@/lib/editor-vision-v6-part-analysis";
 import { runOpenAiGated } from "@/server/openai/openai-request-gate";
+import {
+  buildOpenAiVisionUsageMetrics,
+  parseOpenAiChatCompletionUsage,
+  type OpenAiVisionUsageMetrics,
+} from "@/server/openai/openai-vision-usage";
 import type {
   IllustrationPartAnalysisJson,
   IllustrationPartAnalysisResult,
@@ -94,24 +99,53 @@ function parseOpenAiPartAnalysis(
   });
 }
 
+export type IllustrationPartsTrackedResult = {
+  analysis: IllustrationPartAnalysisResult;
+  openAiUsed: boolean;
+  metrics?: OpenAiVisionUsageMetrics;
+  errorCode?: string;
+};
+
 export async function analyzeIllustrationParts(input: {
   imageUrl: string;
   vision: AssetVisionAnalysis;
   detections: ObjectDetection[];
 }): Promise<IllustrationPartAnalysisResult> {
+  const tracked = await analyzeIllustrationPartsTracked(input);
+  return tracked.analysis;
+}
+
+export async function analyzeIllustrationPartsTracked(input: {
+  imageUrl: string;
+  vision: AssetVisionAnalysis;
+  detections: ObjectDetection[];
+}): Promise<IllustrationPartsTrackedResult> {
   const template = buildTemplateIllustrationPartAnalysis(input.vision);
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    return template;
+    return { analysis: template, openAiUsed: false };
   }
 
   try {
-    const openAi = await runOpenAiGated(() =>
+    const tracked = await runOpenAiGated(() =>
       analyzeIllustrationPartsWithOpenAiInner(input, apiKey, template)
     );
-    return openAi;
-  } catch {
-    return template;
+    return tracked;
+  } catch (error) {
+    const model =
+      process.env.OPENAI_VISION_MODEL?.trim() ||
+      process.env.OPENAI_CHARACTER_IDENTITY_MODEL?.trim() ||
+      "gpt-4o-mini";
+    return {
+      analysis: template,
+      openAiUsed: false,
+      errorCode: error instanceof OcrProviderError ? error.errorCode : "openai_illustration_parts_failed",
+      metrics: buildOpenAiVisionUsageMetrics({
+        model,
+        durationMs: 0,
+        imageCount: 1,
+      }),
+    };
   }
 }
 
@@ -119,12 +153,13 @@ async function analyzeIllustrationPartsWithOpenAiInner(
   input: { imageUrl: string; vision: AssetVisionAnalysis; detections: ObjectDetection[] },
   apiKey: string,
   template: IllustrationPartAnalysisResult
-): Promise<IllustrationPartAnalysisResult> {
+): Promise<IllustrationPartsTrackedResult> {
   const model =
     process.env.OPENAI_VISION_MODEL?.trim() ||
     process.env.OPENAI_CHARACTER_IDENTITY_MODEL?.trim() ||
     "gpt-4o-mini";
 
+  const startedAt = Date.now();
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -155,12 +190,37 @@ async function analyzeIllustrationPartsWithOpenAiInner(
 
   const body = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+      total_tokens?: number;
+    };
   };
   const raw = body.choices?.[0]?.message?.content?.trim();
   if (!raw) {
-    return template;
+    return {
+      analysis: template,
+      openAiUsed: false,
+      metrics: buildOpenAiVisionUsageMetrics({
+        model,
+        durationMs: Date.now() - startedAt,
+        imageCount: 1,
+        ...parseOpenAiChatCompletionUsage(body),
+      }),
+    };
   }
 
   const json = JSON.parse(raw) as IllustrationPartAnalysisJson;
-  return parseOpenAiPartAnalysis(json, template);
+  const analysis = parseOpenAiPartAnalysis(json, template);
+  const metrics = buildOpenAiVisionUsageMetrics({
+    model,
+    durationMs: Date.now() - startedAt,
+    imageCount: 1,
+    ...parseOpenAiChatCompletionUsage(body),
+  });
+  return {
+    analysis,
+    openAiUsed: analysis.openAiUsed,
+    metrics,
+  };
 }

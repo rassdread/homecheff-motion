@@ -2,6 +2,7 @@
  * Editor Vision V6 — hierarchy stability, merge guards, dev diagnostics.
  */
 
+import { editorAnalysisAppliesToBackground } from "@/lib/editor-analysis-reset";
 import type {
   EditorCanvasDocument,
   EditorVisionHierarchyNode,
@@ -16,6 +17,13 @@ import {
   shouldShowPartialVisionHierarchy,
 } from "@/lib/editor-vision-analysis-run";
 import { normalizeEditorVisionScopeUrl } from "@/lib/editor-vision-analysis-scope";
+import {
+  buildVisibleEditorPartsTreeFromDocument,
+} from "@/lib/build-visible-editor-parts-tree";
+import {
+  isVisionPartsLossTracingStopped,
+  traceVisionPartsLossStage,
+} from "@/lib/editor-vision-parts-loss-trace";
 
 export type VisionHierarchyTrace = {
   stage: string;
@@ -31,7 +39,7 @@ export type VisionHierarchyTrace = {
 };
 
 const MEANINGFUL_PART_RE =
-  /head|eye|mouth|tie|hand|shoe|globe|mascot|character|style|prop|face|jacket|paw|tail|snout|ear|hair|body|torso|arm|leg|foot|nose|outfit|clothing|kleding|accessoire/i;
+  /head|eye|ogen|mouth|mond|tie|hand|shoe|globe|mascot|character|style|prop|face|jacket|paw|tail|snout|ear|hair|haar|body|lichaam|torso|arm|leg|foot|nose|outfit|clothing|kleding|accessoire|bril|zonnebril/i;
 
 const BACKGROUND_DECORATION_LABEL_RE =
   /^(background|color|lighting|shadow|safe empty area|safe area|style|visual style)$/i;
@@ -174,7 +182,60 @@ export function documentHasRichVisionAnalysis(document: EditorCanvasDocument): b
   if (isWeakBackgroundOnlyAnalysis(document)) {
     return false;
   }
-  return isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta);
+  if (isMeaningfulVisionHierarchy(document.visionHierarchy, document.visionV6Meta)) {
+    return true;
+  }
+  const visible = buildVisibleEditorPartsTreeFromDocument(document);
+  return (
+    visible.debug.visibleLeafLabels.length >= 3 ||
+    (document.visionV6Meta?.openAiPartsUsed === true && visible.debug.rawPartsCount >= 4)
+  );
+}
+
+const FACE_DETAIL_PART_RE =
+  /\b(eyes?|ogen|mouth|mond|hair|haar|beard|baard|sunglasses|zonnebril|glasses|bril|necklace|ketting)\b/i;
+
+/**
+ * True when vision analysis completed the full enrichment path (Vision Parts + accessories),
+ * not merely a provisional RT-DETR / head-only tree.
+ */
+export function documentHasCompletedFullVisionAnalysis(document: EditorCanvasDocument): boolean {
+  if (document.visionV6Meta?.analysisTier === "premium") {
+    return editorAnalysisAppliesToBackground(document) && !isWeakBackgroundOnlyAnalysis(document);
+  }
+  if (document.visionV6Meta?.analysisTier === "basic") {
+    return false;
+  }
+  if (!editorAnalysisAppliesToBackground(document)) {
+    return false;
+  }
+  if (isWeakBackgroundOnlyAnalysis(document)) {
+    return false;
+  }
+  const meta = document.visionV6Meta;
+  const labels = collectVisionHierarchyLabels(document.visionHierarchy, 60).join(" ").toLowerCase();
+  const subjectParts = countSubjectPartNodes(document.visionHierarchy);
+  const visionPartCount = meta?.visionPartCount ?? 0;
+  const hierarchyNodes = countVisionHierarchyNodes(document.visionHierarchy);
+
+  if (meta?.openAiPartsUsed && visionPartCount >= 4) {
+    return true;
+  }
+
+  if (subjectParts <= 2 && hierarchyNodes <= 6 && !FACE_DETAIL_PART_RE.test(labels)) {
+    return false;
+  }
+
+  if (meta?.illustrationAnalysis && visionPartCount >= 6 && subjectParts >= 4) {
+    return true;
+  }
+  if (visionPartCount >= 8 && subjectParts >= 5) {
+    return true;
+  }
+  if (FACE_DETAIL_PART_RE.test(labels) && subjectParts >= 4 && visionPartCount >= 4) {
+    return true;
+  }
+  return false;
 }
 
 function countLayerSources(meta?: EditorVisionV6Meta): Record<string, number> {
@@ -236,6 +297,10 @@ export function visionDocumentRichnessScore(document: EditorCanvasDocument): num
   const labels = collectVisionHierarchyLabels(document.visionHierarchy, 120).join(" ").toLowerCase();
   score += countVisionHierarchyNodes(document.visionHierarchy) * 10;
   score += document.visionV6Meta?.mergedLayerCount ?? 0;
+  score += (document.visionV6Meta?.mergedAnalysisParts?.length ?? 0) * 8;
+  const visible = buildVisibleEditorPartsTreeFromDocument(document);
+  score += visible.debug.rawPartsCount * 6;
+  score += visible.debug.visibleLeafLabels.length * 5;
   score += nonBackgroundLayerCount(document) * 5;
   score += document.semanticLayers?.filter((l) => l.type !== "background").length ?? 0;
   if (FACE_PART_RE.test(labels)) {
@@ -307,8 +372,13 @@ export function compareVisionDocumentRichness(
     Boolean(next.visionV6Meta?.openAiPartsUsed) &&
     !previous.visionV6Meta?.openAiPartsUsed &&
     nextScore >= previousScore - 20;
+  const nextRicherVisibleParts =
+    (next.visionV6Meta?.mergedAnalysisParts?.length ?? 0) >
+      (previous.visionV6Meta?.mergedAnalysisParts?.length ?? 0) &&
+    nextScore >= previousScore - 15;
   const keptPrevious =
     !nextStrongerEvidence &&
+    !nextRicherVisibleParts &&
     (previousScore > nextScore + 5 ||
       (previousNodes > nextNodes + 1 && nextScore <= previousScore));
   return {
@@ -404,6 +474,24 @@ function stickyHierarchyKey(document: EditorCanvasDocument): string {
   return `${document.sessionId}::${document.backgroundUrl}::${analysisId}`;
 }
 
+function rememberStickyHierarchy(
+  document: EditorCanvasDocument,
+  hierarchy: EditorVisionHierarchyNode[],
+  runMeta?: EditorVisionAnalysisRunMeta | null
+): void {
+  if (!hierarchy.length) {
+    return;
+  }
+  const meta = runMeta ?? getEditorVisionAnalysisRunMeta(document);
+  const analysisFresh =
+    Boolean(document.analyzedBackgroundUrl?.trim()) &&
+    normalizeEditorVisionScopeUrl(document.analyzedBackgroundUrl) ===
+      normalizeEditorVisionScopeUrl(document.backgroundUrl);
+  if (analysisFresh || isEditorVisionAnalysisInProgress(meta?.status)) {
+    stickyHierarchyBySession.set(stickyHierarchyKey(document), hierarchy);
+  }
+}
+
 /** UI-only: never downgrade hierarchy once a meaningful tree was shown for this analysis run. */
 export function resolveStickyVisionHierarchy(
   document: EditorCanvasDocument,
@@ -439,12 +527,27 @@ export function resolveStickyVisionHierarchy(
   return current;
 }
 
-/** Stable hierarchy for parts panel — hides stale trees during early detecting only. */
+/** Stable hierarchy for parts panel — prefers visible parts tree from found data. */
 export function resolveDisplayVisionHierarchy(
   document: EditorCanvasDocument,
   runMeta?: EditorVisionAnalysisRunMeta | null
 ): EditorVisionHierarchyNode[] {
   const meta = runMeta ?? getEditorVisionAnalysisRunMeta(document);
+  const visible = buildVisibleEditorPartsTreeFromDocument(document);
+
+  if (visible.tree.length > 0 && visible.debug.rawPartsCount > 0) {
+    rememberStickyHierarchy(document, visible.tree, meta);
+    if (!isVisionPartsLossTracingStopped()) {
+      traceVisionPartsLossStage("vision_parts_rendered", {
+        sessionId: document.sessionId,
+        runId: meta?.runId,
+        document,
+        hierarchy: visible.tree,
+      });
+    }
+    return visible.tree;
+  }
+
   if (meta?.status === "partial" || meta?.status === "finalizing") {
     return resolveStickyVisionHierarchy(document, meta);
   }
@@ -464,7 +567,16 @@ export function resolveDisplayVisionHierarchy(
     return resolveStickyVisionHierarchy(document, meta);
   }
   if (documentHasRichVisionAnalysis(document)) {
-    return resolveStickyVisionHierarchy(document, meta);
+    const hierarchy = resolveStickyVisionHierarchy(document, meta);
+    if (!isVisionPartsLossTracingStopped()) {
+      traceVisionPartsLossStage("vision_parts_rendered", {
+        sessionId: document.sessionId,
+        runId: meta?.runId,
+        document,
+        hierarchy,
+      });
+    }
+    return hierarchy;
   }
   return [];
 }

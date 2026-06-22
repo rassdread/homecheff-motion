@@ -16,8 +16,8 @@ describe("editor image open performance", () => {
       join(process.cwd(), "src/components/editor/editor-start-screen.tsx"),
       "utf8"
     );
-    assert.match(start, /saveEditorCanvasDocument\(withMode\)/);
-    assert.match(start, /onOpenDocument\(withMode\)/);
+    assert.match(start, /persistEditorWizardDocument/);
+    assert.match(start, /onOpenDocument\(persistResult\.document\)/);
     assert.doesNotMatch(start, /await runEditorVisionAndObjectDetection/);
     assert.doesNotMatch(start, /await createEditorProject\(withMode\)/);
   });
@@ -115,6 +115,6 @@ describe("editor image open performance", () => {
       join(process.cwd(), "src/components/editor/editor-start-screen.tsx"),
       "utf8"
     );
-    assert.match(start, /scheduleIdleTask\(\(\) => \{\s*void createEditorProject\(withMode\)/);
+    assert.match(start, /void createEditorProject\(persistResult\.document\)/);
   });
 });

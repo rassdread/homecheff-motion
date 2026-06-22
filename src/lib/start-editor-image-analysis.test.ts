@@ -170,9 +170,9 @@ describe("startEditorImageAnalysis entrypoint", () => {
     assert.doesNotMatch(hook, /runEditorVisionAndObjectDetection/);
     assert.doesNotMatch(hook, /requestAnimationFrame/);
     assert.doesNotMatch(hook, /bootstrapScopeRef/);
-    assert.match(canvas, /manual-reanalyze/);
-    assert.match(canvas, /preserveUserEdits: false/);
-    assert.match(isolation, /startEditorImageAnalysis\(/);
+    assert.match(canvas, /onRunPremiumAnalysis=\{\(\) => visionRunPremiumAnalysis\(document\)\}/);
+    assert.match(isolation, /onRunPremiumAnalysis/);
+    assert.doesNotMatch(isolation, /startEditorImageAnalysis\(/);
   });
 
   it("auto-start soft reset preserves edits via resetEditorVisionDerivedState", () => {

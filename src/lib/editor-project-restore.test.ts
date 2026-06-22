@@ -93,7 +93,7 @@ describe("editor project restore optimization", () => {
     assert.match(page, /sessionRestoreRef\.current = null/);
     assert.match(page, /syncEditorRoute\(\{ stripRestoreServer: true \}, "route_cleared"\)/);
     assert.doesNotMatch(start, /fetchEditorProject\(analyzed\.sessionId\)/);
-    assert.match(start, /createEditorProject\(withMode\)/);
+    assert.match(start, /createEditorProject\(persistResult\.document\)/);
     assert.match(start, /scheduleIdleTask/);
   });
 
@@ -103,7 +103,7 @@ describe("editor project restore optimization", () => {
       "utf8"
     );
     assert.doesNotMatch(isolation, /fetchEditorProject/);
-    assert.match(isolation, /startEditorImageAnalysis/);
+    assert.match(isolation, /onRunPremiumAnalysis/);
 
     const skip = shouldSkipEditorSessionServerRestore({
       sessionId: "sess-reanalyze",

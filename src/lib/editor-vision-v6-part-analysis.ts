@@ -775,6 +775,7 @@ export function applyIllustrationPartAnalysisToDocument(input: {
       sourceKind: input.sourceKind,
     })?.type,
     evidenceAudit: buildVisionEvidenceAuditMeta(mergedAnalysis, truthSections.detected, truthContext),
+    mergedAnalysisParts: mergedAnalysis.parts,
   };
 
   const nextDocument: EditorCanvasDocument = {

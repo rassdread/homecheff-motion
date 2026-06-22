@@ -1,18 +1,27 @@
 import type { IllustrationPartAnalysisResult } from "@/types/editor-illustration-parts";
 import type { EditorSemanticLayer } from "@/types/homecheff-visual-editor";
+import type { EditorPremiumStyleDnaContext } from "@/lib/editor-vision-style-dna-client";
 
 export const VISION_PARTS_API_TIMEOUT_MS = 22_000;
+
+export type EditorPremiumVisionPartsContext = EditorPremiumStyleDnaContext;
 
 export async function fetchIllustrationPartsApi(input: {
   imageUrl: string;
   vision: import("@/types/studio-asset-vision-analysis").AssetVisionAnalysis;
   detections: import("@/server/animation-export/local-vision/object-detector-types").ObjectDetection[];
+  billingContext?: EditorPremiumVisionPartsContext;
 }): Promise<IllustrationPartAnalysisResult | null> {
   try {
     const res = await fetch("/api/editor/vision/parts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        imageUrl: input.imageUrl,
+        vision: input.vision,
+        detections: input.detections,
+        ...input.billingContext,
+      }),
       credentials: "include",
     });
     const body = (await res.json().catch(() => ({}))) as {

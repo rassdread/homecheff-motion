@@ -22,6 +22,7 @@ export const STUDIO_ACTION_TYPES = [
   "assistant_interpret",
   "ocr_scan",
   "vision_analysis",
+  "premium_vision_analysis",
   "motion_render",
   "publish_photo_story",
   "publish_slideshow",
@@ -189,6 +190,16 @@ export const STUDIO_ACTION_COST_REGISTRY: Record<StudioActionType, StudioActionC
     "studio",
     "openai",
     0.01
+  ),
+  premium_vision_analysis: entry(
+    "premium_vision_analysis",
+    "account.action.premiumVisionAnalysis",
+    "editor",
+    "openai",
+    0.025,
+    0.024,
+    5,
+    5
   ),
   motion_render: entry("motion_render", "account.action.motionRender", "motion", "vidu", 0.9, 0.7, 180),
   publish_photo_story: entry(

@@ -462,6 +462,13 @@ export type EditorVisionV6Meta = {
   isolationScope?: EditorAnalysisIsolationScope;
   /** Vision Evidence Audit V2 — trust score + accessory audit + per-part decisions. */
   evidenceAudit?: import("@/types/editor-vision-evidence").EditorVisionEvidenceAuditMeta;
+  /** Persisted merged illustration parts — source of truth for visible parts tree. */
+  mergedAnalysisParts?: import("@/types/editor-illustration-parts").IllustrationPartSpec[];
+  /** basic = RT-DETR/local only; premium = Vision Parts API + Style DNA completed. */
+  analysisTier?: "basic" | "premium";
+  premiumAnalysisCompletedAt?: string;
+  /** Credit + provider cost summary for the latest premium analysis run. */
+  premiumAnalysisBilling?: import("@/lib/editor-premium-vision-credits").PremiumVisionAnalysisBillingLog;
 };
 
 export type EditorObjectHierarchy = {

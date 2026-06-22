@@ -19,7 +19,7 @@ type Props = {
   taxonomyType?: VisionTaxonomyAssetType;
 };
 
-const DEFAULT_EXPANDED: EditorVisionTruthSection[] = ["detected"];
+const DEFAULT_EXPANDED: EditorVisionTruthSection[] = ["detected", "estimated"];
 
 function truthSectionLabel(
   t: ReturnType<typeof useActiveTranslator>,
@@ -198,14 +198,23 @@ export function EditorVisionHierarchyPanel({
 
   const initialExpanded = useMemo(() => {
     const ids = new Set<string>();
+    const walk = (nodes: EditorVisionHierarchyNode[], depth: number) => {
+      for (const node of nodes) {
+        if (depth <= 2) {
+          ids.add(node.id);
+        }
+        if (node.children.length > 0) {
+          walk(node.children, depth + 1);
+        }
+      }
+    };
     for (const root of visibleHierarchy) {
       if (root.truthSection && DEFAULT_EXPANDED.includes(root.truthSection)) {
         ids.add(root.id);
-        for (const child of root.children) {
-          ids.add(child.id);
-        }
+        walk(root.children, 1);
       } else if (!root.truthSection) {
         ids.add(root.id);
+        walk(root.children, 1);
       }
     }
     return ids;

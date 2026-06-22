@@ -7,6 +7,19 @@ import {
   listRecentEditorDocuments,
   saveEditorCanvasDocument,
 } from "@/lib/editor-canvas-session";
+import {
+  estimateEditorDocumentSizeKb,
+  persistEditorWizardDocument,
+  probeEditorLocalStorageAvailable,
+} from "@/lib/editor-upload-persist";
+import {
+  formatEditorUploadFailureUiMessage,
+  getLastEditorUploadFlowTrace,
+  isEditorUploadDevDiagnosticsEnabled,
+  logEditorUploadFailed,
+  traceEditorUploadFailure,
+  traceEditorUploadFlow,
+} from "@/lib/editor-upload-flow-trace";
 import { createEditorProject, fetchEditorProject, fetchEditorProjects } from "@/lib/editor-project-client";
 import { beginEditorOpenTimingSession, markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
 import { resolveEditorDocumentOrigin } from "@/lib/editor-project-origin";
@@ -96,23 +109,114 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
     combineIntent?: EditorFusionIntent
   ) => {
     setError("");
+    const trace = getLastEditorUploadFlowTrace();
+    traceEditorUploadFlow({
+      uploadCompleted: trace?.uploadCompleted ?? true,
+      referenceCreated: true,
+      roleAnalysisCompleted: true,
+      bootstrapCompleted: Boolean(document.visionV6Meta || document.visionHierarchy?.length),
+      documentCreated: true,
+      sessionCreated: Boolean(document.sessionId),
+    });
     try {
+      if (!document.sessionId?.trim() || !document.backgroundUrl?.trim()) {
+        const failureMessage = !document.sessionId?.trim()
+          ? "missing_session_id"
+          : "missing_background_url";
+        traceEditorUploadFailure({
+          step: "documentCreated",
+          source: "editor-start-screen.finishOpen",
+          error: new Error(failureMessage),
+          log: {
+            sessionId: document.sessionId,
+            uploadedUrl: document.backgroundUrl,
+            localStorageAvailable: probeEditorLocalStorageAvailable(),
+          },
+        });
+        setError(
+          formatEditorUploadFailureUiMessage({
+            failureStep: "documentCreated",
+            failureMessage,
+            productionMessage: t("editor.start.uploadFailed"),
+          })
+        );
+        return;
+      }
+
       const withMode = applyPostUploadMode(document, mode, { combineIntent });
       beginEditorOpenTimingSession(withMode.sessionId);
       markEditorOpenTiming("localDocumentSavedAt");
-      saveEditorCanvasDocument(withMode);
+
+      const persistResult = persistEditorWizardDocument(withMode);
+      const localStorageAvailable = probeEditorLocalStorageAvailable();
+
+      traceEditorUploadFlow({
+        documentSaved: persistResult.persisted,
+        sessionCreated: Boolean(withMode.sessionId),
+      });
+
+      logEditorUploadFailed({
+        failureStep: persistResult.persisted ? null : "documentSaved",
+        failureSource: persistResult.persisted ? null : "editor-start-screen.finishOpen",
+        failureMessage: persistResult.persisted
+          ? null
+          : persistResult.attempts.at(-1)?.tier === "minimal"
+            ? "localStorage_write_failed_all_tiers"
+            : "localStorage_write_failed",
+        saveResult: persistResult,
+        sessionId: withMode.sessionId,
+        uploadedUrl: trace?.uploadedUrl ?? withMode.backgroundUrl,
+        persisted: persistResult.persisted,
+        storageWarning: persistResult.storageWarning,
+        localStorageAvailable,
+        documentSizeKb: estimateEditorDocumentSizeKb(persistResult.document),
+      });
+
+      if (!persistResult.persisted) {
+        scheduleIdleTask(() => {
+          void persistEditorWizardDocument(withMode);
+        });
+        if (isEditorUploadDevDiagnosticsEnabled()) {
+          setError(
+            formatEditorUploadFailureUiMessage({
+              failureStep: "documentSaved",
+              failureMessage: "localStorage_unavailable_opening_in_memory",
+              productionMessage: t("editor.start.uploadFailed"),
+            })
+          );
+        }
+      }
+
       recordEditorOpenStage("editor_opening");
       markEditorOpenTiming("routeStartedAt");
       setRecent(listRecentEditorDocuments());
-      onOpenDocument(withMode);
+      onOpenDocument(persistResult.document);
+      traceEditorUploadFlow({ editorOpened: true });
       setPhase({ kind: "workflow" });
       if (auth.user) {
         scheduleIdleTask(() => {
-          void createEditorProject(withMode);
+          void createEditorProject(persistResult.document);
         });
       }
-    } catch {
-      setError(t("editor.start.uploadFailed"));
+    } catch (error) {
+      traceEditorUploadFailure({
+        step: "documentSaved",
+        source: "editor-start-screen.finishOpen",
+        error,
+        log: {
+          sessionId: document.sessionId,
+          uploadedUrl: document.backgroundUrl,
+          localStorageAvailable: probeEditorLocalStorageAvailable(),
+          documentSizeKb: estimateEditorDocumentSizeKb(document),
+        },
+      });
+      setError(
+        formatEditorUploadFailureUiMessage({
+          failureStep: "documentSaved",
+          failureMessage: error instanceof Error ? error.message : "unknown_error",
+          productionMessage: t("editor.start.uploadFailed"),
+        })
+      );
     }
   };
 
@@ -242,6 +346,7 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                 combineIntent={phase.combineIntent}
                 assistantFusionBootstrap={fusionBootstrap}
                 busy={opening}
+                submitError={error}
                 onBack={() => {
                   if (phase.workflow === "combine" && phase.combineIntent) {
                     setPhase({ kind: "combine_intent", workflow: "combine" });
@@ -254,8 +359,8 @@ export function EditorStartScreen({ onOpenDocument }: Props) {
                   finishOpen(document, phase.workflow, phase.combineIntent);
                 }}
               />
-              {error ?
-                <p className="mt-4 text-sm text-red-200">{error}</p>
+              {error && phase.kind !== "reference_flow" ?
+                <p className="mt-4 whitespace-pre-wrap text-sm text-red-200">{error}</p>
               : null}
               </>}
             </>

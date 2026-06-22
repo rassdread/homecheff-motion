@@ -9,6 +9,10 @@ import {
   visionDocumentRichnessScore,
 } from "@/lib/editor-vision-v6-stability";
 import {
+  isVisionPartsLossTracingStopped,
+  traceVisionPartsLossStage,
+} from "@/lib/editor-vision-parts-loss-trace";
+import {
   normalizeEditorVisionScopeUrl,
   type EditorVisionAnalysisRunScopeFields,
 } from "@/lib/editor-vision-analysis-scope";
@@ -39,6 +43,7 @@ export type VisionDocumentWriteSource =
   | "persist"
   | "hydrate"
   | "scope-stamp"
+  | "vision-reset"
   | "reanalyze-reset"
   | "isolation-controls"
   | "unknown";
@@ -135,6 +140,28 @@ export function guardVisionDocumentWrite(
   const richnessScoreBefore = visionDocumentRichnessScore(current);
   const richnessScoreAfter = visionDocumentRichnessScore(incoming);
 
+  if (
+    !options?.force &&
+    (source === "acceptance" || source === "onProgress") &&
+    incoming.visionV6Meta?.openAiPartsUsed &&
+    !current.visionV6Meta?.openAiPartsUsed
+  ) {
+    const entry: VisionDocumentWriteLog = {
+      source,
+      runId: options?.runId ?? incoming.visionAnalysisRun?.runId ?? null,
+      hierarchyCountBefore,
+      hierarchyCountAfter,
+      richnessScoreBefore,
+      richnessScoreAfter,
+      keptPrevious: false,
+      reason: "openai_parts_upgrade",
+      at: new Date().toISOString(),
+    };
+    documentWriteLogs.push(entry);
+    logDocumentWrite(entry);
+    return { document: incoming, keptPrevious: false, reason: null };
+  }
+
   if (options?.force) {
     const entry: VisionDocumentWriteLog = {
       source,
@@ -187,6 +214,20 @@ export function guardVisionDocumentWrite(
       richnessScoreBefore,
       richnessScoreAfter,
     });
+  }
+
+  if (
+    !isVisionPartsLossTracingStopped() &&
+    (source === "acceptance" || source === "onProgress" || source === "onDocumentChange")
+  ) {
+    traceVisionPartsLossStage(
+      source === "acceptance" ? "vision_parts_accepted" : "vision_parts_guarded_pipeline_result",
+      {
+        sessionId: document.sessionId,
+        runId: entry.runId,
+        document,
+      }
+    );
   }
 
   return { document, keptPrevious, reason };

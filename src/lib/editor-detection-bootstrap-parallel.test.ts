@@ -28,10 +28,12 @@ describe("editor detection bootstrap — parallel RT-DETR / Style DNA", () => {
     assert.ok(styleDnaAwaitIndex > rtdetrStageIndex);
   });
 
-  it("provisional emit occurs before final enrich/style merge", () => {
-    const provisionalIndex = source.indexOf("RTDETR_PROVISIONAL_EMITTED");
+  it("basic analysis tier returns after provisional without Vision Parts API", () => {
+    assert.match(source, /analysisTier === "basic"/);
+    assert.match(source, /terminalStateReason: "basic_analysis_only"/);
+    const basicReturnIndex = source.indexOf('terminalStateReason: "basic_analysis_only"');
     const enrichIndex = source.indexOf("const enrichPromise = maybeEnrichIllustrationParts");
-    assert.ok(provisionalIndex > 0 && enrichIndex > provisionalIndex);
+    assert.ok(basicReturnIndex > 0 && enrichIndex > basicReturnIndex);
   });
 
   it("Style DNA uses independent timeout and does not block RT-DETR path", () => {

@@ -261,11 +261,12 @@ describe("editor vision auto-analysis guards", () => {
   });
 
   it("manual re-analyze forces bootstrap reset in canvas workspace", () => {
-    const workspace = readFileSync(
-      join(process.cwd(), "src/components/editor/editor-canvas-workspace.tsx"),
+    const hook = readFileSync(
+      join(process.cwd(), "src/hooks/use-editor-vision-analysis-run.ts"),
       "utf8"
     );
-    assert.match(workspace, /preserveUserEdits: false/);
+    assert.match(hook, /preserveUserEdits: false/);
+    assert.match(hook, /runPremiumAnalysis/);
   });
 
   it("RT-DETR subject survives background-only Style DNA merge wiring", () => {
@@ -274,7 +275,7 @@ describe("editor vision auto-analysis guards", () => {
       "utf8"
     );
     assert.match(bootstrap, /keepPriorLayers/);
-    assert.match(bootstrap, /isWeakBackgroundOnlyAnalysis\(finalDocument\)/);
+    assert.match(bootstrap, /shouldApplyLocalProvisionalFallback\(finalDocument, onnxResult\)/);
     assert.match(bootstrap, /applyLocalProvisionalParts\(\s*finalDocument/);
   });
 });

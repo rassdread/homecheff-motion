@@ -275,14 +275,15 @@ describe("editor vision auto-start run path", () => {
     assert.match(hook, /AUTO_START_WATCHDOG_MS/);
   });
 
-  it("manual re-analyze keeps force reset path", () => {
-    const workspace = readFileSync(
-      join(process.cwd(), "src/components/editor/editor-instruction-studio-workspace.tsx"),
+  it("premium analyze keeps force reset path", () => {
+    const hook = readFileSync(
+      join(process.cwd(), "src/hooks/use-editor-vision-analysis-run.ts"),
       "utf8"
     );
-    assert.match(workspace, /preserveUserEdits: false/);
-    assert.match(workspace, /force: true/);
-    assert.match(workspace, /trigger: "manual-reanalyze"/);
+    assert.match(hook, /preserveUserEdits: false/);
+    assert.match(hook, /force: true/);
+    assert.match(hook, /trigger: "deep-analyze"/);
+    assert.match(hook, /analysisDepth: "premium"/);
   });
 
   it("auto-start retry preserves document objects (no reanalyze reset)", () => {

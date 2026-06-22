@@ -14,6 +14,12 @@ import { useActiveTranslator } from "@/i18n/client";
 import { studioVisual } from "@/lib/studio-visual-tokens";
 import { fetchAssetDerivationSources } from "@/lib/studio-asset-derivation-client";
 import { uploadEditorSourceImage } from "@/lib/editor-image-upload";
+import {
+  formatEditorUploadFailureUiMessage,
+  resetEditorUploadFlowTraceForTests,
+  traceEditorUploadFailure,
+  traceEditorUploadFlow,
+} from "@/lib/editor-upload-flow-trace";
 import { markEditorOpenTiming, recordEditorOpenStage } from "@/lib/editor-open-timing";
 import {
   assetPickerSelectionToDerivationSource,
@@ -67,6 +73,7 @@ type Props = {
   combineIntent?: EditorFusionIntent;
   assistantFusionBootstrap?: ReturnType<typeof loadAssistantEditorFusionBootstrap>;
   busy?: boolean;
+  submitError?: string;
   onBack: () => void;
   onClose?: () => void;
   onComplete: (document: EditorCanvasDocument) => void;
@@ -92,6 +99,7 @@ export function EditorReferenceRoleFlow({
   combineIntent,
   assistantFusionBootstrap,
   busy,
+  submitError = "",
   onBack,
   onClose,
   onComplete,
@@ -136,6 +144,7 @@ export function EditorReferenceRoleFlow({
     : t("editor.referenceRole.lead" as never);
 
   const costOptions = useMemo(() => referenceIntakeCostOptions(intake), [intake]);
+  const displayError = error || submitError;
   const costWorkflow = combineIntent ?? config.intent ?? "custom_composition";
   const rolesReady = referenceIntakeReady(intake);
   const analysisProgress = useMemo(() => referenceAnalysisProgress(intake), [intake]);
@@ -184,6 +193,12 @@ export function EditorReferenceRoleFlow({
       () => {},
       (instanceId, result) => {
         setIntake((prev) => patchReferenceInstanceAnalysis(prev, instanceId, result));
+        traceEditorUploadFlow({
+          roleAnalysisCompleted: result.analysis.status === "done",
+          bootstrapCompleted: Boolean(
+            result.document.visionV6Meta || result.document.visionHierarchy?.length
+          ),
+        });
       }
     );
   }, [intake.slots]);
@@ -284,8 +299,14 @@ export function EditorReferenceRoleFlow({
   const handleUpload = async (file: File, roleId: string) => {
     setUploadingRoleId(roleId);
     setError("");
+    resetEditorUploadFlowTraceForTests();
+    traceEditorUploadFlow({ uploadStarted: true });
     try {
       const uploaded = await uploadEditorSourceImage(file);
+      traceEditorUploadFlow({
+        uploadCompleted: true,
+        uploadedUrl: uploaded.workingImageUrl,
+      });
       markEditorOpenTiming("imageSelectedAt");
       recordEditorOpenStage("photo_loading");
       const doc = createEditorDocumentFromUpload({
@@ -293,14 +314,30 @@ export function EditorReferenceRoleFlow({
         backgroundUrl: uploaded.workingImageUrl,
         backgroundStorageKey: uploaded.workingStorageKey,
       });
+      traceEditorUploadFlow({
+        documentCreated: true,
+        referenceCreated: true,
+        sessionCreated: true,
+      });
       if (replacingInstanceId) {
         replaceDocumentInRole(roleId, replacingInstanceId, doc, file.name);
         setReplacingInstanceId(null);
       } else {
         addDocumentToRole(roleId, doc, file.name);
       }
-    } catch {
-      setError(t("editor.start.uploadFailed"));
+    } catch (error) {
+      traceEditorUploadFailure({
+        step: "uploadCompleted",
+        source: "editor-reference-role-flow.handleUpload",
+        error,
+      });
+      setError(
+        formatEditorUploadFailureUiMessage({
+          failureStep: "uploadCompleted",
+          failureMessage: error instanceof Error ? error.message : "unknown_error",
+          productionMessage: t("editor.start.uploadFailed"),
+        })
+      );
     } finally {
       setUploadingRoleId(null);
       setPendingRoleId(null);
@@ -689,8 +726,8 @@ export function EditorReferenceRoleFlow({
       {step === "reference_roles" ?
         <>
           <div className="mt-6 space-y-4">{config.roles.map(renderRoleSection)}</div>
-          {error ?
-            <p className="mt-4 text-sm text-red-200">{error}</p>
+          {displayError ?
+            <p className="mt-4 text-sm text-red-200 whitespace-pre-wrap">{displayError}</p>
           : null}
         </>
       : null}
@@ -743,6 +780,9 @@ export function EditorReferenceRoleFlow({
           {previewDocument ?
             <EditorPlanSummaryPanel document={previewDocument} />
           : <HomeCheffOrbitLoader state="preparing_plan" size="md" />}
+          {displayError ?
+            <p className="whitespace-pre-wrap text-sm text-red-200">{displayError}</p>
+          : null}
         </div>
       : null}
 

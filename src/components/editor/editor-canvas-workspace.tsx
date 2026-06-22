@@ -408,11 +408,18 @@ export function EditorCanvasWorkspace({ document, onBack, onNewProject, onDocume
     runAnalysis: runVisionAnalysis,
     cachedResult: visionCachedResult,
     needsDeepAnalysis: visionNeedsDeepAnalysis,
+    showPremiumAnalyzeCta: visionShowPremiumAnalyzeCta,
+    premiumGate: visionPremiumGate,
     analysisProgress: visionAnalysisProgress,
+    runPremiumAnalysis: visionRunPremiumAnalysis,
+    premiumAnalysisStatus: visionPremiumAnalysisStatus,
+    premiumFailureReason: visionPremiumFailureReason,
   } = useEditorVisionAnalysisRun(document, onDocumentChange, {
     imageVisible,
     autoBootstrap: !instructionStudioActive,
     mountTrigger: "workspace-mount",
+    isAdmin,
+    userId: session.user?.id ?? null,
   });
 
   const selectedVisionHierarchyNodeId = useMemo(() => {
@@ -2349,7 +2356,10 @@ export function EditorCanvasWorkspace({ document, onBack, onNewProject, onDocume
               <EditorProjectIsolationControls
                 document={document}
                 onDocumentChange={persist}
+                onRunPremiumAnalysis={() => visionRunPremiumAnalysis(document)}
                 onNewProject={onNewProject}
+                isAdmin={isAdmin}
+                userId={session.user?.id ?? null}
                 compact
               />
               {editorAdminCanShowAiAnalysis(isAdmin) ?
@@ -3087,17 +3097,14 @@ export function EditorCanvasWorkspace({ document, onBack, onNewProject, onDocume
                   isPartialResult={visionIsPartialResult}
                   cachedResult={visionCachedResult}
                   needsDeepAnalysis={visionNeedsDeepAnalysis}
-                  onDeepAnalyze={() => void runVisionAnalysis(document, { trigger: "deep-analyze" })}
+                  showPremiumAnalyzeCta={visionShowPremiumAnalyzeCta}
+                  premiumGate={visionPremiumGate}
+                  premiumAnalysisStatus={visionPremiumAnalysisStatus}
+                  premiumFailureReason={visionPremiumFailureReason}
+                  onPremiumAnalyze={() => void visionRunPremiumAnalysis(document)}
                   runMeta={visionRunMeta}
                   lifecycleDebug={visionLifecycleDebug}
                   analysisProgress={visionAnalysisProgress}
-                  onReanalyze={() => {
-                    void runVisionAnalysis(document, {
-                      force: true,
-                      trigger: "manual-reanalyze",
-                      preserveUserEdits: false,
-                    });
-                  }}
                   taxonomyType={document.visionV6Meta?.taxonomyType ?? "unknown"}
                 />
               </div>

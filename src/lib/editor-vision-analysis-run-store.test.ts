@@ -261,6 +261,30 @@ describe("editor vision analysis run store", () => {
     assert.equal(calls, 1);
   });
 
+  it("mirrors run meta to pending scope key for UI subscribers", () => {
+    resetVisionRunMetaStoreForTests();
+    const scopeKey = "sess-store::asset-1::analysis-real";
+    const pendingKey = "sess-store::asset-1::pending";
+    let pendingNotifications = 0;
+    const unsub = subscribeRunMeta(pendingKey, () => {
+      pendingNotifications += 1;
+    });
+    setRunMeta(scopeKey, baseMeta(scopeKey, { lastStage: "rtdetr" }));
+    assert.equal(getRunMeta(pendingKey)?.lastStage, "rtdetr");
+    assert.ok(pendingNotifications >= 1);
+    unsub();
+  });
+
+  it("resolveVisionRunMetaForDisplay reads pending alias when stamped key is empty", () => {
+    resetVisionRunMetaStoreForTests();
+    const pendingKey = "sess-store::asset-1::pending";
+    setRunMeta(pendingKey, baseMeta("sess-store::asset-1::analysis-x", { lastStage: "rtdetr" }));
+    const resolved = resolveVisionRunMetaForDisplay({
+      scopeKey: pendingKey,
+    });
+    assert.equal(resolved?.lastStage, "rtdetr");
+  });
+
   it("hasActiveStoreRun prevents bootstrap-wait when another instance started the run", () => {
     resetVisionRunMetaStoreForTests();
     const doc = baseDocument();

@@ -44,7 +44,8 @@ describe("editor vision analysis performance audit", () => {
     assert.match(panel, /hierarchy\.length === 0/);
     assert.match(panel, /partialLabel/);
     assert.match(panel, /lastAnalyzedLabel/);
-    assert.match(panel, /deepAnalyze/);
+    assert.match(panel, /premiumAnalyze/);
+    assert.match(panel, /basicCompleteTitle/);
     assert.match(panel, /editor-vision-analysis-progress-bar/);
   });
 

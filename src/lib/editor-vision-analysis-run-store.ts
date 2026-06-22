@@ -14,14 +14,31 @@ export function getRunMeta(scopeKey: string): EditorVisionAnalysisRunMeta | null
   return metaByScopeKey.get(scopeKey) ?? null;
 }
 
-export function setRunMeta(scopeKey: string, meta: EditorVisionAnalysisRunMeta): void {
-  metaByScopeKey.set(scopeKey, meta);
+export function editorVisionAnalysisPendingScopeKey(
+  meta: Pick<EditorVisionAnalysisRunMeta, "projectId" | "assetId">
+): string {
+  return `${meta.projectId}::${meta.assetId}::pending`;
+}
+
+function notifyScopeListeners(scopeKey: string): void {
   const listeners = listenersByScopeKey.get(scopeKey);
   if (!listeners) {
     return;
   }
   for (const listener of listeners) {
     listener();
+  }
+}
+
+/** Publish run meta — mirrors to `::pending` alias so UI hooks stay in sync before scope stamp. */
+export function setRunMeta(scopeKey: string, meta: EditorVisionAnalysisRunMeta): void {
+  metaByScopeKey.set(scopeKey, meta);
+  notifyScopeListeners(scopeKey);
+
+  const pendingKey = editorVisionAnalysisPendingScopeKey(meta);
+  if (pendingKey !== scopeKey) {
+    metaByScopeKey.set(pendingKey, meta);
+    notifyScopeListeners(pendingKey);
   }
 }
 
@@ -47,12 +64,20 @@ export function resolveVisionRunMetaForDisplay(input: {
   documentRunMeta?: EditorVisionAnalysisRunMeta | null;
   pendingRunMeta?: EditorVisionAnalysisRunMeta | null;
 }): EditorVisionAnalysisRunMeta | null {
-  return (
-    getRunMeta(input.scopeKey) ??
-    input.documentRunMeta ??
-    input.pendingRunMeta ??
-    null
-  );
+  const direct = getRunMeta(input.scopeKey);
+  if (direct) {
+    return direct;
+  }
+  if (!input.scopeKey.endsWith("::pending")) {
+    const [projectId, assetId] = input.scopeKey.split("::");
+    if (projectId && assetId) {
+      const pending = getRunMeta(`${projectId}::${assetId}::pending`);
+      if (pending) {
+        return pending;
+      }
+    }
+  }
+  return input.documentRunMeta ?? input.pendingRunMeta ?? null;
 }
 
 export function resetVisionRunMetaStoreForTests(): void {

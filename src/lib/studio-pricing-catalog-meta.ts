@@ -230,6 +230,19 @@ export const PRICING_CATALOG_ACTION_META: Record<string, PricingCatalogActionMet
     visibleInCatalog: false,
     isFree: false,
   },
+  premium_vision_analysis: {
+    actionType: "premium_vision_analysis",
+    category: "utility",
+    displayNameNl: "Uitgebreide AI-analyse",
+    displayNameEn: "Extended AI analysis",
+    descriptionNl:
+      "Herkent extra details zoals ogen, mond, haar, kleding, pose en achtergrond.",
+    descriptionEn:
+      "Detects extra details such as eyes, mouth, hair, clothing, pose, and background.",
+    sortOrder: 165,
+    visibleInCatalog: true,
+    isFree: false,
+  },
   motion_render: {
     actionType: "motion_render",
     category: "video_motion",

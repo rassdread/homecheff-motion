@@ -33,6 +33,9 @@ export type EditorVisionAnalysisProgressInput = {
   /** Elapsed ms since vision_parts_api started — drives 55→88 animation. */
   visionPartsElapsedMs?: number;
   previousPercent?: number;
+  previousSnapshot?: EditorVisionAnalysisProgressSnapshot | null;
+  /** Manual premium re-run — ignore stale "complete" from prior basic analysis. */
+  premiumAnalysisActive?: boolean;
 };
 
 const PROGRESS_LABEL_KEYS: Record<EditorVisionProgressStage, string> = {
@@ -80,19 +83,50 @@ function stageSnapshot(
   };
 }
 
+/** Fixed first-render snapshot — server and client must match before mount. */
+export const EDITOR_VISION_HYDRATION_SAFE_PROGRESS: EditorVisionAnalysisProgressSnapshot =
+  stageSnapshot("photo_loading", 5, false);
+
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
+const VISION_PROGRESS_STAGE_RANK: Record<EditorVisionProgressStage, number> = {
+  photo_loading: 0,
+  editor_opening: 1,
+  analysis_preparing: 2,
+  local_detection: 3,
+  parts_recognition: 4,
+  accessories_details: 5,
+  finalizing_result: 6,
+  ready: 7,
+};
+
+function stageRank(stage: EditorVisionProgressStage): number {
+  return VISION_PROGRESS_STAGE_RANK[stage] ?? 0;
+}
+
 function monotonic(
   next: EditorVisionAnalysisProgressSnapshot,
-  previousPercent?: number
+  previousPercent?: number,
+  previousSnapshot?: EditorVisionAnalysisProgressSnapshot | null
 ): EditorVisionAnalysisProgressSnapshot {
   const floor = previousPercent ?? 0;
   if (next.percent >= floor) {
     return next;
   }
-  return { ...next, percent: floor };
+  const merged: EditorVisionAnalysisProgressSnapshot = { ...next, percent: floor };
+  if (previousSnapshot && floor > next.percent) {
+    const keepPreviousStage = stageRank(previousSnapshot.stage) > stageRank(next.stage);
+    if (keepPreviousStage) {
+      merged.stage = previousSnapshot.stage;
+      merged.labelKey = previousSnapshot.labelKey;
+    }
+    if (previousSnapshot.showProgress) {
+      merged.showProgress = true;
+    }
+  }
+  return merged;
 }
 
 function visionPartsAnimatedPercent(elapsedMs: number): number {
@@ -136,19 +170,93 @@ function mapPipelineStage(
   return stageSnapshot("analysis_preparing", 30, true);
 }
 
+export function bumpProgressAfterRtdetrTiming(input: {
+  snapshot: EditorVisionAnalysisProgressSnapshot;
+  rtdetrRecorded: boolean;
+  analysisPending: boolean;
+  analysisInProgress: boolean;
+  runMeta?: EditorVisionAnalysisRunMeta | null;
+}): EditorVisionAnalysisProgressSnapshot {
+  const { snapshot, rtdetrRecorded, analysisPending, analysisInProgress, runMeta } = input;
+  const staleLabel =
+    snapshot.stage === "photo_loading" ||
+    snapshot.stage === "editor_opening" ||
+    snapshot.labelKey === PROGRESS_LABEL_KEYS.analysis_preparing;
+  const staleMeta =
+    !runMeta ||
+    runMeta.lastStage === "analysis_preparing" ||
+    runMeta.status === "detecting";
+  if (
+    rtdetrRecorded &&
+    (analysisPending || analysisInProgress) &&
+    staleMeta &&
+    (snapshot.percent < 40 || (snapshot.percent >= 40 && staleLabel))
+  ) {
+    return {
+      ...snapshot,
+      percent: Math.max(snapshot.percent, 40),
+      stage: "local_detection",
+      labelKey: PROGRESS_LABEL_KEYS.local_detection,
+      showProgress: true,
+    };
+  }
+  return snapshot;
+}
+
+export function bumpProgressAfterVisionPartsTiming(input: {
+  snapshot: EditorVisionAnalysisProgressSnapshot;
+  visionPartsRecorded: boolean;
+  analysisPending: boolean;
+  analysisInProgress: boolean;
+  runMeta?: EditorVisionAnalysisRunMeta | null;
+  visionPartsElapsedMs?: number;
+}): EditorVisionAnalysisProgressSnapshot {
+  const { snapshot, visionPartsRecorded, analysisPending, analysisInProgress, runMeta, visionPartsElapsedMs } =
+    input;
+  if (!visionPartsRecorded || !(analysisPending || analysisInProgress)) {
+    return snapshot;
+  }
+  const staleMeta =
+    !runMeta ||
+    runMeta.lastStage === "analysis_preparing" ||
+    runMeta.lastStage === "rtdetr" ||
+    runMeta.status === "detecting";
+  const staleLabel =
+    snapshot.stage === "photo_loading" ||
+    snapshot.stage === "editor_opening" ||
+    snapshot.stage === "local_detection";
+  if (!staleMeta && !staleLabel) {
+    return snapshot;
+  }
+  const animated = visionPartsAnimatedPercent(visionPartsElapsedMs ?? 0);
+  return {
+    ...snapshot,
+    percent: Math.max(snapshot.percent, animated, 55),
+    stage: "parts_recognition",
+    labelKey: PROGRESS_LABEL_KEYS.parts_recognition,
+    showProgress: true,
+  };
+}
+
 export function resolveEditorVisionAnalysisProgress(
   input: EditorVisionAnalysisProgressInput
 ): EditorVisionAnalysisProgressSnapshot {
-  if (input.cachedResult) {
+  if (input.cachedResult && !input.premiumAnalysisActive) {
     return stageSnapshot("ready", 100, false);
   }
 
   const runMeta = input.runMeta;
-  if (runMeta?.status === "complete") {
+  const staleCompleteDuringPremium =
+    Boolean(input.premiumAnalysisActive) && runMeta?.status === "complete";
+
+  if (runMeta?.status === "complete" && !input.premiumAnalysisActive) {
     return stageSnapshot("ready", 100, false);
   }
-  if (runMeta?.status === "failed") {
+  if (runMeta?.status === "failed" && !input.premiumAnalysisActive) {
     return stageSnapshot("ready", 100, false);
+  }
+  if (staleCompleteDuringPremium) {
+    return stageSnapshot("accessories_details", 82, true);
   }
 
   let snapshot: EditorVisionAnalysisProgressSnapshot;
@@ -163,18 +271,21 @@ export function resolveEditorVisionAnalysisProgress(
     );
   }
 
-  return monotonic(snapshot, input.previousPercent);
+  return monotonic(snapshot, input.previousPercent, input.previousSnapshot);
 }
 
 export function createMonotonicProgressTracker(initial = 0) {
   let maxPercent = initial;
+  let lastSnapshot: EditorVisionAnalysisProgressSnapshot | null = null;
   return {
-    resolve(input: Omit<EditorVisionAnalysisProgressInput, "previousPercent">) {
+    resolve(input: Omit<EditorVisionAnalysisProgressInput, "previousPercent" | "previousSnapshot">) {
       const snapshot = resolveEditorVisionAnalysisProgress({
         ...input,
         previousPercent: maxPercent,
+        previousSnapshot: lastSnapshot,
       });
       maxPercent = snapshot.percent;
+      lastSnapshot = snapshot;
       return snapshot;
     },
     reset(next = 0) {
